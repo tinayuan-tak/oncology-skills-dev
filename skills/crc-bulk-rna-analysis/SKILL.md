@@ -55,6 +55,59 @@ aws s3 cp s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv ./ --profile cbg
 
 ## Implementation
 
+### Step 0: Setup Pixi Environment
+
+Before running the analysis, ensure the pixi environment is set up in the user's workspace. The skill includes `pixi.toml` and `pixi.lock` files for reproducible environment management.
+
+**Copy pixi files to workspace and install environment:**
+
+```bash
+# Get the skill base directory from the loaded skill context
+# SKILL_BASE_DIR is provided when the skill is invoked (see "Base directory for this skill:" in skill output)
+
+# Check if pixi is installed
+if ! command -v pixi &> /dev/null; then
+    echo "ERROR: pixi is not installed. Install it first:"
+    echo "  curl -fsSL https://pixi.sh/install.sh | bash"
+    echo "  source ~/.zshrc  # or restart terminal"
+    exit 1
+fi
+
+# Copy pixi files to user's workspace (if not already present)
+if [ ! -f "pixi.toml" ]; then
+    echo "Copying pixi.toml and pixi.lock to workspace..."
+    cp "$SKILL_BASE_DIR/pixi.toml" ./
+    cp "$SKILL_BASE_DIR/pixi.lock" ./
+fi
+
+# Install pixi environment in workspace
+if [ ! -d ".pixi" ]; then
+    echo "Installing pixi environment from pixi.lock..."
+    pixi install
+else
+    echo "Pixi environment already exists in workspace"
+fi
+```
+
+**Run analysis commands within pixi environment:**
+
+```bash
+# Option 1: Run script directly with pixi
+pixi run python crc_gene_analysis.py
+
+# Option 2: Activate shell and run interactively
+pixi shell
+python crc_gene_analysis.py
+```
+
+**Environment includes:**
+- Python 3.12
+- pandas, numpy, matplotlib, seaborn
+- scipy, statsmodels
+- awscli (for S3 data access)
+
+**Note:** The `.pixi/` directory will be created in your workspace. Add `.pixi/` to your `.gitignore` if using version control.
+
 ### Step 1: Parse Gene Input
 
 Accept gene input as:
@@ -632,8 +685,17 @@ Response:
 
 ## Required Dependencies
 
+**Using pixi (Recommended):**
 ```bash
-pip install pandas numpy matplotlib seaborn scipy statsmodels
+# Navigate to skill directory and install environment
+cd /path/to/skill/crc-bulk-rna-analysis
+pixi install  # Uses pixi.lock for reproducible environment
+pixi run python crc_gene_analysis.py
+```
+
+**Alternative: Using pip (manual installation):**
+```bash
+pip install pandas numpy matplotlib seaborn scipy statsmodels awscli
 ```
 
 ## Common Issues

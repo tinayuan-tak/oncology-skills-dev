@@ -94,7 +94,7 @@ def download_s3_file(s3_path, local_path, quiet=False):
     if not quiet:
         print(f"  Downloading: {os.path.basename(s3_path)}")
 
-    cmd = f"aws s3 cp {s3_path} {local_path} --profile {AWS_PROFILE}"
+    cmd = f"aws s3 cp {s3_path} {local_path} --profile {AWS_PROFILE} --no-verify-ssl"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
     if result.returncode != 0:
