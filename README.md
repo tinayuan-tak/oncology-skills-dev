@@ -40,23 +40,19 @@ git clone <repository-url> ~/oncology-skills
 cd ~/oncology-skills
 ```
 
-### Step 2: Add as a Marketplace
+### Step 2: Register the Marketplace
 
+In Claude Code, run the following command:
 ```bash
-claude plugin marketplace add ~/oncology-skills
+/plugin marketplace add ~/oncology-skills
 ```
 
 ### Step 3: Install the Plugin
 
 ```bash
-claude plugin install oncology-skills
+/plugin install rna-analysis@oncology-skills
 ```
 
-### Verify Installation
-
-```bash
-claude plugin list
-```
 
 ## Usage
 
