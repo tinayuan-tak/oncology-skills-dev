@@ -10,7 +10,7 @@
   },
   "plugins": [
     {
-      "name": "oncology-skills",
+      "name": "rna-analysis",
       "description": "Collection of oncology gene analysis skills",
       "source": "./",
       "strict": false,
