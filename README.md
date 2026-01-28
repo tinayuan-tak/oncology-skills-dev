@@ -36,21 +36,21 @@ A collection of Claude Code skills for oncology RNA-seq analysis, covering both 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <repository-url> ~/oncology-skills
-cd ~/oncology-skills
+git clone <repository-url> ~/claude-oncology-skills
+cd ~/claude-oncology-skills
 ```
 
 ### Step 2: Register the Marketplace
 
 In Claude Code, run the following command:
 ```bash
-/plugin marketplace add ~/oncology-skills
+/plugin marketplace add ~/claude-oncology-skills
 ```
 
 ### Step 3: Install the Plugin
 
 ```bash
-/plugin install rna-analysis@oncology-skills
+/plugin install oncology-skills@claude-oncology-skills
 ```
 
 
@@ -59,8 +59,7 @@ In Claude Code, run the following command:
 Once installed, skills are automatically triggered based on context:
 
 ```
-"Analyze CDK4 expression in colorectal cancer"
-"Compare EGFR expression across CRC CMS subtypes"
+"generate a Fn14(TNFRSF12A) target evaluation report in CRC"
 ```
 
 Or invoke explicitly with slash commands:
