@@ -1304,18 +1304,57 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
         f.write(f"**Gene ID:** {gene_id}\n\n")
         f.write("---\n\n")
 
-        # Executive Summary
+        # Executive Summary - Data-driven assessment based on expression patterns
         f.write("## Executive Summary\n\n")
 
-        if log2fc_gtex is not None:
-            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
-            f.write(f"**{gene_symbol}** is **{direction}** in CRC tumors compared to normal colon tissue ")
-            f.write(f"(log2 fold change: **{log2fc_gtex:.2f}**).\n\n")
+        if log2fc_gtex is not None and log2fc_adj is not None:
+            fc_linear_gtex = 2 ** abs(log2fc_gtex)
+            fc_linear_adj = 2 ** log2fc_adj  # Keep sign for direction
 
-        if kw_pval is not None:
-            sig_text = "significant" if kw_pval < 0.05 else "not significant"
-            f.write(f"Overall expression differences across cohorts are **{sig_text}** ")
-            f.write(f"(Kruskal-Wallis p = {kw_pval:.2e}).\n\n")
+            # Pattern-based assessment
+            if abs(log2fc_adj) < 0.5 and abs(log2fc_gtex) >= 2:
+                # Tissue marker pattern (like EPCAM)
+                f.write(f"**{gene_symbol}** shows **high expression in CRC tumors** (median {tumor_median:.2f}) ")
+                f.write(f"but is **NOT tumor-specific** - expression is similar to adjacent normal tissue ")
+                f.write(f"(log2FC = {log2fc_adj:.2f}, ~{fc_linear_adj:.1f}x). ")
+                f.write(f"The ~{fc_linear_gtex:.0f}x elevation vs GTEx normal reflects {gene_symbol} as a ")
+                f.write(f"**tissue/epithelial marker**, not a cancer marker. ")
+                f.write(f"This profile suggests utility as a **delivery target** (ADC/CAR-T trafficking) ")
+                f.write(f"rather than a direct therapeutic target, with **high on-target toxicity risk** ")
+                f.write(f"to normal colonic epithelium.\n\n")
+            elif log2fc_adj >= 1:
+                # Tumor-enriched pattern
+                f.write(f"**{gene_symbol}** is **tumor-specific** with strong upregulation in CRC tumors ")
+                f.write(f"vs adjacent normal (log2FC = {log2fc_adj:.2f}, ~{fc_linear_adj:.1f}x). ")
+                f.write(f"This profile indicates a **direct therapeutic target candidate** with ")
+                f.write(f"**good therapeutic window** and **low on-target toxicity risk**.\n\n")
+            elif log2fc_adj >= 0.5:
+                # Moderate enrichment
+                f.write(f"**{gene_symbol}** shows **moderate tumor enrichment** ")
+                f.write(f"(log2FC = {log2fc_adj:.2f}, ~{fc_linear_adj:.1f}x vs adjacent normal). ")
+                f.write(f"Therapeutic utility may require **patient stratification** or combination approaches.\n\n")
+            elif log2fc_adj <= -1:
+                # Tumor-depleted pattern
+                f.write(f"**{gene_symbol}** is **downregulated** in CRC tumors vs adjacent normal ")
+                f.write(f"(log2FC = {log2fc_adj:.2f}, ~{fc_linear_adj:.1f}x). ")
+                f.write(f"This profile is **not suitable for direct targeting** but may indicate ")
+                f.write(f"a tumor suppressor role or potential for restoration therapy.\n\n")
+            elif log2fc_adj < -0.5:
+                # Moderate depletion
+                f.write(f"**{gene_symbol}** shows **moderate downregulation** in CRC tumors ")
+                f.write(f"(log2FC = {log2fc_adj:.2f}, ~{fc_linear_adj:.1f}x vs adjacent normal). ")
+                f.write(f"Limited utility as a direct therapeutic target.\n\n")
+            else:
+                # Weak signal (abs(log2fc_adj) < 0.5 and abs(log2fc_gtex) < 2)
+                f.write(f"**{gene_symbol}** shows **minimal expression differences** across tumor and normal tissues ")
+                f.write(f"(log2FC vs adjacent = {log2fc_adj:.2f}, vs GTEx = {log2fc_gtex:.2f}). ")
+                f.write(f"**Limited target potential** based on expression profile alone.\n\n")
+        elif log2fc_gtex is not None:
+            # Fallback if no adjacent normal data
+            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
+            f.write(f"**{gene_symbol}** is **{direction}** in CRC tumors compared to GTEx normal colon tissue ")
+            f.write(f"(log2 fold change: **{log2fc_gtex:.2f}**). ")
+            f.write(f"*Note: Adjacent normal comparison not available.*\n\n")
 
         # Data Overview
         f.write("## Data Overview\n\n")
@@ -1411,19 +1450,28 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
         # Target Evaluation Summary
         f.write("## Target Evaluation Summary\n\n")
 
-        # Tumor-specificity assessment
+        # Tumor-specificity assessment (prioritize tumor vs adjacent normal comparison)
         if log2fc_gtex is not None and log2fc_adj is not None:
             fc_linear_gtex = 2 ** abs(log2fc_gtex)
             fc_linear_adj = 2 ** abs(log2fc_adj)
-            if abs(log2fc_gtex) >= 2:  # >= 4-fold
+            # Primary criterion: tumor vs adjacent normal (same patient, same tissue type)
+            if log2fc_adj >= 1:  # >= 2-fold upregulated vs adjacent
                 specificity = "Strong"
-            elif abs(log2fc_gtex) >= 1:  # >= 2-fold
+                specificity_note = "upregulated vs adjacent normal"
+            elif log2fc_adj >= 0.5:  # >= 1.4-fold upregulated vs adjacent
                 specificity = "Moderate"
+                specificity_note = "moderately upregulated vs adjacent normal"
+            elif log2fc_adj <= -1:  # downregulated vs adjacent
+                specificity = "Weak/None"
+                specificity_note = "downregulated vs adjacent normal (not tumor-specific)"
+            elif abs(log2fc_adj) < 0.5:  # minimal difference vs adjacent
+                specificity = "Weak/None"
+                specificity_note = "similar expression in tumor and adjacent normal"
             else:
                 specificity = "Weak"
-            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
-            f.write(f"- **Tumor-specificity**: {specificity} - consistently {direction} ")
-            f.write(f"~{fc_linear_gtex:.0f}x vs GTEx normal, ~{fc_linear_adj:.0f}x vs adjacent normal\n")
+                specificity_note = "minimal difference vs adjacent normal"
+            f.write(f"- **Tumor-specificity**: {specificity} - {specificity_note}; ")
+            f.write(f"~{fc_linear_adj:.1f}x vs adjacent, ~{fc_linear_gtex:.0f}x vs GTEx normal\n")
 
         # Therapeutic window
         if tumor_median is not None and gtex_median is not None:
@@ -1487,6 +1535,52 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
 
         f.write("\n")
 
+        # Therapeutic Implications Table
+        f.write("## Therapeutic Implications\n\n")
+        f.write("| Concern | Assessment | Rationale |\n")
+        f.write("|---------|------------|----------|\n")
+
+        # On-target toxicity assessment
+        if log2fc_adj is not None:
+            if abs(log2fc_adj) < 0.5:
+                toxicity_risk = "High"
+                toxicity_desc = "Normal colon expresses at similar levels"
+            elif abs(log2fc_adj) < 1:
+                toxicity_risk = "Moderate"
+                toxicity_desc = "Some expression in normal colon"
+            else:
+                toxicity_risk = "Low"
+                toxicity_desc = "Limited expression in normal tissue"
+            f.write(f"| On-target toxicity | {toxicity_risk} | {toxicity_desc} |\n")
+
+        # Therapeutic window assessment
+        if tumor_median is not None and adj_median is not None:
+            if abs(tumor_median - adj_median) < 0.5:
+                tw_assess = "Narrow"
+                tw_desc = "Tumor ≈ adjacent normal expression"
+            elif abs(tumor_median - adj_median) < 1:
+                tw_assess = "Moderate"
+                tw_desc = "Some separation from normal"
+            else:
+                tw_assess = "Wide"
+                tw_desc = "Clear tumor enrichment"
+            f.write(f"| Therapeutic window | {tw_assess} | {tw_desc} |\n")
+
+        # Target suitability
+        if log2fc_adj is not None and log2fc_gtex is not None:
+            if abs(log2fc_adj) < 0.5 and abs(log2fc_gtex) >= 2:
+                suit = "Delivery target"
+                suit_desc = "ADC/CAR-T trafficking, not tumor-specific"
+            elif abs(log2fc_adj) >= 1:
+                suit = "Direct target"
+                suit_desc = "Tumor-specific therapeutic target"
+            else:
+                suit = "Limited"
+                suit_desc = "May require patient stratification"
+            f.write(f"| Target suitability | {suit} | {suit_desc} |\n")
+
+        f.write("\n")
+
         # Output Files
         f.write("## Output Files\n\n")
         f.write(f"- `{gene_symbol}_cohort_statistics.csv`\n")
@@ -1534,67 +1628,117 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
         ax.text(0.5, 0.88, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
                 fontsize=9, ha='center', va='top', transform=ax.transAxes, color='gray')
 
-        # Executive Summary (compact)
+        # Executive Summary - Data-driven assessment based on expression patterns
         ax.text(0.05, 0.82, 'Executive Summary', fontsize=14, fontweight='bold',
                 va='top', transform=ax.transAxes)
-
-        summary_text = ""
-        if log2fc_gtex is not None:
-            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
-            fc_linear = 2 ** abs(log2fc_gtex)
-            summary_text += f"• {gene_symbol} is {direction} in CRC tumors vs normal (log2FC: {log2fc_gtex:.2f}, ~{fc_linear:.0f}x)\n"
-
-        if kw_pval is not None:
-            sig_text = "significant" if kw_pval < 0.05 else "not significant"
-            summary_text += f"• Expression differences across cohorts are {sig_text} (p = {kw_pval:.2e})\n"
 
         n_tumor = len(master_df[master_df['tissue_type'] == 'Primary_Tumor'])
         n_adj = len(master_df[master_df['tissue_type'] == 'TCGA_Adjacent'])
         n_gtex = len(master_df[master_df['tissue_type'] == 'GTEx_Normal'])
         n_ccle = len(master_df[master_df['tissue_type'] == 'CCLE_CRC'])
-        summary_text += f"• Samples: {n_tumor} tumor, {n_adj} TCGA adjacent, {n_gtex} GTEx normal"
+
+        summary_text = ""
+        if log2fc_gtex is not None and log2fc_adj is not None:
+            fc_linear_gtex = 2 ** abs(log2fc_gtex)
+            fc_linear_adj = 2 ** log2fc_adj  # Keep sign for direction
+
+            # Pattern-based assessment
+            if abs(log2fc_adj) < 0.5 and abs(log2fc_gtex) >= 2:
+                # Tissue marker pattern
+                summary_text += f"• {gene_symbol}: HIGH expression (median {tumor_median:.2f}) but NOT tumor-specific\n"
+                summary_text += f"• Similar to adjacent normal (log2FC={log2fc_adj:.2f}, ~{fc_linear_adj:.1f}x)\n"
+                summary_text += f"• {fc_linear_gtex:.0f}x vs GTEx = tissue/epithelial marker, not cancer marker\n"
+                summary_text += f"• Conclusion: DELIVERY TARGET (ADC/CAR-T), high on-target toxicity risk\n"
+            elif log2fc_adj >= 1:
+                # Tumor-enriched pattern
+                summary_text += f"• {gene_symbol}: TUMOR-SPECIFIC with strong upregulation\n"
+                summary_text += f"• {fc_linear_adj:.1f}x vs adjacent normal (log2FC={log2fc_adj:.2f})\n"
+                summary_text += f"• Conclusion: DIRECT TARGET candidate, good therapeutic window\n"
+            elif log2fc_adj >= 0.5:
+                # Moderate enrichment
+                summary_text += f"• {gene_symbol}: MODERATE tumor enrichment\n"
+                summary_text += f"• {fc_linear_adj:.1f}x vs adjacent (log2FC={log2fc_adj:.2f})\n"
+                summary_text += f"• Conclusion: May require patient stratification\n"
+            elif log2fc_adj <= -1:
+                # Tumor-depleted
+                summary_text += f"• {gene_symbol}: DOWNREGULATED in tumors vs adjacent\n"
+                summary_text += f"• {fc_linear_adj:.1f}x vs adjacent (log2FC={log2fc_adj:.2f})\n"
+                summary_text += f"• Conclusion: NOT suitable for direct targeting\n"
+            elif log2fc_adj < -0.5:
+                # Moderate depletion
+                summary_text += f"• {gene_symbol}: Moderately downregulated in tumors\n"
+                summary_text += f"• {fc_linear_adj:.1f}x vs adjacent (log2FC={log2fc_adj:.2f})\n"
+                summary_text += f"• Conclusion: Limited target utility\n"
+            else:
+                # Weak signal
+                summary_text += f"• {gene_symbol}: MINIMAL expression differences\n"
+                summary_text += f"• log2FC vs adjacent={log2fc_adj:.2f}, vs GTEx={log2fc_gtex:.2f}\n"
+                summary_text += f"• Conclusion: LIMITED target potential\n"
+        elif log2fc_gtex is not None:
+            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
+            fc_linear = 2 ** abs(log2fc_gtex)
+            summary_text += f"• {gene_symbol} is {direction} vs GTEx (log2FC={log2fc_gtex:.2f}, ~{fc_linear:.0f}x)\n"
+            summary_text += f"• Note: Adjacent normal comparison not available\n"
+
+        summary_text += f"• Samples: {n_tumor} tumor, {n_adj} adjacent, {n_gtex} GTEx"
         if n_ccle > 0:
             summary_text += f", {n_ccle} cell lines"
 
-        ax.text(0.05, 0.77, summary_text, fontsize=10, va='top', transform=ax.transAxes,
+        ax.text(0.05, 0.77, summary_text, fontsize=9, va='top', transform=ax.transAxes,
                 family='monospace')
 
-        # Target Evaluation Summary (NEW)
+        # Target Evaluation Summary
         ax.text(0.05, 0.60, 'Target Evaluation Summary', fontsize=14, fontweight='bold',
                 va='top', transform=ax.transAxes)
 
         eval_text = ""
 
-        # Tumor-specificity
+        # Nuanced Tumor-specificity assessment
+        # Adjacent normal is weighted heavily as it controls for tissue type and patient variability
         if log2fc_gtex is not None and log2fc_adj is not None:
             fc_linear_gtex = 2 ** abs(log2fc_gtex)
             fc_linear_adj = 2 ** abs(log2fc_adj)
-            if abs(log2fc_gtex) >= 2:
-                specificity = "Strong"
-            elif abs(log2fc_gtex) >= 1:
-                specificity = "Moderate"
-            else:
-                specificity = "Weak"
-            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
-            eval_text += f"• Tumor-specificity: {specificity} (~{fc_linear_gtex:.0f}x vs GTEx, ~{fc_linear_adj:.0f}x vs adjacent)\n"
+            direction_gtex = "↑" if log2fc_gtex > 0 else "↓"
+            direction_adj = "↑" if log2fc_adj > 0 else "↓"
 
-        # Therapeutic window
-        if tumor_median is not None and gtex_median is not None:
-            separation = abs(tumor_median - gtex_median)
-            if separation >= 2:
+            # Primary assessment based on adjacent normal (more relevant for therapeutic window)
+            if abs(log2fc_adj) >= 1:  # >2x vs adjacent
+                if log2fc_adj > 0:
+                    specificity = "Strong (tumor-enriched)"
+                else:
+                    specificity = "Strong (tumor-depleted)"
+            elif abs(log2fc_adj) >= 0.5:  # 1.4-2x vs adjacent
+                specificity = "Moderate"
+            else:  # <1.4x vs adjacent
+                if abs(log2fc_gtex) >= 2:  # But high vs GTEx
+                    specificity = "Tissue-marker (not tumor-specific)"
+                else:
+                    specificity = "Weak"
+
+            eval_text += f"• Tumor-specificity: {specificity}\n"
+            eval_text += f"    vs Adjacent: {direction_adj} {fc_linear_adj:.1f}x | vs GTEx: {direction_gtex} {fc_linear_gtex:.0f}x\n"
+
+        # Therapeutic window - now considers adjacent normal
+        if tumor_median is not None and adj_median is not None and gtex_median is not None:
+            adj_separation = abs(tumor_median - adj_median)
+
+            # Window assessment based on adjacent normal (more clinically relevant)
+            if adj_separation >= 1.5:
                 window = "Good"
-            elif separation >= 1:
+                window_note = "clear separation from adjacent tissue"
+            elif adj_separation >= 0.5:
                 window = "Moderate"
+                window_note = "some separation from adjacent tissue"
             else:
-                window = "Limited"
-            eval_text += f"• Therapeutic window: {window} (tumor: {tumor_median:.2f}, normal: {gtex_median:.2f})\n"
+                window = "Narrow"
+                window_note = "similar to adjacent normal - on-target toxicity risk"
+            eval_text += f"• Therapeutic window: {window} ({window_note})\n"
 
         # CMS pattern
         if cms_stats is not None and len(cms_stats) > 0:
             cms_medians = cms_stats['median'].to_dict()
             highest_cms = max(cms_medians, key=cms_medians.get)
             lowest_cms = min(cms_medians, key=cms_medians.get)
-            cms_desc_map = {'CMS1': 'MSI Immune', 'CMS2': 'Canonical', 'CMS3': 'Metabolic', 'CMS4': 'Mesenchymal'}
 
             if cms_pairwise_df is not None and len(cms_pairwise_df) > 0:
                 sig_cms = cms_pairwise_df[cms_pairwise_df['significant']]
@@ -1602,7 +1746,7 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                     sig_pairs = [f"{r['CMS_1']}/{r['CMS_2']}" for _, r in sig_cms.iterrows()]
                     eval_text += f"• CMS pattern: Significant diffs in {', '.join(sig_pairs[:3])}\n"
                 else:
-                    eval_text += f"• CMS pattern: CMS1/2/4 similar; {lowest_cms} lowest (no sig. pairwise diffs)\n"
+                    eval_text += f"• CMS pattern: Similar across subtypes\n"
 
         # Cell line expression
         if not pd.isna(ccle_median) and ccle_median > 0:
@@ -1628,46 +1772,109 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                 higher = "MSS" if mss > msi else "MSI-H"
                 eval_text += f"• MSI status: Higher in {higher} (MSS: {mss:.2f}, MSI-H: {msi:.2f})\n"
 
-        ax.text(0.05, 0.55, eval_text, fontsize=10, va='top', transform=ax.transAxes,
+        ax.text(0.05, 0.55, eval_text, fontsize=9, va='top', transform=ax.transAxes,
                 family='monospace')
 
-        # Cohort Definitions (compact)
-        ax.text(0.05, 0.26, 'CRC Cohort Definitions', fontsize=12, fontweight='bold',
+        # Therapeutic Implications Table (on page 1)
+        ax.text(0.05, 0.24, 'Therapeutic Implications', fontsize=12, fontweight='bold',
                 va='top', transform=ax.transAxes)
 
-        cohort_defs = [
-            ['2A', 'RAS-mutant MSS'],
-            ['2B', 'RAS wild-type MSS'],
-            ['4', 'Early Stage (I/II)'],
-            ['5', 'All MSS'],
-            ['6', 'MSI-H'],
-            ['Adj Normal', 'TCGA Adjacent'],
-            ['GTEx', 'Normal Colon'],
-            ['CCLE', 'CRC Cell Lines']
-        ]
+        # Build therapeutic implications based on data
+        implications_data = []
 
-        def_table = ax.table(cellText=cohort_defs,
-                            colLabels=['Cohort', 'Definition'],
-                            loc='center', cellLoc='left',
-                            bbox=[0.05, 0.02, 0.9, 0.22])
-        def_table.auto_set_font_size(False)
-        def_table.set_fontsize(9)
-        for i in range(2):
-            def_table[(0, i)].set_facecolor('#E8E8E8')
-            def_table[(0, i)].set_text_props(fontweight='bold')
+        # On-target toxicity assessment
+        if log2fc_adj is not None:
+            if abs(log2fc_adj) < 0.5:
+                toxicity_risk = "High"
+                toxicity_desc = "Normal colon expresses at similar levels"
+            elif abs(log2fc_adj) < 1:
+                toxicity_risk = "Moderate"
+                toxicity_desc = "Some expression in normal colon"
+            else:
+                toxicity_risk = "Low"
+                toxicity_desc = "Limited expression in normal tissue"
+            implications_data.append(['On-target toxicity', toxicity_risk, toxicity_desc])
+
+        # Therapeutic window assessment
+        if tumor_median is not None and adj_median is not None:
+            if abs(tumor_median - adj_median) < 0.5:
+                tw_assess = "Narrow"
+                tw_desc = "Tumor ≈ adjacent normal expression"
+            elif abs(tumor_median - adj_median) < 1:
+                tw_assess = "Moderate"
+                tw_desc = "Some separation from normal"
+            else:
+                tw_assess = "Wide"
+                tw_desc = "Clear tumor enrichment"
+            implications_data.append(['Therapeutic window', tw_assess, tw_desc])
+
+        # Target suitability
+        if log2fc_adj is not None and log2fc_gtex is not None:
+            if abs(log2fc_adj) < 0.5 and abs(log2fc_gtex) >= 2:
+                suit = "Delivery target"
+                suit_desc = "ADC/CAR-T trafficking, not tumor-specific"
+            elif abs(log2fc_adj) >= 1:
+                suit = "Direct target"
+                suit_desc = "Tumor-specific therapeutic target"
+            else:
+                suit = "Limited"
+                suit_desc = "May require patient stratification"
+            implications_data.append(['Target suitability', suit, suit_desc])
+
+        if implications_data:
+            impl_table = ax.table(cellText=implications_data,
+                                colLabels=['Concern', 'Assessment', 'Rationale'],
+                                loc='center', cellLoc='left',
+                                bbox=[0.05, 0.02, 0.9, 0.20])
+            impl_table.auto_set_font_size(False)
+            impl_table.set_fontsize(9)
+            for i in range(3):
+                impl_table[(0, i)].set_facecolor('#E8E8E8')
+                impl_table[(0, i)].set_text_props(fontweight='bold')
+            # Color-code risk levels
+            risk_colors = {'High': '#FFCCCC', 'Moderate': '#FFFFCC', 'Low': '#CCFFCC',
+                          'Narrow': '#FFCCCC', 'Wide': '#CCFFCC',
+                          'Delivery target': '#FFFFCC', 'Direct target': '#CCFFCC', 'Limited': '#FFCCCC'}
+            for row_idx, row in enumerate(implications_data):
+                assessment = row[1]
+                if assessment in risk_colors:
+                    impl_table[(row_idx + 1, 1)].set_facecolor(risk_colors[assessment])
 
         plt.tight_layout()
         pdf.savefig(fig, bbox_inches='tight')
         plt.close()
 
-        # Page 2: Cohort Statistics Table
+        # Page 2: CRC Cohort Definitions + Cohort Statistics Table
         fig = plt.figure(figsize=(11, 8.5))
         ax = fig.add_subplot(111)
         ax.axis('off')
 
-        ax.text(0.5, 0.95, 'Expression Statistics by Cohort',
-                fontsize=18, fontweight='bold', ha='center', va='top', transform=ax.transAxes)
+        # Cohort Definitions at top of page 2
+        ax.text(0.5, 0.95, 'CRC Cohort Definitions', fontsize=18, fontweight='bold',
+                ha='center', va='top', transform=ax.transAxes)
 
+        cohort_defs = [
+            ['2A', 'RAS-mutant MSS', 'Frontline RAS-mutant, microsatellite stable'],
+            ['2B', 'RAS wild-type MSS', 'Frontline RAS wild-type, microsatellite stable'],
+            ['4', 'Early Stage (I/II)', 'Stage I/II CRC'],
+            ['5', 'All MSS', 'All microsatellite stable samples'],
+            ['6', 'MSI-H', 'All microsatellite instability-high samples'],
+            ['Adj Normal', 'TCGA Adjacent', 'Adjacent normal tissue from TCGA patients'],
+            ['GTEx', 'Normal Colon', 'Normal colon tissue from GTEx'],
+            ['CCLE', 'CRC Cell Lines', 'Colorectal cancer cell lines from CCLE']
+        ]
+
+        def_table = ax.table(cellText=cohort_defs,
+                            colLabels=['Cohort', 'Definition', 'Description'],
+                            loc='upper center', cellLoc='left',
+                            bbox=[0.05, 0.55, 0.9, 0.35])
+        def_table.auto_set_font_size(False)
+        def_table.set_fontsize(10)
+        for i in range(3):
+            def_table[(0, i)].set_facecolor('#E8E8E8')
+            def_table[(0, i)].set_text_props(fontweight='bold')
+
+        # Cohort Statistics Table below (on same page 2)
         cohort_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6',
                         'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']
         table_data = []
@@ -1682,10 +1889,10 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
             table = ax.table(cellText=table_data,
                             colLabels=['Cohort', 'N', 'Median', 'Mean', 'SD'],
                             loc='center', cellLoc='center',
-                            bbox=[0.1, 0.3, 0.8, 0.5])
+                            bbox=[0.1, 0.05, 0.8, 0.42])
             table.auto_set_font_size(False)
-            table.set_fontsize(11)
-            table.scale(1.2, 1.8)
+            table.set_fontsize(10)
+            table.scale(1.2, 1.6)
             for i in range(5):
                 table[(0, i)].set_facecolor('#E8E8E8')
                 table[(0, i)].set_text_props(fontweight='bold')
