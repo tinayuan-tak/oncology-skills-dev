@@ -1,25 +1,20 @@
 {
-  "name": "oncology-skills",
+  "name": "claude-oncology-skills",
+  "description": "Development marketplace for Oncology core skills library",
   "owner": {
     "name": "computational biology - oncology",
     "email": ""
   },
-  "metadata": {
-    "description": "Oncology gene expression analysis skills for bulk and single-cell RNA-seq across cancer types",
-    "version": "0.0.1"
-  },
   "plugins": [
     {
-      "name": "rna-analysis",
-      "description": "Collection of oncology gene analysis skills",
+      "name": "oncology-skills",
+      "description": "Collection of oncology analysis skills",
+      "version": "0.0.1",
       "source": "./",
-      "strict": false,
-      "skills": [
-        "./skills/crc-bulk-rna-analysis",
-        "./skills/crc-sc-rna-analysis",
-        "./skills/nsclc-bulk-rna-analysis",
-        "./skills/nsclc-sc-rna-analysis"
-      ]
+      "author": {
+        "name":"Ming-Ju Tsai",
+        "email": "ming-ju.tsai@takeda.com"
+      }
     }
   ]
 }
