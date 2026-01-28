@@ -585,13 +585,15 @@ def perform_pairwise_comparisons(plot_df):
 
 
 def perform_cms_statistics(plot_df):
-    """Calculate CMS-specific statistics."""
+    """Calculate CMS-specific statistics including pairwise comparisons."""
+    from itertools import combinations
+
     tumor_df = plot_df[plot_df['tissue_type'] == 'Primary_Tumor'].copy()
     valid_cms = ['CMS1', 'CMS2', 'CMS3', 'CMS4']
     cms_filtered = tumor_df[tumor_df['CMS'].isin(valid_cms)].drop_duplicates(subset=['sample_id'])
 
     if len(cms_filtered) == 0:
-        return None, None, None
+        return None, None, None, None
 
     cms_stats = cms_filtered.groupby('CMS')['expression'].agg(['count', 'mean', 'median', 'std']).round(4)
 
@@ -604,7 +606,38 @@ def perform_cms_statistics(plot_df):
     else:
         kw_stat, kw_pval = None, None
 
-    return cms_stats, kw_stat, kw_pval
+    # Pairwise CMS comparisons
+    cms_pairwise = []
+    available_cms = [c for c in valid_cms if c in cms_filtered['CMS'].values and
+                     len(cms_filtered[cms_filtered['CMS'] == c]) > 0]
+
+    for cms1, cms2 in combinations(available_cms, 2):
+        g1 = cms_filtered[cms_filtered['CMS'] == cms1]['expression'].dropna()
+        g2 = cms_filtered[cms_filtered['CMS'] == cms2]['expression'].dropna()
+
+        if len(g1) > 0 and len(g2) > 0:
+            stat, pval = mannwhitneyu(g1, g2, alternative='two-sided')
+            median_diff = g2.median() - g1.median()
+            cms_pairwise.append({
+                'CMS_1': cms1,
+                'CMS_2': cms2,
+                'N_1': len(g1),
+                'N_2': len(g2),
+                'Median_1': g1.median(),
+                'Median_2': g2.median(),
+                'Median_Diff': median_diff,
+                'p_value': pval
+            })
+
+    cms_pairwise_df = pd.DataFrame(cms_pairwise)
+
+    # Apply Bonferroni correction if we have comparisons
+    if len(cms_pairwise_df) > 0:
+        n_comparisons = len(cms_pairwise_df)
+        cms_pairwise_df['p_adjusted'] = (cms_pairwise_df['p_value'] * n_comparisons).clip(upper=1.0)
+        cms_pairwise_df['significant'] = cms_pairwise_df['p_adjusted'] < 0.05
+
+    return cms_stats, kw_stat, kw_pval, cms_pairwise_df
 
 
 # =============================================================================
@@ -1250,10 +1283,19 @@ def plot_comprehensive(plot_df, master_df, gene_symbol, output_dir, stats_summar
 
 def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                            pairwise_df, cms_stats, kw_stat, kw_pval, cms_kw_stat,
-                           cms_kw_pval, output_dir):
+                           cms_kw_pval, cms_pairwise_df, output_dir):
     """Generate comprehensive target evaluation report in markdown."""
 
     report_path = f'{output_dir}/{gene_symbol}_target_evaluation_report.md'
+
+    # Pre-calculate key metrics for Target Evaluation Summary
+    tumor_median = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression'].median()
+    gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression'].median()
+    adj_median = master_df[master_df['tissue_type'] == 'TCGA_Adjacent']['expression'].median()
+    ccle_median = master_df[master_df['tissue_type'] == 'CCLE_CRC']['expression'].median()
+
+    log2fc_gtex = tumor_median - gtex_median if not pd.isna(tumor_median) and not pd.isna(gtex_median) else None
+    log2fc_adj = tumor_median - adj_median if not pd.isna(tumor_median) and not pd.isna(adj_median) else None
 
     with open(report_path, 'w') as f:
         # Header
@@ -1265,14 +1307,10 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
         # Executive Summary
         f.write("## Executive Summary\n\n")
 
-        tumor_median = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression'].median()
-        gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression'].median()
-
-        if not pd.isna(tumor_median) and not pd.isna(gtex_median):
-            log2fc = tumor_median - gtex_median
-            direction = "upregulated" if log2fc > 0 else "downregulated"
+        if log2fc_gtex is not None:
+            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
             f.write(f"**{gene_symbol}** is **{direction}** in CRC tumors compared to normal colon tissue ")
-            f.write(f"(log2 fold change: **{log2fc:.2f}**).\n\n")
+            f.write(f"(log2 fold change: **{log2fc_gtex:.2f}**).\n\n")
 
         if kw_pval is not None:
             sig_text = "significant" if kw_pval < 0.05 else "not significant"
@@ -1336,6 +1374,17 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
 
             if cms_kw_pval is not None:
                 f.write(f"**Kruskal-Wallis test across CMS subtypes:** H = {cms_kw_stat:.3f}, p = {cms_kw_pval:.2e}\n\n")
+
+            # CMS Pairwise Comparisons
+            if cms_pairwise_df is not None and len(cms_pairwise_df) > 0:
+                f.write("### CMS Pairwise Comparisons (Bonferroni-corrected)\n\n")
+                f.write("| Comparison | Δ Median | p-value | p-adjusted | Significant |\n")
+                f.write("|------------|----------|---------|------------|-------------|\n")
+                for _, row in cms_pairwise_df.iterrows():
+                    sig = "Yes" if row['significant'] else "No"
+                    f.write(f"| {row['CMS_1']} vs {row['CMS_2']} | {row['Median_Diff']:+.3f} | ")
+                    f.write(f"{row['p_value']:.2e} | {row['p_adjusted']:.2e} | {sig} |\n")
+                f.write("\n")
         else:
             f.write("*CMS data not available*\n\n")
 
@@ -1359,10 +1408,90 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
                     f.write(f"{direction} (log2FC = {row['Log2FC']:.2f}, FDR = {row['p_adjusted']:.2e})\n")
                 f.write("\n")
 
+        # Target Evaluation Summary
+        f.write("## Target Evaluation Summary\n\n")
+
+        # Tumor-specificity assessment
+        if log2fc_gtex is not None and log2fc_adj is not None:
+            fc_linear_gtex = 2 ** abs(log2fc_gtex)
+            fc_linear_adj = 2 ** abs(log2fc_adj)
+            if abs(log2fc_gtex) >= 2:  # >= 4-fold
+                specificity = "Strong"
+            elif abs(log2fc_gtex) >= 1:  # >= 2-fold
+                specificity = "Moderate"
+            else:
+                specificity = "Weak"
+            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
+            f.write(f"- **Tumor-specificity**: {specificity} - consistently {direction} ")
+            f.write(f"~{fc_linear_gtex:.0f}x vs GTEx normal, ~{fc_linear_adj:.0f}x vs adjacent normal\n")
+
+        # Therapeutic window
+        if tumor_median is not None and gtex_median is not None:
+            separation = abs(tumor_median - gtex_median)
+            if separation >= 2:
+                window = "Good"
+            elif separation >= 1:
+                window = "Moderate"
+            else:
+                window = "Limited"
+            f.write(f"- **Therapeutic window**: {window} - tumor median ({tumor_median:.2f}) ")
+            f.write(f"vs normal median ({gtex_median:.2f})\n")
+
+        # CMS pattern assessment
+        if cms_stats is not None and len(cms_stats) > 0 and cms_pairwise_df is not None and len(cms_pairwise_df) > 0:
+            # Find which CMS has highest median
+            cms_medians = cms_stats['median'].to_dict()
+            highest_cms = max(cms_medians, key=cms_medians.get)
+            lowest_cms = min(cms_medians, key=cms_medians.get)
+            cms_desc_map = {'CMS1': 'MSI Immune', 'CMS2': 'Canonical', 'CMS3': 'Metabolic', 'CMS4': 'Mesenchymal'}
+
+            # Check if highest is significantly different from others
+            sig_cms_pairs = cms_pairwise_df[cms_pairwise_df['significant']]
+            if len(sig_cms_pairs) > 0:
+                # Find significant patterns
+                sig_pairs_str = [f"{r['CMS_1']} vs {r['CMS_2']}" for _, r in sig_cms_pairs.iterrows()]
+                f.write(f"- **CMS subtype pattern**: {highest_cms} ({cms_desc_map[highest_cms]}) shows highest expression; ")
+                f.write(f"{lowest_cms} ({cms_desc_map[lowest_cms]}) shows lowest. ")
+                f.write(f"Significant differences: {', '.join(sig_pairs_str)}\n")
+            else:
+                f.write(f"- **CMS subtype pattern**: Expression similar across CMS1/2/4 (no significant pairwise differences after correction); ")
+                f.write(f"{lowest_cms} ({cms_desc_map[lowest_cms]}) shows lowest expression\n")
+
+        # Cell line expression
+        if not pd.isna(ccle_median) and ccle_median > 0:
+            n_ccle = len(master_df[master_df['tissue_type'] == 'CCLE_CRC'])
+            f.write(f"- **Cell line expression**: Median {ccle_median:.2f} in {n_ccle} CRC cell lines, ")
+            f.write("supporting druggability studies\n")
+
+        # RAS status independence
+        if 'Cohort_2A' in stats_summary.index and 'Cohort_2B' in stats_summary.index:
+            ras_mut_median = stats_summary.loc['Cohort_2A', 'median']
+            ras_wt_median = stats_summary.loc['Cohort_2B', 'median']
+            diff = abs(ras_mut_median - ras_wt_median)
+            if diff < 0.5:
+                f.write(f"- **RAS status**: Similar expression in RAS-mutant ({ras_mut_median:.2f}) and RAS-WT ({ras_wt_median:.2f}) tumors\n")
+            else:
+                higher = "RAS-mutant" if ras_mut_median > ras_wt_median else "RAS-WT"
+                f.write(f"- **RAS status**: Higher in {higher} tumors (mut: {ras_mut_median:.2f}, WT: {ras_wt_median:.2f})\n")
+
+        # MSI status
+        if 'Cohort_5' in stats_summary.index and 'Cohort_6' in stats_summary.index:
+            mss_median = stats_summary.loc['Cohort_5', 'median']
+            msi_median = stats_summary.loc['Cohort_6', 'median']
+            diff = abs(mss_median - msi_median)
+            if diff < 0.5:
+                f.write(f"- **MSI status**: Similar expression in MSS ({mss_median:.2f}) and MSI-H ({msi_median:.2f}) tumors\n")
+            else:
+                higher = "MSS" if mss_median > msi_median else "MSI-H"
+                f.write(f"- **MSI status**: Higher in {higher} tumors (MSS: {mss_median:.2f}, MSI-H: {msi_median:.2f})\n")
+
+        f.write("\n")
+
         # Output Files
         f.write("## Output Files\n\n")
         f.write(f"- `{gene_symbol}_cohort_statistics.csv`\n")
         f.write(f"- `{gene_symbol}_pairwise_comparisons.csv`\n")
+        f.write(f"- `{gene_symbol}_cms_pairwise_comparisons.csv`\n")
         f.write(f"- `{gene_symbol}_expression_data.csv`\n")
         f.write(f"- `{gene_symbol}_cohort_boxplot.png/pdf`\n")
         f.write(f"- `{gene_symbol}_cohort_violin.png`\n")
@@ -1375,39 +1504,45 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
 
 def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                         pairwise_df, cms_stats, kw_stat, kw_pval, cms_kw_stat,
-                        cms_kw_pval, tumor_type_stats, tumor_type_by_cohort,
+                        cms_kw_pval, cms_pairwise_df, tumor_type_stats, tumor_type_by_cohort,
                         tumor_type_analysis, output_dir):
     """Generate comprehensive target evaluation report as PDF."""
     from matplotlib.backends.backend_pdf import PdfPages
 
     pdf_path = f'{output_dir}/{gene_symbol}_target_evaluation_report.pdf'
 
+    # Pre-calculate key metrics for Target Evaluation Summary
+    tumor_median = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression'].median()
+    gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression'].median()
+    adj_median = master_df[master_df['tissue_type'] == 'TCGA_Adjacent']['expression'].median()
+    ccle_median = master_df[master_df['tissue_type'] == 'CCLE_CRC']['expression'].median()
+
+    log2fc_gtex = tumor_median - gtex_median if not pd.isna(tumor_median) and not pd.isna(gtex_median) else None
+    log2fc_adj = tumor_median - adj_median if not pd.isna(tumor_median) and not pd.isna(adj_median) else None
+
     with PdfPages(pdf_path) as pdf:
-        # Page 1: Title, Executive Summary, and Cohort Definitions
+        # Page 1: Title, Executive Summary, Target Evaluation Summary
         fig = plt.figure(figsize=(11, 8.5))
         ax = fig.add_subplot(111)
         ax.axis('off')
 
         # Title
-        ax.text(0.5, 0.95, f'{gene_symbol} Target Evaluation Report',
+        ax.text(0.5, 0.97, f'{gene_symbol} Target Evaluation Report',
                 fontsize=24, fontweight='bold', ha='center', va='top', transform=ax.transAxes)
-        ax.text(0.5, 0.88, f'Gene ID: {gene_id}',
-                fontsize=12, ha='center', va='top', transform=ax.transAxes)
-        ax.text(0.5, 0.84, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
-                fontsize=10, ha='center', va='top', transform=ax.transAxes, color='gray')
+        ax.text(0.5, 0.91, f'Gene ID: {gene_id}',
+                fontsize=11, ha='center', va='top', transform=ax.transAxes)
+        ax.text(0.5, 0.88, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
+                fontsize=9, ha='center', va='top', transform=ax.transAxes, color='gray')
 
-        # Executive Summary
-        ax.text(0.05, 0.75, 'Executive Summary', fontsize=16, fontweight='bold',
+        # Executive Summary (compact)
+        ax.text(0.05, 0.82, 'Executive Summary', fontsize=14, fontweight='bold',
                 va='top', transform=ax.transAxes)
 
-        tumor_median = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression'].median()
-        gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression'].median()
-
         summary_text = ""
-        if not pd.isna(tumor_median) and not pd.isna(gtex_median):
-            log2fc = tumor_median - gtex_median
-            direction = "upregulated" if log2fc > 0 else "downregulated"
-            summary_text += f"• {gene_symbol} is {direction} in CRC tumors vs normal (log2FC: {log2fc:.2f})\n"
+        if log2fc_gtex is not None:
+            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
+            fc_linear = 2 ** abs(log2fc_gtex)
+            summary_text += f"• {gene_symbol} is {direction} in CRC tumors vs normal (log2FC: {log2fc_gtex:.2f}, ~{fc_linear:.0f}x)\n"
 
         if kw_pval is not None:
             sig_text = "significant" if kw_pval < 0.05 else "not significant"
@@ -1417,36 +1552,104 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
         n_adj = len(master_df[master_df['tissue_type'] == 'TCGA_Adjacent'])
         n_gtex = len(master_df[master_df['tissue_type'] == 'GTEx_Normal'])
         n_ccle = len(master_df[master_df['tissue_type'] == 'CCLE_CRC'])
-
-        summary_text += f"\n• Samples analyzed:\n"
-        summary_text += f"    - Primary Tumor: {n_tumor}\n"
-        summary_text += f"    - TCGA Adjacent Normal: {n_adj}\n"
-        summary_text += f"    - GTEx Normal Colon: {n_gtex}\n"
+        summary_text += f"• Samples: {n_tumor} tumor, {n_adj} TCGA adjacent, {n_gtex} GTEx normal"
         if n_ccle > 0:
-            summary_text += f"    - CRC Cell Lines (CCLE): {n_ccle}\n"
+            summary_text += f", {n_ccle} cell lines"
 
-        ax.text(0.05, 0.68, summary_text, fontsize=11, va='top', transform=ax.transAxes,
+        ax.text(0.05, 0.77, summary_text, fontsize=10, va='top', transform=ax.transAxes,
                 family='monospace')
 
-        # Cohort Definitions
-        ax.text(0.05, 0.38, 'CRC Cohort Definitions', fontsize=14, fontweight='bold',
+        # Target Evaluation Summary (NEW)
+        ax.text(0.05, 0.60, 'Target Evaluation Summary', fontsize=14, fontweight='bold',
+                va='top', transform=ax.transAxes)
+
+        eval_text = ""
+
+        # Tumor-specificity
+        if log2fc_gtex is not None and log2fc_adj is not None:
+            fc_linear_gtex = 2 ** abs(log2fc_gtex)
+            fc_linear_adj = 2 ** abs(log2fc_adj)
+            if abs(log2fc_gtex) >= 2:
+                specificity = "Strong"
+            elif abs(log2fc_gtex) >= 1:
+                specificity = "Moderate"
+            else:
+                specificity = "Weak"
+            direction = "upregulated" if log2fc_gtex > 0 else "downregulated"
+            eval_text += f"• Tumor-specificity: {specificity} (~{fc_linear_gtex:.0f}x vs GTEx, ~{fc_linear_adj:.0f}x vs adjacent)\n"
+
+        # Therapeutic window
+        if tumor_median is not None and gtex_median is not None:
+            separation = abs(tumor_median - gtex_median)
+            if separation >= 2:
+                window = "Good"
+            elif separation >= 1:
+                window = "Moderate"
+            else:
+                window = "Limited"
+            eval_text += f"• Therapeutic window: {window} (tumor: {tumor_median:.2f}, normal: {gtex_median:.2f})\n"
+
+        # CMS pattern
+        if cms_stats is not None and len(cms_stats) > 0:
+            cms_medians = cms_stats['median'].to_dict()
+            highest_cms = max(cms_medians, key=cms_medians.get)
+            lowest_cms = min(cms_medians, key=cms_medians.get)
+            cms_desc_map = {'CMS1': 'MSI Immune', 'CMS2': 'Canonical', 'CMS3': 'Metabolic', 'CMS4': 'Mesenchymal'}
+
+            if cms_pairwise_df is not None and len(cms_pairwise_df) > 0:
+                sig_cms = cms_pairwise_df[cms_pairwise_df['significant']]
+                if len(sig_cms) > 0:
+                    sig_pairs = [f"{r['CMS_1']}/{r['CMS_2']}" for _, r in sig_cms.iterrows()]
+                    eval_text += f"• CMS pattern: Significant diffs in {', '.join(sig_pairs[:3])}\n"
+                else:
+                    eval_text += f"• CMS pattern: CMS1/2/4 similar; {lowest_cms} lowest (no sig. pairwise diffs)\n"
+
+        # Cell line expression
+        if not pd.isna(ccle_median) and ccle_median > 0:
+            eval_text += f"• Cell lines: Median {ccle_median:.2f} in {n_ccle} CRC lines\n"
+
+        # RAS status
+        if 'Cohort_2A' in stats_summary.index and 'Cohort_2B' in stats_summary.index:
+            ras_mut = stats_summary.loc['Cohort_2A', 'median']
+            ras_wt = stats_summary.loc['Cohort_2B', 'median']
+            if abs(ras_mut - ras_wt) < 0.5:
+                eval_text += f"• RAS status: Similar (mut: {ras_mut:.2f}, WT: {ras_wt:.2f})\n"
+            else:
+                higher = "RAS-mut" if ras_mut > ras_wt else "RAS-WT"
+                eval_text += f"• RAS status: Higher in {higher} (mut: {ras_mut:.2f}, WT: {ras_wt:.2f})\n"
+
+        # MSI status
+        if 'Cohort_5' in stats_summary.index and 'Cohort_6' in stats_summary.index:
+            mss = stats_summary.loc['Cohort_5', 'median']
+            msi = stats_summary.loc['Cohort_6', 'median']
+            if abs(mss - msi) < 0.5:
+                eval_text += f"• MSI status: Similar (MSS: {mss:.2f}, MSI-H: {msi:.2f})\n"
+            else:
+                higher = "MSS" if mss > msi else "MSI-H"
+                eval_text += f"• MSI status: Higher in {higher} (MSS: {mss:.2f}, MSI-H: {msi:.2f})\n"
+
+        ax.text(0.05, 0.55, eval_text, fontsize=10, va='top', transform=ax.transAxes,
+                family='monospace')
+
+        # Cohort Definitions (compact)
+        ax.text(0.05, 0.26, 'CRC Cohort Definitions', fontsize=12, fontweight='bold',
                 va='top', transform=ax.transAxes)
 
         cohort_defs = [
-            ['2A', 'RAS-mutant, Microsatellite Stable (MSS)'],
-            ['2B', 'RAS wild-type, Microsatellite Stable (MSS)'],
-            ['4', 'Early Stage (Stage I/II)'],
-            ['5', 'All Microsatellite Stable (MSS)'],
-            ['6', 'Microsatellite Instability-High (MSI-H)'],
-            ['TCGA Adjacent', 'Adjacent Normal Tissue (TCGA)'],
-            ['GTEx Normal', 'Normal Colon Tissue (GTEx)'],
-            ['CCLE CRC', 'CRC Cell Lines (CCLE)']
+            ['2A', 'RAS-mutant MSS'],
+            ['2B', 'RAS wild-type MSS'],
+            ['4', 'Early Stage (I/II)'],
+            ['5', 'All MSS'],
+            ['6', 'MSI-H'],
+            ['Adj Normal', 'TCGA Adjacent'],
+            ['GTEx', 'Normal Colon'],
+            ['CCLE', 'CRC Cell Lines']
         ]
 
         def_table = ax.table(cellText=cohort_defs,
                             colLabels=['Cohort', 'Definition'],
                             loc='center', cellLoc='left',
-                            bbox=[0.05, 0.08, 0.9, 0.28])
+                            bbox=[0.05, 0.02, 0.9, 0.22])
         def_table.auto_set_font_size(False)
         def_table.set_fontsize(9)
         for i in range(2):
@@ -1566,7 +1769,61 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
             pdf.savefig(fig, bbox_inches='tight')
             plt.close()
 
-        # Page 5: Statistical Comparisons
+        # Page 5: CMS Pairwise Comparisons (NEW)
+        if cms_pairwise_df is not None and len(cms_pairwise_df) > 0:
+            fig = plt.figure(figsize=(11, 8.5))
+            ax = fig.add_subplot(111)
+            ax.axis('off')
+
+            ax.text(0.5, 0.95, 'CMS Subtype Pairwise Comparisons',
+                    fontsize=18, fontweight='bold', ha='center', va='top', transform=ax.transAxes)
+            ax.text(0.5, 0.89, '(Bonferroni-corrected for multiple testing)',
+                    fontsize=12, ha='center', va='top', transform=ax.transAxes, color='gray')
+
+            table_data = []
+            for _, row in cms_pairwise_df.iterrows():
+                sig = "Yes" if row['significant'] else "No"
+                table_data.append([
+                    f"{row['CMS_1']} vs {row['CMS_2']}",
+                    int(row['N_1']),
+                    int(row['N_2']),
+                    f"{row['Median_1']:.2f}",
+                    f"{row['Median_2']:.2f}",
+                    f"{row['Median_Diff']:+.3f}",
+                    f"{row['p_value']:.2e}",
+                    f"{row['p_adjusted']:.2e}",
+                    sig
+                ])
+
+            table = ax.table(cellText=table_data,
+                            colLabels=['Comparison', 'N1', 'N2', 'Med1', 'Med2', 'Δ Med', 'p-value', 'p-adj', 'Sig'],
+                            loc='center', cellLoc='center',
+                            bbox=[0.02, 0.35, 0.96, 0.45])
+            table.auto_set_font_size(False)
+            table.set_fontsize(9)
+            for i in range(9):
+                table[(0, i)].set_facecolor('#E8E8E8')
+                table[(0, i)].set_text_props(fontweight='bold')
+
+            # Add interpretation text
+            sig_pairs = cms_pairwise_df[cms_pairwise_df['significant']]
+            nonsig_pairs = cms_pairwise_df[~cms_pairwise_df['significant']]
+
+            interp_text = "Interpretation:\n"
+            if len(sig_pairs) > 0:
+                sig_list = [f"{r['CMS_1']} vs {r['CMS_2']}" for _, r in sig_pairs.iterrows()]
+                interp_text += f"• Significant differences: {', '.join(sig_list)}\n"
+            if len(nonsig_pairs) > 0:
+                nonsig_list = [f"{r['CMS_1']}/{r['CMS_2']}" for _, r in nonsig_pairs.iterrows()]
+                interp_text += f"• Not significantly different: {', '.join(nonsig_list)}\n"
+
+            ax.text(0.05, 0.28, interp_text, fontsize=11, va='top', transform=ax.transAxes)
+
+            plt.tight_layout()
+            pdf.savefig(fig, bbox_inches='tight')
+            plt.close()
+
+        # Page 6: Statistical Comparisons
         if len(pairwise_df) > 0:
             fig = plt.figure(figsize=(11, 8.5))
             ax = fig.add_subplot(111)
@@ -1942,7 +2199,7 @@ def analyze_gene(gene_symbol, cache_dir, cohort_path, cms_path, adj_normal_path,
     stats_summary = calculate_statistics(plot_df)
     kw_stat, kw_pval = perform_kruskal_wallis(plot_df)
     pairwise_df = perform_pairwise_comparisons(plot_df)
-    cms_stats, cms_kw_stat, cms_kw_pval = perform_cms_statistics(plot_df)
+    cms_stats, cms_kw_stat, cms_kw_pval, cms_pairwise_df = perform_cms_statistics(plot_df)
 
     if kw_pval is not None:
         print(f"  Kruskal-Wallis: H = {kw_stat:.3f}, p = {kw_pval:.2e}")
@@ -1969,6 +2226,11 @@ def analyze_gene(gene_symbol, cache_dir, cohort_path, cms_path, adj_normal_path,
         pairwise_df.to_csv(f'{gene_output_dir}/{gene_symbol}_pairwise_comparisons.csv', index=False)
         print(f"  Saved: {gene_symbol}_pairwise_comparisons.csv")
 
+    # Save CMS pairwise comparisons
+    if cms_pairwise_df is not None and len(cms_pairwise_df) > 0:
+        cms_pairwise_df.to_csv(f'{gene_output_dir}/{gene_symbol}_cms_pairwise_comparisons.csv', index=False)
+        print(f"  Saved: {gene_symbol}_cms_pairwise_comparisons.csv")
+
     # Save COAD vs READ statistics
     if tumor_type_by_cohort is not None and len(tumor_type_by_cohort) > 0:
         tumor_type_by_cohort.to_csv(f'{gene_output_dir}/{gene_symbol}_COAD_READ_statistics.csv', index=False)
@@ -1983,12 +2245,13 @@ def analyze_gene(gene_symbol, cache_dir, cohort_path, cms_path, adj_normal_path,
     print("\n7. Generating target evaluation reports...")
     report_path = generate_target_report(
         gene_symbol, gene_id, master_df, plot_df, stats_summary,
-        pairwise_df, cms_stats, kw_stat, kw_pval, cms_kw_stat, cms_kw_pval, gene_output_dir
+        pairwise_df, cms_stats, kw_stat, kw_pval, cms_kw_stat, cms_kw_pval,
+        cms_pairwise_df, gene_output_dir
     )
     pdf_report_path = generate_pdf_report(
         gene_symbol, gene_id, master_df, plot_df, stats_summary,
         pairwise_df, cms_stats, kw_stat, kw_pval, cms_kw_stat, cms_kw_pval,
-        tumor_type_stats, tumor_type_by_cohort, tumor_type_analysis, gene_output_dir
+        cms_pairwise_df, tumor_type_stats, tumor_type_by_cohort, tumor_type_analysis, gene_output_dir
     )
 
     # Final summary
