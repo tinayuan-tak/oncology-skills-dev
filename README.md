@@ -72,7 +72,7 @@ Or invoke explicitly with slash commands:
 ## Requirements
 
 - AWS CLI with `cbg` profile configured with the `tec-rnd-cbg-dev` account
-- Python 3.8+ with: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scipy`, `statsmodels`
+- [Pixi](https://pixi.sh/) - the skill will automatically install needed Python packages via pixi
 
 ## License
 
