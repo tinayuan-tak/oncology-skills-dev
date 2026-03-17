@@ -12,9 +12,16 @@
       "version": "0.0.1",
       "source": "./",
       "author": {
-        "name":"Ming-Ju Tsai",
+        "name": "Ming-Ju Tsai",
         "email": "ming-ju.tsai@takeda.com"
-      }
+      },
+      "skills": [
+        "./oncology-skills/target-evaluation",
+        "./oncology-skills/crc-bulk-rna-analysis",
+        "./oncology-skills/crc-sc-rna-analysis",
+        "./oncology-skills/nsclc-bulk-rna-analysis",
+        "./oncology-skills/nsclc-sc-rna-analysis"
+      ]
     }
   ]
 }

@@ -1,0 +1,62 @@
+# CRC (Colorectal Cancer) Configuration for Target Evaluation
+
+disease: crc
+full_name: Colorectal Cancer
+abbreviation: CRC
+
+# Skill routing
+bulk_rna_skill: oncology-skills:crc-bulk-rna-analysis
+analysis_script: crc_gene_analysis.py
+
+# Data sources
+tcga_projects:
+  - TCGA-COAD
+  - TCGA-READ
+gtex_tissue: Colon
+ccle_filter: colorectal
+
+# PubMed query template
+pubmed_query_template: |
+  ({gene} OR {aliases}) AND (colorectal cancer OR colon cancer OR rectal cancer OR CRC)
+
+# Cohort definitions
+cohorts:
+  2A:
+    name: RAS-mutant MSS
+    description: Frontline RAS-mutant, microsatellite stable
+  2B:
+    name: RAS-WT MSS
+    description: Frontline RAS wild-type, microsatellite stable
+  4:
+    name: Early Stage
+    description: Stage I/II CRC
+  5:
+    name: All MSS
+    description: All microsatellite stable samples
+  6:
+    name: MSI-H
+    description: All microsatellite instability-high samples
+
+# Molecular subtypes
+subtypes:
+  CMS1:
+    name: MSI Immune
+    characteristics: MSI-H, immune infiltration
+  CMS2:
+    name: Canonical
+    characteristics: WNT/MYC activation
+  CMS3:
+    name: Metabolic
+    characteristics: Metabolic dysregulation
+  CMS4:
+    name: Mesenchymal
+    characteristics: Stromal infiltration, EMT
+
+# Output directory
+output_dir: crc_analysis_results
+
+# Required data files (S3 paths)
+required_files:
+  cohort_assignments: s3://onc-compbio/TCGA/crc_cohort_assignments.csv
+  cms_predictions: s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv
+  adjacent_normal: s3://onc-compbio/TCGA/TCGA-COAD-READ-AdjNormal.tsv

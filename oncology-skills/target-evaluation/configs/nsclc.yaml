@@ -1,0 +1,73 @@
+# NSCLC (Non-Small Cell Lung Cancer) Configuration for Target Evaluation
+
+disease: nsclc
+full_name: Non-Small Cell Lung Cancer
+abbreviation: NSCLC
+
+# Skill routing
+bulk_rna_skill: oncology-skills:nsclc-bulk-rna-analysis
+analysis_script: nsclc_gene_analysis.py
+
+# Data sources
+tcga_projects:
+  - TCGA-LUAD
+  - TCGA-LUSC
+gtex_tissue: Lung
+ccle_filter: lung
+
+# PubMed query template
+pubmed_query_template: |
+  ({gene} OR {aliases}) AND (non-small cell lung cancer OR NSCLC OR lung adenocarcinoma OR LUAD OR lung squamous OR LUSC)
+
+# Cohort definitions
+cohorts:
+  LUAD:
+    name: Lung Adenocarcinoma
+    description: Adenocarcinoma histology
+  LUSC:
+    name: Lung Squamous Cell Carcinoma
+    description: Squamous cell carcinoma histology
+  Stage_I:
+    name: Stage I
+    description: Early stage, localized
+  Stage_II:
+    name: Stage II
+    description: Locally advanced
+  Stage_III:
+    name: Stage III
+    description: Regionally advanced
+  Stage_IV:
+    name: Stage IV
+    description: Metastatic disease
+
+# Molecular subtypes (for LUAD)
+subtypes:
+  TRU:
+    name: Terminal Respiratory Unit
+    characteristics: TTF1+, peripheral tumors
+  PI:
+    name: Proximal-Inflammatory
+    characteristics: Inflammatory signature, central tumors
+  PP:
+    name: Proximal-Proliferative
+    characteristics: High proliferation, poor prognosis
+
+# Driver mutations to consider
+driver_mutations:
+  - EGFR
+  - KRAS
+  - ALK
+  - ROS1
+  - BRAF
+  - MET
+  - RET
+  - NTRK
+
+# Output directory
+output_dir: nsclc_analysis_results
+
+# Required data files (S3 paths)
+required_files:
+  cohort_assignments: s3://onc-compbio/TCGA/nsclc_cohort_assignments.csv
+  subtype_predictions: s3://onc-compbio/TCGA/TCGA_NSCLC_subtypes.csv
+  adjacent_normal: s3://onc-compbio/TCGA/TCGA-LUAD-LUSC-AdjNormal.tsv
