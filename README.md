@@ -125,7 +125,6 @@ Skill(oncology-skills:crc-bulk-rna-analysis) with args "CDK4 CDK6"
 |--------|-------|------------|------|---------------|----------------|
 | TNFRSF12A | 4.2/5.0 | Strong | LOW-MEDIUM | 7.3x higher | GO |
 | EPCAM | 3.55/5.0 | Moderate | HIGH | ~1x (same) | CONDITIONAL NO-GO |
-| CDCP1 | 3.25/5.0 | Weak | HIGH | 0.76x (lower) | CONDITIONAL NO-GO |
 
 ### Generated Files
 
