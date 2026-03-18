@@ -1,166 +1,131 @@
 ---
 name: crc-bulk-rna-analysis
-description: Use when analyzing gene expression in colorectal cancer. Triggers include gene expression analysis for CRC, TCGA COAD/READ analysis, CRC cell lines, CMS subtype comparison, tumor vs normal colon comparison, target evaluation report, or any gene-level analysis in colorectal cancer context. Generates cohort comparisons (2A, 2B, 4, 5, 6, CMS) with figures and comprehensive target evaluation reports.
+description: Use when analyzing gene expression in colorectal cancer. Triggers include gene expression analysis for CRC, TCGA COAD/READ analysis, CRC cell lines, CMS subtype comparison, tumor vs normal colon comparison, target evaluation report, Tempus RWD analysis, iDAS alignment, or any gene-level analysis in colorectal cancer context. Generates comprehensive expression analysis with TCGA + Tempus data, iDAS strategic alignment, and publication-ready figures.
 ---
 
-# CRC Gene Expression Analysis & Target Evaluation
+# CRC Comprehensive Gene Expression Analysis
 
 ## Overview
 
-Analyze gene expression across colorectal cancer (CRC) cohorts, normal tissue comparisons, CMS subtypes, and CRC cell lines. Generates comprehensive target evaluation reports with publication-ready figures.
+Analyze gene expression across colorectal cancer (CRC) using integrated TCGA and Tempus real-world data. Generates comprehensive target evaluation reports with iDAS strategic alignment assessment, on-target toxicity analysis, and publication-ready figures.
 
 ## Key Capabilities
 
-- **Cohort Comparisons**: 2A (RAS-mut MSS), 2B (RAS-WT MSS), 4 (Early Stage), 5 (All MSS), 6 (MSI-H)
-- **CMS Subtype Analysis**: CMS1-4 stratification with statistical comparisons
+- **TCGA Raw Expression**: Tumor vs Adjacent Normal (primary on-target toxicity metric)
+- **Tempus RWD**: >200,000 patients with line-of-therapy stratification
+- **iDAS Alignment**: Automatic whitespace scoring for strategic prioritization
+- **CMS Subtype Analysis**: CMS1-4 stratification
 - **Normal Tissue Comparisons**: TCGA Adjacent Normal, GTEx Normal Colon
-- **COAD vs READ Analysis**: Colon vs rectal adenocarcinoma comparisons
 - **Cell Line Analysis**: CCLE CRC cell line expression
-- **Target Evaluation Reports**: Comprehensive markdown reports with figures and statistics
 
 ## Data Sources
 
-### Expression Data (Omicsoft Reprocessed from S3)
-- **TCGA**: COAD/READ tumor and adjacent normal samples
-- **GTEx**: Normal colon tissue
-- **CCLE**: CRC cell lines
+### TCGA/GTEx/CCLE (Raw Expression)
+- **Source**: `s3://onc-compbio/omicsoft_oncoland_data`
+- **Use**: Tumor vs Adjacent Normal comparison (primary safety metric)
 - **Format**: TPM values, log2-transformed during analysis
 
-### Required Input Files (from S3)
+### Tempus RWD (Pre-computed Summaries)
+- **Source**: `s3://onc-compbio/Tempus/crc`
+- **Use**: Line-of-therapy stratified expression, chemorefractory population
+- **Sample Size**: >200,000 CRC patients
+
+### Required Annotation Files (Auto-downloaded from S3)
 | File | S3 Path | Description |
 |------|---------|-------------|
-| `crc_cohort_assignments.csv` | `s3://onc-compbio/TCGA/crc_cohort_assignments.csv` | Pre-computed cohort memberships (2A, 2B, 4, 5, 6) |
-| `TCGA_CMS_prediction.csv` | `s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv` | CMS subtype predictions |
-| `TCGA-COAD-READ-AdjNormal.tsv` | `s3://onc-compbio/TCGA/TCGA-COAD-READ-AdjNormal.tsv` | TCGA adjacent normal sample IDs |
+| `gene_annotation.tsv.gz` | `s3://onc-compbio/omicsoft_oncoland_data/` | Gene symbol to index mapping |
+| `tcga_metadata.tsv.gz` | `s3://onc-compbio/omicsoft_oncoland_data/` | TCGA sample metadata |
+| `gtex_metadata.tsv.gz` | `s3://onc-compbio/omicsoft_oncoland_data/` | GTEx sample metadata |
+| `ccle_metadata.tsv.gz` | `s3://onc-compbio/omicsoft_oncoland_data/` | CCLE sample metadata |
 
-## CRC Cohort Definitions
+## Cohort Definitions
 
-| Cohort | Definition | Description |
-|--------|------------|-------------|
-| **2A** | RAS-mutant MSS | Frontline RAS-mutant, microsatellite stable |
-| **2B** | RAS-WT MSS | Frontline RAS wild-type, microsatellite stable |
-| **4** | Early Stage | Stage I/II CRC |
-| **5** | All MSS | All microsatellite stable samples |
-| **6** | All MSI-H | All microsatellite instability-high samples |
+### TCGA Cohorts (Unified Naming)
+| Cohort | Legacy | Definition | iDAS Priority |
+|--------|--------|------------|---------------|
+| **TCGA_RASMut_MSS** | 2A | RAS-mutant, MSS | Yes |
+| **TCGA_RASWT_MSS** | 2B | RAS wild-type, MSS | No |
+| **TCGA_Resectable** | 4 | Early Stage I/II | Yes |
+| **TCGA_MSS_All** | 5 | All MSS samples | No |
+| **TCGA_MSIH** | 6 | MSI-H | No |
 
-## CMS Subtypes
+### Tempus Cohorts (iDAS-aligned)
+| Cohort | N Samples | iDAS Alignment |
+|--------|-----------|----------------|
+| Tempus_RASMut_MSS_1L2L | ~85,000 | RAS mutant frontline |
+| **Tempus_RASMut_MSS_3Lplus** | ~26,000 | **RAS mutant refractory** |
+| **Tempus_MSS_3Lplus** | ~40,000 | **Chemorefractory 3L+** |
+| Tempus_RASWT_MSS_1L2L | ~59,000 | Contrast group |
 
-- **CMS1**: MSI Immune
-- **CMS2**: Canonical
-- **CMS3**: Metabolic
-- **CMS4**: Mesenchymal
+### CMS Subtypes
+- **CMS1**: MSI Immune (hypermutated)
+- **CMS2**: Canonical (WNT/MYC)
+- **CMS3**: Metabolic (KRAS)
+- **CMS4**: Mesenchymal (EMT)
 
 ## Implementation
 
 ### Step 0: Setup Pixi Environment
 
-Before running the analysis, ensure the pixi environment is set up in the user's workspace. The skill includes `pixi.toml` and `pixi.lock` files for reproducible environment management.
-
-**Copy pixi files and required data files to workspace:**
-
 ```bash
 # Get the skill base directory from the loaded skill context
-# SKILL_BASE_DIR is provided when the skill is invoked (see "Base directory for this skill:" in skill output)
+# SKILL_BASE_DIR is provided when the skill is invoked
 
 # Check if pixi is installed
 if ! command -v pixi &> /dev/null; then
     echo "ERROR: pixi is not installed. Install it first:"
     echo "  curl -fsSL https://pixi.sh/install.sh | bash"
-    echo "  source ~/.zshrc  # or restart terminal"
     exit 1
 fi
 
 # Copy pixi files to user's workspace (if not already present)
 if [ ! -f "pixi.toml" ]; then
-    echo "Copying pixi.toml and pixi.lock to workspace..."
     cp "$SKILL_BASE_DIR/pixi.toml" ./
     cp "$SKILL_BASE_DIR/pixi.lock" ./
 fi
 
-# Download required data files from S3 if not present
-if [ ! -f "crc_cohort_assignments.csv" ]; then
-    echo "Downloading crc_cohort_assignments.csv from S3..."
-    aws s3 cp s3://onc-compbio/TCGA/crc_cohort_assignments.csv ./ --profile cbg --no-verify-ssl
-fi
-
-if [ ! -f "TCGA_CMS_prediction.csv" ]; then
-    echo "Downloading TCGA_CMS_prediction.csv from S3..."
-    aws s3 cp s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv ./ --profile cbg --no-verify-ssl
-fi
-
-if [ ! -f "TCGA-COAD-READ-AdjNormal.tsv" ]; then
-    echo "Downloading TCGA-COAD-READ-AdjNormal.tsv from S3..."
-    aws s3 cp s3://onc-compbio/TCGA/TCGA-COAD-READ-AdjNormal.tsv ./ --profile cbg --no-verify-ssl
-fi
-
-# Install pixi environment in workspace
-if [ ! -d ".pixi" ]; then
-    echo "Installing pixi environment from pixi.lock..."
-    pixi install
-else
-    echo "Pixi environment already exists in workspace"
-fi
+# Install pixi environment
+pixi install
 ```
 
-**Environment includes:**
-- Python 3.12
-- pandas, numpy, matplotlib, seaborn
-- scipy, statsmodels
-- awscli (for S3 data access)
+### Step 1: Run the Analysis Script
 
-**Note:** The `.pixi/` directory will be created in your workspace. Add `.pixi/` to your `.gitignore` if using version control.
-
-### Step 1: Parse Gene Input
-
-Accept gene input as:
-- Single gene: `TNFRSF12A` (Fn14)
-- Multiple genes: `CDK4 CDK6 CCND1`
-- Gene list file: `genes.txt` (one per line)
-
-### Step 2: Run the Analysis Script
-
-**IMPORTANT**: Always use the `crc_gene_analysis.py` script from the skill directory. This is the complete, validated analysis pipeline.
-
-**Copy the script to workspace and run:**
+**IMPORTANT**: Use `crc_comprehensive_analysis.py` - the unified analysis pipeline.
 
 ```bash
 # Copy the analysis script from skill directory
-cp "$SKILL_BASE_DIR/crc_gene_analysis.py" ./
+cp "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" ./
 
-# Run analysis with pixi (single gene)
-pixi run python crc_gene_analysis.py --genes CDK4
+# Full analysis (TCGA + Tempus) - RECOMMENDED
+pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A
 
-# Run analysis with pixi (multiple genes)
-pixi run python crc_gene_analysis.py --genes CDK4 CDK6 CCND1
-
-# Run analysis with gene file
-pixi run python crc_gene_analysis.py --gene-file genes.txt
+# Multiple genes
+pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A CDCP1 EPCAM
 
 # Custom output directory
-pixi run python crc_gene_analysis.py --genes CDK4 --output-dir ./my_results
+pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --output-dir ./my_results
+
+# TCGA only (skip Tempus)
+pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tempus
+
+# Tempus only (skip TCGA raw processing)
+pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tcga
 ```
 
 ### Script Usage
 
 ```
 Usage:
-    python crc_gene_analysis.py --genes CDK4 CDK6 CCND1
-    python crc_gene_analysis.py --gene-file genes.txt
-    python crc_gene_analysis.py --genes CDK4 --output-dir ./my_results
+    python crc_comprehensive_analysis.py --genes TNFRSF12A
+    python crc_comprehensive_analysis.py --genes TNFRSF12A CDCP1 --output-dir ./results
+    python crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tempus
 
 Arguments:
     --genes          Gene symbol(s) to analyze (space-separated)
-    --gene-file      File with gene symbols (one per line)
-    --output-dir     Output directory (default: ./crc_analysis_results)
-    --cache-dir      Data cache directory (default: ./data_cache)
-    --cohort-path    Path to cohort assignments CSV
-    --cms-path       Path to CMS predictions CSV
-    --adj-normal-path Path to adjacent normal samples TSV
+    --output-dir     Output directory (default: ./crc_comprehensive_results)
+    --skip-tcga      Skip TCGA raw expression processing
+    --skip-tempus    Skip Tempus RWD analysis
 ```
-
-### Step 3: Review Results
-
-Results are saved to `./crc_analysis_results/{GENE}/` for each gene analyzed.
 
 ## Output Files
 
@@ -168,49 +133,52 @@ For each gene, the analysis generates:
 
 | File | Description |
 |------|-------------|
-| `{GENE}_cohort_boxplot.png/pdf` | Expression across CRC cohorts (2A, 2B, 4, 5, 6) vs normal |
-| `{GENE}_cohort_violin.png` | Violin plot with distribution |
-| `{GENE}_CMS_boxplot.png` | Expression by CMS subtype |
-| `{GENE}_COAD_READ_boxplot.png` | COAD vs READ comparison |
-| `{GENE}_COAD_READ_by_cohort.png` | COAD vs READ within each cohort |
-| `{GENE}_comprehensive_analysis.png/pdf` | Multi-panel summary figure |
-| `{GENE}_cohort_statistics.csv` | Descriptive statistics by cohort |
-| `{GENE}_pairwise_comparisons.csv` | Statistical comparisons (tumor vs normal) |
-| `{GENE}_COAD_READ_statistics.csv` | COAD vs READ statistics |
-| `{GENE}_expression_data.csv` | Raw expression values with metadata |
-| `{GENE}_target_evaluation_report.md` | Comprehensive markdown report |
-| `{GENE}_COAD_cohort_statistics.csv` | COAD-only cohort statistics |
-| `{GENE}_READ_cohort_statistics.csv` | READ-only cohort statistics |
+| `{GENE}_comprehensive_analysis.png` | 8-panel figure: TCGA cohorts, toxicity, Tempus LOT, iDAS, RAS status, CMS, alignment, recommendation |
+| `{GENE}_comprehensive_report.md` | Full report with TCGA + Tempus evidence, iDAS alignment |
+| `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment |
+| `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
+| `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
+
+## iDAS Strategic Alignment
+
+The script automatically assesses alignment with iDAS priority whitespaces:
+
+| Priority Whitespace | Metric | Strong | Moderate | Weak |
+|---------------------|--------|--------|----------|------|
+| Chemorefractory 3L+ | Tempus 3L+ expression | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
+| RAS Mutant Frontline | Tempus RAS-mut 1L-2L | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
+| RAS Mutant Refractory | Tempus RAS-mut 3L+ | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
+| Resectable | TCGA Stage I/II | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
+
+## On-Target Toxicity Assessment
+
+**Primary metric**: Tumor vs Adjacent Normal expression
+
+| Risk Level | Log2FC vs Adjacent | Interpretation |
+|------------|-------------------|----------------|
+| **LOW** | >1.5 (tumor >> normal) | Tumor-specific, favorable safety |
+| **MEDIUM** | 0.5-1.5 | Moderate tumor enrichment |
+| **HIGH** | <0.5 or negative | Normal tissue expression, toxicity risk |
 
 ## Quick Start Example
 
-User: "Analyze CDK4, CDK6, and CCND1 expression in CRC"
+User: "Analyze TNFRSF12A expression in CRC"
 
 Response:
-1. Setup pixi environment and copy required files
-2. Run: `pixi run python crc_gene_analysis.py --genes CDK4 CDK6 CCND1`
-3. Present key findings from target evaluation reports:
-   - Tumor vs Normal fold changes
-   - Significant cohort differences (FDR-corrected)
-   - CMS subtype patterns
-   - COAD vs READ differences
-4. Point user to output files in `./crc_analysis_results/`
+1. Setup pixi environment and copy script
+2. Run: `pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A`
+3. Present key findings:
+   - Tumor vs Normal: +2.96 log2FC (7.8x higher in tumor) → **LOW toxicity risk**
+   - iDAS Alignment: **High** (strong in all priority populations)
+   - Recommendation: **PRIORITY**
+4. Point user to output files
 
-## Analysis Pipeline Details
+## Example Results
 
-The `crc_gene_analysis.py` script performs:
-
-1. **Data Loading**: Downloads and caches expression/metadata from S3
-2. **Sample Filtering**: Identifies CRC samples across TCGA, GTEx, CCLE
-3. **Cohort Assignment**: Maps samples to cohorts using pre-computed assignments
-4. **Expression Extraction**: Loads gene-specific expression (log2 TPM+1)
-5. **Statistical Analysis**:
-   - Descriptive statistics per cohort
-   - Kruskal-Wallis test across groups
-   - Mann-Whitney U tests (tumor vs normal)
-   - FDR correction (Benjamini-Hochberg)
-6. **Visualization**: Generates all figures
-7. **Report Generation**: Creates target evaluation report
+| Gene | Tumor vs Normal | Toxicity Risk | iDAS Alignment | Recommendation |
+|------|-----------------|---------------|----------------|----------------|
+| TNFRSF12A | +2.96 (7.8x ↑) | **LOW** | High | **PRIORITY** |
+| CDCP1 | -0.41 (tumor < normal) | **HIGH** | High | **CONDITIONAL NO-GO** |
 
 ## Common Issues
 
@@ -218,8 +186,5 @@ The `crc_gene_analysis.py` script performs:
 |-------|----------|
 | AWS credentials error | Ensure `~/.aws/credentials` has `[cbg]` profile |
 | Gene not found | Check gene symbol spelling; use official HGNC symbols |
-| Memory error | Process genes in batches; script uses chunked data loading |
-| Slow first run | Data files are cached in `./data_cache/` after first download |
-| Cohort file not found | Run: `aws s3 cp s3://onc-compbio/TCGA/crc_cohort_assignments.csv ./ --profile cbg --no-verify-ssl` |
-| CMS file not found | Run: `aws s3 cp s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv ./ --profile cbg --no-verify-ssl` |
-| Adjacent normal file not found | Run: `aws s3 cp s3://onc-compbio/TCGA/TCGA-COAD-READ-AdjNormal.tsv ./ --profile cbg --no-verify-ssl` |
+| Memory error | Process genes in batches |
+| Slow first run | Annotation files are cached in `./data_cache/` after first download |

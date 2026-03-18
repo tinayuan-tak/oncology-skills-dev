@@ -203,11 +203,6 @@ python crc_comprehensive_analysis.py --genes {GENE} --skip-tempus
 **CMS Subtypes:** CMS1-4
 **Normal Tissue:** TCGA Adjacent, GTEx Colon
 
-#### Legacy Analysis (TCGA only)
-```bash
-pixi run python crc_gene_analysis.py --genes {GENE} --output-dir ./{disease}_analysis_results/{GENE}
-```
-
 ### For NSCLC (`--disease nsclc`)
 **Invoke:** `oncology-skills:nsclc-bulk-rna-analysis`
 
@@ -359,11 +354,11 @@ cp "$SKILL_BASE_DIR/pixi.lock" ./
 cp "$SKILL_BASE_DIR/generate_target_report_pdf.py" ./
 pixi install
 
-# For CRC (Recommended - Comprehensive TCGA + Tempus):
+# For CRC (Comprehensive TCGA + Tempus):
 pixi run python crc_comprehensive_analysis.py --genes $GENE --output-dir ./${DISEASE}_analysis_results/$GENE
 
-# Alternative: Legacy TCGA-only analysis
-# pixi run python crc_gene_analysis.py --genes $GENE
+# TCGA only (skip Tempus):
+# pixi run python crc_comprehensive_analysis.py --genes $GENE --skip-tempus
 
 # Step 3: ScholarEval scoring
 # [Claude calculates 8-dimension target score]
@@ -402,13 +397,6 @@ pixi run python generate_target_report_pdf.py --gene $GENE --output-dir ./${DISE
 | `{GENE}_final_risk_report.pdf` | 13-page professional PDF |
 | `{GENE}_risk_assessment_figure.png` | 6-category risk assessment visualization |
 | `{GENE}_scholar_eval_figure.png` | ScholarEval scoring visualization |
-
-### Legacy Script Outputs (`crc_gene_analysis.py`)
-| File | Description |
-|------|-------------|
-| `{GENE}_expression_analysis.png` | TCGA cohort boxplots |
-| `{GENE}_CMS_boxplot.png` | CMS subtype expression |
-| `{GENE}_target_report.md` | TCGA-only analysis report |
 
 ---
 

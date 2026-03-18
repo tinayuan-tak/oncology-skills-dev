@@ -137,23 +137,3 @@ Evaluate EGFR as a target in NSCLC
 3. Add config file: `configs/{disease}.yaml`
 4. Update SKILL.md routing table
 
-## Installation
-
-```bash
-# Copy files to working directory
-cp pixi.toml pixi.lock generate_target_report_pdf.py ./
-
-# Install dependencies
-pixi install
-
-# Run PDF generation (after expression analysis)
-pixi run python generate_target_report_pdf.py --gene {GENE} --output-dir ./results/{GENE}
-```
-
-## Dependencies
-
-- Python 3.10+
-- matplotlib
-- numpy
-- pandas (for expression analysis)
-- scipy (for statistical tests)
