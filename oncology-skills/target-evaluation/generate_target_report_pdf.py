@@ -89,29 +89,41 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
     with open(report_path, 'r') as f:
         content = f.read()
 
-    # Extract ScholarEval Score
-    score_match = re.search(r'ScholarEval Score[:\s]+(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
+    # Extract ScholarEval Score (handles both "Key: Value" and "| Key | Value |" formats)
+    score_match = re.search(r'\*?\*?ScholarEval Score\*?\*?[:\s|]+(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
     if score_match:
         data['score'] = score_match.group(1)
 
-    # Extract Overall Risk Profile
-    risk_match = re.search(r'Overall (?:Target )?Risk Profile[:\s]+\*?\*?([A-Z-]+)\*?\*?', content, re.IGNORECASE)
+    # Extract Overall Risk Profile (handles both formats)
+    risk_match = re.search(r'\*?\*?Overall (?:Target )?Risk Profile\*?\*?[:\s|]+\*?\*?([A-Z-]+)\*?\*?', content, re.IGNORECASE)
     if risk_match:
         data['risk_profile'] = risk_match.group(1)
 
-    # Extract Recommendation
-    rec_match = re.search(r'Recommendation[:\s]+\*?\*?([A-Z-/ ]+)\*?\*?', content, re.IGNORECASE)
+    # Extract Recommendation (handles both formats)
+    # First try to capture just the main recommendation keyword (GO, NO-GO, CONDITIONAL NO-GO)
+    rec_match = re.search(r'\*?\*?Recommendation\*?\*?[:\s|]+\*?\*?((?:CONDITIONAL\s+)?(?:NO-GO|GO))', content, re.IGNORECASE)
     if rec_match:
-        rec = rec_match.group(1).strip()
-        if 'NO-GO' in rec.upper() or 'CONDITIONAL' in rec.upper():
-            data['recommendation'] = rec
-        elif 'GO' in rec.upper():
-            data['recommendation'] = 'GO'
-        else:
-            data['recommendation'] = rec
+        rec = rec_match.group(1).strip().upper()
+        data['recommendation'] = rec
+    else:
+        # Fallback: try broader pattern but extract only the first part
+        rec_match = re.search(r'\*?\*?Recommendation\*?\*?[:\s|]+\*?\*?([^|\n]+)', content, re.IGNORECASE)
+        if rec_match:
+            rec_full = rec_match.group(1).strip()
+            # Extract just the main recommendation from the full text
+            if 'CONDITIONAL NO-GO' in rec_full.upper():
+                data['recommendation'] = 'CONDITIONAL NO-GO'
+            elif 'NO-GO' in rec_full.upper():
+                data['recommendation'] = 'NO-GO'
+            elif 'GO' in rec_full.upper():
+                data['recommendation'] = 'GO'
+            else:
+                # Keep first part before hyphen or dash
+                parts = re.split(r'\s*[-–—]\s*', rec_full, maxsplit=1)
+                data['recommendation'] = parts[0].strip().upper()[:20]  # Limit length
 
-    # Extract Assessment rating from "ScholarEval Score: X.XX/5.0 (Assessment)"
-    assessment_match = re.search(r'ScholarEval Score[:\s]+[\d.]+/5\.0\s*\(([^)]+)\)', content, re.IGNORECASE)
+    # Extract Assessment rating from "ScholarEval Score: X.XX/5.0 (Assessment)" or table format
+    assessment_match = re.search(r'ScholarEval Score[:\s|]+[\d.]+/5\.0\s*\(([^)]+)\)', content, re.IGNORECASE)
     if assessment_match:
         data['assessment'] = assessment_match.group(1).strip()
 
@@ -144,8 +156,11 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
         risks = re.findall(r'\d+\.\s*\*?\*?([^*\n]+)', risk_section.group(1))
         data['risks'] = [r.strip() for r in risks if r.strip()][:5]
 
-    # Extract Scholar scores from table
-    scholar_pattern = r'\|\s*(Differential Expression|Pathway Relevance|Druggability|Genetic Validation|Disease Association|Safety Profile|Clinical Validation|Biomarker Potential)\s*\|\s*(\d)/5'
+    # Extract Scholar scores from table (handles format with or without Weight column)
+    # Format 1: | Dimension | Score/5 | Rationale |
+    # Format 2: | Dimension | Weight | Score/5 | Rationale | (with weight column)
+    # Pattern matches: | Dimension | optional_weight | **X/5** or X/5 |
+    scholar_pattern = r'\|\s*(Differential Expression|Pathway Relevance|Druggability|Genetic Validation|Disease Association|Safety Profile|Clinical Validation|Biomarker Potential)\s*\|(?:\s*[\d.]+\s*\|)?\s*\*?\*?(\d)/5\*?\*?'
     scholar_matches = re.findall(scholar_pattern, content, re.IGNORECASE)
     for dim, score in scholar_matches:
         data['scholar_scores'][dim.strip()] = int(score)
@@ -318,41 +333,52 @@ def generate_pdf_report(gene, output_dir, report_data=None):
 
     print(f"Generating PDF report for {gene}...")
 
-    # ===== PAGE 1: TITLE (Professional Design) =====
+    # ===== PAGE 1: TITLE (Professional Design - Compact Layout) =====
     fig1, ax1 = plt.subplots(figsize=(8.5, 11))
     ax1.axis('off')
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 1)
 
-    # --- Header Banner (Dark gradient effect) ---
-    header_rect = mpatches.FancyBboxPatch((0, 0.82), 1.0, 0.18, boxstyle="square",
+    # Define margins for compact layout
+    margin = 0.12  # Side margins
+
+    # --- Header Banner (with margins) ---
+    header_rect = mpatches.FancyBboxPatch((margin, 0.84), 1.0 - 2*margin, 0.14,
+                                           boxstyle="round,pad=0.01,rounding_size=0.02",
                                            facecolor='#1a252f', transform=ax1.transAxes)
     ax1.add_patch(header_rect)
 
     # Accent line under header
-    ax1.axhline(y=0.82, color='#3498db', linewidth=4, xmin=0, xmax=1)
+    ax1.plot([margin, 1-margin], [0.84, 0.84], color='#3498db', linewidth=3, transform=ax1.transAxes)
 
     # Title text on banner
-    ax1.text(0.5, 0.93, 'TARGET EVALUATION REPORT', fontsize=13, fontweight='bold',
+    ax1.text(0.5, 0.93, 'TARGET EVALUATION REPORT', fontsize=11, fontweight='bold',
              ha='center', transform=ax1.transAxes, color='#95a5a6')
-    ax1.text(0.5, 0.87, gene, fontsize=36, fontweight='bold', ha='center',
+    ax1.text(0.5, 0.88, gene, fontsize=32, fontweight='bold', ha='center',
              transform=ax1.transAxes, color='white')
 
     # --- Subtitle section ---
-    ax1.text(0.5, 0.77, 'Colorectal Cancer (CRC) — Integrated Assessment',
-             fontsize=14, ha='center', transform=ax1.transAxes, color='#34495e')
+    ax1.text(0.5, 0.78, 'Colorectal Cancer (CRC) — Integrated Assessment',
+             fontsize=12, ha='center', transform=ax1.transAxes, color='#34495e')
 
     # Thin separator line
-    ax1.plot([0.2, 0.8], [0.74, 0.74], color='#bdc3c7', linewidth=1, transform=ax1.transAxes)
+    ax1.plot([0.25, 0.75], [0.75, 0.75], color='#bdc3c7', linewidth=1, transform=ax1.transAxes)
 
-    # --- Recommendation Badge (Prominent) ---
+    # --- Recommendation Badge (Prominent but narrower) ---
     recommendation = report_data.get('recommendation', 'GO') if report_data else 'GO'
-    if 'NO-GO' in recommendation.upper() or 'CONDITIONAL' in recommendation.upper():
+    # Normalize recommendation text - only keep the main keyword
+    rec_upper = recommendation.upper().strip()
+    if 'CONDITIONAL' in rec_upper and 'NO-GO' in rec_upper:
         rec_color = '#c0392b'
         rec_bg = '#fadbd8'
-        rec_text = recommendation.upper()
+        rec_text = 'CONDITIONAL NO-GO'
         rec_subtitle = 'Fundamental Safety Barrier'
-    elif recommendation.upper() == 'GO':
+    elif 'NO-GO' in rec_upper:
+        rec_color = '#c0392b'
+        rec_bg = '#fadbd8'
+        rec_text = 'NO-GO'
+        rec_subtitle = 'Not Recommended'
+    elif rec_upper == 'GO':
         rec_color = '#1e8449'
         rec_bg = '#d5f5e3'
         rec_text = 'GO'
@@ -360,85 +386,99 @@ def generate_pdf_report(gene, output_dir, report_data=None):
     else:
         rec_color = '#d68910'
         rec_bg = '#fef9e7'
-        rec_text = recommendation.upper()
+        rec_text = rec_upper[:20] if len(rec_upper) > 20 else rec_upper  # Truncate if needed
         rec_subtitle = 'Conditional Approval'
 
-    # Recommendation box with border
-    rec_rect = mpatches.FancyBboxPatch((0.15, 0.58), 0.7, 0.13, boxstyle="round,pad=0.015,rounding_size=0.02",
+    # Determine font size based on text length
+    if len(rec_text) <= 5:
+        rec_fontsize = 24
+    elif len(rec_text) <= 12:
+        rec_fontsize = 20
+    else:
+        rec_fontsize = 16
+
+    # Recommendation box with border (narrower)
+    rec_width = 0.56
+    rec_x = (1 - rec_width) / 2
+    rec_rect = mpatches.FancyBboxPatch((rec_x, 0.60), rec_width, 0.12,
+                                        boxstyle="round,pad=0.015,rounding_size=0.02",
                                         facecolor=rec_bg, edgecolor=rec_color, linewidth=3,
                                         transform=ax1.transAxes)
     ax1.add_patch(rec_rect)
-    ax1.text(0.5, 0.67, rec_text, fontsize=28, fontweight='bold', ha='center',
+    ax1.text(0.5, 0.68, rec_text, fontsize=rec_fontsize, fontweight='bold', ha='center',
              transform=ax1.transAxes, color=rec_color)
-    ax1.text(0.5, 0.605, rec_subtitle, fontsize=11, ha='center',
+    ax1.text(0.5, 0.625, rec_subtitle, fontsize=10, ha='center',
              transform=ax1.transAxes, color=rec_color, style='italic')
 
-    # --- Key Metrics Cards ---
+    # --- Key Metrics Cards (more compact) ---
     metrics = [
         ('ScholarEval Score', report_data.get('score', 'TBD') if report_data else 'TBD', '#2980b9'),
         ('Risk Profile', report_data.get('risk_profile', 'TBD') if report_data else 'TBD', '#8e44ad'),
         ('Fold Change', report_data.get('fold_change', 'TBD') if report_data else 'TBD', '#16a085'),
     ]
 
-    card_width = 0.25
-    card_height = 0.12
-    start_x = 0.1
-    spacing = 0.275
+    card_width = 0.20
+    card_height = 0.11
+    total_cards_width = 3 * card_width + 2 * 0.04  # 3 cards + 2 gaps
+    start_x = (1 - total_cards_width) / 2
+    spacing = card_width + 0.04
 
     for i, (label, value, color) in enumerate(metrics):
         x = start_x + i * spacing
         # Card background
-        card = mpatches.FancyBboxPatch((x, 0.38), card_width, card_height,
+        card = mpatches.FancyBboxPatch((x, 0.42), card_width, card_height,
                                         boxstyle="round,pad=0.01,rounding_size=0.015",
                                         facecolor='white', edgecolor=color, linewidth=2,
                                         transform=ax1.transAxes)
         ax1.add_patch(card)
         # Color accent bar at top of card
-        accent = mpatches.FancyBboxPatch((x, 0.48), card_width, 0.02,
-                                          boxstyle="round,pad=0,rounding_size=0.01",
+        accent = mpatches.FancyBboxPatch((x, 0.515), card_width, 0.015,
+                                          boxstyle="round,pad=0,rounding_size=0.008",
                                           facecolor=color, transform=ax1.transAxes)
         ax1.add_patch(accent)
         # Label
-        ax1.text(x + card_width/2, 0.455, label, fontsize=9, fontweight='bold',
+        ax1.text(x + card_width/2, 0.49, label, fontsize=8, fontweight='bold',
                  ha='center', transform=ax1.transAxes, color='#7f8c8d')
         # Value
-        ax1.text(x + card_width/2, 0.41, value, fontsize=13, fontweight='bold',
+        ax1.text(x + card_width/2, 0.45, value, fontsize=11, fontweight='bold',
                  ha='center', transform=ax1.transAxes, color=color)
 
     # --- Report Details Section ---
-    details_y = 0.30
-    ax1.text(0.5, details_y, '─' * 60, ha='center', transform=ax1.transAxes, color='#ecf0f1', fontsize=8)
+    ax1.plot([0.25, 0.75], [0.36, 0.36], color='#ecf0f1', linewidth=1, transform=ax1.transAxes)
 
     date_str = report_data.get('date', '2026-03-13') if report_data else '2026-03-13'
     assessment = report_data.get('assessment', 'TBD') if report_data else 'TBD'
 
-    detail_text = f"Date: {date_str}  │  Target: {gene}  │  Indication: CRC  │  Assessment: {assessment}"
-    ax1.text(0.5, 0.25, detail_text, fontsize=10, ha='center', transform=ax1.transAxes, color='#5d6d7e')
+    detail_text = f"Date: {date_str}  |  Target: {gene}  |  Indication: CRC  |  Assessment: {assessment}"
+    ax1.text(0.5, 0.32, detail_text, fontsize=9, ha='center', transform=ax1.transAxes, color='#5d6d7e')
 
-    # --- Pipeline Footer ---
-    footer_rect = mpatches.FancyBboxPatch((0.05, 0.08), 0.9, 0.10, boxstyle="round,pad=0.01",
+    # --- Pipeline Footer (with margins) ---
+    footer_rect = mpatches.FancyBboxPatch((margin, 0.10), 1.0 - 2*margin, 0.12,
+                                           boxstyle="round,pad=0.01,rounding_size=0.015",
                                            facecolor='#f8f9f9', edgecolor='#d5d8dc', linewidth=1,
                                            transform=ax1.transAxes)
     ax1.add_patch(footer_rect)
 
-    ax1.text(0.5, 0.145, '5-Step Evaluation Pipeline', fontsize=10, fontweight='bold',
+    ax1.text(0.5, 0.185, '4-Step Evaluation Pipeline', fontsize=9, fontweight='bold',
              ha='center', transform=ax1.transAxes, color='#2c3e50')
 
-    steps = ['Risk Framework', 'PubMed Search', 'TCGA Analysis', 'ScholarEval', 'Final Report']
-    step_colors = ['#3498db', '#9b59b6', '#e67e22', '#1abc9c', '#e74c3c']
+    steps = ['Risk Assessment', 'Expression', 'ScholarEval', 'Report']
+    step_colors = ['#3498db', '#e67e22', '#1abc9c', '#e74c3c']
+    step_spacing = 0.16
+    step_start = 0.5 - (len(steps) - 1) * step_spacing / 2  # Center the steps
     for i, (step, scolor) in enumerate(zip(steps, step_colors)):
-        x_pos = 0.12 + i * 0.17
-        ax1.plot(x_pos, 0.105, 'o', markersize=8, color=scolor, transform=ax1.transAxes)
-        ax1.text(x_pos, 0.095, step, fontsize=7, ha='center', va='top',
+        x_pos = step_start + i * step_spacing
+        ax1.plot(x_pos, 0.145, 'o', markersize=7, color=scolor, transform=ax1.transAxes)
+        ax1.text(x_pos, 0.115, step, fontsize=7, ha='center', va='top',
                  transform=ax1.transAxes, color='#5d6d7e')
         if i < len(steps) - 1:
-            ax1.annotate('', xy=(x_pos + 0.12, 0.105), xytext=(x_pos + 0.05, 0.105),
+            ax1.annotate('', xy=(x_pos + 0.10, 0.145), xytext=(x_pos + 0.04, 0.145),
                         arrowprops=dict(arrowstyle='->', color='#bdc3c7', lw=1.5),
                         transform=ax1.transAxes)
 
     # Version footer
-    ax1.text(0.5, 0.025, 'CRC Target Evaluation Pipeline v2.0  |  Data: TCGA-COAD/READ, GTEx, CCLE, PubMed',
-             fontsize=8, ha='center', transform=ax1.transAxes, color='#aab7b8', style='italic')
+    ax1.text(0.5, 0.03, 'CRC Target Evaluation Pipeline v2.0  |  Data: TCGA, GTEx, CCLE, Tempus, PubMed',
+             fontsize=7, ha='center', transform=ax1.transAxes, color='#aab7b8', style='italic')
 
     pdf.savefig(fig1, dpi=300, bbox_inches='tight')
     plt.close(fig1)

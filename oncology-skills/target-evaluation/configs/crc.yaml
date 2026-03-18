@@ -1,62 +1,315 @@
 # CRC (Colorectal Cancer) Configuration for Target Evaluation
+# Updated with Tempus integration and iDAS alignment
 
 disease: crc
 full_name: Colorectal Cancer
 abbreviation: CRC
 
-# Skill routing
+# =============================================================================
+# SKILL ROUTING
+# =============================================================================
 bulk_rna_skill: oncology-skills:crc-bulk-rna-analysis
-analysis_script: crc_gene_analysis.py
+integrated_analysis_script: crc_integrated_analysis.py
+legacy_analysis_script: crc_gene_analysis.py
 
-# Data sources
+# =============================================================================
+# DATA SOURCES - TCGA/GTEx/CCLE (Raw Expression)
+# =============================================================================
+tcga_s3_bucket: s3://onc-compbio/omicsoft_oncoland_data
 tcga_projects:
   - TCGA-COAD
   - TCGA-READ
 gtex_tissue: Colon
 ccle_filter: colorectal
 
-# PubMed query template
-pubmed_query_template: |
-  ({gene} OR {aliases}) AND (colorectal cancer OR colon cancer OR rectal cancer OR CRC)
+# TCGA annotation files
+tcga_cohort_assignments: s3://onc-compbio/TCGA/crc_cohort_assignments.csv
+tcga_cms_predictions: s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv
+tcga_adjacent_normal: s3://onc-compbio/TCGA/TCGA-COAD-READ-AdjNormal.tsv
 
-# Cohort definitions
-cohorts:
-  2A:
-    name: RAS-mutant MSS
-    description: Frontline RAS-mutant, microsatellite stable
-  2B:
-    name: RAS-WT MSS
-    description: Frontline RAS wild-type, microsatellite stable
-  4:
-    name: Early Stage
-    description: Stage I/II CRC
-  5:
-    name: All MSS
-    description: All microsatellite stable samples
-  6:
-    name: MSI-H
-    description: All microsatellite instability-high samples
+# =============================================================================
+# DATA SOURCES - TEMPUS (Real-World, Pre-computed Summaries)
+# =============================================================================
+tempus_s3_bucket: s3://onc-compbio/Tempus/crc
 
-# Molecular subtypes
-subtypes:
+tempus_files:
+  # Primary iDAS-aligned files
+  idas_groups: gene_summary_by_iDAS_group.csv
+  idas_groups_wide: gene_summary_by_iDAS_group_wide.csv
+  key_target_3lplus: gene_summary_key_target_MSS_RASMut_3L+.csv
+
+  # Line of Therapy
+  lot_mss: gene_summary_by_LOT_MSS.csv
+
+  # Biomarker stratifications
+  ras_status_mss: gene_summary_by_RAS_status_MSS.csv
+  msi_status: gene_summary_by_MSI_status.csv
+  cpi_status: gene_summary_by_CPI_status.csv
+
+  # CMS combinations
+  cms: gene_summary_by_CMS.csv
+  cms_wide: gene_summary_by_CMS_wide.csv
+  cms_idas_key: gene_summary_by_CMS_iDAS_key.csv
+  cms_lot_mss: gene_summary_by_CMS_LOT_MSS.csv
+  cms_ras_mss: gene_summary_by_CMS_RAS_MSS.csv
+  cms_msi: gene_summary_by_CMS_MSI.csv
+
+  # Overall summary
+  overall: gene_summary_overall.csv
+  master: gene_summary_master_all_groups.csv
+
+# =============================================================================
+# iDAS STRATEGIC ALIGNMENT
+# =============================================================================
+idas_vision: "Establish Takeda as a leader in CRC treatment through meaningful internal innovation and external partnerships"
+
+idas_priority_whitespaces:
+  - id: chemorefractory_3lplus
+    name: "mCRC Chemorefractory 3L+"
+    description: "Limited treatment options beyond chemotherapy"
+    tempus_group: "3L+ Chemorefractory"
+    priority: high
+
+  - id: ras_mutant_frontline
+    name: "mCRC RAS Mutant Frontline"
+    description: "~45% of CRC patients harbor RAS mutations"
+    tempus_group: "MSS_RASMut_1L2L"
+    priority: high
+
+  - id: ras_mutant_refractory
+    name: "mCRC RAS Mutant Refractory"
+    description: "Significant unmet need in treatment-resistant population"
+    tempus_group: "MSS_RASMut_3L+"
+    priority: high
+
+  - id: resectable
+    name: "Resectable CRC (Neo/Adjuvant)"
+    description: "Early-stage opportunity with curative intent"
+    tcga_cohort: "TCGA_Resectable"
+    priority: medium
+
+# =============================================================================
+# COHORT DEFINITIONS - UNIFIED NAMING
+# =============================================================================
+
+# TCGA-based cohorts (raw expression, with normal tissue)
+tcga_cohorts:
+  TCGA_RASMut_MSS:
+    legacy_name: Cohort_2A
+    description: "RAS-mutant, microsatellite stable (TCGA)"
+    idas_alignment: ras_mutant_frontline
+    color: "#E74C3C"
+
+  TCGA_RASWT_MSS:
+    legacy_name: Cohort_2B
+    description: "RAS wild-type, microsatellite stable (TCGA)"
+    idas_alignment: null
+    color: "#2ECC71"
+
+  TCGA_Resectable:
+    legacy_name: Cohort_4
+    description: "Early stage I/II, resectable (TCGA)"
+    idas_alignment: resectable
+    color: "#3498DB"
+
+  TCGA_MSS_All:
+    legacy_name: Cohort_5
+    description: "All microsatellite stable samples (TCGA)"
+    idas_alignment: null
+    color: "#9B59B6"
+
+  TCGA_MSIH:
+    legacy_name: Cohort_6
+    description: "Microsatellite instability-high (TCGA)"
+    idas_alignment: null
+    color: "#F39C12"
+
+# Normal tissue references (TCGA/GTEx)
+normal_cohorts:
+  TCGA_Adjacent:
+    description: "Adjacent normal tissue (TCGA)"
+    use_case: "On-target toxicity assessment"
+    color: "#7F8C8D"
+
+  GTEx_Colon:
+    description: "Normal colon tissue (GTEx)"
+    use_case: "Healthy tissue baseline"
+    color: "#1ABC9C"
+
+# Cell line reference
+cell_line_cohorts:
+  CCLE_CRC:
+    description: "CRC cell lines (CCLE)"
+    use_case: "In vitro model expression"
+    color: "#8B4513"
+
+# Tempus-based cohorts (real-world, treatment-stratified)
+tempus_cohorts:
+  # iDAS Priority Cohorts
+  Tempus_RASMut_MSS_1L2L:
+    tempus_group: "MSS_RASMut_1L2L"
+    description: "RAS-mutant MSS, 1st/2nd line (Tempus RWD)"
+    idas_alignment: ras_mutant_frontline
+    sample_size: 85560
+    color: "#C0392B"
+
+  Tempus_RASMut_MSS_3Lplus:
+    tempus_group: "MSS_RASMut_3L+"
+    description: "RAS-mutant MSS, 3L+ chemorefractory (Tempus RWD)"
+    idas_alignment: ras_mutant_refractory
+    sample_size: 26319
+    color: "#922B21"
+    priority_cohort: true
+
+  Tempus_RASWT_MSS_1L2L:
+    tempus_group: "MSS_RASWT_1L2L"
+    description: "RAS wild-type MSS, 1st/2nd line (Tempus RWD)"
+    idas_alignment: null
+    sample_size: 58683
+    color: "#27AE60"
+
+  Tempus_RASWT_MSS_3Lplus:
+    tempus_group: "MSS_RASWT_3L+"
+    description: "RAS wild-type MSS, 3L+ chemorefractory (Tempus RWD)"
+    idas_alignment: chemorefractory_3lplus
+    sample_size: 13299
+    color: "#1E8449"
+
+  # Line of Therapy cohorts
+  Tempus_MSS_1L2L:
+    tempus_group: "1L-2L"
+    description: "All MSS, 1st/2nd line (Tempus RWD)"
+    sample_size: 144243
+    color: "#5DADE2"
+
+  Tempus_MSS_3Lplus:
+    tempus_group: "3L+ Chemorefractory"
+    description: "All MSS, 3L+ chemorefractory (Tempus RWD)"
+    idas_alignment: chemorefractory_3lplus
+    sample_size: 39618
+    color: "#2874A6"
+    priority_cohort: true
+
+  # Treatment status cohorts
+  Tempus_CPI_Naive:
+    tempus_group: "CPI Naive"
+    description: "Checkpoint inhibitor naive (Tempus RWD)"
+    sample_size: 181908
+    color: "#85929E"
+
+  Tempus_CPI_Treated:
+    tempus_group: "CPI Treated"
+    description: "Prior checkpoint inhibitor treatment (Tempus RWD)"
+    sample_size: 21111
+    color: "#566573"
+
+# =============================================================================
+# CMS SUBTYPES
+# =============================================================================
+cms_subtypes:
   CMS1:
-    name: MSI Immune
-    characteristics: MSI-H, immune infiltration
+    name: "MSI Immune"
+    characteristics: "MSI-H, immune infiltration, hypermutated"
+    color: "#E69F00"
   CMS2:
-    name: Canonical
-    characteristics: WNT/MYC activation
+    name: "Canonical"
+    characteristics: "WNT/MYC activation, epithelial"
+    color: "#56B4E9"
   CMS3:
-    name: Metabolic
-    characteristics: Metabolic dysregulation
+    name: "Metabolic"
+    characteristics: "Metabolic dysregulation, KRAS mutations"
+    color: "#009E73"
   CMS4:
-    name: Mesenchymal
-    characteristics: Stromal infiltration, EMT
+    name: "Mesenchymal"
+    characteristics: "Stromal infiltration, EMT, poor prognosis"
+    color: "#CC79A7"
+
+# =============================================================================
+# BIOMARKER LANDSCAPE (from iDAS)
+# =============================================================================
+biomarker_landscape:
+  KRAS:
+    prevalence: "~45%"
+    notes: "Key oncogenic driver; pan-RAS inhibitors emerging"
+  PD_L1:
+    prevalence: "41-95%"
+    notes: "Variable expression across studies"
+  HER2:
+    prevalence: "~5%"
+    notes: "Emerging targeted therapy opportunity"
+  CLDN18_2:
+    prevalence: "~5%"
+    notes: "Limited in CRC vs. other GI tumors"
+  FGFR2b:
+    prevalence: "~4%"
+    notes: "Limited applicability"
+  TROP2:
+    prevalence: "~15%"
+    notes: "Potential ADC target"
+  MSI_H:
+    prevalence: "~15% (mCRC ~5%)"
+    notes: "IO-responsive population"
+
+# =============================================================================
+# COMPETITIVE LANDSCAPE (from iDAS)
+# =============================================================================
+competitive_landscape:
+  - target: "KRAS G12C"
+    competitors: "Sotorasib (Amgen), Adagrasib (Mirati)"
+    status: "Approved"
+  - target: "Pan-KRAS"
+    competitors: "Daraxonrasib (Revolution Medicines)"
+    status: "Phase 3"
+  - target: "KRAS G12D"
+    competitors: "Multiple early-stage programs"
+    status: "Phase 1/2"
+  - target: "HER2"
+    competitors: "Trastuzumab deruxtecan, tucatinib combinations"
+    status: "Approved/Phase 3"
+  - target: "EGFR (RAS WT)"
+    competitors: "Cetuximab, panitumumab"
+    status: "Approved (generic pressure)"
+
+# =============================================================================
+# ANALYSIS CONFIGURATION
+# =============================================================================
+analysis_settings:
+  # Primary comparison for on-target toxicity
+  primary_normal_comparison: "TCGA_Adjacent"
+  secondary_normal_comparison: "GTEx_Colon"
+
+  # iDAS priority comparisons
+  idas_comparisons:
+    - name: "3L+ vs Frontline"
+      numerator: "Tempus_MSS_3Lplus"
+      denominator: "Tempus_MSS_1L2L"
+      metric: "log2FC"
+
+    - name: "RAS-mut 3L+ vs All MSS"
+      numerator: "Tempus_RASMut_MSS_3Lplus"
+      denominator: "Tempus_MSS_All"
+      metric: "log2FC"
+
+    - name: "RAS-mut vs RAS-WT (MSS)"
+      numerator: "Tempus_RASMut_MSS"
+      denominator: "Tempus_RASWT_MSS"
+      metric: "log2FC"
 
 # Output directory
 output_dir: crc_analysis_results
 
-# Required data files (S3 paths)
-required_files:
-  cohort_assignments: s3://onc-compbio/TCGA/crc_cohort_assignments.csv
-  cms_predictions: s3://onc-compbio/TCGA/TCGA_CMS_prediction.csv
-  adjacent_normal: s3://onc-compbio/TCGA/TCGA-COAD-READ-AdjNormal.tsv
+# =============================================================================
+# PUBMED QUERY TEMPLATES
+# =============================================================================
+pubmed_query_template: |
+  ({gene} OR {aliases}) AND (colorectal cancer OR colon cancer OR rectal cancer OR CRC)
+
+pubmed_idas_queries:
+  ras_context: |
+    ({gene}) AND (colorectal cancer) AND (KRAS OR RAS mutant OR RAS wild-type)
+  msi_context: |
+    ({gene}) AND (colorectal cancer) AND (MSI OR MSS OR microsatellite)
+  chemorefractory: |
+    ({gene}) AND (colorectal cancer) AND (refractory OR resistant OR third-line OR 3L)
+  cms_subtypes: |
+    ({gene}) AND (colorectal cancer) AND (CMS1 OR CMS2 OR CMS3 OR CMS4 OR consensus molecular subtype)

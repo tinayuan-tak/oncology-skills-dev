@@ -2,8 +2,18 @@
 """
 CRC Gene Expression Analysis with Cohort Comparisons and Target Evaluation Report
 
-Analyzes gene expression across CRC cohorts (2A, 2B, 4, 5, 6), CMS subtypes,
-and normal tissue comparisons using Omicsoft format data.
+Analyzes gene expression across CRC cohorts with unified iDAS-aligned naming,
+CMS subtypes, and normal tissue comparisons using Omicsoft format data.
+
+Cohort Naming (unified with iDAS alignment):
+    TCGA_RASMut_MSS   - RAS-mutant MSS (formerly Cohort_2A) - iDAS Priority
+    TCGA_RASWT_MSS    - RAS wild-type MSS (formerly Cohort_2B)
+    TCGA_Resectable   - Early stage I/II (formerly Cohort_4) - iDAS Priority
+    TCGA_MSS_All      - All MSS samples (formerly Cohort_5)
+    TCGA_MSIH         - MSI-H (formerly Cohort_6)
+    TCGA_Adjacent     - Adjacent normal tissue (on-target toxicity reference)
+    GTEx_Colon        - Normal colon (GTEx healthy baseline)
+    CCLE_CRC          - CRC cell lines
 
 Usage:
     python crc_gene_analysis.py --genes CDK4 CDK6 CCND1
@@ -14,8 +24,11 @@ Data Sources (from S3):
     - TCGA COAD/READ expression and metadata
     - GTEx normal colon expression
     - CCLE CRC cell line expression
-    - Cohort assignments CSV
+    - Cohort assignments CSV (legacy names auto-converted)
     - CMS predictions CSV
+
+Note: For integrated TCGA + Tempus analysis with full iDAS alignment,
+      use crc_integrated_analysis.py instead.
 """
 
 import argparse
@@ -59,20 +72,48 @@ plt.rcParams['xtick.labelsize'] = 10
 plt.rcParams['ytick.labelsize'] = 10
 sns.set_style('whitegrid')
 
-# Cohorts to analyze
-COHORTS_OF_INTEREST = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6']
+# =============================================================================
+# UNIFIED COHORT NAMING (iDAS-aligned)
+# =============================================================================
 
-# Color schemes
+# Legacy to new cohort name mapping (for backward compatibility with existing CSV)
+LEGACY_COHORT_MAP = {
+    'Cohort_2A': 'TCGA_RASMut_MSS',
+    'Cohort_2B': 'TCGA_RASWT_MSS',
+    'Cohort_4': 'TCGA_Resectable',
+    'Cohort_5': 'TCGA_MSS_All',
+    'Cohort_6': 'TCGA_MSIH',
+}
+
+# Reverse mapping for reading legacy files
+NEW_TO_LEGACY_MAP = {v: k for k, v in LEGACY_COHORT_MAP.items()}
+
+# Cohorts to analyze (new unified names)
+COHORTS_OF_INTEREST = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH']
+
+# iDAS Priority cohorts (for highlighting in visualizations)
+IDAS_PRIORITY_COHORTS = ['TCGA_RASMut_MSS', 'TCGA_Resectable']
+
+# Color schemes (unified naming)
 COHORT_COLORS = {
-    'Cohort_2A': '#E74C3C',       # Red - RAS mutant
-    'Cohort_2B': '#2ECC71',       # Green - RAS WT
-    'Cohort_4': '#3498DB',        # Blue - Early stage
-    'Cohort_5': '#9B59B6',        # Purple - All MSS
-    'Cohort_6': '#F39C12',        # Orange - MSI-H
-    'TCGA_Tumor': '#E74C3C',      # Red - All Tumor
-    'TCGA_Adjacent': '#7F8C8D',   # Gray - TCGA Adjacent Normal
-    'GTEx_Normal': '#1ABC9C',     # Teal - GTEx Normal
-    'CCLE_CRC': '#8B4513'         # Brown - CRC Cell Lines
+    # TCGA tumor cohorts
+    'TCGA_RASMut_MSS': '#E74C3C',    # Red - RAS mutant MSS
+    'TCGA_RASWT_MSS': '#2ECC71',     # Green - RAS WT MSS
+    'TCGA_Resectable': '#3498DB',    # Blue - Early stage/Resectable
+    'TCGA_MSS_All': '#9B59B6',       # Purple - All MSS
+    'TCGA_MSIH': '#F39C12',          # Orange - MSI-H
+    # Reference cohorts
+    'TCGA_Tumor': '#E74C3C',         # Red - All Tumor
+    'TCGA_Adjacent': '#7F8C8D',      # Gray - TCGA Adjacent Normal
+    'GTEx_Colon': '#1ABC9C',         # Teal - GTEx Normal Colon
+    'CCLE_CRC': '#8B4513',           # Brown - CRC Cell Lines
+    # Legacy names (for backward compatibility)
+    'Cohort_2A': '#E74C3C',
+    'Cohort_2B': '#2ECC71',
+    'Cohort_4': '#3498DB',
+    'Cohort_5': '#9B59B6',
+    'Cohort_6': '#F39C12',
+    'GTEx_Normal': '#1ABC9C',
 }
 
 CMS_COLORS = {
@@ -88,16 +129,37 @@ TUMOR_TYPE_COLORS = {
     'READ': '#E74C3C',  # Red - Rectal
 }
 
+# Cohort labels for plots (unified naming with iDAS context)
 COHORT_LABELS = {
-    'Cohort_2A': '2A\nRAS-mut\nMSS',
-    'Cohort_2B': '2B\nRAS-WT\nMSS',
-    'Cohort_4': '4\nEarly\nStage',
-    'Cohort_5': '5\nAll\nMSS',
-    'Cohort_6': '6\nMSI-H',
-    'TCGA_Tumor': 'CRC\nTumor',
-    'TCGA_Adjacent': 'Adjacent\nNormal\n(TCGA)',
-    'GTEx_Normal': 'Normal\nColon\n(GTEx)',
-    'CCLE_CRC': 'CRC\nCell Lines\n(CCLE)'
+    # New unified names
+    'TCGA_RASMut_MSS': 'RAS-mut MSS\n(TCGA)\niDAS Priority',
+    'TCGA_RASWT_MSS': 'RAS-WT MSS\n(TCGA)',
+    'TCGA_Resectable': 'Resectable\n(TCGA)\niDAS Priority',
+    'TCGA_MSS_All': 'All MSS\n(TCGA)',
+    'TCGA_MSIH': 'MSI-H\n(TCGA)',
+    'TCGA_Tumor': 'CRC Tumor\n(TCGA)',
+    'TCGA_Adjacent': 'Adjacent Normal\n(TCGA)',
+    'GTEx_Colon': 'Normal Colon\n(GTEx)',
+    'CCLE_CRC': 'CRC Cell Lines\n(CCLE)',
+    # Legacy names (for backward compatibility)
+    'Cohort_2A': 'RAS-mut MSS\n(TCGA)',
+    'Cohort_2B': 'RAS-WT MSS\n(TCGA)',
+    'Cohort_4': 'Resectable\n(TCGA)',
+    'Cohort_5': 'All MSS\n(TCGA)',
+    'Cohort_6': 'MSI-H\n(TCGA)',
+    'GTEx_Normal': 'Normal Colon\n(GTEx)',
+}
+
+# Cohort descriptions for reports
+COHORT_DESCRIPTIONS = {
+    'TCGA_RASMut_MSS': 'RAS-mutant, microsatellite stable CRC (TCGA) - iDAS Priority: Frontline',
+    'TCGA_RASWT_MSS': 'RAS wild-type, microsatellite stable CRC (TCGA)',
+    'TCGA_Resectable': 'Early stage I/II resectable CRC (TCGA) - iDAS Priority: Neo/Adjuvant',
+    'TCGA_MSS_All': 'All microsatellite stable CRC samples (TCGA)',
+    'TCGA_MSIH': 'Microsatellite instability-high CRC (TCGA)',
+    'TCGA_Adjacent': 'Adjacent normal colon tissue (TCGA) - On-target toxicity reference',
+    'GTEx_Colon': 'Normal colon tissue (GTEx) - Healthy baseline',
+    'CCLE_CRC': 'CRC cell lines (CCLE) - In vitro model reference',
 }
 
 # =============================================================================
@@ -177,11 +239,46 @@ def load_gtex_metadata(cache_dir):
     return df
 
 
-def load_cohort_assignments(cohort_path):
-    """Load cohort assignments from CSV."""
+def convert_legacy_cohort_name(cohort_name):
+    """Convert legacy cohort name to unified naming."""
+    return LEGACY_COHORT_MAP.get(cohort_name, cohort_name)
+
+
+def convert_cohort_column(df, cohort_col='cohort'):
+    """Convert all cohort names in a dataframe column to unified naming."""
+    if cohort_col in df.columns:
+        df[cohort_col] = df[cohort_col].apply(convert_legacy_cohort_name)
+    return df
+
+
+def load_cohort_assignments(cohort_path, convert_names=True):
+    """Load cohort assignments from CSV.
+
+    Args:
+        cohort_path: Path to cohort assignments CSV
+        convert_names: If True, convert legacy cohort names to unified naming
+
+    Returns:
+        DataFrame with cohort assignments (optionally with unified naming)
+    """
     print(f"Loading cohort assignments from: {cohort_path}")
     df = pd.read_csv(cohort_path)
     print(f"  {len(df)} samples with cohort assignments")
+
+    # Convert legacy cohort names to unified naming
+    if convert_names:
+        # Find cohort columns and convert them
+        cohort_cols = [col for col in df.columns if 'cohort' in col.lower()]
+        for col in cohort_cols:
+            original_values = df[col].unique()
+            df[col] = df[col].apply(convert_legacy_cohort_name)
+            new_values = df[col].unique()
+
+            # Report conversions
+            converted = [v for v in original_values if v in LEGACY_COHORT_MAP]
+            if converted:
+                print(f"  Converted cohort names in '{col}': {len(converted)} legacy names updated")
+
     return df
 
 
@@ -412,8 +509,8 @@ def build_master_dataframe(tcga_expr, gtex_expr, ccle_expr, tcga_meta, gtex_meta
                 'expr_sample_id': sample_id,
                 'sample_index': sample_idx,
                 'expression': expr_value,
-                'tissue_type': 'GTEx_Normal',
-                'cohorts': ['GTEx_Normal'],
+                'tissue_type': 'GTEx_Colon',
+                'cohorts': ['GTEx_Colon'],
                 'CMS': 'Normal',
                 'msi_status': 'N/A',
                 'ras_status': 'N/A',
@@ -540,7 +637,7 @@ def perform_kruskal_wallis(plot_df):
 
 def perform_pairwise_comparisons(plot_df):
     """Perform Mann-Whitney U tests: tumor cohorts vs normal groups."""
-    normal_groups = ['TCGA_Adjacent', 'GTEx_Normal']
+    normal_groups = ['TCGA_Adjacent', 'GTEx_Colon']
     pairwise_results = []
 
     for normal_group in normal_groups:
@@ -646,7 +743,7 @@ def perform_cms_statistics(plot_df):
 
 def plot_cohort_boxplot(plot_df, gene_symbol, output_dir, expr_unit=r'$\log_2(TPM + 1)$'):
     """Create main cohort comparison box plot."""
-    plot_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6', 'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']
+    plot_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH', 'TCGA_Adjacent', 'GTEx_Colon', 'CCLE_CRC']
     plot_order = [c for c in plot_order if c in plot_df['cohort'].unique()]
 
     fig, ax = plt.subplots(figsize=(14, 8))
@@ -721,7 +818,7 @@ def plot_cohort_boxplot(plot_df, gene_symbol, output_dir, expr_unit=r'$\log_2(TP
 
 def plot_cohort_violin(plot_df, gene_symbol, output_dir, expr_unit=r'$\log_2(TPM + 1)$'):
     """Create violin plot with embedded box plot."""
-    plot_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6', 'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']
+    plot_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH', 'TCGA_Adjacent', 'GTEx_Colon', 'CCLE_CRC']
     plot_order = [c for c in plot_order if c in plot_df['cohort'].unique()]
 
     fig, ax = plt.subplots(figsize=(14, 8))
@@ -828,8 +925,8 @@ def plot_cms_boxplot(plot_df, gene_symbol, output_dir, expr_unit=r'$\log_2(TPM +
         ax.axhline(y=tcga_adj_median, color='#7F8C8D', linestyle='--', alpha=0.7, linewidth=1.5,
                    label=f'TCGA Adjacent: {tcga_adj_median:.2f}')
 
-    if 'GTEx_Normal' in plot_df['cohort'].unique():
-        gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Normal']['expression'].median()
+    if 'GTEx_Colon' in plot_df['cohort'].unique():
+        gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Colon']['expression'].median()
         ax.axhline(y=gtex_median, color='#1ABC9C', linestyle='-.', alpha=0.7, linewidth=1.5,
                    label=f'GTEx Normal: {gtex_median:.2f}')
 
@@ -894,8 +991,8 @@ def plot_tumor_type_boxplot(plot_df, gene_symbol, output_dir, expr_unit=r'$\log_
         ax.text(i, ax.get_ylim()[0] - 0.3, f'n={n}\nmed={med:.2f}', ha='center', va='top', fontsize=10)
 
     # Normal reference lines
-    if 'GTEx_Normal' in plot_df['cohort'].unique():
-        gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Normal']['expression'].median()
+    if 'GTEx_Colon' in plot_df['cohort'].unique():
+        gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Colon']['expression'].median()
         ax.axhline(y=gtex_median, color='#1ABC9C', linestyle='--', alpha=0.7, linewidth=1.5,
                    label=f'GTEx Normal: {gtex_median:.2f}')
         ax.legend(loc='upper right', fontsize=10)
@@ -932,7 +1029,7 @@ def plot_tumor_type_by_cohort(plot_df, gene_symbol, output_dir, expr_unit=r'$\lo
     tumor_df = plot_df[plot_df['tissue_type'] == 'Primary_Tumor'].copy()
     tumor_df = tumor_df[tumor_df['tumor_type'].isin(['COAD', 'READ'])]
 
-    cohorts = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6']
+    cohorts = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH']
     cohorts = [c for c in cohorts if c in tumor_df['cohort'].unique()]
 
     if len(cohorts) == 0:
@@ -1012,7 +1109,7 @@ def analyze_by_tumor_type(plot_df, gene_symbol, output_dir):
 
         # Calculate statistics by cohort for this tumor type
         cohort_stats = {}
-        for cohort in ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6']:
+        for cohort in ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH']:
             cohort_data = tumor_only[tumor_only['cohort'] == cohort]['expression'].dropna()
             if len(cohort_data) > 0:
                 cohort_stats[cohort] = {
@@ -1023,7 +1120,7 @@ def analyze_by_tumor_type(plot_df, gene_symbol, output_dir):
                 }
 
         # Add normal tissue stats (shared between COAD/READ)
-        for normal_type in ['TCGA_Adjacent', 'GTEx_Normal']:
+        for normal_type in ['TCGA_Adjacent', 'GTEx_Colon']:
             normal_data = plot_df[plot_df['cohort'] == normal_type]['expression'].dropna()
             if len(normal_data) > 0:
                 cohort_stats[normal_type] = {
@@ -1058,12 +1155,12 @@ def analyze_by_tumor_type(plot_df, gene_symbol, output_dir):
 
         # Statistical comparisons vs normal
         pairwise_results = []
-        for cohort in ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6']:
+        for cohort in ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH']:
             cohort_data = tumor_only[tumor_only['cohort'] == cohort]['expression'].dropna()
             if len(cohort_data) < 3:
                 continue
 
-            for normal_type in ['TCGA_Adjacent', 'GTEx_Normal']:
+            for normal_type in ['TCGA_Adjacent', 'GTEx_Colon']:
                 normal_data = plot_df[plot_df['cohort'] == normal_type]['expression'].dropna()
                 if len(normal_data) < 3:
                     continue
@@ -1112,7 +1209,7 @@ def plot_comprehensive(plot_df, master_df, gene_symbol, output_dir, stats_summar
     """Create multi-panel comprehensive figure."""
     fig = plt.figure(figsize=(16, 12))
 
-    plot_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6', 'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']
+    plot_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH', 'TCGA_Adjacent', 'GTEx_Colon', 'CCLE_CRC']
     plot_order = [c for c in plot_order if c in plot_df['cohort'].unique()]
     palette = [COHORT_COLORS.get(c, '#666666') for c in plot_order]
 
@@ -1179,8 +1276,8 @@ def plot_comprehensive(plot_df, master_df, gene_symbol, output_dir, stats_summar
         ax2.set_xticks(range(len(cms_present)))
         ax2.set_xticklabels(cms_present, fontsize=9)
 
-        if 'GTEx_Normal' in plot_df['cohort'].unique():
-            gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Normal']['expression'].median()
+        if 'GTEx_Colon' in plot_df['cohort'].unique():
+            gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Colon']['expression'].median()
             ax2.axhline(y=gtex_median, color='#1ABC9C', linestyle='--', alpha=0.7, linewidth=1.5)
 
     ax2.set_ylabel(expr_unit, fontsize=10)
@@ -1192,7 +1289,7 @@ def plot_comprehensive(plot_df, master_df, gene_symbol, output_dir, stats_summar
 
     tumor_expr = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression']
     tcga_adj_expr = master_df[master_df['tissue_type'] == 'TCGA_Adjacent']['expression']
-    gtex_expr = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression']
+    gtex_expr = master_df[master_df['tissue_type'] == 'GTEx_Colon']['expression']
 
     tissue_data = []
     tissue_labels = []
@@ -1290,7 +1387,7 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
 
     # Pre-calculate key metrics for Target Evaluation Summary
     tumor_median = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression'].median()
-    gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression'].median()
+    gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Colon']['expression'].median()
     adj_median = master_df[master_df['tissue_type'] == 'TCGA_Adjacent']['expression'].median()
     ccle_median = master_df[master_df['tissue_type'] == 'CCLE_CRC']['expression'].median()
 
@@ -1360,7 +1457,7 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
         f.write("## Data Overview\n\n")
         f.write("| Sample Group | N |\n")
         f.write("|--------------|---|\n")
-        for tissue in ['Primary_Tumor', 'TCGA_Adjacent', 'GTEx_Normal']:
+        for tissue in ['Primary_Tumor', 'TCGA_Adjacent', 'GTEx_Colon']:
             n = len(master_df[master_df['tissue_type'] == tissue])
             f.write(f"| {tissue.replace('_', ' ')} | {n} |\n")
         f.write("\n")
@@ -1371,16 +1468,16 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
         f.write("|--------|------------|---|--------|------|----|\n")
 
         cohort_defs = {
-            'Cohort_2A': 'RAS-mutant MSS',
-            'Cohort_2B': 'RAS-WT MSS',
-            'Cohort_4': 'Early Stage (I/II)',
-            'Cohort_5': 'All MSS',
-            'Cohort_6': 'MSI-H',
+            'TCGA_RASMut_MSS': 'RAS-mutant MSS (iDAS Priority)',
+            'TCGA_RASWT_MSS': 'RAS-WT MSS',
+            'TCGA_Resectable': 'Resectable Stage I/II (iDAS Priority)',
+            'TCGA_MSS_All': 'All MSS',
+            'TCGA_MSIH': 'MSI-H',
             'TCGA_Adjacent': 'Adjacent Normal',
-            'GTEx_Normal': 'Normal Colon (GTEx)'
+            'GTEx_Colon': 'Normal Colon (GTEx)'
         }
 
-        for cohort in ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6', 'TCGA_Adjacent', 'GTEx_Normal']:
+        for cohort in ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH', 'TCGA_Adjacent', 'GTEx_Colon']:
             if cohort in stats_summary.index:
                 row = stats_summary.loc[cohort]
                 f.write(f"| {cohort.replace('Cohort_', '')} | {cohort_defs.get(cohort, '')} | ")
@@ -1511,21 +1608,21 @@ def generate_target_report(gene_symbol, gene_id, master_df, plot_df, stats_summa
             f.write(f"- **Cell line expression**: Median {ccle_median:.2f} in {n_ccle} CRC cell lines, ")
             f.write("supporting druggability studies\n")
 
-        # RAS status independence
-        if 'Cohort_2A' in stats_summary.index and 'Cohort_2B' in stats_summary.index:
-            ras_mut_median = stats_summary.loc['Cohort_2A', 'median']
-            ras_wt_median = stats_summary.loc['Cohort_2B', 'median']
+        # RAS status independence (iDAS Priority)
+        if 'TCGA_RASMut_MSS' in stats_summary.index and 'TCGA_RASWT_MSS' in stats_summary.index:
+            ras_mut_median = stats_summary.loc['TCGA_RASMut_MSS', 'median']
+            ras_wt_median = stats_summary.loc['TCGA_RASWT_MSS', 'median']
             diff = abs(ras_mut_median - ras_wt_median)
             if diff < 0.5:
-                f.write(f"- **RAS status**: Similar expression in RAS-mutant ({ras_mut_median:.2f}) and RAS-WT ({ras_wt_median:.2f}) tumors\n")
+                f.write(f"- **RAS status (iDAS Priority)**: Similar expression in RAS-mutant ({ras_mut_median:.2f}) and RAS-WT ({ras_wt_median:.2f}) tumors - RAS-agnostic potential\n")
             else:
                 higher = "RAS-mutant" if ras_mut_median > ras_wt_median else "RAS-WT"
-                f.write(f"- **RAS status**: Higher in {higher} tumors (mut: {ras_mut_median:.2f}, WT: {ras_wt_median:.2f})\n")
+                f.write(f"- **RAS status (iDAS Priority)**: Higher in {higher} tumors (mut: {ras_mut_median:.2f}, WT: {ras_wt_median:.2f})\n")
 
         # MSI status
-        if 'Cohort_5' in stats_summary.index and 'Cohort_6' in stats_summary.index:
-            mss_median = stats_summary.loc['Cohort_5', 'median']
-            msi_median = stats_summary.loc['Cohort_6', 'median']
+        if 'TCGA_MSS_All' in stats_summary.index and 'TCGA_MSIH' in stats_summary.index:
+            mss_median = stats_summary.loc['TCGA_MSS_All', 'median']
+            msi_median = stats_summary.loc['TCGA_MSIH', 'median']
             diff = abs(mss_median - msi_median)
             if diff < 0.5:
                 f.write(f"- **MSI status**: Similar expression in MSS ({mss_median:.2f}) and MSI-H ({msi_median:.2f}) tumors\n")
@@ -1607,7 +1704,7 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
 
     # Pre-calculate key metrics for Target Evaluation Summary
     tumor_median = master_df[master_df['tissue_type'] == 'Primary_Tumor']['expression'].median()
-    gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Normal']['expression'].median()
+    gtex_median = master_df[master_df['tissue_type'] == 'GTEx_Colon']['expression'].median()
     adj_median = master_df[master_df['tissue_type'] == 'TCGA_Adjacent']['expression'].median()
     ccle_median = master_df[master_df['tissue_type'] == 'CCLE_CRC']['expression'].median()
 
@@ -1634,7 +1731,7 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
 
         n_tumor = len(master_df[master_df['tissue_type'] == 'Primary_Tumor'])
         n_adj = len(master_df[master_df['tissue_type'] == 'TCGA_Adjacent'])
-        n_gtex = len(master_df[master_df['tissue_type'] == 'GTEx_Normal'])
+        n_gtex = len(master_df[master_df['tissue_type'] == 'GTEx_Colon'])
         n_ccle = len(master_df[master_df['tissue_type'] == 'CCLE_CRC'])
 
         summary_text = ""
@@ -1753,9 +1850,9 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
             eval_text += f"• Cell lines: Median {ccle_median:.2f} in {n_ccle} CRC lines\n"
 
         # RAS status
-        if 'Cohort_2A' in stats_summary.index and 'Cohort_2B' in stats_summary.index:
-            ras_mut = stats_summary.loc['Cohort_2A', 'median']
-            ras_wt = stats_summary.loc['Cohort_2B', 'median']
+        if 'TCGA_RASMut_MSS' in stats_summary.index and 'TCGA_RASWT_MSS' in stats_summary.index:
+            ras_mut = stats_summary.loc['TCGA_RASMut_MSS', 'median']
+            ras_wt = stats_summary.loc['TCGA_RASWT_MSS', 'median']
             if abs(ras_mut - ras_wt) < 0.5:
                 eval_text += f"• RAS status: Similar (mut: {ras_mut:.2f}, WT: {ras_wt:.2f})\n"
             else:
@@ -1763,9 +1860,9 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                 eval_text += f"• RAS status: Higher in {higher} (mut: {ras_mut:.2f}, WT: {ras_wt:.2f})\n"
 
         # MSI status
-        if 'Cohort_5' in stats_summary.index and 'Cohort_6' in stats_summary.index:
-            mss = stats_summary.loc['Cohort_5', 'median']
-            msi = stats_summary.loc['Cohort_6', 'median']
+        if 'TCGA_MSS_All' in stats_summary.index and 'TCGA_MSIH' in stats_summary.index:
+            mss = stats_summary.loc['TCGA_MSS_All', 'median']
+            msi = stats_summary.loc['TCGA_MSIH', 'median']
             if abs(mss - msi) < 0.5:
                 eval_text += f"• MSI status: Similar (MSS: {mss:.2f}, MSI-H: {msi:.2f})\n"
             else:
@@ -1875,8 +1972,8 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
             def_table[(0, i)].set_text_props(fontweight='bold')
 
         # Cohort Statistics Table below (on same page 2)
-        cohort_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6',
-                        'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']
+        cohort_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH',
+                        'TCGA_Adjacent', 'GTEx_Colon', 'CCLE_CRC']
         table_data = []
         for cohort in cohort_order:
             if cohort in stats_summary.index:
@@ -1902,8 +1999,8 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
         plt.close()
 
         # Page 3: Cohort Boxplot
-        plot_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6',
-                      'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']
+        plot_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH',
+                      'TCGA_Adjacent', 'GTEx_Colon', 'CCLE_CRC']
         plot_order = [c for c in plot_order if c in plot_df['cohort'].unique()]
 
         if len(plot_order) > 0:
@@ -1966,8 +2063,8 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
             ax.set_title(f'{gene_symbol} Expression by CMS Subtype', fontsize=14, fontweight='bold')
             ax.yaxis.grid(True, linestyle='--', alpha=0.3)
 
-            if 'GTEx_Normal' in plot_df['cohort'].unique():
-                gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Normal']['expression'].median()
+            if 'GTEx_Colon' in plot_df['cohort'].unique():
+                gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Colon']['expression'].median()
                 ax.axhline(y=gtex_median, color='#1ABC9C', linestyle='--', alpha=0.7,
                            label=f'GTEx Normal: {gtex_median:.2f}')
                 ax.legend(loc='upper right')
@@ -2176,8 +2273,8 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
             ax.text(0.5, 0.78, 'Expression Statistics by Cohort',
                     fontsize=14, fontweight='bold', ha='center', va='top', transform=ax.transAxes)
 
-            cohort_order = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6',
-                           'TCGA_Adjacent', 'GTEx_Normal', f'CCLE_{tumor_type}']
+            cohort_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH',
+                           'TCGA_Adjacent', 'GTEx_Colon', f'CCLE_{tumor_type}']
             table_data = []
             for cohort in cohort_order:
                 if cohort in tt_data['cohort_stats']:
@@ -2207,8 +2304,8 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                 fig, ax = plt.subplots(figsize=(11, 8.5))
 
                 # Build plot data for this tumor type + normal tissues + CCLE
-                cohort_order_plot = ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6',
-                                    'TCGA_Adjacent', 'GTEx_Normal', f'CCLE_{tumor_type}']
+                cohort_order_plot = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH',
+                                    'TCGA_Adjacent', 'GTEx_Colon', f'CCLE_{tumor_type}']
                 plot_data = []
                 plot_labels = []
                 plot_colors = []
@@ -2295,8 +2392,8 @@ def generate_pdf_report(gene_symbol, gene_id, master_df, plot_df, stats_summary,
                     ax.yaxis.grid(True, linestyle='--', alpha=0.3)
 
                     # Add GTEx reference line
-                    if 'GTEx_Normal' in plot_df['cohort'].unique():
-                        gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Normal']['expression'].median()
+                    if 'GTEx_Colon' in plot_df['cohort'].unique():
+                        gtex_median = plot_df[plot_df['cohort'] == 'GTEx_Colon']['expression'].median()
                         ax.axhline(y=gtex_median, color='#1ABC9C', linestyle='--', alpha=0.7,
                                    label=f'GTEx Normal: {gtex_median:.2f}')
                         ax.legend(loc='upper right')
@@ -2394,7 +2491,7 @@ def analyze_gene(gene_symbol, cache_dir, cohort_path, cms_path, adj_normal_path,
 
     print(f"  Primary Tumor samples: {len(master_df[master_df['tissue_type'] == 'Primary_Tumor'])}")
     print(f"  TCGA Adjacent Normal: {len(master_df[master_df['tissue_type'] == 'TCGA_Adjacent'])}")
-    print(f"  GTEx Normal Colon: {len(master_df[master_df['tissue_type'] == 'GTEx_Normal'])}")
+    print(f"  GTEx Normal Colon: {len(master_df[master_df['tissue_type'] == 'GTEx_Colon'])}")
     print(f"  CRC Cell Lines (CCLE): {len(master_df[master_df['tissue_type'] == 'CCLE_CRC'])}")
 
     # Expand for plotting
@@ -2469,7 +2566,7 @@ def analyze_gene(gene_symbol, cache_dir, cohort_path, cms_path, adj_normal_path,
     print(f"\nKey Statistics:")
     print(f"  {'Cohort':<20} {'N':>6} {'Median':>8} {'Mean':>8}")
     print(f"  {'-'*44}")
-    for cohort in ['Cohort_2A', 'Cohort_2B', 'Cohort_4', 'Cohort_5', 'Cohort_6', 'TCGA_Adjacent', 'GTEx_Normal', 'CCLE_CRC']:
+    for cohort in ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable', 'TCGA_MSS_All', 'TCGA_MSIH', 'TCGA_Adjacent', 'GTEx_Colon', 'CCLE_CRC']:
         if cohort in stats_summary.index:
             row = stats_summary.loc[cohort]
             print(f"  {cohort:<20} {int(row['count']):>6} {row['median']:>8.3f} {row['mean']:>8.3f}")
