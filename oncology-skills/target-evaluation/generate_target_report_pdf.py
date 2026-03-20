@@ -3,11 +3,11 @@
 Target Evaluation PDF Report Generator
 
 Generates a publication-ready PDF report with high-resolution figures (300 DPI)
-for the CRC target evaluation pipeline.
+for oncology target evaluation across multiple indications (CRC, NSCLC).
 
 Usage:
-    python generate_target_report_pdf.py --gene TNFRSF12A
-    python generate_target_report_pdf.py --gene TNFRSF12A --output-dir ./crc_analysis_results/TNFRSF12A
+    python generate_target_report_pdf.py --gene TNFRSF12A --disease crc
+    python generate_target_report_pdf.py --gene PCDH7 --disease nsclc --output-dir ./nsclc_results/PCDH7
 """
 
 import argparse
@@ -19,6 +19,53 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
 import matplotlib.image as mpimg
 import numpy as np
+
+
+# Disease-specific configurations
+DISEASE_CONFIG = {
+    'crc': {
+        'full_name': 'Colorectal Cancer',
+        'abbreviation': 'CRC',
+        'tcga_projects': 'TCGA-COAD/READ',
+        'normal_tissue': 'colon',
+        'gtex_tissue': 'GTEx normal colon',
+        'cohort_description': '''Samples were stratified into defined cohorts:
+  • 2A: RAS-mutant MSS
+  • 2B: RAS-WT MSS
+  • 4: Early Stage I/II
+  • 5: All MSS
+  • 6: MSI-H''',
+        'subtype_name': 'CMS',
+        'subtype_description': 'Consensus Molecular Subtypes (CMS1-4)',
+        'subtype_figure': '{gene}_CMS_boxplot.png',
+        'default_output_dir': './crc_analysis_results',
+        'disease_intro': '''Colorectal cancer remains a leading cause of cancer mortality worldwide, with liver
+metastasis representing the primary determinant of patient survival. Despite advances in
+chemotherapy, targeted agents, and immunotherapy, five-year survival rates for metastatic
+CRC remain below 15%, underscoring the critical need for novel therapeutic targets.''',
+    },
+    'nsclc': {
+        'full_name': 'Non-Small Cell Lung Cancer',
+        'abbreviation': 'NSCLC',
+        'tcga_projects': 'TCGA-LUAD/LUSC',
+        'normal_tissue': 'lung',
+        'gtex_tissue': 'GTEx normal lung',
+        'cohort_description': '''Samples were stratified into defined cohorts:
+  • LUAD: Lung adenocarcinoma
+  • LUSC: Lung squamous cell carcinoma
+  • Adjacent: Adjacent normal lung
+  • GTEx: Normal lung tissue
+  • CCLE: NSCLC cell lines''',
+        'subtype_name': 'Histology/Biomarker',
+        'subtype_description': 'LUAD vs LUSC histology and biomarker stratification (EGFR, KRAS, STK11, KEAP1)',
+        'subtype_figure': None,  # NSCLC uses comprehensive figure only
+        'default_output_dir': './nsclc_analysis_results',
+        'disease_intro': '''Non-small cell lung cancer (NSCLC) accounts for approximately 85% of all lung cancers,
+with ~2.2 million new cases annually worldwide. Despite advances in targeted therapy (EGFR,
+ALK, KRAS G12C inhibitors) and immunotherapy, five-year survival rates for advanced NSCLC
+remain below 25%, underscoring the critical need for novel therapeutic targets.''',
+    }
+}
 
 
 def parse_pairwise_comparisons(output_dir, gene):
@@ -53,7 +100,7 @@ def parse_pairwise_comparisons(output_dir, gene):
 def parse_integrated_report(report_path, output_dir=None, gene=None):
     """Parse the integrated target report markdown file to extract key data."""
     data = {
-        'date': '2026-03-13',
+        'date': '2026-03-19',
         'score': 'TBD',
         'risk_profile': 'TBD',
         'recommendation': 'GO',
@@ -81,7 +128,7 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
                 data['fold_change_adj'] = f"{avg_adj:.2f} (log2)"
         if avg_gtex is not None:
             linear_fc_gtex = 2 ** avg_gtex
-            data['fold_change_gtex'] = f"{linear_fc_gtex:.0f}x vs GTEx"
+            data['fold_change_gtex'] = f"{linear_fc_gtex:.1f}x vs GTEx"
 
     if not os.path.exists(report_path):
         return data
@@ -100,17 +147,14 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
         data['risk_profile'] = risk_match.group(1)
 
     # Extract Recommendation (handles both formats)
-    # First try to capture just the main recommendation keyword (GO, NO-GO, CONDITIONAL NO-GO)
     rec_match = re.search(r'\*?\*?Recommendation\*?\*?[:\s|]+\*?\*?((?:CONDITIONAL\s+)?(?:NO-GO|GO))', content, re.IGNORECASE)
     if rec_match:
         rec = rec_match.group(1).strip().upper()
         data['recommendation'] = rec
     else:
-        # Fallback: try broader pattern but extract only the first part
         rec_match = re.search(r'\*?\*?Recommendation\*?\*?[:\s|]+\*?\*?([^|\n]+)', content, re.IGNORECASE)
         if rec_match:
             rec_full = rec_match.group(1).strip()
-            # Extract just the main recommendation from the full text
             if 'CONDITIONAL NO-GO' in rec_full.upper():
                 data['recommendation'] = 'CONDITIONAL NO-GO'
             elif 'NO-GO' in rec_full.upper():
@@ -118,11 +162,10 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
             elif 'GO' in rec_full.upper():
                 data['recommendation'] = 'GO'
             else:
-                # Keep first part before hyphen or dash
                 parts = re.split(r'\s*[-–—]\s*', rec_full, maxsplit=1)
-                data['recommendation'] = parts[0].strip().upper()[:20]  # Limit length
+                data['recommendation'] = parts[0].strip().upper()[:20]
 
-    # Extract Assessment rating from "ScholarEval Score: X.XX/5.0 (Assessment)" or table format
+    # Extract Assessment rating
     assessment_match = re.search(r'ScholarEval Score[:\s|]+[\d.]+/5\.0\s*\(([^)]+)\)', content, re.IGNORECASE)
     if assessment_match:
         data['assessment'] = assessment_match.group(1).strip()
@@ -136,7 +179,7 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
     # Extract risk table data
     risk_categories = ['Biological', 'Druggability', 'Translational', 'Clinical', 'Safety', 'Commercial']
     for cat in risk_categories:
-        pattern = rf'\|\s*{cat}[^|]*\|\s*\*?\*?([A-Z-]+)\*?\*?\s*\|([^|]+)\|'
+        pattern = rf'\|\s*\*?\*?{cat}\*?\*?[^|]*\|\s*\*?\*?([A-Z-]+)\*?\*?\s*\|([^|]+)\|'
         match = re.search(pattern, content, re.IGNORECASE)
         if match:
             data['risk_table'][cat] = {
@@ -144,7 +187,7 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
                 'considerations': match.group(2).strip()[:50]
             }
 
-    # Extract strengths (look for numbered list after "Strengths" heading)
+    # Extract strengths
     strength_section = re.search(r'(?:Key Strengths|### .*Strengths)[:\s]*\n((?:\d+\..*\n?)+)', content, re.IGNORECASE)
     if strength_section:
         strengths = re.findall(r'\d+\.\s*\*?\*?([^*\n]+)', strength_section.group(1))
@@ -156,10 +199,7 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
         risks = re.findall(r'\d+\.\s*\*?\*?([^*\n]+)', risk_section.group(1))
         data['risks'] = [r.strip() for r in risks if r.strip()][:5]
 
-    # Extract Scholar scores from table (handles format with or without Weight column)
-    # Format 1: | Dimension | Score/5 | Rationale |
-    # Format 2: | Dimension | Weight | Score/5 | Rationale | (with weight column)
-    # Pattern matches: | Dimension | optional_weight | **X/5** or X/5 |
+    # Extract Scholar scores from table
     scholar_pattern = r'\|\s*(Differential Expression|Pathway Relevance|Druggability|Genetic Validation|Disease Association|Safety Profile|Clinical Validation|Biomarker Potential)\s*\|(?:\s*[\d.]+\s*\|)?\s*\*?\*?(\d)/5\*?\*?'
     scholar_matches = re.findall(scholar_pattern, content, re.IGNORECASE)
     for dim, score in scholar_matches:
@@ -174,7 +214,6 @@ def create_risk_assessment_figure(gene, output_dir, report_data=None):
 
     categories = ['Biological', 'Druggability', 'Translational', 'Clinical', 'Safety', 'Commercial']
 
-    # Get risk levels from report_data if available
     risk_levels = []
     risk_labels = []
     for cat in categories:
@@ -241,11 +280,10 @@ def create_scholar_eval_figure(gene, output_dir, report_data=None):
                 'Genetic Validation', 'Disease Association', 'Safety Profile',
                 'Clinical Validation', 'Biomarker Potential']
 
-    # Get scores from report_data if available
     if report_data and report_data.get('scholar_scores'):
         scores = [report_data['scholar_scores'].get(k, 3) for k in dim_keys]
     else:
-        scores = [4, 4, 4, 3, 4, 3, 3, 4]  # Default scores
+        scores = [4, 4, 4, 3, 4, 3, 3, 4]
 
     score_colors = ['#27ae60' if s >= 4 else '#f39c12' if s >= 3 else '#e74c3c' for s in scores]
 
@@ -270,7 +308,6 @@ def create_scholar_eval_figure(gene, output_dir, report_data=None):
     ax.axhline(y=3, color='#f39c12', linestyle='--', alpha=0.5, linewidth=1.5, label='Moderate (≥3)')
     ax.axhline(y=2, color='#e74c3c', linestyle='--', alpha=0.5, linewidth=1.5, label='Weak (<3)')
 
-    # Add legend for score interpretation
     strong_patch = mpatches.Patch(color='#27ae60', label='Strong (≥4)')
     mod_patch = mpatches.Patch(color='#f39c12', label='Moderate (3)')
     weak_patch = mpatches.Patch(color='#e74c3c', label='Weak (≤2)')
@@ -311,10 +348,24 @@ def add_high_res_figure(pdf, img_path, title, caption):
         fig.text(0.5, 0.05, caption, ha='center', fontsize=9, style='italic', wrap=True)
         pdf.savefig(fig, dpi=300, bbox_inches='tight')
         plt.close(fig)
+        return True
+    return False
 
 
-def generate_pdf_report(gene, output_dir, report_data=None):
+def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
     """Generate the complete PDF report for a target gene."""
+
+    # Get disease-specific configuration
+    config = DISEASE_CONFIG.get(disease.lower(), DISEASE_CONFIG['crc'])
+    disease_full = config['full_name']
+    disease_abbr = config['abbreviation']
+    tcga_projects = config['tcga_projects']
+    normal_tissue = config['normal_tissue']
+    gtex_tissue = config['gtex_tissue']
+    cohort_desc = config['cohort_description']
+    disease_intro = config['disease_intro']
+    subtype_name = config['subtype_name']
+    subtype_desc = config['subtype_description']
 
     # Parse integrated report if exists and no data provided
     if report_data is None:
@@ -324,49 +375,42 @@ def generate_pdf_report(gene, output_dir, report_data=None):
             print(f"  Parsed: {gene}_integrated_target_report.md")
             print(f"  Fold Change (vs Adjacent Normal): {report_data.get('fold_change', 'TBD')}")
         else:
-            report_data = {'date': '2026-03-13', 'score': 'TBD', 'risk_profile': 'TBD',
+            report_data = {'date': '2026-03-19', 'score': 'TBD', 'risk_profile': 'TBD',
                           'recommendation': 'GO', 'assessment': 'TBD', 'fold_change': 'TBD',
                           'risk_table': {}, 'strengths': [], 'risks': [], 'scholar_scores': {}}
 
     pdf_path = os.path.join(output_dir, f'{gene}_final_risk_report.pdf')
     pdf = PdfPages(pdf_path)
 
-    print(f"Generating PDF report for {gene}...")
+    print(f"Generating PDF report for {gene} ({disease_abbr})...")
 
-    # ===== PAGE 1: TITLE (Professional Design - Compact Layout) =====
+    # ===== PAGE 1: TITLE =====
     fig1, ax1 = plt.subplots(figsize=(8.5, 11))
     ax1.axis('off')
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 1)
 
-    # Define margins for compact layout
-    margin = 0.12  # Side margins
+    margin = 0.12
 
-    # --- Header Banner (with margins) ---
+    # Header Banner
     header_rect = mpatches.FancyBboxPatch((margin, 0.84), 1.0 - 2*margin, 0.14,
                                            boxstyle="round,pad=0.01,rounding_size=0.02",
                                            facecolor='#1a252f', transform=ax1.transAxes)
     ax1.add_patch(header_rect)
-
-    # Accent line under header
     ax1.plot([margin, 1-margin], [0.84, 0.84], color='#3498db', linewidth=3, transform=ax1.transAxes)
 
-    # Title text on banner
     ax1.text(0.5, 0.93, 'TARGET EVALUATION REPORT', fontsize=11, fontweight='bold',
              ha='center', transform=ax1.transAxes, color='#95a5a6')
     ax1.text(0.5, 0.88, gene, fontsize=32, fontweight='bold', ha='center',
              transform=ax1.transAxes, color='white')
 
-    # --- Subtitle section ---
-    ax1.text(0.5, 0.78, 'Colorectal Cancer (CRC) — Integrated Assessment',
+    # Subtitle - Disease-specific
+    ax1.text(0.5, 0.78, f'{disease_full} ({disease_abbr}) — Integrated Assessment',
              fontsize=12, ha='center', transform=ax1.transAxes, color='#34495e')
-
-    # Thin separator line
     ax1.plot([0.25, 0.75], [0.75, 0.75], color='#bdc3c7', linewidth=1, transform=ax1.transAxes)
 
-    # --- Recommendation Badge (Prominent but narrower) ---
+    # Recommendation Badge
     recommendation = report_data.get('recommendation', 'GO') if report_data else 'GO'
-    # Normalize recommendation text - only keep the main keyword
     rec_upper = recommendation.upper().strip()
     if 'CONDITIONAL' in rec_upper and 'NO-GO' in rec_upper:
         rec_color = '#c0392b'
@@ -386,18 +430,11 @@ def generate_pdf_report(gene, output_dir, report_data=None):
     else:
         rec_color = '#d68910'
         rec_bg = '#fef9e7'
-        rec_text = rec_upper[:20] if len(rec_upper) > 20 else rec_upper  # Truncate if needed
+        rec_text = rec_upper[:20] if len(rec_upper) > 20 else rec_upper
         rec_subtitle = 'Conditional Approval'
 
-    # Determine font size based on text length
-    if len(rec_text) <= 5:
-        rec_fontsize = 24
-    elif len(rec_text) <= 12:
-        rec_fontsize = 20
-    else:
-        rec_fontsize = 16
+    rec_fontsize = 24 if len(rec_text) <= 5 else 20 if len(rec_text) <= 12 else 16
 
-    # Recommendation box with border (narrower)
     rec_width = 0.56
     rec_x = (1 - rec_width) / 2
     rec_rect = mpatches.FancyBboxPatch((rec_x, 0.60), rec_width, 0.12,
@@ -410,7 +447,7 @@ def generate_pdf_report(gene, output_dir, report_data=None):
     ax1.text(0.5, 0.625, rec_subtitle, fontsize=10, ha='center',
              transform=ax1.transAxes, color=rec_color, style='italic')
 
-    # --- Key Metrics Cards (more compact) ---
+    # Key Metrics Cards
     metrics = [
         ('ScholarEval Score', report_data.get('score', 'TBD') if report_data else 'TBD', '#2980b9'),
         ('Risk Profile', report_data.get('risk_profile', 'TBD') if report_data else 'TBD', '#8e44ad'),
@@ -419,40 +456,34 @@ def generate_pdf_report(gene, output_dir, report_data=None):
 
     card_width = 0.20
     card_height = 0.11
-    total_cards_width = 3 * card_width + 2 * 0.04  # 3 cards + 2 gaps
+    total_cards_width = 3 * card_width + 2 * 0.04
     start_x = (1 - total_cards_width) / 2
     spacing = card_width + 0.04
 
     for i, (label, value, color) in enumerate(metrics):
         x = start_x + i * spacing
-        # Card background
         card = mpatches.FancyBboxPatch((x, 0.42), card_width, card_height,
                                         boxstyle="round,pad=0.01,rounding_size=0.015",
                                         facecolor='white', edgecolor=color, linewidth=2,
                                         transform=ax1.transAxes)
         ax1.add_patch(card)
-        # Color accent bar at top of card
         accent = mpatches.FancyBboxPatch((x, 0.515), card_width, 0.015,
                                           boxstyle="round,pad=0,rounding_size=0.008",
                                           facecolor=color, transform=ax1.transAxes)
         ax1.add_patch(accent)
-        # Label
         ax1.text(x + card_width/2, 0.49, label, fontsize=8, fontweight='bold',
                  ha='center', transform=ax1.transAxes, color='#7f8c8d')
-        # Value
         ax1.text(x + card_width/2, 0.45, value, fontsize=11, fontweight='bold',
                  ha='center', transform=ax1.transAxes, color=color)
 
-    # --- Report Details Section ---
+    # Report Details
     ax1.plot([0.25, 0.75], [0.36, 0.36], color='#ecf0f1', linewidth=1, transform=ax1.transAxes)
-
-    date_str = report_data.get('date', '2026-03-13') if report_data else '2026-03-13'
+    date_str = report_data.get('date', '2026-03-19') if report_data else '2026-03-19'
     assessment = report_data.get('assessment', 'TBD') if report_data else 'TBD'
-
-    detail_text = f"Date: {date_str}  |  Target: {gene}  |  Indication: CRC  |  Assessment: {assessment}"
+    detail_text = f"Date: {date_str}  |  Target: {gene}  |  Indication: {disease_abbr}  |  Assessment: {assessment}"
     ax1.text(0.5, 0.32, detail_text, fontsize=9, ha='center', transform=ax1.transAxes, color='#5d6d7e')
 
-    # --- Pipeline Footer (with margins) ---
+    # Pipeline Footer
     footer_rect = mpatches.FancyBboxPatch((margin, 0.10), 1.0 - 2*margin, 0.12,
                                            boxstyle="round,pad=0.01,rounding_size=0.015",
                                            facecolor='#f8f9f9', edgecolor='#d5d8dc', linewidth=1,
@@ -465,7 +496,7 @@ def generate_pdf_report(gene, output_dir, report_data=None):
     steps = ['Risk Assessment', 'Expression', 'ScholarEval', 'Report']
     step_colors = ['#3498db', '#e67e22', '#1abc9c', '#e74c3c']
     step_spacing = 0.16
-    step_start = 0.5 - (len(steps) - 1) * step_spacing / 2  # Center the steps
+    step_start = 0.5 - (len(steps) - 1) * step_spacing / 2
     for i, (step, scolor) in enumerate(zip(steps, step_colors)):
         x_pos = step_start + i * step_spacing
         ax1.plot(x_pos, 0.145, 'o', markersize=7, color=scolor, transform=ax1.transAxes)
@@ -476,8 +507,7 @@ def generate_pdf_report(gene, output_dir, report_data=None):
                         arrowprops=dict(arrowstyle='->', color='#bdc3c7', lw=1.5),
                         transform=ax1.transAxes)
 
-    # Version footer
-    ax1.text(0.5, 0.03, 'CRC Target Evaluation Pipeline v2.0  |  Data: TCGA, GTEx, CCLE, Tempus, PubMed',
+    ax1.text(0.5, 0.03, f'{disease_abbr} Target Evaluation Pipeline v2.0  |  Data: TCGA, GTEx, CCLE, Tempus, PubMed',
              fontsize=7, ha='center', transform=ax1.transAxes, color='#aab7b8', style='italic')
 
     pdf.savefig(fig1, dpi=300, bbox_inches='tight')
@@ -485,14 +515,14 @@ def generate_pdf_report(gene, output_dir, report_data=None):
     print("  Page 1: Title page")
 
     # ===== PAGE 2: EXECUTIVE SUMMARY =====
-    exec_summary = f"""{gene} represents a compelling therapeutic target for colorectal cancer.
+    exec_summary = f"""{gene} represents a compelling therapeutic target for {disease_full.lower()}.
 This integrated assessment combines evidence from systematic literature review,
-transcriptomic analysis of CRC tumors from TCGA-COAD/READ, ScholarEval target scoring,
+transcriptomic analysis of {disease_abbr} tumors from {tcga_projects}, ScholarEval target scoring,
 and comprehensive 6-category risk assessment.
 
 KEY FINDINGS:
 ─────────────────────────────────────────────────────────────────────────────────────────
-• Significant differential expression across CRC molecular subtypes
+• Significant differential expression in tumor vs normal {normal_tissue}
 • Mechanistic link to disease progression
 • Therapeutic modalities validated or under development
 • Risk-benefit profile assessed across 6 categories
@@ -500,20 +530,17 @@ KEY FINDINGS:
 
 1. INTRODUCTION
 ─────────────────────────────────────────────────────────────────────────────────────────
-Colorectal cancer remains a leading cause of cancer mortality worldwide, with liver
-metastasis representing the primary determinant of patient survival. Despite advances in
-chemotherapy, targeted agents, and immunotherapy, five-year survival rates for metastatic
-CRC remain below 15%, underscoring the critical need for novel therapeutic targets.
+{disease_intro}
 
-This report presents an integrated target evaluation following a 5-step pipeline:
-(1) risk assessment framework, (2) systematic literature review, (3) bulk RNA-seq
-expression analysis, (4) ScholarEval target scoring, and (5) integrated scientific
+This report presents an integrated target evaluation following a 4-step pipeline:
+(1) risk assessment framework with literature review, (2) bulk RNA-seq
+expression analysis, (3) ScholarEval target scoring, and (4) integrated scientific
 assessment with risk-based recommendation."""
     text_page(pdf, 'Executive Summary', exec_summary)
     print("  Page 2: Executive Summary")
 
     # ===== PAGE 3: METHODS =====
-    methods = """2. METHODS
+    methods = f"""2. METHODS
 ─────────────────────────────────────────────────────────────────────────────────────────
 
 2.1 Risk Assessment Framework
@@ -527,18 +554,14 @@ were organized by risk category to ensure comprehensive evidence collection.
 
 2.3 Expression Analysis
 Gene expression data were obtained from:
-  • TCGA-COAD/READ (primary tumors)
-  • TCGA adjacent normal tissue
-  • GTEx normal colon
-  • CCLE CRC cell lines
+  • {tcga_projects} (primary tumors)
+  • TCGA adjacent normal {normal_tissue}
+  • {gtex_tissue}
+  • CCLE {disease_abbr} cell lines
+  • Tempus RWD (real-world patient samples)
 
-TPM-normalized expression values were log2-transformed. Samples were stratified into
-defined cohorts:
-  • 2A: RAS-mutant MSS
-  • 2B: RAS-WT MSS
-  • 4: Early Stage I/II
-  • 5: All MSS
-  • 6: MSI-H
+TPM-normalized expression values were log2-transformed.
+{cohort_desc}
 
 Statistical analysis employed Kruskal-Wallis and Mann-Whitney U tests with Benjamini-
 Hochberg FDR correction.
@@ -551,16 +574,16 @@ Clinical Validation, and Biomarker Potential."""
     print("  Page 3: Methods")
 
     # ===== PAGE 4: RESULTS =====
-    results1 = """3. RESULTS
+    results1 = f"""3. RESULTS
 ─────────────────────────────────────────────────────────────────────────────────────────
 
 3.1 Differential Expression
 
-Analysis of primary CRC tumors revealed significant target overexpression compared to
-normal tissue across all cohorts examined.
+Analysis of primary {disease_abbr} tumors revealed significant target overexpression compared to
+normal {normal_tissue} tissue across all cohorts examined.
 
 See Figure 1 for comprehensive expression analysis.
-See Figure 2 for CMS subtype expression patterns.
+See Figure 2 for {subtype_name} expression patterns (if available).
 
 
 3.2 Literature Evidence
@@ -587,17 +610,31 @@ TRANSLATIONAL EVIDENCE:
     # ===== PAGE 5: FIGURE - Comprehensive Analysis =====
     comp_fig = os.path.join(output_dir, f'{gene}_comprehensive_analysis.png')
     add_high_res_figure(pdf, comp_fig, 'Figure 1: Comprehensive Expression Analysis',
-                        f'{gene} expression across CRC cohorts showing differential expression vs normal tissue.')
+                        f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue.')
     print("  Page 5: Figure 1 - Comprehensive Analysis")
 
-    # ===== PAGE 6: FIGURE - CMS Boxplot =====
-    cms_fig = os.path.join(output_dir, f'{gene}_CMS_boxplot.png')
-    add_high_res_figure(pdf, cms_fig, 'Figure 2: Expression by CMS Subtype',
-                        'Expression patterns across Consensus Molecular Subtypes (CMS1-4).')
-    print("  Page 6: Figure 2 - CMS Subtype")
+    # ===== PAGE 6: FIGURE - Subtype (CMS for CRC, or skip for NSCLC) =====
+    subtype_fig_name = config.get('subtype_figure')
+    if subtype_fig_name:
+        subtype_fig = os.path.join(output_dir, subtype_fig_name.format(gene=gene))
+        if os.path.exists(subtype_fig):
+            add_high_res_figure(pdf, subtype_fig, f'Figure 2: Expression by {subtype_name}',
+                                f'{subtype_desc}.')
+            print(f"  Page 6: Figure 2 - {subtype_name}")
+        else:
+            # Create a placeholder page
+            fig_placeholder, ax_placeholder = plt.subplots(figsize=(8.5, 11))
+            ax_placeholder.axis('off')
+            ax_placeholder.text(0.5, 0.5, f'Figure 2: {subtype_name} Expression\n\nNot available for this analysis.',
+                               ha='center', va='center', fontsize=14, color='#7f8c8d')
+            pdf.savefig(fig_placeholder, dpi=300, bbox_inches='tight')
+            plt.close(fig_placeholder)
+            print(f"  Page 6: Figure 2 - {subtype_name} (placeholder)")
+    else:
+        # Skip subtype figure page for diseases without it
+        print(f"  Page 6: Skipped (no {subtype_name} figure for {disease_abbr})")
 
     # ===== PAGE 7: SCHOLAREVAL SCORING =====
-    # Build ScholarEval table from parsed data
     dimensions = ['Differential Expression', 'Pathway Relevance', 'Druggability',
                   'Genetic Validation', 'Disease Association', 'Safety Profile',
                   'Clinical Validation', 'Biomarker Potential']
@@ -672,32 +709,28 @@ Risk Level Legend:
     print("  Page 8: Risk Assessment Table")
 
     # ===== PAGE 9: RISK ASSESSMENT FIGURE =====
-    risk_fig = os.path.join(output_dir, f'{gene}_risk_assessment_figure.png')
-    # Always regenerate to ensure it matches current report data
     create_risk_assessment_figure(gene, output_dir, report_data)
+    risk_fig = os.path.join(output_dir, f'{gene}_risk_assessment_figure.png')
     add_high_res_figure(pdf, risk_fig, 'Figure 3: 6-Category Risk Assessment',
                         'Risk levels across Biological, Druggability, Translational, Clinical, Safety, and Commercial dimensions.')
     print("  Page 9: Figure 3 - Risk Assessment")
 
     # ===== PAGE 10: SCHOLAREVAL FIGURE =====
-    scholar_fig = os.path.join(output_dir, f'{gene}_scholar_eval_figure.png')
-    # Always regenerate to ensure it matches current report data
     create_scholar_eval_figure(gene, output_dir, report_data)
+    scholar_fig = os.path.join(output_dir, f'{gene}_scholar_eval_figure.png')
     add_high_res_figure(pdf, scholar_fig, 'Figure 4: ScholarEval Target Scoring',
                         'Eight-dimension target scoring based on the ScholarEval framework.')
     print("  Page 10: Figure 4 - ScholarEval Scoring")
 
-    # ===== PAGE 10: KEY STRENGTHS & RISKS =====
+    # ===== PAGE 11: KEY STRENGTHS & RISKS =====
     strengths = report_data.get('strengths', ['See integrated report for details'])
     risks = report_data.get('risks', ['See integrated report for details'])
 
-    # Format strengths
     if strengths:
         strength_text = '\n\n'.join([f"{i+1}. {s[:70]}" for i, s in enumerate(strengths[:5])])
     else:
         strength_text = "See integrated report for details."
 
-    # Format risks
     if risks:
         risk_text = '\n\n'.join([f"{i+1}. {r[:70]}" for i, r in enumerate(risks[:5])])
     else:
@@ -716,7 +749,7 @@ Risk Level Legend:
     text_page(pdf, 'Key Strengths & Risks', strengths_risks)
     print("  Page 11: Strengths & Risks")
 
-    # ===== PAGE 11: MITIGATION & RECOMMENDATIONS =====
+    # ===== PAGE 12: MITIGATION & RECOMMENDATIONS =====
     mitigation = """7. RISK MITIGATION STRATEGIES
 ─────────────────────────────────────────────────────────────────────────────────────────
 
@@ -748,7 +781,7 @@ LOWER PRIORITY:
     text_page(pdf, 'Risk Mitigation & Recommendations', mitigation)
     print("  Page 12: Recommendations")
 
-    # ===== PAGE 12: CONCLUSIONS =====
+    # ===== PAGE 13: CONCLUSIONS =====
     fig12, ax12 = plt.subplots(figsize=(8.5, 11))
     ax12.axis('off')
 
@@ -764,6 +797,7 @@ LOWER PRIORITY:
 
 EVIDENCE INTEGRATION:
 ─────────────────────────────────────────────────────────────────────────────────────────
+• Indication: {disease_full} ({disease_abbr})
 • Tumor vs Adjacent Normal: {fold_change}
 • Tumor vs GTEx Normal: {fold_change_gtex}
 • ScholarEval Score: {final_score}
@@ -801,17 +835,21 @@ See integrated report for complete reference list with PMIDs."""
 
 def main():
     parser = argparse.ArgumentParser(description='Generate target evaluation PDF report')
-    parser.add_argument('--gene', required=True, help='Gene symbol (e.g., TNFRSF12A)')
+    parser.add_argument('--gene', required=True, help='Gene symbol (e.g., TNFRSF12A, PCDH7)')
+    parser.add_argument('--disease', required=True, choices=['crc', 'nsclc'],
+                        help='Disease indication (crc or nsclc)')
     parser.add_argument('--output-dir', default=None,
-                        help='Output directory (default: ./crc_analysis_results/{GENE})')
+                        help='Output directory (default: ./{disease}_analysis_results/{GENE})')
     args = parser.parse_args()
 
     gene = args.gene.upper()
+    disease = args.disease.lower()
 
     if args.output_dir:
         output_dir = args.output_dir
     else:
-        output_dir = f'./crc_analysis_results/{gene}'
+        config = DISEASE_CONFIG.get(disease, DISEASE_CONFIG['crc'])
+        output_dir = f"{config['default_output_dir']}/{gene}"
 
     if not os.path.exists(output_dir):
         print(f"Error: Output directory does not exist: {output_dir}")
@@ -819,10 +857,7 @@ def main():
         sys.exit(1)
 
     # Check for required figures
-    required_figs = [
-        f'{gene}_comprehensive_analysis.png',
-        f'{gene}_CMS_boxplot.png'
-    ]
+    required_figs = [f'{gene}_comprehensive_analysis.png']
 
     missing = []
     for fig in required_figs:
@@ -834,7 +869,7 @@ def main():
         print("Some figure pages may be empty.")
 
     # Generate PDF
-    generate_pdf_report(gene, output_dir)
+    generate_pdf_report(gene, output_dir, disease)
 
 
 if __name__ == '__main__':

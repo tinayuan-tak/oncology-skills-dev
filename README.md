@@ -9,7 +9,7 @@ A collection of Claude Code skills for oncology target evaluation and RNA-seq an
 | [target-evaluation](oncology-skills/target-evaluation/) | Full 4-step therapeutic target evaluation workflow with PDF report generation | Implemented |
 | [crc-bulk-rna-analysis](oncology-skills/crc-bulk-rna-analysis/) | Comprehensive CRC analysis with TCGA + Tempus RWD (>200K patients), iDAS alignment | Implemented |
 | [crc-sc-rna-analysis](oncology-skills/crc-sc-rna-analysis/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
-| [nsclc-bulk-rna-analysis](oncology-skills/nsclc-bulk-rna-analysis/) | Bulk RNA-seq analysis for NSCLC (TCGA LUAD/LUSC) | Placeholder |
+| [nsclc-bulk-rna-analysis](oncology-skills/nsclc-bulk-rna-analysis/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
 | [nsclc-sc-rna-analysis](oncology-skills/nsclc-sc-rna-analysis/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
 
 ## Target Evaluation Workflow
@@ -37,12 +37,20 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 
 ## Example Results
 
+### CRC Targets
+
 | Target | Disease | Tumor vs Normal | ScholarEval | Risk | Recommendation |
 |--------|---------|-----------------|-------------|------|----------------|
 | **TNFRSF12A (Fn14)** | CRC | **+2.96 log2FC (7.8x ↑)** | 4.15/5.0 | LOW-MEDIUM | **GO** |
 | **CDCP1** | CRC | **-0.41 log2FC (tumor < normal)** | 2.75/5.0 | HIGH | **NO-GO** |
 
-**Key insight:** Tumor vs Adjacent Normal expression is the critical metric for predicting on-target toxicity. TNFRSF12A shows excellent tumor specificity, while CDCP1 fails due to higher expression in normal colon epithelium.
+### NSCLC Targets
+
+| Target | Disease | Tumor vs Normal | iDAS Alignment | Toxicity Risk | Recommendation |
+|--------|---------|-----------------|----------------|---------------|----------------|
+| **EGFR** | NSCLC | **+0.27 log2FC (tumor ≈ normal)** | Low | HIGH | **CONDITIONAL** |
+
+**Key insight:** Tumor vs Adjacent Normal expression is the critical metric for predicting on-target toxicity. TNFRSF12A shows excellent tumor specificity in CRC, while CDCP1 fails due to higher expression in normal colon. EGFR in NSCLC shows high toxicity risk due to normal lung expression.
 
 ## Repository Structure
 
@@ -71,7 +79,9 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 │   ├── crc-sc-rna-analysis/
 │   │   └── SKILL.md
 │   ├── nsclc-bulk-rna-analysis/
-│   │   └── SKILL.md
+│   │   ├── SKILL.md
+│   │   ├── nsclc_comprehensive_analysis.py  # Unified TCGA + Tempus analysis
+│   │   └── pixi.toml
 │   └── nsclc-sc-rna-analysis/
 │       └── SKILL.md
 └── README.md
@@ -165,9 +175,10 @@ crc_comprehensive_results/{GENE}/
 - **Tempus RWD**: >200,000 patients with line-of-therapy stratification
 
 ### NSCLC Analysis
-- **TCGA-LUAD/LUSC**: Tumor and adjacent normal
+- **TCGA-LUAD/LUSC**: Tumor and adjacent normal (on-target toxicity assessment)
 - **GTEx**: Normal lung tissue baseline
 - **CCLE**: NSCLC cell line expression
+- **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
 
 ## Requirements
 
@@ -237,7 +248,6 @@ description: Brief description for skill matching
 
 - **No slash command autocomplete**: Local directory plugins don't support `/skill-name` autocomplete. Use natural language or host on GitHub for full autocomplete support.
 - **SC-RNA skills**: Single-cell analysis skills are placeholders pending data availability.
-- **NSCLC skills**: NSCLC bulk RNA analysis is a placeholder pending implementation.
 
 ## License
 

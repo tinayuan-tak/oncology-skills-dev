@@ -43,15 +43,32 @@ Comprehensive 4-step pipeline for systematic evaluation of therapeutic targets i
 
 This step combines the risk assessment framework with PubMed literature search, using disease-specific templates to guide comprehensive target evaluation.
 
-### 1.1 Load Disease-Specific Risk Assessment Template
+### 1.1 Read Disease-Specific Risk Assessment Template (MANDATORY)
 
-**For CRC:** Load `reference/risk_assessment_template_crc.md`
+**CRITICAL:** You MUST use the Read tool to read the disease-specific risk assessment template BEFORE any other actions in this workflow. The template contains:
+- iDAS strategic context and priority whitespaces
+- Disease-specific search query enhancements for PubMed
+- Validation criteria and risk level definitions
+- Biomarker landscape and population stratification guidance
+
+**Template Paths (relative to skill base directory):**
+
+| Disease | Template File | Read Command |
+|---------|--------------|--------------|
+| **CRC** | `reference/risk_assessment_template_crc.md` | `Read: {SKILL_BASE_DIR}/reference/risk_assessment_template_crc.md` |
+| **NSCLC** | `reference/risk_assessment_template_nsclc.md` | `Read: {SKILL_BASE_DIR}/reference/risk_assessment_template_nsclc.md` |
+
+**For CRC:** Read `reference/risk_assessment_template_crc.md`
 - Includes iDAS strategic context (priority whitespaces, biomarker landscape)
 - CRC-specific validation criteria and competitive landscape
 - Cross-GI portfolio synergy considerations
 
-**For NSCLC:** Load `reference/risk_assessment_template_nsclc.md`
-- Standard risk assessment framework
+**For NSCLC:** Read `reference/risk_assessment_template_nsclc.md`
+- Includes iDAS strategic context (2L Non-AGA, 2L EGFR mutant, 1L/2L KRAS mutant)
+- NSCLC-specific biomarker landscape (EGFR, KRAS, STK11, KEAP1, AGA status)
+- Line-of-therapy stratification considerations
+
+**DO NOT SKIP THIS STEP.** The template guides all subsequent actions in Step 1.
 
 ### 1.2 PubMed Literature Search (Template-Guided)
 
@@ -70,62 +87,18 @@ Execute targeted PubMed searches for **each risk category** defined in the templ
 | **Safety** | `({gene}) AND (toxicity OR adverse OR normal tissue OR knockout mouse)` | Safety signals, expression in normal tissues |
 | **Commercial** | `({gene}) AND ({disease}) AND (therapeutic OR drug development OR competitive)` | Pipeline analyses, market reports |
 
-#### CRC-Specific Search Enhancements
-
-For CRC evaluations, include additional strategic queries based on iDAS priorities:
-
-```
-# RAS mutation context (iDAS priority)
-({gene}) AND (colorectal cancer) AND (KRAS OR RAS mutant OR RAS wild-type)
-
-# MSI/MSS status
-({gene}) AND (colorectal cancer) AND (MSI OR MSS OR microsatellite)
-
-# Chemorefractory setting (iDAS priority)
-({gene}) AND (colorectal cancer) AND (refractory OR resistant OR third-line OR 3L)
-
-# CMS subtype relevance
-({gene}) AND (colorectal cancer) AND (CMS1 OR CMS2 OR CMS3 OR CMS4 OR consensus molecular subtype)
-```
+**Disease-Specific Search Enhancements:** Defined in the risk assessment templates (`reference/risk_assessment_template_{disease}.md`). Follow the template guidance for iDAS-aligned queries.
 
 ### 1.3 Populate Risk Assessment Template
 
-Use literature findings to complete each section of the template:
+Use literature findings to complete each section of the disease-specific template. The templates define:
+- Strategic alignment assessment (iDAS whitespace scoring)
+- 6 risk categories with disease-specific criteria
+- Biomarker and population stratification guidance
 
-#### For CRC (using `risk_assessment_template_crc.md`)
-
-**A. Strategic Alignment Assessment**
-- Whitespace Alignment: Match target to iDAS priorities (3L+ chemorefractory, RAS mutant, resectable)
-- Biomarker-Defined Population: Identify relevant patient subgroups
-
-**B. Biological Risk (Section 1)**
-- CRC-specific molecular subtype considerations (RAS status, MSI, CMS1-4)
-- Validation in CRC PDX/organoid models
-
-**C. Druggability Risk (Section 2)**
-- Target tractability, structural information
-- Available tool molecules
-
-**D. Translational Risk (Section 3)**
-- CRC-relevant model systems (PDX, PDO, GEMMs, syngeneic)
-- RAS/MSI stratification in models
-
-**E. Clinical Risk (Section 4)**
-- CRC population stratification
-- Biomarker testing considerations (RAS/BRAF, MSI, HER2)
-
-**F. Safety Risk (Section 5)**
-- Normal tissue expression data
-- On-target safety concerns
-
-**G. Commercial/Competitive Risk (Section 6)**
-- CRC standard of care context
-- Competitive landscape (KRAS inhibitors, anti-EGFR, IO)
-
-**H. iDAS Strategic Alignment (Summary)**
-- Whitespace alignment scoring
-- Cross-GI portfolio synergy
-- KRAS strategy synergy
+**Templates:**
+- CRC: `reference/risk_assessment_template_crc.md`
+- NSCLC: `reference/risk_assessment_template_nsclc.md`
 
 ### 1.4 Risk Level Determination
 
@@ -207,11 +180,43 @@ python crc_comprehensive_analysis.py --genes {GENE} --skip-tempus
 **Invoke:** `oncology-skills:nsclc-bulk-rna-analysis`
 
 ```bash
-pixi run python nsclc_gene_analysis.py --genes {GENE} --output-dir ./{disease}_analysis_results/{GENE}
+pixi run python nsclc_comprehensive_analysis.py --genes {GENE} --output-dir ./{disease}_analysis_results/{GENE}
 ```
 
-**Cohorts:** LUAD, LUSC, Stage I-IV
-**Normal:** TCGA Adjacent, GTEx Lung
+**Quick options:**
+```bash
+# Full analysis (recommended)
+python nsclc_comprehensive_analysis.py --genes {GENE}
+
+# Tempus only (faster, no raw expression processing)
+python nsclc_comprehensive_analysis.py --genes {GENE} --skip-tcga
+
+# TCGA only (no Tempus data)
+python nsclc_comprehensive_analysis.py --genes {GENE} --skip-tempus
+```
+
+**Data Sources:**
+- **TCGA/GTEx:** Raw expression for tumor vs normal (on-target toxicity)
+- **Tempus RWD:** ~1,800 patients with biomarker stratification
+
+**TCGA Cohorts:**
+| Cohort | Description |
+|--------|-------------|
+| TCGA_LUAD | Lung adenocarcinoma |
+| TCGA_LUSC | Lung squamous cell carcinoma |
+| TCGA_Adjacent | Adjacent normal lung |
+| GTEx_Lung | Normal lung tissue |
+| CCLE_NSCLC | NSCLC cell lines |
+
+**Tempus Cohorts (iDAS-aligned):**
+| Cohort | N Samples | iDAS Alignment |
+|--------|-----------|----------------|
+| Tempus_2L_NonAGA | 518 | **2L Non-AGA (IO-experienced)** |
+| Tempus_2L_EGFR | 38 | **2L EGFR Mutant (post-TKI)** |
+| Tempus_1L2L_KRAS | 1,021 | **1L/2L KRAS Mutant** |
+
+**Biomarker Stratification:** EGFR, KRAS, STK11, KEAP1, AGA status
+**Normal Tissue:** TCGA Adjacent, GTEx Lung
 
 ---
 
@@ -307,11 +312,24 @@ Create `{GENE}_integrated_target_report.md` with standardized format:
 ## 9. References
 ```
 
-### Generate PDF Report
+### Generate PDF Report (Automatic)
+
+**IMPORTANT:** PDF generation is automatic and MUST be executed at the end of every target evaluation workflow.
 
 ```bash
-pixi run python generate_target_report_pdf.py --gene {GENE} --output-dir ./{disease}_analysis_results/{GENE}
+pixi run python generate_target_report_pdf.py --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results/{GENE}
 ```
+
+**Required Parameters:**
+- `--gene`: Target gene symbol (e.g., PCDH7, TNFRSF12A)
+- `--disease`: Disease indication (`crc` or `nsclc`)
+- `--output-dir`: Directory containing the integrated report markdown
+
+The script automatically:
+1. Parses `{GENE}_integrated_target_report.md` for content
+2. Generates disease-specific text (full disease name, TCGA projects, normal tissue references)
+3. Includes comprehensive expression analysis figure
+4. Creates professional 13-page PDF with visualizations
 
 **PDF Structure (13 pages):**
 
@@ -341,14 +359,20 @@ pixi run python generate_target_report_pdf.py --gene {GENE} --output-dir ./{dise
 # Setup
 DISEASE="crc"  # or "nsclc"
 GENE="TNFRSF12A"
+```
 
-# Step 1: Drug Target Risk Assessment
-# - Load disease-specific risk template (e.g., reference/risk_assessment_template_crc.md)
-# - Execute PubMed searches for each risk category
-# - Populate template with evidence and assign risk levels
-# - Output: {GENE}_risk_assessment_{disease}.md
+**Step 1: Drug Target Risk Assessment**
+```
+# 1.1 MANDATORY: Read the disease-specific risk assessment template FIRST
+Read: {SKILL_BASE_DIR}/reference/risk_assessment_template_{DISEASE}.md
 
-# Step 2: Setup environment and run expression analysis
+# 1.2 Execute PubMed searches for each risk category (guided by template)
+# 1.3 Populate template with evidence and assign risk levels
+# 1.4 Output: {GENE}_risk_assessment_{disease}.md
+```
+
+**Step 2: Setup environment and run expression analysis**
+```bash
 cp "$SKILL_BASE_DIR/pixi.toml" ./
 cp "$SKILL_BASE_DIR/pixi.lock" ./
 cp "$SKILL_BASE_DIR/generate_target_report_pdf.py" ./
@@ -357,14 +381,21 @@ pixi install
 # For CRC (Comprehensive TCGA + Tempus):
 pixi run python crc_comprehensive_analysis.py --genes $GENE --output-dir ./${DISEASE}_analysis_results/$GENE
 
-# TCGA only (skip Tempus):
-# pixi run python crc_comprehensive_analysis.py --genes $GENE --skip-tempus
+# For NSCLC:
+pixi run python nsclc_comprehensive_analysis.py --genes $GENE --output-dir ./${DISEASE}_analysis_results/$GENE
+```
 
-# Step 3: ScholarEval scoring
-# [Claude calculates 8-dimension target score]
+**Step 3: ScholarEval scoring**
+```
+# Claude calculates 8-dimension target score based on expression results and literature
+```
 
-# Step 4: Generate integrated report and PDF
-pixi run python generate_target_report_pdf.py --gene $GENE --output-dir ./${DISEASE}_analysis_results/$GENE
+**Step 4: Generate integrated report markdown + PDF**
+```bash
+# Claude generates {GENE}_integrated_target_report.md
+
+# AUTOMATIC: Generate PDF report (ALWAYS run at end of workflow)
+pixi run python generate_target_report_pdf.py --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results/$GENE
 ```
 
 ### Adding New Disease Support
@@ -380,12 +411,21 @@ pixi run python generate_target_report_pdf.py --gene $GENE --output-dir ./${DISE
 
 ## Output Files
 
-### Comprehensive Analysis Outputs (`crc_comprehensive_analysis.py`)
+### Comprehensive Analysis Outputs (CRC: `crc_comprehensive_analysis.py`)
 | File | Description |
 |------|-------------|
 | `{GENE}_comprehensive_analysis.png` | 8-panel figure: TCGA cohorts, toxicity, Tempus LOT, iDAS cohorts, RAS status, CMS, alignment summary, recommendation |
 | `{GENE}_comprehensive_report.md` | Full report with TCGA + Tempus evidence, iDAS alignment, recommendations |
 | `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment |
+| `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
+| `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
+
+### Comprehensive Analysis Outputs (NSCLC: `nsclc_comprehensive_analysis.py`)
+| File | Description |
+|------|-------------|
+| `{GENE}_comprehensive_analysis.png` | 8-panel figure: TCGA cohorts (LUAD/LUSC), toxicity, Tempus LOT, iDAS cohorts, biomarker status, alignment summary, recommendation |
+| `{GENE}_comprehensive_report.md` | Full report with TCGA + Tempus evidence, iDAS alignment, recommendations |
+| `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment (2L Non-AGA, 2L EGFR, 1L/2L KRAS) |
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
 
@@ -406,9 +446,9 @@ pixi run python generate_target_report_pdf.py --gene $GENE --output-dir ./${DISE
 
 **Response:**
 1. **Step 1: Drug Target Risk Assessment**
-   - Load `configs/crc.yaml` and `reference/risk_assessment_template_crc.md`
+   - **FIRST:** Read `reference/risk_assessment_template_crc.md` using the Read tool
    - Execute PubMed searches for each risk category (Biological, Druggability, Translational, Clinical, Safety, Commercial)
-   - Include CRC-specific searches (RAS mutation context, MSI/MSS status, chemorefractory setting)
+   - Follow template guidance for CRC-specific searches (RAS mutation context, MSI/MSS status, chemorefractory setting)
    - Populate template with evidence, assess iDAS whitespace alignment
    - Output: `TNFRSF12A_risk_assessment_crc.md`
 2. **Step 2: Expression Analysis** - Run CRC bulk RNA analysis
@@ -441,6 +481,7 @@ pixi run python generate_target_report_pdf.py --gene $GENE --output-dir ./${DISE
 2. **Template-guided risk assessment** - disease-specific templates (e.g., CRC with iDAS context) drive structured PubMed searches
 3. **Integrated Step 1** - Risk framework and literature search combined for efficiency
 4. **PDF reads from markdown** - no hard-coded values in PDF script
-5. **Disease-agnostic orchestration** - add new diseases via config + risk template
+5. **Disease-agnostic orchestration** - add new diseases via config + risk template + DISEASE_CONFIG entry in PDF script
 6. **Standardized report format** - enables reliable parsing
-7. **Strategic alignment** - CRC evaluations include iDAS whitespace and cross-GI synergy assessment
+7. **Strategic alignment** - evaluations include iDAS whitespace and portfolio synergy assessment
+8. **Automatic PDF generation** - PDF MUST be generated at end of every workflow (requires `--disease` parameter)
