@@ -1,6 +1,6 @@
 ---
 name: target-evaluation
-description: Full 4-step therapeutic target evaluation workflow. Use when evaluating drug targets in oncology. Accepts gene symbol and disease type (crc, nsclc). Orchestrates risk assessment with integrated literature review, expression analysis, ScholarEval scoring, and final report generation with PDF output.
+description: Full 4-step therapeutic target evaluation workflow. Use when evaluating drug targets in oncology. Accepts gene symbol and disease type (crc, nsclc). Orchestrates risk assessment with integrated literature review, multi-omics analysis, ScholarEval scoring, and final report generation with PDF output.
 ---
 
 # Target Evaluation Workflow
@@ -119,7 +119,7 @@ Generate `{GENE}_risk_assessment_{disease}.md` with:
 
 ---
 
-## Step 2: Expression Analysis (Disease-Specific)
+## Step 2: Multi-omics Analysis (Disease-Specific)
 
 **Route to appropriate bulk RNA skill based on disease parameter:**
 
@@ -317,7 +317,8 @@ Create `{GENE}_integrated_target_report.md` with standardized format:
 **IMPORTANT:** PDF generation is automatic and MUST be executed at the end of every target evaluation workflow.
 
 ```bash
-pixi run python generate_target_report_pdf.py --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results/{GENE}
+# Run from skill base directory - do NOT copy to working directory
+pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results/{GENE}
 ```
 
 **Required Parameters:**
@@ -328,7 +329,7 @@ pixi run python generate_target_report_pdf.py --gene {GENE} --disease {DISEASE} 
 The script automatically:
 1. Parses `{GENE}_integrated_target_report.md` for content
 2. Generates disease-specific text (full disease name, TCGA projects, normal tissue references)
-3. Includes comprehensive expression analysis figure
+3. Includes comprehensive multi-omics analysis figure
 4. Creates professional 13-page PDF with visualizations
 
 **PDF Structure (13 pages):**
@@ -339,7 +340,7 @@ The script automatically:
 | 2 | Executive Summary |
 | 3 | Methods |
 | 4 | Results: Expression & Literature |
-| 5 | Figure 1: Comprehensive Expression Analysis |
+| 5 | Figure 1: Comprehensive Multi-omics Analysis |
 | 6 | Figure 2: Subtype Expression |
 | 7 | ScholarEval Scoring Table |
 | 8 | Risk Assessment Table |
@@ -371,11 +372,10 @@ Read: {SKILL_BASE_DIR}/reference/risk_assessment_template_{DISEASE}.md
 # 1.4 Output: {GENE}_risk_assessment_{disease}.md
 ```
 
-**Step 2: Setup environment and run expression analysis**
+**Step 2: Setup environment and run multi-omics analysis**
 ```bash
 cp "$SKILL_BASE_DIR/pixi.toml" ./
 cp "$SKILL_BASE_DIR/pixi.lock" ./
-cp "$SKILL_BASE_DIR/generate_target_report_pdf.py" ./
 pixi install
 
 # For CRC (Comprehensive TCGA + Tempus):
@@ -395,7 +395,8 @@ pixi run python nsclc_comprehensive_analysis.py --genes $GENE --output-dir ./${D
 # Claude generates {GENE}_integrated_target_report.md
 
 # AUTOMATIC: Generate PDF report (ALWAYS run at end of workflow)
-pixi run python generate_target_report_pdf.py --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results/$GENE
+# Run script from skill base directory - do NOT copy to working directory
+pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results/$GENE
 ```
 
 ### Adding New Disease Support
@@ -419,6 +420,7 @@ pixi run python generate_target_report_pdf.py --gene $GENE --disease $DISEASE --
 | `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment |
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `figures/{GENE}_panel_*.png` | Individual high-resolution (300 DPI) figures for each panel |
 
 ### Comprehensive Analysis Outputs (NSCLC: `nsclc_comprehensive_analysis.py`)
 | File | Description |
@@ -428,6 +430,7 @@ pixi run python generate_target_report_pdf.py --gene $GENE --disease $DISEASE --
 | `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment (2L Non-AGA, 2L EGFR, 1L/2L KRAS) |
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `figures/{GENE}_panel_*.png` | Individual high-resolution (300 DPI) figures for each panel |
 
 ### Target Evaluation Workflow Outputs
 | File | Description |
@@ -451,7 +454,7 @@ pixi run python generate_target_report_pdf.py --gene $GENE --disease $DISEASE --
    - Follow template guidance for CRC-specific searches (RAS mutation context, MSI/MSS status, chemorefractory setting)
    - Populate template with evidence, assess iDAS whitespace alignment
    - Output: `TNFRSF12A_risk_assessment_crc.md`
-2. **Step 2: Expression Analysis** - Run CRC bulk RNA analysis
+2. **Step 2: Multi-omics Analysis** - Run CRC bulk RNA analysis
 3. **Step 3: ScholarEval Scoring** - Calculate 8-dimension target score
 4. **Step 4: Report Generation** - Generate integrated report + PDF
 5. Present key findings:

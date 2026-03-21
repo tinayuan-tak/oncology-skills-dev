@@ -790,7 +790,196 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
     plt.close()
 
     print(f"  Saved: {output_path}")
+
+    # Save individual high-resolution figures
+    save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessment, output_dir)
+
     return output_path
+
+
+def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessment, output_dir):
+    """Save each panel as a separate high-resolution PNG file."""
+    figures_dir = os.path.join(output_dir, 'figures')
+    os.makedirs(figures_dir, exist_ok=True)
+
+    DPI = 300  # High resolution
+
+    # Panel 1: TCGA Cohort Expression (LUAD vs LUSC vs Normal)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    plot_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung', 'CCLE_NSCLC']
+    plot_data = tcga_df[tcga_df['cohort'].isin(plot_order)]
+    if len(plot_data) > 0:
+        colors = [COHORT_COLORS.get(c, '#333333') for c in plot_order if c in plot_data['cohort'].unique()]
+        sns.boxplot(data=plot_data, x='cohort', y='expression', order=plot_order, palette=colors, ax=ax)
+        ax.set_xticklabels([COHORT_LABELS.get(c, c) for c in plot_order], rotation=45, ha='right', fontsize=10)
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_xlabel('')
+    ax.set_title(f'{gene} - TCGA Cohorts', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_1_tcga_cohorts.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 2: On-Target Toxicity (Tumor vs Adjacent Normal)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    tox_data = tcga_df[tcga_df['cohort'].isin(['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent'])]
+    if len(tox_data) > 0:
+        tox_data = tox_data.copy()
+        tox_data['tissue_type'] = tox_data['cohort'].apply(
+            lambda x: 'Tumor' if x in ['TCGA_LUAD', 'TCGA_LUSC'] else 'Adjacent Normal'
+        )
+        sns.boxplot(data=tox_data, x='tissue_type', y='expression',
+                    palette={'Tumor': '#E74C3C', 'Adjacent Normal': '#7F8C8D'}, ax=ax)
+        toxicity = idas_assessment.get('on_target_toxicity', {})
+        fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+        risk = toxicity.get('risk_level', 'Unknown')
+        ax.text(0.5, 0.95, f'log2FC: {fc:.2f}\nRisk: {risk}',
+                transform=ax.transAxes, ha='center', va='top', fontsize=11,
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_xlabel('')
+    ax.set_title(f'{gene} - On-Target Toxicity Assessment', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_2_toxicity.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 3: Tempus Line of Therapy
+    fig, ax = plt.subplots(figsize=(6, 5))
+    if 'lot' in tempus_gene_data:
+        lot_data = tempus_gene_data['lot']
+        if 'group_name' in lot_data.columns:
+            lot_order = ['1L', '2L', '3L+']
+            lot_plot = lot_data[lot_data['group_name'].isin(lot_order)].copy()
+            if len(lot_plot) > 0:
+                lot_plot['group_name'] = pd.Categorical(lot_plot['group_name'], categories=lot_order, ordered=True)
+                lot_plot = lot_plot.sort_values('group_name')
+                colors = [COHORT_COLORS.get(f'Tempus_{g.replace("+", "plus")}', '#333333') for g in lot_plot['group_name']]
+                ax.bar(lot_plot['group_name'], lot_plot['mean'], color=colors, edgecolor='black')
+                ax.errorbar(lot_plot['group_name'], lot_plot['mean'], yerr=lot_plot['sd']/2, fmt='none', color='black', capsize=3)
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_xlabel('Line of Therapy', fontsize=12)
+    ax.set_title(f'{gene} - Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_3_lot.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 4: iDAS Priority Cohorts
+    fig, ax = plt.subplots(figsize=(8, 6))
+    idas_data = []
+    for key, info in idas_assessment.get('whitespace_alignment', {}).items():
+        idas_data.append({
+            'cohort': info.get('label', key),
+            'expression': info.get('expression', 0),
+            'alignment': info.get('alignment', 'Unknown')
+        })
+    if idas_data:
+        idas_df = pd.DataFrame(idas_data)
+        colors = ['#27AE60' if a == 'Strong' else '#F39C12' if a == 'Moderate' else '#E74C3C'
+                  for a in idas_df['alignment']]
+        ax.barh(idas_df['cohort'], idas_df['expression'], color=colors, edgecolor='black')
+        ax.axvline(x=4, color='green', linestyle='--', alpha=0.5, label='Strong threshold')
+        ax.axvline(x=2, color='orange', linestyle='--', alpha=0.5, label='Moderate threshold')
+        ax.legend(loc='lower right', fontsize=9)
+    ax.set_xlabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_title(f'{gene} - iDAS Priority Whitespaces', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_4_idas_priority.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 5: KRAS Status
+    fig, ax = plt.subplots(figsize=(6, 5))
+    if 'kras_status' in tempus_gene_data:
+        kras_data = tempus_gene_data['kras_status']
+        if 'group_name' in kras_data.columns:
+            kras_plot = kras_data[kras_data['group_name'].isin(['KRAS Mutant', 'KRAS WT'])]
+            if len(kras_plot) > 0:
+                colors = ['#E67E22', '#3498DB']
+                ax.bar(kras_plot['group_name'], kras_plot['mean'], color=colors, edgecolor='black')
+                ax.errorbar(kras_plot['group_name'], kras_plot['mean'], yerr=kras_plot['sd']/2, fmt='none', color='black', capsize=3)
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_title(f'{gene} - KRAS Mutation Status (Tempus)', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_5_kras_status.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 6: EGFR Status
+    fig, ax = plt.subplots(figsize=(6, 5))
+    if 'egfr_status' in tempus_gene_data:
+        egfr_data = tempus_gene_data['egfr_status']
+        if 'group_name' in egfr_data.columns:
+            egfr_plot = egfr_data[egfr_data['group_name'].isin(['EGFR Mutant', 'EGFR WT'])]
+            if len(egfr_plot) > 0:
+                colors = ['#16A085', '#9B59B6']
+                ax.bar(egfr_plot['group_name'], egfr_plot['mean'], color=colors, edgecolor='black')
+                ax.errorbar(egfr_plot['group_name'], egfr_plot['mean'], yerr=egfr_plot['sd']/2, fmt='none', color='black', capsize=3)
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_title(f'{gene} - EGFR Mutation Status (Tempus)', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_6_egfr_status.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 7: STK11/KEAP1 Status (IO resistance markers)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    io_data = []
+    if 'stk11_status' in tempus_gene_data:
+        stk11 = tempus_gene_data['stk11_status']
+        for _, row in stk11.iterrows():
+            if 'group_name' in row:
+                io_data.append({'marker': row['group_name'], 'mean': row['mean'], 'sd': row.get('sd', 0)})
+    if 'keap1_status' in tempus_gene_data:
+        keap1 = tempus_gene_data['keap1_status']
+        for _, row in keap1.iterrows():
+            if 'group_name' in row:
+                io_data.append({'marker': row['group_name'], 'mean': row['mean'], 'sd': row.get('sd', 0)})
+    if io_data:
+        io_df = pd.DataFrame(io_data)
+        colors = ['#8E44AD' if 'STK11' in m else '#D35400' for m in io_df['marker']]
+        ax.bar(range(len(io_df)), io_df['mean'], color=colors, edgecolor='black')
+        ax.set_xticks(range(len(io_df)))
+        ax.set_xticklabels(io_df['marker'], rotation=45, ha='right', fontsize=10)
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
+    ax.set_title(f'{gene} - IO Resistance Markers (STK11/KEAP1)', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_7_io_resistance.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel 8: Overall Assessment Summary
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.axis('off')
+    overall = idas_assessment.get('overall_alignment', 'Unknown')
+    rec = idas_assessment.get('recommendation', 'Unknown')
+    toxicity = idas_assessment.get('on_target_toxicity', {})
+    tox_risk = toxicity.get('risk_level', 'Unknown')
+    tox_fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+    if 'PRIORITY' in rec:
+        bg_color = '#D5F5E3'
+        text_color = '#1E8449'
+    elif 'CONDITIONAL' in rec:
+        bg_color = '#FADBD8'
+        text_color = '#922B21'
+    else:
+        bg_color = '#FEF9E7'
+        text_color = '#9A7D0A'
+    summary_text = f"""
+    {gene} Target Assessment Summary
+    ════════════════════════════════════
+
+    Overall iDAS Alignment: {overall}
+
+    On-Target Toxicity Risk: {tox_risk}
+    (Tumor vs Normal log2FC: {tox_fc:.2f})
+
+    Recommendation:
+    {rec}
+    """
+    ax.text(0.5, 0.5, summary_text, transform=ax.transAxes, ha='center', va='center',
+             fontsize=13, family='monospace',
+             bbox=dict(boxstyle='round,pad=0.5', facecolor=bg_color, edgecolor=text_color, linewidth=2))
+    ax.set_title(f'{gene} - Assessment Summary', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_8_summary.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    print(f"  Saved individual figures to: {figures_dir}/")
 
 
 # =============================================================================

@@ -150,6 +150,21 @@ For each gene, the analysis generates:
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
 
+### Individual High-Resolution Figures
+
+Each panel is also saved as a separate 300 DPI PNG file in the `figures/` subfolder:
+
+| File | Description |
+|------|-------------|
+| `figures/{GENE}_panel_1_tcga_cohorts.png` | TCGA expression by histology (LUAD/LUSC) |
+| `figures/{GENE}_panel_2_toxicity.png` | On-target toxicity assessment |
+| `figures/{GENE}_panel_3_lot.png` | Tempus line of therapy |
+| `figures/{GENE}_panel_4_idas_priority.png` | iDAS priority whitespaces |
+| `figures/{GENE}_panel_5_kras_status.png` | KRAS mutation status |
+| `figures/{GENE}_panel_6_egfr_status.png` | EGFR mutation status |
+| `figures/{GENE}_panel_7_io_resistance.png` | STK11/KEAP1 IO resistance markers |
+| `figures/{GENE}_panel_8_summary.png` | Assessment summary |
+
 ## iDAS NSCLC Strategic Alignment
 
 The script automatically assesses alignment with iDAS priority whitespaces:

@@ -1054,7 +1054,223 @@ def create_comprehensive_figure(gene_symbol, master_df, tempus_gene_data, assess
     plt.close()
     print(f"  Saved: {output_path}")
 
+    # Save individual high-resolution figures
+    save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assessment, output_dir)
+
     return output_path
+
+
+def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assessment, output_dir):
+    """Save each panel as a separate high-resolution PNG file."""
+    figures_dir = os.path.join(output_dir, 'figures')
+    os.makedirs(figures_dir, exist_ok=True)
+
+    DPI = 300  # High resolution
+
+    # Panel A: TCGA Cohort Expression
+    fig, ax = plt.subplots(figsize=(8, 6))
+    if not master_df.empty:
+        plot_order = ['TCGA_RASMut_MSS', 'TCGA_RASWT_MSS', 'TCGA_Resectable',
+                      'TCGA_MSS_All', 'TCGA_MSIH', 'TCGA_Adjacent', 'GTEx_Colon']
+        plot_order = [c for c in plot_order if c in master_df['cohort'].unique()]
+        if plot_order:
+            plot_df = master_df[master_df['cohort'].isin(plot_order)]
+            colors = [COHORT_COLORS.get(c, '#888888') for c in plot_order]
+            sns.boxplot(data=plot_df, x='cohort', y='expression', order=plot_order,
+                       palette=colors, ax=ax, width=0.6)
+            ax.set_xticklabels([COHORT_LABELS.get(c, c) for c in plot_order],
+                               rotation=45, ha='right', fontsize=10)
+            ax.axhline(y=master_df[master_df['cohort'] == 'TCGA_Adjacent']['expression'].median(),
+                       color='gray', linestyle='--', alpha=0.5, label='Adjacent Normal')
+    ax.set_xlabel('')
+    ax.set_ylabel('Expression (log2)', fontsize=12)
+    ax.set_title(f'{gene_symbol} - TCGA Expression by Cohort', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_A_tcga_cohorts.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel B: On-Target Toxicity
+    fig, ax = plt.subplots(figsize=(6, 5))
+    toxicity = assessment.get('on_target_toxicity', {})
+    if toxicity:
+        fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+        risk = toxicity.get('risk_level', 'Unknown')
+        color = '#2ECC71' if risk == 'Low' else '#F39C12' if risk == 'Medium' else '#E74C3C'
+        ax.barh(['Tumor vs\nAdjacent Normal'], [fc], color=color, height=0.5)
+        ax.axvline(x=0, color='black', linestyle='-', linewidth=0.5)
+        ax.axvline(x=1, color='green', linestyle='--', alpha=0.5, label='Low risk threshold')
+        ax.axvline(x=0.5, color='orange', linestyle='--', alpha=0.5, label='Medium risk threshold')
+        ax.set_xlabel('log2 Fold Change', fontsize=12)
+        ax.set_xlim(-2, max(fc + 1, 3))
+        ax.legend(loc='lower right', fontsize=9)
+        ax.text(fc + 0.1, 0, f'{fc:.2f}\n({risk} Risk)', va='center', fontsize=11, fontweight='bold')
+    ax.set_title(f'{gene_symbol} - On-Target Toxicity Assessment', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_B_toxicity.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel C: Tempus Line of Therapy
+    fig, ax = plt.subplots(figsize=(6, 5))
+    if 'lot_mss' in tempus_gene_data:
+        df = tempus_gene_data['lot_mss']
+        lot_data = []
+        for _, row in df.iterrows():
+            lot_data.append({'LOT': row['group_name'], 'Mean': row['mean'], 'N': row['n_samples']})
+        if lot_data:
+            lot_df = pd.DataFrame(lot_data)
+            colors = ['#5DADE2', '#2874A6']
+            bars = ax.bar(range(len(lot_df)), lot_df['Mean'], color=colors[:len(lot_df)])
+            ax.set_xticks(range(len(lot_df)))
+            ax.set_xticklabels(['Frontline\n(1L-2L)', 'Chemorefractory\n(3L+)'][:len(lot_df)], fontsize=11)
+            ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
+            for i, row in lot_df.iterrows():
+                ax.annotate(f"n={int(row['N']):,}", (i, row['Mean'] + 0.1), ha='center', fontsize=10)
+            if len(lot_df) == 2:
+                fc = lot_df.iloc[1]['Mean'] - lot_df.iloc[0]['Mean']
+                ax.annotate(f'log2FC: {fc:.2f}', xy=(0.5, 0.95), xycoords='axes fraction',
+                           ha='center', fontsize=11, fontweight='bold',
+                           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    ax.set_title(f'{gene_symbol} - Expression by Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_C_lot.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel D: Tempus iDAS Cohorts
+    fig, ax = plt.subplots(figsize=(8, 6))
+    if 'idas_groups' in tempus_gene_data:
+        df = tempus_gene_data['idas_groups']
+        idas_data = []
+        for _, row in df.iterrows():
+            cohort = convert_tempus_group_name(row['group_name'])
+            idas_data.append({
+                'Cohort': cohort, 'Mean': row['mean'], 'N': row['n_samples'],
+                'Priority': cohort in IDAS_PRIORITY_COHORTS
+            })
+        if idas_data:
+            idas_df = pd.DataFrame(idas_data)
+            colors = [COHORT_COLORS.get(c, '#888888') for c in idas_df['Cohort']]
+            bars = ax.bar(range(len(idas_df)), idas_df['Mean'], color=colors)
+            for i, row in idas_df.iterrows():
+                if row['Priority']:
+                    bars[i].set_edgecolor('gold')
+                    bars[i].set_linewidth(3)
+            ax.set_xticks(range(len(idas_df)))
+            ax.set_xticklabels([COHORT_LABELS.get(c, c.split('_')[-1]) for c in idas_df['Cohort']],
+                               rotation=45, ha='right', fontsize=10)
+            ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
+    ax.set_title(f'{gene_symbol} - Tempus iDAS-Aligned Cohorts', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_D_idas_cohorts.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel E: RAS Status
+    fig, ax = plt.subplots(figsize=(6, 5))
+    if 'ras_status_mss' in tempus_gene_data:
+        df = tempus_gene_data['ras_status_mss']
+        ras_data = []
+        for _, row in df.iterrows():
+            ras_data.append({'RAS': row['group_name'], 'Mean': row['mean'], 'N': row['n_samples']})
+        if ras_data:
+            ras_df = pd.DataFrame(ras_data)
+            colors = ['#C0392B', '#27AE60']
+            ax.bar(range(len(ras_df)), ras_df['Mean'], color=colors[:len(ras_df)])
+            ax.set_xticks(range(len(ras_df)))
+            ax.set_xticklabels(['RAS Mutant', 'RAS Wild-Type'][:len(ras_df)], fontsize=11)
+            ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
+            for i, row in ras_df.iterrows():
+                ax.annotate(f"n={int(row['N']):,}", (i, row['Mean'] + 0.1), ha='center', fontsize=10)
+    ax.set_title(f'{gene_symbol} - Expression by RAS Status (Tempus)', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_E_ras_status.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel F: CMS Subtypes
+    fig, ax = plt.subplots(figsize=(6, 5))
+    cms_data = []
+    if not master_df.empty and 'CMS' in master_df.columns:
+        cms_stats = master_df.groupby('CMS')['expression'].agg(['mean', 'count'])
+        for cms in ['CMS1', 'CMS2', 'CMS3', 'CMS4']:
+            if cms in cms_stats.index:
+                cms_data.append({'CMS': cms, 'Mean': cms_stats.loc[cms, 'mean'],
+                                'N': cms_stats.loc[cms, 'count'], 'Source': 'TCGA'})
+    if not cms_data and 'cms' in tempus_gene_data:
+        df = tempus_gene_data['cms']
+        group_col = 'group' if 'group' in df.columns else 'group_name'
+        for _, row in df.iterrows():
+            if row[group_col] in ['CMS1', 'CMS2', 'CMS3', 'CMS4']:
+                cms_data.append({'CMS': row[group_col], 'Mean': row['mean'],
+                                'N': row['n_samples'], 'Source': 'Tempus'})
+    if cms_data:
+        cms_df = pd.DataFrame(cms_data)
+        colors = [CMS_COLORS.get(c, '#888888') for c in cms_df['CMS']]
+        ax.bar(range(len(cms_df)), cms_df['Mean'], color=colors)
+        ax.set_xticks(range(len(cms_df)))
+        ax.set_xticklabels(cms_df['CMS'], fontsize=11)
+        ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
+        source = cms_df['Source'].iloc[0] if 'Source' in cms_df.columns else ''
+        ax.set_title(f'{gene_symbol} - CMS Subtype Expression ({source})', fontweight='bold', fontsize=14)
+    else:
+        ax.set_title(f'{gene_symbol} - CMS Subtype Expression (No data)', fontweight='bold', fontsize=14)
+        ax.text(0.5, 0.5, 'No CMS data available', ha='center', va='center', transform=ax.transAxes)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_F_cms.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel G: iDAS Alignment Summary Table
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.axis('off')
+    whitespace = assessment.get('whitespace_alignment', {})
+    table_data = []
+    for ws_name, ws_data in whitespace.items():
+        alignment = ws_data.get('alignment', 'Unknown')
+        expr = ws_data.get('expression_3lplus') or ws_data.get('tempus_expression') or \
+               ws_data.get('tcga_expression') or ws_data.get('expression') or 'N/A'
+        if isinstance(expr, float):
+            expr = f'{expr:.2f}'
+        table_data.append([
+            ws_name.replace('_', ' ').title(), expr, alignment,
+            IDAS_PRIORITY_COHORTS.get(f'Tempus_{ws_name}', IDAS_PRIORITY_COHORTS.get(f'TCGA_{ws_name}', ''))
+        ])
+    if table_data:
+        table = ax.table(cellText=table_data,
+                         colLabels=['iDAS Whitespace', 'Expression', 'Alignment', 'Strategic Priority'],
+                         loc='center', cellLoc='center', colWidths=[0.25, 0.15, 0.15, 0.45])
+        table.auto_set_font_size(False)
+        table.set_fontsize(11)
+        table.scale(1.2, 2.0)
+        for i, row in enumerate(table_data):
+            alignment = row[2]
+            color = '#2ECC71' if alignment == 'Strong' else '#F39C12' if alignment == 'Moderate' else '#E74C3C'
+            table[(i + 1, 2)].set_facecolor(color)
+            table[(i + 1, 2)].set_text_props(color='white', fontweight='bold')
+    ax.set_title(f'{gene_symbol} - iDAS Whitespace Alignment Summary', fontweight='bold', fontsize=14, pad=20)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_G_idas_summary.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    # Panel H: Recommendation
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.axis('off')
+    overall = assessment.get('overall_alignment', 'Unknown')
+    rec = assessment.get('recommendation', 'Unknown')
+    bg_color = '#2ECC71' if 'PRIORITY' in rec else '#F39C12' if 'CONDITIONAL' in rec else '#E74C3C'
+    ax.add_patch(plt.Rectangle((0.05, 0.2), 0.9, 0.6, facecolor=bg_color, alpha=0.3,
+                                 transform=ax.transAxes, edgecolor='black', linewidth=2))
+    ax.text(0.5, 0.6, f'Overall Alignment: {overall}', ha='center', va='center',
+             transform=ax.transAxes, fontsize=16, fontweight='bold')
+    ax.text(0.5, 0.4, rec, ha='center', va='center',
+             transform=ax.transAxes, fontsize=12, fontweight='bold', wrap=True)
+    tox_risk = assessment.get('on_target_toxicity', {}).get('risk_level', '')
+    if tox_risk == 'High':
+        ax.text(0.5, 0.15, 'WARNING: High on-target toxicity risk',
+                ha='center', va='center', transform=ax.transAxes,
+                fontsize=11, color='red', fontweight='bold')
+    ax.set_title(f'{gene_symbol} - Recommendation', fontweight='bold', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_H_recommendation.png'), dpi=DPI, facecolor='white')
+    plt.close()
+
+    print(f"  Saved individual figures to: {figures_dir}/")
 
 
 # =============================================================================

@@ -139,6 +139,21 @@ For each gene, the analysis generates:
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
 
+### Individual High-Resolution Figures
+
+Each panel is also saved as a separate 300 DPI PNG file in the `figures/` subfolder:
+
+| File | Description |
+|------|-------------|
+| `figures/{GENE}_panel_A_tcga_cohorts.png` | TCGA expression by cohort |
+| `figures/{GENE}_panel_B_toxicity.png` | On-target toxicity assessment |
+| `figures/{GENE}_panel_C_lot.png` | Tempus line of therapy |
+| `figures/{GENE}_panel_D_idas_cohorts.png` | Tempus iDAS-aligned cohorts |
+| `figures/{GENE}_panel_E_ras_status.png` | RAS mutation status |
+| `figures/{GENE}_panel_F_cms.png` | CMS subtype expression |
+| `figures/{GENE}_panel_G_idas_summary.png` | iDAS alignment summary table |
+| `figures/{GENE}_panel_H_recommendation.png` | Recommendation summary |
+
 ## iDAS Strategic Alignment
 
 The script automatically assesses alignment with iDAS priority whitespaces:

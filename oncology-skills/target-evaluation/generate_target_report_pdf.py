@@ -14,6 +14,7 @@ import argparse
 import os
 import sys
 import re
+from datetime import date
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.patches as mpatches
@@ -100,7 +101,7 @@ def parse_pairwise_comparisons(output_dir, gene):
 def parse_integrated_report(report_path, output_dir=None, gene=None):
     """Parse the integrated target report markdown file to extract key data."""
     data = {
-        'date': '2026-03-19',
+        'date': date.today().isoformat(),
         'score': 'TBD',
         'risk_profile': 'TBD',
         'recommendation': 'GO',
@@ -137,7 +138,11 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
         content = f.read()
 
     # Extract ScholarEval Score (handles both "Key: Value" and "| Key | Value |" formats)
-    score_match = re.search(r'\*?\*?ScholarEval Score\*?\*?[:\s|]+(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
+    # Try table format with bold markers first: | **ScholarEval Score** | **4.25/5.0 (Strong)** |
+    score_match = re.search(r'ScholarEval Score\*?\*?\s*\|\s*\*?\*?(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
+    if not score_match:
+        # Try key: value format
+        score_match = re.search(r'ScholarEval Score[:\s]+\*?\*?(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
     if score_match:
         data['score'] = score_match.group(1)
 
@@ -198,6 +203,32 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
     if risk_section:
         risks = re.findall(r'\d+\.\s*\*?\*?([^*\n]+)', risk_section.group(1))
         data['risks'] = [r.strip() for r in risks if r.strip()][:5]
+
+    # Extract Risk Mitigation Strategies
+    mitigation_section = re.search(r'(?:Risk Mitigation Strategies|## 6\. Risk Mitigation)[^\n]*\n((?:.*\n)*?)(?=\n##|\n---|\Z)', content, re.IGNORECASE)
+    if mitigation_section:
+        # Parse table format: | Risk | Mitigation Strategy |
+        mitigation_rows = re.findall(r'\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|', mitigation_section.group(1))
+        mitigations = []
+        for risk, strategy in mitigation_rows:
+            if risk.strip() and not risk.strip().startswith('-') and risk.strip().lower() != 'risk':
+                mitigations.append(f"{risk.strip()}: {strategy.strip()}")
+        data['mitigations'] = mitigations[:6]
+    else:
+        data['mitigations'] = []
+
+    # Extract Recommendations section
+    rec_section = re.search(r'(?:Recommended Development Path|### Recommended)[^\n]*\n((?:.*\n)*?)(?=\n###|\n##|\n---|\Z)', content, re.IGNORECASE)
+    if rec_section:
+        # Parse table format or bullet points
+        rec_rows = re.findall(r'\|\s*\*?\*?([^|*]+)\*?\*?\s*\|\s*([^|]+)\s*\|', rec_section.group(1))
+        recommendations = []
+        for phase, activities in rec_rows:
+            if phase.strip() and not phase.strip().startswith('-') and phase.strip().lower() != 'phase':
+                recommendations.append(f"{phase.strip()}: {activities.strip()[:60]}")
+        data['recommendations_list'] = recommendations[:5]
+    else:
+        data['recommendations_list'] = []
 
     # Extract Scholar scores from table
     scholar_pattern = r'\|\s*(Differential Expression|Pathway Relevance|Druggability|Genetic Validation|Disease Association|Safety Profile|Clinical Validation|Biomarker Potential)\s*\|(?:\s*[\d.]+\s*\|)?\s*\*?\*?(\d)/5\*?\*?'
@@ -375,7 +406,7 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
             print(f"  Parsed: {gene}_integrated_target_report.md")
             print(f"  Fold Change (vs Adjacent Normal): {report_data.get('fold_change', 'TBD')}")
         else:
-            report_data = {'date': '2026-03-19', 'score': 'TBD', 'risk_profile': 'TBD',
+            report_data = {'date': date.today().isoformat(), 'score': 'TBD', 'risk_profile': 'TBD',
                           'recommendation': 'GO', 'assessment': 'TBD', 'fold_change': 'TBD',
                           'risk_table': {}, 'strengths': [], 'risks': [], 'scholar_scores': {}}
 
@@ -478,7 +509,7 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
 
     # Report Details
     ax1.plot([0.25, 0.75], [0.36, 0.36], color='#ecf0f1', linewidth=1, transform=ax1.transAxes)
-    date_str = report_data.get('date', '2026-03-19') if report_data else '2026-03-19'
+    date_str = report_data.get('date', date.today().isoformat()) if report_data else date.today().isoformat()
     assessment = report_data.get('assessment', 'TBD') if report_data else 'TBD'
     detail_text = f"Date: {date_str}  |  Target: {gene}  |  Indication: {disease_abbr}  |  Assessment: {assessment}"
     ax1.text(0.5, 0.32, detail_text, fontsize=9, ha='center', transform=ax1.transAxes, color='#5d6d7e')
@@ -493,7 +524,7 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
     ax1.text(0.5, 0.185, '4-Step Evaluation Pipeline', fontsize=9, fontweight='bold',
              ha='center', transform=ax1.transAxes, color='#2c3e50')
 
-    steps = ['Risk Assessment', 'Expression', 'ScholarEval', 'Report']
+    steps = ['Risk Assessment', 'Multi-omics', 'ScholarEval', 'Report']
     step_colors = ['#3498db', '#e67e22', '#1abc9c', '#e74c3c']
     step_spacing = 0.16
     step_start = 0.5 - (len(steps) - 1) * step_spacing / 2
@@ -533,8 +564,8 @@ KEY FINDINGS:
 {disease_intro}
 
 This report presents an integrated target evaluation following a 4-step pipeline:
-(1) risk assessment framework with literature review, (2) bulk RNA-seq
-expression analysis, (3) ScholarEval target scoring, and (4) integrated scientific
+(1) risk assessment framework with literature review, (2) multi-omics
+analysis, (3) ScholarEval target scoring, and (4) integrated scientific
 assessment with risk-based recommendation."""
     text_page(pdf, 'Executive Summary', exec_summary)
     print("  Page 2: Executive Summary")
@@ -552,8 +583,8 @@ Low, Medium, or High based on predefined criteria.
 PubMed was searched using target-specific queries combined with disease terms. Results
 were organized by risk category to ensure comprehensive evidence collection.
 
-2.3 Expression Analysis
-Gene expression data were obtained from:
+2.3 Multi-omics Analysis
+Gene expression and molecular profiling data were obtained from:
   • {tcga_projects} (primary tumors)
   • TCGA adjacent normal {normal_tissue}
   • {gtex_tissue}
@@ -609,7 +640,7 @@ TRANSLATIONAL EVIDENCE:
 
     # ===== PAGE 5: FIGURE - Comprehensive Analysis =====
     comp_fig = os.path.join(output_dir, f'{gene}_comprehensive_analysis.png')
-    add_high_res_figure(pdf, comp_fig, 'Figure 1: Comprehensive Expression Analysis',
+    add_high_res_figure(pdf, comp_fig, 'Figure 1: Comprehensive Multi-omics Analysis',
                         f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue.')
     print("  Page 5: Figure 1 - Comprehensive Analysis")
 
@@ -750,34 +781,31 @@ Risk Level Legend:
     print("  Page 11: Strengths & Risks")
 
     # ===== PAGE 12: MITIGATION & RECOMMENDATIONS =====
-    mitigation = """7. RISK MITIGATION STRATEGIES
+    mitigations = report_data.get('mitigations', [])
+    recommendations_list = report_data.get('recommendations_list', [])
+
+    # Build mitigation text
+    if mitigations:
+        mitigation_lines = '\n\n'.join([f"{i+1}. {m[:80]}" for i, m in enumerate(mitigations[:6])])
+    else:
+        mitigation_lines = "See integrated report for detailed mitigation strategies."
+
+    # Build recommendations text
+    if recommendations_list:
+        rec_lines = '\n'.join([f"{i+1}. {r[:80]}" for i, r in enumerate(recommendations_list[:5])])
+    else:
+        rec_lines = "See integrated report for detailed recommendations."
+
+    mitigation = f"""7. RISK MITIGATION STRATEGIES
 ─────────────────────────────────────────────────────────────────────────────────────────
 
-1. [Mitigation strategy 1]
-
-2. [Mitigation strategy 2]
-
-3. [Mitigation strategy 3]
-
-4. [Mitigation strategy 4]
+{mitigation_lines}
 
 
-8. RECOMMENDATIONS - PRIORITY ACTIONS
+8. RECOMMENDATIONS - DEVELOPMENT PATH
 ─────────────────────────────────────────────────────────────────────────────────────────
 
-HIGH PRIORITY:
-1. [Action 1]
-2. [Action 2]
-3. [Action 3]
-
-MEDIUM PRIORITY:
-4. [Action 4]
-5. [Action 5]
-6. [Action 6]
-
-LOWER PRIORITY:
-7. [Action 7]
-8. [Action 8]"""
+{rec_lines}"""
     text_page(pdf, 'Risk Mitigation & Recommendations', mitigation)
     print("  Page 12: Recommendations")
 

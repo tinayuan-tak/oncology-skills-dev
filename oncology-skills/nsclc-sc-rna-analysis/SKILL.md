@@ -1,23 +1,27 @@
 ---
 name: nsclc-sc-rna-analysis
-description: Use when analyzing single-cell RNA-seq data in non-small cell lung cancer. Triggers include single-cell analysis for NSCLC, scRNA-seq LUAD/LUSC analysis, cell type identification in lung tumors, tumor microenvironment analysis, or any single-cell level analysis in NSCLC context.
+description: Use when analyzing single-cell RNA-seq data in non-small cell lung cancer. Triggers include scRNA-seq analysis for NSCLC, tumor microenvironment characterization, cell type annotation, or single-cell gene expression in NSCLC context. (COMING SOON)
 ---
 
 # NSCLC Single-Cell RNA-seq Analysis
 
-## Overview
+## Status: COMING SOON
 
-Analyze single-cell RNA sequencing data from non-small cell lung cancer samples. Supports cell type annotation, differential expression, trajectory analysis, and tumor microenvironment characterization.
+This skill is under development. For now, use the bulk RNA analysis skill:
 
-## Status
-
-This skill is a placeholder. Implementation pending.
+**Available alternative:** `oncology-skills:nsclc-bulk-rna-analysis`
 
 ## Planned Capabilities
 
-- Cell type identification and annotation
-- LUAD vs LUSC cellular composition comparison
-- Immune cell infiltration analysis
-- Cancer cell subpopulation analysis
-- Cell-cell communication inference
-- Trajectory and pseudotime analysis
+- Single-cell gene expression analysis in NSCLC
+- Cell type annotation and clustering (AT1, AT2, immune, stromal)
+- Tumor microenvironment characterization
+- Differential expression by cell type
+- Cell-cell communication analysis
+- Integration with TCGA/Tempus bulk data
+
+## Data Sources (Planned)
+
+- CELLxGENE Census NSCLC datasets
+- Published NSCLC scRNA-seq studies
+- Internal datasets
