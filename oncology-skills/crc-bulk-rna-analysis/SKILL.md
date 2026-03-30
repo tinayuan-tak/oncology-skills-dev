@@ -12,7 +12,7 @@ Analyze gene expression across colorectal cancer (CRC) using integrated TCGA and
 ## Key Capabilities
 
 - **TCGA Raw Expression**: Tumor vs Adjacent Normal (primary on-target toxicity metric)
-- **Tempus RWD**: >200,000 patients with line-of-therapy stratification
+- **Tempus RWD**: ~2,183 patients with line-of-therapy and biomarker stratification
 - **iDAS Alignment**: Automatic whitespace scoring for strategic prioritization
 - **CMS Subtype Analysis**: CMS1-4 stratification
 - **Normal Tissue Comparisons**: TCGA Adjacent Normal, GTEx Normal Colon
@@ -28,7 +28,7 @@ Analyze gene expression across colorectal cancer (CRC) using integrated TCGA and
 ### Tempus RWD (Pre-computed Summaries)
 - **Source**: `s3://onc-compbio/Tempus/crc`
 - **Use**: Line-of-therapy stratified expression, chemorefractory population
-- **Sample Size**: >200,000 CRC patients
+- **Sample Size**: ~2,183 CRC patients
 
 ### Required Annotation Files (Auto-downloaded from S3)
 | File | S3 Path | Description |
@@ -52,10 +52,10 @@ Analyze gene expression across colorectal cancer (CRC) using integrated TCGA and
 ### Tempus Cohorts (iDAS-aligned)
 | Cohort | N Samples | iDAS Alignment |
 |--------|-----------|----------------|
-| Tempus_RASMut_MSS_1L2L | ~85,000 | RAS mutant frontline |
-| **Tempus_RASMut_MSS_3Lplus** | ~26,000 | **RAS mutant refractory** |
-| **Tempus_MSS_3Lplus** | ~40,000 | **Chemorefractory 3L+** |
-| Tempus_RASWT_MSS_1L2L | ~59,000 | Contrast group |
+| Tempus_RASMut_MSS_1L2L | 920 | RAS mutant frontline |
+| **Tempus_RASMut_MSS_3Lplus** | 283 | **RAS mutant refractory** |
+| **Tempus_MSS_3Lplus** | 426 | **Chemorefractory 3L+** |
+| Tempus_RASWT_MSS_1L2L | 631 | Contrast group |
 
 ### CMS Subtypes
 - **CMS1**: MSI Immune (hypermutated)
@@ -90,26 +90,23 @@ pixi install
 
 ### Step 1: Run the Analysis Script
 
-**IMPORTANT**: Use `crc_comprehensive_analysis.py` - the unified analysis pipeline.
+**IMPORTANT**: Run `crc_comprehensive_analysis.py` directly from the skill base directory - do NOT copy the script.
 
 ```bash
-# Copy the analysis script from skill directory
-cp "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" ./
-
 # Full analysis (TCGA + Tempus) - RECOMMENDED
-pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes TNFRSF12A
 
 # Multiple genes
-pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A CDCP1 EPCAM
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes TNFRSF12A CDCP1 EPCAM
 
 # Custom output directory
-pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --output-dir ./my_results
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes TNFRSF12A --output-dir ./my_results
 
 # TCGA only (skip Tempus)
-pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tempus
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes TNFRSF12A --skip-tempus
 
 # Tempus only (skip TCGA raw processing)
-pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tcga
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes TNFRSF12A --skip-tcga
 ```
 
 ### Script Usage
@@ -136,6 +133,7 @@ For each gene, the analysis generates:
 | `{GENE}_comprehensive_analysis.png` | 8-panel figure: TCGA cohorts, toxicity, Tempus LOT, iDAS, RAS status, CMS, alignment, recommendation |
 | `{GENE}_comprehensive_report.md` | Full report with TCGA + Tempus evidence, iDAS alignment |
 | `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment |
+| `{GENE}_subgroup_suitability.csv` | **NEW** Subgroup suitability scores (molecular, RAS status, iDAS whitespaces) |
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
 
@@ -153,6 +151,35 @@ Each panel is also saved as a separate 300 DPI PNG file in the `figures/` subfol
 | `figures/{GENE}_panel_F_cms.png` | CMS subtype expression |
 | `figures/{GENE}_panel_G_idas_summary.png` | iDAS alignment summary table |
 | `figures/{GENE}_panel_H_recommendation.png` | Recommendation summary |
+| `figures/{GENE}_subgroup_suitability.png` | **NEW** Subgroup suitability analysis chart |
+
+## Subgroup Suitability Analysis
+
+The script performs 3-phase subgroup suitability analysis:
+
+### Phase 1: Molecular Subgroup Suitability
+Based on tumor vs adjacent normal enrichment per molecular subgroup:
+| Subgroup | Scoring Criteria |
+|----------|-----------------|
+| RAS Mutant MSS | log2FC vs adjacent normal |
+| RAS WT MSS | log2FC vs adjacent normal |
+| MSI-H | log2FC vs adjacent normal |
+| Resectable | log2FC vs adjacent normal |
+
+### Phase 2: RAS Mutation Status (Tempus)
+**Data Source:** Tempus RWD (chemotherapy-treated/IO-experienced population)
+
+Compares expression in RAS Mutant vs RAS WT within Tempus cohort:
+- **PRIORITY** (log2FC > 0.5): Target upregulated in RAS-mutant
+- **GO** (log2FC > 0): Slightly higher in RAS-mutant
+- **NEUTRAL** (log2FC > -0.5): Similar regardless of RAS status
+- **CAUTION** (log2FC > -1.0): Lower in RAS-mutant
+- **EXCLUDE** (log2FC < -1.0): Significantly lower in RAS-mutant
+
+### Phase 3: iDAS Whitespace Suitability
+Integrates expression level + RAS status (Tempus) + toxicity risk:
+- For RAS-specific whitespaces (RAS Mutant Refractory, RAS Mutant Frontline), applies RAS mutation penalty from Tempus
+- Key metric shows `ras_fc=X.XX (Tempus)` to indicate data source
 
 ## iDAS Strategic Alignment
 

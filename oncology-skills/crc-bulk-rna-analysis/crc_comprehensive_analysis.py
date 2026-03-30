@@ -784,6 +784,346 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
     return assessment
 
 
+def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, idas_assessment, tempus_gene_data):
+    """
+    Compute subgroup-specific suitability scores for CRC target evaluation.
+
+    Integrates:
+    - Molecular subgroups (RAS Mutant MSS, RAS WT MSS, MSI-H, Resectable - tumor enrichment)
+    - RAS mutation status (RAS Mutant vs RAS WT from Tempus)
+    - iDAS whitespace alignment (RAS Mut Refractory, Chemorefractory 3L+, Resectable)
+
+    Returns:
+        dict: Subgroup suitability analysis with scores and recommendations
+    """
+    suitability = {
+        'gene': gene,
+        'molecular_subgroup': {},
+        'ras_status': {},
+        'idas_whitespace': {},
+        'summary': []
+    }
+
+    # ==========================================================================
+    # 1. MOLECULAR SUBGROUP SUITABILITY (Tumor vs Adjacent enrichment)
+    # ==========================================================================
+    if pairwise_df is not None and len(pairwise_df) > 0:
+        subgroup_map = {
+            'TCGA_RASMut_MSS': 'RAS Mutant MSS',
+            'TCGA_RASWT_MSS': 'RAS WT MSS',
+            'TCGA_MSIH': 'MSI-H',
+            'TCGA_Resectable': 'Resectable',
+            'TCGA_MSS_All': 'All MSS',
+        }
+
+        for cohort, label in subgroup_map.items():
+            comparison = pairwise_df[
+                (pairwise_df['Tumor_Cohort'] == cohort) &
+                (pairwise_df['Normal_Group'] == 'TCGA_Adjacent')
+            ]
+            if len(comparison) > 0:
+                log2fc = comparison['Log2FC'].values[0]
+                linear_fc = 2 ** log2fc
+
+                # Suitability scoring based on tumor enrichment
+                if log2fc > 1.0:  # >2x vs adjacent
+                    score = 5
+                    recommendation = 'GO'
+                    rationale = f'Strong tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                elif log2fc > 0.58:  # >1.5x vs adjacent
+                    score = 4
+                    recommendation = 'GO'
+                    rationale = f'Good tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                elif log2fc > 0:  # >1x vs adjacent
+                    score = 3
+                    recommendation = 'CONDITIONAL'
+                    rationale = f'Moderate tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                else:
+                    score = 2
+                    recommendation = 'CAUTION'
+                    rationale = f'No tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+
+                suitability['molecular_subgroup'][label] = {
+                    'log2fc_vs_adjacent': round(log2fc, 3),
+                    'linear_fc': round(linear_fc, 2),
+                    'suitability_score': score,
+                    'recommendation': recommendation,
+                    'rationale': rationale
+                }
+
+                suitability['summary'].append({
+                    'subgroup': f'Molecular: {label}',
+                    'category': 'molecular_subgroup',
+                    'key_metric': f'{linear_fc:.1f}x vs adjacent',
+                    'score': score,
+                    'recommendation': recommendation
+                })
+
+    # ==========================================================================
+    # 2. RAS MUTATION STATUS (Tempus RWD - IO-experienced population)
+    # ==========================================================================
+    # Use Tempus ras_status_mss for RAS Mutant vs RAS WT comparison
+    tempus_ras_log2fc = None
+    tempus_ras_fc = None
+    if 'ras_status_mss' in tempus_gene_data:
+        ras_data = tempus_gene_data['ras_status_mss']
+        if 'group_name' in ras_data.columns and 'mean' in ras_data.columns:
+            mut_row = ras_data[ras_data['group_name'] == 'RAS Mutant']
+            wt_row = ras_data[ras_data['group_name'] == 'RAS WT']
+            if len(mut_row) > 0 and len(wt_row) > 0:
+                mut_mean = mut_row['mean'].values[0]
+                wt_mean = wt_row['mean'].values[0]
+                mut_n = int(mut_row['n_samples'].values[0]) if 'n_samples' in mut_row.columns else 0
+                wt_n = int(wt_row['n_samples'].values[0]) if 'n_samples' in wt_row.columns else 0
+                tempus_ras_log2fc = mut_mean - wt_mean
+                tempus_ras_fc = 2 ** tempus_ras_log2fc  # Convert to fold change
+
+                # Interpret RAS mutation status effect
+                if tempus_ras_log2fc > 0.5:
+                    score = 5
+                    recommendation = 'PRIORITY'
+                    rationale = f'Upregulated in RAS-mutant ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+                elif tempus_ras_log2fc > 0:
+                    score = 4
+                    recommendation = 'GO'
+                    rationale = f'Slightly higher in RAS-mutant ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+                elif tempus_ras_log2fc > -0.5:
+                    score = 3
+                    recommendation = 'NEUTRAL'
+                    rationale = f'Similar expression regardless of RAS status ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+                elif tempus_ras_log2fc > -1.0:
+                    score = 2
+                    recommendation = 'CAUTION'
+                    rationale = f'Lower in RAS-mutant ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+                else:
+                    score = 1
+                    recommendation = 'EXCLUDE'
+                    rationale = f'Significantly lower in RAS-mutant ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+
+                suitability['ras_status']['RAS_mut'] = {
+                    'log2fc_vs_wt': round(tempus_ras_log2fc, 3),
+                    'fold_change': round(tempus_ras_fc, 2),
+                    'mutant_mean': round(mut_mean, 3),
+                    'mutant_n': mut_n,
+                    'wt_mean': round(wt_mean, 3),
+                    'wt_n': wt_n,
+                    'data_source': 'Tempus',
+                    'suitability_score': score,
+                    'recommendation': recommendation,
+                    'rationale': rationale
+                }
+
+                suitability['summary'].append({
+                    'subgroup': 'RAS Status: RAS+ (Tempus)',
+                    'category': 'ras_status',
+                    'key_metric': f'{tempus_ras_fc:.1f}x vs WT (Tempus)',
+                    'score': score,
+                    'recommendation': recommendation
+                })
+
+    # ==========================================================================
+    # 3. iDAS WHITESPACE SUITABILITY
+    # ==========================================================================
+    # Based on expression level + RAS status + toxicity risk
+    whitespace_info = idas_assessment.get('whitespace_alignment', {})
+    toxicity = idas_assessment.get('on_target_toxicity', {})
+    tox_risk = toxicity.get('risk_level', 'Unknown')
+    tox_log2fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+
+    # Map iDAS whitespaces - for CRC, RAS mutant whitespaces use RAS status from Tempus
+    whitespace_ras_map = {
+        'ras_mutant_refractory': True,    # RAS Mutant 3L+ - apply RAS penalty if lower in mutant
+        'ras_mutant_frontline': True,     # RAS Mutant 1L-2L - apply RAS penalty if lower in mutant
+        'chemorefractory_3lplus': False,  # All MSS 3L+ - no RAS-specific penalty
+        'resectable': False,              # Early stage - no RAS-specific penalty
+    }
+
+    for ws_key, ws_data in whitespace_info.items():
+        # Get expression from available fields
+        expression = ws_data.get('expression_3lplus') or ws_data.get('expression') or \
+                     ws_data.get('tempus_expression') or ws_data.get('tcga_expression') or 0
+        alignment = ws_data.get('alignment', 'Unknown')
+        n_samples = ws_data.get('n_samples', 0)
+
+        # Label mapping
+        label_map = {
+            'ras_mutant_refractory': 'RAS Mutant Refractory (3L+)',
+            'ras_mutant_frontline': 'RAS Mutant Frontline',
+            'chemorefractory_3lplus': 'Chemorefractory 3L+',
+            'resectable': 'Resectable (Neo/Adjuvant)',
+        }
+        label = label_map.get(ws_key, ws_key)
+
+        # Base score on expression level
+        if expression > 5:
+            base_score = 5
+        elif expression > 4:
+            base_score = 4
+        elif expression > 3:
+            base_score = 3
+        elif expression > 2:
+            base_score = 2
+        else:
+            base_score = 1
+
+        # Apply RAS mutation penalty for RAS-specific whitespaces (from Tempus)
+        mutation_penalty = 0
+        mutation_context = ''
+        applies_ras_penalty = whitespace_ras_map.get(ws_key, False)
+
+        if applies_ras_penalty and tempus_ras_fc is not None:
+            if tempus_ras_log2fc < -0.5:
+                mutation_penalty = 2
+                mutation_context = f', RAS_LOWER ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+            elif tempus_ras_log2fc < 0:
+                mutation_penalty = 1
+                mutation_context = f', ras_lower ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+            elif tempus_ras_log2fc > 0.5:
+                mutation_penalty = -1
+                mutation_context = f', ras_higher ({tempus_ras_fc:.1f}x vs WT, Tempus)'
+
+        # Adjust for toxicity risk
+        if tox_risk == 'High':
+            tox_penalty = 2
+        elif tox_risk == 'Medium':
+            tox_penalty = 1
+        else:
+            tox_penalty = 0
+
+        # Calculate final adjusted score
+        adjusted_score = max(1, base_score - tox_penalty - mutation_penalty)
+
+        # Determine recommendation
+        if mutation_penalty >= 2:
+            recommendation = 'CAUTION'
+            rationale = f'Expression={expression:.2f}, but target LOWER in RAS-mutant{mutation_context}'
+        elif adjusted_score >= 4 and tox_risk != 'High':
+            if mutation_penalty == 0 and tox_penalty == 0:
+                recommendation = 'PRIORITY'
+            else:
+                recommendation = 'GO'
+            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
+        elif adjusted_score >= 3:
+            recommendation = 'CONDITIONAL'
+            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
+        else:
+            recommendation = 'CAUTION'
+            rationale = f'Expression={expression:.2f}, concerns: tox={tox_risk}{mutation_context}'
+
+        suitability['idas_whitespace'][ws_key] = {
+            'expression': round(expression, 3) if expression else 0,
+            'n_samples': int(n_samples) if n_samples else 0,
+            'alignment': alignment,
+            'toxicity_risk': tox_risk,
+            'ras_log2fc': round(tempus_ras_log2fc, 3) if tempus_ras_log2fc is not None and applies_ras_penalty else None,
+            'ras_fold_change': round(tempus_ras_fc, 2) if tempus_ras_fc is not None and applies_ras_penalty else None,
+            'ras_data_source': 'Tempus' if tempus_ras_log2fc is not None and applies_ras_penalty else None,
+            'base_score': base_score,
+            'tox_penalty': tox_penalty,
+            'mutation_penalty': mutation_penalty,
+            'adjusted_score': adjusted_score,
+            'recommendation': recommendation,
+            'rationale': rationale
+        }
+
+        # Build key metric string
+        key_metric = f'expr={expression:.2f}' if expression else 'expr=N/A'
+        if applies_ras_penalty and tempus_ras_fc is not None:
+            key_metric += f', {tempus_ras_fc:.1f}x vs WT (Tempus)'
+        key_metric += f', tox={tox_risk}'
+
+        suitability['summary'].append({
+            'subgroup': f'iDAS: {label}',
+            'category': 'idas_whitespace',
+            'key_metric': key_metric,
+            'score': adjusted_score,
+            'recommendation': recommendation
+        })
+
+    # ==========================================================================
+    # 4. OVERALL BEST SUBGROUPS
+    # ==========================================================================
+    suitability['summary'] = sorted(suitability['summary'], key=lambda x: -x['score'])
+
+    priority_subgroups = [s for s in suitability['summary'] if s['recommendation'] == 'PRIORITY']
+    go_subgroups = [s for s in suitability['summary'] if s['recommendation'] == 'GO']
+    exclude_subgroups = [s for s in suitability['summary'] if s['recommendation'] in ['EXCLUDE', 'CAUTION']]
+
+    suitability['best_subgroups'] = {
+        'priority': [s['subgroup'] for s in priority_subgroups],
+        'go': [s['subgroup'] for s in go_subgroups],
+        'caution_exclude': [s['subgroup'] for s in exclude_subgroups],
+    }
+
+    return suitability
+
+
+def save_subgroup_suitability_figure(gene, suitability, output_dir):
+    """Save subgroup suitability summary figure."""
+    summary = suitability.get('summary', [])
+    if not summary:
+        return
+
+    fig, ax = plt.subplots(figsize=(12, max(6, len(summary) * 0.5)))
+
+    # Prepare data
+    subgroups = [s['subgroup'] for s in summary]
+    scores = [s['score'] for s in summary]
+    recommendations = [s['recommendation'] for s in summary]
+
+    # Color mapping
+    color_map = {
+        'PRIORITY': '#27AE60',
+        'GO': '#2ECC71',
+        'CONDITIONAL': '#F39C12',
+        'NEUTRAL': '#85929E',
+        'CAUTION': '#E74C3C',
+        'EXCLUDE': '#922B21',
+    }
+    colors = [color_map.get(r, '#888888') for r in recommendations]
+
+    # Create horizontal bar chart
+    y_pos = range(len(subgroups))
+    bars = ax.barh(y_pos, scores, color=colors, edgecolor='black', alpha=0.8)
+
+    # Add score labels
+    for i, (bar, score, rec) in enumerate(zip(bars, scores, recommendations)):
+        ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height()/2,
+                f'{score}/5 ({rec})', va='center', fontsize=9)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(subgroups, fontsize=10)
+    ax.set_xlabel('Suitability Score (1-5)', fontsize=12)
+    ax.set_xlim(0, 6.5)
+    ax.set_title(f'{gene} - Subgroup Suitability Analysis\n(Molecular, RAS Status, iDAS Whitespaces)',
+                 fontweight='bold', fontsize=14)
+
+    # Add legend
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='#27AE60', label='PRIORITY'),
+        Patch(facecolor='#2ECC71', label='GO'),
+        Patch(facecolor='#F39C12', label='CONDITIONAL'),
+        Patch(facecolor='#85929E', label='NEUTRAL'),
+        Patch(facecolor='#E74C3C', label='CAUTION'),
+    ]
+    ax.legend(handles=legend_elements, loc='lower right', fontsize=9)
+
+    # Add vertical lines for score thresholds
+    ax.axvline(x=4, color='green', linestyle='--', alpha=0.3)
+    ax.axvline(x=3, color='orange', linestyle='--', alpha=0.3)
+
+    plt.tight_layout()
+
+    figures_dir = os.path.join(output_dir, 'figures')
+    os.makedirs(figures_dir, exist_ok=True)
+    fig_path = os.path.join(figures_dir, f'{gene}_subgroup_suitability.png')
+    plt.savefig(fig_path, dpi=150, facecolor='white', bbox_inches='tight')
+    plt.close()
+
+    return fig_path
+
+
 # =============================================================================
 # VISUALIZATION
 # =============================================================================
@@ -1278,15 +1618,23 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
 # =============================================================================
 
 def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_comparisons,
-                                   tempus_gene_data, assessment, output_dir):
+                                   tempus_gene_data, assessment, output_dir, subgroup_suitability=None):
     """Generate comprehensive markdown report."""
     report = []
 
     # Header
     report.append(f"# {gene_symbol} Comprehensive CRC Target Evaluation Report")
     report.append(f"\n**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+    # Get Tempus sample count dynamically from overall data
+    tempus_n = 2183  # Default fallback
+    if tempus_gene_data and 'overall' in tempus_gene_data:
+        overall_df = tempus_gene_data['overall']
+        if not overall_df.empty and 'n_samples' in overall_df.columns:
+            tempus_n = int(overall_df['n_samples'].iloc[0])
+
     report.append(f"\n**Data Sources:** TCGA/GTEx (n={len(master_df) if not master_df.empty else 0}) + "
-                 f"Tempus RWD (n>200,000)")
+                 f"Tempus RWD (n={tempus_n:,})")
 
     # Executive Summary
     report.append("\n---\n## Executive Summary\n")
@@ -1304,8 +1652,9 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
 
     # iDAS Whitespace Alignment
     report.append("\n---\n## iDAS Whitespace Alignment\n")
-    report.append("| Priority Whitespace | Expression | Alignment | Data Source |")
-    report.append("|---------------------|------------|-----------|-------------|")
+    report.append("> **Data Sources:** Tempus CRC RWD (~2,183 patients, ~90% CPI-naive) + TCGA-COAD/READ\n\n")
+    report.append("| Priority Whitespace | Expression (log2TPM) | Alignment | N Samples | Source |")
+    report.append("|---------------------|----------------------|-----------|-----------|--------|")
 
     for ws_name, ws_data in assessment.get('whitespace_alignment', {}).items():
         expr = ws_data.get('expression_3lplus') or ws_data.get('tempus_expression') or \
@@ -1313,21 +1662,23 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
         if isinstance(expr, float):
             expr = f'{expr:.2f}'
         alignment = ws_data.get('alignment', 'Unknown')
+        n_samples = ws_data.get('n_samples', 'N/A')
         source = 'Tempus' if 'tempus' in str(ws_data) or '3lplus' in ws_name else 'TCGA'
-        report.append(f"| {ws_name.replace('_', ' ').title()} | {expr} | **{alignment}** | {source} |")
+        report.append(f"| {ws_name.replace('_', ' ').title()} | {expr} | **{alignment}** | {n_samples} | {source} |")
 
     # On-Target Toxicity Assessment
-    report.append("\n---\n## On-Target Toxicity Assessment (TCGA)\n")
+    report.append("\n---\n## On-Target Toxicity Assessment (TCGA/GTEx)\n")
+    report.append("> **Data Source:** TCGA-COAD/READ (treatment-naive) vs TCGA Adjacent Normal & GTEx Colon\n\n")
     report.append("**Primary Metric:** Tumor vs Adjacent Normal Expression\n")
 
     if tcga_comparisons is not None and not tcga_comparisons.empty:
-        report.append("| Comparison | Tumor Median | Normal Median | log2FC | p-value | Significant |")
-        report.append("|------------|--------------|---------------|--------|---------|-------------|")
+        report.append("| Comparison | Tumor N | Normal N | Tumor Median | Normal Median | log2FC | p-value |")
+        report.append("|------------|---------|----------|--------------|---------------|--------|---------|")
         for _, row in tcga_comparisons.iterrows():
-            sig = "Yes" if row['significant'] else "No"
             report.append(f"| {row['Tumor_Cohort']} vs {row['Normal_Group']} | "
+                         f"{int(row['Tumor_N'])} | {int(row['Normal_N'])} | "
                          f"{row['Tumor_Median']:.2f} | {row['Normal_Median']:.2f} | "
-                         f"{row['Log2FC']:.2f} | {row['p_value']:.2e} | {sig} |")
+                         f"{row['Log2FC']:.2f} | {row['p_value']:.2e} |")
 
     report.append(f"\n**Interpretation:**")
     if tox_fc > 1:
@@ -1342,9 +1693,10 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
 
     # Tempus Real-World Evidence
     report.append("\n---\n## Tempus Real-World Evidence\n")
+    report.append("> **Data Source:** Tempus CRC cohort (~2,183 patients, ~90% CPI-naive, ~10% CPI-treated)\n\n")
 
     # Line of Therapy
-    report.append("### Line of Therapy Expression (MSS)\n")
+    report.append("### Line of Therapy Expression (MSS, Tempus)\n")
     if 'lot_mss' in tempus_gene_data:
         df = tempus_gene_data['lot_mss']
         report.append("| Line of Therapy | N Samples | Mean | Median | log2FC vs Frontline |")
@@ -1357,7 +1709,7 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
                          f"{row['mean']:.2f} | {row['median']:.2f} | {fc} |")
 
     # Key Target Population
-    report.append("\n### Key iDAS Population: MSS RAS-Mutant 3L+ Chemorefractory\n")
+    report.append("\n### Key iDAS Population: MSS RAS-Mutant 3L+ Chemorefractory (Tempus)\n")
     if 'key_target_3lplus' in tempus_gene_data:
         df = tempus_gene_data['key_target_3lplus']
         if not df.empty:
@@ -1368,7 +1720,7 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
             report.append(f"- **log2FC vs All MSS:** {row.get('log2FC_vs_MSS_all', 0):.3f}")
 
     # RAS Status
-    report.append("\n### RAS Status Expression (MSS)\n")
+    report.append("\n### RAS Status Expression (MSS, Tempus)\n")
     if 'ras_status_mss' in tempus_gene_data:
         df = tempus_gene_data['ras_status_mss']
         report.append("| RAS Status | N Samples | Mean | log2FC vs WT |")
@@ -1381,7 +1733,7 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
                          f"{row['mean']:.2f} | {fc} |")
 
     # CPI Treatment Context
-    report.append("\n### Checkpoint Inhibitor Context\n")
+    report.append("\n### Checkpoint Inhibitor Context (Tempus)\n")
     if 'cpi_status' in tempus_gene_data:
         df = tempus_gene_data['cpi_status']
         report.append("| CPI Status | N Samples | Mean | log2FC Treated vs Naive |")
@@ -1394,15 +1746,60 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
                          f"{row['mean']:.2f} | {fc} |")
 
     # TCGA Cohort Statistics
-    report.append("\n---\n## TCGA Cohort Expression Statistics\n")
+    total_tcga_n = int(tcga_stats['count'].sum()) if tcga_stats is not None and 'count' in tcga_stats.columns else 0
+    report.append(f"\n---\n## TCGA/GTEx Cohort Expression Statistics (N={total_tcga_n})\n")
+    report.append("> **Data Source:** TCGA-COAD/READ (treatment-naive), TCGA Adjacent Normal, GTEx Colon, CCLE\n\n")
     if tcga_stats is not None and not tcga_stats.empty:
-        report.append("| Cohort | N | Median | Mean | SD | iDAS Priority |")
-        report.append("|--------|---|--------|------|----| --------------|")
+        report.append("| Cohort | N | Median (log2TPM) | Mean | SD | iDAS Priority |")
+        report.append("|--------|---|------------------|------|----| --------------|")
         for cohort in tcga_stats.index:
             row = tcga_stats.loc[cohort]
             priority = "Yes" if cohort in IDAS_PRIORITY_COHORTS else "No"
             report.append(f"| {cohort} | {int(row['count'])} | {row['median']:.2f} | "
                          f"{row['mean']:.2f} | {row['std']:.2f} | {priority} |")
+
+    # Subgroup Suitability Analysis (3-Phase)
+    if subgroup_suitability and subgroup_suitability.get('summary'):
+        report.append("\n---\n## Subgroup Suitability Analysis\n")
+        report.append("> **3-Phase Analysis:** Phase 1 (TCGA Molecular, treatment-naive) → Phase 2 (Tempus RAS status, CPI-naive/treated) → Phase 3 (iDAS whitespace)\n\n")
+
+        # Phase 1: Molecular Subgroups
+        report.append("### Phase 1: Molecular Subgroup Suitability (TCGA)\n")
+        report.append("| Subgroup | Key Metric | Score | Recommendation |")
+        report.append("|----------|------------|-------|----------------|")
+        for row in subgroup_suitability['summary']:
+            if row.get('category') == 'molecular_subgroup':
+                report.append(f"| {row['subgroup']} | {row['key_metric']} | {row['score']}/5 | **{row['recommendation']}** |")
+        report.append("\n")
+
+        # Phase 2: RAS Mutation Status (Tempus)
+        report.append("### Phase 2: RAS Mutation Status (Tempus)\n")
+        report.append("| Subgroup | Key Metric | Score | Recommendation |")
+        report.append("|----------|------------|-------|----------------|")
+        for row in subgroup_suitability['summary']:
+            if row.get('category') == 'ras_status':
+                report.append(f"| {row['subgroup']} | {row['key_metric']} | {row['score']}/5 | **{row['recommendation']}** |")
+        report.append("\n")
+
+        # Phase 3: iDAS Whitespace Suitability
+        report.append("### Phase 3: iDAS Whitespace Suitability\n")
+        report.append("| Whitespace | Key Metric | Score | Recommendation |")
+        report.append("|------------|------------|-------|----------------|")
+        for row in subgroup_suitability['summary']:
+            if row.get('category') == 'idas_whitespace':
+                report.append(f"| {row['subgroup']} | {row['key_metric']} | {row['score']}/5 | **{row['recommendation']}** |")
+        report.append("\n")
+
+        # Best Subgroups Summary
+        best_subs = subgroup_suitability.get('best_subgroups', {})
+        if best_subs.get('priority') or best_subs.get('go') or best_subs.get('caution_exclude'):
+            report.append("### Subgroup Recommendations\n")
+            if best_subs.get('priority'):
+                report.append(f"**PRIORITY Subgroups:** {', '.join(best_subs['priority'])}\n")
+            if best_subs.get('go'):
+                report.append(f"**GO Subgroups:** {', '.join(best_subs['go'])}\n")
+            if best_subs.get('caution_exclude'):
+                report.append(f"**CAUTION/EXCLUDE Subgroups:** {', '.join(best_subs['caution_exclude'])}\n")
 
     # Conclusions
     report.append("\n---\n## Conclusions and Recommendations\n")
@@ -1535,6 +1932,28 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
     print(f"  Overall alignment: {assessment['overall_alignment']}")
     print(f"  Recommendation: {assessment['recommendation']}")
 
+    # Compute subgroup suitability
+    print("\n  Computing subgroup suitability...")
+    subgroup_suitability = compute_subgroup_suitability(
+        gene_symbol, tcga_stats, tcga_comparisons, assessment, tempus_gene_data
+    )
+
+    # Print key findings
+    priority_subs = subgroup_suitability.get('best_subgroups', {}).get('priority', [])
+    go_subs = subgroup_suitability.get('best_subgroups', {}).get('go', [])
+    caution_subs = subgroup_suitability.get('best_subgroups', {}).get('caution_exclude', [])
+
+    if priority_subs:
+        print(f"  PRIORITY subgroups: {', '.join(priority_subs)}")
+    if caution_subs:
+        print(f"  EXCLUDE/CAUTION subgroups: {', '.join(caution_subs)}")
+
+    # Save subgroup suitability
+    suitability_csv_path = os.path.join(gene_dir, f'{gene_symbol}_subgroup_suitability.csv')
+    suitability_df = pd.DataFrame(subgroup_suitability['summary'])
+    suitability_df.to_csv(suitability_csv_path, index=False)
+    print(f"  Saved: {suitability_csv_path}")
+
     # Save assessment
     assessment_path = os.path.join(gene_dir, f'{gene_symbol}_idas_assessment.yaml')
     with open(assessment_path, 'w') as f:
@@ -1545,11 +1964,16 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
     print("\n  Generating visualizations...")
     fig_path = create_comprehensive_figure(gene_symbol, master_df, tempus_gene_data, assessment, gene_dir)
 
+    # Generate subgroup suitability figure
+    suitability_fig_path = save_subgroup_suitability_figure(gene_symbol, subgroup_suitability, gene_dir)
+    if suitability_fig_path:
+        print(f"  Saved: {suitability_fig_path}")
+
     # Generate report
     print("\n  Generating report...")
     report_path = generate_comprehensive_report(
         gene_symbol, master_df, tcga_stats, tcga_comparisons,
-        tempus_gene_data, assessment, gene_dir
+        tempus_gene_data, assessment, gene_dir, subgroup_suitability
     )
 
     # Save statistics

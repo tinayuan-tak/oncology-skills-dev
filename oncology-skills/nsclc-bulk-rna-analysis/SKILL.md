@@ -12,6 +12,7 @@ Analyze gene expression across non-small cell lung cancer (NSCLC) using integrat
 ## Key Capabilities
 
 - **TCGA Raw Expression**: Tumor vs Adjacent Normal (primary on-target toxicity metric)
+- **TCGA Mutation Analysis**: Expression by KRAS, EGFR, STK11, KEAP1 mutation status (treatment-naive)
 - **Tempus RWD**: >1,800 patients with line-of-therapy and biomarker stratification
 - **iDAS Alignment**: Automatic whitespace scoring for strategic prioritization
 - **Histology Analysis**: LUAD vs LUSC comparison
@@ -101,26 +102,23 @@ pixi install
 
 ### Step 1: Run the Analysis Script
 
-**IMPORTANT**: Use `nsclc_comprehensive_analysis.py` - the unified analysis pipeline.
+**IMPORTANT**: Run `nsclc_comprehensive_analysis.py` directly from the skill base directory - do NOT copy the script.
 
 ```bash
-# Copy the analysis script from skill directory
-cp "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" ./
-
 # Full analysis (TCGA + Tempus) - RECOMMENDED
-pixi run python nsclc_comprehensive_analysis.py --genes EGFR
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes EGFR
 
 # Multiple genes
-pixi run python nsclc_comprehensive_analysis.py --genes EGFR KRAS STK11
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes EGFR KRAS STK11
 
 # Custom output directory
-pixi run python nsclc_comprehensive_analysis.py --genes EGFR --output-dir ./my_results
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes EGFR --output-dir ./my_results
 
 # TCGA only (skip Tempus)
-pixi run python nsclc_comprehensive_analysis.py --genes EGFR --skip-tempus
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes EGFR --skip-tempus
 
 # Tempus only (skip TCGA raw processing)
-pixi run python nsclc_comprehensive_analysis.py --genes EGFR --skip-tcga
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes EGFR --skip-tcga
 ```
 
 ### Script Usage
@@ -144,11 +142,13 @@ For each gene, the analysis generates:
 
 | File | Description |
 |------|-------------|
-| `{GENE}_comprehensive_analysis.png` | 8-panel figure: LUAD/LUSC, toxicity, LOT, iDAS, KRAS, EGFR, STK11/KEAP1, recommendation |
+| `{GENE}_comprehensive_analysis.png` | 8-panel figure: TCGA cohorts + mutations, toxicity, LOT, iDAS, KRAS, EGFR, STK11/KEAP1, recommendation |
 | `{GENE}_comprehensive_report.md` | Full report with TCGA + Tempus evidence, iDAS alignment |
-| `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment |
+| `{GENE}_idas_assessment.yaml` | Structured iDAS whitespace alignment assessment + subgroup analysis |
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `{GENE}_tcga_mutation_statistics.csv` | TCGA mutation status expression (KRAS, EGFR, STK11, KEAP1 Mut vs WT) |
+| `{GENE}_subgroup_suitability.csv` | Subgroup-stratified suitability scores with recommendations |
 
 ### Individual High-Resolution Figures
 
@@ -156,14 +156,15 @@ Each panel is also saved as a separate 300 DPI PNG file in the `figures/` subfol
 
 | File | Description |
 |------|-------------|
-| `figures/{GENE}_panel_1_tcga_cohorts.png` | TCGA expression by histology (LUAD/LUSC) |
+| `figures/{GENE}_panel_1_tcga_cohorts.png` | TCGA histology (LUAD/LUSC/Normal) + mutation status (KRAS/EGFR/STK11/KEAP1) |
 | `figures/{GENE}_panel_2_toxicity.png` | On-target toxicity assessment |
 | `figures/{GENE}_panel_3_lot.png` | Tempus line of therapy |
 | `figures/{GENE}_panel_4_idas_priority.png` | iDAS priority whitespaces |
-| `figures/{GENE}_panel_5_kras_status.png` | KRAS mutation status |
-| `figures/{GENE}_panel_6_egfr_status.png` | EGFR mutation status |
-| `figures/{GENE}_panel_7_io_resistance.png` | STK11/KEAP1 IO resistance markers |
+| `figures/{GENE}_panel_5_kras_status.png` | KRAS mutation status (Tempus) |
+| `figures/{GENE}_panel_6_egfr_status.png` | EGFR mutation status (Tempus) |
+| `figures/{GENE}_panel_7_io_resistance.png` | STK11/KEAP1 IO resistance markers (Tempus) |
 | `figures/{GENE}_panel_8_summary.png` | Assessment summary |
+| `figures/{GENE}_subgroup_suitability.png` | Subgroup suitability heatmap with scores and recommendations |
 
 ## iDAS NSCLC Strategic Alignment
 
@@ -172,12 +173,12 @@ The script automatically assesses alignment with iDAS priority whitespaces:
 | Priority Whitespace | Cohort | Strong | Moderate | Weak |
 |---------------------|--------|--------|----------|------|
 | **2L Non-AGA** | Tempus 2L Non-AGA (n=518) | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
-| **2L EGFR Mutant** | Tempus 2L EGFR (n=38) | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
+| **2L EGFR Mutant (post-TKI)** | Tempus 2L EGFR (n=38) | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
 | **1L/2L KRAS Mutant** | Tempus 1L2L KRAS (n=1,021) | >4 log2TPM | 2-4 log2TPM | <2 log2TPM |
 
 ### iDAS Context
 - **2L Non-AGA**: Patients without actionable genomic alterations who progressed on IO ± chemo
-- **2L EGFR Mutant**: EGFR+ patients post-TKI failure
+- **2L EGFR Mutant (post-TKI)**: EGFR+ patients post-osimertinib/TKI failure
 - **1L/2L KRAS Mutant**: KRAS-mutant population (G12C and non-G12C)
 
 ## On-Target Toxicity Assessment
@@ -189,6 +190,81 @@ The script automatically assesses alignment with iDAS priority whitespaces:
 | **LOW** | >1.5 (tumor >> normal) | Tumor-specific, favorable safety |
 | **MEDIUM** | 0.5-1.5 | Moderate tumor enrichment |
 | **HIGH** | <0.5 or negative | Normal tissue expression, toxicity risk |
+
+## TCGA Mutation Status Analysis
+
+Expression is analyzed by mutation status using **TCGA treatment-naive tumor samples** for valid within-dataset comparisons.
+
+### Mutations Analyzed
+| Mutation | TCGA Column | Typical N (Mutant) | Typical N (WT) |
+|----------|-------------|-------------------|----------------|
+| **KRAS** | `dna_seq_somatic_mutation_status_kras` | ~150 | ~850 |
+| **EGFR** | `dna_seq_somatic_mutation_status_egfr` | ~80 | ~920 |
+| **STK11** | `dna_seq_somatic_mutation_status_stk11` | ~90 | ~910 |
+| **KEAP1** | `dna_seq_somatic_mutation_status_keap1` | ~150 | ~850 |
+
+### Output
+- **Report section**: TCGA Mutation Status Expression with N, Mean, Median, SD, log2FC vs WT
+- **CSV file**: `{GENE}_tcga_mutation_statistics.csv`
+- **Figure**: Panel 1 includes mutation status boxplots (right side, separated by dashed line)
+
+### Interpretation
+- **log2FC vs WT > 0.5**: Target may be upregulated in mutant tumors
+- **log2FC vs WT ~ 0**: Expression independent of mutation status
+- **log2FC vs WT < -0.5**: Target may be downregulated in mutant tumors
+
+> **Note**: TCGA mutation analysis uses treatment-naive samples, unlike Tempus (100% CPI-treated). This enables valid within-dataset comparisons without treatment confounding.
+
+## Subgroup Suitability Analysis
+
+The script computes subgroup-specific suitability scores to identify which patient populations are best suited for targeting.
+
+### Dimensions Analyzed
+
+| Dimension | Data Source | Scoring Basis |
+|-----------|-------------|---------------|
+| **Histology** | TCGA LUAD/LUSC | Tumor vs adjacent normal enrichment |
+| **Mutation Status** | TCGA (treatment-naive) | Expression in mutant vs WT |
+| **iDAS Whitespace** | Tempus RWD | Expression level + toxicity risk |
+
+### Suitability Scoring
+
+| Score | Recommendation | Criteria |
+|-------|----------------|----------|
+| **5/5** | PRIORITY | Strong tumor enrichment (>2x vs adjacent) OR upregulated in mutant |
+| **4/5** | GO | Good tumor enrichment (1.5-2x) OR high expression + low toxicity |
+| **3/5** | CONDITIONAL | Moderate enrichment OR mixed evidence |
+| **2/5** | CAUTION | Low enrichment OR downregulated in mutant |
+| **1/5** | EXCLUDE | No enrichment OR significantly downregulated |
+
+### Output Files
+- **CSV**: `{GENE}_subgroup_suitability.csv` - All subgroups with scores and recommendations
+- **YAML**: `{GENE}_idas_assessment.yaml` - Now includes `subgroup_analysis` section
+- **Figure**: `figures/{GENE}_subgroup_suitability.png` - Visual heatmap
+
+### Example Output (CDCP1)
+```yaml
+subgroup_analysis:
+  histology:
+    LUSC:
+      log2fc_vs_adjacent: 0.97
+      linear_fc: 1.96
+      suitability_score: 4
+      recommendation: GO
+    LUAD:
+      log2fc_vs_adjacent: 0.46
+      suitability_score: 3
+      recommendation: CONDITIONAL
+  mutation_status:
+    STK11_mut:
+      log2fc_vs_wt: -0.92
+      suitability_score: 2
+      recommendation: CAUTION
+  top_recommendations:
+    priority: []
+    go: ['Histology: LUSC', 'iDAS: 2L Non-AGA']
+    exclude: ['Mutation: STK11+']
+```
 
 ## Quick Start Example
 

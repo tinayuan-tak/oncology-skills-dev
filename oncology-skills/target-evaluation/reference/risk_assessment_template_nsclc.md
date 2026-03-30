@@ -487,19 +487,86 @@ Justification: [Provide reasoning for risk assessment—cite references, or prop
 
 ---
 
+## Subgroup Suitability Analysis
+
+**Data Source:** `{GENE}_subgroup_suitability.csv` from `nsclc_comprehensive_analysis.py`
+**Visualization:** `figures/{GENE}_subgroup_suitability.png`
+
+This analysis integrates histology, mutation status, and iDAS whitespace alignment to identify optimal patient populations and potential exclusion criteria.
+
+### Subgroup Suitability Scores
+
+| Subgroup | Category | Suitability Score | Key Metric | Recommendation |
+|----------|----------|-------------------|------------|----------------|
+| LUSC | Histology | [1-5]/5 | [X.Xx vs adjacent] | [GO/CONDITIONAL/CAUTION] |
+| LUAD | Histology | [1-5]/5 | [X.Xx vs adjacent] | [GO/CONDITIONAL/CAUTION] |
+| 2L Non-AGA | iDAS Whitespace | [1-5]/5 | [expr=X.XX, tox=Level] | [GO/CONDITIONAL/CAUTION] |
+| 2L EGFR Mutant | iDAS Whitespace | [1-5]/5 | [expr=X.XX, tox=Level] | [GO/CONDITIONAL/CAUTION] |
+| 1L/2L KRAS Mutant | iDAS Whitespace | [1-5]/5 | [expr=X.XX, tox=Level] | [GO/CONDITIONAL/CAUTION] |
+| KRAS+ | Mutation Status | [1-5]/5 | [log2FC=X.XX vs WT] | [PRIORITY/GO/NEUTRAL/CAUTION/EXCLUDE] |
+| EGFR+ | Mutation Status | [1-5]/5 | [log2FC=X.XX vs WT] | [PRIORITY/GO/NEUTRAL/CAUTION/EXCLUDE] |
+| STK11+ | Mutation Status | [1-5]/5 | [log2FC=X.XX vs WT] | [PRIORITY/GO/NEUTRAL/CAUTION/EXCLUDE] |
+| KEAP1+ | Mutation Status | [1-5]/5 | [log2FC=X.XX vs WT] | [PRIORITY/GO/NEUTRAL/CAUTION/EXCLUDE] |
+
+### Suitability Score Interpretation
+
+| Score | Recommendation | Criteria | Action |
+|-------|----------------|----------|--------|
+| **5/5** | PRIORITY | >2x tumor enrichment OR upregulated in mutant subgroup | Prioritize this population |
+| **4/5** | GO | 1.5-2x enrichment OR high expression + manageable toxicity | Include in development |
+| **3/5** | CONDITIONAL/NEUTRAL | Moderate enrichment OR no significant mutation effect | Requires additional validation |
+| **2/5** | CAUTION | Low enrichment OR downregulated in mutant subgroup | Consider exclusion criteria |
+| **1/5** | EXCLUDE | No enrichment OR significantly downregulated | Recommend exclusion |
+
+### Priority Populations (Score ≥4)
+[List subgroups with suitability score ≥4, ranked by score]
+1.
+2.
+3.
+
+### Potential Exclusion Criteria (Score ≤2)
+[List subgroups with suitability score ≤2 that may warrant patient exclusion]
+- [ ] Exclude [subgroup] patients: [Rationale - e.g., "target significantly downregulated in STK11-mutant tumors"]
+- [ ] No exclusion criteria identified
+
+### Subgroup-Stratified Development Strategy
+
+**Recommended Patient Population:**
+- [ ] All-comer NSCLC (no biomarker selection required)
+- [ ] Histology-selected: [LUAD/LUSC preferred]
+- [ ] Biomarker-selected: [Specify mutation/expression criteria]
+- [ ] iDAS-aligned: [Specify priority whitespace]
+
+**Recommended Exclusion Criteria:**
+- [ ] None - target expressed broadly
+- [ ] Exclude [mutation]+ patients
+- [ ] Exclude [histology] patients
+
+**Stratification Biomarker Feasibility:**
+- [ ] Standard NGS panels can identify relevant populations
+- [ ] Additional IHC/FISH assay development needed
+- [ ] Target expression itself as biomarker (IHC)
+
+---
+
 ### Key Strengths:
 1. [List major strengths]
-2.
+2. [Include subgroup-specific strengths if applicable, e.g., "Strong tumor enrichment in LUSC (2.0x)"]
 3.
 
 ### Key Risks/Challenges:
 1. [List major challenges or uncertainties]
-2.
+2. [Include subgroup-specific concerns, e.g., "Target significantly downregulated in STK11-mutant tumors"]
 3.
+
+### Subgroup-Specific Considerations:
+- **Best-suited populations:** [List populations with suitability score ≥4]
+- **Populations requiring caution:** [List populations with suitability score ≤2]
+- **Patient selection strategy implications:** [Describe how subgroup analysis informs trial design]
 
 ### Risk Mitigation Strategies:
 1. [Propose methods to reduce or manage identified risks]
-2.
+2. [Include subgroup-specific mitigations, e.g., "Exclude STK11-mutant patients from initial trial"]
 3.
 
 ### Recommendation: [Overall go/no-go or priority level for further investment]
@@ -509,6 +576,11 @@ Justification: [Provide reasoning for risk assessment—cite references, or prop
 - [ ] Medium Priority - Partial alignment, requires additional validation
 - [ ] Low Priority - Limited strategic fit, deprioritize unless compelling new data
 - [ ] Not Recommended - Misaligned with iDAS strategy
+
+**Subgroup-Stratified Recommendation:**
+- [ ] All-comer development - Target suitable across all subgroups
+- [ ] Biomarker-selected development - Recommend [specific population] based on suitability scores
+- [ ] Conditional development - Requires exclusion of [specific subgroup] due to low suitability
 
 ## Additional Comments
 [Any extra commentary, e.g., needed experiments, synergy with other agents, IP considerations, cross-indication applicability, etc.]

@@ -101,8 +101,16 @@ TCGA_COHORTS = ['TCGA_LUAD', 'TCGA_LUSC']
 # iDAS Priority cohorts for NSCLC
 IDAS_PRIORITY_COHORTS = {
     'Tempus_2L_NonAGA': '2L Non-AGA',
-    'Tempus_2L_EGFR': '2L EGFR Mutant',
+    'Tempus_2L_EGFR': '2L EGFR Mutant (post-TKI)',
     'Tempus_1L2L_KRAS': '1L/2L KRAS Mutant',
+}
+
+# TCGA mutation columns (from TCGA metadata)
+TCGA_MUTATION_COLUMNS = {
+    'KRAS': 'dna_seq_somatic_mutation_status_kras',
+    'EGFR': 'dna_seq_somatic_mutation_status_egfr',
+    'STK11': 'dna_seq_somatic_mutation_status_stk11',
+    'KEAP1': 'dna_seq_somatic_mutation_status_keap1',
 }
 
 # Color schemes
@@ -114,6 +122,15 @@ COHORT_COLORS = {
     'TCGA_Adjacent': '#7F8C8D',
     'GTEx_Lung': '#1ABC9C',
     'CCLE_NSCLC': '#8B4513',
+    # TCGA mutation status
+    'TCGA_KRAS_Mut': '#E67E22',
+    'TCGA_KRAS_WT': '#F5B041',
+    'TCGA_EGFR_Mut': '#16A085',
+    'TCGA_EGFR_WT': '#48C9B0',
+    'TCGA_STK11_Mut': '#8E44AD',
+    'TCGA_STK11_WT': '#BB8FCE',
+    'TCGA_KEAP1_Mut': '#D35400',
+    'TCGA_KEAP1_WT': '#EB984E',
     # Tempus cohorts
     'Tempus_2L_NonAGA': '#C0392B',
     'Tempus_2L_EGFR': '#27AE60',
@@ -137,7 +154,7 @@ COHORT_LABELS = {
     'CCLE_NSCLC': 'Cell Lines\n(CCLE)',
     # Tempus
     'Tempus_2L_NonAGA': '2L Non-AGA\n(Tempus)',
-    'Tempus_2L_EGFR': '2L EGFR-mut\n(Tempus)',
+    'Tempus_2L_EGFR': '2L EGFR-mut\n(post-TKI)',
     'Tempus_1L2L_KRAS': '1L-2L KRAS\n(Tempus)',
     'Tempus_KRAS_Mut': 'KRAS-mut\n(Tempus)',
     'Tempus_EGFR_Mut': 'EGFR-mut\n(Tempus)',
@@ -378,6 +395,21 @@ def build_tcga_master_dataframe(tcga_expr, gtex_expr, ccle_expr, tcga_meta, gtex
     gtex_sample_map = dict(zip(gtex_meta['sample_index'], gtex_meta['sample_id']))
     ccle_sample_map = dict(zip(ccle_meta['sample_index'], ccle_meta['sample_id']))
 
+    # Create sample_index to mutation status mappings from TCGA metadata
+    tcga_mutation_maps = {}
+    for gene, col in TCGA_MUTATION_COLUMNS.items():
+        if col in tcga_meta.columns:
+            mutation_map = {}
+            for _, row in tcga_meta.iterrows():
+                status = row.get(col, '')
+                if status == 'MUT':
+                    mutation_map[row['sample_index']] = 'Mutant'
+                elif status == 'WT':
+                    mutation_map[row['sample_index']] = 'WT'
+                else:
+                    mutation_map[row['sample_index']] = 'Unknown'
+            tcga_mutation_maps[gene] = mutation_map
+
     # Get NSCLC sample sets from metadata
     nsclc_meta = get_tcga_nsclc_samples(tcga_meta)
     luad_meta = get_tcga_luad_samples(tcga_meta)
@@ -418,14 +450,19 @@ def build_tcga_master_dataframe(tcga_expr, gtex_expr, ccle_expr, tcga_meta, gtex
         else:
             cohort = 'TCGA_NSCLC'
 
-        all_data.append({
+        sample_record = {
             'sample_id': sample_id,
             'cohort': cohort,
             'expression': log2_tpm,
             'source': 'TCGA',
             'is_tumor': sample_idx in tumor_indices,
             'is_adjacent_normal': sample_idx in adj_normal_indices,
-        })
+        }
+        # Add mutation status columns
+        for gene in TCGA_MUTATION_COLUMNS.keys():
+            if gene in tcga_mutation_maps:
+                sample_record[f'{gene}_status'] = tcga_mutation_maps[gene].get(sample_idx, 'Unknown')
+        all_data.append(sample_record)
 
     # Process GTEx lung expression
     gtex_lung_meta = get_gtex_lung_samples(gtex_meta)
@@ -523,6 +560,48 @@ def perform_pairwise_comparisons(df, tumor_cohorts, normal_cohorts):
     return results_df
 
 
+def compute_tcga_mutation_statistics(df):
+    """
+    Compute TCGA mutation expression statistics by mutation status.
+
+    Returns a dictionary with statistics for each mutation gene (KRAS, EGFR, STK11, KEAP1).
+    Only uses TCGA tumor samples (treatment-naive) for valid within-dataset comparison.
+    """
+    mutation_stats = {}
+
+    # Filter to TCGA tumor samples only
+    tcga_tumor = df[(df['source'] == 'TCGA') & (df['is_tumor'] == True)]
+
+    for gene in TCGA_MUTATION_COLUMNS.keys():
+        status_col = f'{gene}_status'
+        if status_col not in tcga_tumor.columns:
+            continue
+
+        gene_stats = []
+        for status in ['Mutant', 'WT']:
+            subset = tcga_tumor[tcga_tumor[status_col] == status]
+            if len(subset) > 0:
+                gene_stats.append({
+                    'Gene': gene,
+                    'Status': status,
+                    'N': len(subset),
+                    'Mean': subset['expression'].mean(),
+                    'Median': subset['expression'].median(),
+                    'SD': subset['expression'].std(),
+                })
+
+        if gene_stats:
+            gene_df = pd.DataFrame(gene_stats)
+            # Calculate log2FC (Mutant vs WT)
+            mut_mean = gene_df[gene_df['Status'] == 'Mutant']['Mean'].values
+            wt_mean = gene_df[gene_df['Status'] == 'WT']['Mean'].values
+            if len(mut_mean) > 0 and len(wt_mean) > 0:
+                gene_df['log2FC_vs_WT'] = gene_df['Mean'] - wt_mean[0]
+            mutation_stats[gene] = gene_df
+
+    return mutation_stats
+
+
 def calculate_cohort_statistics(df):
     """Calculate descriptive statistics by cohort."""
     stats_list = []
@@ -572,7 +651,7 @@ def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
     # Check Tempus iDAS cohorts
     idas_cohorts = {
         '2L_NonAGA': ('idas_2l_nonaga', '2L Non-AGA'),
-        '2L_EGFR': ('idas_2l_egfr', '2L EGFR Mutant'),
+        '2L_EGFR': ('idas_2l_egfr', '2L EGFR Mutant (post-TKI)'),
         '1L2L_KRAS': ('idas_1l2l_kras', '1L/2L KRAS Mutant'),
     }
 
@@ -615,6 +694,341 @@ def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
     return assessment
 
 
+def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_stats, idas_assessment, tempus_gene_data):
+    """
+    Compute subgroup-specific suitability scores for target evaluation.
+
+    3-Phase Analysis (consistent with CRC):
+    - Phase 1: TCGA Analysis (treatment-naive) - Histology + Mutation status
+    - Phase 2: Tempus Mutation Status (IO-experienced) - KRAS, EGFR, STK11, KEAP1
+    - Phase 3: iDAS Whitespace Alignment (uses Tempus mutation data)
+
+    Returns:
+        dict: Subgroup suitability analysis with scores and recommendations
+    """
+    suitability = {
+        'gene': gene,
+        'tcga_analysis': {},      # Phase 1: All TCGA data
+        'tempus_mutation': {},    # Phase 2: Tempus mutation status
+        'idas_whitespace': {},    # Phase 3: iDAS whitespaces
+        'summary': []
+    }
+
+    # ==========================================================================
+    # PHASE 1: TCGA ANALYSIS (Treatment-Naive)
+    # ==========================================================================
+    # Includes both histology tumor enrichment AND mutation status from TCGA
+
+    # 1a. Histology suitability (LUAD vs LUSC tumor enrichment)
+    if pairwise_df is not None and len(pairwise_df) > 0:
+        for histology in ['TCGA_LUAD', 'TCGA_LUSC']:
+            hist_comparison = pairwise_df[
+                (pairwise_df['Tumor_Cohort'] == histology) &
+                (pairwise_df['Normal_Group'] == 'TCGA_Adjacent')
+            ]
+            if len(hist_comparison) > 0:
+                log2fc = hist_comparison['Log2FC'].values[0]
+                linear_fc = 2 ** log2fc
+
+                # Suitability scoring based on tumor enrichment
+                if log2fc > 1.0:  # >2x vs adjacent
+                    score = 5
+                    recommendation = 'GO'
+                    rationale = f'Strong tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                elif log2fc > 0.58:  # >1.5x vs adjacent
+                    score = 4
+                    recommendation = 'GO'
+                    rationale = f'Good tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                elif log2fc > 0:  # >1x vs adjacent
+                    score = 3
+                    recommendation = 'CONDITIONAL'
+                    rationale = f'Moderate tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                else:
+                    score = 2
+                    recommendation = 'CAUTION'
+                    rationale = f'No tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+
+                hist_label = 'LUAD' if 'LUAD' in histology else 'LUSC'
+                suitability['tcga_analysis'][f'Histology_{hist_label}'] = {
+                    'log2fc_vs_adjacent': round(log2fc, 3),
+                    'linear_fc': round(linear_fc, 2),
+                    'data_source': 'TCGA',
+                    'suitability_score': score,
+                    'recommendation': recommendation,
+                    'rationale': rationale
+                }
+
+                suitability['summary'].append({
+                    'subgroup': f'TCGA Histology: {hist_label}',
+                    'category': 'tcga_analysis',
+                    'key_metric': f'{linear_fc:.1f}x vs adjacent (TCGA)',
+                    'score': score,
+                    'recommendation': recommendation
+                })
+
+    # 1b. TCGA Mutation status (treatment-naive)
+    if tcga_mutation_stats:
+        for mutation_gene, mut_df in tcga_mutation_stats.items():
+            mutant_row = mut_df[mut_df['Status'] == 'Mutant']
+            wt_row = mut_df[mut_df['Status'] == 'WT']
+
+            if len(mutant_row) > 0 and len(wt_row) > 0:
+                log2fc_vs_wt = mutant_row['log2FC_vs_WT'].values[0]
+                fold_change = 2 ** log2fc_vs_wt  # Convert to fold change
+                mutant_mean = mutant_row['Mean'].values[0]
+                mutant_n = int(mutant_row['N'].values[0])
+                wt_mean = wt_row['Mean'].values[0]
+                wt_n = int(wt_row['N'].values[0])
+
+                # Interpret mutation status effect
+                if log2fc_vs_wt > 0.5:
+                    score = 5
+                    recommendation = 'PRIORITY'
+                    rationale = f'Upregulated in {mutation_gene}-mutant ({fold_change:.1f}x vs WT)'
+                elif log2fc_vs_wt > 0:
+                    score = 4
+                    recommendation = 'GO'
+                    rationale = f'Slightly higher in {mutation_gene}-mutant ({fold_change:.1f}x vs WT)'
+                elif log2fc_vs_wt > -0.5:
+                    score = 3
+                    recommendation = 'NEUTRAL'
+                    rationale = f'Similar expression regardless of {mutation_gene} status ({fold_change:.1f}x vs WT)'
+                elif log2fc_vs_wt > -1.0:
+                    score = 2
+                    recommendation = 'CAUTION'
+                    rationale = f'Lower in {mutation_gene}-mutant ({fold_change:.1f}x vs WT)'
+                else:
+                    score = 1
+                    recommendation = 'EXCLUDE'
+                    rationale = f'Significantly lower in {mutation_gene}-mutant ({fold_change:.1f}x vs WT)'
+
+                suitability['tcga_analysis'][f'Mutation_{mutation_gene}'] = {
+                    'log2fc_vs_wt': round(log2fc_vs_wt, 3),
+                    'fold_change': round(fold_change, 2),
+                    'mutant_mean': round(mutant_mean, 3),
+                    'mutant_n': mutant_n,
+                    'wt_mean': round(wt_mean, 3),
+                    'wt_n': wt_n,
+                    'data_source': 'TCGA',
+                    'suitability_score': score,
+                    'recommendation': recommendation,
+                    'rationale': rationale
+                }
+
+                suitability['summary'].append({
+                    'subgroup': f'TCGA Mutation: {mutation_gene}+',
+                    'category': 'tcga_analysis',
+                    'key_metric': f'{fold_change:.1f}x vs WT (TCGA)',
+                    'score': score,
+                    'recommendation': recommendation
+                })
+
+    # ==========================================================================
+    # PHASE 2: TEMPUS MUTATION STATUS (IO-Experienced)
+    # ==========================================================================
+    # Compare mutation status in Tempus (post-treatment) population
+    tempus_mutation_files = {
+        'KRAS': ('kras_status', 'KRAS Mutant', 'KRAS WT'),
+        'EGFR': ('egfr_status', 'EGFR Mutant', 'EGFR WT'),
+        'STK11': ('stk11_status', 'STK11 Mutant', 'STK11 WT'),
+        'KEAP1': ('keap1_status', 'KEAP1 Mutant', 'KEAP1 WT'),
+    }
+
+    tempus_mutation_log2fc = {}  # Store for Phase 3 iDAS whitespace scoring
+
+    for mutation_gene, (tempus_key, mut_group, wt_group) in tempus_mutation_files.items():
+        if tempus_key in tempus_gene_data:
+            mut_data = tempus_gene_data[tempus_key]
+            if 'group_name' in mut_data.columns and 'mean' in mut_data.columns:
+                mut_row = mut_data[mut_data['group_name'] == mut_group]
+                wt_row = mut_data[mut_data['group_name'] == wt_group]
+
+                if len(mut_row) > 0 and len(wt_row) > 0:
+                    mut_mean = mut_row['mean'].values[0]
+                    wt_mean = wt_row['mean'].values[0]
+                    mut_n = int(mut_row['n_samples'].values[0]) if 'n_samples' in mut_row.columns else 0
+                    wt_n = int(wt_row['n_samples'].values[0]) if 'n_samples' in wt_row.columns else 0
+                    log2fc_vs_wt = mut_mean - wt_mean  # Already log2-transformed
+                    fold_change = 2 ** log2fc_vs_wt  # Convert to fold change
+
+                    # Store for Phase 3
+                    tempus_mutation_log2fc[mutation_gene] = log2fc_vs_wt
+
+                    # Interpret mutation status effect
+                    if log2fc_vs_wt > 0.5:
+                        score = 5
+                        recommendation = 'PRIORITY'
+                        rationale = f'Upregulated in {mutation_gene}-mutant ({fold_change:.1f}x vs WT, Tempus)'
+                    elif log2fc_vs_wt > 0:
+                        score = 4
+                        recommendation = 'GO'
+                        rationale = f'Slightly higher in {mutation_gene}-mutant ({fold_change:.1f}x vs WT, Tempus)'
+                    elif log2fc_vs_wt > -0.5:
+                        score = 3
+                        recommendation = 'NEUTRAL'
+                        rationale = f'Similar expression regardless of {mutation_gene} status ({fold_change:.1f}x vs WT, Tempus)'
+                    elif log2fc_vs_wt > -1.0:
+                        score = 2
+                        recommendation = 'CAUTION'
+                        rationale = f'Lower in {mutation_gene}-mutant ({fold_change:.1f}x vs WT, Tempus)'
+                    else:
+                        score = 1
+                        recommendation = 'EXCLUDE'
+                        rationale = f'Significantly lower in {mutation_gene}-mutant ({fold_change:.1f}x vs WT, Tempus)'
+
+                    suitability['tempus_mutation'][f'{mutation_gene}_mut'] = {
+                        'log2fc_vs_wt': round(log2fc_vs_wt, 3),
+                        'fold_change': round(fold_change, 2),
+                        'mutant_mean': round(mut_mean, 3),
+                        'mutant_n': mut_n,
+                        'wt_mean': round(wt_mean, 3),
+                        'wt_n': wt_n,
+                        'data_source': 'Tempus',
+                        'suitability_score': score,
+                        'recommendation': recommendation,
+                        'rationale': rationale
+                    }
+
+                    suitability['summary'].append({
+                        'subgroup': f'Tempus Mutation: {mutation_gene}+',
+                        'category': 'tempus_mutation',
+                        'key_metric': f'{fold_change:.1f}x vs WT (Tempus)',
+                        'score': score,
+                        'recommendation': recommendation
+                    })
+
+    # ==========================================================================
+    # PHASE 3: iDAS WHITESPACE SUITABILITY
+    # ==========================================================================
+    # Based on expression level + mutation status (from Phase 2 Tempus data) + toxicity risk
+    whitespace_info = idas_assessment.get('whitespace_alignment', {})
+    toxicity = idas_assessment.get('on_target_toxicity', {})
+    tox_risk = toxicity.get('risk_level', 'Unknown')
+    tox_log2fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+
+    # Map iDAS whitespaces to their corresponding mutation genes (uses Phase 2 tempus_mutation_log2fc)
+    whitespace_mutation_map = {
+        '2L_EGFR': 'EGFR',       # Uses EGFR mutation log2FC from Phase 2
+        '1L2L_KRAS': 'KRAS',     # Uses KRAS mutation log2FC from Phase 2
+        '2L_NonAGA': None,       # Non-AGA has no specific mutation association
+    }
+
+    for ws_key, ws_data in whitespace_info.items():
+        expression = ws_data.get('expression', 0)
+        alignment = ws_data.get('alignment', 'Unknown')
+        n_samples = ws_data.get('n_samples', 0)
+        label = ws_data.get('label', ws_key)
+
+        # Base score on expression level
+        if expression > 5:
+            base_score = 5
+        elif expression > 4:
+            base_score = 4
+        elif expression > 3:
+            base_score = 3
+        elif expression > 2:
+            base_score = 2
+        else:
+            base_score = 1
+
+        # Get corresponding mutation status log2FC from Phase 2 Tempus data (if applicable)
+        mutation_gene = whitespace_mutation_map.get(ws_key)
+        mutation_log2fc = tempus_mutation_log2fc.get(mutation_gene) if mutation_gene else None
+        mutation_penalty = 0
+        mutation_context = ''
+
+        mutation_fc = None
+        if mutation_log2fc is not None:
+            mutation_fc = 2 ** mutation_log2fc  # Convert to fold change
+            # Apply penalty if target is lower in the mutant population (Tempus data)
+            if mutation_log2fc < -0.5:
+                mutation_penalty = 2  # Significant penalty for substantially lower expression
+                mutation_context = f', MUT_LOWER ({mutation_fc:.1f}x vs WT, Tempus)'
+            elif mutation_log2fc < 0:
+                mutation_penalty = 1  # Moderate penalty for slightly lower expression
+                mutation_context = f', mut_lower ({mutation_fc:.1f}x vs WT, Tempus)'
+            elif mutation_log2fc > 0.5:
+                mutation_penalty = -1  # Bonus for higher expression in mutant
+                mutation_context = f', mut_higher ({mutation_fc:.1f}x vs WT, Tempus)'
+
+        # Adjust for toxicity risk
+        if tox_risk == 'High':
+            tox_penalty = 2
+        elif tox_risk == 'Medium':
+            tox_penalty = 1
+        else:
+            tox_penalty = 0
+
+        # Calculate final adjusted score
+        adjusted_score = max(1, base_score - tox_penalty - mutation_penalty)
+
+        # Determine recommendation based on adjusted score and context
+        if mutation_penalty >= 2:
+            recommendation = 'CAUTION'
+            rationale = f'Expression={expression:.2f}, but target LOWER in mutant population{mutation_context}'
+        elif adjusted_score >= 4 and tox_risk != 'High':
+            if mutation_penalty == 0 and tox_penalty == 0:
+                recommendation = 'PRIORITY'
+            else:
+                recommendation = 'GO'
+            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
+        elif adjusted_score >= 3:
+            recommendation = 'CONDITIONAL'
+            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
+        else:
+            recommendation = 'CAUTION'
+            rationale = f'Expression={expression:.2f}, concerns: tox={tox_risk}{mutation_context}'
+
+        suitability['idas_whitespace'][ws_key] = {
+            'expression': round(expression, 3),
+            'n_samples': int(n_samples) if n_samples else 0,
+            'alignment': alignment,
+            'toxicity_risk': tox_risk,
+            'mutation_log2fc': round(mutation_log2fc, 3) if mutation_log2fc is not None else None,
+            'mutation_fold_change': round(mutation_fc, 2) if mutation_fc is not None else None,
+            'mutation_data_source': 'Tempus' if mutation_log2fc is not None else None,
+            'base_score': base_score,
+            'tox_penalty': tox_penalty,
+            'mutation_penalty': mutation_penalty,
+            'adjusted_score': adjusted_score,
+            'recommendation': recommendation,
+            'rationale': rationale
+        }
+
+        # Build key metric string
+        key_metric = f'expr={expression:.2f}'
+        if mutation_fc is not None:
+            key_metric += f', {mutation_fc:.1f}x vs WT (Tempus)'
+        key_metric += f', tox={tox_risk}'
+
+        suitability['summary'].append({
+            'subgroup': f'iDAS: {label}',
+            'category': 'idas_whitespace',
+            'key_metric': key_metric,
+            'score': adjusted_score,
+            'recommendation': recommendation
+        })
+
+    # ==========================================================================
+    # 4. OVERALL BEST SUBGROUPS
+    # ==========================================================================
+    # Sort summary by score to identify best subgroups
+    suitability['summary'] = sorted(suitability['summary'], key=lambda x: -x['score'])
+
+    # Identify top recommendations
+    priority_subgroups = [s for s in suitability['summary'] if s['recommendation'] == 'PRIORITY']
+    go_subgroups = [s for s in suitability['summary'] if s['recommendation'] == 'GO']
+    exclude_subgroups = [s for s in suitability['summary'] if s['recommendation'] in ['EXCLUDE', 'CAUTION']]
+
+    suitability['top_recommendations'] = {
+        'priority': [s['subgroup'] for s in priority_subgroups],
+        'go': [s['subgroup'] for s in go_subgroups],
+        'exclude': [s['subgroup'] for s in exclude_subgroups]
+    }
+
+    return suitability
+
+
 # =============================================================================
 # VISUALIZATION
 # =============================================================================
@@ -623,18 +1037,51 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
     """Create comprehensive 8-panel visualization figure."""
     fig = plt.figure(figsize=(20, 16))
 
-    # Panel 1: TCGA Cohort Expression (LUAD vs LUSC vs Normal)
+    # Panel 1: TCGA Cohort Expression + Mutation Status
     ax1 = fig.add_subplot(2, 4, 1)
-    plot_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung', 'CCLE_NSCLC']
-    plot_data = tcga_df[tcga_df['cohort'].isin(plot_order)]
 
-    if len(plot_data) > 0:
-        colors = [COHORT_COLORS.get(c, '#333333') for c in plot_order if c in plot_data['cohort'].unique()]
-        sns.boxplot(data=plot_data, x='cohort', y='expression', order=plot_order, palette=colors, ax=ax1)
-        ax1.set_xticklabels([COHORT_LABELS.get(c, c) for c in plot_order], rotation=45, ha='right', fontsize=8)
+    # Build combined data: histology cohorts + mutation status
+    plot_data_list = []
+    plot_order = []
+    plot_colors = []
+
+    # Histology cohorts
+    histology_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung']
+    histology_data = tcga_df[tcga_df['cohort'].isin(histology_order)].copy()
+    if len(histology_data) > 0:
+        for cohort in histology_order:
+            n = len(histology_data[histology_data['cohort'] == cohort])
+            if n > 0:
+                histology_data.loc[histology_data['cohort'] == cohort, 'plot_group'] = cohort
+                plot_order.append(cohort)
+                plot_colors.append(COHORT_COLORS.get(cohort, '#333333'))
+        plot_data_list.append(histology_data[['expression', 'plot_group']])
+
+    # TCGA Mutation Status (tumor samples only)
+    tcga_tumor = tcga_df[(tcga_df['source'] == 'TCGA') & (tcga_df['is_tumor'] == True)].copy()
+    for mutation_gene in ['KRAS', 'EGFR', 'STK11', 'KEAP1']:
+        status_col = f'{mutation_gene}_status'
+        if status_col in tcga_tumor.columns:
+            for status in ['Mutant', 'WT']:
+                subset = tcga_tumor[tcga_tumor[status_col] == status].copy()
+                if len(subset) > 0:
+                    label = f'{mutation_gene}_{status[:3]}'
+                    subset['plot_group'] = label
+                    plot_data_list.append(subset[['expression', 'plot_group']])
+                    plot_order.append(label)
+                    color_key = f'TCGA_{mutation_gene}_{"Mut" if status == "Mutant" else "WT"}'
+                    plot_colors.append(COHORT_COLORS.get(color_key, '#333333'))
+
+    if plot_data_list:
+        combined_df = pd.concat(plot_data_list, ignore_index=True)
+        sns.boxplot(data=combined_df, x='plot_group', y='expression',
+                    order=plot_order, palette=plot_colors, ax=ax1, linewidth=0.5)
+        ax1.set_xticklabels(plot_order, rotation=90, ha='center', fontsize=6)
+        ax1.axvline(x=len(histology_order) - 0.5, color='gray', linestyle='--', alpha=0.5, linewidth=0.5)
+
     ax1.set_ylabel('Expression (log2 TPM+1)')
     ax1.set_xlabel('')
-    ax1.set_title(f'{gene} - TCGA Cohorts', fontweight='bold')
+    ax1.set_title(f'{gene} - TCGA Cohorts & Mutations', fontweight='bold', fontsize=10)
 
     # Panel 2: On-Target Toxicity (Tumor vs Adjacent Normal)
     ax2 = fig.add_subplot(2, 4, 2)
@@ -804,17 +1251,55 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
 
     DPI = 300  # High resolution
 
-    # Panel 1: TCGA Cohort Expression (LUAD vs LUSC vs Normal)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    plot_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung', 'CCLE_NSCLC']
-    plot_data = tcga_df[tcga_df['cohort'].isin(plot_order)]
-    if len(plot_data) > 0:
-        colors = [COHORT_COLORS.get(c, '#333333') for c in plot_order if c in plot_data['cohort'].unique()]
-        sns.boxplot(data=plot_data, x='cohort', y='expression', order=plot_order, palette=colors, ax=ax)
-        ax.set_xticklabels([COHORT_LABELS.get(c, c) for c in plot_order], rotation=45, ha='right', fontsize=10)
+    # Panel 1: TCGA Cohort Expression + Mutation Status (all in 1 row)
+    fig, ax = plt.subplots(figsize=(16, 6))
+
+    # Build combined data: histology cohorts + mutation status
+    plot_data_list = []
+    plot_order = []
+    plot_colors = []
+
+    # First: Histology cohorts
+    histology_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung', 'CCLE_NSCLC']
+    histology_data = tcga_df[tcga_df['cohort'].isin(histology_order)].copy()
+    if len(histology_data) > 0:
+        # Add sample counts to labels
+        for cohort in histology_order:
+            n = len(histology_data[histology_data['cohort'] == cohort])
+            if n > 0:
+                label = f'{COHORT_LABELS.get(cohort, cohort)}\n(n={n})'
+                histology_data.loc[histology_data['cohort'] == cohort, 'plot_group'] = label
+                plot_order.append(label)
+                plot_colors.append(COHORT_COLORS.get(cohort, '#333333'))
+        plot_data_list.append(histology_data[['expression', 'plot_group']])
+
+    # Second: TCGA Mutation Status (tumor samples only)
+    tcga_tumor = tcga_df[(tcga_df['source'] == 'TCGA') & (tcga_df['is_tumor'] == True)].copy()
+    for mutation_gene in ['KRAS', 'EGFR', 'STK11', 'KEAP1']:
+        status_col = f'{mutation_gene}_status'
+        if status_col in tcga_tumor.columns:
+            for status in ['Mutant', 'WT']:
+                subset = tcga_tumor[tcga_tumor[status_col] == status].copy()
+                if len(subset) > 0:
+                    label = f'{mutation_gene}\n{status}\n(n={len(subset)})'
+                    subset['plot_group'] = label
+                    plot_data_list.append(subset[['expression', 'plot_group']])
+                    plot_order.append(label)
+                    color_key = f'TCGA_{mutation_gene}_{"Mut" if status == "Mutant" else "WT"}'
+                    plot_colors.append(COHORT_COLORS.get(color_key, '#333333'))
+
+    if plot_data_list:
+        combined_df = pd.concat(plot_data_list, ignore_index=True)
+        sns.boxplot(data=combined_df, x='plot_group', y='expression',
+                    order=plot_order, palette=plot_colors, ax=ax)
+        ax.set_xticklabels(plot_order, rotation=45, ha='right', fontsize=9)
+
+        # Add vertical line to separate histology from mutations
+        ax.axvline(x=len(histology_order) - 0.5, color='gray', linestyle='--', alpha=0.5)
+
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('')
-    ax.set_title(f'{gene} - TCGA Cohorts', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - TCGA Expression: Histology & Mutation Status (Treatment-Naive)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_1_tcga_cohorts.png'), dpi=DPI, facecolor='white')
     plt.close()
@@ -982,11 +1467,87 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     print(f"  Saved individual figures to: {figures_dir}/")
 
 
+def save_subgroup_suitability_figure(gene, subgroup_suitability, output_dir):
+    """Create and save subgroup suitability heatmap visualization."""
+    figures_dir = os.path.join(output_dir, 'figures')
+    os.makedirs(figures_dir, exist_ok=True)
+
+    summary = subgroup_suitability.get('summary', [])
+    if not summary:
+        return
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, max(6, len(summary) * 0.5)))
+
+    # Prepare data for visualization
+    subgroups = [s['subgroup'] for s in summary]
+    scores = [s['score'] for s in summary]
+    recommendations = [s['recommendation'] for s in summary]
+    metrics = [s['key_metric'] for s in summary]
+
+    # Color mapping by recommendation
+    color_map = {
+        'PRIORITY': '#27AE60',  # Green
+        'GO': '#58D68D',        # Light green
+        'CONDITIONAL': '#F39C12',  # Orange
+        'NEUTRAL': '#BDC3C7',   # Gray
+        'CAUTION': '#E67E22',   # Dark orange
+        'EXCLUDE': '#E74C3C'    # Red
+    }
+    colors = [color_map.get(r, '#BDC3C7') for r in recommendations]
+
+    # Create horizontal bar chart
+    y_pos = range(len(subgroups))
+    bars = ax.barh(y_pos, scores, color=colors, edgecolor='black', height=0.7)
+
+    # Add labels
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(subgroups, fontsize=10)
+    ax.set_xlabel('Suitability Score', fontsize=12)
+    ax.set_xlim(0, 5.5)
+
+    # Add score values and recommendations on bars
+    for i, (bar, score, rec, metric) in enumerate(zip(bars, scores, recommendations, metrics)):
+        width = bar.get_width()
+        ax.text(width + 0.1, bar.get_y() + bar.get_height()/2,
+                f'{score}/5 - {rec}', va='center', ha='left', fontsize=9, fontweight='bold')
+        ax.text(0.1, bar.get_y() + bar.get_height()/2,
+                metric, va='center', ha='left', fontsize=8, color='white' if score >= 3 else 'black')
+
+    # Add threshold lines
+    ax.axvline(x=4, color='green', linestyle='--', alpha=0.5, linewidth=1)
+    ax.axvline(x=3, color='orange', linestyle='--', alpha=0.5, linewidth=1)
+    ax.axvline(x=2, color='red', linestyle='--', alpha=0.5, linewidth=1)
+
+    # Add legend
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='#27AE60', label='PRIORITY'),
+        Patch(facecolor='#58D68D', label='GO'),
+        Patch(facecolor='#F39C12', label='CONDITIONAL'),
+        Patch(facecolor='#E67E22', label='CAUTION'),
+        Patch(facecolor='#E74C3C', label='EXCLUDE'),
+    ]
+    ax.legend(handles=legend_elements, loc='lower right', fontsize=8)
+
+    ax.set_title(f'{gene} - Subgroup Suitability Analysis\n(Phase 1: TCGA | Phase 2: Tempus Mutation | Phase 3: iDAS Whitespace)', fontweight='bold', fontsize=12)
+    ax.invert_yaxis()  # Highest score at top
+    plt.tight_layout()
+
+    # Save figure
+    output_path = os.path.join(figures_dir, f'{gene}_subgroup_suitability.png')
+    plt.savefig(output_path, dpi=300, facecolor='white', bbox_inches='tight')
+    plt.close()
+    print(f"  Saved: {output_path}")
+
+    return output_path
+
+
 # =============================================================================
 # REPORT GENERATION
 # =============================================================================
 
-def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, output_dir):
+def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, output_dir, tcga_mutation_stats=None, subgroup_suitability=None):
     """Generate comprehensive markdown report."""
     report = []
     report.append(f"# {gene} Comprehensive NSCLC Target Evaluation Report\n")
@@ -1008,26 +1569,31 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
     report.append("\n---\n")
 
     # iDAS Whitespace Alignment
-    report.append("## iDAS Whitespace Alignment\n")
-    report.append("| Priority Whitespace | Expression | Alignment | N Samples |")
-    report.append("|---------------------|------------|-----------|-----------|")
+    report.append("## iDAS Whitespace Alignment (Tempus RWD)\n")
+    report.append("> **Data Source:** Tempus NSCLC cohort (100% CPI-treated/IO-experienced)\n\n")
+    report.append("| Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |")
+    report.append("|---------------------|----------------------|-----------|-----------|")
+    total_idas_n = 0
     for key, info in idas_assessment.get('whitespace_alignment', {}).items():
         label = info.get('label', key)
         expr = info.get('expression', 0)
         align = info.get('alignment', 'Unknown')
         n = info.get('n_samples', 'N/A')
+        if isinstance(n, (int, float)):
+            total_idas_n += int(n)
         report.append(f"| {label} | {expr:.2f} | **{align}** | {n} |")
+    report.append(f"\n*Total iDAS priority samples: N={total_idas_n}*\n")
     report.append("\n---\n")
 
     # On-Target Toxicity Assessment
-    report.append("## On-Target Toxicity Assessment (TCGA)\n")
+    report.append("## On-Target Toxicity Assessment (TCGA/GTEx)\n")
+    report.append("> **Data Source:** TCGA-LUAD/LUSC (treatment-naive) vs TCGA Adjacent Normal & GTEx Lung\n\n")
     report.append("**Primary Metric:** Tumor vs Adjacent Normal Expression\n")
     if pairwise_df is not None and len(pairwise_df) > 0:
-        report.append("| Comparison | Tumor Median | Normal Median | log2FC | p-value | Significant |")
-        report.append("|------------|--------------|---------------|--------|---------|-------------|")
+        report.append("| Comparison | Tumor N | Normal N | Tumor Median | Normal Median | log2FC | p-value |")
+        report.append("|------------|---------|----------|--------------|---------------|--------|---------|")
         for _, row in pairwise_df.iterrows():
-            sig = "Yes" if row.get('significant', False) else "No"
-            report.append(f"| {row['Tumor_Cohort']} vs {row['Normal_Group']} | {row['Tumor_Median']:.2f} | {row['Normal_Median']:.2f} | {row['Log2FC']:.2f} | {row['p_value']:.2e} | {sig} |")
+            report.append(f"| {row['Tumor_Cohort']} vs {row['Normal_Group']} | {int(row['Tumor_N'])} | {int(row['Normal_N'])} | {row['Tumor_Median']:.2f} | {row['Normal_Median']:.2f} | {row['Log2FC']:.2f} | {row['p_value']:.2e} |")
     report.append("\n")
 
     # Interpretation
@@ -1043,24 +1609,31 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
 
     # Tempus RWD Summary
     report.append("## Tempus Real-World Evidence\n")
+    report.append("> **Data Source:** Tempus NSCLC cohort (~2,100 patients, 100% CPI-treated/IO-experienced)\n")
+    report.append("> **Note:** Direct comparison with treatment-naive TCGA is confounded by batch + treatment effects.\n\n")
 
     # Line of Therapy
     if 'lot' in tempus_gene_data:
-        report.append("### Line of Therapy Expression\n")
-        report.append("| Line of Therapy | N Samples | Mean | Median |")
-        report.append("|-----------------|-----------|------|--------|")
         lot_data = tempus_gene_data['lot']
+        total_lot_n = int(lot_data['n_samples'].sum()) if 'n_samples' in lot_data.columns else 0
+        report.append(f"### Line of Therapy Expression (Tempus, N={total_lot_n})\n")
+        report.append("| Line of Therapy | N Samples | Mean (log2TPM) | Median |")
+        report.append("|-----------------|-----------|----------------|--------|")
         for _, row in lot_data.iterrows():
             if 'group_name' in row:
-                report.append(f"| {row['group_name']} | {row.get('n_samples', 'N/A')} | {row['mean']:.2f} | {row.get('median', 'N/A')} |")
+                n_samples = int(row.get('n_samples', 0))
+                median_val = row.get('median', row['mean'])
+                median_str = f"{float(median_val):.2f}" if pd.notna(median_val) else "N/A"
+                report.append(f"| {row['group_name']} | {n_samples} | {row['mean']:.2f} | {median_str} |")
         report.append("\n")
 
     # KRAS Status
     if 'kras_status' in tempus_gene_data:
-        report.append("### KRAS Mutation Status\n")
-        report.append("| KRAS Status | N Samples | Mean | log2FC vs WT |")
-        report.append("|-------------|-----------|------|--------------|")
         kras_data = tempus_gene_data['kras_status']
+        total_kras_n = int(kras_data['n_samples'].sum()) if 'n_samples' in kras_data.columns else 0
+        report.append(f"### KRAS Mutation Status (Tempus, N={total_kras_n})\n")
+        report.append("| KRAS Status | N Samples | Mean (log2TPM) | log2FC vs WT |")
+        report.append("|-------------|-----------|----------------|--------------|")
         wt_mean = None
         for _, row in kras_data.iterrows():
             if 'KRAS WT' in str(row.get('group_name', '')):
@@ -1068,31 +1641,102 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
                 break
         for _, row in kras_data.iterrows():
             if 'group_name' in row:
+                n_samples = int(row.get('n_samples', 0))
                 fc_vs_wt = row['mean'] - wt_mean if wt_mean else 0
-                report.append(f"| {row['group_name']} | {row.get('n_samples', 'N/A')} | {row['mean']:.2f} | {fc_vs_wt:.2f} |")
+                report.append(f"| {row['group_name']} | {n_samples} | {row['mean']:.2f} | {fc_vs_wt:.2f} |")
         report.append("\n")
 
     # EGFR Status
     if 'egfr_status' in tempus_gene_data:
-        report.append("### EGFR Mutation Status\n")
-        report.append("| EGFR Status | N Samples | Mean |")
-        report.append("|-------------|-----------|------|")
         egfr_data = tempus_gene_data['egfr_status']
+        total_egfr_n = int(egfr_data['n_samples'].sum()) if 'n_samples' in egfr_data.columns else 0
+        report.append(f"### EGFR Mutation Status (Tempus, N={total_egfr_n})\n")
+        report.append("| EGFR Status | N Samples | Mean (log2TPM) |")
+        report.append("|-------------|-----------|----------------|")
         for _, row in egfr_data.iterrows():
             if 'group_name' in row:
-                report.append(f"| {row['group_name']} | {row.get('n_samples', 'N/A')} | {row['mean']:.2f} |")
+                n_samples = int(row.get('n_samples', 0))
+                report.append(f"| {row['group_name']} | {n_samples} | {row['mean']:.2f} |")
         report.append("\n")
 
     report.append("---\n")
 
+    # TCGA Mutation Statistics Section
+    if tcga_mutation_stats:
+        total_tcga_mut_samples = 0
+        for gene_name, mut_df in tcga_mutation_stats.items():
+            total_tcga_mut_samples = max(total_tcga_mut_samples, int(mut_df['N'].sum()) if 'N' in mut_df.columns else 0)
+
+        report.append(f"## TCGA Mutation Status Expression (N={total_tcga_mut_samples})\n")
+        report.append("> **Data Source:** TCGA-LUAD/LUSC (treatment-naive) - valid within-dataset comparison\n\n")
+
+        for mutation_gene, mut_df in tcga_mutation_stats.items():
+            total_n = int(mut_df['N'].sum()) if 'N' in mut_df.columns else 0
+            report.append(f"### {mutation_gene} Mutation Status (TCGA, N={total_n})\n")
+            report.append("| Status | N | Mean (log2TPM) | Median | SD | log2FC vs WT |")
+            report.append("|--------|---|----------------|--------|----|--------------| ")
+            for _, row in mut_df.iterrows():
+                fc = row.get('log2FC_vs_WT', 0)
+                fc_str = f"{fc:.2f}" if pd.notna(fc) else "0.00"
+                report.append(f"| {row['Status']} | {int(row['N'])} | {row['Mean']:.2f} | {row['Median']:.2f} | {row['SD']:.2f} | {fc_str} |")
+            report.append("\n")
+
+        report.append("---\n")
+
     # TCGA Cohort Statistics
-    report.append("## TCGA Cohort Expression Statistics\n")
+    total_tcga_n = int(tcga_stats['count'].sum()) if tcga_stats is not None and 'count' in tcga_stats.columns else 0
+    report.append(f"## TCGA/GTEx Cohort Expression Statistics (N={total_tcga_n})\n")
+    report.append("> **Data Source:** TCGA-LUAD, TCGA-LUSC (treatment-naive), TCGA Adjacent Normal, GTEx Lung, CCLE\n\n")
     if tcga_stats is not None and len(tcga_stats) > 0:
-        report.append("| Cohort | N | Median | Mean | SD |")
-        report.append("|--------|---|--------|------|----| ")
+        report.append("| Cohort | N | Median (log2TPM) | Mean | SD |")
+        report.append("|--------|---|------------------|------|----| ")
         for _, row in tcga_stats.iterrows():
-            report.append(f"| {row['cohort']} | {row['count']} | {row['median']:.2f} | {row['mean']:.2f} | {row['std']:.2f} |")
+            report.append(f"| {row['cohort']} | {int(row['count'])} | {row['median']:.2f} | {row['mean']:.2f} | {row['std']:.2f} |")
     report.append("\n---\n")
+
+    # Subgroup Suitability Analysis (3-Phase)
+    if subgroup_suitability and subgroup_suitability.get('summary'):
+        report.append("## Subgroup Suitability Analysis\n")
+        report.append("> **3-Phase Analysis:** Phase 1 (TCGA, treatment-naive) → Phase 2 (Tempus mutation, IO-experienced) → Phase 3 (iDAS whitespace)\n\n")
+
+        # Phase 1: TCGA Analysis (Histology + Mutation)
+        report.append("### Phase 1: TCGA Analysis (Treatment-Naive)\n")
+        report.append("| Subgroup | Key Metric | Score | Recommendation |")
+        report.append("|----------|------------|-------|----------------|")
+        for row in subgroup_suitability['summary']:
+            if row.get('category') == 'tcga_analysis':
+                report.append(f"| {row['subgroup']} | {row['key_metric']} | {row['score']}/5 | **{row['recommendation']}** |")
+        report.append("\n")
+
+        # Phase 2: Tempus Mutation Status (IO-experienced)
+        report.append("### Phase 2: Tempus Mutation Status (IO-Experienced)\n")
+        report.append("| Subgroup | Key Metric | Score | Recommendation |")
+        report.append("|----------|------------|-------|----------------|")
+        for row in subgroup_suitability['summary']:
+            if row.get('category') == 'tempus_mutation':
+                report.append(f"| {row['subgroup']} | {row['key_metric']} | {row['score']}/5 | **{row['recommendation']}** |")
+        report.append("\n")
+
+        # Phase 3: iDAS Whitespace Suitability
+        report.append("### Phase 3: iDAS Whitespace Suitability\n")
+        report.append("| Whitespace | Key Metric | Score | Recommendation |")
+        report.append("|------------|------------|-------|----------------|")
+        for row in subgroup_suitability['summary']:
+            if row.get('category') == 'idas_whitespace':
+                report.append(f"| {row['subgroup']} | {row['key_metric']} | {row['score']}/5 | **{row['recommendation']}** |")
+        report.append("\n")
+
+        # Top Recommendations Summary
+        top_recs = subgroup_suitability.get('top_recommendations', {})
+        if top_recs.get('priority') or top_recs.get('go') or top_recs.get('exclude'):
+            report.append("### Subgroup Recommendations\n")
+            if top_recs.get('priority'):
+                report.append(f"**PRIORITY Subgroups:** {', '.join(top_recs['priority'])}\n")
+            if top_recs.get('go'):
+                report.append(f"**GO Subgroups:** {', '.join(top_recs['go'])}\n")
+            if top_recs.get('exclude'):
+                report.append(f"**CAUTION/EXCLUDE Subgroups:** {', '.join(top_recs['exclude'])}\n")
+        report.append("\n---\n")
 
     # Conclusions
     report.append("## Conclusions and Recommendations\n")
@@ -1147,6 +1791,7 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     tcga_df = None
     tcga_stats = None
     pairwise_df = None
+    tcga_mutation_stats = None
 
     # TCGA Analysis
     if not skip_tcga:
@@ -1188,6 +1833,11 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
         pairwise_df = perform_pairwise_comparisons(tcga_df, tumor_cohorts, normal_cohorts)
         print(f"  Performed {len(pairwise_df)} pairwise comparisons")
 
+        # TCGA Mutation Statistics
+        tcga_mutation_stats = compute_tcga_mutation_statistics(tcga_df)
+        if tcga_mutation_stats:
+            print(f"  Computed mutation statistics for {len(tcga_mutation_stats)} genes")
+
     # Tempus Analysis
     tempus_gene_data = {}
     if not skip_tempus and tempus_data:
@@ -1201,10 +1851,36 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     print(f"  Overall alignment: {idas_assessment.get('overall_alignment', 'Unknown')}")
     print(f"  Recommendation: {idas_assessment.get('recommendation', 'Unknown')}")
 
-    # Save iDAS assessment
+    # Subgroup Suitability Analysis
+    print(f"\n  Computing subgroup suitability...")
+    subgroup_suitability = compute_subgroup_suitability(
+        gene, tcga_stats, pairwise_df, tcga_mutation_stats, idas_assessment, tempus_gene_data
+    )
+
+    # Report top recommendations
+    top_recs = subgroup_suitability.get('top_recommendations', {})
+    if top_recs.get('priority'):
+        print(f"  PRIORITY subgroups: {', '.join(top_recs['priority'])}")
+    if top_recs.get('exclude'):
+        print(f"  EXCLUDE/CAUTION subgroups: {', '.join(top_recs['exclude'])}")
+
+    # Save subgroup suitability as CSV
+    if subgroup_suitability.get('summary'):
+        suitability_df = pd.DataFrame(subgroup_suitability['summary'])
+        suitability_path = os.path.join(gene_output_dir, f'{gene}_subgroup_suitability.csv')
+        suitability_df.to_csv(suitability_path, index=False)
+        print(f"  Saved: {suitability_path}")
+
+    # Save iDAS assessment (with subgroup analysis included)
     idas_path = os.path.join(gene_output_dir, f'{gene}_idas_assessment.yaml')
     idas_assessment['gene'] = gene
     idas_assessment['timestamp'] = datetime.now().isoformat()
+    idas_assessment['subgroup_analysis'] = {
+        'histology': subgroup_suitability.get('histology', {}),
+        'mutation_status': subgroup_suitability.get('mutation_status', {}),
+        'idas_whitespace': subgroup_suitability.get('idas_whitespace', {}),
+        'top_recommendations': subgroup_suitability.get('top_recommendations', {})
+    }
     with open(idas_path, 'w') as f:
         yaml.dump(idas_assessment, f, default_flow_style=False)
     print(f"  Saved: {idas_path}")
@@ -1215,9 +1891,13 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
         create_comprehensive_figure(gene, tcga_df if tcga_df is not None else pd.DataFrame(),
                                    tempus_gene_data, idas_assessment, gene_output_dir)
 
+    # Generate subgroup suitability visualization
+    if subgroup_suitability.get('summary'):
+        save_subgroup_suitability_figure(gene, subgroup_suitability, gene_output_dir)
+
     # Generate report
     print(f"\n  Generating report...")
-    generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, gene_output_dir)
+    generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, gene_output_dir, tcga_mutation_stats, subgroup_suitability)
 
     # Save statistics
     if tcga_stats is not None:
@@ -1229,6 +1909,19 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
         pairwise_path = os.path.join(gene_output_dir, f'{gene}_pairwise_comparisons.csv')
         pairwise_df.to_csv(pairwise_path, index=False)
         print(f"  Saved: {pairwise_path}")
+
+    # Save TCGA mutation statistics
+    if tcga_mutation_stats:
+        mut_stats_list = []
+        for mutation_gene, mut_df in tcga_mutation_stats.items():
+            mut_df_copy = mut_df.copy()
+            mut_df_copy['Target_Gene'] = gene
+            mut_stats_list.append(mut_df_copy)
+        if mut_stats_list:
+            all_mut_stats = pd.concat(mut_stats_list, ignore_index=True)
+            mut_stats_path = os.path.join(gene_output_dir, f'{gene}_tcga_mutation_statistics.csv')
+            all_mut_stats.to_csv(mut_stats_path, index=False)
+            print(f"  Saved: {mut_stats_path}")
 
     return idas_assessment
 

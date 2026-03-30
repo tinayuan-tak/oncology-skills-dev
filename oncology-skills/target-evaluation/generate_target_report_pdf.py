@@ -38,7 +38,7 @@ DISEASE_CONFIG = {
   • 6: MSI-H''',
         'subtype_name': 'CMS',
         'subtype_description': 'Consensus Molecular Subtypes (CMS1-4)',
-        'subtype_figure': '{gene}_CMS_boxplot.png',
+        'subtype_figure': None,  # CMS included in comprehensive figure panel F
         'default_output_dir': './crc_analysis_results',
         'disease_intro': '''Colorectal cancer remains a leading cause of cancer mortality worldwide, with liver
 metastasis representing the primary determinant of patient survival. Despite advances in
@@ -137,27 +137,32 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
     with open(report_path, 'r') as f:
         content = f.read()
 
-    # Extract ScholarEval Score (handles both "Key: Value" and "| Key | Value |" formats)
-    # Try table format with bold markers first: | **ScholarEval Score** | **4.25/5.0 (Strong)** |
-    score_match = re.search(r'ScholarEval Score\*?\*?\s*\|\s*\*?\*?(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
-    if not score_match:
-        # Try key: value format
-        score_match = re.search(r'ScholarEval Score[:\s]+\*?\*?(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
+    # ==========================================================================
+    # STANDARD FORMAT for Executive Summary (table-based):
+    # | Metric | Value |
+    # |--------|-------|
+    # | **ScholarEval Score** | **4.25/5.0 (Strong)** |
+    # | **Overall Risk Profile** | **LOW** |
+    # | **Recommendation** | **GO** - Description |
+    # ==========================================================================
+
+    # Extract ScholarEval Score from table: | **ScholarEval Score** | **4.25/5.0 (Strong)** |
+    score_match = re.search(r'\|\s*\*?\*?ScholarEval Score\*?\*?\s*\|\s*\*?\*?(\d+\.?\d*/5\.0)', content, re.IGNORECASE)
     if score_match:
         data['score'] = score_match.group(1)
 
-    # Extract Overall Risk Profile (handles both formats)
-    risk_match = re.search(r'\*?\*?Overall (?:Target )?Risk Profile\*?\*?[:\s|]+\*?\*?([A-Z-]+)\*?\*?', content, re.IGNORECASE)
+    # Extract Overall Risk Profile from table: | **Overall Risk Profile** | **LOW** |
+    risk_match = re.search(r'\|\s*\*?\*?Overall (?:Target )?Risk Profile\*?\*?\s*\|\s*\*?\*?([A-Z-]+)\*?\*?', content, re.IGNORECASE)
     if risk_match:
         data['risk_profile'] = risk_match.group(1)
 
-    # Extract Recommendation (handles both formats)
-    rec_match = re.search(r'\*?\*?Recommendation\*?\*?[:\s|]+\*?\*?((?:CONDITIONAL\s+)?(?:NO-GO|GO))', content, re.IGNORECASE)
+    # Extract Recommendation from table: | **Recommendation** | **GO** - Description |
+    rec_match = re.search(r'\|\s*\*?\*?Recommendation\*?\*?\s*\|\s*\*?\*?((?:CONDITIONAL\s+)?(?:NO-GO|GO))', content, re.IGNORECASE)
     if rec_match:
         rec = rec_match.group(1).strip().upper()
         data['recommendation'] = rec
     else:
-        rec_match = re.search(r'\*?\*?Recommendation\*?\*?[:\s|]+\*?\*?([^|\n]+)', content, re.IGNORECASE)
+        rec_match = re.search(r'\|\s*\*?\*?Recommendation\*?\*?\s*\|\s*\*?\*?([^|\n]+)', content, re.IGNORECASE)
         if rec_match:
             rec_full = rec_match.group(1).strip()
             if 'CONDITIONAL NO-GO' in rec_full.upper():
@@ -170,8 +175,8 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
                 parts = re.split(r'\s*[-–—]\s*', rec_full, maxsplit=1)
                 data['recommendation'] = parts[0].strip().upper()[:20]
 
-    # Extract Assessment rating
-    assessment_match = re.search(r'ScholarEval Score[:\s|]+[\d.]+/5\.0\s*\(([^)]+)\)', content, re.IGNORECASE)
+    # Extract Assessment rating from table: | **ScholarEval Score** | **4.25/5.0 (Strong)** |
+    assessment_match = re.search(r'\|\s*\*?\*?ScholarEval Score\*?\*?\s*\|\s*\*?\*?[\d.]+/5\.0\s*\(([^)]+)\)', content, re.IGNORECASE)
     if assessment_match:
         data['assessment'] = assessment_match.group(1).strip()
 
@@ -231,7 +236,9 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
         data['recommendations_list'] = []
 
     # Extract Scholar scores from table
-    scholar_pattern = r'\|\s*(Differential Expression|Pathway Relevance|Druggability|Genetic Validation|Disease Association|Safety Profile|Clinical Validation|Biomarker Potential)\s*\|(?:\s*[\d.]+\s*\|)?\s*\*?\*?(\d)/5\*?\*?'
+    # Standard format: | Dimension | Weight | Score | Rationale |
+    # Example: | Differential Expression | 0.15 | 4/5 | Evidence text |
+    scholar_pattern = r'\|\s*(Differential Expression|Pathway Relevance|Druggability|Genetic Validation|Disease Association|Safety Profile|Clinical Validation|Biomarker Potential)\s*\|\s*[\d.]+\s*\|\s*(\d)/5'
     scholar_matches = re.findall(scholar_pattern, content, re.IGNORECASE)
     for dim, score in scholar_matches:
         data['scholar_scores'][dim.strip()] = int(score)
@@ -613,8 +620,7 @@ Clinical Validation, and Biomarker Potential."""
 Analysis of primary {disease_abbr} tumors revealed significant target overexpression compared to
 normal {normal_tissue} tissue across all cohorts examined.
 
-See Figure 1 for comprehensive expression analysis.
-See Figure 2 for {subtype_name} expression patterns (if available).
+See Figure 1 for comprehensive expression analysis including {subtype_name} stratification.
 
 
 3.2 Literature Evidence
@@ -739,19 +745,19 @@ Risk Level Legend:
     text_page(pdf, 'Risk Assessment Summary', risk_page)
     print("  Page 8: Risk Assessment Table")
 
-    # ===== PAGE 9: RISK ASSESSMENT FIGURE =====
+    # ===== PAGE 8: RISK ASSESSMENT FIGURE =====
     create_risk_assessment_figure(gene, output_dir, report_data)
     risk_fig = os.path.join(output_dir, f'{gene}_risk_assessment_figure.png')
-    add_high_res_figure(pdf, risk_fig, 'Figure 3: 6-Category Risk Assessment',
+    add_high_res_figure(pdf, risk_fig, 'Figure 2: 6-Category Risk Assessment',
                         'Risk levels across Biological, Druggability, Translational, Clinical, Safety, and Commercial dimensions.')
-    print("  Page 9: Figure 3 - Risk Assessment")
+    print("  Page 8: Figure 2 - Risk Assessment")
 
-    # ===== PAGE 10: SCHOLAREVAL FIGURE =====
+    # ===== PAGE 9: SCHOLAREVAL FIGURE =====
     create_scholar_eval_figure(gene, output_dir, report_data)
     scholar_fig = os.path.join(output_dir, f'{gene}_scholar_eval_figure.png')
-    add_high_res_figure(pdf, scholar_fig, 'Figure 4: ScholarEval Target Scoring',
+    add_high_res_figure(pdf, scholar_fig, 'Figure 3: ScholarEval Target Scoring',
                         'Eight-dimension target scoring based on the ScholarEval framework.')
-    print("  Page 10: Figure 4 - ScholarEval Scoring")
+    print("  Page 9: Figure 3 - ScholarEval Scoring")
 
     # ===== PAGE 11: KEY STRENGTHS & RISKS =====
     strengths = report_data.get('strengths', ['See integrated report for details'])
