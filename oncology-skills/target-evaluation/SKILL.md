@@ -27,15 +27,82 @@ Comprehensive 4-step pipeline for systematic evaluation of therapeutic targets i
 ## 4-Step Workflow
 
 ```
-┌─────────────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ 1. DRUG TARGET RISK     │ ──▶ │ 2. EXPRESSION   │ ──▶ │ 3. SCHOLAREVAL  │ ──▶ │ 4. REPORT       │
-│    ASSESSMENT           │     │    ANALYSIS     │     │    SCORING      │     │    + PDF        │
-│                         │     │                 │     │                 │     │                 │
-│ Risk framework +        │     │ Disease-specific│     │ 8-dimension     │     │ Integrated      │
-│ PubMed literature       │     │ bulk RNA skill  │     │ target score    │     │ markdown + PDF  │
-│ (template-guided)       │     │                 │     │                 │     │                 │
-└─────────────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
+┌─────────────────────────┐
+│ 1. DRUG TARGET RISK     │ ───────┐
+│    ASSESSMENT           │        │
+│                         │        │     ┌─────────────────┐     ┌─────────────────┐
+│ Risk framework +        │        ├───▶ │ 3. SCHOLAREVAL  │ ──▶ │ 4. REPORT       │
+│ PubMed literature       │        │     │    SCORING      │     │    + PDF        │
+│ (template-guided)       │        │     │                 │     │                 │
+└─────────────────────────┘        │     │ 8-dimension     │     │ Integrated      │
+         [PARALLEL]                │     │ target score    │     │ markdown + PDF  │
+┌─────────────────────────┐        │     │                 │     │                 │
+│ 2. EXPRESSION           │ ───────┘     └─────────────────┘     └─────────────────┘
+│    ANALYSIS             │
+│                         │
+│ Disease-specific        │
+│ bulk RNA skill          │
+└─────────────────────────┘
 ```
+
+## Workflow Dependencies (CRITICAL)
+
+**Steps 1 and 2 can run in parallel. Step 3 MUST wait for BOTH to complete.**
+
+### Dependency Rules
+
+| Step | Dependencies | Parallel Execution |
+|------|--------------|-------------------|
+| Step 1 (Risk Assessment) | None | Can run with Step 2 |
+| Step 2 (Expression Analysis) | None | Can run with Step 1 |
+| **Step 3 (ScholarEval)** | **Step 1 AND Step 2 must be COMPLETED** | Cannot start until both done |
+| Step 4 (Report + PDF) | Step 3 must be COMPLETED | Sequential |
+
+### Task-Based Dependency Tracking
+
+**MANDATORY:** Use TaskCreate/TaskUpdate to track workflow progress and enforce dependencies.
+
+#### At Workflow Start
+```
+TaskCreate: "Step 1: {GENE} Drug Target Risk Assessment ({disease})" - status: pending
+TaskCreate: "Step 2: {GENE} Multi-omics Expression Analysis" - status: pending  
+TaskCreate: "Step 3: {GENE} ScholarEval Scoring" - status: pending, blockedBy: [Step1, Step2]
+TaskCreate: "Step 4: {GENE} Integrated Report + PDF" - status: pending, blockedBy: [Step3]
+```
+
+#### Before Starting Step 3
+```python
+# REQUIRED CHECK - Do not skip
+step1_task = TaskGet(step1_id)
+step2_task = TaskGet(step2_id)
+
+if step1_task.status != "completed" or step2_task.status != "completed":
+    # DO NOT PROCEED - wait for completion
+    raise DependencyError("Step 3 requires Step 1 AND Step 2 to be completed")
+```
+
+### Background Agent Handling
+
+If Step 1 runs as a background agent (e.g., PubMed literature search):
+
+1. **Launch agent with `run_in_background: true`**
+2. **DO NOT proceed to Step 3** until you receive the agent completion notification
+3. **When agent completes**, update the task status to "completed"
+4. **Only then** check if both Step 1 and Step 2 are complete before Step 3
+
+**NEVER assume an agent is complete based on time elapsed. Wait for the explicit completion notification.**
+
+### Required Outputs Checklist
+
+Before Step 3, verify these outputs exist AND their source tasks are marked complete:
+
+| Step | Task Status | Required Output File |
+|------|-------------|---------------------|
+| Step 1 | `completed` | `{GENE}_risk_assessment_{disease}.md` |
+| Step 2 | `completed` | `{GENE}_comprehensive_report.md` |
+| Step 2 | `completed` | `{GENE}_subgroup_suitability.csv` |
+
+**Both conditions must be met: task status = completed AND file exists.**
 
 ---
 
@@ -100,14 +167,22 @@ Use literature findings to complete each section of the disease-specific templat
 - CRC: `reference/risk_assessment_template_crc.md`
 - NSCLC: `reference/risk_assessment_template_nsclc.md`
 
-### 1.4 Risk Level Determination
+### 1.4 Risk Level Determination (Rubric-Based)
 
-**Risk Levels:**
-- **LOW**: Strong evidence supporting favorable profile
-- **MEDIUM**: Mixed evidence or addressable gaps
-- **HIGH**: Significant concerns or major unknowns
+**IMPORTANT:** Use the rubric-based criteria tables in the templates to determine risk levels. Each category has explicit criteria for LOW, MEDIUM, and HIGH.
 
-**Important:** Interpret criteria from left to right. If criteria for both Low and Medium risk levels are not met, default to HIGH.
+#### 6-Category Risk Assessment Criteria Summary
+
+| Risk Category | LOW | MEDIUM | HIGH |
+|---------------|-----|--------|------|
+| **Biological** | Clinically validated target | Validated in ≥1 in vivo model (Onc) OR Totality of human biological evidence highly favorable OR Human genetic association | Novel target OR Limited external validation/low replication |
+| **Druggability** | Target has approved/clinical/in vivo PoC **AND** Established CMC expertise, GMP & supply chain | Homologous to validated target OR Limited CMC expertise | Weak/no tractability evidence **OR** No CMC expertise |
+| **Translational** | Validated animal models **AND** TE biomarkers **AND** PD biomarkers exist | All three available but not validated | Any component not available |
+| **Clinical** | Clearly defined patient population + clinical-grade biomarker **AND** feasible trial | Biomarker needs development OR trial feasibility challenges | Difficult biomarker path **OR** significant trial feasibility challenges |
+| **Safety** | Clinically validated safety, no compound class risks, OR minimal/mitigated risks | Some target/compound risks, R/B manageable, premonitory biomarkers available | Strong evidence of risks, R/B questionable **AND** no premonitory biomarkers |
+| **Commercial** | Market ≥$5bn **AND** competitive profile (1st/2nd to market, BiC) | Everything not Low or High | Market <$0.5bn **OR** 4th+ to market with no differentiation **OR** poor strategic fit |
+
+**Decision Rule:** Evaluate criteria from LOW → MEDIUM → HIGH. If LOW criteria are not met, check MEDIUM. If neither LOW nor MEDIUM criteria are met, assign **HIGH** by default.
 
 ### 1.5 Output: Completed Risk Assessment Document
 
@@ -129,7 +204,7 @@ Generate `{GENE}_risk_assessment_{disease}.md` with:
 #### Comprehensive Analysis (Recommended - TCGA + Tempus Combined)
 ```bash
 # Run from skill base directory - do NOT copy the script
-pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes {GENE} --output-dir ./{disease}_analysis_results/{GENE}
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes {GENE} --output-dir ./{disease}_analysis_results
 ```
 
 **This single script provides:**
@@ -183,7 +258,7 @@ python crc_comprehensive_analysis.py --genes {GENE} --skip-tempus
 
 ```bash
 # Run from skill base directory - do NOT copy the script
-pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes {GENE} --output-dir ./{disease}_analysis_results/{GENE}
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes {GENE} --output-dir ./{disease}_analysis_results
 ```
 
 **Quick options:**
@@ -505,10 +580,10 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 #### Tempus iDAS Priority Whitespaces
 
-| Priority Whitespace | Expression (log2TPM) | % Detected | N Samples | Alignment |
-|---------------------|----------------------|------------|-----------|-----------|
-| Whitespace 1 | X.XX | XX% | N | **Strong/Moderate/Weak** |
-| Whitespace 2 | X.XX | XX% | N | **Strong/Moderate/Weak** |
+| Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |
+|---------------------|----------------------|-----------|-----------|
+| Whitespace 1 | X.XX | **Strong/Moderate/Weak** | N |
+| Whitespace 2 | X.XX | **Strong/Moderate/Weak** | N |
 
 ### 3.3 Target Validation Scorecard (Step 3: ScholarEval)
 
@@ -657,7 +732,7 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 ```bash
 # Run from skill base directory - do NOT copy to working directory
-pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results/{GENE}
+pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results
 ```
 
 **Required Parameters:**
@@ -720,11 +795,11 @@ pixi install
 
 # For CRC (Comprehensive TCGA + Tempus):
 # Run from CRC bulk RNA skill base directory - do NOT copy the script
-pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes $GENE --output-dir ./${DISEASE}_analysis_results/$GENE
+pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes $GENE --output-dir ./${DISEASE}_analysis_results
 
 # For NSCLC:
 # Run from NSCLC bulk RNA skill base directory - do NOT copy the script
-pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes $GENE --output-dir ./${DISEASE}_analysis_results/$GENE
+pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes $GENE --output-dir ./${DISEASE}_analysis_results
 ```
 
 **Step 3: ScholarEval scoring**
@@ -742,7 +817,7 @@ pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes $GENE 
 
 # AUTOMATIC: Generate PDF report (ALWAYS run at end of workflow)
 # Run script from skill base directory - do NOT copy to working directory
-pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results/$GENE
+pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results
 ```
 
 ### Adding New Disease Support

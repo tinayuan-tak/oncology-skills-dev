@@ -433,7 +433,8 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
             if subtype:
                 slide_data['toxicity_data'].append({'subtype': subtype, 'fold_change': f'{fc}x', 'risk': risk.upper()})
         # Extract iDAS data
-        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \d+% \| [\d,]+ \| \*\*(\w+)\*\*'
+        # Format: | Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |
+        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \*\*(\w+)\*\* \| [\d,]+ \|'
         for ws, expr, alignment in re.findall(idas_pattern, content)[:4]:
             slide_data['idas_data'].append({'whitespace': ws.strip()[:22], 'expression': expr, 'alignment': alignment})
         # Extract subgroup recommendations
@@ -465,15 +466,15 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
     if slide_data['aliases']:
         fig.text(0.5, 0.895, slide_data['aliases'], fontsize=14, color='#B8D4E8', ha='center', va='center')
 
-    # Recommendation badge
+    # Recommendation badge (smaller)
     rec = report_data.get('recommendation', 'GO') if report_data else 'GO'
     rec_text = 'GO - PRIORITY' if 'GO' in rec.upper() and 'NO-GO' not in rec.upper() else rec.upper()
     rec_color = COLORS['GREEN'] if 'GO' in rec.upper() and 'NO-GO' not in rec.upper() else COLORS['TAKEDA_RED']
-    badge_rect = mpatches.FancyBboxPatch((0.75, 0.89), 0.22, 0.07,
+    badge_rect = mpatches.FancyBboxPatch((0.80, 0.90), 0.17, 0.05,
                                           boxstyle="round,pad=0.01,rounding_size=0.02",
                                           facecolor=rec_color, transform=fig.transFigure, zorder=2)
     fig.patches.append(badge_rect)
-    fig.text(0.86, 0.925, rec_text, fontsize=16, fontweight='bold', color=COLORS['WHITE'], ha='center', va='center')
+    fig.text(0.885, 0.925, rec_text, fontsize=12, fontweight='bold', color=COLORS['WHITE'], ha='center', va='center')
 
     # === LEFT COLUMN: Key Metrics ===
     # Score box
@@ -565,10 +566,14 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
     fig.patches.append(takeaway_rect)
     fig.text(0.5, 0.27, 'Key Takeaways', fontsize=16, fontweight='bold', color=COLORS['DARK_BLUE'], ha='center')
     y = 0.22
+    import textwrap
     for takeaway in slide_data['takeaways'][:5]:
-        text = takeaway[:100] + '...' if len(takeaway) > 100 else takeaway
-        fig.text(0.05, y, text, fontsize=12, color=COLORS['DARK_BLUE'])
-        y -= 0.04
+        # Wrap long text to fit within slide width
+        wrapped = textwrap.fill(takeaway, width=130)
+        lines = wrapped.split('\n')
+        for line in lines[:2]:  # Max 2 lines per takeaway
+            fig.text(0.05, y, line, fontsize=11, color=COLORS['DARK_BLUE'])
+            y -= 0.035
 
     # Footer
     date_str = report_data.get('date', date.today().isoformat()) if report_data else date.today().isoformat()
@@ -656,7 +661,8 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
             if subtype:
                 slide_data['toxicity_data'].append({'subtype': subtype, 'fold_change': f'{fc}x', 'risk': risk.upper()})
         # Extract iDAS data
-        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \d+% \| [\d,]+ \| \*\*(\w+)\*\*'
+        # Format: | Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |
+        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \*\*(\w+)\*\* \| [\d,]+ \|'
         for ws, expr, alignment in re.findall(idas_pattern, content)[:4]:
             slide_data['idas_data'].append({'whitespace': ws.strip()[:22], 'expression': expr, 'alignment': alignment})
         # Extract subgroup recommendations
@@ -767,10 +773,13 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
     ax1.add_patch(takeaway_box)
     ax1.text(0.5, 0.425, 'Key Takeaways', fontsize=12, fontweight='bold', ha='center', transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
     y = 0.395
+    import textwrap
     for takeaway in slide_data['takeaways'][:5]:
-        text = takeaway[:90] + '...' if len(takeaway) > 90 else takeaway
-        ax1.text(0.05, y, text, fontsize=8, transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
-        y -= 0.028
+        wrapped = textwrap.fill(takeaway, width=110)
+        lines = wrapped.split('\n')
+        for line in lines[:2]:  # Max 2 lines per takeaway
+            ax1.text(0.05, y, line, fontsize=8, transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+            y -= 0.022
 
     # === Pipeline Footer (bottom) ===
     footer_rect = mpatches.FancyBboxPatch((0.03, 0.04), 0.94, 0.085,

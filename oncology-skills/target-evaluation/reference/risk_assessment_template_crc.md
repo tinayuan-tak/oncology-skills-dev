@@ -77,134 +77,158 @@ Assess target alignment with these strategic priorities:
 **Biomarker-Defined Population:** [Specify if target defines or overlaps with key CRC biomarker populations]
 
 ### Risk Assessment Instructions
-Please assess the target across all six risk factor categories (Biological, Druggability, Translational, Clinical, Safety, and Commercial/Competitive). For each factor, determine if the risk level is Low, Medium, or High based on the provided criteria.
 
-Important Note: Interpret criteria from left to right. If criteria for both Low and Medium risk levels are not met, the default risk classification should be High.
+**IMPORTANT:** For each risk category, use the rubric-based criteria table below to determine the risk level. Apply the **decision rule**: evaluate criteria from LOW → MEDIUM → HIGH. If LOW criteria are not met, check MEDIUM. If neither LOW nor MEDIUM criteria are met, assign **HIGH** by default.
 
 ----------------------------------------------------------------------------------------------------
 ### 1. Biological Risk Assessment
 
-#### Target Implication in CRC
-Current Evidence: [Describe the evidence supporting target involvement in CRC]
+#### Risk Level Criteria
 
-CRC-Specific Considerations:
-• [ ] Target relevant to RAS mutant CRC (~45% of patients)
-• [ ] Target relevant to RAS wild-type CRC
-• [ ] Target relevant to MSI-H/dMMR CRC (~5% of mCRC)
-• [ ] Target relevant to MSS/pMMR CRC (majority of mCRC)
-• [ ] Target expressed/active across CRC molecular subtypes (CMS1-4)
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Clinically validated target |
+| **MEDIUM** | Validated in at least 1 in vivo model (Onc) OR Totality of human biological evidence highly favorable OR Human genetic association of target with disease |
+| **HIGH** | Novel target OR Limited external validation/low replication across labs |
 
-Validation Status:
-• [ ] Clinically validated target in CRC
-• [ ] Validated in CRC patient-derived xenograft (PDX) models
-• [ ] Validated in CRC organoid models
-• [ ] Validated in at least 1 in vivo CRC model
-• [ ] Human genetic association of target with CRC (GWAS, somatic mutations)
-• [ ] Novel target with limited external validation in CRC
-• [ ] Low replication across labs
+**Decision Rule:** Evaluate left-to-right. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+#### Evidence Documentation
+
+**Target Implication in CRC:**
+[Describe the evidence supporting target involvement in CRC]
+
+**CRC-Specific Considerations:**
+- Target relevance to RAS mutant CRC (~45% of patients): [Yes/No/Partial]
+- Target relevance to RAS wild-type CRC: [Yes/No/Partial]
+- Target relevance to MSI-H/dMMR CRC (~5% of mCRC): [Yes/No/Partial]
+- Target relevance to MSS/pMMR CRC (majority of mCRC): [Yes/No/Partial]
+- Expression/activity across CRC molecular subtypes (CMS1-4): [Yes/No/Partial]
+
+**Validation Evidence:**
+- Clinical validation in CRC: [Yes/No - describe]
+- In vivo validation (PDX, organoid, GEMM): [Yes/No - describe]
+- Human genetic association (GWAS, somatic mutations): [Yes/No - describe]
+- External validation/replication: [Strong/Limited/None]
+
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
+
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 2. Druggability Risk Assessment
 
-#### Target Tractability
-Target Characteristics: [Describe the biophysical properties of the target]
+#### Risk Level Criteria
 
-Druggability Evidence:
-• [ ] Target has approved/clinical PoC/in vivo PoC
-• [ ] Target is homologous to target(s) with approved/clinical PoC/in vivo PoC
-• [ ] Weak or no evidence of future tractability
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Target has approved/clinical PoC/in vivo PoC **AND** Established CMC expertise, GMP platforms & supply chain |
+| **MEDIUM** | Target is homologous to target(s) with approved/clinical PoC/in vivo PoC (e.g., GPCRs) in unmodified form (e.g., not cleaved form of target protein) **OR** Limited CMC expertise, GMP platform or supply chain |
+| **HIGH** | Weak or no evidence of future tractability **OR** No CMC expertise, GMP platform or supply chain |
 
-#### Therapeutic Complexity/Manufacturability
-CMC Considerations: [Describe any manufacturing complexities, supply chain, or IP issues]
+**Decision Rule:** Evaluate left-to-right. LOW requires BOTH tractability AND CMC criteria. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
 
-CMC Resources:
-• [ ] Established CMC expertise, GMP platforms & supply chain
-• [ ] Limited CMC expertise, GMP platform or supply chain
-• [ ] No CMC expertise, GMP platform or supply chain
+#### Evidence Documentation
 
-#### Additional for Synthetic Molecules (if applicable)
-Druggable Pocket Analysis:
-• [ ] Druggable pocket identified, reasonably stable
-• [ ] No druggable pocket identified
-• [ ] Molecule highly flexible
+**Target Tractability:**
+[Describe the biophysical properties of the target]
 
-Tool Molecules:
-• [ ] Available with direct evidence of target binding
-• [ ] Available with functional readout but no confirmed target engagement
-• [ ] Not available
+- Target has approved drug: [Yes/No - specify drug]
+- Target has clinical PoC: [Yes/No - specify trial/compound]
+- Target has in vivo PoC: [Yes/No - specify study]
+- Homologous to validated target: [Yes/No - specify homolog]
+- Druggable pocket identified: [Yes/No/Unknown]
+- Tool molecules available: [Yes/No - describe]
 
-SAR and SBDD Status:
-• [ ] SAR progression plan in place and feasible
-• [ ] SBDD enabled with X-ray co-crystal structure
-• [ ] SBDD ligand based
-• [ ] No SBDD strategy
+**CMC/Manufacturing Assessment:**
+[Describe any manufacturing complexities, supply chain, or IP issues]
 
-Assay Availability:
-• [ ] Biochemical and biophysical assays available
-• [ ] Cell-based assays available
-• [ ] Only phenotypic cell screen available
+- CMC expertise: [Established/Limited/None]
+- GMP platform availability: [Established/Limited/None]
+- Supply chain: [Established/Limited/None]
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Additional for Synthetic Molecules (if applicable):**
+- SAR progression plan: [In place/Partial/None]
+- SBDD enabled: [X-ray structure/Ligand-based/None]
+- Assay availability: [Biochemical+Cell-based/Cell-based only/Phenotypic only]
+
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
+
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 3. Translational Risk Assessment
 
-#### Disease Models
-Available Models: [List animal models, human-cell-derived models, organoids, etc.]
+#### Risk Level Criteria
+
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Validated animal models **AND** target engagement biomarkers **AND** pharmacodynamic biomarkers exist |
+| **MEDIUM** | Animal models **AND** target engagement **AND** pharmacodynamic biomarkers available but not validated |
+| **HIGH** | Animal models **AND** target engagement **AND** pharmacodynamic biomarkers not available |
+
+**Decision Rule:** Evaluate left-to-right. LOW requires ALL THREE components to be validated. MEDIUM requires all available but not validated. HIGH if any component is unavailable.
+
+#### Evidence Documentation
+
+**Disease Models:**
+[List animal models, human-cell-derived models, organoids, etc.]
 
 **CRC-Relevant Model Systems:**
-• [ ] CRC patient-derived xenografts (PDX) - gold standard for in vivo
-• [ ] CRC patient-derived organoids (PDO) - ex vivo drug testing
-• [ ] Genetically engineered mouse models (APC/KRAS/TP53)
-• [ ] Syngeneic CRC models (CT26, MC38) - immunotherapy studies
-• [ ] CRC cell line panels (RAS mutant vs. wild-type representation)
+- Patient-derived xenografts (PDX): [Available/Validated/None]
+- Patient-derived organoids (PDO): [Available/Validated/None]
+- Genetically engineered mouse models (APC/KRAS/TP53): [Available/Validated/None]
+- Syngeneic CRC models (CT26, MC38): [Available/Validated/None]
+- CRC cell line panels: [Available/Validated/None]
 
-**Model Stratification Considerations:**
-- RAS mutation status representation
-- MSI/MSS status representation
-- CMS subtype representation (CMS1-4)
-- Liver metastasis models (primary site of CRC metastasis)
+**Model Stratification:**
+- RAS mutation status representation: [Yes/No]
+- MSI/MSS status representation: [Yes/No]
+- CMS subtype representation: [Yes/No]
+- Liver metastasis models: [Yes/No]
 
-#### Biomarkers
-Target Engagement Biomarkers: [Describe available TE biomarkers]
-Pharmacodynamic Biomarkers: [Describe available PD biomarkers]
+**Biomarkers:**
+- Target engagement biomarkers: [Validated/Available but not validated/Not available] - describe:
+- Pharmacodynamic biomarkers: [Validated/Available but not validated/Not available] - describe:
 
 **CRC-Specific Biomarker Landscape:**
-- ctDNA/cfDNA: Emerging for response monitoring, RAS mutation tracking
-- CEA: Traditional tumor marker, limited specificity
-- CTC enumeration: Prognostic value
-- Tissue-based IHC/FISH: Standard for HER2, MMR status
+- ctDNA/cfDNA for response monitoring: [Available/Developing/None]
+- Tissue-based IHC/FISH: [Available/Developing/None]
 
-Validation Status:
-• [ ] Validated CRC disease models AND target engagement AND PD biomarkers exist
-• [ ] Disease models AND TE AND PD biomarkers available but not validated
-• [ ] Disease models AND TE AND PD biomarkers not available
-• [ ] Models include RAS mutant representation (strategic priority)
-• [ ] Models include chemorefractory/resistant phenotypes
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 4. Clinical Risk Assessment
 
-#### Definition of Patient Population
-Patient Selection Strategy: [Describe how patients will be identified or stratified]
+#### Risk Level Criteria
+
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Clearly defined patient population and clinical-grade biomarker assay available (e.g., a kinase mutation in cancer) **AND** feasible trial (incl. acceptable recruitment timeline and screen-to-enrollment ratio) |
+| **MEDIUM** | Biomarker assay needs further development or has clinical interpretation challenges (e.g., establishing a clear copy number cutoff) **OR** trial has feasibility challenges (e.g., somewhat high screen-to-enrollment ratio) |
+| **HIGH** | Difficult path for patient selection biomarker (e.g., establishment of a target expression cutoff) **OR** trial has significant feasibility challenges (e.g., very high screen-to-enrollment ratio, or other recruitment challenges) |
+
+**Decision Rule:** Evaluate left-to-right. LOW requires BOTH biomarker AND trial feasibility criteria. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
+
+#### Evidence Documentation
+
+**Patient Population Definition:**
+[Describe how patients will be identified or stratified]
 
 **CRC Population Stratification:**
-• [ ] All-comer mCRC population
-• [ ] RAS mutant mCRC (~45% prevalence) - High strategic priority
-• [ ] RAS wild-type mCRC (~55% prevalence)
-• [ ] MSI-H/dMMR mCRC (~5% prevalence)
-• [ ] MSS/pMMR mCRC (~95% prevalence)
-• [ ] Chemorefractory 3L+ mCRC - High strategic priority
-• [ ] Resectable CRC (neoadjuvant/adjuvant setting)
+- All-comer mCRC: [Yes/No]
+- RAS mutant mCRC (~45% prevalence): [Yes/No] - High strategic priority
+- RAS wild-type mCRC (~55% prevalence): [Yes/No]
+- MSI-H/dMMR mCRC (~5% prevalence): [Yes/No]
+- MSS/pMMR mCRC (~95% prevalence): [Yes/No]
+- Chemorefractory 3L+ mCRC: [Yes/No] - High strategic priority
+- Resectable CRC (neoadjuvant/adjuvant): [Yes/No]
 
-Biomarker Strategy: [Describe biomarker assay readiness, challenges]
+**Biomarker Strategy:**
+- Patient selection biomarker: [Clinical-grade available/Needs development/Difficult path]
+- Clinical interpretation: [Clear/Challenges exist/Significant challenges]
 
 **CRC Biomarker Testing Considerations:**
 - RAS/BRAF testing: Standard of care, high availability
@@ -212,9 +236,10 @@ Biomarker Strategy: [Describe biomarker assay readiness, challenges]
 - HER2 testing: Emerging, not yet routine in CRC
 - PD-L1 testing: Variable clinical utility in CRC
 
-#### Trial Feasibility
-Recruitment Considerations: [Describe patient recruitment timeline, center availability]
-Screen-to-Enrollment Ratio: [Estimated ratio or feasibility commentary]
+**Trial Feasibility:**
+- Recruitment timeline: [Acceptable/Challenging/Significant challenges]
+- Screen-to-enrollment ratio: [Acceptable/Somewhat high/Very high]
+- Competing trials impact: [Low/Moderate/High]
 
 **CRC-Specific Trial Considerations:**
 - Large patient population globally (~1.9M new cases/year)
@@ -222,45 +247,61 @@ Screen-to-Enrollment Ratio: [Estimated ratio or feasibility commentary]
 - Chemorefractory 3L+: Limited treatment options, high enrollment motivation
 - Competing trials: Multiple KRAS-targeted agents in development
 
-Clinical Risk Factors:
-• [ ] Clearly defined patient population and clinical-grade biomarker assay available
-• [ ] Biomarker assay needs further development or has clinical interpretation challenges
-• [ ] Difficult path for patient selection biomarker
-• [ ] Feasible trial with acceptable recruitment timeline
-• [ ] Trial has feasibility challenges
-• [ ] Trial has significant feasibility challenges
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 5. Safety Risk Assessment
 
-#### In Silico/Vitro/Vivo Safety Signals
-Safety Data: [Summarize available safety data from literature or preclinical tests]
+#### Risk Level Criteria
 
-#### Target Biology
-Known Safety Concerns: [Describe on-target or compound-class safety issues]
-Safety Biomarkers: [Availability of premonitory safety biomarkers]
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Target safety is clinically validated, no anticipated compound class risks, **OR** safety risks are minimal, mitigated and acceptable for intended patient population |
+| **MEDIUM** | Some evidence of target- or compound class-related risks. R/B is likely manageable for the intended patient population. Premonitory safety biomarkers available |
+| **HIGH** | Strong evidence of target- or compound class-related risks. R/B questionable for intended patient population **AND** no premonitory safety biomarkers available |
 
-Safety Assessment:
-• [ ] Target safety is clinically validated, no anticipated compound class risks
-• [ ] Safety risks are minimal, mitigated and acceptable for intended patient population
-• [ ] Some evidence of target- or compound class-related risks
-• [ ] Strong evidence of target- or compound class-related risks
-• [ ] R/B likely manageable for intended patient population
-• [ ] R/B questionable for intended patient population
-• [ ] Premonitory safety biomarkers available
-• [ ] No premonitory safety biomarkers available
+**Decision Rule:** Evaluate left-to-right. HIGH requires BOTH strong evidence of risks AND absence of premonitory biomarkers. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+#### Evidence Documentation
+
+**In Silico/Vitro/Vivo Safety Signals:**
+[Summarize available safety data from literature or preclinical tests]
+
+**Target Biology:**
+- Known on-target safety concerns: [None/Minimal/Some/Strong evidence]
+- Compound class-related risks: [None/Minimal/Some/Strong evidence]
+- Expression in normal tissues (on-target toxicity risk): [Low/Moderate/High]
+
+**Safety Biomarkers:**
+- Premonitory safety biomarkers: [Available/Not available]
+- Describe available biomarkers: [List if available]
+
+**Risk/Benefit Assessment:**
+- R/B for intended patient population: [Favorable/Likely manageable/Questionable]
+
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
+
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 6. Commercial/Competitive Risk Assessment
 
-#### Patient Unmet Need
-Current Treatment Landscape: [Describe standard-of-care, recognized gaps]
+#### Risk Level Criteria
+
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Large market (at least **$5 bn**) **AND** Competitive product profile (e.g., first to market, BiC profile, 2nd to market with limited entrants behind) *allow for exceptions in some cases |
+| **MEDIUM** | Everything that is not Low or High risk |
+| **HIGH** | Small market (under **$0.5 bn**) **OR** High competitive intensity (e.g., **4th to market or later**) with no significant differentiation **OR** Poor strategic fit/commercial synergies |
+
+**Decision Rule:** Evaluate left-to-right. LOW requires BOTH large market AND competitive profile. HIGH if ANY of the three conditions are met. MEDIUM is the default if neither LOW nor HIGH criteria are met.
+
+#### Evidence Documentation
+
+**Patient Unmet Need:**
+[Describe standard-of-care, recognized gaps]
 
 **CRC Current Standard of Care:**
 - **1L mCRC**: FOLFOX/FOLFIRI ± bevacizumab/cetuximab/panitumumab (RAS-dependent)
@@ -275,8 +316,8 @@ Current Treatment Landscape: [Describe standard-of-care, recognized gaps]
 - Chemorefractory 3L+: Poor outcomes, median OS ~6-8 months
 - MSS/pMMR: IO-refractory, needs novel approaches
 
-#### Addressable Patient Population
-Market Size: [Estimate or reference patient population]
+**Market Size Assessment:**
+- Estimated market size: [≥$5bn / $0.5-5bn / <$0.5bn]
 
 **CRC Epidemiology:**
 - Global incidence: ~1.9 million new cases annually
@@ -284,8 +325,9 @@ Market Size: [Estimate or reference patient population]
 - RAS mutant mCRC: ~315,000 patients (45%)
 - 3L+ chemorefractory: Large population with high unmet need
 
-#### Competition
-Competitive Landscape: [Discuss competing programs, patent coverage, generics, etc.]
+**Competitive Position:**
+- Market entry position: [1st to market / 2nd with limited entrants / 3rd / 4th or later]
+- Differentiation potential: [Significant / Moderate / Limited / None]
 
 **CRC Competitive Landscape (iDAS Intelligence):**
 | Target/Mechanism | Key Competitors | Status |
@@ -296,19 +338,13 @@ Competitive Landscape: [Discuss competing programs, patent coverage, generics, e
 | HER2 | Trastuzumab deruxtecan, tucatinib combinations | Approved/Phase 3 |
 | EGFR (RAS WT) | Cetuximab, panitumumab | Approved (generic pressure) |
 
-**Strategic Differentiation Considerations:**
-- First-in-class potential vs. best-in-class strategy
-- Combination potential with existing therapies
-- Applicability across RAS mutation subtypes (G12D, G12V, G12C)
-- Potential for earlier-line advancement
+**Strategic Fit:**
+- Strategic fit/commercial synergies: [Strong / Moderate / Poor]
+- Differentiation considerations: [Describe]
 
-Commercial Potential:
-• [ ] Potential peak sales > $3bn
-• [ ] Potential peak sales $1–3bn
-• [ ] Potential peak sales < $1bn
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Justification:** [Explain which criteria are met/not met, cite sources]
 
 ----------------------------------------------------------------------------------------------------
 ## Overall Risk Assessment Summary

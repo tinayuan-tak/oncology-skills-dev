@@ -103,139 +103,164 @@ Assess target alignment with these strategic priorities:
 **Biomarker-Defined Population:** [Specify if target defines or overlaps with key NSCLC biomarker populations]
 
 ### Risk Assessment Instructions
-Please assess the target across all six risk factor categories (Biological, Druggability, Translational, Clinical, Safety, and Commercial/Competitive). For each factor, determine if the risk level is Low, Medium, or High based on the provided criteria.
 
-Important Note: Interpret criteria from left to right. If criteria for both Low and Medium risk levels are not met, the default risk classification should be High.
+**IMPORTANT:** For each risk category, use the rubric-based criteria table below to determine the risk level. Apply the **decision rule**: evaluate criteria from LOW → MEDIUM → HIGH. If LOW criteria are not met, check MEDIUM. If neither LOW nor MEDIUM criteria are met, assign **HIGH** by default.
 
 ----------------------------------------------------------------------------------------------------
 ### 1. Biological Risk Assessment
 
-#### Target Implication in NSCLC
-Current Evidence: [Describe the evidence supporting target involvement in NSCLC]
+#### Risk Level Criteria
 
-NSCLC-Specific Considerations:
-- [ ] Target relevant to LUAD (adenocarcinoma) - ~40% of NSCLC
-- [ ] Target relevant to LUSC (squamous cell carcinoma) - ~30% of NSCLC
-- [ ] Target relevant to Non-AGA population (IO-experienced)
-- [ ] Target relevant to EGFR-mutant NSCLC
-- [ ] Target relevant to KRAS-mutant NSCLC (G12C and/or non-G12C)
-- [ ] Target relevant to STK11/KEAP1-mutant NSCLC (IO-resistant)
-- [ ] Target expressed across NSCLC molecular subtypes
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Clinically validated target |
+| **MEDIUM** | Validated in at least 1 in vivo model (Onc) OR Totality of human biological evidence highly favorable OR Human genetic association of target with disease |
+| **HIGH** | Novel target OR Limited external validation/low replication across labs |
 
-Validation Status:
-- [ ] Clinically validated target in NSCLC
-- [ ] Validated in NSCLC patient-derived xenograft (PDX) models
-- [ ] Validated in NSCLC organoid models
-- [ ] Validated in at least 1 in vivo NSCLC model
-- [ ] Human genetic association of target with NSCLC (GWAS, somatic mutations)
-- [ ] Novel target with limited external validation in NSCLC
-- [ ] Low replication across labs
+**Decision Rule:** Evaluate left-to-right. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+#### Evidence Documentation
+
+**Target Implication in NSCLC:**
+[Describe the evidence supporting target involvement in NSCLC]
+
+**NSCLC-Specific Considerations:**
+- Target relevance to LUAD (adenocarcinoma, ~40% of NSCLC): [Yes/No/Partial]
+- Target relevance to LUSC (squamous cell carcinoma, ~30% of NSCLC): [Yes/No/Partial]
+- Target relevance to Non-AGA population (IO-experienced): [Yes/No/Partial]
+- Target relevance to EGFR-mutant NSCLC: [Yes/No/Partial]
+- Target relevance to KRAS-mutant NSCLC (G12C and/or non-G12C): [Yes/No/Partial]
+- Target relevance to STK11/KEAP1-mutant NSCLC (IO-resistant): [Yes/No/Partial]
+- Expression across NSCLC molecular subtypes: [Yes/No/Partial]
+
+**Validation Evidence:**
+- Clinical validation in NSCLC: [Yes/No - describe]
+- In vivo validation (PDX, organoid, GEMM): [Yes/No - describe]
+- Human genetic association (GWAS, somatic mutations): [Yes/No - describe]
+- External validation/replication: [Strong/Limited/None]
+
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
+
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 2. Druggability Risk Assessment
 
-#### Target Tractability
-Target Characteristics: [Describe the biophysical properties of the target]
+#### Risk Level Criteria
 
-Druggability Evidence:
-- [ ] Target has approved/clinical PoC/in vivo PoC
-- [ ] Target is homologous to target(s) with approved/clinical PoC/in vivo PoC
-- [ ] Weak or no evidence of future tractability
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Target has approved/clinical PoC/in vivo PoC **AND** Established CMC expertise, GMP platforms & supply chain |
+| **MEDIUM** | Target is homologous to target(s) with approved/clinical PoC/in vivo PoC (e.g., GPCRs) in unmodified form (e.g., not cleaved form of target protein) **OR** Limited CMC expertise, GMP platform or supply chain |
+| **HIGH** | Weak or no evidence of future tractability **OR** No CMC expertise, GMP platform or supply chain |
 
-#### Therapeutic Complexity/Manufacturability
-CMC Considerations: [Describe any manufacturing complexities, supply chain, or IP issues]
+**Decision Rule:** Evaluate left-to-right. LOW requires BOTH tractability AND CMC criteria. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
 
-CMC Resources:
-- [ ] Established CMC expertise, GMP platforms & supply chain
-- [ ] Limited CMC expertise, GMP platform or supply chain
-- [ ] No CMC expertise, GMP platform or supply chain
+#### Evidence Documentation
 
-#### Additional for Synthetic Molecules (if applicable)
-Druggable Pocket Analysis:
-- [ ] Druggable pocket identified, reasonably stable
-- [ ] No druggable pocket identified
-- [ ] Molecule highly flexible
+**Target Tractability:**
+[Describe the biophysical properties of the target]
 
-Tool Molecules:
-- [ ] Available with direct evidence of target binding
-- [ ] Available with functional readout but no confirmed target engagement
-- [ ] Not available
+- Target has approved drug: [Yes/No - specify drug]
+- Target has clinical PoC: [Yes/No - specify trial/compound]
+- Target has in vivo PoC: [Yes/No - specify study]
+- Homologous to validated target: [Yes/No - specify homolog]
+- Druggable pocket identified: [Yes/No/Unknown]
+- Tool molecules available: [Yes/No - describe]
 
-SAR and SBDD Status:
-- [ ] SAR progression plan in place and feasible
-- [ ] SBDD enabled with X-ray co-crystal structure
-- [ ] SBDD ligand based
-- [ ] No SBDD strategy
+**CMC/Manufacturing Assessment:**
+[Describe any manufacturing complexities, supply chain, or IP issues]
 
-Assay Availability:
-- [ ] Biochemical and biophysical assays available
-- [ ] Cell-based assays available
-- [ ] Only phenotypic cell screen available
+- CMC expertise: [Established/Limited/None]
+- GMP platform availability: [Established/Limited/None]
+- Supply chain: [Established/Limited/None]
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Additional for Synthetic Molecules (if applicable):**
+- SAR progression plan: [In place/Partial/None]
+- SBDD enabled: [X-ray structure/Ligand-based/None]
+- Assay availability: [Biochemical+Cell-based/Cell-based only/Phenotypic only]
+
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
+
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 3. Translational Risk Assessment
 
-#### Disease Models
-Available Models: [List animal models, human-cell-derived models, organoids, etc.]
+#### Risk Level Criteria
+
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Validated animal models **AND** target engagement biomarkers **AND** pharmacodynamic biomarkers exist |
+| **MEDIUM** | Animal models **AND** target engagement **AND** pharmacodynamic biomarkers available but not validated |
+| **HIGH** | Animal models **AND** target engagement **AND** pharmacodynamic biomarkers not available |
+
+**Decision Rule:** Evaluate left-to-right. LOW requires ALL THREE components to be validated. MEDIUM requires all available but not validated. HIGH if any component is unavailable.
+
+#### Evidence Documentation
+
+**Disease Models:**
+[List animal models, human-cell-derived models, organoids, etc.]
 
 **NSCLC-Relevant Model Systems:**
-- [ ] NSCLC patient-derived xenografts (PDX) - gold standard for in vivo
-- [ ] NSCLC patient-derived organoids (PDO) - ex vivo drug testing
-- [ ] Genetically engineered mouse models (KRAS/TP53/STK11)
-- [ ] Syngeneic NSCLC models (LL/2, LLC1, KLN-205) - immunotherapy studies
-- [ ] NSCLC cell line panels with driver mutation representation
+- Patient-derived xenografts (PDX): [Available/Validated/None]
+- Patient-derived organoids (PDO): [Available/Validated/None]
+- Genetically engineered mouse models (KRAS/TP53/STK11): [Available/Validated/None]
+- Syngeneic NSCLC models (LL/2, LLC1, KLN-205): [Available/Validated/None]
+- NSCLC cell line panels: [Available/Validated/None]
 
-**Model Stratification Considerations:**
-- EGFR mutation status representation (L858R, exon 19 del, T790M)
-- KRAS mutation status representation (G12C, G12D, G12V)
-- STK11/KEAP1 co-mutation status (IO resistance models)
-- Histology representation (LUAD vs LUSC)
-- Brain metastasis models (common site of NSCLC metastasis)
+**Model Stratification:**
+- EGFR mutation status representation (L858R, exon 19 del, T790M): [Yes/No]
+- KRAS mutation status representation (G12C, G12D, G12V): [Yes/No]
+- STK11/KEAP1 co-mutation status: [Yes/No]
+- Histology representation (LUAD vs LUSC): [Yes/No]
+- Brain metastasis models: [Yes/No]
 
-#### Biomarkers
-Target Engagement Biomarkers: [Describe available TE biomarkers]
-Pharmacodynamic Biomarkers: [Describe available PD biomarkers]
+**Biomarkers:**
+- Target engagement biomarkers: [Validated/Available but not validated/Not available] - describe:
+- Pharmacodynamic biomarkers: [Validated/Available but not validated/Not available] - describe:
 
 **NSCLC-Specific Biomarker Landscape:**
-- ctDNA/cfDNA: Standard for EGFR/KRAS mutation monitoring, resistance detection
-- PD-L1 IHC: 22C3/28-8 assays for IO patient selection
-- NGS panels: Comprehensive genomic profiling standard of care
-- ALK/ROS1 FISH/IHC: Standard for fusion detection
+- ctDNA/cfDNA for EGFR/KRAS mutation monitoring: [Available/Developing/None]
+- PD-L1 IHC (22C3/28-8): [Available/Developing/None]
+- NGS panels: [Available/Developing/None]
 
-Validation Status:
-- [ ] Validated NSCLC disease models AND target engagement AND PD biomarkers exist
-- [ ] Disease models AND TE AND PD biomarkers available but not validated
-- [ ] Disease models AND TE AND PD biomarkers not available
-- [ ] Models include EGFR/KRAS mutant representation (strategic priority)
-- [ ] Models include STK11/KEAP1 co-mutation phenotypes (IO resistance)
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 4. Clinical Risk Assessment
 
-#### Definition of Patient Population
-Patient Selection Strategy: [Describe how patients will be identified or stratified]
+#### Risk Level Criteria
+
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Clearly defined patient population and clinical-grade biomarker assay available (e.g., a kinase mutation in cancer) **AND** feasible trial (incl. acceptable recruitment timeline and screen-to-enrollment ratio) |
+| **MEDIUM** | Biomarker assay needs further development or has clinical interpretation challenges (e.g., establishing a clear copy number cutoff) **OR** trial has feasibility challenges (e.g., somewhat high screen-to-enrollment ratio) |
+| **HIGH** | Difficult path for patient selection biomarker (e.g., establishment of a target expression cutoff) **OR** trial has significant feasibility challenges (e.g., very high screen-to-enrollment ratio, or other recruitment challenges) |
+
+**Decision Rule:** Evaluate left-to-right. LOW requires BOTH biomarker AND trial feasibility criteria. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
+
+#### Evidence Documentation
+
+**Patient Population Definition:**
+[Describe how patients will be identified or stratified]
 
 **NSCLC Population Stratification:**
-- [ ] All-comer NSCLC population
-- [ ] Non-AGA NSCLC (no actionable genomic alterations) - **High strategic priority (2L)**
-- [ ] EGFR-mutant NSCLC - **High strategic priority (2L post-TKI)**
-- [ ] KRAS-mutant NSCLC - **High strategic priority (1L/2L)**
-  - [ ] KRAS G12C (~13%)
-  - [ ] KRAS non-G12C (~12%)
-- [ ] STK11/KEAP1-mutant NSCLC (IO-resistant population)
-- [ ] PD-L1 high (TPS ≥50% or CPS ≥10)
-- [ ] LUAD (adenocarcinoma) vs LUSC (squamous)
+- All-comer NSCLC: [Yes/No]
+- Non-AGA NSCLC (no actionable genomic alterations): [Yes/No] - **High strategic priority (2L)**
+- EGFR-mutant NSCLC: [Yes/No] - **High strategic priority (2L post-TKI)**
+- KRAS-mutant NSCLC: [Yes/No] - **High strategic priority (1L/2L)**
+  - KRAS G12C (~13%): [Yes/No]
+  - KRAS non-G12C (~12%): [Yes/No]
+- STK11/KEAP1-mutant NSCLC (IO-resistant): [Yes/No]
+- PD-L1 high (TPS ≥50% or CPS ≥10): [Yes/No]
+- LUAD (adenocarcinoma) vs LUSC (squamous): [Specify]
 
-Biomarker Strategy: [Describe biomarker assay readiness, challenges]
+**Biomarker Strategy:**
+- Patient selection biomarker: [Clinical-grade available/Needs development/Difficult path]
+- Clinical interpretation: [Clear/Challenges exist/Significant challenges]
 
 **NSCLC Biomarker Testing Considerations:**
 - EGFR/KRAS/ALK/ROS1/BRAF/MET/RET testing: Standard of care at diagnosis
@@ -243,9 +268,10 @@ Biomarker Strategy: [Describe biomarker assay readiness, challenges]
 - STK11/KEAP1 testing: Emerging for IO resistance prediction
 - NGS panels: Increasingly standard, enables comprehensive profiling
 
-#### Trial Feasibility
-Recruitment Considerations: [Describe patient recruitment timeline, center availability]
-Screen-to-Enrollment Ratio: [Estimated ratio or feasibility commentary]
+**Trial Feasibility:**
+- Recruitment timeline: [Acceptable/Challenging/Significant challenges]
+- Screen-to-enrollment ratio: [Acceptable/Somewhat high/Very high]
+- Competing trials impact: [Low/Moderate/High]
 
 **NSCLC-Specific Trial Considerations:**
 - Large patient population globally (~2.2M new cases/year)
@@ -254,26 +280,32 @@ Screen-to-Enrollment Ratio: [Estimated ratio or feasibility commentary]
 - KRAS mutant population: ~25% of NSCLC, G12C has competing trials
 - Competing trials: Extensive NSCLC trial landscape, particularly in 1L
 
-Clinical Risk Factors:
-- [ ] Clearly defined patient population and clinical-grade biomarker assay available
-- [ ] Biomarker assay needs further development or has clinical interpretation challenges
-- [ ] Difficult path for patient selection biomarker
-- [ ] Feasible trial with acceptable recruitment timeline
-- [ ] Trial has feasibility challenges
-- [ ] Trial has significant feasibility challenges
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 5. Safety Risk Assessment
 
-#### In Silico/Vitro/Vivo Safety Signals
-Safety Data: [Summarize available safety data from literature or preclinical tests]
+#### Risk Level Criteria
 
-#### Target Biology
-Known Safety Concerns: [Describe on-target or compound-class safety issues]
-Safety Biomarkers: [Availability of premonitory safety biomarkers]
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Target safety is clinically validated, no anticipated compound class risks, **OR** safety risks are minimal, mitigated and acceptable for intended patient population |
+| **MEDIUM** | Some evidence of target- or compound class-related risks. R/B is likely manageable for the intended patient population. Premonitory safety biomarkers available |
+| **HIGH** | Strong evidence of target- or compound class-related risks. R/B questionable for intended patient population **AND** no premonitory safety biomarkers available |
+
+**Decision Rule:** Evaluate left-to-right. HIGH requires BOTH strong evidence of risks AND absence of premonitory biomarkers. If LOW criteria not met, check MEDIUM. If neither met, assign HIGH.
+
+#### Evidence Documentation
+
+**In Silico/Vitro/Vivo Safety Signals:**
+[Summarize available safety data from literature or preclinical tests]
+
+**Target Biology:**
+- Known on-target safety concerns: [None/Minimal/Some/Strong evidence]
+- Compound class-related risks: [None/Minimal/Some/Strong evidence]
+- Expression in normal tissues (on-target toxicity risk): [Low/Moderate/High]
 
 **NSCLC Patient Population Safety Considerations:**
 - Often elderly population (median age ~70)
@@ -282,24 +314,34 @@ Safety Biomarkers: [Availability of premonitory safety biomarkers]
 - Prior IO exposure: consider immune-related AE history
 - Prior TKI exposure (EGFR mutant): consider cardiotoxicity history
 
-Safety Assessment:
-- [ ] Target safety is clinically validated, no anticipated compound class risks
-- [ ] Safety risks are minimal, mitigated and acceptable for intended patient population
-- [ ] Some evidence of target- or compound class-related risks
-- [ ] Strong evidence of target- or compound class-related risks
-- [ ] R/B likely manageable for intended patient population
-- [ ] R/B questionable for intended patient population
-- [ ] Premonitory safety biomarkers available
-- [ ] No premonitory safety biomarkers available
+**Safety Biomarkers:**
+- Premonitory safety biomarkers: [Available/Not available]
+- Describe available biomarkers: [List if available]
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Risk/Benefit Assessment:**
+- R/B for intended patient population: [Favorable/Likely manageable/Questionable]
+
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
+
+**Justification:** [Explain which criteria are met/not met, cite PMIDs]
 
 ----------------------------------------------------------------------------------------------------
 ### 6. Commercial/Competitive Risk Assessment
 
-#### Patient Unmet Need
-Current Treatment Landscape: [Describe standard-of-care, recognized gaps]
+#### Risk Level Criteria
+
+| Risk Level | Criteria |
+|------------|----------|
+| **LOW** | Large market (at least **$5 bn**) **AND** Competitive product profile (e.g., first to market, BiC profile, 2nd to market with limited entrants behind) *allow for exceptions in some cases |
+| **MEDIUM** | Everything that is not Low or High risk |
+| **HIGH** | Small market (under **$0.5 bn**) **OR** High competitive intensity (e.g., **4th to market or later**) with no significant differentiation **OR** Poor strategic fit/commercial synergies |
+
+**Decision Rule:** Evaluate left-to-right. LOW requires BOTH large market AND competitive profile. HIGH if ANY of the three conditions are met. MEDIUM is the default if neither LOW nor HIGH criteria are met.
+
+#### Evidence Documentation
+
+**Patient Unmet Need:**
+[Describe standard-of-care, recognized gaps]
 
 **NSCLC Current Standard of Care:**
 
@@ -318,8 +360,8 @@ Current Treatment Landscape: [Describe standard-of-care, recognized gaps]
 - 2L EGFR mutant: Post-osimertinib, resistance mechanisms emerging
 - 1L/2L KRAS mutant: G12C has options; non-G12C needs targeted therapy
 
-#### Addressable Patient Population
-Market Size: [Estimate or reference patient population]
+**Market Size Assessment:**
+- Estimated market size: [≥$5bn / $0.5-5bn / <$0.5bn]
 
 **NSCLC Epidemiology:**
 - Global incidence: ~2.2 million new cases annually
@@ -328,8 +370,9 @@ Market Size: [Estimate or reference patient population]
 - EGFR-mutant: ~15% of NSCLC (~330K patients)
 - KRAS-mutant: ~25% of NSCLC (~550K patients)
 
-#### Competition
-Competitive Landscape: [Discuss competing programs, patent coverage, generics, etc.]
+**Competitive Position:**
+- Market entry position: [1st to market / 2nd with limited entrants / 3rd / 4th or later]
+- Differentiation potential: [Significant / Moderate / Limited / None]
 
 **NSCLC Competitive Landscape (iDAS Intelligence):**
 
@@ -345,20 +388,13 @@ Competitive Landscape: [Discuss competing programs, patent coverage, generics, e
 | PD-1 + TIGIT | Tiragolumab, others | Phase 3 | Mixed results |
 | ADCs | Multiple targets | Phase 1-3 | HER3, TROP2, B7-H3 |
 
-**Strategic Differentiation Considerations:**
-- First-in-class potential vs. best-in-class strategy
-- Combination potential with IO (non-AGA) or TKIs (EGFR/KRAS)
-- CNS penetration (brain metastases in ~20-40% of NSCLC)
-- Oral vs. IV formulation considerations
-- Cross-indication potential (SCLC, other solid tumors)
+**Strategic Fit:**
+- Strategic fit/commercial synergies: [Strong / Moderate / Poor]
+- Differentiation considerations: [Describe]
 
-Commercial Potential:
-- [ ] Potential peak sales > $3bn
-- [ ] Potential peak sales $1-3bn
-- [ ] Potential peak sales < $1bn
+**Risk Level Assigned:** [ ] LOW [ ] MEDIUM [ ] HIGH
 
-Risk Level: [ ] Low [ ] Medium [ ] High
-Justification: [Provide reasoning for risk assessment—cite references, or propose validation approaches]
+**Justification:** [Explain which criteria are met/not met, cite sources]
 
 ----------------------------------------------------------------------------------------------------
 ## Overall Risk Assessment Summary
