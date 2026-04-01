@@ -390,6 +390,201 @@ def add_high_res_figure(pdf, img_path, title, caption):
     return False
 
 
+def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_data=None):
+    """Generate landscape (16:9) executive summary slide for presentations."""
+
+    config = DISEASE_CONFIG.get(disease.lower(), DISEASE_CONFIG['crc'])
+    disease_abbr = config['abbreviation']
+
+    # Colors
+    COLORS = {
+        'TAKEDA_RED': '#E4002B',
+        'DARK_BLUE': '#1B365D',
+        'LIGHT_BLUE': '#0077C8',
+        'GREEN': '#00843D',
+        'AMBER': '#F2A900',
+        'LIGHT_GRAY': '#F5F5F5',
+        'WHITE': '#FFFFFF',
+    }
+
+    RISK_COLORS = {'LOW': COLORS['GREEN'], 'MEDIUM': COLORS['AMBER'], 'HIGH': COLORS['TAKEDA_RED'], 'LOW-MEDIUM': COLORS['AMBER']}
+    REC_COLORS = {'PRIORITY': COLORS['GREEN'], 'GO': COLORS['LIGHT_BLUE'], 'CONDITIONAL': COLORS['AMBER'], 'CAUTION': COLORS['TAKEDA_RED'], 'EXCLUDE': COLORS['TAKEDA_RED']}
+
+    # Parse integrated report for slide data
+    slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
+    report_path = os.path.join(output_dir, f'{gene}_integrated_target_report.md')
+    if os.path.exists(report_path):
+        with open(report_path, 'r') as f:
+            content = f.read()
+        # Extract aliases
+        aliases_match = re.search(r'\*\*Target\*\* \| \w+ \(([^)]+)\)', content)
+        if aliases_match:
+            slide_data['aliases'] = aliases_match.group(1)
+        # Extract modality
+        modality_match = re.search(r'\*\*Modality\*\*[:\s]*(\w+)', content)
+        if modality_match:
+            slide_data['modality'] = modality_match.group(1)
+        # Extract toxicity data
+        tox_pattern = r'\| (TCGA[^|]+Adjacent[^|]*) \|[^|]+\|[^|]+\|[^|]+\|[^|]+\| \*\*(\d+\.?\d*)x\*\* \| (\w+)'
+        for comparison, fc, risk in re.findall(tox_pattern, content)[:4]:
+            subtype = 'LUSC' if 'LUSC' in comparison else 'LUAD' if 'LUAD' in comparison else \
+                      'RAS WT MSS' if 'RASWT' in comparison else 'RAS Mut MSS' if 'RASMut' in comparison else \
+                      'MSI-H' if 'MSIH' in comparison else 'Resectable' if 'Resectable' in comparison else None
+            if subtype:
+                slide_data['toxicity_data'].append({'subtype': subtype, 'fold_change': f'{fc}x', 'risk': risk.upper()})
+        # Extract iDAS data
+        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \d+% \| [\d,]+ \| \*\*(\w+)\*\*'
+        for ws, expr, alignment in re.findall(idas_pattern, content)[:4]:
+            slide_data['idas_data'].append({'whitespace': ws.strip()[:22], 'expression': expr, 'alignment': alignment})
+        # Extract subgroup recommendations
+        subgroup_section = re.search(r'### 6\.3 Subgroup-Specific.*?\n(.*?)\n\n---', content, re.DOTALL)
+        if subgroup_section:
+            for line in subgroup_section.group(1).split('\n'):
+                match = re.search(r'\| ([^|]+) \| \*\*(\w+)\*\* \| \w+(?:-\w+)? \| ([^|]+) \|', line)
+                if match:
+                    pop, rec, rationale = match.groups()
+                    if pop.strip() and not pop.strip().startswith('-'):
+                        slide_data['subgroup_data'].append({'population': pop.strip()[:18], 'recommendation': rec.upper(), 'rationale': rationale.strip()[:20]})
+        # Extract takeaways
+        conclusions_match = re.search(r'## 7\. Conclusions.*?demonstrates:(.*?)---', content, re.DOTALL)
+        if conclusions_match:
+            for line in conclusions_match.group(1).split('\n'):
+                if line.strip().startswith(('1.', '2.', '3.', '4.', '5.')):
+                    slide_data['takeaways'].append(re.sub(r'\*\*([^*]+)\*\*', r'\1', line.strip()))
+
+    # Set up figure (16:9 landscape)
+    fig = plt.figure(figsize=(16, 9), facecolor='white')
+
+    # === TITLE BAR ===
+    title_rect = mpatches.FancyBboxPatch((0.02, 0.88), 0.96, 0.10,
+                                          boxstyle="round,pad=0.01,rounding_size=0.01",
+                                          facecolor=COLORS['DARK_BLUE'], transform=fig.transFigure, zorder=1)
+    fig.patches.append(title_rect)
+    fig.text(0.5, 0.93, f'{gene} Target Evaluation: {disease_abbr}',
+             fontsize=28, fontweight='bold', color=COLORS['WHITE'], ha='center', va='center')
+    if slide_data['aliases']:
+        fig.text(0.5, 0.895, slide_data['aliases'], fontsize=14, color='#B8D4E8', ha='center', va='center')
+
+    # Recommendation badge
+    rec = report_data.get('recommendation', 'GO') if report_data else 'GO'
+    rec_text = 'GO - PRIORITY' if 'GO' in rec.upper() and 'NO-GO' not in rec.upper() else rec.upper()
+    rec_color = COLORS['GREEN'] if 'GO' in rec.upper() and 'NO-GO' not in rec.upper() else COLORS['TAKEDA_RED']
+    badge_rect = mpatches.FancyBboxPatch((0.75, 0.89), 0.22, 0.07,
+                                          boxstyle="round,pad=0.01,rounding_size=0.02",
+                                          facecolor=rec_color, transform=fig.transFigure, zorder=2)
+    fig.patches.append(badge_rect)
+    fig.text(0.86, 0.925, rec_text, fontsize=16, fontweight='bold', color=COLORS['WHITE'], ha='center', va='center')
+
+    # === LEFT COLUMN: Key Metrics ===
+    # Score box
+    score_rect = mpatches.FancyBboxPatch((0.02, 0.70), 0.30, 0.15,
+                                          boxstyle="round,pad=0.01,rounding_size=0.02",
+                                          facecolor=COLORS['LIGHT_GRAY'], edgecolor=COLORS['DARK_BLUE'], linewidth=2,
+                                          transform=fig.transFigure)
+    fig.patches.append(score_rect)
+    fig.text(0.17, 0.82, 'ScholarEval Score', fontsize=12, fontweight='bold', color=COLORS['DARK_BLUE'], ha='center')
+    score = report_data.get('score', '4.0/5.0') if report_data else '4.0/5.0'
+    fig.text(0.17, 0.74, score, fontsize=32, fontweight='bold', color=COLORS['DARK_BLUE'], ha='center')
+    assessment = report_data.get('assessment', 'Strong') if report_data else 'Strong'
+    fig.text(0.17, 0.715, assessment, fontsize=14, color=COLORS['GREEN'], ha='center', fontweight='bold')
+
+    # Risk box
+    risk = report_data.get('risk_profile', 'LOW-MEDIUM') if report_data else 'LOW-MEDIUM'
+    risk_color = RISK_COLORS.get(risk.upper(), COLORS['AMBER'])
+    risk_rect = mpatches.FancyBboxPatch((0.02, 0.52), 0.30, 0.15,
+                                         boxstyle="round,pad=0.01,rounding_size=0.02",
+                                         facecolor=COLORS['LIGHT_GRAY'], edgecolor=risk_color, linewidth=2,
+                                         transform=fig.transFigure)
+    fig.patches.append(risk_rect)
+    fig.text(0.17, 0.64, 'Overall Risk Profile', fontsize=12, fontweight='bold', color=COLORS['DARK_BLUE'], ha='center')
+    fig.text(0.17, 0.56, risk.upper(), fontsize=20 if len(risk) > 6 else 24, fontweight='bold', color=risk_color, ha='center')
+
+    # Modality box
+    mod_rect = mpatches.FancyBboxPatch((0.02, 0.34), 0.30, 0.15,
+                                        boxstyle="round,pad=0.01,rounding_size=0.02",
+                                        facecolor=COLORS['LIGHT_GRAY'], edgecolor=COLORS['LIGHT_BLUE'], linewidth=2,
+                                        transform=fig.transFigure)
+    fig.patches.append(mod_rect)
+    fig.text(0.17, 0.46, 'Recommended Modality', fontsize=12, fontweight='bold', color=COLORS['DARK_BLUE'], ha='center')
+    fig.text(0.17, 0.38, slide_data['modality'], fontsize=24, fontweight='bold', color=COLORS['LIGHT_BLUE'], ha='center')
+
+    # === MIDDLE COLUMN: On-Target Toxicity & iDAS ===
+    fig.text(0.35, 0.84, 'On-Target Toxicity (Tumor vs Adjacent)', fontsize=14, fontweight='bold', color=COLORS['DARK_BLUE'])
+    y = 0.78
+    for item in slide_data['toxicity_data'][:4]:
+        risk_col = RISK_COLORS.get(item['risk'], COLORS['GREEN'])
+        fig.text(0.36, y, item['subtype'], fontsize=11, color=COLORS['DARK_BLUE'])
+        fig.text(0.48, y, item['fold_change'], fontsize=11, fontweight='bold', color=COLORS['DARK_BLUE'])
+        badge = mpatches.FancyBboxPatch((0.54, y - 0.012), 0.06, 0.03,
+                                         boxstyle="round,pad=0.005,rounding_size=0.01",
+                                         facecolor=risk_col, transform=fig.transFigure)
+        fig.patches.append(badge)
+        fig.text(0.57, y, item['risk'], fontsize=9, fontweight='bold', color=COLORS['WHITE'], ha='center')
+        y -= 0.042 if len(slide_data['toxicity_data']) > 3 else 0.05
+
+    # iDAS Section
+    idas_y = 0.58 if len(slide_data['toxicity_data']) <= 2 else 0.54
+    fig.text(0.35, idas_y + 0.06, 'iDAS Priority Whitespace Alignment', fontsize=14, fontweight='bold', color=COLORS['DARK_BLUE'])
+    y = idas_y
+    for item in slide_data['idas_data'][:4]:
+        fig.text(0.36, y, item['whitespace'], fontsize=10, color=COLORS['DARK_BLUE'])
+        fig.text(0.54, y, item['expression'], fontsize=9, color='gray')
+        badge = mpatches.FancyBboxPatch((0.60, y - 0.012), 0.055, 0.03,
+                                         boxstyle="round,pad=0.005,rounding_size=0.01",
+                                         facecolor=COLORS['GREEN'], transform=fig.transFigure)
+        fig.patches.append(badge)
+        fig.text(0.6275, y, item['alignment'], fontsize=8, fontweight='bold', color=COLORS['WHITE'], ha='center')
+        y -= 0.042 if len(slide_data['idas_data']) > 3 else 0.05
+
+    # === RIGHT COLUMN: Subgroup Recommendations ===
+    fig.text(0.68, 0.84, 'Subgroup Recommendations', fontsize=14, fontweight='bold', color=COLORS['DARK_BLUE'])
+    y = 0.78
+    has_exclusions = False
+    for item in slide_data['subgroup_data'][:5]:
+        rec = item['recommendation']
+        color = REC_COLORS.get(rec, COLORS['LIGHT_BLUE'])
+        if rec in ['CAUTION', 'EXCLUDE']:
+            has_exclusions = True
+        fig.text(0.69, y, item['population'], fontsize=11, color=COLORS['DARK_BLUE'])
+        badge_w = 0.09 if rec == 'CONDITIONAL' else 0.07
+        badge = mpatches.FancyBboxPatch((0.87, y - 0.015), badge_w, 0.035,
+                                         boxstyle="round,pad=0.005,rounding_size=0.01",
+                                         facecolor=color, transform=fig.transFigure)
+        fig.patches.append(badge)
+        fig.text(0.87 + badge_w/2, y, rec, fontsize=9, fontweight='bold', color=COLORS['WHITE'], ha='center')
+        fig.text(0.69, y - 0.025, item['rationale'], fontsize=9, color='gray')
+        y -= 0.065
+    if not has_exclusions and slide_data['subgroup_data']:
+        fig.text(0.69, y + 0.01, 'No exclusion criteria needed', fontsize=10, color=COLORS['GREEN'], fontstyle='italic')
+
+    # === BOTTOM: Key Takeaways ===
+    takeaway_rect = mpatches.FancyBboxPatch((0.02, 0.02), 0.96, 0.28,
+                                             boxstyle="round,pad=0.01,rounding_size=0.02",
+                                             facecolor='#E8F4E8', edgecolor=COLORS['GREEN'], linewidth=2,
+                                             transform=fig.transFigure)
+    fig.patches.append(takeaway_rect)
+    fig.text(0.5, 0.27, 'Key Takeaways', fontsize=16, fontweight='bold', color=COLORS['DARK_BLUE'], ha='center')
+    y = 0.22
+    for takeaway in slide_data['takeaways'][:5]:
+        text = takeaway[:100] + '...' if len(takeaway) > 100 else takeaway
+        fig.text(0.05, y, text, fontsize=12, color=COLORS['DARK_BLUE'])
+        y -= 0.04
+
+    # Footer
+    date_str = report_data.get('date', date.today().isoformat()) if report_data else date.today().isoformat()
+    fig.text(0.02, 0.005, f'Generated: {date_str} | Oncology Target Evaluation Pipeline v2.0', fontsize=9, color='gray')
+    fig.text(0.98, 0.005, f'Data Sources: {config["tcga_projects"]}, GTEx, Tempus RWD', fontsize=9, color='gray', ha='right')
+
+    # Save
+    png_path = os.path.join(output_dir, f'{gene}_summary_slide.png')
+    pdf_path = os.path.join(output_dir, f'{gene}_summary_slide.pdf')
+    plt.savefig(png_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
+    plt.savefig(pdf_path, bbox_inches='tight', facecolor='white', edgecolor='none')
+    plt.close(fig)
+    print(f"  Landscape summary slide: {gene}_summary_slide.png / .pdf")
+    return png_path, pdf_path
+
+
 def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
     """Generate the complete PDF report for a target gene."""
 
@@ -422,160 +617,220 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
 
     print(f"Generating PDF report for {gene} ({disease_abbr})...")
 
-    # ===== PAGE 1: TITLE =====
+    # ===== PAGE 1: EXECUTIVE SUMMARY SLIDE (Portrait) =====
     fig1, ax1 = plt.subplots(figsize=(8.5, 11))
     ax1.axis('off')
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 1)
 
-    margin = 0.12
+    # Colors
+    COLORS = {
+        'DARK_BLUE': '#1B365D',
+        'LIGHT_BLUE': '#0077C8',
+        'GREEN': '#00843D',
+        'AMBER': '#F2A900',
+        'RED': '#E4002B',
+        'LIGHT_GRAY': '#F5F5F5',
+    }
 
-    # Header Banner
-    header_rect = mpatches.FancyBboxPatch((margin, 0.84), 1.0 - 2*margin, 0.14,
-                                           boxstyle="round,pad=0.01,rounding_size=0.02",
-                                           facecolor='#1a252f', transform=ax1.transAxes)
-    ax1.add_patch(header_rect)
-    ax1.plot([margin, 1-margin], [0.84, 0.84], color='#3498db', linewidth=3, transform=ax1.transAxes)
+    # Parse additional data from integrated report
+    slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
+    report_path = os.path.join(output_dir, f'{gene}_integrated_target_report.md')
+    if os.path.exists(report_path):
+        with open(report_path, 'r') as f:
+            content = f.read()
+        # Extract aliases
+        aliases_match = re.search(r'\*\*Target\*\* \| \w+ \(([^)]+)\)', content)
+        if aliases_match:
+            slide_data['aliases'] = aliases_match.group(1)
+        # Extract modality
+        modality_match = re.search(r'\*\*Modality\*\*[:\s]*(\w+)', content)
+        if modality_match:
+            slide_data['modality'] = modality_match.group(1)
+        # Extract toxicity data
+        tox_pattern = r'\| (TCGA[^|]+Adjacent[^|]*) \|[^|]+\|[^|]+\|[^|]+\|[^|]+\| \*\*(\d+\.?\d*)x\*\* \| (\w+)'
+        for comparison, fc, risk in re.findall(tox_pattern, content)[:4]:
+            subtype = 'LUSC' if 'LUSC' in comparison else 'LUAD' if 'LUAD' in comparison else \
+                      'RAS WT MSS' if 'RASWT' in comparison else 'RAS Mut MSS' if 'RASMut' in comparison else \
+                      'MSI-H' if 'MSIH' in comparison else 'Resectable' if 'Resectable' in comparison else None
+            if subtype:
+                slide_data['toxicity_data'].append({'subtype': subtype, 'fold_change': f'{fc}x', 'risk': risk.upper()})
+        # Extract iDAS data
+        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \d+% \| [\d,]+ \| \*\*(\w+)\*\*'
+        for ws, expr, alignment in re.findall(idas_pattern, content)[:4]:
+            slide_data['idas_data'].append({'whitespace': ws.strip()[:22], 'expression': expr, 'alignment': alignment})
+        # Extract subgroup recommendations
+        subgroup_section = re.search(r'### 6\.3 Subgroup-Specific.*?\n(.*?)\n\n---', content, re.DOTALL)
+        if subgroup_section:
+            for line in subgroup_section.group(1).split('\n'):
+                match = re.search(r'\| ([^|]+) \| \*\*(\w+)\*\* \| \w+(?:-\w+)? \| ([^|]+) \|', line)
+                if match:
+                    pop, rec, rationale = match.groups()
+                    if pop.strip() and not pop.strip().startswith('-'):
+                        slide_data['subgroup_data'].append({'population': pop.strip()[:18], 'recommendation': rec.upper(), 'rationale': rationale.strip()[:20]})
+        # Extract takeaways
+        conclusions_match = re.search(r'## 7\. Conclusions.*?demonstrates:(.*?)---', content, re.DOTALL)
+        if conclusions_match:
+            for line in conclusions_match.group(1).split('\n'):
+                if line.strip().startswith(('1.', '2.', '3.', '4.', '5.')):
+                    slide_data['takeaways'].append(re.sub(r'\*\*([^*]+)\*\*', r'\1', line.strip()))
 
-    ax1.text(0.5, 0.93, 'TARGET EVALUATION REPORT', fontsize=11, fontweight='bold',
-             ha='center', transform=ax1.transAxes, color='#95a5a6')
-    ax1.text(0.5, 0.88, gene, fontsize=32, fontweight='bold', ha='center',
-             transform=ax1.transAxes, color='white')
+    # === TITLE BAR ===
+    header = mpatches.FancyBboxPatch((0.03, 0.93), 0.94, 0.055,
+                                      boxstyle="round,pad=0.01,rounding_size=0.01",
+                                      facecolor=COLORS['DARK_BLUE'], transform=ax1.transAxes)
+    ax1.add_patch(header)
+    ax1.text(0.35, 0.96, f'{gene} Target Evaluation: {disease_abbr}', fontsize=16, fontweight='bold',
+             ha='center', transform=ax1.transAxes, color='white')
+    if slide_data['aliases']:
+        ax1.text(0.35, 0.938, slide_data['aliases'], fontsize=8, ha='center', transform=ax1.transAxes, color='#B8D4E8')
 
-    # Subtitle - Disease-specific
-    ax1.text(0.5, 0.78, f'{disease_full} ({disease_abbr}) — Integrated Assessment',
-             fontsize=12, ha='center', transform=ax1.transAxes, color='#34495e')
-    ax1.plot([0.25, 0.75], [0.75, 0.75], color='#bdc3c7', linewidth=1, transform=ax1.transAxes)
-
-    # Recommendation Badge
+    # Recommendation badge
     recommendation = report_data.get('recommendation', 'GO') if report_data else 'GO'
     rec_upper = recommendation.upper().strip()
-    if 'CONDITIONAL' in rec_upper and 'NO-GO' in rec_upper:
-        rec_color = '#c0392b'
-        rec_bg = '#fadbd8'
-        rec_text = 'CONDITIONAL NO-GO'
-        rec_subtitle = 'Fundamental Safety Barrier'
-    elif 'NO-GO' in rec_upper:
-        rec_color = '#c0392b'
-        rec_bg = '#fadbd8'
-        rec_text = 'NO-GO'
-        rec_subtitle = 'Not Recommended'
-    elif rec_upper == 'GO':
-        rec_color = '#1e8449'
-        rec_bg = '#d5f5e3'
-        rec_text = 'GO'
-        rec_subtitle = 'Advance to Development'
-    else:
-        rec_color = '#d68910'
-        rec_bg = '#fef9e7'
-        rec_text = rec_upper[:20] if len(rec_upper) > 20 else rec_upper
-        rec_subtitle = 'Conditional Approval'
+    rec_color = COLORS['GREEN'] if 'GO' in rec_upper and 'NO-GO' not in rec_upper else COLORS['RED']
+    rec_text = 'GO - PRIORITY' if rec_upper == 'GO' else rec_upper
+    badge = mpatches.FancyBboxPatch((0.72, 0.942), 0.22, 0.035,
+                                     boxstyle="round,pad=0.008,rounding_size=0.012",
+                                     facecolor=rec_color, transform=ax1.transAxes, zorder=5)
+    ax1.add_patch(badge)
+    ax1.text(0.83, 0.96, rec_text, fontsize=9, fontweight='bold', ha='center', transform=ax1.transAxes, color='white', zorder=6)
 
-    rec_fontsize = 24 if len(rec_text) <= 5 else 20 if len(rec_text) <= 12 else 16
+    # === ROW 1: Key Metrics (3 boxes - compact boxes, original font) ===
+    score = report_data.get('score', 'TBD') if report_data else 'TBD'
+    risk = report_data.get('risk_profile', 'TBD') if report_data else 'TBD'
+    risk_color = COLORS['GREEN'] if risk == 'LOW' else COLORS['AMBER'] if 'MEDIUM' in risk else COLORS['RED']
 
-    rec_width = 0.56
-    rec_x = (1 - rec_width) / 2
-    rec_rect = mpatches.FancyBboxPatch((rec_x, 0.60), rec_width, 0.12,
-                                        boxstyle="round,pad=0.015,rounding_size=0.02",
-                                        facecolor=rec_bg, edgecolor=rec_color, linewidth=3,
-                                        transform=ax1.transAxes)
-    ax1.add_patch(rec_rect)
-    ax1.text(0.5, 0.68, rec_text, fontsize=rec_fontsize, fontweight='bold', ha='center',
-             transform=ax1.transAxes, color=rec_color)
-    ax1.text(0.5, 0.625, rec_subtitle, fontsize=10, ha='center',
-             transform=ax1.transAxes, color=rec_color, style='italic')
-
-    # Key Metrics Cards
     metrics = [
-        ('ScholarEval Score', report_data.get('score', 'TBD') if report_data else 'TBD', '#2980b9'),
-        ('Risk Profile', report_data.get('risk_profile', 'TBD') if report_data else 'TBD', '#8e44ad'),
-        ('Fold Change', report_data.get('fold_change', 'TBD') if report_data else 'TBD', '#16a085'),
+        ('ScholarEval Score', score, COLORS['DARK_BLUE']),
+        ('Risk Profile', risk, risk_color),
+        ('Modality', slide_data['modality'], COLORS['LIGHT_BLUE']),
     ]
-
-    card_width = 0.20
-    card_height = 0.11
-    total_cards_width = 3 * card_width + 2 * 0.04
-    start_x = (1 - total_cards_width) / 2
-    spacing = card_width + 0.04
-
     for i, (label, value, color) in enumerate(metrics):
-        x = start_x + i * spacing
-        card = mpatches.FancyBboxPatch((x, 0.42), card_width, card_height,
-                                        boxstyle="round,pad=0.01,rounding_size=0.015",
-                                        facecolor='white', edgecolor=color, linewidth=2,
-                                        transform=ax1.transAxes)
-        ax1.add_patch(card)
-        accent = mpatches.FancyBboxPatch((x, 0.515), card_width, 0.015,
-                                          boxstyle="round,pad=0,rounding_size=0.008",
-                                          facecolor=color, transform=ax1.transAxes)
-        ax1.add_patch(accent)
-        ax1.text(x + card_width/2, 0.49, label, fontsize=8, fontweight='bold',
-                 ha='center', transform=ax1.transAxes, color='#7f8c8d')
-        ax1.text(x + card_width/2, 0.45, value, fontsize=11, fontweight='bold',
-                 ha='center', transform=ax1.transAxes, color=color)
+        x = 0.03 + i * 0.32
+        box = mpatches.FancyBboxPatch((x, 0.855), 0.30, 0.055, boxstyle="round,pad=0.008,rounding_size=0.01",
+                                       facecolor=COLORS['LIGHT_GRAY'], edgecolor=color, linewidth=2, transform=ax1.transAxes)
+        ax1.add_patch(box)
+        ax1.text(x + 0.15, 0.895, label, fontsize=8, fontweight='bold', ha='center', transform=ax1.transAxes, color='#666')
+        ax1.text(x + 0.15, 0.865, value, fontsize=14, fontweight='bold', ha='center', transform=ax1.transAxes, color=color)
 
-    # Report Details
-    ax1.plot([0.25, 0.75], [0.36, 0.36], color='#ecf0f1', linewidth=1, transform=ax1.transAxes)
-    date_str = report_data.get('date', date.today().isoformat()) if report_data else date.today().isoformat()
-    assessment = report_data.get('assessment', 'TBD') if report_data else 'TBD'
-    detail_text = f"Date: {date_str}  |  Target: {gene}  |  Indication: {disease_abbr}  |  Assessment: {assessment}"
-    ax1.text(0.5, 0.32, detail_text, fontsize=9, ha='center', transform=ax1.transAxes, color='#5d6d7e')
+    # === ROW 2: On-Target Toxicity & iDAS (side by side) ===
+    # Left: Toxicity
+    ax1.text(0.03, 0.82, 'On-Target Toxicity (Tumor vs Adjacent)', fontsize=10, fontweight='bold', transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+    y = 0.79
+    for item in slide_data['toxicity_data'][:4]:
+        risk_col = COLORS['GREEN'] if item['risk'] == 'LOW' else COLORS['AMBER'] if item['risk'] == 'MEDIUM' else COLORS['RED']
+        ax1.text(0.04, y, item['subtype'], fontsize=9, transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+        ax1.text(0.22, y, item['fold_change'], fontsize=9, fontweight='bold', transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+        badge = mpatches.FancyBboxPatch((0.30, y - 0.008), 0.08, 0.022, boxstyle="round,pad=0.003,rounding_size=0.008",
+                                         facecolor=risk_col, transform=ax1.transAxes)
+        ax1.add_patch(badge)
+        ax1.text(0.34, y, item['risk'], fontsize=7, fontweight='bold', ha='center', transform=ax1.transAxes, color='white')
+        y -= 0.03
 
-    # Pipeline Footer
-    footer_rect = mpatches.FancyBboxPatch((margin, 0.10), 1.0 - 2*margin, 0.12,
-                                           boxstyle="round,pad=0.01,rounding_size=0.015",
+    # Right: iDAS
+    ax1.text(0.52, 0.82, 'iDAS Priority Whitespace Alignment', fontsize=10, fontweight='bold', transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+    y = 0.79
+    for item in slide_data['idas_data'][:4]:
+        ax1.text(0.53, y, item['whitespace'], fontsize=8, transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+        ax1.text(0.78, y, item['expression'], fontsize=8, transform=ax1.transAxes, color='gray')
+        badge = mpatches.FancyBboxPatch((0.86, y - 0.008), 0.10, 0.022, boxstyle="round,pad=0.003,rounding_size=0.008",
+                                         facecolor=COLORS['GREEN'], transform=ax1.transAxes)
+        ax1.add_patch(badge)
+        ax1.text(0.91, y, item['alignment'], fontsize=7, fontweight='bold', ha='center', transform=ax1.transAxes, color='white')
+        y -= 0.03
+
+    # === ROW 3: Subgroup Recommendations ===
+    ax1.text(0.03, 0.65, 'Subgroup Recommendations', fontsize=10, fontweight='bold', transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+    y = 0.62
+    rec_colors = {'PRIORITY': COLORS['GREEN'], 'GO': COLORS['LIGHT_BLUE'], 'CONDITIONAL': COLORS['AMBER'], 'CAUTION': COLORS['RED'], 'EXCLUDE': COLORS['RED']}
+    has_exclusions = False
+    for item in slide_data['subgroup_data'][:5]:
+        rec = item['recommendation']
+        color = rec_colors.get(rec, COLORS['LIGHT_BLUE'])
+        if rec in ['CAUTION', 'EXCLUDE']:
+            has_exclusions = True
+        ax1.text(0.04, y, item['population'], fontsize=9, transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+        ax1.text(0.28, y, item['rationale'], fontsize=7, transform=ax1.transAxes, color='gray')
+        badge_w = 0.12 if rec == 'CONDITIONAL' else 0.09
+        badge = mpatches.FancyBboxPatch((0.85, y - 0.008), badge_w, 0.022, boxstyle="round,pad=0.003,rounding_size=0.008",
+                                         facecolor=color, transform=ax1.transAxes)
+        ax1.add_patch(badge)
+        ax1.text(0.85 + badge_w/2, y, rec, fontsize=7, fontweight='bold', ha='center', transform=ax1.transAxes, color='white')
+        y -= 0.032
+    if not has_exclusions and slide_data['subgroup_data']:
+        ax1.text(0.04, y + 0.008, 'No exclusion criteria needed', fontsize=8, fontstyle='italic', transform=ax1.transAxes, color=COLORS['GREEN'])
+
+    # === ROW 4: Key Takeaways ===
+    takeaway_box = mpatches.FancyBboxPatch((0.03, 0.27), 0.94, 0.17, boxstyle="round,pad=0.01,rounding_size=0.01",
+                                            facecolor='#E8F4E8', edgecolor=COLORS['GREEN'], linewidth=2, transform=ax1.transAxes)
+    ax1.add_patch(takeaway_box)
+    ax1.text(0.5, 0.425, 'Key Takeaways', fontsize=12, fontweight='bold', ha='center', transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+    y = 0.395
+    for takeaway in slide_data['takeaways'][:5]:
+        text = takeaway[:90] + '...' if len(takeaway) > 90 else takeaway
+        ax1.text(0.05, y, text, fontsize=8, transform=ax1.transAxes, color=COLORS['DARK_BLUE'])
+        y -= 0.028
+
+    # === Pipeline Footer (bottom) ===
+    footer_rect = mpatches.FancyBboxPatch((0.03, 0.04), 0.94, 0.085,
+                                           boxstyle="round,pad=0.008,rounding_size=0.012",
                                            facecolor='#f8f9f9', edgecolor='#d5d8dc', linewidth=1,
                                            transform=ax1.transAxes)
     ax1.add_patch(footer_rect)
-
-    ax1.text(0.5, 0.185, '4-Step Evaluation Pipeline', fontsize=9, fontweight='bold',
+    ax1.text(0.5, 0.105, '4-Step Evaluation Pipeline', fontsize=9, fontweight='bold',
              ha='center', transform=ax1.transAxes, color='#2c3e50')
-
     steps = ['Risk Assessment', 'Multi-omics', 'ScholarEval', 'Report']
     step_colors = ['#3498db', '#e67e22', '#1abc9c', '#e74c3c']
-    step_spacing = 0.16
-    step_start = 0.5 - (len(steps) - 1) * step_spacing / 2
     for i, (step, scolor) in enumerate(zip(steps, step_colors)):
-        x_pos = step_start + i * step_spacing
-        ax1.plot(x_pos, 0.145, 'o', markersize=7, color=scolor, transform=ax1.transAxes)
-        ax1.text(x_pos, 0.115, step, fontsize=7, ha='center', va='top',
-                 transform=ax1.transAxes, color='#5d6d7e')
+        x_pos = 0.2 + i * 0.18
+        ax1.plot(x_pos, 0.07, 'o', markersize=7, color=scolor, transform=ax1.transAxes)
+        ax1.text(x_pos, 0.045, step, fontsize=7, ha='center', va='top', transform=ax1.transAxes, color='#5d6d7e')
         if i < len(steps) - 1:
-            ax1.annotate('', xy=(x_pos + 0.10, 0.145), xytext=(x_pos + 0.04, 0.145),
-                        arrowprops=dict(arrowstyle='->', color='#bdc3c7', lw=1.5),
-                        transform=ax1.transAxes)
+            ax1.annotate('', xy=(x_pos + 0.12, 0.07), xytext=(x_pos + 0.04, 0.07),
+                        arrowprops=dict(arrowstyle='->', color='#bdc3c7', lw=1.5), transform=ax1.transAxes)
 
-    ax1.text(0.5, 0.03, f'{disease_abbr} Target Evaluation Pipeline v2.0  |  Data: TCGA, GTEx, CCLE, Tempus, PubMed',
+    date_str = report_data.get('date', date.today().isoformat()) if report_data else date.today().isoformat()
+    ax1.text(0.5, 0.012, f'Generated: {date_str}  |  {disease_abbr} Target Evaluation Pipeline v2.0  |  Data: TCGA, GTEx, CCLE, Tempus',
              fontsize=7, ha='center', transform=ax1.transAxes, color='#aab7b8', style='italic')
 
     pdf.savefig(fig1, dpi=300, bbox_inches='tight')
     plt.close(fig1)
-    print("  Page 1: Title page")
+    print("  Page 1: Executive Summary")
 
-    # ===== PAGE 2: EXECUTIVE SUMMARY =====
-    exec_summary = f"""{gene} represents a compelling therapeutic target for {disease_full.lower()}.
-This integrated assessment combines evidence from systematic literature review,
-transcriptomic analysis of {disease_abbr} tumors from {tcga_projects}, ScholarEval target scoring,
-and comprehensive 6-category risk assessment.
+    # Generate landscape summary slide (16:9) for presentations
+    generate_landscape_summary_slide(gene, output_dir, disease, report_data)
 
-KEY FINDINGS:
-─────────────────────────────────────────────────────────────────────────────────────────
-• Significant differential expression in tumor vs normal {normal_tissue}
-• Mechanistic link to disease progression
-• Therapeutic modalities validated or under development
-• Risk-benefit profile assessed across 6 categories
-
-
-1. INTRODUCTION
+    # ===== PAGE 2: INTRODUCTION =====
+    intro_content = f"""1. INTRODUCTION
 ─────────────────────────────────────────────────────────────────────────────────────────
 {disease_intro}
 
-This report presents an integrated target evaluation following a 4-step pipeline:
+This report presents an integrated target evaluation for {gene} following a 4-step pipeline:
 (1) risk assessment framework with literature review, (2) multi-omics
 analysis, (3) ScholarEval target scoring, and (4) integrated scientific
-assessment with risk-based recommendation."""
-    text_page(pdf, 'Executive Summary', exec_summary)
-    print("  Page 2: Executive Summary")
+assessment with risk-based recommendation.
+
+
+2. EVALUATION FRAMEWORK
+─────────────────────────────────────────────────────────────────────────────────────────
+The evaluation integrates evidence from:
+
+  • Systematic literature review (PubMed)
+  • Transcriptomic analysis of {disease_abbr} tumors from {tcga_projects}
+  • Normal tissue expression from GTEx {normal_tissue}
+  • Real-world patient data from Tempus
+  • ScholarEval 8-dimension target scoring
+  • 6-category risk assessment framework
+
+KEY EVALUATION CRITERIA:
+  • Differential expression: Tumor vs adjacent normal (primary on-target toxicity metric)
+  • iDAS alignment: Expression in priority whitespace populations
+  • Druggability: Modality options and clinical validation
+  • Safety profile: Normal tissue expression and known toxicities
+  • Biomarker potential: Patient selection strategies"""
+    text_page(pdf, 'Introduction', intro_content)
+    print("  Page 2: Introduction")
 
     # ===== PAGE 3: METHODS =====
     methods = f"""2. METHODS

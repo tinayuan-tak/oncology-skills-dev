@@ -172,13 +172,13 @@ COHORT_LABELS = {
     'TCGA_Adjacent': 'Adjacent\nNormal',
     'GTEx_Colon': 'Normal\nColon\n(GTEx)',
     'CCLE_CRC': 'Cell Lines\n(CCLE)',
-    # Tempus
-    'Tempus_RASMut_MSS_1L2L': 'RAS-mut\n1L-2L\n(Tempus)',
-    'Tempus_RASMut_MSS_3Lplus': 'RAS-mut\n3L+\n(Tempus)',
-    'Tempus_RASWT_MSS_1L2L': 'RAS-WT\n1L-2L\n(Tempus)',
-    'Tempus_RASWT_MSS_3Lplus': 'RAS-WT\n3L+\n(Tempus)',
-    'Tempus_MSS_1L2L': 'MSS\n1L-2L\n(Tempus)',
-    'Tempus_MSS_3Lplus': 'MSS\n3L+\n(Tempus)',
+    # Tempus (simplified labels without "Tempus" prefix)
+    'Tempus_RASMut_MSS_1L2L': 'RAS-mut\n1L-2L',
+    'Tempus_RASMut_MSS_3Lplus': 'RAS-mut\n3L+',
+    'Tempus_RASWT_MSS_1L2L': 'RAS-WT\n1L-2L',
+    'Tempus_RASWT_MSS_3Lplus': 'RAS-WT\n3L+',
+    'Tempus_MSS_1L2L': 'MSS\n1L-2L',
+    'Tempus_MSS_3Lplus': 'MSS\n3L+',
 }
 
 CMS_COLORS = {
@@ -215,6 +215,76 @@ def truncate_tcga_id(sample_id, length=15):
     if isinstance(sample_id, str) and sample_id.startswith('TCGA'):
         return sample_id[:length]
     return sample_id
+
+
+def draw_boxplot_from_summary(ax, data_df, x_col, colors, x_labels=None):
+    """
+    Draw boxplot-style visualization from summary statistics.
+
+    Args:
+        ax: matplotlib axes
+        data_df: DataFrame with columns: group_name, mean, median, sd, q25, q75
+        x_col: column name for x-axis grouping
+        colors: list of colors for each box
+        x_labels: optional custom x-axis labels
+
+    The Tempus summary data contains q25, median, q75 which allows us to draw
+    proper box plots. Whiskers are estimated using IQR * 1.5.
+    """
+    box_stats = []
+    positions = []
+
+    for i, (_, row) in enumerate(data_df.iterrows()):
+        median = row.get('median', row.get('mean', 0))
+        q25 = row.get('q25', median - row.get('sd', 0) * 0.675)  # Fallback to ~IQR estimate
+        q75 = row.get('q75', median + row.get('sd', 0) * 0.675)
+        iqr = q75 - q25
+
+        # Whiskers: typically 1.5 * IQR from quartiles, but cap at reasonable range
+        whislo = max(0, q25 - 1.5 * iqr)  # Lower whisker (cap at 0 for expression)
+        whishi = q75 + 1.5 * iqr  # Upper whisker
+
+        # If we have SD, use it to estimate whisker range more accurately
+        if 'sd' in row and pd.notna(row['sd']):
+            mean = row.get('mean', median)
+            whislo = max(0, mean - 1.5 * row['sd'])
+            whishi = mean + 1.5 * row['sd']
+
+        box_stats.append({
+            'med': median,
+            'q1': q25,
+            'q3': q75,
+            'whislo': whislo,
+            'whishi': whishi,
+            'fliers': []  # No outliers from summary data
+        })
+        positions.append(i)
+
+    if box_stats:
+        # Draw boxplots
+        bp = ax.bxp(box_stats, positions=positions, patch_artist=True,
+                    widths=0.6, showfliers=False)
+
+        # Apply colors
+        for patch, color in zip(bp['boxes'], colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.7)
+            patch.set_edgecolor('black')
+
+        # Style median lines
+        for median_line in bp['medians']:
+            median_line.set_color('black')
+            median_line.set_linewidth(1.5)
+
+        # Set x-axis labels
+        if x_labels:
+            ax.set_xticks(positions)
+            ax.set_xticklabels(x_labels)
+        else:
+            ax.set_xticks(positions)
+            ax.set_xticklabels(data_df[x_col].tolist())
+
+    return ax
 
 
 # =============================================================================
@@ -1182,139 +1252,145 @@ def create_comprehensive_figure(gene_symbol, master_df, tempus_gene_data, assess
 
     ax2.set_title('B. On-Target Toxicity Assessment\n(Tumor vs Adjacent Normal)', fontweight='bold')
 
-    # Panel C: Tempus Line of Therapy
+    # Panel C: Tempus Line of Therapy (Boxplot from summary stats)
     ax3 = fig.add_subplot(gs[0, 2])
     if 'lot_mss' in tempus_gene_data:
-        df = tempus_gene_data['lot_mss']
-        lot_data = []
-        for _, row in df.iterrows():
-            lot_data.append({
-                'LOT': row['group_name'],
-                'Mean': row['mean'],
-                'N': row['n_samples']
-            })
+        df = tempus_gene_data['lot_mss'].copy()
+        if 'group_name' in df.columns:
+            lot_order = ['1L-2L', '3L+ Chemorefractory']
+            lot_plot = df[df['group_name'].isin(lot_order)].copy()
+            if len(lot_plot) > 0:
+                lot_plot['group_name'] = pd.Categorical(lot_plot['group_name'], categories=lot_order, ordered=True)
+                lot_plot = lot_plot.sort_values('group_name')
+                colors = ['#5DADE2', '#2874A6']
+                draw_boxplot_from_summary(ax3, lot_plot, 'group_name', colors,
+                                         x_labels=['Frontline\n(1L-2L)', 'Chemorefractory\n(3L+)'])
+                ax3.set_ylabel('Expression (log2 TPM)')
 
-        if lot_data:
-            lot_df = pd.DataFrame(lot_data)
-            colors = ['#5DADE2', '#2874A6']
-            bars = ax3.bar(range(len(lot_df)), lot_df['Mean'], color=colors[:len(lot_df)])
-
-            ax3.set_xticks(range(len(lot_df)))
-            ax3.set_xticklabels(['Frontline\n(1L-2L)', 'Chemorefractory\n(3L+)'][:len(lot_df)])
-            ax3.set_ylabel('Mean Expression (log2 TPM)')
-
-            for i, row in lot_df.iterrows():
-                ax3.annotate(f"n={int(row['N']):,}", (i, row['Mean'] + 0.1),
-                           ha='center', fontsize=9)
-
-            # Add fold change
-            if len(lot_df) == 2:
-                fc = lot_df.iloc[1]['Mean'] - lot_df.iloc[0]['Mean']
-                ax3.annotate(f'log2FC: {fc:.2f}', xy=(0.5, 0.95), xycoords='axes fraction',
-                           ha='center', fontsize=10, fontweight='bold',
-                           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+                # Add sample sizes
+                for i, (_, row) in enumerate(lot_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax3.annotate(f"n={n:,}", (i, row['q75'] + 0.3), ha='center', fontsize=8)
 
     ax3.set_title('C. Expression by Line of Therapy\n(Tempus RWD, MSS)', fontweight='bold')
 
-    # Panel D: Tempus iDAS Cohorts
+    # Panel D: Tempus iDAS Cohorts (Boxplot from summary stats)
     ax4 = fig.add_subplot(gs[1, 0])
     if 'idas_groups' in tempus_gene_data:
-        df = tempus_gene_data['idas_groups']
-        idas_data = []
-        for _, row in df.iterrows():
-            cohort = convert_tempus_group_name(row['group_name'])
-            idas_data.append({
-                'Cohort': cohort,
-                'Mean': row['mean'],
-                'N': row['n_samples'],
-                'Priority': cohort in IDAS_PRIORITY_COHORTS
-            })
+        df = tempus_gene_data['idas_groups'].copy()
+        if 'group_name' in df.columns and len(df) > 0:
+            # Sort cohorts logically: group by line of therapy (1L-2L together, 3L+ together)
+            idas_order = ['MSS_RASMut_1L2L', 'MSS_RASWT_1L2L', 'MSS_RASMut_3L+', 'MSS_RASWT_3L+']
+            df = df[df['group_name'].isin(idas_order)].copy()
+            df['group_name'] = pd.Categorical(df['group_name'], categories=idas_order, ordered=True)
+            df = df.sort_values('group_name')
 
-        if idas_data:
-            idas_df = pd.DataFrame(idas_data)
-            colors = [COHORT_COLORS.get(c, '#888888') for c in idas_df['Cohort']]
+            # Colors alternating: RAS-mut (red), RAS-WT (green) for each line of therapy
+            colors = ['#C0392B', '#27AE60', '#922B21', '#1E8449']
+            x_labels = ['RAS-mut\n1L-2L', 'RAS-WT\n1L-2L', 'RAS-mut\n3L+', 'RAS-WT\n3L+']
+            draw_boxplot_from_summary(ax4, df, 'group_name', colors, x_labels=x_labels)
+            ax4.tick_params(axis='x', labelrotation=0, labelsize=9)
+            ax4.set_ylabel('Expression (log2 TPM)')
 
-            bars = ax4.bar(range(len(idas_df)), idas_df['Mean'], color=colors)
+            # Add sample sizes
+            for i, (_, row) in enumerate(df.iterrows()):
+                n = int(row['n_samples']) if 'n_samples' in row else 0
+                ax4.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
 
-            # Highlight priority cohorts
-            for i, row in idas_df.iterrows():
-                if row['Priority']:
-                    bars[i].set_edgecolor('gold')
-                    bars[i].set_linewidth(3)
+            # Compute and display p-values for RAS mut vs WT comparisons using Welch's t-test
+            df_indexed = df.set_index('group_name')
 
-            ax4.set_xticks(range(len(idas_df)))
-            ax4.set_xticklabels([COHORT_LABELS.get(c, c.split('_')[-1]) for c in idas_df['Cohort']],
-                               rotation=45, ha='right', fontsize=8)
-            ax4.set_ylabel('Mean Expression (log2 TPM)')
+            # P-value for 1L-2L: RAS-mut vs RAS-WT
+            if 'MSS_RASMut_1L2L' in df_indexed.index and 'MSS_RASWT_1L2L' in df_indexed.index:
+                mut_1l = df_indexed.loc['MSS_RASMut_1L2L']
+                wt_1l = df_indexed.loc['MSS_RASWT_1L2L']
+                se_diff = np.sqrt(mut_1l['sd']**2 / mut_1l['n_samples'] + wt_1l['sd']**2 / wt_1l['n_samples'])
+                if se_diff > 0:
+                    t_stat = (mut_1l['mean'] - wt_1l['mean']) / se_diff
+                    # Welch-Satterthwaite df approximation
+                    num = (mut_1l['sd']**2 / mut_1l['n_samples'] + wt_1l['sd']**2 / wt_1l['n_samples'])**2
+                    denom = (mut_1l['sd']**4 / (mut_1l['n_samples']**2 * (mut_1l['n_samples']-1)) +
+                            wt_1l['sd']**4 / (wt_1l['n_samples']**2 * (wt_1l['n_samples']-1)))
+                    df_welch = num / denom if denom > 0 else 1
+                    p_val_1l = 2 * stats.t.sf(abs(t_stat), df_welch)
+                    p_str = f"p={p_val_1l:.2e}" if p_val_1l < 0.01 else f"p={p_val_1l:.3f}"
+                    max_y_1l = max(mut_1l['q75'], wt_1l['q75'])
+                    ax4.plot([0, 1], [max_y_1l + 0.4] * 2, 'k-', linewidth=0.8)
+                    ax4.annotate(p_str, xy=(0.5, max_y_1l + 0.5), ha='center', fontsize=7, style='italic')
 
-    ax4.set_title('D. Tempus iDAS-Aligned Cohorts\n(Gold border = iDAS Priority)', fontweight='bold')
+            # P-value for 3L+: RAS-mut vs RAS-WT
+            if 'MSS_RASMut_3L+' in df_indexed.index and 'MSS_RASWT_3L+' in df_indexed.index:
+                mut_3l = df_indexed.loc['MSS_RASMut_3L+']
+                wt_3l = df_indexed.loc['MSS_RASWT_3L+']
+                se_diff = np.sqrt(mut_3l['sd']**2 / mut_3l['n_samples'] + wt_3l['sd']**2 / wt_3l['n_samples'])
+                if se_diff > 0:
+                    t_stat = (mut_3l['mean'] - wt_3l['mean']) / se_diff
+                    num = (mut_3l['sd']**2 / mut_3l['n_samples'] + wt_3l['sd']**2 / wt_3l['n_samples'])**2
+                    denom = (mut_3l['sd']**4 / (mut_3l['n_samples']**2 * (mut_3l['n_samples']-1)) +
+                            wt_3l['sd']**4 / (wt_3l['n_samples']**2 * (wt_3l['n_samples']-1)))
+                    df_welch = num / denom if denom > 0 else 1
+                    p_val_3l = 2 * stats.t.sf(abs(t_stat), df_welch)
+                    p_str = f"p={p_val_3l:.2e}" if p_val_3l < 0.01 else f"p={p_val_3l:.3f}"
+                    max_y_3l = max(mut_3l['q75'], wt_3l['q75'])
+                    ax4.plot([2, 3], [max_y_3l + 0.4] * 2, 'k-', linewidth=0.8)
+                    ax4.annotate(p_str, xy=(2.5, max_y_3l + 0.5), ha='center', fontsize=7, style='italic')
 
-    # Panel E: RAS Status Comparison
+    ax4.set_title('D. iDAS-Aligned Cohorts\n(Tempus RWD, MSS)', fontweight='bold')
+
+    # Panel E: RAS Status Comparison (Boxplot from summary stats)
     ax5 = fig.add_subplot(gs[1, 1])
     if 'ras_status_mss' in tempus_gene_data:
-        df = tempus_gene_data['ras_status_mss']
-        ras_data = []
-        for _, row in df.iterrows():
-            ras_data.append({
-                'RAS': row['group_name'],
-                'Mean': row['mean'],
-                'N': row['n_samples']
-            })
+        df = tempus_gene_data['ras_status_mss'].copy()
+        if 'group_name' in df.columns:
+            ras_order = ['RAS Mutant', 'RAS WT']
+            ras_plot = df[df['group_name'].isin(ras_order)].copy()
+            if len(ras_plot) > 0:
+                ras_plot['group_name'] = pd.Categorical(ras_plot['group_name'], categories=ras_order, ordered=True)
+                ras_plot = ras_plot.sort_values('group_name')
+                colors = ['#C0392B', '#27AE60']
+                draw_boxplot_from_summary(ax5, ras_plot, 'group_name', colors,
+                                         x_labels=['RAS Mutant', 'RAS Wild-Type'])
+                ax5.set_ylabel('Expression (log2 TPM)')
 
-        if ras_data:
-            ras_df = pd.DataFrame(ras_data)
-            colors = ['#C0392B', '#27AE60']
-            ax5.bar(range(len(ras_df)), ras_df['Mean'], color=colors[:len(ras_df)])
-            ax5.set_xticks(range(len(ras_df)))
-            ax5.set_xticklabels(['RAS Mutant', 'RAS Wild-Type'][:len(ras_df)])
-            ax5.set_ylabel('Mean Expression (log2 TPM)')
-
-            for i, row in ras_df.iterrows():
-                ax5.annotate(f"n={int(row['N']):,}", (i, row['Mean'] + 0.1),
-                           ha='center', fontsize=9)
+                # Add sample sizes
+                for i, (_, row) in enumerate(ras_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax5.annotate(f"n={n:,}", (i, row['q75'] + 0.3), ha='center', fontsize=9)
 
     ax5.set_title('E. Expression by RAS Status\n(Tempus RWD, MSS)', fontweight='bold')
 
-    # Panel F: CMS Subtypes
+    # Panel F: CMS Subtypes (Boxplot for TCGA, summary boxplot for Tempus)
     ax6 = fig.add_subplot(gs[1, 2])
-    cms_data = []
+    cms_source = None
 
-    # Try TCGA CMS first
+    # Try TCGA CMS first (individual samples - use real boxplot)
     if not master_df.empty and 'CMS' in master_df.columns:
-        cms_stats = master_df.groupby('CMS')['expression'].agg(['mean', 'count'])
-        for cms in ['CMS1', 'CMS2', 'CMS3', 'CMS4']:
-            if cms in cms_stats.index:
-                cms_data.append({
-                    'CMS': cms,
-                    'Mean': cms_stats.loc[cms, 'mean'],
-                    'N': cms_stats.loc[cms, 'count'],
-                    'Source': 'TCGA'
-                })
+        cms_order = ['CMS1', 'CMS2', 'CMS3', 'CMS4']
+        cms_df = master_df[master_df['CMS'].isin(cms_order)].copy()
+        if len(cms_df) > 0:
+            colors = [CMS_COLORS.get(c, '#888888') for c in cms_order]
+            sns.boxplot(data=cms_df, x='CMS', y='expression', order=cms_order,
+                       palette=colors, ax=ax6, width=0.6)
+            ax6.set_ylabel('Expression (log2 TPM)')
+            cms_source = 'TCGA'
 
-    # Fallback to Tempus CMS
-    if not cms_data and 'cms' in tempus_gene_data:
-        df = tempus_gene_data['cms']
-        # Handle different column names (group vs group_name)
+    # Fallback to Tempus CMS (summary stats - use boxplot from summary)
+    if cms_source is None and 'cms' in tempus_gene_data:
+        df = tempus_gene_data['cms'].copy()
         group_col = 'group' if 'group' in df.columns else 'group_name'
-        for _, row in df.iterrows():
-            if row[group_col] in ['CMS1', 'CMS2', 'CMS3', 'CMS4']:
-                cms_data.append({
-                    'CMS': row[group_col],
-                    'Mean': row['mean'],
-                    'N': row['n_samples'],
-                    'Source': 'Tempus'
-                })
+        cms_order = ['CMS1', 'CMS2', 'CMS3', 'CMS4']
+        cms_plot = df[df[group_col].isin(cms_order)].copy()
+        if len(cms_plot) > 0:
+            cms_plot['group_name'] = cms_plot[group_col]
+            cms_plot['group_name'] = pd.Categorical(cms_plot['group_name'], categories=cms_order, ordered=True)
+            cms_plot = cms_plot.sort_values('group_name')
+            colors = [CMS_COLORS.get(c, '#888888') for c in cms_order if c in cms_plot['group_name'].values]
+            draw_boxplot_from_summary(ax6, cms_plot, 'group_name', colors)
+            ax6.set_ylabel('Expression (log2 TPM)')
+            cms_source = 'Tempus'
 
-    if cms_data:
-        cms_df = pd.DataFrame(cms_data)
-        colors = [CMS_COLORS.get(c, '#888888') for c in cms_df['CMS']]
-        ax6.bar(range(len(cms_df)), cms_df['Mean'], color=colors)
-        ax6.set_xticks(range(len(cms_df)))
-        ax6.set_xticklabels(cms_df['CMS'])
-        ax6.set_ylabel('Mean Expression (log2 TPM)')
-
-        source = cms_df['Source'].iloc[0] if 'Source' in cms_df.columns else ''
-        ax6.set_title(f'F. CMS Subtype Expression\n({source})', fontweight='bold')
+    if cms_source:
+        ax6.set_title(f'F. CMS Subtype Expression\n({cms_source})', fontweight='bold')
     else:
         ax6.set_title('F. CMS Subtype Expression\n(No data)', fontweight='bold')
         ax6.text(0.5, 0.5, 'No CMS data available', ha='center', va='center', transform=ax6.transAxes)
@@ -1449,106 +1525,141 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
     plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_B_toxicity.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel C: Tempus Line of Therapy
+    # Panel C: Tempus Line of Therapy (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(6, 5))
     if 'lot_mss' in tempus_gene_data:
-        df = tempus_gene_data['lot_mss']
-        lot_data = []
-        for _, row in df.iterrows():
-            lot_data.append({'LOT': row['group_name'], 'Mean': row['mean'], 'N': row['n_samples']})
-        if lot_data:
-            lot_df = pd.DataFrame(lot_data)
-            colors = ['#5DADE2', '#2874A6']
-            bars = ax.bar(range(len(lot_df)), lot_df['Mean'], color=colors[:len(lot_df)])
-            ax.set_xticks(range(len(lot_df)))
-            ax.set_xticklabels(['Frontline\n(1L-2L)', 'Chemorefractory\n(3L+)'][:len(lot_df)], fontsize=11)
-            ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
-            for i, row in lot_df.iterrows():
-                ax.annotate(f"n={int(row['N']):,}", (i, row['Mean'] + 0.1), ha='center', fontsize=10)
-            if len(lot_df) == 2:
-                fc = lot_df.iloc[1]['Mean'] - lot_df.iloc[0]['Mean']
-                ax.annotate(f'log2FC: {fc:.2f}', xy=(0.5, 0.95), xycoords='axes fraction',
-                           ha='center', fontsize=11, fontweight='bold',
-                           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        df = tempus_gene_data['lot_mss'].copy()
+        if 'group_name' in df.columns:
+            lot_order = ['1L-2L', '3L+ Chemorefractory']
+            lot_plot = df[df['group_name'].isin(lot_order)].copy()
+            if len(lot_plot) > 0:
+                lot_plot['group_name'] = pd.Categorical(lot_plot['group_name'], categories=lot_order, ordered=True)
+                lot_plot = lot_plot.sort_values('group_name')
+                colors = ['#5DADE2', '#2874A6']
+                draw_boxplot_from_summary(ax, lot_plot, 'group_name', colors,
+                                         x_labels=['Frontline\n(1L-2L)', 'Chemorefractory\n(3L+)'])
+                ax.set_ylabel('Expression (log2 TPM)', fontsize=12)
+                for i, (_, row) in enumerate(lot_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax.annotate(f"n={n:,}", (i, row['q75'] + 0.3), ha='center', fontsize=10)
     ax.set_title(f'{gene_symbol} - Expression by Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_C_lot.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel D: Tempus iDAS Cohorts
+    # Panel D: Tempus iDAS Cohorts (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(8, 6))
     if 'idas_groups' in tempus_gene_data:
-        df = tempus_gene_data['idas_groups']
-        idas_data = []
-        for _, row in df.iterrows():
-            cohort = convert_tempus_group_name(row['group_name'])
-            idas_data.append({
-                'Cohort': cohort, 'Mean': row['mean'], 'N': row['n_samples'],
-                'Priority': cohort in IDAS_PRIORITY_COHORTS
-            })
-        if idas_data:
-            idas_df = pd.DataFrame(idas_data)
-            colors = [COHORT_COLORS.get(c, '#888888') for c in idas_df['Cohort']]
-            bars = ax.bar(range(len(idas_df)), idas_df['Mean'], color=colors)
-            for i, row in idas_df.iterrows():
-                if row['Priority']:
-                    bars[i].set_edgecolor('gold')
-                    bars[i].set_linewidth(3)
-            ax.set_xticks(range(len(idas_df)))
-            ax.set_xticklabels([COHORT_LABELS.get(c, c.split('_')[-1]) for c in idas_df['Cohort']],
-                               rotation=45, ha='right', fontsize=10)
-            ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
-    ax.set_title(f'{gene_symbol} - Tempus iDAS-Aligned Cohorts', fontweight='bold', fontsize=14)
+        df = tempus_gene_data['idas_groups'].copy()
+        if 'group_name' in df.columns and len(df) > 0:
+            # Sort cohorts logically: group by line of therapy (1L-2L together, 3L+ together)
+            idas_order = ['MSS_RASMut_1L2L', 'MSS_RASWT_1L2L', 'MSS_RASMut_3L+', 'MSS_RASWT_3L+']
+            df = df[df['group_name'].isin(idas_order)].copy()
+            df['group_name'] = pd.Categorical(df['group_name'], categories=idas_order, ordered=True)
+            df = df.sort_values('group_name')
+
+            colors = ['#C0392B', '#27AE60', '#922B21', '#1E8449']
+            x_labels = ['RAS-mut\n1L-2L', 'RAS-WT\n1L-2L', 'RAS-mut\n3L+', 'RAS-WT\n3L+']
+            draw_boxplot_from_summary(ax, df, 'group_name', colors, x_labels=x_labels)
+            ax.tick_params(axis='x', labelrotation=0, labelsize=10)
+            ax.set_ylabel('Expression (log2 TPM)', fontsize=12)
+
+            # Add sample sizes
+            for i, (_, row) in enumerate(df.iterrows()):
+                n = int(row['n_samples']) if 'n_samples' in row else 0
+                ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
+
+            # Compute and display p-values for RAS mut vs WT comparisons
+            df_indexed = df.set_index('group_name')
+
+            # P-value for 1L-2L
+            if 'MSS_RASMut_1L2L' in df_indexed.index and 'MSS_RASWT_1L2L' in df_indexed.index:
+                mut_1l = df_indexed.loc['MSS_RASMut_1L2L']
+                wt_1l = df_indexed.loc['MSS_RASWT_1L2L']
+                se_diff = np.sqrt(mut_1l['sd']**2 / mut_1l['n_samples'] + wt_1l['sd']**2 / wt_1l['n_samples'])
+                if se_diff > 0:
+                    t_stat = (mut_1l['mean'] - wt_1l['mean']) / se_diff
+                    num = (mut_1l['sd']**2 / mut_1l['n_samples'] + wt_1l['sd']**2 / wt_1l['n_samples'])**2
+                    denom = (mut_1l['sd']**4 / (mut_1l['n_samples']**2 * (mut_1l['n_samples']-1)) +
+                            wt_1l['sd']**4 / (wt_1l['n_samples']**2 * (wt_1l['n_samples']-1)))
+                    df_welch = num / denom if denom > 0 else 1
+                    p_val_1l = 2 * stats.t.sf(abs(t_stat), df_welch)
+                    p_str = f"p={p_val_1l:.2e}" if p_val_1l < 0.01 else f"p={p_val_1l:.3f}"
+                    max_y_1l = max(mut_1l['q75'], wt_1l['q75'])
+                    ax.plot([0, 1], [max_y_1l + 0.5] * 2, 'k-', linewidth=0.8)
+                    ax.annotate(p_str, xy=(0.5, max_y_1l + 0.6), ha='center', fontsize=9, style='italic')
+
+            # P-value for 3L+
+            if 'MSS_RASMut_3L+' in df_indexed.index and 'MSS_RASWT_3L+' in df_indexed.index:
+                mut_3l = df_indexed.loc['MSS_RASMut_3L+']
+                wt_3l = df_indexed.loc['MSS_RASWT_3L+']
+                se_diff = np.sqrt(mut_3l['sd']**2 / mut_3l['n_samples'] + wt_3l['sd']**2 / wt_3l['n_samples'])
+                if se_diff > 0:
+                    t_stat = (mut_3l['mean'] - wt_3l['mean']) / se_diff
+                    num = (mut_3l['sd']**2 / mut_3l['n_samples'] + wt_3l['sd']**2 / wt_3l['n_samples'])**2
+                    denom = (mut_3l['sd']**4 / (mut_3l['n_samples']**2 * (mut_3l['n_samples']-1)) +
+                            wt_3l['sd']**4 / (wt_3l['n_samples']**2 * (wt_3l['n_samples']-1)))
+                    df_welch = num / denom if denom > 0 else 1
+                    p_val_3l = 2 * stats.t.sf(abs(t_stat), df_welch)
+                    p_str = f"p={p_val_3l:.2e}" if p_val_3l < 0.01 else f"p={p_val_3l:.3f}"
+                    max_y_3l = max(mut_3l['q75'], wt_3l['q75'])
+                    ax.plot([2, 3], [max_y_3l + 0.5] * 2, 'k-', linewidth=0.8)
+                    ax.annotate(p_str, xy=(2.5, max_y_3l + 0.6), ha='center', fontsize=9, style='italic')
+
+    ax.set_title(f'{gene_symbol} - iDAS-Aligned Cohorts (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_D_idas_cohorts.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel E: RAS Status
+    # Panel E: RAS Status (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(6, 5))
     if 'ras_status_mss' in tempus_gene_data:
-        df = tempus_gene_data['ras_status_mss']
-        ras_data = []
-        for _, row in df.iterrows():
-            ras_data.append({'RAS': row['group_name'], 'Mean': row['mean'], 'N': row['n_samples']})
-        if ras_data:
-            ras_df = pd.DataFrame(ras_data)
-            colors = ['#C0392B', '#27AE60']
-            ax.bar(range(len(ras_df)), ras_df['Mean'], color=colors[:len(ras_df)])
-            ax.set_xticks(range(len(ras_df)))
-            ax.set_xticklabels(['RAS Mutant', 'RAS Wild-Type'][:len(ras_df)], fontsize=11)
-            ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
-            for i, row in ras_df.iterrows():
-                ax.annotate(f"n={int(row['N']):,}", (i, row['Mean'] + 0.1), ha='center', fontsize=10)
+        df = tempus_gene_data['ras_status_mss'].copy()
+        if 'group_name' in df.columns:
+            ras_order = ['RAS Mutant', 'RAS WT']
+            ras_plot = df[df['group_name'].isin(ras_order)].copy()
+            if len(ras_plot) > 0:
+                ras_plot['group_name'] = pd.Categorical(ras_plot['group_name'], categories=ras_order, ordered=True)
+                ras_plot = ras_plot.sort_values('group_name')
+                colors = ['#C0392B', '#27AE60']
+                draw_boxplot_from_summary(ax, ras_plot, 'group_name', colors,
+                                         x_labels=['RAS Mutant', 'RAS Wild-Type'])
+                ax.set_ylabel('Expression (log2 TPM)', fontsize=12)
+                for i, (_, row) in enumerate(ras_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax.annotate(f"n={n:,}", (i, row['q75'] + 0.3), ha='center', fontsize=10)
     ax.set_title(f'{gene_symbol} - Expression by RAS Status (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_E_ras_status.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel F: CMS Subtypes
+    # Panel F: CMS Subtypes (Boxplot for TCGA, summary boxplot for Tempus)
     fig, ax = plt.subplots(figsize=(6, 5))
-    cms_data = []
+    cms_source = None
     if not master_df.empty and 'CMS' in master_df.columns:
-        cms_stats = master_df.groupby('CMS')['expression'].agg(['mean', 'count'])
-        for cms in ['CMS1', 'CMS2', 'CMS3', 'CMS4']:
-            if cms in cms_stats.index:
-                cms_data.append({'CMS': cms, 'Mean': cms_stats.loc[cms, 'mean'],
-                                'N': cms_stats.loc[cms, 'count'], 'Source': 'TCGA'})
-    if not cms_data and 'cms' in tempus_gene_data:
-        df = tempus_gene_data['cms']
+        cms_order = ['CMS1', 'CMS2', 'CMS3', 'CMS4']
+        cms_df = master_df[master_df['CMS'].isin(cms_order)].copy()
+        if len(cms_df) > 0:
+            colors = [CMS_COLORS.get(c, '#888888') for c in cms_order]
+            sns.boxplot(data=cms_df, x='CMS', y='expression', order=cms_order,
+                       palette=colors, ax=ax, width=0.6)
+            ax.set_ylabel('Expression (log2 TPM)', fontsize=12)
+            cms_source = 'TCGA'
+    if cms_source is None and 'cms' in tempus_gene_data:
+        df = tempus_gene_data['cms'].copy()
         group_col = 'group' if 'group' in df.columns else 'group_name'
-        for _, row in df.iterrows():
-            if row[group_col] in ['CMS1', 'CMS2', 'CMS3', 'CMS4']:
-                cms_data.append({'CMS': row[group_col], 'Mean': row['mean'],
-                                'N': row['n_samples'], 'Source': 'Tempus'})
-    if cms_data:
-        cms_df = pd.DataFrame(cms_data)
-        colors = [CMS_COLORS.get(c, '#888888') for c in cms_df['CMS']]
-        ax.bar(range(len(cms_df)), cms_df['Mean'], color=colors)
-        ax.set_xticks(range(len(cms_df)))
-        ax.set_xticklabels(cms_df['CMS'], fontsize=11)
-        ax.set_ylabel('Mean Expression (log2 TPM)', fontsize=12)
-        source = cms_df['Source'].iloc[0] if 'Source' in cms_df.columns else ''
-        ax.set_title(f'{gene_symbol} - CMS Subtype Expression ({source})', fontweight='bold', fontsize=14)
+        cms_order = ['CMS1', 'CMS2', 'CMS3', 'CMS4']
+        cms_plot = df[df[group_col].isin(cms_order)].copy()
+        if len(cms_plot) > 0:
+            cms_plot['group_name'] = cms_plot[group_col]
+            cms_plot['group_name'] = pd.Categorical(cms_plot['group_name'], categories=cms_order, ordered=True)
+            cms_plot = cms_plot.sort_values('group_name')
+            colors = [CMS_COLORS.get(c, '#888888') for c in cms_order if c in cms_plot['group_name'].values]
+            draw_boxplot_from_summary(ax, cms_plot, 'group_name', colors)
+            ax.set_ylabel('Expression (log2 TPM)', fontsize=12)
+            cms_source = 'Tempus'
+    if cms_source:
+        ax.set_title(f'{gene_symbol} - CMS Subtype Expression ({cms_source})', fontweight='bold', fontsize=14)
     else:
         ax.set_title(f'{gene_symbol} - CMS Subtype Expression (No data)', fontweight='bold', fontsize=14)
         ax.text(0.5, 0.5, 'No CMS data available', ha='center', va='center', transform=ax.transAxes)

@@ -120,6 +120,8 @@ COHORT_COLORS = {
     'TCGA_LUSC': '#3498DB',
     'TCGA_NSCLC': '#9B59B6',
     'TCGA_Adjacent': '#7F8C8D',
+    'TCGA_LUAD_Adjacent': '#F1948A',  # Light red for LUAD adjacent
+    'TCGA_LUSC_Adjacent': '#85C1E9',  # Light blue for LUSC adjacent
     'GTEx_Lung': '#1ABC9C',
     'CCLE_NSCLC': '#8B4513',
     # TCGA mutation status
@@ -150,6 +152,8 @@ COHORT_LABELS = {
     'TCGA_LUSC': 'LUSC\n(TCGA)',
     'TCGA_NSCLC': 'NSCLC\n(TCGA)',
     'TCGA_Adjacent': 'Adjacent\nNormal',
+    'TCGA_LUAD_Adjacent': 'LUAD\nAdjacent',
+    'TCGA_LUSC_Adjacent': 'LUSC\nAdjacent',
     'GTEx_Lung': 'Normal\nLung\n(GTEx)',
     'CCLE_NSCLC': 'Cell Lines\n(CCLE)',
     # Tempus
@@ -179,6 +183,76 @@ def truncate_tcga_id(sample_id, length=15):
     if isinstance(sample_id, str) and sample_id.startswith('TCGA'):
         return sample_id[:length]
     return sample_id
+
+
+def draw_boxplot_from_summary(ax, data_df, x_col, colors, x_labels=None):
+    """
+    Draw boxplot-style visualization from summary statistics.
+
+    Args:
+        ax: matplotlib axes
+        data_df: DataFrame with columns: group_name, mean, median, sd, q25, q75
+        x_col: column name for x-axis grouping
+        colors: list of colors for each box
+        x_labels: optional custom x-axis labels
+
+    The Tempus summary data contains q25, median, q75 which allows us to draw
+    proper box plots. Whiskers are estimated using IQR * 1.5.
+    """
+    box_stats = []
+    positions = []
+
+    for i, (_, row) in enumerate(data_df.iterrows()):
+        median = row.get('median', row.get('mean', 0))
+        q25 = row.get('q25', median - row.get('sd', 0) * 0.675)  # Fallback to ~IQR estimate
+        q75 = row.get('q75', median + row.get('sd', 0) * 0.675)
+        iqr = q75 - q25
+
+        # Whiskers: typically 1.5 * IQR from quartiles, but cap at reasonable range
+        whislo = max(0, q25 - 1.5 * iqr)  # Lower whisker (cap at 0 for expression)
+        whishi = q75 + 1.5 * iqr  # Upper whisker
+
+        # If we have SD, use it to estimate whisker range more accurately
+        if 'sd' in row and pd.notna(row['sd']):
+            mean = row.get('mean', median)
+            whislo = max(0, mean - 1.5 * row['sd'])
+            whishi = mean + 1.5 * row['sd']
+
+        box_stats.append({
+            'med': median,
+            'q1': q25,
+            'q3': q75,
+            'whislo': whislo,
+            'whishi': whishi,
+            'fliers': []  # No outliers from summary data
+        })
+        positions.append(i)
+
+    if box_stats:
+        # Draw boxplots
+        bp = ax.bxp(box_stats, positions=positions, patch_artist=True,
+                    widths=0.6, showfliers=False)
+
+        # Apply colors
+        for patch, color in zip(bp['boxes'], colors):
+            patch.set_facecolor(color)
+            patch.set_alpha(0.7)
+            patch.set_edgecolor('black')
+
+        # Style median lines
+        for median_line in bp['medians']:
+            median_line.set_color('black')
+            median_line.set_linewidth(1.5)
+
+        # Set x-axis labels
+        if x_labels:
+            ax.set_xticks(positions)
+            ax.set_xticklabels(x_labels)
+        else:
+            ax.set_xticks(positions)
+            ax.set_xticklabels(data_df[x_col].tolist())
+
+    return ax
 
 
 # =============================================================================
@@ -423,26 +497,41 @@ def build_tcga_master_dataframe(tcga_expr, gtex_expr, ccle_expr, tcga_meta, gtex
     tumor_meta = get_tcga_nsclc_tumor_samples(tcga_meta)
     tumor_indices = set(tumor_meta['sample_index'].tolist())
 
-    # Adjacent normal sample indices (samples ending in -11)
-    adj_normal_indices = set()
+    # Adjacent normal sample indices by histology (samples ending in -11)
+    # Match adjacent normal to histology based on patient ID (same patient = same histology)
+    luad_adj_indices = set()
+    lusc_adj_indices = set()
+    all_adj_indices = set()
+
     for _, row in nsclc_meta.iterrows():
         sample_id = row['sample_id']
+        sample_idx = row['sample_index']
         if any(adj in sample_id for adj in ['-11', '-11A', '-11B']):
-            adj_normal_indices.add(row['sample_index'])
+            all_adj_indices.add(sample_idx)
+            # Match to histology based on project_id
+            project = row.get('project_ids', row.get('project_id', ''))
+            if 'LUAD' in str(project).upper():
+                luad_adj_indices.add(sample_idx)
+            elif 'LUSC' in str(project).upper():
+                lusc_adj_indices.add(sample_idx)
 
     # Process TCGA expression
     for _, row in tcga_expr.iterrows():
         sample_idx = row['sample_index']
-        if sample_idx not in nsclc_indices and sample_idx not in adj_normal_indices:
+        if sample_idx not in nsclc_indices and sample_idx not in all_adj_indices:
             continue
 
         sample_id = tcga_sample_map.get(sample_idx, f"TCGA_{sample_idx}")
         tpm = row['tpm']
         log2_tpm = np.log2(tpm + 1)
 
-        # Determine cohort
-        if sample_idx in adj_normal_indices:
-            cohort = 'TCGA_Adjacent'
+        # Determine cohort - separate adjacent normal by histology
+        if sample_idx in luad_adj_indices:
+            cohort = 'TCGA_LUAD_Adjacent'
+        elif sample_idx in lusc_adj_indices:
+            cohort = 'TCGA_LUSC_Adjacent'
+        elif sample_idx in all_adj_indices:
+            cohort = 'TCGA_Adjacent'  # Fallback for unmatched
         elif sample_idx in luad_indices:
             cohort = 'TCGA_LUAD'
         elif sample_idx in lusc_indices:
@@ -456,7 +545,7 @@ def build_tcga_master_dataframe(tcga_expr, gtex_expr, ccle_expr, tcga_meta, gtex
             'expression': log2_tpm,
             'source': 'TCGA',
             'is_tumor': sample_idx in tumor_indices,
-            'is_adjacent_normal': sample_idx in adj_normal_indices,
+            'is_adjacent_normal': sample_idx in all_adj_indices,
         }
         # Add mutation status columns
         for gene in TCGA_MUTATION_COLUMNS.keys():
@@ -560,17 +649,39 @@ def perform_pairwise_comparisons(df, tumor_cohorts, normal_cohorts):
     return results_df
 
 
-def compute_tcga_mutation_statistics(df):
+def compute_tcga_mutation_statistics(df, histology='LUAD'):
     """
-    Compute TCGA mutation expression statistics by mutation status.
+    Compute TCGA mutation expression statistics by mutation status, stratified by histology.
+
+    Args:
+        df: Master dataframe with expression and mutation data
+        histology: 'LUAD', 'LUSC', or 'ALL' (default: 'LUAD' since most mutations occur in LUAD)
 
     Returns a dictionary with statistics for each mutation gene (KRAS, EGFR, STK11, KEAP1).
     Only uses TCGA tumor samples (treatment-naive) for valid within-dataset comparison.
+
+    Note: LUAD-only analysis is more biologically meaningful because:
+    - KRAS mutations: ~30% in LUAD vs ~5% in LUSC
+    - EGFR mutations: ~15% in LUAD vs rare in LUSC
+    - STK11/KEAP1 mutations: predominantly in LUAD
     """
     mutation_stats = {}
 
     # Filter to TCGA tumor samples only
     tcga_tumor = df[(df['source'] == 'TCGA') & (df['is_tumor'] == True)]
+
+    # Apply histology filter
+    if histology == 'LUAD':
+        tcga_tumor = tcga_tumor[tcga_tumor['cohort'] == 'TCGA_LUAD']
+        histology_label = 'LUAD'
+    elif histology == 'LUSC':
+        tcga_tumor = tcga_tumor[tcga_tumor['cohort'] == 'TCGA_LUSC']
+        histology_label = 'LUSC'
+    else:
+        histology_label = 'All NSCLC'
+
+    if len(tcga_tumor) == 0:
+        return mutation_stats
 
     for gene in TCGA_MUTATION_COLUMNS.keys():
         status_col = f'{gene}_status'
@@ -583,6 +694,7 @@ def compute_tcga_mutation_statistics(df):
             if len(subset) > 0:
                 gene_stats.append({
                     'Gene': gene,
+                    'Histology': histology_label,
                     'Status': status,
                     'N': len(subset),
                     'Mean': subset['expression'].mean(),
@@ -637,13 +749,21 @@ def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
         'recommendation': None,
     }
 
-    # 1. On-target toxicity (tumor vs adjacent normal)
+    # 1. On-target toxicity (tumor vs histology-matched adjacent normal)
     if pairwise_df is not None and len(pairwise_df) > 0:
-        adj_comparisons = pairwise_df[pairwise_df['Normal_Group'] == 'TCGA_Adjacent']
+        # Use histology-matched comparisons (LUAD vs LUAD-adjacent, LUSC vs LUSC-adjacent)
+        adj_comparisons = pairwise_df[
+            pairwise_df['Normal_Group'].isin(['TCGA_LUAD_Adjacent', 'TCGA_LUSC_Adjacent'])
+        ]
         if len(adj_comparisons) > 0:
             avg_fc = adj_comparisons['Log2FC'].mean()
+            # Report per-histology toxicity
+            luad_fc = adj_comparisons[adj_comparisons['Normal_Group'] == 'TCGA_LUAD_Adjacent']['Log2FC'].values
+            lusc_fc = adj_comparisons[adj_comparisons['Normal_Group'] == 'TCGA_LUSC_Adjacent']['Log2FC'].values
             assessment['on_target_toxicity'] = {
                 'tumor_vs_adjacent_log2FC': avg_fc,
+                'luad_vs_luad_adjacent_log2FC': float(luad_fc[0]) if len(luad_fc) > 0 else None,
+                'lusc_vs_lusc_adjacent_log2FC': float(lusc_fc[0]) if len(lusc_fc) > 0 else None,
                 'risk_level': 'Low' if avg_fc > 1.5 else 'Medium' if avg_fc > 0.5 else 'High'
             }
 
@@ -719,12 +839,17 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
     # ==========================================================================
     # Includes both histology tumor enrichment AND mutation status from TCGA
 
-    # 1a. Histology suitability (LUAD vs LUSC tumor enrichment)
+    # 1a. Histology suitability (LUAD vs LUAD-adjacent, LUSC vs LUSC-adjacent)
+    # Histology-matched comparisons are more biologically appropriate
     if pairwise_df is not None and len(pairwise_df) > 0:
-        for histology in ['TCGA_LUAD', 'TCGA_LUSC']:
+        histology_adjacent_map = {
+            'TCGA_LUAD': 'TCGA_LUAD_Adjacent',
+            'TCGA_LUSC': 'TCGA_LUSC_Adjacent'
+        }
+        for histology, adjacent in histology_adjacent_map.items():
             hist_comparison = pairwise_df[
                 (pairwise_df['Tumor_Cohort'] == histology) &
-                (pairwise_df['Normal_Group'] == 'TCGA_Adjacent')
+                (pairwise_df['Normal_Group'] == adjacent)
             ]
             if len(hist_comparison) > 0:
                 log2fc = hist_comparison['Log2FC'].values[0]
@@ -734,25 +859,26 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
                 if log2fc > 1.0:  # >2x vs adjacent
                     score = 5
                     recommendation = 'GO'
-                    rationale = f'Strong tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                    rationale = f'Strong tumor enrichment ({linear_fc:.1f}x vs matched adjacent)'
                 elif log2fc > 0.58:  # >1.5x vs adjacent
                     score = 4
                     recommendation = 'GO'
-                    rationale = f'Good tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                    rationale = f'Good tumor enrichment ({linear_fc:.1f}x vs matched adjacent)'
                 elif log2fc > 0:  # >1x vs adjacent
                     score = 3
                     recommendation = 'CONDITIONAL'
-                    rationale = f'Moderate tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                    rationale = f'Moderate tumor enrichment ({linear_fc:.1f}x vs matched adjacent)'
                 else:
                     score = 2
                     recommendation = 'CAUTION'
-                    rationale = f'No tumor enrichment ({linear_fc:.1f}x vs adjacent)'
+                    rationale = f'No tumor enrichment ({linear_fc:.1f}x vs matched adjacent)'
 
                 hist_label = 'LUAD' if 'LUAD' in histology else 'LUSC'
                 suitability['tcga_analysis'][f'Histology_{hist_label}'] = {
                     'log2fc_vs_adjacent': round(log2fc, 3),
                     'linear_fc': round(linear_fc, 2),
                     'data_source': 'TCGA',
+                    'comparison': f'{histology} vs {adjacent}',
                     'suitability_score': score,
                     'recommendation': recommendation,
                     'rationale': rationale
@@ -766,7 +892,9 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
                     'recommendation': recommendation
                 })
 
-    # 1b. TCGA Mutation status (treatment-naive)
+    # 1b. TCGA LUAD Mutation status (treatment-naive)
+    # Mutation analysis is LUAD-specific because most driver mutations occur in LUAD
+    # KRAS: ~30% LUAD vs ~5% LUSC; EGFR: ~15% LUAD vs rare LUSC; STK11/KEAP1: predominantly LUAD
     if tcga_mutation_stats:
         for mutation_gene, mut_df in tcga_mutation_stats.items():
             mutant_row = mut_df[mut_df['Status'] == 'Mutant']
@@ -779,6 +907,9 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
                 mutant_n = int(mutant_row['N'].values[0])
                 wt_mean = wt_row['Mean'].values[0]
                 wt_n = int(wt_row['N'].values[0])
+
+                # Get histology from mutation stats (default LUAD)
+                histology = mutant_row['Histology'].values[0] if 'Histology' in mutant_row.columns else 'LUAD'
 
                 # Interpret mutation status effect
                 if log2fc_vs_wt > 0.5:
@@ -802,7 +933,8 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
                     recommendation = 'EXCLUDE'
                     rationale = f'Significantly lower in {mutation_gene}-mutant ({fold_change:.1f}x vs WT)'
 
-                suitability['tcga_analysis'][f'Mutation_{mutation_gene}'] = {
+                suitability['tcga_analysis'][f'LUAD_Mutation_{mutation_gene}'] = {
+                    'histology': histology,
                     'log2fc_vs_wt': round(log2fc_vs_wt, 3),
                     'fold_change': round(fold_change, 2),
                     'mutant_mean': round(mutant_mean, 3),
@@ -816,9 +948,9 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
                 }
 
                 suitability['summary'].append({
-                    'subgroup': f'TCGA Mutation: {mutation_gene}+',
+                    'subgroup': f'TCGA LUAD: {mutation_gene}+',
                     'category': 'tcga_analysis',
-                    'key_metric': f'{fold_change:.1f}x vs WT (TCGA)',
+                    'key_metric': f'{fold_change:.1f}x vs WT (LUAD)',
                     'score': score,
                     'recommendation': recommendation
                 })
@@ -1045,8 +1177,8 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
     plot_order = []
     plot_colors = []
 
-    # Histology cohorts
-    histology_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung']
+    # Histology cohorts (with histology-matched adjacent)
+    histology_order = ['TCGA_LUAD', 'TCGA_LUAD_Adjacent', 'TCGA_LUSC', 'TCGA_LUSC_Adjacent', 'GTEx_Lung']
     histology_data = tcga_df[tcga_df['cohort'].isin(histology_order)].copy()
     if len(histology_data) > 0:
         for cohort in histology_order:
@@ -1057,13 +1189,13 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
                 plot_colors.append(COHORT_COLORS.get(cohort, '#333333'))
         plot_data_list.append(histology_data[['expression', 'plot_group']])
 
-    # TCGA Mutation Status (tumor samples only)
-    tcga_tumor = tcga_df[(tcga_df['source'] == 'TCGA') & (tcga_df['is_tumor'] == True)].copy()
+    # TCGA LUAD Mutation Status (LUAD tumor samples only - most mutations occur in LUAD)
+    tcga_luad_tumor = tcga_df[tcga_df['cohort'] == 'TCGA_LUAD'].copy()
     for mutation_gene in ['KRAS', 'EGFR', 'STK11', 'KEAP1']:
         status_col = f'{mutation_gene}_status'
-        if status_col in tcga_tumor.columns:
+        if status_col in tcga_luad_tumor.columns:
             for status in ['Mutant', 'WT']:
-                subset = tcga_tumor[tcga_tumor[status_col] == status].copy()
+                subset = tcga_luad_tumor[tcga_luad_tumor[status_col] == status].copy()
                 if len(subset) > 0:
                     label = f'{mutation_gene}_{status[:3]}'
                     subset['plot_group'] = label
@@ -1083,29 +1215,36 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
     ax1.set_xlabel('')
     ax1.set_title(f'{gene} - TCGA Cohorts & Mutations', fontweight='bold', fontsize=10)
 
-    # Panel 2: On-Target Toxicity (Tumor vs Adjacent Normal)
+    # Panel 2: On-Target Toxicity (Histology-Matched: LUAD vs LUAD-Adj, LUSC vs LUSC-Adj)
     ax2 = fig.add_subplot(2, 4, 2)
-    tox_data = tcga_df[tcga_df['cohort'].isin(['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent'])]
+    tox_cohorts = ['TCGA_LUAD', 'TCGA_LUAD_Adjacent', 'TCGA_LUSC', 'TCGA_LUSC_Adjacent']
+    tox_data = tcga_df[tcga_df['cohort'].isin(tox_cohorts)]
     if len(tox_data) > 0:
         tox_data = tox_data.copy()
-        tox_data['tissue_type'] = tox_data['cohort'].apply(
-            lambda x: 'Tumor' if x in ['TCGA_LUAD', 'TCGA_LUSC'] else 'Adjacent Normal'
-        )
-        sns.boxplot(data=tox_data, x='tissue_type', y='expression',
-                    palette={'Tumor': '#E74C3C', 'Adjacent Normal': '#7F8C8D'}, ax=ax2)
+        tox_order = tox_cohorts
+        tox_colors = [COHORT_COLORS.get(c, '#333333') for c in tox_order]
+        sns.boxplot(data=tox_data, x='cohort', y='expression',
+                    order=tox_order, palette=tox_colors, ax=ax2, linewidth=0.5)
+        ax2.set_xticklabels(['LUAD', 'LUAD\nAdj', 'LUSC', 'LUSC\nAdj'], fontsize=8)
 
-        # Add fold change annotation
+        # Add histology-matched fold change annotation
         toxicity = idas_assessment.get('on_target_toxicity', {})
-        fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+        luad_fc = toxicity.get('luad_vs_luad_adjacent_log2FC')
+        lusc_fc = toxicity.get('lusc_vs_lusc_adjacent_log2FC')
         risk = toxicity.get('risk_level', 'Unknown')
-        ax2.text(0.5, 0.95, f'log2FC: {fc:.2f}\nRisk: {risk}',
-                transform=ax2.transAxes, ha='center', va='top', fontsize=10,
+        fc_text = f'LUAD vs Adj: {luad_fc:.2f}\n' if luad_fc else ''
+        fc_text += f'LUSC vs Adj: {lusc_fc:.2f}\n' if lusc_fc else ''
+        fc_text += f'Risk: {risk}'
+        ax2.text(0.5, 0.95, fc_text,
+                transform=ax2.transAxes, ha='center', va='top', fontsize=9,
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        # Add divider between histologies
+        ax2.axvline(x=1.5, color='gray', linestyle='--', alpha=0.5, linewidth=0.5)
     ax2.set_ylabel('Expression (log2 TPM+1)')
     ax2.set_xlabel('')
-    ax2.set_title('On-Target Toxicity Assessment', fontweight='bold')
+    ax2.set_title('On-Target Toxicity (Histology-Matched)', fontweight='bold', fontsize=10)
 
-    # Panel 3: Tempus Line of Therapy
+    # Panel 3: Tempus Line of Therapy (Boxplot from summary stats)
     ax3 = fig.add_subplot(2, 4, 3)
     if 'lot' in tempus_gene_data:
         lot_data = tempus_gene_data['lot']
@@ -1116,78 +1255,153 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
                 lot_plot['group_name'] = pd.Categorical(lot_plot['group_name'], categories=lot_order, ordered=True)
                 lot_plot = lot_plot.sort_values('group_name')
                 colors = [COHORT_COLORS.get(f'Tempus_{g.replace("+", "plus")}', '#333333') for g in lot_plot['group_name']]
-                ax3.bar(lot_plot['group_name'], lot_plot['mean'], color=colors, edgecolor='black')
-                ax3.errorbar(lot_plot['group_name'], lot_plot['mean'], yerr=lot_plot['sd']/2, fmt='none', color='black', capsize=3)
+                draw_boxplot_from_summary(ax3, lot_plot, 'group_name', colors)
+                # Add sample sizes
+                for i, (_, row) in enumerate(lot_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax3.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
     ax3.set_ylabel('Expression (log2 TPM+1)')
     ax3.set_xlabel('Line of Therapy')
     ax3.set_title('Tempus: Line of Therapy', fontweight='bold')
 
-    # Panel 4: iDAS Priority Cohorts
+    # Panel 4: iDAS Priority Cohorts (Boxplot from summary stats)
     ax4 = fig.add_subplot(2, 4, 4)
-    idas_data = []
-    for key, info in idas_assessment.get('whitespace_alignment', {}).items():
-        idas_data.append({
-            'cohort': info.get('label', key),
-            'expression': info.get('expression', 0),
-            'alignment': info.get('alignment', 'Unknown')
-        })
-    if idas_data:
-        idas_df = pd.DataFrame(idas_data)
-        colors = ['#27AE60' if a == 'Strong' else '#F39C12' if a == 'Moderate' else '#E74C3C'
-                  for a in idas_df['alignment']]
-        ax4.barh(idas_df['cohort'], idas_df['expression'], color=colors, edgecolor='black')
-        ax4.axvline(x=4, color='green', linestyle='--', alpha=0.5, label='Strong threshold')
-        ax4.axvline(x=2, color='orange', linestyle='--', alpha=0.5, label='Moderate threshold')
-    ax4.set_xlabel('Expression (log2 TPM+1)')
+    idas_boxplot_data = []
+    idas_keys = ['idas_2l_nonaga', 'idas_2l_egfr', 'idas_1l2l_kras']
+    idas_labels = ['2L Non-AGA', '2L EGFR', '1L-2L KRAS']
+    idas_colors = ['#E74C3C', '#27AE60', '#2874A6']
+    for key, label in zip(idas_keys, idas_labels):
+        if key in tempus_gene_data:
+            df = tempus_gene_data[key]
+            if len(df) > 0:
+                row = df.iloc[0]
+                idas_boxplot_data.append({
+                    'group_name': label,
+                    'mean': row.get('mean', 0),
+                    'median': row.get('median', row.get('mean', 0)),
+                    'sd': row.get('sd', 0),
+                    'q25': row.get('q25', row.get('mean', 0) - row.get('sd', 0) * 0.675),
+                    'q75': row.get('q75', row.get('mean', 0) + row.get('sd', 0) * 0.675),
+                    'n_samples': row.get('n_samples', 0)
+                })
+    if idas_boxplot_data:
+        idas_df = pd.DataFrame(idas_boxplot_data)
+        draw_boxplot_from_summary(ax4, idas_df, 'group_name', idas_colors[:len(idas_df)],
+                                  x_labels=[d['group_name'] for d in idas_boxplot_data])
+        # Add sample sizes
+        for i, row in enumerate(idas_boxplot_data):
+            n = int(row['n_samples']) if row['n_samples'] else 0
+            ax4.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
+    ax4.set_ylabel('Expression (log2 TPM+1)')
     ax4.set_title('iDAS Priority Whitespaces', fontweight='bold')
 
-    # Panel 5: KRAS Status
+    # Panel 5: KRAS Status (Boxplot from summary stats)
     ax5 = fig.add_subplot(2, 4, 5)
     if 'kras_status' in tempus_gene_data:
         kras_data = tempus_gene_data['kras_status']
         if 'group_name' in kras_data.columns:
-            kras_plot = kras_data[kras_data['group_name'].isin(['KRAS Mutant', 'KRAS WT'])]
+            kras_order = ['KRAS Mutant', 'KRAS WT']
+            kras_plot = kras_data[kras_data['group_name'].isin(kras_order)].copy()
             if len(kras_plot) > 0:
+                kras_plot['group_name'] = pd.Categorical(kras_plot['group_name'], categories=kras_order, ordered=True)
+                kras_plot = kras_plot.sort_values('group_name')
                 colors = ['#E67E22', '#3498DB']
-                ax5.bar(kras_plot['group_name'], kras_plot['mean'], color=colors, edgecolor='black')
-                ax5.errorbar(kras_plot['group_name'], kras_plot['mean'], yerr=kras_plot['sd']/2, fmt='none', color='black', capsize=3)
+                draw_boxplot_from_summary(ax5, kras_plot, 'group_name', colors, x_labels=['KRAS\nMut', 'KRAS\nWT'])
+                # Add sample sizes
+                for i, (_, row) in enumerate(kras_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax5.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
+                # Add p-value using Welch's t-test from summary stats
+                if len(kras_plot) == 2:
+                    kras_indexed = kras_plot.set_index('group_name')
+                    mut = kras_indexed.loc['KRAS Mutant']
+                    wt = kras_indexed.loc['KRAS WT']
+                    se_diff = np.sqrt(mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])
+                    if se_diff > 0:
+                        t_stat = (mut['mean'] - wt['mean']) / se_diff
+                        num = (mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])**2
+                        denom = (mut['sd']**4 / (mut['n_samples']**2 * (mut['n_samples']-1)) +
+                                wt['sd']**4 / (wt['n_samples']**2 * (wt['n_samples']-1)))
+                        df_welch = num / denom if denom > 0 else 1
+                        p_val = 2 * stats.t.sf(abs(t_stat), df_welch)
+                        p_str = f"p={p_val:.2e}" if p_val < 0.01 else f"p={p_val:.3f}"
+                        max_y = max(mut['q75'], wt['q75'])
+                        ax5.plot([0, 1], [max_y + 0.4] * 2, 'k-', linewidth=0.8)
+                        ax5.annotate(p_str, xy=(0.5, max_y + 0.5), ha='center', fontsize=7, style='italic')
     ax5.set_ylabel('Expression (log2 TPM+1)')
-    ax5.set_title('KRAS Mutation Status', fontweight='bold')
+    ax5.set_title('KRAS Mutation Status (Tempus)', fontweight='bold')
 
-    # Panel 6: EGFR Status
+    # Panel 6: EGFR Status (Boxplot from summary stats)
     ax6 = fig.add_subplot(2, 4, 6)
     if 'egfr_status' in tempus_gene_data:
         egfr_data = tempus_gene_data['egfr_status']
         if 'group_name' in egfr_data.columns:
-            egfr_plot = egfr_data[egfr_data['group_name'].isin(['EGFR Mutant', 'EGFR WT'])]
+            egfr_order = ['EGFR Mutant', 'EGFR WT']
+            egfr_plot = egfr_data[egfr_data['group_name'].isin(egfr_order)].copy()
             if len(egfr_plot) > 0:
+                egfr_plot['group_name'] = pd.Categorical(egfr_plot['group_name'], categories=egfr_order, ordered=True)
+                egfr_plot = egfr_plot.sort_values('group_name')
                 colors = ['#16A085', '#9B59B6']
-                ax6.bar(egfr_plot['group_name'], egfr_plot['mean'], color=colors, edgecolor='black')
-                ax6.errorbar(egfr_plot['group_name'], egfr_plot['mean'], yerr=egfr_plot['sd']/2, fmt='none', color='black', capsize=3)
+                draw_boxplot_from_summary(ax6, egfr_plot, 'group_name', colors, x_labels=['EGFR\nMut', 'EGFR\nWT'])
+                # Add sample sizes
+                for i, (_, row) in enumerate(egfr_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax6.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
+                # Add p-value using Welch's t-test from summary stats
+                if len(egfr_plot) == 2:
+                    egfr_indexed = egfr_plot.set_index('group_name')
+                    mut = egfr_indexed.loc['EGFR Mutant']
+                    wt = egfr_indexed.loc['EGFR WT']
+                    se_diff = np.sqrt(mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])
+                    if se_diff > 0:
+                        t_stat = (mut['mean'] - wt['mean']) / se_diff
+                        num = (mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])**2
+                        denom = (mut['sd']**4 / (mut['n_samples']**2 * (mut['n_samples']-1)) +
+                                wt['sd']**4 / (wt['n_samples']**2 * (wt['n_samples']-1)))
+                        df_welch = num / denom if denom > 0 else 1
+                        p_val = 2 * stats.t.sf(abs(t_stat), df_welch)
+                        p_str = f"p={p_val:.2e}" if p_val < 0.01 else f"p={p_val:.3f}"
+                        max_y = max(mut['q75'], wt['q75'])
+                        ax6.plot([0, 1], [max_y + 0.4] * 2, 'k-', linewidth=0.8)
+                        ax6.annotate(p_str, xy=(0.5, max_y + 0.5), ha='center', fontsize=7, style='italic')
     ax6.set_ylabel('Expression (log2 TPM+1)')
-    ax6.set_title('EGFR Mutation Status', fontweight='bold')
+    ax6.set_title('EGFR Mutation Status (Tempus)', fontweight='bold')
 
-    # Panel 7: STK11/KEAP1 Status (IO resistance markers)
+    # Panel 7: STK11/KEAP1 Status (IO resistance markers - Boxplot from summary stats)
     ax7 = fig.add_subplot(2, 4, 7)
     io_data = []
     if 'stk11_status' in tempus_gene_data:
         stk11 = tempus_gene_data['stk11_status']
         for _, row in stk11.iterrows():
             if 'group_name' in row:
-                io_data.append({'marker': row['group_name'], 'mean': row['mean'], 'sd': row.get('sd', 0)})
+                io_data.append({
+                    'group_name': row['group_name'],
+                    'mean': row['mean'],
+                    'median': row.get('median', row['mean']),
+                    'sd': row.get('sd', 0),
+                    'q25': row.get('q25', row['mean'] - row.get('sd', 0) * 0.675),
+                    'q75': row.get('q75', row['mean'] + row.get('sd', 0) * 0.675)
+                })
     if 'keap1_status' in tempus_gene_data:
         keap1 = tempus_gene_data['keap1_status']
         for _, row in keap1.iterrows():
             if 'group_name' in row:
-                io_data.append({'marker': row['group_name'], 'mean': row['mean'], 'sd': row.get('sd', 0)})
+                io_data.append({
+                    'group_name': row['group_name'],
+                    'mean': row['mean'],
+                    'median': row.get('median', row['mean']),
+                    'sd': row.get('sd', 0),
+                    'q25': row.get('q25', row['mean'] - row.get('sd', 0) * 0.675),
+                    'q75': row.get('q75', row['mean'] + row.get('sd', 0) * 0.675)
+                })
     if io_data:
         io_df = pd.DataFrame(io_data)
-        colors = ['#8E44AD' if 'STK11' in m else '#D35400' for m in io_df['marker']]
-        ax7.bar(range(len(io_df)), io_df['mean'], color=colors, edgecolor='black')
-        ax7.set_xticks(range(len(io_df)))
-        ax7.set_xticklabels(io_df['marker'], rotation=45, ha='right', fontsize=8)
+        colors = ['#8E44AD' if 'STK11' in m else '#D35400' for m in io_df['group_name']]
+        x_labels = [m.replace(' Mutant', '\nMut').replace(' WT', '\nWT') for m in io_df['group_name']]
+        draw_boxplot_from_summary(ax7, io_df, 'group_name', colors, x_labels=x_labels)
+        ax7.tick_params(axis='x', labelsize=7)
     ax7.set_ylabel('Expression (log2 TPM+1)')
-    ax7.set_title('IO Resistance Markers (STK11/KEAP1)', fontweight='bold')
+    ax7.set_title('IO Resistance Markers (Tempus)', fontweight='bold')
 
     # Panel 8: Overall Assessment Summary
     ax8 = fig.add_subplot(2, 4, 8)
@@ -1254,13 +1468,13 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     # Panel 1: TCGA Cohort Expression + Mutation Status (all in 1 row)
     fig, ax = plt.subplots(figsize=(16, 6))
 
-    # Build combined data: histology cohorts + mutation status
+    # Build combined data: histology cohorts (with histology-matched adjacent) + mutation status
     plot_data_list = []
     plot_order = []
     plot_colors = []
 
-    # First: Histology cohorts
-    histology_order = ['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent', 'GTEx_Lung', 'CCLE_NSCLC']
+    # First: Histology cohorts with histology-matched adjacent
+    histology_order = ['TCGA_LUAD', 'TCGA_LUAD_Adjacent', 'TCGA_LUSC', 'TCGA_LUSC_Adjacent', 'GTEx_Lung', 'CCLE_NSCLC']
     histology_data = tcga_df[tcga_df['cohort'].isin(histology_order)].copy()
     if len(histology_data) > 0:
         # Add sample counts to labels
@@ -1273,13 +1487,13 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
                 plot_colors.append(COHORT_COLORS.get(cohort, '#333333'))
         plot_data_list.append(histology_data[['expression', 'plot_group']])
 
-    # Second: TCGA Mutation Status (tumor samples only)
-    tcga_tumor = tcga_df[(tcga_df['source'] == 'TCGA') & (tcga_df['is_tumor'] == True)].copy()
+    # Second: TCGA LUAD Mutation Status (LUAD tumor samples only - most mutations occur in LUAD)
+    tcga_luad_tumor = tcga_df[tcga_df['cohort'] == 'TCGA_LUAD'].copy()
     for mutation_gene in ['KRAS', 'EGFR', 'STK11', 'KEAP1']:
         status_col = f'{mutation_gene}_status'
-        if status_col in tcga_tumor.columns:
+        if status_col in tcga_luad_tumor.columns:
             for status in ['Mutant', 'WT']:
-                subset = tcga_tumor[tcga_tumor[status_col] == status].copy()
+                subset = tcga_luad_tumor[tcga_luad_tumor[status_col] == status].copy()
                 if len(subset) > 0:
                     label = f'{mutation_gene}\n{status}\n(n={len(subset)})'
                     subset['plot_group'] = label
@@ -1299,35 +1513,43 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
 
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('')
-    ax.set_title(f'{gene} - TCGA Expression: Histology & Mutation Status (Treatment-Naive)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - TCGA Expression: Histology-Matched & LUAD Mutations (Treatment-Naive)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_1_tcga_cohorts.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel 2: On-Target Toxicity (Tumor vs Adjacent Normal)
-    fig, ax = plt.subplots(figsize=(6, 5))
-    tox_data = tcga_df[tcga_df['cohort'].isin(['TCGA_LUAD', 'TCGA_LUSC', 'TCGA_Adjacent'])]
+    # Panel 2: On-Target Toxicity (Histology-Matched: LUAD vs LUAD-Adj, LUSC vs LUSC-Adj)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    tox_cohorts = ['TCGA_LUAD', 'TCGA_LUAD_Adjacent', 'TCGA_LUSC', 'TCGA_LUSC_Adjacent']
+    tox_data = tcga_df[tcga_df['cohort'].isin(tox_cohorts)]
     if len(tox_data) > 0:
         tox_data = tox_data.copy()
-        tox_data['tissue_type'] = tox_data['cohort'].apply(
-            lambda x: 'Tumor' if x in ['TCGA_LUAD', 'TCGA_LUSC'] else 'Adjacent Normal'
-        )
-        sns.boxplot(data=tox_data, x='tissue_type', y='expression',
-                    palette={'Tumor': '#E74C3C', 'Adjacent Normal': '#7F8C8D'}, ax=ax)
+        tox_order = tox_cohorts
+        tox_colors = [COHORT_COLORS.get(c, '#333333') for c in tox_order]
+        sns.boxplot(data=tox_data, x='cohort', y='expression',
+                    order=tox_order, palette=tox_colors, ax=ax)
+        ax.set_xticklabels(['LUAD\nTumor', 'LUAD\nAdjacent', 'LUSC\nTumor', 'LUSC\nAdjacent'], fontsize=10)
+        # Add histology-matched fold change annotation
         toxicity = idas_assessment.get('on_target_toxicity', {})
-        fc = toxicity.get('tumor_vs_adjacent_log2FC', 0)
+        luad_fc = toxicity.get('luad_vs_luad_adjacent_log2FC')
+        lusc_fc = toxicity.get('lusc_vs_lusc_adjacent_log2FC')
         risk = toxicity.get('risk_level', 'Unknown')
-        ax.text(0.5, 0.95, f'log2FC: {fc:.2f}\nRisk: {risk}',
+        fc_text = f'LUAD vs LUAD-Adj: {luad_fc:.2f}\n' if luad_fc else ''
+        fc_text += f'LUSC vs LUSC-Adj: {lusc_fc:.2f}\n' if lusc_fc else ''
+        fc_text += f'Risk: {risk}'
+        ax.text(0.5, 0.95, fc_text,
                 transform=ax.transAxes, ha='center', va='top', fontsize=11,
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        # Add divider between histologies
+        ax.axvline(x=1.5, color='gray', linestyle='--', alpha=0.5)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('')
-    ax.set_title(f'{gene} - On-Target Toxicity Assessment', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - On-Target Toxicity (Histology-Matched)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_2_toxicity.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel 3: Tempus Line of Therapy
+    # Panel 3: Tempus Line of Therapy (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(6, 5))
     if 'lot' in tempus_gene_data:
         lot_data = tempus_gene_data['lot']
@@ -1338,8 +1560,11 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
                 lot_plot['group_name'] = pd.Categorical(lot_plot['group_name'], categories=lot_order, ordered=True)
                 lot_plot = lot_plot.sort_values('group_name')
                 colors = [COHORT_COLORS.get(f'Tempus_{g.replace("+", "plus")}', '#333333') for g in lot_plot['group_name']]
-                ax.bar(lot_plot['group_name'], lot_plot['mean'], color=colors, edgecolor='black')
-                ax.errorbar(lot_plot['group_name'], lot_plot['mean'], yerr=lot_plot['sd']/2, fmt='none', color='black', capsize=3)
+                draw_boxplot_from_summary(ax, lot_plot, 'group_name', colors)
+                # Add sample sizes
+                for i, (_, row) in enumerate(lot_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('Line of Therapy', fontsize=12)
     ax.set_title(f'{gene} - Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
@@ -1347,82 +1572,152 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_3_lot.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel 4: iDAS Priority Cohorts
+    # Panel 4: iDAS Priority Cohorts (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(8, 6))
-    idas_data = []
-    for key, info in idas_assessment.get('whitespace_alignment', {}).items():
-        idas_data.append({
-            'cohort': info.get('label', key),
-            'expression': info.get('expression', 0),
-            'alignment': info.get('alignment', 'Unknown')
-        })
-    if idas_data:
-        idas_df = pd.DataFrame(idas_data)
-        colors = ['#27AE60' if a == 'Strong' else '#F39C12' if a == 'Moderate' else '#E74C3C'
-                  for a in idas_df['alignment']]
-        ax.barh(idas_df['cohort'], idas_df['expression'], color=colors, edgecolor='black')
-        ax.axvline(x=4, color='green', linestyle='--', alpha=0.5, label='Strong threshold')
-        ax.axvline(x=2, color='orange', linestyle='--', alpha=0.5, label='Moderate threshold')
-        ax.legend(loc='lower right', fontsize=9)
-    ax.set_xlabel('Expression (log2 TPM+1)', fontsize=12)
+    idas_boxplot_data = []
+    idas_keys = ['idas_2l_nonaga', 'idas_2l_egfr', 'idas_1l2l_kras']
+    idas_labels = ['2L Non-AGA', '2L EGFR', '1L-2L KRAS']
+    idas_colors = ['#E74C3C', '#27AE60', '#2874A6']
+    for key, label in zip(idas_keys, idas_labels):
+        if key in tempus_gene_data:
+            df = tempus_gene_data[key]
+            if len(df) > 0:
+                row = df.iloc[0]
+                idas_boxplot_data.append({
+                    'group_name': label,
+                    'mean': row.get('mean', 0),
+                    'median': row.get('median', row.get('mean', 0)),
+                    'sd': row.get('sd', 0),
+                    'q25': row.get('q25', row.get('mean', 0) - row.get('sd', 0) * 0.675),
+                    'q75': row.get('q75', row.get('mean', 0) + row.get('sd', 0) * 0.675),
+                    'n_samples': row.get('n_samples', 0)
+                })
+    if idas_boxplot_data:
+        idas_df = pd.DataFrame(idas_boxplot_data)
+        draw_boxplot_from_summary(ax, idas_df, 'group_name', idas_colors[:len(idas_df)],
+                                  x_labels=[d['group_name'] for d in idas_boxplot_data])
+        # Add sample sizes
+        for i, row in enumerate(idas_boxplot_data):
+            n = int(row['n_samples']) if row['n_samples'] else 0
+            ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
+    ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - iDAS Priority Whitespaces', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_4_idas_priority.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel 5: KRAS Status
+    # Panel 5: KRAS Status (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(6, 5))
     if 'kras_status' in tempus_gene_data:
         kras_data = tempus_gene_data['kras_status']
         if 'group_name' in kras_data.columns:
-            kras_plot = kras_data[kras_data['group_name'].isin(['KRAS Mutant', 'KRAS WT'])]
+            kras_order = ['KRAS Mutant', 'KRAS WT']
+            kras_plot = kras_data[kras_data['group_name'].isin(kras_order)].copy()
             if len(kras_plot) > 0:
+                kras_plot['group_name'] = pd.Categorical(kras_plot['group_name'], categories=kras_order, ordered=True)
+                kras_plot = kras_plot.sort_values('group_name')
                 colors = ['#E67E22', '#3498DB']
-                ax.bar(kras_plot['group_name'], kras_plot['mean'], color=colors, edgecolor='black')
-                ax.errorbar(kras_plot['group_name'], kras_plot['mean'], yerr=kras_plot['sd']/2, fmt='none', color='black', capsize=3)
+                draw_boxplot_from_summary(ax, kras_plot, 'group_name', colors, x_labels=['KRAS Mutant', 'KRAS WT'])
+                # Add sample sizes
+                for i, (_, row) in enumerate(kras_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
+                # Add p-value using Welch's t-test from summary stats
+                if len(kras_plot) == 2:
+                    kras_indexed = kras_plot.set_index('group_name')
+                    mut = kras_indexed.loc['KRAS Mutant']
+                    wt = kras_indexed.loc['KRAS WT']
+                    se_diff = np.sqrt(mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])
+                    if se_diff > 0:
+                        t_stat = (mut['mean'] - wt['mean']) / se_diff
+                        num = (mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])**2
+                        denom = (mut['sd']**4 / (mut['n_samples']**2 * (mut['n_samples']-1)) +
+                                wt['sd']**4 / (wt['n_samples']**2 * (wt['n_samples']-1)))
+                        df_welch = num / denom if denom > 0 else 1
+                        p_val = 2 * stats.t.sf(abs(t_stat), df_welch)
+                        p_str = f"p={p_val:.2e}" if p_val < 0.01 else f"p={p_val:.3f}"
+                        max_y = max(mut['q75'], wt['q75'])
+                        ax.plot([0, 1], [max_y + 0.5] * 2, 'k-', linewidth=0.8)
+                        ax.annotate(p_str, xy=(0.5, max_y + 0.6), ha='center', fontsize=9, style='italic')
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - KRAS Mutation Status (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_5_kras_status.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel 6: EGFR Status
+    # Panel 6: EGFR Status (Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(6, 5))
     if 'egfr_status' in tempus_gene_data:
         egfr_data = tempus_gene_data['egfr_status']
         if 'group_name' in egfr_data.columns:
-            egfr_plot = egfr_data[egfr_data['group_name'].isin(['EGFR Mutant', 'EGFR WT'])]
+            egfr_order = ['EGFR Mutant', 'EGFR WT']
+            egfr_plot = egfr_data[egfr_data['group_name'].isin(egfr_order)].copy()
             if len(egfr_plot) > 0:
+                egfr_plot['group_name'] = pd.Categorical(egfr_plot['group_name'], categories=egfr_order, ordered=True)
+                egfr_plot = egfr_plot.sort_values('group_name')
                 colors = ['#16A085', '#9B59B6']
-                ax.bar(egfr_plot['group_name'], egfr_plot['mean'], color=colors, edgecolor='black')
-                ax.errorbar(egfr_plot['group_name'], egfr_plot['mean'], yerr=egfr_plot['sd']/2, fmt='none', color='black', capsize=3)
+                draw_boxplot_from_summary(ax, egfr_plot, 'group_name', colors, x_labels=['EGFR Mutant', 'EGFR WT'])
+                # Add sample sizes
+                for i, (_, row) in enumerate(egfr_plot.iterrows()):
+                    n = int(row['n_samples']) if 'n_samples' in row else 0
+                    ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
+                # Add p-value using Welch's t-test from summary stats
+                if len(egfr_plot) == 2:
+                    egfr_indexed = egfr_plot.set_index('group_name')
+                    mut = egfr_indexed.loc['EGFR Mutant']
+                    wt = egfr_indexed.loc['EGFR WT']
+                    se_diff = np.sqrt(mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])
+                    if se_diff > 0:
+                        t_stat = (mut['mean'] - wt['mean']) / se_diff
+                        num = (mut['sd']**2 / mut['n_samples'] + wt['sd']**2 / wt['n_samples'])**2
+                        denom = (mut['sd']**4 / (mut['n_samples']**2 * (mut['n_samples']-1)) +
+                                wt['sd']**4 / (wt['n_samples']**2 * (wt['n_samples']-1)))
+                        df_welch = num / denom if denom > 0 else 1
+                        p_val = 2 * stats.t.sf(abs(t_stat), df_welch)
+                        p_str = f"p={p_val:.2e}" if p_val < 0.01 else f"p={p_val:.3f}"
+                        max_y = max(mut['q75'], wt['q75'])
+                        ax.plot([0, 1], [max_y + 0.5] * 2, 'k-', linewidth=0.8)
+                        ax.annotate(p_str, xy=(0.5, max_y + 0.6), ha='center', fontsize=9, style='italic')
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - EGFR Mutation Status (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_6_egfr_status.png'), dpi=DPI, facecolor='white')
     plt.close()
 
-    # Panel 7: STK11/KEAP1 Status (IO resistance markers)
+    # Panel 7: STK11/KEAP1 Status (IO resistance markers - Boxplot from summary stats)
     fig, ax = plt.subplots(figsize=(8, 6))
     io_data = []
     if 'stk11_status' in tempus_gene_data:
         stk11 = tempus_gene_data['stk11_status']
         for _, row in stk11.iterrows():
             if 'group_name' in row:
-                io_data.append({'marker': row['group_name'], 'mean': row['mean'], 'sd': row.get('sd', 0)})
+                io_data.append({
+                    'group_name': row['group_name'],
+                    'mean': row['mean'],
+                    'median': row.get('median', row['mean']),
+                    'sd': row.get('sd', 0),
+                    'q25': row.get('q25', row['mean'] - row.get('sd', 0) * 0.675),
+                    'q75': row.get('q75', row['mean'] + row.get('sd', 0) * 0.675)
+                })
     if 'keap1_status' in tempus_gene_data:
         keap1 = tempus_gene_data['keap1_status']
         for _, row in keap1.iterrows():
             if 'group_name' in row:
-                io_data.append({'marker': row['group_name'], 'mean': row['mean'], 'sd': row.get('sd', 0)})
+                io_data.append({
+                    'group_name': row['group_name'],
+                    'mean': row['mean'],
+                    'median': row.get('median', row['mean']),
+                    'sd': row.get('sd', 0),
+                    'q25': row.get('q25', row['mean'] - row.get('sd', 0) * 0.675),
+                    'q75': row.get('q75', row['mean'] + row.get('sd', 0) * 0.675)
+                })
     if io_data:
         io_df = pd.DataFrame(io_data)
-        colors = ['#8E44AD' if 'STK11' in m else '#D35400' for m in io_df['marker']]
-        ax.bar(range(len(io_df)), io_df['mean'], color=colors, edgecolor='black')
-        ax.set_xticks(range(len(io_df)))
-        ax.set_xticklabels(io_df['marker'], rotation=45, ha='right', fontsize=10)
+        colors = ['#8E44AD' if 'STK11' in m else '#D35400' for m in io_df['group_name']]
+        x_labels = [m.replace(' Mutant', '\nMut').replace(' WT', '\nWT') for m in io_df['group_name']]
+        draw_boxplot_from_summary(ax, io_df, 'group_name', colors, x_labels=x_labels)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
-    ax.set_title(f'{gene} - IO Resistance Markers (STK11/KEAP1)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - IO Resistance Markers (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, f'{gene}_panel_7_io_resistance.png'), dpi=DPI, facecolor='white')
     plt.close()
@@ -1667,12 +1962,14 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
         for gene_name, mut_df in tcga_mutation_stats.items():
             total_tcga_mut_samples = max(total_tcga_mut_samples, int(mut_df['N'].sum()) if 'N' in mut_df.columns else 0)
 
-        report.append(f"## TCGA Mutation Status Expression (N={total_tcga_mut_samples})\n")
-        report.append("> **Data Source:** TCGA-LUAD/LUSC (treatment-naive) - valid within-dataset comparison\n\n")
+        report.append(f"## TCGA LUAD Mutation Status Expression (N={total_tcga_mut_samples})\n")
+        report.append("> **Data Source:** TCGA-LUAD only (treatment-naive) - LUAD-specific analysis since most driver mutations occur in LUAD\n")
+        report.append("> **Note:** KRAS (~30% LUAD vs ~5% LUSC), EGFR (~15% LUAD vs rare LUSC), STK11/KEAP1 (predominantly LUAD)\n\n")
 
         for mutation_gene, mut_df in tcga_mutation_stats.items():
             total_n = int(mut_df['N'].sum()) if 'N' in mut_df.columns else 0
-            report.append(f"### {mutation_gene} Mutation Status (TCGA, N={total_n})\n")
+            histology_label = mut_df['Histology'].iloc[0] if 'Histology' in mut_df.columns else 'LUAD'
+            report.append(f"### {mutation_gene} Mutation Status (TCGA {histology_label}, N={total_n})\n")
             report.append("| Status | N | Mean (log2TPM) | Median | SD | log2FC vs WT |")
             report.append("|--------|---|----------------|--------|----|--------------| ")
             for _, row in mut_df.iterrows():
@@ -1699,8 +1996,9 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
         report.append("## Subgroup Suitability Analysis\n")
         report.append("> **3-Phase Analysis:** Phase 1 (TCGA, treatment-naive) → Phase 2 (Tempus mutation, IO-experienced) → Phase 3 (iDAS whitespace)\n\n")
 
-        # Phase 1: TCGA Analysis (Histology + Mutation)
+        # Phase 1: TCGA Analysis (Histology + LUAD Mutation)
         report.append("### Phase 1: TCGA Analysis (Treatment-Naive)\n")
+        report.append("> Histology (LUAD/LUSC vs matched adjacent) + LUAD-specific mutation status (KRAS, EGFR, STK11, KEAP1)\n\n")
         report.append("| Subgroup | Key Metric | Score | Recommendation |")
         report.append("|----------|------------|-------|----------------|")
         for row in subgroup_suitability['summary']:
@@ -1827,16 +2125,32 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
         # Calculate statistics
         tcga_stats = calculate_cohort_statistics(tcga_df)
 
-        # Pairwise comparisons
-        tumor_cohorts = ['TCGA_LUAD', 'TCGA_LUSC']
-        normal_cohorts = ['TCGA_Adjacent', 'GTEx_Lung']
-        pairwise_df = perform_pairwise_comparisons(tcga_df, tumor_cohorts, normal_cohorts)
-        print(f"  Performed {len(pairwise_df)} pairwise comparisons")
+        # Pairwise comparisons - histology-matched (LUAD vs LUAD-adjacent, LUSC vs LUSC-adjacent)
+        # This is biologically more appropriate than pooling all adjacent normal
+        pairwise_results = []
 
-        # TCGA Mutation Statistics
-        tcga_mutation_stats = compute_tcga_mutation_statistics(tcga_df)
+        # LUAD vs LUAD-adjacent (histology-matched)
+        luad_comparisons = perform_pairwise_comparisons(
+            tcga_df, ['TCGA_LUAD'], ['TCGA_LUAD_Adjacent', 'GTEx_Lung']
+        )
+        if len(luad_comparisons) > 0:
+            pairwise_results.append(luad_comparisons)
+
+        # LUSC vs LUSC-adjacent (histology-matched)
+        lusc_comparisons = perform_pairwise_comparisons(
+            tcga_df, ['TCGA_LUSC'], ['TCGA_LUSC_Adjacent', 'GTEx_Lung']
+        )
+        if len(lusc_comparisons) > 0:
+            pairwise_results.append(lusc_comparisons)
+
+        pairwise_df = pd.concat(pairwise_results, ignore_index=True) if pairwise_results else pd.DataFrame()
+        print(f"  Performed {len(pairwise_df)} histology-matched pairwise comparisons")
+
+        # TCGA Mutation Statistics (LUAD-specific since most mutations occur in LUAD)
+        # KRAS: ~30% LUAD vs ~5% LUSC; EGFR: ~15% LUAD vs rare LUSC; STK11/KEAP1: predominantly LUAD
+        tcga_mutation_stats = compute_tcga_mutation_statistics(tcga_df, histology='LUAD')
         if tcga_mutation_stats:
-            print(f"  Computed mutation statistics for {len(tcga_mutation_stats)} genes")
+            print(f"  Computed LUAD mutation statistics for {len(tcga_mutation_stats)} genes")
 
     # Tempus Analysis
     tempus_gene_data = {}

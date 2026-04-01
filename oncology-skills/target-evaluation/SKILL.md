@@ -469,15 +469,37 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 ## 3. Results
 
-### 3.1 Differential Expression Analysis
+### 3.1 Risk Assessment Summary (Step 1: Literature-Based)
+
+> **Data Source:** PubMed literature search across 6 risk categories
+>
+> **IMPORTANT:** This section contains ONLY literature-based evidence from Step 1 PubMed searches. Do NOT include omics data (expression values, fold changes, log2TPM) here. Omics data belongs in Section 3.2 (Step 2). The ScholarEval in Section 3.3 combines both literature and omics evidence.
+
+| Risk Category | Risk Level | Key Driver | Key Evidence (PMID) |
+|---------------|------------|------------|---------------------|
+| Biological | LOW/MEDIUM/HIGH | Literature-based summary | Key finding from paper (PMID: XXXXXXXX) |
+| Druggability | LOW/MEDIUM/HIGH | Literature-based summary | Key finding from paper (PMID: XXXXXXXX) |
+| Translational | LOW/MEDIUM/HIGH | Literature-based summary | Key finding from paper (PMID: XXXXXXXX) |
+| Clinical | LOW/MEDIUM/HIGH | Literature-based summary | Key finding from paper (PMID: XXXXXXXX) |
+| Safety | LOW/MEDIUM/HIGH | Literature-based summary | Key finding from paper (PMID: XXXXXXXX) |
+| Commercial | LOW/MEDIUM/HIGH | Literature-based summary | Market data or competitive intelligence |
+
+**Overall Risk Profile: LEVEL**
+
+### 3.2 Differential Expression Analysis (Step 2: Multi-omics)
 
 #### Primary On-Target Toxicity Metric: Tumor vs Adjacent Normal
 
-| Comparison | Tumor N | Normal N | Tumor Median | Normal Median | Fold Change | p-value |
-|------------|---------|----------|--------------|---------------|-------------|---------|
-| Cohort_1 vs Adjacent | N | N | X.XX | X.XX | **X.Xx** | X.XXe-XX |
-| Cohort_2 vs Adjacent | N | N | X.XX | X.XX | **X.Xx** | X.XXe-XX |
-| All Tumors vs GTEx | N | N | X.XX | X.XX | X.Xx | X.XXe-XX |
+| Comparison | Tumor N | Normal N | Tumor Median | Normal Median | Fold Change | Risk Level | p-value |
+|------------|---------|----------|--------------|---------------|-------------|------------|---------|
+| Cohort_1 vs Adjacent | N | N | X.XX | X.XX | **X.Xx** | LOW/MEDIUM/HIGH | X.XXe-XX |
+| Cohort_2 vs Adjacent | N | N | X.XX | X.XX | **X.Xx** | LOW/MEDIUM/HIGH | X.XXe-XX |
+| All Tumors vs GTEx | N | N | X.XX | X.XX | X.Xx | - | X.XXe-XX |
+
+**On-Target Toxicity Risk Criteria:**
+- **LOW**: >2x tumor vs adjacent normal (good therapeutic window)
+- **MEDIUM**: 1.5-2x tumor vs adjacent normal (moderate window)
+- **HIGH**: <1.5x tumor vs adjacent normal (narrow window, toxicity concern)
 
 **Interpretation**: [1-2 sentence summary of tumor specificity and toxicity risk]
 
@@ -488,64 +510,46 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 | Whitespace 1 | X.XX | XX% | N | **Strong/Moderate/Weak** |
 | Whitespace 2 | X.XX | XX% | N | **Strong/Moderate/Weak** |
 
-### 3.2 Literature Evidence Summary
+### 3.3 Target Validation Scorecard (Step 3: ScholarEval)
 
-#### Biological Validation
-- Key finding 1 with reference (Author Year)
-- Key finding 2 with reference
-- Key finding 3 with reference
+> **Data Source:** Integrated evidence from Step 1 (Literature) + Step 2 (Multi-omics)
+>
+> **NOTE:** The Rationale column COMBINES both literature evidence (from 3.1) and omics data (from 3.2). This is where expression values, fold changes, and log2TPM data should appear alongside literature citations.
 
-#### Druggability
-- Key finding 1 with reference
-- Key finding 2 with reference
-- Key finding 3 with reference
+| Dimension | Weight | Score | Risk Level | Rationale |
+|-----------|--------|-------|------------|-----------|
+| Differential Expression | 0.15 | X/5 | LOW/MEDIUM/HIGH | Omics: Xx vs adjacent (from 3.2); Literature support (PMID) |
+| Pathway Relevance | 0.15 | X/5 | LOW/MEDIUM/HIGH | Literature evidence (PMID) |
+| Druggability | 0.15 | X/5 | LOW/MEDIUM/HIGH | Literature evidence (PMID) |
+| Genetic Validation | 0.10 | X/5 | LOW/MEDIUM/HIGH | Literature evidence (PMID) |
+| Disease Association | 0.10 | X/5 | LOW/MEDIUM/HIGH | Literature + omics evidence |
+| Safety Profile | 0.15 | X/5 | LOW/MEDIUM/HIGH | Omics: X.XX log2TPM normal (from 3.2); Literature (PMID) |
+| Clinical Validation | 0.10 | X/5 | LOW/MEDIUM/HIGH | Literature evidence (PMID) |
+| Biomarker Potential | 0.10 | X/5 | LOW/MEDIUM/HIGH | Literature + omics evidence |
+| **TOTAL** | **1.00** | **X.XX/5.0** | **LEVEL** | **Assessment - Recommendation** |
 
-#### Clinical Context
-- Key finding 1 with reference
-- Key finding 2 with reference
-- First-in-class opportunity statement
-
-#### Safety Profile
-- Normal tissue expression findings
-- Known toxicity concerns
-- Mitigation evidence if available
-
-### 3.3 Target Validation Scorecard (ScholarEval)
-
-| Dimension | Weight | Score | Rationale |
-|-----------|--------|-------|-----------|
-| Differential Expression | 0.15 | X/5 | Evidence text |
-| Pathway Relevance | 0.15 | X/5 | Evidence text |
-| Druggability | 0.15 | X/5 | Evidence text |
-| Genetic Validation | 0.10 | X/5 | Evidence text |
-| Disease Association | 0.10 | X/5 | Evidence text |
-| Safety Profile | 0.15 | X/5 | Evidence text |
-| Clinical Validation | 0.10 | X/5 | Evidence text |
-| Biomarker Potential | 0.10 | X/5 | Evidence text |
-| **TOTAL** | **1.00** | **X.XX/5.0** | **Assessment - Recommendation** |
-
-### 3.4 Subgroup-Stratified Suitability
+### 3.4 Subgroup-Stratified Suitability (Steps 2+3 Integration)
 
 #### Phase 1: TCGA Analysis (Treatment-Naive)
 
-| Subgroup | Key Metric | Score | Recommendation |
-|----------|------------|-------|----------------|
-| Subgroup 1 | Metric | X/5 | **GO/CONDITIONAL/CAUTION** |
-| Subgroup 2 | Metric | X/5 | **GO/CONDITIONAL/CAUTION** |
+| Subgroup | Key Metric | Score | Risk Level | Recommendation |
+|----------|------------|-------|------------|----------------|
+| Subgroup 1 | Metric | X/5 | LOW/MEDIUM/HIGH | **GO/CONDITIONAL/CAUTION** |
+| Subgroup 2 | Metric | X/5 | LOW/MEDIUM/HIGH | **GO/CONDITIONAL/CAUTION** |
 
 #### Phase 2: Tempus Mutation Status (IO-Experienced/CPI-Naive)
 
-| Subgroup | Key Metric | Score | Recommendation |
-|----------|------------|-------|----------------|
-| Mutation 1 | X.Xx vs WT (Tempus) | X/5 | **GO/NEUTRAL/CAUTION** |
-| Mutation 2 | X.Xx vs WT (Tempus) | X/5 | **GO/NEUTRAL/CAUTION** |
+| Subgroup | Key Metric | Score | Risk Level | Recommendation |
+|----------|------------|-------|------------|----------------|
+| Mutation 1 | X.Xx vs WT (Tempus) | X/5 | LOW/MEDIUM/HIGH | **GO/NEUTRAL/CAUTION** |
+| Mutation 2 | X.Xx vs WT (Tempus) | X/5 | LOW/MEDIUM/HIGH | **GO/NEUTRAL/CAUTION** |
 
 #### Phase 3: iDAS Whitespace Suitability
 
-| Whitespace | Key Metric | Score | Recommendation |
-|------------|------------|-------|----------------|
-| iDAS: Whitespace 1 | expr=X.XX, tox=Level | X/5 | **PRIORITY/GO/CONDITIONAL** |
-| iDAS: Whitespace 2 | expr=X.XX, tox=Level | X/5 | **PRIORITY/GO/CONDITIONAL** |
+| Whitespace | Key Metric | Score | Risk Level | Recommendation |
+|------------|------------|-------|------------|----------------|
+| iDAS: Whitespace 1 | expr=X.XX, tox=Level | X/5 | LOW/MEDIUM/HIGH | **PRIORITY/GO/CONDITIONAL** |
+| iDAS: Whitespace 2 | expr=X.XX, tox=Level | X/5 | LOW/MEDIUM/HIGH | **PRIORITY/GO/CONDITIONAL** |
 
 #### Subgroup Recommendations Summary
 - **PRIORITY Subgroups**: List
@@ -554,24 +558,9 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 ---
 
-## 4. Risk Assessment Summary
+## 4. Discussion
 
-| Risk Category | Level | Key Driver |
-|---------------|-------|------------|
-| Biological | LOW/MEDIUM/HIGH | Brief explanation |
-| Druggability | LOW/MEDIUM/HIGH | Brief explanation |
-| Translational | LOW/MEDIUM/HIGH | Brief explanation |
-| Clinical | LOW/MEDIUM/HIGH | Brief explanation |
-| Safety | LOW/MEDIUM/HIGH | Brief explanation |
-| Commercial | LOW/MEDIUM/HIGH | Brief explanation |
-
-**Overall Risk Profile: LEVEL**
-
----
-
-## 5. Discussion
-
-### 5.1 Key Strengths
+### 4.1 Key Strengths
 
 1. **Strength 1**: Detailed explanation
 2. **Strength 2**: Detailed explanation
@@ -579,14 +568,14 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 4. **Strength 4**: Detailed explanation
 5. **Strength 5**: Detailed explanation
 
-### 5.2 Key Risks/Challenges
+### 4.2 Key Risks/Challenges
 
 1. **Risk 1**: Detailed explanation
 2. **Risk 2**: Detailed explanation
 3. **Risk 3**: Detailed explanation
 4. **Risk 4**: Detailed explanation
 
-### 5.3 Subgroup-Specific Considerations
+### 4.3 Subgroup-Specific Considerations
 
 **Optimal Populations:**
 - Population 1: Rationale
@@ -597,41 +586,41 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 ---
 
-## 6. Risk Mitigation Strategies
+## 5. Risk Mitigation Strategies
 
-| Risk | Mitigation Strategy |
-|------|---------------------|
-| Risk 1 | Strategy description |
-| Risk 2 | Strategy description |
-| Risk 3 | Strategy description |
-| Risk 4 | Strategy description |
+| Risk | Risk Level | Mitigation Strategy |
+|------|------------|---------------------|
+| Risk 1 | LOW/MEDIUM/HIGH | Strategy description |
+| Risk 2 | LOW/MEDIUM/HIGH | Strategy description |
+| Risk 3 | LOW/MEDIUM/HIGH | Strategy description |
+| Risk 4 | LOW/MEDIUM/HIGH | Strategy description |
 
 ---
 
-## 7. Recommendations
+## 6. Recommendations
 
-### 7.1 Overall Recommendation: **GO/NO-GO - PRIORITY/CONDITIONAL**
+### 6.1 Overall Recommendation: **GO/NO-GO - PRIORITY/CONDITIONAL**
 
 [1 paragraph summary of why target is recommended for advancement]
 
-### 7.2 Recommended Development Path
+### 6.2 Recommended Development Path
 
 1. **Modality**: Recommended approach with rationale
 2. **Initial indication**: Target population with rationale
 3. **Biomarker strategy**: Patient selection approach
 4. **Expansion**: Future opportunities
 
-### 7.3 Subgroup-Specific Recommendations
+### 6.3 Subgroup-Specific Recommendations
 
-| Population | Recommendation | Rationale |
-|------------|----------------|-----------|
-| Population 1 | **Priority/Include/Conditional/Exclude** | Brief rationale |
-| Population 2 | **Priority/Include/Conditional/Exclude** | Brief rationale |
-| Population 3 | **Priority/Include/Conditional/Exclude** | Brief rationale |
+| Population | Recommendation | Risk Level | Rationale |
+|------------|----------------|------------|-----------|
+| Population 1 | **Priority/Include/Conditional/Exclude** | LOW/MEDIUM/HIGH | Brief rationale |
+| Population 2 | **Priority/Include/Conditional/Exclude** | LOW/MEDIUM/HIGH | Brief rationale |
+| Population 3 | **Priority/Include/Conditional/Exclude** | LOW/MEDIUM/HIGH | Brief rationale |
 
 ---
 
-## 8. Conclusions
+## 7. Conclusions
 
 {GENE} emerges as a **priority/conditional/not recommended** therapeutic target for {Disease} based on comprehensive multi-omics and literature evaluation. The target demonstrates:
 
@@ -645,7 +634,7 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 ---
 
-## 9. References
+## 8. References
 
 1. Author A et al. (Year) Title. *Journal*. PMID: XXXXXXXX.
 2. Author B et al. (Year) Title. *Journal*. PMID: XXXXXXXX.
@@ -653,13 +642,14 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 ```
 
 **IMPORTANT FORMAT RULES:**
-1. Use **exact section numbering** (1, 1.1, 1.2, 1.3, 2, 2.1, 2.2, 3, 3.1, 3.2, 3.3, 3.4, etc.)
-2. Literature Evidence (3.2) uses **bullet points with subsections**, NOT tables
-3. Risk Assessment (Section 4) uses **"Key Driver"** column, NOT "Key Considerations"
-4. Risk Mitigation (Section 6) uses **table format**
-5. Recommendations (Section 7) has **3 subsections** (7.1, 7.2, 7.3) with table in 7.3
-6. Always include **"Key Findings at a Glance"** in Executive Summary
-7. Always include **Generated date and Workflow version** at top
+1. Use **exact section numbering** matching workflow order: 3.1 Risk Assessment (Step 1), 3.2 Expression (Step 2), 3.3 ScholarEval (Step 3), 3.4 Subgroups (Steps 2+3)
+2. Risk Assessment (3.1) includes **PMID column** for literature evidence - NO separate Literature Evidence section
+3. All tables with scores/assessments must include **Risk Level column** (LOW/MEDIUM/HIGH)
+4. On-Target Toxicity Risk: LOW (>2x), MEDIUM (1.5-2x), HIGH (<1.5x) vs adjacent normal
+5. Risk Mitigation (Section 5) uses **table format with Risk Level column**
+6. Recommendations (Section 6) has **3 subsections** (6.1, 6.2, 6.3) with Risk Level in 6.3 table
+7. Always include **"Key Findings at a Glance"** in Executive Summary
+8. Always include **Generated date and Workflow version** at top
 
 ### Generate PDF Report (Automatic)
 
@@ -798,7 +788,9 @@ pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene $GENE --d
 |------|-------------|
 | `{GENE}_risk_assessment_{disease}.md` | Step 1 output: Risk assessment with literature evidence |
 | `{GENE}_integrated_target_report.md` | Final integrated report (includes 3-phase subgroup suitability for CRC and NSCLC) |
-| `{GENE}_final_risk_report.pdf` | 14-page professional PDF (includes subgroup analysis) |
+| `{GENE}_final_risk_report.pdf` | 13-page professional PDF (includes subgroup analysis) |
+| `{GENE}_summary_slide.png` | Landscape (16:9) presentation slide with executive summary |
+| `{GENE}_summary_slide.pdf` | Landscape (16:9) presentation slide with executive summary |
 | `{GENE}_risk_assessment_figure.png` | 6-category risk assessment visualization |
 | `{GENE}_scholar_eval_figure.png` | ScholarEval scoring visualization |
 
