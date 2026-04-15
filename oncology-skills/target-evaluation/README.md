@@ -37,29 +37,73 @@ Evaluate EGFR as a target in NSCLC
 
 1. **Tumor vs Adjacent Normal is the PRIMARY metric** - predicts on-target toxicity
 2. **Template-guided risk assessment** - disease-specific templates drive structured PubMed searches
-3. **PDF reads from markdown** - no hard-coded values in PDF script
-4. **Standardized report format** - enables reliable parsing
-5. **Strategic alignment** - CRC evaluations include iDAS whitespace scoring
+3. **Deterministic scoring** - rule-based scoring engine ensures reproducibility
+4. **Validation checkpoints** - 3 checkpoints ensure consistency across workflow
+5. **PDF reads from markdown** - no hard-coded values in PDF script
+6. **Standardized report format** - enables reliable parsing
+7. **Strategic alignment** - evaluations include iDAS whitespace scoring
 
-## Example Results
+## Validation Framework
 
-| Target | Disease | Tumor vs Normal | ScholarEval | Risk | Recommendation |
-|--------|---------|-----------------|-------------|------|----------------|
-| **TNFRSF12A (Fn14)** | CRC | **+2.96 log2FC (7.8x ↑)** | 4.15/5.0 | LOW-MEDIUM | **GO** |
-| **CDCP1** | CRC | **-0.41 log2FC (tumor < normal)** | 2.75/5.0 | HIGH | **NO-GO** |
+Ensures consistency between literature and omics data integration through deterministic scoring and validation checkpoints.
 
-**Key insight:** TNFRSF12A shows excellent tumor specificity (7.8x higher in tumor), while CDCP1 fails due to higher expression in normal colon epithelium - demonstrating why tumor vs adjacent normal is the critical safety metric.
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        VALIDATION FRAMEWORK                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  EXTRACTION (LLM)           SCORING (Rules)           REPORTING (LLM)           │
+│  ─────────────────         ───────────────           ─────────────────          │
+│  - Extract FACTS           - Apply thresholds        - Narrate from             │
+│  - NO interpretation       - Deterministic           fixed scores               │
+│  - Structured output       - Auditable               - Cannot change scores     │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Three Validation Checkpoints
+
+| Checkpoint | When | Validates |
+|------------|------|-----------|
+| **1. Input Completeness** | Before Step 3 | Step 1 (literature) AND Step 2 (omics) outputs exist with required fields |
+| **2. Scoring Determinism** | During Step 3 | Re-running scoring engine produces identical scores |
+| **3. Report Consistency** | Before Step 4 | Scores in report match computed ScholarEval YAML |
+
+### Scoring Engine
+
+The deterministic scoring engine (`scripts/scoring_engine.py`) applies rules from `configs/scoring_rules.yaml`:
+
+- **Literature scoring**: biological validation, clinical validation, druggability, safety
+- **Omics scoring**: differential expression, safety profile, iDAS alignment
+- **ScholarEval**: 8-dimension weighted scoring with recommendation rules
+
+### Audit Trail
+
+Every scoring decision is logged with:
+- Input data and checksums
+- Rule path applied
+- Calculated values
+- Output scores
+- Timestamp
+
+Export to `{GENE}_audit_trail.json` for full reproducibility verification.
 
 ## Files
 
 | File | Description |
 |------|-------------|
 | `SKILL.md` | Main skill definition with full 4-step workflow |
-| `generate_target_report_pdf.py` | PDF report generator (300 DPI, 13 pages) |
-| `reference/risk_assessment_template_crc.md` | CRC-specific risk template with iDAS context |
-| `reference/risk_assessment_template_nsclc.md` | NSCLC-specific risk template |
+| `scripts/generate_target_report_pdf.py` | PDF report generator (300 DPI, 14 pages) |
+| `scripts/scoring_engine.py` | Deterministic scoring engine with audit trail |
+| `scripts/validation_checkpoints.py` | 3-checkpoint validation framework |
 | `configs/crc.yaml` | CRC-specific configuration |
 | `configs/nsclc.yaml` | NSCLC-specific configuration |
+| `configs/scoring_rules.yaml` | Deterministic scoring thresholds and weights |
+| `reference/risk_assessment_template_crc.md` | CRC-specific risk template with iDAS context |
+| `reference/risk_assessment_template_nsclc.md` | NSCLC-specific risk template |
+| `reference/evidence_extraction_schema.yaml` | Schema for structured LLM evidence extraction |
 | `pixi.toml` | Python dependencies |
 
 ## Output Files
@@ -69,15 +113,19 @@ Evaluate EGFR as a target in NSCLC
 |------|-------------|
 | `{GENE}_integrated_target_report.md` | Final integrated report with ScholarEval |
 | `{GENE}_risk_assessment_{disease}.md` | 6-category risk assessment with literature |
-| `{GENE}_final_risk_report.pdf` | Professional 13-page PDF report |
+| `{GENE}_final_risk_report.pdf` | Professional 14-page PDF report |
 | `{GENE}_comprehensive_analysis.png` | 8-panel expression visualization |
+| `{GENE}_comprehensive_report.md` | Expression analysis report (Step 2 output) |
+| `{GENE}_subgroup_suitability.csv` | 3-phase subgroup suitability scores |
+| `{GENE}_scholareval.yaml` | Deterministic scoring output |
+| `{GENE}_audit_trail.json` | Full scoring audit trail |
 | `{GENE}_risk_assessment_figure.png` | Risk category visualization |
 | `{GENE}_scholar_eval_figure.png` | ScholarEval scoring visualization |
 | `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
 | `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
-| `{GENE}_idas_assessment.yaml` | iDAS whitespace alignment (CRC only) |
+| `{GENE}_idas_assessment.yaml` | iDAS whitespace alignment |
 
-### PDF Report Structure (13 pages)
+### PDF Report Structure (14 pages)
 | Page | Content |
 |------|---------|
 | 1 | Title Page with recommendation badge |
@@ -87,12 +135,13 @@ Evaluate EGFR as a target in NSCLC
 | 5 | Figure 1: Comprehensive Expression Analysis |
 | 6 | Figure 2: CMS/Subtype Expression |
 | 7 | ScholarEval Scoring Table |
-| 8 | Risk Assessment Table |
-| 9 | Figure 3: 6-Category Risk Assessment |
-| 10 | Figure 4: ScholarEval Target Scoring |
-| 11 | Key Strengths & Risks |
-| 12 | Risk Mitigation & Recommendations |
-| 13 | Conclusions & References |
+| 8 | Subgroup Suitability Table + Figure |
+| 9 | Risk Assessment Table |
+| 10 | Figure 3: 6-Category Risk Assessment |
+| 11 | Figure 4: ScholarEval Target Scoring |
+| 12 | Key Strengths & Risks |
+| 13 | Risk Mitigation & Recommendations |
+| 14 | Conclusions & References |
 
 ## ScholarEval Scoring
 
@@ -122,13 +171,15 @@ Evaluate EGFR as a target in NSCLC
 - **TCGA-COAD/READ**: Tumor vs adjacent normal (on-target toxicity)
 - **GTEx**: Healthy colon tissue baseline
 - **CCLE**: CRC cell line expression
-- **Tempus RWD**: >200,000 patients with line-of-therapy stratification
+- **Tempus RWD**: ~2,183 patients with line-of-therapy stratification
 - **PubMed**: Literature evidence by risk category
 
 ### NSCLC Analysis
-- **TCGA-LUAD/LUSC**: Tumor vs adjacent normal
+- **TCGA-LUAD/LUSC**: Tumor vs adjacent normal (on-target toxicity)
 - **GTEx**: Healthy lung tissue baseline
 - **CCLE**: NSCLC cell line expression
+- **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
+- **PubMed**: Literature evidence by risk category
 
 ## Adding New Diseases
 
