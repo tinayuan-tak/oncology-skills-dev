@@ -106,6 +106,157 @@ Before Step 3, verify these outputs exist AND their source tasks are marked comp
 
 ---
 
+## Validation Framework (V1.0)
+
+The validation framework ensures consistency between literature and omics data integration through deterministic scoring and validation checkpoints.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        VALIDATION FRAMEWORK                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  EXTRACTION (LLM)           SCORING (Rules)           REPORTING (LLM)           │
+│  ─────────────────         ───────────────           ─────────────────          │
+│  - Extract FACTS           - Apply thresholds        - Narrate from             │
+│  - NO interpretation       - Deterministic           fixed scores               │
+│  - Structured output       - Auditable               - Cannot change scores     │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Three Validation Checkpoints
+
+| Checkpoint | When | Validates |
+|------------|------|-----------|
+| **1. Input Completeness** | Before Step 3 | Both Step 1 (literature) AND Step 2 (omics) outputs exist and contain required fields |
+| **2. Scoring Determinism** | During Step 3 | Re-running scoring engine with same inputs produces identical scores |
+| **3. Report Consistency** | Before Step 4 | Scores in final report match computed ScholarEval YAML |
+
+### Configuration Files
+
+| File | Location | Purpose |
+|------|----------|---------|
+| `evidence_extraction_schema.yaml` | `reference/` | Schema for structured evidence extraction (LLM outputs) |
+| `scoring_rules.yaml` | `configs/` | Deterministic scoring thresholds and weights |
+| `scoring_engine.py` | `scripts/` | Python scoring engine (no LLM interpretation) |
+| `validation_checkpoints.py` | `scripts/` | Checkpoint validation functions |
+
+### Using the Validation Framework
+
+#### Checkpoint 1: Before Starting Step 3
+
+```python
+# REQUIRED: Validate inputs are complete before ScholarEval
+from scripts.validation_checkpoints import CheckpointValidator
+
+validator = CheckpointValidator(output_dir)
+result = validator.validate_input_completeness(
+    gene="TNFRSF12A",
+    disease="crc",
+    risk_assessment_path=Path(f"{GENE}_risk_assessment_{disease}.md"),
+    comprehensive_report_path=Path(f"{GENE}_comprehensive_report.md"),
+    idas_yaml_path=Path(f"{GENE}_idas_assessment.yaml")
+)
+
+if not result.passed:
+    # DO NOT PROCEED - report errors and wait
+    for error in result.errors:
+        print(f"BLOCKED: {error}")
+```
+
+#### Step 3 with Deterministic Scoring
+
+```python
+from scripts.scoring_engine import ScoringEngine
+
+# Initialize scoring engine with rules
+engine = ScoringEngine()
+
+# Provide structured evidence (extracted by LLM in schema format)
+literature_evidence = {
+    "biological_validation": {
+        "n_crispr_studies": 3,
+        "n_animal_models": 2,
+        "n_human_genetic": 1
+    },
+    "clinical_validation": {
+        "highest_phase": 1,
+        "n_trials": 3
+    },
+    "druggability": {
+        "has_clinical_compound": True,
+        "has_tool_compound": True,
+        "best_ic50_nm": 50
+    }
+}
+
+omics_evidence = {
+    "rna_expression": {
+        "tumor_vs_adjacent_fc": 7.8,
+        "tumor_median_log2tpm": 5.2,
+        "normal_median_log2tpm": 2.3
+    }
+}
+
+# Run deterministic scoring
+result = engine.evaluate_target(
+    gene="TNFRSF12A",
+    disease="CRC",
+    literature_evidence=literature_evidence,
+    omics_evidence=omics_evidence
+)
+
+# Export results with full audit trail
+engine.export_result(result, Path(f"{GENE}_scholareval.yaml"))
+engine.export_audit_trail(Path(f"{GENE}_audit_trail.json"))
+```
+
+#### Checkpoint 3: Before Generating Final Report
+
+```python
+# REQUIRED: Validate report matches computed scores
+result = validator.validate_report_consistency(
+    report_path=Path(f"{GENE}_integrated_target_report.md"),
+    scholareval_yaml_path=Path(f"{GENE}_scholareval.yaml")
+)
+
+if not result.passed:
+    # Report has inconsistent scores - regenerate from YAML
+    for error in result.errors:
+        print(f"INCONSISTENCY: {error}")
+```
+
+### Audit Trail
+
+The scoring engine generates a full audit trail for reproducibility:
+
+```json
+{
+  "timestamp": "2026-04-01T15:30:00",
+  "dimension": "differential_expression",
+  "input_data": {
+    "tumor_vs_adjacent_fc": 7.8
+  },
+  "rule_path": "omics_scoring.differential_expression",
+  "calculated_value": 7.8,
+  "output_score": 5.0,
+  "checksum": "a1b2c3d4"
+}
+```
+
+### Validation Errors and Recovery
+
+| Error Type | Cause | Recovery |
+|------------|-------|----------|
+| `Input Completeness Failed` | Step 1 or 2 not complete | Wait for background agents to complete; check file paths |
+| `Score Mismatch` | Non-deterministic scoring | Re-extract evidence using schema; re-run scoring engine |
+| `Report Inconsistency` | Manual edits or LLM drift | Regenerate report from ScholarEval YAML |
+| `Hash Mismatch` | Input data changed | Re-run full workflow with new data |
+
+---
+
 ## Step 1: Drug Target Risk Assessment
 
 This step combines the risk assessment framework with PubMed literature search, using disease-specific templates to guide comprehensive target evaluation.
@@ -732,7 +883,7 @@ Create `{GENE}_integrated_target_report.md` with **this exact standardized forma
 
 ```bash
 # Run from skill base directory - do NOT copy to working directory
-pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results
+pixi run python "$SKILL_BASE_DIR/scripts/generate_target_report_pdf.py" --gene {GENE} --disease {DISEASE} --output-dir ./{disease}_analysis_results
 ```
 
 **Required Parameters:**
@@ -817,7 +968,7 @@ pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes $GENE 
 
 # AUTOMATIC: Generate PDF report (ALWAYS run at end of workflow)
 # Run script from skill base directory - do NOT copy to working directory
-pixi run python "$SKILL_BASE_DIR/generate_target_report_pdf.py" --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results
+pixi run python "$SKILL_BASE_DIR/scripts/generate_target_report_pdf.py" --gene $GENE --disease $DISEASE --output-dir ./${DISEASE}_analysis_results
 ```
 
 ### Adding New Disease Support
