@@ -2,14 +2,26 @@
 
 A collection of Claude Code skills for oncology target evaluation and RNA-seq analysis, covering both bulk and single-cell transcriptomics for colorectal cancer (CRC) and non-small cell lung cancer (NSCLC).
 
+## Branching Strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Stable, production-ready code |
+| `dev` | Integration testing and evaluation |
+| `feature/*` | Individual feature development |
+
+**Workflow:** `feature/*` → `dev` (evaluate) → `main` (release)
+
 ## Available Skills
 
 | Skill | Description | Status |
 |-------|-------------|--------|
-| [target-evaluation](oncology-skills/target-evaluation/) | Full 4-step therapeutic target evaluation workflow with PDF report generation | Implemented |
-| [crc-bulk-rna-analysis](oncology-skills/crc-bulk-rna-analysis/) | Comprehensive CRC analysis with TCGA + Tempus RWD (>200K patients), iDAS alignment | Implemented |
-| [crc-sc-rna-analysis](oncology-skills/crc-sc-rna-analysis/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
+| [target-evaluation](oncology-skills/target-evaluation/) | Full 4-step therapeutic target evaluation workflow with validation framework and PDF report generation | Implemented |
+| [crc-bulk-rna-analysis](oncology-skills/crc-bulk-rna-analysis/) | Comprehensive CRC analysis with TCGA + Tempus RWD (~2,183 patients), iDAS alignment | Implemented |
+| [crc-protein-analysis](oncology-skills/crc-protein-analysis/) | CRC protein expression analysis from Human Protein Atlas | Planned |
 | [nsclc-bulk-rna-analysis](oncology-skills/nsclc-bulk-rna-analysis/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
+| [nsclc-protein-analysis](oncology-skills/nsclc-protein-analysis/) | NSCLC protein expression analysis from Human Protein Atlas | Planned |
+| [crc-sc-rna-analysis](oncology-skills/crc-sc-rna-analysis/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
 | [nsclc-sc-rna-analysis](oncology-skills/nsclc-sc-rna-analysis/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
 
 ## Target Evaluation Workflow
@@ -30,27 +42,12 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 
 - **6-category risk assessment**: Biological, Druggability, Translational, Clinical, Safety, Commercial
 - **8-dimension ScholarEval scoring**: Weighted target evaluation framework
+- **Validation framework**: Deterministic scoring engine with 3 checkpoints and audit trail
 - **Primary metric**: Tumor vs Adjacent Normal expression (predicts on-target toxicity)
-- **iDAS strategic alignment**: Automatic whitespace scoring for CRC
-- **Tempus RWD integration**: >200,000 patients with line-of-therapy stratification
-- **Output**: 13-page professional PDF report with Go/No-Go recommendation
-
-## Example Results
-
-### CRC Targets
-
-| Target | Disease | Tumor vs Normal | ScholarEval | Risk | Recommendation |
-|--------|---------|-----------------|-------------|------|----------------|
-| **TNFRSF12A (Fn14)** | CRC | **+2.96 log2FC (7.8x ↑)** | 4.15/5.0 | LOW-MEDIUM | **GO** |
-| **CDCP1** | CRC | **-0.41 log2FC (tumor < normal)** | 2.75/5.0 | HIGH | **NO-GO** |
-
-### NSCLC Targets
-
-| Target | Disease | Tumor vs Normal | iDAS Alignment | Toxicity Risk | Recommendation |
-|--------|---------|-----------------|----------------|---------------|----------------|
-| **EGFR** | NSCLC | **+0.27 log2FC (tumor ≈ normal)** | Low | HIGH | **CONDITIONAL** |
-
-**Key insight:** Tumor vs Adjacent Normal expression is the critical metric for predicting on-target toxicity. TNFRSF12A shows excellent tumor specificity in CRC, while CDCP1 fails due to higher expression in normal colon. EGFR in NSCLC shows high toxicity risk due to normal lung expression.
+- **iDAS strategic alignment**: Automatic whitespace scoring for CRC and NSCLC
+- **Tempus RWD integration**: Line-of-therapy stratification (CRC: ~2,183 patients, NSCLC: ~1,800 patients)
+- **Protein analysis** (planned): Human Protein Atlas integration for IHC and subcellular localization
+- **Output**: 14-page professional PDF report with Go/No-Go recommendation
 
 ## Repository Structure
 
@@ -62,28 +59,35 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 ├── oncology-skills/
 │   ├── target-evaluation/
 │   │   ├── SKILL.md              # 4-step workflow definition
-│   │   ├── README.md
-│   │   ├── generate_target_report_pdf.py
-│   │   ├── pixi.toml
+│   │   ├── scripts/
+│   │   │   ├── generate_target_report_pdf.py  # PDF report generator
+│   │   │   ├── scoring_engine.py              # Deterministic scoring engine
+│   │   │   └── validation_checkpoints.py      # Validation framework
+│   │   ├── configs/
+│   │   │   ├── crc.yaml
+│   │   │   ├── nsclc.yaml
+│   │   │   └── scoring_rules.yaml             # Scoring thresholds
 │   │   ├── reference/
 │   │   │   ├── risk_assessment_template_crc.md
-│   │   │   └── risk_assessment_template_nsclc.md
-│   │   └── configs/
-│   │       ├── crc.yaml
-│   │       └── nsclc.yaml
+│   │   │   ├── risk_assessment_template_nsclc.md
+│   │   │   └── evidence_extraction_schema.yaml  # LLM extraction schema
+│   │   └── pixi.toml
 │   ├── crc-bulk-rna-analysis/
 │   │   ├── SKILL.md
-│   │   ├── README.md
 │   │   ├── crc_comprehensive_analysis.py   # Unified TCGA + Tempus analysis
 │   │   └── pixi.toml
-│   ├── crc-sc-rna-analysis/
+│   ├── crc-protein-analysis/               # Planned
 │   │   └── SKILL.md
 │   ├── nsclc-bulk-rna-analysis/
 │   │   ├── SKILL.md
 │   │   ├── nsclc_comprehensive_analysis.py  # Unified TCGA + Tempus analysis
 │   │   └── pixi.toml
+│   ├── nsclc-protein-analysis/              # Planned
+│   │   └── SKILL.md
+│   ├── crc-sc-rna-analysis/
+│   │   └── SKILL.md                         # Placeholder
 │   └── nsclc-sc-rna-analysis/
-│       └── SKILL.md
+│       └── SKILL.md                         # Placeholder
 └── README.md
 ```
 
@@ -120,9 +124,11 @@ In Claude Code, run:
 The skills should appear in the available skills list:
 - `oncology-skills:target-evaluation`
 - `oncology-skills:crc-bulk-rna-analysis`
-- `oncology-skills:crc-sc-rna-analysis`
 - `oncology-skills:nsclc-bulk-rna-analysis`
-- `oncology-skills:nsclc-sc-rna-analysis`
+- `oncology-skills:crc-protein-analysis` (planned)
+- `oncology-skills:nsclc-protein-analysis` (planned)
+- `oncology-skills:crc-sc-rna-analysis` (placeholder)
+- `oncology-skills:nsclc-sc-rna-analysis` (placeholder)
 
 ## Usage
 
@@ -153,13 +159,16 @@ Skill(oncology-skills:crc-bulk-rna-analysis) with args "CDK4 CDK6"
 ### Target Evaluation Outputs
 
 ```
-crc_comprehensive_results/{GENE}/
+{disease}_analysis_results/{GENE}/
 ├── {GENE}_integrated_target_report.md    # Final integrated report
-├── {GENE}_risk_assessment_crc.md         # 6-category risk assessment
-├── {GENE}_final_risk_report.pdf          # 13-page professional PDF
+├── {GENE}_risk_assessment_{disease}.md   # 6-category risk assessment
+├── {GENE}_final_risk_report.pdf          # 14-page professional PDF
 ├── {GENE}_comprehensive_analysis.png     # 8-panel expression figure
 ├── {GENE}_comprehensive_report.md        # Expression analysis report
 ├── {GENE}_idas_assessment.yaml           # iDAS alignment data
+├── {GENE}_subgroup_suitability.csv       # 3-phase subgroup suitability
+├── {GENE}_scholareval.yaml               # Deterministic scoring output
+├── {GENE}_audit_trail.json               # Scoring audit trail
 ├── {GENE}_risk_assessment_figure.png     # Risk visualization
 ├── {GENE}_scholar_eval_figure.png        # ScholarEval visualization
 ├── {GENE}_pairwise_comparisons.csv       # Tumor vs Normal statistics
@@ -172,13 +181,15 @@ crc_comprehensive_results/{GENE}/
 - **TCGA-COAD/READ**: Tumor and adjacent normal (on-target toxicity assessment)
 - **GTEx**: Normal colon tissue baseline
 - **CCLE**: CRC cell line expression
-- **Tempus RWD**: >200,000 patients with line-of-therapy stratification
+- **Tempus RWD**: ~2,183 patients with line-of-therapy stratification
+- **Human Protein Atlas** (planned): IHC expression for GI toxicity assessment
 
 ### NSCLC Analysis
 - **TCGA-LUAD/LUSC**: Tumor and adjacent normal (on-target toxicity assessment)
 - **GTEx**: Normal lung tissue baseline
 - **CCLE**: NSCLC cell line expression
 - **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
+- **Human Protein Atlas** (planned): IHC expression for lung toxicity assessment
 
 ## Requirements
 
