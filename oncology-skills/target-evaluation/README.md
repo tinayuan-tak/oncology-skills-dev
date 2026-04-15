@@ -56,12 +56,35 @@ Ensures consistency between literature and omics data integration through determ
 │                                                                                  │
 │  EXTRACTION (LLM)           SCORING (Rules)           REPORTING (LLM)           │
 │  ─────────────────         ───────────────           ─────────────────          │
-│  - Extract FACTS           - Apply thresholds        - Narrate from             │
-│  - NO interpretation       - Deterministic           fixed scores               │
-│  - Structured output       - Auditable               - Cannot change scores     │
+│  - Interpret text          - Apply thresholds        - Narrate from             │
+│  - Classify studies        - Deterministic           fixed scores               │
+│  - Extract structured      - Auditable               - Cannot change scores     │
+│    facts → JSON            - NO LLM judgment         - Explain rationale        │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### LLM Interpretation Guidelines
+
+| Phase | LLM Interpretation | Examples |
+|-------|-------------------|----------|
+| **Literature Mining** | YES - Required | Read abstracts, classify study types, identify relevant findings |
+| **Evidence Extraction** | YES - Structured | Extract facts (counts, yes/no, categories) into JSON schema |
+| **Scoring** | NO - Rule-based | Apply thresholds from `scoring_rules.yaml`, no subjective weighting |
+| **Report Writing** | YES - Constrained | Narrate rationale, but scores are locked from Step 3 |
+
+**Key principle:** LLM extracts **FACTS** (3 CRISPR studies, Phase 2 trial exists) not **JUDGMENTS** (strong evidence, high risk).
+
+### Literature Mining Limitations
+
+**Current:** Abstract-only access via PubMed API
+- Sufficient for study type classification and key findings
+- May miss detailed methods, dosing, patient numbers
+
+**Future enhancements:**
+- PubMed Central (PMC) for open-access full text
+- Publisher API integration for subscribed journals
+- PDF parsing for internal documents
 
 ### Three Validation Checkpoints
 

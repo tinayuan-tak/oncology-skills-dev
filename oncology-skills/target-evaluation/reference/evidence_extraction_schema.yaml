@@ -1,9 +1,20 @@
 # Evidence Extraction Schema for Target Evaluation
-# Version: 1.0.0
-# LLM must output in this exact format - structured facts only
+# Version: 1.1.0
+#
+# PURPOSE: Guide LLM to extract STRUCTURED FACTS from literature
+#
+# LLM INTERPRETATION GUIDELINES:
+# - YES: Interpret abstracts to understand study types and findings
+# - YES: Classify studies (CRISPR, animal model, clinical trial, etc.)
+# - YES: Extract counts, categories, yes/no facts into structured JSON
+# - NO: Make risk level judgments (that's done by scoring_rules.yaml)
+# - NO: Weight evidence subjectively (thresholds are predefined)
+# - NO: Assign scores (scoring engine does this deterministically)
+#
+# CURRENT LIMITATION: Extracts from PubMed abstracts only (not full text)
 
-version: "1.0.0"
-description: "Schema for structured extraction of literature evidence. LLM extracts FACTS, not judgments."
+version: "1.1.0"
+description: "Schema for structured extraction of literature evidence. LLM extracts FACTS (counts, categories, yes/no), not JUDGMENTS (risk levels, scores)."
 
 # =============================================================================
 # LITERATURE EXTRACTION SCHEMA
