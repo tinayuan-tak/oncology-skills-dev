@@ -56,6 +56,25 @@ import yaml
 
 warnings.filterwarnings('ignore')
 
+
+def convert_numpy_types(obj):
+    """Convert numpy types to Python native types for YAML serialization."""
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    else:
+        return obj
+
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -1975,7 +1994,11 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
     print('='*70)
 
     # Create gene output directory
-    gene_dir = os.path.join(output_dir, gene_symbol)
+    # Avoid double-nesting if output_dir already ends with gene name
+    if os.path.basename(output_dir.rstrip('/')) == gene_symbol:
+        gene_dir = output_dir
+    else:
+        gene_dir = os.path.join(output_dir, gene_symbol)
     os.makedirs(gene_dir, exist_ok=True)
 
     master_df = pd.DataFrame()
@@ -2068,7 +2091,8 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
     # Save assessment
     assessment_path = os.path.join(gene_dir, f'{gene_symbol}_idas_assessment.yaml')
     with open(assessment_path, 'w') as f:
-        yaml.dump(assessment, f, default_flow_style=False)
+        # Convert numpy types to Python native types for clean YAML serialization
+        yaml.dump(convert_numpy_types(assessment), f, default_flow_style=False)
     print(f"  Saved: {assessment_path}")
 
     # Generate visualizations

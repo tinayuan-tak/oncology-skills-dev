@@ -55,6 +55,25 @@ import yaml
 
 warnings.filterwarnings('ignore')
 
+
+def convert_numpy_types(obj):
+    """Convert numpy types to Python native types for YAML serialization."""
+    if isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    else:
+        return obj
+
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -2083,7 +2102,11 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     print('='*70)
 
     # Create gene output directory
-    gene_output_dir = os.path.join(output_dir, gene)
+    # Avoid double-nesting if output_dir already ends with gene name
+    if os.path.basename(output_dir.rstrip('/')) == gene:
+        gene_output_dir = output_dir
+    else:
+        gene_output_dir = os.path.join(output_dir, gene)
     os.makedirs(gene_output_dir, exist_ok=True)
 
     tcga_df = None
@@ -2196,7 +2219,8 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
         'top_recommendations': subgroup_suitability.get('top_recommendations', {})
     }
     with open(idas_path, 'w') as f:
-        yaml.dump(idas_assessment, f, default_flow_style=False)
+        # Convert numpy types to Python native types for clean YAML serialization
+        yaml.dump(convert_numpy_types(idas_assessment), f, default_flow_style=False)
     print(f"  Saved: {idas_path}")
 
     # Generate visualization
