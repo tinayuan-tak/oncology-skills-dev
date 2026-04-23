@@ -104,6 +104,44 @@ Before Step 3, verify these outputs exist AND their source tasks are marked comp
 
 **Both conditions must be met: task status = completed AND file exists.**
 
+### Final Workflow Validation (MANDATORY)
+
+**CRITICAL:** Before marking the workflow complete, verify ALL required outputs exist:
+
+```bash
+# Run this validation check at end of workflow
+GENE="CDCP1"
+DISEASE="nsclc"
+OUTPUT_DIR="./output"
+
+# Check all 4 steps produced required outputs
+REQUIRED_FILES=(
+    "${GENE}_risk_assessment_${DISEASE}.md"      # Step 1
+    "${GENE}_comprehensive_report.md"             # Step 2
+    "${GENE}_idas_assessment.yaml"                # Step 2
+    "${GENE}_scholareval.yaml"                    # Step 3
+    "${GENE}_audit_trail.json"                    # Step 3
+    "${GENE}_integrated_target_report.md"         # Step 4
+)
+
+MISSING=0
+for f in "${REQUIRED_FILES[@]}"; do
+    if [ ! -f "$OUTPUT_DIR/$f" ]; then
+        echo "MISSING: $f"
+        MISSING=$((MISSING + 1))
+    fi
+done
+
+if [ $MISSING -gt 0 ]; then
+    echo "ERROR: $MISSING required files missing. DO NOT mark workflow complete."
+    exit 1
+else
+    echo "VALIDATION PASSED: All required outputs present."
+fi
+```
+
+**DO NOT mark Step 4 or workflow as complete until this validation passes.**
+
 ---
 
 ## Validation Framework (V1.0)
@@ -460,7 +498,33 @@ python nsclc_comprehensive_analysis.py --genes {GENE} --skip-tempus
 
 ## Step 3: ScholarEval Target Scoring
 
-**Invoke:** `scientific-skills:scholar-evaluation`
+### CRITICAL: Use Deterministic Scoring Engine
+
+**DO NOT manually assign ScholarEval scores.** LLM interpretation of scores leads to inconsistent results.
+
+**MANDATORY:** Run the deterministic scoring script:
+
+```bash
+# From the output directory
+cd {output_dir}
+
+# Run deterministic ScholarEval scoring
+pixi run python "$SKILL_BASE_DIR/../target-evaluation/scripts/run_scholareval.py" \
+    --gene {GENE} \
+    --disease {disease} \
+    --output-dir .
+```
+
+This script:
+1. Parses Step 1 (`{GENE}_risk_assessment_{disease}.md`) and Step 2 (`{GENE}_idas_assessment.yaml`) outputs
+2. Extracts structured evidence using defined rules
+3. Applies `scoring_rules.yaml` thresholds deterministically
+4. Generates `{GENE}_scholareval.yaml` with full audit trail
+5. Generates `{GENE}_audit_trail.json` for reproducibility verification
+
+**Output files:**
+- `{GENE}_scholareval.yaml` - Scores with rule references
+- `{GENE}_audit_trail.json` - Full computation audit trail
 
 ### Primary Data Source: `{GENE}_comprehensive_report.md`
 
