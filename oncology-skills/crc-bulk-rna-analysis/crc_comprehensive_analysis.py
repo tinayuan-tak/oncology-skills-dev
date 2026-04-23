@@ -47,12 +47,14 @@ import seaborn as sns
 from scipy import stats
 from scipy.stats import mannwhitneyu, kruskal
 from statsmodels.stats.multitest import multipletests
-import subprocess
 import os
 import sys
 from datetime import datetime
 import warnings
 import yaml
+import boto3
+import s3fs
+from botocore.exceptions import ClientError
 
 warnings.filterwarnings('ignore')
 
@@ -81,9 +83,64 @@ def convert_numpy_types(obj):
 
 AWS_PROFILE = 'cbg'
 
-# S3 Buckets
-TCGA_S3_BUCKET = 's3://onc-compbio/omicsoft_oncoland_data'
-TEMPUS_S3_BUCKET = 's3://onc-compbio/Tempus/crc'
+# S3 Configuration
+S3_BUCKET = 'onc-compbio'
+TCGA_S3_PREFIX = 'omicsoft_oncoland_data'
+TEMPUS_S3_PREFIX = 'Tempus/crc'
+
+# Legacy S3 paths (for compatibility)
+TCGA_S3_BUCKET = f's3://{S3_BUCKET}/{TCGA_S3_PREFIX}'
+TEMPUS_S3_BUCKET = f's3://{S3_BUCKET}/{TEMPUS_S3_PREFIX}'
+
+# Initialize S3 clients (lazy loading)
+_s3_client = None
+_s3_fs = None
+
+
+def get_s3_client():
+    """Get boto3 S3 client with profile credentials."""
+    global _s3_client
+    if _s3_client is None:
+        session = boto3.Session(profile_name=AWS_PROFILE)
+        _s3_client = session.client('s3', verify=False)
+    return _s3_client
+
+
+def get_s3_filesystem():
+    """Get s3fs filesystem with profile credentials."""
+    global _s3_fs
+    if _s3_fs is None:
+        session = boto3.Session(profile_name=AWS_PROFILE)
+        credentials = session.get_credentials()
+        _s3_fs = s3fs.S3FileSystem(
+            key=credentials.access_key,
+            secret=credentials.secret_key,
+            token=credentials.token,
+            client_kwargs={'verify': False}
+        )
+    return _s3_fs
+
+
+def parse_s3_uri(s3_uri):
+    """Parse S3 URI into bucket and key."""
+    if s3_uri.startswith('s3://'):
+        path = s3_uri[5:]
+    else:
+        path = s3_uri
+    parts = path.split('/', 1)
+    bucket = parts[0]
+    key = parts[1] if len(parts) > 1 else ''
+    return bucket, key
+
+
+def validate_s3_access(s3_uri):
+    """Validate access to S3 object."""
+    bucket, key = parse_s3_uri(s3_uri)
+    try:
+        get_s3_client().head_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError:
+        return False
 
 # Default directories
 DEFAULT_CACHE_DIR = './data_cache'
@@ -311,7 +368,7 @@ def draw_boxplot_from_summary(ax, data_df, x_col, colors, x_labels=None):
 # =============================================================================
 
 def download_s3_file(s3_path, local_path, quiet=False):
-    """Download file from S3 if not already cached."""
+    """Download file from S3 if not already cached using boto3."""
     if os.path.exists(local_path):
         if not quiet:
             print(f"  Using cached: {os.path.basename(local_path)}")
@@ -322,15 +379,20 @@ def download_s3_file(s3_path, local_path, quiet=False):
     if not quiet:
         print(f"  Downloading: {os.path.basename(s3_path)}")
 
-    # Use system aws CLI to avoid path issues with spaces
-    aws_cmd = "/usr/local/bin/aws" if os.path.exists("/usr/local/bin/aws") else "aws"
-    cmd = f"{aws_cmd} s3 cp {s3_path} {local_path} --profile {AWS_PROFILE} --no-verify-ssl"
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to download {s3_path}: {result.stderr}")
+    bucket, key = parse_s3_uri(s3_path)
+    try:
+        get_s3_client().download_file(bucket, key, local_path)
+    except ClientError as e:
+        raise RuntimeError(f"Failed to download {s3_path}: {e}")
 
     return local_path
+
+
+def stream_s3_file(s3_path):
+    """Stream file directly from S3 without downloading (for read-only operations)."""
+    fs = get_s3_filesystem()
+    bucket, key = parse_s3_uri(s3_path)
+    return fs.open(f"{bucket}/{key}", 'rb')
 
 
 # =============================================================================
