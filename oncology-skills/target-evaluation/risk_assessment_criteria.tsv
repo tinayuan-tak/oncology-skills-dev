@@ -1,0 +1,16 @@
+Risk Factors	Key Considerations	Low	Medium	High
+Biological Risk	Target implication in disease	Clinically validated target	Validated in at least 1 in vivo model (Onc only) OR Totality of human biological evidence highly favorable (Other TAs) OR Human genetic association of target with disease	Novel target OR Limited external validation/low replication across labs
+Druggability Risk	Manufacturability	Target has approved/clinical PoC/in vivo PoC AND Established CMC expertise, GMP platforms & supply chain	Target is homologous to target(s) with approved/clinical PoC/in vivo PoC (e.g. GPCRs) in unmodified form (e.g. not cleaved form of target protein) OR Limited CMC expertise GMP platform or supply chain	Weak or no evidence of future tractability OR No CMC expertise, GMP platform or supply chain
+	Target tractability			
+	Therapeutic complexity			
+Translational Risk	Animal models	Validated animal models AND target engagement AND pharmacodynamic biomarkers exist	Animal models AND target engagement AND pharmacodynamic biomarkers available but not validated	Animal models AND target engagement AND pharmacodynamic biomarkers not available
+	TE biomarkers			
+	PD biomarkers			
+Clinical Risk	Trial feasibility (patient recruitment, clear PoC signal in timely manner)	Clearly defined patient population and clinical-grade biomarker assay available (e.g., a kinase mutation in cancer) AND feasible trial (incl. acceptable recruitment timeline and screen-to-enrollment ratio)	Biomarker assay needs further development or has clinical interpretation challenges (e.g. establishing a clear copy number cutoff) OR trial has feasibility challenges (e.g., somewhat high screen-to-enrollment ratio)	Difficult path for patient selection biomarker (e.g., establishment of a target expression cutoff) OR trial has significant feasibility challenges (e.g., very high screen-to-enrollment ratio, or other recruitment challenges)
+	Definition of patient population			
+Safety Risk	In silico/vitro/vivo safety signals	Target safety is clinically validated, no anticipated compound class risks, OR safety risks are minimal, mitigated and acceptable for intended patient population	Some evidence of target- or compound class-related risks. R/B is likely manageable for the intended patient population. Premonitory safety biomarkers available	Strong evidence of target- or compound class-related risks. R/B questionable for intended patient population AND no premonitory safety biomarkers available
+	Target biology			
+Competitive / Commercial Risk	Competitive intensity	Large market (at least $5 bn*) AND Competitive product profile (e.g. first to market, BiC profile, 2nd to market with limited entrants behind) *allow for exceptions in some cases	Everything that is not Low or High risk	Small market (under $0.5 bn) OR High competitive intensity (e.g. 4th to market or later) with no significant differentiation OR Poor strategic fit/commercial synergies
+	Market size (addressable patient population, unmet need, pricing potential)			
+	Product profile differentiability			
+	Strategic fit/ Commercial synergies			
