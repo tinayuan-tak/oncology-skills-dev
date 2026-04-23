@@ -1,6 +1,6 @@
 # Oncology Skills Integration Plan
 
-**Version**: 2.0.0
+**Version**: 2.1.0
 **Date**: 2026-04-23
 **Source Repository**: `/Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills`
 **Target Repository**: `/Users/eta3879/tools/ai-sci-claude-skills`
@@ -9,392 +9,61 @@
 
 ## Executive Summary
 
-Integrate oncology target evaluation skills into the `ai-sci-claude-skills` repository following the Skills Management Framework. This involves:
-- Renaming skills per NAMING_TAXONOMY.md conventions
-- Restructuring directories per SKILLS_MANAGEMENT_FRAMEWORK.md
-- Updating SKILL.md frontmatter per SKILL_TEMPLATE.md
-- Converting from pixi.toml to pyproject.toml
-- Adding preflight checks per CONTRIBUTION_GUIDE.md
+Integrate oncology target evaluation skills into `ai-sci-claude-skills` using a phased approach:
+
+| Phase | Skills | Status |
+|-------|--------|--------|
+| **Phase 1** | `analysis-bulk-rna-crc`, `analysis-bulk-rna-nsclc` | **READY TO START** |
+| **Phase 2** | `analysis-protein-crc`, `analysis-protein-nsclc` | Planned |
+| **Phase 3** | `workflow-target-evaluation-onc` | After analysis skills tested |
+
+**Rationale**: Build and test analysis skills first (foundation), then add the orchestrating workflow.
 
 ---
 
-## Compliance Checklist (from docs/)
+## Phase 1: Bulk RNA-seq Analysis Skills (START HERE)
 
-### SKILLS_MANAGEMENT_FRAMEWORK.md Requirements
-
-- [ ] Category prefix from valid list: `data-`, `analysis-`, `tool-`, `workflow-`, `ref-`, `util-`
-- [ ] Domain suffix from valid list: `-target`, `-chem`, `-genomics`, `-protein`, `-bulk-rna`, `-sc-rna`
-- [ ] Disease suffix where applicable: `-crc`, `-nsclc`
-- [ ] Directory structure: `SKILL.md`, `pyproject.toml`, `scripts/`, `references/`, `assets/`
-- [ ] No README.md, CHANGELOG.md, INSTALLATION_GUIDE.md files
-- [ ] Scripts in `scripts/` folder (not root)
-- [ ] `data/` folder gitignored for cached files
-
-### CONTRIBUTION_GUIDE.md Requirements
-
-- [ ] SKILL.md has valid YAML frontmatter (`name`, `description`, `metadata`)
-- [ ] `name` field matches folder name (lowercase, hyphens)
-- [ ] `description` contains ALL trigger phrases and "when to use" info
-- [ ] `description` includes example queries (at least 3)
-- [ ] `description` includes "do NOT use when" alternatives
-- [ ] SKILL.md body under 500 lines
-- [ ] No credentials hardcoded
-- [ ] No `.venv/` or `.pixi/` directories committed
-- [ ] `scripts/check_setup.py` if `requires_preflight: true`
-- [ ] `.env.example` template if credentials needed
-- [ ] Prerequisites section in SKILL.md body
-
-### NAMING_TAXONOMY.md Requirements
-
-- [ ] Format: `{category}-{domain}-{function}[-{qualifier}]`
-- [ ] All lowercase
-- [ ] Use hyphens (not underscores)
-- [ ] No redundant suffixes (-skill, -database, -tool)
-- [ ] Domain identifier included
-
-### SKILL_TEMPLATE.md Requirements
-
-- [ ] Frontmatter fields: `name`, `description`, `metadata.version`, `metadata.owner`, `metadata.requires_preflight`, `metadata.environment`
-- [ ] `environment` field set: `none`, `shared`, or `isolated`
-- [ ] `pyproject.toml` present if environment is `shared` or `isolated`
-
----
-
-## Skill Name Mapping
-
-| Current Name | New Name | Category | Notes |
-|--------------|----------|----------|-------|
-| `target-evaluation` | `workflow-target-evaluation-onc` | workflow | Therapeutic area suffix |
-| `crc-bulk-rna-analysis` | `analysis-bulk-rna-crc` | analysis | Technology + disease |
-| `nsclc-bulk-rna-analysis` | `analysis-bulk-rna-nsclc` | analysis | Technology + disease |
-| `crc-protein-analysis` | `analysis-protein-crc` | analysis | Planned |
-| `nsclc-protein-analysis` | `analysis-protein-nsclc` | analysis | Planned |
-
----
-
-## Phase 1: Setup Branch & Directory Structure
-
-### 1.1 Create Feature Branch
+### 1.1 Setup Feature Branch
 
 ```bash
-# Navigate to ai-sci-claude-skills repo
 cd /Users/eta3879/tools/ai-sci-claude-skills
-
-# Ensure main is up to date
 git fetch origin
 git checkout main
 git pull origin main
-
-# Create feature branch
-git checkout -b feature/add-oncology-skills
+git checkout -b feature/add-oncology-bulk-rna-skills
 ```
 
 ### 1.2 Create Directory Structure
 
 ```bash
-# Create all skill directories per SKILLS_MANAGEMENT_FRAMEWORK.md Section 2.1
-mkdir -p skills/workflow-target-evaluation-onc/{scripts,references,assets/configs}
 mkdir -p skills/analysis-bulk-rna-crc/{scripts,references}
 mkdir -p skills/analysis-bulk-rna-nsclc/{scripts,references}
-mkdir -p skills/analysis-protein-crc/{scripts,references}
-mkdir -p skills/analysis-protein-nsclc/{scripts,references}
 ```
-
-### 1.3 Update .gitignore
-
-Ensure these patterns exist in `.gitignore`:
-
-```gitignore
-# Python environments
-.pixi/
-.venv/
-__pycache__/
-*.py[cod]
-
-# Environment files (keep .env.example)
-.env
-*.env.local
-
-# Data cache (per SKILLS_MANAGEMENT_FRAMEWORK.md Section 2.2)
-data/
-data_cache/
-
-# Generated outputs
-*_analysis_results/
-
-# macOS
-.DS_Store
-```
-
-### 1.4 Phase 1 Checklist
-
-- [ ] Clone/update ai-sci-claude-skills repo
-- [ ] Create `feature/add-oncology-skills` branch
-- [ ] Create directory structure for all 5 skills
-- [ ] Verify .gitignore entries
-- [ ] Commit initial structure
 
 ---
 
-## Phase 2: workflow-target-evaluation-onc
+## Phase 1A: analysis-bulk-rna-crc
 
-### 2.1 Source Files Location
-
+### Source Location
 ```
-SOURCE: /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/oncology-skills/target-evaluation/
-```
-
-### 2.2 Target Directory Structure
-
-```
-workflow-target-evaluation-onc/
-├── SKILL.md                          # Updated with metadata (per SKILL_TEMPLATE.md)
-├── pyproject.toml                    # Converted from pixi.toml
-├── .env.example                      # AWS credentials template
-├── scripts/
-│   ├── generate_target_report_pdf.py # Main PDF generator
-│   ├── scoring_engine.py             # Deterministic scoring engine
-│   ├── validation_checkpoints.py     # Validation framework
-│   ├── run_scholareval.py            # CLI for ScholarEval
-│   └── check_setup.py                # Pre-flight AWS check
-├── references/
-│   ├── risk_assessment_template_crc.md
-│   ├── risk_assessment_template_nsclc.md
-│   ├── risk_assessment_criteria.tsv  # Official Step 1 criteria
-│   └── evidence_extraction_schema.yaml
-└── assets/
-    └── configs/
-        ├── crc.yaml
-        ├── nsclc.yaml
-        └── scoring_rules.yaml
+/Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/oncology-skills/crc-bulk-rna-analysis/
 ```
 
-### 2.3 SKILL.md Frontmatter (per SKILL_TEMPLATE.md)
-
-```yaml
----
-name: workflow-target-evaluation-onc
-description: >
-  Use when user asks to "evaluate a target", "target assessment",
-  "GO/NO-GO recommendation", "evaluate {gene} in {disease}",
-  "target evaluation report", or needs systematic target evaluation
-  for oncology drug discovery. Provides 4-step workflow: risk assessment
-  (PubMed literature), expression analysis (TCGA/Tempus), ScholarEval
-  scoring, and PDF report generation. Includes validation framework with
-  deterministic scoring and audit trail. Supports CRC and NSCLC indications.
-  Do NOT use for target prioritization across multiple targets -
-  use workflow-target-prioritization instead.
-  Do NOT use for individual gene expression queries -
-  use analysis-bulk-rna-crc or analysis-bulk-rna-nsclc instead.
-  Example queries: "evaluate TNFRSF12A in CRC", "assess CDCP1 as target in NSCLC",
-  "generate target evaluation report for EPCAM".
-metadata:
-  version: 2.0.0
-  owner: ming-ju.tsai@takeda.com
-  requires_preflight: true
-  environment: shared
-  dependencies:
-    - analysis-bulk-rna-crc
-    - analysis-bulk-rna-nsclc
-    - analysis-protein-crc
-    - analysis-protein-nsclc
----
+### Target Structure
+```
+skills/analysis-bulk-rna-crc/
+├── SKILL.md
+├── pyproject.toml
+├── .env.example
+└── scripts/
+    ├── crc_comprehensive_analysis.py
+    └── check_setup.py
 ```
 
-### 2.4 pyproject.toml
-
-```toml
-[project]
-name = "workflow-target-evaluation-onc"
-version = "2.0.0"
-description = "Oncology target evaluation workflow for CRC and NSCLC"
-requires-python = ">=3.10"
-dependencies = [
-    "pandas>=2.0",
-    "numpy>=1.24",
-    "matplotlib>=3.8",
-    "seaborn>=0.13",
-    "pyyaml>=6.0",
-    "scipy>=1.11",
-    "reportlab>=4.0",
-    "pillow>=10.0",
-]
-
-[project.optional-dependencies]
-dev = ["pytest>=7.0"]
-```
-
-### 2.5 .env.example
+### Step 1: Create SKILL.md
 
 ```bash
-# AWS credentials for S3 access (TCGA/Tempus data)
-# Option 1: Use AWS profile (recommended)
-AWS_PROFILE=cbg
-
-# Option 2: Use explicit credentials (not recommended)
-# AWS_ACCESS_KEY_ID=your_access_key
-# AWS_SECRET_ACCESS_KEY=your_secret_key
-# AWS_DEFAULT_REGION=us-east-1
-```
-
-### 2.6 scripts/check_setup.py (per CONTRIBUTION_GUIDE.md)
-
-```python
-#!/usr/bin/env python3
-"""Pre-flight check for workflow-target-evaluation-onc.
-
-Run this before using the skill to verify AWS credentials and dependencies.
-"""
-import os
-import sys
-
-def check_aws_credentials():
-    """Check if AWS credentials are configured."""
-    profile = os.environ.get('AWS_PROFILE', 'cbg')
-
-    try:
-        import boto3
-        session = boto3.Session(profile_name=profile)
-        sts = session.client('sts')
-        identity = sts.get_caller_identity()
-        print(f"✓ AWS credentials valid (Account: {identity['Account']})")
-        return True
-    except Exception as e:
-        print(f"✗ AWS credentials error: {e}")
-        print(f"  Set AWS_PROFILE or configure ~/.aws/credentials")
-        return False
-
-def check_dependencies():
-    """Check required Python packages."""
-    required = ['pandas', 'matplotlib', 'seaborn', 'yaml', 'scipy', 'reportlab', 'PIL']
-    missing = []
-
-    for pkg in required:
-        try:
-            __import__(pkg if pkg != 'yaml' else 'yaml')
-        except ImportError:
-            missing.append(pkg)
-
-    if missing:
-        print(f"✗ Missing packages: {', '.join(missing)}")
-        print(f"  Run: pip install {' '.join(missing)}")
-        return False
-
-    print("✓ All required packages installed")
-    return True
-
-def main():
-    print("=" * 50)
-    print("workflow-target-evaluation-onc Pre-flight Check")
-    print("=" * 50)
-
-    checks = [
-        ("Dependencies", check_dependencies),
-        ("AWS Credentials", check_aws_credentials),
-    ]
-
-    all_passed = True
-    for name, check_fn in checks:
-        print(f"\nChecking {name}...")
-        if not check_fn():
-            all_passed = False
-
-    print("\n" + "=" * 50)
-    if all_passed:
-        print("✓ All checks passed. Ready to use skill.")
-        sys.exit(0)
-    else:
-        print("✗ Some checks failed. Please fix issues above.")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
-```
-
-### 2.7 Files to Copy
-
-| Source | Destination | Action |
-|--------|-------------|--------|
-| `SKILL.md` | `SKILL.md` | Rewrite with new frontmatter |
-| `scripts/generate_target_report_pdf.py` | `scripts/generate_target_report_pdf.py` | Copy, update paths |
-| `scripts/scoring_engine.py` | `scripts/scoring_engine.py` | Copy |
-| `scripts/validation_checkpoints.py` | `scripts/validation_checkpoints.py` | Copy |
-| `scripts/run_scholareval.py` | `scripts/run_scholareval.py` | Copy |
-| `reference/risk_assessment_template_crc.md` | `references/risk_assessment_template_crc.md` | Copy |
-| `reference/risk_assessment_template_nsclc.md` | `references/risk_assessment_template_nsclc.md` | Copy |
-| `reference/evidence_extraction_schema.yaml` | `references/evidence_extraction_schema.yaml` | Copy |
-| `risk_assessment_criteria.tsv` | `references/risk_assessment_criteria.tsv` | Copy (Step 1 criteria) |
-| `configs/crc.yaml` | `assets/configs/crc.yaml` | Copy |
-| `configs/nsclc.yaml` | `assets/configs/nsclc.yaml` | Copy |
-| `configs/scoring_rules.yaml` | `assets/configs/scoring_rules.yaml` | Copy |
-
-### 2.8 Files to DELETE (Not Needed per SKILLS_MANAGEMENT_FRAMEWORK.md)
-
-| File | Reason |
-|------|--------|
-| `README.md` | Not allowed per framework |
-| `.pixi/` | Environment directory (gitignored) |
-| `pixi.lock` | Replaced by pyproject.toml |
-| `pixi.toml` | Replaced by pyproject.toml |
-
-### 2.9 Path Updates in SKILL.md
-
-Update all references from:
-```markdown
-`reference/risk_assessment_template_crc.md`
-`configs/crc.yaml`
-`generate_target_report_pdf.py`
-```
-
-To:
-```markdown
-`references/risk_assessment_template_crc.md`
-`assets/configs/crc.yaml`
-`scripts/generate_target_report_pdf.py`
-```
-
-### 2.10 Phase 2 Checklist
-
-- [ ] Create new SKILL.md with proper frontmatter (per SKILL_TEMPLATE.md)
-- [ ] Create pyproject.toml
-- [ ] Create .env.example
-- [ ] Create scripts/check_setup.py (per CONTRIBUTION_GUIDE.md)
-- [ ] Copy all scripts to scripts/
-- [ ] Copy risk templates to references/
-- [ ] Copy risk_assessment_criteria.tsv to references/
-- [ ] Copy configs to assets/configs/
-- [ ] Update all paths in SKILL.md body
-- [ ] Delete README.md, pixi.toml, pixi.lock
-- [ ] Verify SKILL.md body < 500 lines
-- [ ] Commit changes
-
----
-
-## Phase 3: analysis-bulk-rna-crc
-
-### 3.1 Source Files Location
-
-```
-SOURCE: /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/oncology-skills/crc-bulk-rna-analysis/
-```
-
-### 3.2 Target Directory Structure
-
-```
-analysis-bulk-rna-crc/
-├── SKILL.md                          # Updated with metadata
-├── pyproject.toml                    # Converted from pixi.toml
-├── .env.example                      # AWS credentials template
-├── scripts/
-│   ├── crc_comprehensive_analysis.py # Main analysis script
-│   └── check_setup.py                # Pre-flight AWS check
-└── references/
-    └── cohort_definitions.md         # Optional: detailed cohort docs
-```
-
-### 3.3 SKILL.md Frontmatter
-
-```yaml
+cat > skills/analysis-bulk-rna-crc/SKILL.md << 'EOF'
 ---
 name: analysis-bulk-rna-crc
 description: >
@@ -415,11 +84,101 @@ metadata:
   requires_preflight: true
   environment: shared
 ---
+
+# Bulk RNA Expression Analysis for CRC
+
+## Overview
+
+Comprehensive bulk RNA-seq analysis for colorectal cancer target evaluation. Integrates TCGA, GTEx, and Tempus real-world data to assess target expression, on-target toxicity risk, and iDAS strategic alignment.
+
+## Prerequisites
+
+### Required Environment Variables
+
+```bash
+export AWS_PROFILE=cbg
 ```
 
-### 3.4 pyproject.toml
+Or create `.env` file:
+```bash
+cp .env.example .env
+```
 
-```toml
+### Verify Setup
+
+```bash
+cd "<skill_directory>" && python scripts/check_setup.py
+```
+
+## Core Capabilities
+
+### 1. On-Target Toxicity Assessment
+Primary metric: Tumor vs Adjacent Normal expression (predicts GI toxicity)
+- **LOW risk**: >2x tumor enrichment
+- **MEDIUM risk**: 1.5-2x tumor enrichment  
+- **HIGH risk**: <1.5x tumor enrichment
+
+### 2. TCGA/GTEx Expression Analysis
+- TCGA-COAD/READ tumor samples
+- TCGA adjacent normal tissue
+- GTEx healthy colon baseline
+- CCLE CRC cell lines
+
+### 3. Tempus Real-World Data
+- >200,000 CRC patients
+- Line-of-therapy stratification (1L/2L vs 3L+)
+- RAS mutation status
+- CMS subtype expression
+
+### 4. iDAS Strategic Alignment
+Priority whitespaces:
+- Chemorefractory 3L+ MSS
+- RAS mutant frontline
+- RAS mutant refractory
+
+## Usage
+
+```bash
+python scripts/crc_comprehensive_analysis.py --genes TNFRSF12A --output-dir ./results
+
+# Multiple genes
+python scripts/crc_comprehensive_analysis.py --genes "TNFRSF12A CDCP1 EPCAM" --output-dir ./results
+
+# Skip Tempus (faster, TCGA only)
+python scripts/crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tempus
+```
+
+## Output Files
+
+| File | Description |
+|------|-------------|
+| `{GENE}_comprehensive_analysis.png` | 8-panel figure |
+| `{GENE}_comprehensive_report.md` | Full analysis report |
+| `{GENE}_idas_assessment.yaml` | iDAS alignment data |
+| `{GENE}_subgroup_suitability.csv` | 3-phase subgroup scores |
+| `{GENE}_pairwise_comparisons.csv` | Statistical comparisons |
+
+## Data Sources
+
+| Source | Location | Description |
+|--------|----------|-------------|
+| TCGA | `s3://onc-compbio/omicsoft_oncoland_data` | Tumor + adjacent normal |
+| GTEx | `s3://onc-compbio/omicsoft_oncoland_data` | Normal colon |
+| Tempus | `s3://onc-compbio/Tempus/crc` | Real-world evidence |
+| CCLE | `s3://onc-compbio/omicsoft_oncoland_data` | Cell lines |
+
+## Related Skills
+
+- `analysis-bulk-rna-nsclc`: For NSCLC expression analysis
+- `analysis-protein-crc`: For protein-level validation (planned)
+- `workflow-target-evaluation-onc`: Full target evaluation workflow
+EOF
+```
+
+### Step 2: Create pyproject.toml
+
+```bash
+cat > skills/analysis-bulk-rna-crc/pyproject.toml << 'EOF'
 [project]
 name = "analysis-bulk-rna-crc"
 version = "1.0.0"
@@ -438,81 +197,63 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+EOF
 ```
 
-### 3.5 .env.example
+### Step 3: Create .env.example
 
 ```bash
+cat > skills/analysis-bulk-rna-crc/.env.example << 'EOF'
 # AWS credentials for S3 access (TCGA/GTEx/Tempus data)
 AWS_PROFILE=cbg
 
 # S3 bucket locations (usually not changed)
 # TCGA_S3_BUCKET=s3://onc-compbio/omicsoft_oncoland_data
 # TEMPUS_S3_BUCKET=s3://onc-compbio/Tempus/crc
+EOF
 ```
 
-### 3.6 scripts/check_setup.py
+### Step 4: Create check_setup.py
 
-```python
+```bash
+cat > skills/analysis-bulk-rna-crc/scripts/check_setup.py << 'EOF'
 #!/usr/bin/env python3
-"""Pre-flight check for analysis-bulk-rna-crc.
-
-Verifies AWS credentials and S3 bucket access for TCGA/Tempus data.
-"""
+"""Pre-flight check for analysis-bulk-rna-crc."""
 import os
 import sys
 
-def check_aws_credentials():
-    """Check AWS credentials and S3 access."""
-    profile = os.environ.get('AWS_PROFILE', 'cbg')
-
-    try:
-        import boto3
-        session = boto3.Session(profile_name=profile)
-        s3 = session.client('s3')
-
-        # Test bucket access
-        bucket = 'onc-compbio'
-        s3.head_bucket(Bucket=bucket)
-        print(f"✓ AWS credentials valid, S3 bucket '{bucket}' accessible")
-        return True
-    except Exception as e:
-        print(f"✗ AWS/S3 error: {e}")
-        return False
-
 def check_dependencies():
-    """Check required Python packages."""
     required = ['pandas', 'numpy', 'matplotlib', 'seaborn', 'scipy', 'yaml', 'boto3', 'pyarrow']
     missing = []
-
     for pkg in required:
         try:
             __import__(pkg if pkg != 'yaml' else 'yaml')
         except ImportError:
             missing.append(pkg)
-
     if missing:
         print(f"✗ Missing packages: {', '.join(missing)}")
         return False
-
     print("✓ All required packages installed")
     return True
+
+def check_aws_credentials():
+    profile = os.environ.get('AWS_PROFILE', 'cbg')
+    try:
+        import boto3
+        session = boto3.Session(profile_name=profile)
+        s3 = session.client('s3')
+        s3.head_bucket(Bucket='onc-compbio')
+        print(f"✓ AWS credentials valid, S3 bucket accessible")
+        return True
+    except Exception as e:
+        print(f"✗ AWS/S3 error: {e}")
+        return False
 
 def main():
     print("=" * 50)
     print("analysis-bulk-rna-crc Pre-flight Check")
     print("=" * 50)
-
-    all_passed = True
-
-    print("\nChecking dependencies...")
-    if not check_dependencies():
-        all_passed = False
-
-    print("\nChecking AWS/S3 access...")
-    if not check_aws_credentials():
-        all_passed = False
-
+    all_passed = check_dependencies() and check_aws_credentials()
     print("\n" + "=" * 50)
     if all_passed:
         print("✓ All checks passed. Ready to use skill.")
@@ -523,44 +264,51 @@ def main():
 
 if __name__ == "__main__":
     main()
+EOF
 ```
 
-### 3.7 Files to Copy
+### Step 5: Copy Analysis Script
 
-| Source | Destination | Action |
-|--------|-------------|--------|
-| `SKILL.md` | `SKILL.md` | Rewrite with new frontmatter |
-| `crc_comprehensive_analysis.py` | `scripts/crc_comprehensive_analysis.py` | Copy |
+```bash
+cp /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/oncology-skills/crc-bulk-rna-analysis/crc_comprehensive_analysis.py \
+   skills/analysis-bulk-rna-crc/scripts/
+```
 
-### 3.8 Files to DELETE
+### Phase 1A Checklist
 
-| File | Reason |
-|------|--------|
-| `README.md` | Not allowed per framework |
-| `.pixi/` | Environment directory |
-| `pixi.lock` | Replaced by pyproject.toml |
-| `pixi.toml` | Replaced by pyproject.toml |
-
-### 3.9 Phase 3 Checklist
-
-- [ ] Create new SKILL.md with proper frontmatter
+- [ ] Create SKILL.md
 - [ ] Create pyproject.toml
 - [ ] Create .env.example
 - [ ] Create scripts/check_setup.py
 - [ ] Copy crc_comprehensive_analysis.py to scripts/
-- [ ] Delete README.md, .pixi/, pixi.toml, pixi.lock
 - [ ] Verify SKILL.md body < 500 lines
-- [ ] Commit changes
+- [ ] Test: `python scripts/check_setup.py`
+- [ ] Test: `python scripts/crc_comprehensive_analysis.py --genes TNFRSF12A --output-dir ./test_output`
 
 ---
 
-## Phase 4: analysis-bulk-rna-nsclc
+## Phase 1B: analysis-bulk-rna-nsclc
 
-**Follow same steps as Phase 3, with NSCLC-specific changes:**
+### Source Location
+```
+/Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/oncology-skills/nsclc-bulk-rna-analysis/
+```
 
-### 4.1 SKILL.md Frontmatter
+### Target Structure
+```
+skills/analysis-bulk-rna-nsclc/
+├── SKILL.md
+├── pyproject.toml
+├── .env.example
+└── scripts/
+    ├── nsclc_comprehensive_analysis.py
+    └── check_setup.py
+```
 
-```yaml
+### Step 1: Create SKILL.md
+
+```bash
+cat > skills/analysis-bulk-rna-nsclc/SKILL.md << 'EOF'
 ---
 name: analysis-bulk-rna-nsclc
 description: >
@@ -581,174 +329,341 @@ metadata:
   requires_preflight: true
   environment: shared
 ---
+
+# Bulk RNA Expression Analysis for NSCLC
+
+## Overview
+
+Comprehensive bulk RNA-seq analysis for non-small cell lung cancer target evaluation. Integrates TCGA LUAD/LUSC, GTEx, and Tempus real-world data to assess target expression, on-target toxicity risk, and iDAS strategic alignment.
+
+## Prerequisites
+
+### Required Environment Variables
+
+```bash
+export AWS_PROFILE=cbg
 ```
 
-### 4.2 Files to Copy
+### Verify Setup
 
-| Source | Destination |
-|--------|-------------|
-| `nsclc_comprehensive_analysis.py` | `scripts/nsclc_comprehensive_analysis.py` |
+```bash
+cd "<skill_directory>" && python scripts/check_setup.py
+```
 
-### 4.3 Phase 4 Checklist
+## Core Capabilities
 
-- [ ] Create new SKILL.md with NSCLC frontmatter
-- [ ] Create pyproject.toml (same structure as CRC)
-- [ ] Create .env.example
-- [ ] Create scripts/check_setup.py
-- [ ] Copy nsclc_comprehensive_analysis.py to scripts/
-- [ ] Delete README.md, .pixi/, pixi.toml, pixi.lock
-- [ ] Verify SKILL.md body < 500 lines
-- [ ] Commit changes
+### 1. On-Target Toxicity Assessment
+Primary metric: Tumor vs Adjacent Normal expression (predicts pulmonary toxicity)
+- **LOW risk**: >2x tumor enrichment
+- **MEDIUM risk**: 1.5-2x tumor enrichment  
+- **HIGH risk**: <1.5x tumor enrichment
 
----
+### 2. TCGA/GTEx Expression Analysis
+- TCGA-LUAD (adenocarcinoma)
+- TCGA-LUSC (squamous cell carcinoma)
+- TCGA adjacent normal lung
+- GTEx healthy lung baseline
+- CCLE NSCLC cell lines
 
-## Phase 5: Protein Analysis Skills (Planned)
+### 3. Tempus Real-World Data
+- ~1,867 patients, ~3,500 samples
+- Biomarker stratification (EGFR, KRAS, STK11, KEAP1)
+- Line-of-therapy data
+- AGA (actionable genomic alterations) status
 
-### 5.1 analysis-protein-crc
+### 4. iDAS Strategic Alignment
+Priority whitespaces:
+- 2L Non-AGA (IO-experienced)
+- 2L EGFR Mutant (post-TKI)
+- 1L/2L KRAS Mutant
 
-```yaml
----
-name: analysis-protein-crc
-description: >
-  Use when user asks to "analyze protein expression in CRC",
-  "Human Protein Atlas CRC", "IHC expression colorectal",
-  "protein localization CRC", or needs protein-level validation
-  for colorectal cancer targets. Provides HPA IHC data, subcellular
-  localization, and GI toxicity assessment based on normal colon expression.
-  Do NOT use for RNA expression - use analysis-bulk-rna-crc instead.
-  Do NOT use for NSCLC - use analysis-protein-nsclc instead.
-  Example queries: "check HPA expression for TNFRSF12A in colon",
-  "protein localization of CDCP1", "GI toxicity risk from IHC".
-metadata:
-  version: 0.1.0
-  owner: ming-ju.tsai@takeda.com
-  requires_preflight: false
-  environment: shared
----
+## Usage
 
-# Protein Expression Analysis for CRC
+```bash
+python scripts/nsclc_comprehensive_analysis.py --genes CDCP1 --output-dir ./results
 
-## Status
+# Multiple genes
+python scripts/nsclc_comprehensive_analysis.py --genes "CDCP1 EGFR MET" --output-dir ./results
 
-**PLANNED** - Data integration from Human Protein Atlas in progress.
+# Skip Tempus (faster, TCGA only)
+python scripts/nsclc_comprehensive_analysis.py --genes CDCP1 --skip-tempus
+```
 
-## Planned Capabilities
+## Output Files
 
-- Human Protein Atlas IHC expression for normal colon tissue
-- Subcellular localization data (surface vs cytoplasm vs nucleus)
-- GI toxicity risk assessment based on normal tissue expression
-- Integration with bulk RNA analysis for RNA-protein concordance
+| File | Description |
+|------|-------------|
+| `{GENE}_comprehensive_analysis.png` | 8-panel figure |
+| `{GENE}_comprehensive_report.md` | Full analysis report |
+| `{GENE}_idas_assessment.yaml` | iDAS alignment data |
+| `{GENE}_subgroup_suitability.csv` | 3-phase subgroup scores |
+| `{GENE}_tcga_mutation_statistics.csv` | Mutation status expression |
 
 ## Data Sources
 
-- **Human Protein Atlas**: IHC expression, subcellular localization
-- **Protein Atlas API**: Programmatic access to tissue expression
+| Source | Location | Description |
+|--------|----------|-------------|
+| TCGA | `s3://onc-compbio/omicsoft_oncoland_data` | LUAD/LUSC + adjacent normal |
+| GTEx | `s3://onc-compbio/omicsoft_oncoland_data` | Normal lung |
+| Tempus | Local | Real-world evidence |
+| CCLE | `s3://onc-compbio/omicsoft_oncoland_data` | Cell lines |
 
 ## Related Skills
 
-- `analysis-bulk-rna-crc`: For bulk RNA expression analysis
-- `workflow-target-evaluation-onc`: Uses protein data in Step 2
+- `analysis-bulk-rna-crc`: For CRC expression analysis
+- `analysis-protein-nsclc`: For protein-level validation (planned)
+- `workflow-target-evaluation-onc`: Full target evaluation workflow
+EOF
 ```
 
-### 5.2 analysis-protein-nsclc
-
-Same structure as above, adapted for NSCLC (lung tissue expression, pulmonary toxicity assessment).
-
-### 5.3 Phase 5 Checklist
-
-- [ ] Create SKILL.md for analysis-protein-crc
-- [ ] Create SKILL.md for analysis-protein-nsclc
-- [ ] Create pyproject.toml with HPA dependencies
-- [ ] Implement HPA data fetching scripts
-- [ ] Test integration with workflow-target-evaluation-onc
-- [ ] Commit changes
-
----
-
-## Validation Commands
-
-After each phase, run validation:
+### Step 2: Create pyproject.toml
 
 ```bash
-# Navigate to repo
+cat > skills/analysis-bulk-rna-nsclc/pyproject.toml << 'EOF'
+[project]
+name = "analysis-bulk-rna-nsclc"
+version = "1.0.0"
+description = "Bulk RNA expression analysis for NSCLC targets"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "scipy>=1.11",
+    "pyyaml>=6.0",
+    "boto3>=1.28",
+    "pyarrow>=14.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+EOF
+```
+
+### Step 3: Create .env.example and check_setup.py
+
+```bash
+# .env.example (same as CRC)
+cat > skills/analysis-bulk-rna-nsclc/.env.example << 'EOF'
+AWS_PROFILE=cbg
+EOF
+
+# check_setup.py (same structure, different name in output)
+cat > skills/analysis-bulk-rna-nsclc/scripts/check_setup.py << 'EOF'
+#!/usr/bin/env python3
+"""Pre-flight check for analysis-bulk-rna-nsclc."""
+import os
+import sys
+
+def check_dependencies():
+    required = ['pandas', 'numpy', 'matplotlib', 'seaborn', 'scipy', 'yaml', 'boto3', 'pyarrow']
+    missing = []
+    for pkg in required:
+        try:
+            __import__(pkg if pkg != 'yaml' else 'yaml')
+        except ImportError:
+            missing.append(pkg)
+    if missing:
+        print(f"✗ Missing packages: {', '.join(missing)}")
+        return False
+    print("✓ All required packages installed")
+    return True
+
+def check_aws_credentials():
+    profile = os.environ.get('AWS_PROFILE', 'cbg')
+    try:
+        import boto3
+        session = boto3.Session(profile_name=profile)
+        s3 = session.client('s3')
+        s3.head_bucket(Bucket='onc-compbio')
+        print(f"✓ AWS credentials valid, S3 bucket accessible")
+        return True
+    except Exception as e:
+        print(f"✗ AWS/S3 error: {e}")
+        return False
+
+def main():
+    print("=" * 50)
+    print("analysis-bulk-rna-nsclc Pre-flight Check")
+    print("=" * 50)
+    all_passed = check_dependencies() and check_aws_credentials()
+    print("\n" + "=" * 50)
+    if all_passed:
+        print("✓ All checks passed. Ready to use skill.")
+        sys.exit(0)
+    else:
+        print("✗ Some checks failed. Please fix issues above.")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+EOF
+```
+
+### Step 4: Copy Analysis Script
+
+```bash
+cp /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/oncology-skills/nsclc-bulk-rna-analysis/nsclc_comprehensive_analysis.py \
+   skills/analysis-bulk-rna-nsclc/scripts/
+```
+
+### Phase 1B Checklist
+
+- [ ] Create SKILL.md
+- [ ] Create pyproject.toml
+- [ ] Create .env.example
+- [ ] Create scripts/check_setup.py
+- [ ] Copy nsclc_comprehensive_analysis.py to scripts/
+- [ ] Verify SKILL.md body < 500 lines
+- [ ] Test: `python scripts/check_setup.py`
+- [ ] Test: `python scripts/nsclc_comprehensive_analysis.py --genes CDCP1 --output-dir ./test_output`
+
+---
+
+## Phase 1 Commit & Test
+
+### Commit Phase 1
+
+```bash
 cd /Users/eta3879/tools/ai-sci-claude-skills
 
-# Run structure tests
+git add skills/analysis-bulk-rna-crc/ skills/analysis-bulk-rna-nsclc/
+git commit -m "Add bulk RNA analysis skills for CRC and NSCLC
+
+- analysis-bulk-rna-crc: TCGA/GTEx/Tempus integration for CRC targets
+- analysis-bulk-rna-nsclc: TCGA/GTEx/Tempus integration for NSCLC targets
+- Includes on-target toxicity assessment, iDAS alignment, subgroup suitability
+- Per SKILLS_MANAGEMENT_FRAMEWORK.md and CONTRIBUTION_GUIDE.md"
+```
+
+### Run Tests
+
+```bash
+# Structure tests
 cd tests/skills
-pytest -v test_skill_structure.py
+pytest -v test_skill_structure.py -k "analysis_bulk_rna"
 
-# Run content tests
-pytest -v test_skill_content.py
+# Content tests
+pytest -v test_skill_content.py -k "analysis_bulk_rna"
 
-# Test specific skill
-pytest -v -k "workflow_target_evaluation_onc"
-pytest -v -k "analysis_bulk_rna_crc"
+# Manual test - CRC
+cd ../../skills/analysis-bulk-rna-crc
+python scripts/crc_comprehensive_analysis.py --genes TNFRSF12A --output-dir ./test_output
+
+# Manual test - NSCLC
+cd ../analysis-bulk-rna-nsclc
+python scripts/nsclc_comprehensive_analysis.py --genes CDCP1 --output-dir ./test_output
 ```
 
 ---
 
-## PR Template (per CONTRIBUTION_GUIDE.md)
+## Phase 2: Protein Analysis Skills (After Phase 1 Tested)
 
-When ready to submit PR:
+### 2.1 analysis-protein-crc
+
+| Item | Value |
+|------|-------|
+| Source | Human Protein Atlas API |
+| Purpose | IHC expression, subcellular localization, GI toxicity assessment |
+| Status | **Planned** |
+
+### 2.2 analysis-protein-nsclc
+
+| Item | Value |
+|------|-------|
+| Source | Human Protein Atlas API |
+| Purpose | IHC expression, subcellular localization, pulmonary toxicity assessment |
+| Status | **Planned** |
+
+### Phase 2 Checklist
+
+- [ ] Implement HPA data fetching for CRC
+- [ ] Implement HPA data fetching for NSCLC
+- [ ] Create SKILL.md files
+- [ ] Test protein analysis skills
+- [ ] Commit and validate
+
+---
+
+## Phase 3: Target Evaluation Workflow (After Phase 2 Tested)
+
+### 3.1 workflow-target-evaluation-onc
+
+| Item | Value |
+|------|-------|
+| Dependencies | analysis-bulk-rna-crc, analysis-bulk-rna-nsclc, analysis-protein-crc, analysis-protein-nsclc |
+| Purpose | 4-step target evaluation: Risk Assessment → Expression Analysis → ScholarEval → PDF Report |
+| Status | **After Phase 2** |
+
+### Phase 3 Checklist
+
+- [ ] Create workflow-target-evaluation-onc directory structure
+- [ ] Copy scripts (scoring_engine.py, validation_checkpoints.py, etc.)
+- [ ] Copy references (risk templates, criteria TSV)
+- [ ] Copy configs (scoring_rules.yaml)
+- [ ] Update SKILL.md with dependency declarations
+- [ ] Test full workflow with TNFRSF12A in CRC
+- [ ] Test full workflow with CDCP1 in NSCLC
+- [ ] Commit and validate
+
+---
+
+## Compliance Checklist (from docs/)
+
+### Per Skill Requirements
+
+| Requirement | CRC | NSCLC | Source |
+|-------------|-----|-------|--------|
+| Valid category prefix (`analysis-`) | ✅ | ✅ | NAMING_TAXONOMY.md |
+| Valid domain suffix (`-bulk-rna`) | ✅ | ✅ | SKILLS_MANAGEMENT_FRAMEWORK.md |
+| Disease qualifier (`-crc`, `-nsclc`) | ✅ | ✅ | SKILLS_MANAGEMENT_FRAMEWORK.md |
+| SKILL.md with frontmatter | ✅ | ✅ | SKILL_TEMPLATE.md |
+| `name` matches folder | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| Trigger phrases in description | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| 3+ example queries | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| "Do NOT use" alternatives | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| SKILL.md < 500 lines | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| Scripts in `scripts/` folder | ✅ | ✅ | SKILLS_MANAGEMENT_FRAMEWORK.md |
+| pyproject.toml (shared env) | ✅ | ✅ | SKILLS_MANAGEMENT_FRAMEWORK.md |
+| .env.example | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| check_setup.py | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+| No README.md | ✅ | ✅ | SKILLS_MANAGEMENT_FRAMEWORK.md |
+| No .pixi/ committed | ✅ | ✅ | CONTRIBUTION_GUIDE.md |
+
+---
+
+## PR Template (Phase 1)
 
 ```markdown
-## Skills: Oncology Target Evaluation Suite
+## Skills: Oncology Bulk RNA Analysis
 
 ### Description
-Adds 5 oncology-focused skills for systematic target evaluation in CRC and NSCLC:
-- `workflow-target-evaluation-onc`: Main 4-step evaluation workflow with validation framework
-- `analysis-bulk-rna-crc`: CRC bulk RNA expression analysis
-- `analysis-bulk-rna-nsclc`: NSCLC bulk RNA expression analysis
-- `analysis-protein-crc`: CRC protein expression analysis (HPA) - planned
-- `analysis-protein-nsclc`: NSCLC protein expression analysis (HPA) - planned
+Adds 2 bulk RNA expression analysis skills for oncology target evaluation:
+- `analysis-bulk-rna-crc`: CRC expression analysis (TCGA/GTEx/Tempus)
+- `analysis-bulk-rna-nsclc`: NSCLC expression analysis (TCGA/GTEx/Tempus)
 
 ### Category
-- [x] Workflow
 - [x] Analysis
 
-### Naming Convention
-Uses naming pattern per NAMING_TAXONOMY.md:
-- Analysis: `analysis-{tech}-{disease}` (e.g., `analysis-bulk-rna-crc`)
-- Workflow: `workflow-{function}-{therapeutic_area}` (e.g., `workflow-target-evaluation-onc`)
-
 ### Checklist (per CONTRIBUTION_GUIDE.md)
-- [x] SKILL.md has valid frontmatter for all skills
+- [x] SKILL.md has valid frontmatter
 - [x] Names follow NAMING_TAXONOMY.md
 - [x] Description includes trigger phrases and "do NOT use" alternatives
 - [x] At least 3 example queries per skill
 - [x] No credentials committed
-- [x] .env.example provided for skills requiring credentials
+- [x] .env.example provided
 - [x] scripts/check_setup.py for preflight validation
 - [x] SKILL.md body under 500 lines
-- [x] Scripts in scripts/ folder (not root)
-- [x] No README.md files (per SKILLS_MANAGEMENT_FRAMEWORK.md)
+- [x] Scripts in scripts/ folder
+- [x] No README.md files
 - [x] Tests pass locally
 
 ### Testing
-- Validated with pytest test_skill_structure.py and test_skill_content.py
-- Manually tested target evaluation for TNFRSF12A, CDCP1 in both CRC and NSCLC
+- CRC: Tested with TNFRSF12A, CDCP1, EPCAM
+- NSCLC: Tested with CDCP1, EGFR, MET
 
 ### Related
-- Migrated from: rnd-computational-biology-oncology-claude-oncology-skills
-- Related to: workflow-target-prioritization (complementary, not duplicate)
+- Part of oncology target evaluation suite
+- Future: analysis-protein-crc, analysis-protein-nsclc, workflow-target-evaluation-onc
 ```
-
----
-
-## Summary of Framework Compliance
-
-| Requirement | Source Document | Status |
-|-------------|-----------------|--------|
-| Valid category prefix | NAMING_TAXONOMY.md | ✅ workflow-, analysis- |
-| Valid domain suffix | SKILLS_MANAGEMENT_FRAMEWORK.md | ✅ -bulk-rna, -protein |
-| Disease qualifier | SKILLS_MANAGEMENT_FRAMEWORK.md | ✅ -crc, -nsclc, -onc |
-| Directory structure | SKILLS_MANAGEMENT_FRAMEWORK.md | ✅ scripts/, references/, assets/ |
-| No README.md | SKILLS_MANAGEMENT_FRAMEWORK.md | ✅ Will delete |
-| Frontmatter fields | SKILL_TEMPLATE.md | ✅ name, description, metadata |
-| Trigger phrases in description | CONTRIBUTION_GUIDE.md | ✅ Included |
-| Example queries | CONTRIBUTION_GUIDE.md | ✅ At least 3 per skill |
-| "Do NOT use" alternatives | CONTRIBUTION_GUIDE.md | ✅ Included |
-| check_setup.py | CONTRIBUTION_GUIDE.md | ✅ For preflight skills |
-| .env.example | CONTRIBUTION_GUIDE.md | ✅ For credential skills |
-| pyproject.toml | SKILLS_MANAGEMENT_FRAMEWORK.md | ✅ For shared environment |
-| SKILL.md < 500 lines | CONTRIBUTION_GUIDE.md | ✅ Will verify |
