@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Environments
+.venv/
+.pixi/
+*.lock
+
+# Data caches
+data_cache/
+data/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Generated outputs (keep in results, but ignore temp)
+*.tmp
+
+# Environment files (keep .env.example)
+.env
+*.env.local
+
+# Jupyter
+.ipynb_checkpoints/
