@@ -142,9 +142,28 @@ def validate_s3_access(s3_uri):
     except ClientError:
         return False
 
+# Skill name for output file naming
+SKILL_NAME = 'analysis-bulk-rna-crc'
+
 # Default directories
 DEFAULT_CACHE_DIR = './data_cache'
-DEFAULT_OUTPUT_DIR = './crc_comprehensive_results'
+DEFAULT_OUTPUT_DIR = './results'
+
+
+def get_output_filename(gene, content_type, ext):
+    """Generate consistent output filename following naming convention.
+
+    Pattern: {GENE}_{skill-name}_{content-type}.{ext}
+
+    Args:
+        gene: Gene symbol (e.g., 'TNFRSF12A')
+        content_type: Type of content (e.g., 'figure', 'report', 'panel-01')
+        ext: File extension without dot (e.g., 'png', 'md', 'csv')
+
+    Returns:
+        Filename string (e.g., 'TNFRSF12A_analysis-bulk-rna-crc_figure.png')
+    """
+    return f"{gene}_{SKILL_NAME}_{content_type}.{ext}"
 
 # Cohort and annotation files (TCGA)
 DEFAULT_COHORT_PATH = './crc_cohort_assignments.csv'
@@ -1268,7 +1287,7 @@ def save_subgroup_suitability_figure(gene, suitability, output_dir):
 
     figures_dir = os.path.join(output_dir, 'figures')
     os.makedirs(figures_dir, exist_ok=True)
-    fig_path = os.path.join(figures_dir, f'{gene}_subgroup_suitability.png')
+    fig_path = os.path.join(figures_dir, get_output_filename(gene, 'suitability', 'png'))
     plt.savefig(fig_path, dpi=150, facecolor='white', bbox_inches='tight')
     plt.close()
 
@@ -1546,7 +1565,7 @@ def create_comprehensive_figure(gene_symbol, master_df, tempus_gene_data, assess
     ax8.set_title('H. Recommendation', fontweight='bold')
 
     # Save figure
-    output_path = os.path.join(output_dir, f'{gene_symbol}_comprehensive_analysis.png')
+    output_path = os.path.join(output_dir, get_output_filename(gene_symbol, 'figure', 'png'))
     plt.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
     plt.close()
     print(f"  Saved: {output_path}")
@@ -1583,7 +1602,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
     ax.set_ylabel('Expression (log2)', fontsize=12)
     ax.set_title(f'{gene_symbol} - TCGA Expression by Cohort', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_A_tcga_cohorts.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-01', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel B: On-Target Toxicity
@@ -1603,7 +1622,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
         ax.text(fc + 0.1, 0, f'{fc:.2f}\n({risk} Risk)', va='center', fontsize=11, fontweight='bold')
     ax.set_title(f'{gene_symbol} - On-Target Toxicity Assessment', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_B_toxicity.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-02', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel C: Tempus Line of Therapy (Boxplot from summary stats)
@@ -1625,7 +1644,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
                     ax.annotate(f"n={n:,}", (i, row['q75'] + 0.3), ha='center', fontsize=10)
     ax.set_title(f'{gene_symbol} - Expression by Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_C_lot.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-03', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel D: Tempus iDAS Cohorts (Boxplot from summary stats)
@@ -1689,7 +1708,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
 
     ax.set_title(f'{gene_symbol} - iDAS-Aligned Cohorts (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_D_idas_cohorts.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-04', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel E: RAS Status (Boxplot from summary stats)
@@ -1711,7 +1730,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
                     ax.annotate(f"n={n:,}", (i, row['q75'] + 0.3), ha='center', fontsize=10)
     ax.set_title(f'{gene_symbol} - Expression by RAS Status (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_E_ras_status.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-05', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel F: CMS Subtypes (Boxplot for TCGA, summary boxplot for Tempus)
@@ -1745,7 +1764,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
         ax.set_title(f'{gene_symbol} - CMS Subtype Expression (No data)', fontweight='bold', fontsize=14)
         ax.text(0.5, 0.5, 'No CMS data available', ha='center', va='center', transform=ax.transAxes)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_F_cms.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-06', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel G: iDAS Alignment Summary Table
@@ -1777,7 +1796,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
             table[(i + 1, 2)].set_text_props(color='white', fontweight='bold')
     ax.set_title(f'{gene_symbol} - iDAS Whitespace Alignment Summary', fontweight='bold', fontsize=14, pad=20)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_G_idas_summary.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-07', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel H: Recommendation
@@ -1799,7 +1818,7 @@ def save_individual_figures_crc(gene_symbol, master_df, tempus_gene_data, assess
                 fontsize=11, color='red', fontweight='bold')
     ax.set_title(f'{gene_symbol} - Recommendation', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene_symbol}_panel_H_recommendation.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene_symbol, 'panel-08', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     print(f"  Saved individual figures to: {figures_dir}/")
@@ -2036,7 +2055,7 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
         report.append("- If proceeding, focus on specific biomarker-defined populations")
 
     # Write report
-    report_path = os.path.join(output_dir, f'{gene_symbol}_comprehensive_report.md')
+    report_path = os.path.join(output_dir, get_output_filename(gene_symbol, 'report', 'md'))
     with open(report_path, 'w') as f:
         f.write('\n'.join(report))
     print(f"  Saved: {report_path}")
@@ -2145,13 +2164,13 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
         print(f"  EXCLUDE/CAUTION subgroups: {', '.join(caution_subs)}")
 
     # Save subgroup suitability
-    suitability_csv_path = os.path.join(gene_dir, f'{gene_symbol}_subgroup_suitability.csv')
+    suitability_csv_path = os.path.join(gene_dir, get_output_filename(gene_symbol, 'suitability', 'csv'))
     suitability_df = pd.DataFrame(subgroup_suitability['summary'])
     suitability_df.to_csv(suitability_csv_path, index=False)
     print(f"  Saved: {suitability_csv_path}")
 
     # Save assessment
-    assessment_path = os.path.join(gene_dir, f'{gene_symbol}_idas_assessment.yaml')
+    assessment_path = os.path.join(gene_dir, get_output_filename(gene_symbol, 'idas', 'yaml'))
     with open(assessment_path, 'w') as f:
         # Convert numpy types to Python native types for clean YAML serialization
         yaml.dump(convert_numpy_types(assessment), f, default_flow_style=False)
@@ -2175,12 +2194,12 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
 
     # Save statistics
     if tcga_stats is not None:
-        stats_path = os.path.join(gene_dir, f'{gene_symbol}_tcga_statistics.csv')
+        stats_path = os.path.join(gene_dir, get_output_filename(gene_symbol, 'tcga-stats', 'csv'))
         tcga_stats.to_csv(stats_path)
         print(f"  Saved: {stats_path}")
 
     if tcga_comparisons is not None and not tcga_comparisons.empty:
-        comp_path = os.path.join(gene_dir, f'{gene_symbol}_pairwise_comparisons.csv')
+        comp_path = os.path.join(gene_dir, get_output_filename(gene_symbol, 'comparisons', 'csv'))
         tcga_comparisons.to_csv(comp_path, index=False)
         print(f"  Saved: {comp_path}")
 

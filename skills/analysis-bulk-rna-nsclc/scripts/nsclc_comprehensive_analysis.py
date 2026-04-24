@@ -142,9 +142,28 @@ def validate_s3_access(s3_uri):
     except ClientError:
         return False
 
+# Skill name for output file naming
+SKILL_NAME = 'analysis-bulk-rna-nsclc'
+
 # Default directories
 DEFAULT_CACHE_DIR = './data_cache'
-DEFAULT_OUTPUT_DIR = './nsclc_comprehensive_results'
+DEFAULT_OUTPUT_DIR = './results'
+
+
+def get_output_filename(gene, content_type, ext):
+    """Generate consistent output filename following naming convention.
+
+    Pattern: {GENE}_{skill-name}_{content-type}.{ext}
+
+    Args:
+        gene: Gene symbol (e.g., 'EGFR')
+        content_type: Type of content (e.g., 'figure', 'report', 'panel-01')
+        ext: File extension without dot (e.g., 'png', 'md', 'csv')
+
+    Returns:
+        Filename string (e.g., 'EGFR_analysis-bulk-rna-nsclc_figure.png')
+    """
+    return f"{gene}_{SKILL_NAME}_{content_type}.{ext}"
 
 # Tempus summary files
 TEMPUS_FILES = {
@@ -1527,7 +1546,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
     plt.tight_layout()
 
     # Save figure
-    output_path = os.path.join(output_dir, f'{gene}_comprehensive_analysis.png')
+    output_path = os.path.join(output_dir, get_output_filename(gene, 'figure', 'png'))
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
@@ -1596,7 +1615,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_xlabel('')
     ax.set_title(f'{gene} - TCGA Expression: Histology-Matched & LUAD Mutations (Treatment-Naive)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_1_tcga_cohorts.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-01', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 2: On-Target Toxicity (Histology-Matched: LUAD vs LUAD-Adj, LUSC vs LUSC-Adj)
@@ -1627,7 +1646,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_xlabel('')
     ax.set_title(f'{gene} - On-Target Toxicity (Histology-Matched)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_2_toxicity.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-02', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 3: Tempus Line of Therapy (Boxplot from summary stats)
@@ -1650,7 +1669,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_xlabel('Line of Therapy', fontsize=12)
     ax.set_title(f'{gene} - Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_3_lot.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-03', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 4: iDAS Priority Cohorts (Boxplot from summary stats)
@@ -1684,7 +1703,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - iDAS Priority Whitespaces', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_4_idas_priority.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-04', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 5: KRAS Status (Boxplot from summary stats)
@@ -1723,7 +1742,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - KRAS Mutation Status (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_5_kras_status.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-05', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 6: EGFR Status (Boxplot from summary stats)
@@ -1762,7 +1781,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - EGFR Mutation Status (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_6_egfr_status.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-06', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 7: STK11/KEAP1 Status (IO resistance markers - Boxplot from summary stats)
@@ -1800,7 +1819,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_title(f'{gene} - IO Resistance Markers (Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_7_io_resistance.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-07', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     # Panel 8: Overall Assessment Summary
@@ -1837,7 +1856,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
              bbox=dict(boxstyle='round,pad=0.5', facecolor=bg_color, edgecolor=text_color, linewidth=2))
     ax.set_title(f'{gene} - Assessment Summary', fontweight='bold', fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(figures_dir, f'{gene}_panel_8_summary.png'), dpi=DPI, facecolor='white')
+    plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-08', 'png')), dpi=DPI, facecolor='white')
     plt.close()
 
     print(f"  Saved individual figures to: {figures_dir}/")
@@ -1911,7 +1930,7 @@ def save_subgroup_suitability_figure(gene, subgroup_suitability, output_dir):
     plt.tight_layout()
 
     # Save figure
-    output_path = os.path.join(figures_dir, f'{gene}_subgroup_suitability.png')
+    output_path = os.path.join(figures_dir, get_output_filename(gene, 'suitability', 'png'))
     plt.savefig(output_path, dpi=300, facecolor='white', bbox_inches='tight')
     plt.close()
     print(f"  Saved: {output_path}")
@@ -2144,7 +2163,7 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
 
     # Write report
     report_text = "\n".join(report)
-    report_path = os.path.join(output_dir, f'{gene}_comprehensive_report.md')
+    report_path = os.path.join(output_dir, get_output_filename(gene, 'report', 'md'))
     with open(report_path, 'w') as f:
         f.write(report_text)
     print(f"  Saved: {report_path}")
@@ -2266,12 +2285,12 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     # Save subgroup suitability as CSV
     if subgroup_suitability.get('summary'):
         suitability_df = pd.DataFrame(subgroup_suitability['summary'])
-        suitability_path = os.path.join(gene_output_dir, f'{gene}_subgroup_suitability.csv')
+        suitability_path = os.path.join(gene_output_dir, get_output_filename(gene, 'suitability', 'csv'))
         suitability_df.to_csv(suitability_path, index=False)
         print(f"  Saved: {suitability_path}")
 
     # Save iDAS assessment (with subgroup analysis included)
-    idas_path = os.path.join(gene_output_dir, f'{gene}_idas_assessment.yaml')
+    idas_path = os.path.join(gene_output_dir, get_output_filename(gene, 'idas', 'yaml'))
     idas_assessment['gene'] = gene
     idas_assessment['timestamp'] = datetime.now().isoformat()
     idas_assessment['subgroup_analysis'] = {
@@ -2301,12 +2320,12 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
 
     # Save statistics
     if tcga_stats is not None:
-        stats_path = os.path.join(gene_output_dir, f'{gene}_tcga_statistics.csv')
+        stats_path = os.path.join(gene_output_dir, get_output_filename(gene, 'tcga-stats', 'csv'))
         tcga_stats.to_csv(stats_path, index=False)
         print(f"  Saved: {stats_path}")
 
     if pairwise_df is not None and len(pairwise_df) > 0:
-        pairwise_path = os.path.join(gene_output_dir, f'{gene}_pairwise_comparisons.csv')
+        pairwise_path = os.path.join(gene_output_dir, get_output_filename(gene, 'comparisons', 'csv'))
         pairwise_df.to_csv(pairwise_path, index=False)
         print(f"  Saved: {pairwise_path}")
 
@@ -2319,7 +2338,7 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
             mut_stats_list.append(mut_df_copy)
         if mut_stats_list:
             all_mut_stats = pd.concat(mut_stats_list, ignore_index=True)
-            mut_stats_path = os.path.join(gene_output_dir, f'{gene}_tcga_mutation_statistics.csv')
+            mut_stats_path = os.path.join(gene_output_dir, get_output_filename(gene, 'mutation-stats', 'csv'))
             all_mut_stats.to_csv(mut_stats_path, index=False)
             print(f"  Saved: {mut_stats_path}")
 
