@@ -207,7 +207,7 @@ Export to `{GENE}_audit_trail.json` for full reproducibility verification.
 ## Adding New Diseases
 
 1. Create disease-specific risk template: `reference/risk_assessment_template_{disease}.md`
-2. Create bulk RNA analysis skill: `oncology-skills:{disease}-bulk-rna-analysis`
+2. Create bulk RNA analysis skill: `analysis-bulk-rna-{disease}`
 3. Add config file: `configs/{disease}.yaml`
 4. Update SKILL.md routing table
 

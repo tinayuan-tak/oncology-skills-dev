@@ -8,7 +8,7 @@ abbreviation: CRC
 # =============================================================================
 # SKILL ROUTING
 # =============================================================================
-bulk_rna_skill: oncology-skills:crc-bulk-rna-analysis
+bulk_rna_skill: analysis-bulk-rna-crc
 integrated_analysis_script: crc_integrated_analysis.py
 legacy_analysis_script: crc_gene_analysis.py
 

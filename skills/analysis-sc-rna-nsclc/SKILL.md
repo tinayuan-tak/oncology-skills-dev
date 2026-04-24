@@ -1,6 +1,14 @@
 ---
-name: nsclc-sc-rna-analysis
-description: Use when analyzing single-cell RNA-seq data in non-small cell lung cancer. Triggers include scRNA-seq analysis for NSCLC, tumor microenvironment characterization, cell type annotation, or single-cell gene expression in NSCLC context. (COMING SOON)
+name: analysis-sc-rna-nsclc
+description: |
+  Use when analyzing single-cell RNA-seq data in non-small cell lung cancer. Triggers include
+  scRNA-seq analysis for NSCLC, tumor microenvironment characterization, cell type annotation,
+  or single-cell gene expression in NSCLC context. (COMING SOON - use analysis-bulk-rna-nsclc instead)
+metadata:
+  version: 0.1.0
+  owner: ming-ju.tsai@takeda.com
+  requires_preflight: false
+  environment: none
 ---
 
 # NSCLC Single-Cell RNA-seq Analysis
@@ -9,7 +17,7 @@ description: Use when analyzing single-cell RNA-seq data in non-small cell lung 
 
 This skill is under development. For now, use the bulk RNA analysis skill:
 
-**Available alternative:** `oncology-skills:nsclc-bulk-rna-analysis`
+**Available alternative:** `analysis-bulk-rna-nsclc`
 
 ## Planned Capabilities
 

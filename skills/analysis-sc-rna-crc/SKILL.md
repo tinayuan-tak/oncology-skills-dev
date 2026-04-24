@@ -1,6 +1,14 @@
 ---
-name: crc-sc-rna-analysis
-description: Use when analyzing single-cell RNA-seq data in colorectal cancer. Triggers include scRNA-seq analysis for CRC, tumor microenvironment characterization, cell type annotation, or single-cell gene expression in CRC context. (COMING SOON)
+name: analysis-sc-rna-crc
+description: |
+  Use when analyzing single-cell RNA-seq data in colorectal cancer. Triggers include
+  scRNA-seq analysis for CRC, tumor microenvironment characterization, cell type annotation,
+  or single-cell gene expression in CRC context. (COMING SOON - use analysis-bulk-rna-crc instead)
+metadata:
+  version: 0.1.0
+  owner: ming-ju.tsai@takeda.com
+  requires_preflight: false
+  environment: none
 ---
 
 # CRC Single-Cell RNA-seq Analysis
@@ -9,7 +17,7 @@ description: Use when analyzing single-cell RNA-seq data in colorectal cancer. T
 
 This skill is under development. For now, use the bulk RNA analysis skill:
 
-**Available alternative:** `oncology-skills:crc-bulk-rna-analysis`
+**Available alternative:** `analysis-bulk-rna-crc`
 
 ## Planned Capabilities
 
