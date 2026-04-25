@@ -880,10 +880,18 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
     if ras_mut_expr is not None or tempus_ras_1l2l is not None:
         expr = tempus_ras_1l2l if tempus_ras_1l2l is not None else ras_mut_expr
         alignment = 'Strong' if expr > 4 else 'Moderate' if expr > 2 else 'Weak'
+        # Determine source based on available data
+        if tempus_ras_1l2l is not None and ras_mut_expr is not None:
+            source = 'TCGA+Tempus'
+        elif tempus_ras_1l2l is not None:
+            source = 'Tempus'
+        else:
+            source = 'TCGA'
         assessment['whitespace_alignment']['ras_mutant_frontline'] = {
             'tcga_expression': ras_mut_expr,
             'tempus_expression': tempus_ras_1l2l,
             'alignment': alignment,
+            'source': source,
         }
         score = 1.0 if alignment == 'Strong' else 0.6 if alignment == 'Moderate' else 0.2
         scores.append(('ras_mutant_frontline', score))
@@ -901,6 +909,7 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
                 'log2FC_vs_MSS_all': fc_vs_all,
                 'n_samples': row.get('n_samples', 0),
                 'alignment': alignment,
+                'source': 'Tempus',
             }
             score = 1.0 if alignment == 'Strong' else 0.6 if alignment == 'Moderate' else 0.2
             scores.append(('ras_mutant_refractory', score))
@@ -919,6 +928,7 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
                 'log2FC_vs_frontline': fc_vs_early,
                 'n_samples': row.get('n_samples', 0),
                 'alignment': alignment,
+                'source': 'Tempus',
             }
             score = 1.0 if alignment == 'Strong' else 0.6 if alignment == 'Moderate' else 0.2
             scores.append(('chemorefractory_3lplus', score))
@@ -930,6 +940,7 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
         assessment['whitespace_alignment']['resectable'] = {
             'tcga_expression': expr,
             'alignment': alignment,
+            'source': 'TCGA',
         }
         score = 1.0 if alignment == 'Strong' else 0.6 if alignment == 'Moderate' else 0.2
         scores.append(('resectable', score))
@@ -1874,7 +1885,7 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
             expr = f'{expr:.2f}'
         alignment = ws_data.get('alignment', 'Unknown')
         n_samples = ws_data.get('n_samples', 'N/A')
-        source = 'Tempus' if 'tempus' in str(ws_data) or '3lplus' in ws_name else 'TCGA'
+        source = ws_data.get('source', 'TCGA')
         report.append(f"| {ws_name.replace('_', ' ').title()} | {expr} | **{alignment}** | {n_samples} | {source} |")
 
     # On-Target Toxicity Assessment

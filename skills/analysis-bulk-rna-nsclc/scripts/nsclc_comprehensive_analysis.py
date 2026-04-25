@@ -889,6 +889,7 @@ def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
                         'n_samples': n_samples,
                         'alignment': alignment,
                         'label': label,
+                        'source': 'Tempus',
                     }
 
     # 3. Overall assessment
@@ -1964,19 +1965,20 @@ def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwis
     report.append("\n---\n")
 
     # iDAS Whitespace Alignment
-    report.append("## iDAS Whitespace Alignment (Tempus RWD)\n")
-    report.append("> **Data Source:** Tempus NSCLC cohort (100% CPI-treated/IO-experienced)\n\n")
-    report.append("| Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |")
-    report.append("|---------------------|----------------------|-----------|-----------|")
+    report.append("## iDAS Whitespace Alignment\n")
+    report.append("> **Data Sources:** Tempus NSCLC RWD (~1,800 patients, 100% CPI-treated) + TCGA-LUAD/LUSC\n\n")
+    report.append("| Priority Whitespace | Expression (log2TPM) | Alignment | N Samples | Source |")
+    report.append("|---------------------|----------------------|-----------|-----------|--------|")
     total_idas_n = 0
     for key, info in idas_assessment.get('whitespace_alignment', {}).items():
         label = info.get('label', key)
         expr = info.get('expression', 0)
         align = info.get('alignment', 'Unknown')
         n = info.get('n_samples', 'N/A')
+        source = info.get('source', 'Tempus')
         if isinstance(n, (int, float)):
             total_idas_n += int(n)
-        report.append(f"| {label} | {expr:.2f} | **{align}** | {n} |")
+        report.append(f"| {label} | {expr:.2f} | **{align}** | {n} | {source} |")
     report.append(f"\n*Total iDAS priority samples: N={total_idas_n}*\n")
     report.append("\n---\n")
 
