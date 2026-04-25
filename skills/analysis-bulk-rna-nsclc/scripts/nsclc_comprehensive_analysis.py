@@ -840,20 +840,24 @@ def calculate_cohort_statistics(df):
 # iDAS ALIGNMENT ASSESSMENT
 # =============================================================================
 
-def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
-    """Assess alignment with iDAS NSCLC priority whitespaces."""
+def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene_data):
+    """Comprehensive iDAS alignment assessment combining TCGA and Tempus."""
     assessment = {
+        'gene': gene_symbol,
+        'timestamp': datetime.now().isoformat(),
         'whitespace_alignment': {},
         'on_target_toxicity': {},
-        'overall_alignment': None,
-        'recommendation': None,
+        'overall_alignment': 'Unknown',
+        'recommendation': 'Unknown',
     }
 
+    scores = []
+
     # 1. On-target toxicity (tumor vs histology-matched adjacent normal)
-    if pairwise_df is not None and len(pairwise_df) > 0:
+    if tcga_comparisons is not None and len(tcga_comparisons) > 0:
         # Use histology-matched comparisons (LUAD vs LUAD-adjacent, LUSC vs LUSC-adjacent)
-        adj_comparisons = pairwise_df[
-            pairwise_df['Normal_Group'].isin(['TCGA_LUAD_Adjacent', 'TCGA_LUSC_Adjacent'])
+        adj_comparisons = tcga_comparisons[
+            tcga_comparisons['Normal_Group'].isin(['TCGA_LUAD_Adjacent', 'TCGA_LUSC_Adjacent'])
         ]
         if len(adj_comparisons) > 0:
             avg_fc = adj_comparisons['Log2FC'].mean()
@@ -864,8 +868,11 @@ def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
                 'tumor_vs_adjacent_log2FC': avg_fc,
                 'luad_vs_luad_adjacent_log2FC': float(luad_fc[0]) if len(luad_fc) > 0 else None,
                 'lusc_vs_lusc_adjacent_log2FC': float(lusc_fc[0]) if len(lusc_fc) > 0 else None,
-                'risk_level': 'Low' if avg_fc > 1.5 else 'Medium' if avg_fc > 0.5 else 'High'
+                'risk_level': 'Low' if avg_fc > 1 else 'Medium' if avg_fc > 0.5 else 'High',
             }
+            # Score: higher FC = lower toxicity risk = better
+            tox_score = min(avg_fc / 2, 1.0) if avg_fc > 0 else 0
+            scores.append(('on_target_toxicity', tox_score))
 
     # 2. iDAS Priority Whitespace Alignment
     # Check Tempus iDAS cohorts
@@ -891,26 +898,25 @@ def assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df):
                         'label': label,
                         'source': 'Tempus',
                     }
+                    score = 1.0 if alignment == 'Strong' else 0.6 if alignment == 'Moderate' else 0.2
+                    scores.append((key, score))
 
-    # 3. Overall assessment
-    alignments = [v.get('alignment', 'Weak') for v in assessment['whitespace_alignment'].values()]
-    toxicity_risk = assessment['on_target_toxicity'].get('risk_level', 'Unknown')
+    # 3. Overall assessment (using scores - consistent with CRC)
+    if scores:
+        avg_score = np.mean([s[1] for s in scores])
+        if avg_score >= 0.7:
+            assessment['overall_alignment'] = 'High'
+            assessment['recommendation'] = 'PRIORITY - Strong iDAS alignment'
+        elif avg_score >= 0.4:
+            assessment['overall_alignment'] = 'Medium'
+            assessment['recommendation'] = 'CONDITIONAL - Moderate alignment, review specifics'
+        else:
+            assessment['overall_alignment'] = 'Low'
+            assessment['recommendation'] = 'DEPRIORITIZE - Limited iDAS alignment'
 
-    strong_count = sum(1 for a in alignments if a == 'Strong')
-    moderate_count = sum(1 for a in alignments if a == 'Moderate')
-
-    if toxicity_risk == 'High':
-        assessment['overall_alignment'] = 'Low'
-        assessment['recommendation'] = 'CONDITIONAL - High on-target toxicity risk'
-    elif strong_count >= 2 and toxicity_risk in ['Low', 'Medium']:
-        assessment['overall_alignment'] = 'High'
-        assessment['recommendation'] = 'PRIORITY - Strong iDAS alignment'
-    elif strong_count >= 1 or moderate_count >= 2:
-        assessment['overall_alignment'] = 'Moderate'
-        assessment['recommendation'] = 'CONSIDER - Moderate iDAS alignment'
-    else:
-        assessment['overall_alignment'] = 'Low'
-        assessment['recommendation'] = 'LOW PRIORITY - Limited iDAS alignment'
+    # Check on-target toxicity (override if high risk)
+    if assessment.get('on_target_toxicity', {}).get('risk_level') == 'High':
+        assessment['recommendation'] = 'CAUTION - High on-target toxicity risk'
 
     return assessment
 
@@ -1314,7 +1320,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
 
     ax1.set_ylabel('Expression (log2 TPM+1)')
     ax1.set_xlabel('')
-    ax1.set_title(f'{gene} - TCGA Cohorts & Mutations', fontweight='bold', fontsize=10)
+    ax1.set_title('A. TCGA Expression by Cohort\n(On-Target Toxicity Reference)', fontweight='bold', fontsize=10)
 
     # Panel 2: On-Target Toxicity (Histology-Matched: LUAD vs LUAD-Adj, LUSC vs LUSC-Adj)
     ax2 = fig.add_subplot(2, 4, 2)
@@ -1343,7 +1349,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
         ax2.axvline(x=1.5, color='gray', linestyle='--', alpha=0.5, linewidth=0.5)
     ax2.set_ylabel('Expression (log2 TPM+1)')
     ax2.set_xlabel('')
-    ax2.set_title('On-Target Toxicity (Histology-Matched)', fontweight='bold', fontsize=10)
+    ax2.set_title('B. On-Target Toxicity Assessment\n(Tumor vs Adjacent Normal)', fontweight='bold', fontsize=10)
 
     # Panel 3: Tempus Line of Therapy (Boxplot from summary stats)
     ax3 = fig.add_subplot(2, 4, 3)
@@ -1363,7 +1369,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
                     ax3.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
     ax3.set_ylabel('Expression (log2 TPM+1)')
     ax3.set_xlabel('Line of Therapy')
-    ax3.set_title('Tempus: Line of Therapy', fontweight='bold')
+    ax3.set_title('C. Expression by Line of Therapy\n(Tempus RWD)', fontweight='bold')
 
     # Panel 4: iDAS Priority Cohorts (Boxplot from summary stats)
     ax4 = fig.add_subplot(2, 4, 4)
@@ -1394,7 +1400,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
             n = int(row['n_samples']) if row['n_samples'] else 0
             ax4.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=7)
     ax4.set_ylabel('Expression (log2 TPM+1)')
-    ax4.set_title('iDAS Priority Whitespaces', fontweight='bold')
+    ax4.set_title('D. iDAS-Aligned Cohorts\n(Tempus RWD)', fontweight='bold')
 
     # Panel 5: KRAS Status (Boxplot from summary stats)
     ax5 = fig.add_subplot(2, 4, 5)
@@ -1430,7 +1436,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
                         ax5.plot([0, 1], [max_y + 0.4] * 2, 'k-', linewidth=0.8)
                         ax5.annotate(p_str, xy=(0.5, max_y + 0.5), ha='center', fontsize=7, style='italic')
     ax5.set_ylabel('Expression (log2 TPM+1)')
-    ax5.set_title('KRAS Mutation Status (Tempus)', fontweight='bold')
+    ax5.set_title('E. Expression by KRAS Status\n(Tempus RWD)', fontweight='bold')
 
     # Panel 6: EGFR Status (Boxplot from summary stats)
     ax6 = fig.add_subplot(2, 4, 6)
@@ -1466,7 +1472,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
                         ax6.plot([0, 1], [max_y + 0.4] * 2, 'k-', linewidth=0.8)
                         ax6.annotate(p_str, xy=(0.5, max_y + 0.5), ha='center', fontsize=7, style='italic')
     ax6.set_ylabel('Expression (log2 TPM+1)')
-    ax6.set_title('EGFR Mutation Status (Tempus)', fontweight='bold')
+    ax6.set_title('F. Expression by EGFR Status\n(Tempus RWD)', fontweight='bold')
 
     # Panel 7: STK11/KEAP1 Status (IO resistance markers - Boxplot from summary stats)
     ax7 = fig.add_subplot(2, 4, 7)
@@ -1502,7 +1508,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
         draw_boxplot_from_summary(ax7, io_df, 'group_name', colors, x_labels=x_labels)
         ax7.tick_params(axis='x', labelsize=7)
     ax7.set_ylabel('Expression (log2 TPM+1)')
-    ax7.set_title('IO Resistance Markers (Tempus)', fontweight='bold')
+    ax7.set_title('G. IO Resistance Markers\n(STK11/KEAP1, Tempus)', fontweight='bold')
 
     # Panel 8: Overall Assessment Summary
     ax8 = fig.add_subplot(2, 4, 8)
@@ -1542,6 +1548,7 @@ def create_comprehensive_figure(gene, tcga_df, tempus_gene_data, idas_assessment
     ax8.text(0.5, 0.5, summary_text, transform=ax8.transAxes, ha='center', va='center',
              fontsize=12, family='monospace',
              bbox=dict(boxstyle='round,pad=0.5', facecolor=bg_color, edgecolor=text_color, linewidth=2))
+    ax8.set_title('H. Recommendation', fontweight='bold')
 
     plt.suptitle(f'{gene} Comprehensive NSCLC Target Analysis', fontsize=16, fontweight='bold', y=1.02)
     plt.tight_layout()
@@ -1614,7 +1621,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
 
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('')
-    ax.set_title(f'{gene} - TCGA Expression: Histology-Matched & LUAD Mutations (Treatment-Naive)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - A. TCGA Expression by Cohort (On-Target Toxicity Reference)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-01', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1645,7 +1652,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
         ax.axvline(x=1.5, color='gray', linestyle='--', alpha=0.5)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('')
-    ax.set_title(f'{gene} - On-Target Toxicity (Histology-Matched)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - B. On-Target Toxicity Assessment (Tumor vs Adjacent Normal)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-02', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1668,7 +1675,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
                     ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
     ax.set_xlabel('Line of Therapy', fontsize=12)
-    ax.set_title(f'{gene} - Line of Therapy (Tempus)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - C. Expression by Line of Therapy (Tempus RWD)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-03', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1702,7 +1709,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
             n = int(row['n_samples']) if row['n_samples'] else 0
             ax.annotate(f"n={n:,}", (i, row['q75'] + 0.2), ha='center', fontsize=9)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
-    ax.set_title(f'{gene} - iDAS Priority Whitespaces', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - D. iDAS-Aligned Cohorts (Tempus RWD)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-04', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1741,7 +1748,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
                         ax.plot([0, 1], [max_y + 0.5] * 2, 'k-', linewidth=0.8)
                         ax.annotate(p_str, xy=(0.5, max_y + 0.6), ha='center', fontsize=9, style='italic')
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
-    ax.set_title(f'{gene} - KRAS Mutation Status (Tempus)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - E. Expression by KRAS Status (Tempus RWD)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-05', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1780,7 +1787,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
                         ax.plot([0, 1], [max_y + 0.5] * 2, 'k-', linewidth=0.8)
                         ax.annotate(p_str, xy=(0.5, max_y + 0.6), ha='center', fontsize=9, style='italic')
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
-    ax.set_title(f'{gene} - EGFR Mutation Status (Tempus)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - F. Expression by EGFR Status (Tempus RWD)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-06', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1818,7 +1825,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
         x_labels = [m.replace(' Mutant', '\nMut').replace(' WT', '\nWT') for m in io_df['group_name']]
         draw_boxplot_from_summary(ax, io_df, 'group_name', colors, x_labels=x_labels)
     ax.set_ylabel('Expression (log2 TPM+1)', fontsize=12)
-    ax.set_title(f'{gene} - IO Resistance Markers (Tempus)', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - G. IO Resistance Markers (STK11/KEAP1, Tempus)', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-07', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1855,7 +1862,7 @@ def save_individual_figures_nsclc(gene, tcga_df, tempus_gene_data, idas_assessme
     ax.text(0.5, 0.5, summary_text, transform=ax.transAxes, ha='center', va='center',
              fontsize=13, family='monospace',
              bbox=dict(boxstyle='round,pad=0.5', facecolor=bg_color, edgecolor=text_color, linewidth=2))
-    ax.set_title(f'{gene} - Assessment Summary', fontweight='bold', fontsize=14)
+    ax.set_title(f'{gene} - H. Recommendation', fontweight='bold', fontsize=14)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, get_output_filename(gene, 'panel-08', 'png')), dpi=DPI, facecolor='white')
     plt.close()
@@ -1943,7 +1950,7 @@ def save_subgroup_suitability_figure(gene, subgroup_suitability, output_dir):
 # REPORT GENERATION
 # =============================================================================
 
-def generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, output_dir, tcga_mutation_stats=None, subgroup_suitability=None):
+def generate_comprehensive_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, output_dir, tcga_mutation_stats=None, subgroup_suitability=None):
     """Generate comprehensive markdown report."""
     report = []
     report.append(f"# {gene} Comprehensive NSCLC Target Evaluation Report\n")
@@ -2267,7 +2274,7 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
 
     # iDAS Alignment Assessment
     print(f"\n  Assessing iDAS alignment...")
-    idas_assessment = assess_idas_alignment(tcga_stats, tempus_gene_data, pairwise_df)
+    idas_assessment = assess_idas_alignment(gene, tcga_stats, pairwise_df, tempus_gene_data)
     print(f"  Overall alignment: {idas_assessment.get('overall_alignment', 'Unknown')}")
     print(f"  Recommendation: {idas_assessment.get('recommendation', 'Unknown')}")
 
@@ -2318,7 +2325,7 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
 
     # Generate report
     print(f"\n  Generating report...")
-    generate_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, gene_output_dir, tcga_mutation_stats, subgroup_suitability)
+    generate_comprehensive_report(gene, tcga_stats, tempus_gene_data, idas_assessment, pairwise_df, gene_output_dir, tcga_mutation_stats, subgroup_suitability)
 
     # Save statistics
     if tcga_stats is not None:
