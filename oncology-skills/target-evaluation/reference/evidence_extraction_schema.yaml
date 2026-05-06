@@ -1,0 +1,441 @@
+# Evidence Extraction Schema for Target Evaluation
+# Version: 1.1.0
+#
+# PURPOSE: Guide LLM to extract STRUCTURED FACTS from literature
+#
+# LLM INTERPRETATION GUIDELINES:
+# - YES: Interpret abstracts to understand study types and findings
+# - YES: Classify studies (CRISPR, animal model, clinical trial, etc.)
+# - YES: Extract counts, categories, yes/no facts into structured JSON
+# - NO: Make risk level judgments (that's done by scoring_rules.yaml)
+# - NO: Weight evidence subjectively (thresholds are predefined)
+# - NO: Assign scores (scoring engine does this deterministically)
+#
+# CURRENT LIMITATION: Extracts from PubMed abstracts only (not full text)
+
+version: "1.1.0"
+description: "Schema for structured extraction of literature evidence. LLM extracts FACTS (counts, categories, yes/no), not JUDGMENTS (risk levels, scores)."
+
+# =============================================================================
+# LITERATURE EXTRACTION SCHEMA
+# =============================================================================
+literature_evidence:
+  biological_validation:
+    type: object
+    description: "Functional validation evidence from literature"
+    properties:
+      n_crispr_studies:
+        type: integer
+        default: 0
+        description: "Count of CRISPR/Cas9 knockout studies"
+      n_rnai_studies:
+        type: integer
+        default: 0
+        description: "Count of RNAi/siRNA knockdown studies"
+      n_animal_models:
+        type: integer
+        default: 0
+        description: "Count of in vivo animal model efficacy studies"
+      n_human_genetic:
+        type: integer
+        default: 0
+        description: "Count of human genetic association studies (GWAS, somatic mutations)"
+      n_overexpression:
+        type: integer
+        default: 0
+        description: "Count of overexpression/gain-of-function studies"
+      key_findings:
+        type: array
+        items:
+          type: object
+          properties:
+            pmid: {type: string}
+            study_type: {type: string, enum: [crispr, rnai, animal, genetic, overexpression, other]}
+            finding: {type: string}
+            model: {type: string}
+      key_pmids:
+        type: array
+        items: {type: string}
+        description: "PMIDs for key biological validation evidence"
+
+  clinical_validation:
+    type: object
+    description: "Clinical trial and patient data evidence"
+    properties:
+      highest_phase:
+        type: integer
+        enum: [0, 1, 2, 3, 4]
+        default: 0
+        description: "Highest clinical trial phase (0=preclinical, 4=approved)"
+      n_trials:
+        type: integer
+        default: 0
+        description: "Total number of clinical trials found"
+      trial_status:
+        type: string
+        enum: [active, completed, terminated, suspended, unknown]
+        default: unknown
+        description: "Status of most advanced trial"
+      indication_specific:
+        type: boolean
+        default: false
+        description: "Whether trials are in the target indication (CRC/NSCLC)"
+      trial_details:
+        type: array
+        items:
+          type: object
+          properties:
+            phase: {type: integer}
+            status: {type: string}
+            indication: {type: string}
+            agent: {type: string}
+            pmid: {type: string}
+      key_pmids:
+        type: array
+        items: {type: string}
+
+  druggability:
+    type: object
+    description: "Druggability and tractability evidence"
+    properties:
+      has_approved_drug:
+        type: boolean
+        default: false
+        description: "Whether an approved drug targeting this gene exists"
+      has_clinical_compound:
+        type: boolean
+        default: false
+        description: "Whether a clinical-stage compound exists"
+      has_tool_compound:
+        type: boolean
+        default: false
+        description: "Whether a tool compound with demonstrated activity exists"
+      best_ic50_nm:
+        type: number
+        nullable: true
+        description: "Best reported IC50 in nanomolar (null if unknown)"
+      has_structure:
+        type: boolean
+        default: false
+        description: "Whether crystal structure is available"
+      has_binding_pocket:
+        type: boolean
+        default: false
+        description: "Whether druggable binding pocket is identified"
+      modalities_validated:
+        type: array
+        items:
+          type: string
+          enum: [small_molecule, antibody, adc, bispecific, degrader, sirna, other]
+        description: "Therapeutic modalities with validation data"
+      key_pmids:
+        type: array
+        items: {type: string}
+
+  safety:
+    type: object
+    description: "Safety and toxicity evidence from literature"
+    properties:
+      known_toxicities:
+        type: array
+        items: {type: string}
+        description: "List of known or predicted toxicities"
+      knockout_phenotype:
+        type: string
+        enum: [lethal, severe, moderate, mild, none, unknown]
+        default: unknown
+        description: "Phenotype of knockout in mouse models"
+      clinical_safety_profile:
+        type: string
+        enum: [favorable, manageable, concerning, unknown]
+        default: unknown
+        description: "Summary of clinical safety if available"
+      key_safety_findings:
+        type: array
+        items:
+          type: object
+          properties:
+            finding: {type: string}
+            source: {type: string}
+            pmid: {type: string}
+      key_pmids:
+        type: array
+        items: {type: string}
+
+  pathway_relevance:
+    type: object
+    description: "Pathway and mechanism evidence"
+    properties:
+      primary_pathway:
+        type: string
+        description: "Primary signaling pathway"
+      pathway_validated:
+        type: boolean
+        default: false
+        description: "Whether pathway role is functionally validated"
+      disease_pathway_connection:
+        type: boolean
+        default: false
+        description: "Whether pathway is known to be dysregulated in target disease"
+      n_pathway_studies:
+        type: integer
+        default: 0
+        description: "Number of studies characterizing pathway"
+      key_pmids:
+        type: array
+        items: {type: string}
+
+  disease_association:
+    type: object
+    description: "Disease-specific association evidence"
+    properties:
+      prognostic_value:
+        type: string
+        enum: [favorable, unfavorable, none, unknown]
+        default: unknown
+        description: "Prognostic significance in target disease"
+      n_prognostic_studies:
+        type: integer
+        default: 0
+      expression_correlation:
+        type: string
+        enum: [high_in_tumor, low_in_tumor, variable, unknown]
+        default: unknown
+        description: "Expression pattern in disease"
+      biomarker_potential:
+        type: boolean
+        default: false
+        description: "Whether evidence supports use as biomarker"
+      key_pmids:
+        type: array
+        items: {type: string}
+
+  commercial:
+    type: object
+    description: "Commercial and competitive landscape"
+    properties:
+      competitors_in_development:
+        type: integer
+        default: 0
+        description: "Number of known competitors targeting this gene"
+      market_size_estimate:
+        type: string
+        enum: [large_gt_5b, medium_1_5b, small_lt_1b, unknown]
+        default: unknown
+      competitive_position:
+        type: string
+        enum: [first_in_class, fast_follower, crowded, unknown]
+        default: unknown
+      key_competitors:
+        type: array
+        items:
+          type: object
+          properties:
+            company: {type: string}
+            agent: {type: string}
+            phase: {type: integer}
+
+# =============================================================================
+# OMICS EVIDENCE SCHEMA
+# =============================================================================
+omics_evidence:
+  rna_expression:
+    type: object
+    description: "Bulk RNA expression evidence (from analysis scripts)"
+    properties:
+      tumor_vs_adjacent_fc:
+        type: number
+        description: "Fold change of tumor vs adjacent normal (linear scale)"
+      tumor_vs_adjacent_log2fc:
+        type: number
+        description: "Log2 fold change of tumor vs adjacent normal"
+      tumor_vs_adjacent_pvalue:
+        type: number
+        description: "P-value for tumor vs adjacent comparison"
+      tumor_median_log2tpm:
+        type: number
+        description: "Median expression in tumor (log2 TPM)"
+      normal_median_log2tpm:
+        type: number
+        description: "Median expression in adjacent normal (log2 TPM)"
+      gtex_normal_log2tpm:
+        type: number
+        description: "GTEx normal tissue expression (log2 TPM)"
+      detection_rate:
+        type: number
+        description: "Percentage of samples with detectable expression"
+      n_tumor_samples:
+        type: integer
+      n_normal_samples:
+        type: integer
+      source:
+        type: string
+        description: "Data source (TCGA, Tempus, etc.)"
+
+  subgroup_suitability:
+    type: object
+    description: "Subgroup-stratified suitability scores"
+    properties:
+      subgroups:
+        type: array
+        items:
+          type: object
+          properties:
+            name: {type: string}
+            category: {type: string}
+            key_metric: {type: string}
+            score: {type: integer, minimum: 1, maximum: 5}
+            recommendation: {type: string, enum: [PRIORITY, GO, CONDITIONAL, CAUTION, EXCLUDE]}
+      priority_subgroups:
+        type: array
+        items: {type: string}
+      go_subgroups:
+        type: array
+        items: {type: string}
+      caution_subgroups:
+        type: array
+        items: {type: string}
+
+  idas_alignment:
+    type: object
+    description: "iDAS whitespace alignment assessment"
+    properties:
+      overall_alignment:
+        type: string
+        enum: [High, Moderate, Low]
+      whitespaces:
+        type: array
+        items:
+          type: object
+          properties:
+            name: {type: string}
+            expression_log2tpm: {type: number}
+            alignment: {type: string, enum: [Strong, Moderate, Weak]}
+            n_samples: {type: integer}
+
+# =============================================================================
+# PROTEIN EVIDENCE SCHEMA (FUTURE)
+# =============================================================================
+protein_evidence:
+  ihc_expression:
+    type: object
+    description: "IHC expression from Human Protein Atlas"
+    properties:
+      gi_toxicity_risk:
+        type: string
+        enum: [LOW, MEDIUM, HIGH, UNKNOWN]
+        description: "GI tract toxicity risk based on IHC (for CRC)"
+      lung_toxicity_risk:
+        type: string
+        enum: [LOW, MEDIUM, HIGH, UNKNOWN]
+        description: "Lung toxicity risk based on IHC (for NSCLC)"
+      normal_tissue_expression:
+        type: array
+        items:
+          type: object
+          properties:
+            tissue: {type: string}
+            cell_type: {type: string}
+            level: {type: string, enum: [Not detected, Low, Medium, High]}
+
+  subcellular_location:
+    type: object
+    properties:
+      main_locations:
+        type: array
+        items: {type: string}
+      is_surface_target:
+        type: boolean
+      confidence:
+        type: string
+        enum: [Enhanced, Supported, Approved, Uncertain]
+
+  rna_protein_concordance:
+    type: object
+    properties:
+      concordance_rate:
+        type: number
+        description: "Percentage concordance between RNA and protein"
+      confidence:
+        type: string
+        enum: [HIGH, MEDIUM, LOW]
+
+# =============================================================================
+# EXTRACTION PROMPTS
+# =============================================================================
+extraction_prompts:
+  literature_extraction: |
+    From the following PubMed abstracts for gene {GENE} in {DISEASE}, extract ONLY factual counts and findings.
+    Do NOT interpret, judge, or summarize. Return structured JSON matching this schema exactly.
+
+    If information is not found, use default values (0 for counts, false for booleans, "unknown" for enums).
+
+    Required output structure:
+    {{
+      "biological_validation": {{
+        "n_crispr_studies": <int>,
+        "n_rnai_studies": <int>,
+        "n_animal_models": <int>,
+        "n_human_genetic": <int>,
+        "key_pmids": [<pmid>, ...]
+      }},
+      "clinical_validation": {{
+        "highest_phase": <0-4>,
+        "n_trials": <int>,
+        "trial_status": "<active|completed|terminated|unknown>",
+        "indication_specific": <bool>,
+        "key_pmids": [<pmid>, ...]
+      }},
+      "druggability": {{
+        "has_approved_drug": <bool>,
+        "has_clinical_compound": <bool>,
+        "has_tool_compound": <bool>,
+        "best_ic50_nm": <number or null>,
+        "has_structure": <bool>,
+        "key_pmids": [<pmid>, ...]
+      }},
+      "safety": {{
+        "known_toxicities": [<string>, ...],
+        "knockout_phenotype": "<lethal|severe|moderate|mild|none|unknown>",
+        "key_pmids": [<pmid>, ...]
+      }},
+      "pathway_relevance": {{
+        "primary_pathway": "<string>",
+        "pathway_validated": <bool>,
+        "key_pmids": [<pmid>, ...]
+      }},
+      "disease_association": {{
+        "prognostic_value": "<favorable|unfavorable|none|unknown>",
+        "expression_correlation": "<high_in_tumor|low_in_tumor|variable|unknown>",
+        "key_pmids": [<pmid>, ...]
+      }}
+    }}
+
+    Abstracts:
+    {ABSTRACTS}
+
+    Return ONLY valid JSON. No explanation, no commentary.
+
+# =============================================================================
+# VALIDATION RULES
+# =============================================================================
+validation:
+  required_fields:
+    literature:
+      - biological_validation.n_crispr_studies
+      - biological_validation.n_animal_models
+      - clinical_validation.highest_phase
+      - druggability.has_tool_compound
+      - safety.knockout_phenotype
+
+    omics:
+      - rna_expression.tumor_vs_adjacent_fc
+      - rna_expression.tumor_median_log2tpm
+      - rna_expression.normal_median_log2tpm
+
+  value_ranges:
+    n_crispr_studies: {min: 0, max: 100}
+    n_animal_models: {min: 0, max: 100}
+    highest_phase: {min: 0, max: 4}
+    tumor_vs_adjacent_fc: {min: 0, max: 1000}
+    score: {min: 1, max: 5}

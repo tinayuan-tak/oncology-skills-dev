@@ -1,0 +1,254 @@
+# NSCLC (Non-Small Cell Lung Cancer) Configuration for Target Evaluation
+# Updated with Tempus integration and iDAS alignment
+
+disease: nsclc
+full_name: Non-Small Cell Lung Cancer
+abbreviation: NSCLC
+
+# =============================================================================
+# SKILL ROUTING
+# =============================================================================
+bulk_rna_skill: oncology-skills:nsclc-bulk-rna-analysis
+analysis_script: nsclc_comprehensive_analysis.py
+
+# =============================================================================
+# DATA SOURCES - TCGA/GTEx/CCLE (Raw Expression)
+# =============================================================================
+tcga_s3_bucket: s3://onc-compbio/omicsoft_oncoland_data
+tcga_projects:
+  - TCGA-LUAD
+  - TCGA-LUSC
+gtex_tissue: Lung
+ccle_filter: lung
+
+# =============================================================================
+# DATA SOURCES - TEMPUS (Real-World, Pre-computed Summaries)
+# =============================================================================
+tempus_local_path: /Users/eta3879/Documents/Projects/ODDU/Tempus/TAK_LACE_Q12026_NSCLC_cohort_1/summary
+
+tempus_files:
+  # Overall and by status
+  overall: gene_summary_overall.csv
+  aga_status: gene_summary_by_AGA_status.csv
+  egfr_status: gene_summary_by_EGFR_status.csv
+  kras_status: gene_summary_by_KRAS_status.csv
+  stk11_status: gene_summary_by_STK11_status.csv
+  keap1_status: gene_summary_by_KEAP1_status.csv
+  lot: gene_summary_by_LOT.csv
+  cpi_status: gene_summary_by_CPI_status.csv
+  metastatic: gene_summary_by_metastatic_group.csv
+
+  # iDAS priority cohorts
+  idas_2l_nonaga: gene_summary_iDAS_2L_NonAGA.csv
+  idas_2l_egfr: gene_summary_iDAS_2L_EGFR.csv
+  idas_1l2l_kras: gene_summary_iDAS_1L2L_KRAS.csv
+
+  # Additional files
+  cpi_nonaga: gene_summary_CPI_NonAGA.csv
+  sample_sizes: SAMPLE_SIZE_SUMMARY.csv
+
+# =============================================================================
+# iDAS STRATEGIC ALIGNMENT
+# =============================================================================
+idas_vision: "Establish Takeda as a leader in NSCLC treatment through meaningful internal innovation and external partnerships"
+
+idas_priority_whitespaces:
+  - id: 2l_nonaga
+    name: "2L Non-AGA (IO-experienced)"
+    description: "Patients without actionable genomic alterations who progressed on IO ± chemo"
+    tempus_group: "2L_NonAGA"
+    sample_size: 518
+    priority: high
+
+  - id: 2l_egfr
+    name: "2L EGFR Mutant (post-TKI)"
+    description: "EGFR+ patients after TKI failure"
+    tempus_group: "2L_EGFR"
+    sample_size: 38
+    priority: high
+
+  - id: 1l2l_kras
+    name: "1L/2L KRAS Mutant"
+    description: "KRAS-mutant population including G12C and non-G12C"
+    tempus_group: "1L2L_KRAS"
+    sample_size: 1021
+    priority: high
+
+# =============================================================================
+# COHORT DEFINITIONS
+# =============================================================================
+
+# TCGA-based cohorts (raw expression, with normal tissue)
+tcga_cohorts:
+  TCGA_LUAD:
+    description: "Lung adenocarcinoma (TCGA)"
+    color: "#E74C3C"
+
+  TCGA_LUSC:
+    description: "Lung squamous cell carcinoma (TCGA)"
+    color: "#3498DB"
+
+  TCGA_NSCLC_All:
+    description: "All NSCLC samples (TCGA)"
+    color: "#9B59B6"
+
+# Normal tissue references (TCGA/GTEx)
+normal_cohorts:
+  TCGA_Adjacent:
+    description: "Adjacent normal lung tissue (TCGA)"
+    use_case: "On-target toxicity assessment"
+    color: "#7F8C8D"
+
+  GTEx_Lung:
+    description: "Normal lung tissue (GTEx)"
+    use_case: "Healthy tissue baseline"
+    color: "#1ABC9C"
+
+# Cell line reference
+cell_line_cohorts:
+  CCLE_NSCLC:
+    description: "NSCLC cell lines (CCLE)"
+    use_case: "In vitro model expression"
+    color: "#8B4513"
+
+# Tempus-based cohorts (real-world, treatment-stratified)
+tempus_cohorts:
+  # iDAS Priority Cohorts
+  Tempus_2L_NonAGA:
+    tempus_group: "2L_NonAGA"
+    description: "2L Non-AGA (Tempus RWD)"
+    idas_alignment: 2l_nonaga
+    sample_size: 518
+    color: "#C0392B"
+    priority_cohort: true
+
+  Tempus_2L_EGFR:
+    tempus_group: "2L_EGFR"
+    description: "2L EGFR Mutant (Tempus RWD)"
+    idas_alignment: 2l_egfr
+    sample_size: 38
+    color: "#922B21"
+    priority_cohort: true
+
+  Tempus_1L2L_KRAS:
+    tempus_group: "1L2L_KRAS"
+    description: "1L/2L KRAS Mutant (Tempus RWD)"
+    idas_alignment: 1l2l_kras
+    sample_size: 1021
+    color: "#27AE60"
+    priority_cohort: true
+
+  # Line of Therapy cohorts
+  Tempus_1L:
+    tempus_group: "1L"
+    description: "1st line (Tempus RWD)"
+    sample_size: 2611
+    color: "#5DADE2"
+
+  Tempus_2L:
+    tempus_group: "2L"
+    description: "2nd line (Tempus RWD)"
+    sample_size: 628
+    color: "#2874A6"
+
+  Tempus_3Lplus:
+    tempus_group: "3L+"
+    description: "3rd line+ (Tempus RWD)"
+    sample_size: 328
+    color: "#1B4F72"
+
+# =============================================================================
+# BIOMARKER STRATIFICATIONS
+# =============================================================================
+biomarker_stratifications:
+  EGFR:
+    mutant_samples: 121
+    wt_samples: 3446
+    notes: "TKI-responsive population"
+
+  KRAS:
+    mutant_samples: 1133
+    wt_samples: 2434
+    notes: "Includes G12C (367) and non-G12C"
+
+  KRAS_G12C:
+    mutant_samples: 367
+    notes: "Targetable with sotorasib/adagrasib"
+
+  STK11:
+    mutant_samples: 551
+    wt_samples: 3016
+    notes: "Associated with IO resistance"
+
+  KEAP1:
+    mutant_samples: 346
+    wt_samples: 3221
+    notes: "Often co-occurs with STK11"
+
+  AGA:
+    aga_samples: 452
+    non_aga_samples: 3115
+    notes: "Actionable genomic alterations (EGFR, ALK, ROS1, RET, etc.)"
+
+# =============================================================================
+# DRIVER MUTATIONS TO CONSIDER
+# =============================================================================
+driver_mutations:
+  - EGFR
+  - KRAS
+  - ALK
+  - ROS1
+  - BRAF
+  - MET
+  - RET
+  - NTRK
+  - HER2
+
+# =============================================================================
+# COMPETITIVE LANDSCAPE
+# =============================================================================
+competitive_landscape:
+  - target: "EGFR"
+    competitors: "Osimertinib, erlotinib, gefitinib"
+    status: "Approved (standard of care)"
+  - target: "KRAS G12C"
+    competitors: "Sotorasib (Amgen), Adagrasib (Mirati)"
+    status: "Approved"
+  - target: "ALK"
+    competitors: "Alectinib, lorlatinib, brigatinib"
+    status: "Approved"
+  - target: "PD-1/PD-L1"
+    competitors: "Pembrolizumab, nivolumab, durvalumab, atezolizumab"
+    status: "Approved (1L and 2L)"
+
+# =============================================================================
+# ANALYSIS CONFIGURATION
+# =============================================================================
+analysis_settings:
+  # Primary comparison for on-target toxicity
+  primary_normal_comparison: "TCGA_Adjacent"
+  secondary_normal_comparison: "GTEx_Lung"
+
+  # Histology comparison
+  histology_comparison:
+    - TCGA_LUAD
+    - TCGA_LUSC
+
+# Output directory
+output_dir: nsclc_analysis_results
+
+# =============================================================================
+# PUBMED QUERY TEMPLATES
+# =============================================================================
+pubmed_query_template: |
+  ({gene} OR {aliases}) AND (non-small cell lung cancer OR NSCLC OR lung adenocarcinoma OR LUAD OR lung squamous OR LUSC)
+
+pubmed_idas_queries:
+  egfr_context: |
+    ({gene}) AND (NSCLC) AND (EGFR OR EGFR mutant OR TKI resistance)
+  kras_context: |
+    ({gene}) AND (NSCLC) AND (KRAS OR KRAS G12C OR KRAS mutant)
+  io_resistance: |
+    ({gene}) AND (NSCLC) AND (STK11 OR KEAP1 OR immunotherapy resistance)
+  aga_context: |
+    ({gene}) AND (NSCLC) AND (ALK OR ROS1 OR RET OR NTRK OR actionable mutation)

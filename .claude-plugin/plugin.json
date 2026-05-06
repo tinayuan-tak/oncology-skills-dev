@@ -1,0 +1,9 @@
+{
+  "name": "oncology-skills",
+  "description": "Claude oncologyskills for bulk and single-cell RNA-seq data across cancer types",
+  "version": "0.0.1",
+  "author": {
+    "name": "computational biology - oncology"
+  },
+  "keywords": ["oncology", "rna-seq", "gene-expression", "crc", "nsclc", "target-evaluation"]
+}
