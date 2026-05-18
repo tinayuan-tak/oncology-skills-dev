@@ -1,0 +1,16 @@
+[project]
+name = "nsclc-protein-analysis"
+version = "0.1.0"
+description = "NSCLC protein analysis using Human Protein Atlas data"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+
+[tasks]
+analyze = "python nsclc_protein_analysis.py"
+
+[dependencies]
+python = ">=3.10"
+pandas = ">=2.0"
+numpy = ">=1.24"
+matplotlib = ">=3.7"
+pyyaml = ">=6.0"
