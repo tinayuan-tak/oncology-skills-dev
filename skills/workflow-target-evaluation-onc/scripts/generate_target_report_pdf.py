@@ -435,6 +435,160 @@ def text_page(pdf, title, content, title_size=20):
     plt.close(fig)
 
 
+def _read_risk_assessment_markdown(output_dir, gene, disease):
+    """Read the Step 1 risk assessment markdown if it exists."""
+    candidates = [
+        os.path.join(output_dir, f"{gene}_risk_assessment_{disease}.md"),
+        os.path.join(output_dir, f"{gene}_risk_assessment.md"),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            with open(path, 'r') as fh:
+                return fh.read(), path
+    return None, None
+
+
+_RISK_CATEGORIES = ['Biological', 'Druggability', 'Translational',
+                    'Clinical', 'Safety', 'Commercial']
+
+
+def _extract_risk_category_summary(content, category):
+    """Pull risk level, justification, and PMIDs for one of the 6 categories.
+
+    Returns dict with keys: level (str), justification (str), pmids (list[str]).
+    """
+    section_match = re.search(
+        rf'##\s*\d+\.\s*{category}.*?(?=^##\s|\Z)',
+        content, re.DOTALL | re.MULTILINE | re.IGNORECASE,
+    )
+    if not section_match:
+        return {'level': 'TBD', 'justification': 'Section not found', 'pmids': []}
+    body = section_match.group(0)
+
+    level_match = re.search(
+        r'Risk Level Assigned:\*?\*?\s*\[?x?\]?\s*\*?\*?(LOW|MEDIUM|HIGH)',
+        body, re.IGNORECASE,
+    )
+    level = level_match.group(1).upper() if level_match else 'TBD'
+
+    just_match = re.search(r'Justification:\*?\*?\s*([^\n]+(?:\n[^\n#]+)*)', body)
+    justification = just_match.group(1).strip() if just_match else ''
+    # Strip remaining bold markers and collapse whitespace.
+    justification = re.sub(r'\*\*([^*]+)\*\*', r'\1', justification)
+    justification = re.sub(r'\s+', ' ', justification)
+
+    pmids = sorted(set(re.findall(r'PMID:\s*(\d+)', body)))
+
+    return {'level': level, 'justification': justification, 'pmids': pmids}
+
+
+def append_risk_assessment_pages(pdf, output_dir, gene, disease):
+    """Append a structured 6-category risk-assessment summary to the PDF.
+
+    Renders 3 category boxes per page (2 pages total) with color-coded
+    risk-level badges, justification text, and supporting PMIDs.
+    """
+    raw, path = _read_risk_assessment_markdown(output_dir, gene, disease)
+    if raw is None:
+        print(f"  Risk Assessment: not found, skipping ({gene}_risk_assessment_{disease}.md)")
+        return 0
+
+    summaries = [
+        (cat, _extract_risk_category_summary(raw, cat))
+        for cat in _RISK_CATEGORIES
+    ]
+
+    level_colors = {
+        'LOW': ('#27ae60', '#e8f5e9'),       # text, fill
+        'MEDIUM': ('#f39c12', '#fff8e1'),
+        'HIGH': ('#e74c3c', '#ffebee'),
+        'TBD': ('#7f8c8d', '#f5f5f5'),
+    }
+
+    import textwrap
+    pages_added = 0
+    for page_idx in range(2):
+        page_cats = summaries[page_idx * 3: page_idx * 3 + 3]
+        if not page_cats:
+            continue
+        fig, ax = plt.subplots(figsize=(8.5, 11))
+        ax.axis('off')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        title = ('Risk Assessment Summary (Step 1) — Page 1 of 2'
+                 if page_idx == 0
+                 else 'Risk Assessment Summary (Step 1) — Page 2 of 2')
+        ax.text(0.5, 0.965, title, fontsize=15, fontweight='bold',
+                ha='center', transform=ax.transAxes, color='#2c3e50')
+        if page_idx == 0:
+            ax.text(0.5, 0.94,
+                    f'{gene} — Six-category literature-derived risk evaluation',
+                    fontsize=10, ha='center', transform=ax.transAxes, color='#666')
+
+        # Three boxes per page, vertical layout.
+        box_top = 0.91 if page_idx == 0 else 0.94
+        box_height = 0.28
+        gap = 0.015
+        for i, (cat, info) in enumerate(page_cats):
+            top = box_top - i * (box_height + gap)
+            bottom = top - box_height
+            text_color, fill_color = level_colors.get(info['level'], level_colors['TBD'])
+
+            # Background box.
+            box = mpatches.FancyBboxPatch(
+                (0.04, bottom), 0.92, box_height,
+                boxstyle='round,pad=0.005,rounding_size=0.012',
+                facecolor=fill_color, edgecolor=text_color, linewidth=1.5,
+                transform=ax.transAxes,
+            )
+            ax.add_patch(box)
+
+            # Category title.
+            ax.text(0.06, top - 0.025, f'{cat} Risk',
+                    fontsize=13, fontweight='bold',
+                    transform=ax.transAxes, color='#2c3e50')
+
+            # Risk-level badge (top-right of box).
+            badge_x, badge_y = 0.78, top - 0.04
+            badge = mpatches.FancyBboxPatch(
+                (badge_x, badge_y), 0.16, 0.035,
+                boxstyle='round,pad=0.005,rounding_size=0.012',
+                facecolor=text_color, edgecolor='none',
+                transform=ax.transAxes,
+            )
+            ax.add_patch(badge)
+            ax.text(badge_x + 0.08, badge_y + 0.018, info['level'],
+                    fontsize=11, fontweight='bold', ha='center', va='center',
+                    transform=ax.transAxes, color='white')
+
+            # Justification — wrapped to fit the box width. width=88 chars
+            # at 9pt fits inside the 0.92-wide box without right-edge clipping.
+            just_lines = textwrap.wrap(info['justification'], width=88)[:8]
+            y = top - 0.07
+            for line in just_lines:
+                ax.text(0.06, y, line, fontsize=9,
+                        transform=ax.transAxes, color='#2c3e50', va='top')
+                y -= 0.022
+
+            # PMIDs footer (truncate to 6 to keep line readable).
+            if info['pmids']:
+                pmid_str = 'Key PMIDs: ' + ', '.join(info['pmids'][:6])
+                if len(info['pmids']) > 6:
+                    pmid_str += f' (+{len(info["pmids"]) - 6} more)'
+                ax.text(0.06, bottom + 0.012, pmid_str,
+                        fontsize=8.5, fontstyle='italic',
+                        transform=ax.transAxes, color='#666', va='bottom')
+
+        pdf.savefig(fig, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        pages_added += 1
+
+    print(f"  Risk Assessment: {pages_added} structured summary pages "
+          f"from {os.path.basename(path)}")
+    return pages_added
+
+
 def add_high_res_figure(pdf, img_path, title, caption):
     """Add a high-resolution figure page."""
     if os.path.exists(img_path):
@@ -969,34 +1123,78 @@ TRANSLATIONAL EVIDENCE:
     text_page(pdf, 'Results: Expression & Literature', results1)
     print("  Page 4: Results")
 
-    # ===== PAGE 5: FIGURE - Comprehensive Analysis =====
-    comp_fig = os.path.join(output_dir, get_bulk_rna_filename(gene, disease, 'figure', 'png'))
-    add_high_res_figure(pdf, comp_fig, 'Figure 1: Comprehensive Multi-omics Analysis',
-                        f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue.')
-    print("  Page 5: Figure 1 - Comprehensive Analysis")
+    # The page sequence below mirrors the integrated-report markdown order:
+    #   3.1 Risk Assessment (Step 1 - literature)
+    #   3.2 Differential Expression (Step 2 - multi-omics)
+    #   3.3 ScholarEval (Step 3)
+    #   3.4 Subgroup-stratified suitability (Steps 2+3 integration)
 
-    # ===== PAGE 6: FIGURE - Subtype (CMS for CRC, or skip for NSCLC) =====
+    # ===== SECTION 3.1: RISK ASSESSMENT TABLE (Step 1 - Literature) =====
+    risk_table = report_data.get('risk_table', {})
+    risk_lines = []
+    for cat in ['Biological', 'Druggability', 'Translational', 'Clinical', 'Safety', 'Commercial']:
+        info = risk_table.get(cat, {'level': 'TBD', 'considerations': 'See integrated report'})
+        level = info.get('level', 'TBD')[:12]
+        considerations = info.get('considerations', 'See integrated report')[:48]
+        risk_lines.append(f"│ {cat:<18} │ {level:<11} │ {considerations:<48} │")
+
+    overall_risk = report_data.get('risk_profile', 'TBD')
+
+    risk_page = f"""3.1 Risk Assessment Summary (Step 1: Literature-Based)
+─────────────────────────────────────────────────────────────────────────────────────────
+
+┌────────────────────┬─────────────┬──────────────────────────────────────────────────────┐
+│ Risk Factor        │ Level       │ Key Considerations                                   │
+├────────────────────┼─────────────┼──────────────────────────────────────────────────────┤
+{chr(10).join(risk_lines)}
+└────────────────────┴─────────────┴──────────────────────────────────────────────────────┘
+
+                    OVERALL RISK PROFILE: {overall_risk}
+
+
+Risk Level Legend:
+  • LOW: Strong evidence, minimal concerns
+  • MEDIUM: Manageable gaps, mitigation strategies available
+  • HIGH: Significant concerns or critical blockers"""
+    text_page(pdf, '3.1 Risk Assessment Summary', risk_page)
+    print("  Section 3.1: Risk Assessment Summary table")
+
+    # ===== SECTION 3.1 (cont.): STRUCTURED 6-CATEGORY DETAIL CARDS =====
+    append_risk_assessment_pages(pdf, output_dir, gene, disease)
+
+    # ===== SECTION 3.1 (cont.): 6-CATEGORY RISK BAR CHART =====
+    create_risk_assessment_figure(gene, output_dir, report_data)
+    risk_fig = os.path.join(output_dir, get_output_filename(gene, 'risk', 'png'))
+    add_high_res_figure(pdf, risk_fig, 'Figure: 6-Category Risk Assessment',
+                        'Risk levels across Biological, Druggability, Translational, Clinical, Safety, and Commercial dimensions.')
+    print("  Section 3.1: Risk Assessment bar chart")
+
+    # ===== SECTION 3.2: DIFFERENTIAL EXPRESSION (Step 2 - Multi-omics) =====
+    comp_fig = os.path.join(output_dir, get_bulk_rna_filename(gene, disease, 'figure', 'png'))
+    add_high_res_figure(pdf, comp_fig, '3.2 Differential Expression Analysis (Step 2)',
+                        f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue (TCGA + Tempus + GTEx).')
+    print("  Section 3.2: Differential Expression figure")
+
+    # ===== SECTION 3.2 (cont.): SUBTYPE FIGURE (CMS for CRC, skip for NSCLC) =====
     subtype_fig_name = config.get('subtype_figure')
     if subtype_fig_name:
         subtype_fig = os.path.join(output_dir, subtype_fig_name.format(gene=gene))
         if os.path.exists(subtype_fig):
-            add_high_res_figure(pdf, subtype_fig, f'Figure 2: Expression by {subtype_name}',
+            add_high_res_figure(pdf, subtype_fig, f'Figure: Expression by {subtype_name}',
                                 f'{subtype_desc}.')
-            print(f"  Page 6: Figure 2 - {subtype_name}")
+            print(f"  Section 3.2: Subtype figure ({subtype_name})")
         else:
-            # Create a placeholder page
             fig_placeholder, ax_placeholder = plt.subplots(figsize=(8.5, 11))
             ax_placeholder.axis('off')
-            ax_placeholder.text(0.5, 0.5, f'Figure 2: {subtype_name} Expression\n\nNot available for this analysis.',
+            ax_placeholder.text(0.5, 0.5, f'Figure: {subtype_name} Expression\n\nNot available for this analysis.',
                                ha='center', va='center', fontsize=14, color='#7f8c8d')
             pdf.savefig(fig_placeholder, dpi=300, bbox_inches='tight')
             plt.close(fig_placeholder)
-            print(f"  Page 6: Figure 2 - {subtype_name} (placeholder)")
+            print(f"  Section 3.2: Subtype figure ({subtype_name}) - placeholder")
     else:
-        # Skip subtype figure page for diseases without it
-        print(f"  Page 6: Skipped (no {subtype_name} figure for {disease_abbr})")
+        print(f"  Section 3.2: Subtype figure skipped (no {subtype_name} for {disease_abbr})")
 
-    # ===== PAGE 7: SCHOLAREVAL SCORING =====
+    # ===== SECTION 3.3: SCHOLAREVAL SCORING (Step 3) =====
     dimensions = ['Differential Expression', 'Pathway Relevance', 'Druggability',
                   'Genetic Validation', 'Disease Association', 'Safety Profile',
                   'Clinical Validation', 'Biomarker Potential']
@@ -1016,7 +1214,7 @@ TRANSLATIONAL EVIDENCE:
 
     final_score = report_data.get('score', f'{total_weighted:.2f}/5.0' if total_weighted > 0 else 'TBD')
 
-    scholar = f"""3.3 ScholarEval Target Score
+    scholar = f"""3.3 Target Validation Scorecard (Step 3: ScholarEval)
 ─────────────────────────────────────────────────────────────────────────────────────────
 
 ┌─────────────────────────┬───────┬────────┬──────────┐
@@ -1037,52 +1235,15 @@ Score Interpretation:
   • 3.5-3.9: Moderate - Proceed with caution
   • 3.0-3.4: Weak - Requires additional validation
   • <3.0: Poor - Not recommended"""
-    text_page(pdf, 'ScholarEval Target Scoring', scholar)
-    print("  Page 7: ScholarEval Scoring")
+    text_page(pdf, '3.3 ScholarEval Target Scoring', scholar)
+    print("  Section 3.3: ScholarEval scoring table")
 
-    # ===== PAGE 8: RISK ASSESSMENT TABLE =====
-    risk_table = report_data.get('risk_table', {})
-    risk_lines = []
-    for cat in ['Biological', 'Druggability', 'Translational', 'Clinical', 'Safety', 'Commercial']:
-        info = risk_table.get(cat, {'level': 'TBD', 'considerations': 'See integrated report'})
-        level = info.get('level', 'TBD')[:12]
-        considerations = info.get('considerations', 'See integrated report')[:48]
-        risk_lines.append(f"│ {cat:<18} │ {level:<11} │ {considerations:<48} │")
-
-    overall_risk = report_data.get('risk_profile', 'TBD')
-
-    risk_page = f"""4. RISK ASSESSMENT
-─────────────────────────────────────────────────────────────────────────────────────────
-
-┌────────────────────┬─────────────┬──────────────────────────────────────────────────────┐
-│ Risk Factor        │ Level       │ Key Considerations                                   │
-├────────────────────┼─────────────┼──────────────────────────────────────────────────────┤
-{chr(10).join(risk_lines)}
-└────────────────────┴─────────────┴──────────────────────────────────────────────────────┘
-
-                    OVERALL RISK PROFILE: {overall_risk}
-
-
-Risk Level Legend:
-  • LOW: Strong evidence, minimal concerns
-  • MEDIUM: Manageable gaps, mitigation strategies available
-  • HIGH: Significant concerns or critical blockers"""
-    text_page(pdf, 'Risk Assessment Summary', risk_page)
-    print("  Page 8: Risk Assessment Table")
-
-    # ===== PAGE 8: RISK ASSESSMENT FIGURE =====
-    create_risk_assessment_figure(gene, output_dir, report_data)
-    risk_fig = os.path.join(output_dir, get_output_filename(gene, 'risk', 'png'))
-    add_high_res_figure(pdf, risk_fig, 'Figure 2: 6-Category Risk Assessment',
-                        'Risk levels across Biological, Druggability, Translational, Clinical, Safety, and Commercial dimensions.')
-    print("  Page 8: Figure 2 - Risk Assessment")
-
-    # ===== PAGE 9: SCHOLAREVAL FIGURE =====
+    # ===== SECTION 3.3 (cont.): SCHOLAREVAL BAR CHART =====
     create_scholar_eval_figure(gene, output_dir, report_data)
     scholar_fig = os.path.join(output_dir, get_output_filename(gene, 'scholareval', 'png'))
-    add_high_res_figure(pdf, scholar_fig, 'Figure 3: ScholarEval Target Scoring',
+    add_high_res_figure(pdf, scholar_fig, 'Figure: ScholarEval 8-Dimension Target Scoring',
                         'Eight-dimension target scoring based on the ScholarEval framework.')
-    print("  Page 9: Figure 3 - ScholarEval Scoring")
+    print("  Section 3.3: ScholarEval bar chart")
 
     # ===== PAGE 11: KEY STRENGTHS & RISKS =====
     strengths = report_data.get('strengths', ['See integrated report for details'])
@@ -1188,7 +1349,6 @@ See integrated report for complete reference list with PMIDs."""
 
     pdf.close()
     print(f"\nPDF report generated: {pdf_path}")
-    print(f"Total pages: 13")
     return pdf_path
 
 
