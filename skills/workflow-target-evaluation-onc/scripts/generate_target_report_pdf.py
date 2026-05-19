@@ -42,28 +42,12 @@ def get_output_filename(gene, content_type, ext):
     return f"{gene}_{SKILL_NAME}_{content_type}.{ext}"
 
 
-def resolve_integrated_report_path(output_dir, gene):
-    """Resolve the integrated target report markdown file written by Step 4.
+def integrated_report_path(output_dir, gene):
+    """Path to the Step 4 integrated target report markdown (ai-sci naming).
 
-    SKILL.md mandates that Claude generates `{GENE}_integrated_target_report.md`,
-    but the get_output_filename pattern would also accept the rename-pattern
-    name `{GENE}_{SKILL_NAME}_report.md`. Try both so the PDF generator works
-    regardless of which name the upstream step used.
-
-    Returns the resolved absolute path string, or the SKILL.md-mandated name
-    (which will then fail os.path.exists in the caller, preserving existing
-    error handling for missing inputs).
+    Pattern: {GENE}_workflow-target-evaluation-onc_report.md
     """
-    candidates = [
-        f"{gene}_integrated_target_report.md",          # SKILL.md mandated
-        get_output_filename(gene, 'report', 'md'),       # rename-pattern fallback
-    ]
-    for name in candidates:
-        path = os.path.join(output_dir, name)
-        if os.path.exists(path):
-            return path
-    # Default: return the SKILL.md-mandated name so error messages mention it
-    return os.path.join(output_dir, candidates[0])
+    return os.path.join(output_dir, get_output_filename(gene, 'report', 'md'))
 
 
 def get_bulk_rna_filename(gene, disease, content_type, ext):
@@ -627,7 +611,7 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
 
     # Parse integrated report for slide data
     slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
-    report_path = resolve_integrated_report_path(output_dir, gene)
+    report_path = integrated_report_path(output_dir, gene)
     if os.path.exists(report_path):
         with open(report_path, 'r') as f:
             content = f.read()
@@ -822,7 +806,7 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
 
     # Parse integrated report if exists and no data provided
     if report_data is None:
-        report_path = resolve_integrated_report_path(output_dir, gene)
+        report_path = integrated_report_path(output_dir, gene)
         if os.path.exists(report_path):
             report_data = parse_integrated_report(report_path, output_dir, gene, disease)
             print(f"  Parsed: {os.path.basename(report_path)}")
@@ -855,7 +839,7 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
 
     # Parse additional data from integrated report
     slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
-    report_path = resolve_integrated_report_path(output_dir, gene)
+    report_path = integrated_report_path(output_dir, gene)
     if os.path.exists(report_path):
         with open(report_path, 'r') as f:
             content = f.read()
@@ -1324,8 +1308,8 @@ EVIDENCE INTEGRATION:
 • Overall Risk Profile: {overall_risk}
 • Recommendation: {recommendation}
 
-See the full integrated report ({gene}_integrated_target_report.md) for
-detailed findings, citations, and complete analysis.
+See the full integrated report ({gene}_workflow-target-evaluation-onc_report.md)
+for detailed findings, citations, and complete analysis.
 
 
 10. REFERENCES

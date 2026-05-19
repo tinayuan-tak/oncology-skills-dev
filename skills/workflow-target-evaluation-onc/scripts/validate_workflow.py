@@ -16,24 +16,30 @@ def validate_workflow(gene: str, disease: str, output_dir: Path) -> bool:
     """
     Validate that all required workflow outputs exist.
 
+    Uses the ai-sci naming convention exclusively:
+      Step 2: {GENE}_analysis-bulk-rna-{disease}_{kind}.{ext}
+      Step 4: {GENE}_workflow-target-evaluation-onc_report.md
+
     Returns True if all files present, False otherwise.
     """
+    bulk_skill = f"analysis-bulk-rna-{disease}"
+    workflow_skill = "workflow-target-evaluation-onc"
     required_files = {
         "Step 1": [
             f"{gene}_risk_assessment_{disease}.md",
         ],
         "Step 2": [
-            f"{gene}_comprehensive_report.md",
-            f"{gene}_idas_assessment.yaml",
-            f"{gene}_subgroup_suitability.csv",
-            f"{gene}_tcga_statistics.csv",
+            f"{gene}_{bulk_skill}_report.md",
+            f"{gene}_{bulk_skill}_idas.yaml",
+            f"{gene}_{bulk_skill}_suitability.csv",
+            f"{gene}_{bulk_skill}_tcga-stats.csv",
         ],
         "Step 3": [
             f"{gene}_scholareval.yaml",
             f"{gene}_audit_trail.json",
         ],
         "Step 4": [
-            f"{gene}_integrated_target_report.md",
+            f"{gene}_{workflow_skill}_report.md",
         ],
     }
 

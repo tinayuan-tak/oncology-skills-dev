@@ -26,34 +26,19 @@ from scoring_engine import ScoringEngine, ScholarEvalResult
 
 
 def _resolve_step2_input(output_dir: Path, gene: str, disease: str, kind: str) -> Optional[Path]:
-    """
-    Resolve Step 2 output paths supporting both ai-sci and legacy naming.
+    """Resolve a Step 2 output file path (ai-sci naming).
 
     kind: 'idas' | 'report' | 'tcga_stats'
-    Prefers the new ai-sci-style filenames, falls back to legacy names so
-    older fixtures and pre-rename outputs remain compatible.
+    Returns the Path if it exists on disk, else None.
     """
     skill_name = f"analysis-bulk-rna-{disease}"
-    candidates = {
-        "idas": [
-            f"{gene}_{skill_name}_idas.yaml",       # new ai-sci
-            f"{gene}_idas_assessment.yaml",         # legacy
-        ],
-        "report": [
-            f"{gene}_{skill_name}_report.md",       # new ai-sci
-            f"{gene}_comprehensive_report.md",      # legacy
-        ],
-        "tcga_stats": [
-            f"{gene}_{skill_name}_tcga-stats.csv",  # new ai-sci
-            f"{gene}_tcga_statistics.csv",          # legacy
-        ],
-    }[kind]
-
-    for name in candidates:
-        path = output_dir / name
-        if path.exists():
-            return path
-    return None
+    catalog = {
+        "idas": f"{gene}_{skill_name}_idas.yaml",
+        "report": f"{gene}_{skill_name}_report.md",
+        "tcga_stats": f"{gene}_{skill_name}_tcga-stats.csv",
+    }
+    path = output_dir / catalog[kind]
+    return path if path.exists() else None
 
 
 def parse_tcga_stats_csv(stats_file: Path) -> Dict[str, Any]:
@@ -316,25 +301,19 @@ def run_scholareval(
     # Define expected input files (Step 1 risk assessment is single-named)
     risk_file = output_dir / f"{gene}_risk_assessment_{disease}.md"
 
-    # Step 2 outputs may use ai-sci or legacy naming; resolve either.
+    # Step 2 outputs (ai-sci naming).
     idas_file = _resolve_step2_input(output_dir, gene, disease, "idas")
     report_file = _resolve_step2_input(output_dir, gene, disease, "report")
     stats_file = _resolve_step2_input(output_dir, gene, disease, "tcga_stats")
 
-    # Check required files exist
+    # Check required files exist.
     missing = []
     if not risk_file.exists():
         missing.append(str(risk_file))
     if idas_file is None:
-        missing.append(
-            f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_idas.yaml "
-            f"(or legacy {gene}_idas_assessment.yaml)"
-        )
+        missing.append(f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_idas.yaml")
     if report_file is None:
-        missing.append(
-            f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_report.md "
-            f"(or legacy {gene}_comprehensive_report.md)"
-        )
+        missing.append(f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_report.md")
 
     if missing:
         print(f"ERROR: Missing required input files:")
