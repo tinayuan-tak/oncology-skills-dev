@@ -1,12 +1,12 @@
 [project]
-name = "crc-protein-analysis"
+name = "analysis-protein-nsclc"
 version = "0.1.0"
-description = "CRC protein analysis using Human Protein Atlas data"
+description = "NSCLC protein analysis using Human Protein Atlas data"
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "osx-64", "linux-64"]
 
 [tasks]
-analyze = "python crc_protein_analysis.py"
+analyze = "python scripts/nsclc_protein_analysis.py"
 
 [dependencies]
 python = ">=3.10"

@@ -1,23 +1,23 @@
 ---
-name: crc-protein-analysis
-description:
-  Use when analyzing protein expression data for colorectal cancer targets.
-  Triggers include protein expression analysis for CRC, Human Protein Atlas
-  analysis, IHC staining analysis, subcellular localization, modality
-  recommendation for CRC targets, or on-target toxicity assessment at protein
-  level. Generates comprehensive protein analysis report with GI toxicity risk,
-  RNA-protein correlation, subcellular location, and modality recommendations.
-  Do NOT use for RNA differential expression - use crc-bulk-rna-analysis
-  instead. Do NOT use for protein structure prediction or AlphaFold modeling -
-  use tool-protein-structure-prediction instead. Do NOT use for protein-protein
-  interaction networks - use data-kg-interactome instead. Do NOT use for NSCLC
-  or other indications - use nsclc-protein-analysis or the corresponding
-  disease-specific skill instead.
+name: analysis-protein-crc
+description: |
+  Use this skill when the user asks to analyze protein expression for colorectal cancer targets,
+  CRC protein analysis, Human Protein Atlas analysis, IHC staining for CRC,
+  subcellular localization, modality recommendation for CRC targets,
+  or on-target toxicity assessment at the protein level.
+  Provides comprehensive protein analysis with HPA v25 data: GI toxicity risk, RNA-protein correlation,
+  subcellular location, modality recommendation (ADC, T-cell engager, small molecule), and COAD/READ prognostic association.
+  Do NOT use for RNA differential expression - use analysis-bulk-rna-crc instead.
+  Do NOT use for protein structure prediction or AlphaFold modeling - use tool-protein-structure-prediction instead.
+  Do NOT use for protein-protein interaction networks - use data-kg-interactome instead.
+  Do NOT use for NSCLC or other indications - use analysis-protein-nsclc or the corresponding disease-specific skill instead.
+  Example queries: "analyze TNFRSF12A protein in CRC", "HPA IHC for EPCAM in colorectal cancer", "modality recommendation for CDCP1 in CRC".
 metadata:
   version: 0.1.0
   owner: ming-ju.tsai@takeda.com
-  environment: shared
   requires_preflight: false
+  environment:
+    - LOCAL_HPA_DATA (no S3 / AWS credentials required)
 ---
 
 # CRC Protein Analysis (Human Protein Atlas)
@@ -112,12 +112,12 @@ pixi install
 
 ```bash
 # Full analysis
-pixi run python "$SKILL_BASE_DIR/crc_protein_analysis.py" --gene TNFRSF12A \
+pixi run python "$SKILL_BASE_DIR/scripts/crc_protein_analysis.py" --gene TNFRSF12A \
     --data-dir /path/to/HPA/crc \
     --output-dir ./crc_protein_results
 
 # Example with default paths
-pixi run python "$SKILL_BASE_DIR/crc_protein_analysis.py" --gene TNFRSF12A
+pixi run python "$SKILL_BASE_DIR/scripts/crc_protein_analysis.py" --gene TNFRSF12A
 ```
 
 ### Script Arguments
@@ -142,8 +142,8 @@ This skill integrates with the target-evaluation workflow as Step 3 (Protein Ana
 
 ```
 Step 1: Risk Assessment (literature)
-Step 2: RNA Analysis (crc-bulk-rna-analysis)
-Step 3: Protein Analysis (crc-protein-analysis) ← THIS SKILL
+Step 2: RNA Analysis (analysis-bulk-rna-crc)
+Step 3: Protein Analysis (analysis-protein-crc) ← THIS SKILL
 Step 4: ScholarEval (integrates RNA + Protein)
 Step 5: Report Generation
 ```
