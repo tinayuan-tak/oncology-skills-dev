@@ -45,6 +45,22 @@ class WorkflowState:
     report_path: Optional[Path] = None
 
 
+def _step2_artifact_path(base_path: Path, gene: str, disease: str, kind: str) -> Path:
+    """Return the canonical Step 2 artifact path (ai-sci naming).
+
+    kind: 'report' | 'idas' | 'suitability' | 'tcga_stats'
+    Caller is responsible for checking existence.
+    """
+    skill = f"analysis-bulk-rna-{disease}"
+    catalog = {
+        "report": f"{gene}_{skill}_report.md",
+        "idas": f"{gene}_{skill}_idas.yaml",
+        "suitability": f"{gene}_{skill}_suitability.csv",
+        "tcga_stats": f"{gene}_{skill}_tcga-stats.csv",
+    }
+    return base_path / catalog[kind]
+
+
 class CheckpointValidator:
     """
     Validates target evaluation workflow at critical checkpoints.
@@ -55,13 +71,20 @@ class CheckpointValidator:
     3. Pre-Step4: Report consistency (scores in report match computed)
     """
 
-    # Required fields from evidence extraction schema
+    # Required fields from evidence extraction schema. Only fields the parser
+    # actually populates are required; aspirational fields (like
+    # safety.knockout_phenotype) live in OPTIONAL_LITERATURE_FIELDS until the
+    # parser is extended to extract them.
     REQUIRED_LITERATURE_FIELDS = [
         "biological_validation.n_crispr_studies",
         "biological_validation.n_animal_models",
         "clinical_validation.highest_phase",
         "druggability.has_tool_compound",
-        "safety.knockout_phenotype"
+    ]
+
+    OPTIONAL_LITERATURE_FIELDS = [
+        # Awaiting structured-extraction support in run_scholareval.py:
+        "safety.knockout_phenotype",
     ]
 
     REQUIRED_OMICS_FIELDS = [
@@ -530,19 +553,21 @@ class CheckpointValidator:
             if not step1_complete:
                 errors.append("Step 1 (Literature) not complete - missing risk assessment or literature YAML")
 
-            # Check Step 2 (Omics) complete
-            comprehensive_report = base_path / f"{gene}_comprehensive_report.md"
-            idas_yaml = base_path / f"{gene}_idas_assessment.yaml"
+            # Check Step 2 (Omics) complete (ai-sci naming).
+            comprehensive_report = _step2_artifact_path(base_path, gene, disease, "report")
+            idas_yaml = _step2_artifact_path(base_path, gene, disease, "idas")
 
             step2_complete = comprehensive_report.exists()
             details["step2_complete"] = step2_complete
             details["step2_files"] = {
                 "comprehensive_report": str(comprehensive_report) if comprehensive_report.exists() else None,
-                "idas_yaml": str(idas_yaml) if idas_yaml.exists() else None
+                "idas_yaml": str(idas_yaml) if idas_yaml.exists() else None,
             }
 
             if not step2_complete:
-                errors.append("Step 2 (Omics) not complete - missing comprehensive report")
+                errors.append(
+                    f"Step 2 (Omics) not complete - missing {comprehensive_report.name}"
+                )
 
         elif step == 4:
             # Check Step 3 (ScholarEval) complete
@@ -642,13 +667,13 @@ def main():
 
     print("Running validation checkpoints...\n")
 
-    # Checkpoint 1: Input completeness
+    # Checkpoint 1: Input completeness (ai-sci naming).
     result1 = validator.validate_input_completeness(
         gene="TNFRSF12A",
         disease="crc",
         risk_assessment_path=output_dir / "TNFRSF12A_risk_assessment_crc.md",
-        comprehensive_report_path=output_dir / "TNFRSF12A_comprehensive_report.md",
-        idas_yaml_path=output_dir / "TNFRSF12A_idas_assessment.yaml"
+        comprehensive_report_path=_step2_artifact_path(output_dir, "TNFRSF12A", "crc", "report"),
+        idas_yaml_path=_step2_artifact_path(output_dir, "TNFRSF12A", "crc", "idas"),
     )
     print(f"Checkpoint 1 (Input Completeness): {'PASS' if result1.passed else 'FAIL'}")
     if result1.errors:
