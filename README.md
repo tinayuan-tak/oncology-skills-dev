@@ -18,9 +18,9 @@ A collection of Claude Code skills for oncology target evaluation and RNA-seq an
 |-------|-------------|--------|
 | [target-evaluation](oncology-skills/target-evaluation/) | Full 4-step therapeutic target evaluation workflow with validation framework and PDF report generation | Implemented |
 | [crc-bulk-rna-analysis](oncology-skills/crc-bulk-rna-analysis/) | Comprehensive CRC analysis with TCGA + Tempus RWD (~2,183 patients), iDAS alignment | Implemented |
-| [crc-protein-analysis](oncology-skills/crc-protein-analysis/) | CRC protein expression analysis from Human Protein Atlas | Planned |
+| [crc-protein-analysis](oncology-skills/crc-protein-analysis/) | CRC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
 | [nsclc-bulk-rna-analysis](oncology-skills/nsclc-bulk-rna-analysis/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
-| [nsclc-protein-analysis](oncology-skills/nsclc-protein-analysis/) | NSCLC protein expression analysis from Human Protein Atlas | Planned |
+| [nsclc-protein-analysis](oncology-skills/nsclc-protein-analysis/) | NSCLC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
 | [crc-sc-rna-analysis](oncology-skills/crc-sc-rna-analysis/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
 | [nsclc-sc-rna-analysis](oncology-skills/nsclc-sc-rna-analysis/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
 
@@ -46,7 +46,7 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 - **Primary metric**: Tumor vs Adjacent Normal expression (predicts on-target toxicity)
 - **iDAS strategic alignment**: Automatic whitespace scoring for CRC and NSCLC
 - **Tempus RWD integration**: Line-of-therapy stratification (CRC: ~2,183 patients, NSCLC: ~1,800 patients)
-- **Protein analysis** (planned): Human Protein Atlas integration for IHC and subcellular localization
+- **Protein analysis**: Human Protein Atlas integration for IHC, RNA-protein concordance, subcellular localization, and modality recommendation (CRC + NSCLC)
 - **Output**: 14-page professional PDF report with Go/No-Go recommendation
 
 ## Repository Structure
@@ -76,14 +76,18 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 │   │   ├── SKILL.md
 │   │   ├── crc_comprehensive_analysis.py   # Unified TCGA + Tempus analysis
 │   │   └── pixi.toml
-│   ├── crc-protein-analysis/               # Planned
-│   │   └── SKILL.md
+│   ├── crc-protein-analysis/
+│   │   ├── SKILL.md
+│   │   ├── crc_protein_analysis.py          # HPA IHC + subcellular + modality
+│   │   └── pixi.toml
 │   ├── nsclc-bulk-rna-analysis/
 │   │   ├── SKILL.md
 │   │   ├── nsclc_comprehensive_analysis.py  # Unified TCGA + Tempus analysis
 │   │   └── pixi.toml
-│   ├── nsclc-protein-analysis/              # Planned
-│   │   └── SKILL.md
+│   ├── nsclc-protein-analysis/
+│   │   ├── SKILL.md
+│   │   ├── nsclc_protein_analysis.py        # HPA IHC + subcellular + modality
+│   │   └── pixi.toml
 │   ├── crc-sc-rna-analysis/
 │   │   └── SKILL.md                         # Placeholder
 │   └── nsclc-sc-rna-analysis/
@@ -125,8 +129,8 @@ The skills should appear in the available skills list:
 - `oncology-skills:target-evaluation`
 - `oncology-skills:crc-bulk-rna-analysis`
 - `oncology-skills:nsclc-bulk-rna-analysis`
-- `oncology-skills:crc-protein-analysis` (planned)
-- `oncology-skills:nsclc-protein-analysis` (planned)
+- `oncology-skills:crc-protein-analysis`
+- `oncology-skills:nsclc-protein-analysis`
 - `oncology-skills:crc-sc-rna-analysis` (placeholder)
 - `oncology-skills:nsclc-sc-rna-analysis` (placeholder)
 
@@ -182,14 +186,14 @@ Skill(oncology-skills:crc-bulk-rna-analysis) with args "CDK4 CDK6"
 - **GTEx**: Normal colon tissue baseline
 - **CCLE**: CRC cell line expression
 - **Tempus RWD**: ~2,183 patients with line-of-therapy stratification
-- **Human Protein Atlas** (planned): IHC expression for GI toxicity assessment
+- **Human Protein Atlas v25**: IHC expression for GI toxicity assessment, subcellular localization, RNA-protein concordance, COAD/READ prognostic data
 
 ### NSCLC Analysis
 - **TCGA-LUAD/LUSC**: Tumor and adjacent normal (on-target toxicity assessment)
 - **GTEx**: Normal lung tissue baseline
 - **CCLE**: NSCLC cell line expression
 - **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
-- **Human Protein Atlas** (planned): IHC expression for lung toxicity assessment
+- **Human Protein Atlas v25**: IHC expression for lung toxicity assessment, subcellular localization, RNA-protein concordance, LUAD/LUSC prognostic data
 
 ## Requirements
 
