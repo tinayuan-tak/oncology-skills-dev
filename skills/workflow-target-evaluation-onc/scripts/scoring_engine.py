@@ -665,8 +665,25 @@ class ScoringEngine:
                 normal_expr_log2tpm=rna.get("normal_median_log2tpm", 5.0)
             )
 
-        # Add placeholder scores for dimensions not yet computed
-        # These would normally come from additional analysis
+        # Score pathway relevance, disease association, and biomarker potential
+        # from extracted evidence. If a parser did not provide structured
+        # evidence, fall back to a 3.0 placeholder (was previously hardcoded).
+        if "pathway_relevance" in literature_evidence:
+            dimension_scores["pathway_relevance"] = self._score_pathway_relevance(
+                literature_evidence["pathway_relevance"]
+            )
+
+        if "disease_association" in literature_evidence:
+            dimension_scores["disease_association"] = self._score_disease_association(
+                literature_evidence["disease_association"]
+            )
+
+        if "biomarker_potential" in literature_evidence:
+            dimension_scores["biomarker_potential"] = self._score_biomarker_potential(
+                literature_evidence["biomarker_potential"]
+            )
+
+        # Fallback: any dimension still missing gets a neutral 3.0 placeholder.
         placeholder_dims = ["pathway_relevance", "disease_association", "biomarker_potential"]
         for dim in placeholder_dims:
             if dim not in dimension_scores:
@@ -675,12 +692,88 @@ class ScoringEngine:
                     score=3.0,  # Neutral score
                     risk_level="MEDIUM",
                     evidence_weight=0,
-                    rationale="Placeholder - requires additional evidence",
+                    rationale="Placeholder - no structured evidence extracted",
                     source_data={},
                     rule_applied="placeholder"
                 )
 
         return self.compute_scholareval(gene, disease, dimension_scores)
+
+    def _score_pathway_relevance(self, evidence: Dict[str, Any]) -> "ScoringResult":
+        """Score pathway relevance from structured parser output."""
+        score = int(evidence.get("pathway_score", 3))
+        count = int(evidence.get("pathway_evidence_count", 0))
+        risk = "LOW" if score >= 4 else "MEDIUM" if score >= 3 else "HIGH"
+        self.audit_trail.append(self._create_audit_entry(
+            dimension="pathway_relevance",
+            input_data=evidence,
+            rule_path="literature_scoring.pathway_relevance",
+            calculated_value=count,
+            output_score=score,
+        ))
+        return ScoringResult(
+            dimension="pathway_relevance",
+            score=score,
+            risk_level=risk,
+            evidence_weight=count,
+            rationale=f"{count} pathway/mechanism term categories detected",
+            source_data=evidence,
+            rule_applied="pathway_term_count",
+        )
+
+    def _score_disease_association(self, evidence: Dict[str, Any]) -> "ScoringResult":
+        """Score disease association from combined literature + omics evidence."""
+        score = int(evidence.get("disease_assoc_score", 3))
+        lit = evidence.get("literature_signal", 0)
+        omics = evidence.get("omics_signal")
+        risk = "LOW" if score >= 4 else "MEDIUM" if score >= 3 else "HIGH"
+        rationale = (
+            f"Literature signal: {lit}/5"
+            + (f", omics avg suitability: {omics:.1f}/5" if omics is not None else ", omics: n/a")
+        )
+        self.audit_trail.append(self._create_audit_entry(
+            dimension="disease_association",
+            input_data=evidence,
+            rule_path="literature_scoring.disease_association",
+            calculated_value=score,
+            output_score=score,
+        ))
+        return ScoringResult(
+            dimension="disease_association",
+            score=score,
+            risk_level=risk,
+            evidence_weight=lit,
+            rationale=rationale,
+            source_data=evidence,
+            rule_applied="literature+omics_average",
+        )
+
+    def _score_biomarker_potential(self, evidence: Dict[str, Any]) -> "ScoringResult":
+        """Score biomarker potential from clinical-grade availability + detection rate."""
+        score = int(evidence.get("biomarker_score", 3))
+        has_cdx = evidence.get("has_clinical_grade_biomarker", False)
+        det = evidence.get("detection_rate_pct")
+        risk = "LOW" if score >= 4 else "MEDIUM" if score >= 3 else "HIGH"
+        rationale = (
+            f"Clinical-grade biomarker: {has_cdx}"
+            + (f", detection rate: {det:.0f}%" if det is not None else ", detection rate: n/a")
+        )
+        self.audit_trail.append(self._create_audit_entry(
+            dimension="biomarker_potential",
+            input_data=evidence,
+            rule_path="literature_scoring.biomarker_potential",
+            calculated_value=score,
+            output_score=score,
+        ))
+        return ScoringResult(
+            dimension="biomarker_potential",
+            score=score,
+            risk_level=risk,
+            evidence_weight=int(has_cdx) + int(det is not None),
+            rationale=rationale,
+            source_data=evidence,
+            rule_applied="biomarker_grade_x_detection_rate",
+        )
 
     def export_audit_trail(self, output_path: Path) -> None:
         """Export audit trail to JSON file."""
