@@ -16,17 +16,17 @@ A collection of Claude Code skills for oncology target evaluation and RNA-seq an
 
 | Skill | Description | Status |
 |-------|-------------|--------|
-| [target-evaluation](oncology-skills/target-evaluation/) | Full 4-step therapeutic target evaluation workflow with validation framework and PDF report generation | Implemented |
-| [crc-bulk-rna-analysis](oncology-skills/crc-bulk-rna-analysis/) | Comprehensive CRC analysis with TCGA + Tempus RWD (~2,183 patients), iDAS alignment | Implemented |
-| [crc-protein-analysis](oncology-skills/crc-protein-analysis/) | CRC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
-| [nsclc-bulk-rna-analysis](oncology-skills/nsclc-bulk-rna-analysis/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
-| [nsclc-protein-analysis](oncology-skills/nsclc-protein-analysis/) | NSCLC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
-| [crc-sc-rna-analysis](oncology-skills/crc-sc-rna-analysis/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
-| [nsclc-sc-rna-analysis](oncology-skills/nsclc-sc-rna-analysis/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
+| [analysis-bulk-rna-crc](skills/analysis-bulk-rna-crc/) | Comprehensive CRC analysis with TCGA + Tempus RWD (>200K patients), iDAS alignment | Implemented |
+| [analysis-bulk-rna-nsclc](skills/analysis-bulk-rna-nsclc/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
+| [analysis-protein-crc](skills/analysis-protein-crc/) | CRC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
+| [analysis-protein-nsclc](skills/analysis-protein-nsclc/) | NSCLC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
+| [analysis-sc-rna-crc](skills/analysis-sc-rna-crc/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
+| [analysis-sc-rna-nsclc](skills/analysis-sc-rna-nsclc/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
+| [workflow-target-evaluation-onc](skills/workflow-target-evaluation-onc/) | Full 4-step therapeutic target evaluation workflow with PDF report generation | Implemented |
 
 ## Target Evaluation Workflow
 
-The `target-evaluation` skill provides a comprehensive 4-step pipeline:
+The `workflow-target-evaluation-onc` skill provides a comprehensive 4-step pipeline:
 
 ```
 ┌─────────────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
@@ -42,142 +42,149 @@ The `target-evaluation` skill provides a comprehensive 4-step pipeline:
 
 - **6-category risk assessment**: Biological, Druggability, Translational, Clinical, Safety, Commercial
 - **8-dimension ScholarEval scoring**: Weighted target evaluation framework
-- **Validation framework**: Deterministic scoring engine with 3 checkpoints and audit trail
 - **Primary metric**: Tumor vs Adjacent Normal expression (predicts on-target toxicity)
 - **iDAS strategic alignment**: Automatic whitespace scoring for CRC and NSCLC
-- **Tempus RWD integration**: Line-of-therapy stratification (CRC: ~2,183 patients, NSCLC: ~1,800 patients)
+- **Tempus RWD integration**: Line-of-therapy stratification (CRC: >200K patients, NSCLC: ~1,800 patients)
 - **Protein analysis**: Human Protein Atlas integration for IHC, RNA-protein concordance, subcellular localization, and modality recommendation (CRC + NSCLC)
-- **Output**: 14-page professional PDF report with Go/No-Go recommendation
+- **Output**: Professional PDF report with Go/No-Go recommendation
 
 ## Repository Structure
 
 ```
 .
-├── .claude-plugin/
-│   ├── marketplace.json          # Plugin metadata and skill registration
-│   └── plugin.json               # Plugin configuration
-├── oncology-skills/
-│   ├── target-evaluation/
-│   │   ├── SKILL.md              # 4-step workflow definition
-│   │   ├── scripts/
-│   │   │   ├── generate_target_report_pdf.py  # PDF report generator
-│   │   │   ├── scoring_engine.py              # Deterministic scoring engine
-│   │   │   └── validation_checkpoints.py      # Validation framework
-│   │   ├── configs/
-│   │   │   ├── crc.yaml
-│   │   │   ├── nsclc.yaml
-│   │   │   └── scoring_rules.yaml             # Scoring thresholds
-│   │   ├── reference/
-│   │   │   ├── risk_assessment_template_crc.md
-│   │   │   ├── risk_assessment_template_nsclc.md
-│   │   │   └── evidence_extraction_schema.yaml  # LLM extraction schema
-│   │   └── pixi.toml
-│   ├── crc-bulk-rna-analysis/
+├── skills/
+│   ├── analysis-bulk-rna-crc/
 │   │   ├── SKILL.md
-│   │   ├── crc_comprehensive_analysis.py   # Unified TCGA + Tempus analysis
-│   │   └── pixi.toml
-│   ├── crc-protein-analysis/
+│   │   ├── README.md
+│   │   ├── pyproject.toml
+│   │   ├── pixi.toml
+│   │   └── scripts/
+│   │       └── crc_comprehensive_analysis.py
+│   ├── analysis-bulk-rna-nsclc/
 │   │   ├── SKILL.md
-│   │   ├── crc_protein_analysis.py          # HPA IHC + subcellular + modality
-│   │   └── pixi.toml
-│   ├── nsclc-bulk-rna-analysis/
+│   │   ├── pyproject.toml
+│   │   ├── pixi.toml
+│   │   └── scripts/
+│   │       └── nsclc_comprehensive_analysis.py
+│   ├── analysis-protein-crc/
 │   │   ├── SKILL.md
-│   │   ├── nsclc_comprehensive_analysis.py  # Unified TCGA + Tempus analysis
-│   │   └── pixi.toml
-│   ├── nsclc-protein-analysis/
+│   │   ├── pixi.toml
+│   │   └── scripts/
+│   │       └── crc_protein_analysis.py
+│   ├── analysis-protein-nsclc/
 │   │   ├── SKILL.md
-│   │   ├── nsclc_protein_analysis.py        # HPA IHC + subcellular + modality
-│   │   └── pixi.toml
-│   ├── crc-sc-rna-analysis/
-│   │   └── SKILL.md                         # Placeholder
-│   └── nsclc-sc-rna-analysis/
-│       └── SKILL.md                         # Placeholder
+│   │   ├── pixi.toml
+│   │   └── scripts/
+│   │       └── nsclc_protein_analysis.py
+│   ├── analysis-sc-rna-crc/
+│   │   └── SKILL.md
+│   ├── analysis-sc-rna-nsclc/
+│   │   └── SKILL.md
+│   └── workflow-target-evaluation-onc/
+│       ├── SKILL.md
+│       ├── README.md
+│       ├── pixi.toml
+│       ├── configs/
+│       │   ├── crc.yaml
+│       │   └── nsclc.yaml
+│       ├── reference/
+│       │   ├── risk_assessment_template_crc.md
+│       │   └── risk_assessment_template_nsclc.md
+│       └── scripts/
+│           ├── generate_target_report_pdf.py
+│           ├── scoring_engine.py
+│           └── validation_checkpoints.py
+├── DEVELOPMENT_GUIDELINES.md
 └── README.md
 ```
 
-## Installation
+## Output File Naming Convention
 
-### Step 1: Clone the Repository
-
-```bash
-git clone <repository-url>
-cd rnd-computational-biology-oncology-claude-oncology-skills
-```
-
-### Step 2: Register the Marketplace
-
-In Claude Code, run:
-```
-/plugin marketplace add /path/to/rnd-computational-biology-oncology-claude-oncology-skills
-```
-
-### Step 3: Install the Plugin
+All output files follow a consistent naming pattern for traceability:
 
 ```
-/plugin install oncology-skills@claude-oncology-skills
+{GENE}_{skill-name}_{content-type}.{ext}
 ```
 
-### Step 4: Reload Plugins
+### Output Directory Structure
 
 ```
-/reload-plugins
+./results/{GENE}/
+├── {GENE}_analysis-bulk-rna-crc_*.{ext}      # CRC bulk RNA outputs
+├── {GENE}_analysis-bulk-rna-nsclc_*.{ext}    # NSCLC bulk RNA outputs
+└── {GENE}_workflow-target-evaluation-onc_*.{ext}  # Workflow outputs
 ```
 
-### Verify Installation
+### analysis-bulk-rna-crc Outputs
 
-The skills should appear in the available skills list:
-- `oncology-skills:target-evaluation`
-- `oncology-skills:crc-bulk-rna-analysis`
-- `oncology-skills:nsclc-bulk-rna-analysis`
-- `oncology-skills:crc-protein-analysis`
-- `oncology-skills:nsclc-protein-analysis`
-- `oncology-skills:crc-sc-rna-analysis` (placeholder)
-- `oncology-skills:nsclc-sc-rna-analysis` (placeholder)
+| Filename | Purpose |
+|----------|---------|
+| `{GENE}_analysis-bulk-rna-crc_figure.png` | Main 8-panel summary figure |
+| `{GENE}_analysis-bulk-rna-crc_report.md` | Full analysis report with all findings |
+| `{GENE}_analysis-bulk-rna-crc_idas.yaml` | iDAS whitespace alignment scores (structured) |
+| `{GENE}_analysis-bulk-rna-crc_suitability.csv` | Suitability scores by molecular subgroup |
+| `{GENE}_analysis-bulk-rna-crc_suitability.png` | Subgroup suitability heatmap figure |
+| `{GENE}_analysis-bulk-rna-crc_tcga-stats.csv` | TCGA cohort expression statistics |
+| `{GENE}_analysis-bulk-rna-crc_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `{GENE}_analysis-bulk-rna-crc_panel-01.png` | Panel 01: TCGA cohorts expression |
+| `{GENE}_analysis-bulk-rna-crc_panel-02.png` | Panel 02: On-target toxicity |
+| `{GENE}_analysis-bulk-rna-crc_panel-03.png` | Panel 03: Line of therapy |
+| `{GENE}_analysis-bulk-rna-crc_panel-04.png` | Panel 04: iDAS-aligned cohorts |
+| `{GENE}_analysis-bulk-rna-crc_panel-05.png` | Panel 05: RAS mutation status |
+| `{GENE}_analysis-bulk-rna-crc_panel-06.png` | Panel 06: CMS subtypes |
+| `{GENE}_analysis-bulk-rna-crc_panel-07.png` | Panel 07: iDAS summary table |
+| `{GENE}_analysis-bulk-rna-crc_panel-08.png` | Panel 08: Recommendation |
 
-## Usage
+### analysis-bulk-rna-nsclc Outputs
 
-### Natural Language (Recommended)
+| Filename | Purpose |
+|----------|---------|
+| `{GENE}_analysis-bulk-rna-nsclc_figure.png` | Main 8-panel summary figure |
+| `{GENE}_analysis-bulk-rna-nsclc_report.md` | Full analysis report with all findings |
+| `{GENE}_analysis-bulk-rna-nsclc_idas.yaml` | iDAS whitespace alignment scores (structured) |
+| `{GENE}_analysis-bulk-rna-nsclc_suitability.csv` | Suitability scores by molecular subgroup |
+| `{GENE}_analysis-bulk-rna-nsclc_suitability.png` | Subgroup suitability heatmap figure |
+| `{GENE}_analysis-bulk-rna-nsclc_tcga-stats.csv` | TCGA cohort expression statistics |
+| `{GENE}_analysis-bulk-rna-nsclc_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `{GENE}_analysis-bulk-rna-nsclc_mutation-stats.csv` | TCGA mutation status expression (KRAS/EGFR/STK11/KEAP1) |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-01.png` | Panel 01: TCGA cohorts + mutations |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-02.png` | Panel 02: On-target toxicity |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-03.png` | Panel 03: Line of therapy |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-04.png` | Panel 04: iDAS priority cohorts |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-05.png` | Panel 05: KRAS mutation status |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-06.png` | Panel 06: EGFR mutation status |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-07.png` | Panel 07: IO resistance markers (STK11/KEAP1) |
+| `{GENE}_analysis-bulk-rna-nsclc_panel-08.png` | Panel 08: Summary |
 
-Simply describe what you want to do:
+### workflow-target-evaluation-onc Outputs
 
-```
-"Evaluate TNFRSF12A as a target in CRC"
-"target evaluation on Fn14 in CRC"
-"Analyze CDK4 expression in colorectal cancer"
-"Evaluate EGFR as a target in NSCLC"
-```
+| Filename | Purpose |
+|----------|---------|
+| `{GENE}_workflow-target-evaluation-onc_report.md` | Final integrated report (markdown source) |
+| `{GENE}_workflow-target-evaluation-onc_report.pdf` | Professional PDF report for stakeholders |
+| `{GENE}_workflow-target-evaluation-onc_risk.png` | 6-category risk assessment visualization |
+| `{GENE}_workflow-target-evaluation-onc_scholareval.png` | 8-dimension ScholarEval scoring visualization |
+| `{GENE}_workflow-target-evaluation-onc_slide.png` | Landscape summary slide (PNG) |
+| `{GENE}_workflow-target-evaluation-onc_slide.pdf` | Landscape summary slide (PDF) |
 
-Claude will automatically invoke the appropriate skill.
+### Naming Convention Rules
 
-### Direct Skill Invocation
-
-You can also invoke skills directly via the Skill tool:
-
-```
-Skill(oncology-skills:target-evaluation) with args "TNFRSF12A --disease crc"
-Skill(oncology-skills:crc-bulk-rna-analysis) with args "CDK4 CDK6"
-```
-
-## Output Files
-
-### Target Evaluation Outputs
-
-```
-{disease}_analysis_results/{GENE}/
-├── {GENE}_integrated_target_report.md    # Final integrated report
-├── {GENE}_risk_assessment_{disease}.md   # 6-category risk assessment
-├── {GENE}_final_risk_report.pdf          # 14-page professional PDF
-├── {GENE}_comprehensive_analysis.png     # 8-panel expression figure
-├── {GENE}_comprehensive_report.md        # Expression analysis report
-├── {GENE}_idas_assessment.yaml           # iDAS alignment data
-├── {GENE}_subgroup_suitability.csv       # 3-phase subgroup suitability
-├── {GENE}_scholareval.yaml               # Deterministic scoring output
-├── {GENE}_audit_trail.json               # Scoring audit trail
-├── {GENE}_risk_assessment_figure.png     # Risk visualization
-├── {GENE}_scholar_eval_figure.png        # ScholarEval visualization
-├── {GENE}_pairwise_comparisons.csv       # Tumor vs Normal statistics
-└── {GENE}_tcga_statistics.csv            # Cohort statistics
-```
+1. **Pattern**: `{GENE}_{skill-name}_{content-type}.{ext}`
+2. **GENE**: Official HGNC gene symbol (e.g., `TNFRSF12A`, `EGFR`)
+3. **skill-name**: Full skill name for traceability
+4. **content-type**: Short, descriptive suffix:
+   - `figure` - Main visualization
+   - `report` - Full analysis report
+   - `idas` - iDAS alignment data
+   - `suitability` - Subgroup suitability scores
+   - `tcga-stats` - TCGA statistics
+   - `comparisons` - Statistical comparisons
+   - `mutation-stats` - Mutation status analysis
+   - `panel-NN` - Individual figure panels (zero-padded)
+   - `risk` - Risk assessment figure
+   - `scholareval` - ScholarEval figure
+   - `slide` - Summary slide
+5. **Panels**: Use zero-padded numbers (`panel-01`, `panel-02`, etc.)
 
 ## Data Sources
 
@@ -185,7 +192,7 @@ Skill(oncology-skills:crc-bulk-rna-analysis) with args "CDK4 CDK6"
 - **TCGA-COAD/READ**: Tumor and adjacent normal (on-target toxicity assessment)
 - **GTEx**: Normal colon tissue baseline
 - **CCLE**: CRC cell line expression
-- **Tempus RWD**: ~2,183 patients with line-of-therapy stratification
+- **Tempus RWD**: >200,000 patients with line-of-therapy stratification
 - **Human Protein Atlas v25**: IHC expression for GI toxicity assessment, subcellular localization, RNA-protein concordance, COAD/READ prognostic data
 
 ### NSCLC Analysis
@@ -195,74 +202,81 @@ Skill(oncology-skills:crc-bulk-rna-analysis) with args "CDK4 CDK6"
 - **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
 - **Human Protein Atlas v25**: IHC expression for lung toxicity assessment, subcellular localization, RNA-protein concordance, LUAD/LUSC prognostic data
 
-## Requirements
+## Installation
 
-- **Claude Code** with plugin support
-- **AWS CLI** with `cbg` profile configured (for S3 data access)
-- **Pixi** - skills automatically install Python dependencies via pixi
+### Step 1: Clone the Repository
 
-### AWS Configuration
+```bash
+git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git
+cd rnd-computational-biology-oncology-claude-oncology-skills
+```
+
+### Step 2: Install Dependencies
+
+Each skill uses either `pixi` or `uv` for dependency management:
+
+```bash
+# Using pixi
+cd skills/analysis-bulk-rna-crc
+pixi install
+
+# Using uv
+cd skills/analysis-bulk-rna-crc
+uv sync
+```
+
+### Step 3: Configure AWS Credentials
 
 Ensure your `~/.aws/credentials` has the `cbg` profile:
+
 ```ini
 [cbg]
-aws_access_key_id = ...
-aws_secret_access_key = ...
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
 ```
-
-Or use AWS SSO:
-```bash
-aws sso login --profile cbg
-```
-
-## Plugin Development
-
-### Adding a New Skill
-
-1. Create a new directory under `oncology-skills/`:
-   ```
-   oncology-skills/new-skill/
-   ├── SKILL.md
-   └── README.md
-   ```
-
-2. Add the skill path to `.claude-plugin/marketplace.json`:
-   ```json
-   "skills": [
-     "./oncology-skills/target-evaluation",
-     "./oncology-skills/new-skill"
-   ]
-   ```
-
-3. Reinstall the plugin:
-   ```
-   /plugin  → Remove marketplace
-   /plugin marketplace add /path/to/plugin
-   /plugin install oncology-skills@claude-oncology-skills
-   /reload-plugins
-   ```
-
-### SKILL.md Format
-
-```markdown
----
-name: skill-name
-description: Brief description for skill matching
----
-
-# Skill Title
-
-## Overview
-...
 
 ## Usage
-...
+
+### Natural Language (Recommended)
+
+Simply describe what you want to do:
+
+```
+"Evaluate TNFRSF12A as a target in CRC"
+"Analyze CDK4 expression in colorectal cancer"
+"Evaluate EGFR as a target in NSCLC"
 ```
 
-## Known Limitations
+Claude will automatically invoke the appropriate skill.
 
-- **No slash command autocomplete**: Local directory plugins don't support `/skill-name` autocomplete. Use natural language or host on GitHub for full autocomplete support.
-- **SC-RNA skills**: Single-cell analysis skills are placeholders pending data availability.
+### Direct Script Execution
+
+```bash
+# CRC bulk RNA analysis
+cd skills/analysis-bulk-rna-crc
+uv run python scripts/crc_comprehensive_analysis.py --genes TNFRSF12A
+
+# NSCLC bulk RNA analysis
+cd skills/analysis-bulk-rna-nsclc
+uv run python scripts/nsclc_comprehensive_analysis.py --genes EGFR
+
+# Target evaluation workflow (PDF generation)
+cd skills/workflow-target-evaluation-onc
+uv run python scripts/generate_target_report_pdf.py --gene TNFRSF12A --disease crc
+```
+
+## Development Guidelines
+
+See [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) for:
+- Cross-repository workflow with ai-sci-claude-skills
+- Skill naming conventions
+- Integration procedures
+
+## Requirements
+
+- **Python** >= 3.10
+- **boto3** and **s3fs** for S3 data access
+- **AWS credentials** with `cbg` profile configured
 
 ## License
 

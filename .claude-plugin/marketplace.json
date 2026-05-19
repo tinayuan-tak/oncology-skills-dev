@@ -16,11 +16,13 @@
         "email": "ming-ju.tsai@takeda.com"
       },
       "skills": [
-        "./oncology-skills/target-evaluation",
-        "./oncology-skills/crc-bulk-rna-analysis",
-        "./oncology-skills/crc-sc-rna-analysis",
-        "./oncology-skills/nsclc-bulk-rna-analysis",
-        "./oncology-skills/nsclc-sc-rna-analysis"
+        "./skills/workflow-target-evaluation-onc",
+        "./skills/analysis-bulk-rna-crc",
+        "./skills/analysis-bulk-rna-nsclc",
+        "./skills/analysis-protein-crc",
+        "./skills/analysis-protein-nsclc",
+        "./skills/analysis-sc-rna-crc",
+        "./skills/analysis-sc-rna-nsclc"
       ]
     }
   ]

@@ -8,7 +8,7 @@ abbreviation: NSCLC
 # =============================================================================
 # SKILL ROUTING
 # =============================================================================
-bulk_rna_skill: oncology-skills:nsclc-bulk-rna-analysis
+bulk_rna_skill: analysis-bulk-rna-nsclc
 analysis_script: nsclc_comprehensive_analysis.py
 
 # =============================================================================

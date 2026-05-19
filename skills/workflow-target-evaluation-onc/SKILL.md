@@ -1,6 +1,18 @@
 ---
-name: target-evaluation
-description: Full 4-step therapeutic target evaluation workflow. Use when evaluating drug targets in oncology. Accepts gene symbol and disease type (crc, nsclc). Orchestrates risk assessment with integrated literature review, multi-omics analysis, ScholarEval scoring, and final report generation with PDF output.
+name: workflow-target-evaluation-onc
+description: |
+  Use this skill when the user asks to evaluate a drug target in oncology, run target assessment,
+  generate target evaluation report, or perform Go/No-Go analysis for therapeutic targets.
+  Accepts gene symbol and disease type (crc, nsclc). Orchestrates 4-step workflow: risk assessment
+  with literature review, multi-omics expression analysis, ScholarEval scoring, and PDF report.
+  Do NOT use for expression analysis only - use analysis-bulk-rna-crc or analysis-bulk-rna-nsclc.
+  Example queries: "evaluate TNFRSF12A as CRC target", "target assessment for MET in NSCLC".
+metadata:
+  version: 1.0.0
+  owner: ming-ju.tsai@takeda.com
+  requires_preflight: true
+  environment:
+    - AWS_PROFILE=cbg (for S3 data access)
 ---
 
 # Target Evaluation Workflow
@@ -21,8 +33,8 @@ Comprehensive 4-step pipeline for systematic evaluation of therapeutic targets i
 
 | Disease | Config | Risk Template | Bulk RNA Skill | Data Sources |
 |---------|--------|---------------|----------------|--------------|
-| **CRC** | `configs/crc.yaml` | `reference/risk_assessment_template_crc.md` | `oncology-skills:crc-bulk-rna-analysis` | TCGA-COAD/READ, GTEx colon, CCLE |
-| **NSCLC** | `configs/nsclc.yaml` | `reference/risk_assessment_template_nsclc.md` | `oncology-skills:nsclc-bulk-rna-analysis` | TCGA-LUAD/LUSC, GTEx lung, CCLE |
+| **CRC** | `configs/crc.yaml` | `reference/risk_assessment_template_crc.md` | `analysis-bulk-rna-crc` | TCGA-COAD/READ, GTEx colon, CCLE |
+| **NSCLC** | `configs/nsclc.yaml` | `reference/risk_assessment_template_nsclc.md` | `analysis-bulk-rna-nsclc` | TCGA-LUAD/LUSC, GTEx lung, CCLE |
 
 ## 4-Step Workflow
 
@@ -388,12 +400,12 @@ Generate `{GENE}_risk_assessment_{disease}.md` with:
 **Route to appropriate bulk RNA skill based on disease parameter:**
 
 ### For CRC (`--disease crc`)
-**Invoke:** `oncology-skills:crc-bulk-rna-analysis`
+**Invoke:** `analysis-bulk-rna-crc`
 
 #### Comprehensive Analysis (Recommended - TCGA + Tempus Combined)
 ```bash
 # Run from skill base directory - do NOT copy the script
-pixi run python "$SKILL_BASE_DIR/crc_comprehensive_analysis.py" --genes {GENE} --output-dir ./{disease}_analysis_results
+uv run python scripts/crc_comprehensive_analysis.py --genes {GENE} --output-dir ./{disease}_analysis_results
 ```
 
 **This single script provides:**
@@ -443,11 +455,11 @@ python crc_comprehensive_analysis.py --genes {GENE} --skip-tempus
 **Normal Tissue:** TCGA Adjacent, GTEx Colon
 
 ### For NSCLC (`--disease nsclc`)
-**Invoke:** `oncology-skills:nsclc-bulk-rna-analysis`
+**Invoke:** `analysis-bulk-rna-nsclc`
 
 ```bash
 # Run from skill base directory - do NOT copy the script
-pixi run python "$SKILL_BASE_DIR/nsclc_comprehensive_analysis.py" --genes {GENE} --output-dir ./{disease}_analysis_results
+uv run python scripts/nsclc_comprehensive_analysis.py --genes {GENE} --output-dir ./{disease}_analysis_results
 ```
 
 **Quick options:**
@@ -1040,7 +1052,7 @@ pixi run python "$SKILL_BASE_DIR/scripts/generate_target_report_pdf.py" --gene $
 1. Create disease-specific risk assessment template: `reference/risk_assessment_template_{disease}.md`
    - Include strategic context (e.g., iDAS priorities, biomarker landscape)
    - Define disease-specific validation criteria
-2. Create disease-specific bulk RNA skill: `oncology-skills:{disease}-bulk-rna-analysis`
+2. Create disease-specific bulk RNA skill: `analysis-bulk-rna-{disease}`
 3. Add config file: `configs/{disease}.yaml`
 4. Update this SKILL.md with new disease routing
 

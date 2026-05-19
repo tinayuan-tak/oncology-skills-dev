@@ -1,23 +1,23 @@
 ---
-name: nsclc-protein-analysis
-description:
-  Use when analyzing protein expression data for NSCLC targets. Triggers
-  include protein expression analysis for NSCLC/lung cancer, Human Protein
-  Atlas analysis, IHC staining analysis, subcellular localization, modality
-  recommendation for NSCLC targets, or on-target toxicity assessment at
-  protein level. Generates comprehensive protein analysis report with lung
-  toxicity risk, RNA-protein correlation, subcellular location, and modality
-  recommendations. Do NOT use for RNA differential expression - use
-  nsclc-bulk-rna-analysis instead. Do NOT use for protein structure prediction
-  or AlphaFold modeling - use tool-protein-structure-prediction instead. Do
-  NOT use for protein-protein interaction networks - use data-kg-interactome
-  instead. Do NOT use for CRC or other indications - use crc-protein-analysis
-  or the corresponding disease-specific skill instead.
+name: analysis-protein-nsclc
+description: |
+  Use this skill when the user asks to analyze protein expression for NSCLC targets,
+  NSCLC/lung cancer protein analysis, Human Protein Atlas analysis, IHC staining for NSCLC,
+  subcellular localization, modality recommendation for NSCLC targets,
+  or on-target toxicity assessment at the protein level.
+  Provides comprehensive protein analysis with HPA v25 data: lung toxicity risk, RNA-protein correlation,
+  subcellular location, modality recommendation (ADC, T-cell engager, small molecule), and LUAD/LUSC prognostic association.
+  Do NOT use for RNA differential expression - use analysis-bulk-rna-nsclc instead.
+  Do NOT use for protein structure prediction or AlphaFold modeling - use tool-protein-structure-prediction instead.
+  Do NOT use for protein-protein interaction networks - use data-kg-interactome instead.
+  Do NOT use for CRC or other indications - use analysis-protein-crc or the corresponding disease-specific skill instead.
+  Example queries: "analyze CDCP1 protein in NSCLC", "HPA IHC for EGFR in lung cancer", "modality recommendation for CDCP1 in NSCLC".
 metadata:
   version: 0.1.0
   owner: ming-ju.tsai@takeda.com
-  environment: shared
   requires_preflight: false
+  environment:
+    - LOCAL_HPA_DATA (no S3 / AWS credentials required)
 ---
 
 # NSCLC Protein Analysis (Human Protein Atlas)
@@ -106,12 +106,12 @@ pixi install
 
 ```bash
 # Full analysis
-pixi run python "$SKILL_BASE_DIR/nsclc_protein_analysis.py" --gene CDCP1 \
+pixi run python "$SKILL_BASE_DIR/scripts/nsclc_protein_analysis.py" --gene CDCP1 \
     --data-dir /path/to/HPA/nsclc \
     --output-dir ./nsclc_protein_results
 
 # Example with default paths
-pixi run python "$SKILL_BASE_DIR/nsclc_protein_analysis.py" --gene CDCP1
+pixi run python "$SKILL_BASE_DIR/scripts/nsclc_protein_analysis.py" --gene CDCP1
 ```
 
 ### Script Arguments
@@ -136,8 +136,8 @@ This skill integrates with the target-evaluation workflow as Step 3 (Protein Ana
 
 ```
 Step 1: Risk Assessment (literature)
-Step 2: RNA Analysis (nsclc-bulk-rna-analysis)
-Step 3: Protein Analysis (nsclc-protein-analysis) ← THIS SKILL
+Step 2: RNA Analysis (analysis-bulk-rna-nsclc)
+Step 3: Protein Analysis (analysis-protein-nsclc) ← THIS SKILL
 Step 4: ScholarEval (integrates RNA + Protein)
 Step 5: Report Generation
 ```

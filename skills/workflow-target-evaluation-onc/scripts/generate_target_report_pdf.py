@@ -22,6 +22,35 @@ import matplotlib.image as mpimg
 import numpy as np
 
 
+# Skill name for output file naming
+SKILL_NAME = 'workflow-target-evaluation-onc'
+
+
+def get_output_filename(gene, content_type, ext):
+    """Generate consistent output filename following naming convention.
+
+    Pattern: {GENE}_{skill-name}_{content-type}.{ext}
+
+    Args:
+        gene: Gene symbol (e.g., 'TNFRSF12A')
+        content_type: Type of content (e.g., 'report', 'risk', 'scholareval')
+        ext: File extension without dot (e.g., 'png', 'md', 'pdf')
+
+    Returns:
+        Filename string (e.g., 'TNFRSF12A_workflow-target-evaluation-onc_report.pdf')
+    """
+    return f"{gene}_{SKILL_NAME}_{content_type}.{ext}"
+
+
+def get_bulk_rna_filename(gene, disease, content_type, ext):
+    """Generate filename for bulk RNA skill outputs.
+
+    Pattern: {GENE}_analysis-bulk-rna-{disease}_{content-type}.{ext}
+    """
+    skill = f"analysis-bulk-rna-{disease}"
+    return f"{gene}_{skill}_{content_type}.{ext}"
+
+
 # Disease-specific configurations
 DISEASE_CONFIG = {
     'crc': {
@@ -69,11 +98,11 @@ remain below 25%, underscoring the critical need for novel therapeutic targets.'
 }
 
 
-def parse_pairwise_comparisons(output_dir, gene):
+def parse_pairwise_comparisons(output_dir, gene, disease='crc'):
     """Parse the pairwise comparisons CSV to get fold change vs adjacent normal."""
     import csv
 
-    csv_path = os.path.join(output_dir, f'{gene}_pairwise_comparisons.csv')
+    csv_path = os.path.join(output_dir, get_bulk_rna_filename(gene, disease, 'comparisons', 'csv'))
     if not os.path.exists(csv_path):
         return None, None
 
@@ -98,7 +127,7 @@ def parse_pairwise_comparisons(output_dir, gene):
     return avg_adj, avg_gtex
 
 
-def parse_integrated_report(report_path, output_dir=None, gene=None):
+def parse_integrated_report(report_path, output_dir=None, gene=None, disease='crc'):
     """Parse the integrated target report markdown file to extract key data."""
     data = {
         'date': date.today().isoformat(),
@@ -117,7 +146,7 @@ def parse_integrated_report(report_path, output_dir=None, gene=None):
 
     # Try to get fold change from pairwise comparisons CSV (more accurate)
     if output_dir and gene:
-        avg_adj, avg_gtex = parse_pairwise_comparisons(output_dir, gene)
+        avg_adj, avg_gtex = parse_pairwise_comparisons(output_dir, gene, disease)
         if avg_adj is not None:
             linear_fc_adj = 2 ** abs(avg_adj)
             direction = "↑" if avg_adj > 0 else "↓" if avg_adj < 0 else "="
@@ -300,7 +329,7 @@ def create_risk_assessment_figure(gene, output_dir, report_data=None):
     ax1.spines['right'].set_visible(False)
 
     plt.tight_layout()
-    output_path = os.path.join(output_dir, f'{gene}_risk_assessment_figure.png')
+    output_path = os.path.join(output_dir, get_output_filename(gene, 'risk', 'png'))
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close(fig)
     print(f"  Created: {gene}_risk_assessment_figure.png")
@@ -355,7 +384,7 @@ def create_scholar_eval_figure(gene, output_dir, report_data=None):
     ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
-    output_path = os.path.join(output_dir, f'{gene}_scholar_eval_figure.png')
+    output_path = os.path.join(output_dir, get_output_filename(gene, 'scholareval', 'png'))
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close(fig)
     print(f"  Created: {gene}_scholar_eval_figure.png")
@@ -412,7 +441,7 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
 
     # Parse integrated report for slide data
     slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
-    report_path = os.path.join(output_dir, f'{gene}_integrated_target_report.md')
+    report_path = os.path.join(output_dir, get_output_filename(gene, 'report', 'md'))
     if os.path.exists(report_path):
         with open(report_path, 'r') as f:
             content = f.read()
@@ -581,8 +610,8 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
     fig.text(0.98, 0.005, f'Data Sources: {config["tcga_projects"]}, GTEx, Tempus RWD', fontsize=9, color='gray', ha='right')
 
     # Save
-    png_path = os.path.join(output_dir, f'{gene}_summary_slide.png')
-    pdf_path = os.path.join(output_dir, f'{gene}_summary_slide.pdf')
+    png_path = os.path.join(output_dir, get_output_filename(gene, 'slide', 'png'))
+    pdf_path = os.path.join(output_dir, get_output_filename(gene, 'slide', 'pdf'))
     plt.savefig(png_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.savefig(pdf_path, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.close(fig)
@@ -607,17 +636,17 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
 
     # Parse integrated report if exists and no data provided
     if report_data is None:
-        report_path = os.path.join(output_dir, f'{gene}_integrated_target_report.md')
+        report_path = os.path.join(output_dir, get_output_filename(gene, 'report', 'md'))
         if os.path.exists(report_path):
-            report_data = parse_integrated_report(report_path, output_dir, gene)
-            print(f"  Parsed: {gene}_integrated_target_report.md")
+            report_data = parse_integrated_report(report_path, output_dir, gene, disease)
+            print(f"  Parsed: {get_output_filename(gene, 'report', 'md')}")
             print(f"  Fold Change (vs Adjacent Normal): {report_data.get('fold_change', 'TBD')}")
         else:
             report_data = {'date': date.today().isoformat(), 'score': 'TBD', 'risk_profile': 'TBD',
                           'recommendation': 'GO', 'assessment': 'TBD', 'fold_change': 'TBD',
                           'risk_table': {}, 'strengths': [], 'risks': [], 'scholar_scores': {}}
 
-    pdf_path = os.path.join(output_dir, f'{gene}_final_risk_report.pdf')
+    pdf_path = os.path.join(output_dir, get_output_filename(gene, 'report', 'pdf'))
     pdf = PdfPages(pdf_path)
 
     print(f"Generating PDF report for {gene} ({disease_abbr})...")
@@ -640,7 +669,7 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
 
     # Parse additional data from integrated report
     slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
-    report_path = os.path.join(output_dir, f'{gene}_integrated_target_report.md')
+    report_path = os.path.join(output_dir, get_output_filename(gene, 'report', 'md'))
     if os.path.exists(report_path):
         with open(report_path, 'r') as f:
             content = f.read()
@@ -909,7 +938,7 @@ TRANSLATIONAL EVIDENCE:
     print("  Page 4: Results")
 
     # ===== PAGE 5: FIGURE - Comprehensive Analysis =====
-    comp_fig = os.path.join(output_dir, f'{gene}_comprehensive_analysis.png')
+    comp_fig = os.path.join(output_dir, get_bulk_rna_filename(gene, disease, 'figure', 'png'))
     add_high_res_figure(pdf, comp_fig, 'Figure 1: Comprehensive Multi-omics Analysis',
                         f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue.')
     print("  Page 5: Figure 1 - Comprehensive Analysis")
@@ -1011,14 +1040,14 @@ Risk Level Legend:
 
     # ===== PAGE 8: RISK ASSESSMENT FIGURE =====
     create_risk_assessment_figure(gene, output_dir, report_data)
-    risk_fig = os.path.join(output_dir, f'{gene}_risk_assessment_figure.png')
+    risk_fig = os.path.join(output_dir, get_output_filename(gene, 'risk', 'png'))
     add_high_res_figure(pdf, risk_fig, 'Figure 2: 6-Category Risk Assessment',
                         'Risk levels across Biological, Druggability, Translational, Clinical, Safety, and Commercial dimensions.')
     print("  Page 8: Figure 2 - Risk Assessment")
 
     # ===== PAGE 9: SCHOLAREVAL FIGURE =====
     create_scholar_eval_figure(gene, output_dir, report_data)
-    scholar_fig = os.path.join(output_dir, f'{gene}_scholar_eval_figure.png')
+    scholar_fig = os.path.join(output_dir, get_output_filename(gene, 'scholareval', 'png'))
     add_high_res_figure(pdf, scholar_fig, 'Figure 3: ScholarEval Target Scoring',
                         'Eight-dimension target scoring based on the ScholarEval framework.')
     print("  Page 9: Figure 3 - ScholarEval Scoring")
@@ -1155,7 +1184,7 @@ def main():
         sys.exit(1)
 
     # Check for required figures
-    required_figs = [f'{gene}_comprehensive_analysis.png']
+    required_figs = [get_bulk_rna_filename(gene, disease, 'figure', 'png')]
 
     missing = []
     for fig in required_figs:
