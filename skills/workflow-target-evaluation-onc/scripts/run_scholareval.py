@@ -36,6 +36,7 @@ def _resolve_step2_input(output_dir: Path, gene: str, disease: str, kind: str) -
         "idas": f"{gene}_{skill_name}_idas.yaml",
         "report": f"{gene}_{skill_name}_report.md",
         "tcga_stats": f"{gene}_{skill_name}_tcga-stats.csv",
+        "suitability": f"{gene}_{skill_name}_suitability.csv",
     }
     path = output_dir / catalog[kind]
     return path if path.exists() else None
@@ -88,18 +89,35 @@ def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
         }
     }
 
-    # Parse biological validation
-    # Look for "In vivo validation" mentions
-    if re.search(r'in.?vivo.*validation.*PDX|PDX.*efficacy|animal.*model', content, re.IGNORECASE):
-        evidence["biological_validation"]["n_animal_models"] = 2
-
-    # Look for CRISPR/knockout mentions
-    if re.search(r'CRISPR|knockout|KO mice', content, re.IGNORECASE):
-        evidence["biological_validation"]["n_crispr_studies"] = 1
-
-    # Look for RNAi/knockdown mentions
-    if re.search(r'RNAi|knockdown|siRNA|shRNA', content, re.IGNORECASE):
-        evidence["biological_validation"]["n_rnai_studies"] = 1
+    # Parse biological validation. Counts are the number of *distinct mentions*
+    # in the biological-validation section (capped to avoid runaway over-counting
+    # from prose where the same study gets cited multiple times).
+    bio_section = _extract_section(content, "Biological Risk Assessment") or content
+    evidence["biological_validation"]["n_animal_models"] = _capped_count(
+        bio_section,
+        r'\b(in[- ]vivo|PDX|patient[- ]derived xenograft|patient[- ]derived organoid|PDO|GEMM|orthotopic|xenograft)\b',
+        cap=5,
+    )
+    evidence["biological_validation"]["n_crispr_studies"] = _capped_count(
+        bio_section,
+        r'\b(CRISPR|knockout|KO mice|sgRNA)\b',
+        cap=5,
+    )
+    evidence["biological_validation"]["n_rnai_studies"] = _capped_count(
+        bio_section,
+        r'\b(RNAi|knockdown|siRNA|shRNA)\b',
+        cap=5,
+    )
+    evidence["biological_validation"]["n_human_genetic"] = _capped_count(
+        bio_section,
+        r'\b(GWAS|germline|somatic mutation|driver mutation|loss[- ]of[- ]function|gain[- ]of[- ]function|TCGA mutation)\b',
+        cap=5,
+    )
+    evidence["biological_validation"]["n_overexpression"] = _capped_count(
+        bio_section,
+        r'\b(overexpressed|overexpression|upregulated|amplified|amplification)\b',
+        cap=5,
+    )
 
     # Parse clinical validation
     # Support both Arabic ("Phase 2") and Roman ("Phase II", "Phase I/II") forms.
@@ -156,7 +174,39 @@ def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
                  content, re.IGNORECASE):
         evidence["druggability"]["has_structure"] = True
 
+    # Druggable pocket / binding site evidence — distinct from having a crystal
+    # structure (a target can have a structure but no tractable pocket).
+    if re.search(
+        r'\b(druggable pocket|binding pocket|allosteric site|active[- ]site|orthosteric|cryptic pocket|ATP[- ]binding pocket)\b',
+        content, re.IGNORECASE,
+    ):
+        evidence["druggability"]["has_binding_pocket"] = True
+
+    # Best IC50 — extract numeric IC50 values and take the lowest (most potent).
+    # Matches forms like "IC50 = 50 nM", "IC50: 5 nM", "(IC50 ~10 nM)".
+    ic50_values = []
+    for match in re.finditer(
+        r'IC50\s*[=:~<>]?\s*(\d+\.?\d*)\s*(nM|μM|uM)',
+        content, re.IGNORECASE,
+    ):
+        value = float(match.group(1))
+        unit = match.group(2).lower()
+        if unit in ("um", "μm"):
+            value *= 1000  # convert to nM
+        ic50_values.append(value)
+    if ic50_values:
+        evidence["druggability"]["best_ic50_nm"] = min(ic50_values)
+
     return evidence
+
+
+def _capped_count(text: str, pattern: str, cap: int = 5) -> int:
+    """Count regex matches in text, capped at `cap`. Used to translate prose
+    mentions into evidence weights without runaway over-counting from
+    repeated references to the same study.
+    """
+    matches = re.findall(pattern, text, re.IGNORECASE)
+    return min(len(matches), cap)
 
 
 _ROMAN_TO_INT = {"I": 1, "II": 2, "III": 3, "IV": 4}
@@ -189,16 +239,234 @@ def _extract_phase_numbers(content: str) -> list:
 def _extract_section(content: str, header_keyword: str) -> Optional[str]:
     """Return the body of a markdown section whose header contains the keyword.
 
-    Searches '##' and '###' headers (case-insensitive substring match) and
-    returns text up to the next header of the same or higher level. Returns
-    None if no matching section is found.
+    Returns text from the matched header up to the next header of the **same or
+    higher** level (so subsections like `### Foo` under a `## Section` are
+    included). Returns None if no matching section is found.
     """
     pattern = re.compile(
-        rf'^(#{{2,4}})\s+[^\n]*{re.escape(header_keyword)}[^\n]*\n(.*?)(?=^#{{1,4}}\s|\Z)',
-        re.IGNORECASE | re.DOTALL | re.MULTILINE,
+        r'^(#{1,4})\s+([^\n]*)\n', re.MULTILINE,
     )
-    match = pattern.search(content)
-    return match.group(2) if match else None
+    matches = list(pattern.finditer(content))
+    for i, m in enumerate(matches):
+        level = len(m.group(1))
+        title = m.group(2)
+        if header_keyword.lower() not in title.lower():
+            continue
+        body_start = m.end()
+        # Find the next header at same-or-higher level (i.e. '#' count <= level).
+        body_end = len(content)
+        for next_m in matches[i + 1:]:
+            if len(next_m.group(1)) <= level:
+                body_end = next_m.start()
+                break
+        return content[body_start:body_end]
+    return None
+
+
+def parse_pathway_relevance(risk_file: Path) -> Dict[str, Any]:
+    """Score pathway relevance based on mentions of disease-relevant pathways
+    and mechanistic links to the target gene.
+
+    Heuristic: count mentions of canonical pathway/mechanism terms in the
+    Biological Risk Assessment section. The signal is presence + diversity
+    of pathway terms, not a single keyword.
+
+    Returns: {'pathway_score': 1..5, 'pathway_evidence_count': int}
+    """
+    content = risk_file.read_text()
+    bio_section = _extract_section(content, "Biological Risk Assessment") or content
+
+    pathway_terms = [
+        r'\b(DNA damage response|DDR)\b',
+        r'\b(cell cycle|G1/S|G2/M|checkpoint)\b',
+        r'\b(apoptosis|mitotic catastrophe|programmed cell death)\b',
+        r'\b(synthetic lethal|synthetic[- ]lethality)\b',
+        r'\b(PI3K|MAPK|ERK|JAK[/\-]STAT|WNT|TGF[- ]?β|NF[- ]?κB)\b',
+        r'\b(replication stress|genome instability|mutational burden)\b',
+        r'\b(EMT|epithelial[- ]mesenchymal transition|stemness)\b',
+        r'\b(angiogenesis|VEGF|tumour microenvironment|tumor microenvironment|TME)\b',
+        r'\b(immune evasion|antigen presentation|MHC|interferon)\b',
+        r'\b(pathway|signaling|signalling)\b',
+    ]
+    count = 0
+    for pattern in pathway_terms:
+        if re.search(pattern, bio_section, re.IGNORECASE):
+            count += 1
+
+    # Map count of distinct pathway-term categories to 1..5 score.
+    if count >= 6:
+        score = 5
+    elif count >= 4:
+        score = 4
+    elif count >= 2:
+        score = 3
+    elif count >= 1:
+        score = 2
+    else:
+        score = 1
+
+    return {"pathway_score": score, "pathway_evidence_count": count}
+
+
+def parse_disease_association(
+    risk_file: Path,
+    suitability_file: Optional[Path],
+    bio_validation: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
+    """Score disease association by combining literature evidence with
+    omics-derived subgroup suitability.
+
+    Literature signal: combination of (a) generic prognostic / driver-mutation
+    language in the risk assessment, and (b) the strength of biological-
+    validation evidence already extracted (animal models + human genetics +
+    overexpression studies all indicate disease association).
+
+    Omics signal: max of subgroup-suitability scores from the Step 2
+    suitability CSV, with the average as a tie-breaker. Using max captures
+    "exists at least one strong subgroup" rather than averaging away
+    targeted populations.
+
+    Returns: {
+      'disease_assoc_score': 1..5,
+      'literature_signal': 1..5,
+      'omics_signal': 1..5 or None,
+    }
+    """
+    content = risk_file.read_text()
+    bio_section = _extract_section(content, "Biological Risk Assessment") or content
+    safety_section = _extract_section(content, "Safety Risk Assessment") or ""
+
+    # (a) Generic disease-association language anywhere in bio + safety sections.
+    text = bio_section + "\n" + safety_section
+    literature_terms = [
+        r'\b(prognostic|prognosis)\b',
+        r'\b(driver mutation|oncogenic driver|tumour suppressor|tumor suppressor)\b',
+        r'\b(frequently mutated|recurrently mutated|hotspot mutation|highly mutated)\b',
+        r'\b(synthetic lethal|synthetic[- ]lethality)\b',
+        r'\b(TP53|p53|KRAS|EGFR|BRAF|PIK3CA|APC).{0,40}(CRC|NSCLC|colorectal|lung|cancer|tumor|tumour)\b',
+        r'\b(survival|overall survival|disease[- ]free survival|recurrence)\b',
+        r'\b(metastatic|metastasis|advanced disease|late[- ]stage)\b',
+    ]
+    text_count = sum(
+        1 for p in literature_terms
+        if re.search(p, text, re.IGNORECASE | re.DOTALL)
+    )
+
+    # (b) Reuse already-extracted biological-validation evidence weight.
+    bio_total = 0
+    if bio_validation:
+        bio_total = (
+            bio_validation.get("n_animal_models", 0)
+            + bio_validation.get("n_human_genetic", 0)
+            + bio_validation.get("n_overexpression", 0)
+        )
+
+    # Compose literature signal: text terms + capped bio-validation weight.
+    raw_lit = text_count + min(bio_total, 5)
+    if raw_lit >= 8:
+        lit_signal = 5
+    elif raw_lit >= 6:
+        lit_signal = 4
+    elif raw_lit >= 4:
+        lit_signal = 3
+    elif raw_lit >= 2:
+        lit_signal = 2
+    else:
+        lit_signal = 1
+
+    # Omics signal from suitability CSV.
+    omics_signal: Optional[float] = None
+    if suitability_file is not None and suitability_file.exists():
+        scores = []
+        with open(suitability_file, newline="") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                try:
+                    scores.append(float(row["score"]))
+                except (KeyError, ValueError):
+                    continue
+        if scores:
+            # Use max + avg blend: presence of any 4-5 subgroup matters more
+            # than the average dragged down by lower-priority subgroups.
+            omics_signal = (max(scores) + sum(scores) / len(scores)) / 2
+
+    # Combine: average lit + omics if both present, else use whichever exists.
+    if omics_signal is not None:
+        final = (lit_signal + omics_signal) / 2
+    else:
+        final = lit_signal
+    final_score = round(final)
+    final_score = max(1, min(5, final_score))
+
+    return {
+        "disease_assoc_score": final_score,
+        "literature_signal": lit_signal,
+        "omics_signal": omics_signal,
+    }
+
+
+def parse_biomarker_potential(
+    risk_file: Path,
+    idas_file: Optional[Path],
+) -> Dict[str, Any]:
+    """Score biomarker potential based on availability of patient-selection
+    biomarkers (literature) and detection-rate evidence (omics).
+
+    Literature signal: mentions of clinical-grade biomarker terms in the
+    Clinical Risk Assessment section.
+    Omics signal: % detected in the iDAS YAML's key-iDAS-population block,
+    if present (>80% = strong, 50-80% = moderate, <50% = weak).
+
+    Returns: {
+      'biomarker_score': 1..5,
+      'has_clinical_grade_biomarker': bool,
+      'detection_rate_pct': float or None,
+    }
+    """
+    content = risk_file.read_text()
+    clinical_section = _extract_section(content, "Clinical Risk Assessment") or content
+
+    has_clinical_grade = bool(re.search(
+        r'\b(clinical[- ]grade|companion diagnostic|CDx|NGS panel|FDA[- ]approved (test|assay)|standard of care testing)\b',
+        clinical_section, re.IGNORECASE,
+    ))
+    has_emerging = bool(re.search(
+        r'\b(biomarker (development|strategy)|patient selection|stratif|enrich)\b',
+        clinical_section, re.IGNORECASE,
+    ))
+
+    # Detection rate from iDAS YAML.
+    detection_rate: Optional[float] = None
+    if idas_file is not None and idas_file.exists():
+        with open(idas_file) as fh:
+            data = yaml.safe_load(fh) or {}
+        # Look for a 'pct_detected' or similar key under whitespace_alignment.
+        ws = data.get("whitespace_alignment", {}) or {}
+        for entry in ws.values():
+            if isinstance(entry, dict):
+                for key in ("pct_detected", "percent_detected", "detection_rate"):
+                    if key in entry:
+                        try:
+                            detection_rate = float(entry[key])
+                            break
+                        except (TypeError, ValueError):
+                            continue
+                if detection_rate is not None:
+                    break
+
+    # Compose final score.
+    if has_clinical_grade:
+        score = 5 if (detection_rate is None or detection_rate >= 80) else 4
+    elif has_emerging:
+        score = 4 if (detection_rate is None or detection_rate >= 50) else 3
+    else:
+        score = 2
+
+    return {
+        "biomarker_score": score,
+        "has_clinical_grade_biomarker": has_clinical_grade,
+        "detection_rate_pct": detection_rate,
+    }
 
 
 def parse_idas_yaml(idas_file: Path) -> Dict[str, Any]:
@@ -305,6 +573,7 @@ def run_scholareval(
     idas_file = _resolve_step2_input(output_dir, gene, disease, "idas")
     report_file = _resolve_step2_input(output_dir, gene, disease, "report")
     stats_file = _resolve_step2_input(output_dir, gene, disease, "tcga_stats")
+    suitability_file = _resolve_step2_input(output_dir, gene, disease, "suitability")
 
     # Check required files exist.
     missing = []
@@ -350,6 +619,18 @@ def run_scholareval(
             omics_evidence["rna_expression"]["tumor_median_log2tpm"] = tumor_median
         if normal_median is not None:
             omics_evidence["rna_expression"]["normal_median_log2tpm"] = normal_median
+
+    # Extract evidence for previously-placeholder dimensions (P1 fix).
+    # Each parser returns a small dict; the engine accepts these structured
+    # fields and uses them in place of the 3.0 placeholder fallback.
+    lit_evidence["pathway_relevance"] = parse_pathway_relevance(risk_file)
+    lit_evidence["disease_association"] = parse_disease_association(
+        risk_file, suitability_file,
+        bio_validation=lit_evidence.get("biological_validation"),
+    )
+    lit_evidence["biomarker_potential"] = parse_biomarker_potential(
+        risk_file, idas_file,
+    )
 
     if verbose:
         print("\nLiterature Evidence:")
