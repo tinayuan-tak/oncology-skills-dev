@@ -130,21 +130,9 @@ pixi run python "$SKILL_BASE_DIR/scripts/nsclc_protein_analysis.py" --gene CDCP1
 | `{GENE}_nsclc_protein_analysis.png` | 6-panel summary figure |
 | `{GENE}_nsclc_protein_summary.yaml` | Structured data for integration |
 
-## Integration with Target Evaluation
+## Structured Output (YAML)
 
-This skill integrates with the target-evaluation workflow as Step 3 (Protein Analysis):
-
-```
-Step 1: Risk Assessment (literature)
-Step 2: RNA Analysis (analysis-bulk-rna-nsclc)
-Step 3: Protein Analysis (analysis-protein-nsclc) ← THIS SKILL
-Step 4: ScholarEval (integrates RNA + Protein)
-Step 5: Report Generation
-```
-
-### YAML Output for Integration
-
-The `{GENE}_nsclc_protein_summary.yaml` provides structured data:
+The `{GENE}_nsclc_protein_summary.yaml` provides machine-readable results:
 
 ```yaml
 gene: CDCP1
