@@ -136,21 +136,9 @@ pixi run python "$SKILL_BASE_DIR/scripts/crc_protein_analysis.py" --gene TNFRSF1
 | `{GENE}_crc_protein_analysis.png` | 6-panel summary figure |
 | `{GENE}_crc_protein_summary.yaml` | Structured data for integration |
 
-## Integration with Target Evaluation
+## Structured Output (YAML)
 
-This skill integrates with the target-evaluation workflow as Step 3 (Protein Analysis):
-
-```
-Step 1: Risk Assessment (literature)
-Step 2: RNA Analysis (analysis-bulk-rna-crc)
-Step 3: Protein Analysis (analysis-protein-crc) ← THIS SKILL
-Step 4: ScholarEval (integrates RNA + Protein)
-Step 5: Report Generation
-```
-
-### YAML Output for Integration
-
-The `{GENE}_crc_protein_summary.yaml` provides structured data:
+The `{GENE}_crc_protein_summary.yaml` provides machine-readable results:
 
 ```yaml
 gene: TNFRSF12A
