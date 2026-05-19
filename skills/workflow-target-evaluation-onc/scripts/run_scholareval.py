@@ -117,29 +117,103 @@ def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
         evidence["biological_validation"]["n_rnai_studies"] = 1
 
     # Parse clinical validation
-    # Check for phase mentions
-    phase_match = re.search(r'Phase\s*(\d+)', content, re.IGNORECASE)
-    if phase_match:
-        evidence["clinical_validation"]["highest_phase"] = int(phase_match.group(1))
+    # Support both Arabic ("Phase 2") and Roman ("Phase II", "Phase I/II") forms.
+    # Take the highest phase observed anywhere in the risk assessment.
+    phase_values = _extract_phase_numbers(content)
+    if phase_values:
+        evidence["clinical_validation"]["highest_phase"] = max(phase_values)
+        evidence["clinical_validation"]["n_trials"] = len(phase_values)
 
-    # Check for "no clinical trials" or similar
-    if re.search(r'no.*clinical.*trial|no.*NSCLC.*trial|no.*CRC.*trial|preclinical only', content, re.IGNORECASE):
+    # Bounded "no trial" check: only zero out if the claim is in the
+    # Clinical Validation section to avoid over-greedy matches.
+    clinical_section = _extract_section(content, "Clinical Risk Assessment")
+    if clinical_section and re.search(
+        r'\bno (clinical trials?|trials? to date|approved drug)\b|preclinical[- ]only',
+        clinical_section,
+        re.IGNORECASE,
+    ):
         evidence["clinical_validation"]["highest_phase"] = 0
+        evidence["clinical_validation"]["n_trials"] = 0
 
-    # Parse druggability
-    if re.search(r'approved.*drug|FDA.*approved', content, re.IGNORECASE):
+    # Mark indication-specific only when a Phase appears alongside the disease
+    # within a small window (~80 chars) - keeps the heuristic conservative.
+    disease_terms = {
+        "crc": r"\b(CRC|colorectal|COAD|READ)\b",
+        "nsclc": r"\b(NSCLC|lung adenocarcinoma|LUAD|LUSC|squamous cell)\b",
+    }
+    # disease arg flows in via the larger pipeline; default to scanning both
+    indication_pattern = "|".join(disease_terms.values())
+    if re.search(
+        rf'(?:Phase\s*(?:[IVX]+|\d+)).{{0,80}}(?:{indication_pattern})|'
+        rf'(?:{indication_pattern}).{{0,80}}Phase\s*(?:[IVX]+|\d+)',
+        content,
+        re.IGNORECASE | re.DOTALL,
+    ):
+        evidence["clinical_validation"]["indication_specific"] = True
+
+    # Parse druggability — require explicit FDA / regulatory language.
+    if re.search(
+        r'\bFDA[- ]approved\b|approved by (?:the )?FDA|regulatory approval',
+        content,
+        re.IGNORECASE,
+    ):
         evidence["druggability"]["has_approved_drug"] = True
 
-    if re.search(r'clinical.*compound|phase.*compound|clinical.*PoC', content, re.IGNORECASE):
+    if re.search(r'clinical[- ]stage|in (?:Phase|clinical) trials?|clinical PoC',
+                 content, re.IGNORECASE):
         evidence["druggability"]["has_clinical_compound"] = True
 
-    if re.search(r'tool.*compound|antibody.*characterized|ADC.*validated|preclinical.*ADC', content, re.IGNORECASE):
+    if re.search(r'tool compound|tool molecules?|preclinical compound|ADC validated',
+                 content, re.IGNORECASE):
         evidence["druggability"]["has_tool_compound"] = True
 
-    if re.search(r'crystal.*structure|X-ray|cryo-EM', content, re.IGNORECASE):
+    if re.search(r'crystal structure|co-crystal|X-ray|cryo-EM|PDB entry',
+                 content, re.IGNORECASE):
         evidence["druggability"]["has_structure"] = True
 
     return evidence
+
+
+_ROMAN_TO_INT = {"I": 1, "II": 2, "III": 3, "IV": 4}
+
+
+def _extract_phase_numbers(content: str) -> list:
+    """Find all 'Phase N' mentions and return a list of ints.
+
+    Supports Arabic ('Phase 2'), Roman ('Phase II'), and slash-separated
+    forms ('Phase I/II', 'Phase II/III'). For slash forms, the highest
+    component is taken.
+    """
+    phases = []
+    pattern = re.compile(
+        r'\bPhase\s*([IVX]+|\d+)(?:\s*/\s*([IVX]+|\d+))?\b',
+        re.IGNORECASE,
+    )
+    for match in pattern.finditer(content):
+        for group in match.groups():
+            if not group:
+                continue
+            token = group.upper()
+            if token in _ROMAN_TO_INT:
+                phases.append(_ROMAN_TO_INT[token])
+            elif token.isdigit():
+                phases.append(int(token))
+    return phases
+
+
+def _extract_section(content: str, header_keyword: str) -> Optional[str]:
+    """Return the body of a markdown section whose header contains the keyword.
+
+    Searches '##' and '###' headers (case-insensitive substring match) and
+    returns text up to the next header of the same or higher level. Returns
+    None if no matching section is found.
+    """
+    pattern = re.compile(
+        rf'^(#{{2,4}})\s+[^\n]*{re.escape(header_keyword)}[^\n]*\n(.*?)(?=^#{{1,4}}\s|\Z)',
+        re.IGNORECASE | re.DOTALL | re.MULTILINE,
+    )
+    match = pattern.search(content)
+    return match.group(2) if match else None
 
 
 def parse_idas_yaml(idas_file: Path) -> Dict[str, Any]:
