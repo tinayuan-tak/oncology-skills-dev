@@ -1,7 +1,7 @@
-[project]
-name = "target-evaluation"
+[workspace]
+name = "workflow-target-evaluation-onc"
 version = "1.0.0"
-description = "5-step therapeutic target evaluation workflow for oncology"
+description = "4-step therapeutic target evaluation workflow for oncology"
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "osx-64", "linux-64"]
 

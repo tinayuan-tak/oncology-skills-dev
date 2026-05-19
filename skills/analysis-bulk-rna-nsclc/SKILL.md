@@ -87,16 +87,19 @@ Expression by EGFR, KRAS, STK11, KEAP1 mutation status.
 
 ## Output Files
 
-For each gene analyzed:
+For each gene analyzed (filenames follow `{GENE}_analysis-bulk-rna-nsclc_{type}.{ext}`):
 
 | File | Description |
 |------|-------------|
-| `{GENE}_comprehensive_analysis.png` | 8-panel summary figure |
-| `{GENE}_comprehensive_report.md` | Full analysis report |
-| `{GENE}_idas_assessment.yaml` | iDAS alignment scores |
-| `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistics |
-| `{GENE}_tcga_mutation_statistics.csv` | Mutation status expression |
-| `{GENE}_subgroup_suitability.csv` | Subgroup suitability scores |
+| `{GENE}_analysis-bulk-rna-nsclc_figure.png` | 8-panel summary figure |
+| `{GENE}_analysis-bulk-rna-nsclc_report.md` | Full analysis report |
+| `{GENE}_analysis-bulk-rna-nsclc_idas.yaml` | iDAS alignment scores |
+| `{GENE}_analysis-bulk-rna-nsclc_suitability.csv` | 3-phase subgroup suitability scores |
+| `{GENE}_analysis-bulk-rna-nsclc_tcga-stats.csv` | TCGA cohort expression statistics |
+| `{GENE}_analysis-bulk-rna-nsclc_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `{GENE}_analysis-bulk-rna-nsclc_mutation-stats.csv` | Mutation-status expression (KRAS, EGFR, STK11, KEAP1) |
+| `figures/{GENE}_analysis-bulk-rna-nsclc_panel-NN.png` | Individual high-res panel figures (8 panels, 300 DPI) |
+| `figures/{GENE}_analysis-bulk-rna-nsclc_suitability.png` | Subgroup suitability heatmap |
 
 ## Advanced Features
 

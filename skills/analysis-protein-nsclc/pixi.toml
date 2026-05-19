@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "analysis-protein-nsclc"
 version = "0.1.0"
 description = "NSCLC protein analysis using Human Protein Atlas data"
