@@ -18,8 +18,8 @@ A collection of Claude Code skills for oncology target evaluation and RNA-seq an
 |-------|-------------|--------|
 | [analysis-bulk-rna-crc](skills/analysis-bulk-rna-crc/) | Comprehensive CRC analysis with TCGA + Tempus RWD (>200K patients), iDAS alignment | Implemented |
 | [analysis-bulk-rna-nsclc](skills/analysis-bulk-rna-nsclc/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
-| [analysis-protein-crc](skills/analysis-protein-crc/) | CRC protein expression analysis from Human Protein Atlas | Planned |
-| [analysis-protein-nsclc](skills/analysis-protein-nsclc/) | NSCLC protein expression analysis from Human Protein Atlas | Planned |
+| [analysis-protein-crc](skills/analysis-protein-crc/) | CRC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
+| [analysis-protein-nsclc](skills/analysis-protein-nsclc/) | NSCLC protein expression analysis from Human Protein Atlas (IHC, subcellular localization, modality recommendation) | Implemented |
 | [analysis-sc-rna-crc](skills/analysis-sc-rna-crc/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
 | [analysis-sc-rna-nsclc](skills/analysis-sc-rna-nsclc/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
 | [workflow-target-evaluation-onc](skills/workflow-target-evaluation-onc/) | Full 4-step therapeutic target evaluation workflow with PDF report generation | Implemented |
@@ -45,6 +45,7 @@ The `workflow-target-evaluation-onc` skill provides a comprehensive 4-step pipel
 - **Primary metric**: Tumor vs Adjacent Normal expression (predicts on-target toxicity)
 - **iDAS strategic alignment**: Automatic whitespace scoring for CRC and NSCLC
 - **Tempus RWD integration**: Line-of-therapy stratification (CRC: >200K patients, NSCLC: ~1,800 patients)
+- **Protein analysis**: Human Protein Atlas integration for IHC, RNA-protein concordance, subcellular localization, and modality recommendation (CRC + NSCLC)
 - **Output**: Professional PDF report with Go/No-Go recommendation
 
 ## Repository Structure
@@ -65,6 +66,16 @@ The `workflow-target-evaluation-onc` skill provides a comprehensive 4-step pipel
 │   │   ├── pixi.toml
 │   │   └── scripts/
 │   │       └── nsclc_comprehensive_analysis.py
+│   ├── analysis-protein-crc/
+│   │   ├── SKILL.md
+│   │   ├── pixi.toml
+│   │   └── scripts/
+│   │       └── crc_protein_analysis.py
+│   ├── analysis-protein-nsclc/
+│   │   ├── SKILL.md
+│   │   ├── pixi.toml
+│   │   └── scripts/
+│   │       └── nsclc_protein_analysis.py
 │   ├── analysis-sc-rna-crc/
 │   │   └── SKILL.md
 │   ├── analysis-sc-rna-nsclc/
@@ -182,12 +193,14 @@ All output files follow a consistent naming pattern for traceability:
 - **GTEx**: Normal colon tissue baseline
 - **CCLE**: CRC cell line expression
 - **Tempus RWD**: >200,000 patients with line-of-therapy stratification
+- **Human Protein Atlas v25**: IHC expression for GI toxicity assessment, subcellular localization, RNA-protein concordance, COAD/READ prognostic data
 
 ### NSCLC Analysis
 - **TCGA-LUAD/LUSC**: Tumor and adjacent normal (on-target toxicity assessment)
 - **GTEx**: Normal lung tissue baseline
 - **CCLE**: NSCLC cell line expression
 - **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
+- **Human Protein Atlas v25**: IHC expression for lung toxicity assessment, subcellular localization, RNA-protein concordance, LUAD/LUSC prognostic data
 
 ## Installation
 
