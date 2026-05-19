@@ -47,12 +47,17 @@ pixi run python crc_comprehensive_analysis.py --genes TNFRSF12A --skip-tempus
 
 ## Output Files
 
+Filenames follow `{GENE}_analysis-bulk-rna-crc_{type}.{ext}`.
+
 | File | Description |
 |------|-------------|
-| `{GENE}_comprehensive_analysis.png` | 8-panel expression figure |
-| `{GENE}_comprehensive_report.md` | Full analysis report |
-| `{GENE}_idas_assessment.yaml` | iDAS alignment data |
-| `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistics |
+| `{GENE}_analysis-bulk-rna-crc_figure.png` | 8-panel expression figure |
+| `{GENE}_analysis-bulk-rna-crc_report.md` | Full analysis report |
+| `{GENE}_analysis-bulk-rna-crc_idas.yaml` | iDAS alignment data |
+| `{GENE}_analysis-bulk-rna-crc_suitability.csv` | 3-phase subgroup suitability scores |
+| `{GENE}_analysis-bulk-rna-crc_tcga-stats.csv` | TCGA cohort expression statistics |
+| `{GENE}_analysis-bulk-rna-crc_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `figures/{GENE}_analysis-bulk-rna-crc_panel-NN.png` | Individual panel figures (300 DPI) |
 
 ## Data Sources
 

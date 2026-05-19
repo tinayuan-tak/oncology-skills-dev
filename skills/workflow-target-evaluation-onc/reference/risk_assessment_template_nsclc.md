@@ -525,8 +525,8 @@ Assess target alignment with these strategic priorities:
 
 ## Subgroup Suitability Analysis
 
-**Data Source:** `{GENE}_subgroup_suitability.csv` from `nsclc_comprehensive_analysis.py`
-**Visualization:** `figures/{GENE}_subgroup_suitability.png`
+**Data Source:** `{GENE}_analysis-bulk-rna-nsclc_suitability.csv` from `nsclc_comprehensive_analysis.py`
+**Visualization:** `figures/{GENE}_analysis-bulk-rna-nsclc_suitability.png`
 
 This analysis integrates histology, mutation status, and iDAS whitespace alignment to identify optimal patient populations and potential exclusion criteria.
 

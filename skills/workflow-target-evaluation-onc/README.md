@@ -132,21 +132,38 @@ Export to `{GENE}_audit_trail.json` for full reproducibility verification.
 ## Output Files
 
 ### Per-Target Outputs
+
+All output filenames follow the convention `{GENE}_{skill-name}_{content-type}.{ext}`.
+
+**Step 1 — Risk Assessment (literature)**
 | File | Description |
 |------|-------------|
-| `{GENE}_integrated_target_report.md` | Final integrated report with ScholarEval |
 | `{GENE}_risk_assessment_{disease}.md` | 6-category risk assessment with literature |
-| `{GENE}_final_risk_report.pdf` | Professional 14-page PDF report |
-| `{GENE}_comprehensive_analysis.png` | 8-panel expression visualization |
-| `{GENE}_comprehensive_report.md` | Expression analysis report (Step 2 output) |
-| `{GENE}_subgroup_suitability.csv` | 3-phase subgroup suitability scores |
-| `{GENE}_scholareval.yaml` | Deterministic scoring output |
+
+**Step 2 — Multi-omics Expression (`analysis-bulk-rna-{disease}`)**
+| File | Description |
+|------|-------------|
+| `{GENE}_analysis-bulk-rna-{disease}_report.md` | Expression analysis report |
+| `{GENE}_analysis-bulk-rna-{disease}_idas.yaml` | iDAS whitespace alignment |
+| `{GENE}_analysis-bulk-rna-{disease}_suitability.csv` | 3-phase subgroup suitability scores |
+| `{GENE}_analysis-bulk-rna-{disease}_tcga-stats.csv` | TCGA cohort expression statistics |
+| `{GENE}_analysis-bulk-rna-{disease}_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `{GENE}_analysis-bulk-rna-{disease}_figure.png` | 8-panel expression visualization |
+
+**Step 3 — ScholarEval Scoring**
+| File | Description |
+|------|-------------|
+| `{GENE}_scholareval.yaml` | Deterministic 8-dimension scoring output |
 | `{GENE}_audit_trail.json` | Full scoring audit trail |
-| `{GENE}_risk_assessment_figure.png` | Risk category visualization |
-| `{GENE}_scholar_eval_figure.png` | ScholarEval scoring visualization |
-| `{GENE}_tcga_statistics.csv` | TCGA cohort expression statistics |
-| `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistical comparisons |
-| `{GENE}_idas_assessment.yaml` | iDAS whitespace alignment |
+
+**Step 4 — Integrated Report (`workflow-target-evaluation-onc`)**
+| File | Description |
+|------|-------------|
+| `{GENE}_workflow-target-evaluation-onc_report.md` | Final integrated report (markdown source) |
+| `{GENE}_workflow-target-evaluation-onc_report.pdf` | Professional PDF report |
+| `{GENE}_workflow-target-evaluation-onc_slide.{png,pdf}` | Landscape executive summary slide |
+| `{GENE}_workflow-target-evaluation-onc_risk.png` | 6-category risk visualization |
+| `{GENE}_workflow-target-evaluation-onc_scholareval.png` | ScholarEval scoring visualization |
 
 ### PDF Report Structure (14 pages)
 | Page | Content |

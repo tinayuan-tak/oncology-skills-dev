@@ -84,14 +84,18 @@ Expression stratified by CMS1-4 molecular subtypes.
 
 ## Output Files
 
-For each gene analyzed:
+For each gene analyzed (filenames follow `{GENE}_analysis-bulk-rna-crc_{type}.{ext}`):
 
 | File | Description |
 |------|-------------|
-| `{GENE}_comprehensive_analysis.png` | 8-panel summary figure |
-| `{GENE}_comprehensive_report.md` | Full analysis report |
-| `{GENE}_idas_assessment.yaml` | iDAS alignment scores |
-| `{GENE}_pairwise_comparisons.csv` | Tumor vs Normal statistics |
+| `{GENE}_analysis-bulk-rna-crc_figure.png` | 8-panel summary figure |
+| `{GENE}_analysis-bulk-rna-crc_report.md` | Full analysis report |
+| `{GENE}_analysis-bulk-rna-crc_idas.yaml` | iDAS alignment scores |
+| `{GENE}_analysis-bulk-rna-crc_suitability.csv` | 3-phase subgroup suitability scores |
+| `{GENE}_analysis-bulk-rna-crc_tcga-stats.csv` | TCGA cohort expression statistics |
+| `{GENE}_analysis-bulk-rna-crc_comparisons.csv` | Tumor vs Normal statistical comparisons |
+| `figures/{GENE}_analysis-bulk-rna-crc_panel-NN.png` | Individual high-res panel figures (8 panels, 300 DPI) |
+| `figures/{GENE}_analysis-bulk-rna-crc_suitability.png` | Subgroup suitability heatmap |
 
 ## Advanced Features
 

@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "analysis-protein-crc"
 version = "0.1.0"
 description = "CRC protein analysis using Human Protein Atlas data"
