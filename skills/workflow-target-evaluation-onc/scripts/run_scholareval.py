@@ -14,6 +14,7 @@ This script ensures deterministic scoring by:
 """
 
 import argparse
+import csv
 import yaml
 import re
 import sys
@@ -22,6 +23,54 @@ from typing import Dict, Any, Optional
 
 # Import scoring engine from same directory
 from scoring_engine import ScoringEngine, ScholarEvalResult
+
+
+def _resolve_step2_input(output_dir: Path, gene: str, disease: str, kind: str) -> Optional[Path]:
+    """
+    Resolve Step 2 output paths supporting both ai-sci and legacy naming.
+
+    kind: 'idas' | 'report' | 'tcga_stats'
+    Prefers the new ai-sci-style filenames, falls back to legacy names so
+    older fixtures and pre-rename outputs remain compatible.
+    """
+    skill_name = f"analysis-bulk-rna-{disease}"
+    candidates = {
+        "idas": [
+            f"{gene}_{skill_name}_idas.yaml",       # new ai-sci
+            f"{gene}_idas_assessment.yaml",         # legacy
+        ],
+        "report": [
+            f"{gene}_{skill_name}_report.md",       # new ai-sci
+            f"{gene}_comprehensive_report.md",      # legacy
+        ],
+        "tcga_stats": [
+            f"{gene}_{skill_name}_tcga-stats.csv",  # new ai-sci
+            f"{gene}_tcga_statistics.csv",          # legacy
+        ],
+    }[kind]
+
+    for name in candidates:
+        path = output_dir / name
+        if path.exists():
+            return path
+    return None
+
+
+def parse_tcga_stats_csv(stats_file: Path) -> Dict[str, Any]:
+    """
+    Parse the TCGA cohort statistics CSV to extract per-cohort medians directly.
+    Avoids fragile markdown-table regex that confused n-count and median columns.
+    """
+    medians: Dict[str, float] = {}
+    with open(stats_file, newline="") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            cohort = row.get("cohort", "").strip()
+            try:
+                medians[cohort] = float(row["median"])
+            except (KeyError, ValueError):
+                continue
+    return medians
 
 
 def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
@@ -128,48 +177,52 @@ def parse_idas_yaml(idas_file: Path) -> Dict[str, Any]:
 
 def parse_comprehensive_report(report_file: Path) -> Dict[str, Any]:
     """
-    Parse comprehensive report markdown to extract additional evidence.
+    Parse comprehensive report markdown for evidence not present in YAML or CSV.
+
+    Median expression values are NOT parsed here — they come from the structured
+    stats CSV via parse_tcga_stats_csv() to avoid markdown-table column-position
+    bugs (e.g. picking the n-count column when looking for the median column).
     """
     content = report_file.read_text()
-    evidence = {}
+    evidence: Dict[str, Any] = {}
 
-    # Extract tumor vs adjacent FC from tables
-    # Look for pattern like "log2FC: 0.72" or "log2FC = 1.01" or "| 0.44 |"
-    # Try multiple patterns
-
-    # Pattern 1: "On-Target Toxicity Risk** | Medium (log2FC: 0.72)"
-    fc_match = re.search(r'log2FC[:\s]+([0-9.-]+)', content, re.IGNORECASE)
+    # log2FC fallback: only used if the iDAS YAML didn't provide it.
+    # Anchor the match to the on-target toxicity executive summary row,
+    # not any "log2FC:" mention elsewhere in the report.
+    fc_match = re.search(
+        r'On-Target Toxicity[^|]*\|[^|]*log2FC[:\s]+([0-9.-]+)',
+        content,
+        re.IGNORECASE,
+    )
     if fc_match:
         log2fc = float(fc_match.group(1))
         evidence["tumor_vs_adjacent_log2fc"] = log2fc
         evidence["tumor_vs_adjacent_fc"] = 2 ** log2fc
 
-    # Pattern 2: Look in TCGA pairwise comparisons table
-    # "| TCGA_LUSC vs TCGA_LUSC_Adjacent | ... | 1.01 |"
-    lusc_match = re.search(r'LUSC.*Adjacent.*\|\s*([0-9.-]+)\s*\|', content)
-    luad_match = re.search(r'LUAD.*Adjacent.*\|\s*([0-9.-]+)\s*\|', content)
-
-    if lusc_match and luad_match:
-        lusc_fc = float(lusc_match.group(1))
-        luad_fc = float(luad_match.group(1))
-        avg_log2fc = (lusc_fc + luad_fc) / 2
-        evidence["tumor_vs_adjacent_log2fc"] = avg_log2fc
-        evidence["tumor_vs_adjacent_fc"] = 2 ** avg_log2fc
-        evidence["lusc_log2fc"] = lusc_fc
-        evidence["luad_log2fc"] = luad_fc
-
-    # Extract normal tissue median from statistics table
-    # "| TCGA_LUAD_Adjacent | 59 | 3.77 |"
-    normal_match = re.search(r'Adjacent\s*\|\s*\d+\s*\|\s*([0-9.]+)', content)
-    if normal_match:
-        evidence["normal_median_log2tpm"] = float(normal_match.group(1))
-
-    # Extract tumor median
-    tumor_match = re.search(r'TCGA_LUAD\s*\|\s*\d+\s*\|\s*([0-9.]+)', content)
-    if tumor_match:
-        evidence["tumor_median_log2tpm"] = float(tumor_match.group(1))
-
     return evidence
+
+
+def _select_tumor_median(medians: Dict[str, float], disease: str) -> Optional[float]:
+    """Pick the most relevant tumor cohort median for the disease."""
+    # Prefer a representative tumor cohort; for CRC and NSCLC the bulk RNA
+    # skill emits multiple molecular subgroups. We use the largest non-MSI-H,
+    # non-resectable MSS cohort as a reasonable single 'tumor' summary.
+    preference_order = {
+        "crc": ["TCGA_RASWT_MSS", "TCGA_RASMut_MSS", "TCGA_Tumor"],
+        "nsclc": ["TCGA_LUAD", "TCGA_LUSC", "TCGA_Tumor"],
+    }.get(disease.lower(), ["TCGA_Tumor"])
+    for cohort in preference_order:
+        if cohort in medians:
+            return medians[cohort]
+    return None
+
+
+def _select_normal_median(medians: Dict[str, float]) -> Optional[float]:
+    """Pick the adjacent-normal median; fall back to GTEx if absent."""
+    for cohort in ("TCGA_Adjacent", "GTEx_Colon", "GTEx_Lung"):
+        if cohort in medians:
+            return medians[cohort]
+    return None
 
 
 def run_scholareval(
@@ -186,19 +239,28 @@ def run_scholareval(
     3. Call scoring engine
     4. Export results with audit trail
     """
-    # Define expected input files
+    # Define expected input files (Step 1 risk assessment is single-named)
     risk_file = output_dir / f"{gene}_risk_assessment_{disease}.md"
-    idas_file = output_dir / f"{gene}_idas_assessment.yaml"
-    report_file = output_dir / f"{gene}_comprehensive_report.md"
+
+    # Step 2 outputs may use ai-sci or legacy naming; resolve either.
+    idas_file = _resolve_step2_input(output_dir, gene, disease, "idas")
+    report_file = _resolve_step2_input(output_dir, gene, disease, "report")
+    stats_file = _resolve_step2_input(output_dir, gene, disease, "tcga_stats")
 
     # Check required files exist
     missing = []
     if not risk_file.exists():
         missing.append(str(risk_file))
-    if not idas_file.exists():
-        missing.append(str(idas_file))
-    if not report_file.exists():
-        missing.append(str(report_file))
+    if idas_file is None:
+        missing.append(
+            f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_idas.yaml "
+            f"(or legacy {gene}_idas_assessment.yaml)"
+        )
+    if report_file is None:
+        missing.append(
+            f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_report.md "
+            f"(or legacy {gene}_comprehensive_report.md)"
+        )
 
     if missing:
         print(f"ERROR: Missing required input files:")
@@ -219,11 +281,22 @@ def run_scholareval(
     omics_evidence = parse_idas_yaml(idas_file)
     report_evidence = parse_comprehensive_report(report_file)
 
-    # Merge report evidence into omics
-    if "tumor_vs_adjacent_fc" in report_evidence:
+    # Merge report-derived log2FC only if the iDAS YAML did not already supply it.
+    if "tumor_vs_adjacent_fc" in report_evidence and \
+            omics_evidence["rna_expression"].get("tumor_vs_adjacent_fc", 1.0) == 1.0:
         omics_evidence["rna_expression"]["tumor_vs_adjacent_fc"] = report_evidence["tumor_vs_adjacent_fc"]
-    if "normal_median_log2tpm" in report_evidence:
-        omics_evidence["rna_expression"]["normal_median_log2tpm"] = report_evidence["normal_median_log2tpm"]
+
+    # Pull tumor and normal medians from the structured stats CSV. This
+    # replaces the previous markdown-regex extraction which mistakenly
+    # parsed n-count columns as expression values.
+    if stats_file is not None:
+        medians = parse_tcga_stats_csv(stats_file)
+        tumor_median = _select_tumor_median(medians, disease)
+        normal_median = _select_normal_median(medians)
+        if tumor_median is not None:
+            omics_evidence["rna_expression"]["tumor_median_log2tpm"] = tumor_median
+        if normal_median is not None:
+            omics_evidence["rna_expression"]["normal_median_log2tpm"] = normal_median
 
     if verbose:
         print("\nLiterature Evidence:")
