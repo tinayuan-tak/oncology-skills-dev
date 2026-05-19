@@ -1,6 +1,23 @@
 ---
 name: crc-protein-analysis
-description: Use when analyzing protein expression data for colorectal cancer targets. Triggers include protein expression analysis for CRC, Human Protein Atlas analysis, IHC staining analysis, subcellular localization, modality recommendation for CRC targets, or on-target toxicity assessment at protein level. Generates comprehensive protein analysis report with GI toxicity risk, RNA-protein correlation, subcellular location, and modality recommendations.
+description:
+  Use when analyzing protein expression data for colorectal cancer targets.
+  Triggers include protein expression analysis for CRC, Human Protein Atlas
+  analysis, IHC staining analysis, subcellular localization, modality
+  recommendation for CRC targets, or on-target toxicity assessment at protein
+  level. Generates comprehensive protein analysis report with GI toxicity risk,
+  RNA-protein correlation, subcellular location, and modality recommendations.
+  Do NOT use for RNA differential expression - use crc-bulk-rna-analysis
+  instead. Do NOT use for protein structure prediction or AlphaFold modeling -
+  use tool-protein-structure-prediction instead. Do NOT use for protein-protein
+  interaction networks - use data-kg-interactome instead. Do NOT use for NSCLC
+  or other indications - use nsclc-protein-analysis or the corresponding
+  disease-specific skill instead.
+metadata:
+  version: 0.1.0
+  owner: ming-ju.tsai@takeda.com
+  environment: shared
+  requires_preflight: false
 ---
 
 # CRC Protein Analysis (Human Protein Atlas)
@@ -63,16 +80,31 @@ Analyze protein expression data from Human Protein Atlas for colorectal cancer t
 
 Based on TCGA survival analysis for Colon Adenocarcinoma.
 
+## Prerequisites
+
+This skill requires preprocessed Human Protein Atlas (HPA) v25 data filtered
+for CRC-relevant tissues. Six TSV files are expected in `--data-dir`:
+
+| File | Approx. size |
+|------|--------------|
+| `crc_normal_ihc.tsv` | ~30 MB |
+| `crc_rna_tissue.tsv` | ~12 MB |
+| `crc_prognostic.tsv` | ~5 MB |
+| `crc_cancer_ihc.tsv` | ~1 MB |
+| `crc_cptac.tsv` | ~1 MB |
+| `subcellular_location.tsv` | ~2 MB |
+
+Total: ~50 MB on disk. Generate from full HPA v25 via `preprocess_hpa_crc.py`
+(see "Data Preprocessing" below). No API keys or external credentials required.
+
 ## Implementation
 
 ### Step 0: Setup Environment
 
+Run pixi from the skill directory (do not copy lockfiles into your CWD):
+
 ```bash
-# Copy pixi files if not present
-if [ ! -f "pixi.toml" ]; then
-    cp "$SKILL_BASE_DIR/pixi.toml" ./
-    cp "$SKILL_BASE_DIR/pixi.lock" ./
-fi
+cd "$SKILL_BASE_DIR"
 pixi install
 ```
 

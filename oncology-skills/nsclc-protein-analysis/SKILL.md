@@ -1,6 +1,23 @@
 ---
 name: nsclc-protein-analysis
-description: Use when analyzing protein expression data for NSCLC targets. Triggers include protein expression analysis for NSCLC/lung cancer, Human Protein Atlas analysis, IHC staining analysis, subcellular localization, modality recommendation for NSCLC targets, or on-target toxicity assessment at protein level. Generates comprehensive protein analysis report with lung toxicity risk, RNA-protein correlation, subcellular location, and modality recommendations.
+description:
+  Use when analyzing protein expression data for NSCLC targets. Triggers
+  include protein expression analysis for NSCLC/lung cancer, Human Protein
+  Atlas analysis, IHC staining analysis, subcellular localization, modality
+  recommendation for NSCLC targets, or on-target toxicity assessment at
+  protein level. Generates comprehensive protein analysis report with lung
+  toxicity risk, RNA-protein correlation, subcellular location, and modality
+  recommendations. Do NOT use for RNA differential expression - use
+  nsclc-bulk-rna-analysis instead. Do NOT use for protein structure prediction
+  or AlphaFold modeling - use tool-protein-structure-prediction instead. Do
+  NOT use for protein-protein interaction networks - use data-kg-interactome
+  instead. Do NOT use for CRC or other indications - use crc-protein-analysis
+  or the corresponding disease-specific skill instead.
+metadata:
+  version: 0.1.0
+  owner: ming-ju.tsai@takeda.com
+  environment: shared
+  requires_preflight: false
 ---
 
 # NSCLC Protein Analysis (Human Protein Atlas)
@@ -57,15 +74,31 @@ Based on TCGA survival analysis for:
 - Lung Adenocarcinoma (LUAD)
 - Lung Squamous Cell Carcinoma (LUSC)
 
+## Prerequisites
+
+This skill requires preprocessed Human Protein Atlas (HPA) v25 data filtered
+for NSCLC-relevant tissues. Six TSV files are expected in `--data-dir`:
+
+| File | Approx. size |
+|------|--------------|
+| `nsclc_normal_ihc.tsv` | ~40 MB |
+| `nsclc_rna_tissue.tsv` | ~13 MB |
+| `nsclc_prognostic.tsv` | ~5 MB |
+| `nsclc_cancer_ihc.tsv` | ~1 MB |
+| `nsclc_cptac.tsv` | ~3 MB |
+| `subcellular_location.tsv` | ~2 MB |
+
+Total: ~65 MB on disk. Generate from full HPA v25 via `preprocess_hpa_nsclc.py`
+(see "Data Preprocessing" below). No API keys or external credentials required.
+
 ## Implementation
 
 ### Step 0: Setup Environment
 
+Run pixi from the skill directory (do not copy lockfiles into your CWD):
+
 ```bash
-if [ ! -f "pixi.toml" ]; then
-    cp "$SKILL_BASE_DIR/pixi.toml" ./
-    cp "$SKILL_BASE_DIR/pixi.lock" ./
-fi
+cd "$SKILL_BASE_DIR"
 pixi install
 ```
 
