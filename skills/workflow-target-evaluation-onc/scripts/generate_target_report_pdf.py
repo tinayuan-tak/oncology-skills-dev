@@ -589,6 +589,511 @@ def add_high_res_figure(pdf, img_path, title, caption):
     return False
 
 
+_RISK_LEVEL_FILL = {
+    'LOW': '#e8f5e9',
+    'MEDIUM': '#fff8e1',
+    'HIGH': '#ffebee',
+    'STRONG': '#e8f5e9',
+    'WEAK': '#ffebee',
+    'MODERATE': '#fff8e1',
+    'PRIORITY': '#e8f5e9',
+    'GO': '#e8f5e9',
+    'INCLUDE': '#e8f5e9',
+    'CONDITIONAL': '#fff8e1',
+    'NEUTRAL': '#fff8e1',
+    'CAUTION': '#ffebee',
+    'EXCLUDE': '#ffebee',
+    'NO-GO': '#ffebee',
+}
+_RISK_LEVEL_TEXT = {
+    'LOW': '#1b5e20',
+    'MEDIUM': '#e65100',
+    'HIGH': '#b71c1c',
+    'STRONG': '#1b5e20',
+    'WEAK': '#b71c1c',
+    'MODERATE': '#e65100',
+    'PRIORITY': '#1b5e20',
+    'GO': '#1b5e20',
+    'INCLUDE': '#1b5e20',
+    'CONDITIONAL': '#e65100',
+    'NEUTRAL': '#e65100',
+    'CAUTION': '#b71c1c',
+    'EXCLUDE': '#b71c1c',
+    'NO-GO': '#b71c1c',
+}
+
+
+def _wrap_cell(text, width):
+    """Wrap a cell value into multi-line text, returning a single string with \n.
+
+    Character-budget-based wrapping. Used as a quick fallback only; the
+    pixel-aware wrapper (_pixel_aware_wrap) is preferred because it
+    measures actual rendered widths and avoids overflow even with bold or
+    wide-glyph text.
+    """
+    import textwrap
+    if text is None:
+        return ''
+    raw = str(text).strip()
+    if not raw:
+        return ''
+    lines = []
+    for paragraph in raw.split('\n'):
+        if not paragraph.strip():
+            continue
+        max_token_len = max((len(tok) for tok in paragraph.split()), default=0)
+        wrapped = textwrap.wrap(
+            paragraph, width=width,
+            break_long_words=(max_token_len > width),
+            break_on_hyphens=True,
+        ) or ['']
+        lines.extend(wrapped)
+    return '\n'.join(lines)
+
+
+def _measure_text_width_inches(text, fontsize, fontweight, fig):
+    """Return the rendered width of `text` in inches.
+
+    Uses matplotlib's get_window_extent against the figure's renderer to
+    measure actual glyph widths (not character counts). The figure must
+    have an active renderer (call after fig.canvas.draw() or pass a fig
+    that's been rendered once).
+    """
+    if not text:
+        return 0.0
+    try:
+        renderer = fig.canvas.get_renderer()
+    except AttributeError:
+        # Some backends (e.g. agg in headless mode before draw) need a draw.
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+    # Place text invisibly off-canvas to measure it.
+    txt = fig.text(-10, -10, text, fontsize=fontsize, fontweight=fontweight)
+    bbox = txt.get_window_extent(renderer=renderer)
+    txt.remove()
+    # window_extent is in display pixels; convert to inches via fig dpi.
+    return bbox.width / fig.dpi
+
+
+def _pixel_aware_wrap(text, cell_width_inches, fontsize, fontweight, fig):
+    """Wrap `text` so each line's rendered width fits within cell_width_inches.
+
+    Greedy word-by-word fitting: build lines by adding words one at a time,
+    rolling back to the previous line break when the line's measured width
+    exceeds the cell width. Breaks long tokens character-by-character only
+    when a single token alone exceeds the cell width (rare; e.g. extremely
+    long PMID lists or URLs).
+
+    Returns a single string with embedded \n. Empty input returns ''.
+    Multiple paragraphs (separated by \n) are wrapped independently and
+    rejoined with single newlines.
+    """
+    if text is None:
+        return ''
+    raw = str(text).strip()
+    if not raw:
+        return ''
+    # Reserve ~0.15 inches of horizontal padding (one side of the cell)
+    # so wrapped text stays inside the cell after savefig(bbox_inches=
+    # 'tight') and downstream rasterization slightly rescale the figure.
+    # 0.15 in ≈ 1 char at 9pt — small enough not to over-shrink narrow
+    # columns ("MEDIUM"), large enough to absorb the rendering pipeline's
+    # geometric drift.
+    available = max(0.15, cell_width_inches - 0.15)
+
+    def fits(s):
+        return _measure_text_width_inches(s, fontsize, fontweight, fig) <= available
+
+    def break_long_token(token):
+        """Split a single oversized token at character boundaries that fit."""
+        chunks = []
+        current = ''
+        for ch in token:
+            candidate = current + ch
+            if fits(candidate):
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current)
+                current = ch
+        if current:
+            chunks.append(current)
+        return chunks
+
+    output_lines = []
+    for paragraph in raw.split('\n'):
+        if not paragraph.strip():
+            continue
+        words = paragraph.split()
+        line = ''
+        for word in words:
+            # If even a single word doesn't fit alone, character-break it.
+            if not fits(word):
+                if line:
+                    output_lines.append(line)
+                    line = ''
+                output_lines.extend(break_long_token(word))
+                continue
+            candidate = (line + ' ' + word) if line else word
+            if fits(candidate):
+                line = candidate
+            else:
+                if line:
+                    output_lines.append(line)
+                line = word
+        if line:
+            output_lines.append(line)
+    return '\n'.join(output_lines) if output_lines else ''
+
+
+def render_table_page(pdf, title, headers, rows, col_widths=None,
+                      color_col=None, subtitle=None, footer=None):
+    """Render a styled table on one or more PDF pages, paginating as needed.
+
+    Builds the table manually with FancyBboxPatch cells and ax.text per cell
+    so each row's height matches its actual wrapped content. Avoids the
+    matplotlib ax.table() clipping bug where multi-line cells overflow into
+    the next row's visual space.
+
+    Args:
+        pdf: matplotlib PdfPages object
+        title: page title (string, displayed at top)
+        headers: list of column header strings
+        rows: list of row tuples (each same length as headers)
+        col_widths: optional list of relative widths summing to 1.0;
+            defaults to equal widths
+        color_col: optional column index whose cell value selects a row
+            background color via _RISK_LEVEL_FILL (e.g. LOW/MEDIUM/HIGH).
+        subtitle: optional one-line subtitle below the title
+        footer: optional one-line footer
+    """
+    n_cols = len(headers)
+    if col_widths is None:
+        col_widths = [1.0 / n_cols] * n_cols
+    assert len(col_widths) == n_cols, "col_widths must match headers length"
+
+    # Layout constants (in axes fraction). Need these before pixel-aware
+    # wrapping so we can compute each column's pixel width.
+    table_left = 0.04
+    table_right = 0.96
+    table_width = table_right - table_left
+    body_fontsize = 8
+    header_fontsize = 8.5
+    line_height = 0.017  # vertical space per text line at 8pt
+    cell_v_pad = 0.008
+    cell_h_pad = 0.008
+    header_color = '#1B365D'
+    grid_color = '#cccccc'
+
+    # Pixel-perfect column edges (axes fraction).
+    col_edges = [table_left]
+    for w in col_widths:
+        col_edges.append(col_edges[-1] + w * table_width)
+
+    # Conservative char-based wrapping. Empirically tuned to keep wrapped
+    # text inside cell boundaries even with bold glyphs. Char budget is
+    # ~13 chars per inch at 8pt body text (matplotlib's default sans-serif
+    # measures ~12-14 chars/inch depending on the chars), with one char
+    # per side reserved for cell padding.
+    page_w_in = 8.5
+    chars_per_inch = 13
+    col_widths_in = [w * table_width * page_w_in for w in col_widths]
+    per_col_body_chars = [
+        max(6, int((w_in - 0.15) * chars_per_inch))
+        for w_in in col_widths_in
+    ]
+    # Headers use slightly bigger bold font, so allocate ~10% fewer chars.
+    per_col_header_chars = [
+        max(5, int((w_in - 0.15) * chars_per_inch * 0.90))
+        for w_in in col_widths_in
+    ]
+    wrapped_rows = [
+        [_wrap_cell(cell, per_col_body_chars[i]) for i, cell in enumerate(row)]
+        for row in rows
+    ]
+    wrapped_headers = [
+        _wrap_cell(h, per_col_header_chars[i])
+        for i, h in enumerate(headers)
+    ]
+
+    def row_block_height(row_lines):
+        """Required vertical height for a row given each cell's line count."""
+        max_lines = max(row_lines) if row_lines else 1
+        return max_lines * line_height + 2 * cell_v_pad
+
+    header_lines = [h.count('\n') + 1 for h in wrapped_headers]
+    header_h = row_block_height(header_lines)
+    row_block_heights = [
+        row_block_height([cell.count('\n') + 1 for cell in row])
+        for row in wrapped_rows
+    ]
+
+    bottom_margin = 0.05
+    page_idx = 0
+    row_idx = 0
+
+    while row_idx < len(wrapped_rows) or page_idx == 0:
+        fig, ax = plt.subplots(figsize=(8.5, 11))
+        ax.axis('off')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        page_title = title + (' (cont.)' if page_idx > 0 else '')
+        ax.text(0.5, 0.965, page_title, fontsize=15, fontweight='bold',
+                ha='center', transform=ax.transAxes, color=header_color)
+        y_top = 0.93
+        if subtitle and page_idx == 0:
+            ax.text(0.5, 0.945, subtitle, fontsize=10, style='italic',
+                    ha='center', transform=ax.transAxes, color='#666')
+            y_top = 0.92
+        if footer:
+            ax.text(0.5, 0.02, footer, fontsize=8, style='italic',
+                    ha='center', transform=ax.transAxes, color='#888')
+
+        # Header.
+        y_cursor = y_top
+        ax.add_patch(mpatches.Rectangle(
+            (table_left, y_cursor - header_h), table_width, header_h,
+            facecolor=header_color, edgecolor=grid_color, linewidth=0.6,
+            transform=ax.transAxes,
+        ))
+        # White vertical separator lines between header columns - makes
+        # column boundaries unambiguous even when bold header text extends
+        # to the column's right edge.
+        for x in col_edges[1:-1]:
+            ax.plot([x, x], [y_cursor - header_h, y_cursor],
+                    color='white', linewidth=0.8, transform=ax.transAxes)
+        for i, htext in enumerate(wrapped_headers):
+            ax.text(col_edges[i] + cell_h_pad,
+                    y_cursor - cell_v_pad,
+                    htext,
+                    fontsize=header_fontsize, fontweight='bold',
+                    ha='left', va='top', color='white',
+                    transform=ax.transAxes)
+        y_cursor -= header_h
+
+        # Body rows for this page.
+        rows_on_page = 0
+        while row_idx < len(wrapped_rows):
+            row_h = row_block_heights[row_idx]
+            if y_cursor - row_h < bottom_margin:
+                break  # paginate
+            row = wrapped_rows[row_idx]
+            # Background color.
+            if color_col is not None and color_col < n_cols:
+                level = (row[color_col] or '').strip().upper().strip('* ').split('\n')[0]
+                fill = _RISK_LEVEL_FILL.get(
+                    level, '#fafafa' if rows_on_page % 2 == 0 else '#f0f0f0')
+            else:
+                fill = '#fafafa' if rows_on_page % 2 == 0 else '#f0f0f0'
+            ax.add_patch(mpatches.Rectangle(
+                (table_left, y_cursor - row_h), table_width, row_h,
+                facecolor=fill, edgecolor=grid_color, linewidth=0.4,
+                transform=ax.transAxes,
+            ))
+            # Vertical column separators.
+            for x in col_edges[1:-1]:
+                ax.plot([x, x], [y_cursor - row_h, y_cursor],
+                        color=grid_color, linewidth=0.4, transform=ax.transAxes)
+            # Cell text.
+            for i, cell in enumerate(row):
+                txt_color = '#2c3e50'
+                weight = 'normal'
+                if color_col is not None and i == color_col:
+                    level = (cell or '').strip().upper().strip('* ').split('\n')[0]
+                    if level in _RISK_LEVEL_TEXT:
+                        txt_color = _RISK_LEVEL_TEXT[level]
+                        weight = 'bold'
+                ax.text(col_edges[i] + cell_h_pad,
+                        y_cursor - cell_v_pad,
+                        cell,
+                        fontsize=body_fontsize,
+                        fontweight=weight,
+                        ha='left', va='top', color=txt_color,
+                        transform=ax.transAxes)
+            y_cursor -= row_h
+            rows_on_page += 1
+            row_idx += 1
+
+        pdf.savefig(fig, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        page_idx += 1
+        # Defensive: avoid infinite loop if a single row is taller than a page
+        # (extremely unlikely with our data; would need ~25 wrapped lines).
+        if rows_on_page == 0 and row_idx < len(wrapped_rows):
+            row_idx += 1
+
+
+def _build_narrative_blocks(body_text):
+    """Convert markdown narrative into a list of (kind, text) rendering blocks.
+
+    kind in {'subheading', 'paragraph', 'bullet'}. Bullets are emitted one per
+    block so the renderer can keep tight inter-bullet spacing without merging
+    paragraphs. Markdown emphasis (**bold**, *italic*) markers are stripped.
+    """
+    blocks = []
+    paragraphs = re.split(r'\n\s*\n', body_text)
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
+            continue
+        # Subheading: ### or #### markdown headers.
+        m = re.match(r'^(#{2,4})\s+(.+)$', para)
+        if m and '\n' not in para:
+            text = re.sub(r'\*\*([^*]+)\*\*', r'\1', m.group(2))
+            blocks.append(('subheading', text))
+            continue
+        # Bullet block: every non-empty line starts with - / * / N.
+        lines = [ln for ln in para.split('\n') if ln.strip()]
+        is_bullets = bool(lines) and all(
+            ln.lstrip().startswith(('-', '*', '•'))
+            or re.match(r'^\s*\d+\.\s', ln)
+            for ln in lines
+        )
+        if is_bullets:
+            for ln in lines:
+                clean = re.sub(r'^\s*[-*]\s+', '• ', ln)
+                clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean)
+                clean = re.sub(r'(?<!\*)\*([^*\n]+)\*(?!\*)', r'\1', clean)
+                blocks.append(('bullet', clean))
+            continue
+        # Paragraph (may contain manual line breaks; treat each line separately).
+        clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', para)
+        clean = re.sub(r'(?<!\*)\*([^*\n]+)\*(?!\*)', r'\1', clean)
+        blocks.append(('paragraph', clean))
+    return blocks
+
+
+def render_narrative_page(pdf, title, body_text, subtitle=None):
+    """Render markdown narrative as one or more proportional-font PDF pages.
+
+    Splits ### / #### subheaders into bold blue subheadings, bullet blocks
+    into compact bullet lists, and paragraphs into wrapped text. Paginates
+    automatically when content overflows a single page.
+    """
+    import textwrap
+
+    blocks = _build_narrative_blocks(body_text)
+
+    body_fontsize = 10.5
+    line_height = 0.0225
+    para_gap = 0.014
+    bullet_gap = 0.004
+    sub_gap = 0.008
+    body_color = '#2c3e50'
+    sub_color = '#1B365D'
+
+    def open_page(continuation=False):
+        fig, ax = plt.subplots(figsize=(8.5, 11))
+        ax.axis('off')
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        page_title = title + (' (cont.)' if continuation else '')
+        ax.text(0.5, 0.965, page_title, fontsize=16, fontweight='bold',
+                ha='center', transform=ax.transAxes, color=sub_color)
+        if subtitle and not continuation:
+            ax.text(0.5, 0.94, subtitle, fontsize=10, style='italic',
+                    ha='center', transform=ax.transAxes, color='#666')
+            return fig, ax, 0.91
+        return fig, ax, 0.93
+
+    def write(ax, y, text, fontsize, fontweight='normal', color='#2c3e50',
+              indent=0.06, wrap_width=92):
+        wrapped = textwrap.wrap(text, width=wrap_width,
+                                 subsequent_indent='  ' if text.startswith('• ') else '') or ['']
+        for line in wrapped:
+            ax.text(indent, y, line, fontsize=fontsize, fontweight=fontweight,
+                    ha='left', va='top', transform=ax.transAxes, color=color)
+            y -= line_height
+        return y
+
+    fig, ax, y = open_page()
+    bottom_margin = 0.06
+
+    for kind, text in blocks:
+        # Estimate space needed for this block.
+        if kind == 'subheading':
+            needed = line_height + sub_gap
+        elif kind == 'bullet':
+            wrapped = textwrap.wrap(text, width=92) or ['']
+            needed = len(wrapped) * line_height + bullet_gap
+        else:  # paragraph
+            wrapped = textwrap.wrap(text, width=95) or ['']
+            needed = len(wrapped) * line_height + para_gap
+
+        if y - needed < bottom_margin:
+            pdf.savefig(fig, dpi=300, bbox_inches='tight')
+            plt.close(fig)
+            fig, ax, y = open_page(continuation=True)
+
+        if kind == 'subheading':
+            y -= sub_gap  # extra breathing room before subheading
+            y = write(ax, y, text, fontsize=12.5, fontweight='bold',
+                      color=sub_color, indent=0.05, wrap_width=85)
+            y -= sub_gap
+        elif kind == 'bullet':
+            y = write(ax, y, text, fontsize=body_fontsize, color=body_color,
+                      indent=0.06, wrap_width=92)
+            y -= bullet_gap
+        else:
+            for raw_line in text.split('\n'):
+                if not raw_line.strip():
+                    continue
+                y = write(ax, y, raw_line.strip(), fontsize=body_fontsize,
+                          color=body_color, indent=0.06, wrap_width=95)
+            y -= para_gap
+
+    pdf.savefig(fig, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
+
+def _extract_markdown_section_n(content, section_number):
+    """Extract the body of a markdown `## N.` (or `## N. Title`) section.
+
+    Returns the text between the `## N.` heading and the next `## ` heading
+    (or end-of-document). Empty string if not found.
+    """
+    pattern = re.compile(
+        rf'^##\s+{section_number}\.\s+[^\n]*\n(.*?)(?=^##\s|\Z)',
+        re.DOTALL | re.MULTILINE,
+    )
+    match = pattern.search(content)
+    return match.group(1).strip() if match else ''
+
+
+def _extract_markdown_table_rows(section_body, header_keywords):
+    """Pull rows from the first markdown table whose header matches all keywords.
+
+    header_keywords: list of strings that must each appear in the header row
+        (case-insensitive). Lets us pick the right table when a section has
+        multiple tables.
+
+    Returns (headers, rows) where each is a list of cell strings.
+    """
+    lines = section_body.split('\n')
+    for i, line in enumerate(lines):
+        if not line.strip().startswith('|'):
+            continue
+        cells = [c.strip() for c in line.strip('|').split('|')]
+        lower = [c.lower() for c in cells]
+        if all(any(kw.lower() in cell for cell in lower) for kw in header_keywords):
+            headers = cells
+            # Skip the separator line (---|---).
+            j = i + 1
+            if j < len(lines) and re.match(r'^\|\s*[-:|\s]+\|', lines[j]):
+                j += 1
+            rows = []
+            while j < len(lines) and lines[j].strip().startswith('|'):
+                row_cells = [c.strip() for c in lines[j].strip('|').split('|')]
+                if len(row_cells) == len(headers):
+                    # Strip markdown bold from cell content.
+                    row_cells = [re.sub(r'\*\*([^*]+)\*\*', r'\1', c) for c in row_cells]
+                    rows.append(row_cells)
+                j += 1
+            return headers, rows
+    return [], []
+
+
 def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_data=None):
     """Generate landscape (16:9) executive summary slide for presentations."""
 
@@ -1112,33 +1617,73 @@ in the same order as the integrated report markdown:
     #   3.4 Subgroup-stratified suitability (Steps 2+3 integration)
 
     # ===== SECTION 3.1: RISK ASSESSMENT TABLE (Step 1 - Literature) =====
-    risk_table = report_data.get('risk_table', {})
-    risk_lines = []
-    for cat in ['Biological', 'Druggability', 'Translational', 'Clinical', 'Safety', 'Commercial']:
-        info = risk_table.get(cat, {'level': 'TBD', 'considerations': 'See integrated report'})
-        level = info.get('level', 'TBD')[:12]
-        considerations = info.get('considerations', 'See integrated report')[:48]
-        risk_lines.append(f"│ {cat:<18} │ {level:<11} │ {considerations:<48} │")
-
+    # Load the integrated-report markdown early; sections 3.1, 3.3, 3.4, 4-8
+    # all parse from it.
+    md_path_31 = integrated_report_path(output_dir, gene)
+    md_content_31 = ""
+    if os.path.exists(md_path_31):
+        with open(md_path_31) as fh:
+            md_content_31 = fh.read()
     overall_risk = report_data.get('risk_profile', 'TBD')
 
-    risk_page = f"""3.1 Risk Assessment Summary (Step 1: Literature-Based)
-─────────────────────────────────────────────────────────────────────────────────────────
+    # Try to parse the 4-column markdown table (Risk Category | Risk Level |
+    # Key Driver | Key Evidence (PMID)) directly. Fall back to the legacy
+    # 3-column hardcoded table if the markdown isn't available.
+    sec3_md = _extract_markdown_section_n(md_content_31, 3)
+    risk_31_headers, risk_31_rows = ([], [])
+    if sec3_md:
+        m31 = re.search(r'### 3\.1[^\n]*\n(.*?)(?=^### |^## |\Z)',
+                        sec3_md, re.DOTALL | re.MULTILINE)
+        if m31:
+            risk_31_headers, risk_31_rows = _extract_markdown_table_rows(
+                m31.group(1), header_keywords=['Risk', 'Level'])
 
-┌────────────────────┬─────────────┬──────────────────────────────────────────────────────┐
-│ Risk Factor        │ Level       │ Key Considerations                                   │
-├────────────────────┼─────────────┼──────────────────────────────────────────────────────┤
-{chr(10).join(risk_lines)}
-└────────────────────┴─────────────┴──────────────────────────────────────────────────────┘
-
-                    OVERALL RISK PROFILE: {overall_risk}
-
-
-Risk Level Legend:
-  • LOW: Strong evidence, minimal concerns
-  • MEDIUM: Manageable gaps, mitigation strategies available
-  • HIGH: Significant concerns or critical blockers"""
-    text_page(pdf, '3.1 Risk Assessment Summary', risk_page)
+    if risk_31_headers and risk_31_rows:
+        # Find the Risk Level column for color coding.
+        color_col = next(
+            (i for i, h in enumerate(risk_31_headers) if 'level' in h.lower()),
+            None,
+        )
+        # 4-col layout: Risk Category | Risk Level | Key Driver | Key Evidence (PMID).
+        if len(risk_31_headers) == 4:
+            # Risk Category needs ~16% to fit "Translational" on one line.
+            # Key Driver and Key Evidence share the remainder.
+            cw31 = [0.16, 0.11, 0.36, 0.37]
+        else:
+            cw31 = None
+        render_table_page(
+            pdf,
+            title='3.1 Risk Assessment Summary',
+            subtitle=f'Step 1 (Literature-Based) — Overall Risk Profile: {overall_risk}',
+            headers=risk_31_headers,
+            rows=risk_31_rows,
+            col_widths=cw31,
+            color_col=color_col,
+            footer='LOW: strong evidence • MEDIUM: manageable gaps • HIGH: significant concerns',
+        )
+    else:
+        # Fallback: use parsed risk_table (3 columns, no PMIDs).
+        risk_table = report_data.get('risk_table', {})
+        risk_rows = []
+        for cat in ['Biological', 'Druggability', 'Translational',
+                    'Clinical', 'Safety', 'Commercial']:
+            info = risk_table.get(cat, {'level': 'TBD',
+                                         'considerations': 'See integrated report'})
+            risk_rows.append([
+                cat,
+                info.get('level', 'TBD'),
+                info.get('considerations', 'See integrated report'),
+            ])
+        render_table_page(
+            pdf,
+            title='3.1 Risk Assessment Summary',
+            subtitle=f'Step 1 (Literature-Based) — Overall Risk Profile: {overall_risk}',
+            headers=['Risk Factor', 'Level', 'Key Considerations'],
+            rows=risk_rows,
+            col_widths=[0.20, 0.13, 0.67],
+            color_col=1,
+            footer='LOW: strong evidence • MEDIUM: manageable gaps • HIGH: significant concerns',
+        )
     print("  Section 3.1: Risk Assessment Summary table")
 
     # ===== SECTION 3.1 (cont.): STRUCTURED 6-CATEGORY DETAIL CARDS =====
@@ -1176,158 +1721,224 @@ Risk Level Legend:
     else:
         print(f"  Section 3.2: Subtype figure skipped (no {subtype_name} for {disease_abbr})")
 
-    # ===== SECTION 3.3: SCHOLAREVAL SCORING (Step 3) =====
-    dimensions = ['Differential Expression', 'Pathway Relevance', 'Druggability',
-                  'Genetic Validation', 'Disease Association', 'Safety Profile',
-                  'Clinical Validation', 'Biomarker Potential']
-    weights = [0.15, 0.15, 0.15, 0.10, 0.10, 0.15, 0.10, 0.10]
-    scholar_scores = report_data.get('scholar_scores', {})
+    # ===== SECTION 3.3: SCHOLAREVAL BAR CHART (Step 3) =====
+    # The detail scoring table with per-dimension rationale is rendered later
+    # (after the bar chart) directly from the integrated-report markdown via
+    # render_table_page(), so we don't emit a redundant compact ASCII table
+    # here.
 
-    score_lines = []
-    total_weighted = 0
-    for dim, weight in zip(dimensions, weights):
-        score = scholar_scores.get(dim, '?')
-        if isinstance(score, int):
-            weighted = score * weight
-            total_weighted += weighted
-            score_lines.append(f"│ {dim:<23} │ {score}/5   │ {weight:.2f}   │ {weighted:.2f}     │")
-        else:
-            score_lines.append(f"│ {dim:<23} │ ?/5   │ {weight:.2f}   │ ?        │")
-
-    final_score = report_data.get('score', f'{total_weighted:.2f}/5.0' if total_weighted > 0 else 'TBD')
-
-    scholar = f"""3.3 Target Validation Scorecard (Step 3: ScholarEval)
-─────────────────────────────────────────────────────────────────────────────────────────
-
-┌─────────────────────────┬───────┬────────┬──────────┐
-│ Dimension               │ Score │ Weight │ Weighted │
-├─────────────────────────┼───────┼────────┼──────────┤
-{chr(10).join(score_lines)}
-├─────────────────────────┼───────┼────────┼──────────┤
-│ TOTAL                   │       │ 1.00   │ {total_weighted:.2f}     │
-└─────────────────────────┴───────┴────────┴──────────┘
-
-                    FINAL SCORE: {final_score}
-
-
-Score Interpretation:
-─────────────────────────────────────────────────────────────────────────────────────────
-  • 4.5-5.0: Excellent - Priority development candidate
-  • 4.0-4.4: Strong - Advance with confidence
-  • 3.5-3.9: Moderate - Proceed with caution
-  • 3.0-3.4: Weak - Requires additional validation
-  • <3.0: Poor - Not recommended"""
-    text_page(pdf, '3.3 ScholarEval Target Scoring', scholar)
-    print("  Section 3.3: ScholarEval scoring table")
-
-    # ===== SECTION 3.3 (cont.): SCHOLAREVAL BAR CHART =====
     create_scholar_eval_figure(gene, output_dir, report_data)
     scholar_fig = os.path.join(output_dir, get_output_filename(gene, 'scholareval', 'png'))
     add_high_res_figure(pdf, scholar_fig, 'Figure: ScholarEval 8-Dimension Target Scoring',
                         'Eight-dimension target scoring based on the ScholarEval framework.')
     print("  Section 3.3: ScholarEval bar chart")
 
-    # ===== PAGE 11: KEY STRENGTHS & RISKS =====
-    strengths = report_data.get('strengths', ['See integrated report for details'])
-    risks = report_data.get('risks', ['See integrated report for details'])
+    # ===== Load the integrated-report markdown for sections 3.3 detail / 3.4 / 4-8 =====
+    md_path = integrated_report_path(output_dir, gene)
+    md_content = ""
+    if os.path.exists(md_path):
+        with open(md_path) as fh:
+            md_content = fh.read()
 
-    if strengths:
-        strength_text = '\n\n'.join([f"{i+1}. {s[:70]}" for i, s in enumerate(strengths[:5])])
-    else:
-        strength_text = "See integrated report for details."
+    # ===== SECTION 3.3 (detail): full ScholarEval table with rationale =====
+    sec3 = _extract_markdown_section_n(md_content, 3)
+    headers, rows = _extract_markdown_table_rows(
+        sec3, header_keywords=['Dimension', 'Score'])
+    if headers and rows:
+        # Markdown columns: Dimension | Weight | Score | Risk Level | Rationale.
+        # Some integrated reports lack the Risk Level column - handle both.
+        if len(headers) == 5:
+            col_widths = [0.22, 0.09, 0.09, 0.13, 0.47]
+            color_col = 3  # Risk Level column
+        else:
+            col_widths = None
+            color_col = None
+        render_table_page(
+            pdf,
+            title='3.3 ScholarEval Scoring Detail',
+            headers=headers,
+            rows=rows,
+            col_widths=col_widths,
+            color_col=color_col,
+            subtitle='8-dimension target validation scorecard with per-dimension rationale',
+        )
+        print("  Section 3.3: ScholarEval scoring detail table")
 
-    if risks:
-        risk_text = '\n\n'.join([f"{i+1}. {r[:70]}" for i, r in enumerate(risks[:5])])
-    else:
-        risk_text = "See integrated report for details."
+    # ===== SECTION 3.4: subgroup-stratified suitability (3 phases) =====
+    if sec3 and '3.4' in sec3:
+        # Pull the 3.4 subsection body specifically.
+        m = re.search(r'### 3\.4[^\n]*\n(.*?)(?=^### |^## |\Z)', sec3,
+                       re.DOTALL | re.MULTILINE)
+        sec34 = m.group(1) if m else sec3
+        for phase_marker, phase_label, header_kw in [
+            ('Phase 1', 'Phase 1: TCGA Molecular Subgroups (Treatment-Naive)', 'Score'),
+            ('Phase 2', 'Phase 2: Tempus RAS / Mutation Status', 'Score'),
+            ('Phase 3', 'Phase 3: iDAS Whitespace Suitability', 'Score'),
+        ]:
+            block_match = re.search(
+                rf'#### {re.escape(phase_marker)}[^\n]*\n(.*?)(?=^#### |\Z)',
+                sec34, re.DOTALL | re.MULTILINE,
+            )
+            if not block_match:
+                continue
+            # Match by 'Score' keyword which all 3 phase tables share, instead
+            # of 'Subgroup' which Phase 3 calls 'Whitespace'.
+            phdrs, prows = _extract_markdown_table_rows(
+                block_match.group(1), header_keywords=[header_kw])
+            if not phdrs or not prows:
+                continue
+            # Columns: Subgroup | Key Metric | Score | Risk Level | Recommendation
+            color_col = None
+            for idx, h in enumerate(phdrs):
+                if 'recommendation' in h.lower():
+                    color_col = idx
+                    break
+            # Allocate widths to fit long subgroup names and full
+            # 'Recommendation' header. 5-col layout: 22/27/8/14/29.
+            phase_widths = ([0.22, 0.27, 0.08, 0.14, 0.29]
+                            if len(phdrs) == 5 else None)
+            render_table_page(
+                pdf,
+                title='3.4 Subgroup-Stratified Suitability',
+                subtitle=phase_label,
+                headers=phdrs,
+                rows=prows,
+                col_widths=phase_widths,
+                color_col=color_col,
+            )
+            print(f"  Section 3.4: {phase_marker}")
 
-    strengths_risks = f"""5. KEY STRENGTHS
-─────────────────────────────────────────────────────────────────────────────────────────
+    # ===== SECTION 4: DISCUSSION (4.1 Strengths, 4.2 Risks, 4.3 Subgroup considerations) =====
+    sec4 = _extract_markdown_section_n(md_content, 4)
+    if sec4:
+        render_narrative_page(
+            pdf,
+            title='4. Discussion',
+            subtitle='Key strengths, risks, and subgroup-specific considerations',
+            body_text=sec4,
+        )
+        print("  Section 4: Discussion")
 
-{strength_text}
+    # ===== SECTION 5: RISK MITIGATION STRATEGIES (table) =====
+    sec5 = _extract_markdown_section_n(md_content, 5)
+    if sec5:
+        h5, r5 = _extract_markdown_table_rows(sec5, header_keywords=['Risk', 'Mitigation'])
+        if h5 and r5:
+            color_col = None
+            for idx, h in enumerate(h5):
+                if 'level' in h.lower() or 'risk level' in h.lower():
+                    color_col = idx
+                    break
+            render_table_page(
+                pdf,
+                title='5. Risk Mitigation Strategies',
+                headers=h5,
+                rows=r5,
+                color_col=color_col,
+                col_widths=[0.30, 0.13, 0.57] if len(h5) == 3 else None,
+            )
+            print("  Section 5: Risk Mitigation table")
+        else:
+            render_narrative_page(pdf, title='5. Risk Mitigation Strategies',
+                                  body_text=sec5)
+            print("  Section 5: Risk Mitigation (narrative)")
 
+    # ===== SECTION 6: RECOMMENDATIONS =====
+    sec6 = _extract_markdown_section_n(md_content, 6)
+    if sec6:
+        # Split into 6.1 narrative + 6.2 list, then 6.3 subgroup table.
+        # 6.1 + 6.2 render as narrative (text + bullets); 6.3 as styled table.
+        m61_63 = re.search(
+            r'(.*?)(?=^### 6\.3)', sec6,
+            re.DOTALL | re.MULTILINE,
+        )
+        narrative_body = m61_63.group(1) if m61_63 else sec6
+        if narrative_body.strip():
+            render_narrative_page(
+                pdf,
+                title='6. Recommendations',
+                subtitle='Overall recommendation and development path',
+                body_text=narrative_body,
+            )
+            print("  Section 6: Recommendations narrative")
 
-6. KEY RISKS/CHALLENGES
-─────────────────────────────────────────────────────────────────────────────────────────
+        m63 = re.search(r'### 6\.3[^\n]*\n(.*?)(?=^### |^## |\Z)', sec6,
+                        re.DOTALL | re.MULTILINE)
+        if m63:
+            h63, r63 = _extract_markdown_table_rows(
+                m63.group(1), header_keywords=['Population'])
+            if h63 and r63:
+                color_col = None
+                for idx, h in enumerate(h63):
+                    if 'recommend' in h.lower():
+                        color_col = idx
+                        break
+                # 4-col layout (Population/Recommendation/Risk Level/Rationale):
+                # Population fits "Chemorefractory 3L+ MSS" type names;
+                # Recommendation gets enough width for the bold header word.
+                cw63 = [0.20, 0.22, 0.12, 0.46] if len(h63) == 4 else None
+                render_table_page(
+                    pdf,
+                    title='6.3 Subgroup-Specific Recommendations',
+                    headers=h63,
+                    rows=r63,
+                    col_widths=cw63,
+                    color_col=color_col,
+                )
+                print("  Section 6.3: Subgroup recommendations table")
 
-{risk_text}"""
-    text_page(pdf, 'Key Strengths & Risks', strengths_risks)
-    print("  Page 11: Strengths & Risks")
+    # ===== SECTION 7: CONCLUSIONS =====
+    sec7 = _extract_markdown_section_n(md_content, 7)
+    if sec7:
+        render_narrative_page(
+            pdf,
+            title='7. Conclusions',
+            body_text=sec7,
+        )
+        print("  Section 7: Conclusions")
 
-    # ===== PAGE 12: MITIGATION & RECOMMENDATIONS =====
-    mitigations = report_data.get('mitigations', [])
-    recommendations_list = report_data.get('recommendations_list', [])
-
-    # Build mitigation text
-    if mitigations:
-        mitigation_lines = '\n\n'.join([f"{i+1}. {m[:80]}" for i, m in enumerate(mitigations[:6])])
-    else:
-        mitigation_lines = "See integrated report for detailed mitigation strategies."
-
-    # Build recommendations text
-    if recommendations_list:
-        rec_lines = '\n'.join([f"{i+1}. {r[:80]}" for i, r in enumerate(recommendations_list[:5])])
-    else:
-        rec_lines = "See integrated report for detailed recommendations."
-
-    mitigation = f"""7. RISK MITIGATION STRATEGIES
-─────────────────────────────────────────────────────────────────────────────────────────
-
-{mitigation_lines}
-
-
-8. RECOMMENDATIONS - DEVELOPMENT PATH
-─────────────────────────────────────────────────────────────────────────────────────────
-
-{rec_lines}"""
-    text_page(pdf, 'Risk Mitigation & Recommendations', mitigation)
-    print("  Page 12: Recommendations")
-
-    # ===== PAGE 13: CONCLUSIONS =====
-    fig12, ax12 = plt.subplots(figsize=(8.5, 11))
-    ax12.axis('off')
-
-    ax12.text(0.5, 0.95, '9. Conclusions', fontsize=20, fontweight='bold', ha='center',
-              transform=ax12.transAxes, color='#2c3e50')
+    # ===== Final recommendation badge page (always emit, regardless of markdown) =====
+    fig_final, ax_final = plt.subplots(figsize=(8.5, 11))
+    ax_final.axis('off')
+    ax_final.text(0.5, 0.92, 'Final Recommendation', fontsize=20, fontweight='bold',
+                  ha='center', transform=ax_final.transAxes, color='#1B365D')
 
     final_score = report_data.get('score', 'TBD')
     overall_risk = report_data.get('risk_profile', 'TBD')
     fold_change = report_data.get('fold_change', 'TBD')
-    fold_change_gtex = report_data.get('fold_change_gtex', '')
 
-    conclusion_text = f"""{gene} target evaluation summary based on convergent evidence:
+    summary_text = f"""{gene} — {disease_full} ({disease_abbr})
 
-EVIDENCE INTEGRATION:
-─────────────────────────────────────────────────────────────────────────────────────────
-• Indication: {disease_full} ({disease_abbr})
-• Tumor vs Adjacent Normal: {fold_change}
-• Tumor vs GTEx Normal: {fold_change_gtex}
-• ScholarEval Score: {final_score}
-• Overall Risk Profile: {overall_risk}
-• Recommendation: {recommendation}
+    ScholarEval Score:    {final_score}
+    Overall Risk Profile: {overall_risk}
+    Tumor vs Adjacent:    {fold_change}
+    Recommendation:       {recommendation}"""
+    ax_final.text(0.5, 0.65, summary_text, fontsize=13, ha='center', va='top',
+                  transform=ax_final.transAxes, family='monospace', linespacing=2.0,
+                  color='#2c3e50')
 
-See the full integrated report ({gene}_workflow-target-evaluation-onc_report.md)
-for detailed findings, citations, and complete analysis.
-
-
-10. REFERENCES
-─────────────────────────────────────────────────────────────────────────────────────────
-See integrated report for complete reference list with PMIDs."""
-
-    ax12.text(0.05, 0.88, conclusion_text, fontsize=9.5, ha='left', va='top',
-              transform=ax12.transAxes, family='monospace', linespacing=1.4)
-
-    rect = mpatches.FancyBboxPatch((0.1, 0.06), 0.8, 0.08, boxstyle="round,pad=0.02",
+    rect = mpatches.FancyBboxPatch((0.1, 0.20), 0.8, 0.10, boxstyle="round,pad=0.02",
                                     facecolor=rec_color, edgecolor='black', linewidth=3,
-                                    transform=ax12.transAxes)
-    ax12.add_patch(rect)
-    ax12.text(0.5, 0.10, f'FINAL {rec_text}',
-              fontsize=12, fontweight='bold', ha='center', va='center',
-              transform=ax12.transAxes, color='white')
+                                    transform=ax_final.transAxes)
+    ax_final.add_patch(rect)
+    ax_final.text(0.5, 0.25, f'FINAL: {rec_text}',
+                  fontsize=16, fontweight='bold', ha='center', va='center',
+                  transform=ax_final.transAxes, color='white')
 
-    pdf.savefig(fig12, dpi=300, bbox_inches='tight')
-    plt.close(fig12)
-    print("  Page 13: Conclusions")
+    pdf.savefig(fig_final, dpi=300, bbox_inches='tight')
+    plt.close(fig_final)
+    print("  Final: Recommendation badge")
+
+    # ===== SECTION 8: REFERENCES =====
+    sec8 = _extract_markdown_section_n(md_content, 8)
+    if sec8:
+        render_narrative_page(
+            pdf,
+            title='8. References',
+            subtitle='Key publications cited in this report',
+            body_text=sec8,
+        )
+        print("  Section 8: References")
 
     pdf.close()
     print(f"\nPDF report generated: {pdf_path}")
