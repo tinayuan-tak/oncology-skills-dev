@@ -472,25 +472,34 @@ class CheckpointValidator:
         return d1 == d2 or d1 in d2 or d2 in d1
 
     def _extract_scholareval_table(self, report_content: str) -> Dict[str, float]:
-        """Extract ScholarEval scores from markdown table in report."""
+        """Extract ScholarEval scores from markdown table in report.
+
+        Pattern: | Dimension | Weight | Score | Rationale |
+        Score format: digit or decimal followed by /5 (e.g. 4/5, 4.5/5).
+        The TOTAL row is excluded from per-dimension extraction and parsed
+        separately so it never gets double-counted.
+        """
         scores = {}
 
-        # Find table with Score column
-        # Pattern: | Dimension | Weight | Score | Rationale |
-        # Score format: digit/5
-        table_pattern = r'\|[^|]+\|[^|]+\|[^|]*(\d)/5[^|]*\|'
-        dimension_pattern = r'\|\s*([^|]+?)\s*\|\s*[\d.]+\s*\|\s*(\d)/5\s*\|'
+        # Per-dimension rows: digit or decimal score, but skip the TOTAL row
+        # by name to avoid double-counting (its weight column is 1.00 which
+        # also matches \d.\d).
+        dimension_pattern = r'\|\s*([^|]+?)\s*\|\s*[\d.]+\s*\|\s*(\d+(?:\.\d+)?)/5\s*\|'
 
         for match in re.finditer(dimension_pattern, report_content):
             dimension = match.group(1).strip()
-            score = int(match.group(2))
+            try:
+                score = float(match.group(2))
+            except ValueError:
+                continue
+            # Skip header / separator / total rows.
+            normalized = dimension.lower().strip("* ")
+            if normalized in ("dimension", "---", "total"):
+                continue
+            scores[dimension] = score
 
-            # Skip header row
-            if dimension.lower() not in ["dimension", "---"]:
-                scores[dimension] = float(score)
-
-        # Also look for TOTAL row
-        total_pattern = r'\*\*TOTAL\*\*.*?\*\*(\d+\.?\d*)/5\.0\*\*'
+        # TOTAL row parsed separately (allows decimal totals like 4.05/5.0).
+        total_pattern = r'\*\*TOTAL\*\*.*?\*\*(\d+(?:\.\d+)?)/5\.0\*\*'
         total_match = re.search(total_pattern, report_content)
         if total_match:
             scores["TOTAL"] = float(total_match.group(1))

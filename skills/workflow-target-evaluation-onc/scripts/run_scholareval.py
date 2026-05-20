@@ -25,6 +25,15 @@ from typing import Dict, Any, Optional
 from scoring_engine import ScoringEngine, ScholarEvalResult
 
 
+class WorkflowInputError(RuntimeError):
+    """Raised when required Step 1 / Step 2 input files are missing.
+
+    Library callers can catch this; the CLI entry point translates it to a
+    sys.exit(1). Previously the function called sys.exit() directly, which
+    aborted any importing process.
+    """
+
+
 def _resolve_step2_input(output_dir: Path, gene: str, disease: str, kind: str) -> Optional[Path]:
     """Resolve a Step 2 output file path (ai-sci naming).
 
@@ -514,12 +523,14 @@ def parse_comprehensive_report(report_file: Path) -> Dict[str, Any]:
     evidence: Dict[str, Any] = {}
 
     # log2FC fallback: only used if the iDAS YAML didn't provide it.
-    # Anchor the match to the on-target toxicity executive summary row,
-    # not any "log2FC:" mention elsewhere in the report.
+    # Search anywhere within ~150 chars of an "On-Target Toxicity" mention
+    # for a "log2FC: <num>" pattern. This tolerates moderate format drift
+    # in the Step 2 executive summary row without matching unrelated
+    # log2FC mentions elsewhere in the report.
     fc_match = re.search(
-        r'On-Target Toxicity[^|]*\|[^|]*log2FC[:\s]+([0-9.-]+)',
+        r'On-Target Toxicity.{0,150}?log2FC[:\s=]+(-?\d+(?:\.\d+)?)',
         content,
-        re.IGNORECASE,
+        re.IGNORECASE | re.DOTALL,
     )
     if fc_match:
         log2fc = float(fc_match.group(1))
@@ -544,9 +555,23 @@ def _select_tumor_median(medians: Dict[str, float], disease: str) -> Optional[fl
     return None
 
 
-def _select_normal_median(medians: Dict[str, float]) -> Optional[float]:
-    """Pick the adjacent-normal median; fall back to GTEx if absent."""
-    for cohort in ("TCGA_Adjacent", "GTEx_Colon", "GTEx_Lung"):
+def _select_normal_median(medians: Dict[str, float], disease: str) -> Optional[float]:
+    """Pick the adjacent-normal median for the disease.
+
+    Tries TCGA_Adjacent first (always disease-correct since the bulk-RNA skill
+    only emits cohorts for one disease), then falls back to the disease-
+    specific GTEx tissue. Disease-blind ordering (the prior version) could
+    return GTEx_Colon for an NSCLC run if TCGA_Adjacent was missing.
+    """
+    gtex_by_disease = {
+        "crc": "GTEx_Colon",
+        "nsclc": "GTEx_Lung",
+    }
+    gtex_cohort = gtex_by_disease.get(disease.lower())
+    candidates = ["TCGA_Adjacent"]
+    if gtex_cohort:
+        candidates.append(gtex_cohort)
+    for cohort in candidates:
         if cohort in medians:
             return medians[cohort]
     return None
@@ -585,11 +610,12 @@ def run_scholareval(
         missing.append(f"{output_dir}/{gene}_analysis-bulk-rna-{disease}_report.md")
 
     if missing:
-        print(f"ERROR: Missing required input files:")
-        for f in missing:
-            print(f"  - {f}")
-        print("\nStep 1 and Step 2 must be completed before running ScholarEval.")
-        sys.exit(1)
+        bullet_list = "\n".join(f"  - {f}" for f in missing)
+        raise WorkflowInputError(
+            "Missing required input files:\n"
+            + bullet_list
+            + "\n\nStep 1 and Step 2 must be completed before running ScholarEval."
+        )
 
     print(f"=== ScholarEval Deterministic Scoring ===")
     print(f"Gene: {gene}")
@@ -614,7 +640,7 @@ def run_scholareval(
     if stats_file is not None:
         medians = parse_tcga_stats_csv(stats_file)
         tumor_median = _select_tumor_median(medians, disease)
-        normal_median = _select_normal_median(medians)
+        normal_median = _select_normal_median(medians, disease)
         if tumor_median is not None:
             omics_evidence["rna_expression"]["tumor_median_log2tpm"] = tumor_median
         if normal_median is not None:
@@ -698,12 +724,16 @@ Examples:
 
     output_dir = Path(args.output_dir).expanduser().resolve()
 
-    run_scholareval(
-        gene=args.gene,
-        disease=args.disease,
-        output_dir=output_dir,
-        verbose=args.verbose
-    )
+    try:
+        run_scholareval(
+            gene=args.gene,
+            disease=args.disease,
+            output_dir=output_dir,
+            verbose=args.verbose,
+        )
+    except WorkflowInputError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

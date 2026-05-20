@@ -417,12 +417,37 @@ class ScoringEngine:
         else:
             return self._eval_simple_condition(cond)
 
+    _COMPARATORS = {
+        ">=": (lambda a, b: a >= b),
+        "<=": (lambda a, b: a <= b),
+        "==": (lambda a, b: a == b),
+        "!=": (lambda a, b: a != b),
+        ">":  (lambda a, b: a > b),
+        "<":  (lambda a, b: a < b),
+    }
+
     def _eval_simple_condition(self, cond: str) -> bool:
-        """Evaluate a simple condition like '2.0 >= 2.0'."""
-        try:
-            return eval(cond)
-        except:
+        """Evaluate a simple comparison like '2.0 >= 2.0' safely.
+
+        Replaces a previous `eval(cond)` that could execute arbitrary Python
+        if a malformed condition string ever entered scoring_rules.yaml.
+        Supports the comparators >=, <=, ==, !=, >, < with numeric operands.
+        Returns False on any parse failure (preserves previous bare-except
+        behavior, but only swallows real grammar mismatches).
+        """
+        if not cond or not isinstance(cond, str):
             return False
+        # Match the longest comparator first (>= before >, etc.).
+        for op in ("<=", ">=", "==", "!=", "<", ">"):
+            if op in cond:
+                left, _, right = cond.partition(op)
+                try:
+                    a = float(left.strip())
+                    b = float(right.strip())
+                except ValueError:
+                    return False
+                return self._COMPARATORS[op](a, b)
+        return False
 
     def score_idas_alignment(
         self,
