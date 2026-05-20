@@ -1074,38 +1074,36 @@ Clinical Validation, and Biomarker Potential."""
     text_page(pdf, 'Methods', methods)
     print("  Page 3: Methods")
 
-    # ===== PAGE 4: RESULTS =====
-    results1 = f"""3. RESULTS
+    # ===== PAGE 4: RESULTS INTRO =====
+    # Signposts the four subsections that follow. The actual content lives in
+    # 3.1 (Risk Assessment), 3.2 (Differential Expression), 3.3 (ScholarEval),
+    # and 3.4 (Subgroup Suitability) on the pages immediately after this one.
+    results_intro = f"""3. RESULTS
 ─────────────────────────────────────────────────────────────────────────────────────────
 
-3.1 Differential Expression
+This section presents the four-step evaluation findings for {gene} in {disease_abbr},
+in the same order as the integrated report markdown:
 
-Analysis of primary {disease_abbr} tumors revealed significant target overexpression compared to
-normal {normal_tissue} tissue across all cohorts examined.
+  3.1 Risk Assessment Summary (Step 1: Literature-Based)
+      Six-category target risk evaluation derived from PubMed literature.
+      Color-coded summary table, structured per-category cards, and a
+      6-category bar chart.
 
-See Figure 1 for comprehensive expression analysis including {subtype_name} stratification.
+  3.2 Differential Expression Analysis (Step 2: Multi-omics)
+      Tumor vs adjacent-normal expression across {disease_abbr} cohorts using
+      TCGA, GTEx, and Tempus real-world data. Comprehensive 8-panel figure.
 
+  3.3 Target Validation Scorecard (Step 3: ScholarEval)
+      Eight-dimension deterministic target scoring integrating Step 1
+      literature evidence and Step 2 omics evidence. Scoring table plus
+      bar chart.
 
-3.2 Literature Evidence
-
-Key findings from systematic literature review organized by risk category:
-
-BIOLOGICAL VALIDATION:
-  • Functional validation studies (knockout/knockdown)
-  • Mechanistic studies linking target to disease
-  • Replication across independent laboratories
-
-THERAPEUTIC DEVELOPMENT:
-  • Existing drug development programs
-  • Tool molecules and assay availability
-  • Clinical trial data (if available)
-
-TRANSLATIONAL EVIDENCE:
-  • Disease models (xenograft, PDX, syngeneic)
-  • Biomarker studies
-  • Patient stratification approaches"""
-    text_page(pdf, 'Results: Expression & Literature', results1)
-    print("  Page 4: Results")
+  3.4 Subgroup-Stratified Suitability (Steps 2 + 3 integration)
+      Three-phase per-subgroup recommendations
+      (TCGA molecular -> Tempus mutation -> iDAS whitespace) — see the
+      integrated report markdown for the full table."""
+    text_page(pdf, '3. Results', results_intro)
+    print("  Page 4: Results intro")
 
     # The page sequence below mirrors the integrated-report markdown order:
     #   3.1 Risk Assessment (Step 1 - literature)
