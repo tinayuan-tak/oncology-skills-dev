@@ -202,23 +202,37 @@ def parse_integrated_report(report_path, output_dir=None, gene=None, disease='cr
         )
 
     # Extract Recommendation from table: | **Recommendation** | **GO** - Description |
-    rec_match = re.search(r'\|\s*\*?\*?Recommendation\*?\*?\s*\|\s*\*?\*?((?:CONDITIONAL\s+)?(?:NO-GO|GO))', content, re.IGNORECASE)
-    if rec_match:
-        rec = rec_match.group(1).strip().upper()
-        data['recommendation'] = rec
-    else:
-        rec_match = re.search(r'\|\s*\*?\*?Recommendation\*?\*?\s*\|\s*\*?\*?([^|\n]+)', content, re.IGNORECASE)
-        if rec_match:
-            rec_full = rec_match.group(1).strip()
-            if 'CONDITIONAL NO-GO' in rec_full.upper():
-                data['recommendation'] = 'CONDITIONAL NO-GO'
-            elif 'NO-GO' in rec_full.upper():
-                data['recommendation'] = 'NO-GO'
-            elif 'GO' in rec_full.upper():
-                data['recommendation'] = 'GO'
-            else:
-                parts = re.split(r'\s*[-–—]\s*', rec_full, maxsplit=1)
-                data['recommendation'] = parts[0].strip().upper()[:20]
+    # Capture the full cell verbatim (do NOT stop at the first dash — that
+    # would truncate "NO-GO" or "GO — HIGH PRIORITY"). We strip markdown
+    # emphasis, then classify below.
+    rec_match = re.search(
+        r'\|\s*\*?\*?Recommendation\*?\*?\s*\|\s*([^|\n]+)',
+        content, re.IGNORECASE,
+    )
+    rec_full = rec_match.group(1).strip() if rec_match else ''
+    rec_full = re.sub(r'\*+', '', rec_full).strip()
+    rec_full = rec_full.upper()
+    # Normalize: keep priority qualifiers like 'GO — MEDIUM PRIORITY';
+    # collapse to canonical short form for display.
+    if 'CONDITIONAL NO-GO' in rec_full:
+        data['recommendation'] = 'CONDITIONAL NO-GO'
+    elif 'CONDITIONAL' in rec_full:
+        data['recommendation'] = 'CONDITIONAL'
+    elif 'NO-GO' in rec_full:
+        data['recommendation'] = 'NO-GO'
+    elif 'GO' in rec_full:
+        # Preserve priority qualifiers if present.
+        priority_match = re.search(
+            r'GO[^A-Z]*((?:MEDIUM[- ]?HIGH|HIGH|MEDIUM|LOW)\s*PRIORITY|PRIORITY)',
+            rec_full,
+        )
+        if priority_match:
+            qualifier = priority_match.group(1).strip()
+            data['recommendation'] = f'GO — {qualifier}'
+        else:
+            data['recommendation'] = 'GO'
+    elif rec_full:
+        data['recommendation'] = rec_full[:30]
 
     # Extract Assessment rating from table: | **ScholarEval Score** | **4.25/5.0 (Strong)** |
     assessment_match = re.search(r'\|\s*\*?\*?ScholarEval Score\*?\*?\s*\|\s*\*?\*?[\d.]+/5\.0\s*\(([^)]+)\)', content, re.IGNORECASE)
@@ -394,7 +408,11 @@ def create_scholar_eval_figure(gene, output_dir, report_data=None):
     strong_patch = mpatches.Patch(color='#27ae60', label='Strong (≥4)')
     mod_patch = mpatches.Patch(color='#f39c12', label='Moderate (3)')
     weak_patch = mpatches.Patch(color='#e74c3c', label='Weak (≤2)')
-    ax.legend(handles=[strong_patch, mod_patch, weak_patch], loc='upper right', fontsize=10)
+    # Place legend below the chart in a horizontal row so it never
+    # overlaps the rightmost bar (Biomarker Potential at score 5/5).
+    ax.legend(handles=[strong_patch, mod_patch, weak_patch],
+              loc='upper center', bbox_to_anchor=(0.5, -0.30),
+              ncol=3, fontsize=10, frameon=False)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -847,8 +865,13 @@ def render_table_page(pdf, title, headers, rows, col_widths=None,
                     ha='center', transform=ax.transAxes, color='#666')
             y_top = 0.92
         if footer:
-            ax.text(0.5, 0.02, footer, fontsize=8, style='italic',
-                    ha='center', transform=ax.transAxes, color='#888')
+            # Wrap so a multi-sentence caveat fits within the printable
+            # width without bleeding off the page edge.
+            import textwrap as _tw
+            wrapped_footer = '\n'.join(_tw.wrap(footer, width=120))
+            ax.text(0.5, 0.02, wrapped_footer, fontsize=8, style='italic',
+                    ha='center', va='bottom', transform=ax.transAxes,
+                    color='#666')
 
         # Header.
         y_cursor = y_top
@@ -1094,6 +1117,168 @@ def _extract_markdown_table_rows(section_body, header_keywords):
     return [], []
 
 
+def _build_slide_data(output_dir, gene):
+    """Build the data dict consumed by both the portrait page-1 and the
+    landscape summary slide.
+
+    Returns a dict with keys: toxicity_data, idas_data, subgroup_data,
+    takeaways, aliases, modality. All extraction goes through
+    _extract_markdown_section_n / _extract_markdown_table_rows so the
+    portrait and landscape views stay in sync regardless of markdown
+    formatting drift.
+    """
+    slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [],
+                  'takeaways': [], 'aliases': '', 'modality': 'Selective'}
+    report_path = integrated_report_path(output_dir, gene)
+    if not os.path.exists(report_path):
+        return slide_data
+    with open(report_path, 'r') as f:
+        content = f.read()
+
+    # Aliases: parse the Target row of the Executive Summary table.
+    aliases_match = re.search(
+        r'\*\*Target\*\*\s*\|\s*\w[\w\-]*\s*\(([^)]+)\)', content,
+    )
+    if aliases_match:
+        slide_data['aliases'] = aliases_match.group(1)
+
+    # Modality: take the "Modality:" item from "Key Findings at a Glance".
+    modality_match = re.search(r'\*\*Modality\*\*[:\s]*([^\n]+)', content)
+    if modality_match:
+        mt = modality_match.group(1).strip()
+        mt = re.sub(r'^[:\-—\s]+', '', mt)
+        mt = re.sub(r'\*\*([^*]+)\*\*', r'\1', mt)
+        mt = re.split(r'[,\(\-—–]', mt, maxsplit=1)[0].strip()[:22]
+        if mt:
+            slide_data['modality'] = mt
+
+    sec3 = _extract_markdown_section_n(content, 3)
+
+    # Toxicity rows from Section 3.2.
+    m32 = re.search(
+        r'### 3\.2[^\n]*\n(.*?)(?=^### |^## |\Z)',
+        sec3, re.DOTALL | re.MULTILINE,
+    ) if sec3 else None
+    if m32:
+        tox_h, tox_r = _extract_markdown_table_rows(
+            m32.group(1), header_keywords=['Tumor', 'Normal'])
+        if tox_h and tox_r:
+            comp_idx = next(
+                (i for i, h in enumerate(tox_h)
+                 if 'comparison' in h.lower() or 'cohort' in h.lower()), 0,
+            )
+            fc_idx = next(
+                (i for i, h in enumerate(tox_h) if 'fold change' in h.lower()),
+                None,
+            )
+            risk_idx = next(
+                (i for i, h in enumerate(tox_h)
+                 if 'risk level' in h.lower() or h.lower().strip() == 'risk'),
+                None,
+            )
+            for row in tox_r[:4]:
+                if comp_idx >= len(row):
+                    continue
+                comp = row[comp_idx]
+                if 'GTEx' in comp or 'gtex' in comp.lower():
+                    continue
+                subtype = (
+                    'LUSC' if 'LUSC' in comp else
+                    'LUAD' if 'LUAD' in comp else
+                    'RAS WT MSS' if 'RASWT' in comp else
+                    'RAS Mut MSS' if 'RASMut' in comp else
+                    'MSI-H' if 'MSIH' in comp else
+                    'Resectable' if 'Resectable' in comp else
+                    comp[:18]
+                )
+                fc = (row[fc_idx] if fc_idx is not None and fc_idx < len(row) else '').strip()
+                risk = (row[risk_idx] if risk_idx is not None and risk_idx < len(row) else 'MEDIUM').strip().upper()
+                slide_data['toxicity_data'].append({
+                    'subtype': subtype,
+                    'fold_change': fc.replace('×', 'x') or '—',
+                    'risk': risk,
+                })
+
+    # iDAS whitespace rows from Section 3.2.
+    if m32:
+        idas_h, idas_r = _extract_markdown_table_rows(
+            m32.group(1), header_keywords=['Whitespace', 'Alignment'])
+        if idas_h and idas_r:
+            ws_idx = next(
+                (i for i, h in enumerate(idas_h) if 'whitespace' in h.lower()), 0,
+            )
+            expr_idx = next(
+                (i for i, h in enumerate(idas_h) if 'expression' in h.lower()), None,
+            )
+            align_idx = next(
+                (i for i, h in enumerate(idas_h) if 'alignment' in h.lower()), None,
+            )
+            for row in idas_r[:4]:
+                if ws_idx >= len(row):
+                    continue
+                slide_data['idas_data'].append({
+                    'whitespace': row[ws_idx].strip()[:22],
+                    'expression': (row[expr_idx] if expr_idx is not None and expr_idx < len(row) else '').strip(),
+                    'alignment': (row[align_idx] if align_idx is not None and align_idx < len(row) else '').strip(),
+                })
+
+    # Subgroup recommendations from Section 6.3.
+    sec6 = _extract_markdown_section_n(content, 6)
+    m63 = re.search(
+        r'### 6\.3[^\n]*\n(.*?)(?=^### |^## |\Z)',
+        sec6, re.DOTALL | re.MULTILINE,
+    ) if sec6 else None
+    if m63:
+        sg_h, sg_r = _extract_markdown_table_rows(
+            m63.group(1), header_keywords=['Population', 'Recommendation'])
+        if sg_h and sg_r:
+            pop_idx = next(
+                (i for i, h in enumerate(sg_h) if 'population' in h.lower()), 0,
+            )
+            rec_idx = next(
+                (i for i, h in enumerate(sg_h) if 'recommendation' in h.lower()), 1,
+            )
+            rat_idx = next(
+                (i for i, h in enumerate(sg_h) if 'rationale' in h.lower()), -1,
+            )
+            for row in sg_r[:5]:
+                if pop_idx >= len(row) or rec_idx >= len(row):
+                    continue
+                rationale = (row[rat_idx] if 0 <= rat_idx < len(row) else '').strip()[:20]
+                slide_data['subgroup_data'].append({
+                    'population': row[pop_idx].strip()[:18],
+                    'recommendation': row[rec_idx].strip().upper(),
+                    'rationale': rationale,
+                })
+
+    # Key takeaways: prefer Executive Summary's "Key Findings at a Glance"
+    # bullets; fall back to Section 7's numbered list if present.
+    kf_match = re.search(
+        r'###\s*Key Findings at a Glance\s*\n(.*?)(?=^##|^---|\Z)',
+        content, re.DOTALL | re.MULTILINE,
+    )
+    if kf_match:
+        for line in kf_match.group(1).split('\n'):
+            ln = line.strip()
+            if ln.startswith(('-', '*', '•')):
+                cleaned = re.sub(r'^\s*[-*•]\s+', '', ln)
+                cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', cleaned)
+                slide_data['takeaways'].append(cleaned)
+            if len(slide_data['takeaways']) >= 5:
+                break
+    if not slide_data['takeaways']:
+        sec7 = _extract_markdown_section_n(content, 7)
+        if sec7:
+            for line in sec7.split('\n'):
+                if re.match(r'^\s*\d+\.\s', line):
+                    cleaned = re.sub(r'\*\*([^*]+)\*\*', r'\1', line.strip())
+                    slide_data['takeaways'].append(cleaned)
+                if len(slide_data['takeaways']) >= 5:
+                    break
+
+    return slide_data
+
+
 def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_data=None):
     """Generate landscape (16:9) executive summary slide for presentations."""
 
@@ -1114,48 +1299,9 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
     RISK_COLORS = {'LOW': COLORS['GREEN'], 'MEDIUM': COLORS['AMBER'], 'HIGH': COLORS['TAKEDA_RED'], 'LOW-MEDIUM': COLORS['AMBER']}
     REC_COLORS = {'PRIORITY': COLORS['GREEN'], 'GO': COLORS['LIGHT_BLUE'], 'CONDITIONAL': COLORS['AMBER'], 'CAUTION': COLORS['TAKEDA_RED'], 'EXCLUDE': COLORS['TAKEDA_RED']}
 
-    # Parse integrated report for slide data
-    slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
-    report_path = integrated_report_path(output_dir, gene)
-    if os.path.exists(report_path):
-        with open(report_path, 'r') as f:
-            content = f.read()
-        # Extract aliases
-        aliases_match = re.search(r'\*\*Target\*\* \| \w+ \(([^)]+)\)', content)
-        if aliases_match:
-            slide_data['aliases'] = aliases_match.group(1)
-        # Extract modality
-        modality_match = re.search(r'\*\*Modality\*\*[:\s]*(\w+)', content)
-        if modality_match:
-            slide_data['modality'] = modality_match.group(1)
-        # Extract toxicity data
-        tox_pattern = r'\| (TCGA[^|]+Adjacent[^|]*) \|[^|]+\|[^|]+\|[^|]+\|[^|]+\| \*\*(\d+\.?\d*)x\*\* \| (\w+)'
-        for comparison, fc, risk in re.findall(tox_pattern, content)[:4]:
-            subtype = 'LUSC' if 'LUSC' in comparison else 'LUAD' if 'LUAD' in comparison else \
-                      'RAS WT MSS' if 'RASWT' in comparison else 'RAS Mut MSS' if 'RASMut' in comparison else \
-                      'MSI-H' if 'MSIH' in comparison else 'Resectable' if 'Resectable' in comparison else None
-            if subtype:
-                slide_data['toxicity_data'].append({'subtype': subtype, 'fold_change': f'{fc}x', 'risk': risk.upper()})
-        # Extract iDAS data
-        # Format: | Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |
-        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \*\*(\w+)\*\* \| [\d,]+ \|'
-        for ws, expr, alignment in re.findall(idas_pattern, content)[:4]:
-            slide_data['idas_data'].append({'whitespace': ws.strip()[:22], 'expression': expr, 'alignment': alignment})
-        # Extract subgroup recommendations
-        subgroup_section = re.search(r'### 6\.3 Subgroup-Specific.*?\n(.*?)\n\n---', content, re.DOTALL)
-        if subgroup_section:
-            for line in subgroup_section.group(1).split('\n'):
-                match = re.search(r'\| ([^|]+) \| \*\*(\w+)\*\* \| \w+(?:-\w+)? \| ([^|]+) \|', line)
-                if match:
-                    pop, rec, rationale = match.groups()
-                    if pop.strip() and not pop.strip().startswith('-'):
-                        slide_data['subgroup_data'].append({'population': pop.strip()[:18], 'recommendation': rec.upper(), 'rationale': rationale.strip()[:20]})
-        # Extract takeaways
-        conclusions_match = re.search(r'## 7\. Conclusions.*?demonstrates:(.*?)---', content, re.DOTALL)
-        if conclusions_match:
-            for line in conclusions_match.group(1).split('\n'):
-                if line.strip().startswith(('1.', '2.', '3.', '4.', '5.')):
-                    slide_data['takeaways'].append(re.sub(r'\*\*([^*]+)\*\*', r'\1', line.strip()))
+    # Parse integrated report for slide data via the shared helper so the
+    # landscape slide stays in sync with the portrait page-1 view.
+    slide_data = _build_slide_data(output_dir, gene)
 
     # Set up figure (16:9 landscape)
     fig = plt.figure(figsize=(16, 9), facecolor='white')
@@ -1170,10 +1316,24 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
     if slide_data['aliases']:
         fig.text(0.5, 0.895, slide_data['aliases'], fontsize=14, color='#B8D4E8', ha='center', va='center')
 
-    # Recommendation badge (smaller)
-    rec = report_data.get('recommendation', 'GO') if report_data else 'GO'
-    rec_text = 'GO - PRIORITY' if 'GO' in rec.upper() and 'NO-GO' not in rec.upper() else rec.upper()
-    rec_color = COLORS['GREEN'] if 'GO' in rec.upper() and 'NO-GO' not in rec.upper() else COLORS['TAKEDA_RED']
+    # Recommendation badge (smaller). Use whatever the parser captured —
+    # do NOT hallucinate a "PRIORITY" qualifier; the parser preserves any
+    # qualifier present in the markdown ("GO — MEDIUM PRIORITY",
+    # "GO — HIGH PRIORITY", etc.).
+    rec = (report_data.get('recommendation', 'GO') if report_data else 'GO').upper()
+    is_go = 'GO' in rec and 'NO-GO' not in rec
+    is_conditional = 'CONDITIONAL' in rec and not is_go
+    rec_text = rec
+    # 3-way color coding: green (GO), amber (CONDITIONAL — caution but not
+    # rejection), red (NO-GO / EXCLUDE). Amber matches the engine's
+    # "needs more validation" semantics and avoids false-alarm red on
+    # programs that may still advance with the right neosubstrate.
+    if is_go:
+        rec_color = COLORS['GREEN']
+    elif is_conditional:
+        rec_color = COLORS['AMBER']
+    else:
+        rec_color = COLORS['TAKEDA_RED']
     badge_rect = mpatches.FancyBboxPatch((0.80, 0.90), 0.17, 0.05,
                                           boxstyle="round,pad=0.01,rounding_size=0.02",
                                           facecolor=rec_color, transform=fig.transFigure, zorder=2)
@@ -1342,48 +1502,9 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
         'LIGHT_GRAY': '#F5F5F5',
     }
 
-    # Parse additional data from integrated report
-    slide_data = {'toxicity_data': [], 'idas_data': [], 'subgroup_data': [], 'takeaways': [], 'aliases': '', 'modality': 'ADC'}
-    report_path = integrated_report_path(output_dir, gene)
-    if os.path.exists(report_path):
-        with open(report_path, 'r') as f:
-            content = f.read()
-        # Extract aliases
-        aliases_match = re.search(r'\*\*Target\*\* \| \w+ \(([^)]+)\)', content)
-        if aliases_match:
-            slide_data['aliases'] = aliases_match.group(1)
-        # Extract modality
-        modality_match = re.search(r'\*\*Modality\*\*[:\s]*(\w+)', content)
-        if modality_match:
-            slide_data['modality'] = modality_match.group(1)
-        # Extract toxicity data
-        tox_pattern = r'\| (TCGA[^|]+Adjacent[^|]*) \|[^|]+\|[^|]+\|[^|]+\|[^|]+\| \*\*(\d+\.?\d*)x\*\* \| (\w+)'
-        for comparison, fc, risk in re.findall(tox_pattern, content)[:4]:
-            subtype = 'LUSC' if 'LUSC' in comparison else 'LUAD' if 'LUAD' in comparison else \
-                      'RAS WT MSS' if 'RASWT' in comparison else 'RAS Mut MSS' if 'RASMut' in comparison else \
-                      'MSI-H' if 'MSIH' in comparison else 'Resectable' if 'Resectable' in comparison else None
-            if subtype:
-                slide_data['toxicity_data'].append({'subtype': subtype, 'fold_change': f'{fc}x', 'risk': risk.upper()})
-        # Extract iDAS data
-        # Format: | Priority Whitespace | Expression (log2TPM) | Alignment | N Samples |
-        idas_pattern = r'\| ([^|]+) \| ([\d.]+) \| \*\*(\w+)\*\* \| [\d,]+ \|'
-        for ws, expr, alignment in re.findall(idas_pattern, content)[:4]:
-            slide_data['idas_data'].append({'whitespace': ws.strip()[:22], 'expression': expr, 'alignment': alignment})
-        # Extract subgroup recommendations
-        subgroup_section = re.search(r'### 6\.3 Subgroup-Specific.*?\n(.*?)\n\n---', content, re.DOTALL)
-        if subgroup_section:
-            for line in subgroup_section.group(1).split('\n'):
-                match = re.search(r'\| ([^|]+) \| \*\*(\w+)\*\* \| \w+(?:-\w+)? \| ([^|]+) \|', line)
-                if match:
-                    pop, rec, rationale = match.groups()
-                    if pop.strip() and not pop.strip().startswith('-'):
-                        slide_data['subgroup_data'].append({'population': pop.strip()[:18], 'recommendation': rec.upper(), 'rationale': rationale.strip()[:20]})
-        # Extract takeaways
-        conclusions_match = re.search(r'## 7\. Conclusions.*?demonstrates:(.*?)---', content, re.DOTALL)
-        if conclusions_match:
-            for line in conclusions_match.group(1).split('\n'):
-                if line.strip().startswith(('1.', '2.', '3.', '4.', '5.')):
-                    slide_data['takeaways'].append(re.sub(r'\*\*([^*]+)\*\*', r'\1', line.strip()))
+    # Parse integrated report for slide data via the shared helper so the
+    # portrait page-1 stays in sync with the landscape summary slide.
+    slide_data = _build_slide_data(output_dir, gene)
 
     # === TITLE BAR ===
     header = mpatches.FancyBboxPatch((0.03, 0.93), 0.94, 0.055,
@@ -1395,11 +1516,20 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
     if slide_data['aliases']:
         ax1.text(0.35, 0.938, slide_data['aliases'], fontsize=8, ha='center', transform=ax1.transAxes, color='#B8D4E8')
 
-    # Recommendation badge
+    # Recommendation badge. Display the parsed recommendation verbatim
+    # (with any priority qualifier the parser preserved); do not append
+    # "PRIORITY" as a default.
     recommendation = report_data.get('recommendation', 'GO') if report_data else 'GO'
     rec_upper = recommendation.upper().strip()
-    rec_color = COLORS['GREEN'] if 'GO' in rec_upper and 'NO-GO' not in rec_upper else COLORS['RED']
-    rec_text = 'GO - PRIORITY' if rec_upper == 'GO' else rec_upper
+    is_go = 'GO' in rec_upper and 'NO-GO' not in rec_upper
+    is_conditional = 'CONDITIONAL' in rec_upper and not is_go
+    if is_go:
+        rec_color = COLORS['GREEN']
+    elif is_conditional:
+        rec_color = COLORS['AMBER']
+    else:
+        rec_color = COLORS['RED']
+    rec_text = rec_upper
     badge = mpatches.FancyBboxPatch((0.72, 0.942), 0.22, 0.035,
                                      boxstyle="round,pad=0.008,rounding_size=0.012",
                                      facecolor=rec_color, transform=ax1.transAxes, zorder=5)
@@ -1770,6 +1900,33 @@ in the same order as the integrated report markdown:
         m = re.search(r'### 3\.4[^\n]*\n(.*?)(?=^### |^## |\Z)', sec3,
                        re.DOTALL | re.MULTILINE)
         sec34 = m.group(1) if m else sec3
+        # Phase 3 modality-aware caveat. The Phase 3 score combines iDAS
+        # alignment with on-target toxicity (tumor vs adjacent), which assumes
+        # differential-expression-based targeting. For degrader / molecular-glue
+        # programs, therapeutic window comes from neosubstrate selectivity,
+        # not target over-expression, so Phase 3 risk levels can look CAUTION
+        # even when iDAS alignment is Strong (see Section 3.2).
+        # Detect degrader-class modality from the *full* Modality line in the
+        # markdown — slide_data['modality'] is truncated to ~22 chars for badge
+        # display, which can drop the "molecular glue" / "PROTAC" tokens.
+        modality_full = ''
+        m_mod = re.search(r'\*\*Modality\*\*[:\s]*([^\n]+)', md_content)
+        if m_mod:
+            modality_full = m_mod.group(1).lower()
+        is_degrader = any(kw in modality_full for kw in
+                          ('degrader', 'molecular glue', 'protac'))
+        if is_degrader:
+            phase3_footer = (
+                'Note: Phase 3 scoring assumes differential-expression-based '
+                'targeting. For degrader/glue modalities, therapeutic window '
+                'comes from neosubstrate selectivity — interpret CAUTION '
+                'alongside iDAS alignment in Section 3.2.'
+            )
+        else:
+            phase3_footer = (
+                'Note: Phase 3 integrates iDAS alignment with tumor-vs-normal '
+                'toxicity risk; review alongside Section 3.2 iDAS table.'
+            )
         for phase_marker, phase_label, header_kw in [
             ('Phase 1', 'Phase 1: TCGA Molecular Subgroups (Treatment-Naive)', 'Score'),
             ('Phase 2', 'Phase 2: Tempus RAS / Mutation Status', 'Score'),
@@ -1805,6 +1962,7 @@ in the same order as the integrated report markdown:
                 rows=prows,
                 col_widths=phase_widths,
                 color_col=color_col,
+                footer=phase3_footer if phase_marker == 'Phase 3' else None,
             )
             print(f"  Section 3.4: {phase_marker}")
 
