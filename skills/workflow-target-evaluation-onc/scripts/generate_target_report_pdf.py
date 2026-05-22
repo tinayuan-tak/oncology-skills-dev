@@ -865,8 +865,13 @@ def render_table_page(pdf, title, headers, rows, col_widths=None,
                     ha='center', transform=ax.transAxes, color='#666')
             y_top = 0.92
         if footer:
-            ax.text(0.5, 0.02, footer, fontsize=8, style='italic',
-                    ha='center', transform=ax.transAxes, color='#888')
+            # Wrap so a multi-sentence caveat fits within the printable
+            # width without bleeding off the page edge.
+            import textwrap as _tw
+            wrapped_footer = '\n'.join(_tw.wrap(footer, width=120))
+            ax.text(0.5, 0.02, wrapped_footer, fontsize=8, style='italic',
+                    ha='center', va='bottom', transform=ax.transAxes,
+                    color='#666')
 
         # Header.
         y_cursor = y_top
@@ -1895,6 +1900,33 @@ in the same order as the integrated report markdown:
         m = re.search(r'### 3\.4[^\n]*\n(.*?)(?=^### |^## |\Z)', sec3,
                        re.DOTALL | re.MULTILINE)
         sec34 = m.group(1) if m else sec3
+        # Phase 3 modality-aware caveat. The Phase 3 score combines iDAS
+        # alignment with on-target toxicity (tumor vs adjacent), which assumes
+        # differential-expression-based targeting. For degrader / molecular-glue
+        # programs, therapeutic window comes from neosubstrate selectivity,
+        # not target over-expression, so Phase 3 risk levels can look CAUTION
+        # even when iDAS alignment is Strong (see Section 3.2).
+        # Detect degrader-class modality from the *full* Modality line in the
+        # markdown — slide_data['modality'] is truncated to ~22 chars for badge
+        # display, which can drop the "molecular glue" / "PROTAC" tokens.
+        modality_full = ''
+        m_mod = re.search(r'\*\*Modality\*\*[:\s]*([^\n]+)', md_content)
+        if m_mod:
+            modality_full = m_mod.group(1).lower()
+        is_degrader = any(kw in modality_full for kw in
+                          ('degrader', 'molecular glue', 'protac'))
+        if is_degrader:
+            phase3_footer = (
+                'Note: Phase 3 scoring assumes differential-expression-based '
+                'targeting. For degrader/glue modalities, therapeutic window '
+                'comes from neosubstrate selectivity — interpret CAUTION '
+                'alongside iDAS alignment in Section 3.2.'
+            )
+        else:
+            phase3_footer = (
+                'Note: Phase 3 integrates iDAS alignment with tumor-vs-normal '
+                'toxicity risk; review alongside Section 3.2 iDAS table.'
+            )
         for phase_marker, phase_label, header_kw in [
             ('Phase 1', 'Phase 1: TCGA Molecular Subgroups (Treatment-Naive)', 'Score'),
             ('Phase 2', 'Phase 2: Tempus RAS / Mutation Status', 'Score'),
@@ -1930,6 +1962,7 @@ in the same order as the integrated report markdown:
                 rows=prows,
                 col_widths=phase_widths,
                 color_col=color_col,
+                footer=phase3_footer if phase_marker == 'Phase 3' else None,
             )
             print(f"  Section 3.4: {phase_marker}")
 
