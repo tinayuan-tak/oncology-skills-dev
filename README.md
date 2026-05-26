@@ -1,6 +1,10 @@
-# Oncology Skills for Claude Code
+# oncology-skills — Claude Code Plugin
 
-A collection of Claude Code skills for oncology target evaluation and RNA-seq analysis, covering both bulk and single-cell transcriptomics for colorectal cancer (CRC) and non-small cell lung cancer (NSCLC).
+Claude Code plugin bundling skills for oncology target evaluation and RNA-seq analysis, covering both bulk and single-cell transcriptomics for colorectal cancer (CRC) and non-small cell lung cancer (NSCLC).
+
+## Plugin vs. skills
+
+This repository publishes the **`oncology-skills` plugin** (declared in `.claude-plugin/plugin.json`). The plugin bundles the seven skills listed in [Available Skills](#available-skills) below. Users install the plugin once; individual skills are then invoked as `oncology-skills:<skill-name>` (e.g. `oncology-skills:workflow-target-evaluation-onc`).
 
 ## Branching Strategy
 

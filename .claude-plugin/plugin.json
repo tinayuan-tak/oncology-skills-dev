@@ -1,7 +1,7 @@
 {
   "name": "oncology-skills",
-  "description": "Claude oncologyskills for bulk and single-cell RNA-seq data across cancer types",
-  "version": "0.0.1",
+  "description": "Claude Code plugin bundling skills for oncology target evaluation and RNA-seq analysis (bulk and single-cell) across cancer types",
+  "version": "1.1.0",
   "author": {
     "name": "computational biology - oncology"
   },
