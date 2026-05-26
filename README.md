@@ -1,6 +1,10 @@
-# Oncology Skills for Claude Code
+# oncology-skills — Claude Code Plugin
 
-A collection of Claude Code skills for oncology target evaluation and RNA-seq analysis, covering both bulk and single-cell transcriptomics for colorectal cancer (CRC) and non-small cell lung cancer (NSCLC).
+Claude Code plugin bundling skills for oncology target evaluation and RNA-seq analysis, covering both bulk and single-cell transcriptomics for colorectal cancer (CRC) and non-small cell lung cancer (NSCLC).
+
+## Plugin vs. skills
+
+This repository publishes the **`oncology-skills` plugin** (declared in `.claude-plugin/plugin.json`). The plugin bundles the seven skills listed in [Available Skills](#available-skills) below. Users install the plugin once; individual skills are then invoked as `oncology-skills:<skill-name>` (e.g. `oncology-skills:workflow-target-evaluation-onc`).
 
 ## Branching Strategy
 
@@ -11,6 +15,38 @@ A collection of Claude Code skills for oncology target evaluation and RNA-seq an
 | `feature/*` | Individual feature development |
 
 **Workflow:** `feature/*` → `dev` (evaluate) → `main` (release)
+
+## Versioning
+
+Releases are tagged on `main` using [Semantic Versioning](https://semver.org/) — `vMAJOR.MINOR.PATCH`.
+
+| Bump | When to use | Examples in this repo |
+|------|-------------|-----------------------|
+| **PATCH** (`v1.0.0` → `v1.0.1`) | Bug fixes, doc fixes, parser tweaks. No change to how skills are invoked or what files they produce. | Fixing a regex that mis-extracts a value; correcting a stale filename in a doc; swapping `eval()` for a safe expression evaluator. |
+| **MINOR** (`v1.0.0` → `v1.1.0`) | New functionality that is **backwards compatible**. Existing skills, arguments, and outputs continue to work. | Adding a new skill folder; adding an optional CLI flag; adding new pages or content to the PDF report. |
+| **MAJOR** (`v1.0.0` → `v2.0.0`) | **Breaking changes.** Renaming or removing a skill, restructuring directory layout, changing required arguments, or changing output filenames in a way that downstream consumers must adapt to. | The ai-sci restructure (`oncology-skills/` → `skills/`, every skill renamed) — would have been a major bump if released as a single version. |
+
+### Tagging a release
+
+When `dev` merges into `main` for a release:
+
+1. Decide which component to bump based on the table above. Only **one** component bumps per release; the rightmost components reset to `0` when a higher one bumps (e.g. `v1.4.7` + MINOR → `v1.5.0`, not `v1.5.7`).
+2. Tag the merge commit on `main`:
+   ```bash
+   git tag -a v1.0.1 <main-commit-sha> -m "Brief description of the release"
+   git push origin v1.0.1
+   ```
+3. Tags are immutable. **Never reuse a tag** — if a release was wrong, ship a follow-up patch and tag a new version.
+
+### Conventions
+
+- **`v` prefix is required** on git tags (`v1.0.0`, not `1.0.0`) to distinguish version tags from other tags.
+- **Pre-1.0** versions (`v0.x.y`) signal "API still in flux"; downstream consumers should expect breaking changes between minor bumps. We released `v1.0.0` as the first stable version and follow strict semver from there.
+- **Pre-release suffixes** (`v1.1.0-rc.1`) are used for staged rollouts; not required for routine releases.
+
+### Versioning the audit-trail metadata
+
+The ScholarEval engine and validation framework include their own internal version strings inside their source files (e.g. `Version: 1.0.0` at the top of `scoring_engine.py`). Bump those alongside the repo tag whenever the scoring rules or audit-trail format changes — that lets re-runs against an old YAML/JSON output be detected as version-mismatched.
 
 ## Available Skills
 
