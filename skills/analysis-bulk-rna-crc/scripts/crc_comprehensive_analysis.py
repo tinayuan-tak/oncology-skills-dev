@@ -50,6 +50,7 @@ from statsmodels.stats.multitest import multipletests
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 import warnings
 import yaml
 import boto3
@@ -965,7 +966,32 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
     return assessment
 
 
-def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, idas_assessment, tempus_gene_data):
+def _load_modality_dispatcher():
+    """Load registry + dispatcher from the sibling workflow skill.
+
+    Returns (ModalityRegistry instance, apply_phase3_rule fn,
+    classify_recommendation fn) on success, or (None, None, None) if the
+    sibling skill isn't installed (falls back to v1.1.0 hard-coded rule).
+    """
+    skill_dir = Path(__file__).resolve().parent.parent
+    workflow_scripts = skill_dir.parent / "workflow-target-evaluation-onc" / "scripts"
+    if not workflow_scripts.exists():
+        return None, None, None
+    sys.path.insert(0, str(workflow_scripts))
+    try:
+        from modality_registry import ModalityRegistry  # type: ignore
+        from phase3_dispatcher import (  # type: ignore
+            apply_phase3_rule,
+            classify_recommendation,
+        )
+        return ModalityRegistry(), apply_phase3_rule, classify_recommendation
+    except Exception as e:
+        print(f"  WARNING: could not load modality dispatcher ({e}); using default rule")
+        return None, None, None
+
+
+def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, idas_assessment,
+                                  tempus_gene_data, modality=None):
     """
     Compute subgroup-specific suitability scores for CRC target evaluation.
 
@@ -974,11 +1000,30 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, idas_assessment,
     - RAS mutation status (RAS Mutant vs RAS WT from Tempus)
     - iDAS whitespace alignment (RAS Mut Refractory, Chemorefractory 3L+, Resectable)
 
+    Args:
+        modality: Optional therapeutic modality string (e.g. "Antibody",
+            "Molecular Glue", "PROTAC"). Routes through the modality registry
+            in workflow-target-evaluation-onc to select the Phase 3 tox rule.
+            If None or registry unavailable, defaults to antibody_naked
+            (tumor_vs_normal_strict) which matches v1.1.0 behavior exactly.
+
     Returns:
         dict: Subgroup suitability analysis with scores and recommendations
     """
+    registry, apply_rule, classify_rec = _load_modality_dispatcher()
+    if registry is not None:
+        modality_class = registry.resolve_class(modality)
+        class_cfg = registry.get_class(modality_class)
+        rule_cfg = registry.get_rule_config(class_cfg.phase3_tox_rule)
+    else:
+        modality_class = "antibody_naked"
+        class_cfg = None
+        rule_cfg = None
+
     suitability = {
         'gene': gene,
+        'modality': modality or '',
+        'modality_class': modality_class,
         'molecular_subgroup': {},
         'ras_status': {},
         'idas_whitespace': {},
@@ -1163,33 +1208,53 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, idas_assessment,
                 mutation_penalty = -1
                 mutation_context = f', ras_higher ({tempus_ras_fc:.1f}x vs WT, Tempus)'
 
-        # Adjust for toxicity risk
-        if tox_risk == 'High':
-            tox_penalty = 2
-        elif tox_risk == 'Medium':
-            tox_penalty = 1
+        # Adjust for toxicity risk via modality-aware dispatcher (or fall
+        # back to v1.1.0 hard-coded rule if dispatcher unavailable).
+        if registry is not None and rule_cfg is not None:
+            phase3 = apply_rule(
+                rule_name=class_cfg.phase3_tox_rule,
+                rule_config=rule_cfg,
+                base_score=base_score,
+                tox_risk=tox_risk,
+                expression=expression,
+                expression_floor=class_cfg.expression_floor_rna,
+                mutation_penalty=mutation_penalty,
+            )
+            tox_penalty = phase3.tox_penalty
+            tox_context = phase3.tox_context
+            adjusted_score, recommendation = classify_rec(
+                base_score=base_score,
+                tox_penalty=tox_penalty,
+                mutation_penalty=mutation_penalty,
+                high_tox_blocks_priority=phase3.high_tox_blocks_priority,
+            )
+            rule_applied = phase3.rule_applied
         else:
-            tox_penalty = 0
-
-        # Calculate final adjusted score
-        adjusted_score = max(1, base_score - tox_penalty - mutation_penalty)
-
-        # Determine recommendation
-        if mutation_penalty >= 2:
-            recommendation = 'CAUTION'
-            rationale = f'Expression={expression:.2f}, but target LOWER in RAS-mutant{mutation_context}'
-        elif adjusted_score >= 4 and tox_risk != 'High':
-            if mutation_penalty == 0 and tox_penalty == 0:
-                recommendation = 'PRIORITY'
+            # Fallback: v1.1.0 hard-coded antibody-naked rule
+            if tox_risk == 'High':
+                tox_penalty = 2
+            elif tox_risk == 'Medium':
+                tox_penalty = 1
             else:
-                recommendation = 'GO'
-            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
-        elif adjusted_score >= 3:
-            recommendation = 'CONDITIONAL'
-            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
+                tox_penalty = 0
+            adjusted_score = max(1, base_score - tox_penalty - mutation_penalty)
+            tox_context = f'{tox_risk} toxicity'
+            rule_applied = 'tumor_vs_normal_strict'
+
+            if mutation_penalty >= 2:
+                recommendation = 'CAUTION'
+            elif adjusted_score >= 4 and tox_risk != 'High':
+                recommendation = 'PRIORITY' if (mutation_penalty == 0 and tox_penalty == 0) else 'GO'
+            elif adjusted_score >= 3:
+                recommendation = 'CONDITIONAL'
+            else:
+                recommendation = 'CAUTION'
+
+        # Build rationale string (modality-aware).
+        if mutation_penalty >= 2:
+            rationale = f'Expression={expression:.2f}, but target LOWER in RAS-mutant{mutation_context}'
         else:
-            recommendation = 'CAUTION'
-            rationale = f'Expression={expression:.2f}, concerns: tox={tox_risk}{mutation_context}'
+            rationale = f'Expression={expression:.2f}, {tox_context}{mutation_context}'
 
         suitability['idas_whitespace'][ws_key] = {
             'expression': round(expression, 3) if expression else 0,
@@ -1203,6 +1268,7 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, idas_assessment,
             'tox_penalty': tox_penalty,
             'mutation_penalty': mutation_penalty,
             'adjusted_score': adjusted_score,
+            'rule_applied': rule_applied,
             'recommendation': recommendation,
             'rationale': rationale
         }
@@ -2079,7 +2145,7 @@ def generate_comprehensive_report(gene_symbol, master_df, tcga_stats, tcga_compa
 # =============================================================================
 
 def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data=None,
-                 skip_tcga=False, skip_tempus=False):
+                 skip_tcga=False, skip_tempus=False, modality=None):
     """Run comprehensive analysis for a single gene."""
     print(f"\n{'='*70}")
     print(f"Analyzing: {gene_symbol}")
@@ -2161,7 +2227,8 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
     # Compute subgroup suitability
     print("\n  Computing subgroup suitability...")
     subgroup_suitability = compute_subgroup_suitability(
-        gene_symbol, tcga_stats, tcga_comparisons, assessment, tempus_gene_data
+        gene_symbol, tcga_stats, tcga_comparisons, assessment, tempus_gene_data,
+        modality=modality,
     )
 
     # Print key findings
@@ -2253,6 +2320,11 @@ This script provides comprehensive CRC target evaluation combining:
     parser.add_argument('--cohort-file', default=DEFAULT_COHORT_PATH, help='Cohort assignments CSV')
     parser.add_argument('--cms-file', default=DEFAULT_CMS_PATH, help='CMS predictions CSV')
     parser.add_argument('--adj-normal-file', default=DEFAULT_ADJ_NORMAL_PATH, help='Adjacent normal samples')
+    parser.add_argument('--modality', default=None,
+                        help='Therapeutic modality (e.g. "Antibody", "ADC", "T-cell engager", '
+                             '"Small molecule", "Molecular Glue", "PROTAC", "RNAi"). Routes Phase 3 '
+                             'tox scoring through the modality registry. Omit for default '
+                             'antibody-naked behavior (matches v1.1.0).')
 
     args = parser.parse_args()
 
@@ -2310,7 +2382,8 @@ This script provides comprehensive CRC target evaluation combining:
             result = analyze_gene(
                 gene, args.cache_dir, args.output_dir,
                 tcga_data=tcga_data, tempus_data=tempus_data,
-                skip_tcga=args.skip_tcga, skip_tempus=args.skip_tempus
+                skip_tcga=args.skip_tcga, skip_tempus=args.skip_tempus,
+                modality=args.modality,
             )
             results.append(result)
         except Exception as e:
