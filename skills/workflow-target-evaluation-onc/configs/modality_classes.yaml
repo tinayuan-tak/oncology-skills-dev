@@ -1,0 +1,407 @@
+# Modality Class Registry
+# =============================================================================
+# Disease-agnostic registry of therapeutic modality classes used by the
+# target-evaluation workflow to route Phase 3 subgroup scoring, on-target
+# safety thresholds, and evidence-source preference (RNA vs protein).
+#
+# Consumed by:
+#   - skills/workflow-target-evaluation-onc/scripts/scoring_engine.py
+#       (modality dispatcher; reads `phase3_tox_rule` to select a tox-rule
+#        function from `phase3_tox_rules` below)
+#   - skills/analysis-bulk-rna-{crc,nsclc}/scripts/{disease}_comprehensive_analysis.py
+#       (Phase 3 scoring; --modality flag fuzzy-matches via aliases)
+#   - skills/analysis-protein-{crc,nsclc}/scripts/{disease}_protein_analysis.py
+#       (validates that subcellular location is consistent with declared
+#        modality class; flags inconsistencies for review)
+#
+# Design notes:
+#   - "Class" is the routing key. "Modality" is what users pass on the CLI.
+#     Aliases let "Molecular Glue" / "PROTAC" / "TPD" all route to the
+#     `degrader` class.
+#   - `primary_evidence` is an ordered list. The first item that has data
+#     available drives the Phase 3 tox calculation; later items are
+#     confirmatory. This is how protein evidence "overrides" RNA for
+#     surface-acting modalities once protein data is integrated.
+#   - `phase3_tox_rule` names a function in `phase3_tox_rules:` below.
+#     New rules go there; existing rules MUST NOT change semantics without
+#     a MAJOR version bump (downstream audit-trail hashes depend on them).
+# =============================================================================
+
+version: "1.0.0"
+description: "Disease-agnostic modality class registry for therapeutic target evaluation"
+
+# =============================================================================
+# MODALITY CLASSES
+# =============================================================================
+# Six canonical classes. New classes require this registry version bump
+# and matching code in scoring_engine._apply_modality_rule().
+
+modality_classes:
+
+  # ---------------------------------------------------------------------------
+  antibody_naked:
+    aliases:
+      - "antibody"
+      - "naked antibody"
+      - "mAb"
+      - "monoclonal antibody"
+      - "IgG"
+    description: |
+      Naked (unconjugated) monoclonal antibody — administered as the antibody
+      alone, with no payload, no second binding arm, no cell carrier, no
+      radioisotope. Therapeutic effect comes from the antibody itself via
+      one or more of: ligand/receptor blockade, ADCC (Fc → NK cell
+      recruitment), or CDC (Fc → complement cascade). Requires cell-surface
+      target localization.
+
+      Examples: pembrolizumab (PD-1 blockade), cetuximab (EGFR blockade +
+      ADCC), trastuzumab (HER2 blockade + ADCC/CDC), bevacizumab (VEGF-A
+      ligand trap).
+
+      "Naked" is industry shorthand contrasting with armed/engineered
+      antibodies (ADC, bispecific, TCE, CAR-T, radio-immunotherapy). When
+      the same target+epitope is developed as both — e.g. trastuzumab
+      (naked) and trastuzumab-deruxtecan (ADC) — they use different scoring
+      rules because their tox profiles differ substantially.
+
+      Default class when --modality is omitted (most common oncology
+      modality by drug count).
+    primary_evidence:
+      - "protein_surface"     # HPA subcellular = Plasma membrane / Cell Junctions
+      - "rna_expression"      # confirmatory only
+    phase3_tox_rule: "tumor_vs_normal_strict"
+    expression_floor:
+      rna_log2tpm: 3.0        # below this, biologic likely won't engage
+      protein_ihc: "Low"      # HPA categorical: Not detected | Low | Medium | High
+    requires_surface_localization: true
+    safety_flags:
+      - "any_normal_high_ihc_blocks"  # any normal tissue scoring HIGH IHC = exclude
+    notes: "Standard tumor-vs-normal rule applies. Less aggressive than ADC."
+
+  # ---------------------------------------------------------------------------
+  adc:
+    aliases:
+      - "ADC"
+      - "antibody-drug conjugate"
+      - "antibody drug conjugate"
+    description: |
+      Antibody-Drug Conjugate. A naked-antibody scaffold linked to a
+      cytotoxic small-molecule payload (e.g. MMAE, DXd, SN-38) via a
+      cleavable or non-cleavable linker. After binding the surface target,
+      the ADC is internalized; the payload is released intracellularly and
+      kills the cell.
+
+      Requires: surface target + internalization-competent vesicular
+      trafficking. The "bystander effect" — payload diffusing to neighboring
+      cells — means even modest normal-tissue target expression can drive
+      cumulative toxicity over dosing cycles.
+
+      Examples: trastuzumab-deruxtecan / Enhertu (HER2-DXd), enfortumab
+      vedotin (Nectin-4-MMAE), sacituzumab govitecan / Trodelvy (TROP2-SN-38),
+      datopotamab-deruxtecan / Datroway (TROP2-DXd).
+
+      Scoring is one notch stricter than naked antibody on every tox tier:
+      the same target+expression yields a worse Phase 3 score for ADC than
+      for naked antibody, reflecting the bystander/payload risk.
+    primary_evidence:
+      - "protein_surface"
+      - "rna_expression"
+    phase3_tox_rule: "tumor_vs_normal_very_strict"
+    expression_floor:
+      rna_log2tpm: 3.0
+      protein_ihc: "Low"
+    requires_surface_localization: true
+    requires_internalization: true   # vesicular trafficking favorable
+    safety_flags:
+      - "any_normal_high_ihc_blocks"
+      - "any_normal_medium_ihc_caution"  # MEDIUM IHC anywhere = MEDIUM tox not LOW
+    notes: |
+      Payload class matters: DXd (lower CNS penetrance) preferred over MMAE
+      for targets with any CNS expression.
+
+  # ---------------------------------------------------------------------------
+  tce:
+    aliases:
+      - "T-cell engager"
+      - "TCE"
+      - "BiTE"
+      - "bispecific T-cell engager"
+      - "CAR-T"
+      - "CAR-NK"
+    description: |
+      T-cell engager (BiTE, DuoBody, etc.) or CAR cell therapy (CAR-T,
+      CAR-NK). The therapeutic mechanism is *redirected cytotoxicity*: the
+      modality bridges the target antigen to a cytotoxic immune cell
+      (T cell via CD3 in BiTEs, or the engineered cell itself in CAR-T),
+      which then kills the antigen-positive cell.
+
+      Examples: blinatumomab (CD19xCD3 BiTE), tarlatamab (DLL3xCD3,
+      ImDelltra in SCLC), tisagenlecleucel (CD19 CAR-T / Kymriah),
+      teclistamab (BCMAxCD3, Tecvayli).
+
+      Strictest safety class in the registry. Any non-trivial normal-tissue
+      expression of the target effectively excludes the modality, because
+      engagement triggers full immune-mediated cytotoxicity in that tissue
+      — there is no "low dose" rescue. CNS expression is an absolute
+      exclusion (cytokine release / neurotoxicity risk).
+
+      Suitable only for highly tumor-restricted antigens (CD19, BCMA,
+      DLL3, GPRC5D in current clinical use). The Phase 3 rule
+      (any_normal_expression_blocks) penalizes even Low tumor-vs-normal
+      expression scores, reflecting that "any normal tissue at all" is
+      a meaningful safety signal here.
+    primary_evidence:
+      - "protein_surface"
+      - "rna_expression"
+    phase3_tox_rule: "any_normal_expression_blocks"
+    expression_floor:
+      rna_log2tpm: 3.5        # higher floor: need robust expression for engagement
+      protein_ihc: "Medium"
+    requires_surface_localization: true
+    safety_flags:
+      - "any_normal_medium_ihc_blocks"  # stricter than ADC
+      - "cns_expression_excludes"        # any adult CNS expression → exclude class
+    notes: |
+      Effectively excluded if target has any non-trivial normal-tissue
+      expression. Suitable only for highly tumor-restricted antigens.
+
+  # ---------------------------------------------------------------------------
+  small_molecule:
+    aliases:
+      - "small molecule"
+      - "SMI"
+      - "small molecule inhibitor"
+      - "kinase inhibitor"
+      - "TKI"
+    description: |
+      Small-molecule inhibitor — catalytic-site (orthosteric), allosteric,
+      covalent, or scaffolded around a chemical pharmacophore. Therapeutic
+      window comes from binding-pocket discrimination (target vs paralogs),
+      not from differential tumor-vs-normal expression.
+
+      Examples: osimertinib (EGFR-mutant TKI), sotorasib/adagrasib (KRAS
+      G12C covalent), olaparib (PARP), palbociclib (CDK4/6), erlotinib
+      (EGFR), imatinib (BCR-ABL), capivasertib (AKT).
+
+      Phase 3 tox rule is relaxed: Medium tumor-vs-normal tox does not
+      penalize, and High tox does not auto-block PRIORITY. The reasoning
+      is that small molecules find catalytic substrate broadly across
+      tissues; what governs clinical response is pathway dependency
+      (e.g. KRAS-MAPK addiction, DDR synthetic lethality) and paralog
+      selectivity (off-target kinases), not expression-window. RNA
+      expression is necessary (target must be present) but not the
+      primary efficacy proxy.
+
+      Note: paralog selectivity is the dominant safety risk and is not
+      currently scored by the registry — it should be evaluated separately
+      via SAR/structure-based design data (see safety_flags below).
+    primary_evidence:
+      - "rna_expression"
+      - "pathway_dependency"
+      - "protein_active_state"  # phospho-state, conformational state
+    phase3_tox_rule: "tumor_vs_normal_relaxed"
+    expression_floor:
+      rna_log2tpm: 2.0          # lower than biologics — small molecules find substrate broadly
+      protein_ihc: null         # not the primary readout
+    requires_surface_localization: false
+    safety_flags:
+      - "paralog_selectivity_required"  # off-target paralogs are the dominant risk
+    notes: |
+      RNA expression is necessary but not sufficient. Pathway context
+      (KRAS-MAPK, DDR, synthetic lethality) typically drives clinical
+      response more than tumor-vs-normal expression.
+
+  # ---------------------------------------------------------------------------
+  degrader:
+    aliases:
+      - "molecular glue"
+      - "PROTAC"
+      - "degrader"
+      - "TPD"
+      - "targeted protein degrader"
+      - "heterobifunctional degrader"
+    description: |
+      Targeted Protein Degrader (TPD). Two main subclasses:
+        - PROTAC (heterobifunctional): one warhead binds the target protein,
+          the other binds an E3 ubiquitin ligase, and a linker brings them
+          together so the E3 ubiquitinates the target for proteasomal
+          degradation.
+        - Molecular glue: monovalent small molecule that stabilizes a
+          ternary complex between an E3 (typically CRBN or DCAF15) and a
+          neosubstrate it does not natively recognize, inducing degradation.
+
+      Examples: lenalidomide / pomalidomide / iberdomide / mezigdomide
+      (CRBN-binding molecular glues degrading IKZF1/3 in MM/MDS), indisulam
+      (DCAF15 → RBM39), ARV-471 (ER PROTAC), KT-474 (IRAK4 PROTAC),
+      pelabresib (BET).
+
+      Therapeutic window comes from **neosubstrate selectivity** of the
+      candidate degrader — i.e. which proteins get degraded — NOT from
+      tumor-vs-normal expression of the recruited E3 ligase. CRBN itself
+      is broadly expressed across tissues; that's not a safety signal.
+      The drug's safety is governed by what the warhead chooses to
+      degrade in each tissue, which is a program-level question outside
+      this registry's scope.
+
+      Phase 3 rule (expression_floor_only) therefore disables the
+      tumor-vs-normal penalty and substitutes an expression-floor check:
+      the only Phase 3 risk is "is the recruited E3 / target expressed
+      enough to be engaged at all?" This is the carve-out that motivated
+      the registry — without it, CRBN would score CAUTION on every
+      whitespace despite being a clinically validated drug class.
+    primary_evidence:
+      - "rna_expression_floor"   # is the target expressed at all?
+      - "neosubstrate"           # neosubstrate selectivity (program-specific)
+    phase3_tox_rule: "expression_floor_only"
+    expression_floor:
+      rna_log2tpm: 2.0
+      protein_ihc: null
+    requires_surface_localization: false
+    safety_flags: []
+    notes: |
+      This is the carve-out that motivated the registry (CRBN case). HIGH
+      tumor-vs-normal "tox" is meaningless for a uniformly-expressed E3
+      ligase like CRBN — the relevant safety signal is neosubstrate
+      selectivity of the candidate degrader, not the recruited E3.
+
+  # ---------------------------------------------------------------------------
+  rnai:
+    aliases:
+      - "RNAi"
+      - "siRNA"
+      - "ASO"
+      - "antisense oligonucleotide"
+      - "mRNA"
+      - "shRNA"
+    description: |
+      RNA-targeting modality. Several subtypes share this class:
+        - siRNA (small interfering RNA): exogenous double-stranded RNA
+          that loads into RISC and degrades complementary mRNA.
+        - ASO (antisense oligonucleotide): single-stranded chemically
+          modified DNA/RNA hybrid that binds mRNA and either recruits
+          RNase H to cleave it or modulates splicing.
+        - mRNA therapy: delivers therapeutic mRNA encoding a desired
+          protein (vaccines, replacement therapies).
+        - shRNA: vector-delivered short hairpin RNA, similar mechanism
+          to siRNA but stably expressed.
+
+      Examples: patisiran (TTR siRNA, GalNAc-delivered), inotersen (TTR
+      ASO), nusinersen (SMN2 ASO), givosiran (ALAS1 siRNA), mRNA-1273
+      (COVID-19 vaccine), tominersen (HTT ASO, Phase 3).
+
+      RNA expression IS the therapeutic readout — unlike protein-acting
+      modalities, the drug acts directly on the mRNA. Tumor-vs-normal
+      RNA expression therefore drives the Phase 3 rule (same as naked
+      antibody, hence both use tumor_vs_normal_strict).
+
+      The dominant clinical challenge is **delivery**, not expression-
+      window. Today's GalNAc conjugation enables hepatic delivery
+      (most approved drugs are liver-targeted). Lung, CNS, and tumor
+      delivery for oncology applications remain experimental as of
+      2026 — flag this when invoking the class.
+    primary_evidence:
+      - "rna_expression"
+      - "delivery_route"        # GalNAc, LNP, etc. — not yet integrated
+    phase3_tox_rule: "tumor_vs_normal_strict"
+    expression_floor:
+      rna_log2tpm: 2.5
+      protein_ihc: null
+    requires_surface_localization: false
+    safety_flags:
+      - "delivery_tissue_restricted"  # GalNAc = liver-only, etc.
+    notes: |
+      Default is hepatic delivery (GalNAc) unless modality is specified
+      with a different delivery route. Lung delivery for NSCLC remains
+      experimental as of 2026.
+
+# =============================================================================
+# PHASE 3 TOX RULES
+# =============================================================================
+# Named rules referenced by `phase3_tox_rule` above. The dispatcher in
+# scoring_engine.py looks these up by name. Rules are pure data; the
+# corresponding rule functions live in scoring_engine._apply_phase3_tox_rule().
+#
+# Each rule defines:
+#   - tox_penalty_by_risk: penalty to subtract from Phase 3 base_score
+#   - high_tox_blocks_priority: if true, HIGH tox prevents PRIORITY/GO
+#   - description: human-readable explanation for audit-trail rationale
+
+phase3_tox_rules:
+
+  tumor_vs_normal_strict:
+    description: "Standard tumor-vs-adjacent-normal rule. Antibody/RNAi default."
+    tox_penalty_by_risk:
+      Low: 0
+      Medium: 1
+      High: 2
+    high_tox_blocks_priority: true
+
+  tumor_vs_normal_very_strict:
+    description: "ADC rule — bystander killing makes any normal expression more dangerous."
+    tox_penalty_by_risk:
+      Low: 0
+      Medium: 2          # stricter: MEDIUM gets 2 not 1
+      High: 3            # stricter: HIGH effectively excludes
+    high_tox_blocks_priority: true
+
+  tumor_vs_normal_relaxed:
+    description: "Small-molecule rule — pathway context matters more than expression-window."
+    tox_penalty_by_risk:
+      Low: 0
+      Medium: 0          # MEDIUM tox doesn't penalize SMI
+      High: 1            # HIGH tox is a soft penalty
+    high_tox_blocks_priority: false  # SMI can still be PRIORITY with HIGH tox
+
+  expression_floor_only:
+    description: "Degrader rule — replace tumor-vs-normal with expression-floor check."
+    tox_penalty_by_risk:
+      Low: 0
+      Medium: 0
+      High: 0            # tumor-vs-normal not applicable
+    high_tox_blocks_priority: false
+    apply_expression_floor_instead: true   # use expression_floor.rna_log2tpm
+
+  any_normal_expression_blocks:
+    description: "TCE rule — any normal-tissue expression effectively excludes."
+    tox_penalty_by_risk:
+      Low: 1             # even Low gets a small penalty
+      Medium: 3
+      High: 4            # de facto exclusion
+    high_tox_blocks_priority: true
+    require_normal_ihc_below: "Medium"   # any normal tissue ≥Medium = exclude
+
+# =============================================================================
+# DEFAULTS
+# =============================================================================
+# When --modality is omitted, fall back to antibody_naked. This matches
+# pre-registry behavior (the v1.1.0 binary code path treated everything
+# as "standard").
+
+defaults:
+  unknown_modality_class: "antibody_naked"
+  unknown_modality_warning: |
+    No modality specified. Falling back to antibody_naked (tumor-vs-normal
+    strict tox rule). Specify --modality to use modality-aware scoring.
+
+# =============================================================================
+# SUBCELLULAR LOCATION → MODALITY CLASS COMPATIBILITY
+# =============================================================================
+# Used by analysis-protein-{disease} to validate that the declared modality
+# class is consistent with the protein's subcellular location. Flags
+# inconsistencies (e.g. user declares modality=adc but protein is nuclear).
+#
+# Mirrors MODALITY_MAPPING in {disease}_protein_analysis.py — keep these
+# in sync. (Future: protein scripts should import from this YAML to
+# eliminate duplication.)
+
+subcellular_to_classes:
+  "Plasma membrane": [antibody_naked, adc, tce]
+  "Cell Junctions":  [antibody_naked, adc]
+  "Vesicles":        [adc]              # internalization-competent
+  "Cytosol":         [small_molecule, degrader]
+  "Nucleoplasm":     [small_molecule, degrader, rnai]
+  "Mitochondria":    [small_molecule]
+  "Endoplasmic reticulum": [small_molecule]
+  "Golgi apparatus": [small_molecule]
+  "Cytoskeleton":    [small_molecule]
+  "Secreted":        [antibody_naked]   # neutralizing antibody only
