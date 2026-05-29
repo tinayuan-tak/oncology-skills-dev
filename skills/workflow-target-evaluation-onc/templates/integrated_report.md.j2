@@ -147,10 +147,10 @@ See `{{ gene }}_risk_assessment_{{ disease.abbreviation|lower }}.md` for the lit
 
 #### Phase 3: iDAS Whitespace Suitability ({{ modality.class_id }} modality)
 
-| Whitespace | Key Metric | Score | Risk Level | Recommendation | Rule Applied |
-|------------|------------|-------|------------|----------------|--------------|
+| Whitespace | Key Metric | Score | Risk Level | Recommendation | Modality Rule |
+|------------|------------|-------|------------|----------------|---------------|
 {% for row in suitability.phase3 %}
-| {{ row.subgroup }} | {{ row.key_metric }} | {{ row.score }} | {{ row.risk_level }} | **{{ row.recommendation }}** | {% if idas.rows %}{% for ws in idas.rows %}{% if ws.label in row.subgroup or row.subgroup in ws.label %}`{{ ws.rule_applied }}`{% endif %}{% endfor %}{% else %}—{% endif %} |
+| {{ row.subgroup }} | {{ row.key_metric }} | {{ row.score }} | {{ row.risk_level }} | **{{ row.recommendation }}** | {{ row.rule_label }} |
 {% endfor %}
 
 #### Subgroup Recommendations Summary

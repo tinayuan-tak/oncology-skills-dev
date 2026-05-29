@@ -10,12 +10,38 @@ Single public entry point: `build_context()`.
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from .parsers import (
     IDASAssessment, PairwiseComparison, RiskAssessment,
     ScholarEvalResult, SubgroupRow,
 )
+
+
+# Path to the modality registry — load rule descriptions for human-readable
+# rendering of `rule_applied` fields in the integrated report.
+REGISTRY_PATH = (
+    Path(__file__).resolve().parents[2] / "configs" / "modality_classes.yaml"
+)
+
+
+def _load_rule_descriptions() -> dict[str, str]:
+    """Map phase3_tox_rule name → human-readable description from the registry.
+
+    Falls back to {} if the registry isn't found (legacy / standalone use).
+    """
+    if not REGISTRY_PATH.exists():
+        return {}
+    with open(REGISTRY_PATH) as f:
+        data = yaml.safe_load(f)
+    rules = data.get('phase3_tox_rules', {}) or {}
+    return {
+        name: cfg.get('description', name).strip()
+        for name, cfg in rules.items()
+    }
 
 
 # Disease-specific config (could move to configs/{disease}.yaml later;
@@ -70,6 +96,8 @@ def build_context(
         raise ValueError(f"Unknown disease: {disease!r}. Expected one of {list(DISEASE_CONFIG)}")
     disease_cfg = DISEASE_CONFIG[disease_lower]
 
+    rule_descriptions = _load_rule_descriptions()
+
     return {
         'gene': gene,
         'today': date.today().isoformat(),
@@ -78,10 +106,11 @@ def build_context(
         'modality': _build_modality_context(modality, idas, risk),
         'recommendation': _build_recommendation_context(risk, scholar),
         'risk': _build_risk_context(risk),
-        'idas': _build_idas_context(idas),
+        'idas': _build_idas_context(idas, rule_descriptions),
         'comparisons': _build_comparisons_context(comparisons, disease_lower),
         'scholar': _build_scholar_context(scholar),
-        'suitability': _build_suitability_context(suitability),
+        'suitability': _build_suitability_context(suitability, idas, rule_descriptions),
+        'rule_descriptions': rule_descriptions,
         'key_findings': _build_key_findings(risk, idas, scholar, modality, suitability),
     }
 
@@ -189,10 +218,18 @@ def _build_risk_context(risk: RiskAssessment) -> dict[str, Any]:
     }
 
 
-def _build_idas_context(idas: IDASAssessment) -> dict[str, Any]:
+def _build_idas_context(
+    idas: IDASAssessment,
+    rule_descriptions: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """iDAS whitespace alignment table + tox summary string."""
+    rule_descriptions = rule_descriptions or {}
     rows = []
     for key, ws in idas.whitespaces.items():
+        rule_label = (
+            rule_descriptions.get(ws.rule_applied, ws.rule_applied)
+            if ws.rule_applied else '—'
+        )
         rows.append({
             'label': ws.label,
             'expression': f'{ws.expression_log2tpm:.2f}',
@@ -204,6 +241,7 @@ def _build_idas_context(idas: IDASAssessment) -> dict[str, Any]:
             'adjusted_score': ws.adjusted_score,
             'recommendation': ws.recommendation or '—',
             'rule_applied': ws.rule_applied or '—',
+            'rule_label': rule_label,    # human-readable description
             'toxicity_risk': ws.toxicity_risk or '—',
         })
 
@@ -310,8 +348,27 @@ def _build_scholar_context(scholar: ScholarEvalResult) -> dict[str, Any]:
     }
 
 
-def _build_suitability_context(suitability: list[SubgroupRow]) -> dict[str, Any]:
-    """Phase 1 / Phase 2 / Phase 3 row groups for §3.4."""
+def _build_suitability_context(
+    suitability: list[SubgroupRow],
+    idas: IDASAssessment | None = None,
+    rule_descriptions: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Phase 1 / Phase 2 / Phase 3 row groups for §3.4.
+
+    For Phase 3 rows, joins in the modality rule description so the
+    template can render a human-readable rule label rather than the
+    raw rule name (e.g. 'TCE rule — any normal-tissue expression
+    effectively excludes.' rather than 'any_normal_expression_blocks').
+    """
+    rule_descriptions = rule_descriptions or {}
+    # Build a label→rule_applied map from idas whitespaces so we can
+    # match Phase 3 suitability rows back to the rule that fired for them.
+    label_to_rule: dict[str, str] = {}
+    if idas is not None:
+        for ws in idas.whitespaces.values():
+            if ws.rule_applied and ws.label:
+                label_to_rule[ws.label.lower()] = ws.rule_applied
+
     by_cat: dict[str, list[dict[str, Any]]] = {
         'tcga_analysis': [],
         'molecular_subgroup': [],   # CRC alias
@@ -330,7 +387,17 @@ def _build_suitability_context(suitability: list[SubgroupRow]) -> dict[str, Any]
                 'LOW' if row.score >= 4 else
                 'MEDIUM' if row.score == 3 else 'HIGH'
             ),
+            'rule_applied': '',
+            'rule_label': '—',
         }
+        if row.category == 'idas_whitespace':
+            # Match by whitespace label substring, e.g.
+            # 'iDAS: 2L Non-AGA' contains '2L Non-AGA'.
+            for label_lc, rule in label_to_rule.items():
+                if label_lc in row.subgroup.lower():
+                    cell['rule_applied'] = rule
+                    cell['rule_label'] = rule_descriptions.get(rule, rule)
+                    break
         if row.category in by_cat:
             by_cat[row.category].append(cell)
 

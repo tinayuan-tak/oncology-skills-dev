@@ -2363,6 +2363,8 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     idas_assessment['gene'] = gene
     idas_assessment['timestamp'] = datetime.now().isoformat()
     idas_assessment['subgroup_analysis'] = {
+        'modality': subgroup_suitability.get('modality', ''),
+        'modality_class': subgroup_suitability.get('modality_class', 'antibody_naked'),
         'histology': subgroup_suitability.get('histology', {}),
         'mutation_status': subgroup_suitability.get('mutation_status', {}),
         'idas_whitespace': subgroup_suitability.get('idas_whitespace', {}),
