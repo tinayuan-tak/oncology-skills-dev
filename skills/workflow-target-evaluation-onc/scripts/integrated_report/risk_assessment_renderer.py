@@ -215,9 +215,30 @@ def render_risk_assessment(
     env = Environment(
         loader=FileSystemLoader(TEMPLATES_DIR),
         undefined=StrictUndefined,
-        trim_blocks=True,
+        # trim_blocks=False so per-iteration newlines in for-loops are
+        # preserved (so multi-item lists / multi-row tables don't
+        # collapse onto one line). Cost: extra blank lines around tag
+        # blocks; we collapse those in post-processing.
+        trim_blocks=False,
         lstrip_blocks=True,
         keep_trailing_newline=True,
     )
     template = env.get_template(template_name)
-    return template.render(**build_render_context(facts))
+    rendered = template.render(**build_render_context(facts))
+    # Post-process: clean up cosmetic whitespace from trim_blocks=False.
+    #   1. Collapse 3+ consecutive blank lines to 2 (single-line breaks
+    #      between paragraphs/sections are preserved).
+    #   2. Strip blank lines between adjacent markdown table rows
+    #      (lines that both start with '|' should be contiguous).
+    #   3. Strip blank lines between adjacent list items (lines that
+    #      both start with '- ' or 'N. ' should be contiguous).
+    #   4. Remove orphan separators (`---` immediately before another `---`).
+    import re
+    rendered = re.sub(r'\n{3,}', '\n\n', rendered)
+    rendered = re.sub(r'(\|[^\n]*)\n\n(?=\|)', r'\1\n', rendered)
+    rendered = re.sub(r'(- \[?[^\n]*)\n\n(?=- )', r'\1\n', rendered)
+    rendered = re.sub(r'(\d+\.\s+[^\n]*)\n\n(?=\d+\.\s+)', r'\1\n', rendered)
+    rendered = re.sub(r'\n---\s*\n+---', '\n---', rendered)
+    # Strip leading blank lines (left over from Jinja {# comment #} block).
+    rendered = rendered.lstrip('\n')
+    return rendered

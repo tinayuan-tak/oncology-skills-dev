@@ -28,7 +28,8 @@
 ## Strategic Alignment Assessment
 
 **Whitespace Alignment:**
-{% for ws in idas_alignment -%}
+
+{% for ws in idas_alignment %}
 - [x] {{ ws.whitespace }} — {{ ws.alignment }}{% if ws.rationale %} ({{ ws.rationale }}){% endif %}
 {% endfor %}
 
@@ -38,7 +39,7 @@
 
 | Risk Factor | Risk Level | Key Considerations |
 |---|---|---|
-{% for cat in categories_ordered -%}
+{% for cat in categories_ordered %}
 | {{ cat.display_name }} | **{{ cat.level }}** | {{ cat.key_driver }}{% if cat.pmid_string %} Evidence: {{ cat.pmid_string }}.{% endif %} |
 {% endfor %}
 
@@ -51,11 +52,11 @@
 
 ### Evidence Documentation
 
-{% if cat.evidence -%}
-{% for ev in cat.evidence -%}
+{% if cat.evidence %}
+{% for ev in cat.evidence %}
 - {{ ev.claim }}{% if ev.pmid %} (PMID: {{ ev.pmid }}){% endif %}{% if ev.study_type %} — *{{ ev.study_type }}*{% endif %}
 {% endfor %}
-{% else -%}
+{% else %}
 *No structured evidence provided.*
 {% endif %}
 
@@ -70,7 +71,7 @@
 
 | Priority Whitespace | Alignment | Rationale |
 |---|---|---|
-{% for ws in idas_alignment -%}
+{% for ws in idas_alignment %}
 | {{ ws.whitespace }} | **{{ ws.alignment }}** | {{ ws.rationale or '—' }} |
 {% endfor %}
 
@@ -78,7 +79,7 @@
 
 ## Key Strengths
 
-{% for s in strengths -%}
+{% for s in strengths %}
 {{ loop.index }}. {{ s }}
 {% endfor %}
 
@@ -86,7 +87,7 @@
 
 ## Key Risks/Challenges
 
-{% for r in risks -%}
+{% for r in risks %}
 {{ loop.index }}. {{ r }}
 {% endfor %}
 
@@ -96,7 +97,7 @@
 
 | Risk | Risk Level | Mitigation Strategy |
 |---|---|---|
-{% for m in mitigations -%}
+{% for m in mitigations %}
 | {{ m.title }} | {{ m.risk_level }} | {{ m.strategy }} |
 {% endfor %}
 
