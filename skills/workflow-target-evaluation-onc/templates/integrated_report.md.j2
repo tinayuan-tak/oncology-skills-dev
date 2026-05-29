@@ -1,0 +1,274 @@
+{# ============================================================================
+   Integrated Target Evaluation Report — Jinja2 template
+
+   Consumes the dict produced by integrated_report.context.build_context().
+   Output must round-trip through generate_target_report_pdf.parse_integrated_report
+   (zero TBD fields, all required sections present).
+
+   Section structure mirrors v1.1.0 hand-written reports exactly so the
+   existing PDF parser keeps working without changes.
+   ============================================================================ #}
+# {{ gene }} Target Evaluation Report: {{ disease.abbreviation }}
+
+**Generated:** {{ today }}
+**Workflow:** Oncology Target Evaluation Pipeline v{{ workflow_version }}
+
+---
+
+## Executive Summary
+
+| Metric | Value |
+|--------|-------|
+| **Target** | {{ gene }} |
+| **Indication** | {{ disease.full_name }} |
+| **ScholarEval Score** | **{{ scholar.total_score }}/5.0 ({{ scholar.assessment }})** |
+| **Overall Risk Profile** | **{{ risk.overall_profile }}** |
+| **Recommendation** | **{{ recommendation.full_string }}** |
+
+### Key Findings at a Glance
+- **Modality**: {{ modality.display_string }}
+- **On-target toxicity**: {{ idas.tox_summary }}
+- **iDAS alignment**: {{ idas.alignment_summary }}
+{% for finding in key_findings %}
+- {{ finding }}
+{% endfor %}
+
+---
+
+## 1. Introduction
+
+### 1.1 Target Background
+
+See `{{ gene }}_risk_assessment_{{ disease.abbreviation|lower }}.md` for the literature-based target background, mechanism, and biological rationale.
+
+### 1.2 Rationale for {{ disease.abbreviation }}
+
+- **Modality candidates evaluated**: {{ modality.display_string }} (resolved to class `{{ modality.class_id }}`)
+- **iDAS alignment**: {{ idas.alignment_summary }}
+- **Tumor vs adjacent**: {{ idas.tox_summary }}
+
+### 1.3 iDAS Strategic Context
+
+{{ disease.full_name }} priority whitespaces evaluated:
+{% for ws in idas.rows %}
+{{ loop.index }}. **{{ ws.label }}** — {{ ws.alignment }} alignment ({{ ws.expression }} log2TPM, n={{ ws.n_samples }}, source: {{ ws.source }})
+{% endfor %}
+
+---
+
+## 2. Methods
+
+### 2.1 Four-Step Evaluation Pipeline
+
+| Step | Description | Data Sources |
+|------|-------------|--------------|
+| 1. Risk Assessment | Literature-based target risk evaluation | PubMed |
+| 2. Expression Analysis | Multi-omics bulk RNA + RWE | TCGA, GTEx, Tempus |
+| 3. ScholarEval | 8-dimension deterministic scoring | Integrated evidence |
+| 4. Report Generation | Template-driven integrated report + PDF | All steps |
+
+### 2.2 Data Sources
+
+- **TCGA**: Tumor + adjacent normal expression ({{ disease.tcga_projects }})
+- **GTEx**: Healthy tissue baseline ({{ disease.normal_tissue }})
+- **Tempus RWD**: Real-world expression with biomarker stratification
+- **PubMed**: 6-category literature search (Step 1)
+
+---
+
+## 3. Results
+
+### 3.1 Risk Assessment Summary (Step 1: Literature-Based)
+
+> **Data Source:** PubMed literature search across 6 risk categories.
+> Modality-agnostic — risk levels reflect target biology, not modality choice.
+
+| Risk Category | Risk Level | Key Driver | Key Evidence (PMID) |
+|---------------|------------|------------|---------------------|
+{% for cat in risk.categories %}
+| {{ cat.name }} | {{ cat.level }} | {{ cat.driver }} | {{ cat.evidence }} |
+{% endfor %}
+
+**Overall Risk Profile: {{ risk.overall_profile }}**
+
+### 3.2 Differential Expression Analysis (Step 2: Multi-omics)
+
+#### Primary On-Target Toxicity Metric: Tumor vs Adjacent Normal
+
+| Comparison | Tumor N | Normal N | Tumor Median | Normal Median | Fold Change | Risk Level | p-value |
+|------------|---------|----------|--------------|---------------|-------------|------------|---------|
+{% for c in comparisons.rows %}
+| {{ c.tumor_cohort }} vs {{ c.normal_group }} | {{ c.tumor_n }} | {{ c.normal_n }} | {{ c.tumor_median }} | {{ c.normal_median }} | **{{ c.fold_change }}** | {{ c.risk_level }} | {{ c.p_value }} |
+{% endfor %}
+
+**On-Target Toxicity Risk Criteria:**
+- **LOW**: >2× tumor vs adjacent (good window)
+- **MEDIUM**: 1.5–2× tumor vs adjacent
+- **HIGH**: <1.5× tumor vs adjacent
+
+**Interpretation**: {{ idas.tox_summary }}.
+
+#### Tempus iDAS Priority Whitespaces
+
+| Priority Whitespace | Expression (log2TPM) | Alignment | N Samples | Source |
+|---------------------|----------------------|-----------|-----------|--------|
+{% for ws in idas.rows %}
+| {{ ws.label }} | {{ ws.expression }} | **{{ ws.alignment }}** | {{ ws.n_samples }} | {{ ws.source }} |
+{% endfor %}
+
+### 3.3 Target Validation Scorecard (Step 3: ScholarEval)
+
+> **Data Source:** Deterministic 8-dimension scoring engine. Audit trail input hash: `{{ scholar.input_hash }}`.
+
+| Dimension | Weight | Score | Risk Level | Rationale |
+|-----------|--------|-------|------------|-----------|
+{% for dim in scholar.rows %}
+| {{ dim.name }} | {{ dim.weight }} | {{ dim.score }} | {{ dim.risk_level }} | {{ dim.rationale }} |
+{% endfor %}
+| **TOTAL** | **1.00** | **{{ scholar.total_score }}/5.0** | **{{ risk.overall_profile }}** | **{{ scholar.assessment }} — {{ scholar.recommendation }}** |
+
+### 3.4 Subgroup-Stratified Suitability (Steps 2+3 Integration)
+
+#### Phase 1: TCGA Analysis (Treatment-Naive)
+
+| Subgroup | Key Metric | Score | Risk Level | Recommendation |
+|----------|------------|-------|------------|----------------|
+{% for row in suitability.phase1 %}
+| {{ row.subgroup }} | {{ row.key_metric }} | {{ row.score }} | {{ row.risk_level }} | **{{ row.recommendation }}** |
+{% endfor %}
+
+#### Phase 2: Tempus Mutation Status (IO-Experienced)
+
+| Subgroup | Key Metric | Score | Risk Level | Recommendation |
+|----------|------------|-------|------------|----------------|
+{% for row in suitability.phase2 %}
+| {{ row.subgroup }} | {{ row.key_metric }} | {{ row.score }} | {{ row.risk_level }} | **{{ row.recommendation }}** |
+{% endfor %}
+
+#### Phase 3: iDAS Whitespace Suitability ({{ modality.class_id }} modality)
+
+| Whitespace | Key Metric | Score | Risk Level | Recommendation | Rule Applied |
+|------------|------------|-------|------------|----------------|--------------|
+{% for row in suitability.phase3 %}
+| {{ row.subgroup }} | {{ row.key_metric }} | {{ row.score }} | {{ row.risk_level }} | **{{ row.recommendation }}** | {% if idas.rows %}{% for ws in idas.rows %}{% if ws.label in row.subgroup or row.subgroup in ws.label %}`{{ ws.rule_applied }}`{% endif %}{% endfor %}{% else %}—{% endif %} |
+{% endfor %}
+
+#### Subgroup Recommendations Summary
+
+{% set priority_subs = suitability.phase1 + suitability.phase2 + suitability.phase3 -%}
+{% set go_subs = priority_subs | selectattr("recommendation", "in", ["PRIORITY", "GO"]) | list -%}
+{% set caution_subs = priority_subs | selectattr("recommendation", "in", ["CAUTION", "EXCLUDE"]) | list -%}
+- **PRIORITY/GO Subgroups**: {{ (go_subs | map(attribute="subgroup") | join(", ")) or "None" }}
+- **CAUTION/EXCLUDE Subgroups**: {{ (caution_subs | map(attribute="subgroup") | join(", ")) or "None" }}
+
+---
+
+## 4. Discussion
+
+### 4.1 Key Strengths
+
+{% if risk.strengths %}
+{% for s in risk.strengths %}
+{{ loop.index }}. {{ s }}
+{% endfor %}
+{% else %}
+*See Step 1 risk assessment for detailed strengths analysis.*
+{% endif %}
+
+### 4.2 Key Risks/Challenges
+
+{% if risk.risks %}
+{% for r in risk.risks %}
+{{ loop.index }}. {{ r }}
+{% endfor %}
+{% else %}
+*See Step 1 risk assessment for detailed risks analysis.*
+{% endif %}
+
+### 4.3 Subgroup-Specific Considerations
+
+{% if caution_subs %}
+**Populations requiring caution:**
+{% for r in caution_subs %}
+- {{ r.subgroup }} ({{ r.recommendation }}): {{ r.key_metric }}
+{% endfor %}
+{% endif %}
+
+**Optimal populations:**
+{% if go_subs %}
+{% for r in go_subs[:5] %}
+- {{ r.subgroup }} ({{ r.recommendation }}): {{ r.key_metric }}
+{% endfor %}
+{% else %}
+- *None identified by automated analysis*
+{% endif %}
+
+---
+
+## 5. Risk Mitigation Strategies
+
+| Risk | Risk Level | Mitigation Strategy |
+|------|------------|---------------------|
+{% for m in risk.mitigations %}
+| {{ m.risk }} | {{ m.level }} | {{ m.strategy }} |
+{% endfor %}
+
+---
+
+## 6. Recommendations
+
+### 6.1 Overall Recommendation: **{{ recommendation.full_string }}**
+
+ScholarEval score of **{{ scholar.total_score }}/5.0 ({{ scholar.assessment }})** with overall risk profile **{{ risk.overall_profile }}**.
+Modality routed through registry as `{{ modality.class_id }}` class.
+
+### 6.2 Recommended Development Path
+
+1. **Modality**: {{ modality.display_string }}
+2. **Initial indication**: {{ disease.full_name }}
+3. **Best-suited populations**: {{ (go_subs[:3] | map(attribute="subgroup") | join(", ")) or "see §3.4 Phase 3" }}
+4. **Patient-selection biomarker**: see Step 1 risk assessment §iDAS Strategic Alignment
+
+### 6.3 Subgroup-Specific Recommendations
+
+| Population | Recommendation | Risk Level | Rationale |
+|------------|----------------|------------|-----------|
+{% for row in suitability.phase3 %}
+| {{ row.subgroup }} | **{{ row.recommendation }}** | {{ row.risk_level }} | {{ row.key_metric }} |
+{% endfor %}
+{% for row in suitability.phase1[:3] %}
+| {{ row.subgroup }} | **{{ row.recommendation }}** | {{ row.risk_level }} | {{ row.key_metric }} |
+{% endfor %}
+
+---
+
+## 7. Conclusions
+
+{{ gene }} in {{ disease.full_name }}: **{{ recommendation.full_string }}**.
+
+Key integrated findings:
+
+1. **Target validation** — ScholarEval {{ scholar.total_score }}/5.0 ({{ scholar.assessment }}); {{ scholar.high_risk_count }} high-risk dimension{{ '' if scholar.high_risk_count == 1 else 's' }}.
+2. **Differential expression** — {{ idas.tox_summary }}.
+3. **iDAS alignment** — {{ idas.alignment_summary }}.
+4. **Modality fit** — {{ modality.display_string }} (class: `{{ modality.class_id }}`).
+5. **Subgroup signal** — {{ go_subs|length }} GO/PRIORITY subgroup{{ '' if go_subs|length == 1 else 's' }}; {{ caution_subs|length }} CAUTION/EXCLUDE.
+
+---
+
+## 8. References
+
+References for this report come from the literature evidence in
+`{{ gene }}_risk_assessment_{{ disease.abbreviation|lower }}.md`:
+
+{% set all_pmids = [] -%}
+{% for cat in risk.categories -%}
+  {% for p in cat.evidence.split(", ") if "PMID:" in p -%}
+    {% set _ = all_pmids.append(p.split("PMID:")[-1].strip()) -%}
+  {% endfor -%}
+{% endfor -%}
+{% set unique_pmids = all_pmids | unique | list -%}
+
+{% for pmid in unique_pmids %}
+{{ loop.index }}. PMID: **{{ pmid }}** — see Step 1 risk assessment for full citation
+{% endfor %}

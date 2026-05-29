@@ -337,8 +337,10 @@ def parse_risk_assessment(path: Path) -> RiskAssessment:
                 for p in section_pmids:
                     if p not in pmids:
                         pmids.append(p)
-            # Key driver = first sentence-ish chunk (cap at ~120 chars for table fit).
-            key_driver = considerations.split('.')[0].strip()
+            # Key driver = first sentence (split on period followed by
+            # whitespace, to avoid truncating decimals like "+1.05").
+            sentences = re.split(r'\.\s+', considerations, maxsplit=1)
+            key_driver = sentences[0].rstrip('.').strip()
             if len(key_driver) > 200:
                 key_driver = key_driver[:197] + '...'
             categories[cat_name] = RiskCategory(

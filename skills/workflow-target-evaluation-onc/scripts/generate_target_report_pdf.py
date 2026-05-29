@@ -1143,12 +1143,16 @@ def _build_slide_data(output_dir, gene):
         slide_data['aliases'] = aliases_match.group(1)
 
     # Modality: take the "Modality:" item from "Key Findings at a Glance".
+    # Split on commas, parens, or em/en-dashes-as-separators (surrounded by
+    # whitespace), but NOT on plain ASCII hyphens — those are part of names
+    # like "T-cell engager" or "DXd-class ADC".
     modality_match = re.search(r'\*\*Modality\*\*[:\s]*([^\n]+)', content)
     if modality_match:
         mt = modality_match.group(1).strip()
         mt = re.sub(r'^[:\-—\s]+', '', mt)
         mt = re.sub(r'\*\*([^*]+)\*\*', r'\1', mt)
-        mt = re.split(r'[,\(\-—–]', mt, maxsplit=1)[0].strip()[:22]
+        # Split on , ( or [em/en/hyphen surrounded by spaces].
+        mt = re.split(r'[,\(]|\s+[—–-]\s+', mt, maxsplit=1)[0].strip()[:22]
         if mt:
             slide_data['modality'] = mt
 
