@@ -17,6 +17,12 @@ pyyaml = ">=6.0"
 jinja2 = ">=3.1"
 pytest = ">=7.0"
 
+# v1.4.0: PubMed → facts.yaml extractor uses Anthropic Bedrock client
+# (sync). Auth + region + model defaults inherited from the harness env
+# (~/.claude/settings.json sets AWS_PROFILE, AWS_REGION, ANTHROPIC_*).
+[pypi-dependencies]
+anthropic = { version = ">=0.40", extras = ["bedrock"] }
+
 [tasks]
 pdf = "python generate_target_report_pdf.py"
 test = "pytest tests/ -v"
