@@ -73,7 +73,17 @@ def get_bedrock_client():
     aws_profile = os.environ.get('AWS_PROFILE')
 
     try:
-        return AnthropicBedrock(aws_region=aws_region)
+        # Build a custom SSL context if a corporate CA bundle is in use.
+        # Python 3.14's stricter X.509 validation rejects some corporate
+        # CAs (Basic Constraints not marked critical); httpx (used by
+        # the Anthropic SDK) trips on this even when boto3 succeeds.
+        # Workaround: build the SSL context ourselves with VERIFY_X509_STRICT
+        # cleared, then pass an httpx.Client that uses it.
+        http_client = _build_corporate_http_client()
+        return AnthropicBedrock(
+            aws_region=aws_region,
+            **({'http_client': http_client} if http_client else {}),
+        )
     except Exception as e:
         # Common failure modes: missing AWS_PROFILE, expired SSO token,
         # IAM lacking bedrock:InvokeModel. Surface the recommended fix
@@ -93,6 +103,33 @@ def _refresh_hint(profile: str | None) -> str:
     if profile:
         return f"aws sso login --profile {profile}"
     return "aws sso login --profile <your-profile>  # set AWS_PROFILE first"
+
+
+def _build_corporate_http_client():
+    """Build an httpx.Client for environments using a corporate CA bundle.
+
+    Returns None if no corporate CA is configured (caller falls back to
+    the SDK's default httpx client).
+
+    Background: Python 3.14's stricter X.509 validation rejects some
+    corporate CAs whose `Basic Constraints` extension isn't marked
+    critical. boto3 uses its own bundled certs and works around this
+    automatically; httpx (used by the Anthropic SDK) doesn't. We build
+    an SSL context with VERIFY_X509_STRICT cleared so the corporate
+    CA validates.
+    """
+    ca_bundle = os.environ.get('SSL_CERT_FILE') or os.environ.get('REQUESTS_CA_BUNDLE')
+    if not ca_bundle or not os.path.exists(ca_bundle):
+        return None
+    try:
+        import ssl
+        import httpx
+    except ImportError:
+        return None
+    ctx = ssl.create_default_context(cafile=ca_bundle)
+    # Allow CAs with non-critical Basic Constraints (corp CA workaround).
+    ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return httpx.Client(verify=ctx, timeout=120.0)
 
 
 class BedrockAuthError(RuntimeError):
