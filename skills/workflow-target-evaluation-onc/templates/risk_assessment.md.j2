@@ -1,0 +1,110 @@
+{# ============================================================================
+   Step 1 Risk Assessment — Jinja2 template
+
+   Consumes the dict produced by integrated_report.risk_assessment_renderer
+   from {GENE}_risk_assessment_facts.yaml. Output passes
+   lint_risk_assessment.py by construction.
+
+   Section order matches reference/risk_assessment_schema.md.
+   ============================================================================ #}
+# {{ gene }} Drug Target Risk Assessment — {{ disease_full_name }}
+
+**Date:** {{ date }}
+
+**Disease:** {{ disease_full_name }}
+
+**Target:** {{ gene }}{% if target_aliases %} ({{ target_aliases }}){% endif %}
+
+**Modality candidates:** {{ modality_candidates | join(', ') }}
+
+---
+
+## Background
+
+{{ background }}
+
+---
+
+## Strategic Alignment Assessment
+
+**Whitespace Alignment:**
+
+{% for ws in idas_alignment %}
+- [x] {{ ws.whitespace }} — {{ ws.alignment }}{% if ws.rationale %} ({{ ws.rationale }}){% endif %}
+{% endfor %}
+
+---
+
+## Executive Risk Summary
+
+| Risk Factor | Risk Level | Key Considerations |
+|---|---|---|
+{% for cat in categories_ordered %}
+| {{ cat.display_name }} | **{{ cat.level }}** | {{ cat.key_driver }}{% if cat.pmid_string %} Evidence: {{ cat.pmid_string }}.{% endif %} |
+{% endfor %}
+
+**Overall Target Risk Profile: {{ overall_risk_profile }}**
+
+---
+
+{% for cat in categories_ordered %}
+## {{ loop.index }}. {{ cat.display_name }} Risk Assessment
+
+### Evidence Documentation
+
+{% if cat.evidence %}
+{% for ev in cat.evidence %}
+- {{ ev.claim }}{% if ev.pmid %} (PMID: {{ ev.pmid }}){% endif %}{% if ev.study_type %} — *{{ ev.study_type }}*{% endif %}
+{% endfor %}
+{% else %}
+*No structured evidence provided.*
+{% endif %}
+
+**Risk Level Assigned:** [x] **{{ cat.level }}**
+
+**Justification:** {{ cat.justification }}
+
+---
+
+{% endfor %}
+## iDAS Strategic Alignment Assessment
+
+| Priority Whitespace | Alignment | Rationale |
+|---|---|---|
+{% for ws in idas_alignment %}
+| {{ ws.whitespace }} | **{{ ws.alignment }}** | {{ ws.rationale or '—' }} |
+{% endfor %}
+
+---
+
+## Key Strengths
+
+{% for s in strengths %}
+{{ loop.index }}. {{ s }}
+{% endfor %}
+
+---
+
+## Key Risks/Challenges
+
+{% for r in risks %}
+{{ loop.index }}. {{ r }}
+{% endfor %}
+
+---
+
+## Risk Mitigation Strategies
+
+| Risk | Risk Level | Mitigation Strategy |
+|---|---|---|
+{% for m in mitigations %}
+| {{ m.title }} | {{ m.risk_level }} | {{ m.strategy }} |
+{% endfor %}
+
+---
+
+## Recommendation
+
+### Overall: **{{ recommendation_phrase }}**
+
+{{ recommendation.rationale or '' }}

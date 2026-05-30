@@ -49,6 +49,7 @@ from statsmodels.stats.multitest import multipletests
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 import warnings
 import yaml
 import boto3
@@ -921,7 +922,27 @@ def assess_idas_alignment(gene_symbol, tcga_stats, tcga_comparisons, tempus_gene
     return assessment
 
 
-def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_stats, idas_assessment, tempus_gene_data):
+def _load_modality_dispatcher():
+    """Load registry + dispatcher from sibling workflow skill (see CRC sibling)."""
+    skill_dir = Path(__file__).resolve().parent.parent
+    workflow_scripts = skill_dir.parent / "workflow-target-evaluation-onc" / "scripts"
+    if not workflow_scripts.exists():
+        return None, None, None
+    sys.path.insert(0, str(workflow_scripts))
+    try:
+        from modality_registry import ModalityRegistry  # type: ignore
+        from phase3_dispatcher import (  # type: ignore
+            apply_phase3_rule,
+            classify_recommendation,
+        )
+        return ModalityRegistry(), apply_phase3_rule, classify_recommendation
+    except Exception as e:
+        print(f"  WARNING: could not load modality dispatcher ({e}); using default rule")
+        return None, None, None
+
+
+def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_stats,
+                                  idas_assessment, tempus_gene_data, modality=None):
     """
     Compute subgroup-specific suitability scores for target evaluation.
 
@@ -930,11 +951,28 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
     - Phase 2: Tempus Mutation Status (IO-experienced) - KRAS, EGFR, STK11, KEAP1
     - Phase 3: iDAS Whitespace Alignment (uses Tempus mutation data)
 
+    Args:
+        modality: Optional therapeutic modality. Routes Phase 3 tox scoring
+            through the modality registry. Omit for default antibody-naked
+            behavior (matches v1.1.0 hard-coded rule).
+
     Returns:
         dict: Subgroup suitability analysis with scores and recommendations
     """
+    registry, apply_rule, classify_rec = _load_modality_dispatcher()
+    if registry is not None:
+        modality_class = registry.resolve_class(modality)
+        class_cfg = registry.get_class(modality_class)
+        rule_cfg = registry.get_rule_config(class_cfg.phase3_tox_rule)
+    else:
+        modality_class = "antibody_naked"
+        class_cfg = None
+        rule_cfg = None
+
     suitability = {
         'gene': gene,
+        'modality': modality or '',
+        'modality_class': modality_class,
         'tcga_analysis': {},      # Phase 1: All TCGA data
         'tempus_mutation': {},    # Phase 2: Tempus mutation status
         'idas_whitespace': {},    # Phase 3: iDAS whitespaces
@@ -1190,33 +1228,53 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
                 mutation_penalty = -1  # Bonus for higher expression in mutant
                 mutation_context = f', mut_higher ({mutation_fc:.1f}x vs WT, Tempus)'
 
-        # Adjust for toxicity risk
-        if tox_risk == 'High':
-            tox_penalty = 2
-        elif tox_risk == 'Medium':
-            tox_penalty = 1
+        # Adjust for toxicity risk via modality-aware dispatcher (or fall
+        # back to v1.1.0 hard-coded rule if dispatcher unavailable).
+        if registry is not None and rule_cfg is not None:
+            phase3 = apply_rule(
+                rule_name=class_cfg.phase3_tox_rule,
+                rule_config=rule_cfg,
+                base_score=base_score,
+                tox_risk=tox_risk,
+                expression=expression,
+                expression_floor=class_cfg.expression_floor_rna,
+                mutation_penalty=mutation_penalty,
+            )
+            tox_penalty = phase3.tox_penalty
+            tox_context = phase3.tox_context
+            adjusted_score, recommendation = classify_rec(
+                base_score=base_score,
+                tox_penalty=tox_penalty,
+                mutation_penalty=mutation_penalty,
+                high_tox_blocks_priority=phase3.high_tox_blocks_priority,
+            )
+            rule_applied = phase3.rule_applied
         else:
-            tox_penalty = 0
-
-        # Calculate final adjusted score
-        adjusted_score = max(1, base_score - tox_penalty - mutation_penalty)
-
-        # Determine recommendation based on adjusted score and context
-        if mutation_penalty >= 2:
-            recommendation = 'CAUTION'
-            rationale = f'Expression={expression:.2f}, but target LOWER in mutant population{mutation_context}'
-        elif adjusted_score >= 4 and tox_risk != 'High':
-            if mutation_penalty == 0 and tox_penalty == 0:
-                recommendation = 'PRIORITY'
+            # Fallback: v1.1.0 hard-coded antibody-naked rule
+            if tox_risk == 'High':
+                tox_penalty = 2
+            elif tox_risk == 'Medium':
+                tox_penalty = 1
             else:
-                recommendation = 'GO'
-            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
-        elif adjusted_score >= 3:
-            recommendation = 'CONDITIONAL'
-            rationale = f'Expression={expression:.2f}, {tox_risk} toxicity{mutation_context}'
+                tox_penalty = 0
+            adjusted_score = max(1, base_score - tox_penalty - mutation_penalty)
+            tox_context = f'{tox_risk} toxicity'
+            rule_applied = 'tumor_vs_normal_strict'
+
+            if mutation_penalty >= 2:
+                recommendation = 'CAUTION'
+            elif adjusted_score >= 4 and tox_risk != 'High':
+                recommendation = 'PRIORITY' if (mutation_penalty == 0 and tox_penalty == 0) else 'GO'
+            elif adjusted_score >= 3:
+                recommendation = 'CONDITIONAL'
+            else:
+                recommendation = 'CAUTION'
+
+        # Build rationale string (modality-aware).
+        if mutation_penalty >= 2:
+            rationale = f'Expression={expression:.2f}, but target LOWER in mutant population{mutation_context}'
         else:
-            recommendation = 'CAUTION'
-            rationale = f'Expression={expression:.2f}, concerns: tox={tox_risk}{mutation_context}'
+            rationale = f'Expression={expression:.2f}, {tox_context}{mutation_context}'
 
         suitability['idas_whitespace'][ws_key] = {
             'expression': round(expression, 3),
@@ -1230,6 +1288,7 @@ def compute_subgroup_suitability(gene, tcga_stats, pairwise_df, tcga_mutation_st
             'tox_penalty': tox_penalty,
             'mutation_penalty': mutation_penalty,
             'adjusted_score': adjusted_score,
+            'rule_applied': rule_applied,
             'recommendation': recommendation,
             'rationale': rationale
         }
@@ -2185,7 +2244,7 @@ def generate_comprehensive_report(gene, tcga_stats, tempus_gene_data, idas_asses
 # =============================================================================
 
 def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_data,
-                 cache_dir, output_dir, skip_tcga=False, skip_tempus=False):
+                 cache_dir, output_dir, skip_tcga=False, skip_tempus=False, modality=None):
     """Run comprehensive analysis for a single gene."""
     print(f"\n{'='*70}")
     print(f"Analyzing: {gene}")
@@ -2281,7 +2340,8 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     # Subgroup Suitability Analysis
     print(f"\n  Computing subgroup suitability...")
     subgroup_suitability = compute_subgroup_suitability(
-        gene, tcga_stats, pairwise_df, tcga_mutation_stats, idas_assessment, tempus_gene_data
+        gene, tcga_stats, pairwise_df, tcga_mutation_stats, idas_assessment,
+        tempus_gene_data, modality=modality,
     )
 
     # Report top recommendations
@@ -2303,6 +2363,8 @@ def analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation, tempus_
     idas_assessment['gene'] = gene
     idas_assessment['timestamp'] = datetime.now().isoformat()
     idas_assessment['subgroup_analysis'] = {
+        'modality': subgroup_suitability.get('modality', ''),
+        'modality_class': subgroup_suitability.get('modality_class', 'antibody_naked'),
         'histology': subgroup_suitability.get('histology', {}),
         'mutation_status': subgroup_suitability.get('mutation_status', {}),
         'idas_whitespace': subgroup_suitability.get('idas_whitespace', {}),
@@ -2366,6 +2428,11 @@ def main():
     parser.add_argument('--cache-dir', default=DEFAULT_CACHE_DIR, help='Cache directory for data')
     parser.add_argument('--skip-tcga', action='store_true', help='Skip TCGA analysis')
     parser.add_argument('--skip-tempus', action='store_true', help='Skip Tempus analysis')
+    parser.add_argument('--modality', default=None,
+                        help='Therapeutic modality (e.g. "Antibody", "ADC", "T-cell engager", '
+                             '"Small molecule", "Molecular Glue", "PROTAC", "RNAi"). Routes Phase 3 '
+                             'tox scoring through the modality registry. Omit for default '
+                             'antibody-naked behavior (matches v1.1.0).')
     args = parser.parse_args()
 
     # Get genes to analyze
@@ -2415,7 +2482,7 @@ def main():
     for gene in genes:
         result = analyze_gene(gene, tcga_meta, gtex_meta, ccle_meta, gene_annotation,
                              tempus_data, args.cache_dir, args.output_dir,
-                             args.skip_tcga, args.skip_tempus)
+                             args.skip_tcga, args.skip_tempus, modality=args.modality)
         if result:
             results[gene] = result
 
