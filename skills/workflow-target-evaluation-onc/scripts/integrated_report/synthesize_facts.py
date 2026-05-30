@@ -63,7 +63,7 @@ def _build_synthesize_tool(disease: str) -> dict[str, Any]:
                         "clinical", "safety", "commercial",
                     ],
                     "properties": {
-                        cat: _category_schema()
+                        cat: _category_schema(cat)
                         for cat in [
                             "biological", "druggability", "translational",
                             "clinical", "safety", "commercial",
@@ -140,9 +140,14 @@ def _build_synthesize_tool(disease: str) -> dict[str, Any]:
     }
 
 
-def _category_schema() -> dict[str, Any]:
-    """Per-category schema fragment used six times in the tool input."""
-    return {
+def _category_schema(category: str | None = None) -> dict[str, Any]:
+    """Per-category schema fragment used six times in the tool input.
+
+    For `clinical` and `druggability`, adds optional structured fields
+    that ScholarEval reads directly (v1.4.0+) — eliminates regex-on-prose
+    brittleness in Step 3 scoring.
+    """
+    schema: dict[str, Any] = {
         "type": "object",
         "required": ["level", "key_driver", "justification"],
         "properties": {
@@ -163,6 +168,57 @@ def _category_schema() -> dict[str, Any]:
             },
         },
     }
+    if category == 'clinical':
+        schema["properties"]["highest_phase"] = {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4,
+            "description": (
+                "Highest clinical phase reached by ANY agent targeting "
+                "this gene for this disease. 0 = preclinical only, "
+                "1-4 = Phase I-IV. Be conservative — only count agents "
+                "where the extracted claims provide direct evidence."
+            ),
+        }
+    if category == 'druggability':
+        schema["properties"].update({
+            "has_approved_drug": {
+                "type": "boolean",
+                "description": (
+                    "True if a drug targeting this gene is FDA-approved "
+                    "(or equivalent regulatory approval). Default false."
+                ),
+            },
+            "has_clinical_compound": {
+                "type": "boolean",
+                "description": (
+                    "True if a clinical-stage compound (Phase I+) "
+                    "targeting this gene exists. Default false."
+                ),
+            },
+            "has_tool_compound": {
+                "type": "boolean",
+                "description": (
+                    "True if a preclinical tool compound or validated "
+                    "ADC/antibody for this gene exists. Default false."
+                ),
+            },
+            "has_structure": {
+                "type": "boolean",
+                "description": (
+                    "True if a crystal structure / cryo-EM / PDB entry "
+                    "for this protein exists. Default false."
+                ),
+            },
+            "best_ic50_nm": {
+                "type": ["number", "null"],
+                "description": (
+                    "Lowest reported IC50 in nM across known compounds; "
+                    "null if no compound exists."
+                ),
+            },
+        })
+    return schema
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +259,17 @@ def _build_synthesis_prompt(
         f"List 3-6 strengths, 3-6 risks, and 3-6 mitigation strategies. "
         f"Then output an overall recommendation (GO / NO-GO / CONDITIONAL) "
         f"with optional priority (HIGH / MEDIUM-HIGH / MEDIUM / LOW).\n\n"
+        f"For the **clinical** category, also fill `highest_phase` (0-4): "
+        f"the highest clinical phase reached by ANY {gene}-targeting agent "
+        f"in {disease.upper()}. Use 0 if no agent has entered trials. Be "
+        f"conservative — base this only on the extracted claims.\n\n"
+        f"For the **druggability** category, also fill the boolean fields: "
+        f"`has_approved_drug` (FDA-approved drug exists), "
+        f"`has_clinical_compound` (Phase I+ compound exists), "
+        f"`has_tool_compound` (preclinical tool/ADC/antibody exists), "
+        f"`has_structure` (PDB / crystal / cryo-EM entry exists). "
+        f"Default each to false unless extracted claims directly support it. "
+        f"Set `best_ic50_nm` to the lowest reported IC50 in nM, or null.\n\n"
         f"Use the `synthesize_facts` tool to return structured output. "
         f"Be specific and ground claims in the provided PMIDs.\n\n"
         f"=== EXTRACTED CLAIMS ===\n\n{claims_block}"
