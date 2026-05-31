@@ -95,9 +95,18 @@ RECOGNIZED_TOP_LEVEL_KEYS = {
     'recommendation',
 }
 
-# Recognized per-category keys.
+# Recognized per-category keys. Some are category-specific structured
+# fields that ScholarEval reads directly to avoid regex-on-prose scoring
+# (added in v1.4.0). All structured fields are optional — legacy
+# facts.yaml predates them.
 RECOGNIZED_CATEGORY_KEYS = {
+    # Common
     'level', 'key_driver', 'justification', 'evidence',
+    # Clinical-only (optional)
+    'highest_phase',
+    # Druggability-only (optional)
+    'has_approved_drug', 'has_clinical_compound', 'has_tool_compound',
+    'has_structure', 'best_ic50_nm',
 }
 
 # Recognized per-evidence-entry keys.
@@ -253,6 +262,31 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
             )
             if 'pmid' in ev:
                 ev['pmid'] = _normalize_pmid(ev['pmid'])
+
+        # v1.4.0+ structured scoring fields: type-check when present,
+        # but allow absence so legacy facts.yaml still validates.
+        if cat_name == 'clinical' and 'highest_phase' in cat:
+            phase = cat['highest_phase']
+            if not isinstance(phase, int) or not (0 <= phase <= 4):
+                raise ValueError(
+                    f"risk_categories.clinical.highest_phase must be int "
+                    f"in [0, 4]; got {phase!r}"
+                )
+        if cat_name == 'druggability':
+            for bool_field in ('has_approved_drug', 'has_clinical_compound',
+                               'has_tool_compound', 'has_structure'):
+                if bool_field in cat and not isinstance(cat[bool_field], bool):
+                    raise ValueError(
+                        f"risk_categories.druggability.{bool_field} must be "
+                        f"a bool; got {cat[bool_field]!r}"
+                    )
+            if 'best_ic50_nm' in cat:
+                ic = cat['best_ic50_nm']
+                if ic is not None and not isinstance(ic, (int, float)):
+                    raise ValueError(
+                        f"risk_categories.druggability.best_ic50_nm must "
+                        f"be a number or null; got {ic!r}"
+                    )
 
     # ------------------------------------------------------------------
     # Recommendation: canonical level + optional priority

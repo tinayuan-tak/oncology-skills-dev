@@ -68,6 +68,99 @@ def parse_tcga_stats_csv(stats_file: Path) -> Dict[str, Any]:
     return medians
 
 
+def parse_facts_yaml(facts_file: Path) -> Dict[str, Any]:
+    """Extract literature evidence directly from {GENE}_risk_assessment_facts.yaml.
+
+    Preferred over `parse_risk_assessment()` (markdown regex) for any gene
+    whose Step 1 was generated via `generate_facts_from_pubmed.py` (v1.4.0+).
+    Reads structured fields written by the Opus synthesis tool — no prose
+    parsing — so scoring is invariant to markdown rendering choices.
+
+    Falls back to study_type counts derived from the per-category
+    evidence[] arrays for the biological-validation counters that don't
+    yet have dedicated structured fields. PMIDs are deduplicated within
+    each counter so the same study cited multiple times counts once.
+    """
+    with open(facts_file) as f:
+        data = yaml.safe_load(f) or {}
+    cats = data.get("risk_categories", {}) or {}
+    bio = cats.get("biological", {}) or {}
+    clin = cats.get("clinical", {}) or {}
+    drug = cats.get("druggability", {}) or {}
+
+    bio_evidence = bio.get("evidence", []) or []
+
+    def _count_unique_pmids(predicate) -> int:
+        seen = set()
+        for ev in bio_evidence:
+            if not isinstance(ev, dict):
+                continue
+            if predicate(ev):
+                pmid = ev.get("pmid")
+                if pmid:
+                    seen.add(pmid)
+        return min(len(seen), 5)
+
+    def _study_type_has(ev: dict, *needles: str) -> bool:
+        st = (ev.get("study_type") or "").lower()
+        return any(n in st for n in needles)
+
+    def _claim_has(ev: dict, pattern: str) -> bool:
+        return bool(re.search(pattern, ev.get("claim", ""), re.IGNORECASE))
+
+    n_animal = _count_unique_pmids(
+        lambda ev: _study_type_has(ev, "in vivo", "xenograft", "pdx", "gemm",
+                                   "knockout mouse", "transgenic")
+    )
+    n_crispr = _count_unique_pmids(
+        lambda ev: _claim_has(ev, r"\b(CRISPR|knockout|sgRNA|KO mice)\b")
+    )
+    n_rnai = _count_unique_pmids(
+        lambda ev: _claim_has(ev, r"\b(RNAi|knockdown|siRNA|shRNA)\b")
+    )
+    n_human_genetic = _count_unique_pmids(
+        lambda ev: _study_type_has(ev, "prognostic cohort", "clinical", "biomarker")
+        or _claim_has(ev, r"\b(GWAS|germline|SNP|somatic mutation|driver mutation)\b")
+    )
+    n_overexpression = _count_unique_pmids(
+        lambda ev: _claim_has(ev, r"\b(overexpressed|overexpression|upregulated|amplified)\b")
+    )
+
+    # Clinical: prefer structured field; default 0 when absent (legacy facts.yaml).
+    highest_phase = clin.get("highest_phase")
+    if not isinstance(highest_phase, int):
+        highest_phase = 0
+    # n_trials is unknown from the structured schema. Use highest_phase as a
+    # proxy: if any phase reached, assume at least one trial exists.
+    n_trials = 1 if highest_phase > 0 else 0
+    indication_specific = highest_phase > 0  # by construction of the field
+
+    return {
+        "biological_validation": {
+            "n_crispr_studies": n_crispr,
+            "n_rnai_studies": n_rnai,
+            "n_animal_models": n_animal,
+            "n_human_genetic": n_human_genetic,
+            "n_overexpression": n_overexpression,
+        },
+        "clinical_validation": {
+            "highest_phase": highest_phase,
+            "n_trials": n_trials,
+            "indication_specific": indication_specific,
+        },
+        "druggability": {
+            "has_approved_drug": bool(drug.get("has_approved_drug", False)),
+            "has_clinical_compound": bool(drug.get("has_clinical_compound", False)),
+            "has_tool_compound": bool(drug.get("has_tool_compound", False)),
+            "best_ic50_nm": drug.get("best_ic50_nm"),
+            "has_structure": bool(drug.get("has_structure", False)),
+            # has_binding_pocket isn't in the structured schema — left false
+            # so it doesn't inflate scoring without explicit evidence.
+            "has_binding_pocket": False,
+        },
+    }
+
+
 def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
     """
     Parse risk assessment markdown to extract structured literature evidence.
@@ -593,6 +686,8 @@ def run_scholareval(
     """
     # Define expected input files (Step 1 risk assessment is single-named)
     risk_file = output_dir / f"{gene}_risk_assessment_{disease}.md"
+    # v1.4.0+: structured facts.yaml is preferred over markdown for scoring.
+    facts_file = output_dir / f"{gene}_risk_assessment_facts.yaml"
 
     # Step 2 outputs (ai-sci naming).
     idas_file = _resolve_step2_input(output_dir, gene, disease, "idas")
@@ -625,7 +720,12 @@ def run_scholareval(
 
     # Parse evidence from input files
     print("Extracting evidence...")
-    lit_evidence = parse_risk_assessment(risk_file)
+    if facts_file.exists():
+        print(f"  Using structured facts.yaml (v1.4.0+ deterministic path): {facts_file.name}")
+        lit_evidence = parse_facts_yaml(facts_file)
+    else:
+        print(f"  No facts.yaml found; falling back to markdown regex extraction.")
+        lit_evidence = parse_risk_assessment(risk_file)
     omics_evidence = parse_idas_yaml(idas_file)
     report_evidence = parse_comprehensive_report(report_file)
 
