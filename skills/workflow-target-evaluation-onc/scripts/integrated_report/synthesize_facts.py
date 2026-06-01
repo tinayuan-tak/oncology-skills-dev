@@ -197,6 +197,19 @@ def _category_schema(category: str | None = None) -> dict[str, Any]:
         },
     }
     if category == 'clinical':
+        schema["properties"]["biomarker_tier"] = {
+            "type": "string",
+            "enum": ["none", "emerging", "clinical_grade"],
+            "description": (
+                "Biomarker development stage for this gene in this disease. "
+                "'clinical_grade' = an approved companion diagnostic, "
+                "FDA-cleared NGS panel, or standard-of-care testing assay "
+                "exists. 'emerging' = patient-selection / stratification / "
+                "enrichment biomarker work has been published but no "
+                "clinical-grade assay yet. 'none' = no biomarker strategy "
+                "evident in the extracted claims."
+            ),
+        }
         schema["properties"]["highest_phase"] = {
             "type": "integer",
             "minimum": 0,
@@ -352,7 +365,13 @@ def _build_synthesis_prompt(
         f"`disease_assoc_literature_signal` (1-5): how strongly the literature "
         f"ties {gene} to {disease.upper()} biology and patient outcomes — "
         f"5=driver mutation + survival + multi-line in-vivo evidence; "
-        f"3=some prognostic/mutational data; 1=no disease-association signal.\n\n"
+        f"3=some prognostic/mutational data; 1=no disease-association signal. "
+        f"Also fill `biomarker_tier` (one of 'none', 'emerging', "
+        f"'clinical_grade'): 'clinical_grade' if an approved companion "
+        f"diagnostic / FDA-cleared NGS panel / standard-of-care assay for "
+        f"{gene} exists; 'emerging' if patient-selection / stratification / "
+        f"enrichment biomarker work has been published but no clinical-grade "
+        f"assay yet; 'none' if no biomarker strategy is evident.\n\n"
         f"For the **biological** category, also fill `pathway_score` (1-5) "
         f"and `pathway_evidence_count`: count distinct cancer-relevant "
         f"pathway/mechanism categories the claims connect {gene} to "
