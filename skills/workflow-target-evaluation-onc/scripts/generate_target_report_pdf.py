@@ -311,23 +311,39 @@ def create_risk_assessment_figure(gene, output_dir, report_data=None):
 
     categories = ['Biological', 'Druggability', 'Translational', 'Clinical', 'Safety', 'Commercial']
 
+    # 5-band risk scale matching CANONICAL_RISK_LEVELS so compound levels
+    # (LOW-MEDIUM, MEDIUM-HIGH) sit *between* the pure bands instead of
+    # being collapsed to one of them. Order matters: longest match first
+    # (otherwise "LOW-MEDIUM" matches "LOW").
+    _LEVEL_TO_BAND = {
+        'LOW': 1.0,
+        'LOW-MEDIUM': 1.5,
+        'MEDIUM': 2.0,
+        'MEDIUM-HIGH': 2.5,
+        'HIGH': 3.0,
+    }
+    _BAND_COLORS = {
+        1.0: '#2ecc71',  # green
+        1.5: '#9bc53d',  # green-amber
+        2.0: '#f39c12',  # amber
+        2.5: '#d35400',  # amber-red
+        3.0: '#e74c3c',  # red
+    }
     risk_levels = []
     risk_labels = []
     for cat in categories:
         if report_data and cat in report_data.get('risk_table', {}):
-            level_str = report_data['risk_table'][cat].get('level', 'MEDIUM').upper()
+            level_str = (
+                report_data['risk_table'][cat].get('level', 'MEDIUM')
+                .upper().replace(' ', '-')
+            )
             risk_labels.append(level_str)
-            if 'LOW' in level_str and 'MEDIUM' not in level_str:
-                risk_levels.append(1)
-            elif 'HIGH' in level_str:
-                risk_levels.append(3)
-            else:
-                risk_levels.append(2)
+            risk_levels.append(_LEVEL_TO_BAND.get(level_str, 2.0))
         else:
-            risk_levels.append(2)
+            risk_levels.append(2.0)
             risk_labels.append('MEDIUM')
 
-    colors = ['#2ecc71' if r==1 else '#f39c12' if r==2 else '#e74c3c' for r in risk_levels]
+    colors = [_BAND_COLORS.get(r, '#f39c12') for r in risk_levels]
 
     y_pos = np.arange(len(categories))
     bars = ax1.barh(y_pos, risk_levels, color=colors, edgecolor='black', linewidth=1.5, height=0.6)
@@ -467,11 +483,19 @@ def _extract_risk_category_summary(content, category):
         return {'level': 'TBD', 'justification': 'Section not found', 'pmids': []}
     body = section_match.group(0)
 
+    # Match longest-first so compound levels (LOW-MEDIUM, MEDIUM-HIGH)
+    # capture the full label, not just the prefix. Earlier versions used
+    # `(LOW|MEDIUM|HIGH)` which silently truncated `LOW-MEDIUM` to `LOW`
+    # in the per-category PDF summary boxes.
     level_match = re.search(
-        r'Risk Level Assigned:\*?\*?\s*\[?x?\]?\s*\*?\*?(LOW|MEDIUM|HIGH)',
+        r'Risk Level Assigned:\*?\*?\s*\[?x?\]?\s*\*?\*?'
+        r'(LOW[- ]MEDIUM|MEDIUM[- ]HIGH|LOW|MEDIUM|HIGH)',
         body, re.IGNORECASE,
     )
-    level = level_match.group(1).upper() if level_match else 'TBD'
+    level = (
+        level_match.group(1).upper().replace(' ', '-')
+        if level_match else 'TBD'
+    )
 
     just_match = re.search(r'Justification:\*?\*?\s*([^\n]+(?:\n[^\n#]+)*)', body)
     justification = just_match.group(1).strip() if just_match else ''
@@ -502,7 +526,9 @@ def append_risk_assessment_pages(pdf, output_dir, gene, disease):
 
     level_colors = {
         'LOW': ('#27ae60', '#e8f5e9'),       # text, fill
+        'LOW-MEDIUM': ('#7d9c2a', '#f1f8e9'),  # green-leaning amber
         'MEDIUM': ('#f39c12', '#fff8e1'),
+        'MEDIUM-HIGH': ('#d35400', '#fbe9e7'),  # amber-leaning red
         'HIGH': ('#e74c3c', '#ffebee'),
         'TBD': ('#7f8c8d', '#f5f5f5'),
     }
