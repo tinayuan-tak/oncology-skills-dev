@@ -135,7 +135,7 @@ def parse_facts_yaml(facts_file: Path) -> Dict[str, Any]:
     n_trials = 1 if highest_phase > 0 else 0
     indication_specific = highest_phase > 0  # by construction of the field
 
-    return {
+    out: Dict[str, Any] = {
         "biological_validation": {
             "n_crispr_studies": n_crispr,
             "n_rnai_studies": n_rnai,
@@ -159,6 +159,19 @@ def parse_facts_yaml(facts_file: Path) -> Dict[str, Any]:
             "has_binding_pocket": False,
         },
     }
+
+    # v1.6.0: pathway_relevance + disease_association from structured fields.
+    # Both default to None so the caller can still blend in omics signals
+    # (disease_association uses suitability CSV) without a synthetic baseline.
+    if isinstance(bio.get("pathway_score"), int):
+        out["pathway_relevance"] = {
+            "pathway_score": bio["pathway_score"],
+            "pathway_evidence_count": bio.get("pathway_evidence_count", 0),
+        }
+    if isinstance(clin.get("disease_assoc_literature_signal"), int):
+        out["_disease_assoc_literature_signal"] = clin["disease_assoc_literature_signal"]
+
+    return out
 
 
 def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
@@ -507,6 +520,47 @@ def parse_disease_association(
     }
 
 
+def _read_omics_suitability_signal(
+    suitability_file: Optional[Path],
+) -> Optional[float]:
+    """Compute the omics half of disease_association from the Step 2
+    subgroup-suitability CSV. Returns None if the file isn't available."""
+    if suitability_file is None or not suitability_file.exists():
+        return None
+    scores = []
+    with open(suitability_file, newline="") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            try:
+                scores.append(float(row["score"]))
+            except (KeyError, ValueError):
+                continue
+    if not scores:
+        return None
+    # Max + avg blend — same rule as parse_disease_association.
+    return (max(scores) + sum(scores) / len(scores)) / 2
+
+
+def _blend_disease_association(
+    lit_signal: int, suitability_file: Optional[Path],
+) -> Dict[str, Any]:
+    """v1.6.0: blend a structured literature signal (from facts.yaml) with
+    the omics suitability signal. Mirrors the final-score blend rule in
+    parse_disease_association so the engine sees identical input shape
+    regardless of which path produced lit_signal."""
+    omics_signal = _read_omics_suitability_signal(suitability_file)
+    if omics_signal is not None:
+        final = (lit_signal + omics_signal) / 2
+    else:
+        final = lit_signal
+    final_score = max(1, min(5, round(final)))
+    return {
+        "disease_assoc_score": final_score,
+        "literature_signal": lit_signal,
+        "omics_signal": omics_signal,
+    }
+
+
 def parse_biomarker_potential(
     risk_file: Path,
     idas_file: Optional[Path],
@@ -746,14 +800,25 @@ def run_scholareval(
         if normal_median is not None:
             omics_evidence["rna_expression"]["normal_median_log2tpm"] = normal_median
 
-    # Extract evidence for previously-placeholder dimensions (P1 fix).
-    # Each parser returns a small dict; the engine accepts these structured
-    # fields and uses them in place of the 3.0 placeholder fallback.
-    lit_evidence["pathway_relevance"] = parse_pathway_relevance(risk_file)
-    lit_evidence["disease_association"] = parse_disease_association(
-        risk_file, suitability_file,
-        bio_validation=lit_evidence.get("biological_validation"),
-    )
+    # Extract evidence for previously-placeholder dimensions.
+    # v1.6.0: when facts.yaml supplies structured pathway_score, use it
+    # directly. Otherwise fall back to the regex parser on rendered markdown.
+    if "pathway_relevance" not in lit_evidence:
+        lit_evidence["pathway_relevance"] = parse_pathway_relevance(risk_file)
+
+    # v1.6.0: when facts.yaml supplies disease_assoc_literature_signal, use
+    # it as the literature half of disease_association (omics blend below
+    # is unchanged). Otherwise fall back to the regex parser.
+    structured_lit_sig = lit_evidence.pop("_disease_assoc_literature_signal", None)
+    if structured_lit_sig is not None:
+        lit_evidence["disease_association"] = _blend_disease_association(
+            lit_signal=structured_lit_sig, suitability_file=suitability_file,
+        )
+    else:
+        lit_evidence["disease_association"] = parse_disease_association(
+            risk_file, suitability_file,
+            bio_validation=lit_evidence.get("biological_validation"),
+        )
     lit_evidence["biomarker_potential"] = parse_biomarker_potential(
         risk_file, idas_file,
     )

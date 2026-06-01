@@ -180,6 +180,44 @@ def _category_schema(category: str | None = None) -> dict[str, Any]:
                 "where the extracted claims provide direct evidence."
             ),
         }
+        schema["properties"]["disease_assoc_literature_signal"] = {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": (
+                "How strongly the literature ties this gene to disease "
+                "biology and patient outcomes (1=weak, 5=strong). "
+                "Rubric: 5 = recurrent driver mutation + survival "
+                "association + multiple in-vivo / human-genetic studies; "
+                "4 = strong prognostic + multiple lines of evidence; "
+                "3 = some prognostic or mutational data; "
+                "2 = limited associative evidence; "
+                "1 = no clear disease-association signal."
+            ),
+        }
+    if category == 'biological':
+        schema["properties"]["pathway_score"] = {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": (
+                "Pathway / mechanism relevance score (1-5). Counts how "
+                "many DISTINCT cancer-relevant pathways or mechanisms "
+                "the extracted claims connect this gene to. Rubric: "
+                "5 = ≥6 distinct pathway/mechanism categories "
+                "(e.g. DDR, cell cycle, MAPK, EMT, immune evasion, "
+                "synthetic lethality); 4 = 4-5 categories; "
+                "3 = 2-3 categories; 2 = 1 category; 1 = none."
+            ),
+        }
+        schema["properties"]["pathway_evidence_count"] = {
+            "type": "integer",
+            "minimum": 0,
+            "description": (
+                "Number of distinct pathway/mechanism categories that "
+                "support the pathway_score. Audit field."
+            ),
+        }
     if category == 'druggability':
         schema["properties"].update({
             "has_approved_drug": {
@@ -218,6 +256,13 @@ def _category_schema(category: str | None = None) -> dict[str, Any]:
                 ),
             },
         })
+    # Lock each category to its declared properties — prevents Opus from
+    # spraying clinical-only or druggability-only fields onto other
+    # categories (observed in v1.6.0 dev: `highest_phase: null` appeared
+    # under `safety`, which load_facts rightly rejects under per-category
+    # placement rules but which a global `RECOGNIZED_CATEGORY_KEYS` allow
+    # would silently pass).
+    schema["additionalProperties"] = False
     return schema
 
 
@@ -262,7 +307,17 @@ def _build_synthesis_prompt(
         f"For the **clinical** category, also fill `highest_phase` (0-4): "
         f"the highest clinical phase reached by ANY {gene}-targeting agent "
         f"in {disease.upper()}. Use 0 if no agent has entered trials. Be "
-        f"conservative — base this only on the extracted claims.\n\n"
+        f"conservative — base this only on the extracted claims. Also fill "
+        f"`disease_assoc_literature_signal` (1-5): how strongly the literature "
+        f"ties {gene} to {disease.upper()} biology and patient outcomes — "
+        f"5=driver mutation + survival + multi-line in-vivo evidence; "
+        f"3=some prognostic/mutational data; 1=no disease-association signal.\n\n"
+        f"For the **biological** category, also fill `pathway_score` (1-5) "
+        f"and `pathway_evidence_count`: count distinct cancer-relevant "
+        f"pathway/mechanism categories the claims connect {gene} to "
+        f"(DDR, cell cycle, MAPK, EMT, immune evasion, synthetic lethality, "
+        f"angiogenesis, etc.). 5 = ≥6 categories, 4 = 4-5, 3 = 2-3, 2 = 1, "
+        f"1 = none.\n\n"
         f"For the **druggability** category, also fill the boolean fields: "
         f"`has_approved_drug` (FDA-approved drug exists), "
         f"`has_clinical_compound` (Phase I+ compound exists), "
@@ -288,6 +343,7 @@ def synthesize_facts(
     modality_candidates: list[str] | None = None,
     date: str | None = None,
     client=None, model_config: ModelConfig | None = None,
+    feedback: str | None = None,
 ) -> dict[str, Any]:
     """Run Opus synthesis and return a facts.yaml-shaped dict.
 
@@ -295,6 +351,11 @@ def synthesize_facts(
     written. It will pass `load_facts()` strict validation by
     construction (tool schema enforces enums; we still validate
     afterward as a defensive double-check).
+
+    Args:
+        feedback: Optional. Validation-error message from a previous
+            attempt. When set, prepended to the prompt so Opus can
+            correct field placement on retry.
     """
     if disease not in CANONICAL_WHITESPACES:
         raise ValueError(f"unknown disease: {disease!r}")
@@ -303,6 +364,16 @@ def synthesize_facts(
 
     tool = _build_synthesize_tool(disease)
     prompt = _build_synthesis_prompt(gene, disease, modality, extractions)
+    if feedback:
+        prompt = (
+            f"PREVIOUS ATTEMPT FAILED VALIDATION with this error:\n"
+            f"  {feedback}\n\n"
+            f"Common cause: a category-specific field (e.g. `highest_phase` "
+            f"on `clinical`, `pathway_score` on `biological`, `has_*` on "
+            f"`druggability`) was placed on the wrong category. Fields are "
+            f"strictly per-category. Please regenerate the output respecting "
+            f"the schema's per-category locality.\n\n"
+        ) + prompt
     response = client.messages.create(
         model=cfg.synthesis_model,
         max_tokens=cfg.max_output_tokens,
