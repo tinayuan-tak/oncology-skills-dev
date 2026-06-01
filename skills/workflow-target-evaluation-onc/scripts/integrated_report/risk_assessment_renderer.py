@@ -68,6 +68,10 @@ CANONICAL_RECOMMENDATION_PRIORITIES = {
 
 CANONICAL_IDAS_ALIGNMENTS = {'Strong', 'Moderate', 'Weak', 'None'}
 
+# Biomarker development stage (v1.7.1+). Used by clinical.biomarker_tier
+# and biomarker_potential ScholarEval scoring.
+CANONICAL_BIOMARKER_TIERS = {'none', 'emerging', 'clinical_grade'}
+
 CANONICAL_DISEASES = {'crc', 'nsclc'}
 
 # Per-disease canonical iDAS whitespace labels.
@@ -109,7 +113,8 @@ _COMMON_CATEGORY_KEYS = {
 # than treating these as globally-recognized keys.
 _CATEGORY_EXTRA_KEYS = {
     'biological': {'pathway_score', 'pathway_evidence_count'},
-    'clinical': {'highest_phase', 'disease_assoc_literature_signal'},
+    'clinical': {'highest_phase', 'disease_assoc_literature_signal',
+                  'biomarker_tier'},
     'druggability': {
         'has_approved_drug', 'has_clinical_compound', 'has_tool_compound',
         'has_structure', 'best_ic50_nm',
@@ -331,6 +336,13 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
                 raise ValueError(
                     f"risk_categories.clinical.disease_assoc_literature_signal "
                     f"must be int in [1, 5]; got {sig!r}"
+                )
+        if cat_name == 'clinical' and 'biomarker_tier' in cat:
+            tier = cat['biomarker_tier']
+            if tier not in CANONICAL_BIOMARKER_TIERS:
+                raise ValueError(
+                    f"risk_categories.clinical.biomarker_tier must be one of "
+                    f"{sorted(CANONICAL_BIOMARKER_TIERS)}; got {tier!r}"
                 )
         if cat_name == 'biological':
             if 'pathway_score' in cat:
