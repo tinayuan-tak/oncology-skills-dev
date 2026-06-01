@@ -110,6 +110,10 @@ def main() -> int:
     suitability = load_suitability(suitability_csv)
     comparisons = load_comparisons(comparisons_csv)
     scholar = load_scholareval(scholar_yaml)
+    # v1.7.0: structured facts.yaml supplies per-category primary_evidence
+    # directly. Fall back to None when absent (legacy genes).
+    facts_path = out_dir / f'{gene}_risk_assessment_facts.yaml'
+    facts_yaml = facts_path if facts_path.exists() else None
 
     print(f'Building render context for {gene} ({disease}) ...')
     ctx = build_context(
@@ -118,6 +122,7 @@ def main() -> int:
         comparisons=comparisons, scholar=scholar,
         modality=args.modality,
         workflow_version=args.workflow_version,
+        facts_yaml=facts_yaml,
     )
 
     print('Rendering integrated report ...')

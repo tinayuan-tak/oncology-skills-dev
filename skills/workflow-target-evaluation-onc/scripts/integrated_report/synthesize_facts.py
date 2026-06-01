@@ -166,6 +166,34 @@ def _category_schema(category: str | None = None) -> dict[str, Any]:
                 "type": "string",
                 "description": "2-4 sentence rationale for the risk level.",
             },
+            # v1.7.0: optional pointer to the load-bearing piece of evidence
+            # for this category. The PMID MUST appear in the same category's
+            # `evidence[]` (validator enforces). Omit if no single study
+            # dominates.
+            "primary_evidence": {
+                "type": "object",
+                "required": ["pmid", "why_primary"],
+                "properties": {
+                    "pmid": {
+                        "type": "string",
+                        "description": (
+                            "PMID (6-9 digits) of the load-bearing study. "
+                            "MUST be present in this category's evidence[]."
+                        ),
+                    },
+                    "why_primary": {
+                        "type": "string",
+                        "description": (
+                            "1-sentence rationale: what makes this study "
+                            "load-bearing for the category? E.g. 'Establishes "
+                            "extracellular-domain antibody accessibility' for "
+                            "druggability; 'Sole in-vivo PoC in autochthonous "
+                            "GEMM' for biological."
+                        ),
+                    },
+                },
+                "additionalProperties": False,
+            },
         },
     }
     if category == 'clinical':
@@ -277,7 +305,15 @@ def _build_synthesis_prompt(
     """Compose the synthesis prompt from per-category extracted claims."""
     canonical_ws = sorted(CANONICAL_WHITESPACES[disease])
     sections: list[str] = []
+    # Per-category PMID inventories — load-bearing for v1.7.0
+    # primary_evidence selection. The validator enforces that
+    # primary_evidence.pmid is in *this* category's evidence[],
+    # not just *some* category's. Surface the per-category PMID
+    # set explicitly so Opus picks within the right pool.
+    per_category_pmids: dict[str, list[str]] = {}
     for category, ce in extractions.items():
+        pmids = sorted({c.pmid for c in ce.claims})
+        per_category_pmids[category] = pmids
         if not ce.claims:
             sections.append(f"### {category.title()}\n*No claims extracted.*")
             continue
@@ -285,7 +321,12 @@ def _build_synthesis_prompt(
             f"  - [PMID {c.pmid}] ({c.study_type}) {c.claim}"
             for c in ce.claims
         )
-        sections.append(f"### {category.title()}\n{bullets}")
+        sections.append(
+            f"### {category.title()}\n"
+            f"**Valid PMIDs for primary_evidence in this category: "
+            f"{pmids}**\n"
+            f"{bullets}"
+        )
     claims_block = '\n\n'.join(sections)
     modality_line = (
         f"Modality candidates: {modality}\n" if modality else ""
@@ -325,6 +366,21 @@ def _build_synthesis_prompt(
         f"`has_structure` (PDB / crystal / cryo-EM entry exists). "
         f"Default each to false unless extracted claims directly support it. "
         f"Set `best_ic50_nm` to the lowest reported IC50 in nM, or null.\n\n"
+        f"For each category, IF the extracted claims include a single "
+        f"load-bearing study that the rest of the category's reasoning "
+        f"hinges on (e.g. the in-vivo PoC paper for biological; the "
+        f"crystal-structure / IC50 paper for druggability; the "
+        f"biomarker-validation paper for translational), set "
+        f"`primary_evidence` to {{pmid, why_primary}}.\n\n"
+        f"CRITICAL: `primary_evidence.pmid` MUST be drawn from the "
+        f"'Valid PMIDs for primary_evidence in this category' list shown "
+        f"at the top of each category section below. A PMID that appears "
+        f"under one category cannot be used as primary_evidence for a "
+        f"different category, even if the paper is conceptually relevant "
+        f"to both. If no PMID in the listed set is load-bearing for the "
+        f"category, OMIT `primary_evidence` entirely for that category.\n\n"
+        f"`why_primary` is one sentence explaining why the chosen study "
+        f"is load-bearing for THIS category specifically.\n\n"
         f"Use the `synthesize_facts` tool to return structured output. "
         f"Be specific and ground claims in the provided PMIDs.\n\n"
         f"=== EXTRACTED CLAIMS ===\n\n{claims_block}"

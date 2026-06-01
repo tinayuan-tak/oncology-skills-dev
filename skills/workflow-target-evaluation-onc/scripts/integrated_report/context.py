@@ -84,12 +84,17 @@ def build_context(
     scholar: ScholarEvalResult,
     modality: str | None = None,
     workflow_version: str = '1.2.0',
+    facts_yaml: Path | None = None,
 ) -> dict[str, Any]:
     """Assemble the Jinja render context from parsed inputs.
 
     All inputs are dataclasses from Layer 1 parsers. Output is a flat dict
     keyed for direct template consumption — `{{ scholar.total_score }}`,
     `{{ idas.tox_summary }}`, `{{ recommendation.full_string }}`, etc.
+
+    v1.7.0: when `facts_yaml` is supplied, per-category `primary_evidence`
+    is injected into the risk context directly from structured fields,
+    avoiding another regex-on-prose parser.
     """
     disease_lower = disease.lower()
     if disease_lower not in DISEASE_CONFIG:
@@ -97,6 +102,7 @@ def build_context(
     disease_cfg = DISEASE_CONFIG[disease_lower]
 
     rule_descriptions = _load_rule_descriptions()
+    primary_evidence_by_cat = _load_primary_evidence(facts_yaml)
 
     return {
         'gene': gene,
@@ -105,7 +111,7 @@ def build_context(
         'disease': disease_cfg,
         'modality': _build_modality_context(modality, idas, risk),
         'recommendation': _build_recommendation_context(risk, scholar),
-        'risk': _build_risk_context(risk),
+        'risk': _build_risk_context(risk, primary_evidence_by_cat),
         'idas': _build_idas_context(idas, rule_descriptions),
         'comparisons': _build_comparisons_context(comparisons, disease_lower),
         'scholar': _build_scholar_context(scholar),
@@ -186,15 +192,43 @@ def _build_recommendation_context(
     }
 
 
-def _build_risk_context(risk: RiskAssessment) -> dict[str, Any]:
+def _load_primary_evidence(
+    facts_yaml: Path | None,
+) -> dict[str, dict[str, str]]:
+    """Map per-category name (Title Case) → {pmid, why_primary} when the
+    facts.yaml supplies it; empty dict when facts.yaml is absent.
+
+    Reads the structured field directly so the integrated report doesn't
+    need another markdown parser.
+    """
+    if facts_yaml is None or not facts_yaml.exists():
+        return {}
+    with open(facts_yaml) as f:
+        data = yaml.safe_load(f) or {}
+    out: dict[str, dict[str, str]] = {}
+    for key, cat in (data.get('risk_categories') or {}).items():
+        pe = (cat or {}).get('primary_evidence')
+        if isinstance(pe, dict) and 'pmid' in pe and 'why_primary' in pe:
+            out[key.title()] = {
+                'pmid': str(pe['pmid']),
+                'why_primary': str(pe['why_primary']).strip(),
+            }
+    return out
+
+
+def _build_risk_context(
+    risk: RiskAssessment,
+    primary_evidence_by_cat: dict[str, dict[str, str]] | None = None,
+) -> dict[str, Any]:
     """Per-category risk rows, overall profile, strengths/risks/mitigations."""
+    primary_evidence_by_cat = primary_evidence_by_cat or {}
     categories = []
     for cat_name in ['Biological', 'Druggability', 'Translational',
                       'Clinical', 'Safety', 'Commercial']:
         if cat_name not in risk.categories:
             categories.append({
                 'name': cat_name, 'level': 'TBD', 'driver': 'Not assessed',
-                'evidence': '—',
+                'evidence': '—', 'primary_evidence': None,
             })
             continue
         cat = risk.categories[cat_name]
@@ -204,6 +238,7 @@ def _build_risk_context(risk: RiskAssessment) -> dict[str, Any]:
             'level': cat.level,
             'driver': cat.key_driver,
             'evidence': evidence,
+            'primary_evidence': primary_evidence_by_cat.get(cat_name),
         })
 
     return {
