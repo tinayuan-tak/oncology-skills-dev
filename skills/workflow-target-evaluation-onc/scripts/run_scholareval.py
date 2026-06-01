@@ -171,6 +171,13 @@ def parse_facts_yaml(facts_file: Path) -> Dict[str, Any]:
     if isinstance(clin.get("disease_assoc_literature_signal"), int):
         out["_disease_assoc_literature_signal"] = clin["disease_assoc_literature_signal"]
 
+    # v1.7.1: biomarker_tier surfaces the literature half of biomarker_potential.
+    # Detection rate continues to come from the iDAS YAML in run_scholareval()
+    # so the structured + omics blend stays intact. Pass tier through a private
+    # key for the caller to combine with detection_rate.
+    if clin.get("biomarker_tier") in {"none", "emerging", "clinical_grade"}:
+        out["_biomarker_tier"] = clin["biomarker_tier"]
+
     return out
 
 
@@ -561,6 +568,56 @@ def _blend_disease_association(
     }
 
 
+def _read_idas_detection_rate(idas_file: Optional[Path]) -> Optional[float]:
+    """Pull the detection_rate (or pct_detected / percent_detected) value
+    from the iDAS YAML's whitespace_alignment block. Returns None when
+    the file is missing or the field isn't present."""
+    if idas_file is None or not idas_file.exists():
+        return None
+    with open(idas_file) as fh:
+        data = yaml.safe_load(fh) or {}
+    ws = data.get("whitespace_alignment", {}) or {}
+    for entry in ws.values():
+        if isinstance(entry, dict):
+            for key in ("pct_detected", "percent_detected", "detection_rate"):
+                if key in entry:
+                    try:
+                        return float(entry[key])
+                    except (TypeError, ValueError):
+                        continue
+    return None
+
+
+def _blend_biomarker_potential(
+    tier: str, idas_file: Optional[Path],
+) -> Dict[str, Any]:
+    """v1.7.1: produce the same lit_evidence['biomarker_potential'] shape
+    parse_biomarker_potential emits, but driven by the structured
+    `clinical.biomarker_tier` enum from facts.yaml instead of regex on
+    the Clinical Risk Assessment markdown.
+
+    Score rubric (matches the legacy parser exactly when tier maps cleanly):
+      clinical_grade: 5 if detection >= 80 or unknown, 4 otherwise
+      emerging:       4 if detection >= 50 or unknown, 3 otherwise
+      none:           2
+    """
+    detection_rate = _read_idas_detection_rate(idas_file)
+    if tier == "clinical_grade":
+        score = 5 if (detection_rate is None or detection_rate >= 80) else 4
+        has_clinical_grade = True
+    elif tier == "emerging":
+        score = 4 if (detection_rate is None or detection_rate >= 50) else 3
+        has_clinical_grade = False
+    else:  # 'none'
+        score = 2
+        has_clinical_grade = False
+    return {
+        "biomarker_score": score,
+        "has_clinical_grade_biomarker": has_clinical_grade,
+        "detection_rate_pct": detection_rate,
+    }
+
+
 def parse_biomarker_potential(
     risk_file: Path,
     idas_file: Optional[Path],
@@ -819,9 +876,18 @@ def run_scholareval(
             risk_file, suitability_file,
             bio_validation=lit_evidence.get("biological_validation"),
         )
-    lit_evidence["biomarker_potential"] = parse_biomarker_potential(
-        risk_file, idas_file,
-    )
+    # v1.7.1: when facts.yaml supplies biomarker_tier, blend with the
+    # already-structured detection_rate from the iDAS YAML. Otherwise fall
+    # back to the regex parser on the Clinical section.
+    structured_tier = lit_evidence.pop("_biomarker_tier", None)
+    if structured_tier is not None:
+        lit_evidence["biomarker_potential"] = _blend_biomarker_potential(
+            tier=structured_tier, idas_file=idas_file,
+        )
+    else:
+        lit_evidence["biomarker_potential"] = parse_biomarker_potential(
+            risk_file, idas_file,
+        )
 
     if verbose:
         print("\nLiterature Evidence:")
