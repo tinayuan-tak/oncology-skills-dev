@@ -108,6 +108,67 @@ def test_druggability_defaults_when_absent(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# v1.6.0: pathway_relevance + disease_association structured fields
+# ---------------------------------------------------------------------------
+
+def test_pathway_relevance_passthrough(tmp_path: Path) -> None:
+    """`biological.pathway_score` + `pathway_evidence_count` flow into
+    lit_evidence['pathway_relevance']."""
+    path = _write_facts(tmp_path, {
+        "biological": {"pathway_score": 5, "pathway_evidence_count": 7},
+    })
+    ev = parse_facts_yaml(path)
+    assert ev["pathway_relevance"]["pathway_score"] == 5
+    assert ev["pathway_relevance"]["pathway_evidence_count"] == 7
+
+
+def test_pathway_relevance_absent_when_unset(tmp_path: Path) -> None:
+    """Legacy facts.yaml without pathway_score → no pathway_relevance
+    key, so caller falls back to markdown regex parser."""
+    path = _write_facts(tmp_path, {})
+    ev = parse_facts_yaml(path)
+    assert "pathway_relevance" not in ev
+
+
+def test_disease_assoc_literature_signal_passthrough(tmp_path: Path) -> None:
+    """Structured disease_assoc_literature_signal lands under
+    `_disease_assoc_literature_signal` (private key consumed by
+    run_scholareval's blending helper)."""
+    path = _write_facts(tmp_path, {
+        "clinical": {"disease_assoc_literature_signal": 4},
+    })
+    ev = parse_facts_yaml(path)
+    assert ev["_disease_assoc_literature_signal"] == 4
+
+
+def test_disease_assoc_literature_signal_absent_when_unset(tmp_path: Path) -> None:
+    path = _write_facts(tmp_path, {})
+    ev = parse_facts_yaml(path)
+    assert "_disease_assoc_literature_signal" not in ev
+
+
+def test_blend_disease_association_with_omics(tmp_path: Path) -> None:
+    """When facts.yaml supplies the literature signal AND a suitability
+    CSV is present, the score blends the two."""
+    from run_scholareval import _blend_disease_association
+    csv_path = tmp_path / "suit.csv"
+    csv_path.write_text("subgroup,score\na,5\nb,4\nc,3\n")
+    out = _blend_disease_association(lit_signal=4, suitability_file=csv_path)
+    # max=5, avg=4 → omics_signal = 4.5; blend with lit_signal=4 → 4.25 → round 4.
+    assert out["literature_signal"] == 4
+    assert out["omics_signal"] == 4.5
+    assert out["disease_assoc_score"] == 4
+
+
+def test_blend_disease_association_no_omics(tmp_path: Path) -> None:
+    """When suitability CSV is missing, score = literature signal alone."""
+    from run_scholareval import _blend_disease_association
+    out = _blend_disease_association(lit_signal=3, suitability_file=None)
+    assert out["disease_assoc_score"] == 3
+    assert out["omics_signal"] is None
+
+
+# ---------------------------------------------------------------------------
 # Biological evidence — derived from study_type counts on biological.evidence[]
 # ---------------------------------------------------------------------------
 
