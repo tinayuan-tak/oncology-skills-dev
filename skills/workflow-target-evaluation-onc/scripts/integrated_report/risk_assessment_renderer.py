@@ -89,11 +89,15 @@ CANONICAL_WHITESPACES = {
 # typo guard. Add new keys here when extending the schema.
 RECOGNIZED_TOP_LEVEL_KEYS = {
     'gene', 'disease', 'date',
-    'target_aliases', 'modality_candidates', 'background',
+    'target_aliases', 'modality_candidates', 'modality_source',
+    'background',
     'risk_categories', 'overall_risk_profile',
     'idas_alignment', 'strengths', 'risks', 'mitigations',
     'recommendation',
 }
+
+# v1.7.2: provenance values for modality_candidates.
+CANONICAL_MODALITY_SOURCES = {'user', 'inferred'}
 
 # Recognized per-category keys. Some are category-specific structured
 # fields that ScholarEval reads directly to avoid regex-on-prose scoring
@@ -185,6 +189,7 @@ class RiskAssessmentFacts:
     mitigations: list[dict[str, Any]]
     recommendation: dict[str, Any]
     overall_risk_profile: str
+    modality_source: str = ''  # 'user' / 'inferred' / '' (legacy facts.yaml)
 
 
 # ----------------------------------------------------------------------------
@@ -464,7 +469,21 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
             data.get('overall_risk_profile')
             or _derive_overall_risk(cats)
         ),
+        modality_source=_normalize_modality_source(data.get('modality_source')),
     )
+
+
+def _normalize_modality_source(value: Any) -> str:
+    """Validate optional modality_source — '' (legacy/unset), 'user', or 'inferred'."""
+    if value in (None, ''):
+        return ''
+    s = str(value).strip().lower()
+    if s not in CANONICAL_MODALITY_SOURCES:
+        raise ValueError(
+            f"modality_source must be one of {sorted(CANONICAL_MODALITY_SOURCES)} "
+            f"or omitted; got {value!r}"
+        )
+    return s
 
 
 def _derive_overall_risk(categories: dict[str, dict[str, Any]]) -> str:
