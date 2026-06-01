@@ -74,7 +74,10 @@ class IDASAssessment:
     lusc_log2fc: float | None
     whitespaces: dict[str, IDASWhitespace]
     modality: str = ''
-    modality_class: str = 'antibody_naked'
+    # Empty string means "not set in idas.yaml" — context.py will resolve
+    # via ModalityRegistry from the CLI/raw modality string instead of
+    # silently anchoring to antibody_naked.
+    modality_class: str = ''
 
 
 @dataclass(frozen=True)
@@ -214,7 +217,7 @@ def load_idas(path: Path) -> IDASAssessment:
         lusc_log2fc=tox.get('lusc_vs_lusc_adjacent_log2FC'),
         whitespaces=whitespaces,
         modality=str((data.get('subgroup_analysis', {}) or {}).get('modality', '')),
-        modality_class=str((data.get('subgroup_analysis', {}) or {}).get('modality_class', 'antibody_naked')),
+        modality_class=str((data.get('subgroup_analysis', {}) or {}).get('modality_class', '')),
     )
 
 

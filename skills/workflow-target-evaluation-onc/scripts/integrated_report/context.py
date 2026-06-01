@@ -109,7 +109,7 @@ def build_context(
         'today': date.today().isoformat(),
         'workflow_version': workflow_version,
         'disease': disease_cfg,
-        'modality': _build_modality_context(modality, idas, risk),
+        'modality': _build_modality_context(modality, idas, risk, facts_yaml),
         'recommendation': _build_recommendation_context(risk, scholar),
         'risk': _build_risk_context(risk, primary_evidence_by_cat),
         'idas': _build_idas_context(idas, rule_descriptions),
@@ -129,22 +129,61 @@ def _build_modality_context(
     cli_modality: str | None,
     idas: IDASAssessment,
     risk: RiskAssessment,
+    facts_yaml: Path | None = None,
 ) -> dict[str, Any]:
     """Resolve the modality display string + the registry-aware class.
 
-    Precedence (most authoritative first):
+    Precedence for raw display string (most authoritative first):
       1. --modality CLI arg
       2. modality recorded in idas.yaml subgroup_analysis (Step 2 captured it)
       3. modality_candidates from the risk-assessment markdown
       4. fallback: 'Antibody / ADC' (the v1.1.0 default)
+
+    Precedence for resolved class_id:
+      1. idas.modality_class if set (Step 2 already resolved against the registry)
+      2. ModalityRegistry.resolve_class(raw) — uses alias index + substring match
+      3. Registry default ('antibody_naked')
+
+    Provenance (`source`) — v1.7.2:
+      - 'user'     — CLI flag at Step 4, OR facts.yaml.modality_source=='user'
+                     (which means --modality was passed at Step 0)
+      - 'inferred' — facts.yaml.modality_source=='inferred' (Opus picked it
+                     from the literature; no CLI flag at any stage)
+      - 'default'  — fell through to 'Antibody / ADC'; no modality info
+                     anywhere in the pipeline
     """
-    raw = (
-        cli_modality
-        or idas.modality
-        or (', '.join(risk.modality_candidates) if risk.modality_candidates else None)
-        or 'Antibody / ADC'
-    )
-    modality_class = idas.modality_class or 'antibody_naked'
+    facts_modality_source = _read_modality_source(facts_yaml)
+
+    if cli_modality:
+        raw = cli_modality
+        source = 'user'
+    elif idas.modality:
+        raw = idas.modality
+        # Step 2 reports modality but doesn't record provenance; the
+        # cleanest assumption is that Step 2's modality came from a
+        # higher-up CLI flag (otherwise we'd see facts.yaml's source).
+        source = facts_modality_source or 'user'
+    elif risk.modality_candidates:
+        raw = ', '.join(risk.modality_candidates)
+        source = facts_modality_source or 'inferred'
+    else:
+        raw = 'Antibody / ADC'
+        source = 'default'
+
+    if idas.modality_class:
+        modality_class = idas.modality_class
+    else:
+        try:
+            from modality_registry import ModalityRegistry
+            modality_class = ModalityRegistry().resolve_class(raw)
+        except Exception:
+            modality_class = 'antibody_naked'
+
+    source_label_map = {
+        'user': 'user-provided',
+        'inferred': 'inferred from literature',
+        'default': 'default — no modality specified',
+    }
     return {
         'raw': raw,
         'display_string': raw,
@@ -152,7 +191,24 @@ def _build_modality_context(
         'class_id': modality_class,
         'is_degrader': modality_class == 'degrader',
         'is_surface': modality_class in ('antibody_naked', 'adc', 'tce'),
+        'source': source,
+        'source_label': source_label_map[source],
+        'is_default': source == 'default',
     }
+
+
+def _read_modality_source(facts_yaml: Path | None) -> str:
+    """Read facts.yaml's optional `modality_source` field. Returns ''
+    when facts.yaml is missing or the field isn't set (legacy)."""
+    if facts_yaml is None or not facts_yaml.exists():
+        return ''
+    try:
+        with open(facts_yaml) as f:
+            data = yaml.safe_load(f) or {}
+        v = data.get('modality_source', '')
+        return str(v).strip().lower() if v else ''
+    except Exception:
+        return ''
 
 
 def _build_recommendation_context(
