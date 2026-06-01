@@ -208,6 +208,12 @@ def main() -> int:
                 client=client, model_config=cfg,
                 feedback=feedback,
             )
+            # v1.7.2: provenance for modality. "user" if --modality was
+            # supplied at Step 0 CLI, otherwise "inferred" (Opus may have
+            # populated modality_candidates from the literature claims).
+            candidate['modality_source'] = (
+                'user' if args.modality else 'inferred'
+            )
         except Exception as e:
             sys.stderr.write(f'ERROR: synthesis failed: {e}\n')
             traceback.print_exc()
