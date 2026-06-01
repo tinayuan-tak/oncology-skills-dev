@@ -11,6 +11,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
@@ -359,6 +360,51 @@ def test_canonical_whitespaces_per_disease() -> None:
         '2L EGFR Mutant (post-TKI)',
         '1L/2L KRAS Mutant',
     }
+
+
+# ---------------------------------------------------------------------------
+# v1.6.0: per-category placement of structured fields
+# ---------------------------------------------------------------------------
+
+def _cat_facts_with_extra(category: str, extra: dict) -> str:
+    """Build a facts.yaml string where `category` carries an extra field
+    that may or may not belong there, and return as YAML text."""
+    base = {
+        "gene": "G", "disease": "nsclc", "date": "2026-01-01",
+        "risk_categories": {
+            cat: {"level": "MEDIUM", "key_driver": "x", "justification": "x"}
+            for cat in ("biological", "druggability", "translational",
+                        "clinical", "safety", "commercial")
+        },
+        "recommendation": {"level": "CONDITIONAL", "rationale": "x"},
+        "mitigations": [{"title": "t", "risk_level": "MEDIUM", "strategy": "s"}],
+    }
+    base["risk_categories"][category].update(extra)
+    return yaml.safe_dump(base)
+
+
+def test_highest_phase_rejected_outside_clinical(tmp_path):
+    """Opus has been observed spraying clinical-only fields onto other
+    categories. The strict validator must reject misplacement."""
+    p = _write_facts(tmp_path, _cat_facts_with_extra("safety", {"highest_phase": 0}))
+    with pytest.raises(ValueError, match="risk_categories.safety.*highest_phase"):
+        load_facts(p)
+
+
+def test_pathway_score_rejected_outside_biological(tmp_path):
+    p = _write_facts(tmp_path, _cat_facts_with_extra("translational",
+                                                    {"pathway_score": 4}))
+    with pytest.raises(ValueError,
+                       match="risk_categories.translational.*pathway_score"):
+        load_facts(p)
+
+
+def test_has_clinical_compound_rejected_outside_druggability(tmp_path):
+    p = _write_facts(tmp_path, _cat_facts_with_extra("commercial",
+                                                    {"has_clinical_compound": True}))
+    with pytest.raises(ValueError,
+                       match="risk_categories.commercial.*has_clinical_compound"):
+        load_facts(p)
 
 
 # ---------------------------------------------------------------------------

@@ -50,11 +50,16 @@
 {% for cat in categories_ordered %}
 ## {{ loop.index }}. {{ cat.display_name }} Risk Assessment
 
+{% if cat.primary_evidence %}
+> **★ Primary evidence — PMID: {{ cat.primary_evidence.pmid }}**
+> {{ cat.primary_evidence.why_primary }}
+
+{% endif %}
 ### Evidence Documentation
 
 {% if cat.evidence %}
 {% for ev in cat.evidence %}
-- {{ ev.claim }}{% if ev.pmid %} (PMID: {{ ev.pmid }}){% endif %}{% if ev.study_type %} — *{{ ev.study_type }}*{% endif %}
+- {% if cat.primary_evidence and ev.pmid == cat.primary_evidence.pmid %}**★** {% endif %}{{ ev.claim }}{% if ev.pmid %} (PMID: {{ ev.pmid }}){% endif %}{% if ev.study_type %} — *{{ ev.study_type }}*{% endif %}
 {% endfor %}
 {% else %}
 *No structured evidence provided.*

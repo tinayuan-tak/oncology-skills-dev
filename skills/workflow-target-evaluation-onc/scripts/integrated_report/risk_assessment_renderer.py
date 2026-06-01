@@ -99,14 +99,29 @@ RECOGNIZED_TOP_LEVEL_KEYS = {
 # fields that ScholarEval reads directly to avoid regex-on-prose scoring
 # (added in v1.4.0). All structured fields are optional — legacy
 # facts.yaml predates them.
-RECOGNIZED_CATEGORY_KEYS = {
-    # Common
-    'level', 'key_driver', 'justification', 'evidence',
-    # Clinical-only (optional)
-    'highest_phase',
-    # Druggability-only (optional)
-    'has_approved_drug', 'has_clinical_compound', 'has_tool_compound',
-    'has_structure', 'best_ic50_nm',
+# Common fields allowed on every category.
+_COMMON_CATEGORY_KEYS = {
+    'level', 'key_driver', 'justification', 'evidence', 'primary_evidence',
+}
+
+# Per-category extra fields. Placement matters: `highest_phase` on `safety`
+# is a synthesizer bug, not a typo, so we enforce category locality rather
+# than treating these as globally-recognized keys.
+_CATEGORY_EXTRA_KEYS = {
+    'biological': {'pathway_score', 'pathway_evidence_count'},
+    'clinical': {'highest_phase', 'disease_assoc_literature_signal'},
+    'druggability': {
+        'has_approved_drug', 'has_clinical_compound', 'has_tool_compound',
+        'has_structure', 'best_ic50_nm',
+    },
+    'translational': set(),
+    'safety': set(),
+    'commercial': set(),
+}
+
+# Backward-compat union: tests / external callers may still reference this.
+RECOGNIZED_CATEGORY_KEYS = _COMMON_CATEGORY_KEYS | {
+    k for extras in _CATEGORY_EXTRA_KEYS.values() for k in extras
 }
 
 # Recognized per-evidence-entry keys.
@@ -230,7 +245,8 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
                 f"risk_categories.{cat_name} must be a dict; got {type(cat).__name__}"
             )
         _check_unrecognized_keys(
-            f"risk_categories.{cat_name}", cat, RECOGNIZED_CATEGORY_KEYS,
+            f"risk_categories.{cat_name}", cat,
+            _COMMON_CATEGORY_KEYS | _CATEGORY_EXTRA_KEYS.get(cat_name, set()),
         )
         for required_field in ('level', 'key_driver', 'justification'):
             if required_field not in cat:
@@ -263,6 +279,43 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
             if 'pmid' in ev:
                 ev['pmid'] = _normalize_pmid(ev['pmid'])
 
+        # v1.7.0: optional primary_evidence pointer. PMID must reference
+        # a study already in evidence[] for this category — prevents
+        # dangling references at the analyst- or LLM-edit boundary.
+        if 'primary_evidence' in cat:
+            pe = cat['primary_evidence']
+            if not isinstance(pe, dict):
+                raise ValueError(
+                    f"risk_categories.{cat_name}.primary_evidence must be a dict"
+                )
+            _check_unrecognized_keys(
+                f"risk_categories.{cat_name}.primary_evidence",
+                pe, {'pmid', 'why_primary'},
+            )
+            for required_field in ('pmid', 'why_primary'):
+                if required_field not in pe:
+                    raise ValueError(
+                        f"risk_categories.{cat_name}.primary_evidence missing "
+                        f"required field: {required_field!r}"
+                    )
+            pe['pmid'] = _normalize_pmid(pe['pmid'])
+            evidence_pmids = {
+                ev['pmid'] for ev in evidence
+                if isinstance(ev, dict) and 'pmid' in ev
+            }
+            if pe['pmid'] not in evidence_pmids:
+                raise ValueError(
+                    f"risk_categories.{cat_name}.primary_evidence.pmid="
+                    f"{pe['pmid']!r} does not appear in this category's "
+                    f"evidence[] (PMIDs present: {sorted(evidence_pmids)}). "
+                    f"primary_evidence must reference an existing entry."
+                )
+            if not isinstance(pe['why_primary'], str) or not pe['why_primary'].strip():
+                raise ValueError(
+                    f"risk_categories.{cat_name}.primary_evidence.why_primary "
+                    f"must be a non-empty string"
+                )
+
         # v1.4.0+ structured scoring fields: type-check when present,
         # but allow absence so legacy facts.yaml still validates.
         if cat_name == 'clinical' and 'highest_phase' in cat:
@@ -272,6 +325,28 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
                     f"risk_categories.clinical.highest_phase must be int "
                     f"in [0, 4]; got {phase!r}"
                 )
+        if cat_name == 'clinical' and 'disease_assoc_literature_signal' in cat:
+            sig = cat['disease_assoc_literature_signal']
+            if not isinstance(sig, int) or not (1 <= sig <= 5):
+                raise ValueError(
+                    f"risk_categories.clinical.disease_assoc_literature_signal "
+                    f"must be int in [1, 5]; got {sig!r}"
+                )
+        if cat_name == 'biological':
+            if 'pathway_score' in cat:
+                ps = cat['pathway_score']
+                if not isinstance(ps, int) or not (1 <= ps <= 5):
+                    raise ValueError(
+                        f"risk_categories.biological.pathway_score must be "
+                        f"int in [1, 5]; got {ps!r}"
+                    )
+            if 'pathway_evidence_count' in cat:
+                pec = cat['pathway_evidence_count']
+                if not isinstance(pec, int) or pec < 0:
+                    raise ValueError(
+                        f"risk_categories.biological.pathway_evidence_count "
+                        f"must be non-negative int; got {pec!r}"
+                    )
         if cat_name == 'druggability':
             for bool_field in ('has_approved_drug', 'has_clinical_compound',
                                'has_tool_compound', 'has_structure'):
@@ -439,6 +514,7 @@ def build_render_context(facts: RiskAssessmentFacts) -> dict[str, Any]:
             'justification': str(cat['justification']).strip(),
             'evidence': evidence,
             'pmid_string': pmid_string,
+            'primary_evidence': cat.get('primary_evidence'),
         })
 
     # Compose recommendation phrase: "GO — MEDIUM-HIGH PRIORITY"

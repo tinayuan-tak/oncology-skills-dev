@@ -91,6 +91,20 @@ See `{{ gene }}_risk_assessment_{{ disease.abbreviation|lower }}.md` for the lit
 
 **Overall Risk Profile: {{ risk.overall_profile }}**
 
+{% set has_primary = risk.categories | selectattr('primary_evidence') | list %}
+{% if has_primary %}
+
+#### Load-Bearing Primary Evidence by Category
+
+> ★ For each category below, a single load-bearing study has been flagged as the central piece of evidence the risk assessment hinges on.
+
+| Category | Primary Evidence (PMID) | Why Load-Bearing |
+|----------|------------------------|------------------|
+{% for cat in risk.categories if cat.primary_evidence -%}
+| **{{ cat.name }}** | PMID: {{ cat.primary_evidence.pmid }} | {{ cat.primary_evidence.why_primary }} |
+{% endfor %}
+{% endif %}
+
 ### 3.2 Differential Expression Analysis (Step 2: Multi-omics)
 
 #### Primary On-Target Toxicity Metric: Tumor vs Adjacent Normal
