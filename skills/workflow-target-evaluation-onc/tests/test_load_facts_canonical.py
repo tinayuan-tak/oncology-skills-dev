@@ -407,6 +407,23 @@ def test_has_clinical_compound_rejected_outside_druggability(tmp_path):
         load_facts(p)
 
 
+def test_biomarker_tier_invalid_value_rejected(tmp_path):
+    """clinical.biomarker_tier must be one of the canonical enum values."""
+    p = _write_facts(tmp_path, _cat_facts_with_extra("clinical",
+                                                    {"biomarker_tier": "approved"}))
+    with pytest.raises(ValueError, match="biomarker_tier.*'approved'"):
+        load_facts(p)
+
+
+def test_biomarker_tier_rejected_outside_clinical(tmp_path):
+    """Per-category placement: biomarker_tier doesn't belong on safety."""
+    p = _write_facts(tmp_path, _cat_facts_with_extra("safety",
+                                                    {"biomarker_tier": "emerging"}))
+    with pytest.raises(ValueError,
+                       match="risk_categories.safety.*biomarker_tier"):
+        load_facts(p)
+
+
 # ---------------------------------------------------------------------------
 # Real-target round-trip: existing facts.yaml files still parse cleanly
 # ---------------------------------------------------------------------------
