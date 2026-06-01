@@ -71,6 +71,12 @@ def main() -> int:
                         help='Overwrite an existing facts.yaml.')
     parser.add_argument('--dry-run', action='store_true',
                         help='Run extraction; print outcome but do not write.')
+    parser.add_argument('--max-synth-retries', type=int, default=3,
+                        help='Max Stage 2 (Opus synthesis) retries on '
+                             'load_facts() validation failure (default: 3). '
+                             'Each retry passes the validation error back to '
+                             'Opus so it can correct field placement. Set 0 '
+                             'to fail-fast (useful for debugging).')
     args = parser.parse_args()
 
     out_dir: Path = args.output_dir
@@ -175,45 +181,69 @@ def main() -> int:
         print(f'    {cat}: {n}')
 
     # ------------------------------------------------------------------
-    # Stage 2: synthesize facts
+    # Stage 2: synthesize facts (with retry-on-validation-failure)
     # ------------------------------------------------------------------
     print('Stage 2: synthesizing facts via Opus...')
     t2 = time.time()
-    try:
-        facts = synthesize_facts(
-            gene=args.gene, disease=args.disease,
-            extractions=extractions,
-            modality=args.modality,
-            target_aliases=args.target_aliases,
-            modality_candidates=[args.modality] if args.modality else [],
-            client=client, model_config=cfg,
+    tmp_path = out_dir / f'.{args.gene}_facts_tmp.yaml'
+    feedback: str | None = None
+    facts: dict[str, object] | None = None
+    last_validation_error: str | None = None
+    attempts_used = 0
+    for attempt in range(args.max_synth_retries + 1):
+        attempts_used = attempt + 1
+        if attempt == 0:
+            print(f'  Attempt {attempt + 1}/{args.max_synth_retries + 1} '
+                  f'(initial)...')
+        else:
+            print(f'  Attempt {attempt + 1}/{args.max_synth_retries + 1} '
+                  f'(retry with validation feedback)...')
+        try:
+            candidate = synthesize_facts(
+                gene=args.gene, disease=args.disease,
+                extractions=extractions,
+                modality=args.modality,
+                target_aliases=args.target_aliases,
+                modality_candidates=[args.modality] if args.modality else [],
+                client=client, model_config=cfg,
+                feedback=feedback,
+            )
+        except Exception as e:
+            sys.stderr.write(f'ERROR: synthesis failed: {e}\n')
+            traceback.print_exc()
+            return 2
+        # Probe-validate via load_facts before accepting.
+        tmp_path.write_text(yaml.safe_dump(
+            candidate, sort_keys=False, allow_unicode=True,
+        ))
+        try:
+            load_facts(tmp_path)
+            facts = candidate
+            last_validation_error = None
+            break
+        except ValueError as e:
+            last_validation_error = str(e)
+            feedback = last_validation_error
+            print(f'    Validation failed: {last_validation_error}')
+    if facts is None:
+        sys.stderr.write(
+            f'ERROR: synthesized facts failed strict validation after '
+            f'{attempts_used} attempt(s):\n  {last_validation_error}\n'
+            f'  Tmp file preserved for inspection: {tmp_path}\n'
         )
-    except Exception as e:
-        sys.stderr.write(f'ERROR: synthesis failed: {e}\n')
-        traceback.print_exc()
-        return 2
+        return 3
+    # Success — clean up the tmp probe file.
+    if tmp_path.exists():
+        tmp_path.unlink()
     synth_secs = time.time() - t2
     log['stages']['synthesize_facts'] = {
         'duration_s': round(synth_secs, 2),
         'model': cfg.synthesis_model,
+        'attempts': attempts_used,
+        'max_retries_configured': args.max_synth_retries,
     }
-    print(f'  Synthesized facts in {synth_secs:.1f}s.')
-
-    # ------------------------------------------------------------------
-    # Defensive: validate output via load_facts strict validator
-    # ------------------------------------------------------------------
-    print('Validating output against load_facts() strict schema...')
-    tmp_path = out_dir / f'.{args.gene}_facts_tmp.yaml'
-    tmp_path.write_text(yaml.safe_dump(facts, sort_keys=False, allow_unicode=True))
-    try:
-        load_facts(tmp_path)
-        tmp_path.unlink()
-    except ValueError as e:
-        sys.stderr.write(
-            f'ERROR: synthesized facts failed strict validation:\n  {e}\n'
-            f'  Tmp file preserved for inspection: {tmp_path}\n'
-        )
-        return 3
+    print(f'  Synthesized facts in {synth_secs:.1f}s '
+          f'(attempts: {attempts_used}/{args.max_synth_retries + 1}).')
     print('  ✓ Output validates cleanly.')
 
     # ------------------------------------------------------------------
