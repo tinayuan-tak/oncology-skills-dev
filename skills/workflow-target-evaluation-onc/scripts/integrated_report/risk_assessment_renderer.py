@@ -279,6 +279,43 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
             if 'pmid' in ev:
                 ev['pmid'] = _normalize_pmid(ev['pmid'])
 
+        # v1.7.0: optional primary_evidence pointer. PMID must reference
+        # a study already in evidence[] for this category — prevents
+        # dangling references at the analyst- or LLM-edit boundary.
+        if 'primary_evidence' in cat:
+            pe = cat['primary_evidence']
+            if not isinstance(pe, dict):
+                raise ValueError(
+                    f"risk_categories.{cat_name}.primary_evidence must be a dict"
+                )
+            _check_unrecognized_keys(
+                f"risk_categories.{cat_name}.primary_evidence",
+                pe, {'pmid', 'why_primary'},
+            )
+            for required_field in ('pmid', 'why_primary'):
+                if required_field not in pe:
+                    raise ValueError(
+                        f"risk_categories.{cat_name}.primary_evidence missing "
+                        f"required field: {required_field!r}"
+                    )
+            pe['pmid'] = _normalize_pmid(pe['pmid'])
+            evidence_pmids = {
+                ev['pmid'] for ev in evidence
+                if isinstance(ev, dict) and 'pmid' in ev
+            }
+            if pe['pmid'] not in evidence_pmids:
+                raise ValueError(
+                    f"risk_categories.{cat_name}.primary_evidence.pmid="
+                    f"{pe['pmid']!r} does not appear in this category's "
+                    f"evidence[] (PMIDs present: {sorted(evidence_pmids)}). "
+                    f"primary_evidence must reference an existing entry."
+                )
+            if not isinstance(pe['why_primary'], str) or not pe['why_primary'].strip():
+                raise ValueError(
+                    f"risk_categories.{cat_name}.primary_evidence.why_primary "
+                    f"must be a non-empty string"
+                )
+
         # v1.4.0+ structured scoring fields: type-check when present,
         # but allow absence so legacy facts.yaml still validates.
         if cat_name == 'clinical' and 'highest_phase' in cat:
@@ -477,6 +514,7 @@ def build_render_context(facts: RiskAssessmentFacts) -> dict[str, Any]:
             'justification': str(cat['justification']).strip(),
             'evidence': evidence,
             'pmid_string': pmid_string,
+            'primary_evidence': cat.get('primary_evidence'),
         })
 
     # Compose recommendation phrase: "GO — MEDIUM-HIGH PRIORITY"
