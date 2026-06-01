@@ -68,6 +68,10 @@ CANONICAL_RECOMMENDATION_PRIORITIES = {
 
 CANONICAL_IDAS_ALIGNMENTS = {'Strong', 'Moderate', 'Weak', 'None'}
 
+# Biomarker development stage (v1.7.1+). Used by clinical.biomarker_tier
+# and biomarker_potential ScholarEval scoring.
+CANONICAL_BIOMARKER_TIERS = {'none', 'emerging', 'clinical_grade'}
+
 CANONICAL_DISEASES = {'crc', 'nsclc'}
 
 # Per-disease canonical iDAS whitespace labels.
@@ -89,11 +93,15 @@ CANONICAL_WHITESPACES = {
 # typo guard. Add new keys here when extending the schema.
 RECOGNIZED_TOP_LEVEL_KEYS = {
     'gene', 'disease', 'date',
-    'target_aliases', 'modality_candidates', 'background',
+    'target_aliases', 'modality_candidates', 'modality_source',
+    'background',
     'risk_categories', 'overall_risk_profile',
     'idas_alignment', 'strengths', 'risks', 'mitigations',
     'recommendation',
 }
+
+# v1.7.2: provenance values for modality_candidates.
+CANONICAL_MODALITY_SOURCES = {'user', 'inferred'}
 
 # Recognized per-category keys. Some are category-specific structured
 # fields that ScholarEval reads directly to avoid regex-on-prose scoring
@@ -109,7 +117,8 @@ _COMMON_CATEGORY_KEYS = {
 # than treating these as globally-recognized keys.
 _CATEGORY_EXTRA_KEYS = {
     'biological': {'pathway_score', 'pathway_evidence_count'},
-    'clinical': {'highest_phase', 'disease_assoc_literature_signal'},
+    'clinical': {'highest_phase', 'disease_assoc_literature_signal',
+                  'biomarker_tier'},
     'druggability': {
         'has_approved_drug', 'has_clinical_compound', 'has_tool_compound',
         'has_structure', 'best_ic50_nm',
@@ -185,6 +194,7 @@ class RiskAssessmentFacts:
     mitigations: list[dict[str, Any]]
     recommendation: dict[str, Any]
     overall_risk_profile: str
+    modality_source: str = ''  # 'user' / 'inferred' / '' (legacy facts.yaml)
 
 
 # ----------------------------------------------------------------------------
@@ -332,6 +342,13 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
                     f"risk_categories.clinical.disease_assoc_literature_signal "
                     f"must be int in [1, 5]; got {sig!r}"
                 )
+        if cat_name == 'clinical' and 'biomarker_tier' in cat:
+            tier = cat['biomarker_tier']
+            if tier not in CANONICAL_BIOMARKER_TIERS:
+                raise ValueError(
+                    f"risk_categories.clinical.biomarker_tier must be one of "
+                    f"{sorted(CANONICAL_BIOMARKER_TIERS)}; got {tier!r}"
+                )
         if cat_name == 'biological':
             if 'pathway_score' in cat:
                 ps = cat['pathway_score']
@@ -464,7 +481,21 @@ def load_facts(path: Path) -> RiskAssessmentFacts:
             data.get('overall_risk_profile')
             or _derive_overall_risk(cats)
         ),
+        modality_source=_normalize_modality_source(data.get('modality_source')),
     )
+
+
+def _normalize_modality_source(value: Any) -> str:
+    """Validate optional modality_source — '' (legacy/unset), 'user', or 'inferred'."""
+    if value in (None, ''):
+        return ''
+    s = str(value).strip().lower()
+    if s not in CANONICAL_MODALITY_SOURCES:
+        raise ValueError(
+            f"modality_source must be one of {sorted(CANONICAL_MODALITY_SOURCES)} "
+            f"or omitted; got {value!r}"
+        )
+    return s
 
 
 def _derive_overall_risk(categories: dict[str, dict[str, Any]]) -> str:

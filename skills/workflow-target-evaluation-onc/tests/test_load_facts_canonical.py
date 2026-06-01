@@ -407,6 +407,23 @@ def test_has_clinical_compound_rejected_outside_druggability(tmp_path):
         load_facts(p)
 
 
+def test_biomarker_tier_invalid_value_rejected(tmp_path):
+    """clinical.biomarker_tier must be one of the canonical enum values."""
+    p = _write_facts(tmp_path, _cat_facts_with_extra("clinical",
+                                                    {"biomarker_tier": "approved"}))
+    with pytest.raises(ValueError, match="biomarker_tier.*'approved'"):
+        load_facts(p)
+
+
+def test_biomarker_tier_rejected_outside_clinical(tmp_path):
+    """Per-category placement: biomarker_tier doesn't belong on safety."""
+    p = _write_facts(tmp_path, _cat_facts_with_extra("safety",
+                                                    {"biomarker_tier": "emerging"}))
+    with pytest.raises(ValueError,
+                       match="risk_categories.safety.*biomarker_tier"):
+        load_facts(p)
+
+
 # ---------------------------------------------------------------------------
 # Real-target round-trip: existing facts.yaml files still parse cleanly
 # ---------------------------------------------------------------------------
@@ -426,3 +443,36 @@ def test_real_facts_files_parse_after_strict_validation(path_str: str) -> None:
     assert facts.gene
     assert facts.disease in CANONICAL_DISEASES
     assert len(facts.risk_categories) == 6
+
+
+# ---------------------------------------------------------------------------
+# v1.7.2: modality_source provenance field
+# ---------------------------------------------------------------------------
+
+def test_modality_source_user_accepted(tmp_path):
+    """v1.7.2: modality_source='user' is accepted and round-trips."""
+    yaml_text = MINIMAL_VALID + "modality_source: user\n"
+    p = _write_facts(tmp_path, yaml_text)
+    facts = load_facts(p)
+    assert facts.modality_source == 'user'
+
+
+def test_modality_source_inferred_accepted(tmp_path):
+    yaml_text = MINIMAL_VALID + "modality_source: inferred\n"
+    p = _write_facts(tmp_path, yaml_text)
+    facts = load_facts(p)
+    assert facts.modality_source == 'inferred'
+
+
+def test_modality_source_absent_defaults_empty(tmp_path):
+    """Legacy facts.yaml without modality_source still validates."""
+    p = _write_facts(tmp_path, MINIMAL_VALID)
+    facts = load_facts(p)
+    assert facts.modality_source == ''
+
+
+def test_modality_source_invalid_rejected(tmp_path):
+    yaml_text = MINIMAL_VALID + "modality_source: bogus\n"
+    p = _write_facts(tmp_path, yaml_text)
+    with pytest.raises(ValueError, match="modality_source must be"):
+        load_facts(p)

@@ -169,6 +169,63 @@ def test_blend_disease_association_no_omics(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# v1.7.1: biomarker_tier structured field
+# ---------------------------------------------------------------------------
+
+def test_biomarker_tier_passthrough(tmp_path: Path) -> None:
+    """`clinical.biomarker_tier` lands in `_biomarker_tier` (private channel
+    consumed by run_scholareval's blend helper)."""
+    path = _write_facts(tmp_path, {
+        "clinical": {"biomarker_tier": "clinical_grade"},
+    })
+    ev = parse_facts_yaml(path)
+    assert ev["_biomarker_tier"] == "clinical_grade"
+
+
+def test_biomarker_tier_absent_when_unset(tmp_path: Path) -> None:
+    path = _write_facts(tmp_path, {})
+    ev = parse_facts_yaml(path)
+    assert "_biomarker_tier" not in ev
+
+
+def test_blend_biomarker_potential_clinical_grade(tmp_path: Path) -> None:
+    """clinical_grade with no detection rate → score 5, has_clinical_grade=True."""
+    from run_scholareval import _blend_biomarker_potential
+    out = _blend_biomarker_potential(tier="clinical_grade", idas_file=None)
+    assert out["biomarker_score"] == 5
+    assert out["has_clinical_grade_biomarker"] is True
+    assert out["detection_rate_pct"] is None
+
+
+def test_blend_biomarker_potential_emerging_no_detection(tmp_path: Path) -> None:
+    """emerging with no detection rate → score 4, has_clinical_grade=False."""
+    from run_scholareval import _blend_biomarker_potential
+    out = _blend_biomarker_potential(tier="emerging", idas_file=None)
+    assert out["biomarker_score"] == 4
+    assert out["has_clinical_grade_biomarker"] is False
+
+
+def test_blend_biomarker_potential_none_tier(tmp_path: Path) -> None:
+    """`none` always maps to score 2 regardless of detection rate."""
+    from run_scholareval import _blend_biomarker_potential
+    out = _blend_biomarker_potential(tier="none", idas_file=None)
+    assert out["biomarker_score"] == 2
+    assert out["has_clinical_grade_biomarker"] is False
+
+
+def test_blend_biomarker_potential_emerging_low_detection(tmp_path: Path) -> None:
+    """emerging with detection_rate < 50% drops to score 3."""
+    from run_scholareval import _blend_biomarker_potential
+    idas = tmp_path / "idas.yaml"
+    idas.write_text(yaml.safe_dump({
+        "whitespace_alignment": {"ws1": {"pct_detected": 30.0}},
+    }))
+    out = _blend_biomarker_potential(tier="emerging", idas_file=idas)
+    assert out["biomarker_score"] == 3
+    assert out["detection_rate_pct"] == 30.0
+
+
+# ---------------------------------------------------------------------------
 # Biological evidence — derived from study_type counts on biological.evidence[]
 # ---------------------------------------------------------------------------
 

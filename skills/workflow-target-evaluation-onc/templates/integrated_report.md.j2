@@ -26,7 +26,8 @@
 | **Recommendation** | **{{ recommendation.full_string }}** |
 
 ### Key Findings at a Glance
-- **Modality**: {{ modality.display_string }}
+- **Modality**: {{ modality.display_string }} *({{ modality.source_label }})*{% if modality.is_default %}[^modality-default]{% endif %}
+
 - **On-target toxicity**: {{ idas.tox_summary }}
 - **iDAS alignment**: {{ idas.alignment_summary }}
 {% for finding in key_findings %}
@@ -43,7 +44,8 @@ See `{{ gene }}_risk_assessment_{{ disease.abbreviation|lower }}.md` for the lit
 
 ### 1.2 Rationale for {{ disease.abbreviation }}
 
-- **Modality candidates evaluated**: {{ modality.display_string }} (resolved to class `{{ modality.class_id }}`)
+- **Modality candidates evaluated**: {{ modality.display_string }} *({{ modality.source_label }})*{% if modality.class_id and modality.class_id|replace('_', ' ') not in modality.display_string|lower %} — resolved to class `{{ modality.class_id }}`{% endif %}
+
 - **iDAS alignment**: {{ idas.alignment_summary }}
 - **Tumor vs adjacent**: {{ idas.tox_summary }}
 
@@ -238,7 +240,7 @@ Modality routed through registry as `{{ modality.class_id }}` class.
 
 ### 6.2 Recommended Development Path
 
-1. **Modality**: {{ modality.display_string }}
+1. **Modality**: {{ modality.display_string }} *({{ modality.source_label }})*
 2. **Initial indication**: {{ disease.full_name }}
 3. **Best-suited populations**: {{ (go_subs[:3] | map(attribute="subgroup") | join(", ")) or "see §3.4 Phase 3" }}
 4. **Patient-selection biomarker**: see Step 1 risk assessment §iDAS Strategic Alignment
@@ -265,7 +267,7 @@ Key integrated findings:
 1. **Target validation** — ScholarEval {{ scholar.total_score }}/5.0 ({{ scholar.assessment }}); {{ scholar.high_risk_count }} high-risk dimension{{ '' if scholar.high_risk_count == 1 else 's' }}.
 2. **Differential expression** — {{ idas.tox_summary }}.
 3. **iDAS alignment** — {{ idas.alignment_summary }}.
-4. **Modality fit** — {{ modality.display_string }} (class: `{{ modality.class_id }}`).
+4. **Modality fit** — {{ modality.display_string }} *({{ modality.source_label }})* (class: `{{ modality.class_id }}`).
 5. **Subgroup signal** — {{ go_subs|length }} GO/PRIORITY subgroup{{ '' if go_subs|length == 1 else 's' }}; {{ caution_subs|length }} CAUTION/EXCLUDE.
 
 ---
@@ -286,3 +288,7 @@ References for this report come from the literature evidence in
 {% for pmid in unique_pmids %}
 {{ loop.index }}. PMID: **{{ pmid }}** — see Step 1 risk assessment for full citation
 {% endfor %}
+
+{% if modality.is_default %}
+[^modality-default]: **Default modality**: no modality was supplied via `--modality` at any stage of the pipeline (Step 0 facts generation or Step 4 report rendering), and Step 2 did not record a modality. The pipeline falls back to the modality registry's `unknown_modality_class` (currently `antibody_naked`), which drives Phase 3 toxicity scoring and subgroup recommendations. To make modality explicit, re-run with `--modality "<your modality>"`.
+{% endif %}
