@@ -1857,10 +1857,33 @@ in the same order as the integrated report markdown:
     print("  Section 3.1: Risk Assessment bar chart")
 
     # ===== SECTION 3.2: DIFFERENTIAL EXPRESSION (Step 2 - Multi-omics) =====
+    # v1.7.3: when the Step 2 figure is missing, render a placeholder page
+    # rather than silently skipping the section (mirrors the subtype-figure
+    # fallback below). Silent skip caused PCDH7_TCE_run2's PDF to omit the
+    # omics figure with no indication anything was wrong.
     comp_fig = os.path.join(output_dir, get_bulk_rna_filename(gene, disease, 'figure', 'png'))
-    add_high_res_figure(pdf, comp_fig, '3.2 Differential Expression Analysis (Step 2)',
-                        f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue (TCGA + Tempus + GTEx).')
-    print("  Section 3.2: Differential Expression figure")
+    if os.path.exists(comp_fig):
+        add_high_res_figure(pdf, comp_fig, '3.2 Differential Expression Analysis (Step 2)',
+                            f'{gene} expression across {disease_abbr} cohorts showing differential expression vs normal tissue (TCGA + Tempus + GTEx).')
+        print("  Section 3.2: Differential Expression figure")
+    else:
+        fig_placeholder, ax_placeholder = plt.subplots(figsize=(8.5, 11))
+        ax_placeholder.axis('off')
+        fig_placeholder.text(
+            0.5, 0.96, '3.2 Differential Expression Analysis (Step 2)',
+            fontsize=14, fontweight='bold', ha='center', color='#2c3e50',
+        )
+        ax_placeholder.text(
+            0.5, 0.55,
+            'Step 2 omics figure not available\n\n'
+            f'Expected at: {os.path.basename(comp_fig)}\n\n'
+            f'Re-run `analysis-bulk-rna-{disease}` for {gene} in this output\n'
+            'directory to generate the differential-expression panels.',
+            ha='center', va='center', fontsize=12, color='#7f8c8d',
+        )
+        pdf.savefig(fig_placeholder, dpi=300, bbox_inches='tight')
+        plt.close(fig_placeholder)
+        print(f"  Section 3.2: Differential Expression figure missing — placeholder rendered (expected: {comp_fig})")
 
     # ===== SECTION 3.2 (cont.): SUBTYPE FIGURE (CMS for CRC, skip for NSCLC) =====
     subtype_fig_name = config.get('subtype_figure')
