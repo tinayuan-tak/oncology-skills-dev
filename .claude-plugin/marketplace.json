@@ -9,7 +9,7 @@
     {
       "name": "oncology-skills",
       "description": "Claude Code plugin bundling oncology target evaluation and RNA-seq analysis skills",
-      "version": "1.7.3",
+      "version": "1.7.4",
       "source": "./",
       "author": {
         "name": "Ming-Ju Tsai",
