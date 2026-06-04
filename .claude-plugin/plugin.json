@@ -1,7 +1,7 @@
 {
   "name": "oncology-skills",
   "description": "Claude Code plugin bundling skills for oncology target evaluation and RNA-seq analysis (bulk and single-cell) across cancer types",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "author": {
     "name": "computational biology - oncology"
   },
