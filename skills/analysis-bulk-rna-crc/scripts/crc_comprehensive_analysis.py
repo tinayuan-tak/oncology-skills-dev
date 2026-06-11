@@ -2151,12 +2151,13 @@ def analyze_gene(gene_symbol, cache_dir, output_dir, tcga_data=None, tempus_data
     print(f"Analyzing: {gene_symbol}")
     print('='*70)
 
-    # Create gene output directory
-    # Avoid double-nesting if output_dir already ends with gene name
-    if os.path.basename(output_dir.rstrip('/')) == gene_symbol:
-        gene_dir = output_dir
-    else:
-        gene_dir = os.path.join(output_dir, gene_symbol)
+    # Write directly into --output-dir (no per-gene subdirectory).
+    # Earlier versions auto-created a {gene}/ subdir which caused the
+    # downstream workflow (run_scholareval, integrated-report generator)
+    # to silently fail to find Step 2 outputs when Step 0/1 had been
+    # written to the parent dir. If a caller wants a per-gene subdir,
+    # they pass --output-dir .../{GENE}/ explicitly.
+    gene_dir = output_dir
     os.makedirs(gene_dir, exist_ok=True)
 
     master_df = pd.DataFrame()
