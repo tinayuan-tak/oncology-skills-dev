@@ -1,0 +1,60 @@
+# Indication parameters — Colorectal Cancer (CRC)
+# Used by batch/ jobs and skills/ that need indication-specific filters.
+
+indication: crc
+indication_full: colorectal cancer
+
+# TCGA cohorts that constitute "CRC"
+tcga_cohorts:
+  - COAD  # colon adenocarcinoma
+  - READ  # rectum adenocarcinoma
+
+# Standard consensus subtypes (per runbook §"Standard consensus subtypes only")
+subtypes:
+  cms:
+    - CMS1  # MSI immune
+    - CMS2  # canonical
+    - CMS3  # metabolic
+    - CMS4  # mesenchymal
+  ras:
+    - mutant
+    - wildtype
+  msi:
+    - MSS
+    - MSI-H
+  braf:
+    - V600E_positive
+    - V600E_negative
+
+# DGE configuration
+dge:
+  comparison: tumor_vs_adjacent_normal
+  tcga_barcode_suffixes:
+    tumor: ['-01']
+    adjacent_normal: ['-11']
+  multiple_testing:
+    tier_1:
+      method: BH
+      scope: genome_wide
+      pre_specified: true
+    tier_2:
+      method: BH
+      scope: per_subtype_comparison
+      pre_specified: true
+      requires_tier_1_survival: true
+    tier_3:
+      method: none
+      scope: exploratory
+      pre_specified: false
+
+# Reference normal: GTEx colon for sanity-checking adjacent-normal-derived DGE
+gtex_reference:
+  tissues:
+    - Colon_Sigmoid
+    - Colon_Transverse
+
+# Output paths (these are templates; actual paths are produced at runtime with the git_commit)
+outputs:
+  dge_parquet: s3://onc-compbio/data-catalog/derived/crc-dge/{git_commit}/tumor_vs_adjacent.parquet
+  dge_provenance: s3://onc-compbio/data-catalog/derived/crc-dge/{git_commit}/provenance.yaml
+  artifact_root: s3://onc-compbio/core-artifacts/crc/

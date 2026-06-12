@@ -1,0 +1,20 @@
+[workspace]
+authors = ["Ryan Abo <ryan.abo@takeda.com>"]
+channels = ["conda-forge"]
+name = "rnd-computational-biology-oncology-claude-oncology-skills"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = ">=3.14.6,<3.15"
+pandas = ">=3.0.3,<4"
+scipy = ">=1.17.1,<2"
+statsmodels = ">=0.14.6,<0.15"
+pyarrow = ">=24.0.0,<25"
+s3fs = ">=2026.4.0,<2027"
+boto3 = ">=1.43.0,<2"
+pyyaml = ">=6.0.3,<7"
+jupyter = ">=1.1.1,<2"
+ipykernel = ">=7.3.0,<8"
