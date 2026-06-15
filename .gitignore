@@ -53,3 +53,6 @@ skills/*/test_results/
 skills/*/TCGA-*.tsv
 skills/*/TCGA_*.csv
 skills/*/*_cohort_assignments.csv
+# pixi environments
+.pixi/*
+!.pixi/config.toml
