@@ -1,15 +1,20 @@
-# Indication parameters — Colorectal Cancer (CRC)
+# Indication parameters — COADREAD (combined colon + rectum adenocarcinoma)
+# OncoTree code: COADREAD (parent of COAD + READ in the AACR ontology).
 # Used by batch/ jobs and skills/ that need indication-specific filters.
 
-indication: crc
-indication_full: colorectal cancer
+indication: COADREAD
+indication_full: Colorectal Adenocarcinoma (combined COAD + READ)
+oncotree_code: COADREAD
+common_name: CRC
 
-# TCGA cohorts that constitute "CRC"
+# TCGA cohorts that constitute COADREAD (these ARE the OncoTree leaf codes)
 tcga_cohorts:
-  - COAD  # colon adenocarcinoma
-  - READ  # rectum adenocarcinoma
+  - COAD  # colon adenocarcinoma (TCGA-COAD)
+  - READ  # rectum adenocarcinoma (TCGA-READ)
 
-# Standard consensus subtypes (per runbook §"Standard consensus subtypes only")
+# Standard consensus subtypes (per runbook §"Standard consensus subtypes only").
+# Subtype values are Takeda-internal vocabulary, NOT OncoTree codes — OncoTree
+# does not enumerate molecular subtypes. These populate the {subtype} path axis.
 subtypes:
   cms:
     - CMS1  # MSI immune
@@ -55,6 +60,6 @@ gtex_reference:
 
 # Output paths (these are templates; actual paths are produced at runtime with the git_commit)
 outputs:
-  dge_parquet: s3://onc-compbio/data-catalog/derived/crc-dge/{git_commit}/tumor_vs_adjacent.parquet
-  dge_provenance: s3://onc-compbio/data-catalog/derived/crc-dge/{git_commit}/provenance.yaml
-  artifact_root: s3://onc-compbio/core-artifacts/crc/
+  dge_parquet: s3://onc-compbio/data-catalog/derived/COADREAD-dge/{git_commit}/tumor_vs_adjacent.parquet
+  dge_provenance: s3://onc-compbio/data-catalog/derived/COADREAD-dge/{git_commit}/provenance.yaml
+  artifact_root: s3://onc-compbio/core-artifacts/COADREAD/

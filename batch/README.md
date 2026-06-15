@@ -7,7 +7,7 @@ This directory is the **structural fix** introduced in the v2 architecture: batc
 `batch/` jobs:
 - Run on a schedule (or manually triggered) by humans / CI / cron, **not by Claude**.
 - Read from `s3://onc-compbio/data-catalog/{sources,derived}/`.
-- Write to `s3://onc-compbio/data-catalog/derived/{transform}/{git-sha}/` (intermediate Parquets) or `s3://onc-compbio/core-artifacts/{indication}/{gene}/{dimension}/` (`evidence.json` + `provenance.yaml` + figures).
+- Write to `s3://onc-compbio/data-catalog/derived/{transform}/{git-sha}/` (intermediate Parquets) or `s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/` (`evidence.json` + `provenance.yaml` + figures).
 - Pin reproducibility via the catalog manifest's `git_commit:` field.
 
 `skills/` jobs:
@@ -22,4 +22,4 @@ This directory is the **structural fix** introduced in the v2 architecture: batc
 
 ## First entry
 
-`run_global_dge.py` (planned) — promoted from `notebooks/02-global-crc-dge.ipynb`. Computes tumor-vs-adjacent DGE across all ~18K genes for CRC, writes Parquet to `s3://onc-compbio/data-catalog/derived/crc-dge/{git-sha}/tumor_vs_adjacent.parquet`. Runnable as `pixi run dge-crc`.
+`expression_rna_COADREAD/run_pipeline.R` — pure-R DESeq2 + ComBat-seq + lfcShrink(apeglm) pipeline for COADREAD (combined TCGA-COAD + TCGA-READ; common name CRC). Computes tumor-vs-adjacent DGE across all ~18K genes, writes Parquet to `s3://onc-compbio/data-catalog/derived/COADREAD-dge/{git-sha}/tumor_vs_adjacent.parquet`. See [`expression_rna_COADREAD/README.md`](expression_rna_COADREAD/README.md) for the staged 00→05 pipeline and the joint-regime sensitivity-analysis discipline.

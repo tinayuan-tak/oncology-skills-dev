@@ -1,7 +1,7 @@
 """query_evidence.py — RETRIEVAL-ONLY lookup of a core-artifact evidence.json.
 
 This script reads a pre-computed evidence artifact from
-s3://onc-compbio/core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json,
+s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json,
 validates it, checks staleness, and returns it. It deliberately contains NO
 analysis code — no pandas, no scipy, no expression loading. If you find
 yourself wanting to add compute here, it belongs in a batch/ job instead.
@@ -10,15 +10,18 @@ The dimension → batch-job map below is how a missing artifact reports which
 batch job would produce it (without triggering that job).
 
 Path schema:
-  core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json
-  - subtype defaults to 'all' for unstratified analyses
-  - examples: crc/all/SCD1/expression-rna/, crc/CMS4/SCD1/expression-rna/
+  core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json
+  - indication is a literal AACR OncoTree code (uppercase): COADREAD, LUAD,
+    LUSC, NSCLC, PAAD, STAD, etc. See https://oncotree.mskcc.org/.
+  - subtype defaults to 'all' for unstratified analyses; molecular subtypes
+    (CMS1, MSS-RASmut, etc.) are Takeda-internal vocabulary, not OncoTree.
+  - examples: COADREAD/all/SCD1/expression-rna/, COADREAD/CMS4/SCD1/expression-rna/
 
 Usage:
-  python query_evidence.py --gene SCD1 --indication crc --dimension expression-rna
-  python query_evidence.py --gene SCD1 --indication crc --subtype CMS4 --dimension expression-rna
-  python query_evidence.py --gene SCD1 --indication crc --all-dimensions
-  python query_evidence.py --gene SCD1 --indication crc --dimension expression-rna --json
+  python query_evidence.py --gene SCD1 --indication COADREAD --dimension expression-rna
+  python query_evidence.py --gene SCD1 --indication COADREAD --subtype CMS4 --dimension expression-rna
+  python query_evidence.py --gene SCD1 --indication COADREAD --all-dimensions
+  python query_evidence.py --gene SCD1 --indication COADREAD --dimension expression-rna --json
 """
 
 from __future__ import annotations

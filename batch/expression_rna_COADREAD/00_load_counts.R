@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-# 00_load_counts.R — load raw integer counts for the CRC cohort + matched normal.
+# 00_load_counts.R — load raw integer counts for the COADREAD cohort + matched normal.
 #
-# Inputs:  configs/crc.yaml (the indication config, with `source.manifest_id`
+# Inputs:  configs/COADREAD.yaml (the indication config, with `source.manifest_id`
 #          pointing at a data-catalog source-release manifest)
 # Output:  an .rds with a list:
 #            counts:    integer matrix (genes × samples)
@@ -32,7 +32,7 @@ cfg <- yaml::read_yaml(opts$config)
 src <- cfg$source
 if (is.null(src) || is.null(src$manifest_id) || identical(src$manifest_id, "TODO")) {
   stop(
-    "configs/crc.yaml `source.manifest_id` is not set. ",
+    "configs/COADREAD.yaml `source.manifest_id` is not set. ",
     "This pipeline cannot run until a canonical source is chosen ",
     "(see deep-research outcome) and a corresponding source-release manifest ",
     "exists in the data-catalog repo. Set source.manifest_id to that manifest's id."

@@ -43,7 +43,9 @@ LAYER 3a  Skills (retrieval-only)   LAYER 3b  Knowledge Graph (planned)
 | `target-biology` | Subcellular localization, surface vs intracellular, structure, modality-fit | UniProt + HPA subcellular + SurfaceomeDB |
 | `literature` | Extracted facts (CRISPR/RNAi study counts, clinical phase, IC50, pLI) — facts only, no synthesized risk score | PubMed via LLM (port of v1's `literature_evidence` schema) |
 
-**`subtype` is a path axis**, default `all`. Stratified analyses produce one artifact per stratum (e.g., `crc/CMS4/SCD1/expression-rna/`, `crc/MSS-RASmut/SCD1/expression-rna/`). Subtype is *molecular* (CMS, RAS, MSI). Treatment-line stratification (1L-2L, 3L+, CPI-status) lives inside the `expression-rna` result payload as a `tempus_summary:` block — see Tempus integration below.
+**Indication is a literal AACR OncoTree code** (uppercase): `COADREAD`, `LUAD`, `LUSC`, `NSCLC`, `PAAD`, `STAD`, etc. — see https://oncotree.mskcc.org/. Direct cross-reference to GENIE / cBioPortal / TCGA project IDs / MSK literature without translation.
+
+**`subtype` is a path axis**, default `all`. Stratified analyses produce one artifact per stratum (e.g., `COADREAD/CMS4/SCD1/expression-rna/`, `COADREAD/MSS-RASmut/SCD1/expression-rna/`). Subtype is *molecular* (CMS, RAS, MSI), Takeda-internal vocabulary since OncoTree doesn't enumerate molecular subtypes. Treatment-line stratification (1L-2L, 3L+, CPI-status) lives inside the `expression-rna` result payload as a `tempus_summary:` block — see Tempus integration below.
 
 **Therapeutic modality** (small molecule vs antibody vs ADC vs PROTAC vs mRNA) is **NOT a dimension**. It lives at the workflow / skill orchestration layer, where it decides which dimensions are required for a defensible eval (an ADC needs `expression-rna` + `expression-protein` + `target-biology` + `safety`; a small-molecule intracellular target can skip surface-confirmation checks) and how to *interpret* evidence per modality class. Artifacts themselves remain modality-agnostic. Re-evaluating a target as a different modality = same artifacts, new lens.
 
@@ -55,10 +57,10 @@ LAYER 3a  Skills (retrieval-only)   LAYER 3b  Knowledge Graph (planned)
 |---|---|---|
 | [core-artifacts-schema/evidence.schema.json](core-artifacts-schema/evidence.schema.json) | The artifact contract. Required: `gene`, `indication`, `subtype` (default `all`), `dimension`, `provenance.catalog_refs` (lineage to catalog manifest IDs), `result`, `summary`, `confidence`, `label` (`pre-specified` \| `exploratory`). Tagged-union 8-dim enum, `additionalProperties: false`. JSON Schema Draft 2020-12. | ✓ schema complete + tested |
 | [skills/query-target-evidence/](skills/query-target-evidence/) | First v2 skill — RETRIEVAL-ONLY. Reads `core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json`, validates, checks staleness, returns. **Has no analysis code.** If an artifact is missing, names the batch job that produces it; does NOT trigger compute. | ✓ contract complete; awaiting first artifact |
-| [batch/expression_rna_crc/](batch/expression_rna_crc/) | First batch compute pipeline. Pure-R Bioconductor: `00_load_counts.R` → `01_build_design.R` → `02_combat_seq.R` → `03_deseq2.R` → `04_write_parquet.R` → `05_provenance.R`. Methodology: DESeq2 + ComBat-seq + lfcShrink(apeglm) on raw integer counts. | ✓ pipeline scaffolded; `00_load_counts.R` awaits canonical-source loader |
+| [batch/expression_rna_COADREAD/](batch/expression_rna_COADREAD/) | First batch compute pipeline (COADREAD = combined CRC). Pure-R Bioconductor: `00_load_counts.R` → `01_build_design.R` → `02_combat_seq.R` → `03_deseq2.R` → `04_write_parquet.R` → `05_provenance.R`. Methodology: DESeq2 + ComBat-seq + lfcShrink(apeglm) on raw integer counts. | ✓ pipeline scaffolded; `00_load_counts.R` awaits canonical-source loader |
 | [batch/loaders/](batch/loaders/) | Python `Protocol` for source-specific loaders (oncoland, gdc, xena-toil, recount3) — used by future Python-orchestrated batch jobs. R DGE pipeline reads sources directly. | ✓ interface defined |
-| [configs/crc.yaml](configs/crc.yaml) | CRC indication parameters: TCGA cohorts, CMS subtypes, MSS/MSI flags, BRAF V600E flag, BH-FDR tier 1/2/3 spec, GTEx reference, output path templates. | ✓ |
-| [notebooks/](notebooks/) | Exploration before code hardens into `batch/`. The runbook's three-notebook sequence (data inventory → global CRC DGE → SCD1 evidence PoC) lives here during prototyping. | scaffolded |
+| [configs/COADREAD.yaml](configs/COADREAD.yaml) | COADREAD (CRC) indication parameters: TCGA cohorts (COAD + READ), CMS subtypes, MSS/MSI flags, BRAF V600E flag, BH-FDR tier 1/2/3 spec, GTEx reference, output path templates. | ✓ |
+| [notebooks/](notebooks/) | Exploration before code hardens into `batch/`. The runbook's three-notebook sequence (data inventory → global COADREAD DGE → SCD1 evidence PoC) lives here during prototyping. | scaffolded |
 
 **Sister repo (the data catalog v2 depends on):** [`oneTakeda/rnd-computational-biology-oncology-data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog). Describes `s3://onc-compbio/data-catalog/sources/` (external releases received whole) and `data-catalog/derived/` (team-produced intermediates). First real source-release manifest (`tcga-gdc-dr45-0-test5.yaml`) is committed there; the full TCGA pan-cancer mirror is in progress.
 
@@ -72,7 +74,7 @@ LAYER 3a  Skills (retrieval-only)   LAYER 3b  Knowledge Graph (planned)
 - **R is the language for the DGE batch.** DESeq2 + ComBat-seq are R/Bioconductor canon. The interface to the rest of the platform is the **Parquet artifact**, not in-process function calls. Python skills consume what R writes — process boundary as architectural seam.
 - **Canonical TCGA source = GDC DR45.0**, with full release version + manifest UUIDs + pipeline `workflow_version` pinning (2025 PLOS ONE PMC11878898 found ~44% of genes drift across GDC releases due to pipeline shifts; the release tag alone is insufficient). Cross-comparable TCGA + GTEx layer = recount3 (preferred) or UCSC Xena/Toil. Source decision sourced from the deep-research workflow `wf_f6040283-fdb` (23/25 claims confirmed, 22 primary sources).
 - **OncoLand demoted to TPM convenience cache** (`system_of_record: false`, `license: proprietary`). DESeq2 needs raw counts; OncoLand ships TPM-only; it is automatically excluded from canonical compute.
-- **Tempus RWD integrates as a `tempus_summary:` block inside the `expression-rna` artifact's `result`** (NOT a separate dimension or subtype). Preserves the Takeda-specific `iDAS_group` strata (MSS_RASMut_3L+, MSS_RASWT_1L2L, etc.) and the RWD-specific `pct_detected` field. Catalog manifest for the Tempus deposit is `tempus-crc-2026-03-17.yaml` (forthcoming) with `system_of_record: false` since the data is pre-aggregated by an upstream pipeline.
+- **Tempus RWD integrates as a `tempus_summary:` block inside the `expression-rna` artifact's `result`** (NOT a separate dimension or subtype). Preserves the Takeda-specific `iDAS_group` strata (MSS_RASMut_3L+, MSS_RASWT_1L2L, etc.) and the RWD-specific `pct_detected` field. Catalog manifest for the Tempus deposit is `tempus-crc-2026-03-17.yaml` with `system_of_record: false` since the data is pre-aggregated by an upstream pipeline.
 - **No DVC.** The catalog manifest's `s3_uri` + `md5` already provide reproducibility; DVC would add tooling overhead without commensurate value at current team size.
 - **No `production/` stage in the catalog.** A derived dataset is "blessed" by being cited from `core-artifacts/`; the catalog's `cited_by:` field tracks citations automatically. Anything currently cited by a core artifact is under implicit "do not delete" protection.
 
@@ -117,10 +119,10 @@ To run the retrieval skill against the live S3:
 ```bash
 export AWS_PROFILE=cbg
 pixi run python skills/query-target-evidence/scripts/query_evidence.py \
-    --gene SCD1 --indication crc --subtype all --dimension expression-rna
+    --gene SCD1 --indication COADREAD --subtype all --dimension expression-rna
 ```
 
-(Today this returns `[MISSING] SCD1/crc/all/expression-rna — no artifact. Produced by: batch/expression_rna_crc/run_pipeline.R` — the contract is in place; the first real artifact lands once the GDC mirror completes and the batch pipeline runs.)
+(Today this returns `[MISSING] SCD1/COADREAD/all/expression-rna — no artifact. Produced by: batch/expression_rna_COADREAD/run_pipeline.R` — the contract is in place; the first real artifact lands once the GDC mirror completes and the batch pipeline runs.)
 
 ---
 

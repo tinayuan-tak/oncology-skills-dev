@@ -56,13 +56,13 @@ class ExpressionSource(Protocol):
 
     def gtex_normal_samples(self, indication: str) -> list[str]:
         """Sample IDs for the GTEx normal-tissue cohort matched to this
-        indication (e.g. colon for CRC). Empty list if the source does not
-        include GTEx (e.g. GDC)."""
+        indication (e.g. colon tissues for COADREAD). Empty list if the
+        source does not include GTEx (e.g. GDC)."""
         ...
 
 
 # Loader registry — populated as concrete implementations are added.
-# Key is the `source.name` used in configs/{indication}.yaml.
+# Key is the `source.name` used in configs/{ONCOTREE_CODE}.yaml.
 REGISTRY: dict[str, type[ExpressionSource]] = {}
 
 

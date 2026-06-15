@@ -2,12 +2,14 @@
 name: query-target-evidence
 description: |
   Use this skill to RETRIEVE pre-computed target evidence for a gene in an indication
-  (e.g. "what's the expression evidence for SCD1 in CRC", "get the dependency artifact
-  for KRAS in PDAC", "show stored evidence for MET in NSCLC"). Returns the stored
-  evidence.json artifact from the core-artifacts store. This skill is RETRIEVAL-ONLY —
-  it never recomputes. If an artifact is missing or stale, it reports that and points
-  to the batch job that produces it; it does NOT run the analysis itself.
-  Do NOT use this to RUN an analysis — that is a batch/ job, not a skill.
+  (e.g. "what's the expression evidence for SCD1 in colorectal cancer / COADREAD",
+  "get the dependency artifact for KRAS in PAAD / pancreatic", "show stored evidence
+  for MET in NSCLC / LUAD"). Indication is a literal AACR OncoTree code (uppercase)
+  — COADREAD, LUAD, LUSC, NSCLC, PAAD, STAD, etc.; see https://oncotree.mskcc.org/.
+  Returns the stored evidence.json artifact from the core-artifacts store. This skill
+  is RETRIEVAL-ONLY — it never recomputes. If an artifact is missing or stale, it
+  reports that and points to the batch job that produces it; it does NOT run the
+  analysis itself. Do NOT use this to RUN an analysis — that is a batch/ job, not a skill.
 metadata:
   version: 2.0.0
   owner: ryan.abo@takeda.com
@@ -39,13 +41,14 @@ it has no analysis code, only an S3 read — recompute-on-call becomes impossibl
 
 Given a `--gene`, `--indication`, and `--dimension`, this skill:
 
-1. Reads `s3://onc-compbio/core-artifacts/{indication}/{gene}/{dimension}/evidence.json`.
+1. Reads `s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json`.
 2. Validates it against `core-artifacts-schema/evidence.schema.json`.
 3. Checks the `staleness` block (release-based, not time-based).
 4. Returns the artifact, OR:
    - **Missing** → reports the artifact does not exist and names the batch job that
-     produces it (e.g. `batch/run_global_dge.py` for `dimension=expression`).
-     It does NOT trigger the batch run; a human/scheduler does that.
+     produces it (e.g. `batch/expression_rna_COADREAD/run_pipeline.R` for
+     `indication=COADREAD, dimension=expression-rna`). It does NOT trigger the
+     batch run; a human/scheduler does that.
    - **Stale** → returns the stored artifact WITH the staleness flag set, and lets the
      scientist decide. Per runbook: never auto-rerun at a BLF or stage gate.
 
@@ -61,13 +64,13 @@ aws sts get-caller-identity --profile cbg   # should return account 557690623046
 
 ```bash
 # retrieve one dimension for one gene
-pixi run python scripts/query_evidence.py --gene SCD1 --indication crc --dimension expression
+pixi run python scripts/query_evidence.py --gene SCD1 --indication COADREAD --dimension expression-rna
 
 # retrieve all available dimensions for a gene
-pixi run python scripts/query_evidence.py --gene SCD1 --indication crc --all-dimensions
+pixi run python scripts/query_evidence.py --gene SCD1 --indication COADREAD --all-dimensions
 
 # machine-readable output (for downstream consumers / AgenticBoost)
-pixi run python scripts/query_evidence.py --gene SCD1 --indication crc --dimension expression --json
+pixi run python scripts/query_evidence.py --gene SCD1 --indication COADREAD --dimension expression-rna --json
 ```
 
 ## What it returns

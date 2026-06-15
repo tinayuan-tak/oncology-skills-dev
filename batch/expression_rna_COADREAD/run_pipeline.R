@@ -1,15 +1,15 @@
 #!/usr/bin/env Rscript
 # run_pipeline.R — chain stages 00 → 05 in order, with intermediate .rds in tmp/.
 #
-# This is a thin wrapper. Each stage is independently runnable (see batch/expression_rna_crc/README.md);
+# This is a thin wrapper. Each stage is independently runnable (see batch/expression_rna_COADREAD/README.md);
 # this just spares you typing the chain by hand for an end-to-end run.
 #
 # Usage:
-#   Rscript run_pipeline.R --config configs/crc.yaml \
+#   Rscript run_pipeline.R --config configs/COADREAD.yaml \
 #                          --catalog-repo /path/to/data-catalog \
 #                          --git-sha $(git rev-parse HEAD) \
-#                          --out-dir /tmp/expression_rna_crc \
-#                          --parquet-uri s3://onc-compbio/data-catalog/derived/crc-dge/$(git rev-parse HEAD)/tumor_vs_adjacent.parquet
+#                          --out-dir /tmp/expression_rna_COADREAD \
+#                          --parquet-uri s3://onc-compbio/data-catalog/derived/COADREAD-dge/$(git rev-parse HEAD)/tumor_vs_adjacent.parquet
 
 suppressPackageStartupMessages({
   library(optparse)
@@ -19,7 +19,7 @@ option_list <- list(
   make_option("--config", type = "character"),
   make_option("--catalog-repo", type = "character"),
   make_option("--git-sha", type = "character"),
-  make_option("--out-dir", type = "character", default = "/tmp/expression_rna_crc"),
+  make_option("--out-dir", type = "character", default = "/tmp/expression_rna_COADREAD"),
   make_option("--parquet-uri", type = "character",
               help = "Final Parquet destination (s3:// or local)"),
   make_option("--joint-gtex", action = "store_true", default = FALSE),
@@ -31,7 +31,7 @@ stopifnot(!is.null(opts$config), !is.null(opts$`git-sha`),
 
 dir.create(opts$`out-dir`, showWarnings = FALSE, recursive = TRUE)
 HERE <- dirname(sys.frame(1)$ofile)
-if (is.null(HERE) || !nzchar(HERE)) HERE <- "batch/expression_rna_crc"
+if (is.null(HERE) || !nzchar(HERE)) HERE <- "batch/expression_rna_COADREAD"
 
 run <- function(script, args) {
   cmd <- paste("Rscript", file.path(HERE, script),
