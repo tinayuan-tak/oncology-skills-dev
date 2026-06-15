@@ -1,310 +1,163 @@
-# oncology-skills — Claude Code Plugin
+# oncology-skills — v2 architecture (in development)
 
-Claude Code plugin bundling skills for oncology target evaluation and RNA-seq analysis, covering bulk transcriptomics, single-cell transcriptomics (placeholder), and protein expression for colorectal cancer (CRC) and non-small cell lung cancer (NSCLC).
+> **You are on the `v2-architecture` branch.** This branch is the redesigned target-evaluation platform: compute and retrieval are physically separated, evidence is published as standardized per-target artifacts, and the data layer is anchored on a versioned catalog with full GDC release + manifest UUID + pipeline-version pinning.
+>
+> **For the v1 plugin** (currently installable via Claude Code's marketplace — the seven indication × modality skills that have been validating targets like SCD1, PCDH7, WEE1 in day-to-day work): see [`main` branch README](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/blob/main/README.md). v1 remains the production system until v2 reaches feature parity.
 
-This repository publishes the **`oncology-skills` plugin** (declared in `.claude-plugin/plugin.json`). Users install the plugin once via Claude Code's marketplace; individual skills are then invoked as `oncology-skills:<skill-name>` (e.g. `oncology-skills:workflow-target-evaluation-onc`).
+---
 
-## Quick install (Claude Code plugin)
+## What v2 is, and why it exists
 
-In Claude Code, run these two slash commands:
+A target evaluation in v2 produces a **standardized `evidence.json` artifact per `(indication, subtype, gene, dimension)`** in `s3://onc-compbio/core-artifacts/`. Eight dimensions: `expression-rna`, `expression-protein` (CPTAC), `dependency` (DepMap), `mutation-profile`, `survival`, `safety`, `target-biology`, `literature`.
 
-```
-/plugin marketplace add https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills
-/plugin install oncology-skills@claude-oncology-skills
-```
+The single most important structural decision: **`batch/` vs `skills/` separation.** Batch jobs do scheduled compute and write artifacts; they are never invoked by Claude. Skills are retrieval-only and *can be* invoked by Claude. This makes "wire a skill to recompute on every call" physically impossible — which was the v1 failure mode (a single skill loading a 4 GB expression matrix and chunk-scanning it for one gene, on every invocation).
 
-That's it. The plugin and all seven bundled skills are now available. To pull the latest version later:
-
-```
-/plugin marketplace update
-```
-
-You can also point `/plugin marketplace add` at a local clone (e.g. for development):
+The second-most important: **compute globally, query locally.** DGE runs once per indication across all ~18K genes and is cached as a Parquet sorted by gene_symbol; per-gene queries do predicate-pushdown reads of one row, not full scans. If a query reads the whole file instead of one row, the architecture silently fails at scale.
 
 ```
-/plugin marketplace add /path/to/local/clone
-/plugin install oncology-skills@claude-oncology-skills
+LAYER 1  COMPUTATION (batch/ jobs — scheduled / cron / manual)
+   8 analysis dimensions × indication-aware pipelines, each produces evidence.json
+        │ writes to
+        ▼
+LAYER 2  ARTIFACT STORE (the lingua franca)
+   s3://onc-compbio/core-artifacts/{indication}/{subtype}/{gene}/{dimension}/
+   per artifact: evidence.json + provenance.yaml + report.md + figure.png
+        │ consumed by                    │ loaded by ETL
+        ▼                                ▼
+LAYER 3a  Skills (retrieval-only)   LAYER 3b  Knowledge Graph (planned)
+   read evidence.json per facet        multi-hop discovery queries
 ```
 
-> **AWS credentials are required** for the bulk-RNA and workflow skills (S3 data + Bedrock LLM calls). See [AWS configuration](#aws-configuration) below.
+---
 
-## Available Skills
+## Eight dimensions, parameterized by `(indication, subtype, gene)`
 
-| Skill | Description | Status |
-|-------|-------------|--------|
-| [workflow-target-evaluation-onc](skills/workflow-target-evaluation-onc/) | Full 4-step therapeutic target evaluation workflow with PubMed → facts.yaml extractor (v1.4.0+), structured ScholarEval scoring (v1.7.2), and integrated PDF report | Implemented |
-| [analysis-bulk-rna-crc](skills/analysis-bulk-rna-crc/) | Comprehensive CRC analysis with TCGA + Tempus RWD (>200K patients), iDAS alignment | Implemented |
-| [analysis-bulk-rna-nsclc](skills/analysis-bulk-rna-nsclc/) | Comprehensive NSCLC analysis with TCGA + Tempus RWD (~1,800 patients), iDAS alignment | Implemented |
-| [analysis-protein-crc](skills/analysis-protein-crc/) | CRC protein expression from Human Protein Atlas — IHC, subcellular localization, modality recommendation | Implemented |
-| [analysis-protein-nsclc](skills/analysis-protein-nsclc/) | NSCLC protein expression from Human Protein Atlas — IHC, subcellular localization, modality recommendation | Implemented |
-| [analysis-sc-rna-crc](skills/analysis-sc-rna-crc/) | Single-cell RNA-seq analysis for colorectal cancer | Placeholder |
-| [analysis-sc-rna-nsclc](skills/analysis-sc-rna-nsclc/) | Single-cell RNA-seq analysis for NSCLC | Placeholder |
+| Dimension | What | Source(s) |
+|---|---|---|
+| `expression-rna` | DGE on RNA-seq | GDC TCGA (canonical pin) + recount3 for joint TCGA+GTEx |
+| `expression-protein` | DEG on proteomics (mass spec) | CPTAC where available (CRC, PDAC, …) |
+| `dependency` | CRISPR Chronos scores, lineage selectivity | DepMap quarterly |
+| `mutation-profile` | Somatic mutation freq, canonical variants, hotspots | GDC TCGA somatic |
+| `survival` | KM curves, hazard ratios, log-rank p | GDC TCGA clinical |
+| `safety` | HPA IHC normal-tissue map, gnomAD pLI, knockout phenotype | HPA + gnomAD |
+| `target-biology` | Subcellular localization, surface vs intracellular, structure, modality-fit | UniProt + HPA subcellular + SurfaceomeDB |
+| `literature` | Extracted facts (CRISPR/RNAi study counts, clinical phase, IC50, pLI) — facts only, no synthesized risk score | PubMed via LLM (port of v1's `literature_evidence` schema) |
 
-## Target Evaluation Workflow
+**`subtype` is a path axis**, default `all`. Stratified analyses produce one artifact per stratum (e.g., `crc/CMS4/SCD1/expression-rna/`, `crc/MSS-RASmut/SCD1/expression-rna/`). Subtype is *molecular* (CMS, RAS, MSI). Treatment-line stratification (1L-2L, 3L+, CPI-status) lives inside the `expression-rna` result payload as a `tempus_summary:` block — see Tempus integration below.
 
-The `workflow-target-evaluation-onc` skill provides a comprehensive 4-step pipeline. As of v1.7.x, every stage exchanges **structured data** with the next — no regex-on-prose between stages, deterministic scoring end-to-end:
+**Therapeutic modality** (small molecule vs antibody vs ADC vs PROTAC vs mRNA) is **NOT a dimension**. It lives at the workflow / skill orchestration layer, where it decides which dimensions are required for a defensible eval (an ADC needs `expression-rna` + `expression-protein` + `target-biology` + `safety`; a small-molecule intracellular target can skip surface-confirmation checks) and how to *interpret* evidence per modality class. Artifacts themselves remain modality-agnostic. Re-evaluating a target as a different modality = same artifacts, new lens.
 
-```
-┌─────────────────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ 1. DRUG TARGET RISK     │ ──▶ │ 2. EXPRESSION   │ ──▶ │ 3. SCHOLAREVAL  │ ──▶ │ 4. REPORT       │
-│    ASSESSMENT           │     │    ANALYSIS     │     │    SCORING      │     │    + PDF        │
-│                         │     │                 │     │                 │     │                 │
-│ PubMed → Sonnet         │     │ TCGA + Tempus   │     │ 8-dimension     │     │ Integrated      │
-│ → Opus → facts.yaml     │     │ bulk RNA skill  │     │ structured      │     │ markdown + PDF  │
-│ (auto, v1.4.0+)         │     │                 │     │ scoring         │     │                 │
-└─────────────────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
-```
+---
 
-### Key Features
+## What's on this branch today
 
-- **Automated literature extraction**: PubMed E-utilities → Sonnet (per-category claim extraction) → Opus (synthesis) → strict-validation gate. No analyst hand-writing.
-- **6-category risk assessment**: Biological, Druggability, Translational, Clinical, Safety, Commercial
-- **8-dimension structured ScholarEval scoring**: All dimensions read structured fields from `facts.yaml`; markdown-regex parsers retained as legacy fallback
-- **Primary metric**: Tumor vs Adjacent Normal expression (predicts on-target toxicity)
-- **iDAS strategic alignment**: Per-disease canonical whitespaces, validator-enforced
-- **Modality registry**: 6-class registry drives Phase 3 toxicity scoring; modality provenance (`user`/`inferred`/`default`) surfaced in the PDF
-- **Primary evidence highlights**: Per-category load-bearing PMID rendered as a callout in Step 1 + Step 4
-- **Output**: Professional PDF report with Go/No-Go recommendation
+| Path | What it is | Status |
+|---|---|---|
+| [core-artifacts-schema/evidence.schema.json](core-artifacts-schema/evidence.schema.json) | The artifact contract. Required: `gene`, `indication`, `subtype` (default `all`), `dimension`, `provenance.catalog_refs` (lineage to catalog manifest IDs), `result`, `summary`, `confidence`, `label` (`pre-specified` \| `exploratory`). Tagged-union 8-dim enum, `additionalProperties: false`. JSON Schema Draft 2020-12. | ✓ schema complete + tested |
+| [skills/query-target-evidence/](skills/query-target-evidence/) | First v2 skill — RETRIEVAL-ONLY. Reads `core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json`, validates, checks staleness, returns. **Has no analysis code.** If an artifact is missing, names the batch job that produces it; does NOT trigger compute. | ✓ contract complete; awaiting first artifact |
+| [batch/expression_rna_crc/](batch/expression_rna_crc/) | First batch compute pipeline. Pure-R Bioconductor: `00_load_counts.R` → `01_build_design.R` → `02_combat_seq.R` → `03_deseq2.R` → `04_write_parquet.R` → `05_provenance.R`. Methodology: DESeq2 + ComBat-seq + lfcShrink(apeglm) on raw integer counts. | ✓ pipeline scaffolded; `00_load_counts.R` awaits canonical-source loader |
+| [batch/loaders/](batch/loaders/) | Python `Protocol` for source-specific loaders (oncoland, gdc, xena-toil, recount3) — used by future Python-orchestrated batch jobs. R DGE pipeline reads sources directly. | ✓ interface defined |
+| [configs/crc.yaml](configs/crc.yaml) | CRC indication parameters: TCGA cohorts, CMS subtypes, MSS/MSI flags, BRAF V600E flag, BH-FDR tier 1/2/3 spec, GTEx reference, output path templates. | ✓ |
+| [notebooks/](notebooks/) | Exploration before code hardens into `batch/`. The runbook's three-notebook sequence (data inventory → global CRC DGE → SCD1 evidence PoC) lives here during prototyping. | scaffolded |
 
-## Repository Structure
+**Sister repo (the data catalog v2 depends on):** [`oneTakeda/rnd-computational-biology-oncology-data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog). Describes `s3://onc-compbio/data-catalog/sources/` (external releases received whole) and `data-catalog/derived/` (team-produced intermediates). First real source-release manifest (`tcga-gdc-dr45-0-test5.yaml`) is committed there; the full TCGA pan-cancer mirror is in progress.
 
-```
-.
-├── .claude-plugin/
-│   ├── plugin.json              # Plugin manifest (version, name, keywords)
-│   └── marketplace.json         # Marketplace registration
-├── skills/
-│   ├── workflow-target-evaluation-onc/
-│   │   ├── SKILL.md
-│   │   ├── README.md
-│   │   ├── pixi.toml
-│   │   ├── configs/             # scoring_rules.yaml, modality_classes.yaml, per-disease cfg
-│   │   ├── reference/           # risk_assessment_template_{disease}.md
-│   │   ├── templates/           # Jinja templates for Step 1 and Step 4 markdown
-│   │   ├── scripts/
-│   │   │   ├── generate_facts_from_pubmed.py    # Step 0: PubMed → facts.yaml
-│   │   │   ├── generate_risk_assessment.py      # Step 1: facts.yaml → markdown
-│   │   │   ├── run_scholareval.py               # Step 3: deterministic scoring
-│   │   │   ├── generate_integrated_report.py    # Step 4: integrated markdown
-│   │   │   ├── generate_target_report_pdf.py    # Step 4: PDF rendering
-│   │   │   ├── scoring_engine.py
-│   │   │   ├── modality_registry.py
-│   │   │   └── integrated_report/               # Stage 1+2 LLM modules, parsers, renderer
-│   │   └── tests/
-│   ├── analysis-bulk-rna-crc/
-│   ├── analysis-bulk-rna-nsclc/
-│   ├── analysis-protein-crc/
-│   ├── analysis-protein-nsclc/
-│   ├── analysis-sc-rna-crc/
-│   └── analysis-sc-rna-nsclc/
-├── DEVELOPMENT_GUIDELINES.md
-├── INTEGRATION_PLAN.md
-└── README.md
-```
+---
 
-## Output File Naming Convention
+## Decisions logged
 
-All output files follow:
+- **Compute / retrieve separation, enforced physically.** Batch jobs in `batch/{dimension}_{indication}/` write Parquet + evidence artifacts; skills in `skills/query-{dimension}-evidence/` read them. The two never share code. See the runbook on the v1.7.4 failure mode this fixes.
+- **Eight dimensions** (revised 2026-06-15 from the runbook's original 8): `expression` was split into `expression-rna` + `expression-protein` so a target eval can explicitly say "RNA up but protein flat" — these are first-class evidence types, not nested fields. `genomic-context` renamed to `mutation-profile` (scoped to somatic mutations; CN/SV deferred). `clinical-outcomes` renamed to `survival`. `patient-stratification` was dropped as a dimension; modeled instead as a **subtype path axis** parameterizing every dimension.
+- **DGE methodology = DESeq2 + ComBat-seq + lfcShrink(apeglm)** on raw integer counts, with actionability filter `padj < 0.05 AND |log2FC| ≥ 1 AND baseMean cutoff`. Wilcoxon-on-TPM (the v1 approach) was considered and rejected as not field default for indication-specific tumor-vs-normal DGE.
+- **R is the language for the DGE batch.** DESeq2 + ComBat-seq are R/Bioconductor canon. The interface to the rest of the platform is the **Parquet artifact**, not in-process function calls. Python skills consume what R writes — process boundary as architectural seam.
+- **Canonical TCGA source = GDC DR45.0**, with full release version + manifest UUIDs + pipeline `workflow_version` pinning (2025 PLOS ONE PMC11878898 found ~44% of genes drift across GDC releases due to pipeline shifts; the release tag alone is insufficient). Cross-comparable TCGA + GTEx layer = recount3 (preferred) or UCSC Xena/Toil. Source decision sourced from the deep-research workflow `wf_f6040283-fdb` (23/25 claims confirmed, 22 primary sources).
+- **OncoLand demoted to TPM convenience cache** (`system_of_record: false`, `license: proprietary`). DESeq2 needs raw counts; OncoLand ships TPM-only; it is automatically excluded from canonical compute.
+- **Tempus RWD integrates as a `tempus_summary:` block inside the `expression-rna` artifact's `result`** (NOT a separate dimension or subtype). Preserves the Takeda-specific `iDAS_group` strata (MSS_RASMut_3L+, MSS_RASWT_1L2L, etc.) and the RWD-specific `pct_detected` field. Catalog manifest for the Tempus deposit is `tempus-crc-2026-03-17.yaml` (forthcoming) with `system_of_record: false` since the data is pre-aggregated by an upstream pipeline.
+- **No DVC.** The catalog manifest's `s3_uri` + `md5` already provide reproducibility; DVC would add tooling overhead without commensurate value at current team size.
+- **No `production/` stage in the catalog.** A derived dataset is "blessed" by being cited from `core-artifacts/`; the catalog's `cited_by:` field tracks citations automatically. Anything currently cited by a core artifact is under implicit "do not delete" protection.
 
-```
-{GENE}_{skill-name}_{content-type}.{ext}
-```
+The full v2 design rationale and decision log lives in [`personal-notes/strategy/oncology-platform-implementation-runbook.md`](https://github.com/takoncoder/personal-notes/blob/main/strategy/oncology-platform-implementation-runbook.md).
 
-### workflow-target-evaluation-onc Outputs
-
-| Filename | Purpose |
-|----------|---------|
-| `{GENE}_risk_assessment_facts.yaml` | Step 1 structured facts (validated against canonical schema) |
-| `{GENE}_risk_assessment_{disease}.md` | Step 1 risk-assessment markdown rendered from facts.yaml |
-| `{GENE}_extraction_log.json` | Step 0 provenance: PubMed counts, per-stage timings, attempt counts |
-| `{GENE}_scholareval.yaml` | Step 3 deterministic scoring result |
-| `{GENE}_audit_trail.json` | Step 3 audit trail with input hash for reproducibility |
-| `{GENE}_workflow-target-evaluation-onc_report.md` | Step 4 integrated report (markdown source) |
-| `{GENE}_workflow-target-evaluation-onc_report.pdf` | Step 4 PDF report for stakeholders |
-| `{GENE}_workflow-target-evaluation-onc_risk.png` | 6-category risk assessment bar chart |
-| `{GENE}_workflow-target-evaluation-onc_scholareval.png` | 8-dimension ScholarEval scoring figure |
-| `{GENE}_workflow-target-evaluation-onc_slide.png/pdf` | Landscape one-page summary |
-
-### analysis-bulk-rna-{disease} Outputs
-
-| Filename | Purpose |
-|----------|---------|
-| `{GENE}_analysis-bulk-rna-{disease}_figure.png` | 8-panel summary figure (consolidated) |
-| `{GENE}_analysis-bulk-rna-{disease}_report.md` | Full analysis report |
-| `{GENE}_analysis-bulk-rna-{disease}_idas.yaml` | iDAS whitespace alignment scores |
-| `{GENE}_analysis-bulk-rna-{disease}_suitability.csv` | Subgroup suitability scores |
-| `{GENE}_analysis-bulk-rna-{disease}_tcga-stats.csv` | TCGA cohort expression statistics |
-| `{GENE}_analysis-bulk-rna-{disease}_comparisons.csv` | Tumor vs Normal statistical comparisons |
-| `{GENE}_analysis-bulk-rna-nsclc_mutation-stats.csv` | NSCLC-only: KRAS/EGFR/STK11/KEAP1 expression by mutation status |
-
-> Earlier versions emitted per-panel PNGs (`panel-01` through `panel-08`); these were consolidated into a single `figure.png` and removed.
-
-## Data Sources
-
-### CRC Analysis
-- **TCGA-COAD/READ**: Tumor and adjacent normal expression
-- **GTEx**: Normal colon tissue baseline
-- **CCLE**: CRC cell line expression
-- **Tempus RWD**: >200,000 patients with line-of-therapy stratification
-- **Human Protein Atlas v25**: IHC for GI toxicity, subcellular localization, RNA-protein concordance, COAD/READ prognostic data
-
-### NSCLC Analysis
-- **TCGA-LUAD/LUSC**: Tumor and adjacent normal expression
-- **GTEx**: Normal lung tissue baseline
-- **CCLE**: NSCLC cell line expression
-- **Tempus RWD**: ~1,800 patients with EGFR/KRAS/STK11/KEAP1 stratification
-- **Human Protein Atlas v25**: IHC for lung toxicity, subcellular localization, RNA-protein concordance, LUAD/LUSC prognostic data
-
-### Workflow Step 0 (Literature)
-- **PubMed E-utilities**: Per-category searches across 6 risk dimensions
-- **AWS Bedrock**: Sonnet (per-abstract claim extraction) + Opus (synthesis with structured tool use)
+---
 
 ## AWS configuration
 
-Two AWS profiles are used by different skills:
+Two AWS profiles map to two distinct Takeda accounts (deliberate data-sovereignty separation):
 
-| Profile | Used by | Purpose |
-|---------|---------|---------|
-| `cbg` | `analysis-bulk-rna-crc`, `analysis-bulk-rna-nsclc` | S3 access to TCGA/Tempus/CCLE data |
-| `cmp-dev` | `workflow-target-evaluation-onc` (Stage 0 PubMed → facts.yaml) | Bedrock access for Sonnet + Opus LLM calls |
+| Profile | AWS account | Used by | Purpose |
+|---------|---|---------|---------|
+| `cbg` | `557690623046` (`tec-rnd-cbg-dev`) | All v2 batch + retrieval; anything reading `s3://onc-compbio/...` | S3 access to the data catalog and core-artifacts |
+| `cmp-dev` | `888307857004` (`tec-rnd-cmp-dev`) | Bedrock SDK calls (literature dimension, future LLM-as-judge) | Bedrock access for Sonnet + Opus |
 
-Configure both in `~/.aws/credentials` (for static keys) or via SSO:
+On a fresh SageMaker space:
 
 ```bash
 aws sso login --profile cbg
 aws sso login --profile cmp-dev
+export AWS_PROFILE=cbg     # default for data work
 ```
 
-The plugin honors `AWS_PROFILE` and `AWS_REGION` environment variables — Claude Code's harness sets these automatically (typically `AWS_REGION=us-east-1`).
+> The home directory on this SageMaker space is on ephemeral EBS, not EFS — every restart wipes `~/`. The recovery script at [`personal-notes/bin/bootstrap.sh`](https://github.com/takoncoder/personal-notes/blob/main/bin/bootstrap.sh) re-establishes both profiles, gh auth, repo clones, and pixi in one command. Run it after every space restart.
 
-## Local development install
+---
 
-For contributors editing the plugin source rather than installing it as a marketplace plugin:
+## Local development
 
 ```bash
 git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git
 cd rnd-computational-biology-oncology-claude-oncology-skills
-```
-
-Each skill manages its own Python environment with `pixi`:
-
-```bash
-cd skills/workflow-target-evaluation-onc
+git checkout v2-architecture
 pixi install
-pixi run pytest -q   # run the skill's tests
 ```
 
-Always invoke skill scripts via `pixi run python ...` from the skill's directory — never bare `python` or `uv` (each skill carries its own `pixi.toml`).
+The repo-root `pixi.toml` carries the env for the v2 batch pipeline (R + DESeq2 + ComBat-seq via Bioconductor — to be added — plus python tooling for `query_evidence.py`). The v1 skills under `skills/{analysis,workflow}-*/` each carry their own `pixi.toml` and remain isolated.
 
-## Usage
-
-### Natural Language (Recommended)
-
-Once the plugin is installed, simply describe what you want in Claude Code:
-
-```
-"Evaluate WEE1 as a target in CRC"
-"Analyze CDCP1 expression in NSCLC"
-"Run the target evaluation workflow on PCDH7 with T-cell engager modality"
-```
-
-Claude routes the request to the appropriate skill automatically.
-
-### Direct script execution
-
-For automation or CI pipelines:
+To run the retrieval skill against the live S3:
 
 ```bash
-# Step 0 — PubMed → facts.yaml (workflow only)
-cd skills/workflow-target-evaluation-onc
-pixi run python scripts/generate_facts_from_pubmed.py \
-    --gene PCDH7 --disease nsclc \
-    --output-dir /path/to/PCDH7 \
-    --modality "T-cell engager"
-
-# Step 2 — bulk RNA analysis
-cd skills/analysis-bulk-rna-nsclc
-pixi run python scripts/nsclc_comprehensive_analysis.py \
-    --genes PCDH7 \
-    --output-dir /path/to/PCDH7
-
-# Step 3 — ScholarEval scoring
-cd skills/workflow-target-evaluation-onc
-pixi run python scripts/run_scholareval.py \
-    --gene PCDH7 --disease nsclc \
-    --output-dir /path/to/PCDH7
-
-# Step 4 — Integrated report + PDF
-pixi run python scripts/generate_integrated_report.py \
-    --gene PCDH7 --disease nsclc \
-    --output-dir /path/to/PCDH7
-pixi run python scripts/generate_target_report_pdf.py \
-    --gene PCDH7 --disease nsclc \
-    --output-dir /path/to/PCDH7
+export AWS_PROFILE=cbg
+pixi run python skills/query-target-evidence/scripts/query_evidence.py \
+    --gene SCD1 --indication crc --subtype all --dimension expression-rna
 ```
+
+(Today this returns `[MISSING] SCD1/crc/all/expression-rna — no artifact. Produced by: batch/expression_rna_crc/run_pipeline.R` — the contract is in place; the first real artifact lands once the GDC mirror completes and the batch pipeline runs.)
+
+---
 
 ## Branching strategy
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Stable, production-ready code; tagged releases |
-| `dev` | Integration testing and evaluation |
-| `feat/*` | Individual feature development |
+| `main` | v1 — currently plugin-installable production system |
+| **`v2-architecture`** | **You are here.** v2 redesign (compute/retrieve separation, evidence artifact contract, data catalog integration) |
+| `feat/*` | Feature branches off `v2-architecture` |
 
-**Workflow:** `feat/*` → `dev` (evaluate) → `main` (release + tag)
+When v2 reaches parity with v1's analytical capabilities, it will be merged to `main` and v1 will become a legacy install path documented in release notes.
+
+---
 
 ## Versioning
 
-Releases are tagged on `main` using [Semantic Versioning](https://semver.org/) — `vMAJOR.MINOR.PATCH`.
+v2 work is unversioned during development on this branch. The first v2 release will be tagged `v2.0.0` after the merge to `main`, and will be a **major** semver bump because the dimension naming, S3 path schema, and skill-invocation patterns are all breaking changes from v1.
 
-| Bump | When to use | Example |
-|------|-------------|---------|
-| **PATCH** (`v1.7.2` → `v1.7.3`) | Bug fixes, doc fixes, parser tweaks. No change to how skills are invoked or what files they produce. | v1.7.3 — render placeholder when Step 2 omics figure is missing |
-| **MINOR** (`v1.6.0` → `v1.7.0`) | New functionality that is **backwards compatible**. Existing skills, arguments, and outputs continue to work. | v1.7.0 — primary_evidence per-category pointer; v1.4.0 — PubMed → facts.yaml extractor |
-| **MAJOR** (`v1.0.0` → `v2.0.0`) | **Breaking changes.** Renaming or removing a skill, restructuring directory layout, changing required arguments, or changing output filenames. | The ai-sci restructure (`oncology-skills/` → `skills/`) — would have been a major bump if released as one version. |
-
-### Release ritual
-
-After each `dev → main` merge:
-
-1. Pull main locally: `git checkout main && git pull --ff-only origin main`
-2. Tag the merge commit: `git tag -a vX.Y.Z <main-HEAD> -m "Brief description"`
-3. Push the tag: `git push origin vX.Y.Z`
-4. Create a GitHub release with notes covering the merged work
-5. Bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` to match
-6. Delete merged feature branches (local + remote)
-
-#### Multi-PR consolidation
-
-When two or more `feat/*` branches reach `main` in the same merge, the convention has been to tag with the **latest** scope's version and use a combined release-notes block covering all PRs. The skipped intermediate version exists in PR titles and commit messages but not as a tag — anyone reading `git tag` sees a coherent semver progression; anyone reading the release notes sees the full work decomposition. (See v1.4.0→v1.5.0, v1.6.0→v1.7.0, v1.7.1→v1.7.2 historically.)
-
-### Conventions
-
-- **`v` prefix is required** on git tags (`v1.0.0`, not `1.0.0`) to distinguish version tags from other tags.
-- Tags are immutable. **Never reuse a tag** — if a release was wrong, ship a follow-up patch.
-- Pre-release suffixes (`v1.1.0-rc.1`) are available for staged rollouts; not required for routine releases.
-
-### Versioning the audit-trail metadata
-
-The ScholarEval engine and validation framework include their own internal version strings inside their source files (e.g. `Version: 1.0.0` at the top of `scoring_engine.py`). Bump those alongside the repo tag whenever the scoring rules or audit-trail format changes — that lets re-runs against an old YAML/JSON output be detected as version-mismatched.
-
-## Development guidelines
-
-See [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) for:
-- Cross-repository workflow with ai-sci-claude-skills
-- Skill naming conventions
-- Integration procedures
+---
 
 ## Requirements
 
-- **Python** ≥ 3.10 (3.14 supported in newer skills; v1.4.0+ corporate-CA SSL workaround included)
-- **pixi** for per-skill environment management
+- **Python** ≥ 3.10
+- **R** ≥ 4.4 with Bioconductor 3.20+ (DESeq2, sva for ComBat-seq, apeglm for lfcShrink, arrow for Parquet) — for the batch DGE pipeline. To be wired into the repo `pixi.toml`.
+- **pixi** for env management
 - **AWS credentials** — `cbg` profile for S3, `cmp-dev` profile for Bedrock (see [AWS configuration](#aws-configuration))
+
+---
 
 ## License
 
-Internal use only — Computational Biology Oncology Team.
+Internal use only — Computational Biology Oncology Team, Takeda Pharmaceuticals.
 
-## Author
+---
 
-Ming-Ju Tsai (ming-ju.tsai@takeda.com)
+## Authors
+
+- **v1 (main):** Ming-Ju Tsai (ming-ju.tsai@takeda.com)
+- **v2 architecture (this branch):** Ryan Abo (ryan.abo@takeda.com), with v1 as foundation
