@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/core-artifacts-schema/evidence.schema.json",
+  "title": "Core Artifact: evidence.json",
+  "description": "Contract for a single evidence artifact in s3://onc-compbio/core-artifacts/{indication}/{gene}/{dimension}/evidence.json. Produced ONCE by a batch/ job (compute), read MANY times by skills (retrieval). This is the lingua franca consumed by AgenticBoost and the knowledge graph. Refines omics_evidence.rna_expression from workflow-target-evaluation-onc/reference/evidence_extraction_schema.yaml.",
+  "type": "object",
+  "required": ["gene", "indication", "dimension", "computed_date", "provenance", "result", "summary", "confidence", "label"],
+  "additionalProperties": false,
+  "properties": {
+    "gene": {
+      "type": "string",
+      "description": "Official HGNC gene symbol, e.g. SCD1.",
+      "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "indication": {
+      "type": "string",
+      "description": "Indication slug, e.g. crc, nsclc, pdac.",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "dimension": {
+      "type": "string",
+      "description": "Analysis dimension (one of the 8 in the runbook).",
+      "enum": ["expression", "dependency", "genomic-context", "patient-stratification", "clinical-outcomes", "safety", "target-biology", "literature"]
+    },
+    "computed_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the batch job produced this artifact (ISO 8601)."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Where the inputs came from and how this was computed. Mirrors the runbook's provenance.yaml contract. The catalog_refs link back to data-catalog manifest IDs — this is what makes the artifact traceable to a re-obtainable source.",
+      "required": ["source", "method", "git_commit", "catalog_refs"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Human-readable source label, e.g. 'TCGA COAD/READ + GTEx colon'."
+        },
+        "release": {
+          "type": "string",
+          "description": "Source release/version string, e.g. 'GDC Data Release 42' or 'OncoLand b38_gc33'."
+        },
+        "method": {
+          "type": "string",
+          "description": "Computation method, e.g. 'Tumor vs adjacent-normal DGE, Mann-Whitney, BH-FDR Tier 1'."
+        },
+        "git_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{7,40}$",
+          "description": "Commit SHA of the batch code that produced this artifact."
+        },
+        "parameter_hash": {
+          "type": "string",
+          "description": "Hash of the parameter set (config) used, for staleness/repro checks."
+        },
+        "catalog_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "data-catalog manifest IDs of the datasets this artifact derived from. e.g. ['tcga-gdc-dr42', 'gtex-v10']. THIS is the lineage link back to a re-obtainable source."
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "description": "The dimension-specific result payload. Required keys vary by dimension; for expression, see the expression-dimension keys below. Open object so each dimension defines its own result shape, but values must be JSON scalars/arrays (no nested compute state).",
+      "minProperties": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 10,
+      "description": "One-to-three sentence human-readable interpretation. Directional language, not a computed score (ScholarEval-style scores are dropped per runbook)."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["HIGH", "MODERATE", "EMERGING", "NOT_ASSESSED"],
+      "description": "Directional confidence rating, per runbook (replaces ScholarEval numeric score)."
+    },
+    "label": {
+      "type": "string",
+      "enum": ["pre-specified", "exploratory"],
+      "description": "REQUIRED per runbook. 'pre-specified' = standard workflow, suitable for BLF. 'exploratory' = non-default parameters, hypothesis-generating only."
+    },
+    "staleness": {
+      "type": "object",
+      "description": "Release-based staleness, NOT time-based (per runbook). Stale when the source release in provenance no longer matches the canonical current release.",
+      "additionalProperties": false,
+      "properties": {
+        "is_stale": { "type": "boolean" },
+        "canonical_release": { "type": "string" },
+        "checked_date": { "type": "string", "format": "date" }
+      }
+    }
+  },
+  "$comment": "Expression-dimension result keys (when dimension=expression) SHOULD include: tumor_vs_adjacent_log2fc, tumor_vs_adjacent_pvalue, tumor_vs_adjacent_padj, tumor_median_log2tpm, normal_median_log2tpm, gtex_normal_log2tpm, n_tumor_samples, n_normal_samples, detection_rate. These mirror omics_evidence.rna_expression in evidence_extraction_schema.yaml v1.1.0."
+}
