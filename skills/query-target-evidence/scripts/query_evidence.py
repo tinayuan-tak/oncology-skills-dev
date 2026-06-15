@@ -1,7 +1,7 @@
 """query_evidence.py — RETRIEVAL-ONLY lookup of a core-artifact evidence.json.
 
 This script reads a pre-computed evidence artifact from
-s3://onc-compbio/core-artifacts/{indication}/{gene}/{dimension}/evidence.json,
+s3://onc-compbio/core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json,
 validates it, checks staleness, and returns it. It deliberately contains NO
 analysis code — no pandas, no scipy, no expression loading. If you find
 yourself wanting to add compute here, it belongs in a batch/ job instead.
@@ -9,10 +9,16 @@ yourself wanting to add compute here, it belongs in a batch/ job instead.
 The dimension → batch-job map below is how a missing artifact reports which
 batch job would produce it (without triggering that job).
 
+Path schema:
+  core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json
+  - subtype defaults to 'all' for unstratified analyses
+  - examples: crc/all/SCD1/expression-rna/, crc/CMS4/SCD1/expression-rna/
+
 Usage:
-  python query_evidence.py --gene SCD1 --indication crc --dimension expression
+  python query_evidence.py --gene SCD1 --indication crc --dimension expression-rna
+  python query_evidence.py --gene SCD1 --indication crc --subtype CMS4 --dimension expression-rna
   python query_evidence.py --gene SCD1 --indication crc --all-dimensions
-  python query_evidence.py --gene SCD1 --indication crc --dimension expression --json
+  python query_evidence.py --gene SCD1 --indication crc --dimension expression-rna --json
 """
 
 from __future__ import annotations
@@ -36,15 +42,17 @@ ARTIFACT_PREFIX = "core-artifacts"
 SCHEMA_PATH = Path(__file__).resolve().parents[3] / "core-artifacts-schema" / "evidence.schema.json"
 
 # Which batch job produces each dimension (for "missing artifact" guidance).
+# Eight dimensions (revised 2026-06-15). Naming convention: batch dir = the
+# dimension slug it produces, with indication suffix.
 DIMENSION_BATCH_JOB = {
-    "expression": "batch/run_global_dge.py",
-    "dependency": "batch/run_global_dependency.py",      # planned
-    "genomic-context": "batch/run_genomic_context.py",   # planned
-    "patient-stratification": "batch/run_patient_strat.py",  # planned
-    "clinical-outcomes": "batch/run_clinical_outcomes.py",   # planned
-    "safety": "batch/run_safety.py",                     # planned
-    "target-biology": "batch/run_target_biology.py",     # planned
-    "literature": "batch/run_literature.py",             # planned
+    "expression-rna":     "batch/expression_rna_{indication}/run_pipeline.R",
+    "expression-protein": "batch/expression_protein_{indication}/run_pipeline.R",  # planned (CPTAC)
+    "dependency":         "batch/dependency/run_pipeline.py",                       # planned (DepMap)
+    "mutation-profile":   "batch/mutation_profile_{indication}/run_pipeline.py",    # planned (GDC somatic)
+    "survival":           "batch/survival_{indication}/run_pipeline.py",            # planned (GDC clinical)
+    "safety":             "batch/safety/run_pipeline.py",                           # planned (HPA + gnomAD)
+    "target-biology":     "batch/target_biology/run_pipeline.py",                   # planned (UniProt + HPA + SurfaceomeDB)
+    "literature":         "batch/literature/run_pipeline.py",                       # exists (Ming-Ju), v2 schema port pending
 }
 DIMENSIONS = list(DIMENSION_BATCH_JOB.keys())
 
@@ -53,8 +61,8 @@ def s3_client(profile: str):
     return boto3.Session(profile_name=profile).client("s3")
 
 
-def artifact_key(indication: str, gene: str, dimension: str) -> str:
-    return f"{ARTIFACT_PREFIX}/{indication}/{gene}/{dimension}/evidence.json"
+def artifact_key(indication: str, subtype: str, gene: str, dimension: str) -> str:
+    return f"{ARTIFACT_PREFIX}/{indication}/{subtype}/{gene}/{dimension}/evidence.json"
 
 
 def load_schema() -> dict | None:
@@ -63,8 +71,8 @@ def load_schema() -> dict | None:
     return json.loads(SCHEMA_PATH.read_text())
 
 
-def fetch_artifact(client, indication: str, gene: str, dimension: str) -> dict | None:
-    key = artifact_key(indication, gene, dimension)
+def fetch_artifact(client, indication: str, subtype: str, gene: str, dimension: str) -> dict | None:
+    key = artifact_key(indication, subtype, gene, dimension)
     try:
         obj = client.get_object(Bucket=BUCKET, Key=key)
     except ClientError as e:
@@ -84,19 +92,22 @@ def validate(artifact: dict, schema: dict | None) -> list[str]:
     ]
 
 
-def report_one(client, schema, indication, gene, dimension, as_json: bool) -> dict:
-    art = fetch_artifact(client, indication, gene, dimension)
+def report_one(client, schema, indication, subtype, gene, dimension, as_json: bool) -> dict:
+    art = fetch_artifact(client, indication, subtype, gene, dimension)
+    label = f"{gene}/{indication}/{subtype}/{dimension}"
     if art is None:
+        produced_by = DIMENSION_BATCH_JOB.get(dimension, "(unknown batch job)")
+        produced_by = produced_by.format(indication=indication)
         result = {
-            "gene": gene, "indication": indication, "dimension": dimension,
+            "gene": gene, "indication": indication, "subtype": subtype, "dimension": dimension,
             "status": "MISSING",
-            "produced_by": DIMENSION_BATCH_JOB.get(dimension, "(unknown batch job)"),
+            "produced_by": produced_by,
             "note": "Artifact does not exist. This skill does not compute it — "
                     "run the batch job (offline/scheduled) to produce it.",
         }
         if not as_json:
-            print(f"[MISSING] {gene}/{indication}/{dimension} — no artifact.")
-            print(f"          Produced by: {result['produced_by']} (run offline; not from this skill).")
+            print(f"[MISSING] {label} — no artifact.")
+            print(f"          Produced by: {produced_by} (run offline; not from this skill).")
         return result
 
     errs = validate(art, schema)
@@ -104,7 +115,7 @@ def report_one(client, schema, indication, gene, dimension, as_json: bool) -> di
     status = "INVALID" if errs else ("STALE" if stale else "OK")
 
     if not as_json:
-        print(f"[{status}] {gene}/{indication}/{dimension}")
+        print(f"[{status}] {label}")
         print(f"  computed_date: {art.get('computed_date')}")
         print(f"  confidence:    {art.get('confidence')}   label: {art.get('label')}")
         prov = art.get("provenance", {})
@@ -123,6 +134,9 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--gene", required=True)
     p.add_argument("--indication", required=True)
+    p.add_argument("--subtype", default="all",
+                   help="Subtype slug (default 'all' for unstratified). "
+                        "Examples: all, CMS1, CMS4, MSS-RASmut, MSI-H.")
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--dimension", choices=DIMENSIONS)
     g.add_argument("--all-dimensions", action="store_true")
@@ -136,7 +150,8 @@ def main() -> int:
         print("WARNING: evidence schema not found; skipping validation.", file=sys.stderr)
 
     dims = DIMENSIONS if args.all_dimensions else [args.dimension]
-    results = {d: report_one(client, schema, args.indication, args.gene, d, args.json) for d in dims}
+    results = {d: report_one(client, schema, args.indication, args.subtype, args.gene, d, args.json)
+               for d in dims}
 
     if args.json:
         json.dump(results, sys.stdout, indent=2, default=str)
