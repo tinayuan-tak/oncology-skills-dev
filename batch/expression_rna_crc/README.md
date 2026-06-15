@@ -2,6 +2,8 @@
 
 Pure-R Bioconductor pipeline that computes the global CRC differential expression once across all ~18K genes and writes a Parquet artifact for sub-second per-gene retrieval downstream.
 
+> **TODO (deep-research finding from `wf_9cf5659f-2e0`, 2026-06-15):** The runbook now mandates a **sensitivity-analysis discipline for the joint TCGA + GTEx regime** — when joint analysis is used (typically when adjacent-normal n < 30 for an indication), the pipeline must run **four DESeq2 cells**: {with, without} ComBat-seq class covariates × {TCGA-adjacent-only, joint with GTEx}, and emit a `sensitivity.parquet` matrix in addition to the primary results. The current pipeline below is the **single-cell** version; the four-cell variant becomes the default for the joint regime once `00_load_counts.R`'s source-specific loader is implemented (loader is currently a stub awaiting GDC + recount3 mirror availability). Rationale: per Sorokin/Buzdin 2023 (PMC10448432), TCGA-adjacent has field-effect signatures; per Hui/Goh 2024 (PMC11471903), class-covariate inclusion in ComBat when batch is confounded with biology inflates p-values. Neither comparator is clean; reporting only genes that survive all four cells is the high-confidence answer. See [runbook §"Decisions carried into implementation"](https://github.com/takoncoder/personal-notes/blob/main/strategy/oncology-platform-implementation-runbook.md) for the full rationale.
+
 ## The pipeline
 
 ```
