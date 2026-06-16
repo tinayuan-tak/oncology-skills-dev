@@ -30,8 +30,18 @@ stopifnot(!is.null(opts$config), !is.null(opts$`git-sha`),
           !is.null(opts$`parquet-uri`))
 
 dir.create(opts$`out-dir`, showWarnings = FALSE, recursive = TRUE)
-HERE <- dirname(sys.frame(1)$ofile)
-if (is.null(HERE) || !nzchar(HERE)) HERE <- "batch/expression_rna_COADREAD"
+
+# Robust self-location: the standard `sys.frame(1)$ofile` idiom errors out
+# under `pixi run Rscript ...` because the wrapper changes the call stack.
+# Parse `--file=` from commandArgs instead — set on every Rscript invocation.
+locate_self <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  m <- regmatches(args, regexpr("^--file=", args))
+  hit <- args[grepl("^--file=", args)]
+  if (length(hit)) return(dirname(normalizePath(sub("^--file=", "", hit[1]))))
+  "batch/expression_rna_COADREAD"
+}
+HERE <- locate_self()
 
 run <- function(script, args) {
   cmd <- paste("Rscript", file.path(HERE, script),
