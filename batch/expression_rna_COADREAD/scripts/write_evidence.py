@@ -59,12 +59,14 @@ def fetch_gene_row(parquet_uri: str, gene: str, profile: str) -> dict:
     (see 04_write_parquet.R), so per-gene reads scan only the relevant
     row group rather than the full file.
     """
-    fs_kwargs = {"profile": profile} if parquet_uri.startswith("s3://") else {}
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
         bucket, key = parse_s3_uri(parquet_uri)
-        # boto3-resolved creds → arrow-filesystem; respects AWS_PROFILE.
-        fs = pafs.S3FileSystem(**fs_kwargs)
+        # pyarrow.fs.S3FileSystem picks up credentials from the AWS env
+        # (AWS_PROFILE / SSO cache / ~/.aws/config) — no kwargs needed.
+        # The `profile` arg is honored by boto3 (used for the artifact PUT)
+        # but pyarrow's S3FileSystem reads env-resolved creds automatically.
+        fs = pafs.S3FileSystem()
         path = f"{bucket}/{key}"
     else:
         fs = None
