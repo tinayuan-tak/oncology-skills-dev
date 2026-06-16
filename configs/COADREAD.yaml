@@ -44,6 +44,14 @@ dge:
   tcga_barcode_suffixes:
     tumor: ['-01']
     adjacent_normal: ['-11']
+  # Multi-aliquot handling: TCGA contributes multiple files per (case_id, group)
+  # for ~2-3% of patients (technical-replicate vials, biological aliquots from
+  # the same tumor block). Treating these as independent samples violates
+  # DESeq2's NB-GLM independence assumption. Field-standard discipline (mc3,
+  # cBioPortal, TCGAbiolinks): one aliquot per (case_id, sample_type), picked
+  # deterministically. v1 policy: alphabetical-first by GDC file_id UUID.
+  # See runbook entry "TCGA pseudo-replicate handling".
+  sample_dedup: one_per_case_group_first_by_file_id
   multiple_testing:
     tier_1:
       method: BH

@@ -124,7 +124,41 @@ if (identical(manifest$provider, "gdc")) {
   message("[00_load_counts]   tumor files:  ", sum(groups == "tumor"))
   message("[00_load_counts]   normal files: ", sum(groups == "normal"))
 
-  # Apply --limit (after filter/label so the smoke set is balanced if possible).
+  # Multi-aliquot dedup: TCGA contributes >1 file per (case_id, group) for a
+  # small fraction of patients (technical-replicate vials, biological aliquots
+  # from the same tumor block). These violate DESeq2's per-sample independence
+  # assumption — one aliquot per (case_id, sample_type) is the field convention.
+  # Ordering by GDC file_id (UUID) and taking the first match is deterministic
+  # and reviewable. See runbook entry "TCGA pseudo-replicate handling".
+  dedup_policy <- cfg$dge$sample_dedup %||% "one_per_case_group_first_by_file_id"
+  if (identical(dedup_policy, "one_per_case_group_first_by_file_id")) {
+    file_ids <- vapply(files_in_cohort,
+                       function(f) f$source_id %||% "", character(1))
+    ord <- order(file_ids)
+    files_in_cohort <- files_in_cohort[ord]
+    groups <- groups[ord]
+    case_ids <- vapply(files_in_cohort,
+                       function(f) f$case_id %||% NA_character_, character(1))
+    keys <- paste(case_ids, groups, sep = "|")
+    keep_one <- !duplicated(keys)
+    n_dropped_dup <- sum(!keep_one)
+    if (n_dropped_dup > 0) {
+      message("[00_load_counts]   deduped ", n_dropped_dup,
+              " files (one aliquot per case+group; alphabetical-first by file_id). ",
+              "Policy: '", dedup_policy, "'.")
+    }
+    files_in_cohort <- files_in_cohort[keep_one]
+    groups <- groups[keep_one]
+    message("[00_load_counts]   post-dedup: ", sum(groups == "tumor"),
+            " tumor + ", sum(groups == "normal"), " normal (",
+            length(files_in_cohort), " files)")
+  } else {
+    stop("Unknown sample_dedup policy: '", dedup_policy,
+         "'. Implemented: 'one_per_case_group_first_by_file_id'.")
+  }
+
+  # Apply --limit (after dedup so the smoke set never accidentally pulls
+  # duplicate aliquots).
   if (!is.na(opts$limit) && length(files_in_cohort) > opts$limit) {
     # Stratified subsample: half tumor, half normal (or as close as possible).
     half <- max(1L, opts$limit %/% 2L)
