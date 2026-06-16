@@ -1,6 +1,6 @@
 [workspace]
 authors = ["Ryan Abo <ryan.abo@takeda.com>"]
-channels = ["conda-forge"]
+channels = ["conda-forge", "bioconda"]
 name = "rnd-computational-biology-oncology-claude-oncology-skills"
 platforms = ["linux-64"]
 version = "0.1.0"
@@ -16,5 +16,23 @@ pyarrow = ">=24.0.0,<25"
 s3fs = ">=2026.4.0,<2027"
 boto3 = ">=1.43.0,<2"
 pyyaml = ">=6.0.3,<7"
+jsonschema = ">=4.21,<5"
 jupyter = ">=1.1.1,<2"
 ipykernel = ">=7.3.0,<8"
+
+# R + Bioconductor stack for the batch DGE pipeline (batch/expression_rna_*).
+# DESeq2 + apeglm shrinkage on raw integer counts is the field-standard contract
+# the Parquet handoff is built around; arrow gives stage 04 native Parquet I/O;
+# paws.storage is the actively-maintained S3 client (preferred over aws.s3);
+# sva ships ComBat-seq for the joint-source regime (skipped when has_batch=FALSE).
+r-base = ">=4.4"
+"r-data.table" = ">=1.16"
+r-yaml = "*"
+r-optparse = "*"
+r-arrow = ">=18"
+r-digest = "*"
+r-biocmanager = "*"
+bioconductor-deseq2 = "*"
+bioconductor-apeglm = "*"
+bioconductor-sva = "*"
+bioconductor-biocparallel = "*"

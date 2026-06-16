@@ -22,7 +22,8 @@
         "./skills/analysis-protein-crc",
         "./skills/analysis-protein-nsclc",
         "./skills/analysis-sc-rna-crc",
-        "./skills/analysis-sc-rna-nsclc"
+        "./skills/analysis-sc-rna-nsclc",
+        "./skills/query-target-evidence"
       ]
     }
   ]

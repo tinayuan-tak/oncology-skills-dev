@@ -7,6 +7,13 @@ indication_full: Colorectal Adenocarcinoma (combined COAD + READ)
 oncotree_code: COADREAD
 common_name: CRC
 
+# Canonical source binding. The loader (00_load_counts.R) resolves manifest_id
+# against the data-catalog repo's manifests/sources/ directory, then dispatches
+# on manifest$provider to the appropriate source-specific reader.
+source:
+  manifest_id: tcga-gdc-dr45-0
+  catalog_repo: rnd-computational-biology-oncology-data-catalog
+
 # TCGA cohorts that constitute COADREAD (these ARE the OncoTree leaf codes)
 tcga_cohorts:
   - COAD  # colon adenocarcinoma (TCGA-COAD)
