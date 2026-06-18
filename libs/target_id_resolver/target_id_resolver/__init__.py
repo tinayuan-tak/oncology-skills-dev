@@ -20,10 +20,13 @@ from .schema import (
 )
 from .core import resolve, resolve_batch
 from .errors import ResolverError, AmbiguousInputError, NotFoundError
+from .sidecar import emit_sidecar, SidecarStats
 
 __all__ = [
     "resolve",
     "resolve_batch",
+    "emit_sidecar",
+    "SidecarStats",
     "Target",
     "HGNC",
     "Ensembl",
