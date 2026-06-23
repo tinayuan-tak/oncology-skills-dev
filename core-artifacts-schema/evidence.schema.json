@@ -24,8 +24,18 @@
     },
     "dimension": {
       "type": "string",
-      "description": "Analysis dimension (one of the 8 in the runbook, revised 2026-06-15).",
-      "enum": ["expression-rna", "expression-protein", "dependency", "mutation-profile", "survival", "safety", "target-biology", "literature"]
+      "description": "Analysis dimension (12 dimensions per the v2 spec's Dimension Inventory; expression-protein retained for backward compatibility with v1 outputs).",
+      "enum": [
+        "expression-rna", "expression-protein", "dependency", "mutation-profile",
+        "survival", "safety", "target-biology", "literature",
+        "indication-discovery", "pathway-activity", "perturbation-response",
+        "resistance-coalteration", "competitive-landscape"
+      ]
+    },
+    "product_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "OPTIONAL but RECOMMENDED. Identifies the specific analysis product within the dimension (e.g., 'expression-rna-tumor-vs-adjacent', 'dependency-depmap-chronos'). Resolves to an entry in core-artifacts-schema/products.yaml. When present, the result payload should validate against the product's per-product result schema (products/{product_id}.result.schema.json). v2.0 evidence artifacts should populate this; v1 artifacts may omit it during the migration window."
     },
     "computed_date": {
       "type": "string",
