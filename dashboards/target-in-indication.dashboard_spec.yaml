@@ -1,0 +1,66 @@
+# target-in-indication.dashboard_spec — iter-1 dashboard template
+# Composes the 5 iter-1 cards into a single evidence package for a (target, indication) cell.
+# See plan § Target Dashboard Architecture § Dashboard spec schema (A3) and B1 § Iter-1 cards.
+# Iter-1 acceptance: both (KRAS, COADREAD) positive and (TG, COADREAD) negative-control runs
+# emit valid evidence packages per the seven iter-1-done criteria.
+
+dashboard_id: target-in-indication
+version: 1.0.0
+
+applies_to:
+  modalities:
+    - adc
+    - small_molecule
+    - biologic
+    - io
+  scopes:
+    - cancer_type
+    - cancer_subtype
+
+required_context:
+  target: "HGNC symbol resolved to canonical Target object via methods/target_id_resolver"
+  indication: "OncoTree code (e.g., COADREAD, NSCLC, BRCA)"
+  subgroup_spec: "list of subgroup_ids | \"all\" | null"
+  data_mode: "Reference to data_mode.enum.yaml; one of latest_approved | pinned | exploratory"
+  release_pin: "Catalog manifest_id for pinned mode; null for latest_approved"
+
+required_cards:
+  - card_id: expression-tumor-vs-adjacent
+    version: ">=1.0.0,<2"
+  - card_id: dependency-lineage-selectivity
+    version: ">=1.0.0,<2"
+  - card_id: mutation-hotspot-frequency
+    version: ">=1.0.0,<2"
+
+optional_cards:
+  - card_id: rwd-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\"]"   # iter-1 RWD is Tempus CRC-only; iter-2 expands
+  - card_id: subgroup-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+
+synthesis_prompts:
+  - section: headline
+    instruction: |
+      Two-sentence headline call: how strong is the case for {target} in {indication}?
+      Cite the strongest card by interpretation_call and the weakest.
+      If three or more cards are excluded_by_applies_when OR return interpretation_call
+      of "not informative" / "no characterized hotspot landscape", emit the substring
+      "Insufficient evidence" — the framework's refuse-to-answer signal (see iter-1-done criterion 7c).
+  - section: caveats_summary
+    instruction: |
+      Surface caveats common to multiple cards; do not duplicate per-card caveat text.
+      Always flag if any card was emitted with validation_state: passed_with_warnings — name
+      the specific warning_ids that fired.
+
+outputs:
+  evidence_package: "ep-{target}-{indication}-{release_pin}-{data_mode}.json"
+  renderings:
+    - markdown   # iter-1 ships Stage 1 (static markdown) only; html added in iter-2
+  destination: "data-products/{target}/{indication}/{package_id}/"
+
+refresh_policy:
+  default: on_demand
+
+schema_version: 1

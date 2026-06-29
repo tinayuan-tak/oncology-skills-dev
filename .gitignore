@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+
+# Pytest
+.pytest_cache/
+
+# Environments
+.venv/
+.pixi/
+
+# OS
+.DS_Store
+.AppleDouble
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local settings
+.claude/

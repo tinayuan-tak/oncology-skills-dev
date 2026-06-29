@@ -1,0 +1,60 @@
+# validation_state.enum.yaml
+# Controlled vocabulary: the three states a card emission can land in after
+# compose-dashboard runs its post-invocation validator. See plan § Evidence Card
+# Framework § Validation regime (A2) and § compose-dashboard behavioral spec
+# subsection (5) Validation timing (B1).
+#
+# Critical rule (A2): validation runs at compose time, NOT after. A card whose
+# validation_state is `failed` does NOT make it into the evidence package envelope —
+# the envelope's schema requires the card slot to be either present-and-validated
+# or explicitly-absent-with-reason. Downstream consumers never see failed cards;
+# they see absences with structured reasons.
+#
+# Schemas that reference this enum: card_output.schema.json, evidence_package.schema.json,
+# card_manifest.schema.json.
+
+enum_id: validation_state
+version: 1.0.0
+description: |
+  Per-card validation outcome emitted by compose-dashboard after running the post-invocation
+  validator against the method's emitted output. Cards do NOT self-grade; the validator is a
+  separate process. Three states are recognized; the framework treats them differently with
+  respect to package emission, dashboard rendering, and downstream renderer behavior.
+
+values:
+  - value: pass
+    label: "Pass"
+    description: |
+      Schema valid, applies_when satisfied, all inputs resolved, no warnings raised.
+      Output is fit for downstream consumption without caveat surface.
+    appears_in_evidence_package: true
+    renders_in_dashboard: as_normal_panel
+    typical_example: "DGE card on KRAS-COADREAD with full paired-normal cohort (n=51), q < 0.05, log2FC > 1.5."
+
+  - value: passed_with_warnings
+    label: "Passed with warnings"
+    description: |
+      Schema valid, output emitted, but one or more declared warning_predicates fired.
+      Consumable, but the warning_id text is rendered in the card panel. Skills consume
+      the structured warning list (not free text) and decide whether to surface in narrative.
+    appears_in_evidence_package: true
+    renders_in_dashboard: as_panel_with_warning_strip
+    typical_example: "DGE card on a cohort with n_tumor < soft_min but >= hard_min, fires `low_cohort_size_paired_normal` warning."
+    requires_structured_warning_ids: true   # free-text warning fields are NOT acceptable
+
+  - value: failed
+    label: "Failed"
+    description: |
+      Schema invalid, applies_when not satisfied at runtime (input shape unexpectedly didn't match
+      spec), method errored, or output missing required fields. NOT EMITTED to a finished evidence
+      package. The package's cards[] array contains an explicit "this card failed validation" stub
+      with link to the validator log in validation_report.json.
+    appears_in_evidence_package: false      # the key rule: failed cards are excluded from the envelope
+    renders_in_dashboard: as_failure_stub_with_validator_log_link
+    typical_example: "Method threw exception; required input manifest missing; output schema violated."
+    failure_subtypes:
+      - method_exception
+      - method_timeout
+      - method_output_schema_violation
+      - manifest_resolution_failure
+      - context_builder_failure

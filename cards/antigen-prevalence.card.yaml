@@ -1,0 +1,59 @@
+# Card iter-1b/6 — ANTIGEN PREVALENCE
+# Iter-1b operational card. Composes from tumor expression product + a prevalence threshold
+# to estimate "what fraction of tumors express the antigen at clinically-relevant levels?"
+# Patient-selection question; key for surface-modality programs (ADC, BiTE/TCE, antibody).
+
+card_id: antigen-prevalence
+version: 1.0.0
+question: "What fraction of {indication.label} tumors express {target.symbol} at clinically relevant levels?"
+
+applies_when:
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+  - "indication.tumor_sample_count >= THRESHOLD.min_samples_for_prevalence"
+
+required_inputs:
+  - product_id: dge-tumor-vs-adjacent
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: prevalence-aggregator
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      clinical_relevance_tpm: "THRESHOLD.clinical_relevance_tpm"
+      high_expression_tpm: "THRESHOLD.high_expression_tpm"
+
+outputs:
+  summary_fields:
+    - fraction_clinically_relevant
+    - fraction_high_expression
+    - n_samples
+    - median_tpm
+    - cutoff_used_tpm
+  figure: prevalence_curve_with_thresholds
+  plot_data: per_sample_expression_with_prevalence_thresholds
+
+interpretation_hints:
+  - if: "fraction_high_expression >= THRESHOLD.broad_population_threshold"
+    call: "broad patient population at high expression"
+  - if: "fraction_clinically_relevant >= THRESHOLD.targeted_population_threshold && fraction_high_expression < THRESHOLD.broad_population_threshold"
+    call: "targeted patient population (selection biomarker required)"
+  - if: "fraction_clinically_relevant < THRESHOLD.targeted_population_threshold"
+    call: "narrow patient population — patient-selection strategy critical"
+
+thresholds:
+  expression_p95_min: 1.0
+  min_samples_for_prevalence: 50
+  clinical_relevance_tpm: 1.0                  # iter-1b conservative; calibration deferred
+  high_expression_tpm: 10.0                    # iter-1b conservative; modality-tuned in iter-2
+  broad_population_threshold: 0.60
+  targeted_population_threshold: 0.20
+
+caveats:
+  - "Prevalence thresholds are iter-1b conservative defaults; modality-specific calibration is iter-2 work (different thresholds for ADC vs BiTE/TCE)."
+  - "RNA-derived prevalence is an upper-bound estimate; protein-level prevalence (via IHC) is typically narrower and is the gating clinical question."
+  - "Patient-selection biomarker development requires a deployable assay; iter-1b cannot assess assay feasibility."
+
+schema_version: 1

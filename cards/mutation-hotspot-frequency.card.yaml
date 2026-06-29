@@ -1,0 +1,51 @@
+# Card 3 of 5 — iter-1 vertical slice
+# Exercises: another NEW iter-1 product end-to-end (somatic-MAF mutation profile)
+
+card_id: mutation-hotspot-frequency
+version: 1.0.0
+question: "What is the somatic mutation frequency and hotspot landscape of {target.symbol} in {indication.label}?"
+
+applies_when:
+  - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"
+
+required_inputs:
+  - product_id: gdc-pancohort-somatic
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: gdc-somatic-hotspot
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - overall_mutation_frequency
+    - n_samples_in_indication
+    - n_samples_mutated
+    - hotspot_frequencies
+    - top_cooccurring_genes
+    - top_mutually_exclusive_genes
+  figure: lollipop_hotspot_frequency
+  plot_data: per_sample_variants_with_hotspot_tags
+
+interpretation_hints:
+  - if: "overall_mutation_frequency >= THRESHOLD.frequent_mutation_pct"
+    call: "frequently mutated; characterized hotspot landscape"
+  - if: "overall_mutation_frequency >= THRESHOLD.occasional_mutation_pct && overall_mutation_frequency < THRESHOLD.frequent_mutation_pct"
+    call: "occasionally mutated"
+  - if: "overall_mutation_frequency < THRESHOLD.occasional_mutation_pct"
+    call: "no characterized hotspot landscape"
+
+thresholds:
+  min_samples_with_maf: 50           # below this, frequency estimates have wide CIs
+  frequent_mutation_pct: 0.10        # >= 10% of samples → frequently mutated
+  occasional_mutation_pct: 0.02      # 2-10% → occasionally mutated
+
+caveats:
+  - "Mutation frequency is an indication-level summary; per-subgroup frequencies (e.g., MSI-H enriched) require subgroup-stratified analysis."
+  - "Hotspot calls depend on the variant caller and filtering thresholds upstream; cross-validate with MC3 or GENIE for low-confidence hotspots."
+
+schema_version: 1

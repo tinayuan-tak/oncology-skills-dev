@@ -1,0 +1,55 @@
+# Card 4 of 5 — iter-1 vertical slice
+# Exercises: the `pinned` data mode end-to-end (Tempus CRC deposit is pinned by deposit date)
+# Honesty note: Tempus is pre-aggregated upstream — pinning here pins an opaque CSV column,
+# not sample-level lineage. See plan Tier-3 honest-limitation discussion (post-adversarial-review T3.1).
+
+card_id: rwd-stratified-expression
+version: 1.0.0
+question: "How does {target.symbol} expression vary across treatment-line strata in real-world {indication.label} RWD?"
+
+applies_when:
+  - "indication.has_pre_aggregated_rwd == true"
+  - "indication.rwd_strata_include_target == true"
+
+required_inputs:
+  - product_id: tempus-rwd-stratified-expression
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: tempus-rwd-aggregator
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      strata: "all_available"
+
+outputs:
+  summary_fields:
+    - per_stratum_metrics
+    - n_strata_with_data
+    - max_stratum_size
+    - min_stratum_size
+    - cross_stratum_delta_median
+    - cross_stratum_delta_pct_detected
+  figure: stratum_bar_with_detection_rate
+  plot_data: per_stratum_aggregate_metrics
+
+interpretation_hints:
+  - if: "cross_stratum_delta_median >= THRESHOLD.meaningful_delta_median"
+    call: "meaningful cross-stratum variation"
+  - if: "cross_stratum_delta_median < THRESHOLD.meaningful_delta_median && min_stratum_size >= THRESHOLD.min_stratum_size_for_call"
+    call: "no meaningful cross-stratum variation"
+  - if: "min_stratum_size < THRESHOLD.min_stratum_size_for_call"
+    call: "not informative"
+
+thresholds:
+  meaningful_delta_median: 0.3       # log2(TPM+1) units; iter-1 conservative default
+  min_stratum_size_for_call: 100     # below this, stratum metrics have wide CIs
+
+caveats:
+  - "Tempus RWD is pre-aggregated upstream; per-sample lineage and harmonization decisions are not visible. The `pinned` data_mode pins a CSV column hash, not sample-level provenance."
+  - "Strata are RAS-mutation-status × treatment-line; reading across strata implicitly conditions on RAS biology."
+  - "Detection rate (pct_detected) reflects assay sensitivity in the Tempus panel; cross-platform comparison with TCGA RNA-seq requires care."
+
+schema_version: 1

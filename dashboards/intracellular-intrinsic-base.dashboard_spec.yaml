@@ -1,0 +1,92 @@
+# intracellular-intrinsic-base.dashboard_spec — iter-1b BASE dashboard for intracellular intrinsic targets
+#
+# This is the BASE layer of the (axis × modality) compositional model. Cards here are the
+# axis-defined evidence requirements for ANY target whose biology_axis is intracellular_intrinsic
+# (small-molecule and degrader territory). Modality modules (small_molecule, degrader) layer
+# additional cards + threshold overlays on top.
+#
+# Reads: modality_axis_compatibility.yaml.intracellular_intrinsic.plausible_modalities_iter1b
+#        for the agnostic case (modality unspecified) — synthesis enumerates fits across both.
+
+dashboard_id: intracellular-intrinsic-base
+version: 1.0.0
+
+applies_to:
+  modalities: [small_molecule, degrader]                # iter-1b active modalities for this axis
+  scopes: [cancer_type, cancer_subtype]
+
+required_context:
+  target: "HGNC symbol resolved to canonical Target object; biology_axis must be intracellular_intrinsic (from target_biology_axis_lookup.yaml)"
+  indication: "OncoTree code"
+  subgroup_spec: "list of subgroup_ids | \"all\" | null"
+  data_mode: "Reference to data_mode.enum.yaml"
+  release_pin: "Catalog manifest_id for pinned mode; null for latest_approved"
+  modality: "Optional. If specified, must be in [small_molecule, degrader] (intracellular_intrinsic compatible). If unspecified, framework enumerates plausible modalities and synthesis differentiates reads per modality."
+
+required_cards:
+  - card_id: target-identity-summary
+    version: ">=1.0.0,<2"
+  - card_id: expression-tumor-vs-adjacent
+    version: ">=1.0.0,<2"
+  # Iter-2 Card 1: pan-cancer-dependency-distribution — the foundational dependency view.
+  # Pan-essential targets are DOMINANT KILLER for small_molecule/degrader; selective targets
+  # are DOMINANT POSITIVE (therapeutic-window candidates). EG4 dominant-signal-plus-confirmation
+  # scoring activates this card's calls.
+  - card_id: pan-cancer-dependency-distribution
+    version: ">=1.0.0,<2"
+  - card_id: dependency-lineage-selectivity
+    version: ">=1.0.0,<2"
+  - card_id: mutation-hotspot-frequency
+    version: ">=1.0.0,<2"
+  - card_id: normal-tissue-liability
+    version: ">=1.0.0,<2"
+  - card_id: clinical-precedent
+    version: ">=1.0.0,<2"
+
+optional_cards:
+  - card_id: subgroup-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+  - card_id: rwd-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\"]"
+
+# Modality modules that may load on top of this base. Resolved at compose-dashboard runtime:
+#   - if context.modality is specified, load only the matching module
+#   - if context.modality is unspecified, load ALL listed modules (agnostic enumeration)
+optional_modality_modules:
+  small_molecule: target-contracts/dashboards/modality-modules/small_molecule.module.yaml
+  degrader: target-contracts/dashboards/modality-modules/degrader.module.yaml
+
+synthesis_prompts:
+  - section: headline
+    instruction: |
+      If context.modality is specified, frame the headline using that modality_module's
+      headline_decision_question (loaded from the module). If context.modality is unspecified,
+      enumerate the modality fits: for each loaded module, apply its synthesis_emphasis rules
+      and emit a "{modality}: {fit_level}" line. Surface the strongest-fit modality first.
+      If three or more cards return "not informative" or are excluded_by_applies_when, emit
+      "Insufficient evidence" as the framework's refuse-to-answer signal.
+  - section: caveats_summary
+    instruction: |
+      Surface caveats common to multiple cards. Always include any modality-module's
+      modality_specific_caveats. Flag any card with validation_state: passed_with_warnings;
+      name the specific warning_ids that fired.
+  - section: modality_fit_assessment
+    instruction: |
+      Per-modality fit assessment table. For each loaded modality_module, emit:
+      - modality name
+      - fit level (strong / moderate / weak / not_viable)
+      - rationale citing specific cards
+      - modality_killer_conditions hit (if any)
+
+outputs:
+  evidence_package: "ep-{target}-{indication}-{release_pin}-{data_mode}-intracellular.json"
+  renderings:
+    - markdown
+  destination: "data-products/{target}/{indication}/{package_id}/"
+
+refresh_policy:
+  default: on_demand
+
+schema_version: 1

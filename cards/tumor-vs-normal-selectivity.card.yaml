@@ -1,0 +1,62 @@
+# Card iter-1b/6 — TUMOR vs NORMAL SELECTIVITY
+# Composes from existing DGE product (coadread-dge-* etc.) + GTEx/TCGA-paired normals.
+# This is NOT a new method — it reuses dge-deseq2 with a different contrast and the
+# normal-tissue reference manifest.
+
+card_id: tumor-vs-normal-selectivity
+version: 1.0.0
+question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue versus matched and unmatched normal tissues?"
+
+applies_when:
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+  - "indication.paired_normals.count >= THRESHOLD.paired_normals_min || indication.gtex_unmatched_normals_available == true"
+
+required_inputs:
+  - product_id: dge-tumor-vs-adjacent
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  - product_id: dge-tumor-vs-gtex
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: dge-deseq2
+    args:
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      contrast: tumor_vs_combined_normals       # combines paired adjacent + GTEx unmatched
+
+outputs:
+  summary_fields:
+    - tumor_median_tpm
+    - tumor_p25_tpm
+    - tumor_p75_tpm
+    - max_normal_tissue_tpm
+    - selectivity_score
+    - log2_fc_vs_max_normal
+    - log2_fc_vs_paired_adjacent
+    - log2_fc_vs_gtex_pooled
+  figure: tumor_vs_normal_selectivity_panel
+  plot_data: per_tissue_expression_with_tumor_overlay
+
+interpretation_hints:
+  - if: "log2_fc_vs_max_normal >= THRESHOLD.strong_selectivity_log2fc && tumor_median_tpm >= THRESHOLD.tumor_median_min_tpm"
+    call: "strong tumor selectivity"
+  - if: "log2_fc_vs_max_normal >= THRESHOLD.modest_selectivity_log2fc && tumor_median_tpm >= THRESHOLD.tumor_median_min_tpm"
+    call: "modest tumor selectivity"
+  - if: "log2_fc_vs_max_normal < THRESHOLD.modest_selectivity_log2fc"
+    call: "not informative"
+
+thresholds:
+  expression_p95_min: 1.0
+  paired_normals_min: 8
+  strong_selectivity_log2fc: 3.0               # >= 8x over highest normal
+  modest_selectivity_log2fc: 1.5               # >= ~3x over highest normal
+  tumor_median_min_tpm: 1.0
+
+caveats:
+  - "GTEx normal tissue is bulk RNA; cell-type-specific expression within a tissue can be much higher than the tissue median (e.g., specific intestinal crypt cells vs whole colon)."
+  - "TCGA paired adjacent normal is not random — surgical-margin selection biases the comparison."
+  - "Selectivity at RNA level does not guarantee selectivity at protein/surface level — pair with protein-surface-evidence card when available."
+
+schema_version: 1

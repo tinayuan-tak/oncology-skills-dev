@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/dashboard_spec.schema.json",
+  "title": "Dashboard Spec",
+  "description": "Schema for dashboard-composition specifications. A dashboard_spec is the recipe: which cards (by card_id + version range) compose into an evidence package, what synthesis prompts run, what surfaces are rendered. See plan § Target Dashboard Architecture (A3) and § compose-dashboard behavioral spec (B1) for runtime semantics. Cards themselves are validated by card.schema.json.",
+  "type": "object",
+  "required": [
+    "dashboard_id",
+    "version",
+    "applies_to",
+    "required_context",
+    "required_cards",
+    "synthesis_prompts",
+    "outputs",
+    "refresh_policy",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "dashboard_id": {
+      "type": "string",
+      "description": "Stable kebab-case identifier for this dashboard template across versions.",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this dashboard spec. Bumps with card-selection or synthesis-prompt changes.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$"
+    },
+    "applies_to": {
+      "type": "object",
+      "description": "Modality and scope axes this dashboard is appropriate for. Compose-dashboard refuses to invoke this dashboard against a (target, indication) whose modality is not in this list, or against an evaluate-target scope not in this list.",
+      "required": ["modalities", "scopes"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "modalities": {
+          "type": "array",
+          "description": "Modality axes this dashboard supports. Iter-1b enum expanded to include all active modalities; iter-2 lifts to a $ref against modality.enum.yaml.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "small_molecule", "degrader", "adc", "bite_tce", "antibody",
+              "biologic", "io", "synthetic_lethal_metabolic",
+              "bispecific_non_tce", "cell_therapy", "radiopharmaceutical", "io_extrinsic", "rna_therapeutic"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "scopes": {
+          "type": "array",
+          "description": "evaluate-target scope axes this dashboard supports.",
+          "items": {
+            "type": "string",
+            "enum": ["pancancer", "cancer_type", "cancer_subtype"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "required_context": {
+      "type": "object",
+      "description": "The context-binding shape compose-dashboard must supply at invocation. Mirrors the inputs declared in B1 § compose-dashboard behavioral spec.",
+      "required": ["target", "indication", "data_mode"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Description of the target binding (typically 'HGNC symbol resolved to canonical Target object via methods/target_id_resolver')."
+        },
+        "indication": {
+          "type": "string",
+          "description": "Description of the indication binding (typically 'OncoTree code')."
+        },
+        "subgroup_spec": {
+          "type": "string",
+          "description": "Description of optional subgroup binding (typically 'list of subgroup_ids | \"all\" | null')."
+        },
+        "data_mode": {
+          "type": "string",
+          "description": "Reference to data_mode.enum.yaml — the value supplied at invocation must be one of {latest_approved, pinned, exploratory}."
+        },
+        "release_pin": {
+          "type": "string",
+          "description": "Catalog manifest_id binding for pinned mode (or null for latest_approved)."
+        },
+        "modality": {
+          "type": "string",
+          "description": "Iter-1b: optional modality binding. If specified at invocation, must match an entry in `optional_modality_modules`. If unspecified, framework enumerates plausible modalities via modality_axis_compatibility.yaml and applies all matching modules for agnostic enumeration."
+        }
+      }
+    },
+    "required_cards": {
+      "type": "array",
+      "description": "Cards that MUST be in scope for this dashboard. Resolution: each entry's card_id + version range resolves to a specific card_spec in target-contracts/cards/. If a required card's applies_when predicate fails at runtime, the card is excluded with structured exclusion_reason — the dashboard still emits.",
+      "items": {"$ref": "#/$defs/card_reference"},
+      "minItems": 1,
+      "maxItems": 20
+    },
+    "optional_cards": {
+      "type": "array",
+      "description": "Cards that may be in scope, gated by a top-level `when:` predicate evaluated against the dashboard's context object before the card's own applies_when is consulted. If `when:` is false, the card is excluded without even invoking applies_when. Predicates use the same CEL-compatible DSL as card-level applies_when (B1 § compose-dashboard subsection 2).",
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/card_reference"},
+          {
+            "type": "object",
+            "required": ["when"],
+            "properties": {
+              "when": {
+                "type": "string",
+                "description": "CEL-compatible predicate evaluated against the dashboard context. Card-level applies_when runs only if this returns true.",
+                "format": "cel-predicate",
+                "minLength": 3,
+                "maxLength": 500
+              }
+            }
+          }
+        ]
+      },
+      "maxItems": 20
+    },
+    "optional_modality_modules": {
+      "type": "object",
+      "description": "Iter-1b extension: per-modality module references that may load on top of this base dashboard. Resolved at compose-dashboard runtime: if context.modality is specified, load only the matching module; if unspecified, load ALL listed modules for agnostic enumeration. Keys must match `value` entries in modality.enum.yaml; values are paths to modality_module YAMLs validating against modality_module.schema.json.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^target-contracts/dashboards/modality-modules/[a-z][a-z0-9_]*\\.module\\.yaml$"
+      },
+      "maxProperties": 10
+    },
+    "synthesis_prompts": {
+      "type": "array",
+      "description": "Prompts that drive the dashboard's synthesis layer. Each prompt names a section (headline | caveats_summary | recommendation | etc.) and an instruction string the synthesis engine consumes. Iter-1 synthesis is either rule-based or LLM-driven; the instruction is the contract regardless of engine.",
+      "items": {
+        "type": "object",
+        "required": ["section", "instruction"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "section": {
+            "type": "string",
+            "description": "Section identifier the prompt populates in the evidence_package's synthesis block.",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "instruction": {
+            "type": "string",
+            "description": "Free-text instruction to the synthesis engine. May reference cards by card_id and may contain {target}, {indication} interpolations.",
+            "minLength": 10,
+            "maxLength": 2000
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 10
+    },
+    "outputs": {
+      "type": "object",
+      "description": "Where and what compose-dashboard emits.",
+      "required": ["evidence_package", "renderings", "destination"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "evidence_package": {
+          "type": "string",
+          "description": "Filename template for the emitted evidence_package.json. May contain {target}, {indication}, {release_pin}, {data_mode} interpolations.",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "renderings": {
+          "type": "array",
+          "description": "Which rendering surfaces to produce in this run. Iter-1 ships markdown only (Stage 1, A3 maturity ladder); html is iter-2; ppt/decision-memo are iter-3+.",
+          "items": {
+            "type": "string",
+            "enum": ["markdown", "html", "ppt", "decision_memo"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "destination": {
+          "type": "string",
+          "description": "Path template (typically data-products/{target}/{indication}/{package_id}/) where compose-dashboard writes outputs.",
+          "minLength": 3,
+          "maxLength": 200
+        }
+      }
+    },
+    "refresh_policy": {
+      "type": "object",
+      "description": "When compose-dashboard should re-emit. Iter-1 ships on_demand only; nightly/weekly/release-pin-pinned cadences land in iter-2.",
+      "required": ["default"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "default": {
+          "type": "string",
+          "enum": ["on_demand", "nightly", "weekly", "release_pin_pinned"]
+        }
+      }
+    },
+    "schema_version": {
+      "type": "integer",
+      "description": "Version of dashboard_spec.schema.json this spec validates against.",
+      "const": 1
+    }
+  },
+  "$defs": {
+    "card_reference": {
+      "type": "object",
+      "required": ["card_id", "version"],
+      "properties": {
+        "card_id": {
+          "type": "string",
+          "description": "Stable identifier matching a card_id in target-contracts/cards/.",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semver version range constraint (e.g., '>=1.0.0,<2' or '1.0.0' for an exact pin). Structural shape only; the compose-dashboard runtime parses the range with a semver library.",
+          "pattern": "^[<>=~^0-9. ,a-zA-Z*-]+$",
+          "minLength": 1,
+          "maxLength": 80
+        }
+      }
+    }
+  }
+}

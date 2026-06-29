@@ -1,0 +1,56 @@
+# Card iter-1b/6 — PROTEIN SURFACE EVIDENCE
+# Data-blocked iter-1b card: requires HPA protein/IHC mirror OR external proteomics catalog.
+# Until then this card emits excluded_by_applies_when with structured 'data_blocked' reason.
+# Required by ADC, BiTE/TCE, and antibody modality modules (surface accessibility is the
+# gating biology for all three).
+
+card_id: protein-surface-evidence
+version: 1.0.0
+question: "Is {target.symbol} confirmed at the protein level and accessible on the tumor cell surface in {indication.label}?"
+
+applies_when:
+  - "context.data_sources.hpa_protein_available == true || context.data_sources.proteomics_panel_available == true"
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+
+required_inputs:
+  - product_id: hpa-protein-ihc
+    release_pin: "{release_pin}"
+  - product_id: subcellular-localization-uniprot
+    release_pin: "{release_pin}"
+
+methods:
+  - call: protein-surface-aggregator
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - subcellular_localization_uniprot
+    - hpa_ihc_positivity_fraction
+    - hpa_ihc_intensity
+    - surface_accessibility_call
+    - protein_evidence_strength
+  figure: protein_evidence_summary_panel
+  plot_data: per_subcellular_location_evidence
+
+interpretation_hints:
+  - if: "surface_accessibility_call == 'cell_surface_confirmed' && hpa_ihc_positivity_fraction >= THRESHOLD.strong_positivity"
+    call: "strong protein surface evidence"
+  - if: "surface_accessibility_call == 'cell_surface_confirmed' && hpa_ihc_positivity_fraction >= THRESHOLD.modest_positivity"
+    call: "modest protein surface evidence"
+  - if: "surface_accessibility_call == 'intracellular_only' || hpa_ihc_positivity_fraction < THRESHOLD.modest_positivity"
+    call: "not informative for surface-modality programs"
+
+thresholds:
+  expression_p95_min: 1.0
+  strong_positivity: 0.60                      # 60% of tumor cells IHC-positive
+  modest_positivity: 0.20
+
+caveats:
+  - "HPA protein-IHC mirror is iter-2 catalog work; iter-1b this card emits excluded_by_applies_when until data lands."
+  - "IHC positivity fraction is technology-dependent — antibody clone, fixation, scoring system all matter."
+  - "Surface localization confirmed at one tissue context does not guarantee surface accessibility at another (different glycosylation, masking, internalization rates)."
+
+schema_version: 1

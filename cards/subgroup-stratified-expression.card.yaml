@@ -1,0 +1,60 @@
+# Card 5 of 5 — iter-1 vertical slice
+# Exercises: subgroup wiring through cards (subgroup_catalog → applies_when → method --stratify-by → per-stratum panel)
+# Iter-1 subgroup axis: MSI/MSS (directly tagged from TCGA clinical metadata; see T1.2 swap from CMS).
+# Iter-2 expansion: CMS1-4 when Ellrott classifier + Table S1 label-dictionary land.
+
+card_id: subgroup-stratified-expression
+version: 1.0.0
+question: "How does {target.symbol} expression vary across molecular subgroups in {indication.label}?"
+
+applies_when:
+  - "subgroup_spec != null"
+  - "indication.subgroup_catalog_available == true"
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+
+required_inputs:
+  - product_id: dge-tumor-vs-adjacent
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  - product_id: subgroup-catalog
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: dge-deseq2
+    args:
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      contrast: tumor_vs_adjacent
+      stratify_by: subgroup_catalog
+      subgroup_spec: "{subgroup_spec}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics
+    - n_subgroups_with_data
+    - max_subgroup_log2fc
+    - min_subgroup_log2fc
+    - cross_subgroup_delta_log2fc
+    - any_subgroup_significant
+  figure: per_subgroup_panel_grid
+  plot_data: per_subgroup_dge_long_format
+
+interpretation_hints:
+  - if: "cross_subgroup_delta_log2fc >= THRESHOLD.meaningful_subgroup_delta"
+    call: "subgroup-specific expression pattern"
+  - if: "any_subgroup_significant == true && cross_subgroup_delta_log2fc < THRESHOLD.meaningful_subgroup_delta"
+    call: "uniform expression across subgroups"
+  - if: "any_subgroup_significant == false"
+    call: "not informative"
+
+thresholds:
+  expression_p95_min: 1.0            # TPM — same as card 1's applies_when; consistency matters
+  meaningful_subgroup_delta: 1.0     # log2FC delta between max and min subgroup; iter-1 conservative
+
+caveats:
+  - "Iter-1 subgroup axis is MSI-H vs MSS (two strata); CMS1-4 expansion is iter-2 when the Ellrott classifier method ships."
+  - "Subgroup-stratified DGE has lower power than indication-level DGE; small subgroups may fail significance even when underlying biology is real."
+  - "MSI-H stratum biology is dominated by mismatch-repair hypermutation; gene-specific calls may reflect global expression dysregulation, not target-specific signal."
+
+schema_version: 1

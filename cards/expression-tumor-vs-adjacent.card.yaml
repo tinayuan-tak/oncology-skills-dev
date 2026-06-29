@@ -1,0 +1,54 @@
+# Card 1 of 5 — iter-1 vertical slice
+# See plan § Target Profile Composition — Iter-1 Scope § Vertical-slice reframing (A4)
+# and § Scaffolding § Iter-1 cards (B1) for context. This card exercises:
+#   - reuse of an already-shipped product (coadread-dge-*)
+#   - the baseline DGE pattern (tumor vs paired adjacent normal)
+
+card_id: expression-tumor-vs-adjacent
+version: 1.0.0
+question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
+
+applies_when:
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+  - "indication.paired_normals.count >= THRESHOLD.paired_normals_min"
+
+required_inputs:
+  - product_id: dge-tumor-vs-adjacent
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: dge-deseq2
+    args:
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      contrast: tumor_vs_adjacent
+
+outputs:
+  summary_fields:
+    - log2_fc
+    - q_value
+    - tumor_mean_tpm
+    - adjacent_mean_tpm
+    - n_tumor
+    - n_adjacent
+  figure: violin_paired_with_significance
+  plot_data: long_format_paired_samples
+
+interpretation_hints:
+  - if: "q_value < 0.05 && log2_fc >= 1.5"
+    call: "strong upregulation"
+  - if: "q_value < 0.05 && 0.5 <= log2_fc && log2_fc < 1.5"
+    call: "modest upregulation"
+  - if: "q_value >= 0.05 || log2_fc < 0.5"
+    call: "not informative"
+
+thresholds:
+  expression_p95_min: 1.0       # TPM; iter-1 conservative default — see A2 calibration disclosure
+  paired_normals_min: 8         # DESeq2 minimum-fit heuristic
+
+caveats:
+  - "RNA expression does not imply protein abundance; pair with proteomics card when available."
+  - "TCGA adjacent-normal samples are not random; surgical-margin selection bias may inflate apparent differential."
+
+schema_version: 1

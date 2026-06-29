@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/evidence_package.schema.json",
+  "title": "Evidence Package",
+  "description": "Schema for the canonical evidence package envelope emitted by compose-dashboard. The framework's central architectural claim is that this JSON envelope IS the product; markdown reports, HTML dashboards, PowerPoint decks, and decision memos are all *renderings* of an instance of this schema. See plan § Target Dashboard Architecture § Evidence package IS the product (A3) and § compose-dashboard behavioral spec (B1) for the runtime semantics that produce instances. This schema validates the runtime-emitted artifact; it does NOT validate authoring surfaces (those live in card.schema.json and dashboard_spec.schema.json).",
+  "type": "object",
+  "required": [
+    "package_id",
+    "framework_version",
+    "generated_at",
+    "generated_by",
+    "context",
+    "governance",
+    "dashboard_spec_ref",
+    "cards",
+    "synthesis",
+    "renderings",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "package_id": {
+      "type": "string",
+      "description": "Stable identifier for this specific evidence package emission. Convention: ep-{target}-{indication}-{release_pin}-{data_mode}-{seq}.",
+      "pattern": "^ep-[a-z0-9_-]+$",
+      "minLength": 5,
+      "maxLength": 200
+    },
+    "framework_version": {
+      "type": "string",
+      "description": "Semver of the framework that emitted this package. Iter-1 ships 2.0.0.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$"
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "ISO-8601 timestamp of emission. Non-deterministic; excluded from card-invariance equality checks.",
+      "format": "date-time"
+    },
+    "generated_by": {
+      "type": "string",
+      "description": "Skill identifier + git_sha that emitted this package (e.g., 'skills/compose-dashboard@a1b2c3d').",
+      "pattern": "^skills/[a-z][a-z0-9-]*@[0-9a-f]+$"
+    },
+    "context": {
+      "type": "object",
+      "description": "The (target, indication, scope, subgroup_spec) binding this package was emitted for.",
+      "required": ["target", "indication", "scope"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "target": {
+          "type": "object",
+          "required": ["symbol", "hgnc_id"],
+          "properties": {
+            "symbol": {"type": "string", "minLength": 1},
+            "hgnc_id": {"type": "integer", "minimum": 1},
+            "ensembl": {"type": "string", "pattern": "^ENSG[0-9]+(\\.[0-9]+)?$"},
+            "uniprot": {"type": "string", "pattern": "^[A-Z][0-9][A-Z0-9]{3}[0-9]$"}
+          }
+        },
+        "indication": {
+          "type": "object",
+          "required": ["oncotree_code"],
+          "properties": {
+            "oncotree_code": {"type": "string", "minLength": 1},
+            "label": {"type": "string"}
+          }
+        },
+        "subgroup_spec": {
+          "description": "Either a list of subgroup_ids, the string 'all', or null.",
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "const": "all"},
+            {"type": "array", "items": {"type": "string"}, "minItems": 1}
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["pancancer", "cancer_type", "cancer_subtype"]
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "description": "Governance metadata: data mode, release pin, lockfile reference, concurrence record reference, validation summary. The block downstream renderers consult to decide whether to emit into a nomination-grade artifact.",
+      "required": ["data_mode", "release_pin", "validation_summary"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "data_mode": {
+          "type": "string",
+          "enum": ["latest_approved", "pinned", "exploratory"],
+          "description": "Must match data_mode.enum.yaml; inlined for standalone validation."
+        },
+        "release_pin": {
+          "type": "string",
+          "description": "Catalog release_pin identifier (e.g., '2026-Q2')."
+        },
+        "lockfile_ref": {
+          "type": "string",
+          "description": "Relative path to lockfile.yaml within the package directory.",
+          "minLength": 1
+        },
+        "concurrence": {
+          "type": "object",
+          "description": "Optional concurrence-record reference. Absent for exploratory-mode packages or for packages not yet reviewed.",
+          "required": ["record_ref", "state"],
+          "unevaluatedProperties": false,
+          "properties": {
+            "record_ref": {"type": "string"},
+            "state": {"type": "string", "enum": ["concur", "concur_with_caveats", "dissent"]},
+            "reviewer_id": {"type": "string"}
+          }
+        },
+        "validation_summary": {
+          "type": "object",
+          "required": [
+            "n_cards_attempted",
+            "n_cards_passed",
+            "n_cards_passed_with_warnings",
+            "n_cards_failed",
+            "n_cards_excluded_by_applies_when"
+          ],
+          "unevaluatedProperties": false,
+          "properties": {
+            "n_cards_attempted": {"type": "integer", "minimum": 0},
+            "n_cards_passed": {"type": "integer", "minimum": 0},
+            "n_cards_passed_with_warnings": {"type": "integer", "minimum": 0},
+            "n_cards_failed": {"type": "integer", "minimum": 0},
+            "n_cards_excluded_by_applies_when": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "dashboard_spec_ref": {
+      "type": "string",
+      "description": "Reference to the dashboard_spec used to compose this package (e.g., 'target-contracts/dashboards/target-in-indication.dashboard_spec.yaml@<git_sha>').",
+      "minLength": 1
+    },
+    "cards": {
+      "type": "array",
+      "description": "Per-card outputs. Each entry is EITHER a present-and-validated card (with summary, figure_ref, plot_data_ref, interpretation_call, provenance) OR an explicit 'excluded_by_applies_when' stub with structured reason. Failed cards do NOT appear in this array (A2 rule: validation runs at compose time; failed cards are excluded from the envelope, surfaced only in validation_report.json).",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/card_present"},
+          {"$ref": "#/$defs/card_excluded"}
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 30
+    },
+    "synthesis": {
+      "type": "object",
+      "description": "Output of the dashboard_spec's synthesis_prompts. Iter-1 ships a minimal synthesis (headline + caveats_summary); deeper synthesis is iter-2.",
+      "required": ["headline"],
+      "properties": {
+        "headline": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 2000
+        },
+        "caveats_summary": {
+          "type": "string",
+          "maxLength": 5000
+        }
+      }
+    },
+    "renderings": {
+      "type": "object",
+      "description": "References to rendered surfaces produced for this package. Iter-1 ships markdown only.",
+      "properties": {
+        "markdown": {"type": "string"},
+        "html": {"type": "string"},
+        "ppt": {"type": "string"},
+        "decision_memo": {"type": "string"}
+      },
+      "minProperties": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  },
+  "$defs": {
+    "card_present": {
+      "type": "object",
+      "required": [
+        "card_id",
+        "card_version",
+        "validation_state",
+        "summary",
+        "interpretation_call",
+        "provenance"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "validation_state": {
+          "type": "string",
+          "enum": ["pass", "passed_with_warnings"],
+          "description": "Present-card entries are pass or passed_with_warnings. Failed cards do NOT appear in the envelope."
+        },
+        "summary": {
+          "type": "object",
+          "description": "The card's emitted summary fields. Shape varies per card_id (matches the card_spec's outputs.summary_fields)."
+        },
+        "figure_ref": {"type": "string"},
+        "plot_data_ref": {"type": "string"},
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "path"],
+            "properties": {
+              "id": {"type": "string"},
+              "path": {"type": "string"},
+              "type": {"type": "string"},
+              "primary": {"type": "boolean"}
+            }
+          },
+          "description": "Figure descriptors emitted by phase-2's figure-emission registry. Path is relative to the evidence package's output root."
+        },
+        "interpretation_call": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The interpretation label emitted by the card's first-matching interpretation_hints rule. For negative-control runs, expect values like 'not informative' or 'no characterized hotspot landscape'."
+        },
+        "caveats": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "warning_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "description": "Structured warning identifiers fired by the card's warning_predicates (when validation_state is passed_with_warnings). Free-text warnings are NOT acceptable; see validation_state.enum.yaml.passed_with_warnings.requires_structured_warning_ids."
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["method_calls", "input_manifest_ids"],
+          "properties": {
+            "method_calls": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "method": {"type": "string"},
+                  "git_sha": {"type": "string"},
+                  "args": {"type": "object"}
+                }
+              }
+            },
+            "input_manifest_ids": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "canonical_decision_refs": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "References to canonical-decisions records (resolves open item #8). Required for governance-grade packages."
+            }
+          }
+        }
+      }
+    },
+    "card_excluded": {
+      "type": "object",
+      "required": ["card_id", "card_version", "excluded_by_applies_when", "exclusion_reason"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "excluded_by_applies_when": {
+          "type": "boolean",
+          "const": true,
+          "description": "Discriminator: distinguishes excluded entries from card_present entries."
+        },
+        "exclusion_reason": {
+          "type": "string",
+          "minLength": 5,
+          "description": "Structured reason: the applies_when predicate (or cascading-exclusion link) that failed. NOT free text — must reference the failed predicate."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/subgroup_catalog.schema.json",
+  "title": "Subgroup Catalog",
+  "description": "Schema for per-indication subgroup catalogs. Lives at data-catalog/subgroup-catalogs/{indication}/{version}.yaml. Defines atomic strata (single-axis subgroups) and composite cohorts (intersections of atomic strata) along with the derivation rule that maps source data to per-sample assignments. The subgroup_assigner_* methods consume this catalog and emit assignment Parquets validating against subgroup_assignment.schema.json. See plan § Subgroup Framework (Section near line 1024) + the iter-1b subtyping additions.",
+  "type": "object",
+  "required": [
+    "id",
+    "manifest_kind",
+    "indication",
+    "version",
+    "schema_version",
+    "atomic_strata"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable kebab-case identifier for this catalog version (e.g., 'coadread-subgroups-2026-q2').",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "minLength": 5,
+      "maxLength": 100
+    },
+    "manifest_kind": {
+      "type": "string",
+      "const": "subgroup_catalog",
+      "description": "Discriminator for data-catalog manifest indexing; always 'subgroup_catalog' for this schema."
+    },
+    "indication": {
+      "type": "string",
+      "description": "OncoTree code or canonical indication abbreviation (COADREAD, PDAC, NSCLC, SCLC, GC).",
+      "pattern": "^[A-Z][A-Z_0-9]*$",
+      "minLength": 2,
+      "maxLength": 30
+    },
+    "version": {
+      "type": "string",
+      "description": "Catalog version identifier (typically a release-pin tag like '2026-Q2').",
+      "minLength": 3,
+      "maxLength": 30
+    },
+    "default_source": {
+      "type": "object",
+      "description": "Default data-source binding for atomic strata that don't override. Backward-compat: iter-1a YAMLs use `source:` at top level — the schema accepts either form. Iter-1b convention: use `default_source` to make the override semantics explicit.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "manifest_id": {"type": "string", "minLength": 1},
+        "field": {"type": "string"},
+        "derivation": {"type": "string"},
+        "derivation_method": {"type": "string"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "description": "Iter-1a convention: top-level `source` block. Equivalent to `default_source`. Kept for backward compatibility.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "manifest_id": {"type": "string", "minLength": 1},
+        "field": {"type": "string"},
+        "derivation": {"type": "string"},
+        "derivation_method": {"type": "string"}
+      }
+    },
+    "atomic_strata": {
+      "type": "array",
+      "description": "Single-axis strata. Each stratum has an id, label, rule, and (when not using default_source) its own data-source binding.",
+      "items": {"$ref": "#/$defs/atomic_stratum"},
+      "minItems": 1,
+      "maxItems": 50
+    },
+    "composite_cohorts": {
+      "type": "array",
+      "description": "Intersections of atomic strata (e.g., 'MSS_RASMut_3Lplus' = MSS AND KRAS_mut AND treatment_line_3plus). Iter-1b ships with no composite cohorts; iter-2 may add.",
+      "items": {"$ref": "#/$defs/composite_cohort"},
+      "maxItems": 50
+    },
+    "iter2_expansion_pending": {
+      "type": "array",
+      "description": "Free-form list of strata explicitly deferred to iter-2 (e.g., classifier-derived subtypes). Documentation only; no schema enforcement beyond it being a list of strings.",
+      "items": {"type": "string"}
+    },
+    "review_decision": {
+      "type": "string",
+      "enum": ["pending", "approved", "deprecated"],
+      "description": "Sign-off state. Only `approved` catalogs are usable in latest_approved data mode."
+    },
+    "reviewers_required": {
+      "type": "array",
+      "description": "Per-role reviewer status (comp_bio_director, translational_lead, medical_reviewer).",
+      "items": {
+        "type": "object",
+        "required": ["role", "status"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "role": {"type": "string", "enum": ["comp_bio_director", "translational_lead", "medical_reviewer"]},
+          "status": {"type": "string", "enum": ["pending_signature", "signed", "optional_for_iter1"]}
+        }
+      }
+    },
+    "note": {"type": "string"},
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  },
+  "$defs": {
+    "atomic_stratum": {
+      "type": "object",
+      "required": ["id", "label", "rule"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identifier for this stratum (e.g., MSI_H, KRAS_mut, KRAS_G12C). Convention: TitleCase-with-underscores for biological terms; ALL_CAPS_WITH_UNDERSCORES acceptable.",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable name for the stratum (e.g., 'MSI-High', 'KRAS-mutant').",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Biological / clinical definition of the stratum."
+        },
+        "rule": {
+          "type": "string",
+          "description": "CEL-compatible predicate that, when evaluated against source data, identifies samples belonging to this stratum. For directly_tagged: `clinical.{field} == '{value}'`. For maf_filter: predicates over MAF records (e.g., `gene_symbol == 'KRAS' && variant in ['p.G12C', 'p.G12D']`). For classifier_run (iter-2): `classifier.label == '{slot_id}'`.",
+          "minLength": 5,
+          "maxLength": 500
+        },
+        "derivation_source": {
+          "type": "string",
+          "enum": ["directly_tagged_clinical", "directly_tagged_source_provided", "maf_filter_per_rule", "classifier_run"],
+          "description": "How this stratum's assignments are derived. Iter-1b operational: directly_tagged_*, maf_filter_per_rule. Iter-2: classifier_run. Required for any stratum that doesn't inherit derivation from default_source/source."
+        },
+        "data_source": {
+          "type": "object",
+          "description": "Per-stratum data-source override. If absent, the catalog's default_source/source block applies.",
+          "unevaluatedProperties": false,
+          "properties": {
+            "manifest_id": {"type": "string", "minLength": 1},
+            "field": {"type": "string"},
+            "method": {"type": "string"}
+          }
+        },
+        "expected_n_tcga": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Approximate TCGA sample count for this stratum (informational only, helps reviewers sanity-check rules)."
+        },
+        "expected_n_tcga_coadread": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_pdac": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_nsclc": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_sclc": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_gc": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_coadread_denominator_note": {"type": "string"},
+        "expected_n_tcga_pdac_denominator_note": {"type": "string"},
+        "expected_n_tcga_nsclc_denominator_note": {"type": "string"},
+        "expected_n_tcga_sclc_denominator_note": {"type": "string"},
+        "expected_n_tcga_gc_denominator_note": {"type": "string"},
+        "applies_within": {
+          "type": "string",
+          "description": "Subset of the indication's cohort within which the stratum's rule should be evaluated. L6 fix (post-adversarial-review): mutation strata for histologically-mixed indications (NSCLC = LUAD + LUSC) declare which histology denominator the expected_n is calibrated against, AND phase-2 subgroup_assigner_maf_filter restricts iteration to that cohort before applying the predicate.",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "expected_n_depmap": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Approximate DepMap cell-line count for this stratum (when applicable)."
+        },
+        "applicable_data_sources": {
+          "type": "array",
+          "description": "Which data sources support this stratum. iter-1b: tcga and depmap; iter-2 adds tempus where pre-aggregated.",
+          "items": {"type": "string", "enum": ["tcga", "depmap", "tempus", "ccle", "gdsc"]}
+        },
+        "literature_anchor": {
+          "type": "object",
+          "unevaluatedProperties": false,
+          "properties": {
+            "pmid": {"type": "integer", "minimum": 1},
+            "doi": {"type": "string"},
+            "note": {"type": "string"}
+          }
+        },
+        "iter1b_status": {
+          "type": "string",
+          "enum": ["active", "deferred", "data_blocked"]
+        }
+      }
+    },
+    "composite_cohort": {
+      "type": "object",
+      "required": ["id", "label", "components"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "minLength": 2, "maxLength": 80},
+        "label": {"type": "string", "minLength": 2, "maxLength": 200},
+        "description": {"type": "string"},
+        "components": {
+          "type": "object",
+          "description": "Intersection of atomic strata + optional non-molecular constraints (line of therapy, etc.).",
+          "properties": {
+            "molecular_subgroups": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Atomic stratum IDs that must ALL be true for a sample to belong to this composite cohort."
+            },
+            "treatment_constraints": {"type": "object"},
+            "clinical_constraints": {"type": "object"}
+          }
+        }
+      }
+    }
+  }
+}

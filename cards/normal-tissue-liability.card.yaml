@@ -1,0 +1,72 @@
+# Card iter-1b/6 — NORMAL TISSUE LIABILITY
+# Data-blocked iter-1b card: HPA (Human Protein Atlas) mirror not yet wired into catalog.
+# The card ships with applies_when that fails when the HPA manifest is unavailable,
+# emitting excluded_by_applies_when with structured 'data_blocked' reason. When HPA lands
+# (iter-2 catalog work), the applies_when starts passing and the card runs.
+#
+# This is the load-bearing safety card for ADC, BiTE/TCE, and antibody modalities.
+# BiTE/TCE in particular is killed by ANY normal-tissue expression on essential tissue.
+
+card_id: normal-tissue-liability
+version: 1.0.0
+question: "What is the normal-tissue expression liability of {target.symbol}, and which tissues raise safety concern?"
+
+applies_when:
+  - "context.data_sources.hpa_mirror_available == true"
+
+required_inputs:
+  - product_id: hpa-normal-tissue-expression
+    release_pin: "{release_pin}"
+
+methods:
+  - call: hpa-normal-tissue-aggregator
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - max_normal_tissue_expression
+    - max_normal_tissue_name
+    - n_essential_tissues_with_expression
+    - n_non_essential_tissues_with_expression
+    - safety_tissue_flags
+    - normal_expression_breadth
+  figure: normal_tissue_expression_heatmap
+  plot_data: per_tissue_expression_long_format
+
+interpretation_hints:
+  - if: "n_essential_tissues_with_expression >= 1 && max_normal_tissue_expression >= THRESHOLD.essential_tissue_active_threshold"
+    call: "ESSENTIAL TISSUE LIABILITY — strict-modality programs likely not viable"
+  - if: "n_non_essential_tissues_with_expression >= THRESHOLD.broad_normal_count_threshold"
+    call: "broad normal-tissue expression — modality-dependent caveats"
+  - if: "n_essential_tissues_with_expression == 0 && n_non_essential_tissues_with_expression < THRESHOLD.broad_normal_count_threshold"
+    call: "low normal-tissue liability"
+
+# Tiered thresholds — C2 fix (post-adversarial-review).
+# `essential_tissue_active_threshold` is the threshold actually evaluated by the predicate;
+# modality modules override `essential_tissue_severity_tier` (a symbolic name) and
+# phase-2 resolves it to the corresponding numerical threshold via tier mapping below.
+# Default tier when no modality module loads: 'strict' (conservative).
+thresholds:
+  essential_tissue_severity_tier: strict       # one of: strict | moderate | pathway_dependent
+  essential_tissue_strict_threshold: 1.0       # TPM; BiTE/TCE / cell therapy (no payload buffer)
+  essential_tissue_moderate_threshold: 5.0     # TPM; ADC (bystander payload tolerance)
+  essential_tissue_pathway_dependent_threshold: 10.0  # TPM; antibody (binding-consequence-dependent)
+  essential_tissue_active_threshold: 1.0       # populated at compose time by phase-2 tier resolution
+  broad_normal_count_threshold: 5
+
+warning_predicates:
+  - warning_id: essential_tissue_expression
+    if: "n_essential_tissues_with_expression >= 1"
+    message: "Target expressed in essential tissue (cardiac / neuronal / hematopoietic SC) — strict-tolerance modalities (BiTE/TCE, cell therapy) likely not viable without mitigation strategy."
+  - warning_id: gi_tract_expression
+    if: "'gi_tract' in safety_tissue_flags"
+    message: "Target expressed in GI tract — modality-dependent concern; ADCs with non-cleavable linkers may tolerate, BiTEs typically not."
+
+caveats:
+  - "HPA mirror is iter-2 data-catalog work; iter-1b this card emits excluded_by_applies_when until the mirror lands. The framework surfaces the data-blocked state explicitly rather than silently omitting."
+  - "Normal-tissue RNA expression does not perfectly predict protein expression or surface accessibility; protein-surface-evidence card carries complementary information."
+  - "Essential vs non-essential tissue classification is curated; controversial cases (e.g., specific neuronal subpopulations) may warrant manual review."
+
+schema_version: 1

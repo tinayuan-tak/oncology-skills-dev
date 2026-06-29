@@ -1,0 +1,90 @@
+# surface-intrinsic-base.dashboard_spec — iter-1b BASE dashboard for surface intrinsic targets
+#
+# Base layer for targets whose biology_axis is surface_intrinsic (ADC, BiTE/TCE, antibody-against-
+# surface-antigen territory). The BASE cards answer the biology question: "is this surface antigen
+# present in tumor, characterized vs normal tissue, prevalent enough to matter clinically?"
+# Modality modules layer additional cards (antigen-density for ADC, homogeneity for BiTE) and
+# threshold overlays (strict normal-tissue for BiTE, moderate for ADC) on top.
+
+dashboard_id: surface-intrinsic-base
+version: 1.0.0
+
+applies_to:
+  modalities: [adc, bite_tce, antibody]
+  scopes: [cancer_type, cancer_subtype]
+
+required_context:
+  target: "HGNC symbol resolved to canonical Target object; biology_axis must be surface_intrinsic (from target_biology_axis_lookup.yaml)"
+  indication: "OncoTree code"
+  subgroup_spec: "list of subgroup_ids | \"all\" | null"
+  data_mode: "Reference to data_mode.enum.yaml"
+  release_pin: "Catalog manifest_id for pinned mode; null for latest_approved"
+  modality: "Optional. If specified, must be in [adc, bite_tce, antibody] (surface_intrinsic compatible). If unspecified, framework enumerates plausible modalities and synthesis differentiates reads."
+
+required_cards:
+  - card_id: target-identity-summary
+    version: ">=1.0.0,<2"
+  - card_id: expression-tumor-vs-adjacent
+    version: ">=1.0.0,<2"
+  - card_id: tumor-vs-normal-selectivity
+    version: ">=1.0.0,<2"
+  - card_id: protein-surface-evidence
+    version: ">=1.0.0,<2"
+  - card_id: normal-tissue-liability
+    version: ">=1.0.0,<2"
+  - card_id: antigen-prevalence
+    version: ">=1.0.0,<2"
+  - card_id: clinical-precedent
+    version: ">=1.0.0,<2"
+  # EG1 (iter-2): lineage-restriction-evidence — discovery-driving signal for surface
+  # modalities. Card declares "lineage-restricted: single tissue" and ".. : two tissues"
+  # as DOMINANT calls (EG4-aware) so DLL3/CLDN18.2/GUCY2C-class targets get scored
+  # correctly as strong fit regardless of fold-change ratio across other cards.
+  - card_id: lineage-restriction-evidence
+    version: ">=1.0.0,<2"
+
+optional_cards:
+  - card_id: subgroup-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+  - card_id: rwd-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\"]"
+
+# Three modality modules layer on top of this base.
+optional_modality_modules:
+  adc: target-contracts/dashboards/modality-modules/adc.module.yaml
+  bite_tce: target-contracts/dashboards/modality-modules/bite_tce.module.yaml
+  antibody: target-contracts/dashboards/modality-modules/antibody.module.yaml
+
+synthesis_prompts:
+  - section: headline
+    instruction: |
+      If context.modality is specified, frame the headline using the loaded module's
+      headline_decision_question. If unspecified, enumerate plausible modalities (ADC,
+      BiTE/TCE, antibody) and emit per-modality fit assessments. Special discipline:
+      for any modality whose modality_killer_conditions are met, emit "{modality}: not viable"
+      and cite the killing condition (typically normal-tissue-liability emitting strict-threshold
+      warnings for BiTE/TCE).
+  - section: caveats_summary
+    instruction: |
+      Surface caveats common to multiple cards. Always include modality_specific_caveats from
+      each loaded module. Flag any data-blocked cards (e.g., protein-surface-evidence pending
+      HPA mirror) — the gap is part of the evidence story for iter-1b.
+  - section: modality_fit_assessment
+    instruction: |
+      Per-modality fit assessment. For each loaded modality_module (adc, bite_tce, antibody),
+      emit: modality name, fit level (strong / moderate / weak / not_viable), the primary
+      cards driving the call, and any modality_killer_conditions that hit. Order by fit strength
+      strongest-first.
+
+outputs:
+  evidence_package: "ep-{target}-{indication}-{release_pin}-{data_mode}-surface.json"
+  renderings:
+    - markdown
+  destination: "data-products/{target}/{indication}/{package_id}/"
+
+refresh_policy:
+  default: on_demand
+
+schema_version: 1

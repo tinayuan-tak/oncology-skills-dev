@@ -1,0 +1,83 @@
+# takeda_oncology.mplstyle — shared matplotlib style for the v2 oncology framework
+#
+# Load in any method CLI before plotting:
+#     import matplotlib.pyplot as plt
+#     from pathlib import Path
+#     plt.style.use(Path(target_contracts_root) / 'plot_styles' / 'takeda_oncology.mplstyle')
+#
+# Specification rationale: publication-grade defaults matching Nature/Cell figure conventions.
+# Helvetica/Arial typography, 3.5"/7" widths, spine-removed-top/right, perceptually-uniform
+# color choices, SVG-primary with editable text. Every card's figure inherits these defaults.
+
+# ===== Typography =====
+font.family: sans-serif
+font.sans-serif: Helvetica, Arial, DejaVu Sans, Liberation Sans
+font.size: 9.0
+axes.titlesize: 11.0
+axes.titleweight: medium
+axes.labelsize: 10.0
+xtick.labelsize: 9.0
+ytick.labelsize: 9.0
+legend.fontsize: 9.0
+figure.titlesize: 11.0
+
+# ===== Axes spines (modern publication standard) =====
+axes.spines.top: False
+axes.spines.right: False
+axes.spines.left: True
+axes.spines.bottom: True
+axes.linewidth: 0.8
+axes.edgecolor: "#333333"
+axes.labelcolor: "#222222"
+
+# ===== Ticks =====
+xtick.direction: out
+ytick.direction: out
+xtick.major.width: 0.6
+ytick.major.width: 0.6
+xtick.major.size: 3.0
+ytick.major.size: 3.0
+xtick.minor.size: 1.5
+ytick.minor.size: 1.5
+xtick.color: "#444444"
+ytick.color: "#444444"
+
+# ===== Grid (minor, dotted, behind data) =====
+axes.grid: True
+axes.grid.axis: y
+axes.axisbelow: True
+grid.linestyle: ":"
+grid.color: "#EEEEEE"
+grid.linewidth: 0.5
+
+# ===== Lines and markers =====
+lines.linewidth: 1.5
+lines.markersize: 4.0
+patch.linewidth: 0.5
+patch.edgecolor: "#FFFFFF"
+
+# ===== Figure layout =====
+figure.figsize: 3.5, 2.625
+figure.dpi: 100
+figure.facecolor: white
+figure.edgecolor: white
+figure.autolayout: False
+
+# ===== Save defaults (publication-grade) =====
+savefig.dpi: 300
+savefig.format: svg
+savefig.bbox: tight
+savefig.pad_inches: 0.1
+savefig.facecolor: white
+savefig.edgecolor: white
+savefig.transparent: False
+
+# ===== Font handling — keep text as text in SVG and PDF (editable downstream) =====
+svg.fonttype: none
+pdf.fonttype: 42
+ps.fonttype: 42
+
+# ===== Default color cycle (Okabe-Ito 8-color, colorblind-safe) =====
+# Note: full palette + lineage map lives in takeda_palette.py
+# Matplotlib's mplstyle parser is finicky about quote types in cycler() — use double quotes.
+axes.prop_cycle: cycler('color', ["E69F00", "56B4E9", "009E73", "F0E442", "0072B2", "D55E00", "CC79A7", "000000"])

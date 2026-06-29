@@ -1,0 +1,70 @@
+# data_mode.enum.yaml
+# Controlled vocabulary: which dataset-resolution policy a dashboard composition
+# operates under. The single user-facing knob that collapses S3-governance vs.
+# API-flexibility tension. See plan § Evidence Card Framework § Data modes (A2)
+# and § compose-dashboard behavioral spec subsection (1) Manifest resolution algorithm (B1).
+#
+# Schemas that reference this enum: dashboard_spec.schema.json, evidence_package.schema.json,
+# card_manifest.schema.json. Skill code (compose-dashboard, render-evidence-package) reads it
+# at runtime to gate resolution behavior and rendering policy.
+
+enum_id: data_mode
+version: 1.0.0
+description: |
+  Dataset-resolution policy for a dashboard composition. One of three values, applied
+  uniformly across all cards in a composition (mode is dashboard-level, not per-card).
+  The mode field is the gate by which downstream renderers (PPT, decision memo, AgenticBoost
+  adapter) decide whether a package is citable in a nomination.
+
+values:
+  - value: latest_approved
+    label: "Latest approved"
+    description: |
+      Use the most recent manifest version whose canonical-decisions decision_record has
+      status: approved. The default for routine work. Resolution algorithm specified in
+      B1 § compose-dashboard subsection (1).
+    citable_in_nominations: true
+    iter1_status: requires_manifest_status_migration  # cannot resolve until source manifests carry status: approved
+    typical_usage:
+      - Routine dashboard requests
+      - Periodic refresh runs
+      - Team review packages
+    failure_mode_when_unset: defaults_to_latest_approved
+    governance_grade: production
+    requires_lockfile_emission: true                  # lockfile always emitted; rerun reproducibility
+
+  - value: pinned
+    label: "Pinned"
+    description: |
+      Use the exact manifest_id set specified in the card_spec or via lockfile_in. Reproducibility-first.
+      Produces a lockfile listing every resolved manifest_id; rerunning against the lockfile reproduces
+      the package even after latest_approved has advanced.
+    citable_in_nominations: true
+    iter1_status: ready
+    typical_usage:
+      - Nominations
+      - Decision memos
+      - IND-supporting artifacts
+      - Regulatory-grade emissions
+      - The iter-1 acceptance test (KRAS-COADREAD + TG-COADREAD both run in pinned mode)
+    failure_mode_when_unset: not_applicable          # pinned requires explicit manifest_ids
+    governance_grade: regulatory
+    requires_lockfile_emission: true
+
+  - value: exploratory
+    label: "Exploratory"
+    description: |
+      Use the latest available manifest (including status: draft or pre-approval) for every input.
+      Velocity-first. The dashboard renderer REFUSES TO RENDER an exploratory-mode evidence package
+      into a nomination document — the mode field is the gate; downstream consumers check it.
+    citable_in_nominations: false                     # explicit policy
+    iter1_status: ready
+    typical_usage:
+      - Research questions
+      - Hypothesis exploration
+      - "What-if-we-used-the-freshest-data checks"
+    failure_mode_when_unset: not_applicable
+    governance_grade: research
+    requires_lockfile_emission: true                  # still emit lockfile for reproducibility even in exploratory mode
+
+default: latest_approved

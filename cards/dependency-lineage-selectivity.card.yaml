@@ -1,0 +1,113 @@
+# Card iter-2/2 — DEPENDENCY LINEAGE SELECTIVITY (the "lineage-specific dependency" card)
+#
+# Question: "Within {indication}'s mapped DepMap lineage, how dependent are cell lines on
+# {target}, and how does that compare to other lineages?"
+#
+# This card was iter-1a's `dependency-lineage-selectivity` (single-purpose summary stats).
+# Refactored iter-2 to match the design spec: surface per-lineage detail (medians, IQR,
+# fraction-strongly-dependent per lineage) + forest plot figure + ranked lineage comparisons
+# + DOMINANT interpretation_calls for EG4 scoring.
+#
+# Pairs with `pan-cancer-dependency-distribution` (Card 1): Card 1 answers "is dependency real?";
+# Card 2 answers "is dependency lineage-selective?". Together they form the dependency
+# foundation for small_molecule + degrader modality fit assessment.
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv — cell_line × gene Chronos matrix
+#   - Model.csv — cell-line metadata (OncotreeLineage primary, sub_lineage secondary)
+
+card_id: dependency-lineage-selectivity
+version: 2.0.0                                  # iter-2 spec refresh (was 1.0.0)
+question: "Within {indication.label}'s DepMap-mapped lineage, how dependent are cell lines on {target.symbol}, and how does that compare to other lineages?"
+
+applies_when:
+  - "indication.depmap_cell_lines_in_lineage >= THRESHOLD.min_cell_lines_in_lineage"
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-chronos
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Target-lineage stats ===
+    - lineage_label                              # DepMap OncotreeLineage used (e.g., "Bowel")
+    - n_lineage_cell_lines
+    - n_lineage_excluded
+    - median_chronos_lineage
+    - p25_chronos_lineage
+    - p75_chronos_lineage
+    - fraction_strongly_dependent_lineage
+    # === Panel comparators ===
+    - median_chronos_panel
+    - n_cell_lines_panel
+    - lineage_vs_panel_delta_chronos             # negative = lineage more dependent than panel
+    - lineage_rank_percentile                    # 0..100, higher = more dependent vs other lineages
+    # === Cross-lineage ranking ===
+    - n_lineages_more_dependent                  # count of lineages with stronger median
+    - more_dependent_lineages                    # list of {lineage, median_chronos, n}
+    - adjacent_dependent_lineages                # list of lineage names with similar dependency (within 0.2)
+    # === Categorical ===
+    - selectivity_class                          # strong | moderate | broadly_dependent | non_selective | not_dependent
+  figures:
+    - id: forest_plot
+      type: lineage_forest_plot
+      description: "Per-lineage Chronos median (point) + IQR (horizontal bar), sorted by median ascending. Target lineage highlighted; reference at Chronos = -1.0 (strong) and 0 (no dependency)."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_strip
+      type: lineage_strip_plot
+      description: "Per-lineage strip/swarm of individual cell-line Chronos points. Distribution within each lineage visible (informs IQR confidence)."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_chronos_with_lineage_tags
+
+interpretation_hints:
+  # DOMINANT positive: strong lineage selectivity = high decision-grade signal for indication selection
+  - if: "median_chronos_lineage <= THRESHOLD.strong_dependency_chronos && lineage_vs_panel_delta_chronos <= THRESHOLD.strong_selectivity_delta && lineage_rank_percentile >= THRESHOLD.strong_selectivity_rank"
+    call: "strong lineage-selective dependency"
+    dominant: true                                # EG4: dominant POSITIVE — indication-selection driver
+  - if: "median_chronos_lineage <= THRESHOLD.strong_dependency_chronos && lineage_vs_panel_delta_chronos <= THRESHOLD.modest_selectivity_delta"
+    call: "moderate lineage-selective dependency"
+  - if: "median_chronos_lineage <= THRESHOLD.strong_dependency_chronos && lineage_vs_panel_delta_chronos > THRESHOLD.modest_selectivity_delta"
+    call: "broadly dependent (lineage-positive but not selective)"
+  - if: "median_chronos_lineage > THRESHOLD.strong_dependency_chronos && median_chronos_lineage <= THRESHOLD.modest_dependency_chronos"
+    call: "modest lineage dependency"
+  - if: "median_chronos_lineage > THRESHOLD.modest_dependency_chronos"
+    call: "not lineage-dependent"
+
+thresholds:
+  # Sample-size discipline
+  min_cell_lines_in_lineage: 5                   # below this, lineage statistics are unreliable
+  # Chronos thresholds (DepMap-published conventions, shared with Card 1)
+  strong_dependency_chronos: -1.0
+  modest_dependency_chronos: -0.5
+  # Lineage-vs-panel comparison thresholds
+  strong_selectivity_delta: -0.5                 # lineage median ≥0.5 lower than panel = strong selectivity
+  modest_selectivity_delta: -0.3                 # lineage median ≥0.3 lower than panel = moderate
+  strong_selectivity_rank: 80                    # lineage rank ≥80%ile = strong selectivity
+  modest_selectivity_rank: 60
+  # Adjacency threshold (for "lineages with comparable dependency")
+  adjacent_lineage_delta_max: 0.2                # within 0.2 Chronos = adjacent
+
+warning_predicates:
+  - warning_id: low_lineage_n
+    if: "n_lineage_cell_lines < 10"
+    message: "Lineage has fewer than 10 cell lines; median estimate has wide confidence interval. Read alongside p25/p75."
+  - warning_id: adjacent_lineages_more_dependent
+    if: "n_lineages_more_dependent >= 1"
+    message: "At least one non-target lineage is more dependent on this target. The most-dependent lineage may be a stronger indication candidate; review more_dependent_lineages list."
+
+caveats:
+  - "Chronos scores reflect cell-line dependency; in-vivo dependency may differ due to tumor microenvironment, vasculature, immune context."
+  - "Lineage-specificity does not preclude expansion to adjacent lineages with similar dependency."
+  - "Small lineages (n<10) have high variability in median estimates — IQR matters for confidence."
+  - "DepMap lineage assignments are based on OncotreeLineage; some cancer types may have ambiguous lineage classification."
+
+schema_version: 1

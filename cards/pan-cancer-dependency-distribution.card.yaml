@@ -1,0 +1,111 @@
+# Card iter-2/1 — PAN-CANCER DEPENDENCY DISTRIBUTION
+#
+# The foundational dependency view. Answers: "across all ~1,043 DepMap cell lines,
+# what is the SHAPE of dependency on this target gene, and does it pass the
+# pan-essentiality filter?"
+#
+# Discovery-driving signal — programs have been killed in pre-discovery when this
+# card flags pan-essentiality. Also the dominant POSITIVE signal when the distribution
+# is bimodal-selective (the therapeutic-window shape).
+#
+# Anchored to DepMap-published Chronos conventions:
+#   Chronos ≤ -1.0 = strongly dependent ("common essentials" convention)
+#   Chronos ≤ -0.5 = moderately dependent
+#   Chronos > -0.5 = non-essential
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv (~564 MB) — cell_line × gene Chronos matrix
+#   - Model.csv (~922 KB) — cell-line metadata (lineage, sub_lineage, primary_disease)
+
+card_id: pan-cancer-dependency-distribution
+version: 1.0.0
+question: "Across all ~1,043 DepMap cell lines, what is the shape of dependency on {target.symbol}, and does it pass the pan-essentiality discrimination?"
+
+applies_when:
+  - "context.data_sources.depmap_chronos_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-chronos-distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      strong_dependency_threshold: "THRESHOLD.strongly_dependent_threshold_chronos"
+
+outputs:
+  summary_fields:
+    # === Core distribution stats ===
+    - n_cell_lines_evaluated
+    - n_cell_lines_excluded
+    - median_chronos_panel
+    - p25_chronos_panel
+    - p75_chronos_panel
+    - p5_chronos_panel
+    - p95_chronos_panel
+    - chronos_iqr
+    # === Decision-grade categorical fields ===
+    - fraction_strongly_dependent
+    - fraction_moderately_dependent
+    - fraction_non_essential
+    - distribution_shape
+    - pan_essential_score
+    - selectivity_index
+    # === Lineage-tail enrichment ===
+    - top_dependent_lineages
+  # iter-2 multi-figure declaration — both views are emitted to staging; renderer picks per surface
+  figures:
+    - id: waterfall
+      type: ranked_waterfall
+      description: "Per-cell-line Chronos scores sorted ascending, lineage-colored. Distribution shape directly readable from the curve."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: histogram_kde
+      type: density_histogram_with_kde
+      description: "Frequency histogram of Chronos scores with KDE overlay. Modality (bimodal vs unimodal) is visually explicit."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_chronos_with_lineage_tags
+
+interpretation_hints:
+  # Predicates anchored to DepMap-published thresholds (no invented values)
+  - if: "fraction_strongly_dependent >= THRESHOLD.pan_essential_fraction_threshold"
+    call: "pan-essential — not a viable therapeutic target"
+    dominant: true                      # EG4: DOMINANT-KILLER for intracellular modalities
+  - if: "fraction_strongly_dependent >= THRESHOLD.selective_fraction_min && fraction_strongly_dependent <= THRESHOLD.selective_fraction_max && distribution_shape == 'bimodal_selective'"
+    call: "selective dependency — therapeutic-window candidate"
+    dominant: true                      # EG4: dominant POSITIVE signal
+  - if: "median_chronos_panel <= THRESHOLD.shifted_median_threshold && fraction_strongly_dependent < THRESHOLD.pan_essential_fraction_threshold"
+    call: "broadly dependent — moderate therapeutic-window concern"
+  - if: "fraction_strongly_dependent < THRESHOLD.selective_fraction_min"
+    call: "non-essential — no dependency rationale"
+
+thresholds:
+  # DepMap-anchored numerical conventions
+  strongly_dependent_threshold_chronos: -1.0     # "common essentials" cutoff per DepMap convention
+  moderately_dependent_threshold_chronos: -0.5
+  # Distribution classification thresholds
+  pan_essential_fraction_threshold: 0.85         # ≥85% strongly dependent → pan-essential
+  selective_fraction_min: 0.05                   # ≥5% strongly dependent → at least some signal
+  selective_fraction_max: 0.60                   # ≤60% strongly dependent → not approaching pan-essential
+  shifted_median_threshold: -0.5                 # panel median ≤ -0.5 → whole-panel shift
+  # Warning-predicate thresholds
+  min_panel_coverage_threshold: 500              # if n_cell_lines_evaluated < 500, low_panel_coverage warning fires
+  lineage_dominance_threshold: 0.80              # if top lineage owns >80% of dependent tail, lineage_imbalanced warning fires
+
+warning_predicates:
+  - warning_id: low_panel_coverage
+    if: "n_cell_lines_evaluated < THRESHOLD.min_panel_coverage_threshold"
+    message: "Target has missing Chronos for many cell lines — interpretation may be biased toward the screened subset."
+  - warning_id: lineage_imbalanced_dependent_tail
+    if: "top_dependent_lineages.0.fraction_of_dependent_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "Dependent tail is essentially one-lineage-driven; pan-cancer label is misleading. Read the lineage-specific dependency card instead."
+
+caveats:
+  - "Chronos scores depend on CRISPR library + cell line context; not all dependencies replicate across screens."
+  - "Pan-essentiality call is informative for THERAPEUTIC TARGETING but not for biology — pan-essential genes can still be important biology."
+  - "DepMap panel composition is biased toward common cancer types; rare-lineage dependencies may be under-sampled."
+  - "Cell-line dependency does not guarantee in-vivo dependency. The card answers 'is this a real dependency in cellular models?' — translational validation is separate."
+
+schema_version: 1

@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/card.schema.json",
+  "title": "Card Spec",
+  "description": "Schema for evidence-card specifications authored by humans and stored as YAML under target-contracts/cards/. Validates the *authoring surface* of a card (the slots a card author fills in); the runtime emission surface (validation_state, provenance) is validated by card_output.schema.json. See plan section 'Evidence Card Framework' (A2) and the compose-dashboard behavioral spec (B1) for the runtime semantics of the fields below.",
+  "type": "object",
+  "required": [
+    "card_id",
+    "version",
+    "question",
+    "applies_when",
+    "required_inputs",
+    "methods",
+    "outputs",
+    "interpretation_hints",
+    "caveats",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "card_id": {
+      "type": "string",
+      "description": "Stable kebab-case identifier for this card across versions. Same card_id + same version + same resolved inputs + same release_pin must produce byte-identical deterministic-field output (card-invariance discipline, A2).",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of this card spec. Bumps with method/threshold changes. Pre-release suffixes (-rc, -beta) allowed.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$"
+    },
+    "question": {
+      "type": "string",
+      "description": "One-sentence statement of what this card answers. May contain {} template-string interpolations resolved at compose time (e.g., {target.symbol}, {indication.label}). Note: these are NOT CEL predicates; they are template-string substitutions performed during card rendering.",
+      "minLength": 10,
+      "maxLength": 500
+    },
+    "applies_when": {
+      "type": "array",
+      "description": "List of CEL-compatible simple-predicate-subset strings. ALL predicates must evaluate to true (logical AND) for the card to be in scope. Cards that fail applies_when are excluded from the dashboard at compose time, NOT run-and-flagged. Evaluator grammar specified in B1 'compose-dashboard behavioral spec' subsection (2). Context-object schema specified in subsection (3).",
+      "items": {
+        "type": "string",
+        "format": "cel-predicate",
+        "minLength": 3,
+        "maxLength": 500
+      },
+      "minItems": 0,
+      "maxItems": 20
+    },
+    "required_inputs": {
+      "type": "array",
+      "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory).",
+      "items": {
+        "type": "object",
+        "required": ["product_id"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "Registered product identifier (matches a product_id in target-contracts/vocabularies/products.yaml)."
+          },
+          "indication": {
+            "type": "string",
+            "description": "OncoTree code or {indication} template placeholder resolved from the dashboard context."
+          },
+          "release_pin": {
+            "type": "string",
+            "description": "Specific manifest_id (for pinned mode) or {release_pin} template placeholder."
+          },
+          "subgroup_catalog": {
+            "type": "string",
+            "description": "Subgroup-catalog manifest_id, for cards that stratify by molecular subgroup."
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 10
+    },
+    "methods": {
+      "type": "array",
+      "description": "Method CLIs the card invokes. Methods are deterministic. Cards do not call models or web APIs directly.",
+      "items": {
+        "type": "object",
+        "required": ["call"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "call": {
+            "type": "string",
+            "description": "Method CLI name (matches a method module in the methods repo, e.g., 'dge-deseq2', 'depmap-chronos'). Resolved to a subprocess invocation by compose-dashboard.",
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "args": {
+            "type": "object",
+            "description": "Keyword arguments passed to the method CLI. Values may contain {target}, {indication}, {release_pin}, {subgroup_spec} template placeholders.",
+            "additionalProperties": {
+              "type": ["string", "number", "boolean", "array", "null"]
+            }
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 5
+    },
+    "outputs": {
+      "type": "object",
+      "description": "Declarative description of what the card emits. The shape here defines what populates summary.json + figure.svg + plot_data.parquet for this card.",
+      "required": ["summary_fields"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "summary_fields": {
+          "type": "array",
+          "description": "Names of fields that must be present in the card's emitted summary.json. Used by compose-dashboard's post-invocation validation (B1 § compose-dashboard subsection 5) to gate the validation_state.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "minItems": 1,
+          "maxItems": 30
+        },
+        "figure": {
+          "type": "string",
+          "description": "Iter-1b single-figure declaration. Identifier for the canonical figure type emitted by this card. Backward-compatible with cards that emit one figure; for multi-figure cards (iter-2+), use the `figures` array instead.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "figures": {
+          "type": "array",
+          "description": "Iter-2 multi-figure declaration. Cards may emit multiple figures with different visual representations of the same underlying analysis (e.g., waterfall + histogram for a distribution). The renderer reads `preferred_surfaces` to pick which figure to embed per output surface. The method CLI emits ALL listed figures to staging; the framework's renderer chooses per-context.",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "unevaluatedProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Stable identifier for this figure variant (e.g., 'waterfall', 'histogram_kde')."
+              },
+              "type": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Figure-template identifier (e.g., 'ranked_waterfall', 'density_histogram_with_kde')."
+              },
+              "description": {"type": "string"},
+              "preferred_surfaces": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["markdown", "markdown_alt", "html", "ppt", "decision_memo"]},
+                "description": "Which renderer surfaces should prefer this figure variant. Renderers iterate their surface and pick the first matching figure."
+              },
+              "primary": {
+                "type": "boolean",
+                "description": "If true, this is the default figure when no preferred_surfaces match. Exactly one figure per card should be primary."
+              }
+            }
+          },
+          "maxItems": 5
+        },
+        "plot_data": {
+          "type": "string",
+          "description": "Identifier for the canonical plot_data.parquet schema this card emits (e.g., 'long_format_paired_samples'). Parquet schemas live in target-contracts/schemas/plot_data/.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        }
+      }
+    },
+    "interpretation_hints": {
+      "type": "array",
+      "description": "Rules that map output metrics to a categorical interpretation_call. Evaluated in order; first matching rule wins. Predicates use the same CEL-compatible subset as applies_when (B1 § compose-dashboard subsection 2).",
+      "items": {
+        "type": "object",
+        "required": ["if", "call"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "if": {
+            "type": "string",
+            "description": "CEL-compatible predicate evaluated against the card's emitted summary fields (NOT against the dashboard context — interpretation predicates are scoped to summary fields only).",
+            "format": "cel-predicate",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "call": {
+            "type": "string",
+            "description": "The interpretation label emitted when the predicate evaluates true (e.g., 'strong upregulation', 'not informative').",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "dominant": {
+            "type": "boolean",
+            "description": "EG4 (iter-2): if true, this interpretation_call is treated as a DOMINANT signal in fit_level scoring. The synthesis layer's dominant-signal-plus-confirmation rule rates the modality 'strong' when ANY primary card emits a dominant call AND no primary card emits a non-informative call. Card-authors opt in per-call to mark which of their calls represent discovery-driving signal (e.g., 'lineage-restricted: single tissue', 'structurally druggable: covalent pocket', 'actionable alteration'). Cards without any dominant calls fall back to ratio-based scoring (current iter-1b behavior). Backward-compatible: absent or false → no behavior change."
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 20
+    },
+    "thresholds": {
+      "type": "object",
+      "description": "Named thresholds referenced by applies_when and interpretation_hints predicates (e.g., THRESHOLD.expression_p95_min). Extracted to a separate block per T1.5 — magic numbers in predicates are the failure mode this pattern guards against. Threshold names are referenced in predicates as THRESHOLD.<name>; the validate_cards.py validator checks referential integrity.",
+      "additionalProperties": {
+        "type": ["number", "string", "boolean"]
+      }
+    },
+    "caveats": {
+      "type": "array",
+      "description": "Known limitations of the question or methods. Surfaced in the rendered card panel and in the evidence_package's per-card block.",
+      "items": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 500
+      },
+      "minItems": 0,
+      "maxItems": 20
+    },
+    "warning_predicates": {
+      "type": "array",
+      "description": "Optional. Named warning predicates that fire (or don't fire) against the emitted output. When a predicate fires, the card's validation_state becomes 'passed_with_warnings' and the warning_id is surfaced in the dashboard. Predicates use the same CEL-compatible subset; evaluated against the card's emitted summary fields.",
+      "items": {
+        "type": "object",
+        "required": ["warning_id", "if", "message"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "warning_id": {
+            "type": "string",
+            "description": "Stable identifier for this warning (e.g., 'low_cohort_size_paired_normal').",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "if": {
+            "type": "string",
+            "description": "CEL-compatible predicate; fires when true.",
+            "format": "cel-predicate"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable message surfaced in the dashboard when this warning fires.",
+            "minLength": 10,
+            "maxLength": 300
+          }
+        }
+      },
+      "maxItems": 20
+    },
+    "schema_version": {
+      "type": "integer",
+      "description": "Version of card.schema.json this spec validates against. Currently always 1; bumps when card.schema.json itself takes a breaking change.",
+      "const": 1
+    }
+  }
+}

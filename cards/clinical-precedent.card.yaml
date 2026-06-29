@@ -1,0 +1,53 @@
+# Card iter-1b/6 — CLINICAL PRECEDENT
+# Reuses the v1 query-target-evidence skill — literature + ClinicalTrials.gov + approved
+# agents lookup. Iter-1b ships with the literature-mining surface; ChEMBL + CT.gov full
+# mirror is iter-2 catalog work. Until then, the v1 skill's output (literature + manual
+# trials lookup) is the iter-1b implementation.
+
+card_id: clinical-precedent
+version: 1.0.0
+question: "What is the clinical precedent for {target.symbol} {context.modality if specified else 'across modalities'} in {indication.label}?"
+
+applies_when: []                                # always applies; literature is available for any resolved target
+
+required_inputs:
+  - product_id: literature-snapshot
+    release_pin: "{release_pin}"
+
+methods:
+  - call: query-target-evidence
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      modality: "{context.modality}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - highest_clinical_stage
+    - approved_agents
+    - n_active_trials
+    - modality_precedent
+    - notable_failures
+    - resistance_mechanisms_reported
+  figure: clinical_landscape_table
+  plot_data: per_program_clinical_state
+
+interpretation_hints:
+  - if: "highest_clinical_stage == 'approved'"
+    call: "validated target with approved agents"
+  - if: "highest_clinical_stage == 'phase_3' || highest_clinical_stage == 'pivotal'"
+    call: "late-stage clinical validation"
+  - if: "highest_clinical_stage in ['phase_2', 'phase_1b']"
+    call: "early clinical validation"
+  - if: "highest_clinical_stage in ['phase_1', 'preclinical']"
+    call: "preclinical / early discovery only"
+  - if: "highest_clinical_stage == 'none' || highest_clinical_stage == null"
+    call: "no published clinical precedent"
+
+caveats:
+  - "Iter-1b reuses v1 query-target-evidence skill (literature mining); ChEMBL + ClinicalTrials.gov full mirroring is iter-2 catalog work."
+  - "Approved-agents and trial-stage information may lag the current state of the field by 1-3 months depending on literature-mining cadence."
+  - "Modality-specific precedent (e.g., approved ADCs for the target) is more informative than overall precedent — synthesis emphasizes modality-precedent when modality is specified."
+
+schema_version: 1

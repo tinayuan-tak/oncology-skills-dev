@@ -1,0 +1,75 @@
+# bite_tce.module.yaml — modality module for bispecific T-cell engagers
+# Layers on top of surface-intrinsic-base. THE KEY DIFFERENCE from ADC: normal-tissue
+# threshold is STRICT, not moderate. T-cell engagers have NO bystander tolerance; every
+# cell engaged gets killed. Low-level normal-tissue expression is often a program-killer.
+
+modality_module: bite_tce
+version: 1.0.0
+extends_axes: [surface_intrinsic]
+
+additional_cards:
+  - card_id: antigen-density-evidence
+    version: ">=1.0.0,<2"
+    data_status: data_blocked
+    data_status_note: "BiTE/TCE requires high antigen density per tumor cell to form productive cytotoxic synapses. Antigen-density data sources (quantitative IHC, proteomics) not yet in catalog."
+  - card_id: antigen-homogeneity-evidence
+    version: ">=1.0.0,<2"
+    data_status: method_pending
+    data_status_note: "BiTE/TCE requires uniform antigen expression across tumor-cell population — heterogeneity leaves antigen-low subpopulations that escape. Homogeneity assessment requires single-cell or quantitative-IHC data; iter-2 deliverable."
+
+threshold_overlays:
+  normal-tissue-liability:
+    severity_threshold: strict                  # NO bystander tolerance
+    note: "T-cell engagers have minimal tolerance for normal-tissue expression. Even low-level expression in essential tissue is a likely program-killer because every engaged cell gets killed. The strict threshold here is the single most important BiTE/TCE-vs-ADC discriminator."
+  protein-surface-evidence:
+    weighting: heavy
+  antigen-prevalence:
+    severity_threshold: strict
+    note: "BiTE/TCE requires high antigen-positive fraction. Antigen-low or antigen-heterogeneous tumors leave gaps that resistance emerges through."
+
+tunable_threshold_categories:
+  - severity_threshold
+  - weighting
+  - note_field
+
+headline_decision_question: "Is there enough tumor-selective surface expression to justify immune effector redirection without unacceptable normal-tissue risk?"
+
+modality_specific_caveats:
+  - "BiTE/TCE is the LEAST forgiving modality for normal-tissue expression. Low-level expression in essential tissue (cardiac, neuronal, hematopoietic stem cell) is typically a program-killer regardless of payload chemistry — there is no payload to tune."
+  - "Antigen homogeneity is critical — heterogeneous expression creates resistance reservoirs. iter-1b cannot fully assess homogeneity (single-cell data not in catalog); flags this as a known gap."
+  - "On-target off-tumor risk includes cytokine release syndrome (CRS) and immune effector cell expansion in non-tumor compartments. iter-1b synthesis adds CRS-risk note for any target with measurable normal-immune-tissue expression."
+
+synthesis_emphasis:
+  primary_cards:
+    # EG1 (iter-2): lineage-restriction-evidence is THE discovery-driving signal for BiTE/TCE.
+    # DLL3 (tarlatamab) is the canonical case — its single-tissue lineage restriction was
+    # the entire reason the BiTE program succeeded where similar broadly-expressed targets
+    # would fail. When "lineage-restricted: single tissue" fires (EG4 dominant call),
+    # BiTE/TCE rates strong fit.
+    - lineage-restriction-evidence
+    - normal-tissue-liability                    # strictest discriminator for BiTE/TCE
+    - tumor-vs-normal-selectivity
+    - protein-surface-evidence
+  secondary_cards:
+    - antigen-prevalence
+    - expression-tumor-vs-adjacent
+  modality_killer_conditions:
+    - card_id: normal-tissue-liability
+      predicate_type: warning_id_fires
+      predicate_value: essential_tissue_expression
+      message: "BiTE/TCE not viable — target expressed in essential tissue (cardiac, neuronal, hematopoietic SC). Strict-tolerance modality has no bystander payload buffer; every engaged cell gets killed."
+    - card_id: normal-tissue-liability
+      predicate_type: interpretation_call_equals
+      predicate_value: "ESSENTIAL TISSUE LIABILITY — strict-modality programs likely not viable"
+      message: "BiTE/TCE not viable — normal-tissue-liability card emitted essential-tissue-liability call."
+    - card_id: tumor-vs-normal-selectivity
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative"
+      message: "BiTE/TCE not viable — tumor-vs-normal selectivity insufficient at any threshold. T-cell engager requires demonstrable tumor restriction."
+    - card_id: protein-surface-evidence
+      predicate_type: excluded_by_applies_when
+      predicate_value: true
+      message: "BiTE/TCE not viable — surface protein evidence absent. T-cell engager fundamentally requires confirmed surface localization."
+
+iter1b_status: active
+schema_version: 1

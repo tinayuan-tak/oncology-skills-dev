@@ -1,0 +1,70 @@
+# adc.module.yaml — modality module for antibody-drug conjugates
+# Layers on top of surface-intrinsic-base. Adds antigen-density (iter-1b card) and
+# threshold-tunes normal-tissue-liability to MODERATE (bystander payload tolerance allows
+# some normal-tissue expression).
+
+modality_module: adc
+version: 1.0.0
+extends_axes: [surface_intrinsic]
+
+additional_cards:
+  - card_id: antigen-density-evidence
+    version: ">=1.0.0,<2"
+    data_status: data_blocked
+    data_status_note: "Antigen density (IHC quantification, copy-number per cell) requires proteomics / quantitative IHC data sources not yet wired into the catalog. Iter-2 deliverable. iter-1b emits this card as excluded_by_applies_when with a structured 'data_blocked' reason."
+
+threshold_overlays:
+  normal-tissue-liability:
+    severity_threshold: moderate
+    note: "ADCs tolerate moderate normal-tissue expression due to bystander payload effect — the cytotoxin's diffusion radius and linker stability matter more than absolute antigen absence."
+  protein-surface-evidence:
+    weighting: heavy
+    note: "ADC requires confirmed cell-surface localization. RNA expression alone is insufficient — protein evidence is critical."
+
+tunable_threshold_categories:
+  - severity_threshold
+  - weighting
+  - note_field
+
+headline_decision_question: "Is the target accessible and sufficiently tumor-selective for cytotoxic payload delivery?"
+
+modality_specific_caveats:
+  - "Antigen density and homogeneity are critical ADC determinants — iter-1b cannot fully evaluate these (data_blocked); the framework reads conservatively when these cards are excluded."
+  - "Internalization efficiency is an additional ADC determinant not yet covered (iter-2+). The framework does not infer internalization from expression alone."
+  - "Linker-payload chemistry tolerates moderate normal-tissue expression in some payload classes (DM1, MMAE) but is less forgiving for others (PBD, payload-with-bystander). Iter-1b does not differentiate by payload class."
+
+synthesis_emphasis:
+  primary_cards:
+    # EG1 (iter-2): lineage-restriction-evidence is added as PRIMARY because the discovery
+    # pattern for canonical ADCs (TROP2 broad pan-epithelial; DLL3 SCLC-restricted ADC route)
+    # shows lineage-restriction as a discriminator between viable ADC programs and ones with
+    # narrow therapeutic windows. When dominant signal "lineage-restricted: single tissue"
+    # fires, ADC fit scores strong (EG4 rule).
+    - lineage-restriction-evidence
+    - tumor-vs-normal-selectivity
+    - protein-surface-evidence
+    - normal-tissue-liability
+    - antigen-prevalence
+  secondary_cards:
+    - expression-tumor-vs-adjacent
+    - antigen-density-evidence
+  modality_killer_conditions:
+    - card_id: normal-tissue-liability
+      predicate_type: warning_id_fires
+      predicate_value: essential_tissue_expression
+      message: "ADC viability seriously compromised — target expressed in essential tissue. ADC's bystander payload buffer mitigates moderate expression in non-essential tissue, but essential-tissue expression is a program-level concern."
+    - card_id: tumor-vs-normal-selectivity
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative"
+      message: "ADC not viable — tumor-vs-normal selectivity is insufficient. ADC requires demonstrable tumor selectivity even allowing for bystander tolerance."
+    - card_id: antigen-prevalence
+      predicate_type: interpretation_call_equals
+      predicate_value: "narrow patient population — patient-selection strategy critical"
+      message: "ADC patient-selection challenge — antigen prevalence below clinical-relevance threshold. Program viable only with patient-selection biomarker assay."
+    - card_id: protein-surface-evidence
+      predicate_type: excluded_by_applies_when
+      predicate_value: true
+      message: "ADC not viable — protein-surface evidence absent. RNA expression alone is insufficient; ADC requires confirmed cell-surface localization."
+
+iter1b_status: active
+schema_version: 1
