@@ -41,6 +41,7 @@ synthesis_emphasis:
     - mutation-hotspot-frequency
   secondary_cards:
     - expression-tumor-vs-adjacent
+    - expression-dependency-correlation   # Card 4 — biomarker stratification (supports, doesn't define fit)
     - normal-tissue-liability
   modality_killer_conditions:
     - card_id: dependency-lineage-selectivity

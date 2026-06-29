@@ -1,0 +1,122 @@
+# Card iter-2/4 — EXPRESSION-DEPENDENCY CORRELATION
+#
+# Question: "Does {target}'s mRNA expression correlate with its own Chronos
+# dependency across cell lines?"  A strong NEGATIVE correlation (high expression
+# → strongly dependent, more-negative Chronos) is the canonical biomarker
+# hypothesis — expression could stratify responders. A positive correlation is
+# anomalous and worth flagging (possible paralog compensation).
+#
+# Pairs with Cards 1+2 (pan-cancer + lineage selectivity) and Card 3 (mutation-
+# stratified-dependency, pending) to complete the cell-line evidence cluster.
+# All four cards share the DepMap 26Q1 substrate (CRISPRGeneEffect.csv,
+# OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv, Model.csv).
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv — cell_line × gene Chronos matrix
+#   - OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv — cell_line × gene
+#     log2(TPM+1) matrix; first 5 columns are metadata; filter to
+#     IsDefaultEntryForModel == True for one row per ModelID.
+#   - Model.csv — cell-line metadata (OncotreeLineage primary)
+
+card_id: expression-dependency-correlation
+version: 1.0.0
+question: "Across DepMap cell lines, does {target.symbol} mRNA expression correlate with its own Chronos dependency? (Expression-as-biomarker hypothesis.)"
+
+applies_when:
+  - "target.depmap_screened == true"
+  - "target.depmap_expression_measured == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-expression-dependency
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Correlation primary metrics ===
+    - pearson_r                                  # Pearson r across all panel cell lines
+    - pearson_p                                  # two-sided p-value
+    - spearman_r                                 # rank-based (robust to outliers)
+    - spearman_p
+    - n_cell_lines_evaluated
+    # === Sample distribution context ===
+    - mean_chronos
+    - mean_tpm_logp1
+    - tpm_iqr                                    # range of expression across panel — narrow IQR = correlation unreliable
+    - chronos_iqr
+    # === Stratified summaries (top vs bottom expression quartile) ===
+    - chronos_at_high_expression                 # median Chronos in top-quartile expressers
+    - chronos_at_low_expression                  # median Chronos in bottom-quartile expressers
+    - delta_chronos_top_vs_bottom_quartile       # difference — large negative = strong stratification
+    # === Lineage breakout for biomarker context ===
+    - top_lineages_by_dependence_high_expression # list of {lineage, n_high_expr, mean_chronos_high_expr}
+    # === Categorical ===
+    - correlation_class                          # strong_negative | moderate_negative | no_correlation | positive_anomaly | weak_negative
+  figures:
+    - id: scatter_with_regression
+      type: expression_chronos_scatter
+      description: "Scatter of TPM Logp1 (x) vs Chronos (y), lineage-colored, OLS regression line with 95% CI. Reference lines at Chronos=-1.0 (strong dep) and median expression. Annotated with Pearson r/p."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_stratified_scatter
+      type: lineage_stratified_scatter
+      description: "Small-multiples scatter, one panel per top-6 lineage (by n cells). Same axes; reveals lineage-specific biomarker signal that pan-cancer averaging dilutes."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_chronos_tpm_with_lineage
+
+interpretation_hints:
+  # DOMINANT POSITIVE: strong negative correlation + significance + high-expressers are strongly dependent
+  - if: "pearson_r <= THRESHOLD.strong_correlation_r && pearson_p <= THRESHOLD.significance_alpha && chronos_at_high_expression <= THRESHOLD.biomarker_chronos_threshold"
+    call: "expression-dependent — biomarker candidate"
+    dominant: true
+  - if: "pearson_r <= THRESHOLD.moderate_correlation_r && pearson_p <= THRESHOLD.significance_alpha"
+    call: "moderate expression-dependence"
+  - if: "pearson_r > THRESHOLD.moderate_correlation_r && pearson_r <= THRESHOLD.weak_correlation_r"
+    call: "weak expression-dependence"
+  - if: "pearson_r > THRESHOLD.positive_anomaly_r"
+    call: "positive correlation anomaly"
+  - if: "true"
+    call: "no expression-dependence correlation"
+
+thresholds:
+  # Correlation strength bands (Pearson r; NEGATIVE = expression correlates with stronger dependency)
+  strong_correlation_r: -0.4
+  moderate_correlation_r: -0.2
+  weak_correlation_r: -0.1
+  positive_anomaly_r: 0.2
+  # Significance gate (Bonferroni-relaxed; pan-cancer correlations with n>=100 reach this easily)
+  significance_alpha: 0.01
+  # Biomarker viability gate — high-expressers must be at least moderately dependent
+  biomarker_chronos_threshold: -0.5
+  # Sample-size discipline
+  min_cell_lines_for_correlation: 50
+  # Range discipline — correlation requires variance in both axes
+  min_tpm_iqr: 1.0                              # log2(TPM+1) units
+  min_chronos_iqr: 0.3
+  # Pan-essential confound — when gene is broadly essential, correlation is dominated by tissue identity
+  pan_essential_median_chronos: -0.5
+
+warning_predicates:
+  - warning_id: low_n_cell_lines
+    if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"
+    message: "Fewer than 50 cell lines with both expression + Chronos data; correlation estimate has wide confidence interval. Read alongside scatter plot."
+  - warning_id: narrow_expression_range
+    if: "tpm_iqr < THRESHOLD.min_tpm_iqr"
+    message: "Expression range across the panel is narrow (IQR < 1 log2 unit); correlation is unreliable when expression doesn't vary. Biomarker hypothesis may not be testable in cell lines."
+  - warning_id: pan_essential_confound
+    if: "mean_chronos < THRESHOLD.pan_essential_median_chronos"
+    message: "Pan-cancer mean Chronos indicates broad essentiality; expression-dependency correlation may be confounded by tissue-of-origin patterns rather than reflecting a biomarker. Read alongside Card 1 (pan-cancer-dependency-distribution)."
+
+caveats:
+  - "Correlation reflects cell-line behavior; in-vivo expression-stratification may differ due to tumor microenvironment + heterogeneity."
+  - "TPM Logp1 is log2(TPM+1) — measures bulk mRNA, not protein abundance; pair with proteomics card when available."
+  - "A strong negative correlation is necessary but NOT SUFFICIENT for a clinical biomarker — needs orthogonal validation (e.g. PDX, GTEx normal context)."
+  - "Lineage-stratified figure may reveal that pan-cancer correlation is driven by 1-2 dominant lineages; biomarker hypothesis may be lineage-specific."
+  - "Cell lines with metadata IsDefaultEntryForModel == False are excluded; some ModelIDs may have multiple sequencing entries — only the canonical one is used."
+
+schema_version: 1

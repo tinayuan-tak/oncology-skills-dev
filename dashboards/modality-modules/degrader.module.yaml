@@ -39,6 +39,7 @@ synthesis_emphasis:
     - expression-tumor-vs-adjacent
   secondary_cards:
     - mutation-hotspot-frequency
+    - expression-dependency-correlation   # Card 4 — biomarker stratification supports degrader case
     - normal-tissue-liability
   modality_killer_conditions:
     - card_id: expression-tumor-vs-adjacent

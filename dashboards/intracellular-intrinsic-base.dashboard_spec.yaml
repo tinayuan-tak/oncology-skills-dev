@@ -36,6 +36,8 @@ required_cards:
     version: ">=1.0.0,<2"
   - card_id: dependency-lineage-selectivity
     version: ">=1.0.0,<2"
+  - card_id: expression-dependency-correlation
+    version: ">=1.0.0,<2"
   - card_id: mutation-hotspot-frequency
     version: ">=1.0.0,<2"
   - card_id: normal-tissue-liability
