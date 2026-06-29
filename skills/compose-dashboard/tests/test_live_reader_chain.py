@@ -39,6 +39,7 @@ from _live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
 CARDS_WITH_DISPATCHERS = [
     ("target-identity-summary", "KRAS", "COADREAD"),
     ("pan-cancer-dependency-distribution", "KRAS", "COADREAD"),
+    ("expression-dependency-correlation", "KRAS", "COADREAD"),
     ("dependency-lineage-selectivity", "KRAS", "COADREAD"),
     ("mutation-hotspot-frequency", "KRAS", "COADREAD"),
     ("expression-tumor-vs-adjacent", "KRAS", "COADREAD"),

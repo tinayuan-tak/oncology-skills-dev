@@ -150,6 +150,18 @@ def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[
     }
 
 
+def _dispatch_expression_dependency_correlation(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route expression-dependency-correlation card (Card 4) to
+    methods/depmap_expression_dependency/read.py.
+
+    Card 4 asks whether a target's mRNA expression correlates with its own
+    Chronos dependency across cell lines (biomarker hypothesis). Reuses Card 1+2's
+    DepMap 26Q1 substrate + adds the TPMLogp1 matrix.
+    """
+    expr_module = _import_method("depmap_expression_dependency")
+    return expr_module.read_expression_dependency(target=target, indication=indication)
+
+
 def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route pan-cancer-dependency-distribution card to
     methods/depmap_chronos_distribution/read.py.
@@ -172,6 +184,7 @@ CARD_DISPATCHERS = {
     "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "pan-cancer-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
+    "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

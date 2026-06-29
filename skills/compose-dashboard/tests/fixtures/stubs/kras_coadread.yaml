@@ -226,3 +226,33 @@ rwd-stratified-expression:
   min_stratum_size: 13299
   cross_stratum_delta_median: 0.4
   cross_stratum_delta_pct_detected: 0.02
+
+# Card 4 iter-2: expression-dependency-correlation
+# Synthetic values pedagogically calibrated: KRAS shows moderate expression-dependency
+# in real DepMap (r ≈ -0.3 to -0.4 panel-wide; lineage-specific can be stronger).
+# Stub assumes a "biomarker candidate" outcome so the dominant POSITIVE call fires
+# for KRAS-COADREAD demos. Real run may show weaker signal — fine, framework is honest.
+expression-dependency-correlation:
+  pearson_r: -0.42
+  pearson_p: 0.0001
+  spearman_r: -0.39
+  spearman_p: 0.0003
+  n_cell_lines_evaluated: 850
+  mean_chronos: -0.45
+  mean_tpm_logp1: 5.2
+  tpm_iqr: 1.8
+  chronos_iqr: 0.55
+  chronos_at_high_expression: -0.78
+  chronos_at_low_expression: -0.18
+  delta_chronos_top_vs_bottom_quartile: -0.6
+  top_lineages_by_dependence_high_expression:
+    - lineage: Pancreas
+      n_high_expr: 28
+      mean_chronos_high_expr: -1.45
+    - lineage: Bowel
+      n_high_expr: 32
+      mean_chronos_high_expr: -1.18
+    - lineage: Lung
+      n_high_expr: 45
+      mean_chronos_high_expr: -0.62
+  correlation_class: strong_negative

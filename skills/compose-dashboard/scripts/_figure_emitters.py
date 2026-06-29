@@ -132,9 +132,59 @@ def _emit_card2_dependency_lineage_selectivity(
     ]
 
 
+def _emit_card4_expression_dependency_correlation(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Re-runs Card 4's method internals to emit scatter + lineage-stratified SVGs.
+
+    Strategy mirrors Card 1+2: invoke methods.depmap_expression_dependency.cli's
+    public helpers (load_depmap_files_for_card4 → compute_correlation_summary →
+    build_merged_data → emit_scatter_regression_plot + emit_lineage_stratified_scatter
+    + emit_plot_data + emit_manifest)."""
+    if _has_live_read_error(summary):
+        return []
+
+    _ensure_methods_path()
+    from methods.depmap_expression_dependency import cli as c4cli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    chronos_by_model, tpm_by_model, model_metadata, load_errors = (
+        c4cli.load_depmap_files_for_card4(release_pin="26q1", target_symbol=target)
+    )
+    if load_errors:
+        return []
+    if not chronos_by_model or not tpm_by_model:
+        return []
+
+    recomputed_summary = c4cli.compute_correlation_summary(
+        chronos_by_model, tpm_by_model, model_metadata, indication=indication,
+    )
+    target_lineage = recomputed_summary.get("_target_lineage", "")
+    merged = c4cli.build_merged_data(
+        chronos_by_model, tpm_by_model, model_metadata, target_lineage,
+    )
+
+    c4cli.emit_plot_data(merged, out_dir)
+    c4cli.emit_scatter_regression_plot(
+        merged, target, indication, recomputed_summary, out_dir, TARGET_CONTRACTS,
+    )
+    c4cli.emit_lineage_stratified_scatter(
+        merged, target, indication, recomputed_summary, out_dir, TARGET_CONTRACTS,
+    )
+    c4cli.emit_manifest(target, indication, "26q1", recomputed_summary, {}, out_dir, [])
+
+    return [
+        {"id": "scatter_with_regression", "path": "figure_scatter_with_regression.svg",
+         "type": "expression_chronos_scatter", "primary": True},
+        {"id": "lineage_stratified_scatter", "path": "figure_lineage_stratified_scatter.svg",
+         "type": "lineage_stratified_scatter", "primary": False},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
+    "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
 }
 
 

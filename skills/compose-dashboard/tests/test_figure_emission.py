@@ -137,6 +137,89 @@ def test_card2_figure_emission(tmp_path, monkeypatch):
         assert full.stat().st_size > 500
 
 
+def _build_synthetic_depmap_dir_with_tpm(target_dir: Path, n_cell_lines: int = 200) -> None:
+    """Same lineage layout as the Cards 1+2 helper but ALSO writes the TPM matrix
+    that Card 4 needs. Includes the 5-metadata-column TPM schema."""
+    import numpy as np
+    rng = np.random.default_rng(seed=42)
+    cell_line_ids = [f"ACH-{i:06d}" for i in range(n_cell_lines)]
+    n_bowel = int(0.25 * n_cell_lines)
+    n_lung = int(0.25 * n_cell_lines)
+    n_pancreas = int(0.20 * n_cell_lines)
+    n_breast = int(0.15 * n_cell_lines)
+    n_stomach = n_cell_lines - (n_bowel + n_lung + n_pancreas + n_breast)
+    lineage_pool = (
+        ["Bowel"] * n_bowel + ["Lung"] * n_lung + ["Pancreas"] * n_pancreas
+        + ["Breast"] * n_breast + ["Stomach"] * n_stomach
+    )
+    rng.shuffle(lineage_pool)
+
+    kras_chronos = []
+    kras_tpm = []
+    for lineage in lineage_pool:
+        if lineage == "Bowel":
+            kras_chronos.append(float(rng.normal(loc=-1.5, scale=0.2)))
+            kras_tpm.append(float(rng.normal(loc=6.5, scale=0.5)))
+        elif lineage == "Pancreas":
+            kras_chronos.append(float(rng.normal(loc=-1.2, scale=0.25)))
+            kras_tpm.append(float(rng.normal(loc=6.0, scale=0.5)))
+        else:
+            kras_chronos.append(float(rng.normal(loc=-0.1, scale=0.25)))
+            kras_tpm.append(float(rng.normal(loc=4.5, scale=0.8)))
+
+    pd.DataFrame({
+        "ModelID": cell_line_ids,
+        "KRAS (3845)": kras_chronos,
+    }).to_csv(target_dir / "CRISPRGeneEffect.csv", index=False)
+
+    pd.DataFrame({
+        "SequencingID": [f"SQ-{i:06d}" for i in range(n_cell_lines)],
+        "ModelConditionID": [f"MC-{i:06d}" for i in range(n_cell_lines)],
+        "ModelID": cell_line_ids,
+        "IsDefaultEntryForMC": ["Yes"] * n_cell_lines,
+        "IsDefaultEntryForModel": ["Yes"] * n_cell_lines,
+        "KRAS (3845)": kras_tpm,
+    }).to_csv(target_dir / "OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv", index=False)
+
+    pd.DataFrame({
+        "ModelID": cell_line_ids,
+        "CellLineName": [f"CL{i}" for i in range(n_cell_lines)],
+        "OncotreeLineage": lineage_pool,
+    }).to_csv(target_dir / "Model.csv", index=False)
+
+
+def test_card4_figure_emission(tmp_path, monkeypatch):
+    """Directly exercise the figure-emission registry for Card 4."""
+    fake_depmap = tmp_path / "depmap-26q1"
+    fake_depmap.mkdir()
+    _build_synthetic_depmap_dir_with_tpm(fake_depmap, n_cell_lines=200)
+
+    import methods.depmap_expression_dependency.cli as c4cli
+    monkeypatch.setattr(c4cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])
+
+    from _figure_emitters import emit_figures_for_card
+
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="expression-dependency-correlation",
+        summary={"pearson_r": -0.42},  # non-error summary; emitter ignores content
+        out_root=out_root,
+        target="KRAS",
+        indication="COADREAD",
+    )
+
+    assert len(figs) >= 1, "Card 4 emitter returned no figures"
+    primary = [f for f in figs if f.get("primary")]
+    assert primary, "Card 4 emitter returned no primary figure"
+    assert any("scatter" in f["id"] for f in figs)
+
+    for f in figs:
+        full = out_root / f["path"]
+        assert full.exists(), f"Figure missing on disk: {full}"
+        assert full.stat().st_size > 500
+        assert f["path"].startswith("cards/expression-dependency-correlation/")
+
+
 def test_emitter_no_op_on_live_read_error(tmp_path):
     """If summary contains _live_read_error, emitter must return [] (no crash, no figures)."""
     from _figure_emitters import emit_figures_for_card
