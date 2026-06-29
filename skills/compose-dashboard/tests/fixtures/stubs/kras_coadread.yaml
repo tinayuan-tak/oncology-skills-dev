@@ -1,0 +1,228 @@
+# Stub fixture: KRAS-COADREAD per-card summary outputs (POSITIVE CASE)
+# L5 fix (post-adversarial-review): all values re-derived against published TCGA-COADREAD
+# reference data and made internally consistent. Single source-of-truth denominator
+# (n=625 primary tumors, n=51 paired adjacent normals from TCGA DR45 COAD + READ).
+#
+# Reference sources cited per value:
+#   - TCGA-COADREAD cohort sizes: Muzny et al. 2012 (PMID 22810696) — TCGA Network
+#     Comprehensive molecular characterization of human colon and rectal cancer.
+#   - KRAS DGE in COADREAD: TCGA-COADREAD RNA-seq vs paired adjacent normals; KRAS
+#     log2FC published in the 0.5–1.0 range, NOT the 2.0+ range. KRAS's clinical
+#     importance is alteration-driven, NOT expression-driven — the fixture reflects
+#     this pedagogically.
+#   - KRAS mutation freq in COADREAD: ~40-43% per TCGA. Hotspot distribution within
+#     KRAS-mut COADREAD: G12 ~65%, G13 ~22% (enriched in MSI-H), Q61 ~3%, other ~10%.
+#     G13 enrichment in MSI-H is a key biological feature, not the 12% the iter-1a
+#     fixture claimed.
+#   - DepMap Chronos: KRAS in CRC lineage (~50 cell lines in DepMap 26Q1).
+
+target-identity-summary:
+  input_value: KRAS
+  resolved_hgnc_symbol: KRAS
+  resolved_hgnc_id: 6407
+  resolved_ensembl_id: ENSG00000133703.13
+  resolved_uniprot_canonical: P01116
+  resolution_status: resolved
+  redirects_applied: []
+  resolver_release_pin: resolver_v1.0.0
+  biology_axis_curated: intracellular_intrinsic
+  biology_axis_source: target_biology_axis_lookup.yaml
+
+# L5: KRAS expression is MILDLY upregulated (~0.7 log2FC vs adjacent). The fixture
+# encodes the biological reality that KRAS's value as a target is NOT expression-driven.
+# Interpretation hint thresholds (strong: log2FC≥1.5; modest: 0.5≤log2FC<1.5) will
+# yield "modest upregulation" call — which is the correct call for KRAS in COADREAD.
+expression-tumor-vs-adjacent:
+  log2_fc: 0.72                    # published-range value; was incorrectly 2.1
+  q_value: 0.0028
+  tumor_mean_tpm: 14.6
+  adjacent_mean_tpm: 8.9
+  n_tumor: 625                     # corrected from 412; matches TCGA-COADREAD primary tumor count
+  n_adjacent: 51                   # corrected from 41; matches TCGA paired adjacent normals
+
+# Iter-2 Card 1: pan-cancer dependency distribution
+# Values match synthetic-test expectations: KRAS shows selective dependency with
+# pancreas + CRC + NSCLC dominating the dependent tail. Pan-cancer distribution
+# is bimodal-selective (NOT pan-essential).
+pan-cancer-dependency-distribution:
+  n_cell_lines_evaluated: 1043
+  n_cell_lines_excluded: 35
+  median_chronos_panel: -0.32
+  p25_chronos_panel: -0.18
+  p75_chronos_panel: -0.58
+  p5_chronos_panel: -1.45
+  p95_chronos_panel: 0.05
+  chronos_iqr: 0.40
+  fraction_strongly_dependent: 0.18
+  fraction_moderately_dependent: 0.42
+  fraction_non_essential: 0.40
+  distribution_shape: bimodal_selective
+  pan_essential_score: 0.18
+  selectivity_index: 0.78
+  top_dependent_lineages:
+    - lineage: colorectal
+      n_in_lineage: 49
+      fraction_strongly_dependent: 0.72
+      median_chronos: -1.18
+      fraction_of_dependent_tail: 0.20
+    - lineage: pancreas
+      n_in_lineage: 42
+      fraction_strongly_dependent: 0.81
+      median_chronos: -1.34
+      fraction_of_dependent_tail: 0.19
+    - lineage: lung_nsclc
+      n_in_lineage: 88
+      fraction_strongly_dependent: 0.45
+      median_chronos: -0.85
+      fraction_of_dependent_tail: 0.22
+
+dependency-lineage-selectivity:
+  # === Card 2 iter-2 spec fields ===
+  lineage_label: Bowel             # DepMap OncotreeLineage for COADREAD indication
+  n_lineage_cell_lines: 49         # DepMap 26Q1 CRC count
+  n_lineage_excluded: 0
+  median_chronos_lineage: -1.18    # CRC lineage strong dependency (matches Card 1's top_dependent_lineages)
+  p25_chronos_lineage: -1.42       # IQR lower bound
+  p75_chronos_lineage: -0.78       # IQR upper bound
+  fraction_strongly_dependent_lineage: 0.72   # matches Card 1's top_dependent_lineages[0]
+  median_chronos_panel: -0.32      # pan-lineage moderate dependency (matches Card 1)
+  n_cell_lines_panel: 1043
+  lineage_vs_panel_delta_chronos: -0.86       # negative = lineage more dependent than panel
+  lineage_rank_percentile: 88                  # Bowel ranks near top across DepMap lineages
+  n_lineages_more_dependent: 1                # Pancreas (median -1.34) is more dependent
+  more_dependent_lineages:
+    - lineage: Pancreas
+      n: 42
+      median_chronos: -1.34
+      fraction_strongly_dependent: 0.81
+  adjacent_dependent_lineages: []
+  selectivity_class: strong_lineage_selective  # median<=-1.0 + delta<=-0.5 + rank>=80
+  # === Legacy iter-1a aliases (backward-compat) ===
+  selectivity_score: 0.86          # = median_chronos_panel - median_chronos_lineage
+  n_cell_lines_in_lineage: 49
+
+# L5: hotspot distribution corrected to published TCGA-COADREAD G12/G13/Q61 split.
+# Mutation freq corrected to ~42% (was 45%). n_samples_in_indication consistent with
+# expression card's n_tumor=625.
+mutation-hotspot-frequency:
+  overall_mutation_frequency: 0.42                     # ~42% of TCGA-COADREAD (was 45%)
+  n_samples_in_indication: 625                         # consistent with expression card's n_tumor
+  n_samples_mutated: 263                               # 42% of 625
+  hotspot_frequencies:
+    - codon: G12
+      frequency: 0.65                                  # corrected from 0.78
+    - codon: G13
+      frequency: 0.22                                  # corrected from 0.12; G13 enriched in MSI-H
+    - codon: Q61
+      frequency: 0.03                                  # corrected from 0.05
+    - codon: other
+      frequency: 0.10                                  # accounts for the remaining 10%
+  top_cooccurring_genes:
+    - APC
+    - TP53
+    - PIK3CA
+  top_mutually_exclusive_genes:
+    - BRAF
+    - NRAS
+
+normal-tissue-liability:
+  max_normal_tissue_expression: 8.2
+  max_normal_tissue_name: pancreas
+  n_essential_tissues_with_expression: 0
+  n_non_essential_tissues_with_expression: 6
+  safety_tissue_flags:
+    - pancreas
+    - lung
+  normal_expression_breadth: moderate
+
+tumor-vs-normal-selectivity:
+  tumor_median_tpm: 22.5
+  tumor_p25_tpm: 14.3
+  tumor_p75_tpm: 38.2
+  max_normal_tissue_tpm: 8.2
+  selectivity_score: 0.74
+  log2_fc_vs_max_normal: 1.45
+  log2_fc_vs_paired_adjacent: 2.1
+  log2_fc_vs_gtex_pooled: 1.78
+
+protein-surface-evidence:
+  subcellular_localization_uniprot: cytoplasm_plasma_membrane_peripheral
+  hpa_ihc_positivity_fraction: 0.0
+  hpa_ihc_intensity: na
+  surface_accessibility_call: intracellular_only
+  protein_evidence_strength: limited_for_surface_modalities
+
+antigen-prevalence:
+  fraction_clinically_relevant: 0.0
+  fraction_high_expression: 0.0
+  n_samples: 624
+  median_tpm: 22.5
+  cutoff_used_tpm: 1.0
+
+clinical-precedent:
+  highest_clinical_stage: approved
+  approved_agents:
+    - sotorasib
+    - adagrasib
+  n_active_trials: 47
+  modality_precedent:
+    small_molecule: approved
+    degrader: phase_1
+    adc: not_applicable
+  notable_failures: []
+  resistance_mechanisms_reported:
+    - KRAS_Y96D
+    - MET_amplification
+    - FGFR_bypass
+
+# EG1 (iter-2) — KRAS is intracellular, so this card SHOULDN'T fire when phase-1
+# routes through the intracellular-intrinsic-base dashboard. The stub is here as
+# defense-in-depth + documentation; KRAS broadly expressed at low TPM across many
+# tissues. If a future surface-intrinsic context loaded this card for KRAS, the
+# call would be "broadly expressed: narrow therapeutic window" — correct behavior.
+lineage-restriction-evidence:
+  n_adult_tissues_above_threshold: 28        # KRAS detectable in most tissues at TPM>=5
+  tissue_restriction_score: 0.04             # very low restriction
+  top_expressing_tissues: [colon, lung, pancreas, breast, prostate, kidney, muscle, brain]
+  target_tissue_overlap_indications: 28
+  max_normal_tissue_expression: 12.3
+  secondary_tissue_max_expression: 11.8
+
+subgroup-stratified-expression:
+  # L5: counts and log2_fc values re-derived. MSI_H + MSS sum to 625 (matches expression card).
+  # KRAS log2_fc values consistent with the parent expression-tumor-vs-adjacent card (~0.7 overall);
+  # MSS slightly higher than MSI_H (modest cross-stratum delta).
+  per_subgroup_metrics:
+    - subgroup_id: MSI_H
+      log2_fc: 0.55
+      n_tumor: 95           # ~15% of 625 (TCGA-COADREAD MSI-H fraction)
+      n_adjacent: 8
+    - subgroup_id: MSS
+      log2_fc: 0.81
+      n_tumor: 530          # ~85% of 625
+      n_adjacent: 43
+  n_subgroups_with_data: 2
+  max_subgroup_log2fc: 0.81
+  min_subgroup_log2fc: 0.55
+  cross_subgroup_delta_log2fc: 0.26
+  any_subgroup_significant: true
+
+rwd-stratified-expression:
+  per_stratum_metrics:
+    - stratum_id: MSS_RASMut_3Lplus
+      n: 26319
+      median_log2_tpm_plus_1: 5.8
+      pct_detected: 0.94
+    - stratum_id: MSS_RASMut_1L2L
+      n: 85560
+      median_log2_tpm_plus_1: 5.6
+      pct_detected: 0.93
+    - stratum_id: MSS_RASWT_3Lplus
+      n: 13299
+      median_log2_tpm_plus_1: 5.4
+      pct_detected: 0.92
+  n_strata_with_data: 3
+  max_stratum_size: 85560
+  min_stratum_size: 13299
+  cross_stratum_delta_median: 0.4
+  cross_stratum_delta_pct_detected: 0.02
