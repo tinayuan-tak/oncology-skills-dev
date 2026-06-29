@@ -1,0 +1,30 @@
+[project]
+name = "rnd-computational-biology-oncology-methods"
+version = "0.1.0"
+description = "Deterministic analytical methods for the Takeda v2 oncology target-evaluation framework."
+authors = ["Ryan Abo <rabo@takeda.com>"]
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+pyarrow = "*"
+pandas = "*"
+numpy = "*"
+pyyaml = "*"
+jsonschema = "*"
+click = "*"                      # CLI scaffolding for method entrypoints
+pytest = "*"
+
+# R + bioconductor (for dge_deseq2 and any future R-driven methods)
+r-base = ">=4.3"
+r-tidyverse = "*"
+bioconductor-deseq2 = "*"
+bioconductor-sva = "*"           # combat-seq batch correction
+
+[pypi-dependencies]
+# (target_id_resolver itself; installed as editable pip package once carved over)
+
+[tasks]
+test = "pytest tests/ methods/"
+lint = "python -m py_compile $(find methods -name '*.py')"

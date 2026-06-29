@@ -1,0 +1,483 @@
+#!/usr/bin/env python3
+"""depmap-chronos CLI — lineage-specific dependency analysis.
+
+Consumes DepMap 26Q1 CRISPRGeneEffect.csv + Model.csv, computes per-target lineage-
+selectivity stats (target lineage vs panel + all-other-lineages forest), emits
+summary.json + two SVG figures (forest_plot + lineage_strip) + plot_data.parquet
+for the dependency-lineage-selectivity card (Card 2).
+
+Usage:
+    depmap-chronos \
+        --target KRAS \
+        --indication COADREAD \
+        --release-pin 26q1 \
+        --out /tmp/depmap_chronos_KRAS_COADREAD/
+
+Outputs (in --out directory):
+  - summary.json          — decision-grade scalars matching Card 2's outputs.summary_fields
+  - figure_forest_plot.svg — per-lineage Chronos median + IQR forest plot
+  - figure_lineage_strip.svg — per-lineage strip/swarm of cell-line Chronos points
+  - plot_data.parquet     — long-format per-cell-line data
+  - manifest.yaml         — provenance + lineage list + input md5s
+
+Like Card 1's depmap-chronos-distribution: S3-aware loader with local-cache fallback.
+Graceful degradation via _live_read_error on AccessDenied.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from datetime import datetime, timezone
+from io import BytesIO
+from pathlib import Path
+from typing import Optional
+
+import click
+
+
+METHOD_DIR = Path(__file__).resolve().parent
+METHOD_VERSION = "2.0.0"
+
+DEFAULT_CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+DEFAULT_TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+DEPMAP_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_LOCAL_FALLBACK_DIRS = [
+    Path("/home/sagemaker-user/depmap-26q1"),
+    Path("/data/depmap/26q1"),
+    Path.home() / "depmap-26q1",
+]
+
+
+def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, list]:
+    """Same loader pattern as depmap_chronos_distribution.cli — local cache, then S3.
+    Returns (chronos_by_model_id, model_metadata_by_id, load_errors)."""
+    import pandas as pd
+
+    crispr_path = None
+    model_path = None
+    load_errors = []
+
+    for fallback_dir in DEPMAP_LOCAL_FALLBACK_DIRS:
+        cc = fallback_dir / "CRISPRGeneEffect.csv"
+        cm = fallback_dir / "Model.csv"
+        if cc.exists() and cm.exists():
+            crispr_path = cc
+            model_path = cm
+            click.echo(f"  Using local DepMap cache at {fallback_dir}", err=True)
+            break
+
+    if crispr_path is None:
+        try:
+            import boto3
+            s3 = boto3.client("s3")
+            bucket = "onc-compbio"
+            crispr_key = "data-catalog/sources/depmap-consortium/dmc-26q1/CRISPRGeneEffect.csv"
+            model_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
+            click.echo(f"  Fetching s3://{bucket}/{model_key}", err=True)
+            model_obj = s3.get_object(Bucket=bucket, Key=model_key)
+            model_df = pd.read_csv(BytesIO(model_obj["Body"].read()))
+            click.echo(f"  Fetching s3://{bucket}/{crispr_key}", err=True)
+            crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
+            crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))
+        except ImportError as e:
+            load_errors.append({
+                "_live_read_error": "boto3_not_available",
+                "detail": str(e),
+                "remediation": f"Install boto3 or provide local cache at {[str(d) for d in DEPMAP_LOCAL_FALLBACK_DIRS]}",
+            })
+            return {}, {}, load_errors
+        except Exception as e:
+            load_errors.append({
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+                "remediation": f"Ensure AWS credentials are set and bucket {DEPMAP_S3_PREFIX} is accessible.",
+            })
+            return {}, {}, load_errors
+    else:
+        model_df = pd.read_csv(model_path)
+        crispr_df = pd.read_csv(crispr_path)
+
+    # Extract target column
+    target_columns = [c for c in crispr_df.columns
+                      if c == target_symbol or c.split(" ")[0] == target_symbol]
+    if not target_columns:
+        load_errors.append({
+            "_live_read_error": "target_not_in_crispr_panel",
+            "detail": f"Target {target_symbol} not found in CRISPRGeneEffect.csv",
+        })
+        return {}, {}, load_errors
+
+    target_col = target_columns[0]
+    cell_line_col = crispr_df.columns[0]
+    chronos_by_model = {}
+    for _, row in crispr_df[[cell_line_col, target_col]].iterrows():
+        if pd.notna(row[target_col]):
+            chronos_by_model[row[cell_line_col]] = float(row[target_col])
+
+    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+    model_metadata = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
+    return chronos_by_model, model_metadata, load_errors
+
+
+def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
+                              indication: str,
+                              strong_threshold: float = -1.0,
+                              moderate_threshold: float = -0.5,
+                              min_n_lineage: int = 5,
+                              adjacent_delta_max: float = 0.2) -> dict:
+    """Compute Card 2 summary fields. Mirrors read.read_lineage_selectivity but consumes
+    pre-loaded data (avoids re-reading S3 inside the CLI)."""
+    import numpy as np
+    import pandas as pd
+
+    INDICATION_LINEAGE = {
+        "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
+        "SCLC": "Lung", "GC": "Stomach",
+    }
+    target_lineage = INDICATION_LINEAGE.get(indication)
+    if target_lineage is None:
+        return {"_data_note": f"indication {indication!r} not mapped to a DepMap lineage"}
+
+    # Build merged dataframe
+    rows = []
+    for mid, c in chronos_by_model.items():
+        meta = model_metadata.get(mid, {})
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or "unknown"
+        rows.append({"ModelID": mid, "chronos": c, "OncotreeLineage": lineage})
+    merged = pd.DataFrame(rows)
+
+    n_panel = len(merged)
+    median_panel = float(merged["chronos"].median())
+
+    lineage_subset = merged[merged["OncotreeLineage"] == target_lineage]
+    n_lineage = len(lineage_subset)
+
+    if n_lineage == 0:
+        return {
+            "lineage_label": target_lineage,
+            "n_lineage_cell_lines": 0,
+            "median_chronos_lineage": None,
+            "median_chronos_panel": median_panel,
+            "n_cell_lines_panel": n_panel,
+            "selectivity_class": "not_dependent",
+            "_data_note": f"no DepMap cell lines for indication={indication}/lineage={target_lineage!r}",
+        }
+
+    median_lineage = float(lineage_subset["chronos"].median())
+    p25_lineage = float(lineage_subset["chronos"].quantile(0.25))
+    p75_lineage = float(lineage_subset["chronos"].quantile(0.75))
+    frac_strong_lineage = float((lineage_subset["chronos"] <= strong_threshold).mean())
+
+    lineage_vs_panel_delta = median_lineage - median_panel
+
+    # Per-lineage ranking
+    per_lineage = []
+    for ln_name, subset in merged.groupby("OncotreeLineage"):
+        if len(subset) < min_n_lineage:
+            continue
+        per_lineage.append({
+            "lineage": str(ln_name),
+            "n": int(len(subset)),
+            "median_chronos": float(subset["chronos"].median()),
+            "p25_chronos": float(subset["chronos"].quantile(0.25)),
+            "p75_chronos": float(subset["chronos"].quantile(0.75)),
+            "fraction_strongly_dependent": float((subset["chronos"] <= strong_threshold).mean()),
+        })
+    per_lineage.sort(key=lambda x: x["median_chronos"])
+
+    n_lineages_total = len(per_lineage)
+    target_rank_idx = next((i for i, r in enumerate(per_lineage) if r["lineage"] == target_lineage), None)
+    if target_rank_idx is not None:
+        lineage_rank_pct = float(100.0 * (n_lineages_total - target_rank_idx) / max(n_lineages_total, 1))
+        n_more_dep = target_rank_idx
+    else:
+        lineage_rank_pct = float((merged["chronos"] > median_lineage).sum() / n_panel * 100.0)
+        n_more_dep = 0
+
+    more_dependent_lineages = per_lineage[:n_more_dep] if n_more_dep > 0 else []
+    adjacent = [r["lineage"] for r in per_lineage
+                if r["lineage"] != target_lineage
+                and abs(r["median_chronos"] - median_lineage) <= adjacent_delta_max]
+
+    # Selectivity class
+    if median_lineage > moderate_threshold:
+        sel_class = "not_dependent"
+    elif median_lineage > strong_threshold:
+        sel_class = "modest_lineage_dependent"
+    elif lineage_vs_panel_delta <= -0.5 and lineage_rank_pct >= 80:
+        sel_class = "strong_lineage_selective"
+    elif lineage_vs_panel_delta <= -0.3:
+        sel_class = "moderate_lineage_selective"
+    else:
+        sel_class = "broadly_dependent"
+
+    return {
+        "lineage_label": target_lineage,
+        "n_lineage_cell_lines": n_lineage,
+        "n_lineage_excluded": 0,
+        "median_chronos_lineage": median_lineage,
+        "p25_chronos_lineage": p25_lineage,
+        "p75_chronos_lineage": p75_lineage,
+        "fraction_strongly_dependent_lineage": frac_strong_lineage,
+        "median_chronos_panel": median_panel,
+        "n_cell_lines_panel": n_panel,
+        "lineage_vs_panel_delta_chronos": lineage_vs_panel_delta,
+        "lineage_rank_percentile": lineage_rank_pct,
+        "n_lineages_more_dependent": n_more_dep,
+        "more_dependent_lineages": more_dependent_lineages,
+        "adjacent_dependent_lineages": adjacent,
+        "selectivity_class": sel_class,
+        "_per_lineage_records": per_lineage,
+    }
+
+
+def emit_forest_plot(per_lineage_records: list, target_lineage: str,
+                        target_symbol: str, indication: str, summary: dict,
+                        out_path: Path, contracts_root: Path) -> None:
+    """Emit the lineage forest plot: median + IQR per lineage, target highlighted."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    from takeda_palette import (  # type: ignore
+        get_lineage_color, REFLINE_NEUTRAL, REFLINE_KILLER, REFLINE_NOMINAL,
+        FIGSIZE_SINGLE_COLUMN_TALL, CHRONOS_STRONG_DEPENDENCY,
+    )
+
+    if not per_lineage_records:
+        fig, ax = plt.subplots(figsize=FIGSIZE_SINGLE_COLUMN_TALL)
+        ax.text(0.5, 0.5, "No per-lineage data available", ha="center", va="center",
+                transform=ax.transAxes, fontsize=10, color="#666666")
+        ax.axis("off")
+        fig.savefig(out_path / "figure_forest_plot.svg", bbox_inches="tight")
+        plt.close(fig)
+        return
+
+    # Truncate to top 20 lineages (most dependent) to keep plot readable
+    plotted = per_lineage_records[:20]
+    n = len(plotted)
+    fig_h = max(2.5, 0.25 * n + 0.8)
+    fig, ax = plt.subplots(figsize=(4.5, fig_h))
+
+    y_positions = np.arange(n)
+    for i, rec in enumerate(plotted):
+        is_target = rec["lineage"] == target_lineage
+        color = "#B22222" if is_target else get_lineage_color(rec["lineage"])
+        # IQR bar
+        ax.plot([rec["p25_chronos"], rec["p75_chronos"]], [y_positions[i], y_positions[i]],
+                color=color, linewidth=2.0 if is_target else 1.0, alpha=0.9, zorder=2)
+        # Median point
+        ax.plot(rec["median_chronos"], y_positions[i],
+                marker="D" if is_target else "o",
+                markersize=7 if is_target else 5,
+                color=color, markeredgecolor="white", markeredgewidth=0.8, zorder=3)
+
+    # Y-axis labels (lineage names with n)
+    labels = [f"{rec['lineage']} (n={rec['n']})" for rec in plotted]
+    # Bold the target lineage
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(labels, fontsize=8)
+    for i, rec in enumerate(plotted):
+        if rec["lineage"] == target_lineage:
+            ax.get_yticklabels()[i].set_fontweight("bold")
+            ax.get_yticklabels()[i].set_color("#B22222")
+
+    # Reference lines (vertical, since lineages are on Y)
+    ax.axvline(x=0, color="#999999", linestyle="-", linewidth=0.8, alpha=0.5, zorder=1)
+    ax.axvline(x=-0.5, color="#666666", linestyle="--", linewidth=1.0, alpha=0.7, zorder=1)
+    ax.axvline(x=CHRONOS_STRONG_DEPENDENCY, color="#B22222", linestyle="--", linewidth=1.5, alpha=0.9, zorder=1)
+
+    ax.invert_yaxis()  # Most dependent at top
+    ax.set_xlabel("Chronos score (more dependent ←)")
+    ax.set_title(f"{target_symbol}: per-lineage dependency in {indication}")
+    ax.grid(axis="x")
+    fig.savefig(out_path / "figure_forest_plot.svg", bbox_inches="tight")
+    plt.close(fig)
+
+
+def emit_lineage_strip(merged_data: list, target_lineage: str, target_symbol: str,
+                          indication: str, out_path: Path, contracts_root: Path) -> None:
+    """Emit the lineage strip plot — per-lineage cell-line points."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    from takeda_palette import (  # type: ignore
+        FIGSIZE_DOUBLE_COLUMN, CHRONOS_STRONG_DEPENDENCY,
+    )
+
+    df = pd.DataFrame(merged_data)
+    if df.empty:
+        fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN)
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        fig.savefig(out_path / "figure_lineage_strip.svg", bbox_inches="tight")
+        plt.close(fig)
+        return
+
+    # Filter to lineages with >= 5 cell lines
+    lineage_counts = df["lineage"].value_counts()
+    keep_lineages = lineage_counts[lineage_counts >= 5].index.tolist()
+    df = df[df["lineage"].isin(keep_lineages)]
+
+    # Sort lineages by median ascending
+    lineage_medians = df.groupby("lineage")["chronos"].median().sort_values()
+    lineage_order = lineage_medians.index.tolist()[:20]  # top 20
+
+    fig, ax = plt.subplots(figsize=(7.0, max(3.5, 0.2 * len(lineage_order) + 0.8)))
+
+    for i, lineage in enumerate(lineage_order):
+        subset = df[df["lineage"] == lineage]
+        is_target = lineage == target_lineage
+        color = "#B22222" if is_target else "#56B4E9"
+        # Jitter y
+        rng = np.random.default_rng(seed=hash(lineage) % (2**31))
+        y_jitter = rng.uniform(-0.3, 0.3, size=len(subset))
+        ax.scatter(subset["chronos"], np.full(len(subset), i) + y_jitter,
+                   s=12, c=color, alpha=0.6, edgecolor="white", linewidth=0.3)
+        # Median tick
+        ax.plot([lineage_medians[lineage]] * 2, [i - 0.4, i + 0.4],
+                color="#222222" if not is_target else "#B22222", linewidth=1.5, zorder=3)
+
+    ax.set_yticks(np.arange(len(lineage_order)))
+    labels = [f"{ln} (n={lineage_counts[ln]})" for ln in lineage_order]
+    ax.set_yticklabels(labels, fontsize=8)
+    for i, ln in enumerate(lineage_order):
+        if ln == target_lineage:
+            ax.get_yticklabels()[i].set_fontweight("bold")
+            ax.get_yticklabels()[i].set_color("#B22222")
+
+    ax.invert_yaxis()
+    ax.axvline(x=0, color="#999999", linewidth=0.8, alpha=0.5, zorder=1)
+    ax.axvline(x=-0.5, color="#666666", linestyle="--", linewidth=1.0, alpha=0.7, zorder=1)
+    ax.axvline(x=CHRONOS_STRONG_DEPENDENCY, color="#B22222", linestyle="--", linewidth=1.5, zorder=1)
+
+    ax.set_xlabel("Chronos score")
+    ax.set_title(f"{target_symbol}: per-lineage Chronos distribution in {indication}")
+    ax.grid(axis="x")
+    fig.savefig(out_path / "figure_lineage_strip.svg", bbox_inches="tight")
+    plt.close(fig)
+
+
+def emit_plot_data(chronos_by_model: dict, model_metadata: dict, target_lineage: str,
+                     strong_threshold: float, out_path: Path) -> list:
+    """Emit plot_data.parquet — one row per cell line. Returns the merged data
+    for use by the strip-plot emitter."""
+    import pandas as pd
+
+    rows = []
+    for mid, c in chronos_by_model.items():
+        meta = model_metadata.get(mid, {})
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or "unknown"
+        rows.append({
+            "cell_line_id": mid,
+            "cell_line_name": meta.get("CellLineName", mid),
+            "chronos_score": float(c),
+            "lineage": str(lineage),
+            "is_target_lineage": bool(lineage == target_lineage),
+            "is_strongly_dependent": bool(c <= strong_threshold),
+            # Alias used by the strip plotter
+            "chronos": float(c),
+        })
+
+    df = pd.DataFrame(rows)
+    df.to_parquet(out_path / "plot_data.parquet", index=False)
+    return rows
+
+
+def emit_manifest(target: str, indication: str, release_pin: str, summary: dict,
+                     chronos_by_model: dict, out_path: Path, load_errors: list) -> None:
+    import yaml
+    manifest = {
+        "method": "depmap-chronos",
+        "method_version": METHOD_VERSION,
+        "target": target,
+        "indication": indication,
+        "release_pin": release_pin,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "input_manifest": "depmap-consortium-26q1",
+        "input_files_consumed": ["CRISPRGeneEffect.csv", "Model.csv"],
+        "lineage_label": summary.get("lineage_label"),
+        "n_lineage_cell_lines": summary.get("n_lineage_cell_lines"),
+        "n_cell_lines_panel": summary.get("n_cell_lines_panel"),
+        "selectivity_class": summary.get("selectivity_class"),
+        "load_errors": load_errors,
+    }
+    with (out_path / "manifest.yaml").open("w") as f:
+        yaml.safe_dump(manifest, f, sort_keys=False)
+
+
+@click.command()
+@click.option("--target", required=True)
+@click.option("--indication", required=True,
+              type=click.Choice(["COADREAD", "PDAC", "NSCLC", "SCLC", "GC"]))
+@click.option("--release-pin", default="26q1")
+@click.option("--strong-dependency-threshold", type=float, default=-1.0)
+@click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
+              default=DEFAULT_CATALOG_REPO)
+@click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path),
+              default=DEFAULT_TARGET_CONTRACTS)
+@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
+@click.option("--dry-run", is_flag=True)
+def main(target, indication, release_pin, strong_dependency_threshold,
+         catalog_repo, contracts_root, out, dry_run) -> int:
+    """Lineage-specific dependency analysis for (target, indication)."""
+    out.mkdir(parents=True, exist_ok=True)
+    click.echo(f"=== depmap-chronos (lineage-selectivity) ===")
+    click.echo(f"  target:      {target}")
+    click.echo(f"  indication:  {indication}")
+    click.echo(f"  release_pin: {release_pin}")
+    click.echo(f"  out:         {out}")
+    if dry_run:
+        click.echo("(--dry-run: skipping)")
+        return 0
+
+    chronos_by_model, model_metadata, load_errors = load_depmap_files(release_pin, target)
+    if load_errors:
+        click.echo(f"  LOAD ERRORS: {len(load_errors)}", err=True)
+        with (out / "summary.json").open("w") as f:
+            json.dump({"_live_read_error": True, "errors": load_errors,
+                       "target": target, "indication": indication}, f, indent=2)
+        emit_manifest(target, indication, release_pin, {}, {}, out, load_errors)
+        return 2
+
+    summary = compute_lineage_summary(
+        chronos_by_model, model_metadata, indication,
+        strong_threshold=strong_dependency_threshold,
+    )
+    target_lineage = summary.get("lineage_label", "")
+
+    with (out / "summary.json").open("w") as f:
+        json.dump(summary, f, indent=2, default=str)
+
+    merged_data = emit_plot_data(
+        chronos_by_model, model_metadata, target_lineage,
+        strong_dependency_threshold, out,
+    )
+
+    emit_forest_plot(
+        summary.get("_per_lineage_records", []), target_lineage,
+        target, indication, summary, out, contracts_root,
+    )
+    emit_lineage_strip(merged_data, target_lineage, target, indication, out, contracts_root)
+    emit_manifest(target, indication, release_pin, summary, chronos_by_model, out, load_errors)
+
+    click.echo(f"  → summary.json:   {out / 'summary.json'}")
+    click.echo(f"  → forest_plot:    {out / 'figure_forest_plot.svg'}")
+    click.echo(f"  → lineage_strip:  {out / 'figure_lineage_strip.svg'}")
+    click.echo(f"  → plot_data:      {out / 'plot_data.parquet'}")
+    click.echo(f"  → manifest:       {out / 'manifest.yaml'}")
+    click.echo(f"  selectivity_class: {summary.get('selectivity_class')}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

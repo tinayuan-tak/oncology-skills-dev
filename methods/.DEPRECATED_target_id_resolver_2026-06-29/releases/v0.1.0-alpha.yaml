@@ -1,0 +1,42 @@
+# Resolver release v0.1.0-alpha — walking-skeleton pin.
+#
+# Scope: HGNC + MyGene.info metadata ONLY. Sufficient to prove the round-trip
+# (resolve a symbol -> Target object) on a real target before paying the full
+# ingestion cost for UniProt/Ensembl/NCBI. Outputs from this pin should NOT be
+# used for production dossiers — Target objects emitted under v0.1.0-alpha
+# omit Ensembl gene_id versioning and UniProt canonical accession. Flagged as
+# alpha so downstream consumers can refuse non-alpha-tolerant operations.
+#
+# Promotion path: once HGNC + MyGene round-trip is verified end-to-end, add
+# UniProt + Ensembl + NCBI source-release manifests, then bump to
+# resolver_v1.0.0 (without -alpha suffix).
+
+resolver_release: resolver_v0.1.0-alpha
+status: alpha
+
+# Cites data-catalog manifest IDs. Each entry MUST resolve to a manifest in
+# rnd-computational-biology-oncology-data-catalog/manifests/sources/.
+data_pins:
+  hgnc: hgnc-2026-q2                          # quarterly snapshot, retained indefinitely upstream
+  mygene_metadata: mygene-info-metadata-20260602  # build_version captured from /v3/metadata
+  # ensembl: NOT PINNED in alpha — Target.ensembl will be populated from the
+  #          MyGene.info metadata cross-ref where available, with a warning.
+  # uniprot: NOT PINNED in alpha — Target.uniprot omitted entirely.
+  # ncbi_gene: NOT PINNED in alpha — Target.ncbi.entrez_id populated from
+  #            HGNC (which carries Entrez xrefs) where available.
+
+behavior:
+  dispatch: live_mygene                         # alpha: runtime API; v1.0.0 switches to 'snapshot'
+  master_vocabulary: hgnc
+  protein_resolution: omitted_in_alpha          # canonical_only in v1.0.0+
+  ambiguity: fail_closed
+  mygene_role: tie_breaker_only
+  forbid_in_production: true                    # consumers should refuse this pin for production dossiers
+
+created_date: '2026-06-16'
+created_by: ryan.abo@takeda.com
+notes: |
+  Walking-skeleton pin. The alpha label is permissive: tests, smoke runs, and
+  development work should target this pin freely. Production dossier emission
+  (assess-risk-6component, render-target-dossier) MUST refuse non-production
+  pins (status != "production").

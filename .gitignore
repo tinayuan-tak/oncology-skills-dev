@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+
+# Pytest
+.pytest_cache/
+
+# Environments
+.venv/
+.pixi/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local settings
+.claude/
+
+# Local DepMap cache directories that some loaders fall back to
+depmap-26q1/
