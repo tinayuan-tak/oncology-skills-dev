@@ -3,7 +3,7 @@
 import subprocess
 from pathlib import Path
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-methods")
+METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
 
 

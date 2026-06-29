@@ -1,5 +1,5 @@
 [project]
-name = "rnd-computational-biology-oncology-methods"
+name = "rnd-computational-biology-oncology-analysis-methods"
 version = "0.1.0"
 description = "Deterministic analytical methods for the Takeda v2 oncology target-evaluation framework."
 authors = ["Ryan Abo <rabo@takeda.com>"]

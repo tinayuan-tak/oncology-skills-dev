@@ -23,7 +23,7 @@ Iter-1 status: SCAFFOLDED. The actual test execution requires (a) the R env to b
 (c) the data-catalog config files at the new location (which R5 lands).
 
 Run in iter-1 execution:
-    cd rnd-computational-biology-oncology-methods
+    cd rnd-computational-biology-oncology-analysis-methods
     pixi run pytest methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py -v
 """
 
@@ -36,7 +36,7 @@ import pytest
 
 
 SKILLS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills")
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-methods")
+METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
 
 DETERMINISTIC_COLUMNS = ["gene_id", "log2FoldChange", "baseMean", "stat", "pvalue", "padj", "lfcSE"]
