@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-methods")
+METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 

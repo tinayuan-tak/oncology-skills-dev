@@ -29,8 +29,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-methods")
-SKILLS_LIBS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/libs")
+METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+DATA_CATALOG_LIBS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog/libs")
 
 
 def _import_method(method_name: str):
@@ -41,12 +41,16 @@ def _import_method(method_name: str):
     return __import__(f"methods.{method_name}", fromlist=["*"])
 
 
-def _import_skills_lib(lib_name: str):
-    """Import a library package shipped inside the skills repo's libs/ directory.
-    Used for packages that need to live co-located with their release pins (e.g.
-    target_id_resolver uses ../../resolver-releases/, which only resolves correctly
-    when the package lives inside this repo)."""
-    pkg_path = SKILLS_LIBS / lib_name
+def _import_data_catalog_lib(lib_name: str):
+    """Import a library package from the data-catalog repo's libs/ directory.
+
+    target_id_resolver was migrated from claude-oncology-skills/libs/ to
+    data-catalog/libs/ (PR #55, 2026-06-29) — co-located with the source manifests
+    and release pins it resolves. The resolver's release-pin file lookup uses
+    `_THIS_DIR.parent.parent.parent / "resolver-releases"` which only resolves
+    correctly when the package lives inside the data-catalog tree.
+    """
+    pkg_path = DATA_CATALOG_LIBS / lib_name
     if str(pkg_path) not in sys.path:
         sys.path.insert(0, str(pkg_path))
     return __import__(lib_name, fromlist=["*"])
@@ -107,7 +111,7 @@ def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[
     Returns the summary-fields shape the target-identity-summary card declares (mirrors
     the stub fixture schema).
     """
-    resolver_module = _import_skills_lib("target_id_resolver")
+    resolver_module = _import_data_catalog_lib("target_id_resolver")
     try:
         t = resolver_module.resolve(target)
     except resolver_module.NotFoundError as e:

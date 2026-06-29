@@ -26,7 +26,7 @@ import pandas as pd
 import pytest
 
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-methods")
+METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
 SKILL_DIR = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
