@@ -239,15 +239,18 @@ def _emit_expression_distribution(
     if load_errors or not tpm_by_model:
         return []
     recomputed = e3acli.compute_summary_stats(tpm_by_model, model_metadata)
+    e3acli.emit_density_plot(tpm_by_model, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3acli.emit_waterfall_plot(tpm_by_model, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3acli.emit_lineage_strip(tpm_by_model, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3acli.emit_plot_data(tpm_by_model, model_metadata, 1.0, out_dir)
     e3acli.emit_manifest(target, "26q1", recomputed, out_dir, [])
     return [
-        {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
-         "type": "ranked_waterfall_expression", "primary": True},
+        {"id": "density_expression", "path": "figure_density_expression.svg",
+         "type": "density_histogram_with_kde_expression", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
          "type": "per_lineage_strip_expression", "primary": False},
+        {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
+         "type": "ranked_waterfall_expression", "primary": False},
     ]
 
 
@@ -265,15 +268,18 @@ def _emit_card1c_crispr_rnai_concordance(
     if load_errors:
         return []
     recomputed = c1ccli.compute_concordance(chronos_by, demeter_by, model_meta)
+    c1ccli.emit_concordance_overlay_density(recomputed["per_line_concordance"], target, out_dir, TARGET_CONTRACTS)
     c1ccli.emit_concordance_scatter(recomputed["per_line_concordance"], target, out_dir, TARGET_CONTRACTS)
     c1ccli.emit_partition_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
     c1ccli.emit_plot_data(recomputed["per_line_concordance"], out_dir)
     c1ccli.emit_manifest(target, "26q1", recomputed, out_dir, [])
     return [
-        {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
-         "type": "scatter_with_quadrants", "primary": True},
+        {"id": "concordance_overlay_density", "path": "figure_concordance_overlay_density.svg",
+         "type": "overlay_kde_with_rug", "primary": True},
         {"id": "concordance_partition_bar", "path": "figure_concordance_partition_bar.svg",
          "type": "stacked_bar", "primary": False},
+        {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
+         "type": "scatter_with_quadrants", "primary": False},
     ]
 
 
