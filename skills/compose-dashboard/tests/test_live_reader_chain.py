@@ -41,7 +41,6 @@ CARDS_WITH_DISPATCHERS = [
     ("pan-cancer-dependency-distribution", "KRAS", "COADREAD"),
     ("expression-dependency-correlation", "KRAS", "COADREAD"),
     ("dependency-lineage-selectivity", "KRAS", "COADREAD"),
-    ("mutation-stratified-dependency", "KRAS", "COADREAD"),
     ("mutation-hotspot-frequency", "KRAS", "COADREAD"),
     ("expression-tumor-vs-adjacent", "KRAS", "COADREAD"),
 ]
