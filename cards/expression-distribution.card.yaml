@@ -57,14 +57,18 @@ outputs:
       - data_unavailable
 
   figures:
-    - id: waterfall_expression
-      type: ranked_waterfall
-      description: "Per-cell-line log2(TPM+1) sorted ascending, lineage-colored. Distribution shape directly readable."
+    - id: density_expression
+      type: density_histogram_with_kde
+      description: "Histogram + KDE of log2(TPM+1) across the panel, with threshold reference lines at 1.0 (expressed) and 5.0 (highly expressed). Distribution shape is the primary diagnostic; bimodality + tail-skewness directly readable."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: lineage_strip_expression
       type: per_lineage_strip_plot
-      description: "Per-lineage log2(TPM+1) strip plot. Lineage-restriction visible as bimodal-by-lineage pattern."
+      description: "Per-lineage log2(TPM+1) strip plot, lineages ordered by median expression descending (n≥5 only). Lineage-restriction visible as bimodal-by-lineage pattern; red tick = lineage median."
+      preferred_surfaces: [markdown, ppt]
+    - id: waterfall_expression
+      type: ranked_waterfall
+      description: "Per-cell-line log2(TPM+1) sorted ascending. Preserves per-line resolution that density bins out; secondary to the density panel."
       preferred_surfaces: [markdown, ppt]
   plot_data: per_cell_line_expression_with_lineage_tags
 

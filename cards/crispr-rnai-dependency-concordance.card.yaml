@@ -81,14 +81,18 @@ outputs:
       - data_unavailable
 
   figures:
-    - id: concordance_scatter
-      type: scatter_with_quadrants
-      description: "Scatter of CRISPR Chronos (x-axis) vs RNAi DEMETER2 (y-axis) per cell line, with dependency-call quadrant lines. Lineage-colored points. Untested lines NOT shown (separate bucket counts surfaced as annotation)."
+    - id: concordance_overlay_density
+      type: overlay_kde_with_rug
+      description: "Overlaid 1D KDEs of CRISPR (Chronos, blue) and RNAi (DEMETER2, orange) score distributions on a shared z-score-standardized x-axis (per-assay mean/std normalization). Per-assay rug ticks above the densities show every measured cell line; dotted verticals mark each assay's dependent threshold in z-score space. Replaces the older 2D scatter as primary because the 1D overlay reads agreement/discordance at-a-glance."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: concordance_partition_bar
       type: stacked_bar
       description: "Stacked bar showing partition counts: n_agree_dep, n_agree_nondep, n_disagree_*, n_crispr_only_*, n_rnai_only_*. Makes coverage gaps explicit."
+      preferred_surfaces: [markdown, ppt]
+    - id: concordance_scatter
+      type: scatter_with_quadrants
+      description: "Scatter of CRISPR Chronos (x) vs RNAi DEMETER2 (y) for in-both cell lines with dependency-call quadrant lines. Secondary; only points measured in BOTH appear."
       preferred_surfaces: [markdown, ppt]
   plot_data: per_cell_line_concordance_with_lineage_and_provenance
 
