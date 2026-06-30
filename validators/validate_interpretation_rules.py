@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+"""
+validate_interpretation_rules.py — Tier-2 rule validator.
+
+Checks that every rule in an interpretation-rules file is REACHABLE from the cards
+that declare its evidence — i.e. that the `when.{card_id, field, value}` triple can
+actually be produced by an emitting card. Catches rule rot when card_specs evolve.
+
+Three checks per rule:
+  (1) Structural — rules file validates against schemas/interpretation_rules.schema.json.
+  (2) card_id reachability — the rule's `when.card_id` must reference an existing
+      card_spec in cards/.
+  (3) field+value reachability — the (field, value) triple must be producible:
+      - The card_spec's outputs.summary_fields list must include `field`.
+      - OR (legacy/transition) the card_spec's interpretation_hints[].call values
+        must include `value` when field == "interpretation_call".
+      - During the pure-data transition, cards may not yet declare value vocabularies
+        in their summary_fields. The validator emits a WARNING (not an error) in that
+        case so refactor work can proceed incrementally.
+
+Killer-message hygiene check:
+  (4) Any rule emitting a `killer` signal must carry a non-empty `killer_message`
+      (already enforced by the schema, double-checked here for clarity).
+
+Usage:
+  # CLI: validate one rules file against a cards directory
+  python validate_interpretation_rules.py \\
+      --rules target-contracts/interpretation-rules/intracellular-intrinsic.rules.yaml \\
+      --cards target-contracts/cards/
+
+  # As a library (compose-dashboard's pre-invocation lint OR CI check):
+  from validate_interpretation_rules import validate_rules_file, ValidationReport
+  report = validate_rules_file(rules_path, cards_dir)
+  if not report.ok:
+      for err in report.errors:
+          print(err)
+
+Exit codes:
+  0 = clean (no errors; warnings ok)
+  1 = errors (rule rot, schema violations, missing cards)
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from dataclasses import dataclass, field as dc_field
+from pathlib import Path
+from typing import Optional
+
+import yaml
+from jsonschema import Draft202012Validator
+import json
+
+
+SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "interpretation_rules.schema.json"
+
+
+@dataclass
+class ValidationReport:
+    """Result of validating one rules file. errors block CI; warnings are advisory."""
+    rules_file: Path
+    errors: list[str] = dc_field(default_factory=list)
+    warnings: list[str] = dc_field(default_factory=list)
+    rules_checked: int = 0
+
+    @property
+    def ok(self) -> bool:
+        return len(self.errors) == 0
+
+
+def _load_yaml(path: Path) -> dict:
+    with path.open() as f:
+        return yaml.safe_load(f)
+
+
+def _build_card_index(cards_dir: Path) -> dict[str, dict]:
+    """Load every *.card.yaml in cards_dir, index by card_id. Reused across rules."""
+    idx = {}
+    for card_path in sorted(cards_dir.glob("*.card.yaml")):
+        try:
+            spec = _load_yaml(card_path)
+        except Exception as e:
+            # Caller surfaces this — return the loadable subset, skip the broken one.
+            continue
+        card_id = spec.get("card_id")
+        if card_id:
+            idx[card_id] = spec
+    return idx
+
+
+def _producible_values_for_field(card_spec: dict, field_name: str) -> Optional[set[str]]:
+    """Return the set of values a card can emit for `field_name`, or None if the
+    field's value vocabulary isn't declared in the card_spec.
+
+    Sources (in order of preference):
+      1. outputs.summary_fields_vocabulary[field_name] — future strict declaration
+         (not in today's schema; reserved for post-refactor).
+      2. interpretation_hints[].call (legacy) — only meaningful when field is
+         "interpretation_call"; reads the call strings the card emits.
+      3. None — the field's value vocab isn't declared anywhere validatable.
+
+    Returns None means "can't check value reachability" → WARNING, not ERROR.
+    """
+    # Future: explicit value vocabulary
+    vocab = (card_spec.get("outputs", {}) or {}).get("summary_fields_vocabulary", {})
+    if isinstance(vocab, dict) and field_name in vocab:
+        return set(vocab[field_name])
+
+    # Legacy: interpretation_hints[].call only meaningful for interpretation_call lookups
+    if field_name == "interpretation_call":
+        hints = card_spec.get("interpretation_hints", []) or []
+        calls = {h.get("call") for h in hints if isinstance(h, dict) and h.get("call")}
+        if calls:
+            return calls
+
+    return None
+
+
+def _check_field_declared(card_spec: dict, field_name: str) -> bool:
+    """Is `field_name` in the card's outputs.summary_fields? Also accept the legacy
+    pseudo-field "interpretation_call" which doesn't appear in summary_fields but
+    is emitted by the orchestrator alongside the card output."""
+    if field_name == "interpretation_call":
+        # Legacy field; always reachable from any card that emits interpretation_hints
+        hints = card_spec.get("interpretation_hints", []) or []
+        return len(hints) > 0
+    summary_fields = (card_spec.get("outputs", {}) or {}).get("summary_fields", [])
+    return field_name in summary_fields
+
+
+def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
+    """Validate a single rules file against a directory of card_specs.
+
+    Returns ValidationReport with errors (rule rot / schema violations) and
+    advisory warnings (unverifiable value vocabularies during transition).
+    """
+    report = ValidationReport(rules_file=rules_path)
+
+    # === Check 1: structural validation against the rules schema ===
+    try:
+        schema = json.loads(SCHEMA_PATH.read_text())
+    except Exception as e:
+        report.errors.append(f"could not load rules schema at {SCHEMA_PATH}: {e}")
+        return report
+
+    try:
+        rules_doc = _load_yaml(rules_path)
+    except Exception as e:
+        report.errors.append(f"could not parse {rules_path}: {e}")
+        return report
+
+    validator = Draft202012Validator(schema)
+    for schema_err in sorted(validator.iter_errors(rules_doc), key=lambda e: list(e.absolute_path)):
+        path = "/".join(str(p) for p in schema_err.absolute_path) or "<root>"
+        report.errors.append(f"[schema] {path}: {schema_err.message}")
+    if report.errors:
+        return report
+
+    # === Check 2+3: per-rule reachability against the card index ===
+    card_idx = _build_card_index(cards_dir)
+    rules = rules_doc.get("rules", []) or []
+    report.rules_checked = len(rules)
+
+    for rule in rules:
+        rule_id = rule.get("rule_id", "<no-id>")
+        when = rule.get("when", {}) or {}
+        card_id = when.get("card_id")
+        field_name = when.get("field")
+        equals = when.get("equals")
+        in_list = when.get("in") or []
+        values = [equals] if equals is not None else list(in_list)
+
+        if not card_id:
+            report.errors.append(f"[{rule_id}] when.card_id missing")
+            continue
+
+        # Check 2: card_id reachable?
+        if card_id not in card_idx:
+            report.errors.append(
+                f"[{rule_id}] references card_id={card_id!r} but no card_spec at "
+                f"{cards_dir}/{card_id}.card.yaml"
+            )
+            continue
+
+        card_spec = card_idx[card_id]
+
+        # Check 3a: field declared in summary_fields (or legacy interpretation_call)?
+        if not _check_field_declared(card_spec, field_name):
+            report.errors.append(
+                f"[{rule_id}] references field={field_name!r} on card={card_id!r} "
+                f"but card's outputs.summary_fields does not include it. "
+                f"Card emits: {(card_spec.get('outputs',{}) or {}).get('summary_fields',[])}"
+            )
+            continue
+
+        # Check 3b: each value producible from the card?
+        producible = _producible_values_for_field(card_spec, field_name)
+        if producible is None:
+            # Card hasn't declared its value vocabulary yet (transition state)
+            report.warnings.append(
+                f"[{rule_id}] cannot verify value reachability for field={field_name!r} "
+                f"on card={card_id!r} — card_spec declares no value vocabulary. "
+                f"After card refactors land, add outputs.summary_fields_vocabulary to enforce."
+            )
+        else:
+            for v in values:
+                if v not in producible:
+                    report.errors.append(
+                        f"[{rule_id}] value={v!r} for field={field_name!r} on "
+                        f"card={card_id!r} is NOT producible. "
+                        f"Producible values: {sorted(producible)}"
+                    )
+
+        # Check 4: killer messages required for killer signals
+        signals = rule.get("signals", {}) or {}
+        emits_killer = any(s == "killer" for s in signals.values())
+        if emits_killer and not rule.get("killer_message"):
+            report.errors.append(
+                f"[{rule_id}] emits a killer signal but has no killer_message. "
+                f"Required by schema; double-checked here."
+            )
+
+    return report
+
+
+def _print_report(report: ValidationReport, verbose: bool = False) -> None:
+    status = "✓" if report.ok else "✗"
+    print(f"{status} {report.rules_file.name}: {report.rules_checked} rules, "
+          f"{len(report.errors)} errors, {len(report.warnings)} warnings")
+    for err in report.errors:
+        print(f"  ERROR: {err}")
+    if verbose or report.errors:
+        for warn in report.warnings:
+            print(f"  WARN:  {warn}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate Tier-2 interpretation-rules files.")
+    parser.add_argument("--rules", required=True, type=Path,
+                         help="Path to a *.rules.yaml file OR a directory of rules files.")
+    parser.add_argument("--cards", required=True, type=Path,
+                         help="Path to target-contracts/cards/ (directory of *.card.yaml).")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                         help="Show warnings even when no errors.")
+    args = parser.parse_args(argv)
+
+    rules_path = args.rules
+    cards_dir = args.cards
+
+    if not cards_dir.is_dir():
+        print(f"ERROR: --cards must be a directory, got {cards_dir}", file=sys.stderr)
+        return 1
+
+    if rules_path.is_dir():
+        rules_files = sorted(rules_path.glob("*.rules.yaml"))
+    else:
+        rules_files = [rules_path]
+
+    if not rules_files:
+        print(f"ERROR: no *.rules.yaml found at {rules_path}", file=sys.stderr)
+        return 1
+
+    any_errors = False
+    for rf in rules_files:
+        report = validate_rules_file(rf, cards_dir)
+        _print_report(report, verbose=args.verbose)
+        if not report.ok:
+            any_errors = True
+
+    return 1 if any_errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

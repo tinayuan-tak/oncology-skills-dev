@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts/schemas/interpretation_rules.schema.json",
+  "title": "Interpretation Rules (Tier 2)",
+  "description": "Schema for the Tier-2 signal-mapping config that translates descriptive evidence labels emitted by cards into per-modality signals consumed by the Tier-3 synthesis layer. Consolidates normative knowledge that previously lived scattered across (a) card_spec interpretation_hints[].dominant flags, (b) modality-module killer_conditions, and (c) the synthesis-layer NOT_INFORMATIVE_CALLS set. Reviewable by domain experts in PR; version-controlled with the contracts.",
+  "type": "object",
+  "required": ["rules_id", "version", "axis", "rules", "schema_version"],
+  "unevaluatedProperties": false,
+  "properties": {
+    "rules_id": {
+      "type": "string",
+      "description": "Stable kebab-case identifier (e.g. 'intracellular-intrinsic').",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+    },
+    "axis": {
+      "type": "string",
+      "description": "The biology axis this rules file applies to (e.g. intracellular_intrinsic, surface_intrinsic). Matches the dashboard_spec's axis_resolution outputs.",
+      "enum": ["intracellular_intrinsic", "surface_intrinsic", "extrinsic", "mixed"]
+    },
+    "rules": {
+      "type": "array",
+      "description": "Ordered list of evidence→signal mappings. Each rule fires when its predicate matches a card's emitted descriptive label; emits a per-modality signal vector. Multiple matching rules accumulate signals.",
+      "items": {"$ref": "#/$defs/rule"},
+      "minItems": 1,
+      "maxItems": 200
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Optional free-text explanation of the rules file's design intent (audience: future biology reviewers)."
+    }
+  },
+  "$defs": {
+    "signal_vocabulary": {
+      "type": "string",
+      "description": "Controlled signal vocabulary. 'supportive' = evidence consistent with this modality. 'opposing' = evidence against. 'killer' = hard gate to not_viable (Tier-3 deterministic). 'neutral' = informational, no fit-level effect. 'insufficient' = data missing/uninformative; counts toward coverage gap.",
+      "enum": ["supportive", "opposing", "killer", "neutral", "insufficient"]
+    },
+    "modality_id": {
+      "type": "string",
+      "enum": ["small_molecule", "degrader", "adc", "bite_tce", "antibody"]
+    },
+    "rule": {
+      "type": "object",
+      "required": ["rule_id", "when", "signals"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "description": "Stable kebab-case identifier for this rule. Surfaced in provenance for audit ('this signal came from rule X').",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+          "minLength": 3,
+          "maxLength": 100
+        },
+        "when": {
+          "type": "object",
+          "description": "Predicate that matches the rule against a card's emitted descriptive label. The card_id + field together identify which summary_field on which card to inspect; equals/in selects matching values.",
+          "required": ["card_id", "field"],
+          "unevaluatedProperties": false,
+          "properties": {
+            "card_id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+            },
+            "field": {
+              "type": "string",
+              "description": "The summary_field on the card to inspect (e.g. 'dependency_class', 'selectivity_class', 'correlation_class')."
+            },
+            "equals": {"type": "string"},
+            "in": {
+              "type": "array",
+              "items": {"type": "string"},
+              "minItems": 1
+            }
+          },
+          "oneOf": [
+            {"required": ["equals"]},
+            {"required": ["in"]}
+          ]
+        },
+        "signals": {
+          "type": "object",
+          "description": "Map of modality_id → signal_vocabulary. Each rule emits a signal for each listed modality. Modalities not listed receive 'neutral'.",
+          "additionalProperties": {"$ref": "#/$defs/signal_vocabulary"},
+          "minProperties": 1
+        },
+        "dominant": {
+          "type": "boolean",
+          "description": "If true AND signal == supportive for a given modality, this is treated as a DOMINANT positive signal in Tier-3 EG4 scoring (one dominant signal + non-contradiction is sufficient for 'strong' fit). Mirrors today's interpretation_hints[].dominant semantics but now lives in the rules layer.",
+          "default": false
+        },
+        "killer_message": {
+          "type": "string",
+          "description": "Stakeholder-readable rationale shown when this rule fires a 'killer' signal. Required for rules emitting any killer signal; ignored otherwise. Surfaces in the dashboard's modality-fit narrative.",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Optional biology explanation of why this evidence→signal mapping holds. Free text; for PR review."
+        }
+      }
+    }
+  }
+}

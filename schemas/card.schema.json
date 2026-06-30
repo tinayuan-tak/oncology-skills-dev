@@ -12,7 +12,6 @@
     "required_inputs",
     "methods",
     "outputs",
-    "interpretation_hints",
     "caveats",
     "schema_version"
   ],

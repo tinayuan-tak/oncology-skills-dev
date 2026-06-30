@@ -1,0 +1,182 @@
+# Tier-2 signal-mapping rules for the intracellular-intrinsic biology axis.
+# Maps card-emitted descriptive labels → per-modality signals consumed by Tier-3 synthesis.
+#
+# CONSOLIDATES three previously-scattered homes of normative logic:
+#   1. card_spec interpretation_hints[].dominant flags (Cards 1, 2, 4)
+#   2. modality-module killer_conditions (small_molecule, degrader)
+#   3. synthesis-layer NOT_INFORMATIVE_CALLS hardcoded set (_synthesis.py:59-68)
+#
+# Reviewable by domain experts in PR. Each rule is a normative claim that should be
+# defensible against biology + therapeutic-development practice.
+
+rules_id: intracellular-intrinsic
+version: 1.0.0
+axis: intracellular_intrinsic
+schema_version: 1
+
+rationale: |
+  Intracellular-intrinsic targets (cytoplasmic/nuclear proteins acting cell-autonomously)
+  are pursued primarily via small-molecule + degrader modalities. The therapeutic
+  rationale requires (a) functional dependency in the indication's cell context AND
+  (b) for degraders, demonstrable protein presence. This rules file encodes those
+  modality-specific requirements as signal mappings over descriptive evidence labels.
+
+rules:
+  # ============================================================================
+  # E1 — Pan-cancer dependency distribution (Card 1: pan-cancer-dependency-distribution)
+  # ============================================================================
+
+  - rule_id: pan-essential-killer
+    when:
+      card_id: pan-cancer-dependency-distribution
+      field: dependency_class
+      equals: common_essential
+    signals:
+      small_molecule: killer
+      degrader: killer
+    killer_message: |
+      Pan-essential target — no therapeutic window. Common-essential genes are required
+      for viability across the panel; systemic inhibition produces unacceptable toxicity
+      regardless of indication. Not viable as a small-molecule or degrader program.
+    rationale: |
+      DepMap's common_essential classification (~2000 genes, mostly housekeeping/ribosomal).
+      Pursuing these requires either tissue-restricted delivery (out of scope for systemic
+      small-molecule/degrader) or context-conditional inhibition (mutant-specific, etc.).
+
+  - rule_id: strongly-selective-supportive
+    when:
+      card_id: pan-cancer-dependency-distribution
+      field: dependency_class
+      equals: strongly_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      DepMap's strongly_selective classification — dependency is highly variable across
+      the panel, suggesting context-specific essentiality. This is the canonical
+      therapeutic-window signal: some cell contexts need it, most don't.
+
+  - rule_id: non-dependent-killer
+    when:
+      card_id: pan-cancer-dependency-distribution
+      field: dependency_class
+      equals: non_dependent
+    signals:
+      small_molecule: killer
+      degrader: killer
+    killer_message: |
+      No functional dependency detected across the cell-line panel. Without dependency
+      evidence there is no rationale for therapeutic investment regardless of modality.
+
+  # ============================================================================
+  # E2 — Lineage selectivity (Card 2: dependency-lineage-selectivity)
+  # ============================================================================
+
+  - rule_id: strong-lineage-selective-supportive
+    when:
+      card_id: dependency-lineage-selectivity
+      field: selectivity_class
+      equals: strong_lineage_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Target shows a lineage where dependency is strong AND distinctly elevated vs panel.
+      This is the indication-selection driver: a clear "use it for THIS cancer type" signal.
+
+  - rule_id: moderate-lineage-selective-supportive
+    when:
+      card_id: dependency-lineage-selectivity
+      field: selectivity_class
+      equals: moderate_lineage_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Lineage shows moderate selectivity — dependency present but the lineage-vs-panel
+      delta is smaller. Supportive but not dominant on its own.
+
+  - rule_id: broadly-dependent-neutral
+    when:
+      card_id: dependency-lineage-selectivity
+      field: selectivity_class
+      equals: broadly_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Lineage is dependent but no more than panel-wide. Doesn't kill the case (dependency
+      exists) but doesn't differentiate an indication either. Pan-cancer-dependency
+      classification (E1) carries the story instead.
+
+  - rule_id: not-dependent-killer
+    when:
+      card_id: dependency-lineage-selectivity
+      field: selectivity_class
+      equals: not_dependent
+    signals:
+      small_molecule: killer
+      degrader: killer
+    killer_message: |
+      No dependency signal in the target's mapped lineage. Without functional dependency
+      there is no rationale for chemical-matter investment.
+
+  # ============================================================================
+  # Expression — tumor vs adjacent (existing card: expression-tumor-vs-adjacent)
+  # ============================================================================
+  # Degrader-specific: degraders require demonstrable protein presence in the indication.
+  # Today's card emits "not informative" as a normative call; once that card is refactored
+  # the rule below references the descriptive label instead.
+
+  - rule_id: expression-not-informative-degrader-killer
+    when:
+      card_id: expression-tumor-vs-adjacent
+      field: interpretation_call
+      equals: "not informative"
+    signals:
+      degrader: killer
+    killer_message: |
+      Degrader not viable — no demonstrable expression. Degrader investment requires
+      confirmed intracellular protein presence; RNA-level evidence is the iter-1b proxy
+      until proteomics card lands.
+    rationale: |
+      Pre-refactor compatibility: this card has not yet been migrated to pure-data; rule
+      references its normative interpretation_call. Migrate to descriptive label
+      (e.g. expression_class == "not_expressed") when the card is refactored.
+
+  # ============================================================================
+  # E4 (expression-dependency-correlation) — biomarker hypothesis
+  # ============================================================================
+
+  - rule_id: expression-biomarker-supportive
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      equals: strong_negative
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Strong negative expression-dependency correlation = high-expressers are strongly
+      dependent. Biomarker-stratification candidate; supports patient-selection strategy.
+
+  # ============================================================================
+  # Generic insufficient-evidence handling (replaces NOT_INFORMATIVE_CALLS)
+  # ============================================================================
+  # Cards that emit data_unavailable / no_data_for_target descriptive labels signal
+  # 'insufficient' for all modalities — counted toward coverage gap, not held against fit.
+
+  - rule_id: data-unavailable-insufficient
+    when:
+      card_id: pan-cancer-dependency-distribution
+      field: dependency_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Card's underlying data was unreachable (_live_read_error) or the target was absent
+      from the substrate. Coverage gap; not used as opposing evidence.
