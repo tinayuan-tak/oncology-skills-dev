@@ -77,29 +77,50 @@ pan-cancer-dependency-distribution:
       fraction_of_dependent_tail: 0.22
 
 dependency-lineage-selectivity:
-  # === Card 2 iter-2 spec fields ===
-  lineage_label: Bowel             # DepMap OncotreeLineage for COADREAD indication
-  n_lineage_cell_lines: 49         # DepMap 26Q1 CRC count
-  n_lineage_excluded: 0
-  median_chronos_lineage: -1.18    # CRC lineage strong dependency (matches Card 1's top_dependent_lineages)
-  p25_chronos_lineage: -1.42       # IQR lower bound
-  p75_chronos_lineage: -0.78       # IQR upper bound
-  fraction_strongly_dependent_lineage: 0.72   # matches Card 1's top_dependent_lineages[0]
-  median_chronos_panel: -0.32      # pan-lineage moderate dependency (matches Card 1)
+  # === Card 2 v3.0.0 (pure-data, target-only) spec fields ===
+  # Card no longer carries indication-specific summary fields (lineage_label,
+  # median_chronos_lineage, etc.) — those are synthesis-layer concerns now. The
+  # stub mirrors the new target-only shape: panel stats + per_lineage_stats table
+  # + enriched_lineages list + enrichment_class categorical.
   n_cell_lines_panel: 1043
-  lineage_vs_panel_delta_chronos: -0.86       # negative = lineage more dependent than panel
-  lineage_rank_percentile: 88                  # Bowel ranks near top across DepMap lineages
-  n_lineages_more_dependent: 1                # Pancreas (median -1.34) is more dependent
-  more_dependent_lineages:
+  median_chronos_panel: -0.32      # pan-lineage moderate dependency (matches Card 1)
+  n_lineages_evaluated: 28          # ~28 lineages with n>=5 in DepMap 26Q1
+  per_lineage_stats:                # Bowel + Pancreas are the most-dependent; lung + breast appear too
     - lineage: Pancreas
       n: 42
       median_chronos: -1.34
+      p25_chronos: -1.62
+      p75_chronos: -1.05
       fraction_strongly_dependent: 0.81
-  adjacent_dependent_lineages: []
-  selectivity_class: strong_lineage_selective  # median<=-1.0 + delta<=-0.5 + rank>=80
-  # === Legacy iter-1a aliases (backward-compat) ===
-  selectivity_score: 0.86          # = median_chronos_panel - median_chronos_lineage
-  n_cell_lines_in_lineage: 49
+    - lineage: Bowel
+      n: 49
+      median_chronos: -1.18
+      p25_chronos: -1.42
+      p75_chronos: -0.78
+      fraction_strongly_dependent: 0.72
+    - lineage: Lung
+      n: 88
+      median_chronos: -0.85
+      p25_chronos: -1.20
+      p75_chronos: -0.42
+      fraction_strongly_dependent: 0.45
+  enriched_lineages:                # BH-corrected q < 0.05 + delta_vs_rest <= -0.3
+    - lineage: Pancreas
+      n: 42
+      median_chronos: -1.34
+      delta_vs_rest: -1.05
+      p_value: 0.00001
+      q_value: 0.0002
+      effect_size: 0.78
+    - lineage: Bowel
+      n: 49
+      median_chronos: -1.18
+      delta_vs_rest: -0.86
+      p_value: 0.00003
+      q_value: 0.0005
+      effect_size: 0.71
+  n_enriched_lineages: 2
+  enrichment_class: lineage_selective
 
 # L5: hotspot distribution corrected to published TCGA-COADREAD G12/G13/Q61 split.
 # Mutation freq corrected to ~42% (was 45%). n_samples_in_indication consistent with

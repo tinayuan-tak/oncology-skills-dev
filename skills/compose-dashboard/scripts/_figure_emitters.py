@@ -111,7 +111,11 @@ def _emit_card2_dependency_lineage_selectivity(
     lineage_summary = c2cli.compute_lineage_summary(
         chronos_by_model, model_metadata, indication=indication,
     )
-    target_lineage = lineage_summary.get("lineage_label", "")
+    # Card 2 v3.0.0 is indication-decoupled. The method output no longer carries
+    # `lineage_label`; figure emitter resolves the target lineage from the indication
+    # → lineage map (shared INDICATION_LINEAGE constant in the method module). This
+    # is the synthesis-layer responsibility per Decision 2A.
+    target_lineage = c2cli.INDICATION_LINEAGE.get(indication, "")
     merged_data = c2cli.emit_plot_data(
         chronos_by_model, model_metadata, target_lineage,
         strong_threshold=-1.0, out_path=out_dir,
