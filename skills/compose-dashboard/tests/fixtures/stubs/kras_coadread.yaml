@@ -44,7 +44,7 @@ expression-tumor-vs-adjacent:
 # Values match synthetic-test expectations: KRAS shows selective dependency with
 # pancreas + CRC + NSCLC dominating the dependent tail. Pan-cancer distribution
 # is bimodal-selective (NOT pan-essential).
-pan-cancer-dependency-distribution:
+pan-cancer-crispr-dependency-distribution:
   n_cell_lines_evaluated: 1043
   n_cell_lines_excluded: 35
   median_chronos_panel: -0.32
@@ -75,6 +75,70 @@ pan-cancer-dependency-distribution:
       fraction_strongly_dependent: 0.45
       median_chronos: -0.85
       fraction_of_dependent_tail: 0.22
+
+# Card E1b — pan-cancer RNAi dependency distribution (DEMETER2 combined)
+# KRAS is RNAi-selectively-essential (G12/G13-mutant lines drive the dep tail).
+# Threshold context: DEMETER2 strong-dep = score ≤ -0.5 (different from CRISPR -1.0).
+# Panel coverage smaller than CRISPR (~712 vs ~1500); RNAi-screened subset.
+pan-cancer-rnai-dependency-distribution:
+  rnai_n_cell_lines_evaluated: 712
+  rnai_median_dep_score: -0.18
+  rnai_p25_dep_score: -0.32
+  rnai_p75_dep_score: -0.05
+  rnai_p5_dep_score: -0.85
+  rnai_p95_dep_score: 0.10
+  rnai_dep_score_iqr: 0.27
+  rnai_fraction_strongly_dependent: 0.22
+  rnai_fraction_moderately_dependent: 0.31
+  rnai_fraction_non_dependent: 0.47
+  rnai_distribution_shape: bimodal_selective
+  rnai_pan_essential_score: 0.22
+  rnai_selectivity_index: 0.71
+  rnai_dependency_class: strongly_selective
+  rnai_top_dependent_lineages:
+    - lineage: Pancreas
+      n_in_lineage: 30
+      fraction_strongly_dependent: 0.77
+      median_dep_score: -0.92
+      fraction_of_dependent_tail: 0.18
+    - lineage: Bowel
+      n_in_lineage: 35
+      fraction_strongly_dependent: 0.69
+      median_dep_score: -0.78
+      fraction_of_dependent_tail: 0.15
+    - lineage: Lung
+      n_in_lineage: 60
+      fraction_strongly_dependent: 0.42
+      median_dep_score: -0.45
+      fraction_of_dependent_tail: 0.16
+  rnai_screens_contributing:
+    - screen: Achilles
+      n_lines: 480
+    - screen: DRIVE
+      n_lines: 380
+    - screen: Marcotte
+      n_lines: 65
+
+# Card E1c — CRISPR-RNAi dependency concordance (derived from Cards 1+1b)
+# KRAS shows strongly_concordant_dependent: both assays agree that mutant lines + bowel/
+# pancreas drive the dependent tail. Partition counts surface coverage gaps explicitly
+# (CRISPR panel ~1500, RNAi panel ~712; overlap ~540 in DepMap 26Q1).
+crispr-rnai-dependency-concordance:
+  n_in_both: 540
+  n_crispr_only: 503
+  n_rnai_only: 172
+  n_total: 1215
+  n_agree_dependent: 145
+  n_agree_non_dependent: 320
+  n_disagree_crispr_dependent: 45
+  n_disagree_rnai_dependent: 30
+  n_crispr_only_dependent: 78
+  n_crispr_only_non_dependent: 425
+  n_rnai_only_dependent: 38
+  n_rnai_only_non_dependent: 134
+  fraction_agree: 0.861          # (145 + 320) / 540
+  fraction_dependent_in_both: 0.269  # 145 / 540
+  concordance_class: strongly_concordant_dependent
 
 dependency-lineage-selectivity:
   # === Card 2 v3.0.0 (pure-data, target-only) spec fields ===

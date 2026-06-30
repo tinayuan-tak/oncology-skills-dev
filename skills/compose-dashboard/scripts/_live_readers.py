@@ -163,7 +163,7 @@ def _dispatch_expression_dependency_correlation(target: str, indication: str) ->
 
 
 def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route pan-cancer-dependency-distribution card to
+    """Dispatcher: route pan-cancer-crispr-dependency-distribution card to
     methods/depmap_chronos_distribution/read.py.
 
     Iter-2 Card 1: this card is pan-cancer by definition (NOT lineage-filtered).
@@ -178,6 +178,29 @@ def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -
 #   1. Resolves any framework-side context (manifest selection, indication-to-key mapping)
 #   2. Calls the corresponding method module from methods/
 #   3. Returns the method's summary dict unchanged
+def _dispatch_pan_cancer_rnai_dependency_distribution(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route pan-cancer-rnai-dependency-distribution card (Card E1b) to
+    methods/depmap_demeter_distribution/read.py.
+
+    RNAi sibling to the CRISPR Card E1a. Pan-cancer (NOT lineage-filtered); indication
+    accepted for dispatcher consistency but not consumed by the compute path.
+    """
+    rnai_module = _import_method("depmap_demeter_distribution")
+    return rnai_module.read_pan_cancer_rnai_distribution(target=target, indication=indication)
+
+
+def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
+    methods/depmap_crispr_rnai_concordance/read.py.
+
+    DERIVED CARD: this method composes the CRISPR + RNAi loaders. If either upstream
+    load fails, the read function returns _live_read_error and the concordance_class
+    is data_unavailable (preserves the framework's graceful-degradation contract).
+    """
+    concord_module = _import_method("depmap_crispr_rnai_concordance")
+    return concord_module.read_crispr_rnai_concordance(target=target, indication=indication)
+
+
 def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route mutation-stratified-dependency card (Card 3) to
     methods/depmap_mutation_dependency/read.py.
@@ -195,7 +218,9 @@ CARD_DISPATCHERS = {
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
     "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
-    "pan-cancer-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
+    "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
+    "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
+    "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):

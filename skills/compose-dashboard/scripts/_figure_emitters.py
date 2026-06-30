@@ -185,6 +185,70 @@ def _emit_card4_expression_dependency_correlation(
     ]
 
 
+def _emit_card1b_pan_cancer_rnai_dependency_distribution(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Re-runs Card 1b's method internals to emit RNAi waterfall + histogram_kde SVGs."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_demeter_distribution import cli as c1bcli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    demeter_by_model, model_metadata, load_errors = c1bcli.load_rnai_files(
+        release_pin="26q1", target_symbol=target
+    )
+    if load_errors or not demeter_by_model:
+        return []
+
+    recomputed_summary = c1bcli.compute_summary_stats(
+        demeter_by_model, model_metadata,
+        strong_threshold=-0.5, moderate_threshold=-0.25,
+    )
+    c1bcli.emit_waterfall_plot(
+        demeter_by_model, model_metadata, target,
+        recomputed_summary, out_dir, TARGET_CONTRACTS,
+    )
+    c1bcli.emit_histogram_kde_plot(
+        demeter_by_model, target, recomputed_summary, out_dir, TARGET_CONTRACTS,
+    )
+    c1bcli.emit_plot_data(demeter_by_model, model_metadata, -0.5, out_dir)
+    c1bcli.emit_manifest(target, "26q1", recomputed_summary, demeter_by_model, out_dir, [])
+
+    return [
+        {"id": "waterfall_rnai", "path": "figure_waterfall_rnai.svg",
+         "type": "ranked_waterfall_rnai", "primary": True},
+        {"id": "histogram_kde_rnai", "path": "figure_histogram_kde_rnai.svg",
+         "type": "density_histogram_with_kde_rnai", "primary": False},
+    ]
+
+
+def _emit_card1c_crispr_rnai_concordance(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Re-runs Card 1c (derived concordance) to emit scatter + partition-bar SVGs."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_crispr_rnai_concordance import cli as c1ccli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    chronos_by, demeter_by, model_meta, load_errors = c1ccli.load_concordance_inputs(target, "26q1")
+    if load_errors:
+        return []
+    recomputed = c1ccli.compute_concordance(chronos_by, demeter_by, model_meta)
+    c1ccli.emit_concordance_scatter(recomputed["per_line_concordance"], target, out_dir, TARGET_CONTRACTS)
+    c1ccli.emit_partition_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
+    c1ccli.emit_plot_data(recomputed["per_line_concordance"], out_dir)
+    c1ccli.emit_manifest(target, "26q1", recomputed, out_dir, [])
+    return [
+        {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
+         "type": "scatter_with_quadrants", "primary": True},
+        {"id": "concordance_partition_bar", "path": "figure_concordance_partition_bar.svg",
+         "type": "stacked_bar", "primary": False},
+    ]
+
+
 def _emit_card3_mutation_stratified_dependency(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -221,7 +285,9 @@ def _emit_card3_mutation_stratified_dependency(
 
 
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
-    "pan-cancer-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
+    "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
+    "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
+    "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,

@@ -92,7 +92,7 @@ def test_card1_figure_emission(tmp_path, monkeypatch):
 
     out_root = tmp_path / "compose_out"
     figs = emit_figures_for_card(
-        card_id="pan-cancer-dependency-distribution",
+        card_id="pan-cancer-crispr-dependency-distribution",
         summary={"some_summary_field": 123},
         out_root=out_root,
         target="KRAS",
@@ -107,7 +107,7 @@ def test_card1_figure_emission(tmp_path, monkeypatch):
         full = out_root / f["path"]
         assert full.exists(), f"Figure missing on disk: {full}"
         assert full.stat().st_size > 500, f"Figure too small (likely empty): {full}"
-        assert f["path"].startswith("cards/pan-cancer-dependency-distribution/")
+        assert f["path"].startswith("cards/pan-cancer-crispr-dependency-distribution/")
 
 
 def test_card2_figure_emission(tmp_path, monkeypatch):
@@ -226,7 +226,7 @@ def test_emitter_no_op_on_live_read_error(tmp_path):
 
     out_root = tmp_path / "compose_out"
     figs = emit_figures_for_card(
-        card_id="pan-cancer-dependency-distribution",
+        card_id="pan-cancer-crispr-dependency-distribution",
         summary={"_live_read_error": "s3_read_failed"},
         out_root=out_root,
         target="KRAS",
@@ -278,7 +278,7 @@ def test_dashboard_md_embeds_figure_references(tmp_path):
         },
         "dashboard_spec_ref": "test",
         "cards": [{
-            "card_id": "pan-cancer-dependency-distribution",
+            "card_id": "pan-cancer-crispr-dependency-distribution",
             "card_version": "1.0.0",
             "validation_state": "pass",
             "summary": {"distribution_shape": "bimodal_selective"},
@@ -286,9 +286,9 @@ def test_dashboard_md_embeds_figure_references(tmp_path):
             "caveats": [],
             "provenance": {"method_calls": [], "input_manifest_ids": []},
             "figures": [
-                {"id": "waterfall", "path": "cards/pan-cancer-dependency-distribution/figure_waterfall.svg",
+                {"id": "waterfall", "path": "cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg",
                  "type": "waterfall_plot", "primary": True},
-                {"id": "histogram_kde", "path": "cards/pan-cancer-dependency-distribution/figure_histogram_kde.svg",
+                {"id": "histogram_kde", "path": "cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg",
                  "type": "histogram_kde", "primary": False},
             ],
         }],
@@ -299,9 +299,9 @@ def test_dashboard_md_embeds_figure_references(tmp_path):
 
     md = render_evidence_package(ep)
 
-    assert "![waterfall_plot](cards/pan-cancer-dependency-distribution/figure_waterfall.svg)" in md, \
+    assert "![waterfall_plot](cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg)" in md, \
         "Primary figure not embedded in markdown"
-    assert "![histogram_kde](cards/pan-cancer-dependency-distribution/figure_histogram_kde.svg)" in md, \
+    assert "![histogram_kde](cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg)" in md, \
         "Alternate figure not embedded in markdown"
     assert "<details><summary>Alternate views</summary>" in md, \
         "Alternate-views collapsible block missing"

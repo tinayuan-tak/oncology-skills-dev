@@ -38,7 +38,9 @@ from _live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
 
 CARDS_WITH_DISPATCHERS = [
     ("target-identity-summary", "KRAS", "COADREAD"),
-    ("pan-cancer-dependency-distribution", "KRAS", "COADREAD"),
+    ("pan-cancer-crispr-dependency-distribution", "KRAS", "COADREAD"),
+    ("pan-cancer-rnai-dependency-distribution", "KRAS", "COADREAD"),
+    ("crispr-rnai-dependency-concordance", "KRAS", "COADREAD"),
     ("expression-dependency-correlation", "KRAS", "COADREAD"),
     ("dependency-lineage-selectivity", "KRAS", "COADREAD"),
     ("mutation-hotspot-frequency", "KRAS", "COADREAD"),
@@ -105,7 +107,7 @@ def test_card1_pan_cancer_distribution_chain_specifically():
     Pass criterion in authenticated environments: result dict contains
     `n_cell_lines_evaluated` field (real data flowed back).
     """
-    result = read_live_summary("pan-cancer-dependency-distribution", "KRAS", "COADREAD")
+    result = read_live_summary("pan-cancer-crispr-dependency-distribution", "KRAS", "COADREAD")
     assert isinstance(result, dict)
 
     # One of two passing states:
