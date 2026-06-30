@@ -1,7 +1,7 @@
 """depmap_chronos_distribution.read — library entry point for live-mode reads.
 
 Exposes a single function `read_pan_cancer_distribution(target, indication)` that
-returns the summary dict for the pan-cancer-dependency-distribution card. The
+returns the summary dict for the pan-cancer-crispr-dependency-distribution card. The
 indication parameter is accepted for dispatcher consistency but is NOT consumed:
 this card is pan-cancer by definition (not lineage-filtered). Lineage-filtering is
 the job of the sister `lineage-specific-dependency` card.
@@ -23,7 +23,7 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
                                    strong_threshold: float = -1.0,
                                    moderate_threshold: float = -0.5) -> Optional[dict]:
     """Compute the pan-cancer dependency distribution for target. Returns the
-    summary dict matching the pan-cancer-dependency-distribution card's
+    summary dict matching the pan-cancer-crispr-dependency-distribution card's
     outputs.summary_fields. The `indication` parameter is intentionally ignored
     (this card is pan-cancer).
 

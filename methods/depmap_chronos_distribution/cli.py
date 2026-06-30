@@ -3,7 +3,7 @@
 
 Consumes DepMap 26Q1 CRISPRGeneEffect.csv + Model.csv, computes per-target dependency
 distribution stats across the panel, emits summary.json + two SVG figures (waterfall +
-histogram-KDE) + plot_data.parquet for the pan-cancer-dependency-distribution card.
+histogram-KDE) + plot_data.parquet for the pan-cancer-crispr-dependency-distribution card.
 
 Usage:
     depmap-chronos-distribution \
@@ -286,7 +286,7 @@ def _classify_dependency(fraction_strongly_dependent: float,
     Returns one of: common_essential | strongly_selective | broadly_dependent |
                     non_dependent | data_unavailable
 
-    The vocabulary matches target-contracts/cards/pan-cancer-dependency-distribution
+    The vocabulary matches target-contracts/cards/pan-cancer-crispr-dependency-distribution
     .card.yaml's outputs.summary_fields_vocabulary.dependency_class. Tier-2 rules
     in interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
     """
