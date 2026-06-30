@@ -96,8 +96,18 @@ def synthesize(
     if not loaded_modules:
         return _synthesize_no_modules(run_plan)
 
-    # EG4: build dominant_calls map per card_id (call set declared as dominant in interpretation_hints)
+    # EG4: build dominant_calls map per card_id (call set declared as dominant in interpretation_hints).
+    # Legacy path — consumed when Tier-2 rules don't match (e.g. Card 2/4 still on the
+    # interpretation_hints[].dominant pattern pre-refactor).
     dominant_calls_by_card = _build_dominant_calls_map(card_outputs, contracts_root)
+
+    # Tier-2 signal matrix — the new normative layer. When a rules file exists for the
+    # resolved axis AND its rules match against a card's emitted descriptive label, the
+    # per-(card, modality) entry in the matrix carries {signal, rule_id, dominant flag}.
+    # Empty when no rules file is found OR no rules match → legacy path takes precedence.
+    axis = (run_plan.get("axis_resolution", {}) or {}).get("resolved_axis", "")
+    tier2_rules = _load_interpretation_rules(contracts_root, axis)
+    tier2_signal_matrix = _build_signal_matrix(card_outputs, tier2_rules)
 
     # Build card_call_map from non-excluded card outputs (used for fit scoring + rationale)
     card_call_map = {
@@ -154,18 +164,57 @@ def synthesize(
         # EG4 (iter-2): check for dominant-signal pattern. If ANY primary card emits a
         # call declared as dominant in its card_spec, AND no primary card emits a
         # NOT_INFORMATIVE call (contradiction), the modality rates strong even when
-        # the ratio is below 0.75. This matches the historical discovery pattern where
-        # one decisive evidence type carries the signal (e.g., DLL3's lineage-restriction,
-        # KRAS-G12C's structural-druggability) and other cards confirm rather than vote.
+        # the ratio is below 0.75.
+        #
+        # Tier-2 path (new): when the rules file is loaded, dominant/contradiction
+        # determination consults the signal matrix instead of the card-embedded
+        # dominant flag. The signal matrix is keyed on (card_id, modality), so
+        # the same card may emit different signals for different modalities (e.g.,
+        # expression-not-informative is a degrader killer but small_molecule neutral).
+        #
+        # Legacy path (fallback): for cards not yet refactored (e.g. Card 2 + Card 4
+        # still emit normative interpretation_call strings), the dominant_calls_by_card
+        # set + NOT_INFORMATIVE_CALLS set drive the decision.
         dominant_hits = []
         primary_contradictions = []
+        tier2_killer_signals = []   # per-modality killer signals from Tier-2 rules
+        fired_rule_ids = set()       # traceability: which rules contributed to this modality's fit
+
         for card_id in primary_cards:
             call = card_call_map.get(card_id, "")
+            # --- Tier-2 path ---
+            tier2_signals = _signals_for_card_modality(tier2_signal_matrix, card_id, modality)
+            if tier2_signals:
+                for entry in tier2_signals:
+                    fired_rule_ids.add(entry["rule_id"])
+                    sig = entry["signal"]
+                    if sig == "killer":
+                        tier2_killer_signals.append({
+                            "card_id": card_id,
+                            "rule_id": entry["rule_id"],
+                            "message": entry.get("killer_message", ""),
+                        })
+                    elif sig == "supportive" and entry.get("dominant"):
+                        dominant_hits.append((card_id, f"rule:{entry['rule_id']}"))
+                    elif sig == "opposing":
+                        primary_contradictions.append((card_id, f"rule:{entry['rule_id']}"))
+                # When Tier-2 fires for this card, skip the legacy interpretation_call
+                # check — the signal matrix is authoritative.
+                continue
+            # --- Legacy path (no Tier-2 match for this card) ---
             dominant_set = dominant_calls_by_card.get(card_id, set())
             if call in dominant_set:
                 dominant_hits.append((card_id, call))
             elif call in NOT_INFORMATIVE_CALLS:
                 primary_contradictions.append((card_id, call))
+
+        # Merge Tier-2 killer signals into the killers_hit list (string messages)
+        # so the existing fit_level → "not_viable" gate fires uniformly.
+        if tier2_killer_signals:
+            killers_hit = list(killers_hit) + [
+                k["message"] or f"{k['card_id']} via rule {k['rule_id']}"
+                for k in tier2_killer_signals
+            ]
 
         if killers_hit:
             fit_level = "not_viable"
@@ -212,6 +261,13 @@ def synthesize(
             "dominant_hits": [{"card_id": cid, "call": call} for cid, call in dominant_hits],
             "killer_conditions_hit": killers_hit,
             "rationale": "; ".join(rationale_parts),
+            # Tier-3 traceability — which Tier-2 rules contributed to this modality's
+            # fit_level. Per the LLM-advisory protocol: a stakeholder disagreeing with
+            # the call can pin the disagreement to a specific rule_id.
+            "fired_rule_ids": sorted(fired_rule_ids),
+            # Tier-2 killer-signal details (separate from the legacy killer_conditions_hit
+            # string list because Tier-2 killers carry structured rule_id + card_id).
+            "tier2_killer_signals": tier2_killer_signals,
         })
 
     # Sort by fit_level: strong > moderate > weak > insufficient_evidence > not_viable
@@ -366,8 +422,23 @@ def _format_strongest_evidence(best: dict, card_outputs: list[dict]) -> str:
 
     dominant_hits = best.get("dominant_hits", []) or []
     if dominant_hits:
+        # Citation strategy:
+        #   - When the hit came from a Tier-2 rule, the call string is "rule:<rule_id>".
+        #     Cite that rule_id directly — it's the audit-grade source.
+        #   - Otherwise cite the card's interpretation_call (legacy path).
+        # The card_id is still shown either way so a reader can find the evidence.
         call_map = {c["card_id"]: c.get("interpretation_call", "") for c in card_outputs}
-        cites = [f"{h['card_id']}: {call_map.get(h['card_id'], h['call'])!r}" for h in dominant_hits]
+        cites = []
+        for h in dominant_hits:
+            call_str = h.get("call", "")
+            if isinstance(call_str, str) and call_str.startswith("rule:"):
+                # Tier-2 path
+                rule_id = call_str[len("rule:"):]
+                cites.append(f"{h['card_id']} (rule: {rule_id})")
+            else:
+                # Legacy path — fall back to interpretation_call lookup
+                resolved = call_map.get(h["card_id"], call_str)
+                cites.append(f"{h['card_id']}: {resolved!r}")
         return f"Dominant signal — {'; '.join(cites)}."
 
     positive = best.get("primary_cards_positive_count", 0)
@@ -470,6 +541,135 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
     if not caveats_parts:
         return "No cross-card caveats surfaced."
     return " ".join(caveats_parts)
+
+
+# ============================================================================
+# Tier-2 signal-matrix readers
+# ============================================================================
+# The Tier-2 rules file (target-contracts/interpretation-rules/*.rules.yaml)
+# is the single home for normative knowledge that previously lived scattered
+# across card interpretation_hints[].dominant flags, modality killer_conditions,
+# and the synthesis-layer NOT_INFORMATIVE_CALLS set. Per the warm-rolling-bunny
+# plan's decoupling-design decisions:
+#   - cards emit descriptive labels only (Tier-1)
+#   - rules map (card_id, field, value) → {modality: signal} (Tier-2)
+#   - synthesis reads the signal matrix to produce fit_level (Tier-3 deterministic)
+#
+# Backward-compat: when no rules file is found OR a card's emitted output doesn't
+# match any rule, the synthesis layer falls back to the legacy
+# _build_dominant_calls_map path (interpretation_hints[].dominant). Both paths
+# coexist during the Cards 1+2+4 refactor.
+
+
+def _load_interpretation_rules(contracts_root, axis: str) -> "list[dict] | None":
+    """Load the Tier-2 rules file for a given axis. Returns the list of rules,
+    or None if the rules file is absent / unreadable / has the wrong axis.
+
+    Returning None signals the synthesis caller to use the legacy
+    _build_dominant_calls_map fallback. This keeps the refactor incremental.
+    """
+    if contracts_root is None or not axis:
+        return None
+    from pathlib import Path
+    import yaml
+    rules_dir = Path(contracts_root) / "interpretation-rules"
+    if not rules_dir.is_dir():
+        return None
+    # Look for {axis}.rules.yaml (e.g. intracellular-intrinsic.rules.yaml)
+    # Convert underscore-separated axis names to kebab-case filename:
+    axis_kebab = axis.replace("_", "-")
+    rules_path = rules_dir / f"{axis_kebab}.rules.yaml"
+    if not rules_path.is_file():
+        return None
+    try:
+        doc = yaml.safe_load(rules_path.read_text())
+    except Exception:
+        return None
+    if not isinstance(doc, dict):
+        return None
+    if doc.get("axis") != axis:
+        return None
+    rules = doc.get("rules")
+    return rules if isinstance(rules, list) and rules else None
+
+
+def _build_signal_matrix(
+    card_outputs: list[dict],
+    rules: "list[dict] | None",
+) -> dict:
+    """Apply Tier-2 rules to card outputs; build a per-(card_id, modality) signal matrix.
+
+    Returns dict keyed by (card_id, modality) → list of {signal, rule_id, dominant,
+    killer_message} entries (a list because multiple rules may fire on the same
+    (card_id, field) producing signals for different modalities, or even multiple
+    rules matching the same card output).
+
+    When `rules` is None or empty: returns an empty dict (caller falls back to legacy).
+    """
+    if not rules:
+        return {}
+    # Index cards by id for fast lookup
+    card_by_id = {c["card_id"]: c for c in card_outputs
+                   if c.get("card_id") and not c.get("excluded_by_applies_when")}
+
+    matrix: dict[tuple[str, str], list[dict]] = {}
+
+    for rule in rules:
+        rule_id = rule.get("rule_id", "<no-id>")
+        when = rule.get("when") or {}
+        card_id = when.get("card_id")
+        field = when.get("field")
+        equals = when.get("equals")
+        in_list = when.get("in") or []
+        signals = rule.get("signals") or {}
+        is_dominant = bool(rule.get("dominant"))
+        killer_message = rule.get("killer_message")
+
+        if not card_id or not field:
+            continue
+        card = card_by_id.get(card_id)
+        if card is None:
+            continue
+
+        # Look the field up — first in summary, then on the card output root
+        # (interpretation_call lives on the card_output root, not inside summary).
+        summary = card.get("summary") or {}
+        if field == "interpretation_call":
+            actual = card.get("interpretation_call")
+        else:
+            actual = summary.get(field) if field in summary else card.get(field)
+
+        # Match? equals takes precedence; otherwise check in-list.
+        if equals is not None:
+            matched = (actual == equals)
+        elif in_list:
+            matched = actual in in_list
+        else:
+            matched = False
+
+        if not matched:
+            continue
+
+        # Rule fires — emit signal entries per modality
+        for modality, signal in signals.items():
+            key = (card_id, modality)
+            entry = {
+                "signal": signal,
+                "rule_id": rule_id,
+                "dominant": is_dominant,
+            }
+            if signal == "killer" and killer_message:
+                entry["killer_message"] = killer_message
+            matrix.setdefault(key, []).append(entry)
+
+    return matrix
+
+
+def _signals_for_card_modality(
+    matrix: dict, card_id: str, modality: str,
+) -> list[dict]:
+    """Convenience accessor: list of signal entries for (card_id, modality), or []."""
+    return matrix.get((card_id, modality), [])
 
 
 def _build_dominant_calls_map(card_outputs: list[dict], contracts_root) -> dict:
