@@ -127,6 +127,17 @@ def test_synthetic_kras_distribution(tmp_path, monkeypatch):
     assert summary["distribution_shape"] in ("bimodal_selective", "shifted_dependent"), \
         f"expected bimodal/shifted shape; got {summary['distribution_shape']}"
 
+    # === dependency_class (Tier-2 categorical) — must be one of the declared vocabulary ===
+    assert "dependency_class" in summary, \
+        "method must emit dependency_class (declared in card_spec summary_fields_vocabulary)"
+    assert summary["dependency_class"] in (
+        "common_essential", "strongly_selective", "broadly_dependent",
+        "non_dependent", "data_unavailable",
+    ), f"dependency_class outside vocabulary: {summary['dependency_class']!r}"
+    # Synthetic KRAS is bimodal-selective by design → expect strongly_selective or broadly_dependent
+    assert summary["dependency_class"] in ("strongly_selective", "broadly_dependent"), \
+        f"synthetic KRAS should be strongly_selective or broadly_dependent; got {summary['dependency_class']!r}"
+
     # === Lineage tail enrichment: colorectal + pancreas should dominate dependent tail ===
     top_lineages = summary["top_dependent_lineages"]
     top_lineage_names = [l["lineage"] for l in top_lineages]

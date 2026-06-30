@@ -41,12 +41,17 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),
             "errors": load_errors,
             "_remediation": "Method cannot reach DepMap 26Q1; verify local cache or AWS credentials.",
+            # Tier-2 vocabulary: always emit dependency_class so rules can fire on "data_unavailable".
+            "dependency_class": "data_unavailable",
+            "distribution_shape": "unclassified",
         }
     if not chronos_by_model:
         return {
             "_live_read_error": "no_data_for_target",
             "target": target,
             "_remediation": f"target {target!r} not found in CRISPRGeneEffect.csv; confirm HGNC symbol.",
+            "dependency_class": "data_unavailable",
+            "distribution_shape": "unclassified",
         }
 
     return _cli.compute_summary_stats(

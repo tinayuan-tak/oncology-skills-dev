@@ -258,7 +258,51 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     top_lineages.sort(key=lambda x: x["fraction_strongly_dependent"], reverse=True)
     summary["top_dependent_lineages"] = top_lineages[:5]
 
+    # === dependency_class — DepMap-convention descriptive categorical ===
+    # Maps the distribution shape + dependent-fraction to one of the four classes that
+    # the Tier-2 interpretation-rules consume. Vocabulary declared in the card_spec's
+    # outputs.summary_fields_vocabulary.dependency_class. The mapping mirrors DepMap's
+    # published portal logic.
+    summary["dependency_class"] = _classify_dependency(
+        fraction_strongly_dependent=frac_strong,
+        median_chronos_panel=summary["median_chronos_panel"],
+        distribution_shape=shape,
+        pan_essential_fraction=pan_essential_fraction,
+        selective_min=selective_min,
+        selective_max=selective_max,
+    )
+
     return summary
+
+
+def _classify_dependency(fraction_strongly_dependent: float,
+                          median_chronos_panel: float,
+                          distribution_shape: str,
+                          pan_essential_fraction: float = 0.85,
+                          selective_min: float = 0.05,
+                          selective_max: float = 0.60) -> str:
+    """Map summary stats to a DepMap-convention dependency_class categorical.
+
+    Returns one of: common_essential | strongly_selective | broadly_dependent |
+                    non_dependent | data_unavailable
+
+    The vocabulary matches target-contracts/cards/pan-cancer-dependency-distribution
+    .card.yaml's outputs.summary_fields_vocabulary.dependency_class. Tier-2 rules
+    in interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
+    """
+    if fraction_strongly_dependent >= pan_essential_fraction:
+        return "common_essential"
+    if fraction_strongly_dependent < selective_min:
+        return "non_dependent"
+    if distribution_shape == "bimodal_selective":
+        return "strongly_selective"
+    if (selective_min <= fraction_strongly_dependent <= selective_max
+            and median_chronos_panel <= -0.5):
+        return "broadly_dependent"
+    if distribution_shape == "shifted_dependent":
+        return "broadly_dependent"
+    # Fallback: in-range but doesn't fit a clean shape (low confidence)
+    return "broadly_dependent"
 
 
 def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
