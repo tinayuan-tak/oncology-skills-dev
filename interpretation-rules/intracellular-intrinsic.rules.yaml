@@ -387,6 +387,68 @@ rules:
       (e.g. expression_class == "not_expressed") when the card is refactored.
 
   # ============================================================================
+  # E3a — Expression distribution (Card E3a: expression-distribution)
+  # ============================================================================
+  # Pan-cancer cell-line TPM distribution. NOT a primary fit_level driver — the
+  # rationale-for-modality questions live in tumor-vs-normal / lineage-restriction.
+  # This card answers "is the target measurably expressed across cell lines?"
+
+  - rule_id: expression-broadly-low-degrader-killer
+    when:
+      card_id: expression-distribution
+      field: expression_class
+      equals: broadly_low
+    signals:
+      degrader: killer
+    killer_message: |
+      Target is broadly NOT expressed in DepMap cell lines (<10% expressed). Degraders
+      require protein presence to degrade; this is strong evidence the protein is not
+      present in cellular models. Not viable for degrader.
+    rationale: |
+      Degrader programs need a target protein to degrade. Broadly-low expression on the
+      most-comprehensive cell-line panel is strong negative evidence for that condition.
+      Small-molecule signal here is neutral — the SM rationale lives in expression-tumor-
+      vs-adjacent (patient-level evidence), not the DepMap cell-line panel.
+
+  - rule_id: expression-broadly-high-supportive
+    when:
+      card_id: expression-distribution
+      field: expression_class
+      equals: broadly_high
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target is broadly + highly expressed across DepMap cell lines. Confirms measurable
+      protein expression. Supportive for both modalities; not dominant (selectivity
+      questions live in lineage-restriction-evidence + tumor-vs-normal).
+
+  - rule_id: expression-lineage-restricted-supportive
+    when:
+      card_id: expression-distribution
+      field: expression_class
+      equals: lineage_restricted
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target shows lineage-restricted expression across DepMap (one or more lineages
+      express, others don't). Therapeutic-window candidate by selectivity; the
+      indication-of-interest needs to overlap an expressing lineage (synthesis-layer
+      lookup over per_lineage_stats).
+
+  - rule_id: expression-data-unavailable-insufficient
+    when:
+      card_id: expression-distribution
+      field: expression_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Expression matrix unreachable or target absent. Coverage gap.
+
+  # ============================================================================
   # E4 (expression-dependency-correlation) — biomarker hypothesis
   # ============================================================================
 

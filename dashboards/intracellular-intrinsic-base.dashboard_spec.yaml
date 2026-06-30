@@ -38,6 +38,8 @@ required_cards:
     version: ">=1.0.0,<2"        # Card E1b — RNAi DEMETER2 sibling, new 2026-06-30
   - card_id: crispr-rnai-dependency-concordance
     version: ">=1.0.0,<2"        # Card E1c — derived concordance, partition-preserving union, 2026-06-30
+  - card_id: expression-distribution
+    version: ">=1.0.0,<2"        # Card E3a — pan-cancer cell-line TPM distribution, 2026-06-30
   - card_id: dependency-lineage-selectivity
     version: ">=1.0.0,<4"        # widened: Card refactored to v3.0.0 (pure-data, target-only) 2026-06-30
   # NOTE: mutation-stratified-dependency exists in cards/ as a future-extension but is

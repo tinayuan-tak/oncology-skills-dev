@@ -1,0 +1,90 @@
+# Card E3a — EXPRESSION DISTRIBUTION across DepMap cell-line panel  (pure-data)
+#
+# Mirrors DepMap portal's per-gene expression panel. Reports TPM distribution across
+# ~1500 cell lines + per-lineage breakdown. Distinct from sibling expression cards:
+#   - expression-tumor-vs-adjacent: TCGA patient cohort vs adjacent normal
+#   - lineage-restriction-evidence: GTEx NORMAL tissue breadth
+#   - subgroup-stratified-expression: TCGA subgroup analysis
+# This card is CELL-LINE cohort only — "is this gene measurably expressed across
+# cancer cell lines, and is expression lineage-stratified?"
+#
+# Anchored to DepMap's log2(TPM+1) convention (OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv):
+#   log2(TPM+1) >= 1.0   = expressed       (TPM >= 1.0)
+#   log2(TPM+1) >= 5.0   = highly expressed (TPM >= 31)
+#   log2(TPM+1) <  1.0   = not expressed   (TPM <  1.0)
+
+card_id: expression-distribution
+version: 1.0.0
+question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
+
+applies_when:
+  - "context.data_sources.depmap_expression_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-expression-distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      expressed_threshold: "THRESHOLD.expressed_threshold_log2tpm"
+
+outputs:
+  summary_fields:
+    - n_cell_lines_evaluated
+    - median_log2tpm_panel
+    - p25_log2tpm_panel
+    - p75_log2tpm_panel
+    - p5_log2tpm_panel
+    - p95_log2tpm_panel
+    - log2tpm_iqr
+    - fraction_expressed                          # log2(TPM+1) >= 1.0
+    - fraction_highly_expressed                   # log2(TPM+1) >= 5.0
+    - fraction_not_expressed                      # log2(TPM+1) < 1.0
+    - expression_class                            # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
+    - n_lineages_evaluated
+    - per_lineage_stats                           # list of {lineage, n, median_log2tpm, fraction_expressed}
+    - n_lineage_restricted_lineages               # lineages with >50% expressed but panel <30%
+
+  summary_fields_vocabulary:
+    expression_class:
+      - broadly_high                              # >70% cell lines highly expressed
+      - broadly_moderate                          # >70% expressed but <30% highly expressed
+      - lineage_restricted                        # 10-70% expressed; lineage-stratified
+      - broadly_low                               # <30% expressed
+      - data_unavailable
+
+  figures:
+    - id: waterfall_expression
+      type: ranked_waterfall
+      description: "Per-cell-line log2(TPM+1) sorted ascending, lineage-colored. Distribution shape directly readable."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_strip_expression
+      type: per_lineage_strip_plot
+      description: "Per-lineage log2(TPM+1) strip plot. Lineage-restriction visible as bimodal-by-lineage pattern."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_cell_line_expression_with_lineage_tags
+
+thresholds:
+  expressed_threshold_log2tpm: 1.0                # DepMap's "expressed" cutoff
+  highly_expressed_threshold_log2tpm: 5.0         # TPM >= 31 ≈ high expression
+  broadly_expressed_fraction_threshold: 0.70
+  broadly_high_fraction_threshold: 0.30
+  lineage_restricted_min_fraction: 0.10
+  lineage_restricted_max_fraction: 0.70
+  min_lineage_size: 5                             # need ≥5 cell lines per lineage for stable estimate
+
+warning_predicates:
+  - warning_id: low_panel_expression_coverage
+    if: "n_cell_lines_evaluated < 500"
+    message: "Expression panel coverage is unusually low for this gene; matrix subset may be biased."
+
+caveats:
+  - "Cell-line expression does not match tumor expression directly; DepMap lines are immortalized lab cultures and gene expression is biased toward proliferation programs."
+  - "Expression class is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
+  - "Lineage-restricted expression in DepMap is informative but the gold-standard normal-tissue safety signal comes from GTEx via the lineage-restriction-evidence card."
+
+schema_version: 1
