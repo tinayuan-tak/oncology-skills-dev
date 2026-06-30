@@ -178,6 +178,18 @@ def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -
 #   1. Resolves any framework-side context (manifest selection, indication-to-key mapping)
 #   2. Calls the corresponding method module from methods/
 #   3. Returns the method's summary dict unchanged
+def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route mutation-stratified-dependency card (Card 3) to
+    methods/depmap_mutation_dependency/read.py.
+
+    Card 3 asks whether a target's dependency stratifies by ITS OWN mutation status
+    across the DepMap panel (oncogene-addiction biomarker hypothesis). Target-only;
+    indication accepted for back-compat but not consumed by the compute path.
+    """
+    mut_module = _import_method("depmap_mutation_dependency")
+    return mut_module.read_mutation_stratified_dependency(target=target, indication=indication)
+
+
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
@@ -185,6 +197,7 @@ CARD_DISPATCHERS = {
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "pan-cancer-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
+    "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

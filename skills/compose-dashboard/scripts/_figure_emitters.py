@@ -185,10 +185,46 @@ def _emit_card4_expression_dependency_correlation(
     ]
 
 
+def _emit_card3_mutation_stratified_dependency(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Re-runs Card 3 method internals to emit mut-vs-WT + per-hotspot figures."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_mutation_dependency import cli as c3cli
+    from methods.depmap_chronos_distribution import cli as c1cli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(
+        release_pin="26q1", target_symbol=target
+    )
+    if load_errors or not chronos_by_model:
+        return []
+    hot, dam, mut_errs = c3cli.load_mutation_data("26q1", target)
+    if mut_errs:
+        return []
+
+    recomputed = c3cli.compute_mutation_stratification(chronos_by_model, hot, dam)
+    c3cli.emit_plot_data(chronos_by_model, hot, dam, model_metadata, out_dir)
+    c3cli.emit_mut_vs_wt_strip_plot(chronos_by_model, hot, dam,
+                                      target, recomputed, out_dir, TARGET_CONTRACTS)
+    c3cli.emit_per_hotspot_chronos_plot(chronos_by_model, recomputed.get("per_hotspot_stats", []),
+                                          target, out_dir, TARGET_CONTRACTS)
+    c3cli.emit_manifest(target, indication, "26q1", recomputed, out_dir, [])
+    return [
+        {"id": "mut_vs_wt_strip", "path": "figure_mut_vs_wt_strip.svg",
+         "type": "mutation_stratified_strip", "primary": True},
+        {"id": "per_hotspot_chronos", "path": "figure_per_hotspot_chronos.svg",
+         "type": "per_hotspot_chronos_strip", "primary": False},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
+    "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
 }
 
 
