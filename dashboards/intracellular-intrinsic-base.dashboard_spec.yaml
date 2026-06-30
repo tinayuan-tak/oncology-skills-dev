@@ -36,8 +36,9 @@ required_cards:
     version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-06-30
   - card_id: dependency-lineage-selectivity
     version: ">=1.0.0,<4"        # widened: Card refactored to v3.0.0 (pure-data, target-only) 2026-06-30
-  - card_id: mutation-stratified-dependency
-    version: ">=1.0.0,<2"        # Card 3 — oncogene-addiction biomarker; new 2026-06-30
+  # NOTE: mutation-stratified-dependency exists in cards/ as a future-extension but is
+  # OUT-OF-SCOPE for the DepMap-mirror taxonomy (E1-E6). Deactivated 2026-06-30 after
+  # off-scope build. Spec, method, rules retained in repos; not active in dashboards.
   - card_id: expression-dependency-correlation
     version: ">=1.0.0,<2"
   - card_id: mutation-hotspot-frequency

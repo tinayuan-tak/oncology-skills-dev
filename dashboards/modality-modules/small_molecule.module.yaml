@@ -38,7 +38,6 @@ synthesis_emphasis:
     # rule rates small_molecule fit as not_viable regardless of other cards.
     - pan-cancer-dependency-distribution
     - dependency-lineage-selectivity
-    - mutation-stratified-dependency      # Card 3 — oncogene-addiction signal (BRAF-V600E, KRAS-G12C)
     - mutation-hotspot-frequency
   secondary_cards:
     - expression-tumor-vs-adjacent

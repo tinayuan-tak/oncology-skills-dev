@@ -36,7 +36,6 @@ synthesis_emphasis:
     # without selectivity. Dominant-KILLER signal stops the program early.
     - pan-cancer-dependency-distribution
     - dependency-lineage-selectivity
-    - mutation-stratified-dependency      # Card 3 — oncogene-addiction biomarker
     - expression-tumor-vs-adjacent
   secondary_cards:
     - mutation-hotspot-frequency
