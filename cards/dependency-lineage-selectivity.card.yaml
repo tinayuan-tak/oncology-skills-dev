@@ -1,27 +1,37 @@
-# Card iter-2/2 — DEPENDENCY LINEAGE SELECTIVITY (the "lineage-specific dependency" card)
+# Card E2 — DEPENDENCY LINEAGE SELECTIVITY  (pure-data, target-only)
 #
-# Question: "Within {indication}'s mapped DepMap lineage, how dependent are cell lines on
-# {target}, and how does that compare to other lineages?"
+# Mirrors DepMap's "Lineage Enrichment" portal view. Emits per-lineage descriptive
+# statistics + DepMap-style enrichment-test results for all lineages with sufficient
+# sample size, plus a single categorical `enrichment_class` describing the SHAPE
+# of lineage variation across the panel.
 #
-# This card was iter-1a's `dependency-lineage-selectivity` (single-purpose summary stats).
-# Refactored iter-2 to match the design spec: surface per-lineage detail (medians, IQR,
-# fraction-strongly-dependent per lineage) + forest plot figure + ranked lineage comparisons
-# + DOMINANT interpretation_calls for EG4 scoring.
+# DECOUPLED FROM INDICATION (Decision 2A per warm-rolling-bunny plan):
+#   - The method returns per-lineage stats for ALL lineages (target-only data product).
+#   - The indication-context "which lineage matters for this target?" question becomes
+#     a synthesis-layer / renderer concern that consults per_lineage_stats[] and
+#     surfaces the appropriate row for the dashboard's resolved indication.
+#   - One evidence package per target answers all indication + modality questions
+#     without recomputation. Same RAM/wire footprint as before; better cacheability.
 #
-# Pairs with `pan-cancer-dependency-distribution` (Card 1): Card 1 answers "is dependency real?";
-# Card 2 answers "is dependency lineage-selective?". Together they form the dependency
-# foundation for small_molecule + degrader modality fit assessment.
+# NORMATIVE INTERPRETATION → MOVED TO TIER 2 RULES:
+#   - Today's "strong lineage-selective dependency" (dominant POSITIVE) call lives in
+#     interpretation-rules/intracellular-intrinsic.rules.yaml as the rule
+#     strong-lineage-selective-supportive (keyed on enrichment_class == "lineage_selective").
+#   - Today's "not lineage-dependent" → killer-equivalent migrates as
+#     enrichment_class == "no_lineage_enrichment" + a Tier-2 killer rule (companion commit).
+#
+# Pairs with `pan-cancer-dependency-distribution` (E1): E1 answers "is dependency real?";
+# E2 answers "does dependency stratify by lineage?".
 #
 # Inputs (DepMap 26Q1):
 #   - CRISPRGeneEffect.csv — cell_line × gene Chronos matrix
-#   - Model.csv — cell-line metadata (OncotreeLineage primary, sub_lineage secondary)
+#   - Model.csv — cell-line metadata (OncotreeLineage primary)
 
 card_id: dependency-lineage-selectivity
-version: 2.0.0                                  # iter-2 spec refresh (was 1.0.0)
-question: "Within {indication.label}'s DepMap-mapped lineage, how dependent are cell lines on {target.symbol}, and how does that compare to other lineages?"
+version: 3.0.0                                  # major bump: indication-decoupled + pure-data shape
+question: "Across all DepMap lineages, how does {target.symbol} dependency stratify? Which lineages are enriched for dependence?"
 
 applies_when:
-  - "indication.depmap_cell_lines_in_lineage >= THRESHOLD.min_cell_lines_in_lineage"
   - "target.depmap_screened == true"
 
 required_inputs:
@@ -32,82 +42,70 @@ methods:
   - call: depmap-chronos
     args:
       target: "{target.symbol}"
-      indication: "{indication}"
       release_pin: "{release_pin}"
+      # NOTE: indication arg removed — method now returns per-lineage stats for ALL lineages.
+      # Synthesis layer applies the indication lens.
 
 outputs:
   summary_fields:
-    # === Target-lineage stats ===
-    - lineage_label                              # DepMap OncotreeLineage used (e.g., "Bowel")
-    - n_lineage_cell_lines
-    - n_lineage_excluded
-    - median_chronos_lineage
-    - p25_chronos_lineage
-    - p75_chronos_lineage
-    - fraction_strongly_dependent_lineage
-    # === Panel comparators ===
-    - median_chronos_panel
+    # === Panel-wide context (target-only) ===
     - n_cell_lines_panel
-    - lineage_vs_panel_delta_chronos             # negative = lineage more dependent than panel
-    - lineage_rank_percentile                    # 0..100, higher = more dependent vs other lineages
-    # === Cross-lineage ranking ===
-    - n_lineages_more_dependent                  # count of lineages with stronger median
-    - more_dependent_lineages                    # list of {lineage, median_chronos, n}
-    - adjacent_dependent_lineages                # list of lineage names with similar dependency (within 0.2)
-    # === Categorical ===
-    - selectivity_class                          # strong | moderate | broadly_dependent | non_selective | not_dependent
+    - median_chronos_panel
+    # === Per-lineage breakdown (target-only — full ranked table) ===
+    - per_lineage_stats                         # list of {lineage, n, median_chronos, p25, p75, fraction_strongly_dependent}
+    - n_lineages_evaluated                      # count of lineages with n >= min_cell_lines_in_lineage
+    # === DepMap-style enrichment test ===
+    - enriched_lineages                         # list of {lineage, n, median_chronos, delta_vs_rest, p_value, q_value, effect_size}
+    - n_enriched_lineages                       # count where q_value < significance threshold
+    # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
+    - enrichment_class                          # SHAPE of lineage variation across the panel
+
+  summary_fields_vocabulary:
+    enrichment_class:
+      - lineage_selective                       # ≥1 lineage significantly more dependent than the rest (BH q < α)
+      - broadly_lineage_dependent               # multiple lineages show dependency but none significantly enriched
+      - no_lineage_enrichment                   # no lineage shows significant dependency vs the rest
+      - data_unavailable
+
   figures:
     - id: forest_plot
       type: lineage_forest_plot
-      description: "Per-lineage Chronos median (point) + IQR (horizontal bar), sorted by median ascending. Target lineage highlighted; reference at Chronos = -1.0 (strong) and 0 (no dependency)."
+      description: "Per-lineage Chronos median (point) + IQR (horizontal bar) across ALL lineages with n ≥ min. Sorted by median ascending. Reference at Chronos = -1.0 (strong) and 0 (no dependency). Indication-lineage highlighting applied at render time by the synthesis layer."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: lineage_strip
       type: lineage_strip_plot
-      description: "Per-lineage strip/swarm of individual cell-line Chronos points. Distribution within each lineage visible (informs IQR confidence)."
+      description: "Per-lineage strip plot of individual cell-line Chronos points. Distribution within each lineage visible (informs IQR confidence)."
       preferred_surfaces: [html, markdown_alt]
   plot_data: per_cell_line_chronos_with_lineage_tags
 
-interpretation_hints:
-  # DOMINANT positive: strong lineage selectivity = high decision-grade signal for indication selection
-  - if: "median_chronos_lineage <= THRESHOLD.strong_dependency_chronos && lineage_vs_panel_delta_chronos <= THRESHOLD.strong_selectivity_delta && lineage_rank_percentile >= THRESHOLD.strong_selectivity_rank"
-    call: "strong lineage-selective dependency"
-    dominant: true                                # EG4: dominant POSITIVE — indication-selection driver
-  - if: "median_chronos_lineage <= THRESHOLD.strong_dependency_chronos && lineage_vs_panel_delta_chronos <= THRESHOLD.modest_selectivity_delta"
-    call: "moderate lineage-selective dependency"
-  - if: "median_chronos_lineage <= THRESHOLD.strong_dependency_chronos && lineage_vs_panel_delta_chronos > THRESHOLD.modest_selectivity_delta"
-    call: "broadly dependent (lineage-positive but not selective)"
-  - if: "median_chronos_lineage > THRESHOLD.strong_dependency_chronos && median_chronos_lineage <= THRESHOLD.modest_dependency_chronos"
-    call: "modest lineage dependency"
-  - if: "median_chronos_lineage > THRESHOLD.modest_dependency_chronos"
-    call: "not lineage-dependent"
-
 thresholds:
   # Sample-size discipline
-  min_cell_lines_in_lineage: 5                   # below this, lineage statistics are unreliable
+  min_cell_lines_in_lineage: 5                  # below this, lineage statistics are unreliable; excluded from enrichment test
   # Chronos thresholds (DepMap-published conventions, shared with Card 1)
   strong_dependency_chronos: -1.0
   modest_dependency_chronos: -0.5
-  # Lineage-vs-panel comparison thresholds
-  strong_selectivity_delta: -0.5                 # lineage median ≥0.5 lower than panel = strong selectivity
-  modest_selectivity_delta: -0.3                 # lineage median ≥0.3 lower than panel = moderate
-  strong_selectivity_rank: 80                    # lineage rank ≥80%ile = strong selectivity
-  modest_selectivity_rank: 60
-  # Adjacency threshold (for "lineages with comparable dependency")
-  adjacent_lineage_delta_max: 0.2                # within 0.2 Chronos = adjacent
+  # Enrichment-test thresholds
+  enrichment_significance_alpha: 0.05            # BH-adjusted q-value cutoff
+  enrichment_effect_size_min: 0.3                # |delta_median Chronos| ≥ 0.3 → biologically meaningful effect
+  # Classification
+  lineage_selective_min_enriched: 1              # ≥1 lineage with q < α → lineage_selective
+  broadly_dependent_panel_median: -0.5           # if panel median ≤ -0.5 with no enrichment → broadly_lineage_dependent
 
 warning_predicates:
-  - warning_id: low_lineage_n
-    if: "n_lineage_cell_lines < 10"
-    message: "Lineage has fewer than 10 cell lines; median estimate has wide confidence interval. Read alongside p25/p75."
-  - warning_id: adjacent_lineages_more_dependent
-    if: "n_lineages_more_dependent >= 1"
-    message: "At least one non-target lineage is more dependent on this target. The most-dependent lineage may be a stronger indication candidate; review more_dependent_lineages list."
+  - warning_id: small_lineage_count
+    if: "n_lineages_evaluated < 10"
+    message: "Fewer than 10 lineages with sufficient sample size for the enrichment test. Lineage-selectivity classification is less robust on small lineage counts."
+  - warning_id: multiple_enriched_lineages
+    if: "n_enriched_lineages >= 3"
+    message: "Three or more lineages are significantly enriched for dependency. Indication selection requires comparing the enriched lineages directly; the most-enriched lineage may not be the canonical clinical indication."
 
 caveats:
   - "Chronos scores reflect cell-line dependency; in-vivo dependency may differ due to tumor microenvironment, vasculature, immune context."
-  - "Lineage-specificity does not preclude expansion to adjacent lineages with similar dependency."
-  - "Small lineages (n<10) have high variability in median estimates — IQR matters for confidence."
+  - "Enrichment test compares each lineage's Chronos distribution against the rest of the panel via Mann-Whitney U; BH multiple-testing correction across all evaluated lineages."
+  - "Small lineages (n < 10) excluded from the enrichment test; their stats appear in per_lineage_stats but cannot be ranked for enrichment."
+  - "Lineage-specificity does not preclude expansion to adjacent lineages with similar dependency — consult per_lineage_stats for adjacency."
   - "DepMap lineage assignments are based on OncotreeLineage; some cancer types may have ambiguous lineage classification."
+  - "enrichment_class is descriptive only — therapeutic interpretation (which lineage matters for which indication) lives in interpretation-rules/."
 
 schema_version: 1

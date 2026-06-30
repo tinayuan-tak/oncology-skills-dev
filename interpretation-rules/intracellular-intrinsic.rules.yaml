@@ -73,55 +73,54 @@ rules:
   # E2 — Lineage selectivity (Card 2: dependency-lineage-selectivity)
   # ============================================================================
 
-  - rule_id: strong-lineage-selective-supportive
+  # Card 2 (E2) refactored to v3.0.0 — target-only, indication-decoupled. Emits
+  # `enrichment_class` describing the SHAPE of lineage variation across the panel.
+  # Per-indication interpretation ("which lineage matters for THIS dashboard?") is
+  # a synthesis-layer concern that consults the per_lineage_stats table directly.
+
+  - rule_id: lineage-selective-supportive
     when:
       card_id: dependency-lineage-selectivity
-      field: selectivity_class
-      equals: strong_lineage_selective
+      field: enrichment_class
+      equals: lineage_selective
     signals:
       small_molecule: supportive
       degrader: supportive
     dominant: true
     rationale: |
-      Target shows a lineage where dependency is strong AND distinctly elevated vs panel.
-      This is the indication-selection driver: a clear "use it for THIS cancer type" signal.
+      ≥1 lineage is significantly more dependent on the target than the rest of the
+      panel (BH-adjusted q < α). Indication-selection driver: a clear "use it for THIS
+      cancer type" signal. Which specific lineage matters for the dashboard's resolved
+      indication is a synthesis-layer lookup over per_lineage_stats.
 
-  - rule_id: moderate-lineage-selective-supportive
+  - rule_id: broadly-lineage-dependent-neutral
     when:
       card_id: dependency-lineage-selectivity
-      field: selectivity_class
-      equals: moderate_lineage_selective
-    signals:
-      small_molecule: supportive
-      degrader: supportive
-    rationale: |
-      Lineage shows moderate selectivity — dependency present but the lineage-vs-panel
-      delta is smaller. Supportive but not dominant on its own.
-
-  - rule_id: broadly-dependent-neutral
-    when:
-      card_id: dependency-lineage-selectivity
-      field: selectivity_class
-      equals: broadly_dependent
+      field: enrichment_class
+      equals: broadly_lineage_dependent
     signals:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      Lineage is dependent but no more than panel-wide. Doesn't kill the case (dependency
-      exists) but doesn't differentiate an indication either. Pan-cancer-dependency
-      classification (E1) carries the story instead.
+      Multiple lineages show dependency but no single lineage is significantly enriched
+      vs the rest. Doesn't kill the case (dependency exists) but doesn't differentiate
+      an indication either. Pan-cancer dependency classification (E1) carries the
+      therapeutic-window story instead.
 
-  - rule_id: not-dependent-killer
+  - rule_id: no-lineage-enrichment-neutral
     when:
       card_id: dependency-lineage-selectivity
-      field: selectivity_class
-      equals: not_dependent
+      field: enrichment_class
+      equals: no_lineage_enrichment
     signals:
-      small_molecule: killer
-      degrader: killer
-    killer_message: |
-      No dependency signal in the target's mapped lineage. Without functional dependency
-      there is no rationale for chemical-matter investment.
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      No lineage shows significant dependency enrichment vs the rest. This is
+      DESCRIPTIVELY informative but NOT a killer on its own — the gene could still
+      be uniformly dependent across the panel (in which case E1's dependency_class
+      would carry the killer). Killer determination for "dependency does not exist"
+      lives correctly on E1's non-dependent-killer rule, not duplicated here.
 
   # ============================================================================
   # Expression — tumor vs adjacent (existing card: expression-tumor-vs-adjacent)
