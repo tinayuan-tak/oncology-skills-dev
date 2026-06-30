@@ -254,6 +254,35 @@ def _emit_expression_distribution(
     ]
 
 
+def _emit_cn_distribution(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Re-runs E3.b CN method to emit density (primary) + lineage_strip + waterfall."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_cn_distribution import cli as e3bcli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cn_by, model_metadata, assay_used, load_errors = e3bcli.load_cn_files("26q1", target)
+    if load_errors or not cn_by:
+        return []
+    recomputed = e3bcli.compute_summary_stats(cn_by, model_metadata, assay_used=assay_used)
+    e3bcli.emit_density_plot(cn_by, target, recomputed, out_dir, TARGET_CONTRACTS)
+    e3bcli.emit_lineage_strip(cn_by, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
+    e3bcli.emit_waterfall_plot(cn_by, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
+    e3bcli.emit_plot_data(cn_by, model_metadata, out_dir)
+    e3bcli.emit_manifest(target, "26q1", recomputed, out_dir, [])
+    return [
+        {"id": "density_cn", "path": "figure_density_cn.svg",
+         "type": "density_histogram_with_kde_cn", "primary": True},
+        {"id": "lineage_strip_cn", "path": "figure_lineage_strip_cn.svg",
+         "type": "per_lineage_strip_cn", "primary": False},
+        {"id": "waterfall_cn", "path": "figure_waterfall_cn.svg",
+         "type": "ranked_waterfall_cn", "primary": False},
+    ]
+
+
 def _emit_card1c_crispr_rnai_concordance(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -323,6 +352,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,
     "expression-distribution": _emit_expression_distribution,
+    "copy-number-distribution": _emit_cn_distribution,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,

@@ -171,6 +171,32 @@ expression-distribution:
       fraction_expressed: 1.0
   n_lineage_restricted_lineages: 0
 
+# Card E3.b — copy-number distribution (gene-level WES with WGS fallback)
+# KRAS is a MUTATION-driven oncogene, NOT CN-driven. The correct biological call
+# is broadly_neutral — CN axis isn't a driver here. ~95% of cell lines are diploid;
+# the tiny amp/del fractions reflect noise + occasional focal events.
+copy-number-distribution:
+  cn_n_cell_lines_evaluated: 1953
+  cn_assay_used: wes
+  cn_median_panel: 1.04
+  cn_p25_panel: 0.97
+  cn_p75_panel: 1.12
+  cn_p5_panel: 0.82
+  cn_p95_panel: 1.38
+  cn_iqr: 0.15
+  cn_fraction_deep_deletion: 0.005       # rare
+  cn_fraction_shallow_deletion: 0.04     # mild loss in some lines
+  cn_fraction_neutral: 0.62              # majority diploid
+  cn_fraction_shallow_amplification: 0.27 # mild copy gain (single extra chromosome arm in some lines)
+  cn_fraction_focal_amplification: 0.05  # rare focal amp
+  cn_fraction_high_amplification: 0.005  # very rare
+  cn_recurrent_amplification_score: 0.055
+  cn_recurrent_deletion_score: 0.045
+  cn_distribution_shape: tight_neutral
+  copy_number_class: broadly_neutral     # KRAS is mutation-driven, not CN-driven
+  cn_top_amplified_lineages: []
+  cn_top_deleted_lineages: []
+
 dependency-lineage-selectivity:
   # === Card 2 v3.0.0 (pure-data, target-only) spec fields ===
   # Card no longer carries indication-specific summary fields (lineage_label,

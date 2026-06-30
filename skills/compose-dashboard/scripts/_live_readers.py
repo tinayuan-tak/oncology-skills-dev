@@ -212,6 +212,16 @@ def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -
     return concord_module.read_crispr_rnai_concordance(target=target, indication=indication)
 
 
+def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route copy-number-distribution card (E3.b) to
+    methods/depmap_cn_distribution/read.py.
+
+    WES-primary + WGS-fallback. Indication accepted but not consumed (pan-cancer card).
+    """
+    cn_module = _import_method("depmap_cn_distribution")
+    return cn_module.read_cn_distribution(target=target, indication=indication)
+
+
 def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route mutation-stratified-dependency card (Card 3) to
     methods/depmap_mutation_dependency/read.py.
@@ -234,6 +244,7 @@ CARD_DISPATCHERS = {
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
     "expression-distribution": _dispatch_expression_distribution,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
+    "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
