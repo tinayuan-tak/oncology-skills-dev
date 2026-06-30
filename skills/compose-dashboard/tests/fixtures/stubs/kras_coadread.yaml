@@ -140,6 +140,37 @@ crispr-rnai-dependency-concordance:
   fraction_dependent_in_both: 0.269  # 145 / 540
   concordance_class: strongly_concordant_dependent
 
+# Card E3a — pan-cancer expression distribution (DepMap cell-line TPM)
+# KRAS is a housekeeping-like gene broadly expressed across cancer cell lines.
+# Highly expressed in most lineages with moderate variation.
+expression-distribution:
+  n_cell_lines_evaluated: 1450
+  median_log2tpm_panel: 5.4
+  p25_log2tpm_panel: 4.8
+  p75_log2tpm_panel: 5.9
+  p5_log2tpm_panel: 3.8
+  p95_log2tpm_panel: 6.8
+  log2tpm_iqr: 1.1
+  fraction_expressed: 0.99
+  fraction_highly_expressed: 0.72
+  fraction_not_expressed: 0.01
+  expression_class: broadly_high
+  n_lineages_evaluated: 27
+  per_lineage_stats:
+    - lineage: Pancreas
+      n: 40
+      median_log2tpm: 5.8
+      fraction_expressed: 1.0
+    - lineage: Bowel
+      n: 48
+      median_log2tpm: 5.6
+      fraction_expressed: 1.0
+    - lineage: Lung
+      n: 88
+      median_log2tpm: 5.5
+      fraction_expressed: 1.0
+  n_lineage_restricted_lineages: 0
+
 dependency-lineage-selectivity:
   # === Card 2 v3.0.0 (pure-data, target-only) spec fields ===
   # Card no longer carries indication-specific summary fields (lineage_label,

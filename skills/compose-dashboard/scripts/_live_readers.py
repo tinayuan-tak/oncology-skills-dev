@@ -189,6 +189,17 @@ def _dispatch_pan_cancer_rnai_dependency_distribution(target: str, indication: s
     return rnai_module.read_pan_cancer_rnai_distribution(target=target, indication=indication)
 
 
+def _dispatch_expression_distribution(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route expression-distribution card (E3.a) to
+    methods/depmap_expression_distribution/read.py.
+
+    Pan-cancer cell-line expression panel; indication accepted for dispatcher
+    consistency but not consumed (this card is target-only).
+    """
+    expr_module = _import_method("depmap_expression_distribution")
+    return expr_module.read_expression_distribution(target=target, indication=indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -221,6 +232,7 @@ CARD_DISPATCHERS = {
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
+    "expression-distribution": _dispatch_expression_distribution,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
