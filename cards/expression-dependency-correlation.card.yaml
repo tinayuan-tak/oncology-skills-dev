@@ -110,7 +110,7 @@ warning_predicates:
     message: "Expression range across the panel is narrow (IQR < 1 log2 unit); correlation is unreliable when expression doesn't vary. Biomarker hypothesis may not be testable in cell lines."
   - warning_id: pan_essential_confound
     if: "mean_chronos < THRESHOLD.pan_essential_median_chronos"
-    message: "Pan-cancer mean Chronos indicates broad essentiality; expression-dependency correlation may be confounded by tissue-of-origin patterns rather than reflecting a biomarker. Read alongside Card 1 (pan-cancer-dependency-distribution)."
+    message: "Pan-cancer mean Chronos indicates broad essentiality; expression-dependency correlation may be confounded by tissue-of-origin patterns rather than reflecting a biomarker. Read alongside Card 1 (pan-cancer-crispr-dependency-distribution)."
 
 caveats:
   - "Correlation reflects cell-line behavior; in-vivo expression-stratification may differ due to tumor microenvironment + heterogeneity."

@@ -34,7 +34,7 @@ synthesis_emphasis:
     # Iter-2 Card 1 promoted to PRIMARY: pan-essentiality is even more critical for
     # degrader programs because degrading a pan-essential target kills normal cells
     # without selectivity. Dominant-KILLER signal stops the program early.
-    - pan-cancer-dependency-distribution
+    - pan-cancer-crispr-dependency-distribution
     - dependency-lineage-selectivity
     - expression-tumor-vs-adjacent
   secondary_cards:

@@ -23,12 +23,12 @@ rationale: |
 
 rules:
   # ============================================================================
-  # E1 — Pan-cancer dependency distribution (Card 1: pan-cancer-dependency-distribution)
+  # E1 — Pan-cancer dependency distribution (Card 1: pan-cancer-crispr-dependency-distribution)
   # ============================================================================
 
   - rule_id: pan-essential-killer
     when:
-      card_id: pan-cancer-dependency-distribution
+      card_id: pan-cancer-crispr-dependency-distribution
       field: dependency_class
       equals: common_essential
     signals:
@@ -45,7 +45,7 @@ rules:
 
   - rule_id: strongly-selective-supportive
     when:
-      card_id: pan-cancer-dependency-distribution
+      card_id: pan-cancer-crispr-dependency-distribution
       field: dependency_class
       equals: strongly_selective
     signals:
@@ -59,7 +59,7 @@ rules:
 
   - rule_id: non-dependent-killer
     when:
-      card_id: pan-cancer-dependency-distribution
+      card_id: pan-cancer-crispr-dependency-distribution
       field: dependency_class
       equals: non_dependent
     signals:
@@ -68,6 +68,164 @@ rules:
     killer_message: |
       No functional dependency detected across the cell-line panel. Without dependency
       evidence there is no rationale for therapeutic investment regardless of modality.
+
+  # ============================================================================
+  # E1b — Pan-cancer RNAi dependency distribution (Card 1b)
+  # ============================================================================
+  # Parallel to CRISPR Card 1 on DEMETER2 scale. The concordance card (E1c) carries
+  # cross-assay reconciliation; these per-assay rules are scoped to single-card signal.
+
+  - rule_id: rnai-pan-essential-killer
+    when:
+      card_id: pan-cancer-rnai-dependency-distribution
+      field: rnai_dependency_class
+      equals: common_essential
+    signals:
+      small_molecule: killer
+      degrader: killer
+    killer_message: |
+      RNAi LOF shows pan-essential signal. Cross-check vs CRISPR via the concordance
+      card; if both agree the program is not viable as systemic small_molecule/degrader.
+    rationale: |
+      DEMETER2 ≥85% strong-dep matches DepMap's common_essential convention on the RNAi
+      panel. Same therapeutic-window argument as CRISPR's pan-essential rule.
+
+  - rule_id: rnai-strongly-selective-supportive
+    when:
+      card_id: pan-cancer-rnai-dependency-distribution
+      field: rnai_dependency_class
+      equals: strongly_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      RNAi shows selective dependency — orthogonal LOF confirmation if CRISPR also
+      strongly-selective. NOT dominant on its own: RNAi knockdown is partial vs CRISPR's
+      complete knockout, so RNAi-alone signal needs CRISPR cross-check to drive fit_level.
+
+  - rule_id: rnai-non-dependent-neutral
+    when:
+      card_id: pan-cancer-rnai-dependency-distribution
+      field: rnai_dependency_class
+      equals: non_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      RNAi finds no dependency. NOT a killer on its own — RNAi has known false-negative
+      patterns (partial knockdown insufficient to reveal dependency). The CRISPR card
+      carries the dependency-killer logic; concordance card reconciles cross-assay.
+
+  - rule_id: rnai-broadly-dependent-neutral
+    when:
+      card_id: pan-cancer-rnai-dependency-distribution
+      field: rnai_dependency_class
+      equals: broadly_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      RNAi shows dependency across many but not all lines — between strongly_selective
+      and common_essential. Signal alone is neutral; the CRISPR analog + concordance
+      card carry the dominant decision logic.
+
+  - rule_id: rnai-data-unavailable-insufficient
+    when:
+      card_id: pan-cancer-rnai-dependency-distribution
+      field: rnai_dependency_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      RNAi data unreachable or target absent from DEMETER2 panel. Coverage gap;
+      not used as opposing evidence. CRISPR card carries the dependency call alone.
+
+  # ============================================================================
+  # E1c — CRISPR-RNAi concordance (Card 1c, derived)
+  # ============================================================================
+  # The concordance card consumes upstream CRISPR + RNAi outputs and emits a derived
+  # categorical describing cross-assay agreement. These rules promote concordant
+  # signals to DOMINANT (orthogonal-evidence confirmation strengthens the call)
+  # and flag discordance as a warning, not a killer.
+
+  - rule_id: concordant-dependent-supportive-dominant
+    when:
+      card_id: crispr-rnai-dependency-concordance
+      field: concordance_class
+      equals: strongly_concordant_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      CRISPR and RNAi BOTH call dependent for the majority of cell lines tested in
+      both panels. Orthogonal-LOF-evidence confirmation; reliability is high.
+      Promoted to dominant because cross-assay agreement is the gold-standard
+      'real dependency' signal in cellular models.
+
+  - rule_id: concordant-non-dependent-neutral
+    when:
+      card_id: crispr-rnai-dependency-concordance
+      field: concordance_class
+      equals: strongly_concordant_non_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Concordance class is descriptive of which side of the partition dominates the
+      in-both subset — for SELECTIVE targets (which are the framework's main interest),
+      most lines are non-dependent in both assays, so 'strongly_concordant_non_dependent'
+      lands here naturally without being a kill-the-program signal. The killer-on-
+      non-essentiality logic lives in the upstream per-assay cards' non_dependent rules
+      (CRISPR non-dependent-killer + RNAi non-dependent-killer); both must fire to
+      kill the program. This rule keeps the descriptive concordance label without
+      double-firing the killer.
+
+      Discovered 2026-06-30 during live KRAS-COADREAD smoke: KRAS is a strongly
+      selective target with two approved small molecules (sotorasib, adagrasib). The
+      concordance label legitimately reports 51% agree-non-dependent vs 24%
+      agree-dependent on the in-both subset (a SELECTIVE-target signature), which
+      should NOT be a killer.
+
+  - rule_id: concordance-discordant-warning
+    when:
+      card_id: crispr-rnai-dependency-concordance
+      field: concordance_class
+      equals: discordant
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      CRISPR and RNAi disagree substantially (≥30% of in-both lines disagree). Not a
+      killer — discordance can reflect biology (partial RNAi knockdown vs complete
+      CRISPR knockout) rather than error — but downgrades single-assay-dominant
+      signals from supportive to opposing pending mechanistic context.
+
+  - rule_id: concordance-partially-assayed-insufficient
+    when:
+      card_id: crispr-rnai-dependency-concordance
+      field: concordance_class
+      equals: partially_assayed
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Cell-line overlap between CRISPR and RNAi panels is below the minimum threshold
+      (< 30 lines). Concordance call cannot be made reliably; the per-assay cards
+      carry the dependency signals individually.
+
+  - rule_id: concordance-data-unavailable-insufficient
+    when:
+      card_id: crispr-rnai-dependency-concordance
+      field: concordance_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Concordance requires BOTH upstream cards to succeed; one or both failed. Not
+      used as opposing evidence. The per-assay cards may still contribute signals.
 
   # ============================================================================
   # E2 — Lineage selectivity (Card 2: dependency-lineage-selectivity)
@@ -253,7 +411,7 @@ rules:
 
   - rule_id: data-unavailable-insufficient
     when:
-      card_id: pan-cancer-dependency-distribution
+      card_id: pan-cancer-crispr-dependency-distribution
       field: dependency_class
       equals: data_unavailable
     signals:

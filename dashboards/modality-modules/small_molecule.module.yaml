@@ -32,11 +32,11 @@ modality_specific_caveats:
 
 synthesis_emphasis:
   primary_cards:
-    # Iter-2 Card 1 promoted to PRIMARY: pan-cancer-dependency-distribution carries
+    # Iter-2 Card 1 promoted to PRIMARY: pan-cancer-crispr-dependency-distribution carries
     # the dominant-KILLER (pan-essential) and dominant-POSITIVE (selective) signals.
     # When this card fires "pan-essential — not a viable therapeutic target", EG4
     # rule rates small_molecule fit as not_viable regardless of other cards.
-    - pan-cancer-dependency-distribution
+    - pan-cancer-crispr-dependency-distribution
     - dependency-lineage-selectivity
     - mutation-hotspot-frequency
   secondary_cards:

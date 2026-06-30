@@ -1,0 +1,111 @@
+# Card E1b — PAN-CANCER RNAi DEPENDENCY DISTRIBUTION  (pure-data, RNAi DEMETER2)
+#
+# The RNAi (DEMETER2 combined) panel of DepMap's per-gene "Perturbation effect" target
+# page. Sibling to pan-cancer-crispr-dependency-distribution (Card E1a). Cross-assay
+# concordance is computed by the derived crispr-rnai-dependency-concordance card.
+#
+# DEMETER2 score conventions (different scale from CRISPR Chronos):
+#   DEMETER2 ≤ -0.5  = strongly dependent
+#   DEMETER2 ≤ -0.25 = moderately dependent
+#   DEMETER2 >  -0.25 = non-dependent
+# Reference: McFarland et al. Nat Commun 2018 (DEMETER2 paper) + DepMap portal docs.
+#
+# Data source: dmc-26q1-rnai/D2_combined_gene_dep_scores.csv. The combined matrix
+# fuses Achilles + DRIVE + Marcotte RNAi screens into ~712 cell lines.
+#
+# Matrix shape: GENE-ROWS x CELL-LINE-COLUMNS (TRANSPOSED vs CRISPRGeneEffect.csv).
+# Gene index format: "SYMBOL (entrez_id)" — e.g. "KRAS (3845)". Loader parses
+# the symbol via regex. Cell line columns use legacy CCLE_ID format (e.g.
+# "127399_SOFT_TISSUE") — loader bridges to ModelID via sample_info.csv + Model.csv.
+
+card_id: pan-cancer-rnai-dependency-distribution
+version: 1.0.0
+question: "Across ~712 DepMap RNAi-screened cell lines, what is the shape of RNAi LOF dependency on {target.symbol}?"
+
+applies_when:
+  - "context.data_sources.depmap_rnai_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1-rnai
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-demeter-distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      strong_dependency_threshold: "THRESHOLD.strongly_dependent_threshold_demeter"
+
+outputs:
+  summary_fields:
+    - rnai_n_cell_lines_evaluated
+    - rnai_median_dep_score
+    - rnai_p25_dep_score
+    - rnai_p75_dep_score
+    - rnai_p5_dep_score
+    - rnai_p95_dep_score
+    - rnai_dep_score_iqr
+    - rnai_fraction_strongly_dependent           # fraction with score ≤ -0.5
+    - rnai_fraction_moderately_dependent
+    - rnai_fraction_non_dependent
+    - rnai_distribution_shape
+    - rnai_pan_essential_score
+    - rnai_selectivity_index
+    - rnai_dependency_class                      # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
+    - rnai_top_dependent_lineages
+    - rnai_screens_contributing                  # list of {screen: Achilles|DRIVE|Marcotte, n_lines}
+
+  summary_fields_vocabulary:
+    rnai_dependency_class:
+      - common_essential
+      - strongly_selective
+      - broadly_dependent
+      - non_dependent
+      - data_unavailable
+    rnai_distribution_shape:
+      - pan_essential
+      - bimodal_selective
+      - shifted_dependent
+      - non_essential
+      - unclassified
+
+  figures:
+    - id: waterfall_rnai
+      type: ranked_waterfall
+      description: "RNAi (DEMETER2 combined) — per-cell-line dependency scores sorted ascending, lineage-colored. Orthogonal LOF evidence to CRISPR."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: histogram_kde_rnai
+      type: density_histogram_with_kde
+      description: "Frequency histogram of RNAi DEMETER2 scores with KDE overlay. Bimodal vs unimodal shape explicit."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_demeter_with_lineage_tags
+
+thresholds:
+  # DepMap-anchored DEMETER2 score conventions (different scale from CRISPR Chronos)
+  strongly_dependent_threshold_demeter: -0.5     # DEMETER2 strong-dependency cutoff
+  moderately_dependent_threshold_demeter: -0.25
+  # Distribution classification thresholds (drive rnai_dependency_class derivation)
+  pan_essential_fraction_threshold: 0.85
+  selective_fraction_min: 0.05
+  selective_fraction_max: 0.60
+  shifted_median_threshold: -0.25
+  # Warning-predicate thresholds (RNAi panel is smaller than CRISPR; 400 is the floor)
+  min_panel_coverage_threshold: 400
+  lineage_dominance_threshold: 0.80
+
+warning_predicates:
+  - warning_id: low_rnai_panel_coverage
+    if: "rnai_n_cell_lines_evaluated < THRESHOLD.min_panel_coverage_threshold"
+    message: "RNAi panel coverage for this gene is low (< 400 cell lines). Distribution may be biased toward the screened subset."
+  - warning_id: rnai_lineage_imbalanced_tail
+    if: "rnai_top_dependent_lineages.0.fraction_of_dependent_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "RNAi dependent tail is essentially one-lineage-driven; pan-cancer label is misleading."
+
+caveats:
+  - "DEMETER2 scores measure mRNA knockdown effect — knockdown is partial (vs CRISPR's complete knockout), so some dependencies CRISPR detects may be missed here."
+  - "RNAi off-target seed effects can drive false dependency signals; orthogonal CRISPR evidence is the cross-check (see concordance card)."
+  - "RNAi panel is ~712 cell lines (Achilles+DRIVE+Marcotte combined), smaller and differently-composed than CRISPR's ~1500. Lineage coverage is partial."
+  - "Dependency classification (common_essential/strongly_selective/...) is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
+
+schema_version: 1

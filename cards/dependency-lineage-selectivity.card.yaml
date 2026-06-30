@@ -20,7 +20,7 @@
 #   - Today's "not lineage-dependent" → killer-equivalent migrates as
 #     enrichment_class == "no_lineage_enrichment" + a Tier-2 killer rule (companion commit).
 #
-# Pairs with `pan-cancer-dependency-distribution` (E1): E1 answers "is dependency real?";
+# Pairs with `pan-cancer-crispr-dependency-distribution` (E1): E1 answers "is dependency real?";
 # E2 answers "does dependency stratify by lineage?".
 #
 # Inputs (DepMap 26Q1):
