@@ -364,6 +364,87 @@ rules:
       DepMap mutation matrices were unreachable. Coverage gap; not used as opposing evidence.
 
   # ============================================================================
+  # E3.b — Copy-number distribution (Card 3b: copy-number-distribution)
+  # ============================================================================
+  # DESIGN: "broadly_neutral" is the CORRECT call for mutation-driven targets
+  # (KRAS, BRAF, etc.) — informative ("CN axis isn't a driver here"), NOT a gap.
+  # The vocabulary maps to signals that respect this: amplified/deleted are
+  # supportive (CN-driven biology supports the program), neutral is NEUTRAL,
+  # mixed is NEUTRAL pending downstream interpretation, data_unavailable is
+  # insufficient. No CN-class is a killer — CN alone shouldn't kill a program.
+
+  - rule_id: cn-recurrently-amplified-supportive
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: recurrently_amplified
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Recurrent focal amplification across the panel (>=20% of lines). The CN axis
+      is plausibly driving target activity in a subset of contexts. Supportive
+      across modalities; degrader programs can leverage amplification-elevated
+      protein abundance, small-molecule programs can leverage oncogene-addiction
+      patterns at amplified loci (e.g. MYC amp in HCC).
+
+  - rule_id: cn-recurrently-deleted-supportive
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: recurrently_deleted
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Recurrent deletion across the panel (>=20% of lines). For tumor-suppressor
+      targets, deletion is the canonical loss-of-function event; the framework
+      treats it as supportive (the deletion creates a context the program might
+      exploit, e.g. synthetic-lethal partner targeting). NOT a killer on its own
+      — interpretation requires the dependency cards as orthogonal evidence.
+
+  - rule_id: cn-mixed-neutral
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: mixed
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Both amp and del are recurrent in different lineages (balanced ratio). The
+      CN axis is complex but not unidirectional; treat as neutral signal pending
+      lineage-specific context from synthesis layer.
+
+  - rule_id: cn-broadly-neutral-neutral
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: broadly_neutral
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      No recurrent CN events — the CN axis is NOT a driver for this target.
+      This is the EXPECTED outcome for mutation-driven oncogenes (KRAS, BRAF,
+      EGFR) and is informative evidence ("CN isn't where the action is here").
+      NOT a killer; other evidence threads (dependency, mutation, expression)
+      carry the therapeutic-window story.
+
+  - rule_id: cn-data-unavailable-insufficient
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      CN data unreachable, OR the target gene is absent from both the WES and WGS
+      panels. Coverage gap; not used as opposing evidence. Other evidence threads
+      remain the basis for the call.
+
+  # ============================================================================
   # Expression — tumor vs adjacent (existing card: expression-tumor-vs-adjacent)
   # ============================================================================
   # Degrader-specific: degraders require demonstrable protein presence in the indication.

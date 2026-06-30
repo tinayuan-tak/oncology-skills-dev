@@ -1,0 +1,147 @@
+# Card E3b — COPY-NUMBER DISTRIBUTION  (pure-data, gene-level CN across cell lines)
+#
+# Mirrors DepMap's per-gene "Copy Number" target panel. Emits descriptive
+# categorical labels + numerics describing the CN landscape across ~1500 cell
+# lines, per-lineage stratification, and a derived copy_number_class.
+#
+# DESIGN NOTE — "no copy-number events" is a valid descriptive outcome:
+#   Many targets (e.g. KRAS, BRAF) are MUTATION-driven, not CN-driven. The
+#   correct biological call for those targets is `broadly_neutral` — meaning
+#   "no recurrent CN amplification or deletion across the panel." That's
+#   INFORMATIVE evidence (the CN axis isn't a driver), not a gap or failure.
+#   The Tier-2 rule treats broadly_neutral as a NEUTRAL signal across modalities
+#   — neither supporting nor opposing the program. Killer logic is reserved for
+#   cases where CN data is reachable AND informative AND maps to a known
+#   modality-incompatible pattern (e.g. homozygous deletion → degrader not viable).
+#
+# Threshold convention (DepMap raw relative CN scale):
+#   CN < 0.5   = deep / homozygous deletion
+#   CN <= 0.92 = shallow deletion (heterozygous loss)
+#   0.92 < CN <= 1.07 = neutral (diploid ± noise)
+#   CN > 1.07  = shallow amplification
+#   CN > 1.5   = focal amplification (one extra copy or more)
+#   CN > 4     = high-level amplification
+# (per DepMap portal docs + Mermel et al GISTIC2 conventions for relative-CN matrices)
+#
+# Data source: dmc-26q1/OmicsCNGeneMC_WES.csv. Matrix shape: cell-line-rows ×
+# gene-columns (similar to CRISPR matrix); first physical column is
+# ModelConditionID, second is IsDefaultEntryForMC. Bridge to ModelID requires
+# Model.csv's ModelConditionID column for joining.
+#
+# Coverage gap to be aware of: not all genes are in the WES CN matrix. MYC and
+# BRAF are notably absent in 26Q1; KRAS and MET are present. When a target is
+# absent from the panel, the card emits data_unavailable + dependency_class →
+# data_unavailable (rule: cn-data-unavailable-insufficient).
+
+card_id: copy-number-distribution
+version: 1.0.0
+question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
+
+applies_when:
+  - "context.data_sources.depmap_cn_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-cn-distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      amplification_threshold: "THRESHOLD.amplification_threshold"
+      deletion_threshold: "THRESHOLD.deletion_threshold"
+
+outputs:
+  summary_fields:
+    - cn_n_cell_lines_evaluated
+    - cn_assay_used                       # 'wes' (preferred) or 'wgs' (fallback when target absent from WES panel)
+    - cn_median_panel
+    - cn_p25_panel
+    - cn_p75_panel
+    - cn_p5_panel
+    - cn_p95_panel
+    - cn_iqr
+    - cn_fraction_deep_deletion         # CN < 0.5
+    - cn_fraction_shallow_deletion       # 0.5 <= CN <= 0.92
+    - cn_fraction_neutral                # 0.92 < CN <= 1.07
+    - cn_fraction_shallow_amplification  # 1.07 < CN <= 1.5
+    - cn_fraction_focal_amplification    # 1.5 < CN <= 4
+    - cn_fraction_high_amplification     # CN > 4
+    - cn_distribution_shape
+    - cn_recurrent_amplification_score   # combined focal + high amp fraction
+    - cn_recurrent_deletion_score        # combined shallow + deep del fraction
+    - copy_number_class                  # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    - cn_top_amplified_lineages          # per-lineage stats for amplified lineages
+    - cn_top_deleted_lineages            # per-lineage stats for deleted lineages
+
+  summary_fields_vocabulary:
+    copy_number_class:
+      - recurrently_amplified            # >=20% of panel shows focal+high amp
+      - recurrently_deleted              # >=20% of panel shows shallow+deep del
+      - mixed                            # both amp and del recurrent (different lineages)
+      - broadly_neutral                  # neither amp nor del recurrent — VALID DESCRIPTIVE CALL
+      - data_unavailable                 # target absent from CN matrix or load failed
+    cn_assay_used:
+      - wes
+      - wgs
+      - data_unavailable
+    cn_distribution_shape:
+      - amp_dominant
+      - del_dominant
+      - bimodal_mixed
+      - tight_neutral
+      - dispersed_neutral
+      - unclassified
+
+  figures:
+    - id: density_cn
+      type: density_histogram_with_kde
+      description: "Pan-cancer CN distribution with KDE overlay. Threshold reference lines at deletion (0.92) and amplification (1.5). Tight distribution near 1.0 = broadly neutral; long left tail = recurrent deletion; long right tail = recurrent amplification."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_strip_cn
+      type: per_lineage_strip_plot
+      description: "Per-lineage CN strip plot, lineages ordered by median CN descending (n≥5 only). Identifies lineage-specific amplification or deletion (e.g., MYC amp in HCC, NF1 deletion in NF1-syndrome lines)."
+      preferred_surfaces: [markdown, ppt]
+    - id: waterfall_cn
+      type: ranked_waterfall
+      description: "Per-cell-line CN sorted ascending. Preserves per-line resolution that density bins out; secondary view."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_cell_line_cn_with_lineage_tags
+
+thresholds:
+  # DepMap raw relative-CN scale conventions
+  deep_deletion_threshold: 0.5
+  shallow_deletion_threshold: 0.92
+  neutral_lower_threshold: 0.92
+  neutral_upper_threshold: 1.07
+  shallow_amplification_threshold: 1.07
+  amplification_threshold: 1.5            # focal amplification (one extra copy or more)
+  high_amplification_threshold: 4.0
+  deletion_threshold: 0.92                # passed to method as "deletion if <= this"
+  # Class derivation thresholds
+  recurrent_event_fraction: 0.20          # >=20% of panel → recurrent
+  recurrent_event_dominant_ratio: 2.0     # amp/del ratio for "dominant" call (else "mixed")
+  # Warning thresholds
+  min_panel_coverage_threshold: 500
+  lineage_dominance_threshold: 0.80
+
+warning_predicates:
+  - warning_id: low_cn_panel_coverage
+    if: "cn_n_cell_lines_evaluated < THRESHOLD.min_panel_coverage_threshold"
+    message: "WES CN panel has missing scores for many cell lines — interpretation may be biased toward the captured subset."
+  - warning_id: cn_lineage_imbalanced_amp
+    if: "cn_top_amplified_lineages.0.fraction_of_amp_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "Amplification tail is essentially one-lineage-driven; pan-cancer 'recurrently_amplified' label may be misleading."
+  - warning_id: cn_lineage_imbalanced_del
+    if: "cn_top_deleted_lineages.0.fraction_of_del_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "Deletion tail is essentially one-lineage-driven; pan-cancer 'recurrently_deleted' label may be misleading."
+
+caveats:
+  - "Most cancer driver genes (KRAS, BRAF, EGFR, etc.) are MUTATION-driven, not CN-driven. A 'broadly_neutral' call is the correct, expected outcome for these — NOT a coverage gap."
+  - "Method uses WES gene-level CN (OmicsCNGeneMC_WES.csv, n≈1954) as PRIMARY. When the target gene is absent from the WES panel (e.g. MYC, BRAF in 26Q1), method falls back to WGS gene-level CN (OmicsCNGeneWGS.csv, n≈800, full genome coverage). Card emits cn_assay_used ∈ {wes, wgs} to surface which source was used per target. Different denominators per target are honest reporting, not silent imputation."
+  - "CN scale is raw relative CN (median ~1.0 = diploid), NOT log2 ratio. Thresholds: deep del < 0.5, shallow del < 0.92, neutral 0.92-1.07, shallow amp >1.07, focal amp >1.5, high amp >4."
+  - "Copy number ≠ functional effect: a focal amplification can be passenger; a homozygous deletion of a tumor-suppressor can be a driver. Functional inference requires the dependency cards as orthogonal evidence."
+
+schema_version: 1
