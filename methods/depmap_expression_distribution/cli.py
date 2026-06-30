@@ -236,17 +236,71 @@ def _classify_expression(frac_expressed: float, frac_highly: float,
     return "broadly_moderate"   # 70-90% range fallback
 
 
+def _load_takeda_style(target_contracts_dir: Path):
+    """Load the Takeda mplstyle + palette constants. Idempotent.
+
+    Returns the palette module so callers can pull constants like
+    FIGSIZE_DOUBLE_COLUMN, REFLINE_NEUTRAL, REFLINE_KILLER.
+    """
+    import matplotlib.pyplot as plt
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette  # type: ignore
+    return takeda_palette
+
+
+def emit_density_plot(tpm_by_model: dict, target_symbol: str, summary: dict,
+                       out_dir: Path, target_contracts_dir: Path) -> Path:
+    """Emit pan-cancer KDE + histogram density plot — PRIMARY figure for E3.a.
+
+    Histogram + KDE overlay with threshold reference lines at log2(TPM+1)=1.0
+    ('expressed') and =5.0 ('highly expressed'). Mirrors the depmap-portal
+    convention for the per-gene expression panel.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.stats import gaussian_kde
+
+    pal = _load_takeda_style(target_contracts_dir)
+    scores = np.array(list(tpm_by_model.values()))
+
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+    ax.hist(scores, bins=50, density=True, alpha=0.45, color="#0a2540", edgecolor="white")
+    if len(scores) >= 10:
+        kde = gaussian_kde(scores)
+        xs = np.linspace(scores.min() - 0.2, scores.max() + 0.2, 500)
+        ax.plot(xs, kde(xs), color="#cf2828", linewidth=2)
+    ax.axvline(1.0, color="#f0a020", linestyle="--", linewidth=1, label="expressed (≥1.0)")
+    ax.axvline(5.0, color="#cf2828", linestyle="--", linewidth=1, label="highly expressed (≥5.0)")
+    ax.set_xlabel("log2(TPM+1)")
+    ax.set_ylabel("Density")
+    ax.set_title(f"{target_symbol} — pan-cancer expression distribution (n={len(scores)})")
+    ax.legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    out_path = out_dir / "figure_density_expression.svg"
+    fig.savefig(out_path)
+    plt.close(fig)
+    return out_path
+
+
 def emit_waterfall_plot(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
                          summary: dict, out_dir: Path, target_contracts_dir: Path) -> Path:
-    """Emit ranked-waterfall SVG (per-cell-line log2(TPM+1), lineage-colored)."""
+    """Emit ranked-waterfall SVG — SECONDARY figure (demoted from primary).
+
+    Shows the per-cell-line distribution sorted ascending. Less interpretable than
+    the density plot at-a-glance but preserves the per-line resolution that
+    density bins out.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    style_path = target_contracts_dir / "branding" / "takeda_oncology.mplstyle"
-    if style_path.exists():
-        plt.style.use(str(style_path))
+    pal = _load_takeda_style(target_contracts_dir)
 
     records = []
     for model_id, log2tpm in tpm_by_model.items():
@@ -255,13 +309,13 @@ def emit_waterfall_plot(tpm_by_model: dict, model_metadata: dict, target_symbol:
         records.append({"model_id": model_id, "lineage": lineage, "log2tpm": log2tpm})
     df = pd.DataFrame(records).sort_values("log2tpm").reset_index(drop=True)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     ax.bar(range(len(df)), df["log2tpm"], width=1.0, color="#0a2540", linewidth=0)
-    ax.axhline(1.0, color="#f0a020", linestyle="--", linewidth=1, label="expressed (log2(TPM+1) ≥ 1.0)")
-    ax.axhline(5.0, color="#cf2828", linestyle="--", linewidth=1, label="highly expressed (log2(TPM+1) ≥ 5.0)")
+    ax.axhline(1.0, color="#f0a020", linestyle="--", linewidth=1, label="expressed (≥1.0)")
+    ax.axhline(5.0, color="#cf2828", linestyle="--", linewidth=1, label="highly expressed (≥5.0)")
     ax.set_xlabel(f"Cell lines (n={len(df)}, sorted by expression)")
     ax.set_ylabel("log2(TPM+1)")
-    ax.set_title(f"{target_symbol} — pan-cancer expression distribution")
+    ax.set_title(f"{target_symbol} — pan-cancer expression (ranked waterfall)")
     ax.legend(loc="upper left", fontsize=8)
     fig.tight_layout()
     out_path = out_dir / "figure_waterfall_expression.svg"
@@ -272,16 +326,16 @@ def emit_waterfall_plot(tpm_by_model: dict, model_metadata: dict, target_symbol:
 
 def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
                         summary: dict, out_dir: Path, target_contracts_dir: Path) -> Path:
-    """Emit per-lineage strip plot SVG."""
+    """Emit per-lineage strip plot SVG. Lineages ordered by median expression desc,
+    n>=5 only. Sized via FIGSIZE_SINGLE_COLUMN_TALL with vertical room scaled to
+    n_lineages — most targets give 25-30 lineages, each ~0.2in vertical."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     import pandas as pd
 
-    style_path = target_contracts_dir / "branding" / "takeda_oncology.mplstyle"
-    if style_path.exists():
-        plt.style.use(str(style_path))
+    pal = _load_takeda_style(target_contracts_dir)
 
     records = []
     for model_id, log2tpm in tpm_by_model.items():
@@ -290,23 +344,27 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
         records.append({"lineage": lineage, "log2tpm": log2tpm})
     df = pd.DataFrame(records)
 
-    # Order lineages by median expression descending; keep only those with n>=5
     lineage_medians = df.groupby("lineage")["log2tpm"].agg(["median", "count"])
     lineage_medians = lineage_medians[lineage_medians["count"] >= 5].sort_values("median", ascending=False)
     lineages_ordered = list(lineage_medians.index)
 
-    fig, ax = plt.subplots(figsize=(10, max(4, len(lineages_ordered) * 0.25)))
+    # Vertical sizing: scale n_lineages * 0.2in but cap to a reasonable max so it
+    # never dwarfs the rest of the dashboard layout
+    fig_h = min(max(3.5, len(lineages_ordered) * 0.2), 7.0)
+    fig, ax = plt.subplots(figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0], fig_h))
     for i, lin in enumerate(lineages_ordered):
         scores = df[df["lineage"] == lin]["log2tpm"].values
         xs = np.full(len(scores), i)
         jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
         ax.scatter(scores, xs + jitter, alpha=0.5, s=8, color="#0a2540")
+        # Median marker
+        ax.scatter([np.median(scores)], [i], color="#cf2828", s=30, marker="|", zorder=5)
     ax.axvline(1.0, color="#f0a020", linestyle="--", linewidth=1)
     ax.axvline(5.0, color="#cf2828", linestyle="--", linewidth=1)
     ax.set_yticks(range(len(lineages_ordered)))
     ax.set_yticklabels(lineages_ordered, fontsize=8)
     ax.set_xlabel("log2(TPM+1)")
-    ax.set_title(f"{target_symbol} — per-lineage expression (n≥5 lineages only)")
+    ax.set_title(f"{target_symbol} — per-lineage expression (n≥5; ordered by median)")
     fig.tight_layout()
     out_path = out_dir / "figure_lineage_strip_expression.svg"
     fig.savefig(out_path)
@@ -375,6 +433,7 @@ def main(target, release_pin, expressed_threshold, out):
         sys.exit(1)
     summary = compute_summary_stats(tpm_by_model, model_meta, expressed_threshold=expressed_threshold)
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
+    emit_density_plot(tpm_by_model, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_waterfall_plot(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_lineage_strip(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_plot_data(tpm_by_model, model_meta, expressed_threshold, out)

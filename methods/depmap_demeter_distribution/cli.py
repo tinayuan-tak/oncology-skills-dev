@@ -365,9 +365,11 @@ def emit_waterfall_plot(demeter_by_model: dict, model_metadata: dict, target_sym
     import numpy as np
     import pandas as pd
 
-    style_path = target_contracts_dir / "branding" / "takeda_oncology.mplstyle"
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
+    sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette as pal  # type: ignore
 
     records = []
     for model_id, score in demeter_by_model.items():
@@ -376,7 +378,7 @@ def emit_waterfall_plot(demeter_by_model: dict, model_metadata: dict, target_sym
         records.append({"model_id": model_id, "lineage": lineage, "score": score})
     df = pd.DataFrame(records).sort_values("score").reset_index(drop=True)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     ax.bar(range(len(df)), df["score"], width=1.0, color="#0a2540", linewidth=0)
     ax.axhline(-0.5, color="#cf2828", linestyle="--", linewidth=1, label="strong-dep (DEMETER2 ≤ -0.5)")
     ax.axhline(-0.25, color="#f0a020", linestyle="--", linewidth=1, label="moderate-dep")
@@ -400,12 +402,14 @@ def emit_histogram_kde_plot(demeter_by_model: dict, target_symbol: str, summary:
     import numpy as np
     from scipy.stats import gaussian_kde
 
-    style_path = target_contracts_dir / "branding" / "takeda_oncology.mplstyle"
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
+    sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette as pal  # type: ignore
 
     scores = np.array(list(demeter_by_model.values()))
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     ax.hist(scores, bins=50, density=True, alpha=0.5, color="#0a2540", edgecolor="white")
     if len(scores) >= 10:
         kde = gaussian_kde(scores)

@@ -206,23 +206,125 @@ def compute_concordance(chronos_by_model: dict,
     return summary
 
 
+def emit_concordance_overlay_density(per_line: list, target_symbol: str,
+                                       out_dir: Path, target_contracts_dir: Path) -> Path:
+    """Overlay 1D KDE densities + per-assay rug — PRIMARY figure for concordance.
+
+    CRISPR and RNAi scores are z-score-standardized to a shared x-axis (per-assay
+    mean/std normalization), then plotted as overlaid KDEs with per-assay rug
+    ticks. Replaces the 2D Chronos-vs-DEMETER2 scatter that previously held the
+    primary slot — the 1D overlay communicates concordance/discordance more
+    directly than asking the reader to mentally fold a 2D scatter onto its diagonal.
+
+    Each rug row uses ALL cell lines for that assay (not just the in-both subset)
+    — partition-preserving union.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.stats import gaussian_kde
+
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette as pal  # type: ignore
+
+    crispr_scores = np.array([p["chronos"] for p in per_line if p["chronos"] is not None])
+    rnai_scores = np.array([p["demeter2"] for p in per_line if p["demeter2"] is not None])
+    if len(crispr_scores) == 0 or len(rnai_scores) == 0:
+        # Degenerate case; emit a stub
+        fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+        ax.text(0.5, 0.5, "Insufficient data for concordance density overlay",
+                transform=ax.transAxes, ha="center", va="center", fontsize=10, color="#666666")
+        out_path = out_dir / "figure_concordance_overlay_density.svg"
+        fig.savefig(out_path); plt.close(fig)
+        return out_path
+
+    # Z-score standardization (per-assay): each assay's distribution on a unit-std scale
+    crispr_mean, crispr_std = crispr_scores.mean(), crispr_scores.std() or 1.0
+    rnai_mean, rnai_std = rnai_scores.mean(), rnai_scores.std() or 1.0
+    crispr_z = (crispr_scores - crispr_mean) / crispr_std
+    rnai_z = (rnai_scores - rnai_mean) / rnai_std
+
+    # Dependent thresholds in z-score space (informative even if they don't align)
+    crispr_dep_z = (-0.5 - crispr_mean) / crispr_std
+    rnai_dep_z = (-0.25 - rnai_mean) / rnai_std
+
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+
+    x_min = float(min(crispr_z.min(), rnai_z.min()) - 0.5)
+    x_max = float(max(crispr_z.max(), rnai_z.max()) + 0.5)
+    xs = np.linspace(x_min, x_max, 500)
+
+    if len(crispr_z) >= 10:
+        kde_c = gaussian_kde(crispr_z)
+        ax.plot(xs, kde_c(xs), color="#0a2540", linewidth=2, label=f"CRISPR Chronos (n={len(crispr_z)})")
+        ax.fill_between(xs, kde_c(xs), alpha=0.15, color="#0a2540")
+    if len(rnai_z) >= 10:
+        kde_r = gaussian_kde(rnai_z)
+        ax.plot(xs, kde_r(xs), color="#f0a020", linewidth=2, label=f"RNAi DEMETER2 (n={len(rnai_z)})")
+        ax.fill_between(xs, kde_r(xs), alpha=0.15, color="#f0a020")
+
+    # Threshold reference lines (in z-score space)
+    ax.axvline(crispr_dep_z, color="#0a2540", linestyle="--", linewidth=1, alpha=0.6,
+               label=f"CRISPR dep threshold (z={crispr_dep_z:.2f})")
+    ax.axvline(rnai_dep_z, color="#f0a020", linestyle="--", linewidth=1, alpha=0.6,
+               label=f"RNAi dep threshold (z={rnai_dep_z:.2f})")
+
+    # Rug ticks: place above the density curves
+    y_top = ax.get_ylim()[1]
+    rug_h = y_top * 0.04
+    rug_y_crispr = y_top + rug_h * 0.5
+    rug_y_rnai = y_top + rug_h * 1.7
+    for z in crispr_z:
+        ax.plot([z, z], [rug_y_crispr - rug_h * 0.3, rug_y_crispr + rug_h * 0.3],
+                color="#0a2540", linewidth=0.4, alpha=0.5)
+    for z in rnai_z:
+        ax.plot([z, z], [rug_y_rnai - rug_h * 0.3, rug_y_rnai + rug_h * 0.3],
+                color="#f0a020", linewidth=0.4, alpha=0.5)
+    ax.set_ylim(0, rug_y_rnai + rug_h)
+
+    ax.set_xlabel("Dependency score (z-score, per-assay standardized; lower → more dependent)")
+    ax.set_ylabel("Density")
+    ax.set_title(f"{target_symbol} — CRISPR vs RNAi dependency density overlay")
+    ax.legend(loc="upper right", fontsize=7)
+
+    # Annotation: partition counts (CRISPR-only / RNAi-only / both)
+    crispr_only = sum(1 for p in per_line if p["chronos"] is not None and p["demeter2"] is None)
+    rnai_only = sum(1 for p in per_line if p["chronos"] is None and p["demeter2"] is not None)
+    in_both = sum(1 for p in per_line if p["chronos"] is not None and p["demeter2"] is not None)
+    note = f"n_in_both: {in_both}\ncrispr_only: {crispr_only}\nrnai_only: {rnai_only}"
+    ax.text(0.02, 0.98, note, transform=ax.transAxes, fontsize=7,
+            ha="left", va="top", color="#555555", family="monospace")
+
+    fig.tight_layout()
+    out_path = out_dir / "figure_concordance_overlay_density.svg"
+    fig.savefig(out_path)
+    plt.close(fig)
+    return out_path
+
+
 def emit_concordance_scatter(per_line: list, target_symbol: str,
                               out_dir: Path, target_contracts_dir: Path) -> Path:
-    """Scatter of Chronos vs DEMETER2 with quadrant lines. Only points measured in
-    BOTH assays appear; untested-in-one-assay counts surfaced as annotation text."""
+    """Scatter of Chronos vs DEMETER2 with quadrant lines — SECONDARY figure
+    (demoted from primary). Only in-both points appear; partition counts annotated."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    style_path = target_contracts_dir / "branding" / "takeda_oncology.mplstyle"
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
+    sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette as pal  # type: ignore
 
     in_both = [p for p in per_line if p["chronos"] is not None and p["demeter2"] is not None]
     crispr_only = sum(1 for p in per_line if p["chronos"] is not None and p["demeter2"] is None)
     rnai_only = sum(1 for p in per_line if p["chronos"] is None and p["demeter2"] is not None)
 
-    fig, ax = plt.subplots(figsize=(7, 6))
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_SQUARE)
     if in_both:
         xs = [p["chronos"] for p in in_both]
         ys = [p["demeter2"] for p in in_both]
@@ -231,9 +333,8 @@ def emit_concordance_scatter(per_line: list, target_symbol: str,
     ax.axhline(-0.25, color="#cf2828", linestyle="--", linewidth=1, label="RNAi dep (-0.25)")
     ax.set_xlabel("CRISPR Chronos")
     ax.set_ylabel("RNAi DEMETER2")
-    ax.set_title(f"{target_symbol} — CRISPR vs RNAi dependency concordance (n_in_both={len(in_both)})")
+    ax.set_title(f"{target_symbol} — CRISPR vs RNAi (n_in_both={len(in_both)})")
     ax.legend(loc="upper left", fontsize=8)
-    # Annotation: untested partition counts
     note = f"crispr_only: {crispr_only}\nrnai_only: {rnai_only}"
     ax.text(0.98, 0.02, note, transform=ax.transAxes, fontsize=8,
             ha="right", va="bottom", color="#555555")
@@ -251,11 +352,13 @@ def emit_partition_bar(summary: dict, target_symbol: str,
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    style_path = target_contracts_dir / "branding" / "takeda_oncology.mplstyle"
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
     if style_path.exists():
         plt.style.use(str(style_path))
+    sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette as pal  # type: ignore
 
-    fig, ax = plt.subplots(figsize=(9, 4.5))
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     labels = [
         "agree\nnon-dep", "agree\ndep",
         "disagree:\nCRISPR-dep", "disagree:\nRNAi-dep",
@@ -341,6 +444,7 @@ def main(target, release_pin, crispr_dependent_threshold, rnai_dependent_thresho
                                    crispr_threshold=crispr_dependent_threshold,
                                    rnai_threshold=rnai_dependent_threshold)
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
+    emit_concordance_overlay_density(summary["per_line_concordance"], target, out, DEFAULT_TARGET_CONTRACTS)
     emit_concordance_scatter(summary["per_line_concordance"], target, out, DEFAULT_TARGET_CONTRACTS)
     emit_partition_bar(summary, target, out, DEFAULT_TARGET_CONTRACTS)
     emit_plot_data(summary["per_line_concordance"], out)
