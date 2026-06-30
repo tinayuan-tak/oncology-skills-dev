@@ -445,6 +445,82 @@ rules:
       remain the basis for the call.
 
   # ============================================================================
+  # E4 — Mutation-type counts (Card E4: mutation-type-counts)
+  # ============================================================================
+  # DESIGN: classification is descriptive — describes the variant-class profile of
+  # the gene across DepMap cell lines. Oncogene-pattern (missense_dominant) and
+  # tumor-suppressor-pattern (lof_dominant) both can be supportive for the right
+  # modality. No rule emits a killer signal — mutation-type alone shouldn't kill a
+  # program; coverage / dependency / clinical-precedent carry that logic.
+
+  - rule_id: mut-missense-dominant-supportive
+    when:
+      card_id: mutation-type-counts
+      field: mutation_landscape_class
+      equals: missense_dominant
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Missense-dominant variant profile (≥70% missense among coding variants) is
+      the canonical oncogene signature. Activating hotspot mutations support both
+      small-molecule (inhibitor of the mutant protein, e.g. KRAS-G12C inhibitors)
+      and degrader strategies (degrade the oncogenic protein).
+
+  - rule_id: mut-lof-dominant-supportive
+    when:
+      card_id: mutation-type-counts
+      field: mutation_landscape_class
+      equals: lof_dominant
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      LOF-dominant variant profile (≥50% nonsense + frameshift + splice) is the
+      canonical tumor-suppressor signature. The target itself is being lost — so
+      direct inhibition is NOT the strategy. Supportive for SYNTHETIC-LETHAL
+      partner-targeting strategies (PARP for BRCA-LOF, MAT2A for MTAP-LOF, etc.)
+      where the framework subsequently asks 'what depends on this LOF context?'.
+
+  - rule_id: mut-mixed-neutral
+    when:
+      card_id: mutation-type-counts
+      field: mutation_landscape_class
+      equals: mixed
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Neither missense nor LOF dominates (dual-role gene, e.g. TP53). The
+      mutation profile alone doesn't drive a directional therapeutic call;
+      synthesis layer should consult the dependency cards + clinical-precedent.
+
+  - rule_id: mut-no-mutations-neutral
+    when:
+      card_id: mutation-type-counts
+      field: mutation_landscape_class
+      equals: no_mutations
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Fewer than 5 cell lines mutated — gene is rarely mutated in the DepMap
+      panel. NOT a killer (rare-mutation oncogenes exist, e.g. RIT1 in NSCLC).
+      Other evidence threads (dependency, expression, copy number) carry the
+      call; this card adds no signal.
+
+  - rule_id: mut-data-unavailable-insufficient
+    when:
+      card_id: mutation-type-counts
+      field: mutation_landscape_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      MAF unreachable or target absent. Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
   # Expression — tumor vs adjacent (existing card: expression-tumor-vs-adjacent)
   # ============================================================================
   # Degrader-specific: degraders require demonstrable protein presence in the indication.

@@ -47,6 +47,8 @@ required_cards:
   # off-scope build. Spec, method, rules retained in repos; not active in dashboards.
   - card_id: copy-number-distribution
     version: ">=1.0.0,<2"        # Card E3.b — WES+WGS gene-level CN, new 2026-06-30
+  - card_id: mutation-type-counts
+    version: ">=1.0.0,<2"        # Card E4 — cell-line cohort, MAF-based variant-class counts, new 2026-06-30
   - card_id: expression-dependency-correlation
     version: ">=1.0.0,<2"
   - card_id: mutation-hotspot-frequency
