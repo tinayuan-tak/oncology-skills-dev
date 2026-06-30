@@ -1,25 +1,33 @@
-# Card iter-2/1 — PAN-CANCER DEPENDENCY DISTRIBUTION
+# Card E1 — PAN-CANCER DEPENDENCY DISTRIBUTION  (pure-data, dual CRISPR + RNAi)
 #
-# The foundational dependency view. Answers: "across all ~1,043 DepMap cell lines,
-# what is the SHAPE of dependency on this target gene, and does it pass the
-# pan-essentiality filter?"
+# The foundational dependency view, mirroring DepMap's per-gene "dependency distribution"
+# portal page. Emits descriptive categorical labels (DepMap's published vocabulary) +
+# numerics. NO normative interpretation_hints — therapeutic inference moves to the
+# Tier-2 rules layer (target-contracts/interpretation-rules/) consumed by the Tier-3
+# synthesis layer.
 #
-# Discovery-driving signal — programs have been killed in pre-discovery when this
-# card flags pan-essentiality. Also the dominant POSITIVE signal when the distribution
-# is bimodal-selective (the therapeutic-window shape).
+# Decoupling-design (per warm-rolling-bunny plan, 2026-06-30):
+#   - Cards emit DepMap-defined descriptive labels ONLY (e.g. dependency_class).
+#   - The (evidence_label, modality) → signal mapping lives in interpretation-rules/.
+#   - Indication-context binding happens at synthesis (Tier 3), not here. Card output
+#     is target-only; same evidence package serves all indications + modalities.
 #
 # Anchored to DepMap-published Chronos conventions:
 #   Chronos ≤ -1.0 = strongly dependent ("common essentials" convention)
 #   Chronos ≤ -0.5 = moderately dependent
 #   Chronos > -0.5 = non-essential
 #
-# Inputs (DepMap 26Q1):
-#   - CRISPRGeneEffect.csv (~564 MB) — cell_line × gene Chronos matrix
-#   - Model.csv (~922 KB) — cell-line metadata (lineage, sub_lineage, primary_disease)
+# Dual-assay design (CRISPR + RNAi):
+#   - CRISPR (depmap-consortium-26q1) is the primary assay.
+#   - RNAi companion (depmap-consortium-26q1-rnai DEMETER2 combined) provides
+#     orthogonal LOF evidence. Concordance between CRISPR + RNAi is a confidence
+#     signal — common_essential in BOTH is stronger than CRISPR-only.
+#   - When RNAi data is unreachable, fields with prefix `rnai_*` are null + the
+#     `crispr_rnai_concordance` field reports "rnai_unavailable" (not a failure).
 
 card_id: pan-cancer-dependency-distribution
-version: 1.0.0
-question: "Across all ~1,043 DepMap cell lines, what is the shape of dependency on {target.symbol}, and does it pass the pan-essentiality discrimination?"
+version: 2.0.0
+question: "Across ~1500 DepMap cell lines, what is the shape of dependency on {target.symbol}, and how does CRISPR LOF concord with RNAi LOF?"
 
 applies_when:
   - "context.data_sources.depmap_chronos_available == true"
@@ -27,6 +35,9 @@ applies_when:
 required_inputs:
   - product_id: depmap-consortium-26q1
     release_pin: "{release_pin}"
+  - product_id: depmap-consortium-26q1-rnai
+    release_pin: "{release_pin}"
+    optional: true                               # RNAi is companion; CRISPR-alone runs are valid
 
 methods:
   - call: depmap-chronos-distribution
@@ -37,75 +48,121 @@ methods:
 
 outputs:
   summary_fields:
-    # === Core distribution stats ===
-    - n_cell_lines_evaluated
-    - n_cell_lines_excluded
+    # === CRISPR assay ===
+    - n_cell_lines_evaluated                     # CRISPR
     - median_chronos_panel
     - p25_chronos_panel
     - p75_chronos_panel
     - p5_chronos_panel
     - p95_chronos_panel
     - chronos_iqr
-    # === Decision-grade categorical fields ===
-    - fraction_strongly_dependent
+    - fraction_strongly_dependent                # fraction with chronos ≤ -1.0
     - fraction_moderately_dependent
     - fraction_non_essential
-    - distribution_shape
+    - distribution_shape                         # descriptive categorical
     - pan_essential_score
     - selectivity_index
-    # === Lineage-tail enrichment ===
+    - dependency_class                           # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
     - top_dependent_lineages
-  # iter-2 multi-figure declaration — both views are emitted to staging; renderer picks per surface
+    # === RNAi companion assay (parallel) ===
+    - rnai_n_cell_lines_evaluated
+    - rnai_median_dep_score
+    - rnai_p25_dep_score
+    - rnai_p75_dep_score
+    - rnai_fraction_strongly_dependent
+    - rnai_distribution_shape
+    - rnai_dependency_class                      # DEPMAP-CONVENTION CATEGORICAL (RNAi assay)
+    # === Cross-assay concordance ===
+    - crispr_rnai_concordance                    # categorical: concordant_essential | concordant_non_essential | discordant | rnai_unavailable
+
+  # Value vocabulary for categorical summary_fields — consumed by the Tier-2 reachability
+  # validator (validators/validate_interpretation_rules.py). Each entry lists the
+  # exhaustive set of values the method may emit for that field.
+  summary_fields_vocabulary:
+    dependency_class:
+      - common_essential
+      - strongly_selective
+      - broadly_dependent
+      - non_dependent
+      - data_unavailable
+    rnai_dependency_class:
+      - common_essential
+      - strongly_selective
+      - broadly_dependent
+      - non_dependent
+      - data_unavailable
+      - rnai_unavailable
+    distribution_shape:
+      - pan_essential
+      - bimodal_selective
+      - shifted_dependent
+      - non_essential
+      - unclassified
+    rnai_distribution_shape:
+      - pan_essential
+      - bimodal_selective
+      - shifted_dependent
+      - non_essential
+      - unclassified
+      - rnai_unavailable
+    crispr_rnai_concordance:
+      - concordant_essential
+      - concordant_non_essential
+      - concordant_selective
+      - discordant
+      - rnai_unavailable
+
   figures:
-    - id: waterfall
+    - id: waterfall_crispr
       type: ranked_waterfall
-      description: "Per-cell-line Chronos scores sorted ascending, lineage-colored. Distribution shape directly readable from the curve."
+      description: "CRISPR (Chronos) — per-cell-line scores sorted ascending, lineage-colored. Distribution shape directly readable."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
-    - id: histogram_kde
+    - id: waterfall_rnai
+      type: ranked_waterfall
+      description: "RNAi (DEMETER2 combined) — per-cell-line scores sorted ascending. Orthogonal LOF evidence. Skipped when RNAi data unreachable."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+    - id: histogram_kde_crispr
       type: density_histogram_with_kde
-      description: "Frequency histogram of Chronos scores with KDE overlay. Modality (bimodal vs unimodal) is visually explicit."
+      description: "Frequency histogram of CRISPR Chronos with KDE overlay. Bimodal vs unimodal shape explicit."
       preferred_surfaces: [html, markdown_alt]
-  plot_data: per_cell_line_chronos_with_lineage_tags
-
-interpretation_hints:
-  # Predicates anchored to DepMap-published thresholds (no invented values)
-  - if: "fraction_strongly_dependent >= THRESHOLD.pan_essential_fraction_threshold"
-    call: "pan-essential — not a viable therapeutic target"
-    dominant: true                      # EG4: DOMINANT-KILLER for intracellular modalities
-  - if: "fraction_strongly_dependent >= THRESHOLD.selective_fraction_min && fraction_strongly_dependent <= THRESHOLD.selective_fraction_max && distribution_shape == 'bimodal_selective'"
-    call: "selective dependency — therapeutic-window candidate"
-    dominant: true                      # EG4: dominant POSITIVE signal
-  - if: "median_chronos_panel <= THRESHOLD.shifted_median_threshold && fraction_strongly_dependent < THRESHOLD.pan_essential_fraction_threshold"
-    call: "broadly dependent — moderate therapeutic-window concern"
-  - if: "fraction_strongly_dependent < THRESHOLD.selective_fraction_min"
-    call: "non-essential — no dependency rationale"
+    - id: histogram_kde_rnai
+      type: density_histogram_with_kde
+      description: "Frequency histogram of RNAi dep scores with KDE overlay. Skipped when RNAi unreachable."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_chronos_and_rnai_with_lineage_tags
 
 thresholds:
-  # DepMap-anchored numerical conventions
-  strongly_dependent_threshold_chronos: -1.0     # "common essentials" cutoff per DepMap convention
+  # DepMap-anchored numerical conventions (CRISPR Chronos scale)
+  strongly_dependent_threshold_chronos: -1.0     # "common essentials" cutoff per DepMap
   moderately_dependent_threshold_chronos: -0.5
-  # Distribution classification thresholds
-  pan_essential_fraction_threshold: 0.85         # ≥85% strongly dependent → pan-essential
+  # Distribution classification thresholds (drive dependency_class derivation)
+  pan_essential_fraction_threshold: 0.85         # ≥85% strongly dependent → common_essential
   selective_fraction_min: 0.05                   # ≥5% strongly dependent → at least some signal
   selective_fraction_max: 0.60                   # ≤60% strongly dependent → not approaching pan-essential
   shifted_median_threshold: -0.5                 # panel median ≤ -0.5 → whole-panel shift
   # Warning-predicate thresholds
-  min_panel_coverage_threshold: 500              # if n_cell_lines_evaluated < 500, low_panel_coverage warning fires
-  lineage_dominance_threshold: 0.80              # if top lineage owns >80% of dependent tail, lineage_imbalanced warning fires
+  min_panel_coverage_threshold: 500
+  lineage_dominance_threshold: 0.80
+  # RNAi assay-equivalent thresholds (DEMETER2 score scale ≈ similar range)
+  rnai_strongly_dependent_threshold: -1.0
 
 warning_predicates:
   - warning_id: low_panel_coverage
     if: "n_cell_lines_evaluated < THRESHOLD.min_panel_coverage_threshold"
-    message: "Target has missing Chronos for many cell lines — interpretation may be biased toward the screened subset."
+    message: "CRISPR has missing scores for many cell lines — interpretation may be biased toward the screened subset."
   - warning_id: lineage_imbalanced_dependent_tail
     if: "top_dependent_lineages.0.fraction_of_dependent_tail >= THRESHOLD.lineage_dominance_threshold"
     message: "Dependent tail is essentially one-lineage-driven; pan-cancer label is misleading. Read the lineage-specific dependency card instead."
+  - warning_id: crispr_rnai_discordant
+    if: "crispr_rnai_concordance == 'discordant'"
+    message: "CRISPR and RNAi LOF assays disagree on dependency; orthogonal-evidence concordance is weak. Treat single-assay calls with caution."
 
 caveats:
   - "Chronos scores depend on CRISPR library + cell line context; not all dependencies replicate across screens."
-  - "Pan-essentiality call is informative for THERAPEUTIC TARGETING but not for biology — pan-essential genes can still be important biology."
   - "DepMap panel composition is biased toward common cancer types; rare-lineage dependencies may be under-sampled."
+  - "RNAi (DEMETER2) and CRISPR (Chronos) measure different LOF mechanisms (mRNA knockdown vs gene knockout); discordance may reflect biology, not error."
+  - "Dependency classification (common_essential/strongly_selective/...) is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
   - "Cell-line dependency does not guarantee in-vivo dependency. The card answers 'is this a real dependency in cellular models?' — translational validation is separate."
 
 schema_version: 1

@@ -70,6 +70,11 @@
           "subgroup_catalog": {
             "type": "string",
             "description": "Subgroup-catalog manifest_id, for cards that stratify by molecular subgroup."
+          },
+          "optional": {
+            "type": "boolean",
+            "description": "When true, this input is non-blocking — the card runs even if the product is unavailable, and emits 'data_unavailable' labels for fields derived from it. Useful for companion datasets (e.g. RNAi as a companion to CRISPR). Default: false (input is required).",
+            "default": false
           }
         }
       },
@@ -115,7 +120,17 @@
             "pattern": "^[a-z][a-z0-9_]*$"
           },
           "minItems": 1,
-          "maxItems": 30
+          "maxItems": 50
+        },
+        "summary_fields_vocabulary": {
+          "type": "object",
+          "description": "Optional: for categorical summary_fields, declare the exhaustive set of values the method may emit. Consumed by validators/validate_interpretation_rules.py to confirm rule (card_id, field, value) triples are reachable. Map of field_name (must appear in summary_fields) -> list of allowed string values. Cards may omit this during the pure-data transition; validator emits a warning rather than an error.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1, "maxLength": 100},
+            "minItems": 1,
+            "maxItems": 30
+          }
         },
         "figure": {
           "type": "string",
