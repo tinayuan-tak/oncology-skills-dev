@@ -123,6 +123,89 @@ rules:
       lives correctly on E1's non-dependent-killer rule, not duplicated here.
 
   # ============================================================================
+  # Card 3 — mutation-stratified-dependency (oncogene-addiction biomarker)
+  # ============================================================================
+
+  - rule_id: mutant-strongly-dependent-supportive
+    when:
+      card_id: mutation-stratified-dependency
+      field: mutation_stratification_class
+      equals: mutant_strongly_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Mutant cells significantly + strongly more dependent than WT (BH-corrected q < α,
+      |delta| >= 0.5). Oncogene-addiction biomarker — supports a mutation-stratified
+      clinical strategy (give the drug to patients with the mutation). Canonical
+      examples: BRAF-V600E + vemurafenib, KRAS-G12C + sotorasib, EGFR-L858R + erlotinib.
+
+  - rule_id: mutant-moderately-dependent-supportive
+    when:
+      card_id: mutation-stratified-dependency
+      field: mutation_stratification_class
+      equals: mutant_moderately_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Significant mutant-vs-WT stratification but smaller effect size (-0.2 to -0.5).
+      Supportive but not dominant on its own; biomarker hypothesis viable but needs
+      stronger orthogonal evidence (PDX, isogenic-model rescue) before clinical strategy.
+
+  - rule_id: wt-strongly-dependent-neutral
+    when:
+      card_id: mutation-stratified-dependency
+      field: mutation_stratification_class
+      equals: wt_strongly_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      WT cells more dependent than mutant — unusual pattern, sometimes seen in
+      tumor-suppressor contexts where the LOF mutation produces synthetic dependency
+      ELSEWHERE in the genome. Doesn't kill the small_molecule/degrader case on its
+      own but suggests the biology is more complex than direct oncogene-addiction.
+
+  - rule_id: not-mutation-stratified-neutral
+    when:
+      card_id: mutation-stratified-dependency
+      field: mutation_stratification_class
+      equals: not_mutation_stratified
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Dependency doesn't stratify by mutation status across the panel. NOT a killer:
+      the target could still be a strong-fit modality via lineage selectivity (E2) or
+      pan-essential discrimination (E1). It just means mutation status isn't a
+      stratifying biomarker for this target.
+
+  - rule_id: insufficient-mutation-rate-insufficient
+    when:
+      card_id: mutation-stratified-dependency
+      field: mutation_stratification_class
+      equals: insufficient_mutation_rate
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      <5 mutant cell lines in the panel — Mann-Whitney test is underpowered. Coverage
+      gap, not opposing evidence. Tier-3 should surface this in coverage_summary.
+
+  - rule_id: mutation-stratified-data-unavailable
+    when:
+      card_id: mutation-stratified-dependency
+      field: mutation_stratification_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      DepMap mutation matrices were unreachable. Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
   # Expression — tumor vs adjacent (existing card: expression-tumor-vs-adjacent)
   # ============================================================================
   # Degrader-specific: degraders require demonstrable protein presence in the indication.

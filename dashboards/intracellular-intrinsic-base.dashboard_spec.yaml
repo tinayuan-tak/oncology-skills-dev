@@ -33,9 +33,11 @@ required_cards:
   # are DOMINANT POSITIVE (therapeutic-window candidates). EG4 dominant-signal-plus-confirmation
   # scoring activates this card's calls.
   - card_id: pan-cancer-dependency-distribution
-    version: ">=1.0.0,<2"
+    version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-06-30
   - card_id: dependency-lineage-selectivity
-    version: ">=1.0.0,<2"
+    version: ">=1.0.0,<4"        # widened: Card refactored to v3.0.0 (pure-data, target-only) 2026-06-30
+  - card_id: mutation-stratified-dependency
+    version: ">=1.0.0,<2"        # Card 3 — oncogene-addiction biomarker; new 2026-06-30
   - card_id: expression-dependency-correlation
     version: ">=1.0.0,<2"
   - card_id: mutation-hotspot-frequency
