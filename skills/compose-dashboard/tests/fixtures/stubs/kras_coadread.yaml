@@ -197,6 +197,62 @@ copy-number-distribution:
   cn_top_amplified_lineages: []
   cn_top_deleted_lineages: []
 
+# Card E4 — mutation-type-counts (cell-line cohort, MAF-based)
+# KRAS is the canonical missense-dominant oncogene: ~95% of mutations are missense
+# (G12, G13, Q61 hotspots), with a long tail of rare splice + inframe events.
+# Distinct from the mutation-hotspot-frequency card which is TCGA-patient cohort
+# at codon resolution.
+mutation-type-counts:
+  mut_n_cell_lines_total: 1810
+  mut_n_cell_lines_mutated: 370
+  mut_mutation_rate: 0.204
+  mut_total_mutations: 377
+  mut_n_missense: 359
+  mut_n_nonsense: 2
+  mut_n_frameshift: 3
+  mut_n_splice: 1
+  mut_n_inframe_indel: 11
+  mut_n_synonymous: 0
+  mut_n_other: 1
+  mut_fraction_missense: 0.953
+  mut_fraction_lof: 0.016
+  mut_fraction_inframe_indel: 0.029
+  mut_dominant_mutation_class: missense
+  mutation_landscape_class: missense_dominant
+  mut_top_mutated_lineages:
+    - lineage: Pancreas
+      n_mutated_lines: 35
+      n_observations: 36
+      by_class:
+        missense: 34
+        inframe_indel: 2
+    - lineage: Bowel
+      n_mutated_lines: 45
+      n_observations: 46
+      by_class:
+        missense: 45
+        inframe_indel: 1
+    - lineage: Lung
+      n_mutated_lines: 38
+      n_observations: 39
+      by_class:
+        missense: 36
+        frameshift: 2
+        inframe_indel: 1
+  mut_per_class_counts:
+    - variant_class: missense
+      n: 359
+    - variant_class: inframe_indel
+      n: 11
+    - variant_class: frameshift
+      n: 3
+    - variant_class: nonsense
+      n: 2
+    - variant_class: splice
+      n: 1
+    - variant_class: other
+      n: 1
+
 dependency-lineage-selectivity:
   # === Card 2 v3.0.0 (pure-data, target-only) spec fields ===
   # Card no longer carries indication-specific summary fields (lineage_label,

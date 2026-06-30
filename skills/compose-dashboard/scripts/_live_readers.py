@@ -212,6 +212,17 @@ def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -
     return concord_module.read_crispr_rnai_concordance(target=target, indication=indication)
 
 
+def _dispatch_mutation_type_counts(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route mutation-type-counts card (E4) to
+    methods/depmap_mutation_type_counts/read.py.
+
+    Cell-line cohort, variant-class resolution. Pan-cancer (indication accepted but
+    not consumed). Distinct from mutation-hotspot-frequency (TCGA-patient cohort).
+    """
+    mut_module = _import_method("depmap_mutation_type_counts")
+    return mut_module.read_mutation_type_counts(target=target, indication=indication)
+
+
 def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route copy-number-distribution card (E3.b) to
     methods/depmap_cn_distribution/read.py.
@@ -245,6 +256,7 @@ CARD_DISPATCHERS = {
     "expression-distribution": _dispatch_expression_distribution,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
+    "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,

@@ -254,6 +254,32 @@ def _emit_expression_distribution(
     ]
 
 
+def _emit_mutation_type_counts(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Re-runs E4 mutation-type-counts method to emit class bar (primary) + lineage bar."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_mutation_type_counts import cli as e4cli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target_rows, model_meta, n_total, load_errors = e4cli.load_mutation_data("26q1", target)
+    if load_errors:
+        return []
+    recomputed = e4cli.compute_summary_stats(target_rows, model_meta, n_total)
+    e4cli.emit_mutation_class_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
+    e4cli.emit_lineage_class_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
+    e4cli.emit_plot_data(target_rows, model_meta, out_dir)
+    e4cli.emit_manifest(target, "26q1", recomputed, out_dir, [])
+    return [
+        {"id": "mutation_class_bar", "path": "figure_mutation_class_bar.svg",
+         "type": "stacked_bar_mutation_class", "primary": True},
+        {"id": "mutation_lineage_bar", "path": "figure_mutation_lineage_bar.svg",
+         "type": "per_lineage_stacked_bar_mutation", "primary": False},
+    ]
+
+
 def _emit_cn_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -353,6 +379,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,
     "expression-distribution": _emit_expression_distribution,
     "copy-number-distribution": _emit_cn_distribution,
+    "mutation-type-counts": _emit_mutation_type_counts,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
