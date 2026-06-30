@@ -121,24 +121,40 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     return chronos_by_model, model_metadata, load_errors
 
 
+# Indication → DepMap OncotreeLineage map. Module-level constant: used by the
+# figure emitters (which highlight the target lineage at render time) AND by
+# downstream synthesis code that needs the same mapping for indication-context.
+# NOT used by compute_lineage_summary anymore — the method's output is target-only.
+INDICATION_LINEAGE = {
+    "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
+    "SCLC": "Lung", "GC": "Stomach",
+}
+
+
 def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
-                              indication: str,
+                              indication: str = None,  # kept for back-compat; unused
                               strong_threshold: float = -1.0,
                               moderate_threshold: float = -0.5,
                               min_n_lineage: int = 5,
-                              adjacent_delta_max: float = 0.2) -> dict:
-    """Compute Card 2 summary fields. Mirrors read.read_lineage_selectivity but consumes
-    pre-loaded data (avoids re-reading S3 inside the CLI)."""
+                              enrichment_alpha: float = 0.05,
+                              enrichment_effect_size_min: float = 0.3,
+                              broadly_dependent_panel_median: float = -0.5) -> dict:
+    """Compute Card 2 summary fields. PURE-DATA / TARGET-ONLY shape (v3.0.0).
+
+    Returns:
+      - panel-wide stats (n_cell_lines_panel, median_chronos_panel)
+      - per_lineage_stats: full ranked table for ALL lineages with n ≥ min_n_lineage
+      - enriched_lineages: lineages significantly more dependent than the rest (BH-corrected)
+      - enrichment_class: categorical describing the SHAPE of lineage variation
+
+    DECOUPLED FROM INDICATION (Decision 2A): the `indication` parameter is kept for
+    backward-compatibility with existing callers but is NOT consumed. The method
+    returns one ranked table per target; indication-specific row-highlighting is
+    a synthesis-layer concern.
+    """
     import numpy as np
     import pandas as pd
-
-    INDICATION_LINEAGE = {
-        "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-        "SCLC": "Lung", "GC": "Stomach",
-    }
-    target_lineage = INDICATION_LINEAGE.get(indication)
-    if target_lineage is None:
-        return {"_data_note": f"indication {indication!r} not mapped to a DepMap lineage"}
+    from scipy import stats as scipy_stats
 
     # Build merged dataframe
     rows = []
@@ -149,35 +165,24 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
     merged = pd.DataFrame(rows)
 
     n_panel = len(merged)
+    if n_panel == 0:
+        return {
+            "n_cell_lines_panel": 0,
+            "median_chronos_panel": None,
+            "per_lineage_stats": [],
+            "n_lineages_evaluated": 0,
+            "enriched_lineages": [],
+            "n_enriched_lineages": 0,
+            "enrichment_class": "data_unavailable",
+        }
     median_panel = float(merged["chronos"].median())
 
-    lineage_subset = merged[merged["OncotreeLineage"] == target_lineage]
-    n_lineage = len(lineage_subset)
-
-    if n_lineage == 0:
-        return {
-            "lineage_label": target_lineage,
-            "n_lineage_cell_lines": 0,
-            "median_chronos_lineage": None,
-            "median_chronos_panel": median_panel,
-            "n_cell_lines_panel": n_panel,
-            "selectivity_class": "not_dependent",
-            "_data_note": f"no DepMap cell lines for indication={indication}/lineage={target_lineage!r}",
-        }
-
-    median_lineage = float(lineage_subset["chronos"].median())
-    p25_lineage = float(lineage_subset["chronos"].quantile(0.25))
-    p75_lineage = float(lineage_subset["chronos"].quantile(0.75))
-    frac_strong_lineage = float((lineage_subset["chronos"] <= strong_threshold).mean())
-
-    lineage_vs_panel_delta = median_lineage - median_panel
-
-    # Per-lineage ranking
-    per_lineage = []
+    # Per-lineage descriptive stats — full ranked table (target-only data product)
+    per_lineage_stats = []
     for ln_name, subset in merged.groupby("OncotreeLineage"):
         if len(subset) < min_n_lineage:
             continue
-        per_lineage.append({
+        per_lineage_stats.append({
             "lineage": str(ln_name),
             "n": int(len(subset)),
             "median_chronos": float(subset["chronos"].median()),
@@ -185,51 +190,96 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
             "p75_chronos": float(subset["chronos"].quantile(0.75)),
             "fraction_strongly_dependent": float((subset["chronos"] <= strong_threshold).mean()),
         })
-    per_lineage.sort(key=lambda x: x["median_chronos"])
+    per_lineage_stats.sort(key=lambda x: x["median_chronos"])
+    n_lineages_evaluated = len(per_lineage_stats)
 
-    n_lineages_total = len(per_lineage)
-    target_rank_idx = next((i for i, r in enumerate(per_lineage) if r["lineage"] == target_lineage), None)
-    if target_rank_idx is not None:
-        lineage_rank_pct = float(100.0 * (n_lineages_total - target_rank_idx) / max(n_lineages_total, 1))
-        n_more_dep = target_rank_idx
+    # DepMap-style enrichment test: Mann-Whitney U each lineage vs rest of panel,
+    # one-sided (alternative: lineage more dependent = lower Chronos). BH multiple-
+    # testing correction across all evaluated lineages.
+    enriched_lineages = []
+    if n_lineages_evaluated >= 2:
+        p_values = []
+        records = []
+        for stat in per_lineage_stats:
+            ln = stat["lineage"]
+            lineage_scores = merged[merged["OncotreeLineage"] == ln]["chronos"].to_numpy()
+            rest_scores = merged[merged["OncotreeLineage"] != ln]["chronos"].to_numpy()
+            if len(lineage_scores) < 2 or len(rest_scores) < 2:
+                p_values.append(1.0)
+                records.append({"lineage": ln, "n": stat["n"], "delta_vs_rest": 0.0,
+                                 "p_value": 1.0, "effect_size": 0.0,
+                                 "median_chronos": stat["median_chronos"]})
+                continue
+            try:
+                u_stat, p_one_sided = scipy_stats.mannwhitneyu(
+                    lineage_scores, rest_scores, alternative="less"
+                )
+            except ValueError:
+                p_one_sided = 1.0
+            delta_vs_rest = float(np.median(lineage_scores) - np.median(rest_scores))
+            # Effect size as rank-biserial correlation (Mann-Whitney standard effect size):
+            # 1 - 2U/(n1*n2)
+            n1, n2 = len(lineage_scores), len(rest_scores)
+            try:
+                effect = 1.0 - (2.0 * u_stat) / (n1 * n2)
+            except (ZeroDivisionError, NameError):
+                effect = 0.0
+            p_values.append(float(p_one_sided))
+            records.append({
+                "lineage": ln,
+                "n": stat["n"],
+                "median_chronos": stat["median_chronos"],
+                "delta_vs_rest": delta_vs_rest,
+                "p_value": float(p_one_sided),
+                "effect_size": float(effect),
+            })
+
+        # BH correction
+        p_array = np.array(p_values)
+        m = len(p_array)
+        order = np.argsort(p_array)
+        ranks = np.empty_like(order)
+        ranks[order] = np.arange(1, m + 1)
+        q_values = np.minimum.accumulate(
+            (p_array[order] * m / ranks[order])[::-1]
+        )[::-1]
+        q_unordered = np.empty_like(q_values)
+        q_unordered[order] = q_values
+        for i, rec in enumerate(records):
+            rec["q_value"] = float(min(1.0, q_unordered[i]))
+
+        # Filter to significantly enriched (q < α AND meaningful effect AND delta is negative i.e. more dependent)
+        enriched_lineages = [
+            r for r in records
+            if r["q_value"] < enrichment_alpha
+            and r["delta_vs_rest"] <= -enrichment_effect_size_min
+        ]
+        enriched_lineages.sort(key=lambda r: r["q_value"])
+
+    n_enriched = len(enriched_lineages)
+
+    # Enrichment class — descriptive SHAPE of lineage variation across the panel
+    if n_lineages_evaluated == 0:
+        enrichment_class = "data_unavailable"
+    elif n_enriched >= 1:
+        enrichment_class = "lineage_selective"
+    elif median_panel <= broadly_dependent_panel_median:
+        enrichment_class = "broadly_lineage_dependent"
     else:
-        lineage_rank_pct = float((merged["chronos"] > median_lineage).sum() / n_panel * 100.0)
-        n_more_dep = 0
-
-    more_dependent_lineages = per_lineage[:n_more_dep] if n_more_dep > 0 else []
-    adjacent = [r["lineage"] for r in per_lineage
-                if r["lineage"] != target_lineage
-                and abs(r["median_chronos"] - median_lineage) <= adjacent_delta_max]
-
-    # Selectivity class
-    if median_lineage > moderate_threshold:
-        sel_class = "not_dependent"
-    elif median_lineage > strong_threshold:
-        sel_class = "modest_lineage_dependent"
-    elif lineage_vs_panel_delta <= -0.5 and lineage_rank_pct >= 80:
-        sel_class = "strong_lineage_selective"
-    elif lineage_vs_panel_delta <= -0.3:
-        sel_class = "moderate_lineage_selective"
-    else:
-        sel_class = "broadly_dependent"
+        enrichment_class = "no_lineage_enrichment"
 
     return {
-        "lineage_label": target_lineage,
-        "n_lineage_cell_lines": n_lineage,
-        "n_lineage_excluded": 0,
-        "median_chronos_lineage": median_lineage,
-        "p25_chronos_lineage": p25_lineage,
-        "p75_chronos_lineage": p75_lineage,
-        "fraction_strongly_dependent_lineage": frac_strong_lineage,
-        "median_chronos_panel": median_panel,
         "n_cell_lines_panel": n_panel,
-        "lineage_vs_panel_delta_chronos": lineage_vs_panel_delta,
-        "lineage_rank_percentile": lineage_rank_pct,
-        "n_lineages_more_dependent": n_more_dep,
-        "more_dependent_lineages": more_dependent_lineages,
-        "adjacent_dependent_lineages": adjacent,
-        "selectivity_class": sel_class,
-        "_per_lineage_records": per_lineage,
+        "median_chronos_panel": median_panel,
+        "per_lineage_stats": per_lineage_stats,
+        "n_lineages_evaluated": n_lineages_evaluated,
+        "enriched_lineages": enriched_lineages,
+        "n_enriched_lineages": n_enriched,
+        "enrichment_class": enrichment_class,
+        # Internal-only payload preserved for the figure emitters (which need the
+        # ranked table to draw the forest plot). Underscore-prefixed → renderer hides
+        # per dashboard-rendering-discipline.
+        "_per_lineage_records": per_lineage_stats,
     }
 
 
@@ -395,20 +445,23 @@ def emit_plot_data(chronos_by_model: dict, model_metadata: dict, target_lineage:
 
 def emit_manifest(target: str, indication: str, release_pin: str, summary: dict,
                      chronos_by_model: dict, out_path: Path, load_errors: list) -> None:
+    """Write provenance manifest. `indication` is recorded for run-context (which
+    dashboard invocation produced this artifact) but the method's data product is
+    target-only — same artifact serves all indications."""
     import yaml
     manifest = {
         "method": "depmap-chronos",
         "method_version": METHOD_VERSION,
         "target": target,
-        "indication": indication,
+        "indication": indication,                # run-context, not data-product binding
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "input_manifest": "depmap-consortium-26q1",
         "input_files_consumed": ["CRISPRGeneEffect.csv", "Model.csv"],
-        "lineage_label": summary.get("lineage_label"),
-        "n_lineage_cell_lines": summary.get("n_lineage_cell_lines"),
         "n_cell_lines_panel": summary.get("n_cell_lines_panel"),
-        "selectivity_class": summary.get("selectivity_class"),
+        "n_lineages_evaluated": summary.get("n_lineages_evaluated"),
+        "n_enriched_lineages": summary.get("n_enriched_lineages"),
+        "enrichment_class": summary.get("enrichment_class"),
         "load_errors": load_errors,
     }
     with (out_path / "manifest.yaml").open("w") as f:
@@ -453,7 +506,10 @@ def main(target, indication, release_pin, strong_dependency_threshold,
         chronos_by_model, model_metadata, indication,
         strong_threshold=strong_dependency_threshold,
     )
-    target_lineage = summary.get("lineage_label", "")
+    # Resolve target_lineage from the indication → lineage map (figure emitters need
+    # it for indication-context highlighting). The method's data product is
+    # target-only; this is a render-time concern.
+    target_lineage = INDICATION_LINEAGE.get(indication, "")
 
     with (out / "summary.json").open("w") as f:
         json.dump(summary, f, indent=2, default=str)
@@ -475,7 +531,9 @@ def main(target, indication, release_pin, strong_dependency_threshold,
     click.echo(f"  → lineage_strip:  {out / 'figure_lineage_strip.svg'}")
     click.echo(f"  → plot_data:      {out / 'plot_data.parquet'}")
     click.echo(f"  → manifest:       {out / 'manifest.yaml'}")
-    click.echo(f"  selectivity_class: {summary.get('selectivity_class')}")
+    click.echo(f"  enrichment_class: {summary.get('enrichment_class')}"
+                f"  ({summary.get('n_enriched_lineages', 0)} enriched lineages "
+                f"of {summary.get('n_lineages_evaluated', 0)} evaluated)")
     return 0
 
 

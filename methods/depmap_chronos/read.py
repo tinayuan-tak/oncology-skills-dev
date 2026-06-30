@@ -65,14 +65,19 @@ def read_lineage_selectivity(
             "_live_read_error": load_errors[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": load_errors,
             "_remediation": "Method cannot reach DepMap 26Q1; verify local cache or AWS credentials.",
+            # Tier-2 vocabulary: always emit enrichment_class so rules can fire on data_unavailable.
+            "enrichment_class": "data_unavailable",
         }
     if not chronos_by_model:
         return {
             "_live_read_error": "no_data_for_target",
             "target": target,
             "_remediation": f"target {target!r} not found in CRISPRGeneEffect.csv; confirm HGNC symbol.",
+            "enrichment_class": "data_unavailable",
         }
 
+    # `indication` accepted for back-compat with existing callers but NOT consumed
+    # by the compute path. Card 2 is target-only per Decision 2A.
     return _cli.compute_lineage_summary(
         chronos_by_model, model_metadata, indication=indication,
         strong_threshold=strong_threshold,

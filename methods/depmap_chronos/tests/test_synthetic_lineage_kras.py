@@ -97,19 +97,36 @@ def test_synthetic_kras_coadread_lineage(tmp_path, monkeypatch):
         chronos_by_model, model_metadata, indication="COADREAD"
     )
 
-    # Card 2 spec field assertions
-    assert summary["lineage_label"] == "Bowel"
-    assert summary["n_lineage_cell_lines"] == 50
-    assert summary["median_chronos_lineage"] is not None
-    assert summary["median_chronos_lineage"] < -1.0, \
-        f"Bowel KRAS median should be strong dependency; got {summary['median_chronos_lineage']}"
-    assert summary["lineage_vs_panel_delta_chronos"] < -0.3
-    # Bowel should rank as most-dependent (rank percentile ≥ 80)
-    assert summary["lineage_rank_percentile"] >= 80, \
-        f"Bowel rank should be top tier; got {summary['lineage_rank_percentile']}"
-    # Selectivity class should be strong (delta < -0.5 + rank >= 80)
-    assert summary["selectivity_class"] in ("strong_lineage_selective", "moderate_lineage_selective"), \
-        f"got {summary['selectivity_class']}"
+    # Card 2 v3.0.0 (pure-data) spec field assertions
+    # Target-only shape: no lineage_label / n_lineage_cell_lines / lineage_rank_percentile /
+    # lineage_vs_panel_delta_chronos / selectivity_class. The per-lineage table is the
+    # canonical data product; indication context is applied at synthesis layer.
+    assert "per_lineage_stats" in summary
+    assert summary["n_cell_lines_panel"] == 200
+    assert summary["n_lineages_evaluated"] >= 4  # 5 lineages designed in; 4+ after min-n filter
+
+    # Find the Bowel row in the per-lineage stats — synthesizer made it the most dependent
+    bowel = next((r for r in summary["per_lineage_stats"] if r["lineage"] == "Bowel"), None)
+    assert bowel is not None
+    assert bowel["n"] == 50
+    assert bowel["median_chronos"] < -1.0, \
+        f"Bowel KRAS median should be strongly dependent; got {bowel['median_chronos']}"
+
+    # Mann-Whitney enrichment: Bowel should be in the enriched-lineages list
+    # (designed-in lineage_selective shape).
+    enriched_names = [r["lineage"] for r in summary["enriched_lineages"]]
+    assert "Bowel" in enriched_names, \
+        f"Bowel should be in enriched_lineages; got {enriched_names}"
+
+    # enrichment_class — synthetic KRAS designed as lineage-selective
+    assert "enrichment_class" in summary
+    assert summary["enrichment_class"] in ("lineage_selective", "broadly_lineage_dependent"), \
+        f"synthetic KRAS should be lineage_selective; got {summary['enrichment_class']!r}"
+    # Vocabulary check
+    assert summary["enrichment_class"] in (
+        "lineage_selective", "broadly_lineage_dependent",
+        "no_lineage_enrichment", "data_unavailable",
+    )
 
     # Figure emission
     out = tmp_path / "card_output"
@@ -138,8 +155,12 @@ def test_synthetic_kras_coadread_lineage(tmp_path, monkeypatch):
     with (out / "manifest.yaml").open() as f:
         mani = yaml.safe_load(f)
     assert mani["method"] == "depmap-chronos"
-    assert mani["indication"] == "COADREAD"
-    assert mani["lineage_label"] == "Bowel"
+    assert mani["indication"] == "COADREAD"   # run-context only; data product is target-only
+    assert mani["enrichment_class"] in (
+        "lineage_selective", "broadly_lineage_dependent",
+        "no_lineage_enrichment", "data_unavailable",
+    )
+    assert mani["n_lineages_evaluated"] >= 4
 
 
 def test_synthetic_kras_full_cli_invocation(tmp_path, monkeypatch):
@@ -166,7 +187,8 @@ def test_synthetic_kras_full_cli_invocation(tmp_path, monkeypatch):
 
     with (out / "summary.json").open() as f:
         summary = json.load(f)
-    assert summary["lineage_label"] == "Bowel"
-    assert summary["selectivity_class"] in (
-        "strong_lineage_selective", "moderate_lineage_selective", "broadly_dependent",
+    # v3.0.0: target-only; no lineage_label / selectivity_class anymore.
+    assert "per_lineage_stats" in summary
+    assert summary["enrichment_class"] in (
+        "lineage_selective", "broadly_lineage_dependent", "no_lineage_enrichment",
     )
