@@ -109,7 +109,14 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
         return {}, {}, load_errors
 
     target_col = target_cols[0]
-    id_col = tpm_df.columns[0]  # first column is ModelID
+    # 26Q1 TPM matrix puts metadata columns FIRST (SequencingID, ModelConditionID,
+    # ModelID, IsDefaultEntryForModel, IsDefaultEntryForMC); the first physical
+    # column is the unnamed pandas row-index. Explicit lookup for ModelID required.
+    if "ModelID" in tpm_df.columns:
+        id_col = "ModelID"
+    else:
+        # Fallback for older releases where the matrix was cell-line-indexed directly.
+        id_col = tpm_df.columns[0]
 
     # IsDefaultEntryForModel filter — string "Yes" / boolean True in 26Q1
     if "IsDefaultEntryForModel" in tpm_df.columns:

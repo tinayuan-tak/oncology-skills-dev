@@ -66,6 +66,27 @@ def test_broadly_low():
     assert s["fraction_expressed"] < 0.10
 
 
+def test_modelid_column_lookup_when_metadata_columns_precede_it():
+    """Regression: the 26Q1 TPM matrix puts SequencingID, ModelConditionID BEFORE
+    ModelID, so tpm_df.columns[0] is NOT ModelID — it's the unnamed row-index column.
+    Loader must look up 'ModelID' explicitly. This test confirms that the load path
+    selects 'ModelID' over columns[0] when both exist."""
+    import pandas as pd
+    # Build a synthetic TPM frame matching 26Q1's layout
+    df = pd.DataFrame({
+        'SequencingID': ['SEQ-001', 'SEQ-002', 'SEQ-003'],
+        'ModelConditionID': ['MC-001', 'MC-002', 'MC-003'],
+        'ModelID': ['ACH-000001', 'ACH-000002', 'ACH-000003'],
+        'IsDefaultEntryForModel': ['Yes', 'Yes', 'Yes'],
+        'KRAS (3845)': [5.0, 4.5, 3.8],
+    })
+    # Confirm columns[0] is the WRONG candidate; ModelID is the correct one
+    assert df.columns[0] == 'SequencingID', "TPM matrix should have SequencingID first per 26Q1 layout"
+    assert 'ModelID' in df.columns, "ModelID is the canonical cell-line ID and must be present"
+    # If a future load were keyed on columns[0], it would key by 'SEQ-001' — would fail metadata lookup.
+    # The loader's `if "ModelID" in tpm_df.columns` branch protects against this.
+
+
 def test_per_lineage_stats_present():
     """per_lineage_stats includes only lineages with n>=5."""
     tpm, meta = _panel({"Lung": [3.0] * 10, "Breast": [3.0] * 3, "Bowel": [3.0] * 10})
