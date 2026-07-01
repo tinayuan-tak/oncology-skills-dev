@@ -39,6 +39,8 @@ expression-tumor-vs-adjacent:
   adjacent_mean_tpm: 8.9
   n_tumor: 625                     # corrected from 412; matches TCGA-COADREAD primary tumor count
   n_adjacent: 51                   # corrected from 41; matches TCGA paired adjacent normals
+  # v2 (pure-data) categorical — 0.5 <= log2_fc < 1.5 AND q < 0.05 → modest_upregulation
+  expression_call_class: modest_upregulation
 
 # Iter-2 Card 1: pan-cancer dependency distribution
 # Values match synthetic-test expectations: KRAS shows selective dependency with
@@ -454,6 +456,31 @@ expression-dependency-correlation:
       n_high_expr: 45
       mean_chronos_high_expr: -0.62
   correlation_class: strong_negative
+
+# Card E5 — dependency-predictability (multi-omics random-forest predictability model).
+# KRAS is expected to be biomarker-anchored: dependency is strongly driven by own_mutation
+# status (G12/G13/Q61 hotspots) with lineage as a secondary driver. Activated 2026-07-01.
+dependency-predictability:
+  predictability_r2: 0.68
+  predictability_r2_ci_low: 0.62
+  predictability_r2_ci_high: 0.74
+  n_cell_lines_evaluated: 1043
+  n_features_used: 62143
+  top_features:
+    - feature: KRAS_mutation_hotspot
+      feature_class: own_mutation
+      importance: 0.42
+    - feature: OncotreeLineage_Bowel
+      feature_class: lineage
+      importance: 0.18
+    - feature: OncotreeLineage_Pancreas
+      feature_class: lineage
+      importance: 0.12
+    - feature: KRAS_expression
+      feature_class: own_expression
+      importance: 0.06
+  dominant_feature_class: own_mutation
+  predictability_class: own_omics_driven
 
 # Card mutation-stratified-dependency (REACTIVATED 2026-06-30 after framework
 # re-scope — mut-vs-dep IS a canonical target-eval question, biomarker-stratified
