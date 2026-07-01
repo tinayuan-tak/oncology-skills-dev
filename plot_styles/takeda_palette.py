@@ -30,37 +30,67 @@ OKABE_ITO = [
 ]
 
 # ===== Canonical lineage → fixed color map (consistency across all cards) =====
-# Top-5 priority indications get distinct stable colors. Other lineages map to grey.
-# When a card needs more than 5 lineage colors, fall back to OKABE_ITO[5:] for additional.
+# Priority-anchor lineages get stable, distinctive colors matched to indication
+# focus areas. Extended coverage handles the ~28 OncotreeLineage values seen in
+# DepMap 26Q1 (was ~12 explicitly mapped; missing lineages collided on default grey).
+# Colors chosen from Okabe-Ito + Tol Colorblind + ColorBrewer for colorblind safety.
 LINEAGE_COLORS = {
-    # Keys MATCH DepMap Model.csv OncotreeLineage categorical exactly so
-    # `get_lineage_color(meta["OncotreeLineage"])` works without an adapter.
-    # DepMap's OncotreeLineage doesn't distinguish NSCLC vs SCLC at this level
-    # (both → "Lung"); use OncotreeSubtype for finer histology when needed.
+    # ==== Tier-1: priority-indication anchors (Okabe-Ito, high-recognition) ====
     "Bowel": "#D55E00",              # vermillion — COADREAD anchor
     "Lung": "#E69F00",               # orange — NSCLC + SCLC (collapsed in OncotreeLineage)
     "Pancreas": "#009E73",           # bluish green — PDAC anchor
-    "Stomach": "#CC79A7",            # reddish purple — GC anchor
-    # Secondary lineages — applied when present in a panel
-    "Breast": "#56B4E9",
-    "Ovary/Fallopian Tube": "#9467BD",
-    "Prostate": "#8C564B",
-    "Kidney": "#E377C2",
-    "Skin": "#7F7F7F",
-    "Esophagus/Stomach": "#F0E442",  # yellow — distinct from Stomach
-    "Liver": "#999933",
-    "Biliary Tract": "#117733",
-    # Lowercase aliases for backward-compatibility with older code that built
-    # synthetic lineage strings using palette-style keys. Resolve to same colors.
+    "Esophagus/Stomach": "#CC79A7",  # reddish purple — GC anchor (canonical OncotreeLineage)
+    "Breast": "#56B4E9",             # sky blue
+
+    # ==== Tier-2: common cancer types (Tol-Bright / ColorBrewer accents) ====
+    "Liver": "#88CCEE",              # light blue-teal
+    "CNS/Brain": "#332288",          # dark indigo (distinct from any blue tier-1)
+    "Skin": "#DDCC77",               # tan
+    "Ovary/Fallopian Tube": "#AA4499", # magenta-purple
+    "Prostate": "#117733",           # dark green (distinct from Pancreas' bluish-green)
+    "Kidney": "#882255",             # burgundy
+    "Lymphoid": "#44AA99",           # teal
+    "Myeloid": "#999933",            # olive
+    "Bladder/Urinary Tract": "#661100", # dark brown-red
+
+    # ==== Tier-3: less-common but present in panels ====
+    "Head and Neck": "#6699CC",       # dusty blue
+    "Bone": "#CC6677",                # rose
+    "Soft Tissue": "#DDDDDD",         # very light grey (distinguishable from default)
+    "Cervix": "#994455",              # muted plum
+    "Uterus": "#EE99AA",              # pink
+    "Thyroid": "#004488",             # deep navy
+    "Biliary Tract": "#AA7744",       # amber-brown
+    "Pleura": "#77AADD",              # pale steel-blue
+    "Eye": "#BBCC33",                 # yellow-green
+    "Peripheral Nervous System": "#DDDD77", # pale yellow-olive
+    "Fibroblast": "#B0B0B0",          # medium grey (fibroblast controls)
+    "Testis": "#6B4C93",              # violet
+    "Ampulla of Vater": "#7FCC97",    # sea foam
+    "Vulva/Vagina": "#EEBBEE",        # light pink
+    "Normal": "#000000",              # black (normal cell line reference — always visible)
+    "Muscle": "#663333",              # muted mahogany
+    "Adrenal Gland": "#DD8855",       # copper
+
+    # ==== Legacy lowercase aliases (backward-compat for synthetic-lineage code paths) ====
     "colorectal": "#D55E00",
     "lung_nsclc": "#E69F00",
     "lung_sclc": "#0072B2",
     "pancreas": "#009E73",
     "gastric": "#CC79A7",
     "breast": "#56B4E9",
-    "skin": "#7F7F7F",
+    "skin": "#DDCC77",
+    "Stomach": "#CC79A7",             # bare "Stomach" kept as legacy; real data uses "Esophagus/Stomach"
 }
-LINEAGE_DEFAULT_COLOR = "#999999"   # grey — fallback for un-mapped lineages
+LINEAGE_DEFAULT_COLOR = "#999999"   # grey — used only when explicit fallback requested
+
+# Extended palette for hash-based deterministic assignment of un-mapped lineages
+# (colorblind-friendly; visually distinguishable from tier-1/2/3 mapped colors).
+_HASH_FALLBACK_PALETTE = [
+    "#5C4D66", "#3F5A50", "#8A5A44", "#4B738C", "#6E4A6E",
+    "#8E7B39", "#3E7B7E", "#7A5E4A", "#5B7A4A", "#7E4A5B",
+    "#4A7A6E", "#6E5B4A", "#4A6E7A", "#7A6E4A", "#4A4A7A",
+]
 
 # ===== Reference-line styles for figure overlays =====
 REFLINE_NEUTRAL = {
@@ -95,8 +125,28 @@ SEQUENTIAL_DEPENDENCY_CMAP = "viridis"
 
 
 def get_lineage_color(lineage: str) -> str:
-    """Look up the canonical color for a lineage. Falls back to LINEAGE_DEFAULT_COLOR."""
-    return LINEAGE_COLORS.get(lineage, LINEAGE_DEFAULT_COLOR)
+    """Look up the canonical color for a lineage.
+
+    Fallback order:
+      1. Explicit LINEAGE_COLORS mapping (~35 lineages, curated colorblind-safe).
+      2. Deterministic hash into _HASH_FALLBACK_PALETTE (15 colors) — same lineage
+         always gets the same color across cards + across runs, but colors are
+         DISTINCT from tier-1/2/3 mapped anchors so mapped-vs-fallback lineages
+         don't collide visually.
+      3. LINEAGE_DEFAULT_COLOR only for null/empty/None inputs.
+
+    Previously fell back straight to grey — that caused legend collisions when
+    2+ unmapped lineages appeared in the same figure (all rendered as #999999).
+    """
+    if not lineage or not isinstance(lineage, str):
+        return LINEAGE_DEFAULT_COLOR
+    if lineage in LINEAGE_COLORS:
+        return LINEAGE_COLORS[lineage]
+    # Deterministic hash — stable across cards + across runs; distinct from anchors.
+    # Use built-in hash() would be non-stable across Python runs (randomized in 3.3+),
+    # so use a simple checksum for determinism.
+    checksum = sum(ord(c) for c in lineage) % len(_HASH_FALLBACK_PALETTE)
+    return _HASH_FALLBACK_PALETTE[checksum]
 
 
 # ===== Standard figure sizes (inches) — Cell/Nature conventions =====
