@@ -176,6 +176,11 @@ def load_expression() -> pd.DataFrame:
         df = df.set_index(df.columns[0])
         df.index.name = "ModelID"
     df = df.drop(columns=[c for c in df.columns if c in meta_cols], errors="ignore")
+    # Final safety net: drop any residual string-dtype columns (post-parquet-precompute
+    # metadata leftovers that don't match the meta_cols set exactly).
+    obj_cols = [c for c, dt in df.dtypes.items() if dt == object]
+    if obj_cols:
+        df = df.drop(columns=obj_cols)
     return _rename_gene_cols_to_symbols(df, protect_cols=set())
 
 
@@ -190,12 +195,23 @@ def _load_cn_parquet(filename: str, mc_to_model: dict) -> Optional[pd.DataFrame]
     if "ModelConditionID" not in df.columns:
         return None
     df = df.set_index("ModelConditionID")
-    df = df.drop(columns=[c for c in df.columns if c == "IsDefaultEntryForMC"],
-                    errors="ignore")
+    # Drop all standard DepMap metadata cols that CAN appear in a CN parquet.
+    # The depmap-26q1-parquet-v1 build preserves several string metadata cols
+    # (ModelID, SequencingID, IsDefaultEntryForModel, IsDefaultEntryForMC);
+    # any survivor produces a "could not convert string to float" downstream.
+    metadata_drops = {
+        "ModelID", "SequencingID",
+        "IsDefaultEntryForModel", "IsDefaultEntryForMC",
+    }
+    df = df.drop(columns=[c for c in df.columns if c in metadata_drops], errors="ignore")
     # Bridge MC → Model. Rows with no bridge fall through to the MC id itself.
     df.index = [mc_to_model.get(mc, mc) for mc in df.index]
     df.index.name = "ModelID"
     df = df[~df.index.duplicated(keep="first")]
+    # Final safety net: drop any residual object-dtype columns.
+    obj_cols = [c for c, dt in df.dtypes.items() if dt == object]
+    if obj_cols:
+        df = df.drop(columns=obj_cols)
     return _rename_gene_cols_to_symbols(df, protect_cols=set())
 
 
@@ -581,6 +597,15 @@ def build_gene_feature_matrix(gene: str, omics: dict,
     parts.append(lineage_oh.astype(np.int8))
     feature_names.extend(lineage_oh.columns.tolist())
 
+    # Guardrail: assert no string-dtype columns leaked into any part before hstack.
+    # Catches loader regressions early (loud AssertionError with a diagnostic
+    # column name beats silent 'could not convert string to float' at RF fit).
+    for i, p in enumerate(parts):
+        obj_cols = [c for c, dt in p.dtypes.items() if dt == object]
+        assert not obj_cols, (
+            f"Non-numeric columns in feature-matrix part {i} for gene {gene}: "
+            f"{obj_cols[:5]} (dtypes: {p.dtypes[obj_cols[:5]].tolist()})"
+        )
     X = np.hstack([p.values for p in parts]).astype(np.float32)
     return {
         "X": X,
