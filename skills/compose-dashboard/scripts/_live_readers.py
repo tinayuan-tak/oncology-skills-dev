@@ -245,6 +245,23 @@ def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Op
     return mut_module.read_mutation_stratified_dependency(target=target, indication=indication)
 
 
+def _dispatch_dependency_predictability(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route dependency-predictability card (E5) to
+    methods/depmap_predictability/read.py.
+
+    E5 is a THIN LOOKUP card: reads one row out of the frozen derived parquet
+    s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet
+    via pyarrow predicate pushdown. No sklearn at framework run-time.
+
+    The expensive RandomForest training lives in the sibling
+    methods/depmap_predictability_precompute/ — which runs as a batch job and
+    writes the parquet that this card reads. Target-only (pan-cancer); indication
+    accepted for the framework's dispatcher signature but NOT consumed.
+    """
+    pred_module = _import_method("depmap_predictability")
+    return pred_module.read_predictability(target=target, indication=indication)
+
+
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
@@ -258,6 +275,7 @@ CARD_DISPATCHERS = {
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
+    "dependency-predictability": _dispatch_dependency_predictability,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

@@ -373,6 +373,34 @@ def _emit_card3_mutation_stratified_dependency(
     ]
 
 
+def _emit_dependency_predictability(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit E5 dependency-predictability feature-importance bar.
+
+    Unlike E1-E4 emitters, this one does NOT reload data — E5 is a THIN LOOKUP
+    card and the summary dict already carries the per-target row from the
+    derived parquet (pred_top_features, pred_r2, etc.). We just call the
+    method's emit helper directly on the summary.
+
+    If summary carries _live_read_error or data_unavailable, the emit helper
+    still produces a placeholder SVG explaining the gap — we keep that figure
+    in the returned descriptor list so the dashboard shows an explanation
+    rather than a missing cell.
+    """
+    _ensure_methods_path()
+    from methods.depmap_predictability import cli as e5cli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    e5cli.emit_feature_importance_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    parquet_uri = e5cli.RELEASE_PIN_TO_PARQUET.get("26q1-v1", "<unset>")
+    e5cli.emit_manifest(target, "26q1-v1", summary, out_dir, parquet_uri)
+    return [
+        {"id": "feature_importance_bar", "path": "figure_feature_importance_bar.svg",
+         "type": "horizontal_bar_feature_importance", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
@@ -383,6 +411,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
+    "dependency-predictability": _emit_dependency_predictability,
 }
 
 
