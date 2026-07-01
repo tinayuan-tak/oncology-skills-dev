@@ -1,4 +1,4 @@
-# Card iter-2/4 — EXPRESSION-DEPENDENCY CORRELATION
+# Card — EXPRESSION-DEPENDENCY CORRELATION  (pure-data, v2)
 #
 # Question: "Does {target}'s mRNA expression correlate with its own Chronos
 # dependency across cell lines?"  A strong NEGATIVE correlation (high expression
@@ -6,10 +6,13 @@
 # hypothesis — expression could stratify responders. A positive correlation is
 # anomalous and worth flagging (possible paralog compensation).
 #
-# Pairs with Cards 1+2 (pan-cancer + lineage selectivity) and Card 3 (mutation-
-# stratified-dependency, pending) to complete the cell-line evidence cluster.
-# All four cards share the DepMap 26Q1 substrate (CRISPRGeneEffect.csv,
-# OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv, Model.csv).
+# v2 refactor 2026-06-30: pure-data shape. interpretation_hints removed; normative
+# logic lives in target-contracts/interpretation-rules/intracellular-intrinsic.
+# rules.yaml. Card emits the descriptive correlation_class vocabulary directly.
+#
+# Pairs with E1a/E1b/E1c (CRISPR + RNAi + concordance), E2 (lineage selectivity),
+# E3.a/E3.b (expression + CN), E4 (mutation type counts), and the reactivated
+# mutation-stratified-dependency card to complete the cell-line evidence cluster.
 #
 # Inputs (DepMap 26Q1):
 #   - CRISPRGeneEffect.csv — cell_line × gene Chronos matrix
@@ -19,7 +22,7 @@
 #   - Model.csv — cell-line metadata (OncotreeLineage primary)
 
 card_id: expression-dependency-correlation
-version: 1.0.0
+version: 2.0.0                                  # bumped 2026-06-30: pure-data v2 refactor
 question: "Across DepMap cell lines, does {target.symbol} mRNA expression correlate with its own Chronos dependency? (Expression-as-biomarker hypothesis.)"
 
 applies_when:
@@ -55,8 +58,18 @@ outputs:
     - delta_chronos_top_vs_bottom_quartile       # difference — large negative = strong stratification
     # === Lineage breakout for biomarker context ===
     - top_lineages_by_dependence_high_expression # list of {lineage, n_high_expr, mean_chronos_high_expr}
-    # === Categorical ===
-    - correlation_class                          # strong_negative | moderate_negative | no_correlation | positive_anomaly | weak_negative
+    # === Categorical (drives Tier-2 rules) ===
+    - correlation_class
+
+  summary_fields_vocabulary:
+    correlation_class:
+      - strong_negative                          # r ≤ -0.4 AND p ≤ 0.01 — canonical biomarker hypothesis
+      - moderate_negative                        # r ≤ -0.2 AND p ≤ 0.01 — supports but not dominant
+      - weak_negative                            # -0.2 < r ≤ -0.1 — directionally consistent but not conclusive
+      - no_correlation                           # -0.1 < r ≤ 0.2 — null
+      - positive_anomaly                         # r > 0.2 — anomalous (paralog compensation, etc.)
+      - data_unavailable
+
   figures:
     - id: scatter_with_regression
       type: expression_chronos_scatter
@@ -69,19 +82,11 @@ outputs:
       preferred_surfaces: [html, markdown_alt]
   plot_data: per_cell_line_chronos_tpm_with_lineage
 
-interpretation_hints:
-  # DOMINANT POSITIVE: strong negative correlation + significance + high-expressers are strongly dependent
-  - if: "pearson_r <= THRESHOLD.strong_correlation_r && pearson_p <= THRESHOLD.significance_alpha && chronos_at_high_expression <= THRESHOLD.biomarker_chronos_threshold"
-    call: "expression-dependent — biomarker candidate"
-    dominant: true
-  - if: "pearson_r <= THRESHOLD.moderate_correlation_r && pearson_p <= THRESHOLD.significance_alpha"
-    call: "moderate expression-dependence"
-  - if: "pearson_r > THRESHOLD.moderate_correlation_r && pearson_r <= THRESHOLD.weak_correlation_r"
-    call: "weak expression-dependence"
-  - if: "pearson_r > THRESHOLD.positive_anomaly_r"
-    call: "positive correlation anomaly"
-  - if: "true"
-    call: "no expression-dependence correlation"
+# interpretation_hints REMOVED 2026-06-30 (v2 refactor) — normative interpretation
+# moved to target-contracts/interpretation-rules/intracellular-intrinsic.rules.yaml.
+# Rules consume correlation_class directly. See rule_ids:
+#   - expression-biomarker-supportive (correlation_class == strong_negative, dominant)
+#   - and the additional correlation_class rules added in the v2 refactor
 
 thresholds:
   # Correlation strength bands (Pearson r; NEGATIVE = expression correlates with stronger dependency)

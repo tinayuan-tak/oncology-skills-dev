@@ -606,7 +606,8 @@ rules:
       Expression matrix unreachable or target absent. Coverage gap.
 
   # ============================================================================
-  # E4 (expression-dependency-correlation) — biomarker hypothesis
+  # expression-dependency-correlation — biomarker hypothesis
+  # (v2 refactor 2026-06-30: card now pure-data; 5 vocab values, 5 rules)
   # ============================================================================
 
   - rule_id: expression-biomarker-supportive
@@ -619,8 +620,132 @@ rules:
       degrader: supportive
     dominant: true
     rationale: |
-      Strong negative expression-dependency correlation = high-expressers are strongly
-      dependent. Biomarker-stratification candidate; supports patient-selection strategy.
+      Strong negative expression-dependency correlation (r ≤ -0.4, p ≤ 0.01) =
+      high-expressers are strongly dependent. Biomarker-stratification candidate;
+      supports patient-selection strategy. Dominant — when this fires it should
+      drive fit_level upward absent contradicting killer signals.
+
+  - rule_id: expression-biomarker-moderate-supportive
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      equals: moderate_negative
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Moderate negative correlation (-0.4 < r ≤ -0.2, p ≤ 0.01). Signal is directional
+      but smaller-effect — supports biomarker hypothesis without being dominant.
+
+  - rule_id: expression-correlation-weak-neutral
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      equals: weak_negative
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Weak negative correlation (-0.2 < r ≤ -0.1). Directionally consistent but not
+      conclusive; treated as neutral signal until orthogonal evidence accumulates.
+
+  - rule_id: expression-no-correlation-neutral
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      equals: no_correlation
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Expression and dependency are uncorrelated. Not a killer (target could still
+      be a fit via other evidence threads — dependency, lineage selectivity, mutation
+      stratification); just no biomarker hypothesis from this axis.
+
+  - rule_id: expression-positive-anomaly-opposing
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      equals: positive_anomaly
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      Positive correlation (r > 0.2): high expression associates with REDUCED
+      dependency. Anomalous — may indicate paralog compensation (expressing the
+      target signals an alternative pathway is active) or measurement artifact.
+      Treated as opposing evidence; pair with paralog analysis before discounting.
+
+  - rule_id: expression-correlation-data-unavailable-insufficient
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Expression or Chronos data unreachable, OR insufficient n cell lines.
+      Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
+  # E5 — Dependency predictability (Card: dependency-predictability)
+  # ============================================================================
+  # Asks how well STANDARD features (own omics + lineage) explain Chronos. The
+  # descriptive class drives a biomarker-vs-context call:
+  #   own_omics_driven → biomarker hypothesis supported (target-own omic
+  #                       feature dominates → patient-selection axis exists)
+  #   lineage_driven   → context-determined (tissue matters; no extra
+  #                       biomarker beyond indication)
+  # Two rules in v1 (minimal scope). weakly_predictable + unpredictable surface
+  # as card-level caveats, not Tier-2 signals — low R² doesn't kill a target,
+  # it just means the standard feature set doesn't explain it.
+
+  - rule_id: predictability-biomarker-hypothesis-supportive
+    when:
+      card_id: dependency-predictability
+      field: predictability_class
+      equals: own_omics_driven
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Dependency is biomarker-anchored: a target-own omic feature (expression,
+      copy number, or mutation status) dominates a RandomForest model with
+      out-of-fold R² ≥ 0.5. This is the canonical patient-selection signal —
+      the standard omics axes carry enough information to predict who responds.
+      Supports both small-molecule and degrader programs by giving the
+      development plan a defensible biomarker hypothesis at IND entry.
+
+  - rule_id: predictability-context-determined-neutral
+    when:
+      card_id: dependency-predictability
+      field: predictability_class
+      equals: lineage_driven
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Lineage one-hots dominate the model with R² ≥ 0.5 — dependency is
+      strongly context-determined. Tissue matters but the standard omics axes
+      (expression / CN / mutation) don't give an extra patient-selection
+      biomarker beyond indication. NOT a kill — many viable programs live here
+      (KRAS in pancreas, ESR1 in breast) — but the biomarker arm of the
+      development plan needs lineage-specific co-factors rather than a
+      pan-tissue molecular signature.
+
+  - rule_id: predictability-data-unavailable-insufficient
+    when:
+      card_id: dependency-predictability
+      field: predictability_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from v1 medium-scope precompute (~500 dependency-mappable
+      genes). Coverage gap; not used as opposing evidence. v2 (full genome) will
+      backfill this set.
 
   # ============================================================================
   # Generic insufficient-evidence handling (replaces NOT_INFORMATIVE_CALLS)

@@ -38,6 +38,7 @@ synthesis_emphasis:
     # rule rates small_molecule fit as not_viable regardless of other cards.
     - pan-cancer-crispr-dependency-distribution
     - dependency-lineage-selectivity
+    - mutation-stratified-dependency      # Reactivated 2026-06-30 — oncogene-addiction biomarker (BRAF-V600E, KRAS-G12C, EGFR-L858R)
     - mutation-hotspot-frequency
   secondary_cards:
     - expression-tumor-vs-adjacent
