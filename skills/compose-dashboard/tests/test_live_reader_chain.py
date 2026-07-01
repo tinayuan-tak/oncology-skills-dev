@@ -102,6 +102,31 @@ def test_chain_trace_returns_structured(card_id, target, indication):
         f"a structured _live_read_error. Got keys: {list(result.keys())}"
     )
 
+    # WIRING-BUG GUARD: if the dispatcher returned _live_read_error, its content must
+    # NOT look like a Python import/attribute error. Those are wiring defects (missing
+    # __init__.py re-export, wrong dispatcher function name), NOT legitimate data-
+    # availability errors. This is exactly the class of bug the top-level try/except in
+    # read_live_summary swallowed prior to 2026-07-01 (E5 dispatcher silently emitted
+    # empty summaries for weeks). Explicit assertion here surfaces it.
+    if has_error:
+        err_str = str(result.get("_live_read_error", ""))
+        WIRING_BUG_SIGNATURES = [
+            "has no attribute",           # AttributeError from a missing re-export
+            "cannot import",              # ImportError from a missing module
+            "No module named",            # ModuleNotFoundError from bad sys.path
+            "is not a package",           # bad submodule qualification
+        ]
+        for sig in WIRING_BUG_SIGNATURES:
+            assert sig not in err_str, (
+                f"Dispatcher for {card_id!r} returned _live_read_error containing wiring-bug "
+                f"signature {sig!r}: {err_str!r}\n"
+                f"This is NOT a legitimate data-availability error — it means the dispatcher's "
+                f"import chain is broken. Fix:\n"
+                f"  - methods/<module>/__init__.py should `from .read import <fn>` and __all__\n"
+                f"  - _live_readers dispatcher should call the correct function name\n"
+                f"  - method module should be reachable on sys.path"
+            )
+
 
 def test_card1_pan_cancer_distribution_chain_specifically():
     """Additional specific test for Card 1: verify the wiring matches the architectural

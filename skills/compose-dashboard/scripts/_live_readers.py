@@ -274,13 +274,9 @@ def _dispatch_prism_compound_activity(target: str, indication: str) -> Optional[
 
     Target-only (pan-cancer). indication accepted for the CARD_DISPATCHERS
     contract but NOT consumed by v1 — lineage-specific PRISM activity is v2 scope.
-
-    Imports the read.py submodule explicitly — package top-level doesn't re-export
-    functions, so `__import__("methods.depmap_prism_activity")` alone would return
-    the package with no read_prism_activity attribute.
     """
-    prism_read = _import_method("depmap_prism_activity.read")
-    return prism_read.read_prism_activity(target=target, indication=indication)
+    prism_module = _import_method("depmap_prism_activity")
+    return prism_module.read_prism_activity(target=target, indication=indication)
 
 
 CARD_DISPATCHERS = {
