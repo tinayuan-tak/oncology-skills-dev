@@ -2,18 +2,28 @@
 """depmap-prism-activity CLI (E6 — thin lookup on the PRISM gene-aggregate parquet).
 
 Reads ONE row from the frozen derived parquet
-`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v1/prism_activity_per_gene.parquet`
+`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v2/prism_activity_per_gene.parquet`
 via pyarrow predicate pushdown. The parquet is produced by the sibling
 `methods.depmap_prism_precompute`.
 
-Two figure emitters:
+Three figure emitters:
   1. top_compounds_bar — horizontal bar of the top-K compounds by activity, colored
      by clinical status (prioritized vs tool), with drug name + MOA labels.
      Primary "what compounds exist" panel.
-  2. activity_vocab_panel — text card showing the class + granular fields (compound
-     count, median LFC, highest phase, polyselective flags).
+  2. lineage_activity_bar (v2) — per-lineage median LFC for the gene, colored by
+     whether the lineage is 'active' (median < -0.5). Direct visual of lineage-
+     stratified activity that pan-cancer median can mask (e.g. KRAS Bowel signal).
+  3. activity_vocab_panel — text card showing the class + granular fields (compound
+     count, median LFC, highest phase, polyselective flags, lineage-selectivity).
 
-Card carries its OWN release_pin (prism-activity-v1); NOT the 26q1 CRISPR pin.
+Card carries its OWN release_pin (prism-activity-v2); NOT the 26q1 CRISPR pin.
+
+v2 (2026-07-01, PRISM lineage stratification build):
+  - Adds per_lineage_activity + prism_lineage_selectivity to summary_fields
+  - Reads depmap-prism-activity-v2 (bumped derived product)
+  - New lineage_activity_bar figure
+  - Backwards compatible with v1 parquets (gracefully missing lineage fields
+    surface as empty / data_unavailable).
 """
 
 from __future__ import annotations
@@ -29,15 +39,17 @@ import click
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
 DEFAULT_TARGET_CONTRACTS = Path(
     "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
 )
 
 # Release-pin → parquet S3 URI. Carries multiple pin aliases (data + framework
-# release) for testability. `prism-activity-v1` is the canonical framework pin.
+# release) for testability. `prism-activity-v2` is the canonical framework pin.
+# v1 kept for backwards-compat lookup (test fixtures may still reference it).
 RELEASE_PIN_TO_PARQUET = {
+    "prism-activity-v2": "s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v2/prism_activity_per_gene.parquet",
     "prism-activity-v1": "s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v1/prism_activity_per_gene.parquet",
 }
 
@@ -47,6 +59,15 @@ CLASS_TOOL_COMPOUND_ONLY = "tool_compound_only"
 CLASS_WEAKLY_ACTIVE = "weakly_active"
 CLASS_NO_COMPOUNDS_FOUND = "no_compounds_found"
 CLASS_DATA_UNAVAILABLE = "data_unavailable"
+
+# v2 lineage-selectivity vocabulary
+LINEAGE_SEL_SELECTIVE = "lineage_selective"
+LINEAGE_SEL_BROADLY_ACTIVE = "broadly_active"
+LINEAGE_SEL_NO_SIGNAL = "no_lineage_signal"
+LINEAGE_SEL_DATA_UNAVAILABLE = "data_unavailable"
+
+# Threshold for coloring per-lineage bars 'active' (kept in-sync with precompute)
+LINEAGE_ACTIVE_LFC_THRESHOLD = -0.5
 
 
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
@@ -97,6 +118,8 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
             "highest_clinical_phase": None,
             "median_lfc_across_compounds": None,
             "top_compounds": [],
+            "per_lineage_activity": [],
+            "prism_lineage_selectivity": LINEAGE_SEL_DATA_UNAVAILABLE,
         }
     med = row.get("median_lfc_across_compounds")
     # NaN → None so warning predicates and vocab panels get the same "no data" treatment
@@ -109,6 +132,9 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
         "highest_clinical_phase": row.get("highest_clinical_phase"),
         "median_lfc_across_compounds": med,
         "top_compounds": row.get("top_compounds") or [],
+        # v2 fields — safe-default when reading a v1 parquet without these columns
+        "per_lineage_activity": row.get("per_lineage_activity") or [],
+        "prism_lineage_selectivity": row.get("prism_lineage_selectivity") or LINEAGE_SEL_DATA_UNAVAILABLE,
     }
 
 
@@ -204,6 +230,75 @@ def emit_top_compounds_bar(summary: dict, target: str, out_dir: Path,
     return out_path
 
 
+def emit_lineage_activity_bar(summary: dict, target: str, out_dir: Path,
+                                 target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
+                                 top_k: int = 10) -> Path:
+    """Per-lineage median LFC horizontal bar (v2).
+
+    Bar length = -median_lfc (larger = more active). Color:
+      - navy for lineages with median LFC < LINEAGE_ACTIVE_LFC_THRESHOLD (active)
+      - gray for lineages above the threshold (inactive)
+
+    Sorted most-active-first, top_k lineages shown. Each bar annotated with the
+    top compound name in that lineage + (n_lines_screened) count.
+
+    Placeholder rendering when:
+      - per_lineage_activity is empty (v1-parquet or no evaluable lineages)
+      - card is no_compounds_found / data_unavailable
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    pal = _load_takeda_palette(target_contracts_dir)
+    out_path = out_dir / "figure_lineage_activity_bar.svg"
+
+    entries = summary.get("per_lineage_activity") or []
+    lineage_sel = summary.get("prism_lineage_selectivity") or LINEAGE_SEL_DATA_UNAVAILABLE
+
+    if not entries:
+        return _placeholder_svg([
+            f"{target} — no per-lineage activity data",
+            "(lineage stratification unavailable in this precompute)"
+        ], out_path, pal)
+
+    # Already sorted most-active-first in the precompute; head off top_k
+    top = entries[:top_k]
+    lineages = [e["lineage"] for e in top]
+    lfcs = [-e["median_lfc"] if e.get("median_lfc") is not None else 0.0 for e in top]
+    colors = [
+        "#0a2540" if (e.get("median_lfc") is not None and e["median_lfc"] < LINEAGE_ACTIVE_LFC_THRESHOLD)
+        else "#bbbbbb"
+        for e in top
+    ]
+
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+    ax.barh(range(len(lineages)), lfcs, color=colors, edgecolor="white")
+    for i, e in enumerate(top):
+        top_cmp = e.get("top_compound_in_lineage") or ""
+        annot = f"{top_cmp} (n={e.get('n_lines_screened', 0)})"
+        ax.text(max(lfcs + [0.01]) * 0.02, i, annot, va="center", fontsize=7, color="#333")
+    ax.set_yticks(range(len(lineages)))
+    ax.set_yticklabels(lineages, fontsize=8)
+    ax.invert_yaxis()
+    ax.axvline(-LINEAGE_ACTIVE_LFC_THRESHOLD, color="#888", linestyle="--", linewidth=0.7)
+    ax.set_xlabel("−median LFC in lineage  (dashed = active threshold |LFC|=0.5)")
+
+    handles = [
+        plt.Rectangle((0, 0), 1, 1, color="#0a2540", label=f"Active (median LFC < {LINEAGE_ACTIVE_LFC_THRESHOLD})"),
+        plt.Rectangle((0, 0), 1, 1, color="#bbbbbb", label="Inactive or borderline"),
+    ]
+    ax.legend(handles=handles, loc="lower right", fontsize=7, framealpha=0.9)
+
+    n_lineages = len(entries)
+    sel_label = lineage_sel.replace("_", " ")
+    ax.set_title(f"{target} — per-lineage PRISM activity  ({n_lineages} evaluable lineages · {sel_label})",
+                    fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
 def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
                                         target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
     """Text summary card: class + granular fields + polyselective breakdown.
@@ -226,6 +321,12 @@ def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     med_txt = f"{med:+.2f}" if isinstance(med, (int, float)) else "NA"
     top = summary.get("top_compounds") or []
     n_poly = sum(1 for c in top if c.get("polyselective"))
+    lineage_entries = summary.get("per_lineage_activity") or []
+    lineage_sel = summary.get("prism_lineage_selectivity") or LINEAGE_SEL_DATA_UNAVAILABLE
+    n_lineages_active = sum(
+        1 for e in lineage_entries
+        if e.get("median_lfc") is not None and e["median_lfc"] < LINEAGE_ACTIVE_LFC_THRESHOLD
+    )
 
     lines = [
         f"{target}  ·  PRISM activity",
@@ -235,6 +336,8 @@ def emit_activity_vocabulary_panel(summary: dict, target: str, out_dir: Path,
         f"highest_phase:       {phase}",
         f"median LFC (pan):    {med_txt}",
         f"polyselective (top): {n_poly}/{len(top)}",
+        f"lineage selectivity: {lineage_sel.replace('_', ' ')}",
+        f"lineages active/eval: {n_lineages_active}/{len(lineage_entries)}",
     ]
     color = {
         CLASS_CLINICALLY_ACTIVE: "#0a2540",
@@ -275,6 +378,9 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
         "n_compounds_targeting": summary.get("n_compounds_targeting"),
         "highest_clinical_phase": summary.get("highest_clinical_phase"),
         "median_lfc_across_compounds": summary.get("median_lfc_across_compounds"),
+        # v2
+        "prism_lineage_selectivity": summary.get("prism_lineage_selectivity"),
+        "n_lineages_evaluated": len(summary.get("per_lineage_activity") or []),
     }
     out_file = out_dir / "manifest.yaml"
     with open(out_file, "w") as f:
@@ -284,7 +390,7 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="prism-activity-v1", show_default=True,
+@click.option("--release-pin", default="prism-activity-v2", show_default=True,
               type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
 @click.option("--parquet-uri", default=None,
               help="Override the parquet URI (for testing / local fixture).")
@@ -304,9 +410,12 @@ def main(target, release_pin, parquet_uri, out):
             "highest_clinical_phase": None,
             "median_lfc_across_compounds": None,
             "top_compounds": [],
+            "per_lineage_activity": [],
+            "prism_lineage_selectivity": LINEAGE_SEL_DATA_UNAVAILABLE,
         }
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     emit_top_compounds_bar(summary, target, out)
+    emit_lineage_activity_bar(summary, target, out)
     emit_activity_vocabulary_panel(summary, target, out)
     emit_manifest(target, release_pin, summary, out, parquet_uri)
     click.echo(f"  -> {out}", err=True)

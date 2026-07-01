@@ -5,7 +5,7 @@ Reads two PRISM release lineages, unifies their per-compound schemas, computes
 per-compound activity stats within each release's own cell-line panel, then
 aggregates to gene-level rows (one row per HGNC-annotated gene). Writes a
 single frozen parquet + manifest to
-`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v1/`.
+`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v2/`.
 
 The thin `depmap_prism_activity.cli` card reads one gene row via pyarrow
 predicate pushdown at compose-dashboard runtime — no CSV parsing, no
@@ -25,6 +25,17 @@ Cross-release merge convention:
   - When a BRD/PRC-normalized compound appears in both, OncRef 25Q4 wins.
   - `top_compounds` ranked across both by within-release activity.
 
+v2 additions (2026-07-01, PRISM lineage stratification build):
+  - Adds `per_lineage_activity` list<struct> field per-gene: for each
+    OncotreeLineage with ≥ min_cell_lines_in_lineage screened lines, reports
+    median LFC + n_responding + top_compound_name.
+  - Adds `prism_lineage_selectivity` field ∈ {lineage_selective,
+    broadly_active, no_lineage_signal, data_unavailable}.
+  - Requires Model.csv from depmap-26q1 substrate for the ModelID → OncotreeLineage
+    join. Note: this is the ONLY 26q1 dependency in the precompute — the LFC data
+    is still PRISM-native.
+  - Derived product bumps to `depmap-prism-activity-v2/`.
+
 Wall time: ~5-10 min (S3 downloads dominate; aggregation is quick).
 """
 
@@ -42,7 +53,9 @@ import click
 
 
 DEPMAP_S3_BUCKET = "onc-compbio"
-DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v1"
+DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v2"
+DERIVED_PRODUCT_ID = "depmap-prism-activity-v2"
+DERIVED_PRODUCT_VERSION = "0.2.0"
 
 # Release-pin ↔ source-prefix registry. Each release supplies (compound_list, lfc)
 # alongside a lineage tag that switches the loader path.
@@ -67,12 +80,26 @@ RELEASES = {
 # -1.0 = ~50% viability drop; canonical cell-line-screen cutoff.
 LFC_RESPONDING_THRESHOLD = -1.0
 
+# v2: lineage-stratification thresholds. Mirror E2 (dependency-lineage-selectivity)
+# discipline where possible so the two cards share a common threshold vocabulary.
+MIN_CELL_LINES_IN_LINEAGE = 5             # E2 parity — smaller lineages excluded from per-lineage stats
+LINEAGE_ACTIVE_LFC_THRESHOLD = -0.5       # lineage's median LFC below this → 'active' in that lineage
+LINEAGE_INACTIVE_LFC_THRESHOLD = -0.2     # lineage's median LFC above this (less negative) → 'inactive'
+LINEAGE_SELECTIVE_MIN_ACTIVE = 1          # ≥1 lineages active AND ≥1 inactive → lineage_selective
+LINEAGE_SELECTIVE_MIN_INACTIVE = 1        # mirrors E2 (which requires 1 significant enrichment)
+
 # Vocabulary buckets for prism_activity_class. See card spec for authoritative copy.
 CLASS_CLINICALLY_ACTIVE = "clinically_active"
 CLASS_TOOL_COMPOUND_ONLY = "tool_compound_only"
 CLASS_WEAKLY_ACTIVE = "weakly_active"
 CLASS_NO_COMPOUNDS_FOUND = "no_compounds_found"
 CLASS_DATA_UNAVAILABLE = "data_unavailable"
+
+# v2 vocabulary buckets for prism_lineage_selectivity.
+LINEAGE_SEL_SELECTIVE = "lineage_selective"
+LINEAGE_SEL_BROADLY_ACTIVE = "broadly_active"
+LINEAGE_SEL_NO_SIGNAL = "no_lineage_signal"
+LINEAGE_SEL_DATA_UNAVAILABLE = "data_unavailable"
 
 # Ordered phase ladder (max phase across a gene's compounds → highest_clinical_phase).
 CLINICAL_PHASES = ["tool", "preclinical", "phase_1", "phase_2", "phase_3", "approved"]
@@ -276,10 +303,27 @@ def merge_compound_universes(dfs: list["pandas.DataFrame"]) -> "pandas.DataFrame
     return deduped.reset_index(drop=True)
 
 
+def load_model_to_lineage(model_csv_body: bytes) -> dict[str, str]:
+    """Parse DepMap Model.csv → {ModelID: OncotreeLineage} map.
+
+    Only reads two columns; the map is used to join PRISM (ModelID, compound_id, LFC)
+    rows to their tumor-lineage-of-origin for v2's per-lineage aggregation.
+    Missing/empty lineages are dropped from the map so downstream aggregation
+    doesn't produce a '' or NaN lineage bucket.
+    """
+    import pandas as pd
+    df = pd.read_csv(BytesIO(model_csv_body), usecols=["ModelID", "OncotreeLineage"])
+    df = df.dropna(subset=["OncotreeLineage"])
+    df = df[df["OncotreeLineage"].astype(str).str.strip() != ""]
+    return dict(zip(df["ModelID"].astype(str), df["OncotreeLineage"].astype(str)))
+
+
 def build_gene_aggregate(
     merged_compounds: "pandas.DataFrame",
     lfc_by_release: dict[str, "pandas.DataFrame"],
+    model_to_lineage: Optional[dict[str, str]] = None,
     lfc_responding_threshold: float = LFC_RESPONDING_THRESHOLD,
+    min_cell_lines_in_lineage: int = MIN_CELL_LINES_IN_LINEAGE,
 ) -> "pandas.DataFrame":
     """Build one row per HGNC-annotated gene.
 
@@ -291,6 +335,11 @@ def build_gene_aggregate(
       - gene-level rollup: n_compounds_targeting, highest_clinical_phase,
                            median_lfc_across_compounds, top_compounds (top-5 by activity)
                            prism_activity_class
+      - v2: per_lineage_activity + prism_lineage_selectivity (requires model_to_lineage)
+
+    When model_to_lineage is None, per_lineage_activity is [] and
+    prism_lineage_selectivity is 'data_unavailable' — enables v1-compatibility
+    testing without Model.csv on the call path.
     """
     import pandas as pd
 
@@ -344,6 +393,37 @@ def build_gene_aggregate(
         exploded[f"cmp_{field}"] = exploded["compound_id"].apply(
             lambda cid: _lookup_activity(cid, field, None)
         )
+
+    # v2: build per-compound × per-lineage LFC tables (one per release).
+    # Each release's LFC frame gains a `lineage` column via join to model_to_lineage,
+    # then aggregated per (compound_id, lineage) taking median LFC and counting
+    # screened/responding lines. Skipped when model_to_lineage is None.
+    per_compound_lineage_stats = {}   # {(compound_id, lineage): {median_lfc, n_lines_screened, n_lines_responding}}
+    if model_to_lineage:
+        for release, lfc_df in lfc_by_release.items():
+            if lfc_df is None or lfc_df.empty:
+                continue
+            df = lfc_df.copy()
+            df["lineage"] = df["model_id"].map(model_to_lineage)
+            df = df.dropna(subset=["lineage"])
+            if df.empty:
+                continue
+            grouped = df.groupby(["compound_id", "lineage"]).agg(
+                lin_median_lfc=("median_lfc", "median"),
+                lin_min_lfc=("median_lfc", "min"),
+                lin_p10_lfc=("median_lfc", lambda vals: float(vals.quantile(0.1))),
+                lin_n_lines_screened=("median_lfc", "size"),
+                lin_n_lines_responding=("median_lfc", lambda vals: int((vals < lfc_responding_threshold).sum())),
+            ).reset_index()
+            for _, row in grouped.iterrows():
+                per_compound_lineage_stats[(row["compound_id"], row["lineage"])] = {
+                    "median_lfc": float(row["lin_median_lfc"]),
+                    "min_lfc": float(row["lin_min_lfc"]),
+                    "p10_lfc": float(row["lin_p10_lfc"]),
+                    "n_lines_screened": int(row["lin_n_lines_screened"]),
+                    "n_lines_responding": int(row["lin_n_lines_responding"]),
+                    "source_release": release,
+                }
 
     # Aggregate per gene
     rows = []
@@ -417,6 +497,14 @@ def build_gene_aggregate(
             median_lfc_across_compounds=median_lfc_across_compounds,
         )
 
+        # v2: per-lineage aggregation across this gene's compounds
+        per_lineage_activity, prism_lineage_selectivity = _build_per_lineage_activity(
+            gene_compounds=group,
+            per_compound_lineage_stats=per_compound_lineage_stats,
+            min_cell_lines_in_lineage=min_cell_lines_in_lineage,
+            model_to_lineage=model_to_lineage,
+        )
+
         rows.append({
             "gene_symbol": gene,
             "n_compounds_targeting": int(n_compounds_targeting),
@@ -424,9 +512,124 @@ def build_gene_aggregate(
             "median_lfc_across_compounds": median_lfc_across_compounds,
             "top_compounds": top_compounds,
             "prism_activity_class": prism_activity_class,
+            "per_lineage_activity": per_lineage_activity,
+            "prism_lineage_selectivity": prism_lineage_selectivity,
         })
 
     return pd.DataFrame(rows)
+
+
+def _build_per_lineage_activity(
+    gene_compounds: "pandas.DataFrame",
+    per_compound_lineage_stats: dict,
+    min_cell_lines_in_lineage: int,
+    model_to_lineage: Optional[dict[str, str]],
+) -> tuple[list[dict], str]:
+    """Roll up per-(compound, lineage) stats to per-lineage entries for one gene.
+
+    For each lineage present across the gene's compounds:
+      - Pool cell-line counts across compounds (sum of n_lines_screened is
+        NOT what we want — that would double-count cell lines screened against
+        multiple compounds. Take the MAX per compound instead as the panel size
+        proxy; each cell line was screened against each compound at most once.)
+      - median_lfc: median of compound-level median LFCs in that lineage
+      - top_compound_in_lineage: name of the single most-active compound
+        in that lineage (breaks ties by prioritized-first)
+
+    Returns (per_lineage_activity_list, prism_lineage_selectivity_class).
+    """
+    if not model_to_lineage or not per_compound_lineage_stats:
+        return [], LINEAGE_SEL_DATA_UNAVAILABLE
+
+    # Collect all (lineage → list of compound-level stats) for this gene's compounds
+    lineage_bucket: dict[str, list[dict]] = {}
+    compound_ids = gene_compounds["compound_id"].tolist()
+    for cid in compound_ids:
+        for (cid_key, lineage_key), stats in per_compound_lineage_stats.items():
+            if cid_key != cid:
+                continue
+            lineage_bucket.setdefault(lineage_key, []).append({
+                "compound_id": cid,
+                **stats,
+            })
+
+    if not lineage_bucket:
+        # Gene has compounds but none have LFC data in the lineage panel
+        return [], LINEAGE_SEL_DATA_UNAVAILABLE
+
+    # Also need compound-metadata (drug_name, prioritized) for top_compound_in_lineage
+    cmpmeta = {
+        r["compound_id"]: {"drug_name": r["drug_name"], "prioritized": bool(r["prioritized"])}
+        for _, r in gene_compounds.iterrows()
+    }
+
+    per_lineage_activity = []
+    for lineage, compound_stats in sorted(lineage_bucket.items()):
+        # Panel size: max n_lines_screened across compounds (each line was
+        # screened against each compound; taking max avoids double-counting).
+        n_lines_screened = max(s["n_lines_screened"] for s in compound_stats)
+        if n_lines_screened < min_cell_lines_in_lineage:
+            continue
+        # Gene-level median LFC in this lineage: median of the per-compound LFCs
+        median_lfc = float(sorted([s["median_lfc"] for s in compound_stats])[len(compound_stats) // 2]) if compound_stats else None
+        # Best-responder tail: the most-negative min_lfc across compounds in this lineage.
+        # For oncogene-addiction drugs (KRAS-G12C etc.) the population median in a lineage
+        # is dominated by WT cells; min_lfc surfaces the responding subpopulation.
+        best_min_lfc = float(min(s.get("min_lfc", s["median_lfc"]) for s in compound_stats))
+        # Max n_lines_responding across compounds (best-case activity)
+        n_lines_responding = max(s["n_lines_responding"] for s in compound_stats)
+        # Top compound in lineage: minimum LFC (most-active), prioritized breaks ties
+        ranked = sorted(
+            compound_stats,
+            key=lambda s: (not cmpmeta.get(s["compound_id"], {}).get("prioritized", False), s["median_lfc"]),
+        )
+        top_compound_id = ranked[0]["compound_id"]
+        top_compound_name = cmpmeta.get(top_compound_id, {}).get("drug_name") or top_compound_id
+        per_lineage_activity.append({
+            "lineage": lineage,
+            "n_lines_screened": int(n_lines_screened),
+            "n_lines_responding": int(n_lines_responding),
+            "median_lfc": median_lfc,
+            "best_responder_lfc": best_min_lfc,
+            "top_compound_in_lineage": top_compound_name,
+            "n_compounds_evaluated": len(compound_stats),
+        })
+
+    # Sort by median_lfc ascending (most-active lineages first) for consistent output
+    per_lineage_activity.sort(key=lambda e: e["median_lfc"])
+
+    # Selectivity classifier
+    prism_lineage_selectivity = classify_prism_lineage_selectivity(per_lineage_activity)
+
+    return per_lineage_activity, prism_lineage_selectivity
+
+
+def classify_prism_lineage_selectivity(per_lineage_activity: list[dict]) -> str:
+    """Classify gene-level lineage selectivity of PRISM activity.
+
+    Vocabulary (v2):
+      - lineage_selective   → ≥ LINEAGE_SELECTIVE_MIN_ACTIVE lineages with median LFC
+                                < LINEAGE_ACTIVE_LFC_THRESHOLD, AND
+                                ≥ LINEAGE_SELECTIVE_MIN_INACTIVE lineages with median LFC
+                                > LINEAGE_INACTIVE_LFC_THRESHOLD.
+      - broadly_active      → majority of evaluated lineages active (median < active_threshold)
+                                with no clear inactive contrast (fewer than min_inactive).
+      - no_lineage_signal   → too few active lineages to call selectivity;
+                                pan-cancer signal is flat.
+      - data_unavailable    → no evaluable lineages (Model.csv unavailable OR
+                                no lineages met the min-cell-lines cutoff).
+    """
+    if not per_lineage_activity:
+        return LINEAGE_SEL_DATA_UNAVAILABLE
+    n_active = sum(1 for e in per_lineage_activity
+                   if e["median_lfc"] is not None and e["median_lfc"] < LINEAGE_ACTIVE_LFC_THRESHOLD)
+    n_inactive = sum(1 for e in per_lineage_activity
+                     if e["median_lfc"] is not None and e["median_lfc"] > LINEAGE_INACTIVE_LFC_THRESHOLD)
+    if n_active >= LINEAGE_SELECTIVE_MIN_ACTIVE and n_inactive >= LINEAGE_SELECTIVE_MIN_INACTIVE:
+        return LINEAGE_SEL_SELECTIVE
+    if n_active >= max(3, len(per_lineage_activity) // 2):
+        return LINEAGE_SEL_BROADLY_ACTIVE
+    return LINEAGE_SEL_NO_SIGNAL
 
 
 def classify_prism_activity(
@@ -463,9 +666,9 @@ def classify_prism_activity(
 def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> int:
     """Write the per-gene aggregate DataFrame to parquet with an explicit schema.
 
-    Uses a struct-list schema for `top_compounds` (mirrors E5's `top_features_rf_shap`
-    pattern) so pyarrow read_table + predicate pushdown on `gene_symbol` returns
-    a fully-typed row without JSON parsing.
+    Uses a struct-list schema for `top_compounds` + `per_lineage_activity` (mirrors
+    E5's `top_features_rf_shap` pattern) so pyarrow read_table + predicate pushdown
+    on `gene_symbol` returns a fully-typed row without JSON parsing.
     """
     import pyarrow as pa
     import pyarrow.parquet as pq
@@ -482,6 +685,15 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
         pa.field("source_release", pa.string()),
         pa.field("prioritized", pa.bool_()),
     ])
+    lineage_struct = pa.struct([
+        pa.field("lineage", pa.string()),
+        pa.field("n_lines_screened", pa.int32()),
+        pa.field("n_lines_responding", pa.int32()),
+        pa.field("median_lfc", pa.float32()),
+        pa.field("best_responder_lfc", pa.float32()),
+        pa.field("top_compound_in_lineage", pa.string()),
+        pa.field("n_compounds_evaluated", pa.int32()),
+    ])
     schema = pa.schema([
         pa.field("gene_symbol", pa.string()),
         pa.field("n_compounds_targeting", pa.int32()),
@@ -489,10 +701,17 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
         pa.field("median_lfc_across_compounds", pa.float32()),
         pa.field("top_compounds", pa.list_(top_struct)),
         pa.field("prism_activity_class", pa.string()),
+        pa.field("per_lineage_activity", pa.list_(lineage_struct)),
+        pa.field("prism_lineage_selectivity", pa.string()),
     ])
     # Ensure column presence + order + no NA in scalar fields (parquet cast happier)
     df = df.copy()
     df["median_lfc_across_compounds"] = df["median_lfc_across_compounds"].astype(object)
+    # Empty per_lineage_activity ⇒ [] not NaN (parquet list<struct> can't accept scalar NaN)
+    if "per_lineage_activity" not in df.columns:
+        df["per_lineage_activity"] = [[] for _ in range(len(df))]
+    if "prism_lineage_selectivity" not in df.columns:
+        df["prism_lineage_selectivity"] = LINEAGE_SEL_DATA_UNAVAILABLE
     table = pa.Table.from_pydict(
         {c.name: df[c.name].tolist() for c in schema},
         schema=schema,
@@ -517,7 +736,8 @@ def _write_manifest(
 ) -> Path:
     import yaml
     manifest = {
-        "derived_product_id": "depmap-prism-activity-v1",
+        "derived_product_id": DERIVED_PRODUCT_ID,
+        "derived_product_version": DERIVED_PRODUCT_VERSION,
         "framework_version": "v2",
         "generated_by": "methods.depmap_prism_precompute.cli",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -530,18 +750,32 @@ def _write_manifest(
             "when the same drug appears in both."
         ),
         "lfc_responding_threshold": LFC_RESPONDING_THRESHOLD,
+        "lineage_thresholds": {
+            "min_cell_lines_in_lineage": MIN_CELL_LINES_IN_LINEAGE,
+            "lineage_active_lfc": LINEAGE_ACTIVE_LFC_THRESHOLD,
+            "lineage_inactive_lfc": LINEAGE_INACTIVE_LFC_THRESHOLD,
+            "lineage_selective_min_active": LINEAGE_SELECTIVE_MIN_ACTIVE,
+            "lineage_selective_min_inactive": LINEAGE_SELECTIVE_MIN_INACTIVE,
+        },
         "vocabulary": {
             "prism_activity_class": [
                 CLASS_CLINICALLY_ACTIVE, CLASS_TOOL_COMPOUND_ONLY,
                 CLASS_WEAKLY_ACTIVE, CLASS_NO_COMPOUNDS_FOUND,
                 CLASS_DATA_UNAVAILABLE,
             ],
+            "prism_lineage_selectivity": [
+                LINEAGE_SEL_SELECTIVE, LINEAGE_SEL_BROADLY_ACTIVE,
+                LINEAGE_SEL_NO_SIGNAL, LINEAGE_SEL_DATA_UNAVAILABLE,
+            ],
             "highest_clinical_phase": ["tool", "preclinical", "phase_1_plus", "approved"],
         },
         "notes": (
-            "Per-gene rollup of PRISM small-molecule viability screens. Consumed by "
-            "methods.depmap_prism_activity thin lookup card. Row count: ~n_hgnc_genes_with_"
-            "at_least_one_annotated_compound (bounded above by ~19k HGNC symbols)."
+            "Per-gene rollup of PRISM small-molecule viability screens with v2 lineage "
+            "stratification. Consumed by methods.depmap_prism_activity thin lookup card. "
+            "Row count: ~n_hgnc_genes_with_at_least_one_annotated_compound "
+            "(bounded above by ~19k HGNC symbols). v2 adds per_lineage_activity + "
+            "prism_lineage_selectivity; requires DepMap 26q1 Model.csv for the ModelID -> "
+            "OncotreeLineage join."
         ),
         "gene_aggregate": {
             "filename": "prism_activity_per_gene.parquet",
@@ -631,15 +865,30 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
             "n_rows_agg": len(lfc_df),
         })
 
+    _log("\n=== Fetching Model.csv for ModelID -> OncotreeLineage join (v2 lineage strat) ===")
+    model_csv_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
+    model_body, model_sha, model_size = _fetch_source(s3, model_csv_key)
+    model_to_lineage = load_model_to_lineage(model_body)
+    _log(f"  {len(model_to_lineage)} ModelID -> OncotreeLineage mappings")
+    entries.append({
+        "release_pin": "dmc-26q1",
+        "source_key": model_csv_key,
+        "source_sha256": model_sha,
+        "source_size_bytes": model_size,
+        "role": "cell_line_lineage_metadata",
+        "n_rows": len(model_to_lineage),
+    })
+
     _log("\n=== Merging compound universes ===")
     merged = merge_compound_universes(compound_dfs)
     _log(f"  merged compound rows: {len(merged)}, unique compounds after cross-release dedup: "
          f"{len(merged)}")
 
     _log("\n=== Building gene aggregate ===")
-    gene_agg = build_gene_aggregate(merged, lfc_dfs)
+    gene_agg = build_gene_aggregate(merged, lfc_dfs, model_to_lineage=model_to_lineage)
     _log(f"  gene rows: {len(gene_agg)}")
     _log(f"  class distribution: {gene_agg['prism_activity_class'].value_counts().to_dict()}")
+    _log(f"  lineage-selectivity distribution: {gene_agg['prism_lineage_selectivity'].value_counts().to_dict()}")
 
     # Write parquet
     parquet_path = local_dir / "prism_activity_per_gene.parquet"

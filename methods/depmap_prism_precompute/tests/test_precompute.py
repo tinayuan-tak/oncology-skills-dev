@@ -166,7 +166,10 @@ def test_classify_prism_activity_tool_only():
 
 def test_build_gene_aggregate_kras_case():
     """LONAFARNIB (poly, Repurposing) + SOTORASIB (KRAS-only, OncRef prioritized)
-    → KRAS gene row shows n_compounds_targeting=2, class=clinically_active."""
+    → KRAS gene row shows n_compounds_targeting=2, class=clinically_active.
+
+    v1-compat: no model_to_lineage passed → per_lineage_activity=[] and
+    prism_lineage_selectivity=data_unavailable."""
     merged = pd.DataFrame([
         {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
          "gene_targets": ["KRAS"], "moa": "KRAS G12C",
@@ -254,3 +257,153 @@ def test_write_gene_aggregate_parquet_roundtrip(tmp_path):
     row = {c: tbl[c][0].as_py() for c in tbl.column_names}
     assert row["prism_activity_class"] == pc.CLASS_CLINICALLY_ACTIVE
     assert row["top_compounds"][0]["drug_name"] == "SOTORASIB"
+    # v2 shape: per_lineage_activity defaults to [] + prism_lineage_selectivity defaults
+    # to data_unavailable when writer is called with a v1-shape dataframe.
+    assert row["per_lineage_activity"] == []
+    assert row["prism_lineage_selectivity"] == pc.LINEAGE_SEL_DATA_UNAVAILABLE
+
+
+# ---------------------------------------------------------------------------
+# v2 additions: lineage stratification
+# ---------------------------------------------------------------------------
+
+def test_load_model_to_lineage_basic():
+    """Parse Model.csv into ModelID -> OncotreeLineage; drop empty lineages."""
+    csv = (
+        "ModelID,OncotreeLineage,Extra\n"
+        "ACH-000001,Bowel,x\n"
+        "ACH-000002,Lung,x\n"
+        "ACH-000003,,x\n"
+        "ACH-000004,Pancreas,x\n"
+    )
+    m = pc.load_model_to_lineage(csv.encode())
+    assert m["ACH-000001"] == "Bowel"
+    assert m["ACH-000002"] == "Lung"
+    assert m["ACH-000004"] == "Pancreas"
+    assert "ACH-000003" not in m
+
+
+def test_classify_prism_lineage_selectivity_selective():
+    """1 active + 2 inactive → lineage_selective (matches Bowel-KRAS pattern)."""
+    entries = [
+        {"lineage": "Bowel", "median_lfc": -1.4},
+        {"lineage": "Pancreas", "median_lfc": -0.9},
+        {"lineage": "Lung", "median_lfc": -0.1},
+        {"lineage": "Skin", "median_lfc": 0.05},
+    ]
+    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_SELECTIVE
+
+
+def test_classify_prism_lineage_selectivity_broadly_active():
+    """Most lineages active but no clear inactive contrast → broadly_active."""
+    entries = [
+        {"lineage": "Bowel", "median_lfc": -1.4},
+        {"lineage": "Pancreas", "median_lfc": -0.9},
+        {"lineage": "Lung", "median_lfc": -0.7},
+        {"lineage": "Skin", "median_lfc": -0.6},
+        {"lineage": "Bladder", "median_lfc": -0.55},
+    ]
+    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_BROADLY_ACTIVE
+
+
+def test_classify_prism_lineage_selectivity_no_signal():
+    """No active lineages → no_lineage_signal."""
+    entries = [
+        {"lineage": "Bowel", "median_lfc": -0.1},
+        {"lineage": "Pancreas", "median_lfc": 0.0},
+        {"lineage": "Lung", "median_lfc": 0.1},
+    ]
+    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_NO_SIGNAL
+
+
+def test_classify_prism_lineage_selectivity_data_unavailable_when_empty():
+    assert pc.classify_prism_lineage_selectivity([]) == pc.LINEAGE_SEL_DATA_UNAVAILABLE
+
+
+def test_build_gene_aggregate_kras_case_with_lineage():
+    """Same KRAS case as pan-cancer test, but WITH model_to_lineage.
+    Expected: per_lineage_activity carries Bowel + Pancreas + Lung rows,
+    prism_lineage_selectivity = lineage_selective (Bowel active, Lung inactive)."""
+    merged = pd.DataFrame([
+        {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
+         "gene_targets": ["KRAS"], "moa": "KRAS G12C",
+         "prioritized": True, "source_release": "oncref-25q4"},
+    ])
+    # 5 lines per lineage so we clear MIN_CELL_LINES_IN_LINEAGE=5
+    def make_lines(prefix, n): return [f"{prefix}-{i:03d}" for i in range(n)]
+    bowel = make_lines("ACH-B", 5)
+    lung = make_lines("ACH-L", 5)
+    pancreas = make_lines("ACH-P", 5)
+    lfc_rows = []
+    # KRAS-mutant lines (Bowel): very active
+    for m_id in bowel:
+        lfc_rows.append({"model_id": m_id, "compound_id": "PRC-001", "median_lfc": -1.8})
+    # KRAS-mutant lines (Pancreas): active
+    for m_id in pancreas:
+        lfc_rows.append({"model_id": m_id, "compound_id": "PRC-001", "median_lfc": -1.2})
+    # KRAS-WT lines (Lung): flat
+    for m_id in lung:
+        lfc_rows.append({"model_id": m_id, "compound_id": "PRC-001", "median_lfc": 0.0})
+    lfc_by_release = {"oncref-25q4": pd.DataFrame(lfc_rows)}
+    model_to_lineage = {**{m: "Bowel" for m in bowel},
+                         **{m: "Lung" for m in lung},
+                         **{m: "Pancreas" for m in pancreas}}
+    agg = pc.build_gene_aggregate(merged, lfc_by_release, model_to_lineage=model_to_lineage)
+    kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
+    lineages_returned = {e["lineage"] for e in kras["per_lineage_activity"]}
+    assert lineages_returned == {"Bowel", "Lung", "Pancreas"}
+    # Bowel should have most-negative LFC entry
+    bowel_entry = next(e for e in kras["per_lineage_activity"] if e["lineage"] == "Bowel")
+    lung_entry = next(e for e in kras["per_lineage_activity"] if e["lineage"] == "Lung")
+    assert bowel_entry["median_lfc"] == pytest.approx(-1.8, abs=1e-3)
+    assert lung_entry["median_lfc"] == pytest.approx(0.0, abs=1e-3)
+    assert bowel_entry["top_compound_in_lineage"] == "SOTORASIB"
+    # Bowel + Pancreas active, Lung inactive → lineage_selective
+    assert kras["prism_lineage_selectivity"] == pc.LINEAGE_SEL_SELECTIVE
+    # Sorted most-active-first
+    assert kras["per_lineage_activity"][0]["lineage"] == "Bowel"
+
+
+def test_build_gene_aggregate_lineage_min_size_filter():
+    """Lineage with fewer than min_cell_lines_in_lineage screened lines is
+    excluded from per_lineage_activity."""
+    merged = pd.DataFrame([
+        {"compound_id": "PRC-001", "drug_name": "TESTCMPD",
+         "gene_targets": ["TARGET"], "moa": "test",
+         "prioritized": True, "source_release": "oncref-25q4"},
+    ])
+    lfc_rows = [
+        # 5 Bowel lines (should pass)
+        *[{"model_id": f"ACH-B-{i:03d}", "compound_id": "PRC-001", "median_lfc": -1.5}
+           for i in range(5)],
+        # 2 Rare-lineage lines (should be filtered — min=5)
+        *[{"model_id": f"ACH-R-{i:03d}", "compound_id": "PRC-001", "median_lfc": -2.0}
+           for i in range(2)],
+    ]
+    lfc_by_release = {"oncref-25q4": pd.DataFrame(lfc_rows)}
+    model_to_lineage = {
+        **{f"ACH-B-{i:03d}": "Bowel" for i in range(5)},
+        **{f"ACH-R-{i:03d}": "RareLineage" for i in range(2)},
+    }
+    agg = pc.build_gene_aggregate(merged, lfc_by_release, model_to_lineage=model_to_lineage)
+    tgt = agg[agg["gene_symbol"] == "TARGET"].iloc[0]
+    lineages = {e["lineage"] for e in tgt["per_lineage_activity"]}
+    assert lineages == {"Bowel"}  # RareLineage filtered out
+
+
+def test_build_gene_aggregate_lineage_no_model_map_returns_v1_shape():
+    """When model_to_lineage is None, per_lineage_activity stays empty and
+    prism_lineage_selectivity is data_unavailable — enables v1-shape testing
+    without an S3 fetch."""
+    merged = pd.DataFrame([
+        {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
+         "gene_targets": ["KRAS"], "moa": "KRAS G12C",
+         "prioritized": True, "source_release": "oncref-25q4"},
+    ])
+    lfc_by_release = {"oncref-25q4": pd.DataFrame([
+        {"model_id": "ACH-1", "compound_id": "PRC-001", "median_lfc": -1.5},
+    ])}
+    agg = pc.build_gene_aggregate(merged, lfc_by_release, model_to_lineage=None)
+    kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
+    assert kras["per_lineage_activity"] == []
+    assert kras["prism_lineage_selectivity"] == pc.LINEAGE_SEL_DATA_UNAVAILABLE

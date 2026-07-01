@@ -25,7 +25,10 @@ from depmap_prism_activity import read as e6read  # noqa: E402
 
 
 def _make_synthetic_parquet(out_path: Path):
-    """Build a small aggregate parquet matching production schema — KRAS + EGFR + weak gene."""
+    """Build a small aggregate parquet matching production v2 schema — KRAS + EGFR + weak gene.
+
+    Includes per_lineage_activity + prism_lineage_selectivity fields.
+    """
     top_struct = pa.struct([
         pa.field("compound_id", pa.string()),
         pa.field("drug_name", pa.string()),
@@ -38,6 +41,15 @@ def _make_synthetic_parquet(out_path: Path):
         pa.field("source_release", pa.string()),
         pa.field("prioritized", pa.bool_()),
     ])
+    lineage_struct = pa.struct([
+        pa.field("lineage", pa.string()),
+        pa.field("n_lines_screened", pa.int32()),
+        pa.field("n_lines_responding", pa.int32()),
+        pa.field("median_lfc", pa.float32()),
+        pa.field("best_responder_lfc", pa.float32()),
+        pa.field("top_compound_in_lineage", pa.string()),
+        pa.field("n_compounds_evaluated", pa.int32()),
+    ])
     schema = pa.schema([
         pa.field("gene_symbol", pa.string()),
         pa.field("n_compounds_targeting", pa.int32()),
@@ -45,6 +57,8 @@ def _make_synthetic_parquet(out_path: Path):
         pa.field("median_lfc_across_compounds", pa.float32()),
         pa.field("top_compounds", pa.list_(top_struct)),
         pa.field("prism_activity_class", pa.string()),
+        pa.field("per_lineage_activity", pa.list_(lineage_struct)),
+        pa.field("prism_lineage_selectivity", pa.string()),
     ])
     rows = {
         "gene_symbol": ["EGFR", "KRAS", "WEAKGENE"],
@@ -81,6 +95,34 @@ def _make_synthetic_parquet(out_path: Path):
         ],
         "prism_activity_class": [
             "clinically_active", "clinically_active", "tool_compound_only",
+        ],
+        "per_lineage_activity": [
+            # EGFR: broadly active — most lineages active
+            [
+                {"lineage": "Lung",     "n_lines_screened": 60, "n_lines_responding": 25,
+                 "median_lfc": -1.5, "best_responder_lfc": -1.5, "top_compound_in_lineage": "ERLOTINIB",   "n_compounds_evaluated": 15},
+                {"lineage": "HeadNeck", "n_lines_screened": 12, "n_lines_responding":  5,
+                 "median_lfc": -0.9, "best_responder_lfc": -0.9, "top_compound_in_lineage": "OSIMERTINIB", "n_compounds_evaluated": 15},
+                {"lineage": "Skin",     "n_lines_screened": 30, "n_lines_responding":  6,
+                 "median_lfc": -0.6, "best_responder_lfc": -0.6, "top_compound_in_lineage": "AFATINIB",    "n_compounds_evaluated": 15},
+            ],
+            # KRAS: lineage_selective — Bowel/Pancreas active, Skin inactive
+            [
+                {"lineage": "Bowel",    "n_lines_screened": 50, "n_lines_responding": 22,
+                 "median_lfc": -1.8, "best_responder_lfc": -1.8, "top_compound_in_lineage": "SOTORASIB",   "n_compounds_evaluated": 5},
+                {"lineage": "Pancreas", "n_lines_screened": 25, "n_lines_responding": 12,
+                 "median_lfc": -1.2, "best_responder_lfc": -1.2, "top_compound_in_lineage": "ADAGRASIB",   "n_compounds_evaluated": 5},
+                {"lineage": "Skin",     "n_lines_screened": 30, "n_lines_responding":  1,
+                 "median_lfc":  0.0, "best_responder_lfc": 0.0, "top_compound_in_lineage": "LONAFARNIB",  "n_compounds_evaluated": 5},
+            ],
+            # WEAKGENE: no lineage signal
+            [
+                {"lineage": "Bowel",    "n_lines_screened": 20, "n_lines_responding": 0,
+                 "median_lfc": -0.1, "best_responder_lfc": -0.1, "top_compound_in_lineage": "TOOL-COMPOUND-X", "n_compounds_evaluated": 2},
+            ],
+        ],
+        "prism_lineage_selectivity": [
+            "broadly_active", "lineage_selective", "no_lineage_signal",
         ],
     }
     table = pa.Table.from_pydict(rows, schema=schema)
@@ -219,3 +261,54 @@ def test_read_prism_activity_local_parquet(tmp_path, monkeypatch):
     out_miss = e6read.read_prism_activity("NOPE", indication=None, release_pin="test-pin")
     assert out_miss["prism_activity_class"] == "no_compounds_found"
     assert out_miss["top_compounds"] == []
+
+
+# ---------------------------------------------------------------------------
+# v2: lineage-stratification summary + emitter
+# ---------------------------------------------------------------------------
+
+def test_compute_summary_hydrates_lineage_fields(tmp_path):
+    p = tmp_path / "prism.parquet"
+    _make_synthetic_parquet(p)
+    row = e6cli.fetch_prism_row(str(p), "KRAS")
+    s = e6cli.compute_summary(row, "KRAS")
+    assert s["prism_lineage_selectivity"] == "lineage_selective"
+    lineages = {e["lineage"] for e in s["per_lineage_activity"]}
+    assert lineages == {"Bowel", "Pancreas", "Skin"}
+
+
+def test_compute_summary_no_row_yields_empty_lineage_fields():
+    s = e6cli.compute_summary(None, "GHOSTGENE")
+    assert s["per_lineage_activity"] == []
+    assert s["prism_lineage_selectivity"] == "data_unavailable"
+
+
+def test_emit_lineage_activity_bar_populated(tmp_path):
+    p = tmp_path / "prism.parquet"
+    _make_synthetic_parquet(p)
+    row = e6cli.fetch_prism_row(str(p), "KRAS")
+    s = e6cli.compute_summary(row, "KRAS")
+    svg = e6cli.emit_lineage_activity_bar(s, "KRAS", tmp_path)
+    assert svg.exists() and svg.stat().st_size > 0
+
+
+def test_emit_lineage_activity_bar_placeholder_when_empty(tmp_path):
+    """No per_lineage_activity → placeholder SVG (not empty file)."""
+    s = e6cli.compute_summary(None, "GHOSTGENE")
+    svg = e6cli.emit_lineage_activity_bar(s, "GHOSTGENE", tmp_path)
+    assert svg.exists() and svg.stat().st_size > 0
+
+
+def test_read_prism_activity_returns_v2_fields(tmp_path, monkeypatch):
+    """read.py shim's error paths and success path both surface v2 fields."""
+    p = tmp_path / "prism.parquet"
+    _make_synthetic_parquet(p)
+    monkeypatch.setitem(e6cli.RELEASE_PIN_TO_PARQUET, "test-pin", str(p))
+    out = e6read.read_prism_activity("KRAS", indication=None, release_pin="test-pin")
+    assert "per_lineage_activity" in out
+    assert "prism_lineage_selectivity" in out
+    assert out["prism_lineage_selectivity"] == "lineage_selective"
+    # Bad release_pin: v2 fields still present in the structured-error payload
+    out_bad = e6read.read_prism_activity("KRAS", indication=None, release_pin="bogus")
+    assert out_bad["per_lineage_activity"] == []
+    assert out_bad["prism_lineage_selectivity"] == "data_unavailable"

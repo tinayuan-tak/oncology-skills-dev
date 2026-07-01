@@ -1,6 +1,6 @@
 """depmap_prism_activity.read — library entry for compose-dashboard live-mode reads.
 
-Reads one row from the frozen `depmap-prism-activity-v1` derived parquet via
+Reads one row from the frozen `depmap-prism-activity-v2` derived parquet via
 pyarrow predicate pushdown. No PRISM CSV parsing at framework runtime.
 
 On unreachable parquet, returns a dict with `_live_read_error` +
@@ -8,6 +8,9 @@ On unreachable parquet, returns a dict with `_live_read_error` +
 contract holds. On target-absent-from-aggregate (no PRISM-annotated compounds
 across either release), returns `prism_activity_class=no_compounds_found` —
 this is a real class call, NOT a data-availability gap.
+
+v2 (2026-07-01): adds per_lineage_activity + prism_lineage_selectivity fields
+to the returned summary.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from typing import Optional
 from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
-DEFAULT_RELEASE_PIN = "prism-activity-v1"
+DEFAULT_RELEASE_PIN = "prism-activity-v2"
 
 
 def _ensure_aws_profile():
@@ -47,6 +50,8 @@ def read_prism_activity(target: str, indication: Optional[str] = None,
             "highest_clinical_phase": None,
             "median_lfc_across_compounds": None,
             "top_compounds": [],
+            "per_lineage_activity": [],
+            "prism_lineage_selectivity": _cli.LINEAGE_SEL_DATA_UNAVAILABLE,
         }
     try:
         row = _cli.fetch_prism_row(parquet_uri, target)
@@ -59,5 +64,7 @@ def read_prism_activity(target: str, indication: Optional[str] = None,
             "highest_clinical_phase": None,
             "median_lfc_across_compounds": None,
             "top_compounds": [],
+            "per_lineage_activity": [],
+            "prism_lineage_selectivity": _cli.LINEAGE_SEL_DATA_UNAVAILABLE,
         }
     return _cli.compute_summary(row, target)
