@@ -961,3 +961,67 @@ rules:
       Derived aggregate parquet unreadable (S3 error, unknown release_pin, or parquet
       corruption). Coverage gap; not used as opposing evidence. Distinct from
       no_compounds_found — a real class call.
+
+  # ---- v2 additions (2026-07-01, PRISM lineage stratification build) ----
+
+  - rule_id: prism-lineage-selective-supportive
+    when:
+      card_id: prism-compound-activity
+      field: prism_lineage_selectivity
+      equals: lineage_selective
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      Activity is lineage-selective (≥1 lineage active with median LFC < -0.5 AND ≥1
+      inactive lineage). This is the biomarker-cohort shape: SM programs get lineage-
+      restricted patient selection (e.g. KRAS-G12C inhibitors in Bowel/Pancreas/Lung).
+      Reinforces supportive signal from prism_activity_class = clinically_active;
+      distinguishes oncogene-addiction drugs from broadly cytotoxic compounds. Degrader
+      is scored neutral — small-molecule tractability across lineages does not imply
+      degrader feasibility (independent chemistry problem).
+
+  - rule_id: prism-broadly-active-caution
+    when:
+      card_id: prism-compound-activity
+      field: prism_lineage_selectivity
+      equals: broadly_active
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Activity is broad across evaluable lineages with no clear inactive contrast.
+      Pan-cancer viability signal without lineage selectivity often indicates
+      non-specific cytotoxicity OR pan-essential mechanism — either way it weakens
+      the target-specificity claim for a compound. Neutral rather than supportive:
+      cannot distinguish target-relevant kill from off-target background at this
+      resolution. Pair with E1 (dependency-lineage-selectivity) and E2 (mutation-
+      stratified-dependency) for the target-specificity read.
+
+  - rule_id: prism-no-lineage-signal-neutral
+    when:
+      card_id: prism-compound-activity
+      field: prism_lineage_selectivity
+      equals: no_lineage_signal
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Too few lineages show activity above the threshold to call selectivity, AND
+      the pan-cancer signal is flat. Not a killer — could be a genuine "no activity"
+      case, but could also be a target-engagement failure of the annotated compounds
+      (see caveat on annotation-vs-engagement). Neutral: no signal to reinforce or
+      oppose the activity_class call.
+
+  - rule_id: prism-lineage-selectivity-data-unavailable-insufficient
+    when:
+      card_id: prism-compound-activity
+      field: prism_lineage_selectivity
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Per-lineage aggregation unavailable — either Model.csv was unreadable in the
+      precompute, or no lineage met the min_cell_lines_in_lineage threshold for this
+      gene. Coverage gap; distinct from a real 'no_lineage_signal' call.
