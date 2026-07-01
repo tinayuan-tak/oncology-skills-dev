@@ -46,6 +46,7 @@ CARDS_WITH_DISPATCHERS = [
     ("dependency-lineage-selectivity", "KRAS", "COADREAD"),
     ("copy-number-distribution", "KRAS", "COADREAD"),
     ("mutation-type-counts", "KRAS", "COADREAD"),
+    ("mutation-stratified-dependency", "KRAS", "COADREAD"),
     ("mutation-hotspot-frequency", "KRAS", "COADREAD"),
     ("expression-tumor-vs-adjacent", "KRAS", "COADREAD"),
 ]

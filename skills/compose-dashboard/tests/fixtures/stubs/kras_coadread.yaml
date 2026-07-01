@@ -455,7 +455,47 @@ expression-dependency-correlation:
       mean_chronos_high_expr: -0.62
   correlation_class: strong_negative
 
-# NOTE: mutation-stratified-dependency stub entry was removed 2026-06-30. The card
-# was built off the DepMap-mirror taxonomy (E1-E6) scope; spec + method + rules
-# retained in repos as future-extension but not active in any dashboard. If the
-# card is reactivated later, restore the stub entry from git history.
+# Card mutation-stratified-dependency (REACTIVATED 2026-06-30 after framework
+# re-scope — mut-vs-dep IS a canonical target-eval question, biomarker-stratified
+# drug development pattern). KRAS hotspot mutations are ~50% of COADREAD; mutant
+# lines are significantly more dependent than WT. Mirrors the published
+# oncogene-addiction signal motivating the KRAS-G12C inhibitor class.
+mutation-stratified-dependency:
+  n_cell_lines_evaluated: 1043
+  n_hotspot_mutant: 220
+  n_hotspot_wildtype: 750
+  median_chronos_hotspot_mutant: -1.42
+  median_chronos_hotspot_wildtype: -0.18
+  delta_chronos_hotspot_mut_vs_wt: -1.24
+  hotspot_mannwhitney_p: 1.0e-32
+  hotspot_mannwhitney_q: 3.0e-32
+  hotspot_effect_size: 0.82
+  n_damaging_mutant: 18
+  n_damaging_wildtype: 952
+  median_chronos_damaging_mutant: -0.42
+  median_chronos_damaging_wildtype: -0.30
+  delta_chronos_damaging_mut_vs_wt: -0.12
+  damaging_mannwhitney_p: 0.18
+  damaging_mannwhitney_q: 0.27
+  damaging_effect_size: 0.08
+  n_any_mutant: 232
+  n_any_wildtype: 738
+  delta_chronos_any_mut_vs_wt: -1.18
+  any_mannwhitney_q: 5.0e-30
+  per_hotspot_stats:
+    - protein_change: p.G12D
+      n: 61
+      median_chronos: -1.45
+      p25_chronos: -1.62
+      p75_chronos: -1.21
+    - protein_change: p.G12V
+      n: 52
+      median_chronos: -1.38
+      p25_chronos: -1.55
+      p75_chronos: -1.18
+    - protein_change: p.G13D
+      n: 40
+      median_chronos: -1.41
+      p25_chronos: -1.58
+      p75_chronos: -1.20
+  mutation_stratification_class: mutant_strongly_dependent
