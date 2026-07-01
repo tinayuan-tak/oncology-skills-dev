@@ -88,27 +88,53 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             click.echo(f"  Using local DepMap cache at {fallback_dir}", err=True)
             break
 
+    # Model.csv: shared cached loader — reads once per session across ALL methods
+    from methods.depmap_common import load_model_csv
+    try:
+        model_df = load_model_csv(release_pin)
+    except FileNotFoundError as e:
+        load_errors.append({
+            "_live_read_error": "s3_read_failed",
+            "detail": str(e),
+            "remediation": "Ensure AWS credentials are set and bucket onc-compbio is accessible.",
+        })
+        return {}, {}, load_errors
+
+    # === TIER-2 PATH: try parquet derived product first (100-500× faster than CSV) ===
+    # get_chronos_column reads only ModelID + target column from the parquet at
+    # s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/CRISPRGeneEffect.parquet
+    # with local-disk cache under ~/.cache/framework-depmap-26q1-parquet/. Falls
+    # through to the CSV path only if the parquet is unreachable AND no local CSV.
     if crispr_path is None:
-        # Try S3 via boto3
+        try:
+            from methods.depmap_common.parquet import get_chronos_column
+            target_df = get_chronos_column(target_symbol, release_pin)
+            if target_df is not None:
+                # Identify target column (should be "SYMBOL (entrez_id)" format) + ID column
+                target_col = next((c for c in target_df.columns if c != "ModelID"), None)
+                if target_col:
+                    chronos_by_model_id = {}
+                    for _, row in target_df.iterrows():
+                        val = row[target_col]
+                        if pd.notna(val):
+                            chronos_by_model_id[row["ModelID"]] = float(val)
+                    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+                    model_metadata_by_id = {row[model_id_col]: row.to_dict()
+                                             for _, row in model_df.iterrows()}
+                    return chronos_by_model_id, model_metadata_by_id, load_errors
+            # target absent from parquet → fall through to CSV path (or emit error below)
+        except (FileNotFoundError, ImportError):
+            # Parquet not available (not precomputed, or pyarrow not installed) → CSV fallback
+            pass
+
+    # === LEGACY CSV PATH (fallback) ===
+    if crispr_path is None:
         try:
             import boto3
             from botocore.exceptions import ClientError, NoCredentialsError
-            # Model.csv: shared cached loader — reads once per session across ALL
-            # methods that need it (was 8× per dashboard run pre-refactor).
-            from methods.depmap_common import load_model_csv
-            try:
-                model_df = load_model_csv(release_pin)
-            except FileNotFoundError as e:
-                raise Exception(str(e))
-
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             crispr_key = "data-catalog/sources/depmap-consortium/dmc-26q1/CRISPRGeneEffect.csv"
-
-            # CRISPRGeneEffect.csv is large (564 MB). Single get_object; read full body
-            # and pd.read_csv discovers columns from the header. The earlier code had a
-            # bug where it fetched twice (once for header inspection, once for full body)
-            # which doubled egress; the header-inspection pass was unused.
             click.echo(f"  Fetching s3://{bucket}/{crispr_key}", err=True)
             crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
             crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))
@@ -129,11 +155,9 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             return {}, {}, load_errors
     else:
         # Local read
-        model_df = pd.read_csv(model_path)
         crispr_df = pd.read_csv(crispr_path)
 
     # Extract target column from CRISPRGeneEffect
-    # CRISPRGeneEffect column format: "SYMBOL (ENSG_ID)" or just "SYMBOL"
     target_columns = [c for c in crispr_df.columns
                       if c == target_symbol or c.split(" ")[0] == target_symbol]
     if not target_columns:
@@ -145,14 +169,13 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
         return {}, {}, load_errors
 
     target_col = target_columns[0]
-    cell_line_col = crispr_df.columns[0]   # first column is the cell-line index (ModelID / ACH-XXXXXX)
+    cell_line_col = crispr_df.columns[0]
 
     chronos_by_model_id = {}
     for _, row in crispr_df[[cell_line_col, target_col]].iterrows():
         if pd.notna(row[target_col]):
             chronos_by_model_id[row[cell_line_col]] = float(row[target_col])
 
-    # Model metadata
     model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
     model_metadata_by_id = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
 
