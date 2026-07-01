@@ -36,7 +36,7 @@
 #   - DepMap's dynamic MatchRelated related-entity lookup
 
 card_id: dependency-predictability
-version: 2.0.0
+version: 2.1.0
 question: "How well can {target.symbol}'s Chronos dependency be predicted from a genome-wide multi-omics + lineage feature set? Is the dependency biomarker-anchored (target-own omics dominate), context/driver-dependent (lineage/arm/co-driver flags dominate), or unpredictable (standard features don't explain Chronos)?"
 
 applies_when:
@@ -91,6 +91,16 @@ outputs:
       - oncokb_gof
       - oncokb_lof
       - lineage
+      # v2.1 additions (all 8 previously-declared "gaps" now ingested)
+      - fusion
+      - rppa_protein
+      - ms_protein
+      - paralog_dep
+      - mol_signature
+      - msi_status
+      - sv_gene
+      - methylation_tss
+      - metabolomics
       - unpredictable
       - data_unavailable
     model_agreement:
