@@ -412,29 +412,34 @@ def _emit_dependency_predictability(
 def _emit_prism_compound_activity(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit E6 PRISM compound-activity figures.
+    """Emit E6 PRISM compound-activity figures (v2).
 
-    Two panels:
+    Three panels:
       1. top_compounds_bar (primary): horizontal bar of top-K PRISM compounds
-         by activity, colored by clinical status. Placeholder on
-         no_compounds_found / data_unavailable.
-      2. activity_vocab_panel: text card with class + granular fields; useful
-         even when the bar is a placeholder.
+         by activity, colored by clinical status.
+      2. lineage_activity_bar: per-lineage median LFC bar with best-responder
+         annotations (surfaces the median-vs-tail divergence for oncogene-
+         addiction drugs). Placeholder on no per_lineage_activity data.
+      3. activity_vocab_panel: text card with class + granular fields + v2
+         lineage-selectivity vocabulary.
 
     Thin-lookup pattern (same as E5): does NOT reload data — the summary dict
-    already carries the per-target row from the depmap-prism-activity-v1 parquet.
+    already carries the per-target row from the depmap-prism-activity-v2 parquet.
     """
     _ensure_methods_path()
     from methods.depmap_prism_activity import cli as e6cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e6cli.emit_top_compounds_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    e6cli.emit_lineage_activity_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e6cli.emit_activity_vocabulary_panel(summary, target, out_dir, TARGET_CONTRACTS)
-    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v1", "<unset>")
-    e6cli.emit_manifest(target, "prism-activity-v1", summary, out_dir, parquet_uri)
+    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v2", "<unset>")
+    e6cli.emit_manifest(target, "prism-activity-v2", summary, out_dir, parquet_uri)
     return [
         {"id": "top_compounds_bar", "path": "figure_top_compounds_bar.svg",
          "type": "horizontal_bar_top_compounds", "primary": True},
+        {"id": "lineage_activity_bar", "path": "figure_lineage_activity_bar.svg",
+         "type": "horizontal_bar_per_lineage", "primary": False},
         {"id": "activity_vocab_panel", "path": "figure_activity_vocab_panel.svg",
          "type": "text_summary_panel", "primary": False},
     ]
