@@ -562,6 +562,15 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
     click.echo(f"  Lineage one-hot: {omics['lineage_one_hot'].shape}", err=True)
     click.echo(f"  Arm-level CN: {omics['arm_level_cn'].shape}", err=True)
     click.echo(f"  OncoKB driver flags: {omics['driver_flags'].shape}", err=True)
+    # v2.1 additions (may be None if a loader failed)
+    for key in ("fusion", "rppa", "ms_proteomics", "paralog_dep",
+                  "mol_signatures", "msi_status", "sv_matrix",
+                  "methylation", "metabolomics"):
+        val = omics.get(key)
+        if val is None:
+            click.echo(f"  {key}: OMITTED (loader failed)", err=True)
+        elif hasattr(val, "shape"):
+            click.echo(f"  {key}: {val.shape}", err=True)
 
     # Gene set
     ANCHOR_10 = ["KRAS", "BRAF", "EGFR", "PIK3CA", "TP53",
