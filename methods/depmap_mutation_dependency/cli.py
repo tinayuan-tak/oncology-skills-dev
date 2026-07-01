@@ -52,7 +52,8 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
     """Load ONE mutation matrix (hotspot or damaging), filter to default-entries, return
     {ModelID → bool} for the target gene + load_errors list.
 
-    Reuses the dual local-cache / S3 fallback pattern from Cards 1+2+4.
+    Tier-2 path: parquet with column projection via depmap_common.parquet.
+    Legacy fallback: CSV path (local-cache first, then S3 with usecols).
     """
     import pandas as pd
 
@@ -65,6 +66,56 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
             click.echo(f"  Using local cache for {matrix_filename}", err=True)
             break
 
+    # === TIER-2 PATH: parquet column projection (~530 KB / 12.5 MB pulls vs ~10 MB / 328 MB CSV parses) ===
+    if mut_path is None:
+        try:
+            from methods.depmap_common.parquet import (
+                get_hotspot_mutation_column, get_damaging_mutation_column,
+            )
+            if "Hotspot" in matrix_filename:
+                target_df = get_hotspot_mutation_column(target_symbol, release_pin)
+            elif "Damaging" in matrix_filename:
+                target_df = get_damaging_mutation_column(target_symbol, release_pin)
+            else:
+                target_df = None
+            if target_df is not None:
+                target_col = next(
+                    (c for c in target_df.columns
+                     if c not in ("ModelID", "IsDefaultEntryForModel", "IsDefaultEntryForMC")),
+                    None,
+                )
+                if target_col is not None:
+                    # IsDefaultEntryForModel filter (matches CSV path semantics)
+                    filt = target_df
+                    if "IsDefaultEntryForModel" in filt.columns:
+                        filt = filt[filt["IsDefaultEntryForModel"].isin(
+                            [True, "Yes", "yes", "true", "TRUE"])]
+                        if filt.empty:
+                            filt = target_df  # defensive fallback
+                    id_col = "ModelID" if "ModelID" in filt.columns else filt.columns[0]
+                    mut_by_model = {}
+                    for _, row in filt[[id_col, target_col]].iterrows():
+                        val = row[target_col]
+                        if isinstance(val, bool):
+                            is_mut = val
+                        elif isinstance(val, (int, float)):
+                            is_mut = bool(val) if not pd.isna(val) else False
+                        elif isinstance(val, str):
+                            is_mut = val.strip().lower() in ("true", "1", "yes")
+                        else:
+                            is_mut = False
+                        mut_by_model[row[id_col]] = is_mut
+                    return mut_by_model, load_errors
+                else:
+                    load_errors.append({
+                        "_live_read_error": "target_not_in_mutation_matrix",
+                        "detail": f"Target {target_symbol} not in {matrix_filename} (parquet)",
+                    })
+                    return {}, load_errors
+        except (FileNotFoundError, ImportError):
+            pass  # fall through to CSV path
+
+    # === LEGACY CSV PATH ===
     if mut_path is None:
         try:
             import boto3
@@ -73,7 +124,6 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
             key = f"data-catalog/sources/depmap-consortium/dmc-26q1/{matrix_filename}"
             click.echo(f"  Fetching s3://{bucket}/{key}", err=True)
             obj = s3.get_object(Bucket=bucket, Key=key)
-            # Peek at header to find target column, then re-fetch with usecols
             header_df = pd.read_csv(BytesIO(obj["Body"].read(8192)), nrows=0)
             target_cols = [c for c in header_df.columns
                             if c == target_symbol or c.split(" ")[0] == target_symbol]

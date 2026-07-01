@@ -137,6 +137,30 @@ def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
+def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q1"):
+    """Binary hotspot-mutation column for target_symbol from
+    OmicsSomaticMutationsMatrixHotspot. Returns DataFrame with
+    {ModelID, IsDefaultEntryForModel, <target_col>} or None if target absent.
+
+    Consumed by mutation-stratified-dependency (Card 3). Values are 0.0/1.0
+    per cell-line (float32-cast during precompute; downstream code casts to
+    bool for the mutation-status flag).
+    """
+    return _read_wide_target_column("OmicsSomaticMutationsMatrixHotspot.parquet",
+                                     target_symbol, id_col_hints=("ModelID",))
+
+
+@lru_cache(maxsize=128)
+def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
+    """Binary damaging (LOF) mutation column for target_symbol from
+    OmicsSomaticMutationsMatrixDamaging. Same shape as get_hotspot_mutation_column.
+    Broader panel (~19584 gene cols vs ~554 for hotspot).
+    """
+    return _read_wide_target_column("OmicsSomaticMutationsMatrixDamaging.parquet",
+                                     target_symbol, id_col_hints=("ModelID",))
+
+
+@lru_cache(maxsize=128)
 def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
     """DEMETER2 RNAi row for target_symbol. Returns {ccle_id: score} dict or None.
 
@@ -227,3 +251,6 @@ def clear_all_parquet_caches() -> None:
     get_cn_column_wgs.cache_clear()
     get_demeter_row.cache_clear()
     get_maf_gene_rows.cache_clear()
+    get_maf_n_cell_lines_total.cache_clear()
+    get_hotspot_mutation_column.cache_clear()
+    get_damaging_mutation_column.cache_clear()

@@ -90,6 +90,20 @@ PRECOMPUTE_TARGETS = [
         "index_col_name": None,
         "notes": "MAF; sorted by HugoSymbol for row-group pushdown; VariantInfo cast to categorical",
     },
+    {
+        "source_key": f"{DEPMAP_SOURCE_PREFIX_CRISPR}/OmicsSomaticMutationsMatrixHotspot.csv",
+        "output_name": "OmicsSomaticMutationsMatrixHotspot.parquet",
+        "orientation": "wide_with_metadata",
+        "index_col_name": "ModelID",
+        "notes": "Binary hotspot mutation matrix (cell-line rows × gene cols); ~554 gene cols (COSMIC-anchored). Consumed by mutation-stratified-dependency card.",
+    },
+    {
+        "source_key": f"{DEPMAP_SOURCE_PREFIX_CRISPR}/OmicsSomaticMutationsMatrixDamaging.csv",
+        "output_name": "OmicsSomaticMutationsMatrixDamaging.parquet",
+        "orientation": "wide_with_metadata",
+        "index_col_name": "ModelID",
+        "notes": "Binary damaging (LOF) mutation matrix (cell-line rows × gene cols); ~2233 gene cols. Consumed by mutation-stratified-dependency card.",
+    },
 ]
 
 
