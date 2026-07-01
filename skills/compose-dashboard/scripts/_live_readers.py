@@ -262,6 +262,27 @@ def _dispatch_dependency_predictability(target: str, indication: str) -> Optiona
     return pred_module.read_predictability(target=target, indication=indication)
 
 
+def _dispatch_prism_compound_activity(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route prism-compound-activity card (E6) to
+    methods/depmap_prism_activity/read.py.
+
+    E6 is a THIN LOOKUP card off an OFF-SUBSTRATE derived parquet
+    s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v1/prism_activity_per_gene.parquet
+    (release_pin `prism-activity-v1`, distinct from the 26q1 CRISPR pin).
+    Sister precompute (methods/depmap_prism_precompute/) merges PRISM OncologyReference
+    25Q4 + Repurposing 24Q2 into a per-gene aggregate at batch time.
+
+    Target-only (pan-cancer). indication accepted for the CARD_DISPATCHERS
+    contract but NOT consumed by v1 — lineage-specific PRISM activity is v2 scope.
+
+    Imports the read.py submodule explicitly — package top-level doesn't re-export
+    functions, so `__import__("methods.depmap_prism_activity")` alone would return
+    the package with no read_prism_activity attribute.
+    """
+    prism_read = _import_method("depmap_prism_activity.read")
+    return prism_read.read_prism_activity(target=target, indication=indication)
+
+
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
@@ -276,6 +297,7 @@ CARD_DISPATCHERS = {
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     "dependency-predictability": _dispatch_dependency_predictability,
+    "prism-compound-activity": _dispatch_prism_compound_activity,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

@@ -409,6 +409,37 @@ def _emit_dependency_predictability(
     ]
 
 
+def _emit_prism_compound_activity(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit E6 PRISM compound-activity figures.
+
+    Two panels:
+      1. top_compounds_bar (primary): horizontal bar of top-K PRISM compounds
+         by activity, colored by clinical status. Placeholder on
+         no_compounds_found / data_unavailable.
+      2. activity_vocab_panel: text card with class + granular fields; useful
+         even when the bar is a placeholder.
+
+    Thin-lookup pattern (same as E5): does NOT reload data — the summary dict
+    already carries the per-target row from the depmap-prism-activity-v1 parquet.
+    """
+    _ensure_methods_path()
+    from methods.depmap_prism_activity import cli as e6cli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    e6cli.emit_top_compounds_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    e6cli.emit_activity_vocabulary_panel(summary, target, out_dir, TARGET_CONTRACTS)
+    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v1", "<unset>")
+    e6cli.emit_manifest(target, "prism-activity-v1", summary, out_dir, parquet_uri)
+    return [
+        {"id": "top_compounds_bar", "path": "figure_top_compounds_bar.svg",
+         "type": "horizontal_bar_top_compounds", "primary": True},
+        {"id": "activity_vocab_panel", "path": "figure_activity_vocab_panel.svg",
+         "type": "text_summary_panel", "primary": False},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
@@ -420,6 +451,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "expression-dependency-correlation": _emit_card4_expression_dependency_correlation,
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
     "dependency-predictability": _emit_dependency_predictability,
+    "prism-compound-activity": _emit_prism_compound_activity,
 }
 
 

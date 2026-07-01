@@ -457,6 +457,69 @@ expression-dependency-correlation:
       mean_chronos_high_expr: -0.62
   correlation_class: strong_negative
 
+# Card E6 — prism-compound-activity (PRISM small-molecule viability, dual-release).
+# KRAS is a poster-child for `clinically_active`: OncologyReference 25Q4 carries 15+
+# KRAS-annotated prioritized compounds including the approved G12C inhibitors
+# (sotorasib, adagrasib) and MRTX-1133 (KRAS-G12D). Repurposing 24Q2 adds LONAFARNIB
+# (polyselective: FNTA/HRAS/KRAS/NRAS) as an FTase-inhibitor tool compound.
+# Activated 2026-07-01 (plan warm-rolling-bunny Family C).
+prism-compound-activity:
+  prism_activity_class: clinically_active
+  n_compounds_targeting: 17
+  highest_clinical_phase: phase_1_plus
+  median_lfc_across_compounds: -1.35
+  top_compounds:
+    - compound_id: PRC-KRAS-G12C-1
+      drug_name: SOTORASIB
+      moa: KRAS G12C covalent inhibitor
+      median_lfc: -2.10
+      fraction_lines_responding: 0.34
+      n_lines_screened: 380
+      polyselective: false
+      n_annotated_targets: 1
+      source_release: oncref-25q4
+      prioritized: true
+    - compound_id: PRC-KRAS-G12C-2
+      drug_name: ADAGRASIB
+      moa: KRAS G12C covalent inhibitor
+      median_lfc: -1.95
+      fraction_lines_responding: 0.31
+      n_lines_screened: 380
+      polyselective: false
+      n_annotated_targets: 1
+      source_release: oncref-25q4
+      prioritized: true
+    - compound_id: PRC-KRAS-G12D-1
+      drug_name: MRTX-1133
+      moa: KRAS G12D selective inhibitor
+      median_lfc: -1.65
+      fraction_lines_responding: 0.22
+      n_lines_screened: 380
+      polyselective: false
+      n_annotated_targets: 1
+      source_release: oncref-25q4
+      prioritized: true
+    - compound_id: BRD-A04843135
+      drug_name: LONAFARNIB
+      moa: farnesyltransferase inhibitor
+      median_lfc: -0.42
+      fraction_lines_responding: 0.06
+      n_lines_screened: 500
+      polyselective: true
+      n_annotated_targets: 4
+      source_release: repurposing-24q2
+      prioritized: false
+    - compound_id: BRD-DELTA
+      drug_name: DELTARASIN
+      moa: KRAS-PDEδ inhibitor (tool)
+      median_lfc: -0.35
+      fraction_lines_responding: 0.04
+      n_lines_screened: 500
+      polyselective: false
+      n_annotated_targets: 1
+      source_release: repurposing-24q2
+      prioritized: false
+
 # Card E5 — dependency-predictability (multi-omics random-forest predictability model).
 # KRAS is expected to be biomarker-anchored: dependency is strongly driven by own_mutation
 # status (G12/G13/Q61 hotspots) with lineage as a secondary driver. Activated 2026-07-01.

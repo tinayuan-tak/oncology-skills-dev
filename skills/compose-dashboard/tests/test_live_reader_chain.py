@@ -44,6 +44,7 @@ CARDS_WITH_DISPATCHERS = [
     ("expression-distribution", "KRAS", "COADREAD"),
     ("expression-dependency-correlation", "KRAS", "COADREAD"),
     ("dependency-predictability", "KRAS", "COADREAD"),
+    ("prism-compound-activity", "KRAS", "COADREAD"),
     ("dependency-lineage-selectivity", "KRAS", "COADREAD"),
     ("copy-number-distribution", "KRAS", "COADREAD"),
     ("mutation-type-counts", "KRAS", "COADREAD"),
