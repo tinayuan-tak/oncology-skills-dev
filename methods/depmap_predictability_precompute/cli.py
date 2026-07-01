@@ -653,25 +653,50 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                     click.echo(f"  {i + 1}/{len(genes)} done "
                                 f"({time.time() - t_start:.1f}s elapsed)", err=True)
         else:
-            with ProcessPoolExecutor(max_workers=workers,
-                                       initializer=_worker_init,
-                                       initargs=(omics_pkl,)) as ex:
-                futures = {ex.submit(_worker_train, g): g for g in genes}
-                for i, fut in enumerate(as_completed(futures)):
-                    rec = fut.result()
-                    if rec is None:
-                        n_excluded += 1
-                    elif "_error" in rec:
-                        n_errored += 1
-                        click.echo(f"  [error] {futures[fut]}: {rec['_error']}",
-                                    err=True)
-                    else:
-                        records.append(rec)
-                    if (i + 1) % checkpoint_every == 0:
-                        _write_checkpoint(records, out_dir, i + 1, len(genes), t_start)
-                        click.echo(f"  {i + 1}/{len(genes)} done "
-                                    f"({time.time() - t_start:.1f}s elapsed)",
-                                    err=True)
+            # Use 'spawn' start method so workers do NOT inherit the parent's
+            # ~5 GB omics-in-memory footprint via fork(). Workers load omics from
+            # the on-disk pickle in their initializer instead — bounded per-worker
+            # memory, no parent-multiplication under fork copy-on-write pressure.
+            #
+            # Chunk submissions to bound the executor's internal queue (submitting
+            # all 18k futures eagerly caused a coordinator-death OOM in the
+            # 2026-07-01 aborted genome-wide run). Chunk = workers × 4, drain to
+            # completion between chunks; combined with max_tasks_per_child worker
+            # recycling this gives predictable memory + graceful degradation.
+            import multiprocessing as _mp
+            ctx = _mp.get_context("spawn")
+            chunk_size = max(workers * 4, checkpoint_every)
+            total = len(genes)
+            processed = 0
+            for chunk_start in range(0, total, chunk_size):
+                chunk = genes[chunk_start:chunk_start + chunk_size]
+                with ProcessPoolExecutor(
+                    max_workers=workers,
+                    mp_context=ctx,
+                    initializer=_worker_init,
+                    initargs=(omics_pkl,),
+                    max_tasks_per_child=50,
+                ) as ex:
+                    futures = {ex.submit(_worker_train, g): g for g in chunk}
+                    for fut in as_completed(futures):
+                        rec = fut.result()
+                        processed += 1
+                        if rec is None:
+                            n_excluded += 1
+                        elif "_error" in rec:
+                            n_errored += 1
+                            click.echo(f"  [error] {futures[fut]}: {rec['_error']}",
+                                        err=True)
+                        else:
+                            records.append(rec)
+                        if processed % checkpoint_every == 0:
+                            _write_checkpoint(records, out_dir, processed, total, t_start)
+                            click.echo(f"  {processed}/{total} done "
+                                        f"({time.time() - t_start:.1f}s elapsed, "
+                                        f"n_evaluated={len(records)}, "
+                                        f"n_excluded={n_excluded}, "
+                                        f"n_errored={n_errored})",
+                                        err=True)
     finally:
         omics_pkl.unlink(missing_ok=True)
 
