@@ -721,18 +721,50 @@ rules:
     when:
       card_id: dependency-predictability
       field: predictability_class
-      equals: lineage_driven
+      equals: context_or_driver_dependent
     signals:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      Lineage one-hots dominate the model with R² ≥ 0.5 — dependency is
-      strongly context-determined. Tissue matters but the standard omics axes
-      (expression / CN / mutation) don't give an extra patient-selection
-      biomarker beyond indication. NOT a kill — many viable programs live here
-      (KRAS in pancreas, ESR1 in breast) — but the biomarker arm of the
-      development plan needs lineage-specific co-factors rather than a
-      pan-tissue molecular signature.
+      Model has strong signal (r²_rf CI lower bound ≥ 0.35) but the top feature
+      is lineage / arm-level CN / co-driver flag — NOT the target's own omic
+      state. Dependency is context/driver-determined; the standard target-own
+      axes don't give a patient-selection biomarker beyond indication + co-
+      driver context. Doesn't kill the target (many valid programs sit here:
+      KRAS in pancreas, ESR1 in breast, WRN in MSI) but flags that the
+      biomarker arm of the development plan needs to combine indication +
+      co-driver readouts rather than a single target-anchored assay.
+
+  - rule_id: predictability-weakly-predictable-neutral
+    when:
+      card_id: dependency-predictability
+      field: predictability_class
+      equals: weakly_predictable
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      r² above DepMap's high-confidence floor (≥ 0.16) but the 95% CI lower
+      bound is < 0.35 — meaningful signal but wide uncertainty. Doesn't kill
+      the target and doesn't cleanly support a biomarker hypothesis; the
+      standard features give a partial explanation but the class call is not
+      yet defensible. Use as a caveat, not a discriminant.
+
+  - rule_id: predictability-unpredictable-neutral
+    when:
+      card_id: dependency-predictability
+      field: predictability_class
+      equals: unpredictable
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      r² < DepMap's high-confidence floor (0.16) — standard omics + lineage
+      + arm-level CN + driver flags do NOT explain Chronos for this target.
+      NOT a kill — the dependency may still be real (verify via E1/E2). Flags
+      a novel-biology candidate where the biomarker hypothesis needs a feature
+      class not in the standard predictability panel (e.g. epigenetic state,
+      protein-level signature, pathway-partner dependency structure).
 
   - rule_id: predictability-data-unavailable-insufficient
     when:
