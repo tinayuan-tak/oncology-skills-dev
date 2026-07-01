@@ -52,6 +52,8 @@ def read_expression_dependency(target: str, indication: Optional[str] = None) ->
             "_live_read_error": load_errors[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": load_errors,
             "_remediation": "Method cannot reach DepMap 26Q1; verify local cache or AWS credentials.",
+            # Tier-2 vocabulary: always emit correlation_class so rules can fire on data_unavailable.
+            "correlation_class": "data_unavailable",
         }
 
     if not chronos_by_model or not tpm_by_model:
@@ -59,6 +61,7 @@ def read_expression_dependency(target: str, indication: Optional[str] = None) ->
             "_live_read_error": "no_data_for_target",
             "target": target,
             "_remediation": f"target {target!r} not in either CRISPRGeneEffect or TPM matrix; confirm HGNC symbol.",
+            "correlation_class": "data_unavailable",
         }
 
     return _cli.compute_correlation_summary(
