@@ -115,7 +115,11 @@ def build_anchor_table(ours_df, depmap_df, anchors=ANCHOR_TARGETS):
             ci_hi = r.get("pearson_r_squared_rf_ci_hi")
             row["ours_r2_ci"] = (float(ci_lo), float(ci_hi)) if ci_lo is not None else None
             row["ours_class"] = r.get("predictability_class")
-            top = r.get("top_features_rf_shap") or []
+            top = r.get("top_features_rf_shap")
+            # `top` may be a numpy array of dicts (pandas ndarray column) —
+            # don't use truthy-fallback (ambiguous for arrays); check len explicitly.
+            if top is None or (hasattr(top, "__len__") and len(top) == 0):
+                top = []
             row["ours_top_feature"] = top[0]["feature"] if len(top) > 0 else None
             row["ours_top_class"] = top[0]["feature_class"] if len(top) > 0 else None
             row["ours_xgb_r"] = float(r.get("pearson_r_xgb", 0.0)) if r.get("pearson_r_xgb") is not None else None

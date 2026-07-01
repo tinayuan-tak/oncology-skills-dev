@@ -537,8 +537,12 @@ def _worker_train(gene: str) -> Optional[dict]:
               help="Write a checkpoint parquet every N genes.")
 @click.option("--min-lines-per-lineage", default=5, show_default=True, type=int)
 @click.option("--threshold", default=0.3, show_default=True, type=float)
+@click.option("--resume/--no-resume", default=False,
+              help="If set, load the most-recent checkpoint parquet from --out and "
+                    "skip genes already computed. Enables restart-from-crash on the "
+                    "genome-wide multi-day batch.")
 def main(release_pin, gene_set, gene_set_override, out, workers,
-          checkpoint_every, min_lines_per_lineage, threshold):
+          checkpoint_every, min_lines_per_lineage, threshold, resume):
     out = Path(out)
     if out.suffix == ".parquet":
         parquet_path = out
@@ -587,6 +591,35 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
     n_excluded = 0
     n_errored = 0
     t_start = time.time()
+
+    # === RESUME PATH: load newest checkpoint, drop already-computed genes ===
+    if resume:
+        import pyarrow.parquet as pq
+        ckpts = sorted(out_dir.glob("checkpoint_*.parquet"))
+        # Also consider the final parquet if a prior run finished writing it
+        if parquet_path.exists():
+            ckpts.append(parquet_path)
+        if ckpts:
+            newest = ckpts[-1]
+            click.echo(f"Resume: loading {newest.name}", err=True)
+            prev_df = pq.read_table(newest).to_pandas()
+            already = set(prev_df["gene_symbol"].tolist())
+            click.echo(f"  {len(already)} genes already computed; skipping",
+                        err=True)
+            # Convert prior parquet rows back to record dicts for downstream write
+            for _, prev_row in prev_df.iterrows():
+                rec = {}
+                for col in prev_df.columns:
+                    val = prev_row[col]
+                    # Numpy arrays of dicts (top_features, per_lineage) → list
+                    if hasattr(val, "tolist") and not isinstance(val, str):
+                        val = val.tolist()
+                    rec[col] = val
+                records.append(rec)
+            genes = [g for g in genes if g not in already]
+            click.echo(f"  {len(genes)} genes remaining", err=True)
+        else:
+            click.echo("Resume: no checkpoint found; starting fresh", err=True)
 
     with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as tf:
         omics_pkl = Path(tf.name)
