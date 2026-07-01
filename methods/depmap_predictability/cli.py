@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""depmap-predictability CLI — E5 thin lookup card.
+"""depmap-predictability CLI (v2 — DepMap-parity + extensions thin lookup).
 
 Reads ONE row out of the frozen derived parquet
-`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet`
-via pyarrow predicate pushdown (row_group_size=64). The parquet was produced by
-the sibling precompute method (`depmap_predictability_precompute`) — see that
-method's docstring for the training procedure.
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v2/predictability_per_gene.parquet`
+via pyarrow predicate pushdown. The parquet was produced by the sibling v2
+precompute method (`depmap_predictability_precompute`).
 
-No sklearn at runtime; this card is purely a row lookup + per-target SVG emission.
-Wall-time target: < 500 ms (network read of one row group + tiny matplotlib bar).
-
-Output bundle (in --out directory):
-  - summary.json
-  - figure_feature_importance_bar.svg  (primary)
-  - manifest.yaml
+v2 schema exposes:
+  - pearson_r_rf + r² + bootstrap 95% CI (primary DepMap-parity scalar)
+  - pearson_r_xgb + r² + CI (XGBoost companion)
+  - model_agreement + delta_r2 (dual-model divergence diagnostic)
+  - top_features_rf_shap + top_features_xgb_shap (SHAP-ranked; RF importance
+    also carried per-feature for parity)
+  - per_lineage_predictability (RF-only lineage-conditional table)
+  - predictability_class (own_omics_driven / context_or_driver_dependent /
+    weakly_predictable / unpredictable / data_unavailable)
 """
 
 from __future__ import annotations
@@ -29,27 +30,33 @@ import click
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
 DEFAULT_TARGET_CONTRACTS = Path(
     "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
 )
 
-# Default release-pin → parquet S3 URI. Versioning lives in the path; when v2
-# ships, the card's required_inputs.release_pin bump points it at a new URI.
+# Release-pin → parquet S3 URI. v2 supersedes v1 as the canonical build.
 RELEASE_PIN_TO_PARQUET = {
     "26q1-v1": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet",
+    "26q1-v2": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v2/predictability_per_gene.parquet",
 }
 
-# Color map for feature_class → SVG bar color. Mirrors VARIANT_CLASS_COLORS in E4.
+# Feature-class → SVG color map. Extended for v2 (arm + driver_gof/lof + cross-gene).
 FEATURE_CLASS_COLORS = {
-    "own_expression":   "#0a2540",  # Takeda navy — own omics signature
-    "own_copy_number":  "#7fa7c0",  # light blue
-    "own_mut_hotspot":  "#cf2828",  # red — hotspot mutation
-    "own_mut_damaging": "#f0a020",  # orange — LOF mutation
-    "lineage":          "#888888",  # gray — context, not target-intrinsic
-    "other":            "#dddddd",
-    "unpredictable":    "#bbbbbb",
+    "own_expression":            "#0a2540",  # Takeda navy — target-own transcriptome
+    "own_copy_number":           "#7fa7c0",  # light blue — target-own CN
+    "own_mut_hotspot":           "#cf2828",  # red — target-own hotspot
+    "own_mut_damaging":          "#f0a020",  # orange — target-own damaging
+    "cross_gene_expression":     "#2e5cb8",  # deeper blue — other-gene expression
+    "cross_gene_copy_number":    "#8fa8c8",  # slate — other-gene CN
+    "arm_level_cn":              "#9b3192",  # purple — arm-mean CN
+    "oncokb_gof":                "#e05a5a",  # coral — driver GoF flag
+    "oncokb_lof":                "#f4b360",  # ochre — driver LoF flag
+    "lineage":                   "#888888",  # gray — context, not target-intrinsic
+    "other":                     "#dddddd",
+    "unpredictable":             "#bbbbbb",
+    "data_unavailable":          "#bbbbbb",
 }
 
 
@@ -61,11 +68,7 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 
 
 def fetch_predictability_row(parquet_uri: str, gene: str) -> Optional[dict]:
-    """Pyarrow predicate-pushdown read for ONE gene row.
-
-    Returns the dict-formatted row, or None if the gene is absent from the
-    parquet (downstream caller maps None → predictability_class=data_unavailable).
-    """
+    """Pyarrow predicate-pushdown read for ONE gene row. Returns dict or None."""
     import pyarrow.parquet as pq
     if parquet_uri.startswith("s3://"):
         import pyarrow.fs as pafs
@@ -80,41 +83,56 @@ def fetch_predictability_row(parquet_uri: str, gene: str) -> Optional[dict]:
     if table.num_rows == 0:
         return None
     if table.num_rows > 1:
-        # Defensive: shouldn't happen for a per-gene-unique parquet, but if it
-        # ever does we prefer to surface it explicitly rather than silently pick one.
         raise RuntimeError(f"Multiple rows for {gene!r}; parquet violated uniqueness")
     return {col: table[col][0].as_py() for col in table.column_names}
 
 
 def compute_summary(row: Optional[dict], target: str) -> dict:
-    """Map a parquet row → the card's outputs.summary_fields shape.
+    """Map a v2 parquet row → the card's summary_fields shape.
 
-    When `row` is None (gene not in the precomputed product), emits a
-    data_unavailable summary with the rationale exposed in `_remediation`.
+    When the row is None (target absent from the derived product), emit a
+    data_unavailable summary with rationale in _remediation.
     """
     if row is None:
         return {
             "_live_read_error": "target_not_in_derived_product",
-            "_remediation": "Target not in v1 medium-scope precompute "
-                              "(~500 dependency-mappable genes). Either the gene has "
-                              "no lineage with |median Chronos| > 0.3, or it lacks "
-                              "feature coverage. Will be re-evaluated in v2 (full genome).",
+            "_remediation": "Target not in v2 medium-scope precompute. Will be re-"
+                              "evaluated in the genome-wide batch.",
             "pred_n_cell_lines_evaluated": 0,
-            "pred_r2": None,
-            "pred_top_features": [],
+            "pearson_r_rf": None,
+            "pearson_r_squared_rf": None,
+            "pearson_r_squared_rf_ci_lo": None,
+            "pearson_r_squared_rf_ci_hi": None,
+            "pearson_r_xgb": None,
+            "pearson_r_squared_xgb": None,
+            "model_agreement": "data_unavailable",
+            "delta_r2": None,
+            "pred_top_features_rf": [],
+            "pred_top_features_xgb": [],
             "pred_dominant_feature": None,
             "pred_dominant_feature_class": "data_unavailable",
             "predictability_class": "data_unavailable",
+            "per_lineage_predictability": [],
         }
-    top = row.get("top_features") or []
-    top_feature_name = top[0]["feature"] if top else None
+    top_rf = row.get("top_features_rf_shap") or []
+    top_xgb = row.get("top_features_xgb_shap") or []
+    top_feature_name = top_rf[0]["feature"] if top_rf else None
     return {
         "pred_n_cell_lines_evaluated": int(row.get("n_cell_lines_evaluated") or 0),
-        "pred_r2": float(row["predictability_r2"]) if row.get("predictability_r2") is not None else None,
-        "pred_top_features": top,
+        "pearson_r_rf": row.get("pearson_r_rf"),
+        "pearson_r_squared_rf": row.get("pearson_r_squared_rf"),
+        "pearson_r_squared_rf_ci_lo": row.get("pearson_r_squared_rf_ci_lo"),
+        "pearson_r_squared_rf_ci_hi": row.get("pearson_r_squared_rf_ci_hi"),
+        "pearson_r_xgb": row.get("pearson_r_xgb"),
+        "pearson_r_squared_xgb": row.get("pearson_r_squared_xgb"),
+        "model_agreement": row.get("model_agreement"),
+        "delta_r2": row.get("delta_r2"),
+        "pred_top_features_rf": top_rf,
+        "pred_top_features_xgb": top_xgb,
         "pred_dominant_feature": top_feature_name,
         "pred_dominant_feature_class": row.get("dominant_feature_class"),
         "predictability_class": row.get("predictability_class"),
+        "per_lineage_predictability": row.get("per_lineage_predictability") or [],
     }
 
 
@@ -124,18 +142,16 @@ def _load_takeda_palette(target_contracts_dir: Path):
     if style_path.exists():
         plt.style.use(str(style_path))
     sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
-    import takeda_palette  # type: ignore
+    import takeda_palette
     return takeda_palette
 
 
 def emit_feature_importance_bar(summary: dict, target: str,
                                    out_dir: Path,
                                    target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
-    """Horizontal bar chart of top-5 feature importances, colored by feature_class.
-
-    Renders an explanatory subtitle that captures both the R² magnitude and the
-    predictability_class — the card's two main scalars. When predictability is
-    data_unavailable, emits a placeholder SVG with the explanatory message.
+    """Multi-panel v2 figure: RF feature importance bar (primary) + optional
+    XGBoost comparison + lineage-conditional r² tile. Falls back to a
+    placeholder SVG when predictability_class is data_unavailable.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -146,16 +162,15 @@ def emit_feature_importance_bar(summary: dict, target: str,
 
     if summary.get("predictability_class") == "data_unavailable":
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
-        ax.text(0.5, 0.55, f"{target} not in precomputed predictability product (v1 medium-scope)",
+        ax.text(0.5, 0.55, f"{target} not in v2 predictability derived product",
                   transform=ax.transAxes, ha="center", fontsize=10, color="#444")
-        ax.text(0.5, 0.45,
-                  "Likely cause: no lineage with |median Chronos| > 0.3 or insufficient feature coverage",
+        ax.text(0.5, 0.45, summary.get("_remediation", ""),
                   transform=ax.transAxes, ha="center", fontsize=8, color="#777")
         ax.set_axis_off()
         fig.savefig(out_path); plt.close(fig)
         return out_path
 
-    top = summary.get("pred_top_features") or []
+    top = summary.get("pred_top_features_rf") or []
     if not top:
         fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
         ax.text(0.5, 0.5, "No feature-importance data",
@@ -164,7 +179,7 @@ def emit_feature_importance_bar(summary: dict, target: str,
         fig.savefig(out_path); plt.close(fig)
         return out_path
 
-    # Top features come back sorted desc by importance. We display them top-to-bottom.
+    # Top 10 SHAP-ranked
     names = [t["feature"] for t in top]
     imps = [t["importance"] for t in top]
     classes = [t["feature_class"] for t in top]
@@ -177,22 +192,85 @@ def emit_feature_importance_bar(summary: dict, target: str,
                   va="center", fontsize=8, color="#222")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
-    ax.invert_yaxis()  # most-important on top
-    ax.set_xlabel("RandomForest feature importance")
-    r2 = summary.get("pred_r2")
-    r2_text = f"R²={r2:.2f}" if isinstance(r2, (int, float)) else "R²=NA"
-    pred_class = (summary.get("predictability_class") or "unknown").replace("_", " ")
-    ax.set_title(f"{target} — predictability ({r2_text}, class={pred_class})")
+    ax.invert_yaxis()
+    ax.set_xlabel("SHAP mean(|value|)  (RandomForest)")
 
-    # Legend for feature classes present in the top-5
-    seen_classes = []
+    r_rf = summary.get("pearson_r_rf")
+    r2_rf = summary.get("pearson_r_squared_rf")
+    ci_lo = summary.get("pearson_r_squared_rf_ci_lo")
+    ci_hi = summary.get("pearson_r_squared_rf_ci_hi")
+    r2_txt = f"r²={r2_rf:.2f}" if isinstance(r2_rf, (int, float)) and r2_rf is not None else "r²=NA"
+    if ci_lo is not None and ci_hi is not None:
+        r2_txt += f" [95% CI {ci_lo:.2f}, {ci_hi:.2f}]"
+    r_txt = f", r={r_rf:.2f}" if isinstance(r_rf, (int, float)) and r_rf is not None else ""
+    pred_class = (summary.get("predictability_class") or "unknown").replace("_", " ")
+
+    # XGBoost delta caveat: subtitle if divergent
+    agreement = summary.get("model_agreement") or ""
+    delta = summary.get("delta_r2")
+    subtitle = ""
+    if agreement == "divergent" and isinstance(delta, (int, float)):
+        subtitle = f"  |  RF↔XGB divergent (Δr²={delta:+.2f})"
+
+    ax.set_title(f"{target} — predictability ({r2_txt}{r_txt}, {pred_class}){subtitle}",
+                    fontsize=9)
+
+    # Legend (unique feature classes)
+    seen = []
     handles = []
     for c, color in zip(classes, colors):
-        if c not in seen_classes:
-            seen_classes.append(c)
+        if c not in seen:
+            seen.append(c)
             handles.append(plt.Rectangle((0, 0), 1, 1, color=color, label=c.replace("_", " ")))
     if handles:
         ax.legend(handles=handles, loc="lower right", fontsize=7, framealpha=0.9)
+    fig.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
+    return out_path
+
+
+def emit_lineage_conditional_panel(summary: dict, target: str,
+                                       out_dir: Path,
+                                       target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+    """Per-lineage r² horizontal bar. Complement to the main importance figure.
+
+    Ordered by r² descending; annotated with top-feature name. Highlights
+    context-specific biomarker signals — e.g. WRN in MSI lineages, KRAS in
+    Bowel/Pancreas.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    pal = _load_takeda_palette(target_contracts_dir)
+    out_path = out_dir / "figure_lineage_predictability.svg"
+
+    lineage = summary.get("per_lineage_predictability") or []
+    if not lineage:
+        fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+        ax.text(0.5, 0.5, "No lineage-conditional data",
+                  transform=ax.transAxes, ha="center", fontsize=10, color="#666")
+        ax.set_axis_off()
+        fig.savefig(out_path); plt.close(fig)
+        return out_path
+
+    # Sort by r² descending
+    lineage = sorted(lineage, key=lambda l: -(l.get("r2") or 0))[:12]
+    names = [f"{l['lineage']} (n={l['n_cell_lines']})" for l in lineage]
+    r2s = [l["r2"] for l in lineage]
+    top_feats = [l.get("top_feature") or "" for l in lineage]
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+    ax.barh(range(len(names)), r2s, color="#0a2540", edgecolor="white")
+    for i, (r2, tf) in enumerate(zip(r2s, top_feats)):
+        ax.text(r2 + max(max(r2s), 0.01) * 0.02, i, f"{r2:.2f}  ({tf})",
+                  va="center", fontsize=7, color="#333")
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels(names, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("Lineage-conditional r² (RF)")
+    ax.set_title(f"{target} — lineage-conditional predictability")
+    ax.axvline(0.16, color="#888", linestyle="--", linewidth=0.7)  # DepMap high-conf floor
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
@@ -211,7 +289,13 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
         "derived_product_uri": parquet_uri,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "predictability_class": summary.get("predictability_class"),
-        "pred_r2": summary.get("pred_r2"),
+        "pearson_r_rf": summary.get("pearson_r_rf"),
+        "pearson_r_squared_rf": summary.get("pearson_r_squared_rf"),
+        "pearson_r_squared_rf_ci": [
+            summary.get("pearson_r_squared_rf_ci_lo"),
+            summary.get("pearson_r_squared_rf_ci_hi"),
+        ],
+        "model_agreement": summary.get("model_agreement"),
         "pred_dominant_feature_class": summary.get("pred_dominant_feature_class"),
     }
     out_file = out_dir / "manifest.yaml"
@@ -222,11 +306,10 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="26q1-v1", show_default=True,
+@click.option("--release-pin", default="26q1-v2", show_default=True,
               type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
 @click.option("--parquet-uri", default=None,
-              help="Override the parquet URI (testing / local fixture). When unset, "
-                    "resolves via --release-pin.")
+              help="Override the parquet URI (testing / local fixture).")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, parquet_uri, out):
     out.mkdir(parents=True, exist_ok=True)
@@ -243,6 +326,7 @@ def main(target, release_pin, parquet_uri, out):
         }
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     emit_feature_importance_bar(summary, target, out)
+    emit_lineage_conditional_panel(summary, target, out)
     emit_manifest(target, release_pin, summary, out, parquet_uri)
     click.echo(f"  -> {out}", err=True)
 

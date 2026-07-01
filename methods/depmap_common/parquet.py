@@ -179,6 +179,21 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
     return table.to_pandas()
 
 
+def get_full_matrix_path(filename: str) -> Path:
+    """Return the local-cached path for a parquet filename, downloading from S3
+    if not already cached. Public entrypoint for consumers that need the FULL
+    matrix (not just a per-target column projection) — e.g. batch precompute
+    jobs that iterate across thousands of genes and would waste RTTs on per-gene
+    column reads.
+
+    The local-disk cache under PARQUET_CACHE_DIR persists across process runs;
+    the first call in a session (or after cache eviction) downloads once from
+    S3, all subsequent calls are no-ops. Callers should use pyarrow.parquet
+    or pandas directly on the returned path.
+    """
+    return _fetch_parquet(filename)
+
+
 def clear_all_parquet_caches() -> None:
     """Clear in-process LRU caches. Local-disk cache persists."""
     get_chronos_column.cache_clear()

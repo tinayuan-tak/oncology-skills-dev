@@ -1,11 +1,12 @@
-"""depmap_predictability.read — library entry for live-mode reads (E5).
+"""depmap_predictability.read — v2 library entry for live-mode reads.
 
-Returns the predictability summary for a target by reading one row out of the
-frozen derived parquet via pyarrow predicate pushdown. No sklearn at runtime.
+Reads one row out of the frozen derived parquet
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v2/predictability_per_gene.parquet`
+via pyarrow predicate pushdown. No sklearn / XGBoost at framework runtime.
 
-When the parquet is unreachable (no AWS creds, no network, S3 ACL denied),
-returns a dict with `_live_read_error` + `predictability_class=data_unavailable`
-so the framework's graceful-degradation contract holds (same shape as E1-E4).
+On unreachable parquet or missing target, returns a dict with
+`_live_read_error` + `predictability_class=data_unavailable` so the framework's
+graceful-degradation contract holds (same shape as E1-E4).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Optional
 from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
+DEFAULT_RELEASE_PIN = "26q1-v2"
 
 
 def _ensure_aws_profile():
@@ -24,13 +26,12 @@ def _ensure_aws_profile():
 
 
 def read_predictability(target: str, indication: Optional[str] = None,
-                          release_pin: str = "26q1-v1") -> dict:
+                          release_pin: str = DEFAULT_RELEASE_PIN) -> dict:
     """Compute predictability for a target — pan-cancer, indication-independent.
 
-    The `indication` parameter is accepted to match the framework's
-    CARD_DISPATCHERS contract (target, indication) but NOT consumed: E5 is
-    target-only because the precompute model uses lineage one-hots as features,
-    not as a stratification axis.
+    `indication` is accepted for the framework's CARD_DISPATCHERS contract but
+    NOT consumed by v2 — the model uses lineage as a FEATURE, not a stratification
+    axis. Per-lineage read-outs are exposed via `per_lineage_predictability`.
     """
     _ensure_aws_profile()
     parquet_uri = _cli.RELEASE_PIN_TO_PARQUET.get(release_pin)

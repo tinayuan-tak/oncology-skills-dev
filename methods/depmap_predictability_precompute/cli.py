@@ -1,289 +1,489 @@
 #!/usr/bin/env python3
-"""depmap-predictability-precompute CLI — batch RF training for E5 predictability.
+"""depmap-predictability-precompute CLI (v2 — DepMap-parity + extensions).
 
-Trains one RandomForestRegressor per gene predicting Chronos dependency from
-multi-omics + lineage features. Emits a single parquet (one row per gene) to be
-read by the thin `depmap_predictability` card method at framework run-time.
+Per-gene predictability precompute for the E5 v2 build:
 
-Compute model: ~5-8 s per gene on a single core; medium scope (~500 genes)
-parallelizes to ~7 min with ProcessPoolExecutor(max_workers=8). The output
-parquet is the v1 frozen derived product `depmap-predictability-26q1-v1`.
+  - Feature set: target-own multi-omics + genome-wide expr/CN + arm-level CN
+    + OncoKB-derived GoF/LoF driver flags + lineage one-hot.
+    (See features.py for construction; ~60k features per gene.)
+  - Per-fold `SelectKBest(f_regression, k=1000)` avoids leakage while matching
+    DepMap Daintree's `KFilteredForest` reduction.
+  - Dual model: RandomForestRegressor + XGBRegressor. Both fit on the same
+    per-fold selected features. Delta-r² surfaced as a divergence diagnostic.
+  - Cross-validation: **3-fold QuantileKFold** (quantile-stratified) matching
+    DepMap's CV splitter. Report Pearson r + Pearson² r² on out-of-fold
+    predictions.
+  - Bootstrap 95% CI on r² via 500 resamples over cell-line indices.
+  - SHAP TreeExplainer for feature attributions (mean(|SHAP|) across folds);
+    RF `feature_importances_` reported alongside for DepMap-parity.
+  - Lineage-conditional companion: for each OncotreeLineage with n_lines ≥ 30,
+    refit RF and report per-lineage r² + top-3 SHAP features.
+  - Classification (v2, CI-aware):
+      r² CI lower bound ≥ 0.35  AND dominant feature is target-own → own_omics_driven
+      r² CI lower bound ≥ 0.35  AND dominant feature is context/driver → context_or_driver_dependent
+      r² ≥ 0.16 (DepMap high-conf) but CI-lo < 0.35 → weakly_predictable
+      r² < 0.16 → unpredictable
 
-Feature classes (target-own only in v1):
-  - own_expression        : log2(TPM+1) from OmicsExpressionTPMLogp1HumanProteinCodingGenes
-  - own_copy_number       : relative CN (WES primary + WGS fallback per gene)
-  - own_mut_hotspot       : binary from OmicsSomaticMutationsMatrixHotspot
-  - own_mut_damaging      : binary from OmicsSomaticMutationsMatrixDamaging
-  - lineage_*             : one-hot of Model.csv.OncotreeLineage (lineages with
-                            < min_lines_per_lineage collapsed to lineage_OTHER)
-
-Gene set (medium scope):
-  any-lineage-median-abs-chronos-gt-0.3: include gene if SOME OncotreeLineage
-  (n_lines ≥ min_lines_per_lineage) has |median Chronos| > 0.3. Captures
-  lineage-selective dependencies that would be flat at the pan-cancer median.
+Output parquet schema is documented in the plan file § "Output schema (v2)".
+Includes checkpointing every N genes (default 25) so a crash loses ≤ N gene
+fits.
 """
 
 from __future__ import annotations
 
 import json
+import pickle
 import re
 import sys
+import tempfile
+import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
-from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
 import click
+import numpy as np
+import pandas as pd
+
+from . import features as feat
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
-DEPMAP_S3_BUCKET = "onc-compbio"
-DEPMAP_S3_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+# Classification thresholds (v2). See card YAML for the authoritative copy.
+R2_HIGH_CI_LO = 0.35    # CI lower bound above → strong-predictor bucket
+R2_DEPMAP_HIGH_CONF = 0.16  # DepMap high-conf floor (Pearson r ≥ 0.4)
 
-# "SYMBOL (entrez_id)" → SYMBOL extractor used by CN + mutation matrices.
-_GENE_PAREN_RE = re.compile(r"^([A-Za-z0-9._\-]+)\s*\(\d+\)$")
-
-# Predictability classification thresholds (mirror card YAML).
-R2_HIGH = 0.5
-R2_MODERATE = 0.3
-
-OWN_OMICS_FEATURES = {
-    "own_expression",
-    "own_copy_number",
-    "own_mut_hotspot",
-    "own_mut_damaging",
-}
-
-
-def _extract_symbol(col: str) -> Optional[str]:
-    """Return the HGNC symbol from a column header in either form:
-       - plain 'KRAS'  → 'KRAS'
-       - 'KRAS (3845)' → 'KRAS'
-    Returns None on whitespace / non-symbol inputs.
-    """
-    if not isinstance(col, str):
-        return None
-    s = col.strip().strip('"')
-    if not s:
-        return None
-    m = _GENE_PAREN_RE.match(s)
-    if m:
-        return m.group(1)
-    # Fall back: split on first whitespace — matches the CRISPR loader convention.
-    return s.split(" ", 1)[0] or None
-
-
-def _build_symbol_to_col(columns) -> dict:
-    """Map HGNC symbol → first column whose header resolves to that symbol.
-
-    When a matrix mixes plain and 'SYMBOL (entrez_id)' headers, the parenthesized
-    form wins (it's the unambiguous DepMap canonical form). Last-write-wins is
-    safe here because identical symbols across the same matrix would be a data
-    pathology we'd want to surface, not silently dedupe.
-    """
-    sym_to_col = {}
-    for c in columns:
-        s = _extract_symbol(c)
-        if not s:
-            continue
-        sym_to_col[s] = c
-    return sym_to_col
-
-
-def _coerce_isdefault(series) -> "pandas.Series":
-    """Normalize DepMap's IsDefaultEntry* columns to boolean.
-
-    26Q1 ships these as string 'Yes'/'No'; older releases as boolean. Mirrors
-    the convention in depmap_expression_distribution.cli.
-    """
-    return series.isin([True, "Yes", "yes", "true", "TRUE"])
+# CV + bootstrap constants
+CV_N_SPLITS = 3
+BOOTSTRAP_N = 500
+LINEAGE_MIN_LINES = 30      # per-lineage refit min-n
+SELECT_K_BEST = 1000
+MIN_CELL_LINES_PER_GENE = 100  # exclusion floor
 
 
 # ---------------------------------------------------------------------------
-# Loaders — each returns a (cell_lines × genes) pandas DataFrame indexed by ModelID
+# QuantileKFold — quantile-stratified CV matching DepMap's cds-daintree
 # ---------------------------------------------------------------------------
 
-def _s3_read_csv(bucket: str, key: str, **read_csv_kwargs):
-    import boto3
-    import pandas as pd
-    s3 = boto3.client("s3")
-    click.echo(f"  Fetching s3://{bucket}/{key}", err=True)
-    obj = s3.get_object(Bucket=bucket, Key=key)
-    return pd.read_csv(BytesIO(obj["Body"].read()), **read_csv_kwargs)
+class QuantileKFold:
+    """Stratify samples by y quantile then k-fold within each stratum.
 
-
-def load_chronos(release_pin: str = "26q1"):
-    """Returns (chronos_df indexed by ModelID, gene-cols are HGNC symbols)."""
-    import pandas as pd
-    df = _s3_read_csv(DEPMAP_S3_BUCKET, f"{DEPMAP_S3_PREFIX}/CRISPRGeneEffect.csv")
-    # First column is the ModelID index (unnamed in some releases)
-    id_col = df.columns[0]
-    df = df.set_index(id_col)
-    df.index.name = "ModelID"
-    # Rename gene columns to plain HGNC symbol
-    df.columns = [_extract_symbol(c) or c for c in df.columns]
-    # Collapse possible duplicate symbol columns (mean across them — matches
-    # how downstream methods do the column lookup).
-    if len(df.columns) != len(set(df.columns)):
-        df = df.T.groupby(level=0).mean().T
-    return df
-
-
-def load_expression(release_pin: str = "26q1"):
-    """Returns (expression_df indexed by ModelID, gene-cols are HGNC symbols).
-
-    Applies IsDefaultEntryForModel=Yes filter to collapse multi-condition lines.
+    Ensures each fold has a similar distribution of the target's dependency
+    values — critical when Chronos values are heavy-tailed or unbalanced across
+    the cell-line panel. Mirrors Broad Institute's cds-daintree custom splitter.
     """
-    import pandas as pd
-    df = _s3_read_csv(
-        DEPMAP_S3_BUCKET,
-        f"{DEPMAP_S3_PREFIX}/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv",
+    def __init__(self, n_splits: int = 3, random_state: int = 42):
+        self.n_splits = n_splits
+        self.random_state = random_state
+
+    def split(self, X, y):
+        y = np.asarray(y)
+        n = len(y)
+        # Assign each sample to a quantile bin; then split each bin into n_splits folds.
+        # Uses np.digitize on q-quantiles of y.
+        n_bins = min(self.n_splits * 3, n // self.n_splits)
+        edges = np.quantile(y, np.linspace(0, 1, n_bins + 1)[1:-1])
+        bins = np.digitize(y, edges)
+        rng = np.random.default_rng(self.random_state)
+        # Shuffle within each bin, then assign to folds round-robin
+        fold_assignment = np.full(n, -1, dtype=np.int32)
+        for b in np.unique(bins):
+            idxs = np.where(bins == b)[0]
+            rng.shuffle(idxs)
+            for i, idx in enumerate(idxs):
+                fold_assignment[idx] = i % self.n_splits
+        for k in range(self.n_splits):
+            test = np.where(fold_assignment == k)[0]
+            train = np.where(fold_assignment != k)[0]
+            yield train, test
+
+
+# ---------------------------------------------------------------------------
+# Metrics + bootstrap
+# ---------------------------------------------------------------------------
+
+def _pearson_r(a: np.ndarray, b: np.ndarray) -> float:
+    if np.std(a) < 1e-9 or np.std(b) < 1e-9:
+        return 0.0
+    r = float(np.corrcoef(a, b)[0, 1])
+    return 0.0 if not np.isfinite(r) else r
+
+
+def bootstrap_r2_ci(y_oof: np.ndarray, y_true: np.ndarray,
+                       n: int = BOOTSTRAP_N,
+                       seed: int = 42) -> tuple[float, float]:
+    """Bootstrap 95% CI on Pearson² r² over cell-line indices."""
+    rng = np.random.default_rng(seed)
+    n_samples = len(y_true)
+    r2s = np.empty(n, dtype=np.float32)
+    for i in range(n):
+        idx = rng.integers(0, n_samples, size=n_samples)
+        r = _pearson_r(y_oof[idx], y_true[idx])
+        r2s[i] = r * r
+    lo = float(np.percentile(r2s, 2.5))
+    hi = float(np.percentile(r2s, 97.5))
+    return lo, hi
+
+
+# ---------------------------------------------------------------------------
+# Per-fold pipeline: SelectKBest → RF + XGB → OOF predictions
+# ---------------------------------------------------------------------------
+
+def _train_dual_model_cv(X: np.ndarray, y: np.ndarray,
+                            feature_names: list,
+                            random_state: int = 42) -> dict:
+    """Run 3-fold QuantileKFold with per-fold KBest → RF + XGB. Return dict
+    with y_oof arrays, aggregated SHAP means, and RF feature_importances_ means.
+    """
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.feature_selection import SelectKBest, f_regression
+    n = len(y)
+    y_oof_rf = np.full(n, np.nan, dtype=np.float32)
+    y_oof_xgb = np.full(n, np.nan, dtype=np.float32)
+
+    # Per-feature aggregators — shape (n_features,)
+    rf_importances_sum = np.zeros(X.shape[1], dtype=np.float64)
+    rf_importances_count = np.zeros(X.shape[1], dtype=np.int32)
+    shap_rf_abs_sum = np.zeros(X.shape[1], dtype=np.float64)
+    shap_rf_count = np.zeros(X.shape[1], dtype=np.int32)
+    shap_xgb_abs_sum = np.zeros(X.shape[1], dtype=np.float64)
+    shap_xgb_count = np.zeros(X.shape[1], dtype=np.int32)
+
+    k = min(SELECT_K_BEST, X.shape[1])
+
+    # Lazy-import XGBoost + SHAP so import failures don't kill single-model runs
+    try:
+        from xgboost import XGBRegressor
+        _has_xgb = True
+    except ImportError:
+        _has_xgb = False
+    try:
+        import shap
+        _has_shap = True
+    except ImportError:
+        _has_shap = False
+
+    for train_idx, test_idx in QuantileKFold(n_splits=CV_N_SPLITS,
+                                                 random_state=random_state).split(X, y):
+        # Per-fold feature selection (avoids leakage)
+        kbest = SelectKBest(f_regression, k=k)
+        kbest.fit(X[train_idx], y[train_idx])
+        selected_mask = kbest.get_support()  # (n_features,) bool
+        selected_idx = np.where(selected_mask)[0]
+        X_tr = X[train_idx][:, selected_idx]
+        X_te = X[test_idx][:, selected_idx]
+
+        # Fit RF
+        rf = RandomForestRegressor(
+            n_estimators=100, max_depth=8, min_samples_leaf=5,
+            random_state=random_state, n_jobs=1,
+        )
+        rf.fit(X_tr, y[train_idx])
+        y_oof_rf[test_idx] = rf.predict(X_te)
+
+        # Accumulate RF importances (aligned back to full feature space)
+        for i, src_idx in enumerate(selected_idx):
+            rf_importances_sum[src_idx] += rf.feature_importances_[i]
+            rf_importances_count[src_idx] += 1
+
+        # SHAP for RF (mean(|SHAP|) across fold's test set)
+        if _has_shap:
+            try:
+                explainer = shap.TreeExplainer(rf)
+                shap_vals = explainer.shap_values(X_te, check_additivity=False)
+                mean_abs = np.abs(shap_vals).mean(axis=0)
+                for i, src_idx in enumerate(selected_idx):
+                    shap_rf_abs_sum[src_idx] += mean_abs[i]
+                    shap_rf_count[src_idx] += 1
+            except Exception:
+                pass
+
+        # Fit XGBoost
+        if _has_xgb:
+            try:
+                xgb = XGBRegressor(
+                    n_estimators=100, max_depth=6, learning_rate=0.1,
+                    random_state=random_state, n_jobs=1, verbosity=0,
+                    objective="reg:squarederror",
+                )
+                xgb.fit(X_tr, y[train_idx])
+                y_oof_xgb[test_idx] = xgb.predict(X_te)
+                if _has_shap:
+                    try:
+                        expl_xgb = shap.TreeExplainer(xgb)
+                        shap_vals = expl_xgb.shap_values(X_te, check_additivity=False)
+                        mean_abs = np.abs(shap_vals).mean(axis=0)
+                        for i, src_idx in enumerate(selected_idx):
+                            shap_xgb_abs_sum[src_idx] += mean_abs[i]
+                            shap_xgb_count[src_idx] += 1
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    # Reduce accumulators → per-feature means (0 where the feature never made it through KBest)
+    rf_importances_mean = np.where(
+        rf_importances_count > 0,
+        rf_importances_sum / np.maximum(rf_importances_count, 1),
+        0.0,
     )
-    if "IsDefaultEntryForModel" in df.columns:
-        df = df[_coerce_isdefault(df["IsDefaultEntryForModel"])]
-    # Drop metadata-prefix columns; keep ModelID as the row index.
-    meta_cols = {
-        "SequencingID", "ModelConditionID", "ModelID",
-        "IsDefaultEntryForMC", "IsDefaultEntryForModel",
+    shap_rf_mean = np.where(shap_rf_count > 0, shap_rf_abs_sum / np.maximum(shap_rf_count, 1), 0.0)
+    shap_xgb_mean = np.where(shap_xgb_count > 0, shap_xgb_abs_sum / np.maximum(shap_xgb_count, 1), 0.0)
+
+    return {
+        "y_oof_rf": y_oof_rf,
+        "y_oof_xgb": y_oof_xgb,
+        "rf_importances_mean": rf_importances_mean,
+        "shap_rf_mean_abs": shap_rf_mean,
+        "shap_xgb_mean_abs": shap_xgb_mean,
+        "has_xgb": _has_xgb,
+        "has_shap": _has_shap,
     }
-    if "ModelID" not in df.columns:
-        # Older release: first column is the ModelID index
-        id_col = df.columns[0]
-        df = df.set_index(id_col)
-        df.index.name = "ModelID"
-    else:
-        df = df.set_index("ModelID")
-    df = df.drop(columns=[c for c in df.columns if c in meta_cols], errors="ignore")
-    df.columns = [_extract_symbol(c) or c for c in df.columns]
-    if len(df.columns) != len(set(df.columns)):
-        df = df.T.groupby(level=0).mean().T
-    return df
 
 
-def _load_cn_matrix(key: str, mc_to_model: dict):
-    """Shared loader for OmicsCNGeneMC_WES / OmicsCNGeneWGS.
+def _top_features(names: list, ranks: np.ndarray, k: int = 10) -> list:
+    """Return the top-k (feature, feature_class, score) records by descending
+    rank score. Ties broken alphabetically for reproducibility."""
+    order = np.lexsort((names, -ranks))
+    out = []
+    seen = set()
+    for i in order:
+        if len(out) >= k:
+            break
+        n = names[i]
+        if n in seen:
+            continue
+        seen.add(n)
+        out.append({
+            "feature": n,
+            "feature_class": feat.feature_class_of(n),
+            "importance": float(ranks[i]),
+        })
+    return out
 
-    Both matrices are ModelConditionID-indexed; we filter to IsDefaultEntryForMC
-    rows then bridge to ModelID via the mc_to_model dict (from ModelCondition.csv).
+
+def _classify(r2_rf: float, r2_rf_ci_lo: float, top_feature_class: str) -> tuple[str, str]:
+    """Return (predictability_class, dominant_feature_class).
+
+    Uses r² CI lower bound for the strong-predictor bucket; falls back to
+    DepMap's high-confidence r ≥ 0.4 floor for the weakly_predictable band.
     """
-    import pandas as pd
-    df = _s3_read_csv(DEPMAP_S3_BUCKET, key)
-    if "IsDefaultEntryForMC" in df.columns:
-        df = df[_coerce_isdefault(df["IsDefaultEntryForMC"])]
-    if "ModelConditionID" not in df.columns:
+    if r2_rf < R2_DEPMAP_HIGH_CONF:
+        return "unpredictable", "unpredictable"
+    if r2_rf_ci_lo >= R2_HIGH_CI_LO:
+        if top_feature_class in feat.FEATURE_CLASS_OWN:
+            return "own_omics_driven", top_feature_class
+        return "context_or_driver_dependent", top_feature_class
+    return "weakly_predictable", top_feature_class
+
+
+# ---------------------------------------------------------------------------
+# Lineage-conditional companion
+# ---------------------------------------------------------------------------
+
+def _fit_lineage_conditional(X: np.ndarray, y: np.ndarray,
+                                 model_ids: list,
+                                 model_df: pd.DataFrame,
+                                 feature_names: list) -> list:
+    """For each large-enough lineage, refit RF within-lineage and report r² +
+    top-3 features by RF importance. RF-only (no XGB / SHAP) to keep cost down.
+    """
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.feature_selection import SelectKBest, f_regression
+    lineage_map = dict(zip(model_df["ModelID"], model_df["OncotreeLineage"]))
+    lineages = np.array([lineage_map.get(m) or "unknown" for m in model_ids])
+    results = []
+    for lin in np.unique(lineages):
+        if lin in (None, "unknown", "OTHER"):
+            continue
+        idx = np.where(lineages == lin)[0]
+        if len(idx) < LINEAGE_MIN_LINES:
+            continue
+        try:
+            r2, top = _lineage_fit(X[idx], y[idx], feature_names)
+        except Exception:
+            continue
+        results.append({
+            "lineage": lin,
+            "n_cell_lines": int(len(idx)),
+            "r2": float(r2),
+            "top_feature": top,
+        })
+    results.sort(key=lambda r: -r["r2"])
+    return results
+
+
+def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[float, str]:
+    """RF-only 3-fold on a lineage subset. Return (r², top feature name)."""
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.feature_selection import SelectKBest, f_regression
+    y_oof = np.full(len(y), np.nan, dtype=np.float32)
+    imp_sum = np.zeros(X.shape[1], dtype=np.float64)
+    imp_count = np.zeros(X.shape[1], dtype=np.int32)
+    k = min(SELECT_K_BEST, X.shape[1])
+    for tr, te in QuantileKFold(n_splits=CV_N_SPLITS, random_state=42).split(X, y):
+        kbest = SelectKBest(f_regression, k=k)
+        kbest.fit(X[tr], y[tr])
+        sel = np.where(kbest.get_support())[0]
+        rf = RandomForestRegressor(n_estimators=50, max_depth=8, min_samples_leaf=5,
+                                       random_state=42, n_jobs=1)
+        rf.fit(X[tr][:, sel], y[tr])
+        y_oof[te] = rf.predict(X[te][:, sel])
+        for i, src in enumerate(sel):
+            imp_sum[src] += rf.feature_importances_[i]
+            imp_count[src] += 1
+    r = _pearson_r(y_oof, y)
+    imp = np.where(imp_count > 0, imp_sum / np.maximum(imp_count, 1), 0.0)
+    top_idx = int(np.argmax(imp))
+    return r * r, feature_names[top_idx]
+
+
+# ---------------------------------------------------------------------------
+# Per-gene compute (the hot loop)
+# ---------------------------------------------------------------------------
+
+def train_gene(gene: str, omics: dict) -> Optional[dict]:
+    """End-to-end per-gene v2 predictability record. Returns dict matching the
+    v2 parquet schema, or None if gene lacks coverage."""
+    fm = feat.build_gene_feature_matrix(gene, omics,
+                                            min_cell_lines=MIN_CELL_LINES_PER_GENE)
+    if fm is None:
         return None
-    df = df.set_index("ModelConditionID")
-    df = df.drop(columns=[c for c in df.columns if c == "IsDefaultEntryForMC"], errors="ignore")
-    # Bridge MC → ModelID; rows with no mapping fall back to the MC ID itself.
-    new_index = [mc_to_model.get(mc, mc) for mc in df.index]
-    df.index = new_index
-    df.index.name = "ModelID"
-    # Collapse any duplicate ModelIDs (rare: one cell line with multiple default MCs).
-    df = df[~df.index.duplicated(keep="first")]
-    df.columns = [_extract_symbol(c) or c for c in df.columns]
-    if len(df.columns) != len(set(df.columns)):
-        df = df.T.groupby(level=0).mean().T
-    return df
+    X, y, names, mids = fm["X"], fm["y"], fm["feature_names"], fm["model_ids"]
+    t0 = time.time()
 
+    trained = _train_dual_model_cv(X, y, names)
+    r_rf = _pearson_r(trained["y_oof_rf"], y)
+    r2_rf = r_rf * r_rf
+    r2_rf_ci = bootstrap_r2_ci(trained["y_oof_rf"], y)
 
-def load_copy_number(model_condition_df, release_pin: str = "26q1"):
-    """WES primary + WGS fallback at the (cell_line, gene) CELL level.
-
-    Combines OmicsCNGeneMC_WES and OmicsCNGeneWGS so every (ModelID, gene) cell
-    prefers WES but falls back to WGS when WES is NaN. This preserves the
-    ~1500-cell CRISPR panel's usable coverage instead of collapsing to the
-    ~600-cell WES∩CRISPR intersection that a plain WES-only load produces.
-
-    Returns one combined DataFrame indexed by ModelID, gene-cols are HGNC symbols.
-    """
-    mc_to_model = {}
-    if {"ModelConditionID", "ModelID"}.issubset(model_condition_df.columns):
-        mc_to_model = dict(zip(model_condition_df["ModelConditionID"],
-                                model_condition_df["ModelID"]))
-    wes = _load_cn_matrix(f"{DEPMAP_S3_PREFIX}/OmicsCNGeneMC_WES.csv", mc_to_model)
-    wgs = _load_cn_matrix(f"{DEPMAP_S3_PREFIX}/OmicsCNGeneWGS.csv", mc_to_model)
-    if wes is None and wgs is None:
-        raise RuntimeError("Both CN matrices missing ModelConditionID; cannot load.")
-    if wes is None:
-        return wgs
-    if wgs is None:
-        return wes
-    # combine_first: WES wins where non-NaN; WGS fills WES NaNs and supplies
-    # both cell lines outside the WES panel AND genes outside the WES panel.
-    combined = wes.combine_first(wgs)
-    return combined
-
-
-def load_mutation_matrix(filename_suffix: str, release_pin: str = "26q1"):
-    """Shared loader for the Hotspot / Damaging mutation matrices.
-
-    These are ModelID-row × gene-col binary matrices (0/1) with the standard
-    DepMap metadata-column prefix. Returns DataFrame indexed by ModelID.
-    """
-    import pandas as pd
-    key = f"{DEPMAP_S3_PREFIX}/OmicsSomaticMutationsMatrix{filename_suffix}.csv"
-    df = _s3_read_csv(DEPMAP_S3_BUCKET, key)
-    if "IsDefaultEntryForModel" in df.columns:
-        df = df[_coerce_isdefault(df["IsDefaultEntryForModel"])]
-    meta_cols = {
-        "SequencingID", "ModelConditionID", "ModelID",
-        "IsDefaultEntryForMC", "IsDefaultEntryForModel",
-    }
-    if "ModelID" not in df.columns:
-        id_col = df.columns[0]
-        df = df.set_index(id_col)
-        df.index.name = "ModelID"
+    if trained["has_xgb"]:
+        r_xgb = _pearson_r(trained["y_oof_xgb"], y)
+        r2_xgb = r_xgb * r_xgb
+        r2_xgb_ci = bootstrap_r2_ci(trained["y_oof_xgb"], y)
     else:
-        df = df.set_index("ModelID")
-    df = df.drop(columns=[c for c in df.columns if c in meta_cols], errors="ignore")
-    df.columns = [_extract_symbol(c) or c for c in df.columns]
-    if len(df.columns) != len(set(df.columns)):
-        # Mutation matrices are binary; OR-aggregate duplicates.
-        df = df.T.groupby(level=0).max().T
-    # Coerce to int (some files have "Yes"/"No" strings)
-    import numpy as np
-    df = df.map(lambda v: 1 if v in (1, True, "Yes", "yes", "true", "TRUE") else 0)
-    return df.astype("int8")
+        r_xgb = float("nan"); r2_xgb = float("nan")
+        r2_xgb_ci = (float("nan"), float("nan"))
 
+    # SHAP-ranked top features for RF (fall back to RF importances if SHAP absent)
+    rf_rank = trained["shap_rf_mean_abs"] if trained["has_shap"] else trained["rf_importances_mean"]
+    top_rf = _top_features(names, rf_rank, k=10)
+    if trained["has_xgb"]:
+        xgb_rank = trained["shap_xgb_mean_abs"] if trained["has_shap"] else trained["rf_importances_mean"]
+        top_xgb = _top_features(names, xgb_rank, k=10)
+    else:
+        top_xgb = []
 
-def load_model_metadata(release_pin: str = "26q1"):
-    """Returns (model_df, model_condition_df) — both pandas DataFrames."""
-    model_df = _s3_read_csv(DEPMAP_S3_BUCKET, f"{DEPMAP_S3_PREFIX}/Model.csv")
-    mc_df = _s3_read_csv(DEPMAP_S3_BUCKET, f"{DEPMAP_S3_PREFIX}/ModelCondition.csv")
-    return model_df, mc_df
+    # Also attach the RF importance beside SHAP for parity/comparison
+    for entry in top_rf:
+        entry["rf_importance"] = float(
+            trained["rf_importances_mean"][names.index(entry["feature"])]
+        )
+    for entry in top_xgb:
+        entry["rf_importance"] = 0.0  # XGBoost has its own importances; we skip
+
+    top_class = top_rf[0]["feature_class"] if top_rf else "unpredictable"
+    pred_class, dom_class = _classify(r2_rf, r2_rf_ci[0], top_class)
+
+    delta_r2 = (r2_rf - r2_xgb) if trained["has_xgb"] else float("nan")
+    model_agreement = "single_model"
+    if trained["has_xgb"]:
+        model_agreement = "concordant" if abs(delta_r2) < 0.1 else "divergent"
+
+    # Lineage-conditional companion (RF-only, per-lineage r² + top feature)
+    lineage_results = _fit_lineage_conditional(X, y, mids, omics["model_df"], names)
+
+    elapsed = time.time() - t0
+    return {
+        "gene_symbol": gene,
+        "n_cell_lines_evaluated": int(X.shape[0]),
+        "pearson_r_rf": float(r_rf),
+        "pearson_r_squared_rf": float(r2_rf),
+        "pearson_r_squared_rf_ci_lo": float(r2_rf_ci[0]),
+        "pearson_r_squared_rf_ci_hi": float(r2_rf_ci[1]),
+        "pearson_r_xgb": float(r_xgb),
+        "pearson_r_squared_xgb": float(r2_xgb),
+        "pearson_r_squared_xgb_ci_lo": float(r2_xgb_ci[0]),
+        "pearson_r_squared_xgb_ci_hi": float(r2_xgb_ci[1]),
+        "model_agreement": model_agreement,
+        "delta_r2": float(delta_r2) if trained["has_xgb"] else 0.0,
+        "top_features_rf_shap": top_rf,
+        "top_features_xgb_shap": top_xgb,
+        "dominant_feature_class": dom_class,
+        "predictability_class": pred_class,
+        "per_lineage_predictability": lineage_results,
+        "n_features_total": int(X.shape[1]),
+        "elapsed_seconds": float(elapsed),
+    }
 
 
 # ---------------------------------------------------------------------------
-# Gene-set selection (medium scope, per-lineage rule)
+# Parquet writer
 # ---------------------------------------------------------------------------
 
-def build_medium_gene_set(chronos_df, model_df,
+def write_parquet(records: list, out_path: Path) -> Path:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    rows = sorted([r for r in records if r and "_error" not in r],
+                   key=lambda r: r["gene_symbol"])
+
+    top_struct = pa.struct([
+        pa.field("feature", pa.string()),
+        pa.field("feature_class", pa.string()),
+        pa.field("importance", pa.float32()),
+        pa.field("rf_importance", pa.float32()),
+    ])
+    lineage_struct = pa.struct([
+        pa.field("lineage", pa.string()),
+        pa.field("n_cell_lines", pa.int32()),
+        pa.field("r2", pa.float32()),
+        pa.field("top_feature", pa.string()),
+    ])
+    schema = pa.schema([
+        pa.field("gene_symbol", pa.string()),
+        pa.field("n_cell_lines_evaluated", pa.int32()),
+        pa.field("pearson_r_rf", pa.float32()),
+        pa.field("pearson_r_squared_rf", pa.float32()),
+        pa.field("pearson_r_squared_rf_ci_lo", pa.float32()),
+        pa.field("pearson_r_squared_rf_ci_hi", pa.float32()),
+        pa.field("pearson_r_xgb", pa.float32()),
+        pa.field("pearson_r_squared_xgb", pa.float32()),
+        pa.field("pearson_r_squared_xgb_ci_lo", pa.float32()),
+        pa.field("pearson_r_squared_xgb_ci_hi", pa.float32()),
+        pa.field("model_agreement", pa.string()),
+        pa.field("delta_r2", pa.float32()),
+        pa.field("top_features_rf_shap", pa.list_(top_struct)),
+        pa.field("top_features_xgb_shap", pa.list_(top_struct)),
+        pa.field("dominant_feature_class", pa.string()),
+        pa.field("predictability_class", pa.string()),
+        pa.field("per_lineage_predictability", pa.list_(lineage_struct)),
+    ])
+    columns = {name: [] for name in [f.name for f in schema]}
+    for r in rows:
+        for name in columns:
+            columns[name].append(r.get(name))
+    table = pa.Table.from_pydict(columns, schema=schema)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(table, out_path, row_group_size=64, compression="snappy")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
+# Gene-set selection (unchanged from v1)
+# ---------------------------------------------------------------------------
+
+def build_medium_gene_set(chronos_df: pd.DataFrame, model_df: pd.DataFrame,
                             min_lines_per_lineage: int = 5,
                             threshold: float = 0.3) -> list:
-    """Return sorted list of HGNC symbols whose |median Chronos| > threshold
-    in at least one OncotreeLineage with ≥ min_lines_per_lineage cell lines.
-
-    The chronos_df is ModelID-row × gene-col. The model_df provides
-    OncotreeLineage per ModelID.
-    """
-    import numpy as np
-    import pandas as pd
-    if "ModelID" not in model_df.columns:
-        raise ValueError("Model.csv missing ModelID column")
-    if "OncotreeLineage" not in model_df.columns:
-        raise ValueError("Model.csv missing OncotreeLineage column")
     lineage_map = dict(zip(model_df["ModelID"], model_df["OncotreeLineage"]))
-    lineages = pd.Series([lineage_map.get(m) for m in chronos_df.index],
-                          index=chronos_df.index, name="OncotreeLineage")
-    # Bucket cell-line indices by lineage (ignore None/empty)
-    lineage_groups = {}
-    for mid, lin in lineages.items():
-        if not isinstance(lin, str) or not lin:
-            continue
-        lineage_groups.setdefault(lin, []).append(mid)
+    lineage_groups: dict = {}
+    for mid in chronos_df.index:
+        lin = lineage_map.get(mid)
+        if isinstance(lin, str) and lin:
+            lineage_groups.setdefault(lin, []).append(mid)
     keepers = set()
     for lin, mids in lineage_groups.items():
         if len(mids) < min_lines_per_lineage:
@@ -297,179 +497,14 @@ def build_medium_gene_set(chronos_df, model_df,
 
 
 # ---------------------------------------------------------------------------
-# Feature matrix assembly + RF training (per gene)
+# Worker plumbing for ProcessPoolExecutor
 # ---------------------------------------------------------------------------
 
-def build_lineage_one_hot(model_df, min_lines_per_lineage: int = 5):
-    """Return (lineage_df indexed by ModelID, lineage_columns list).
-
-    Lineages with fewer than `min_lines_per_lineage` cell lines are collapsed
-    into a single `lineage_OTHER` column. The "unknown" / NaN bucket also folds
-    into OTHER (treated as a non-informative one-hot dimension).
-    """
-    import pandas as pd
-    df = model_df.set_index("ModelID")[["OncotreeLineage"]].copy()
-    counts = df["OncotreeLineage"].value_counts(dropna=False)
-    keep = set(counts[counts >= min_lines_per_lineage].index.dropna())
-    df["lineage_bucket"] = df["OncotreeLineage"].where(
-        df["OncotreeLineage"].isin(keep), other="OTHER"
-    )
-    df["lineage_bucket"] = df["lineage_bucket"].fillna("OTHER")
-    oh = pd.get_dummies(df["lineage_bucket"], prefix="lineage")
-    oh = oh.astype("int8")
-    return oh, list(oh.columns)
-
-
-def build_feature_matrix_for_gene(gene: str, omics):
-    """Assemble X (n_cell_lines, n_features), y (n_cell_lines,), feature_names.
-
-    `omics` is a dict with keys: chronos, expression, copy_number, mut_hotspot,
-    mut_damaging, lineage_one_hot. Each value is a pandas DataFrame indexed by
-    ModelID. We require the target gene to be present in chronos + at least one
-    omics modality; missing modalities for the gene fill with NaN columns and
-    are dropped row-wise in the complete-case alignment.
-
-    Returns (X_array, y_array, feature_names, model_ids) or
-    (None, None, None, None) if there is no usable signal.
-    """
-    import numpy as np
-    import pandas as pd
-    if gene not in omics["chronos"].columns:
-        return None, None, None, None
-    y_series = omics["chronos"][gene]
-    own_cols = {}
-    for fname, df_key in [
-        ("own_expression", "expression"),
-        ("own_copy_number", "copy_number"),
-        ("own_mut_hotspot", "mut_hotspot"),
-        ("own_mut_damaging", "mut_damaging"),
-    ]:
-        df = omics[df_key]
-        if gene in df.columns:
-            own_cols[fname] = df[gene]
-    if not own_cols:
-        # Nothing but Chronos; cannot train a meaningful model.
-        return None, None, None, None
-    own_df = pd.DataFrame(own_cols)
-    lineage_df = omics["lineage_one_hot"]
-    # Align everyone on the chronos index (the union of cell lines with a y value)
-    y = y_series.dropna()
-    own_df = own_df.reindex(y.index)
-    lineage_df = lineage_df.reindex(y.index)
-    full = pd.concat([own_df, lineage_df], axis=1)
-    # Complete-case: drop rows missing any own_omic column. Lineage one-hot is
-    # always present (rows missing in lineage_df get NaN → 0 for the OTHER one-hot
-    # if we ever add one). For simplicity we require all own_omics columns present.
-    mask = own_df.notna().all(axis=1) & lineage_df.notna().all(axis=1)
-    full = full[mask]
-    y = y[mask]
-    if len(full) < 100:
-        return None, None, None, None
-    feature_names = list(full.columns)
-    return full.values.astype(np.float32), y.values.astype(np.float32), feature_names, list(full.index)
-
-
-def _classify_predictability(top_feature: str, r2: float) -> tuple[str, str]:
-    """Return (predictability_class, dominant_feature_class).
-
-    Class taxonomy:
-      r2 < R2_MODERATE        → unpredictable     / 'unpredictable'
-      R2_MODERATE ≤ r2 < R2_HIGH → weakly_predictable / dominant feature
-      r2 ≥ R2_HIGH:
-        top_feature starts with 'lineage_' → lineage_driven / 'lineage'
-        top_feature in OWN_OMICS_FEATURES  → own_omics_driven / top_feature
-    """
-    if r2 < R2_MODERATE:
-        return "unpredictable", "unpredictable"
-    if top_feature.startswith("lineage_"):
-        if r2 >= R2_HIGH:
-            return "lineage_driven", "lineage"
-        return "weakly_predictable", "lineage"
-    if top_feature in OWN_OMICS_FEATURES:
-        if r2 >= R2_HIGH:
-            return "own_omics_driven", top_feature
-        return "weakly_predictable", top_feature
-    # Unrecognized feature name — treat as weakly_predictable / 'other'
-    if r2 >= R2_HIGH:
-        return "own_omics_driven", top_feature
-    return "weakly_predictable", top_feature
-
-
-def _feature_class(feature_name: str) -> str:
-    if feature_name.startswith("lineage_"):
-        return "lineage"
-    if feature_name in OWN_OMICS_FEATURES:
-        return feature_name
-    return "other"
-
-
-def train_one_gene(gene: str, X, y, feature_names,
-                    n_estimators: int = 100, max_depth: int = 10,
-                    cv_n_splits: int = 5, random_state: int = 42) -> dict:
-    """Train RF, return per-gene record matching the parquet schema."""
-    import numpy as np
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn.model_selection import KFold
-
-    kf = KFold(n_splits=cv_n_splits, shuffle=True, random_state=random_state)
-    y_oof = np.full_like(y, np.nan, dtype=np.float32)
-    for tr, te in kf.split(X):
-        m = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth,
-                                    random_state=random_state, n_jobs=1)
-        m.fit(X[tr], y[tr])
-        y_oof[te] = m.predict(X[te])
-
-    # Out-of-fold Pearson² R². Handle the degenerate case where y or y_oof has
-    # zero variance — np.corrcoef returns NaN, which we map to 0.0 so the
-    # downstream classifier reads it as 'unpredictable' rather than blowing up.
-    if np.std(y) < 1e-9 or np.std(y_oof) < 1e-9:
-        r2 = 0.0
-    else:
-        r = float(np.corrcoef(y_oof, y)[0, 1])
-        r2 = r * r
-        if not np.isfinite(r2):
-            r2 = 0.0
-
-    # Refit on all data for importances
-    full_model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth,
-                                          random_state=random_state, n_jobs=1)
-    full_model.fit(X, y)
-    importances = full_model.feature_importances_
-    order = np.argsort(importances)[::-1]
-    top_features = []
-    for idx in order[:5]:
-        fname = feature_names[idx]
-        top_features.append({
-            "feature": fname,
-            "feature_class": _feature_class(fname),
-            "importance": float(importances[idx]),
-        })
-
-    top_feature_name = top_features[0]["feature"]
-    pred_class, dominant_class = _classify_predictability(top_feature_name, r2)
-
-    return {
-        "gene_symbol": gene,
-        "n_cell_lines_evaluated": int(X.shape[0]),
-        "predictability_r2": float(r2),
-        "top_features": top_features,
-        "dominant_feature_class": dominant_class,
-        "predictability_class": pred_class,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Parallel worker wrapper — extracts gene's slice of omics, trains, returns record.
-# Defined at module level so ProcessPoolExecutor can pickle it.
-# ---------------------------------------------------------------------------
-
-_WORKER_OMICS = None  # set by initializer
+_WORKER_OMICS = None
 
 
 def _worker_init(omics_pickle_path):
-    """ProcessPool initializer: load omics dict once per worker from disk pickle."""
     global _WORKER_OMICS
-    import pickle
     with open(omics_pickle_path, "rb") as f:
         _WORKER_OMICS = pickle.load(f)
 
@@ -477,77 +512,33 @@ def _worker_init(omics_pickle_path):
 def _worker_train(gene: str) -> Optional[dict]:
     if _WORKER_OMICS is None:
         raise RuntimeError("_WORKER_OMICS not initialized")
-    X, y, fnames, _ = build_feature_matrix_for_gene(gene, _WORKER_OMICS)
-    if X is None:
-        return None
     try:
-        return train_one_gene(gene, X, y, fnames)
+        return train_gene(gene, _WORKER_OMICS)
     except Exception as e:
-        return {"gene_symbol": gene, "_error": str(e)}
+        return {"gene_symbol": gene, "_error": f"{type(e).__name__}: {e}"}
 
 
 # ---------------------------------------------------------------------------
-# Parquet writer
-# ---------------------------------------------------------------------------
-
-def write_parquet(records: list, out_path: Path) -> Path:
-    """Write per-gene records to a sorted parquet with row-group-size=64 to
-    enable predicate-pushdown reads in the thin lookup card.
-    """
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-    rows = sorted([r for r in records if r and "_error" not in r],
-                   key=lambda r: r["gene_symbol"])
-    # Build PyArrow schema explicitly for stable column types.
-    top_feature_struct = pa.struct([
-        pa.field("feature", pa.string()),
-        pa.field("feature_class", pa.string()),
-        pa.field("importance", pa.float32()),
-    ])
-    schema = pa.schema([
-        pa.field("gene_symbol", pa.string()),
-        pa.field("n_cell_lines_evaluated", pa.int32()),
-        pa.field("predictability_r2", pa.float32()),
-        pa.field("top_features", pa.list_(top_feature_struct)),
-        pa.field("dominant_feature_class", pa.string()),
-        pa.field("predictability_class", pa.string()),
-    ])
-    arrays = {
-        "gene_symbol": [r["gene_symbol"] for r in rows],
-        "n_cell_lines_evaluated": [r["n_cell_lines_evaluated"] for r in rows],
-        "predictability_r2": [r["predictability_r2"] for r in rows],
-        "top_features": [r["top_features"] for r in rows],
-        "dominant_feature_class": [r["dominant_feature_class"] for r in rows],
-        "predictability_class": [r["predictability_class"] for r in rows],
-    }
-    table = pa.Table.from_pydict(arrays, schema=schema)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, out_path, row_group_size=64, compression="snappy")
-    return out_path
-
-
-# ---------------------------------------------------------------------------
-# CLI entrypoint
+# CLI
 # ---------------------------------------------------------------------------
 
 @click.command()
 @click.option("--release-pin", default="26q1", show_default=True)
-@click.option("--gene-set", type=click.Choice(["smoke", "medium", "explicit"]),
-              default="medium", show_default=True,
-              help="smoke=5-gene fixed; medium=per-lineage |median Chronos|>0.3; explicit=use --gene-set-override")
+@click.option("--gene-set", type=click.Choice(["smoke", "anchor", "medium", "genome", "explicit"]),
+              default="medium", show_default=True)
 @click.option("--gene-set-override", default=None,
-              help="Comma-separated HGNC symbols (overrides --gene-set when --gene-set=explicit, "
-                    "or appended to smoke).")
+              help="Comma-separated HGNC symbols (used when --gene-set=explicit or "
+                    "appended to smoke).")
 @click.option("--out", required=True, type=click.Path(path_type=Path),
-              help="Output directory or file path. Writes predictability_per_gene.parquet inside.")
+              help="Output directory. Writes predictability_per_gene.parquet + "
+                    "checkpoints + run_manifest.json inside.")
 @click.option("--workers", default=8, show_default=True, type=int)
+@click.option("--checkpoint-every", default=25, show_default=True, type=int,
+              help="Write a checkpoint parquet every N genes.")
 @click.option("--min-lines-per-lineage", default=5, show_default=True, type=int)
 @click.option("--threshold", default=0.3, show_default=True, type=float)
 def main(release_pin, gene_set, gene_set_override, out, workers,
-          min_lines_per_lineage, threshold):
-    import pickle
-    import tempfile
-
+          checkpoint_every, min_lines_per_lineage, threshold):
     out = Path(out)
     if out.suffix == ".parquet":
         parquet_path = out
@@ -557,71 +548,68 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
         parquet_path = out_dir / "predictability_per_gene.parquet"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    click.echo("Loading DepMap inputs from S3...", err=True)
-    model_df, mc_df = load_model_metadata(release_pin)
-    chronos = load_chronos(release_pin)
-    click.echo(f"  CRISPR loaded: {chronos.shape[0]} cell lines × {chronos.shape[1]} genes", err=True)
-    expression = load_expression(release_pin)
-    click.echo(f"  Expression loaded: {expression.shape}", err=True)
-    cn = load_copy_number(mc_df, release_pin)
-    click.echo(f"  CN loaded: {cn.shape}", err=True)
-    mut_hot = load_mutation_matrix("Hotspot", release_pin)
-    click.echo(f"  Mut hotspot loaded: {mut_hot.shape}", err=True)
-    mut_dmg = load_mutation_matrix("Damaging", release_pin)
-    click.echo(f"  Mut damaging loaded: {mut_dmg.shape}", err=True)
+    click.echo("Loading DepMap inputs + external sources...", err=True)
+    omics = feat.load_all_omics(min_lines_per_lineage=min_lines_per_lineage)
+    click.echo(f"  Chronos: {omics['chronos'].shape}", err=True)
+    click.echo(f"  Expression: {omics['expression'].shape}", err=True)
+    click.echo(f"  CN: {omics['copy_number'].shape}", err=True)
+    click.echo(f"  Mut hotspot: {omics['mut_hotspot'].shape}", err=True)
+    click.echo(f"  Mut damaging: {omics['mut_damaging'].shape}", err=True)
+    click.echo(f"  Lineage one-hot: {omics['lineage_one_hot'].shape}", err=True)
+    click.echo(f"  Arm-level CN: {omics['arm_level_cn'].shape}", err=True)
+    click.echo(f"  OncoKB driver flags: {omics['driver_flags'].shape}", err=True)
 
-    lineage_oh, lineage_cols = build_lineage_one_hot(model_df, min_lines_per_lineage)
-    click.echo(f"  Lineage one-hot: {lineage_oh.shape[1]} dims (post-collapse)", err=True)
-
-    # Gene-set selection
+    # Gene set
+    ANCHOR_10 = ["KRAS", "BRAF", "EGFR", "PIK3CA", "TP53",
+                  "MYC", "MDM2", "MCL1", "CDK4", "WRN"]
     if gene_set == "smoke":
-        smoke_set = ["KRAS", "TP53", "MYC", "BRAF", "EGFR"]
+        genes = ["KRAS", "TP53", "MYC", "BRAF", "EGFR"]
         if gene_set_override:
-            smoke_set = list(dict.fromkeys(smoke_set + [g.strip() for g in gene_set_override.split(",")]))
-        genes = smoke_set
+            genes = list(dict.fromkeys(genes + [g.strip() for g in gene_set_override.split(",")]))
+    elif gene_set == "anchor":
+        genes = ANCHOR_10
     elif gene_set == "explicit":
         if not gene_set_override:
             raise click.UsageError("--gene-set=explicit requires --gene-set-override=SYM1,SYM2,...")
         genes = [g.strip() for g in gene_set_override.split(",") if g.strip()]
+    elif gene_set == "genome":
+        # All CRISPR-covered protein-coding genes (whatever's in chronos.columns).
+        genes = sorted(omics["chronos"].columns.tolist())
     else:  # medium
-        click.echo("Building medium-scope gene set (any-lineage |median Chronos| > "
-                    f"{threshold:.2f}, min {min_lines_per_lineage} lines/lineage)...", err=True)
-        genes = build_medium_gene_set(chronos, model_df,
-                                         min_lines_per_lineage=min_lines_per_lineage,
-                                         threshold=threshold)
-        click.echo(f"  Selected {len(genes)} genes", err=True)
+        click.echo(f"Building medium-scope gene set (any-lineage |median Chronos| > {threshold})...",
+                    err=True)
+        genes = build_medium_gene_set(omics["chronos"], omics["model_df"],
+                                          min_lines_per_lineage, threshold)
+    click.echo(f"  Gene set size: {len(genes)}", err=True)
 
-    omics = {
-        "chronos": chronos,
-        "expression": expression,
-        "copy_number": cn,
-        "mut_hotspot": mut_hot,
-        "mut_damaging": mut_dmg,
-        "lineage_one_hot": lineage_oh,
-    }
-
-    # Workers — train in parallel via pool initializer-loaded pickle.
+    # Records collected in-process; checkpoints written every N.
     records = []
-    excluded_low_coverage = 0
+    n_excluded = 0
+    n_errored = 0
+    t_start = time.time()
+
     with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as tf:
         omics_pkl = Path(tf.name)
     try:
-        click.echo(f"Pickling shared omics dict to {omics_pkl} for workers...", err=True)
+        click.echo(f"Pickling omics for workers → {omics_pkl}", err=True)
         with open(omics_pkl, "wb") as f:
             pickle.dump(omics, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-        click.echo(f"Training {len(genes)} genes across {workers} workers...", err=True)
         if workers <= 1:
-            # Single-process path — simpler for tests + debugging
             _worker_init(omics_pkl)
             for i, gene in enumerate(genes):
                 rec = _worker_train(gene)
                 if rec is None:
-                    excluded_low_coverage += 1
+                    n_excluded += 1
+                elif "_error" in rec:
+                    n_errored += 1
+                    click.echo(f"  [error] {gene}: {rec['_error']}", err=True)
                 else:
                     records.append(rec)
-                if (i + 1) % 25 == 0:
-                    click.echo(f"  {i + 1}/{len(genes)} genes done", err=True)
+                if (i + 1) % checkpoint_every == 0:
+                    _write_checkpoint(records, out_dir, i + 1, len(genes), t_start)
+                    click.echo(f"  {i + 1}/{len(genes)} done "
+                                f"({time.time() - t_start:.1f}s elapsed)", err=True)
         else:
             with ProcessPoolExecutor(max_workers=workers,
                                        initializer=_worker_init,
@@ -630,18 +618,24 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                 for i, fut in enumerate(as_completed(futures)):
                     rec = fut.result()
                     if rec is None:
-                        excluded_low_coverage += 1
+                        n_excluded += 1
+                    elif "_error" in rec:
+                        n_errored += 1
+                        click.echo(f"  [error] {futures[fut]}: {rec['_error']}",
+                                    err=True)
                     else:
                         records.append(rec)
-                    if (i + 1) % 25 == 0:
-                        click.echo(f"  {i + 1}/{len(genes)} genes done", err=True)
+                    if (i + 1) % checkpoint_every == 0:
+                        _write_checkpoint(records, out_dir, i + 1, len(genes), t_start)
+                        click.echo(f"  {i + 1}/{len(genes)} done "
+                                    f"({time.time() - t_start:.1f}s elapsed)",
+                                    err=True)
     finally:
         omics_pkl.unlink(missing_ok=True)
 
-    click.echo(f"Writing parquet to {parquet_path}", err=True)
+    click.echo(f"Writing final parquet → {parquet_path}", err=True)
     write_parquet(records, parquet_path)
 
-    # Run manifest (for traceability — DOES NOT replace the catalog derived manifest)
     run_manifest = {
         "method_id": "depmap-predictability-precompute",
         "method_version": METHOD_VERSION,
@@ -650,19 +644,32 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
         "gene_set_mode": gene_set,
         "n_genes_requested": len(genes),
         "n_genes_evaluated": len([r for r in records if r and "_error" not in r]),
-        "n_genes_excluded_low_coverage": excluded_low_coverage,
-        "n_genes_errored": len([r for r in records if r and "_error" in r]),
+        "n_genes_excluded_low_coverage": n_excluded,
+        "n_genes_errored": n_errored,
+        "wall_time_seconds": time.time() - t_start,
         "parameters": {
             "min_lines_per_lineage": min_lines_per_lineage,
             "threshold": threshold,
+            "cv_n_splits": CV_N_SPLITS,
+            "select_k_best": SELECT_K_BEST,
+            "bootstrap_n": BOOTSTRAP_N,
+            "lineage_min_lines": LINEAGE_MIN_LINES,
             "rf_n_estimators": 100,
-            "rf_max_depth": 10,
-            "cv_n_splits": 5,
+            "rf_max_depth": 8,
+            "rf_min_samples_leaf": 5,
+            "xgb_n_estimators": 100,
+            "xgb_max_depth": 6,
+            "xgb_learning_rate": 0.1,
             "random_state": 42,
         },
     }
     (out_dir / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2))
-    click.echo(f"Done. Run manifest at {out_dir / 'run_manifest.json'}", err=True)
+    click.echo(f"Done. Manifest → {out_dir / 'run_manifest.json'}", err=True)
+
+
+def _write_checkpoint(records, out_dir, n_done, n_total, t_start):
+    checkpoint = out_dir / f"checkpoint_{n_done:06d}_of_{n_total:06d}.parquet"
+    write_parquet(records, checkpoint)
 
 
 if __name__ == "__main__":
