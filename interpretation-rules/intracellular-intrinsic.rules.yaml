@@ -880,3 +880,84 @@ rules:
     rationale: |
       Card's underlying data was unreachable (_live_read_error) or the target was absent
       from the substrate. Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
+  # E6 — PRISM compound activity (Card prism-compound-activity)
+  # ============================================================================
+  # Interpretation surface locked 2026-07-01 (plan Q4):
+  #   - clinically_active    → SUPPORTIVE for small_molecule; NEUTRAL for degrader
+  #   - tool_compound_only   → weak-supportive for small_molecule (druggability signal only)
+  #   - weakly_active        → weak-supportive for small_molecule (activity without clinical anchor)
+  #   - no_compounds_found   → NEUTRAL (first-in-class opportunity, NOT a killer)
+  #   - data_unavailable     → insufficient (parquet unreadable / release_pin unknown)
+
+  - rule_id: prism-clinically-active-supportive-sm
+    when:
+      card_id: prism-compound-activity
+      field: prism_activity_class
+      equals: clinically_active
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      An OncologyReference-prioritized compound (proxy for phase_1+ clinical anchor) is
+      annotated as targeting this gene. Compound existence + clinical presence is a real
+      small-molecule tractability signal — chemistry-matter risk is de-risked. Degrader
+      is scored NEUTRAL rather than supportive: small-molecule inhibitor tractability
+      does not imply degrader (E3 ligase recruitment) feasibility; those are independent
+      chemistry problems.
+
+  - rule_id: prism-tool-compound-only-weak-supportive-sm
+    when:
+      card_id: prism-compound-activity
+      field: prism_activity_class
+      equals: tool_compound_only
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      Tool / preclinical compounds exist but no clinical anchor. This validates the target
+      is chemically approachable at bench scale but leaves clinical translatability
+      unresolved. Weak-supportive: better than first-in-class-chemistry risk, worse than
+      an existing clinical scaffold.
+
+  - rule_id: prism-weakly-active-weak-supportive-sm
+    when:
+      card_id: prism-compound-activity
+      field: prism_activity_class
+      equals: weakly_active
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      Tool compounds show measurable pan-cancer viability activity (median LFC < -0.5) but
+      no clinical anchor. Activity signal is present but interpretation is confounded by
+      the tool-vs-clinical gap; treat as chemistry-tractability weak-positive.
+
+  - rule_id: prism-no-compounds-found-neutral
+    when:
+      card_id: prism-compound-activity
+      field: prism_activity_class
+      equals: no_compounds_found
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      No PRISM-annotated compound targets this gene across either OncologyReference 25Q4
+      or Repurposing 24Q2. Locked 2026-07-01: NEUTRAL, NOT killer. Absence of a screened
+      compound is a first-in-class OPPORTUNITY — targets like this are where discovery
+      programs are meant to originate. Killer-classification would conflate "not-yet-drugged"
+      with "undruggable" and mis-eliminate legitimate first-in-class targets.
+
+  - rule_id: prism-data-unavailable-insufficient
+    when:
+      card_id: prism-compound-activity
+      field: prism_activity_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Derived aggregate parquet unreadable (S3 error, unknown release_pin, or parquet
+      corruption). Coverage gap; not used as opposing evidence. Distinct from
+      no_compounds_found — a real class call.

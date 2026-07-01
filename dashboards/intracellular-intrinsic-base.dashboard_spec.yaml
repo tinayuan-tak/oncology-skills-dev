@@ -53,6 +53,8 @@ required_cards:
     version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-06-30
   - card_id: dependency-predictability
     version: ">=1.0.0,<4"        # Card E5 — multi-omics predictability model, activated 2026-07-01
+  - card_id: prism-compound-activity
+    version: ">=1.0.0,<2"        # Card E6 — PRISM small-molecule viability (activated 2026-07-01, plan warm-rolling-bunny)
   - card_id: mutation-hotspot-frequency
     version: ">=1.0.0,<2"
   - card_id: normal-tissue-liability

@@ -40,6 +40,7 @@ synthesis_emphasis:
     - dependency-lineage-selectivity
     - mutation-stratified-dependency      # Reactivated 2026-06-30 — oncogene-addiction biomarker (BRAF-V600E, KRAS-G12C, EGFR-L858R)
     - mutation-hotspot-frequency
+    - prism-compound-activity             # Card E6 — drug existence + activity IS a small-molecule differentiator (activated 2026-07-01)
   secondary_cards:
     - expression-tumor-vs-adjacent
     - expression-dependency-correlation   # Card 4 — biomarker stratification (supports, doesn't define fit)
