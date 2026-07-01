@@ -93,26 +93,25 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
         try:
             import boto3
             from botocore.exceptions import ClientError, NoCredentialsError
+            # Model.csv: shared cached loader — reads once per session across ALL
+            # methods that need it (was 8× per dashboard run pre-refactor).
+            from methods.depmap_common import load_model_csv
+            try:
+                model_df = load_model_csv(release_pin)
+            except FileNotFoundError as e:
+                raise Exception(str(e))
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             crispr_key = "data-catalog/sources/depmap-consortium/dmc-26q1/CRISPRGeneEffect.csv"
-            model_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
 
-            # Read Model.csv first (small, ~922 KB)
-            click.echo(f"  Fetching s3://{bucket}/{model_key}", err=True)
-            model_obj = s3.get_object(Bucket=bucket, Key=model_key)
-            model_df = pd.read_csv(BytesIO(model_obj["Body"].read()))
-
-            # CRISPRGeneEffect.csv is large (564 MB) — stream and filter to target column only.
-            # For iter-2 implementation, read the full file but only the target column.
-            click.echo(f"  Fetching s3://{bucket}/{crispr_key} (target column only)", err=True)
+            # CRISPRGeneEffect.csv is large (564 MB). Single get_object; read full body
+            # and pd.read_csv discovers columns from the header. The earlier code had a
+            # bug where it fetched twice (once for header inspection, once for full body)
+            # which doubled egress; the header-inspection pass was unused.
+            click.echo(f"  Fetching s3://{bucket}/{crispr_key}", err=True)
             crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
-            # First pass: read header to find target column index
-            header_bytes = crispr_obj["Body"].read(8192)
-            # NOTE: full streaming-column-filter not implemented in this iter; reads full file.
-            # Re-fetch since we consumed body bytes for header inspection:
-            crispr_obj_full = s3.get_object(Bucket=bucket, Key=crispr_key)
-            crispr_df = pd.read_csv(BytesIO(crispr_obj_full["Body"].read()))
+            crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))
         except (ImportError,) as e:
             load_errors.append({
                 "_live_read_error": "boto3_not_available",

@@ -68,14 +68,13 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
     try:
         if tpm_path is None:
             import boto3
+            # Model.csv via shared cached loader
+            from methods.depmap_common import load_model_csv
+            model_df = load_model_csv(release_pin)
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             tpm_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv"
-            model_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
-
-            click.echo(f"  Fetching s3://{bucket}/{model_key}", err=True)
-            model_obj = s3.get_object(Bucket=bucket, Key=model_key)
-            model_df = pd.read_csv(BytesIO(model_obj["Body"].read()))
 
             click.echo(f"  Fetching s3://{bucket}/{tpm_key} (target column only)", err=True)
             tpm_obj = s3.get_object(Bucket=bucket, Key=tpm_key)
@@ -356,15 +355,16 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
         scores = df[df["lineage"] == lin]["log2tpm"].values
         xs = np.full(len(scores), i)
         jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
-        ax.scatter(scores, xs + jitter, alpha=0.5, s=8, color="#0a2540")
-        # Median marker
-        ax.scatter([np.median(scores)], [i], color="#cf2828", s=30, marker="|", zorder=5)
+        ax.scatter(scores, xs + jitter, alpha=0.5, s=8, color=pal.get_lineage_color(lin))
+        ax.scatter([np.median(scores)], [i], color="#B22222", s=30, marker="|", zorder=5)
     ax.axvline(1.0, color="#f0a020", linestyle="--", linewidth=1)
     ax.axvline(5.0, color="#cf2828", linestyle="--", linewidth=1)
     ax.set_yticks(range(len(lineages_ordered)))
     ax.set_yticklabels(lineages_ordered, fontsize=8)
+    # Invert y-axis so highest-median lineage is on top (matches ordered-by-median-desc semantics)
+    ax.invert_yaxis()
     ax.set_xlabel("log2(TPM+1)")
-    ax.set_title(f"{target_symbol} — per-lineage expression (n≥5; ordered by median)")
+    ax.set_title(f"{target_symbol} — per-lineage expression (n≥5; ordered by median, top=highest)")
     fig.tight_layout()
     out_path = out_dir / "figure_lineage_strip_expression.svg"
     fig.savefig(out_path)

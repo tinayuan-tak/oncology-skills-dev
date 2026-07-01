@@ -71,13 +71,13 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     if crispr_path is None:
         try:
             import boto3
+            # Model.csv via shared cached loader
+            from methods.depmap_common import load_model_csv
+            model_df = load_model_csv(release_pin)
+
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             crispr_key = "data-catalog/sources/depmap-consortium/dmc-26q1/CRISPRGeneEffect.csv"
-            model_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
-            click.echo(f"  Fetching s3://{bucket}/{model_key}", err=True)
-            model_obj = s3.get_object(Bucket=bucket, Key=model_key)
-            model_df = pd.read_csv(BytesIO(model_obj["Body"].read()))
             click.echo(f"  Fetching s3://{bucket}/{crispr_key}", err=True)
             crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
             crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))

@@ -135,11 +135,11 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[list, dict
     load_errors = []
     try:
         import boto3
-        s3 = boto3.client("s3")
+        # Shared cached Model.csv loader
+        from methods.depmap_common import load_model_csv
+        model_df = load_model_csv(release_pin)
 
-        click.echo(f"  Fetching s3://{DEPMAP_S3_BUCKET}/{DEPMAP_S3_PREFIX}/Model.csv", err=True)
-        model_obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=f"{DEPMAP_S3_PREFIX}/Model.csv")
-        model_df = pd.read_csv(BytesIO(model_obj["Body"].read()))
+        s3 = boto3.client("s3")
 
         click.echo(f"  Fetching s3://{DEPMAP_S3_BUCKET}/{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv", err=True)
         maf_obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=f"{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv")

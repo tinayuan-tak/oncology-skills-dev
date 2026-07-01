@@ -138,10 +138,9 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
             sample_info_df = pd.read_csv(sample_info_path)
 
         if model_path is None:
-            model_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
-            click.echo(f"  Fetching s3://{bucket}/{model_key}", err=True)
-            obj = s3.get_object(Bucket=bucket, Key=model_key)
-            model_df = pd.read_csv(BytesIO(obj["Body"].read()))
+            # Shared cached Model.csv loader — process-wide LRU
+            from methods.depmap_common import load_model_csv
+            model_df = load_model_csv(release_pin)
         else:
             model_df = pd.read_csv(model_path)
     except ImportError as e:

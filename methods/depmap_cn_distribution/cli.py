@@ -99,18 +99,11 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
         s3 = boto3.client("s3")
         bucket = "onc-compbio"
 
-        # Always need Model.csv for ModelID -> lineage AND ModelCondition.csv for
-        # the ModelConditionID -> ModelID bridge (the CN matrix is MC-ID-indexed).
-        # Model.csv (26Q1) does NOT carry ModelConditionID — it's in a separate file.
-        click.echo(f"  Fetching s3://{bucket}/data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv", err=True)
-        model_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
-        model_obj = s3.get_object(Bucket=bucket, Key=model_key)
-        model_df = pd.read_csv(BytesIO(model_obj["Body"].read()))
-
-        click.echo(f"  Fetching s3://{bucket}/data-catalog/sources/depmap-consortium/dmc-26q1/ModelCondition.csv", err=True)
-        mc_key = "data-catalog/sources/depmap-consortium/dmc-26q1/ModelCondition.csv"
-        mc_obj = s3.get_object(Bucket=bucket, Key=mc_key)
-        model_condition_df = pd.read_csv(BytesIO(mc_obj["Body"].read()))
+        # Model.csv + ModelCondition.csv via shared cached loaders. Model.csv (26Q1)
+        # does NOT carry ModelConditionID — the bridge lives in ModelCondition.csv.
+        from methods.depmap_common import load_model_csv, load_model_condition_csv
+        model_df = load_model_csv(release_pin)
+        model_condition_df = load_model_condition_csv(release_pin)
 
         # Try WES first (read entire matrix; could optimize column-filtering later)
         wes_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneMC_WES.csv"
@@ -469,17 +462,18 @@ def emit_lineage_strip(cn_by_model: dict, model_metadata: dict, target_symbol: s
         scores = df[df["lineage"] == lin]["cn"].values
         below_cap = scores[scores <= x_max]
         above_cap = scores[scores > x_max]
+        lineage_color = pal.get_lineage_color(lin)
         jitter_below = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(below_cap))
         ax.scatter(below_cap, np.full(len(below_cap), i) + jitter_below,
-                   alpha=0.5, s=8, color="#0a2540")
+                   alpha=0.5, s=8, color=lineage_color)
         if len(above_cap) > 0:
             jitter_above = np.random.RandomState(99 + i).uniform(-0.15, 0.15, size=len(above_cap))
             # Plot at the cap edge using triangle markers — signals "this is clipped"
             ax.scatter(np.full(len(above_cap), x_max - 0.05),
                        np.full(len(above_cap), i) + jitter_above,
-                       marker=">", s=20, color="#cf2828", alpha=0.7, edgecolor="white", linewidth=0.3)
-        # Median marker (red |)
-        ax.scatter([np.median(scores)], [i], color="#cf2828", s=30, marker="|", zorder=5)
+                       marker=">", s=20, color=lineage_color, alpha=0.9, edgecolor="white", linewidth=0.3)
+        # Median marker (dark red |) — distinct from lineage color so it stays legible
+        ax.scatter([np.median(scores)], [i], color="#B22222", s=30, marker="|", zorder=5)
     ax.axvline(SHALLOW_DEL, color="#f0a020", linestyle="--", linewidth=1)
     ax.axvline(FOCAL_AMP, color="#cf2828", linestyle="--", linewidth=1)
     ax.axvline(1.0, color="#666666", linestyle=":", linewidth=1)
