@@ -1,0 +1,102 @@
+# Card E5 — DEPENDENCY PREDICTABILITY  (cell-line cohort, RF on multi-omics + lineage)
+#
+# Per-target answer to: "How well can {target}'s Chronos dependency be predicted
+# from its OWN multi-omics (expression / CN / mutation) and lineage context?"
+#
+# INTERPRETATION (the descriptive vocabulary IS the biology):
+#   own_omics_driven   → high R² with target-own omics dominating. Biomarker-anchored
+#                        dependency: a patient-selection hypothesis is available
+#                        (e.g. mutation hotspot → response).
+#   lineage_driven     → high R² but lineage one-hots dominate. Context-determined
+#                        dependency: tissue matters; the standard omics axes don't
+#                        give an extra biomarker beyond indication.
+#   weakly_predictable → moderate R² (0.3 ≤ R² < 0.5). Some signal but not enough
+#                        for a confident biomarker call.
+#   unpredictable      → R² < 0.3. Standard feature set (own omics + lineage)
+#                        doesn't explain Chronos. NOT a kill signal — flags
+#                        novel-biology candidates worth a broader feature scan.
+#   data_unavailable   → target absent from v1 medium-scope precompute.
+#
+# Data source: derived parquet
+#   s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet
+# Frozen artifact produced by methods/depmap_predictability_precompute/ — see that
+# method's docstring for training procedure + the catalog derived manifest.
+#
+# DISTINCT FROM: E1 (raw Chronos distribution), E2 (lineage selectivity stat).
+# This card is meta-level: it asks how well STANDARD features explain Chronos,
+# treating Chronos itself as the outcome.
+
+card_id: dependency-predictability
+version: 1.0.0
+question: "How well can {target.symbol}'s Chronos dependency be predicted from its own multi-omics (expression / CN / mutation) and lineage? Is the dependency biomarker-anchored or context-determined?"
+
+applies_when:
+  - "context.data_sources.depmap_predictability_available == true"
+
+required_inputs:
+  - product_id: depmap-predictability
+    release_pin: "26q1-v1"
+
+methods:
+  - call: depmap-predictability
+    args:
+      target: "{target.symbol}"
+      release_pin: "26q1-v1"
+
+outputs:
+  summary_fields:
+    - pred_n_cell_lines_evaluated     # n cells with all features present (complete-case)
+    - pred_r2                         # out-of-fold Pearson² R² (5-fold CV)
+    - pred_top_features               # ordered list of {feature, feature_class, importance}
+    - pred_dominant_feature           # top-1 feature name (e.g. 'own_mut_hotspot', 'lineage_Bowel')
+    - pred_dominant_feature_class     # 'own_expression' | 'own_copy_number' | 'own_mut_hotspot' |
+                                       # 'own_mut_damaging' | 'lineage' | 'unpredictable' | 'data_unavailable'
+    - predictability_class            # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+
+  summary_fields_vocabulary:
+    predictability_class:
+      - own_omics_driven              # R² ≥ 0.5 and top feature is target-own omics
+      - lineage_driven                # R² ≥ 0.5 and top feature is a lineage one-hot
+      - weakly_predictable            # 0.3 ≤ R² < 0.5
+      - unpredictable                 # R² < 0.3
+      - data_unavailable              # target not in v1 precompute
+    pred_dominant_feature_class:
+      - own_expression
+      - own_copy_number
+      - own_mut_hotspot
+      - own_mut_damaging
+      - lineage
+      - unpredictable
+      - data_unavailable
+
+  figures:
+    - id: feature_importance_bar
+      type: horizontal_bar
+      description: "Horizontal bar of the top-5 RandomForest feature importances, colored by feature_class (own_expression=Takeda navy, own_cn=light blue, own_mut_*=red/orange, lineage=gray). Reads as: dominant navy/red bar = biomarker-anchored; dominant gray = context-determined; small flat bars = unpredictable."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+
+thresholds:
+  r2_high: 0.5                        # R² ≥ this → strong predictability (own_omics_driven or lineage_driven)
+  r2_moderate: 0.3                    # 0.3 ≤ R² < 0.5 → weakly_predictable
+  min_cell_lines: 100                 # genes with < 100 complete-case cell lines excluded from precompute
+  cv_n_splits: 5                      # 5-fold CV; Pearson² R² reported on out-of-fold predictions
+  rf_n_estimators: 100
+  rf_max_depth: 10
+
+warning_predicates:
+  - warning_id: predictability_low_cell_line_count
+    if: "pred_n_cell_lines_evaluated < 200"
+    message: "Predictability fit used fewer than 200 cell lines — R² estimate has higher variance; interpret class call with caution."
+  - warning_id: predictability_lineage_dominated_high_r2
+    if: "predictability_class == 'lineage_driven' and pred_r2 >= 0.7"
+    message: "Lineage one-hots dominate at very high R² — strongly context-determined. Patient-selection beyond indication unlikely from standard omics; consider tissue-specific co-factors."
+
+caveats:
+  - "v1 feature set is target-own omics + lineage one-hot only. Cross-gene paralog / co-essentiality / network features are excluded by design and queued for v2."
+  - "predictability_class is DESCRIPTIVE — `unpredictable` means standard features don't explain Chronos, NOT that the dependency is artefactual. Pair with E1/E2 to confirm the dependency itself is real before discounting."
+  - "Feature importances come from a refit-on-all-data model; the R² is from 5-fold CV. The two pass through the same training procedure but are not mutually constrained — high R² with degenerate importances (one feature 0.99, rest 0.0) signals an overdetermined fit that should be inspected."
+  - "Medium-scope v1 covers ~500 dependency-mappable genes (any OncotreeLineage with n_lines ≥ 5 has |median Chronos| > 0.3). Targets outside this set get predictability_class=data_unavailable; v2 will widen to full genome."
+  - "lineage_OTHER one-hot collapses lineages with fewer than 5 cell lines. A target whose dominant feature is `lineage_OTHER` is read as lineage-driven but with reduced biological specificity — treat with the same caveat as the lineage_dominated_high_r2 warning."
+
+schema_version: 1
