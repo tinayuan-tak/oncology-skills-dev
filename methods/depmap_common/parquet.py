@@ -179,6 +179,31 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
     return table.to_pandas()
 
 
+@lru_cache(maxsize=1)
+def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
+    """Return the count of distinct ModelIDs in the MAF (denominator for mutation rate).
+
+    Reads only the ModelID column across the whole MAF parquet and takes nunique.
+    ~1500 KB (single column, ~1.5M rows, dictionary-encoded) instead of parsing the
+    full 738 MB CSV. Cached (maxsize=1) since the denominator is a per-release
+    constant, not per-target.
+    """
+    import pyarrow.parquet as pq
+    local_path = _fetch_parquet("OmicsSomaticMutations.parquet")
+    # Also apply IsDefaultEntryForModel filter to match the CSV path's semantics
+    filters = [("IsDefaultEntryForModel", "=", "Yes")]
+    try:
+        table = pq.read_table(local_path, columns=["ModelID"], filters=filters)
+    except Exception:
+        # Filter pushdown on a categorical column may fail on some pyarrow versions;
+        # fall back to reading + filtering in pandas
+        table = pq.read_table(local_path, columns=["ModelID", "IsDefaultEntryForModel"])
+        df = table.to_pandas()
+        df = df[df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])]
+        return int(df["ModelID"].nunique())
+    return int(table.column("ModelID").to_pandas().nunique())
+
+
 def get_full_matrix_path(filename: str) -> Path:
     """Return the local-cached path for a parquet filename, downloading from S3
     if not already cached. Public entrypoint for consumers that need the FULL

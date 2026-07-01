@@ -88,17 +88,21 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             click.echo(f"  Using local DepMap cache at {fallback_dir}", err=True)
             break
 
-    # Model.csv: shared cached loader — reads once per session across ALL methods
-    from methods.depmap_common import load_model_csv
-    try:
-        model_df = load_model_csv(release_pin)
-    except FileNotFoundError as e:
-        load_errors.append({
-            "_live_read_error": "s3_read_failed",
-            "detail": str(e),
-            "remediation": "Ensure AWS credentials are set and bucket onc-compbio is accessible.",
-        })
-        return {}, {}, load_errors
+    # Model.csv: prefer local-cache Model.csv when a local-cache CRISPR was
+    # found (test-fixture consistency); otherwise use the shared cached S3 loader.
+    if model_path is not None:
+        model_df = pd.read_csv(model_path)
+    else:
+        from methods.depmap_common import load_model_csv
+        try:
+            model_df = load_model_csv(release_pin)
+        except FileNotFoundError as e:
+            load_errors.append({
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+                "remediation": "Ensure AWS credentials are set and bucket onc-compbio is accessible.",
+            })
+            return {}, {}, load_errors
 
     # === TIER-2 PATH: try parquet derived product first (100-500× faster than CSV) ===
     # get_chronos_column reads only ModelID + target column from the parquet at

@@ -90,14 +90,59 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
             click.echo(f"  Using local DepMap cache at {fallback_dir}", err=True)
             break
 
-    if crispr_path is None:
-        # S3 path
+    # Model.csv: prefer local-cache Model.csv when local-cache CRISPR was found
+    if model_path is not None:
+        model_df = pd.read_csv(model_path)
+    else:
         try:
-            import boto3
-            # Model.csv via shared cached loader
             from methods.depmap_common import load_model_csv
             model_df = load_model_csv(release_pin)
+        except (FileNotFoundError, ImportError) as e:
+            load_errors.append({
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+            })
+            return {}, {}, {}, load_errors
 
+    # === TIER-2 PATH: parquet derived products (dual: CRISPR + TPM columns) ===
+    if crispr_path is None:
+        try:
+            from methods.depmap_common.parquet import get_chronos_column, get_tpm_column
+            crispr_target_df = get_chronos_column(target_symbol, release_pin)
+            tpm_target_df = get_tpm_column(target_symbol, release_pin)
+            if crispr_target_df is not None and tpm_target_df is not None:
+                # Both columns available via parquet → build chronos_by_model + tpm_by_model
+                # directly and return early.
+                chronos_col = next((c for c in crispr_target_df.columns if c != "ModelID"), None)
+                tpm_col = next((c for c in tpm_target_df.columns
+                                  if c not in ("ModelID", "IsDefaultEntryForModel")), None)
+                if chronos_col and tpm_col:
+                    chronos_by_model = {}
+                    for _, row in crispr_target_df.iterrows():
+                        v = row[chronos_col]
+                        if pd.notna(v):
+                            chronos_by_model[row["ModelID"]] = float(v)
+                    # TPM: apply IsDefaultEntryForModel filter
+                    tpm_filt = tpm_target_df
+                    if "IsDefaultEntryForModel" in tpm_filt.columns:
+                        tpm_filt = tpm_filt[tpm_filt["IsDefaultEntryForModel"].isin(
+                            [True, "Yes", "yes", "true", "TRUE"])]
+                    tpm_by_model = {}
+                    for _, row in tpm_filt.iterrows():
+                        v = row[tpm_col]
+                        if pd.notna(v):
+                            tpm_by_model[row["ModelID"]] = float(v)
+                    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+                    model_metadata = {row[model_id_col]: row.to_dict()
+                                       for _, row in model_df.iterrows()}
+                    return chronos_by_model, tpm_by_model, model_metadata, load_errors
+        except (FileNotFoundError, ImportError):
+            pass  # fall through to CSV
+
+    if crispr_path is None:
+        # === LEGACY CSV PATH ===
+        try:
+            import boto3
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             tpm_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv"
@@ -107,12 +152,8 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
             crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
             crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))
 
-            # TPM: locate target column from header, then re-fetch with usecols filter.
-            # Memory-efficient: full file is ~400 MB; we read 3 columns only.
             click.echo(f"  Fetching s3://{bucket}/{tpm_key} (target column only)", err=True)
             tpm_obj = s3.get_object(Bucket=bucket, Key=tpm_key)
-            # Read entire file (S3 streaming makes usecols-only impractical via boto3 BytesIO).
-            # In production we'd want a multi-pass read or pyarrow streaming.
             tpm_df = pd.read_csv(BytesIO(tpm_obj["Body"].read()))
         except ImportError as e:
             load_errors.append({
@@ -129,7 +170,6 @@ def load_depmap_files_for_card4(release_pin: str, target_symbol: str) -> tuple[d
             })
             return {}, {}, {}, load_errors
     else:
-        model_df = pd.read_csv(model_path)
         crispr_df = pd.read_csv(crispr_path)
         # For local-cache path we can use pd.read_csv with usecols since file is on disk.
         # First peek at header for target column.

@@ -96,41 +96,61 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
 
     try:
         import boto3
-        s3 = boto3.client("s3")
-        bucket = "onc-compbio"
-
         # Model.csv + ModelCondition.csv via shared cached loaders. Model.csv (26Q1)
         # does NOT carry ModelConditionID — the bridge lives in ModelCondition.csv.
         from methods.depmap_common import load_model_csv, load_model_condition_csv
         model_df = load_model_csv(release_pin)
         model_condition_df = load_model_condition_csv(release_pin)
 
-        # Try WES first (read entire matrix; could optimize column-filtering later)
-        wes_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneMC_WES.csv"
-        click.echo(f"  Fetching s3://{bucket}/{wes_key}", err=True)
-        wes_obj = s3.get_object(Bucket=bucket, Key=wes_key)
-        wes_df = pd.read_csv(BytesIO(wes_obj["Body"].read()))
-
-        target_col = _find_target_col(wes_df.columns, target_symbol)
-        assay_used = "wes"
-        chosen_df = wes_df
-
-        if target_col is None:
-            # Fall back to WGS
-            wgs_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneWGS.csv"
-            click.echo(f"  Target {target_symbol!r} absent from WES; falling back to s3://{bucket}/{wgs_key}", err=True)
-            wgs_obj = s3.get_object(Bucket=bucket, Key=wgs_key)
-            wgs_df = pd.read_csv(BytesIO(wgs_obj["Body"].read()))
-            target_col = _find_target_col(wgs_df.columns, target_symbol)
+        # === TIER-2 PATH: parquet derived product (100-500× faster than CSV) ===
+        try:
+            from methods.depmap_common.parquet import get_cn_column_wes, get_cn_column_wgs
+            wes_df = get_cn_column_wes(target_symbol, release_pin)
+            if wes_df is not None:
+                assay_used = "wes"
+                chosen_df = wes_df
+                target_col = next((c for c in wes_df.columns
+                                     if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None)
+            else:
+                wgs_df = get_cn_column_wgs(target_symbol, release_pin)
+                if wgs_df is not None:
+                    click.echo(f"  Target {target_symbol!r} absent from WES parquet; using WGS", err=True)
+                    assay_used = "wgs"
+                    chosen_df = wgs_df
+                    target_col = next((c for c in wgs_df.columns
+                                         if c not in ("ModelConditionID", "IsDefaultEntryForMC")), None)
+                else:
+                    load_errors.append({
+                        "_live_read_error": "target_not_in_cn_panel",
+                        "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
+                        "remediation": "Confirm HGNC symbol spelling; this gene may not be captured by either CN platform.",
+                    })
+                    return {}, {}, "data_unavailable", load_errors
+        except (FileNotFoundError, ImportError):
+            # Parquet not available → fall through to CSV path
+            s3 = boto3.client("s3")
+            bucket = "onc-compbio"
+            wes_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneMC_WES.csv"
+            click.echo(f"  Fetching s3://{bucket}/{wes_key}", err=True)
+            wes_obj = s3.get_object(Bucket=bucket, Key=wes_key)
+            wes_df = pd.read_csv(BytesIO(wes_obj["Body"].read()))
+            target_col = _find_target_col(wes_df.columns, target_symbol)
+            assay_used = "wes"
+            chosen_df = wes_df
             if target_col is None:
-                load_errors.append({
-                    "_live_read_error": "target_not_in_cn_panel",
-                    "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
-                    "remediation": "Confirm HGNC symbol spelling; this gene may not be captured by either CN platform.",
-                })
-                return {}, {}, "data_unavailable", load_errors
-            assay_used = "wgs"
-            chosen_df = wgs_df
+                wgs_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneWGS.csv"
+                click.echo(f"  Target {target_symbol!r} absent from WES; falling back to WGS", err=True)
+                wgs_obj = s3.get_object(Bucket=bucket, Key=wgs_key)
+                wgs_df = pd.read_csv(BytesIO(wgs_obj["Body"].read()))
+                target_col = _find_target_col(wgs_df.columns, target_symbol)
+                if target_col is None:
+                    load_errors.append({
+                        "_live_read_error": "target_not_in_cn_panel",
+                        "detail": f"Target {target_symbol!r} not found in WES or WGS gene-level CN matrices",
+                    })
+                    return {}, {}, "data_unavailable", load_errors
+                assay_used = "wgs"
+                chosen_df = wgs_df
     except ImportError as e:
         load_errors.append({"_live_read_error": "boto3_not_available", "detail": str(e)})
         return {}, {}, "data_unavailable", load_errors

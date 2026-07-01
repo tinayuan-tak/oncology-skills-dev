@@ -68,13 +68,45 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             click.echo(f"  Using local DepMap cache at {fallback_dir}", err=True)
             break
 
+    # Model.csv: prefer the local-cache Model.csv when a local-cache CRISPR was
+    # found (test-fixture consistency); otherwise use the shared cached S3 loader.
+    if model_path is not None:
+        model_df = pd.read_csv(model_path)
+    else:
+        from methods.depmap_common import load_model_csv
+        try:
+            model_df = load_model_csv(release_pin)
+        except FileNotFoundError as e:
+            load_errors.append({
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+            })
+            return {}, {}, load_errors
+
+    # === TIER-2 PATH: parquet derived product (100-500× faster than CSV) ===
+    if crispr_path is None:
+        try:
+            from methods.depmap_common.parquet import get_chronos_column
+            target_df = get_chronos_column(target_symbol, release_pin)
+            if target_df is not None:
+                target_col = next((c for c in target_df.columns if c != "ModelID"), None)
+                if target_col:
+                    chronos_by_model = {}
+                    for _, row in target_df.iterrows():
+                        val = row[target_col]
+                        if pd.notna(val):
+                            chronos_by_model[row["ModelID"]] = float(val)
+                    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+                    model_metadata = {row[model_id_col]: row.to_dict()
+                                       for _, row in model_df.iterrows()}
+                    return chronos_by_model, model_metadata, load_errors
+        except (FileNotFoundError, ImportError):
+            pass  # fall through to CSV
+
+    # === LEGACY CSV PATH (fallback) ===
     if crispr_path is None:
         try:
             import boto3
-            # Model.csv via shared cached loader
-            from methods.depmap_common import load_model_csv
-            model_df = load_model_csv(release_pin)
-
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             crispr_key = "data-catalog/sources/depmap-consortium/dmc-26q1/CRISPRGeneEffect.csv"
@@ -96,7 +128,6 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             })
             return {}, {}, load_errors
     else:
-        model_df = pd.read_csv(model_path)
         crispr_df = pd.read_csv(crispr_path)
 
     # Extract target column

@@ -65,13 +65,51 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
             click.echo(f"  Using local DepMap cache at {fallback}", err=True)
             break
 
+    # Model.csv: prefer local-cache Model.csv when a local-cache TPM was
+    # found (test-fixture consistency); otherwise use the shared cached S3 loader.
+    if model_path is not None:
+        model_df = pd.read_csv(model_path)
+    else:
+        try:
+            from methods.depmap_common import load_model_csv
+            model_df = load_model_csv(release_pin)
+        except (FileNotFoundError, ImportError) as e:
+            load_errors.append({
+                "_live_read_error": "s3_read_failed",
+                "detail": str(e),
+            })
+            return {}, {}, load_errors
+
+    # === TIER-2 PATH: parquet derived product (100-500× faster than CSV) ===
+    if tpm_path is None:
+        try:
+            from methods.depmap_common.parquet import get_tpm_column
+            target_df = get_tpm_column(target_symbol, release_pin)
+            if target_df is not None:
+                # Identify target column (SYMBOL (entrez_id) format)
+                target_col = next((c for c in target_df.columns
+                                     if c not in ("ModelID", "IsDefaultEntryForModel")), None)
+                if target_col:
+                    # IsDefaultEntryForModel filter
+                    if "IsDefaultEntryForModel" in target_df.columns:
+                        mask = target_df["IsDefaultEntryForModel"].isin([True, "Yes", "yes", "true", "TRUE"])
+                        target_df = target_df[mask]
+                    tpm_by_model = {}
+                    for _, row in target_df.iterrows():
+                        val = row[target_col]
+                        if pd.notna(val):
+                            tpm_by_model[row["ModelID"]] = float(val)
+                    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+                    model_metadata = {row[model_id_col]: row.to_dict()
+                                       for _, row in model_df.iterrows()}
+                    return tpm_by_model, model_metadata, load_errors
+        except (FileNotFoundError, ImportError):
+            pass  # fall through to CSV
+
+    # === LEGACY CSV PATH (fallback) ===
     try:
         if tpm_path is None:
             import boto3
-            # Model.csv via shared cached loader
-            from methods.depmap_common import load_model_csv
-            model_df = load_model_csv(release_pin)
-
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
             tpm_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv"
@@ -80,7 +118,6 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
             tpm_obj = s3.get_object(Bucket=bucket, Key=tpm_key)
             tpm_df = pd.read_csv(BytesIO(tpm_obj["Body"].read()))
         else:
-            model_df = pd.read_csv(model_path)
             tpm_df = pd.read_csv(tpm_path)
     except ImportError as e:
         load_errors.append({
@@ -114,7 +151,6 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
     if "ModelID" in tpm_df.columns:
         id_col = "ModelID"
     else:
-        # Fallback for older releases where the matrix was cell-line-indexed directly.
         id_col = tpm_df.columns[0]
 
     # IsDefaultEntryForModel filter — string "Yes" / boolean True in 26Q1

@@ -117,14 +117,24 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
         s3 = boto3.client("s3")
         bucket = "onc-compbio"
 
+        # === TIER-2 PATH: parquet derived product (filter pushdown by gene_symbol) ===
+        target_row_dict = None
         if rnai_path is None:
+            try:
+                from methods.depmap_common.parquet import get_demeter_row
+                target_row_dict = get_demeter_row(target_symbol, release_pin)
+                # target_row_dict is {ccle_id: score} or None if target absent
+            except (FileNotFoundError, ImportError):
+                target_row_dict = None  # fall through to CSV
+
+        if target_row_dict is not None:
+            # Skip the rest of the CSV-parsing path; use the dict directly
+            rnai_df = None
+        elif rnai_path is None:
             rnai_key = "data-catalog/sources/depmap-consortium/dmc-26q1-rnai/D2_combined_gene_dep_scores.csv"
             click.echo(f"  Fetching s3://{bucket}/{rnai_key}", err=True)
             obj = s3.get_object(Bucket=bucket, Key=rnai_key)
-            # The D2 file is 161 MB but we only need the row matching the target gene.
-            # Stream + filter by index. pandas can't natively do "read only matching rows"
-            # so we read the whole file once; it's an in-memory operation (~600 MB peak
-            # for the float matrix). Acceptable for live-mode.
+            # Legacy CSV path: read 161 MB and filter by gene row-label
             rnai_df = pd.read_csv(BytesIO(obj["Body"].read()), index_col=0, na_values=["NA", ""])
         else:
             rnai_df = pd.read_csv(rnai_path, index_col=0, na_values=["NA", ""])
@@ -158,13 +168,18 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
         })
         return {}, {}, load_errors
 
-    # === 3. Find target gene row in D2_combined ===
-    target_row = None
-    for idx_label in rnai_df.index:
-        symbol = _parse_gene_symbol(idx_label)
-        if symbol == target_symbol:
-            target_row = rnai_df.loc[idx_label]
-            break
+    # === 3. Extract target gene row ===
+    # Parquet path already produced target_row_dict ({ccle_id: score}); CSV path
+    # needs to search the DataFrame's index for the gene label.
+    if target_row_dict is not None:
+        target_row = target_row_dict
+    else:
+        target_row = None
+        for idx_label in rnai_df.index:
+            symbol = _parse_gene_symbol(idx_label)
+            if symbol == target_symbol:
+                target_row = rnai_df.loc[idx_label].to_dict()
+                break
     if target_row is None:
         load_errors.append({
             "_live_read_error": "target_not_in_rnai_panel",

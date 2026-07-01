@@ -133,17 +133,38 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[list, dict
     """
     import pandas as pd
     load_errors = []
+    # Shared cached Model.csv loader
+    from methods.depmap_common import load_model_csv
+    try:
+        model_df = load_model_csv(release_pin)
+    except FileNotFoundError as e:
+        load_errors.append({"_live_read_error": "s3_read_failed", "detail": str(e)})
+        return [], {}, 0, load_errors
+
+    # === TIER-2 PATH: parquet with HugoSymbol filter pushdown (738 MB CSV → <1 MB) ===
+    try:
+        from methods.depmap_common.parquet import get_maf_gene_rows, get_maf_n_cell_lines_total
+        target_df = get_maf_gene_rows(target_symbol, release_pin)
+        n_cell_lines_total = get_maf_n_cell_lines_total(release_pin)
+        # Filter to default entries only (match CSV path semantics)
+        target_df = target_df[target_df["IsDefaultEntryForModel"].isin(
+            [True, "Yes", "yes", "true", "TRUE"])]
+        target_rows = target_df.to_dict(orient="records")
+        # Model metadata via shared cache
+        model_metadata = {}
+        if "ModelID" in model_df.columns:
+            model_metadata = {row["ModelID"]: row.to_dict() for _, row in model_df.iterrows()}
+        return target_rows, model_metadata, n_cell_lines_total, load_errors
+    except (FileNotFoundError, ImportError):
+        pass  # fall through to CSV path below
+
+    # === LEGACY CSV PATH ===
     try:
         import boto3
-        # Shared cached Model.csv loader
-        from methods.depmap_common import load_model_csv
-        model_df = load_model_csv(release_pin)
-
         s3 = boto3.client("s3")
 
         click.echo(f"  Fetching s3://{DEPMAP_S3_BUCKET}/{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv", err=True)
         maf_obj = s3.get_object(Bucket=DEPMAP_S3_BUCKET, Key=f"{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv")
-        # Read only the columns we need to keep memory under control
         maf_df = pd.read_csv(
             BytesIO(maf_obj["Body"].read()),
             usecols=["ModelID", "HugoSymbol", "VariantType", "VariantInfo", "ProteinChange",
