@@ -376,28 +376,36 @@ def _emit_card3_mutation_stratified_dependency(
 def _emit_dependency_predictability(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit E5 dependency-predictability feature-importance bar.
+    """Emit E5 dependency-predictability figures (v2).
+
+    Two panels:
+      1. feature_importance_bar (primary): top-10 SHAP-ranked features colored
+         by feature_class. Title carries r² + bootstrap CI + class label + any
+         RF↔XGB divergence caveat.
+      2. lineage_predictability: per-lineage r² horizontal bar with within-
+         lineage top feature. DepMap high-confidence floor (r²=0.16) marked.
 
     Unlike E1-E4 emitters, this one does NOT reload data — E5 is a THIN LOOKUP
     card and the summary dict already carries the per-target row from the
-    derived parquet (pred_top_features, pred_r2, etc.). We just call the
-    method's emit helper directly on the summary.
+    v2 derived parquet. We call the method's emit helpers directly.
 
-    If summary carries _live_read_error or data_unavailable, the emit helper
-    still produces a placeholder SVG explaining the gap — we keep that figure
-    in the returned descriptor list so the dashboard shows an explanation
-    rather than a missing cell.
+    On _live_read_error / data_unavailable, the emit helpers produce placeholder
+    SVGs explaining the gap; we still return figure descriptors so the dashboard
+    shows an explanatory cell instead of nothing.
     """
     _ensure_methods_path()
     from methods.depmap_predictability import cli as e5cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e5cli.emit_feature_importance_bar(summary, target, out_dir, TARGET_CONTRACTS)
-    parquet_uri = e5cli.RELEASE_PIN_TO_PARQUET.get("26q1-v1", "<unset>")
-    e5cli.emit_manifest(target, "26q1-v1", summary, out_dir, parquet_uri)
+    e5cli.emit_lineage_conditional_panel(summary, target, out_dir, TARGET_CONTRACTS)
+    parquet_uri = e5cli.RELEASE_PIN_TO_PARQUET.get("26q1-v2", "<unset>")
+    e5cli.emit_manifest(target, "26q1-v2", summary, out_dir, parquet_uri)
     return [
         {"id": "feature_importance_bar", "path": "figure_feature_importance_bar.svg",
          "type": "horizontal_bar_feature_importance", "primary": True},
+        {"id": "lineage_predictability", "path": "figure_lineage_predictability.svg",
+         "type": "horizontal_bar_lineage_predictability", "primary": False},
     ]
 
 
