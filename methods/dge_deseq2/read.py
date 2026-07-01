@@ -88,10 +88,13 @@ def read_dge_gene_row(
         raw["_data_s3_uri"] = s3_uri
         return raw
 
-    # Normalize to card-spec convention
+    log2_fc = raw.get("log2FoldChange")
+    q_value = raw.get("padj")
+
+    # Normalize to card-spec convention (v2)
     return {
-        "log2_fc": raw.get("log2FoldChange"),
-        "q_value": raw.get("padj"),
+        "log2_fc": log2_fc,
+        "q_value": q_value,
         "tumor_mean_tpm": None,  # not in this product
         "adjacent_mean_tpm": None,
         "n_tumor": raw.get("n_tumor"),
@@ -100,6 +103,38 @@ def read_dge_gene_row(
         "is_significant_provider_call": raw.get("is_significant"),
         "is_actionable_provider_call": raw.get("is_actionable"),
         "is_upregulated_provider_call": raw.get("is_upregulated"),
+        # Card v2 descriptive categorical — drives Tier-2 rules directly
+        "expression_call_class": _classify_expression_call(log2_fc, q_value),
         "_data_source": manifest_id,
         "_data_s3_uri": s3_uri,
     }
+
+
+def _classify_expression_call(log2_fc, q_value) -> str:
+    """Map (log2_fc, q_value) → expression_call_class categorical.
+
+    Vocabulary matches target-contracts/cards/expression-tumor-vs-adjacent.card.yaml
+    summary_fields_vocabulary.expression_call_class. Tier-2 rules in
+    interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
+
+    Thresholds identical to the pre-v2 interpretation_hints block:
+      strong_upregulation:  q < 0.05 AND log2_fc >= 1.5
+      modest_upregulation:  q < 0.05 AND 0.5 <= log2_fc < 1.5
+      not_informative:      q >= 0.05 OR log2_fc < 0.5
+      data_unavailable:     log2_fc or q_value is None/NaN
+    """
+    if log2_fc is None or q_value is None:
+        return "data_unavailable"
+    try:
+        lfc = float(log2_fc)
+        q = float(q_value)
+    except (TypeError, ValueError):
+        return "data_unavailable"
+    # NaN check
+    if lfc != lfc or q != q:
+        return "data_unavailable"
+    if q < 0.05 and lfc >= 1.5:
+        return "strong_upregulation"
+    if q < 0.05 and 0.5 <= lfc < 1.5:
+        return "modest_upregulation"
+    return "not_informative"
