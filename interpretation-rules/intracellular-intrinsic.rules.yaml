@@ -69,6 +69,21 @@ rules:
       No functional dependency detected across the cell-line panel. Without dependency
       evidence there is no rationale for therapeutic investment regardless of modality.
 
+  - rule_id: broadly-dependent-neutral
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      equals: broadly_dependent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Dependency signal is broad but doesn't meet the common_essential threshold (~85%
+      strongly-dependent). Between selective and pan-essential territory. NOT a killer
+      on its own — could still be a valid therapeutic-window target if lineage-selectivity
+      or mutation-stratification cards identify a discriminating context. Downstream cards
+      carry the differentiation.
+
   # ============================================================================
   # E1b — Pan-cancer RNAi dependency distribution (Card 1b)
   # ============================================================================
@@ -279,6 +294,19 @@ rules:
       be uniformly dependent across the panel (in which case E1's dependency_class
       would carry the killer). Killer determination for "dependency does not exist"
       lives correctly on E1's non-dependent-killer rule, not duplicated here.
+
+  - rule_id: lineage-selectivity-data-unavailable-insufficient
+    when:
+      card_id: dependency-lineage-selectivity
+      field: enrichment_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Lineage selectivity data unreachable or panel too small. Coverage gap; not
+      used as opposing evidence. Other dependency evidence threads (E1 CRISPR/RNAi)
+      carry the therapeutic-window story.
 
   # ============================================================================
   # Card 3 — mutation-stratified-dependency (oncogene-addiction biomarker)
@@ -521,27 +549,68 @@ rules:
       MAF unreachable or target absent. Coverage gap; not used as opposing evidence.
 
   # ============================================================================
-  # Expression — tumor vs adjacent (existing card: expression-tumor-vs-adjacent)
+  # Expression — tumor vs adjacent (Card v2.0.0, pure-data 2026-07-01)
   # ============================================================================
   # Degrader-specific: degraders require demonstrable protein presence in the indication.
-  # Today's card emits "not informative" as a normative call; once that card is refactored
-  # the rule below references the descriptive label instead.
+  # Card was migrated 2026-07-01 from interpretation_hints to pure-data
+  # expression_call_class vocabulary. 4 rules cover the full vocabulary.
 
-  - rule_id: expression-not-informative-degrader-killer
+  - rule_id: expression-strong-upregulation-supportive
     when:
       card_id: expression-tumor-vs-adjacent
-      field: interpretation_call
-      equals: "not informative"
+      field: expression_call_class
+      equals: strong_upregulation
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Strong tumor-vs-adjacent upregulation (q < 0.05 AND log2_fc >= 1.5). RNA-level
+      evidence that the target is elevated in tumor vs normal — supports both
+      small-molecule (target is available in tumor tissue) and degrader (RNA proxy
+      for protein presence). Not dominant; other cards carry the therapeutic-window
+      story.
+
+  - rule_id: expression-modest-upregulation-neutral
+    when:
+      card_id: expression-tumor-vs-adjacent
+      field: expression_call_class
+      equals: modest_upregulation
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Modest tumor-vs-adjacent upregulation (q < 0.05 AND 0.5 <= log2_fc < 1.5).
+      Directionally consistent but small effect size. Neither supports nor
+      opposes; other cards drive the fit determination.
+
+  - rule_id: expression-call-not-informative-degrader-killer
+    when:
+      card_id: expression-tumor-vs-adjacent
+      field: expression_call_class
+      equals: not_informative
     signals:
       degrader: killer
     killer_message: |
-      Degrader not viable — no demonstrable expression. Degrader investment requires
-      confirmed intracellular protein presence; RNA-level evidence is the iter-1b proxy
-      until proteomics card lands.
+      Degrader not viable — no demonstrable tumor-vs-adjacent expression differential
+      in this indication. Degrader investment requires confirmed intracellular protein
+      presence; RNA-level evidence is the iter-1b proxy until the proteomics card lands.
     rationale: |
-      Pre-refactor compatibility: this card has not yet been migrated to pure-data; rule
-      references its normative interpretation_call. Migrate to descriptive label
-      (e.g. expression_class == "not_expressed") when the card is refactored.
+      Pure-data v2 (renamed from expression-not-informative-degrader-killer 2026-07-01).
+      Fires on the same semantic condition (q >= 0.05 OR log2_fc < 0.5) but now via
+      the vocabulary field. Small-molecule NOT killed — SM programs can pursue
+      targets without tumor-vs-adjacent differential; degraders cannot.
+
+  - rule_id: expression-call-data-unavailable-insufficient
+    when:
+      card_id: expression-tumor-vs-adjacent
+      field: expression_call_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      DGE data unreachable or target absent from the indication's DGE table. Coverage
+      gap; not used as opposing evidence for either modality.
 
   # ============================================================================
   # E3a — Expression distribution (Card E3a: expression-distribution)
@@ -593,6 +662,21 @@ rules:
       express, others don't). Therapeutic-window candidate by selectivity; the
       indication-of-interest needs to overlap an expressing lineage (synthesis-layer
       lookup over per_lineage_stats).
+
+  - rule_id: expression-broadly-moderate-neutral
+    when:
+      card_id: expression-distribution
+      field: expression_class
+      equals: broadly_moderate
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target expressed everywhere at moderate levels — informative that expression
+      isn't a differentiator, but doesn't drive a directional call. Not a killer
+      (degrader-viable target expression is present), not a supportive (no
+      selectivity signal). KRAS lands here in real DepMap data — expression is
+      not the biology-driver axis for many mutation-driven oncogenes.
 
   - rule_id: expression-data-unavailable-insufficient
     when:

@@ -5,7 +5,7 @@
 #   - the baseline DGE pattern (tumor vs paired adjacent normal)
 
 card_id: expression-tumor-vs-adjacent
-version: 1.0.0
+version: 2.0.0                                  # bumped 2026-07-01: pure-data v2 refactor
 question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
 
 applies_when:
@@ -32,16 +32,21 @@ outputs:
     - adjacent_mean_tpm
     - n_tumor
     - n_adjacent
+    - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+
+  summary_fields_vocabulary:
+    expression_call_class:
+      - strong_upregulation                     # q < 0.05 AND log2_fc >= 1.5
+      - modest_upregulation                     # q < 0.05 AND 0.5 <= log2_fc < 1.5
+      - not_informative                         # q >= 0.05 OR log2_fc < 0.5
+      - data_unavailable                        # DGE derived-product unreachable / target absent
+
   figure: violin_paired_with_significance
   plot_data: long_format_paired_samples
 
-interpretation_hints:
-  - if: "q_value < 0.05 && log2_fc >= 1.5"
-    call: "strong upregulation"
-  - if: "q_value < 0.05 && 0.5 <= log2_fc && log2_fc < 1.5"
-    call: "modest upregulation"
-  - if: "q_value >= 0.05 || log2_fc < 0.5"
-    call: "not informative"
+# interpretation_hints REMOVED 2026-07-01 (v2 refactor) — normative interpretation
+# moved to target-contracts/interpretation-rules/intracellular-intrinsic.rules.yaml.
+# Rules consume expression_call_class directly.
 
 thresholds:
   expression_p95_min: 1.0       # TPM; iter-1 conservative default — see A2 calibration disclosure

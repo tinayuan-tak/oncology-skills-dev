@@ -136,7 +136,7 @@ warning_predicates:
     if: "model_agreement == 'divergent'"
     message: "RF and XGBoost disagree on r² by more than 0.10 — feature-attribution structure differs between tree types. Inspect the top_features_xgb list; a divergent XGBoost identifies an interaction structure RF misses."
   - warning_id: predictability_lineage_collapsed
-    if: "predictability_class == 'context_or_driver_dependent' and pred_dominant_feature_class == 'lineage'"
+    if: "predictability_class == 'context_or_driver_dependent' && pred_dominant_feature_class == 'lineage'"
     message: "Lineage one-hot dominates; the model has essentially learned a per-lineage baseline. Patient-selection beyond indication unlikely from standard omics."
 
 caveats:
@@ -146,4 +146,4 @@ caveats:
   - "Bootstrap CI on r² is over cell-line indices at the OOF-prediction level. It does NOT propagate uncertainty from feature-selection (KBest inside folds) or hyperparameter choice. A tighter CI would nest bootstrap around the full CV loop — infeasible at ~18k-gene scale."
   - "Own driver flags (driver_{target}_GoF / driver_{target}_LoF) are EXCLUDED from the OncoKB flag feature block for each target — same feature as own_mut_hotspot / own_mut_damaging; would leak label information. Cross-driver flags (driver_TP53_LoF when target=KRAS, etc.) are retained since they capture co-driver context."
 
-schema_version: 2
+schema_version: 1

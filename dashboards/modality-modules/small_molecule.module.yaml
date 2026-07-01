@@ -43,6 +43,7 @@ synthesis_emphasis:
   secondary_cards:
     - expression-tumor-vs-adjacent
     - expression-dependency-correlation   # Card 4 — biomarker stratification (supports, doesn't define fit)
+    - dependency-predictability           # Card E5 — multi-omics predictability model (activated 2026-07-01)
     - normal-tissue-liability
   modality_killer_conditions:
     - card_id: dependency-lineage-selectivity

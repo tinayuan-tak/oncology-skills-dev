@@ -41,6 +41,7 @@ synthesis_emphasis:
   secondary_cards:
     - mutation-hotspot-frequency
     - expression-dependency-correlation   # Card 4 — biomarker stratification supports degrader case
+    - dependency-predictability           # Card E5 — multi-omics predictability (activated 2026-07-01)
     - normal-tissue-liability
   modality_killer_conditions:
     - card_id: expression-tumor-vs-adjacent

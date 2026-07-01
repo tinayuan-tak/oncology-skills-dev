@@ -25,7 +25,7 @@ required_cards:
   - card_id: target-identity-summary
     version: ">=1.0.0,<2"
   - card_id: expression-tumor-vs-adjacent
-    version: ">=1.0.0,<2"
+    version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-07-01
   - card_id: tumor-vs-normal-selectivity
     version: ">=1.0.0,<2"
   - card_id: protein-surface-evidence
