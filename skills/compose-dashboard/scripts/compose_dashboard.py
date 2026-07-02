@@ -10,13 +10,25 @@ Phase ordering per the layer-distinction discipline:
   Phase 3 (synthesize) — apply modality synthesis_emphasis; emit synthesis block
   Final               — assemble evidence_package.json + validate
 
+Output persistence (2026-07-02):
+  --out defaults to the data-products repo:
+    ~/rnd-computational-biology-oncology-data-products/{target}/{indication}/{package_id}/
+  Per the data-products architecture (README, schemas/*, dashboard specs'
+  destination: data-products/{target}/{indication}/{package_id}/), evidence
+  packages and rendered dashboards land in that repo as the canonical
+  provenance record. Users can still pass --out /tmp/... for scratch runs.
+
+  After a successful landing (any run that produced an evidence_package.json,
+  even with validation warnings), an INDEX.md at the target's directory root
+  is upserted with a row summarizing (date, indication, package_id, class
+  calls per fired card, headline). This gives a lightweight per-target
+  provenance index without requiring a full database.
+
 Usage:
-    python -m scripts.compose_dashboard \
-        --target KRAS --indication COADREAD \
-        --data-mode pinned --release-pin 2026-Q2 \
-        --subgroup-spec all \
-        --execution-mode stub \
-        --out /tmp/ep_kras_coadread/
+    python -m scripts.compose_dashboard \\
+        --target KRAS --indication COADREAD \\
+        --data-mode latest_approved --execution-mode live
+    (writes to data-products by default; add --out /tmp/... to override)
 """
 
 from __future__ import annotations
@@ -44,6 +56,139 @@ else:
     from ._execution import execute_run_plan, FIXTURES_DIR
     from ._synthesis import synthesize
     from ._resolution import TARGET_CONTRACTS
+
+
+# Data-products repo path — default persistence destination for evidence packages.
+# See schemas/*.schema.json and dashboards/*.dashboard_spec.yaml `destination:` fields.
+DATA_PRODUCTS_REPO = Path.home() / "rnd-computational-biology-oncology-data-products"
+
+
+def _default_output_path(target: str, indication: str, package_id: str) -> Path:
+    """Compute default --out per the data-products/{target}/{indication}/{package_id}/
+    convention. package_id follows the schema's ep-{target}-{indication}-{release_pin}-
+    {data_mode}-NNN.lower() format."""
+    return DATA_PRODUCTS_REPO / target.upper() / indication.upper() / package_id
+
+
+def _compute_package_id(target: str, indication: str, release_pin: Optional[str], data_mode: str) -> str:
+    """Package id formation — mirrors _assemble_evidence_package's convention exactly.
+    Extracted so --out can be computed BEFORE compose() runs (needed for the default)."""
+    pin = release_pin or "unpinned"
+    return f"ep-{target}-{indication}-{pin}-{data_mode}-001".lower()
+
+
+def _upsert_target_index(
+    target: str, indication: str, package_id: str, evidence_package: dict,
+    out_path: Path, data_products_root: Path,
+) -> Optional[Path]:
+    """Upsert a row into INDEX.md at data-products/{target}/INDEX.md.
+
+    One row per (indication, package_id) — later runs of the same package_id
+    replace the earlier row. Row summarizes headline + per-card class calls.
+    Returns the INDEX.md path (or None if not applicable — e.g. --out is
+    outside the data-products tree, meaning the caller opted for scratch).
+    """
+    try:
+        rel = out_path.resolve().relative_to(data_products_root.resolve())
+    except (ValueError, RuntimeError):
+        # --out is not inside the data-products tree; skip index update
+        return None
+
+    target_dir = data_products_root / target.upper()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    index_path = target_dir / "INDEX.md"
+
+    # Extract class calls from the evidence_package cards. Card outputs live under
+    # `summary` (not `summary_fields` — that's the card SPEC's field, not the
+    # evidence_package's card OUTPUT key). Excluded cards have no summary; skip.
+    class_calls: dict[str, str] = {}
+    for c in evidence_package.get("cards", []):
+        if c.get("excluded_by_applies_when"):
+            continue
+        cid = c.get("card_id")
+        summary = c.get("summary") or {}
+        for key in ("dependency_class", "rnai_dependency_class", "concordance_class",
+                     "expression_class", "cn_class", "mutation_class",
+                     "correlation_class", "predictability_class",
+                     "prism_activity_class", "prism_lineage_selectivity",
+                     "crispr_prism_concordance_class", "enrichment_class"):
+            if key in summary:
+                class_calls[cid] = f"{key}={summary[key]}"
+                break
+
+    headline = (evidence_package.get("synthesis") or {}).get("headline") or ""
+    generated_at = evidence_package.get("generated_at") or ""
+    rel_str = str(rel).replace("\\", "/")
+
+    # Read existing INDEX rows (if any)
+    rows: list[dict] = []
+    if index_path.exists():
+        rows = _parse_existing_index(index_path)
+    # Upsert (dedup on package_id)
+    rows = [r for r in rows if r.get("package_id") != package_id]
+    rows.append({
+        "package_id": package_id,
+        "indication": indication.upper(),
+        "generated_at": generated_at,
+        "headline": headline,
+        "class_calls": class_calls,
+        "path": rel_str,
+    })
+    # Sort newest-first by generated_at
+    rows.sort(key=lambda r: r.get("generated_at", ""), reverse=True)
+
+    # Render
+    lines = [
+        f"# {target.upper()} — evidence-package index",
+        "",
+        f"Per-run summary of framework outputs for `{target.upper()}` (target × indication).",
+        f"Autogenerated by `compose_dashboard.py` on each successful run — do not edit by hand.",
+        "",
+        "| Generated | Indication | Package | Path | Class calls | Headline |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        calls = "; ".join(f"{cid}: {cc}" for cid, cc in r["class_calls"].items())
+        # Pipe-escape to keep markdown table valid
+        headline_esc = (r["headline"] or "").replace("|", "\\|")
+        calls_esc = calls.replace("|", "\\|")
+        lines.append(
+            f"| {r['generated_at']} | {r['indication']} | `{r['package_id']}` | "
+            f"[`{r['path']}`]({r['path']}/) | {calls_esc} | {headline_esc} |"
+        )
+    lines.append("")
+    index_path.write_text("\n".join(lines), encoding="utf-8")
+    return index_path
+
+
+def _parse_existing_index(index_path: Path) -> list[dict]:
+    """Parse rows out of an existing INDEX.md. Table-row lines only; ignore
+    header + separator. Best-effort — malformed rows are dropped silently
+    (they'll be regenerated on the next run)."""
+    rows: list[dict] = []
+    for line in index_path.read_text().splitlines():
+        if not line.startswith("| ") or line.startswith("| Generated") or line.startswith("|---"):
+            continue
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) != 6:
+            continue
+        gen_at, ind, pkg, path, calls, headline = cells
+        pkg = pkg.strip("`")
+        class_calls = {}
+        for tok in calls.split(";"):
+            tok = tok.strip()
+            if ":" in tok:
+                cid, cc = tok.split(":", 1)
+                class_calls[cid.strip()] = cc.strip()
+        rows.append({
+            "package_id": pkg,
+            "indication": ind,
+            "generated_at": gen_at,
+            "headline": headline.replace("\\|", "|"),
+            "class_calls": class_calls,
+            "path": path.strip("`").split("`")[0] if "`" in path else path,
+        })
+    return rows
 
 
 def compose(
@@ -287,11 +432,14 @@ def _validate_evidence_package(ep: dict, contracts_root: Path) -> list[str]:
 @click.option("--subgroup-spec", default=None)
 @click.option("--execution-mode", type=click.Choice(["stub", "live", "live-stub-fallback"]), default="stub",
               help="stub = fixtures; live = real data via _live_readers; live-stub-fallback = live first, stub for cards without live readers (iter-1b transitional mode)")
-@click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
+@click.option("--out", required=False, default=None, type=click.Path(file_okay=False, path_type=Path),
+              help="Output directory. Defaults to ~/rnd-computational-biology-oncology-data-products/"
+                   "{target}/{indication}/{package_id}/ — the framework's canonical persistence path. "
+                   "Pass an explicit path (e.g. /tmp/scratch/) for scratch runs.")
 @click.option("--deterministic-timestamps", is_flag=True)
 def main(target: str, indication: str, data_mode: str, release_pin: Optional[str],
          modality: Optional[str], subgroup_spec: Optional[str], execution_mode: str,
-         out: Path, deterministic_timestamps: bool) -> int:
+         out: Optional[Path], deterministic_timestamps: bool) -> int:
     """Full 3-phase orchestrator. Produces run_plan.yaml + evidence_package.json."""
     if subgroup_spec is None or subgroup_spec == "":
         sg = None
@@ -300,6 +448,12 @@ def main(target: str, indication: str, data_mode: str, release_pin: Optional[str
     else:
         sg = [s.strip() for s in subgroup_spec.split(",") if s.strip()]
 
+    # Compute default output path (data-products/{target}/{indication}/{package_id}/)
+    # when --out not supplied. package_id formation MUST mirror _assemble_evidence_package
+    # exactly so the resolved path == the package_id inside the evidence_package.
+    if out is None:
+        package_id = _compute_package_id(target, indication, release_pin, data_mode)
+        out = _default_output_path(target, indication, package_id)
     out.mkdir(parents=True, exist_ok=True)
     run_plan, evidence_package, errors = compose(
         target=target, indication=indication, data_mode=data_mode,
@@ -348,6 +502,22 @@ def main(target: str, indication: str, data_mode: str, release_pin: Optional[str
     click.echo(f"  → run_plan:    {plan_path}")
     click.echo(f"  → ev_package:  {ep_path}")
     click.echo(f"  → markdown:    {rendering_status}")
+
+    # Upsert per-target INDEX.md when writing inside the data-products tree.
+    # Best-effort — index update failure does not affect exit status.
+    try:
+        pkg_id = evidence_package.get("package_id") or _compute_package_id(
+            target, indication, release_pin, data_mode
+        )
+        index_path = _upsert_target_index(
+            target=target, indication=indication, package_id=pkg_id,
+            evidence_package=evidence_package, out_path=out,
+            data_products_root=DATA_PRODUCTS_REPO,
+        )
+        if index_path is not None:
+            click.echo(f"  → index:       {index_path}")
+    except Exception as e:
+        click.echo(f"  → index:       skipped ({type(e).__name__}: {e})", err=True)
 
     if errors:
         click.echo(f"\nEVIDENCE_PACKAGE VALIDATION ERRORS ({len(errors)}):", err=True)
