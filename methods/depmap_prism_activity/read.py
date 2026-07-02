@@ -1,6 +1,6 @@
 """depmap_prism_activity.read — library entry for compose-dashboard live-mode reads.
 
-Reads one row from the frozen `depmap-prism-activity-v3` derived parquet via
+Reads one row from the frozen `depmap-prism-activity-v4` derived parquet via
 pyarrow predicate pushdown. No PRISM CSV parsing at framework runtime.
 
 On unreachable parquet, returns a dict with `_live_read_error` +
@@ -21,7 +21,7 @@ from typing import Optional
 from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
-DEFAULT_RELEASE_PIN = "prism-activity-v3"
+DEFAULT_RELEASE_PIN = "prism-activity-v4"
 
 
 def _ensure_aws_profile():

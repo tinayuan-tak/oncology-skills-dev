@@ -394,8 +394,219 @@ def test_build_gene_aggregate_no_model_map():
     assert kras["prism_lineage_selectivity"] == pc.LINEAGE_SEL_DATA_UNAVAILABLE
 
 
+# ---------------------------------------------------------------------------
+# v4 CRISPR × RNAi × PRISM concordance
+# ---------------------------------------------------------------------------
+
+def test_spearman_rho_perfect_positive():
+    """Two ranked-identical sequences → rho = 1.0."""
+    assert pc._spearman_rho([1, 2, 3, 4, 5], [10, 20, 30, 40, 50]) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_spearman_rho_perfect_negative():
+    """Perfectly inverted → rho = -1.0."""
+    assert pc._spearman_rho([1, 2, 3, 4, 5], [50, 40, 30, 20, 10]) == pytest.approx(-1.0, abs=1e-6)
+
+
+def test_spearman_rho_none_on_small_n():
+    """< 3 samples → None (undefined)."""
+    assert pc._spearman_rho([1, 2], [3, 4]) is None
+
+
+def test_spearman_rho_none_on_zero_variance():
+    """One vector constant → None (undefined)."""
+    assert pc._spearman_rho([1, 1, 1, 1], [1, 2, 3, 4]) is None
+
+
+def test_correlate_maps_intersects_on_model_id():
+    """Only shared ModelIDs contribute to correlation."""
+    a = {"ACH-1": -2.0, "ACH-2": -1.5, "ACH-3": 0.0, "ACH-4": 0.5}
+    b = {"ACH-1": -1.5, "ACH-2": -1.0, "ACH-3": 0.1, "ACH-5": 99.0}  # ACH-5 not in a
+    # Shared = ACH-1, ACH-2, ACH-3 (3 lines) → rho computed
+    rho, n = pc._correlate_maps(a, b, min_lines=3)
+    assert n == 3
+    assert rho == pytest.approx(1.0, abs=1e-6)   # perfectly monotonic across shared 3
+
+
+def test_correlate_maps_returns_none_below_min_lines():
+    a = {"ACH-1": 1.0, "ACH-2": 2.0, "ACH-3": 3.0}
+    b = {"ACH-1": 1.0, "ACH-2": 2.0}
+    rho, n = pc._correlate_maps(a, b, min_lines=3)
+    assert rho is None and n is None
+
+
+def test_classify_concordance_triangulated():
+    """Both CRISPR + RNAi rho ≥ 0.30 → triangulated_target_engaged."""
+    per_cmp = [{"spearman_r_crispr": 0.5, "spearman_r_rnai": 0.4}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_TRIANGULATED
+
+
+def test_classify_concordance_crispr_confirmed():
+    """CRISPR strong, RNAi weak → crispr_confirmed_engagement."""
+    per_cmp = [{"spearman_r_crispr": 0.5, "spearman_r_rnai": 0.1}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_CRISPR_CONFIRMED
+
+
+def test_classify_concordance_rnai_confirmed():
+    """RNAi strong, CRISPR weak → rnai_confirmed_engagement."""
+    per_cmp = [{"spearman_r_crispr": 0.1, "spearman_r_rnai": 0.5}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_RNAI_CONFIRMED
+
+
+def test_classify_concordance_mixed():
+    """Best pair-wise in [0.10, 0.30) → mixed_engagement."""
+    per_cmp = [{"spearman_r_crispr": 0.15, "spearman_r_rnai": 0.12}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_MIXED
+
+
+def test_classify_concordance_off_target():
+    """All rhos < 0.10 → discordant_off_target_likely."""
+    per_cmp = [{"spearman_r_crispr": 0.05, "spearman_r_rnai": 0.02}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_OFF_TARGET
+
+
+def test_classify_concordance_thin_when_no_rhos():
+    """Non-empty list but all rhos None → thin_evidence."""
+    per_cmp = [{"spearman_r_crispr": None, "spearman_r_rnai": None}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_THIN
+
+
+def test_classify_concordance_data_unavailable():
+    """No CRISPR AND no RNAi data → data_unavailable (regardless of list content)."""
+    assert pc.classify_crispr_prism_concordance([], False, False) == pc.CONCORDANCE_DATA_UNAVAILABLE
+
+
+def test_compute_per_compound_concordance_uses_lfc_when_available():
+    """LFC frame preferred over Log2AUC frame."""
+    chronos = {f"ACH-{i:03d}": -2.0 + i * 0.05 for i in range(30)}  # 30 lines, gradient
+    rnai = {f"ACH-{i:03d}": -1.5 + i * 0.04 for i in range(30)}     # 30 lines, gradient
+    lfc = pd.DataFrame([
+        {"model_id": f"ACH-{i:03d}", "compound_id": "PRC-001",
+         "min_lfc": -3.0 + i * 0.08}   # anti-correlated with chronos (both negative-dependent → correlate positive)
+        for i in range(30)
+    ])
+    log2auc = pd.DataFrame()  # empty fallback
+
+    result = pc.compute_per_compound_concordance(
+        chronos_by_model=chronos, rnai_by_model=rnai,
+        lfc_frame=lfc, log2auc_frame=log2auc,
+        compound_ids={"PRC-001"}, min_lines=20,
+    )
+    assert len(result) == 1
+    r = result[0]
+    assert r["compound_id"] == "PRC-001"
+    assert r["metric_used"] == "lfc"
+    assert r["n_intersected_crispr"] == 30
+    assert r["n_intersected_rnai"] == 30
+    # Chronos and LFC both increase monotonically in ACH-XXX → perfect positive Spearman
+    assert r["spearman_r_crispr"] == pytest.approx(1.0, abs=1e-6)
+    assert r["spearman_r_rnai"] == pytest.approx(1.0, abs=1e-6)
+
+
+def test_compute_per_compound_concordance_skips_when_both_thin():
+    """Compound with insufficient intersection in BOTH assays → not returned."""
+    chronos = {"ACH-1": -1.0}   # only 1 line
+    lfc = pd.DataFrame([{"model_id": "ACH-1", "compound_id": "PRC-001", "min_lfc": -2.0}])
+    result = pc.compute_per_compound_concordance(
+        chronos_by_model=chronos, rnai_by_model=None,
+        lfc_frame=lfc, log2auc_frame=None,
+        compound_ids={"PRC-001"}, min_lines=20,
+    )
+    assert result == []
+
+
+def test_compute_dual_responders_selects_intersection():
+    """Dual-responders = CRISPR-dependent AND compound-responsive (both thresholds cleared)."""
+    chronos = {
+        "ACH-KDEP-1": -1.2,   # CRISPR-dependent
+        "ACH-KDEP-2": -0.8,   # CRISPR-dependent
+        "ACH-KNOR-1": 0.1,    # not CRISPR-dependent
+        "ACH-KDEP-3": -1.5,   # CRISPR-dependent BUT not compound-responsive
+    }
+    lfc = pd.DataFrame([
+        {"model_id": "ACH-KDEP-1", "compound_id": "PRC-001", "min_lfc": -2.5},   # responsive
+        {"model_id": "ACH-KDEP-2", "compound_id": "PRC-001", "min_lfc": -1.5},   # responsive
+        {"model_id": "ACH-KNOR-1", "compound_id": "PRC-001", "min_lfc": -3.0},   # responsive but not CRISPR-dep
+        {"model_id": "ACH-KDEP-3", "compound_id": "PRC-001", "min_lfc": -0.2},   # CRISPR-dep but not responsive
+    ])
+    dual = pc.compute_dual_responders(
+        chronos_by_model=chronos, lfc_frame=lfc, compound_ids={"PRC-001"},
+        model_to_lineage={"ACH-KDEP-1": "Bowel", "ACH-KDEP-2": "Lung"},
+    )
+    dual_ids = {d["model_id"] for d in dual}
+    assert dual_ids == {"ACH-KDEP-1", "ACH-KDEP-2"}
+    # Most-CRISPR-dependent first (KDEP-1 -1.2 more negative than KDEP-2 -0.8)
+    assert dual[0]["model_id"] == "ACH-KDEP-1"
+    assert dual[0]["lineage"] == "Bowel"
+
+
+def test_build_gene_aggregate_v4_concordance_end_to_end():
+    """End-to-end: gene aggregate row carries per_compound_concordance +
+    class + dual_responders when chronos_by_gene + rnai_by_gene supplied."""
+    merged = pd.DataFrame([{
+        "compound_id": "PRC-001", "drug_name": "SOTORASIB",
+        "gene_targets": ["KRAS"], "moa": "KRAS G12C",
+        "prioritized": True, "source_release": "oncref-25q4",
+    }])
+    # Log2AUC + LFCCollapsed for the same 30 lines (gradient)
+    oncref_log2auc = pd.DataFrame([
+        {"model_id": f"ACH-{i:03d}", "compound_id": "PRC-001",
+         "log2auc": -0.5 + i * 0.02, "source_release": "oncref-25q4"}
+        for i in range(30)
+    ])
+    oncref_lfc = pd.DataFrame([
+        {"model_id": f"ACH-{i:03d}", "compound_id": "PRC-001",
+         "min_lfc": -3.0 + i * 0.08, "source_release": "oncref-25q4"}
+        for i in range(30)
+    ])
+    # CRISPR + RNAi both monotonic → strong Spearman with LFC
+    chronos_by_gene = {
+        "KRAS": {f"ACH-{i:03d}": -2.0 + i * 0.05 for i in range(30)}
+    }
+    rnai_by_gene = {
+        "KRAS": {f"ACH-{i:03d}": -1.5 + i * 0.04 for i in range(30)}
+    }
+    model_to_lineage = {f"ACH-{i:03d}": "Bowel" for i in range(30)}
+    agg = pc.build_gene_aggregate(
+        merged,
+        oncref_log2auc=oncref_log2auc,
+        oncref_lfccollapsed_min=oncref_lfc,
+        model_to_lineage=model_to_lineage,
+        chronos_by_gene=chronos_by_gene,
+        rnai_by_gene=rnai_by_gene,
+    )
+    kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
+    assert kras["crispr_prism_concordance_class"] == pc.CONCORDANCE_TRIANGULATED
+    assert len(kras["per_compound_concordance"]) == 1
+    concord = kras["per_compound_concordance"][0]
+    assert concord["compound_id"] == "PRC-001"
+    assert concord["spearman_r_crispr"] == pytest.approx(1.0, abs=1e-6)
+    assert concord["spearman_r_rnai"] == pytest.approx(1.0, abs=1e-6)
+    # Dual responders: cell lines with Chronos < -0.5 AND LFC < -1.0
+    dual = kras["dual_responders"]
+    assert len(dual) > 0
+    # Each dual-responder should meet both thresholds
+    for d in dual:
+        assert d["chronos_dep"] < pc.DUAL_RESPONDER_CHRONOS
+        assert d["best_compound_lfc"] < pc.DUAL_RESPONDER_LFC
+
+
+def test_build_gene_aggregate_v4_no_crispr_rnai_data_unavailable():
+    """When chronos_by_gene + rnai_by_gene are None, concordance is data_unavailable."""
+    merged = pd.DataFrame([{
+        "compound_id": "PRC-001", "drug_name": "SOTORASIB",
+        "gene_targets": ["KRAS"], "moa": "KRAS G12C",
+        "prioritized": True, "source_release": "oncref-25q4",
+    }])
+    agg = pc.build_gene_aggregate(merged)
+    kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
+    assert kras["crispr_prism_concordance_class"] == pc.CONCORDANCE_DATA_UNAVAILABLE
+    assert kras["per_compound_concordance"] == []
+    assert kras["dual_responders"] == []
+
+
 def test_write_gene_aggregate_parquet_roundtrip(tmp_path):
-    """v3 parquet writer roundtrips full schema including best_responder_lfc + metric_source."""
+    """v4 parquet writer roundtrips full schema including concordance + dual_responders."""
     import pyarrow.parquet as pq
     df = pd.DataFrame([
         {
@@ -418,6 +629,18 @@ def test_write_gene_aggregate_parquet_roundtrip(tmp_path):
                  "top_compound_in_lineage": "SOTORASIB", "n_compounds_evaluated": 1},
             ],
             "prism_lineage_selectivity": pc.LINEAGE_SEL_SELECTIVE,
+            # v4
+            "per_compound_concordance": [
+                {"compound_id": "PRC-001", "n_intersected_crispr": 45,
+                 "spearman_r_crispr": 0.65, "n_intersected_rnai": 30,
+                 "spearman_r_rnai": 0.40, "metric_used": "lfc"},
+            ],
+            "crispr_prism_concordance_class": pc.CONCORDANCE_TRIANGULATED,
+            "dual_responders": [
+                {"model_id": "ACH-000001", "lineage": "Bowel",
+                 "chronos_dep": -1.2, "best_compound_lfc": -3.1,
+                 "best_compound_id": "PRC-001"},
+            ],
         }
     ])
     out = tmp_path / "agg.parquet"
@@ -433,3 +656,9 @@ def test_write_gene_aggregate_parquet_roundtrip(tmp_path):
     assert row["top_compounds"][0]["best_responder_lfc"] == pytest.approx(-3.5, abs=1e-3)
     assert row["per_lineage_activity"][0]["median_log2auc"] == pytest.approx(-0.4, abs=1e-3)
     assert row["prism_lineage_selectivity"] == pc.LINEAGE_SEL_SELECTIVE
+    # v4 fields
+    assert row["crispr_prism_concordance_class"] == pc.CONCORDANCE_TRIANGULATED
+    assert row["per_compound_concordance"][0]["spearman_r_crispr"] == pytest.approx(0.65, abs=1e-3)
+    assert row["per_compound_concordance"][0]["spearman_r_rnai"] == pytest.approx(0.40, abs=1e-3)
+    assert row["dual_responders"][0]["model_id"] == "ACH-000001"
+    assert row["dual_responders"][0]["chronos_dep"] == pytest.approx(-1.2, abs=1e-3)

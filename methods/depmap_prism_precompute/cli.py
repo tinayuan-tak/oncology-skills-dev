@@ -4,7 +4,26 @@
 Reads two PRISM release lineages, computes per-compound activity stats within
 each release's own cell-line panel, then aggregates to gene-level rows (one row
 per HGNC-annotated gene). Writes a single frozen parquet + manifest to
-`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v3/`.
+`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/`.
+
+v4 (2026-07-02, CRISPR × RNAi × PRISM triangulated concordance):
+  Adds per-gene concordance analysis. For each PRISM-annotated compound
+  targeting the gene, computes Spearman correlation between the compound's
+  per-cell-line activity (LFC or Log2AUC) AND:
+    - CRISPR Chronos (gene KO effect) per line — target-engagement via full KO
+    - RNAi DEMETER2 (gene KD effect) per line — target-engagement via partial KD
+  Triangulated evidence (both CRISPR AND RNAi concord) = highest-confidence
+  target-engaged call. Also identifies `dual_responders` — the specific cell
+  lines dual-validated as CRISPR-dependent AND compound-responsive (natural
+  biomarker-cohort intersection for target evaluation).
+
+  Bumps derived product to depmap-prism-activity-v4/. New fields per gene row:
+    - per_compound_concordance: list<struct> (compound_id, rho_crispr, rho_rnai, ...)
+    - crispr_prism_concordance_class: {triangulated_target_engaged /
+      crispr_confirmed_engagement / rnai_confirmed_engagement / mixed_engagement /
+      discordant_off_target_likely / thin_evidence / data_unavailable}
+    - dual_responders: list<struct> (model_id, lineage, chronos_dep,
+      best_compound_lfc, best_compound_id)
 
 The thin `depmap_prism_activity.cli` card reads one gene row via pyarrow
 predicate pushdown at compose-dashboard runtime — no CSV parsing, no
@@ -64,9 +83,22 @@ import click
 
 
 DEPMAP_S3_BUCKET = "onc-compbio"
-DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v3"
-DERIVED_PRODUCT_ID = "depmap-prism-activity-v3"
-DERIVED_PRODUCT_VERSION = "0.3.0"
+DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v4"
+DERIVED_PRODUCT_ID = "depmap-prism-activity-v4"
+DERIVED_PRODUCT_VERSION = "0.4.0"
+
+# v4: CRISPR-PRISM concordance thresholds. The concordance is the Spearman
+# correlation between CRISPR Chronos-per-line (gene knockout effect) and
+# PRISM LFC-per-line (compound viability) across the intersecting cell-line
+# panel. Positive Spearman = compound tracks with genetic dependency (target-
+# engaged). Weak/no Spearman = compound activity doesn't track knockout →
+# likely off-target.
+MIN_LINES_FOR_CONCORDANCE = 20            # need ≥20 intersected lines for meaningful Spearman
+CONCORDANCE_STRONG_SPEARMAN = 0.30        # rho ≥ this → target-engaged call
+CONCORDANCE_WEAK_SPEARMAN = 0.10          # 0.1 ≤ rho < 0.3 → mixed / partial engagement
+# Dual-responder thresholds
+DUAL_RESPONDER_CHRONOS = -0.5             # cell line "dependent" by CRISPR
+DUAL_RESPONDER_LFC = -1.0                 # cell line "responsive" by PRISM (any compound)
 
 # Release-pin ↔ source-prefix registry. v3: OncRef contributes both Log2AUC
 # (primary metric) and LFCCollapsed (best-responder tail). Repurposing
@@ -128,6 +160,35 @@ LINEAGE_SEL_SELECTIVE = "lineage_selective"
 LINEAGE_SEL_BROADLY_ACTIVE = "broadly_active"
 LINEAGE_SEL_NO_SIGNAL = "no_lineage_signal"
 LINEAGE_SEL_DATA_UNAVAILABLE = "data_unavailable"
+
+# v4 vocabulary buckets for crispr_prism_concordance_class.
+# Triangulated engagement: per-gene rollup of Spearman rho(PRISM-LFC, CRISPR-Chronos)
+# AND rho(PRISM-LFC, RNAi-DEMETER2) across the intersecting cell-line panels.
+# Both correlations should be POSITIVE for target-engaged compounds: cells that
+# are dependent (negative Chronos + negative RNAi score) also die from the compound
+# (negative LFC) — negatives correlate positively. rho ≥ 0 = concordant.
+#
+# Class ladder (highest to lowest confidence):
+#   triangulated_target_engaged → BOTH CRISPR ≥ 0.30 AND RNAi ≥ 0.30 → highest-
+#     confidence cross-modality cross-perturbation validation
+#   crispr_confirmed_engagement → CRISPR ≥ 0.30, RNAi < 0.30 OR unavailable → likely
+#     target-engaged (may require full KO to reveal dependency; RNAi KD-residual
+#     insufficient — canonical for paralog-compensable genes)
+#   rnai_confirmed_engagement   → RNAi ≥ 0.30, CRISPR < 0.30 → rare; may indicate
+#     CRISPR fitness-selection artifact or partial-KD-mimicking mechanism
+#   mixed_engagement            → best pair-wise rho in [0.10, 0.30) → partial
+#     engagement, some off-target confound plausible
+#   discordant_off_target_likely → both < 0.10 despite compound activity →
+#     compound kills but not via the annotated target
+#   thin_evidence               → too few intersecting lines for either pair
+#   data_unavailable            → BOTH CRISPR AND RNAi absent for this gene
+CONCORDANCE_TRIANGULATED = "triangulated_target_engaged"
+CONCORDANCE_CRISPR_CONFIRMED = "crispr_confirmed_engagement"
+CONCORDANCE_RNAI_CONFIRMED = "rnai_confirmed_engagement"
+CONCORDANCE_MIXED = "mixed_engagement"
+CONCORDANCE_OFF_TARGET = "discordant_off_target_likely"
+CONCORDANCE_THIN = "thin_evidence"
+CONCORDANCE_DATA_UNAVAILABLE = "data_unavailable"
 
 # Ordered phase ladder (max phase across a gene's compounds → highest_clinical_phase).
 CLINICAL_PHASES = ["tool", "preclinical", "phase_1", "phase_2", "phase_3", "approved"]
@@ -342,6 +403,94 @@ def merge_compound_universes(dfs: list["pandas.DataFrame"]) -> "pandas.DataFrame
     return deduped.reset_index(drop=True)
 
 
+def load_crispr_chronos_for_genes(chronos_parquet_local_path, gene_symbols: set[str]) -> dict[str, dict[str, float]]:
+    """Read the CRISPR Chronos parquet and return {gene_symbol: {ModelID: chronos_score}}
+    for the requested gene set.
+
+    Chronos parquet has cell-line rows (ModelID index) × gene columns. Column names
+    are in the format "SYMBOL (entrez_id)" — parse the symbol and match against
+    gene_symbols. Only columns whose symbol matches are returned; missing genes
+    are absent from the result dict.
+
+    Used by v4 to fetch Chronos in bulk for all PRISM-annotated genes at precompute
+    time (~2000 genes) so per-gene concordance loops don't do S3 round-trips.
+    """
+    import pandas as pd
+    import re
+    import pyarrow.parquet as pq
+    schema_names = pq.read_schema(str(chronos_parquet_local_path)).names
+    _re = re.compile(r'^([A-Za-z0-9._-]+)\s*\(\d+\)$')
+    col_map: dict[str, str] = {}   # gene_symbol -> parquet col name
+    for c in schema_names:
+        m = _re.match(str(c))
+        if m and m.group(1) in gene_symbols:
+            col_map[m.group(1)] = c
+    if not col_map:
+        return {}
+    # Identify the ModelID column
+    id_col = "ModelID" if "ModelID" in schema_names else schema_names[0]
+    projected = [id_col] + list(col_map.values())
+    tbl = pq.read_table(str(chronos_parquet_local_path), columns=projected)
+    df = tbl.to_pandas()
+    df = df.rename(columns={id_col: "model_id"})
+    result = {}
+    for gene, parquet_col in col_map.items():
+        sub = df[["model_id", parquet_col]].dropna(subset=[parquet_col])
+        result[gene] = dict(zip(sub["model_id"], sub[parquet_col].astype(float)))
+    return result
+
+
+def load_ccle_to_modelid(model_csv_body: bytes) -> dict[str, str]:
+    """Parse Model.csv → {CCLEName: ModelID} map for bridging DEMETER2 (CCLE-keyed)
+    to CRISPR/PRISM (ModelID-keyed)."""
+    import pandas as pd
+    df = pd.read_csv(BytesIO(model_csv_body), usecols=["ModelID", "CCLEName"])
+    df = df.dropna(subset=["ModelID", "CCLEName"])
+    return dict(zip(df["CCLEName"].astype(str), df["ModelID"].astype(str)))
+
+
+def load_rnai_demeter_for_genes(
+    demeter_parquet_local_path,
+    gene_symbols: set[str],
+    ccle_to_modelid: dict[str, str],
+) -> dict[str, dict[str, float]]:
+    """Read the DEMETER2 RNAi parquet and return {gene_symbol: {ModelID: dep_score}}
+    for the requested gene set.
+
+    DEMETER2 parquet is TRANSPOSED (gene rows × cell-line cols) with columns
+    keyed by CCLE_ID (legacy namespace, e.g. '127399_SOFT_TISSUE'). Uses the
+    ccle_to_modelid bridge to convert to ModelID-keyed dicts. Cell lines whose
+    CCLE_ID doesn't bridge are dropped.
+    """
+    import pyarrow.parquet as pq
+    if not gene_symbols:
+        return {}
+    # Row filter: gene_symbol IN wanted set
+    # pyarrow supports 'in' filter as ("col", "in", <list>)
+    filters = [("gene_symbol", "in", list(gene_symbols))]
+    tbl = pq.read_table(str(demeter_parquet_local_path), filters=filters)
+    if tbl.num_rows == 0:
+        return {}
+    df = tbl.to_pandas()
+    result: dict[str, dict[str, float]] = {}
+    for _, row in df.iterrows():
+        gene = row["gene_symbol"]
+        gene_map = {}
+        for col in df.columns:
+            if col in ("gene_label", "gene_symbol"):
+                continue
+            val = row[col]
+            if val is None or (isinstance(val, float) and val != val):
+                continue
+            model_id = ccle_to_modelid.get(col)
+            if model_id is None:
+                continue
+            gene_map[model_id] = float(val)
+        if gene_map:
+            result[gene] = gene_map
+    return result
+
+
 def load_model_to_lineage(model_csv_body: bytes) -> dict[str, str]:
     """Parse DepMap Model.csv → {ModelID: OncotreeLineage} map.
 
@@ -363,28 +512,31 @@ def build_gene_aggregate(
     oncref_lfccollapsed_min: Optional["pandas.DataFrame"] = None,
     repurposing_lfc: Optional["pandas.DataFrame"] = None,
     model_to_lineage: Optional[dict[str, str]] = None,
+    chronos_by_gene: Optional[dict[str, dict[str, float]]] = None,
+    rnai_by_gene: Optional[dict[str, dict[str, float]]] = None,
     min_cell_lines_in_lineage: int = MIN_CELL_LINES_IN_LINEAGE,
 ) -> "pandas.DataFrame":
-    """v3 gene-aggregate builder.
+    """v4 gene-aggregate builder.
 
     Primary activity metric is Log2AUC (from OncRef 25Q4 Log2AUCMatrix); the
     responder-tail signal is min raw LFC (from OncRef LFCCollapsed). Repurposing
-    24Q2 contributes annotation only — Repurposing compounds appear in
-    top_compounds + n_compounds_targeting but do NOT contribute to Log2AUC-based
-    activity rollups (Repurposing has no AUC file — single-dose screen).
+    24Q2 contributes annotation only.
+
+    v4 additions: CRISPR-PRISM concordance. For each gene with an OncRef LFC
+    profile AND a CRISPR Chronos column, compute per-compound Spearman
+    correlation across the intersecting cell-line panel. Roll up to
+    `crispr_prism_concordance_class` + `per_compound_concordance` list +
+    `dual_responders` list (cell lines dual-validated as CRISPR-dependent
+    AND compound-responsive).
 
     Inputs:
-      merged_compounds: unified compound-list rows (from merge_compound_universes).
-      oncref_log2auc: DataFrame from load_oncref_log2auc — (model_id, compound_id,
-        log2auc) rows. Optional; if None, primary metric fields are None.
-      oncref_lfccollapsed_min: DataFrame from load_oncref_lfccollapsed — (model_id,
-        compound_id, min_lfc) rows (per-line min across doses). Optional; if None,
-        best_responder_lfc fields are None.
-      repurposing_lfc: DataFrame from load_repurposing_lfc — (model_id, compound_id,
-        median_lfc) rows. Optional; if None, Repurposing compounds still appear in
-        top_compounds using single-dose LFC = None (annotation-only).
-      model_to_lineage: {ModelID: OncotreeLineage}. Optional; if None,
-        per_lineage_activity is empty.
+      merged_compounds: unified compound-list rows.
+      oncref_log2auc / oncref_lfccollapsed_min / repurposing_lfc: activity frames.
+      model_to_lineage: {ModelID: OncotreeLineage}.
+      chronos_by_gene: {gene_symbol: {ModelID: chronos_score}} from
+        load_crispr_chronos_for_genes. Optional; if None, concordance fields
+        are empty / data_unavailable.
+      min_cell_lines_in_lineage: E2-parity floor for lineage-level stats.
 
     Returns a DataFrame with one row per HGNC gene that has ≥1 annotated compound.
     """
@@ -549,6 +701,28 @@ def build_gene_aggregate(
             model_to_lineage=model_to_lineage,
         )
 
+        # v4 CRISPR × RNAi × PRISM triangulated concordance
+        chronos_by_model = (chronos_by_gene or {}).get(gene)
+        rnai_by_model = (rnai_by_gene or {}).get(gene)
+        per_compound_concordance = compute_per_compound_concordance(
+            chronos_by_model=chronos_by_model,
+            rnai_by_model=rnai_by_model,
+            lfc_frame=oncref_lfccollapsed_min,
+            log2auc_frame=oncref_log2auc,
+            compound_ids=set(group["compound_id"]),
+        )
+        crispr_prism_concordance_class = classify_crispr_prism_concordance(
+            per_compound_concordance,
+            chronos_available=bool(chronos_by_model),
+            rnai_available=bool(rnai_by_model),
+        )
+        dual_responders = compute_dual_responders(
+            chronos_by_model=chronos_by_model,
+            lfc_frame=oncref_lfccollapsed_min,
+            compound_ids=set(group["compound_id"]),
+            model_to_lineage=model_to_lineage,
+        )
+
         rows.append({
             "gene_symbol": gene,
             "n_compounds_targeting": int(n_compounds_targeting),
@@ -558,6 +732,10 @@ def build_gene_aggregate(
             "prism_activity_class": prism_activity_class,
             "per_lineage_activity": per_lineage_activity,
             "prism_lineage_selectivity": prism_lineage_selectivity,
+            # v4
+            "per_compound_concordance": per_compound_concordance,
+            "crispr_prism_concordance_class": crispr_prism_concordance_class,
+            "dual_responders": dual_responders,
         })
 
     return pd.DataFrame(rows)
@@ -637,6 +815,228 @@ def _build_per_lineage_activity(
 
     prism_lineage_selectivity = classify_prism_lineage_selectivity(per_lineage_activity)
     return per_lineage_activity, prism_lineage_selectivity
+
+
+def compute_per_compound_concordance(
+    chronos_by_model: Optional[dict[str, float]],
+    rnai_by_model: Optional[dict[str, float]],
+    lfc_frame,
+    log2auc_frame,
+    compound_ids: set[str],
+    min_lines: int = MIN_LINES_FOR_CONCORDANCE,
+) -> list[dict]:
+    """Compute Spearman(CRISPR-Chronos, PRISM-activity) AND Spearman(RNAi-DEMETER2,
+    PRISM-activity) per compound across the intersecting cell-line panels.
+
+    For each compound in compound_ids:
+      - Intersect cell lines separately with CRISPR and RNAi panels
+      - Use LFC-based correlation (LFCCollapsed min-LFC per line) when available;
+        fall back to Log2AUC. LFC per-line preserves fold-change spread that
+        Log2AUC compresses.
+      - Compute Spearman rho for each pair with n >= min_lines
+
+    Returns list of {compound_id, n_intersected_crispr, spearman_r_crispr,
+                     n_intersected_rnai, spearman_r_rnai, metric_used} dicts.
+
+    Sign convention: Chronos and RNAi dep-scores are both more-negative-when-
+    dependent. LFC is more-negative-when-killed. So a target-engaged compound
+    correlates POSITIVELY: dependent-cells (negative genetic score) die from
+    compound (negative LFC) → rho > 0.
+    """
+    if not compound_ids:
+        return []
+    result = []
+    for cid in sorted(compound_ids):
+        # Get compound activity vector
+        cmp_activity_frame = None
+        metric = None
+        if lfc_frame is not None and len(lfc_frame):
+            sub = lfc_frame[lfc_frame["compound_id"] == cid]
+            if len(sub) >= min_lines:
+                cmp_activity_frame = sub[["model_id", "min_lfc"]].rename(columns={"min_lfc": "activity"})
+                metric = "lfc"
+        if cmp_activity_frame is None and log2auc_frame is not None and len(log2auc_frame):
+            sub = log2auc_frame[log2auc_frame["compound_id"] == cid]
+            if len(sub) >= min_lines:
+                cmp_activity_frame = sub[["model_id", "log2auc"]].rename(columns={"log2auc": "activity"})
+                metric = "log2auc"
+        if cmp_activity_frame is None:
+            continue
+        cmp_activity_frame = cmp_activity_frame.groupby("model_id", as_index=False)["activity"].mean()
+        cmp_map = dict(zip(cmp_activity_frame["model_id"], cmp_activity_frame["activity"].astype(float)))
+
+        # Per-genetic-assay correlation
+        rho_crispr, n_crispr = _correlate_maps(cmp_map, chronos_by_model, min_lines)
+        rho_rnai, n_rnai = _correlate_maps(cmp_map, rnai_by_model, min_lines)
+
+        # Skip compound if BOTH assays are thin (nothing to say)
+        if rho_crispr is None and rho_rnai is None:
+            continue
+        result.append({
+            "compound_id": cid,
+            "n_intersected_crispr": n_crispr,
+            "spearman_r_crispr": rho_crispr,
+            "n_intersected_rnai": n_rnai,
+            "spearman_r_rnai": rho_rnai,
+            "metric_used": metric,
+        })
+    return result
+
+
+def _correlate_maps(
+    a_map: dict[str, float], b_map: Optional[dict[str, float]], min_lines: int,
+) -> tuple[Optional[float], Optional[int]]:
+    """Intersect two {ModelID: value} maps, compute Spearman rho over the overlap.
+    Returns (rho, n_intersected) or (None, None) if b_map is None or overlap < min_lines.
+    """
+    if b_map is None:
+        return None, None
+    shared = set(a_map.keys()) & set(b_map.keys())
+    if len(shared) < min_lines:
+        return None, None
+    shared_sorted = sorted(shared)  # deterministic order
+    a = [a_map[m] for m in shared_sorted]
+    b = [b_map[m] for m in shared_sorted]
+    rho = _spearman_rho(a, b)
+    if rho is None:
+        return None, None
+    return float(rho), int(len(shared))
+
+
+def _spearman_rho(a: list[float], b: list[float]) -> Optional[float]:
+    """Spearman correlation via rank-transform + Pearson-of-ranks. Returns None if
+    variance is zero (undefined correlation) or n < 3."""
+    if len(a) != len(b) or len(a) < 3:
+        return None
+    import statistics as _stats
+    def _ranks(v):
+        sorted_v = sorted(enumerate(v), key=lambda x: x[1])
+        # Handle ties with average rank (fractional). Simpler: use pandas.rank if importable.
+        ranks = [0.0] * len(v)
+        i = 0
+        while i < len(sorted_v):
+            j = i
+            while j + 1 < len(sorted_v) and sorted_v[j + 1][1] == sorted_v[i][1]:
+                j += 1
+            avg_rank = (i + j) / 2.0 + 1  # 1-indexed average rank for ties
+            for k in range(i, j + 1):
+                ranks[sorted_v[k][0]] = avg_rank
+            i = j + 1
+        return ranks
+    ra, rb = _ranks(a), _ranks(b)
+    mean_a = sum(ra) / len(ra)
+    mean_b = sum(rb) / len(rb)
+    num = sum((x - mean_a) * (y - mean_b) for x, y in zip(ra, rb))
+    var_a = sum((x - mean_a) ** 2 for x in ra)
+    var_b = sum((y - mean_b) ** 2 for y in rb)
+    if var_a == 0 or var_b == 0:
+        return None
+    return num / (var_a ** 0.5 * var_b ** 0.5)
+
+
+def compute_dual_responders(
+    chronos_by_model: dict[str, float],
+    lfc_frame,
+    compound_ids: set[str],
+    model_to_lineage: Optional[dict[str, str]] = None,
+    chronos_threshold: float = DUAL_RESPONDER_CHRONOS,
+    lfc_threshold: float = DUAL_RESPONDER_LFC,
+    max_entries: int = 20,
+) -> list[dict]:
+    """Identify cell lines dual-validated as (a) CRISPR-dependent AND (b) responsive
+    to ≥1 PRISM compound targeting the gene.
+
+    A dual-responder is a cell line where:
+      - chronos_by_model[model_id] < chronos_threshold (CRISPR-dependent)
+      - min LFC across all listed compounds at that model_id < lfc_threshold
+        (responsive to at least ONE compound)
+
+    Returns list<struct> (up to max_entries most-CRISPR-dependent lines):
+      {model_id, lineage, chronos_dep, best_compound_lfc, best_compound_id}
+    """
+    if not chronos_by_model or lfc_frame is None or lfc_frame.empty:
+        return []
+    sub = lfc_frame[lfc_frame["compound_id"].isin(compound_ids)]
+    if sub.empty:
+        return []
+    # For each model_id in intersection: find best compound (min LFC)
+    intersected_models = set(chronos_by_model.keys()) & set(sub["model_id"].unique())
+    if not intersected_models:
+        return []
+    sub = sub[sub["model_id"].isin(intersected_models)]
+    best_per_line = sub.loc[sub.groupby("model_id")["min_lfc"].idxmin()]
+    best_per_line = best_per_line[["model_id", "compound_id", "min_lfc"]].rename(
+        columns={"min_lfc": "best_compound_lfc", "compound_id": "best_compound_id"}
+    )
+    best_per_line["chronos_dep"] = best_per_line["model_id"].map(chronos_by_model)
+    # Filter to dual-responders
+    dual = best_per_line[
+        (best_per_line["chronos_dep"] < chronos_threshold)
+        & (best_per_line["best_compound_lfc"] < lfc_threshold)
+    ].copy()
+    if dual.empty:
+        return []
+    # Sort by CRISPR-dependency (most negative Chronos first)
+    dual = dual.sort_values("chronos_dep")
+    # Attach lineage
+    dual["lineage"] = dual["model_id"].map(model_to_lineage or {}).fillna("Unknown")
+    dual = dual.head(max_entries)
+    return [
+        {
+            "model_id": r["model_id"],
+            "lineage": r["lineage"],
+            "chronos_dep": float(r["chronos_dep"]),
+            "best_compound_lfc": float(r["best_compound_lfc"]),
+            "best_compound_id": r["best_compound_id"],
+        }
+        for _, r in dual.iterrows()
+    ]
+
+
+def classify_crispr_prism_concordance(
+    per_compound_concordance: list[dict],
+    chronos_available: bool,
+    rnai_available: bool,
+) -> str:
+    """Classify gene-level 3-way concordance (CRISPR × RNAi × PRISM).
+
+    Uses the BEST correlation across compounds for each genetic assay.
+    Priority (first-match wins):
+      1. No CRISPR AND no RNAi data for this gene → data_unavailable
+      2. No compound-level concordance rows → thin_evidence
+      3. BOTH best_rho_crispr ≥ 0.30 AND best_rho_rnai ≥ 0.30 → triangulated
+      4. best_rho_crispr ≥ 0.30 (RNAi < 0.30 OR unavailable) → crispr_confirmed
+      5. best_rho_rnai ≥ 0.30 (CRISPR < 0.30 OR unavailable) → rnai_confirmed
+      6. Any pair-wise best_rho in [0.10, 0.30) → mixed_engagement
+      7. All available pair-wise best_rho < 0.10 → discordant_off_target_likely
+    """
+    if not chronos_available and not rnai_available:
+        return CONCORDANCE_DATA_UNAVAILABLE
+    if not per_compound_concordance:
+        return CONCORDANCE_THIN
+    crispr_rhos = [c["spearman_r_crispr"] for c in per_compound_concordance
+                   if c.get("spearman_r_crispr") is not None]
+    rnai_rhos = [c["spearman_r_rnai"] for c in per_compound_concordance
+                 if c.get("spearman_r_rnai") is not None]
+    best_c = max(crispr_rhos) if crispr_rhos else None
+    best_r = max(rnai_rhos) if rnai_rhos else None
+
+    strong = CONCORDANCE_STRONG_SPEARMAN   # 0.30
+    weak = CONCORDANCE_WEAK_SPEARMAN       # 0.10
+
+    if best_c is not None and best_c >= strong and best_r is not None and best_r >= strong:
+        return CONCORDANCE_TRIANGULATED
+    if best_c is not None and best_c >= strong:
+        return CONCORDANCE_CRISPR_CONFIRMED
+    if best_r is not None and best_r >= strong:
+        return CONCORDANCE_RNAI_CONFIRMED
+    # Neither assay strong. Consider best pair-wise in weak range → mixed
+    max_rho = max([r for r in [best_c, best_r] if r is not None], default=None)
+    if max_rho is None:
+        return CONCORDANCE_THIN
+    if max_rho >= weak:
+        return CONCORDANCE_MIXED
+    return CONCORDANCE_OFF_TARGET
 
 
 def classify_prism_lineage_selectivity(per_lineage_activity: list[dict]) -> str:
@@ -728,6 +1128,22 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
         pa.field("top_compound_in_lineage", pa.string()),
         pa.field("n_compounds_evaluated", pa.int32()),
     ])
+    # v4: 3-way concordance struct per compound
+    concordance_struct = pa.struct([
+        pa.field("compound_id", pa.string()),
+        pa.field("n_intersected_crispr", pa.int32()),
+        pa.field("spearman_r_crispr", pa.float32()),
+        pa.field("n_intersected_rnai", pa.int32()),
+        pa.field("spearman_r_rnai", pa.float32()),
+        pa.field("metric_used", pa.string()),
+    ])
+    dual_responder_struct = pa.struct([
+        pa.field("model_id", pa.string()),
+        pa.field("lineage", pa.string()),
+        pa.field("chronos_dep", pa.float32()),
+        pa.field("best_compound_lfc", pa.float32()),
+        pa.field("best_compound_id", pa.string()),
+    ])
     schema = pa.schema([
         pa.field("gene_symbol", pa.string()),
         pa.field("n_compounds_targeting", pa.int32()),
@@ -737,6 +1153,10 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
         pa.field("prism_activity_class", pa.string()),
         pa.field("per_lineage_activity", pa.list_(lineage_struct)),
         pa.field("prism_lineage_selectivity", pa.string()),
+        # v4
+        pa.field("per_compound_concordance", pa.list_(concordance_struct)),
+        pa.field("crispr_prism_concordance_class", pa.string()),
+        pa.field("dual_responders", pa.list_(dual_responder_struct)),
     ])
     df = df.copy()
     df["median_log2auc_across_compounds"] = df["median_log2auc_across_compounds"].astype(object)
@@ -744,6 +1164,12 @@ def write_gene_aggregate_parquet(df: "pandas.DataFrame", local_path: Path) -> in
         df["per_lineage_activity"] = [[] for _ in range(len(df))]
     if "prism_lineage_selectivity" not in df.columns:
         df["prism_lineage_selectivity"] = LINEAGE_SEL_DATA_UNAVAILABLE
+    if "per_compound_concordance" not in df.columns:
+        df["per_compound_concordance"] = [[] for _ in range(len(df))]
+    if "crispr_prism_concordance_class" not in df.columns:
+        df["crispr_prism_concordance_class"] = CONCORDANCE_DATA_UNAVAILABLE
+    if "dual_responders" not in df.columns:
+        df["dual_responders"] = [[] for _ in range(len(df))]
     table = pa.Table.from_pydict(
         {c.name: df[c.name].tolist() for c in schema},
         schema=schema,
@@ -792,6 +1218,12 @@ def _write_manifest(
             "lineage_selective_min_inactive": LINEAGE_SELECTIVE_MIN_INACTIVE,
             "weakly_active_log2auc": WEAKLY_ACTIVE_LOG2AUC_THRESHOLD,
             "clinically_active_log2auc": CLINICALLY_ACTIVE_LOG2AUC_THRESHOLD,
+            # v4
+            "min_lines_for_concordance": MIN_LINES_FOR_CONCORDANCE,
+            "concordance_strong_spearman": CONCORDANCE_STRONG_SPEARMAN,
+            "concordance_weak_spearman": CONCORDANCE_WEAK_SPEARMAN,
+            "dual_responder_chronos": DUAL_RESPONDER_CHRONOS,
+            "dual_responder_lfc": DUAL_RESPONDER_LFC,
         },
         "vocabulary": {
             "prism_activity_class": [
@@ -805,16 +1237,24 @@ def _write_manifest(
             ],
             "highest_clinical_phase": ["tool", "preclinical", "phase_1_plus", "approved"],
             "metric_source": ["log2auc", "single_dose_lfc", "annotation_only"],
+            "crispr_prism_concordance_class": [
+                CONCORDANCE_TRIANGULATED, CONCORDANCE_CRISPR_CONFIRMED,
+                CONCORDANCE_RNAI_CONFIRMED, CONCORDANCE_MIXED,
+                CONCORDANCE_OFF_TARGET, CONCORDANCE_THIN,
+                CONCORDANCE_DATA_UNAVAILABLE,
+            ],
         },
         "notes": (
-            "v3 primary activity metric: OncRef 25Q4 Log2AUC (mean-centered "
-            "dose-response integral). best_responder_lfc is min raw LFC across "
-            "all (compound × dose × cell_line) entries from LFCCollapsed. "
-            "Repurposing 24Q2 compounds appear in top_compounds for annotation "
-            "completeness but their activity numbers do NOT roll up to gene-level "
-            "or lineage-level fields (Repurposing has no AUC file — single-dose "
-            "screen). Requires DepMap 26q1 Model.csv for the ModelID -> "
-            "OncotreeLineage join."
+            "v4 adds CRISPR × RNAi × PRISM triangulated concordance. For each "
+            "gene with ≥1 PRISM-annotated compound, computes per-compound "
+            "Spearman correlation vs CRISPR Chronos (per-line KO effect) AND vs "
+            "RNAi DEMETER2 (per-line KD effect). Triangulated concordance (both "
+            "assays' best rho ≥ 0.30) is the highest-confidence target-engaged "
+            "call. Also identifies dual_responders — cell lines dual-validated "
+            "as CRISPR-dependent AND compound-responsive. Primary activity "
+            "metric remains Log2AUC; best_responder_lfc unchanged. Requires "
+            "26Q1 Model.csv (lineage + CCLE->ModelID bridge), CRISPRGeneEffect "
+            "parquet (Chronos), and D2_combined_gene_dep_scores parquet (RNAi)."
         ),
         "gene_aggregate": {
             "filename": "prism_activity_per_gene.parquet",
@@ -933,11 +1373,13 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
                 "n_rows_agg": len(repurposing_lfc),
             })
 
-    _log("\n=== Fetching Model.csv for ModelID -> OncotreeLineage join ===")
+    _log("\n=== Fetching Model.csv for ModelID -> OncotreeLineage + CCLE bridging ===")
     model_csv_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
     model_body, model_sha, model_size = _fetch_source(s3, model_csv_key)
     model_to_lineage = load_model_to_lineage(model_body)
+    ccle_to_modelid = load_ccle_to_modelid(model_body)
     _log(f"  {len(model_to_lineage)} ModelID -> OncotreeLineage mappings")
+    _log(f"  {len(ccle_to_modelid)} CCLE_ID -> ModelID bridges (for RNAi lookup)")
     entries.append({
         "release_pin": "dmc-26q1",
         "source_key": model_csv_key,
@@ -952,6 +1394,41 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
     _log(f"  merged compound rows: {len(merged)}, unique compounds after cross-release dedup: "
          f"{len(merged)}")
 
+    # Determine which HGNC genes have ≥1 annotated compound — that's the set to
+    # fetch CRISPR + RNAi for (all others don't need the correlation).
+    all_annotated_genes: set[str] = set()
+    for row in merged.itertuples(index=False):
+        for g in row.gene_targets or []:
+            all_annotated_genes.add(g)
+    _log(f"  {len(all_annotated_genes)} unique HGNC genes annotated to ≥1 PRISM compound")
+
+    _log("\n=== Fetching CRISPR Chronos for annotated genes (v4 concordance) ===")
+    from methods.depmap_common.parquet import get_full_matrix_path
+    chronos_local = get_full_matrix_path("CRISPRGeneEffect.parquet")
+    chronos_by_gene = load_crispr_chronos_for_genes(chronos_local, all_annotated_genes)
+    _log(f"  Chronos loaded for {len(chronos_by_gene)}/{len(all_annotated_genes)} genes")
+    entries.append({
+        "release_pin": "dmc-26q1",
+        "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/CRISPRGeneEffect.parquet",
+        "source_sha256": None,
+        "source_size_bytes": chronos_local.stat().st_size,
+        "role": "crispr_chronos_for_concordance",
+        "n_rows_agg": len(chronos_by_gene),
+    })
+
+    _log("\n=== Fetching RNAi DEMETER2 for annotated genes (v4 concordance) ===")
+    demeter_local = get_full_matrix_path("D2_combined_gene_dep_scores.parquet")
+    rnai_by_gene = load_rnai_demeter_for_genes(demeter_local, all_annotated_genes, ccle_to_modelid)
+    _log(f"  RNAi DEMETER2 loaded for {len(rnai_by_gene)}/{len(all_annotated_genes)} genes")
+    entries.append({
+        "release_pin": "dmc-26q1",
+        "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/D2_combined_gene_dep_scores.parquet",
+        "source_sha256": None,
+        "source_size_bytes": demeter_local.stat().st_size,
+        "role": "rnai_demeter2_for_concordance",
+        "n_rows_agg": len(rnai_by_gene),
+    })
+
     _log("\n=== Building gene aggregate ===")
     gene_agg = build_gene_aggregate(
         merged,
@@ -959,10 +1436,13 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
         oncref_lfccollapsed_min=oncref_lfccollapsed_min,
         repurposing_lfc=repurposing_lfc,
         model_to_lineage=model_to_lineage,
+        chronos_by_gene=chronos_by_gene,
+        rnai_by_gene=rnai_by_gene,
     )
     _log(f"  gene rows: {len(gene_agg)}")
     _log(f"  class distribution: {gene_agg['prism_activity_class'].value_counts().to_dict()}")
     _log(f"  lineage-selectivity distribution: {gene_agg['prism_lineage_selectivity'].value_counts().to_dict()}")
+    _log(f"  concordance-class distribution: {gene_agg['crispr_prism_concordance_class'].value_counts().to_dict()}")
 
     # Write parquet
     parquet_path = local_dir / "prism_activity_per_gene.parquet"

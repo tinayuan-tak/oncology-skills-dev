@@ -2,7 +2,7 @@
 """depmap-prism-activity CLI (E6 — thin lookup on the PRISM gene-aggregate parquet).
 
 Reads ONE row from the frozen derived parquet
-`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v3/prism_activity_per_gene.parquet`
+`s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/prism_activity_per_gene.parquet`
 via pyarrow predicate pushdown. The parquet is produced by the sibling
 `methods.depmap_prism_precompute`.
 
@@ -15,7 +15,7 @@ Three figure emitters:
      activity that pan-cancer median can mask (e.g. KRAS Bowel signal).
   3. activity_vocab_panel — text card showing the class + granular fields.
 
-Card carries its OWN release_pin (prism-activity-v3); NOT the 26q1 CRISPR pin.
+Card carries its OWN release_pin (prism-activity-v4); NOT the 26q1 CRISPR pin.
 
 v3 (2026-07-01, PRISM metric-switch to Log2AUC):
   - Primary activity metric is Log2AUC (median_log2auc_across_compounds +
@@ -25,7 +25,7 @@ v3 (2026-07-01, PRISM metric-switch to Log2AUC):
     deep-responder tail statistic that Log2AUC's 0-cap can't resolve.
   - top_compounds struct v3: median_log2auc + best_responder_lfc + single_dose_lfc
     + metric_source ('log2auc' | 'single_dose_lfc' | 'annotation_only').
-  - Reads depmap-prism-activity-v3.
+  - Reads depmap-prism-activity-v4 (shared with E7 crispr-concordance).
 """
 
 from __future__ import annotations
@@ -47,9 +47,11 @@ DEFAULT_TARGET_CONTRACTS = Path(
     "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
 )
 
-# Release-pin → parquet S3 URI. `prism-activity-v3` is the canonical framework pin.
-# v1/v2 kept for backwards-compat lookup (test fixtures / historical reads).
+# Release-pin → parquet S3 URI. `prism-activity-v4` is the canonical framework pin
+# (v4 shares the parquet with E7 crispr-concordance card).
+# v1/v2/v3 kept for backwards-compat lookup (test fixtures / historical reads).
 RELEASE_PIN_TO_PARQUET = {
+    "prism-activity-v4": "s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/prism_activity_per_gene.parquet",
     "prism-activity-v3": "s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v3/prism_activity_per_gene.parquet",
     "prism-activity-v2": "s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v2/prism_activity_per_gene.parquet",
     "prism-activity-v1": "s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v1/prism_activity_per_gene.parquet",
@@ -412,7 +414,7 @@ def emit_manifest(target: str, release_pin: str, summary: dict,
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="prism-activity-v3", show_default=True,
+@click.option("--release-pin", default="prism-activity-v4", show_default=True,
               type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys())))
 @click.option("--parquet-uri", default=None,
               help="Override the parquet URI (for testing / local fixture).")
