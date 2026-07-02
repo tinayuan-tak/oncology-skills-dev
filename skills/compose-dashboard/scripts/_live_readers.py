@@ -83,6 +83,20 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
     return summary
 
 
+def _dispatch_tumor_vs_normal_selectivity(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-vs-normal-selectivity card (v2 dual-contrast) to
+    methods/dge_deseq2/read.py:read_tumor_vs_normal_selectivity.
+
+    Composite reader that pulls BOTH DGE products:
+      1. `{indication}-dge-tumor-vs-adjacent` (existing R DESeq2 pipeline output)
+      2. `{indication}-dge-tumor-vs-gtex-v1` (Python-native Welch's t)
+    Returns unified summary with max_log2_fc + selectivity_class. Never returns
+    None; missing indication → selectivity_class=data_unavailable.
+    """
+    dge_module = _import_method("dge_deseq2")
+    return dge_module.read_tumor_vs_normal_selectivity(target=target, indication=indication)
+
+
 def _dispatch_dependency_lineage_selectivity(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route dependency-lineage-selectivity card to methods/depmap_chronos/read.py."""
     chronos_module = _import_method("depmap_chronos")
@@ -307,6 +321,7 @@ CARD_DISPATCHERS = {
     "dependency-predictability": _dispatch_dependency_predictability,
     "prism-compound-activity": _dispatch_prism_compound_activity,
     "prism-crispr-concordance": _dispatch_prism_crispr_concordance,
+    "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

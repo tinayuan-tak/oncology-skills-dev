@@ -46,6 +46,54 @@ def _has_live_read_error(summary: dict) -> bool:
     return isinstance(summary, dict) and "_live_read_error" in summary
 
 
+def _emit_tumor_vs_normal_selectivity(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit tumor-vs-normal-selectivity 3-panel figure (v2, dual-contrast).
+
+    Pulls per-sample log2(CPM+1) for tumor + adjacent-normal + GTEx-normal
+    from recount3 at emit-time. Composes both DGE contrasts from S3 parquets.
+
+    Fetch time: ~30s per (target, indication) for a fresh call — dominated by
+    3 gzipped-counts streams (TCGA + GTEx) + 3 metadata fetches.
+    """
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.dge_deseq2 import read as dge_read
+    from methods.dge_deseq2 import emit as dge_emit
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        per_sample = dge_read.read_per_sample_expression_all_three_groups(
+            target=target, indication=indication,
+        )
+    except Exception:
+        per_sample = None
+
+    # DGE summaries from the two sources (may be None on indications without products)
+    try:
+        adj = dge_read.read_dge_gene_row(target, dge_read._INDICATION_TO_ADJ_MANIFEST.get(indication.upper(), ""))
+    except Exception:
+        adj = None
+    try:
+        gtex = dge_read.read_tumor_vs_gtex_gene_row(target, indication)
+    except Exception:
+        gtex = None
+
+    dge_emit.emit_tumor_vs_normal_selectivity_3panel(
+        dge_adj_summary=adj, dge_gtex_summary=gtex,
+        per_sample_data=per_sample,
+        target=target, indication=indication,
+        out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
+    )
+    return [
+        {"id": "tumor_vs_normal_selectivity_3panel",
+         "path": "figure_tumor_vs_normal_selectivity_3panel.svg",
+         "type": "box_forest_class_panel", "primary": True},
+    ]
+
+
 def _emit_expression_tumor_vs_adjacent(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -533,6 +581,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "prism-compound-activity": _emit_prism_compound_activity,
     "prism-crispr-concordance": _emit_prism_crispr_concordance,
     "expression-tumor-vs-adjacent": _emit_expression_tumor_vs_adjacent,
+    "tumor-vs-normal-selectivity": _emit_tumor_vs_normal_selectivity,
 }
 
 
