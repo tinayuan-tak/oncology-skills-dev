@@ -46,6 +46,45 @@ def _has_live_read_error(summary: dict) -> bool:
     return isinstance(summary, dict) and "_live_read_error" in summary
 
 
+def _emit_expression_tumor_vs_adjacent(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit tumor-vs-adjacent compound figure (box+strip + DGE-stats callout).
+
+    Pulls per-sample log2(CPM+1) from recount3 at emit-time via
+    dge_deseq2.read.read_per_sample_expression_tumor_vs_adjacent. First call
+    per (target, indication) takes ~10-20s (streams two ~50MB gzipped counts
+    files from S3); subsequent lookups in the same process are hot-cached at
+    the Ensembl-ID-map level.
+
+    Placeholder rendered when the indication has no recount3 study mapping,
+    or the target's HGNC symbol doesn't resolve to an Ensembl ID.
+    """
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.dge_deseq2 import read as dge_read
+    from methods.dge_deseq2 import emit as dge_emit
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        per_sample = dge_read.read_per_sample_expression_tumor_vs_adjacent(
+            target=target, indication=indication,
+        )
+    except Exception:
+        per_sample = None
+    dge_emit.emit_tumor_vs_adjacent_compound(
+        summary=summary, per_sample_data=per_sample,
+        target=target, indication=indication,
+        out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
+    )
+    return [
+        {"id": "tumor_vs_adjacent_compound",
+         "path": "figure_tumor_vs_adjacent_compound.svg",
+         "type": "violin_paired_with_significance", "primary": True},
+    ]
+
+
 def _emit_card1_pan_cancer_dependency_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -493,6 +532,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "dependency-predictability": _emit_dependency_predictability,
     "prism-compound-activity": _emit_prism_compound_activity,
     "prism-crispr-concordance": _emit_prism_crispr_concordance,
+    "expression-tumor-vs-adjacent": _emit_expression_tumor_vs_adjacent,
 }
 
 
