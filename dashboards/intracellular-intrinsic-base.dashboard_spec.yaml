@@ -55,6 +55,8 @@ required_cards:
     version: ">=1.0.0,<4"        # Card E5 — multi-omics predictability model, activated 2026-07-01
   - card_id: prism-compound-activity
     version: ">=1.0.0,<4"        # widened: Card E6 refactored to v3.0.0 (Log2AUC metric) 2026-07-01
+  - card_id: prism-crispr-concordance
+    version: ">=1.0.0,<2"        # Card E7 — chemical-genetic-genetic triangulated concordance (activated 2026-07-02)
   - card_id: mutation-hotspot-frequency
     version: ">=1.0.0,<2"
   - card_id: normal-tissue-liability

@@ -1025,3 +1025,122 @@ rules:
       Per-lineage aggregation unavailable — either Model.csv was unreadable in the
       precompute, or no lineage met the min_cell_lines_in_lineage threshold for this
       gene. Coverage gap; distinct from a real 'no_lineage_signal' call.
+
+  # ============================================================================
+  # E7 — CRISPR × RNAi × PRISM triangulated concordance (Card prism-crispr-concordance)
+  # ============================================================================
+  # Chemical-genetic target engagement. Triangulated concordance (both CRISPR AND
+  # RNAi correlate with PRISM compound kill patterns) is the framework's
+  # highest-confidence "compound is on-target" call.
+
+  - rule_id: e7-triangulated-target-engaged-supportive
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: triangulated_target_engaged
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Both CRISPR-KO Chronos AND RNAi-KD DEMETER2 dependency scores correlate
+      positively with PRISM compound kill activity across the cell-line panel
+      (best rho ≥ 0.30 in each assay). Cross-modality (chemical vs genetic)
+      cross-perturbation (full-KO vs partial-KD) triangulated evidence that the
+      annotated compounds engage the target on-target. Highest-confidence
+      supportive signal for BOTH small_molecule (compound scaffold validated)
+      AND degrader (target biology validated; degrader-scaffold to be
+      developed). Marked DOMINANT — this is a dispositive target-engagement
+      confirmation.
+
+  - rule_id: e7-crispr-confirmed-supportive-sm
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: crispr_confirmed_engagement
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      CRISPR-KO Chronos correlates with PRISM activity (rho ≥ 0.30) but RNAi-KD
+      does not (< 0.30 or unavailable). Consistent with paralog-compensable
+      dependencies that only full-KO reveals — RNAi's residual protein activity
+      is sufficient to rescue viability. Small-molecule inhibitor (full activity
+      block at active site) engages the target. Degrader is NEUTRAL: full protein
+      depletion may hit the same paralog-compensable biology BUT the graded-KD
+      failure suggests any residual protein may buffer degrader activity too;
+      needs case-by-case evaluation.
+
+  - rule_id: e7-rnai-confirmed-weak-supportive
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: rnai_confirmed_engagement
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      RNAi correlates but CRISPR does not — rare pattern. May indicate CRISPR
+      fitness-selection artifact (essential gene where KO cells are underrepresented
+      in the panel because they die too fast) or partial-KD-mimicking mechanism.
+      Supportive but with caveat; interpret alongside E1/E1b to check for CRISPR
+      panel-composition issues.
+
+  - rule_id: e7-mixed-engagement-neutral
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: mixed_engagement
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Best pair-wise rho in the [0.10, 0.30) weak range. Compound activity is
+      partially concordant with genetic dependency but neither assay strongly
+      validates on-target engagement. Common for compounds with mixed
+      target-plus-off-target profiles or genes where PRISM cell-line coverage
+      is thin. Neutral: no signal to reinforce or oppose the target call.
+
+  - rule_id: e7-discordant-off-target-warning
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: discordant_off_target_likely
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      All pair-wise rhos < 0.10. Compound activity does NOT track with genetic
+      dependency in either CRISPR or RNAi. The annotated compounds may be working
+      via off-target mechanisms. IMPORTANT: this is a compound-annotation warning,
+      NOT a target killer. The target itself may still be biologically valid — a
+      different chemical scaffold could engage it. Interpretation: PRISM's E6
+      activity call should be discounted (or contextualized as "possibly
+      off-target") but the target-itself signal (dependency, essentiality) is
+      untouched by this rule.
+
+  - rule_id: e7-thin-evidence-insufficient
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: thin_evidence
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Insufficient cell-line overlap between the PRISM screen panel and CRISPR/RNAi
+      panels (< 20 lines intersected for any compound). Coverage gap; not used as
+      opposing evidence.
+
+  - rule_id: e7-data-unavailable-insufficient
+    when:
+      card_id: prism-crispr-concordance
+      field: crispr_prism_concordance_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Neither CRISPR nor RNAi data available for this gene (both assays absent
+      from DepMap). Coverage gap; concordance cannot be assessed. E6's compound
+      activity call stands unchallenged.
