@@ -930,7 +930,7 @@ rules:
       small_molecule: supportive
       degrader: neutral
     rationale: |
-      Tool compounds show measurable pan-cancer viability activity (median LFC < -0.5) but
+      Tool compounds show measurable pan-cancer dose-response potency (median Log2AUC < -0.15) but
       no clinical anchor. Activity signal is present but interpretation is confounded by
       the tool-vs-clinical gap; treat as chemistry-tractability weak-positive.
 
@@ -973,7 +973,7 @@ rules:
       small_molecule: supportive
       degrader: neutral
     rationale: |
-      Activity is lineage-selective (≥1 lineage active with median LFC < -0.5 AND ≥1
+      Activity is lineage-selective (≥1 lineage active with median Log2AUC < -0.15 AND ≥1
       inactive lineage). This is the biomarker-cohort shape: SM programs get lineage-
       restricted patient selection (e.g. KRAS-G12C inhibitors in Bowel/Pancreas/Lung).
       Reinforces supportive signal from prism_activity_class = clinically_active;

@@ -1,4 +1,4 @@
-# Card E6 — PRISM COMPOUND ACTIVITY  (v2 — thin-lookup, dual-release, lineage-stratified)
+# Card E6 — PRISM COMPOUND ACTIVITY  (v3 — thin-lookup, dual-release, Log2AUC + lineage-stratified)
 #
 # Answers: "Is there an existing compound that targets this gene, and does it
 # kill cell lines in a target-relevant pattern? Is the activity pan-cancer or
@@ -11,28 +11,37 @@
 #     compounds annotate as targeting it, and what viability effect do they
 #     produce across cell lines?)
 #
-# v2 (2026-07-01, PRISM lineage stratification build):
-#   Adds per_lineage_activity + prism_lineage_selectivity to summary_fields.
-#   Motivated by the v1 KRAS symptom: pan-cancer median LFC = -0.02 (nearly flat)
-#   masks a real Bowel/Pancreas activity signal for sotorasib/adagrasib because
-#   averaging with non-KRAS-mutant lines cancels the effect. v2 exposes the
-#   lineage-level distribution so downstream synthesis + Tier-2 rules can
-#   distinguish "broadly-active" from "lineage-selective" targets.
+# v3 (2026-07-01, PRISM metric-switch to Log2AUC):
+#   PRIMARY activity metric switched from single-dose median-LFC (v1/v2) to
+#   **Log2AUC** (mean-centered dose-response-curve integral, DepMap-portal
+#   default sensitivity metric). Motivated by the KRAS symptom: under median-LFC
+#   even Bowel/Pancreas medians were flat (~0) because the single collapsed dose
+#   is dominated by KRAS-WT lines; under Log2AUC the dose-response integral
+#   surfaces genuine lineage-selectivity (Bowel/Esophagus/Pancreas rank top).
+#
+#   Two metrics now carried:
+#     - median_log2auc (+ per_lineage_activity.median_log2auc): primary potency
+#       signal. Drives prism_activity_class + prism_lineage_selectivity.
+#     - best_responder_lfc (per-compound + per-lineage): min raw LFC across all
+#       (compound × dose × cell_line) entries. Preserves the deep-responder tail
+#       that Log2AUC's 0-cap can't resolve (canonical for oncogene-addiction
+#       drugs: KRAS-G12C compounds hit their mutant lines at LFC ~-3 to -5 even
+#       when the lineage median Log2AUC is only mildly negative).
+#
+#   Repurposing 24Q2 has NO AUC file (single-dose screen). v3 uses Repurposing
+#   compounds for ANNOTATION completeness only — they appear in top_compounds +
+#   n_compounds_targeting but do NOT contribute to Log2AUC-based activity
+#   rollups (median_log2auc, per_lineage_activity, lineage-selectivity). Their
+#   single-dose LFC is carried as `single_dose_lfc` with metric_source tag.
 #
 # Cross-release-pin substrate (locked 2026-07-01):
-#   The card carries its OWN release_pin (`prism-activity-v2`) separately from
-#   the 26q1 CRISPR pin. PRISM releases are off-substrate from the CRISPR/RNAi
-#   26q1 baseline and version independently.
-#
-#   Card reads a single per-gene aggregate parquet materialized by the sibling
-#   `depmap-prism-precompute` batch job from two upstream PRISM releases:
-#     - OncologyReference 25Q4 (primary, ~600 clinical-focus compounds incl.
-#       sotorasib/adagrasib/etc.)
-#     - Repurposing 24Q2 (fallback, ~6790 broad-library compounds)
-#   Per-compound activity is computed within each release's OWN cell-line panel;
-#   NEVER mixed across releases. Cross-release dedup by uppercase drug_name;
-#   OncRef row wins when both present. Lineage stratification uses DepMap 26Q1
-#   Model.csv for the ModelID → OncotreeLineage join.
+#   The card carries its OWN release_pin (`prism-activity-v3`) separately from
+#   the 26q1 CRISPR pin. Card reads a single per-gene aggregate parquet
+#   materialized by the sibling `depmap-prism-precompute` batch job from:
+#     - OncologyReference 25Q4 (primary — Log2AUC + LFCCollapsed)
+#     - Repurposing 24Q2 (annotation-only — single-dose LFC)
+#   Cross-release dedup by uppercase drug_name; OncRef row wins. Lineage
+#   stratification uses DepMap 26Q1 Model.csv for ModelID → OncotreeLineage.
 #
 # Multi-target handling (locked 2026-07-01, plan Q3):
 #   Polyselective compounds (e.g. LONAFARNIB → FNTA/HRAS/KRAS/NRAS) appear on
@@ -46,99 +55,101 @@
 #   `no_compounds_found`     → NEUTRAL (first-in-class opportunity, NOT a killer)
 #   `data_unavailable`       → insufficient (no signal to interpret)
 #
-#   v2 additional signal (prism_lineage_selectivity, layers on top of activity_class):
-#   `lineage_selective`      → supplements clinically_active/weakly_active with
-#                              a "biomarker cohort" quality — SM programs get
-#                              lineage-restricted rather than pan-cancer patient
-#                              selection question.
+#   prism_lineage_selectivity (layers on top of activity_class):
+#   `lineage_selective`      → biomarker-cohort quality; SM programs get lineage-
+#                              restricted rather than pan-cancer patient selection
 #   `broadly_active`         → pan-cancer viability signal; less specific
-#   `no_lineage_signal`      → activity signal is thin OR flat across lineages
+#   `no_lineage_signal`      → activity thin OR flat across lineages
 
 card_id: prism-compound-activity
-version: 2.0.0
-question: "For compounds annotated as targeting {target.symbol}, how many exist across PRISM screens, what is their viability effect across cell lines, AND is that activity lineage-selective or pan-cancer? Is the target druggable in the clinical library (small-molecule tractable), tool-compound-only (druggable but pre-clinical), or first-in-class opportunity (no annotated compound)?"
+version: 3.0.0
+question: "For compounds annotated as targeting {target.symbol}, how many exist across PRISM screens, what is their dose-response potency (Log2AUC) across cell lines, AND is that activity lineage-selective or pan-cancer? Is the target druggable in the clinical library (small-molecule tractable), tool-compound-only (druggable but pre-clinical), or first-in-class opportunity (no annotated compound)?"
 
 applies_when:
   - "context.data_sources.depmap_prism_available == true"
 
-# Distinct release pin from the 26q1 CRISPR substrate. Card is off-substrate
-# from the rest of the intracellular-intrinsic dashboard; sourcing manifest is
-# s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v2/manifest.yaml
-# which cites the upstream PRISM OncRef 25Q4 + Repurposing 24Q2 releases AND
-# the 26Q1 Model.csv used to build the per-lineage aggregate.
+# Distinct release pin from the 26q1 CRISPR substrate. Sourcing manifest is
+# s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v3/manifest.yaml
+# which cites PRISM OncRef 25Q4 (Log2AUC + LFCCollapsed) + Repurposing 24Q2
+# (single-dose LFC, annotation-only) + 26Q1 Model.csv (lineage join).
 required_inputs:
-  - product_id: depmap-prism-activity-v2
-    release_pin: "prism-activity-v2"
+  - product_id: depmap-prism-activity-v3
+    release_pin: "prism-activity-v3"
 
 methods:
   - call: depmap-prism-activity
     args:
       target: "{target.symbol}"
-      release_pin: "prism-activity-v2"
+      release_pin: "prism-activity-v3"
 
 outputs:
   summary_fields:
     - prism_activity_class                  # DESCRIPTIVE — drives Tier-2 rules
-    - n_compounds_targeting                 # count of BRD/PRC compounds annotated to target (deduped by drug_name across releases)
+    - n_compounds_targeting                 # count of compounds annotated to target (deduped by drug_name across releases)
     - highest_clinical_phase                # coarse ladder — see vocabulary + caveat
-    - median_lfc_across_compounds           # median of per-compound median LFC (pan-cancer); null if no LFC data
+    - median_log2auc_across_compounds       # PRIMARY: median of per-OncRef-compound median Log2AUC; null if no OncRef Log2AUC data
     - top_compounds                         # up to 5 compounds ranked by activity; each entry:
-                                              # struct{compound_id, drug_name, moa, median_lfc,
-                                              #        fraction_lines_responding, n_lines_screened,
-                                              #        polyselective, n_annotated_targets,
-                                              #        source_release, prioritized}
-    - per_lineage_activity                  # v2: per-lineage activity distribution (sorted most-active-first);
-                                              # struct{lineage, n_lines_screened, n_lines_responding,
-                                              #        median_lfc, best_responder_lfc,
-                                              #        top_compound_in_lineage, n_compounds_evaluated}
-                                              # best_responder_lfc = min LFC (single best-responding line)
-                                              # across compounds in the lineage; median_lfc = middle line.
-                                              # Divergence indicates a responder subpopulation the median masks
-                                              # (canonical for oncogene-addiction drugs vs mixed-genotype lineages).
-    - prism_lineage_selectivity             # v2: DESCRIPTIVE — drives additional Tier-2 rules
+                                              # struct{compound_id, drug_name, moa, median_log2auc,
+                                              #        best_responder_lfc, single_dose_lfc, n_lines_screened,
+                                              #        polyselective, n_annotated_targets, source_release,
+                                              #        prioritized, metric_source}
+    - per_lineage_activity                  # per-lineage activity (sorted most-active-first, OncRef Log2AUC);
+                                              # struct{lineage, n_lines_screened, median_log2auc,
+                                              #        best_responder_lfc, top_compound_in_lineage,
+                                              #        n_compounds_evaluated}
+                                              # median_log2auc = potency in lineage; best_responder_lfc = deepest
+                                              # single-line raw LFC. Divergence (flat median, deep tail) is the
+                                              # oncogene-addiction signature.
+    - prism_lineage_selectivity             # DESCRIPTIVE — drives additional Tier-2 rules
 
   summary_fields_vocabulary:
     prism_activity_class:
       - clinically_active                   # ≥1 OncRef-prioritized compound (phase_1+ / approved proxy)
       - tool_compound_only                  # only tool / non-prioritized compounds; no clinical anchor
-      - weakly_active                       # tool compounds show some activity (median LFC < -0.5) but not clinical
+      - weakly_active                       # tool compounds show activity (median Log2AUC < -0.15) but not clinical
       - no_compounds_found                  # NO compound annotates as targeting this gene across BOTH releases
                                               # NOT a killer — first-in-class opportunity
       - data_unavailable                    # derived parquet unreadable (S3 error, unknown release_pin)
     prism_lineage_selectivity:
-      - lineage_selective                   # ≥1 lineage active (median LFC < -0.5) AND ≥1 lineage inactive
+      - lineage_selective                   # ≥1 lineage active (median Log2AUC < -0.15) AND ≥1 lineage inactive
       - broadly_active                      # majority of lineages active; no clear inactive contrast
       - no_lineage_signal                   # too few active lineages; pan-cancer signal is flat
       - data_unavailable                    # no evaluable lineages (Model.csv unreachable OR none met min-n)
     highest_clinical_phase:
-      - approved                            # placeholder — v2 does not resolve; see caveat
+      - approved                            # placeholder — v3 does not resolve; see caveat
       - phase_1_plus                        # ≥1 OncRef-prioritized compound present
       - preclinical                         # OncRef-non-prioritized entry present
       - tool                                # Repurposing-only presence
+    metric_source:                          # per top_compounds entry — which activity metric applies
+      - log2auc                             # OncRef compound with dose-response Log2AUC (primary)
+      - single_dose_lfc                     # Repurposing compound — single-dose LFC, annotation-only
+      - annotation_only                     # annotated but no activity measurement in either panel
 
   figures:
     - id: top_compounds_bar
       type: horizontal_bar_top_compounds
-      description: "Horizontal bar of the top-K compounds by activity (bar length = −median LFC across screened lines). Bars colored by clinical status (navy = OncRef-prioritized clinical; ochre = tool / Repurposing). Annotations: drug_name (y-axis) + MOA + polyselective flag (right of bar). No-compound targets render a placeholder that reads 'first-in-class opportunity'."
+      description: "Horizontal bar of the top-K compounds by activity (bar length = −median Log2AUC; Repurposing compounds fall back to −single_dose_lfc, tagged (LFC)). Bars colored by clinical status (navy = OncRef-prioritized clinical; ochre = tool / Repurposing). Annotations: drug_name (y-axis) + MOA + polyselective + metric-source flag. No-compound targets render a 'first-in-class opportunity' placeholder."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: lineage_activity_bar
       type: horizontal_bar_per_lineage
-      description: "v2: Per-lineage median LFC horizontal bar (top 10 lineages most-active-first). Navy bars = lineage active (median LFC < -0.5); gray = inactive/borderline. Each bar labeled with the top compound in that lineage + n_lines_screened. Dashed reference line at the active threshold. Direct visual answer to 'is this gene's PRISM activity broad or lineage-restricted?'"
+      description: "Per-lineage median Log2AUC horizontal bar (top 10 lineages most-active-first). Navy bars = lineage active (median Log2AUC < -0.15); gray = inactive/borderline. Each bar labeled with the top compound + n_lines + best-responder LFC (surfacing median-vs-tail divergence). Dashed reference at the active threshold. Direct visual answer to 'is this gene's PRISM activity broad or lineage-restricted?'"
       preferred_surfaces: [markdown, ppt, decision_memo]
     - id: activity_vocab_panel
       type: text_summary_panel
-      description: "Text card showing class + granular fields (n_compounds, highest_phase, median LFC, polyselective-count-in-top) AND v2 lineage-selectivity + n_lineages_active/evaluated. Complements the bars for headline-only surfaces; renders informatively even when the bars are placeholders."
+      description: "Text card showing class + granular fields (n_compounds, highest_phase, median Log2AUC, best-responder LFC, polyselective-count) AND lineage-selectivity + n_lineages_active/evaluated. Complements the bars for headline-only surfaces; renders informatively even when the bars are placeholders."
       preferred_surfaces: [markdown, ppt]
 
 thresholds:
-  lfc_responding_threshold: -1.0            # LFC < this → cell line responding to compound
-  weakly_active_lfc_threshold: -0.5         # tool compounds must clear this to count as weakly_active
+  lfc_responding_threshold: -1.0            # raw LFC < this → cell line responding (best-responder-tail context)
   top_compounds_k: 5                        # ranked cap for top_compounds field
-  # v2 lineage-stratification thresholds
+  # v3 Log2AUC activity thresholds
+  weakly_active_log2auc: -0.15              # tool compound must clear this (median Log2AUC) to count as weakly_active
+  clinically_active_log2auc: -0.10          # phase_1+ compound Log2AUC below this → clinically_active-with-signal
+  # v3 lineage-stratification thresholds (Log2AUC scale)
   min_cell_lines_in_lineage: 5              # mirrors E2 (dependency-lineage-selectivity)
-  lineage_active_lfc: -0.5                  # lineage's median LFC below this → 'active'
-  lineage_inactive_lfc: -0.2                # lineage's median LFC above this → 'inactive'
+  lineage_active_log2auc: -0.15             # lineage's median Log2AUC below this → 'active'
+  lineage_inactive_log2auc: -0.05           # lineage's median Log2AUC above this → 'inactive'
   lineage_selective_min_active: 1
   lineage_selective_min_inactive: 1
 
@@ -149,54 +160,53 @@ warning_predicates:
   - warning_id: prism_no_clinical_anchor
     if: "prism_activity_class == 'tool_compound_only' && n_compounds_targeting >= 3"
     message: "Multiple tool compounds exist but no clinical anchor. Target may be druggable but preclinical; SM programs would be first-in-clinic risk profile."
-  - warning_id: prism_thin_lfc_evidence
-    if: "n_compounds_targeting >= 1 && median_lfc_across_compounds == null"
-    message: "Compounds annotate to this target but no LFC measurements exist in the aggregate. Class call rests on annotation presence alone; activity claim is unsupported by the current data."
+  - warning_id: prism_annotation_only_no_oncref_activity
+    if: "n_compounds_targeting >= 1 && median_log2auc_across_compounds == null"
+    message: "Compounds annotate to this target but no OncRef Log2AUC measurement exists (annotation may be Repurposing-only). Class call rests on annotation presence + single-dose LFC; dose-response potency is unmeasured."
   - warning_id: prism_lineage_signal_but_flat_pan_cancer
-    if: "prism_lineage_selectivity == 'lineage_selective' && median_lfc_across_compounds > -0.5"
-    message: "Pan-cancer median LFC is flat but per-lineage aggregation is lineage-selective. Pan-cancer signal is diluted by non-responding lineages; consult per_lineage_activity for the biomarker-cohort read (expected shape for oncogene-addiction drugs like KRAS-G12C inhibitors)."
-  - warning_id: prism_responder_tail_masked_by_median
+    if: "prism_lineage_selectivity == 'lineage_selective' && median_log2auc_across_compounds > -0.10"
+    message: "Pan-cancer median Log2AUC is flat but per-lineage aggregation is lineage-selective. Pan-cancer signal is diluted by non-responding lineages; consult per_lineage_activity for the biomarker-cohort read (expected shape for oncogene-addiction drugs like KRAS-G12C inhibitors)."
+  - warning_id: prism_responder_tail_below_median
     if: "prism_lineage_selectivity == 'no_lineage_signal' && n_compounds_targeting >= 3"
-    message: "Lineage medians flat despite ≥3 annotated compounds. Check per_lineage_activity.best_responder_lfc — strong divergence (best_responder_lfc negative, median flat) indicates a genotype-specific responder subpopulation (canonical for KRAS-G12C-type drugs). Mutation-conditional strat is a v3 target."
+    message: "Lineage medians flat despite ≥3 annotated compounds. Check per_lineage_activity.best_responder_lfc — a strongly-negative best-responder with flat median indicates a genotype-specific responder subpopulation (canonical for KRAS-G12C-type drugs). Mutation-conditional stratification is a future target."
 
 caveats:
   - |
-    highest_clinical_phase is APPROXIMATED in v2. The PRISM source files
-    do NOT carry a clinical-phase column. `phase_1_plus` is inferred from
-    OncologyReference 25Q4's `Prioritized=TRUE` flag (curated to be clinical
-    priority); `preclinical` from non-prioritized OncRef; `tool` from
-    Repurposing-only presence. A future upgrade would join to ChEMBL's `max_phase`
-    for real phase resolution.
+    PRIMARY metric is Log2AUC (dose-response-curve integral, DepMap-portal
+    default). This replaces v1/v2's single-dose median-LFC. Log2AUC ranges
+    (-∞, 0]; non-responders sit near 0, active drugs push negative (typical
+    clinical hits -0.3 to -1.0). Interpret median_log2auc as pan-cancer POTENCY,
+    not per-line kill magnitude.
+  - |
+    best_responder_lfc is a SEPARATE raw-LFC tail statistic (min across all
+    compound × dose × cell_line entries). It preserves deep-responder magnitude
+    (LFC -3 to -5) that Log2AUC's 0-cap compresses. When median Log2AUC is flat
+    but best_responder_lfc is deeply negative, the target has a genotype-specific
+    responder subpopulation — the oncogene-addiction signature.
+  - |
+    Repurposing 24Q2 has NO AUC file (single-dose screen). Its compounds are
+    ANNOTATION-ONLY in v3: they appear in top_compounds + n_compounds_targeting
+    (metric_source='single_dose_lfc') but do NOT contribute to median_log2auc,
+    per_lineage_activity, or lineage_selectivity — those are OncRef-Log2AUC-only.
+    A gene annotated ONLY in Repurposing has median_log2auc=null +
+    lineage_selectivity=data_unavailable even with n_compounds_targeting > 0.
+  - |
+    highest_clinical_phase is APPROXIMATED. The PRISM source files do NOT carry a
+    clinical-phase column. `phase_1_plus` is inferred from OncologyReference 25Q4's
+    `Prioritized=TRUE` flag; `preclinical` from non-prioritized OncRef; `tool` from
+    Repurposing-only presence. A future upgrade would join to ChEMBL's `max_phase`.
   - |
     PRISM's "compound targets gene X" annotation does NOT guarantee that the
-    compound's activity is caused BY target engagement. Many compounds
-    annotate as targeting a gene based on curated MoA / literature but
-    biological specificity is imperfect — LONAFARNIB "targets KRAS" via
-    farnesyltransferase inhibition, not direct KRAS binding. Interpret
-    `median_lfc` as "kill activity in cell lines annotated to this target"
-    NOT "on-target killing."
+    compound's activity is caused BY target engagement — LONAFARNIB "targets KRAS"
+    via farnesyltransferase inhibition, not direct binding. Interpret activity as
+    "response in cell lines annotated to this target" NOT "on-target killing."
   - |
-    Cross-release cell-line panels differ: OncRef 25Q4 screens ~250-300 lines,
-    Repurposing 24Q2 screens ~500. When top_compounds contains both a
-    Repurposing entry and an OncRef entry, the activity metrics come from
-    different panels. Reported per-compound `n_lines_screened` makes this
-    visible.
+    `no_compounds_found` is a REAL class, not a data-gap — a first-in-class
+    opportunity, NOT a killer. Distinct from `data_unavailable` (parquet unreadable).
   - |
-    `no_compounds_found` is a REAL class, not a data-gap. It signals a
-    first-in-class opportunity — pursue-with-eyes-open, NOT a killer against
-    the target. It's distinct from `data_unavailable` (which means the derived
-    product itself is unreadable).
-  - |
-    v2 lineage-selectivity uses THRESHOLD-BASED classification (≥1 lineage
-    with median LFC < -0.5, ≥1 with median LFC > -0.2) — NOT a formal
-    enrichment test as in E2 (dependency-lineage-selectivity). This is a
-    coarser signal that trades statistical rigor for a scipy-free precompute.
-    Consult E2 for formal Mann-Whitney-style enrichment on the CRISPR side.
-  - |
-    Per-lineage cell-line counts vary widely — some lineages have ~50 lines in
-    PRISM, others have 5-10. The min_cell_lines_in_lineage threshold (=5) mirrors
-    E2 discipline, but small-lineage bars in the figure have wider variance
-    around their per-line LFC medians. Interpret rank-1 lineage confidence
-    proportional to n_lines_screened.
+    Lineage-selectivity uses THRESHOLD-BASED classification on Log2AUC (≥1 lineage
+    median < -0.15 active, ≥1 median > -0.05 inactive) — NOT a formal enrichment
+    test as in E2. Coarser signal, scipy-free precompute. Per-lineage n varies
+    widely (5 to ~110 lines); interpret rank confidence proportional to n_lines_screened.
 
 schema_version: 1
