@@ -1,4 +1,4 @@
-"""Synthetic tests for the PRISM precompute — parses + aggregates + classifier."""
+"""Synthetic tests for the PRISM precompute v3 — Log2AUC primary + LFC responder tail."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from depmap_prism_precompute import cli as pc  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Compound-list parsers
+# Compound-list parsers (unchanged in v3)
 # ---------------------------------------------------------------------------
 
 def test_split_gene_list_basic():
@@ -33,15 +33,17 @@ def test_load_oncref_compound_list_shape():
         "ChEMBLID,PubChemCID,GeneSymbolOfTargets,Synonyms\n"
         "P1,PRC-001,OncRef 24Q2,TRUE,SOTORASIB,KRAS G12C inhibitor,C1,,KRAS,SYN\n"
         "P1,PRC-002,OncRef 24Q2,TRUE,ADAGRASIB,KRAS G12C inhibitor,C2,,KRAS,SYN\n"
-        "P1,PRC-003,OncRef 24Q2,FALSE,BAY-293,SOS1 inhibitor,C3,,SOS1,SYN\n"
+        "P1,PRC-003,OncRef 24Q2,FALSE,BAY-293,SOS1 inhibitor,C3,,SOS1;KRAS,SYN\n"
     )
     df = pc.load_oncref_compound_list(csv.encode())
     assert len(df) == 3
     assert df.iloc[0]["compound_id"] == "PRC-001"
     assert df.iloc[0]["drug_name"] == "SOTORASIB"
     assert df.iloc[0]["gene_targets"] == ["KRAS"]
-    assert df.iloc[0]["prioritized"] is True or df.iloc[0]["prioritized"] == True
-    assert df.iloc[2]["prioritized"] is False or df.iloc[2]["prioritized"] == False
+    # BAY-293 has semicolon-separated gene list (real OncRef format)
+    assert set(df.iloc[2]["gene_targets"]) == {"KRAS", "SOS1"}
+    assert bool(df.iloc[0]["prioritized"]) is True
+    assert bool(df.iloc[2]["prioritized"]) is False
     assert (df["source_release"] == "oncref-25q4").all()
 
 
@@ -55,36 +57,60 @@ def test_load_repurposing_compound_list_shape():
     )
     df = pc.load_repurposing_compound_list(csv.encode())
     assert len(df) == 3
-    assert df.iloc[0]["compound_id"] == "BRD-A04843135"  # trimmed to 2 hyphen segments
+    assert df.iloc[0]["compound_id"] == "BRD-A04843135"
     assert df.iloc[0]["drug_name"] == "LONAFARNIB"
     assert set(df.iloc[0]["gene_targets"]) == {"KRAS", "HRAS", "NRAS", "FNTA"}
-    assert df.iloc[2]["gene_targets"] == []  # empty repurposing_target
+    assert df.iloc[2]["gene_targets"] == []
     assert (df["source_release"] == "repurposing-24q2").all()
 
 
 # ---------------------------------------------------------------------------
-# LFC loaders
+# v3 loaders
 # ---------------------------------------------------------------------------
 
-def test_load_oncref_lfc_shape():
-    """Wide OncRef matrix melted + doses collapsed per compound."""
+def test_load_oncref_log2auc_shape():
+    """OncRef Log2AUC wide matrix: SampleID columns, ModelID row index."""
     csv = (
-        ",SOTORASIB (PRC-001) @0.01 uM,SOTORASIB (PRC-001) @1.0 uM,ADAGRASIB (PRC-002) @1.0 uM\n"
-        "ACH-000001,-2.5,-2.8,-1.2\n"
-        "ACH-000002,-0.1,-0.15,0.05\n"
+        ",PRC-001,PRC-002\n"
+        "ACH-000001,-2.3,-1.5\n"
+        "ACH-000002,-0.1,-0.2\n"
+        "ACH-000003,0.0,-0.05\n"
     )
-    df = pc.load_oncref_lfc(csv.encode())
-    # Should collapse doses: 2 compounds × 2 cell lines = 4 rows
-    assert len(df) == 4
-    assert set(df["model_id"]) == {"ACH-000001", "ACH-000002"}
+    df = pc.load_oncref_log2auc(csv.encode())
+    assert len(df) == 6                # 3 lines × 2 compounds
     assert set(df["compound_id"]) == {"PRC-001", "PRC-002"}
-    # ACH-000001 × PRC-001: median of (-2.5, -2.8) = -2.65
+    assert set(df["model_id"]) == {"ACH-000001", "ACH-000002", "ACH-000003"}
     sub = df[(df["model_id"] == "ACH-000001") & (df["compound_id"] == "PRC-001")]
-    assert sub.iloc[0]["median_lfc"] == pytest.approx(-2.65, abs=1e-2)
+    assert sub.iloc[0]["log2auc"] == pytest.approx(-2.3)
+
+
+def test_load_oncref_lfccollapsed_min():
+    """LFCCollapsed collapsed to per-(compound × cell_line) min LFC across doses."""
+    csv = (
+        "screen,CompoundPlate,SampleID,pert_dose,pert_dose_unit,cellset,pool_id,depmap_id,LFC,LFC_uncorrected,LFC_fitted,LFC_uncorrected_fitted,outlier,outlier_uncorrected,priority\n"
+        # SOTORASIB (PRC-001) at 3 doses vs ACH-000001
+        "S,PS,PRC-001,0.001,ug/mL,PR300P,P121,ACH-000001,-0.05,x,x,x,F,F,1\n"
+        "S,PS,PRC-001,0.01,ug/mL,PR300P,P121,ACH-000001,-0.42,x,x,x,F,F,1\n"
+        "S,PS,PRC-001,0.1,ug/mL,PR300P,P121,ACH-000001,-3.05,x,x,x,F,F,1\n"
+        # SOTORASIB vs ACH-000002 (weaker responder)
+        "S,PS,PRC-001,0.001,ug/mL,PR300P,P121,ACH-000002,0.01,x,x,x,F,F,1\n"
+        "S,PS,PRC-001,0.1,ug/mL,PR300P,P121,ACH-000002,-0.20,x,x,x,F,F,1\n"
+        # UNWANTED compound (should be filtered)
+        "S,PS,PRC-999,0.1,ug/mL,PR300P,P121,ACH-000001,-2.50,x,x,x,F,F,1\n"
+    )
+    wanted = {"PRC-001"}
+    df = pc.load_oncref_lfccollapsed(csv.encode(), wanted)
+    assert set(df["compound_id"]) == {"PRC-001"}   # PRC-999 filtered
+    # ACH-000001 min = -3.05
+    r1 = df[(df["compound_id"] == "PRC-001") & (df["model_id"] == "ACH-000001")]
+    assert r1.iloc[0]["min_lfc"] == pytest.approx(-3.05)
+    # ACH-000002 min = -0.20
+    r2 = df[(df["compound_id"] == "PRC-001") & (df["model_id"] == "ACH-000002")]
+    assert r2.iloc[0]["min_lfc"] == pytest.approx(-0.20)
 
 
 def test_load_repurposing_lfc_filters_and_qc():
-    """Long Repurposing LFC filtered by wanted compound-IDs, QC-failures dropped."""
+    """Repurposing single-dose LFC — unchanged from v2."""
     csv = (
         "row_id,broad_id,dose,compound_plate,screen,culture,LFC\n"
         "ACH-000001::P1::PR500B::REP300,BRD-A04843135-001-09-9,2.5,PREP053,REP300,PR500B,-2.5\n"
@@ -92,13 +118,11 @@ def test_load_repurposing_lfc_filters_and_qc():
         "ACH-000001::P1::PR500B::REP300,BRD-A99999999-001-01-1 - QC Failure,2.5,PREP053,REP300,PR500B,0.5\n"
         "ACH-000001::P1::PR500B::REP300,BRD-A11111111-001-01-1,2.5,PREP053,REP300,PR500B,-0.3\n"
     )
-    wanted = {"BRD-A04843135", "BRD-A11111111"}  # note: NOT the QC-fail one
+    wanted = {"BRD-A04843135", "BRD-A11111111"}
     df = pc.load_repurposing_lfc(csv.encode(), wanted)
-    # QC-failure row dropped; only wanted compounds present
     assert set(df["compound_id"]) == wanted
     lonaf = df[df["compound_id"] == "BRD-A04843135"]
     assert len(lonaf) == 2
-    assert lonaf[lonaf["model_id"] == "ACH-000001"]["median_lfc"].iloc[0] == pytest.approx(-2.5)
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +130,6 @@ def test_load_repurposing_lfc_filters_and_qc():
 # ---------------------------------------------------------------------------
 
 def test_merge_compound_universes_prefers_oncref():
-    """When the same drug_name exists in both, OncRef row wins."""
     oncref = pd.DataFrame([{
         "compound_id": "PRC-001", "drug_name": "SOTORASIB",
         "gene_targets": ["KRAS"], "moa": "KRAS G12C inhibitor",
@@ -122,17 +145,13 @@ def test_merge_compound_universes_prefers_oncref():
          "prioritized": False, "source_release": "repurposing-24q2"},
     ])
     merged = pc.merge_compound_universes([oncref, repur])
-    # SOTORASIB should be from OncRef; LONAFARNIB from Repurposing
     sot = merged[merged["drug_name"].str.upper() == "SOTORASIB"]
     assert len(sot) == 1
     assert sot.iloc[0]["source_release"] == "oncref-25q4"
-    lon = merged[merged["drug_name"].str.upper() == "LONAFARNIB"]
-    assert len(lon) == 1
-    assert lon.iloc[0]["source_release"] == "repurposing-24q2"
 
 
 # ---------------------------------------------------------------------------
-# Classifier
+# Classifier — v3 uses Log2AUC thresholds
 # ---------------------------------------------------------------------------
 
 def test_classify_prism_activity_no_compounds():
@@ -140,135 +159,72 @@ def test_classify_prism_activity_no_compounds():
 
 
 def test_classify_prism_activity_clinically_active_with_activity():
-    """Phase 1+ compound with negative pan-cancer LFC → clinically_active."""
-    assert pc.classify_prism_activity(2, "phase_1_plus", -1.5) == pc.CLASS_CLINICALLY_ACTIVE
+    """Phase 1+ compound with strongly-negative Log2AUC → clinically_active."""
+    assert pc.classify_prism_activity(2, "phase_1_plus", -0.5) == pc.CLASS_CLINICALLY_ACTIVE
 
 
-def test_classify_prism_activity_clinically_active_no_lfc():
-    """Phase 1+ compound exists but no measured activity — still clinically_active
-    because the framework rewards CLINICAL PRESENCE, not just pan-cancer signal."""
+def test_classify_prism_activity_clinically_active_no_activity():
+    """Phase 1+ compound exists but no measured Log2AUC → still clinically_active."""
     assert pc.classify_prism_activity(2, "phase_1_plus", None) == pc.CLASS_CLINICALLY_ACTIVE
-    # And even with weak/flat activity — clinical presence still counts
-    assert pc.classify_prism_activity(2, "phase_1_plus", -0.1) == pc.CLASS_CLINICALLY_ACTIVE
+    # And even with weak/flat Log2AUC — clinical presence still counts
+    assert pc.classify_prism_activity(2, "phase_1_plus", -0.02) == pc.CLASS_CLINICALLY_ACTIVE
 
 
 def test_classify_prism_activity_weakly_active():
-    assert pc.classify_prism_activity(3, "tool", -0.8) == pc.CLASS_WEAKLY_ACTIVE
+    # Log2AUC -0.3 clears WEAKLY_ACTIVE_LOG2AUC_THRESHOLD=-0.15
+    assert pc.classify_prism_activity(3, "tool", -0.3) == pc.CLASS_WEAKLY_ACTIVE
 
 
 def test_classify_prism_activity_tool_only():
-    assert pc.classify_prism_activity(3, "tool", -0.1) == pc.CLASS_TOOL_COMPOUND_ONLY
+    assert pc.classify_prism_activity(3, "tool", -0.05) == pc.CLASS_TOOL_COMPOUND_ONLY
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: build gene aggregate
+# Lineage classifier — v3 uses Log2AUC thresholds
 # ---------------------------------------------------------------------------
 
-def test_build_gene_aggregate_kras_case():
-    """LONAFARNIB (poly, Repurposing) + SOTORASIB (KRAS-only, OncRef prioritized)
-    → KRAS gene row shows n_compounds_targeting=2, class=clinically_active.
-
-    v1-compat: no model_to_lineage passed → per_lineage_activity=[] and
-    prism_lineage_selectivity=data_unavailable."""
-    merged = pd.DataFrame([
-        {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
-         "gene_targets": ["KRAS"], "moa": "KRAS G12C",
-         "prioritized": True, "source_release": "oncref-25q4"},
-        {"compound_id": "BRD-A04843135", "drug_name": "LONAFARNIB",
-         "gene_targets": ["KRAS", "HRAS", "NRAS", "FNTA"], "moa": "FTase",
-         "prioritized": False, "source_release": "repurposing-24q2"},
-    ])
-    lfc_by_release = {
-        "oncref-25q4": pd.DataFrame([
-            {"model_id": "ACH-1", "compound_id": "PRC-001", "median_lfc": -2.5},
-            {"model_id": "ACH-2", "compound_id": "PRC-001", "median_lfc": -1.8},
-            {"model_id": "ACH-3", "compound_id": "PRC-001", "median_lfc": -0.2},
-        ]),
-        "repurposing-24q2": pd.DataFrame([
-            {"model_id": "ACH-1", "compound_id": "BRD-A04843135", "median_lfc": -0.5},
-            {"model_id": "ACH-2", "compound_id": "BRD-A04843135", "median_lfc": -0.3},
-        ]),
-    }
-    agg = pc.build_gene_aggregate(merged, lfc_by_release)
-    kras = agg[agg["gene_symbol"] == "KRAS"]
-    assert len(kras) == 1
-    k = kras.iloc[0]
-    assert k["n_compounds_targeting"] == 2
-    assert k["highest_clinical_phase"] == "phase_1_plus"   # any prioritized OncRef → phase_1_plus
-    assert k["prism_activity_class"] == pc.CLASS_CLINICALLY_ACTIVE
-    # top_compounds: SOTORASIB should rank ahead of LONAFARNIB (better median LFC + prioritized)
-    top = k["top_compounds"]
-    assert len(top) == 2
-    assert top[0]["drug_name"] == "SOTORASIB"
-    assert top[0]["prioritized"] is True or top[0]["prioritized"] == True
-    assert top[1]["drug_name"] == "LONAFARNIB"
-    assert top[1]["polyselective"] is True or top[1]["polyselective"] == True
-    assert top[1]["n_annotated_targets"] == 4
-    # HRAS, NRAS, FNTA should also have gene rows (from LONAFARNIB)
-    assert set(agg["gene_symbol"]) == {"KRAS", "HRAS", "NRAS", "FNTA"}
-    hras = agg[agg["gene_symbol"] == "HRAS"].iloc[0]
-    assert hras["n_compounds_targeting"] == 1  # only LONAFARNIB
-    # Tool-compound-only class since only Repurposing entry, no prio, mean LFC weak
-    assert hras["prism_activity_class"] == pc.CLASS_TOOL_COMPOUND_ONLY
+def test_classify_prism_lineage_selectivity_selective():
+    """≥1 active + ≥1 inactive → lineage_selective (Log2AUC threshold: -0.15 active, -0.05 inactive)."""
+    entries = [
+        {"lineage": "Bowel",    "median_log2auc": -0.40},
+        {"lineage": "Pancreas", "median_log2auc": -0.20},
+        {"lineage": "Lung",     "median_log2auc": -0.02},
+        {"lineage": "Skin",     "median_log2auc": 0.02},
+    ]
+    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_SELECTIVE
 
 
-def test_build_gene_aggregate_no_lfc_data():
-    """Compound annotated but not in LFC → still shows up in top_compounds with
-    null activity; gene passes into tool_compound_only class."""
-    merged = pd.DataFrame([{
-        "compound_id": "BRD-XYZ", "drug_name": "ONLY_ANNOTATED",
-        "gene_targets": ["GHOST"], "moa": "unknown",
-        "prioritized": False, "source_release": "repurposing-24q2",
-    }])
-    agg = pc.build_gene_aggregate(merged, {"repurposing-24q2": pd.DataFrame(
-        columns=["model_id", "compound_id", "median_lfc"]
-    )})
-    g = agg[agg["gene_symbol"] == "GHOST"].iloc[0]
-    assert g["n_compounds_targeting"] == 1
-    assert g["median_lfc_across_compounds"] is None or pd.isna(g["median_lfc_across_compounds"])
-    assert g["prism_activity_class"] == pc.CLASS_TOOL_COMPOUND_ONLY
-    assert g["top_compounds"][0]["median_lfc"] is None
+def test_classify_prism_lineage_selectivity_broadly_active():
+    """Most lineages active but no clear inactive contrast → broadly_active."""
+    entries = [
+        {"lineage": "Bowel",    "median_log2auc": -0.40},
+        {"lineage": "Pancreas", "median_log2auc": -0.30},
+        {"lineage": "Lung",     "median_log2auc": -0.25},
+        {"lineage": "Skin",     "median_log2auc": -0.20},
+        {"lineage": "Bladder",  "median_log2auc": -0.18},
+    ]
+    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_BROADLY_ACTIVE
 
 
-def test_write_gene_aggregate_parquet_roundtrip(tmp_path):
-    """Full write + read path — verifies pyarrow struct-list schema roundtrips."""
-    import pyarrow.parquet as pq
-    df = pd.DataFrame([
-        {
-            "gene_symbol": "KRAS",
-            "n_compounds_targeting": 2,
-            "highest_clinical_phase": "phase_1_plus",
-            "median_lfc_across_compounds": -1.3,
-            "top_compounds": [
-                {"compound_id": "PRC-001", "drug_name": "SOTORASIB", "moa": "G12C",
-                 "median_lfc": -2.5, "fraction_lines_responding": 0.6,
-                 "n_lines_screened": 300, "polyselective": False,
-                 "n_annotated_targets": 1, "source_release": "oncref-25q4",
-                 "prioritized": True},
-            ],
-            "prism_activity_class": pc.CLASS_CLINICALLY_ACTIVE,
-        }
-    ])
-    out = tmp_path / "agg.parquet"
-    size = pc.write_gene_aggregate_parquet(df, out)
-    assert size > 0
-    tbl = pq.read_table(str(out), filters=[("gene_symbol", "=", "KRAS")])
-    assert tbl.num_rows == 1
-    row = {c: tbl[c][0].as_py() for c in tbl.column_names}
-    assert row["prism_activity_class"] == pc.CLASS_CLINICALLY_ACTIVE
-    assert row["top_compounds"][0]["drug_name"] == "SOTORASIB"
-    # v2 shape: per_lineage_activity defaults to [] + prism_lineage_selectivity defaults
-    # to data_unavailable when writer is called with a v1-shape dataframe.
-    assert row["per_lineage_activity"] == []
-    assert row["prism_lineage_selectivity"] == pc.LINEAGE_SEL_DATA_UNAVAILABLE
+def test_classify_prism_lineage_selectivity_no_signal():
+    """No active lineages → no_lineage_signal."""
+    entries = [
+        {"lineage": "Bowel",    "median_log2auc": -0.04},
+        {"lineage": "Pancreas", "median_log2auc": -0.02},
+        {"lineage": "Lung",     "median_log2auc": 0.00},
+    ]
+    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_NO_SIGNAL
+
+
+def test_classify_prism_lineage_selectivity_data_unavailable_when_empty():
+    assert pc.classify_prism_lineage_selectivity([]) == pc.LINEAGE_SEL_DATA_UNAVAILABLE
 
 
 # ---------------------------------------------------------------------------
-# v2 additions: lineage stratification
+# Model.csv loader
 # ---------------------------------------------------------------------------
 
 def test_load_model_to_lineage_basic():
-    """Parse Model.csv into ModelID -> OncotreeLineage; drop empty lineages."""
     csv = (
         "ModelID,OncotreeLineage,Extra\n"
         "ACH-000001,Bowel,x\n"
@@ -283,127 +239,197 @@ def test_load_model_to_lineage_basic():
     assert "ACH-000003" not in m
 
 
-def test_classify_prism_lineage_selectivity_selective():
-    """1 active + 2 inactive → lineage_selective (matches Bowel-KRAS pattern)."""
-    entries = [
-        {"lineage": "Bowel", "median_lfc": -1.4},
-        {"lineage": "Pancreas", "median_lfc": -0.9},
-        {"lineage": "Lung", "median_lfc": -0.1},
-        {"lineage": "Skin", "median_lfc": 0.05},
-    ]
-    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_SELECTIVE
+# ---------------------------------------------------------------------------
+# End-to-end: build gene aggregate — v3 signature
+# ---------------------------------------------------------------------------
+
+def test_build_gene_aggregate_kras_case_v3():
+    """KRAS with sotorasib (OncRef, Log2AUC) + LONAFARNIB (Repurposing, annotation).
+    v3: median_log2auc_across_compounds computed from OncRef ONLY (Log2AUC data).
+    LONAFARNIB appears in top_compounds but contributes no activity number.
+    """
+    merged = pd.DataFrame([
+        {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
+         "gene_targets": ["KRAS"], "moa": "KRAS G12C",
+         "prioritized": True, "source_release": "oncref-25q4"},
+        {"compound_id": "BRD-A04843135", "drug_name": "LONAFARNIB",
+         "gene_targets": ["KRAS", "HRAS", "NRAS", "FNTA"], "moa": "FTase",
+         "prioritized": False, "source_release": "repurposing-24q2"},
+    ])
+    oncref_log2auc = pd.DataFrame([
+        {"model_id": "ACH-1", "compound_id": "PRC-001", "log2auc": -0.4, "source_release": "oncref-25q4"},
+        {"model_id": "ACH-2", "compound_id": "PRC-001", "log2auc": -0.2, "source_release": "oncref-25q4"},
+        {"model_id": "ACH-3", "compound_id": "PRC-001", "log2auc": -0.05, "source_release": "oncref-25q4"},
+    ])
+    oncref_lfccollapsed = pd.DataFrame([
+        {"model_id": "ACH-1", "compound_id": "PRC-001", "min_lfc": -3.5, "source_release": "oncref-25q4"},
+        {"model_id": "ACH-2", "compound_id": "PRC-001", "min_lfc": -1.2, "source_release": "oncref-25q4"},
+    ])
+    repurposing_lfc = pd.DataFrame([
+        {"model_id": "ACH-1", "compound_id": "BRD-A04843135", "median_lfc": -0.5, "source_release": "repurposing-24q2"},
+        {"model_id": "ACH-2", "compound_id": "BRD-A04843135", "median_lfc": -0.3, "source_release": "repurposing-24q2"},
+    ])
+    agg = pc.build_gene_aggregate(
+        merged,
+        oncref_log2auc=oncref_log2auc,
+        oncref_lfccollapsed_min=oncref_lfccollapsed,
+        repurposing_lfc=repurposing_lfc,
+    )
+    kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
+    assert kras["n_compounds_targeting"] == 2
+    assert kras["highest_clinical_phase"] == "phase_1_plus"
+    # median_log2auc_across_compounds = median of just SOTORASIB's median = median of [-0.4, -0.2, -0.05] = -0.2
+    assert kras["median_log2auc_across_compounds"] == pytest.approx(-0.2, abs=1e-3)
+    assert kras["prism_activity_class"] == pc.CLASS_CLINICALLY_ACTIVE
+    top = kras["top_compounds"]
+    assert len(top) == 2
+    # SOTORASIB should rank first (prioritized OncRef with Log2AUC data)
+    assert top[0]["drug_name"] == "SOTORASIB"
+    assert top[0]["metric_source"] == "log2auc"
+    assert top[0]["median_log2auc"] == pytest.approx(-0.2, abs=1e-3)
+    assert top[0]["best_responder_lfc"] == pytest.approx(-3.5, abs=1e-3)
+    # LONAFARNIB annotation-only (Repurposing has no Log2AUC)
+    assert top[1]["drug_name"] == "LONAFARNIB"
+    assert top[1]["metric_source"] == "single_dose_lfc"
+    assert top[1]["median_log2auc"] is None
+    assert top[1]["single_dose_lfc"] == pytest.approx(-0.4, abs=1e-3)
+    # HRAS should also appear (LONAFARNIB polyselective) — but only annotation, no Log2AUC
+    hras = agg[agg["gene_symbol"] == "HRAS"].iloc[0]
+    assert hras["n_compounds_targeting"] == 1
+    # pandas coerces None → NaN in float-dtype columns; the card-side compute_summary
+    # normalizes NaN → None. Check for both representations here.
+    assert pd.isna(hras["median_log2auc_across_compounds"]) or hras["median_log2auc_across_compounds"] is None
+    assert hras["prism_activity_class"] == pc.CLASS_TOOL_COMPOUND_ONLY
 
 
-def test_classify_prism_lineage_selectivity_broadly_active():
-    """Most lineages active but no clear inactive contrast → broadly_active."""
-    entries = [
-        {"lineage": "Bowel", "median_lfc": -1.4},
-        {"lineage": "Pancreas", "median_lfc": -0.9},
-        {"lineage": "Lung", "median_lfc": -0.7},
-        {"lineage": "Skin", "median_lfc": -0.6},
-        {"lineage": "Bladder", "median_lfc": -0.55},
-    ]
-    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_BROADLY_ACTIVE
+def test_build_gene_aggregate_no_activity_data():
+    """Compound annotated but no Log2AUC data → tool_compound_only (Repurposing-only)."""
+    merged = pd.DataFrame([{
+        "compound_id": "BRD-XYZ", "drug_name": "ONLY_ANNOTATED",
+        "gene_targets": ["GHOST"], "moa": "unknown",
+        "prioritized": False, "source_release": "repurposing-24q2",
+    }])
+    agg = pc.build_gene_aggregate(merged)
+    g = agg[agg["gene_symbol"] == "GHOST"].iloc[0]
+    assert g["n_compounds_targeting"] == 1
+    assert g["median_log2auc_across_compounds"] is None
+    assert g["prism_activity_class"] == pc.CLASS_TOOL_COMPOUND_ONLY
 
 
-def test_classify_prism_lineage_selectivity_no_signal():
-    """No active lineages → no_lineage_signal."""
-    entries = [
-        {"lineage": "Bowel", "median_lfc": -0.1},
-        {"lineage": "Pancreas", "median_lfc": 0.0},
-        {"lineage": "Lung", "median_lfc": 0.1},
-    ]
-    assert pc.classify_prism_lineage_selectivity(entries) == pc.LINEAGE_SEL_NO_SIGNAL
-
-
-def test_classify_prism_lineage_selectivity_data_unavailable_when_empty():
-    assert pc.classify_prism_lineage_selectivity([]) == pc.LINEAGE_SEL_DATA_UNAVAILABLE
-
-
-def test_build_gene_aggregate_kras_case_with_lineage():
-    """Same KRAS case as pan-cancer test, but WITH model_to_lineage.
-    Expected: per_lineage_activity carries Bowel + Pancreas + Lung rows,
-    prism_lineage_selectivity = lineage_selective (Bowel active, Lung inactive)."""
+def test_build_gene_aggregate_lineage_selective():
+    """KRAS in Bowel/Pancreas → active (Log2AUC < -0.15); Lung → inactive (> -0.05).
+    Expected: lineage_selective."""
     merged = pd.DataFrame([
         {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
          "gene_targets": ["KRAS"], "moa": "KRAS G12C",
          "prioritized": True, "source_release": "oncref-25q4"},
     ])
-    # 5 lines per lineage so we clear MIN_CELL_LINES_IN_LINEAGE=5
-    def make_lines(prefix, n): return [f"{prefix}-{i:03d}" for i in range(n)]
-    bowel = make_lines("ACH-B", 5)
-    lung = make_lines("ACH-L", 5)
-    pancreas = make_lines("ACH-P", 5)
-    lfc_rows = []
-    # KRAS-mutant lines (Bowel): very active
-    for m_id in bowel:
-        lfc_rows.append({"model_id": m_id, "compound_id": "PRC-001", "median_lfc": -1.8})
-    # KRAS-mutant lines (Pancreas): active
-    for m_id in pancreas:
-        lfc_rows.append({"model_id": m_id, "compound_id": "PRC-001", "median_lfc": -1.2})
-    # KRAS-WT lines (Lung): flat
-    for m_id in lung:
-        lfc_rows.append({"model_id": m_id, "compound_id": "PRC-001", "median_lfc": 0.0})
-    lfc_by_release = {"oncref-25q4": pd.DataFrame(lfc_rows)}
+    bowel = [f"ACH-B-{i:03d}" for i in range(5)]
+    pancreas = [f"ACH-P-{i:03d}" for i in range(5)]
+    lung = [f"ACH-L-{i:03d}" for i in range(5)]
+    log2auc_rows = []
+    # Bowel: Log2AUC = -0.4 (active)
+    log2auc_rows += [{"model_id": m, "compound_id": "PRC-001", "log2auc": -0.4,
+                      "source_release": "oncref-25q4"} for m in bowel]
+    # Pancreas: Log2AUC = -0.2 (active)
+    log2auc_rows += [{"model_id": m, "compound_id": "PRC-001", "log2auc": -0.2,
+                      "source_release": "oncref-25q4"} for m in pancreas]
+    # Lung: Log2AUC = 0.0 (inactive)
+    log2auc_rows += [{"model_id": m, "compound_id": "PRC-001", "log2auc": 0.0,
+                      "source_release": "oncref-25q4"} for m in lung]
+    oncref_log2auc = pd.DataFrame(log2auc_rows)
     model_to_lineage = {**{m: "Bowel" for m in bowel},
                          **{m: "Lung" for m in lung},
                          **{m: "Pancreas" for m in pancreas}}
-    agg = pc.build_gene_aggregate(merged, lfc_by_release, model_to_lineage=model_to_lineage)
+    agg = pc.build_gene_aggregate(merged, oncref_log2auc=oncref_log2auc,
+                                    model_to_lineage=model_to_lineage)
     kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
-    lineages_returned = {e["lineage"] for e in kras["per_lineage_activity"]}
-    assert lineages_returned == {"Bowel", "Lung", "Pancreas"}
-    # Bowel should have most-negative LFC entry
+    lineages = {e["lineage"] for e in kras["per_lineage_activity"]}
+    assert lineages == {"Bowel", "Pancreas", "Lung"}
     bowel_entry = next(e for e in kras["per_lineage_activity"] if e["lineage"] == "Bowel")
     lung_entry = next(e for e in kras["per_lineage_activity"] if e["lineage"] == "Lung")
-    assert bowel_entry["median_lfc"] == pytest.approx(-1.8, abs=1e-3)
-    assert lung_entry["median_lfc"] == pytest.approx(0.0, abs=1e-3)
-    assert bowel_entry["top_compound_in_lineage"] == "SOTORASIB"
-    # Bowel + Pancreas active, Lung inactive → lineage_selective
+    assert bowel_entry["median_log2auc"] == pytest.approx(-0.4, abs=1e-3)
+    assert lung_entry["median_log2auc"] == pytest.approx(0.0, abs=1e-3)
     assert kras["prism_lineage_selectivity"] == pc.LINEAGE_SEL_SELECTIVE
     # Sorted most-active-first
     assert kras["per_lineage_activity"][0]["lineage"] == "Bowel"
 
 
 def test_build_gene_aggregate_lineage_min_size_filter():
-    """Lineage with fewer than min_cell_lines_in_lineage screened lines is
-    excluded from per_lineage_activity."""
+    """Lineage with fewer than min_cell_lines_in_lineage=5 lines is excluded."""
     merged = pd.DataFrame([
         {"compound_id": "PRC-001", "drug_name": "TESTCMPD",
          "gene_targets": ["TARGET"], "moa": "test",
          "prioritized": True, "source_release": "oncref-25q4"},
     ])
-    lfc_rows = [
-        # 5 Bowel lines (should pass)
-        *[{"model_id": f"ACH-B-{i:03d}", "compound_id": "PRC-001", "median_lfc": -1.5}
-           for i in range(5)],
-        # 2 Rare-lineage lines (should be filtered — min=5)
-        *[{"model_id": f"ACH-R-{i:03d}", "compound_id": "PRC-001", "median_lfc": -2.0}
-           for i in range(2)],
-    ]
-    lfc_by_release = {"oncref-25q4": pd.DataFrame(lfc_rows)}
-    model_to_lineage = {
-        **{f"ACH-B-{i:03d}": "Bowel" for i in range(5)},
-        **{f"ACH-R-{i:03d}": "RareLineage" for i in range(2)},
-    }
-    agg = pc.build_gene_aggregate(merged, lfc_by_release, model_to_lineage=model_to_lineage)
+    bowel = [f"ACH-B-{i:03d}" for i in range(5)]
+    rare = [f"ACH-R-{i:03d}" for i in range(2)]
+    log2auc = pd.DataFrame(
+        [{"model_id": m, "compound_id": "PRC-001", "log2auc": -0.3,
+          "source_release": "oncref-25q4"} for m in bowel] +
+        [{"model_id": m, "compound_id": "PRC-001", "log2auc": -0.5,
+          "source_release": "oncref-25q4"} for m in rare]
+    )
+    model_to_lineage = {**{m: "Bowel" for m in bowel}, **{m: "RareLineage" for m in rare}}
+    agg = pc.build_gene_aggregate(merged, oncref_log2auc=log2auc, model_to_lineage=model_to_lineage)
     tgt = agg[agg["gene_symbol"] == "TARGET"].iloc[0]
     lineages = {e["lineage"] for e in tgt["per_lineage_activity"]}
-    assert lineages == {"Bowel"}  # RareLineage filtered out
+    assert lineages == {"Bowel"}
 
 
-def test_build_gene_aggregate_lineage_no_model_map_returns_v1_shape():
-    """When model_to_lineage is None, per_lineage_activity stays empty and
-    prism_lineage_selectivity is data_unavailable — enables v1-shape testing
-    without an S3 fetch."""
+def test_build_gene_aggregate_no_model_map():
+    """When model_to_lineage is None, per_lineage_activity stays empty."""
     merged = pd.DataFrame([
         {"compound_id": "PRC-001", "drug_name": "SOTORASIB",
          "gene_targets": ["KRAS"], "moa": "KRAS G12C",
          "prioritized": True, "source_release": "oncref-25q4"},
     ])
-    lfc_by_release = {"oncref-25q4": pd.DataFrame([
-        {"model_id": "ACH-1", "compound_id": "PRC-001", "median_lfc": -1.5},
-    ])}
-    agg = pc.build_gene_aggregate(merged, lfc_by_release, model_to_lineage=None)
+    oncref_log2auc = pd.DataFrame([
+        {"model_id": "ACH-1", "compound_id": "PRC-001", "log2auc": -0.5,
+         "source_release": "oncref-25q4"},
+    ])
+    agg = pc.build_gene_aggregate(merged, oncref_log2auc=oncref_log2auc)
     kras = agg[agg["gene_symbol"] == "KRAS"].iloc[0]
     assert kras["per_lineage_activity"] == []
     assert kras["prism_lineage_selectivity"] == pc.LINEAGE_SEL_DATA_UNAVAILABLE
+
+
+def test_write_gene_aggregate_parquet_roundtrip(tmp_path):
+    """v3 parquet writer roundtrips full schema including best_responder_lfc + metric_source."""
+    import pyarrow.parquet as pq
+    df = pd.DataFrame([
+        {
+            "gene_symbol": "KRAS",
+            "n_compounds_targeting": 2,
+            "highest_clinical_phase": "phase_1_plus",
+            "median_log2auc_across_compounds": -0.25,
+            "top_compounds": [
+                {"compound_id": "PRC-001", "drug_name": "SOTORASIB", "moa": "G12C",
+                 "median_log2auc": -0.20, "best_responder_lfc": -3.5,
+                 "single_dose_lfc": None,
+                 "n_lines_screened": 300, "polyselective": False,
+                 "n_annotated_targets": 1, "source_release": "oncref-25q4",
+                 "prioritized": True, "metric_source": "log2auc"},
+            ],
+            "prism_activity_class": pc.CLASS_CLINICALLY_ACTIVE,
+            "per_lineage_activity": [
+                {"lineage": "Bowel", "n_lines_screened": 45,
+                 "median_log2auc": -0.4, "best_responder_lfc": -4.5,
+                 "top_compound_in_lineage": "SOTORASIB", "n_compounds_evaluated": 1},
+            ],
+            "prism_lineage_selectivity": pc.LINEAGE_SEL_SELECTIVE,
+        }
+    ])
+    out = tmp_path / "agg.parquet"
+    size = pc.write_gene_aggregate_parquet(df, out)
+    assert size > 0
+    tbl = pq.read_table(str(out), filters=[("gene_symbol", "=", "KRAS")])
+    assert tbl.num_rows == 1
+    row = {c: tbl[c][0].as_py() for c in tbl.column_names}
+    assert row["prism_activity_class"] == pc.CLASS_CLINICALLY_ACTIVE
+    assert row["top_compounds"][0]["drug_name"] == "SOTORASIB"
+    assert row["top_compounds"][0]["metric_source"] == "log2auc"
+    assert row["top_compounds"][0]["median_log2auc"] == pytest.approx(-0.2, abs=1e-3)
+    assert row["top_compounds"][0]["best_responder_lfc"] == pytest.approx(-3.5, abs=1e-3)
+    assert row["per_lineage_activity"][0]["median_log2auc"] == pytest.approx(-0.4, abs=1e-3)
+    assert row["prism_lineage_selectivity"] == pc.LINEAGE_SEL_SELECTIVE

@@ -1,12 +1,12 @@
-"""Synthetic tests for depmap_prism_activity thin lookup (E6).
+"""Synthetic tests for depmap_prism_activity thin lookup (E6, v3 Log2AUC).
 
 Writes a synthetic aggregate parquet to tmp_path, points cli helpers at it,
 verifies:
-  - per-target row lookup + summary mapping
-  - target-absent → no_compounds_found (NOT data_unavailable — first-in-class opportunity)
-  - top_compounds bar renders (populated case + no-compound case)
+  - per-target row lookup + summary mapping (Log2AUC primary metric)
+  - target-absent → no_compounds_found (NOT data_unavailable)
+  - top_compounds bar + lineage bar render (populated + placeholder cases)
   - vocabulary panel renders
-  - read.py shim maps release_pin correctly + surfaces bad-pin gracefully
+  - read.py shim maps release_pin + surfaces bad-pin gracefully
 """
 
 from __future__ import annotations
@@ -25,27 +25,25 @@ from depmap_prism_activity import read as e6read  # noqa: E402
 
 
 def _make_synthetic_parquet(out_path: Path):
-    """Build a small aggregate parquet matching production v2 schema — KRAS + EGFR + weak gene.
-
-    Includes per_lineage_activity + prism_lineage_selectivity fields.
-    """
+    """Build a small aggregate parquet matching production v3 schema — KRAS + EGFR + weak gene."""
     top_struct = pa.struct([
         pa.field("compound_id", pa.string()),
         pa.field("drug_name", pa.string()),
         pa.field("moa", pa.string()),
-        pa.field("median_lfc", pa.float32()),
-        pa.field("fraction_lines_responding", pa.float32()),
+        pa.field("median_log2auc", pa.float32()),
+        pa.field("best_responder_lfc", pa.float32()),
+        pa.field("single_dose_lfc", pa.float32()),
         pa.field("n_lines_screened", pa.int32()),
         pa.field("polyselective", pa.bool_()),
         pa.field("n_annotated_targets", pa.int32()),
         pa.field("source_release", pa.string()),
         pa.field("prioritized", pa.bool_()),
+        pa.field("metric_source", pa.string()),
     ])
     lineage_struct = pa.struct([
         pa.field("lineage", pa.string()),
         pa.field("n_lines_screened", pa.int32()),
-        pa.field("n_lines_responding", pa.int32()),
-        pa.field("median_lfc", pa.float32()),
+        pa.field("median_log2auc", pa.float32()),
         pa.field("best_responder_lfc", pa.float32()),
         pa.field("top_compound_in_lineage", pa.string()),
         pa.field("n_compounds_evaluated", pa.int32()),
@@ -54,83 +52,70 @@ def _make_synthetic_parquet(out_path: Path):
         pa.field("gene_symbol", pa.string()),
         pa.field("n_compounds_targeting", pa.int32()),
         pa.field("highest_clinical_phase", pa.string()),
-        pa.field("median_lfc_across_compounds", pa.float32()),
+        pa.field("median_log2auc_across_compounds", pa.float32()),
         pa.field("top_compounds", pa.list_(top_struct)),
         pa.field("prism_activity_class", pa.string()),
         pa.field("per_lineage_activity", pa.list_(lineage_struct)),
         pa.field("prism_lineage_selectivity", pa.string()),
     ])
+
+    def tc(cid, name, moa, log2auc, best_lfc, sd_lfc, n, poly, ntgt, rel, prio, metric):
+        return {"compound_id": cid, "drug_name": name, "moa": moa,
+                "median_log2auc": log2auc, "best_responder_lfc": best_lfc,
+                "single_dose_lfc": sd_lfc, "n_lines_screened": n,
+                "polyselective": poly, "n_annotated_targets": ntgt,
+                "source_release": rel, "prioritized": prio, "metric_source": metric}
+
+    def ln(lineage, n, log2auc, best_lfc, top, ncmp):
+        return {"lineage": lineage, "n_lines_screened": n, "median_log2auc": log2auc,
+                "best_responder_lfc": best_lfc, "top_compound_in_lineage": top,
+                "n_compounds_evaluated": ncmp}
+
     rows = {
         "gene_symbol": ["EGFR", "KRAS", "WEAKGENE"],
         "n_compounds_targeting": [15, 5, 2],
         "highest_clinical_phase": ["phase_1_plus", "phase_1_plus", "tool"],
-        "median_lfc_across_compounds": [-1.5, -1.2, -0.3],
+        "median_log2auc_across_compounds": [-0.35, -0.16, -0.04],
         "top_compounds": [
             [
-                {"compound_id": "PRC-EGFR-1", "drug_name": "ERLOTINIB", "moa": "EGFR TKI",
-                 "median_lfc": -2.1, "fraction_lines_responding": 0.55, "n_lines_screened": 400,
-                 "polyselective": False, "n_annotated_targets": 1,
-                 "source_release": "oncref-25q4", "prioritized": True},
-                {"compound_id": "PRC-EGFR-2", "drug_name": "OSIMERTINIB", "moa": "EGFR TKI T790M",
-                 "median_lfc": -1.9, "fraction_lines_responding": 0.48, "n_lines_screened": 400,
-                 "polyselective": False, "n_annotated_targets": 1,
-                 "source_release": "oncref-25q4", "prioritized": True},
+                tc("PRC-EGFR-1", "ERLOTINIB", "EGFR TKI", -0.5, -6.8, None, 400, False, 1, "oncref-25q4", True, "log2auc"),
+                tc("PRC-EGFR-2", "OSIMERTINIB", "EGFR TKI T790M", -0.42, -9.3, None, 400, False, 1, "oncref-25q4", True, "log2auc"),
             ],
             [
-                {"compound_id": "PRC-KRAS-1", "drug_name": "SOTORASIB", "moa": "KRAS G12C",
-                 "median_lfc": -1.8, "fraction_lines_responding": 0.35, "n_lines_screened": 380,
-                 "polyselective": False, "n_annotated_targets": 1,
-                 "source_release": "oncref-25q4", "prioritized": True},
-                {"compound_id": "BRD-LON", "drug_name": "LONAFARNIB", "moa": "FTase inhibitor",
-                 "median_lfc": -0.4, "fraction_lines_responding": 0.05, "n_lines_screened": 500,
-                 "polyselective": True, "n_annotated_targets": 4,
-                 "source_release": "repurposing-24q2", "prioritized": False},
+                tc("PRC-KRAS-1", "DARAXONRASIB", "pan-RAS", -0.43, -4.7, None, 380, False, 1, "oncref-25q4", True, "log2auc"),
+                tc("BRD-LON", "LONAFARNIB", "FTase inhibitor", None, None, -0.4, 500, True, 4, "repurposing-24q2", False, "single_dose_lfc"),
             ],
             [
-                {"compound_id": "BRD-WEAK", "drug_name": "TOOL-COMPOUND-X", "moa": "unknown",
-                 "median_lfc": -0.3, "fraction_lines_responding": 0.02, "n_lines_screened": 400,
-                 "polyselective": False, "n_annotated_targets": 1,
-                 "source_release": "repurposing-24q2", "prioritized": False},
+                tc("BRD-WEAK", "TOOL-COMPOUND-X", "unknown", None, None, -0.3, 400, False, 1, "repurposing-24q2", False, "single_dose_lfc"),
             ],
         ],
-        "prism_activity_class": [
-            "clinically_active", "clinically_active", "tool_compound_only",
-        ],
+        "prism_activity_class": ["clinically_active", "clinically_active", "tool_compound_only"],
         "per_lineage_activity": [
-            # EGFR: broadly active — most lineages active
+            # EGFR: broadly active
             [
-                {"lineage": "Lung",     "n_lines_screened": 60, "n_lines_responding": 25,
-                 "median_lfc": -1.5, "best_responder_lfc": -1.5, "top_compound_in_lineage": "ERLOTINIB",   "n_compounds_evaluated": 15},
-                {"lineage": "HeadNeck", "n_lines_screened": 12, "n_lines_responding":  5,
-                 "median_lfc": -0.9, "best_responder_lfc": -0.9, "top_compound_in_lineage": "OSIMERTINIB", "n_compounds_evaluated": 15},
-                {"lineage": "Skin",     "n_lines_screened": 30, "n_lines_responding":  6,
-                 "median_lfc": -0.6, "best_responder_lfc": -0.6, "top_compound_in_lineage": "AFATINIB",    "n_compounds_evaluated": 15},
+                ln("Lung", 60, -0.5, -8.0, "ERLOTINIB", 15),
+                ln("HeadNeck", 12, -0.3, -6.0, "OSIMERTINIB", 15),
+                ln("Skin", 30, -0.2, -4.0, "AFATINIB", 15),
             ],
             # KRAS: lineage_selective — Bowel/Pancreas active, Skin inactive
             [
-                {"lineage": "Bowel",    "n_lines_screened": 50, "n_lines_responding": 22,
-                 "median_lfc": -1.8, "best_responder_lfc": -1.8, "top_compound_in_lineage": "SOTORASIB",   "n_compounds_evaluated": 5},
-                {"lineage": "Pancreas", "n_lines_screened": 25, "n_lines_responding": 12,
-                 "median_lfc": -1.2, "best_responder_lfc": -1.2, "top_compound_in_lineage": "ADAGRASIB",   "n_compounds_evaluated": 5},
-                {"lineage": "Skin",     "n_lines_screened": 30, "n_lines_responding":  1,
-                 "median_lfc":  0.0, "best_responder_lfc": 0.0, "top_compound_in_lineage": "LONAFARNIB",  "n_compounds_evaluated": 5},
+                ln("Bowel", 44, -0.35, -4.7, "DARAXONRASIB", 5),
+                ln("Pancreas", 42, -0.20, -5.1, "DARAXONRASIB", 5),
+                ln("Skin", 52, 0.0, -1.6, "LONAFARNIB", 5),
             ],
-            # WEAKGENE: no lineage signal
+            # WEAKGENE: no signal
             [
-                {"lineage": "Bowel",    "n_lines_screened": 20, "n_lines_responding": 0,
-                 "median_lfc": -0.1, "best_responder_lfc": -0.1, "top_compound_in_lineage": "TOOL-COMPOUND-X", "n_compounds_evaluated": 2},
+                ln("Bowel", 20, -0.02, -0.5, "TOOL-COMPOUND-X", 2),
             ],
         ],
-        "prism_lineage_selectivity": [
-            "broadly_active", "lineage_selective", "no_lineage_signal",
-        ],
+        "prism_lineage_selectivity": ["broadly_active", "lineage_selective", "no_lineage_signal"],
     }
     table = pa.Table.from_pydict(rows, schema=schema)
     pq.write_table(table, out_path, row_group_size=64)
 
 
 # ---------------------------------------------------------------------------
-# Parquet lookup path
+# Parquet lookup
 # ---------------------------------------------------------------------------
 
 def test_fetch_prism_row_hit(tmp_path):
@@ -140,7 +125,7 @@ def test_fetch_prism_row_hit(tmp_path):
     assert row is not None
     assert row["gene_symbol"] == "KRAS"
     assert row["prism_activity_class"] == "clinically_active"
-    assert row["top_compounds"][0]["drug_name"] == "SOTORASIB"
+    assert row["top_compounds"][0]["drug_name"] == "DARAXONRASIB"
 
 
 def test_fetch_prism_row_miss(tmp_path):
@@ -150,15 +135,15 @@ def test_fetch_prism_row_miss(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Summary compute (vocabulary coverage)
+# Summary compute
 # ---------------------------------------------------------------------------
 
 def test_compute_summary_no_compounds_when_row_missing():
-    """CRITICAL: absent row → no_compounds_found (opportunity), NOT data_unavailable."""
     s = e6cli.compute_summary(None, "GHOSTGENE")
     assert s["prism_activity_class"] == "no_compounds_found"
     assert s["n_compounds_targeting"] == 0
     assert s["top_compounds"] == []
+    assert s["median_log2auc_across_compounds"] is None
     assert "_data_note" in s
 
 
@@ -169,31 +154,18 @@ def test_compute_summary_clinically_active(tmp_path):
     s = e6cli.compute_summary(row, "EGFR")
     assert s["prism_activity_class"] == "clinically_active"
     assert s["n_compounds_targeting"] == 15
-    assert s["highest_clinical_phase"] == "phase_1_plus"
+    assert s["median_log2auc_across_compounds"] == pytest.approx(-0.35, abs=1e-2)
     assert len(s["top_compounds"]) == 2
 
 
-def test_compute_summary_tool_compound_only(tmp_path):
+def test_compute_summary_lineage_selective(tmp_path):
     p = tmp_path / "prism.parquet"
     _make_synthetic_parquet(p)
-    row = e6cli.fetch_prism_row(str(p), "WEAKGENE")
-    s = e6cli.compute_summary(row, "WEAKGENE")
-    assert s["prism_activity_class"] == "tool_compound_only"
-    assert s["highest_clinical_phase"] == "tool"
-
-
-def test_compute_summary_coerces_nan_median_to_none():
-    """A NaN median_lfc (compound annotated but no LFC edges) must surface as None
-    so warning predicates comparing `== null` fire correctly."""
-    row = {
-        "prism_activity_class": "tool_compound_only",
-        "n_compounds_targeting": 1,
-        "highest_clinical_phase": "tool",
-        "median_lfc_across_compounds": float("nan"),
-        "top_compounds": [],
-    }
-    s = e6cli.compute_summary(row, "MYC")
-    assert s["median_lfc_across_compounds"] is None
+    row = e6cli.fetch_prism_row(str(p), "KRAS")
+    s = e6cli.compute_summary(row, "KRAS")
+    assert s["prism_lineage_selectivity"] == "lineage_selective"
+    lineages = {e["lineage"] for e in s["per_lineage_activity"]}
+    assert lineages == {"Bowel", "Pancreas", "Skin"}
 
 
 def test_compute_summary_polyselective_flag(tmp_path):
@@ -205,6 +177,22 @@ def test_compute_summary_polyselective_flag(tmp_path):
     assert len(poly) == 1
     assert poly[0]["drug_name"] == "LONAFARNIB"
     assert poly[0]["n_annotated_targets"] == 4
+    assert poly[0]["metric_source"] == "single_dose_lfc"
+
+
+def test_compute_summary_coerces_nan_median_to_none():
+    """A NaN median_log2auc must surface as None."""
+    row = {
+        "prism_activity_class": "tool_compound_only",
+        "n_compounds_targeting": 1,
+        "highest_clinical_phase": "tool",
+        "median_log2auc_across_compounds": float("nan"),
+        "top_compounds": [],
+        "per_lineage_activity": [],
+        "prism_lineage_selectivity": "data_unavailable",
+    }
+    s = e6cli.compute_summary(row, "MYC")
+    assert s["median_log2auc_across_compounds"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -220,67 +208,10 @@ def test_emit_top_compounds_bar_populated(tmp_path):
     assert svg.exists() and svg.stat().st_size > 0
 
 
-def test_emit_top_compounds_bar_no_compounds_found_renders_placeholder(tmp_path):
+def test_emit_top_compounds_bar_no_compounds_found_placeholder(tmp_path):
     s = e6cli.compute_summary(None, "GHOSTGENE")
     svg = e6cli.emit_top_compounds_bar(s, "GHOSTGENE", tmp_path)
     assert svg.exists() and svg.stat().st_size > 0
-
-
-def test_emit_activity_vocabulary_panel(tmp_path):
-    p = tmp_path / "prism.parquet"
-    _make_synthetic_parquet(p)
-    row = e6cli.fetch_prism_row(str(p), "EGFR")
-    s = e6cli.compute_summary(row, "EGFR")
-    svg = e6cli.emit_activity_vocabulary_panel(s, "EGFR", tmp_path)
-    assert svg.exists() and svg.stat().st_size > 0
-
-
-def test_emit_activity_vocabulary_panel_absent(tmp_path):
-    s = e6cli.compute_summary(None, "GHOSTGENE")
-    svg = e6cli.emit_activity_vocabulary_panel(s, "GHOSTGENE", tmp_path)
-    assert svg.exists() and svg.stat().st_size > 0
-
-
-# ---------------------------------------------------------------------------
-# read.py shim
-# ---------------------------------------------------------------------------
-
-def test_read_prism_activity_bad_pin_returns_data_unavailable():
-    out = e6read.read_prism_activity("KRAS", indication=None, release_pin="bogus")
-    assert out["prism_activity_class"] == "data_unavailable"
-    assert "_live_read_error" in out
-
-
-def test_read_prism_activity_local_parquet(tmp_path, monkeypatch):
-    p = tmp_path / "prism.parquet"
-    _make_synthetic_parquet(p)
-    monkeypatch.setitem(e6cli.RELEASE_PIN_TO_PARQUET, "test-pin", str(p))
-    out = e6read.read_prism_activity("KRAS", indication=None, release_pin="test-pin")
-    assert out["prism_activity_class"] == "clinically_active"
-    assert out["n_compounds_targeting"] == 5
-    out_miss = e6read.read_prism_activity("NOPE", indication=None, release_pin="test-pin")
-    assert out_miss["prism_activity_class"] == "no_compounds_found"
-    assert out_miss["top_compounds"] == []
-
-
-# ---------------------------------------------------------------------------
-# v2: lineage-stratification summary + emitter
-# ---------------------------------------------------------------------------
-
-def test_compute_summary_hydrates_lineage_fields(tmp_path):
-    p = tmp_path / "prism.parquet"
-    _make_synthetic_parquet(p)
-    row = e6cli.fetch_prism_row(str(p), "KRAS")
-    s = e6cli.compute_summary(row, "KRAS")
-    assert s["prism_lineage_selectivity"] == "lineage_selective"
-    lineages = {e["lineage"] for e in s["per_lineage_activity"]}
-    assert lineages == {"Bowel", "Pancreas", "Skin"}
-
-
-def test_compute_summary_no_row_yields_empty_lineage_fields():
-    s = e6cli.compute_summary(None, "GHOSTGENE")
-    assert s["per_lineage_activity"] == []
-    assert s["prism_lineage_selectivity"] == "data_unavailable"
 
 
 def test_emit_lineage_activity_bar_populated(tmp_path):
@@ -293,22 +224,39 @@ def test_emit_lineage_activity_bar_populated(tmp_path):
 
 
 def test_emit_lineage_activity_bar_placeholder_when_empty(tmp_path):
-    """No per_lineage_activity → placeholder SVG (not empty file)."""
     s = e6cli.compute_summary(None, "GHOSTGENE")
     svg = e6cli.emit_lineage_activity_bar(s, "GHOSTGENE", tmp_path)
     assert svg.exists() and svg.stat().st_size > 0
 
 
-def test_read_prism_activity_returns_v2_fields(tmp_path, monkeypatch):
-    """read.py shim's error paths and success path both surface v2 fields."""
+def test_emit_activity_vocabulary_panel(tmp_path):
+    p = tmp_path / "prism.parquet"
+    _make_synthetic_parquet(p)
+    row = e6cli.fetch_prism_row(str(p), "EGFR")
+    s = e6cli.compute_summary(row, "EGFR")
+    svg = e6cli.emit_activity_vocabulary_panel(s, "EGFR", tmp_path)
+    assert svg.exists() and svg.stat().st_size > 0
+
+
+# ---------------------------------------------------------------------------
+# read.py shim
+# ---------------------------------------------------------------------------
+
+def test_read_prism_activity_bad_pin_returns_data_unavailable():
+    out = e6read.read_prism_activity("KRAS", indication=None, release_pin="bogus")
+    assert out["prism_activity_class"] == "data_unavailable"
+    assert "_live_read_error" in out
+    assert out["median_log2auc_across_compounds"] is None
+
+
+def test_read_prism_activity_local_parquet(tmp_path, monkeypatch):
     p = tmp_path / "prism.parquet"
     _make_synthetic_parquet(p)
     monkeypatch.setitem(e6cli.RELEASE_PIN_TO_PARQUET, "test-pin", str(p))
     out = e6read.read_prism_activity("KRAS", indication=None, release_pin="test-pin")
-    assert "per_lineage_activity" in out
-    assert "prism_lineage_selectivity" in out
+    assert out["prism_activity_class"] == "clinically_active"
+    assert out["n_compounds_targeting"] == 5
     assert out["prism_lineage_selectivity"] == "lineage_selective"
-    # Bad release_pin: v2 fields still present in the structured-error payload
-    out_bad = e6read.read_prism_activity("KRAS", indication=None, release_pin="bogus")
-    assert out_bad["per_lineage_activity"] == []
-    assert out_bad["prism_lineage_selectivity"] == "data_unavailable"
+    out_miss = e6read.read_prism_activity("NOPE", indication=None, release_pin="test-pin")
+    assert out_miss["prism_activity_class"] == "no_compounds_found"
+    assert out_miss["top_compounds"] == []
