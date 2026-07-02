@@ -477,23 +477,57 @@ def write_parquet(records: list, out_path: Path) -> Path:
 
 def build_medium_gene_set(chronos_df: pd.DataFrame, model_df: pd.DataFrame,
                             min_lines_per_lineage: int = 5,
-                            threshold: float = 0.3) -> list:
+                            threshold: float = 0.3,
+                            priority_order: str = "selective") -> list:
+    """Select dependency-mappable genes and order them for the training queue.
+
+    Selection: any OncotreeLineage (n_lines ≥ min_lines_per_lineage) has
+    |median Chronos| > threshold. This is the "medium scope" of ~3-4k genes
+    that carry the biologically-informative predictability signal (rest of the
+    genome is mostly non-dependent, R² near zero).
+
+    Ordering (matters because checkpoints land in submission order; earlier
+    genes = higher-value results banked first, robust to instance reboots):
+      - 'selective' (DEFAULT): max_lineage(|median Chronos|) descending.
+        Strongest lineage-selective dependencies first. Best default because
+        it prioritizes the same signal that gated inclusion.
+      - 'pan_cancer_median': |pan-cancer median Chronos| descending. Highlights
+        broadly-essential genes (which are usually less predictable than
+        lineage-selective ones, but sometimes carry biomarker signal).
+      - 'alpha': alphabetical (legacy behavior). Deterministic but non-informative.
+    """
     lineage_map = dict(zip(model_df["ModelID"], model_df["OncotreeLineage"]))
     lineage_groups: dict = {}
     for mid in chronos_df.index:
         lin = lineage_map.get(mid)
         if isinstance(lin, str) and lin:
             lineage_groups.setdefault(lin, []).append(mid)
-    keepers = set()
+    # Track max |median| per gene across all qualifying lineages
+    gene_max_abs_median: dict = {}
     for lin, mids in lineage_groups.items():
         if len(mids) < min_lines_per_lineage:
             continue
         sub = chronos_df.loc[mids]
         medians = sub.median(axis=0, skipna=True)
         for gene, m in medians.items():
-            if pd.notna(m) and abs(m) > threshold:
-                keepers.add(gene)
-    return sorted(keepers)
+            if pd.notna(m):
+                a = abs(float(m))
+                if a > threshold:
+                    prev = gene_max_abs_median.get(gene, 0.0)
+                    if a > prev:
+                        gene_max_abs_median[gene] = a
+    if not gene_max_abs_median:
+        return []
+    if priority_order == "selective":
+        # Most-selective first: max_lineage(|median|) descending. Ties → alpha.
+        return sorted(gene_max_abs_median.keys(),
+                        key=lambda g: (-gene_max_abs_median[g], g))
+    if priority_order == "pan_cancer_median":
+        pan_median = chronos_df.median(axis=0, skipna=True).abs()
+        return sorted(gene_max_abs_median.keys(),
+                        key=lambda g: (-float(pan_median.get(g, 0.0)), g))
+    # 'alpha' fallback
+    return sorted(gene_max_abs_median.keys())
 
 
 # ---------------------------------------------------------------------------
@@ -543,12 +577,21 @@ def _worker_train(gene: str) -> Optional[dict]:
               help="Write a checkpoint parquet every N genes.")
 @click.option("--min-lines-per-lineage", default=5, show_default=True, type=int)
 @click.option("--threshold", default=0.3, show_default=True, type=float)
+@click.option("--priority-order",
+              type=click.Choice(["selective", "pan_cancer_median", "alpha"]),
+              default="selective", show_default=True,
+              help="Gene training order. 'selective' = strongest lineage-selective "
+                    "dependencies first (recommended: banks the highest-value results "
+                    "earliest, so partial-run checkpoints are maximally useful). "
+                    "'pan_cancer_median' = largest |pan-cancer median| first. "
+                    "'alpha' = alphabetical (legacy).")
 @click.option("--resume/--no-resume", default=False,
               help="If set, load the most-recent checkpoint parquet from --out and "
                     "skip genes already computed. Enables restart-from-crash on the "
                     "genome-wide multi-day batch.")
 def main(release_pin, gene_set, gene_set_override, out, workers,
-          checkpoint_every, min_lines_per_lineage, threshold, resume):
+          checkpoint_every, min_lines_per_lineage, threshold, priority_order,
+          resume):
     out = Path(out)
     if out.suffix == ".parquet":
         parquet_path = out
@@ -592,14 +635,49 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
             raise click.UsageError("--gene-set=explicit requires --gene-set-override=SYM1,SYM2,...")
         genes = [g.strip() for g in gene_set_override.split(",") if g.strip()]
     elif gene_set == "genome":
-        # All CRISPR-covered protein-coding genes (whatever's in chronos.columns).
-        genes = sorted(omics["chronos"].columns.tolist())
+        # All CRISPR-covered protein-coding genes. Priority-ordered so the
+        # highest-signal genes complete first (partial-run checkpoints are
+        # then maximally useful for downstream consumers).
+        all_genes = omics["chronos"].columns.tolist()
+        if priority_order == "alpha":
+            genes = sorted(all_genes)
+        else:
+            # Rank by max_lineage(|median Chronos|), NaN → 0. Same signal as
+            # build_medium_gene_set but without the > threshold cut.
+            lineage_map = dict(zip(omics["model_df"]["ModelID"],
+                                     omics["model_df"]["OncotreeLineage"]))
+            gene_score = {g: 0.0 for g in all_genes}
+            lineage_groups: dict = {}
+            for mid in omics["chronos"].index:
+                lin = lineage_map.get(mid)
+                if isinstance(lin, str) and lin:
+                    lineage_groups.setdefault(lin, []).append(mid)
+            for lin, mids in lineage_groups.items():
+                if len(mids) < min_lines_per_lineage:
+                    continue
+                medians = omics["chronos"].loc[mids].median(axis=0, skipna=True)
+                for gene, m in medians.items():
+                    if pd.notna(m):
+                        a = abs(float(m))
+                        if a > gene_score.get(gene, 0.0):
+                            gene_score[gene] = a
+            if priority_order == "pan_cancer_median":
+                pan_median = omics["chronos"].median(axis=0, skipna=True).abs()
+                genes = sorted(all_genes,
+                                 key=lambda g: (-float(pan_median.get(g, 0.0)), g))
+            else:  # 'selective' default
+                genes = sorted(all_genes, key=lambda g: (-gene_score.get(g, 0.0), g))
     else:  # medium
-        click.echo(f"Building medium-scope gene set (any-lineage |median Chronos| > {threshold})...",
-                    err=True)
+        click.echo(f"Building medium-scope gene set "
+                    f"(any-lineage |median Chronos| > {threshold}, "
+                    f"priority={priority_order})...", err=True)
         genes = build_medium_gene_set(omics["chronos"], omics["model_df"],
-                                          min_lines_per_lineage, threshold)
+                                          min_lines_per_lineage, threshold,
+                                          priority_order=priority_order)
     click.echo(f"  Gene set size: {len(genes)}", err=True)
+    if len(genes) > 0 and priority_order == "selective":
+        click.echo(f"  Priority head (top 5 most-selective): {genes[:5]}", err=True)
+        click.echo(f"  Priority tail (bottom 5 least-selective): {genes[-5:]}", err=True)
 
     # Records collected in-process; checkpoints written every N.
     records = []
@@ -732,6 +810,7 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
         "parameters": {
             "min_lines_per_lineage": min_lines_per_lineage,
             "threshold": threshold,
+            "priority_order": priority_order,
             "cv_n_splits": CV_N_SPLITS,
             "select_k_best": SELECT_K_BEST,
             "bootstrap_n": BOOTSTRAP_N,
