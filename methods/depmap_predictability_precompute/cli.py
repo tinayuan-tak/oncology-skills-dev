@@ -503,10 +503,16 @@ def build_medium_gene_set(chronos_df: pd.DataFrame, model_df: pd.DataFrame,
 _WORKER_OMICS = None
 
 
-def _worker_init(omics_pickle_path):
+def _worker_init_shm(handle):
+    """Initialize a worker by attaching to the shared-memory omics bundle.
+
+    Replaces the previous pickle-per-worker load pattern that killed the
+    2026-07-02 genome-wide run via OOM (N workers × 5 GB pickle load exceeded
+    the 62 GB RAM ceiling at N=16). Attaching to SHM is O(1) in worker count.
+    """
     global _WORKER_OMICS
-    with open(omics_pickle_path, "rb") as f:
-        _WORKER_OMICS = pickle.load(f)
+    from . import shared_omics as _shm
+    _WORKER_OMICS = _shm.attach_omics_from_shm(handle)
 
 
 def _worker_train(gene: str) -> Optional[dict]:
@@ -630,15 +636,25 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
         else:
             click.echo("Resume: no checkpoint found; starting fresh", err=True)
 
-    with tempfile.NamedTemporaryFile(suffix=".pkl", delete=False) as tf:
-        omics_pkl = Path(tf.name)
-    try:
-        click.echo(f"Pickling omics for workers → {omics_pkl}", err=True)
-        with open(omics_pkl, "wb") as f:
-            pickle.dump(omics, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # Publish omics to POSIX shared memory ONCE. Workers attach by name; there
+    # is exactly one physical copy of each numeric matrix in RAM regardless
+    # of worker count. Replaces the previous pickle-per-worker pattern that
+    # caused an instance OOM crash on 2026-07-02 with 16 workers × 5 GB each.
+    from . import shared_omics as _shm
+    click.echo("Publishing omics to shared memory...", err=True)
+    omics_handle = _shm.publish_omics_to_shm(omics)
+    # Drop our local reference to the DataFrames so the arrays we copied into
+    # SHM are the only in-RAM copy on the coordinator; frees ~5 GB.
+    del omics
+    import gc; gc.collect()
+    click.echo(f"  {len(omics_handle.frames)} matrices in SHM; "
+                 f"handle size ≈ {len(omics_handle.extras_pickle)//1024} KB extras + "
+                 f"{sum(len(f.index_pickle)+len(f.columns_pickle) for f in omics_handle.frames.values())//1024} KB labels",
+                 err=True)
 
+    try:
         if workers <= 1:
-            _worker_init(omics_pkl)
+            _worker_init_shm(omics_handle)
             for i, gene in enumerate(genes):
                 rec = _worker_train(gene)
                 if rec is None:
@@ -653,16 +669,13 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                     click.echo(f"  {i + 1}/{len(genes)} done "
                                 f"({time.time() - t_start:.1f}s elapsed)", err=True)
         else:
-            # Use 'spawn' start method so workers do NOT inherit the parent's
-            # ~5 GB omics-in-memory footprint via fork(). Workers load omics from
-            # the on-disk pickle in their initializer instead — bounded per-worker
-            # memory, no parent-multiplication under fork copy-on-write pressure.
-            #
-            # Chunk submissions to bound the executor's internal queue (submitting
+            # Chunked submission bounds the executor's internal queue (submitting
             # all 18k futures eagerly caused a coordinator-death OOM in the
-            # 2026-07-01 aborted genome-wide run). Chunk = workers × 4, drain to
-            # completion between chunks; combined with max_tasks_per_child worker
-            # recycling this gives predictable memory + graceful degradation.
+            # 2026-07-01 run). Chunk = workers × 4, drain to completion between
+            # chunks; max_tasks_per_child=50 recycles workers periodically.
+            #
+            # Workers now attach to SHM instead of unpickling — memory cost is
+            # O(1) in worker count, so the 2026-07-02 16-worker OOM cannot recur.
             import multiprocessing as _mp
             ctx = _mp.get_context("spawn")
             chunk_size = max(workers * 4, checkpoint_every)
@@ -673,8 +686,8 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                 with ProcessPoolExecutor(
                     max_workers=workers,
                     mp_context=ctx,
-                    initializer=_worker_init,
-                    initargs=(omics_pkl,),
+                    initializer=_worker_init_shm,
+                    initargs=(omics_handle,),
                     max_tasks_per_child=50,
                 ) as ex:
                     futures = {ex.submit(_worker_train, g): g for g in chunk}
@@ -698,7 +711,9 @@ def main(release_pin, gene_set, gene_set_override, out, workers,
                                         f"n_errored={n_errored})",
                                         err=True)
     finally:
-        omics_pkl.unlink(missing_ok=True)
+        # Free the POSIX shared-memory segments. Idempotent; safe to call even
+        # if workers have already exited or the coordinator is crashing.
+        omics_handle.unlink_all()
 
     click.echo(f"Writing final parquet → {parquet_path}", err=True)
     write_parquet(records, parquet_path)
