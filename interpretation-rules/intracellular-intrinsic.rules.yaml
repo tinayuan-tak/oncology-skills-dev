@@ -1144,3 +1144,87 @@ rules:
       Neither CRISPR nor RNAi data available for this gene (both assays absent
       from DepMap). Coverage gap; concordance cannot be assessed. E6's compound
       activity call stands unchallenged.
+
+  # ============================================================================
+  # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v2)
+  # ============================================================================
+  # Dual-contrast selectivity from BOTH tumor-vs-TCGA-paired-adjacent AND
+  # tumor-vs-GTEx-population-normal DGE tests. Signal interpretation:
+  # * strong_tumor_selective   → supportive for small_molecule + degrader
+  #     (target is upregulated in tumor vs healthy tissue — a therapeutic-window
+  #      biomarker at the RNA level)
+  # * modest_tumor_selective   → weak-supportive (interpret with caveats)
+  # * not_selective            → NEUTRAL (target-down-in-tumor doesn't kill a
+  #     dependency-driven target; expression selectivity is a separate axis)
+  # * not_informative          → neutral (below effect-size threshold)
+  # * data_unavailable         → insufficient
+
+  - rule_id: tvn-strong-selective-supportive
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: strong_tumor_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target upregulated in tumor vs normal (max log2FC ≥ 1.5 across TCGA-
+      adjacent and/or GTEx-population contrasts). RNA-level therapeutic-window
+      signal — supportive for both small-molecule (context-of-action) and
+      degrader (target must be expressed to be degraded). Does not imply
+      protein-level selectivity; that's the protein-surface-evidence card's job.
+
+  - rule_id: tvn-modest-selective-supportive
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: modest_tumor_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Modest tumor upregulation (max log2FC in [0.5, 1.5)). Supportive but with
+      lower confidence than the strong_tumor_selective class. Interpret
+      alongside field-effect warnings (tvn_field_effect_adjacent) which surface
+      when adjacent-normal shows tumor-like signal.
+
+  - rule_id: tvn-not-selective-neutral
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: not_selective
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target expression is LOWER in tumor than in both normal cohorts (max log2FC
+      < 0). NOT a killer — RNA selectivity axis is orthogonal to dependency +
+      target-engagement axes. Many strongly-dependent oncogenes (KRAS, BRAF) have
+      neutral or slightly-negative tumor-vs-normal RNA log2FC because their
+      pathology is mutation-driven, not expression-driven. Interpretation
+      requires pairing with dependency (E1/E2) and mutation (E3/E4) cards.
+
+  - rule_id: tvn-not-informative-neutral
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: not_informative
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Max log2FC in [0, 0.5) — below the effect-size threshold for a meaningful
+      selectivity call. Neutral; no signal to reinforce or oppose.
+
+  - rule_id: tvn-data-unavailable-insufficient
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Neither DGE contrast product is accessible for this indication (no
+      tumor-vs-adjacent manifest AND no tumor-vs-GTEx derived product).
+      Coverage gap; not used as opposing evidence.

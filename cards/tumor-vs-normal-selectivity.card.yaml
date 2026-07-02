@@ -1,62 +1,124 @@
-# Card iter-1b/6 — TUMOR vs NORMAL SELECTIVITY
-# Composes from existing DGE product (coadread-dge-* etc.) + GTEx/TCGA-paired normals.
-# This is NOT a new method — it reuses dge-deseq2 with a different contrast and the
-# normal-tissue reference manifest.
+# Card iter-2/E-tvN-Sel — TUMOR vs NORMAL SELECTIVITY  (v2 — dual-contrast pure-data)
+#
+# Composes from TWO independent DGE derived products:
+#   1. `{indication}-dge-tumor-vs-adjacent` — TCGA-tumor vs TCGA-paired-adjacent-normal
+#       (existing product from methods.dge_deseq2 R pipeline)
+#   2. `{indication}-dge-tumor-vs-gtex-v1` — TCGA-tumor vs GTEx-unmatched-normal
+#       (new product from methods.dge_tcga_gtex_precompute, Python-native)
+#
+# The two tests answer distinct biological questions:
+#   - Adjacent-normal captures WITHIN-PATIENT field-effect (surgical-margin
+#     normal often shares early transcriptional changes with the tumor).
+#   - GTEx-normal captures TUMOR-vs-POPULATION contrast against a canonical
+#     healthy-donor baseline (broader, cleaner reference; larger n).
+#
+# v2 (2026-07-02, PRE-nominated by the "tumor-vs-normal audit" thread):
+#   - Was v1 (surface-modality-only, single-contrast, tpm-based, hint-driven).
+#   - Now dual-contrast, cpm-log-based, pure-data + Tier-2 rules, wired into
+#     BOTH intracellular-intrinsic AND surface-intrinsic base dashboards.
+#   - Emits a compound 3-panel figure combining per-sample distributions
+#     (tumor / adjacent-normal / GTEx-normal) with forest of the two log2FC
+#     contrasts and a class-callout text panel.
+#
+# Interpretation surface:
+#   `strong_tumor_selective`  → max log2FC (across both contrasts) >= 1.5
+#                                AND tumor median log2CPM > baseline threshold
+#   `modest_tumor_selective`  → max log2FC in [0.5, 1.5)
+#   `not_informative`         → max log2FC in [0, 0.5) OR not significant
+#   `not_selective`           → max log2FC < 0 (tumor DOWN vs both normals)
+#   `data_unavailable`        → neither DGE product accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 1.0.0
-question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue versus matched and unmatched normal tissues?"
+version: 2.0.0
+question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue versus both patient-matched adjacent normal AND GTEx-population healthy tissue?"
 
 applies_when:
-  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
-  - "indication.paired_normals.count >= THRESHOLD.paired_normals_min || indication.gtex_unmatched_normals_available == true"
+  - "context.data_sources.recount3_tcga_gtex_available == true"
 
 required_inputs:
-  - product_id: dge-tumor-vs-adjacent
-    indication: "{indication}"
-    release_pin: "{release_pin}"
-  - product_id: dge-tumor-vs-gtex
-    indication: "{indication}"
-    release_pin: "{release_pin}"
+  - product_id: coadread-dge-df06320
+  - product_id: coadread-dge-tumor-vs-gtex-v1
 
 methods:
-  - call: dge-deseq2
+  - call: dge-tumor-vs-normal-selectivity
     args:
+      target: "{target.symbol}"
       indication: "{indication}"
-      release_pin: "{release_pin}"
-      contrast: tumor_vs_combined_normals       # combines paired adjacent + GTEx unmatched
 
 outputs:
   summary_fields:
-    - tumor_median_tpm
-    - tumor_p25_tpm
-    - tumor_p75_tpm
-    - max_normal_tissue_tpm
-    - selectivity_score
-    - log2_fc_vs_max_normal
-    - log2_fc_vs_paired_adjacent
-    - log2_fc_vs_gtex_pooled
-  figure: tumor_vs_normal_selectivity_panel
-  plot_data: per_tissue_expression_with_tumor_overlay
+    - log2_fc_vs_adjacent                   # from tumor-vs-adjacent DGE
+    - q_value_vs_adjacent
+    - log2_fc_vs_gtex                       # from tumor-vs-GTEx DGE
+    - q_value_vs_gtex
+    - max_log2_fc                           # max of the two contrasts
+    - mean_log2cpm_tumor                    # target's absolute expression in tumor
+    - mean_log2cpm_adjacent                 # in TCGA-paired-adjacent-normal
+    - mean_log2cpm_gtex_normal              # in GTEx-population-normal
+    - n_tumor
+    - n_adjacent
+    - n_gtex_normal
+    - selectivity_class                     # DESCRIPTIVE (drives Tier-2 rules)
 
-interpretation_hints:
-  - if: "log2_fc_vs_max_normal >= THRESHOLD.strong_selectivity_log2fc && tumor_median_tpm >= THRESHOLD.tumor_median_min_tpm"
-    call: "strong tumor selectivity"
-  - if: "log2_fc_vs_max_normal >= THRESHOLD.modest_selectivity_log2fc && tumor_median_tpm >= THRESHOLD.tumor_median_min_tpm"
-    call: "modest tumor selectivity"
-  - if: "log2_fc_vs_max_normal < THRESHOLD.modest_selectivity_log2fc"
-    call: "not informative"
+  summary_fields_vocabulary:
+    selectivity_class:
+      - strong_tumor_selective              # max log2FC >= 1.5 in at least one contrast
+      - modest_tumor_selective              # max log2FC in [0.5, 1.5)
+      - not_informative                     # max log2FC in [0, 0.5) or non-significant
+      - not_selective                       # max log2FC < 0 (tumor DOWN vs both normals)
+      - data_unavailable
+
+  figures:
+    - id: tumor_vs_normal_selectivity_3panel
+      type: box_forest_class_panel
+      description: "Compound 3-panel figure: (left) horizontal box + jittered strip of log2(CPM+1) per group across Primary Tumor, Adjacent Normal, and GTEx tissue-of-origin — individual sample dots overlaid, group medians annotated. (middle) forest of the two log2FC contrasts (tumor-vs-adj + tumor-vs-GTEx) with q-value stars, colored by up/down direction, reference lines at 0/0.5/1.5. (right) text callout with class + values + n's."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
 
 thresholds:
-  expression_p95_min: 1.0
-  paired_normals_min: 8
-  strong_selectivity_log2fc: 3.0               # >= 8x over highest normal
-  modest_selectivity_log2fc: 1.5               # >= ~3x over highest normal
-  tumor_median_min_tpm: 1.0
+  strong_selectivity_log2fc: 1.5
+  modest_selectivity_log2fc: 0.5
+  min_expressed_log2cpm: 1.0     # log2(CPM+1) baseline for "detected in tumor"
+
+warning_predicates:
+  - warning_id: tvn_field_effect_adjacent
+    if: "log2_fc_vs_adjacent < 0 && log2_fc_vs_gtex >= 0.5"
+    message: "Tumor HIGHER than GTEx-population-normal but LOWER than TCGA-adjacent-normal. Classic 'field-effect' — the margin next to tumor already shows target upregulation. GTEx contrast is the cleaner selectivity signal."
+  - warning_id: tvn_gtex_only_selective
+    if: "log2_fc_vs_gtex >= 1.5 && log2_fc_vs_adjacent < 0.5"
+    message: "Selectivity is present vs GTEx-population-normal but NOT vs TCGA-adjacent-normal. This is common when the adjacent-normal cohort shares field-effect changes with tumor. Interpret adjacent-normal contrast conservatively; GTEx is the more biology-faithful baseline for this indication."
+  - warning_id: tvn_disagreement
+    if: "log2_fc_vs_adjacent > 0 != log2_fc_vs_gtex > 0"
+    message: "The two contrasts disagree on direction (one shows tumor up, the other tumor down). Rare pattern that warrants manual inspection — may indicate cohort composition drift (e.g. GTEx tissue includes cell types the adjacent-normal cohort excludes) or annotation error."
 
 caveats:
-  - "GTEx normal tissue is bulk RNA; cell-type-specific expression within a tissue can be much higher than the tissue median (e.g., specific intestinal crypt cells vs whole colon)."
-  - "TCGA paired adjacent normal is not random — surgical-margin selection biases the comparison."
-  - "Selectivity at RNA level does not guarantee selectivity at protein/surface level — pair with protein-surface-evidence card when available."
+  - |
+    Two contrasts answer different biological questions. Adjacent-normal is
+    the "within-patient" test — surgical-margin normal from the same
+    individual. Highly matched but shares field-effect with tumor for some
+    targets (e.g. inflammation, WNT-pathway markers). GTEx is the
+    "population-normal" test — canonical healthy-donor tissue, no field-effect
+    contamination, larger n. Neither is universally "better"; both belong on
+    the card.
+  - |
+    GTEx normal tissue is BULK RNA — cell-type-specific expression within a
+    tissue can be much higher than the tissue median (e.g. specific
+    intestinal crypt cells vs whole colon). Selectivity at bulk-RNA level
+    does not guarantee selectivity at cell-type-of-origin level.
+  - |
+    TCGA paired-adjacent-normal is a surgical selection artifact — it's not
+    random. Adjacent tissue is chosen for uninvolved margin at the surgeon's
+    discretion; may still bear tumor-adjacent transcriptional signatures
+    ("field cancerization"). The `tvn_field_effect_adjacent` warning surfaces
+    this pattern when it's likely at play.
+  - |
+    Selectivity at RNA level does not guarantee selectivity at protein or
+    surface level. Pair with protein-surface-evidence card (HPA/CPTAC-based,
+    iter-2 scope) when available.
+  - |
+    Log2CPM absolute thresholds are indication-specific. Cross-indication
+    comparison of raw log2CPM values is not meaningful without normalization
+    across cohorts; interpret `mean_log2cpm_tumor` in relative context to the
+    normal-group means, not as an absolute expression level.
 
 schema_version: 1
