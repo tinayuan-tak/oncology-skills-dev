@@ -6,8 +6,20 @@ steps/05_provenance.R) are preserved verbatim from the source; this module adds 
 wrapper that parameterizes indication and drives the R pipeline via `Rscript steps/run_pipeline.R`.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from .read import read_dge_gene_row
+from .read import (
+    read_dge_gene_row,
+    read_tumor_vs_gtex_gene_row,
+    read_tumor_vs_normal_selectivity,
+    read_per_sample_expression_tumor_vs_adjacent,
+    read_per_sample_expression_all_three_groups,
+)
 
-__all__ = ["read_dge_gene_row"]
+__all__ = [
+    "read_dge_gene_row",
+    "read_tumor_vs_gtex_gene_row",
+    "read_tumor_vs_normal_selectivity",
+    "read_per_sample_expression_tumor_vs_adjacent",
+    "read_per_sample_expression_all_three_groups",
+]
