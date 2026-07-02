@@ -464,97 +464,110 @@ expression-dependency-correlation:
 # (polyselective: FNTA/HRAS/KRAS/NRAS) as an FTase-inhibitor tool compound.
 # Activated 2026-07-01 (plan warm-rolling-bunny Family C).
 prism-compound-activity:
+  # v3 (2026-07-01): PRIMARY metric = Log2AUC (dose-response integral). Real KRAS
+  # under Log2AUC shows Bowel/Esophagus/Pancreas ranking top (KRAS-mut-enriched
+  # lineages) while median LFC (v2) was flat. best_responder_lfc preserves the
+  # deep KRAS-G12C responder tail (-4 to -5) that Log2AUC's 0-cap compresses.
+  # OncRef compounds carry median_log2auc; Repurposing = annotation-only (single_dose_lfc).
   prism_activity_class: clinically_active
-  n_compounds_targeting: 17
+  n_compounds_targeting: 23
   highest_clinical_phase: phase_1_plus
-  median_lfc_across_compounds: -1.35
+  median_log2auc_across_compounds: -0.12
   top_compounds:
-    - compound_id: PRC-KRAS-G12C-1
-      drug_name: SOTORASIB
-      moa: KRAS G12C covalent inhibitor
-      median_lfc: -2.10
-      fraction_lines_responding: 0.34
+    - compound_id: PRC-KRAS-1
+      drug_name: DARAXONRASIB
+      moa: pan-RAS (ON) inhibitor
+      median_log2auc: -0.43
+      best_responder_lfc: -4.72
+      single_dose_lfc: null
       n_lines_screened: 380
       polyselective: false
       n_annotated_targets: 1
       source_release: oncref-25q4
       prioritized: true
-    - compound_id: PRC-KRAS-G12C-2
+      metric_source: log2auc
+    - compound_id: PRC-KRAS-2
+      drug_name: RMC-7977
+      moa: pan-RAS (ON) inhibitor
+      median_log2auc: -0.41
+      best_responder_lfc: -5.26
+      single_dose_lfc: null
+      n_lines_screened: 380
+      polyselective: false
+      n_annotated_targets: 1
+      source_release: oncref-25q4
+      prioritized: true
+      metric_source: log2auc
+    - compound_id: PRC-KRAS-G12C-1
       drug_name: ADAGRASIB
       moa: KRAS G12C covalent inhibitor
-      median_lfc: -1.95
-      fraction_lines_responding: 0.31
+      median_log2auc: -0.04
+      best_responder_lfc: -2.32
+      single_dose_lfc: null
       n_lines_screened: 380
       polyselective: false
       n_annotated_targets: 1
       source_release: oncref-25q4
       prioritized: true
+      metric_source: log2auc
     - compound_id: PRC-KRAS-G12D-1
       drug_name: MRTX-1133
       moa: KRAS G12D selective inhibitor
-      median_lfc: -1.65
-      fraction_lines_responding: 0.22
+      median_log2auc: -0.03
+      best_responder_lfc: -1.81
+      single_dose_lfc: null
       n_lines_screened: 380
       polyselective: false
       n_annotated_targets: 1
       source_release: oncref-25q4
       prioritized: true
+      metric_source: log2auc
     - compound_id: BRD-A04843135
       drug_name: LONAFARNIB
       moa: farnesyltransferase inhibitor
-      median_lfc: -0.42
-      fraction_lines_responding: 0.06
+      median_log2auc: null
+      best_responder_lfc: null
+      single_dose_lfc: -0.42
       n_lines_screened: 500
       polyselective: true
       n_annotated_targets: 4
       source_release: repurposing-24q2
       prioritized: false
-    - compound_id: BRD-DELTA
-      drug_name: DELTARASIN
-      moa: KRAS-PDEδ inhibitor (tool)
-      median_lfc: -0.35
-      fraction_lines_responding: 0.04
-      n_lines_screened: 500
-      polyselective: false
-      n_annotated_targets: 1
-      source_release: repurposing-24q2
-      prioritized: false
-  # v2 additions (2026-07-01): lineage-stratified activity. Real KRAS PRISM data
-  # shows median LFC ~0 in every lineage BUT best_responder_lfc is -3 to -5 in
-  # each lineage — the KRAS-G12C-mut subpopulation gets obliterated while WT
-  # lines are unaffected. This is the median-masks-tail signal that the
-  # prism_responder_tail_masked_by_median warning fires on; class ends up
-  # 'no_lineage_signal' but the responder tails are real.
-  prism_lineage_selectivity: no_lineage_signal
+      metric_source: single_dose_lfc
+  # Log2AUC surfaces lineage-selectivity that v2 median-LFC masked: Bowel/Esophagus/
+  # Pancreas (KRAS-mut-enriched) rank active, Skin/Thyroid inactive.
+  prism_lineage_selectivity: lineage_selective
   per_lineage_activity:
     - lineage: Bowel
-      n_lines_screened: 44
-      n_lines_responding: 8
-      median_lfc: -0.04
+      n_lines_screened: 43
+      median_log2auc: -0.17
       best_responder_lfc: -4.72
+      top_compound_in_lineage: DARAXONRASIB
+      n_compounds_evaluated: 22
+    - lineage: Esophagus/Stomach
+      n_lines_screened: 57
+      median_log2auc: -0.16
+      best_responder_lfc: -4.83
       top_compound_in_lineage: RMC-7977
-      n_compounds_evaluated: 23
+      n_compounds_evaluated: 22
     - lineage: Pancreas
       n_lines_screened: 42
-      n_lines_responding: 12
-      median_lfc: -0.04
+      median_log2auc: -0.15
       best_responder_lfc: -5.05
       top_compound_in_lineage: DARAXONRASIB
-      n_compounds_evaluated: 23
-    - lineage: Lung
-      n_lines_screened: 65
-      n_lines_responding: 6
-      median_lfc: -0.02
-      best_responder_lfc: -4.15
-      top_compound_in_lineage: ADAGRASIB
-      n_compounds_evaluated: 23
+      n_compounds_evaluated: 22
     - lineage: Skin
       n_lines_screened: 53
-      n_lines_responding: 1
-      median_lfc: 0.02
+      median_log2auc: -0.03
       best_responder_lfc: -1.65
-      top_compound_in_lineage: LONAFARNIB
-      n_compounds_evaluated: 23
+      top_compound_in_lineage: DARAXONRASIB
+      n_compounds_evaluated: 22
+    - lineage: Thyroid
+      n_lines_screened: 13
+      median_log2auc: -0.02
+      best_responder_lfc: -1.20
+      top_compound_in_lineage: RMC-7977
+      n_compounds_evaluated: 22
 
 # Card E5 — dependency-predictability (multi-omics random-forest predictability model).
 # KRAS is expected to be biomarker-anchored: dependency is strongly driven by own_mutation

@@ -424,7 +424,7 @@ def _emit_prism_compound_activity(
          lineage-selectivity vocabulary.
 
     Thin-lookup pattern (same as E5): does NOT reload data — the summary dict
-    already carries the per-target row from the depmap-prism-activity-v2 parquet.
+    already carries the per-target row from the depmap-prism-activity-v3 parquet.
     """
     _ensure_methods_path()
     from methods.depmap_prism_activity import cli as e6cli
@@ -433,8 +433,8 @@ def _emit_prism_compound_activity(
     e6cli.emit_top_compounds_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e6cli.emit_lineage_activity_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e6cli.emit_activity_vocabulary_panel(summary, target, out_dir, TARGET_CONTRACTS)
-    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v2", "<unset>")
-    e6cli.emit_manifest(target, "prism-activity-v2", summary, out_dir, parquet_uri)
+    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v3", "<unset>")
+    e6cli.emit_manifest(target, "prism-activity-v3", summary, out_dir, parquet_uri)
     return [
         {"id": "top_compounds_bar", "path": "figure_top_compounds_bar.svg",
          "type": "horizontal_bar_top_compounds", "primary": True},
