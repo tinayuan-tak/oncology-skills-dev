@@ -266,17 +266,29 @@ def _dispatch_prism_compound_activity(target: str, indication: str) -> Optional[
     """Dispatcher: route prism-compound-activity card (E6) to
     methods/depmap_prism_activity/read.py.
 
-    E6 is a THIN LOOKUP card off an OFF-SUBSTRATE derived parquet
-    s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v1/prism_activity_per_gene.parquet
-    (release_pin `prism-activity-v1`, distinct from the 26q1 CRISPR pin).
+    E6 is a THIN LOOKUP card off the shared v4 derived parquet
+    s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/prism_activity_per_gene.parquet
+    (release_pin `prism-activity-v4`; parquet is shared with E7 crispr-concordance).
     Sister precompute (methods/depmap_prism_precompute/) merges PRISM OncologyReference
     25Q4 + Repurposing 24Q2 into a per-gene aggregate at batch time.
-
-    Target-only (pan-cancer). indication accepted for the CARD_DISPATCHERS
-    contract but NOT consumed by v1 — lineage-specific PRISM activity is v2 scope.
     """
     prism_module = _import_method("depmap_prism_activity")
     return prism_module.read_prism_activity(target=target, indication=indication)
+
+
+def _dispatch_prism_crispr_concordance(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route prism-crispr-concordance card (E7) to
+    methods/depmap_prism_crispr_concordance/read.py.
+
+    E7 is a THIN LOOKUP card sharing the v4 parquet with E6 but exposing the
+    per_compound_concordance + crispr_prism_concordance_class + dual_responders
+    fields for chemical-genetic-genetic triangulated engagement analysis.
+
+    Target-only (pan-cancer, correlation across full DepMap panel). indication
+    accepted for CARD_DISPATCHERS contract but NOT consumed.
+    """
+    concord_module = _import_method("depmap_prism_crispr_concordance")
+    return concord_module.read_prism_crispr_concordance(target=target, indication=indication)
 
 
 CARD_DISPATCHERS = {
@@ -294,6 +306,7 @@ CARD_DISPATCHERS = {
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     "dependency-predictability": _dispatch_dependency_predictability,
     "prism-compound-activity": _dispatch_prism_compound_activity,
+    "prism-crispr-concordance": _dispatch_prism_crispr_concordance,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

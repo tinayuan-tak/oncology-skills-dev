@@ -569,6 +569,57 @@ prism-compound-activity:
       top_compound_in_lineage: RMC-7977
       n_compounds_evaluated: 22
 
+# Card E7 — prism-crispr-concordance (CRISPR × RNAi × PRISM triangulated engagement).
+# For KRAS, we expect triangulated_target_engaged: KRAS-mut cells are
+# CRISPR-dependent (KRAS KO kills them), RNAi-dependent (KRAS KD kills them),
+# AND PRISM-responsive to KRAS-annotated compounds (sotorasib, adagrasib, pan-RAS
+# inhibitors). Best ρ vs CRISPR should be strong for pan-RAS drugs (DARAXONRASIB,
+# RMC-7977) since those hit the broader dependent-line population.
+prism-crispr-concordance:
+  crispr_prism_concordance_class: triangulated_target_engaged
+  n_compounds_evaluated: 15
+  best_spearman_r_crispr: 0.62
+  best_spearman_r_rnai: 0.41
+  per_compound_concordance:
+    - compound_id: PRC-KRAS-1
+      drug_name: DARAXONRASIB
+      n_intersected_crispr: 380
+      spearman_r_crispr: 0.62
+      n_intersected_rnai: 240
+      spearman_r_rnai: 0.41
+      metric_used: lfc
+    - compound_id: PRC-KRAS-2
+      drug_name: RMC-7977
+      n_intersected_crispr: 380
+      spearman_r_crispr: 0.55
+      n_intersected_rnai: 240
+      spearman_r_rnai: 0.35
+      metric_used: lfc
+    - compound_id: PRC-KRAS-G12C-1
+      drug_name: ADAGRASIB
+      n_intersected_crispr: 380
+      spearman_r_crispr: 0.28
+      n_intersected_rnai: 240
+      spearman_r_rnai: 0.18
+      metric_used: lfc
+  n_dual_responders: 8
+  dual_responders:
+    - model_id: ACH-002025
+      lineage: Bowel
+      chronos_dep: -1.48
+      best_compound_lfc: -3.05
+      best_compound_id: PRC-KRAS-2
+    - model_id: ACH-000470
+      lineage: Bowel
+      chronos_dep: -1.22
+      best_compound_lfc: -2.31
+      best_compound_id: PRC-KRAS-G12C-1
+    - model_id: ACH-000421
+      lineage: Pancreas
+      chronos_dep: -1.15
+      best_compound_lfc: -2.18
+      best_compound_id: PRC-KRAS-1
+
 # Card E5 — dependency-predictability (multi-omics random-forest predictability model).
 # KRAS is expected to be biomarker-anchored: dependency is strongly driven by own_mutation
 # status (G12/G13/Q61 hotspots) with lineage as a secondary driver. Activated 2026-07-01.

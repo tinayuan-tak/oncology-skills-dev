@@ -433,14 +433,49 @@ def _emit_prism_compound_activity(
     e6cli.emit_top_compounds_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e6cli.emit_lineage_activity_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e6cli.emit_activity_vocabulary_panel(summary, target, out_dir, TARGET_CONTRACTS)
-    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v3", "<unset>")
-    e6cli.emit_manifest(target, "prism-activity-v3", summary, out_dir, parquet_uri)
+    parquet_uri = e6cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v4", "<unset>")
+    e6cli.emit_manifest(target, "prism-activity-v4", summary, out_dir, parquet_uri)
     return [
         {"id": "top_compounds_bar", "path": "figure_top_compounds_bar.svg",
          "type": "horizontal_bar_top_compounds", "primary": True},
         {"id": "lineage_activity_bar", "path": "figure_lineage_activity_bar.svg",
          "type": "horizontal_bar_per_lineage", "primary": False},
         {"id": "activity_vocab_panel", "path": "figure_activity_vocab_panel.svg",
+         "type": "text_summary_panel", "primary": False},
+    ]
+
+
+def _emit_prism_crispr_concordance(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit E7 CRISPR × RNAi × PRISM concordance figures.
+
+    Three panels:
+      1. concordance_scatter (primary): 2D scatter of rho_crispr vs rho_rnai
+         per compound; quadrant-colored + threshold reference lines.
+      2. dual_responders_bar: paired horizontal bars showing CRISPR-dep and
+         best-compound-LFC magnitudes for dual-validated cell lines.
+      3. concordance_vocab_panel: text card with class + best rhos + top-3
+         dual responders.
+
+    Thin-lookup pattern: reads summary dict from the shared v4 parquet.
+    Placeholders when concordance is thin_evidence / data_unavailable.
+    """
+    _ensure_methods_path()
+    from methods.depmap_prism_crispr_concordance import cli as e7cli
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    e7cli.emit_concordance_scatter(summary, target, out_dir, TARGET_CONTRACTS)
+    e7cli.emit_dual_responders_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    e7cli.emit_concordance_vocabulary_panel(summary, target, out_dir, TARGET_CONTRACTS)
+    parquet_uri = e7cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v4", "<unset>")
+    e7cli.emit_manifest(target, "prism-activity-v4", summary, out_dir, parquet_uri)
+    return [
+        {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
+         "type": "two_d_scatter_correlation", "primary": True},
+        {"id": "dual_responders_bar", "path": "figure_dual_responders_bar.svg",
+         "type": "horizontal_bar_paired_dual_responders", "primary": False},
+        {"id": "concordance_vocab_panel", "path": "figure_concordance_vocab_panel.svg",
          "type": "text_summary_panel", "primary": False},
     ]
 
@@ -457,6 +492,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "mutation-stratified-dependency": _emit_card3_mutation_stratified_dependency,
     "dependency-predictability": _emit_dependency_predictability,
     "prism-compound-activity": _emit_prism_compound_activity,
+    "prism-crispr-concordance": _emit_prism_crispr_concordance,
 }
 
 
