@@ -51,16 +51,37 @@ at 0.5 (modest) and 1.5 (strong).
    burden on downstream consumers (`_live_readers`, `read.py`, card renderers)
    and creates drift risk on every pipeline update.
 
-## 2. Design — four-cell sensitivity
+## 2. Design — three-cell sensitivity (was four; cell D retired)
 
-Per indication, the R pipeline emits **five** parquets on a single run:
+Per indication, the R pipeline emits **four** artifacts on a single run:
+`sensitivity.parquet`, `tumor_vs_adjacent.parquet` (cell A backward-compat),
+`tumor_vs_gtex.parquet` (cell C backward-compat), and `provenance.yaml`.
 
 | cell | comparator | ComBat-seq | log2FC column | interpretation |
 |---|---|---|---|---|
 | A | TCGA-adjacent-normal | off | `log2fc_A` | field-effect-inflated but single-source clean |
 | B | TCGA-adjacent-normal | on (batch = TCGA plate) | `log2fc_B` | within-TCGA technical-batch removed |
 | C | joint TCGA-tumor + GTEx-normal | off | `log2fc_C` | source contamination present (naive baseline) |
-| D | joint TCGA-tumor + GTEx-normal | on (batch = source) | `log2fc_D` | empirical source-effect removal, biology preserved |
+| ~~D~~ | ~~joint TCGA-tumor + GTEx-normal~~ | ~~on (batch = source)~~ | ~~`log2fc_D`~~ | ~~pessimistic anchor — RETIRED, see below~~ |
+
+> **RETIREMENT (2026-07-06, post-COADREAD-validation):** cell D was designed
+> as a pessimistic anchor using `ComBat_seq(batch=source, group=NULL)`
+> because source is perfectly confounded with group in this contrast. At
+> cohort scale, cell D collapsed the biology entirely: `mean|log2FC|=0.05` vs
+> `1.05-1.40` in cells A/B/C; only 1,205 sig genes vs 20K-28K in A/B/C.
+> The "pessimistic" reading became "signal-obliterating" — the correction
+> regressed out the tumor-vs-normal contrast along with the source effect.
+> Consequence: NO gene would ever be sig in all 4 cells → `sig_all_cells`
+> would always be FALSE → the `strong_tumor_selective` threshold at 4/4
+> would be unreachable.
+>
+> The trust anchor is therefore 3/3 (cells A/B/C). This matches what the
+> data supports and preserves the design's core discipline (require agreement
+> across independent comparator + batch-handling choices). The card's
+> `log2fc_cell_d` / `q_value_cell_d` fields remain declared for forward
+> compatibility, populated as NULL. A future cell D (RUV/SVASeq-based
+> source adjustment that preserves group signal) is documented as future
+> work in the data-catalog manifest.
 
 > **CORRECTION (2026-07-06, post data-inspection):** an earlier draft of this
 > table proposed cell C as DESeq2 `~ source + group`. That design is

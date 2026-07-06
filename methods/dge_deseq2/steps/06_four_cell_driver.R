@@ -179,7 +179,7 @@ message(sprintf("[06_four_cell] partitions: %d tumor | %d TCGA-adjacent | %d GTE
                 length(tumor_ids), length(adjacent_ids), length(gtex_ids)))
 
 # --- cell A: tumor vs adjacent, raw -----------------------------------------
-cellA <- NULL; cellB <- NULL; cellC <- NULL; cellD <- NULL
+cellA <- NULL; cellB <- NULL; cellC <- NULL
 
 if (length(adjacent_ids) >= min_n) {
   ids <- c(tumor_ids, adjacent_ids)
@@ -191,21 +191,25 @@ if (length(adjacent_ids) >= min_n) {
   message("[06_four_cell] cells A/B SKIPPED — TCGA adjacent-normal < ", min_n)
 }
 
-# --- cells C/D: tumor vs GTEx -----------------------------------------------
+# --- cell C: tumor vs GTEx, raw ---------------------------------------------
+# Cell D (ComBat_seq batch=source) was RETIRED after the initial full-cohort
+# COADREAD validation showed it collapses biology entirely: with source
+# perfectly confounded with group, ComBat_seq(group=NULL) regresses out the
+# tumor-vs-normal signal along with the source effect (empirical result:
+# mean|log2FC|=0.05 vs 1.05-1.40 in cells A/B/C; only 1,205 sig genes vs
+# 20-28K in A/B/C). The intended "pessimistic anchor" reads as noise, not
+# signal. Trust anchor is therefore 3-cell (A/B/C); design doc §2.1
+# documents the retirement and the reasoning. Future work: replace with
+# an RUV/SVASeq-based source-adjustment that preserves group signal.
 if (length(gtex_ids) >= min_n) {
   ids <- c(tumor_ids, gtex_ids)
   cellC <- run_cell("C", counts[, ids], coldata[ids, ])
-  # cell D: batch=source is fully confounded with group (all tumor=TCGA, all
-  # normal=GTEx) → group-preservation is impossible; run source-scrubbing
-  # WITHOUT group protection (intentional over-correction, the pessimistic arm).
-  cellD <- run_cell("D", counts[, ids], coldata[ids, ], combat_batch = "source",
-                    preserve_group = FALSE)
 } else {
-  message("[06_four_cell] cells C/D SKIPPED — GTEx normal < ", min_n,
+  message("[06_four_cell] cell C SKIPPED — GTEx normal < ", min_n,
           " (no GTEx tissue for this indication?)")
 }
 
-cells <- Filter(Negate(is.null), list(A = cellA, B = cellB, C = cellC, D = cellD))
+cells <- Filter(Negate(is.null), list(A = cellA, B = cellB, C = cellC))
 if (length(cells) == 0) stop("No cells ran — check sample availability.")
 
 # --- join on gene_symbol (outer; a gene may be filtered out of some cells) --
