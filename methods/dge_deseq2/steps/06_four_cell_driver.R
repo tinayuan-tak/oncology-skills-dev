@@ -68,12 +68,23 @@ prefilter <- function(mat) {
 # DESeq2 fit + apeglm shrinkage for a two-level `group` factor
 # (reference = "normal", so log2FC > 0 == up in tumor). Returns a tidy frame
 # with gene_symbol, log2FoldChange, padj, baseMean.
+#
+# sfType="poscounts": DESeq2's default median-of-ratios size-factor estimator
+# needs each retained gene to be nonzero in EVERY sample (to compute the
+# geometric mean). At 1,500+ samples across ~30K recount3 loci, essentially
+# every gene has at least one zero — hitting "every gene contains at least
+# one zero" in estimateSizeFactorsForMatrix. Anders/Huber's "poscounts"
+# estimator uses only positive counts per gene and is the field-standard fix
+# for large-N cohorts. Cells A/B (~720 samples, dense recount3 counts)
+# happen to have a non-empty all-nonzero gene subset and would work under
+# either estimator; setting poscounts everywhere gives cell-consistent
+# normalization semantics and never surprises on scale.
 deseq2_fit <- function(mat, cd) {
   cd$group <- factor(cd$group, levels = c("normal", "tumor"))
   mat <- prefilter(mat)
   storage.mode(mat) <- "integer"
   dds <- DESeqDataSetFromMatrix(countData = mat, colData = cd, design = ~ group)
-  dds <- DESeq(dds, parallel = TRUE, quiet = TRUE)
+  dds <- DESeq(dds, parallel = TRUE, quiet = TRUE, sfType = "poscounts")
   res_un <- results(dds, contrast = c("group", "tumor", "normal"), alpha = 0.05)
   res <- lfcShrink(dds, coef = "group_tumor_vs_normal", type = "apeglm",
                    parallel = TRUE, res = res_un, quiet = TRUE)
@@ -222,8 +233,13 @@ dom_sign <- ifelse(dominant_direction == "up", 1,
              ifelse(dominant_direction == "down", -1, 0))
 supporting <- rowSums(sig_mat & (sign_mat == dom_sign), na.rm = TRUE)
 
-n_cells_ran <- length(lab_ran)
-sig_all <- supporting == n_cells_ran & n_cells_ran > 0
+# PER-GENE cells_ran: how many cells actually produced a testable estimate for
+# this gene. Cell-level pre-filters may drop different genes, so a gene might
+# be present in cells A/C/D but NA in cell B — its correct denominator is 3,
+# not 4. Using a scalar `length(lab_ran)` here would let a 3/3 gene appear as
+# 3/4 in the card renderer, understating its trust.
+cells_ran_per_gene <- rowSums(!is.na(padj_mat))
+sig_all <- (supporting == cells_ran_per_gene) & (cells_ran_per_gene > 0)
 
 # discordance: ≥1 sig cell up AND ≥1 sig cell down
 any_up   <- rowSums(sig_mat & sign_mat > 0, na.rm = TRUE) > 0
@@ -232,7 +248,7 @@ discordant <- any_up & any_down
 
 sens <- data.frame(
   gene_symbol        = merged$gene_symbol,
-  cells_ran          = n_cells_ran,
+  cells_ran          = cells_ran_per_gene,
   cells_supporting   = supporting,
   dominant_direction = dominant_direction,
   sig_all_cells      = sig_all,
