@@ -22,12 +22,17 @@ option_list <- list(
   make_option("--out-dir", type = "character", default = "/tmp/expression_rna_COADREAD"),
   make_option("--parquet-uri", type = "character",
               help = "Final Parquet destination (s3:// or local)"),
+  make_option("--contrast", type = "character", default = "tumor_vs_adjacent",
+              help = paste("tumor_vs_adjacent (legacy GDC-STAR chain 00->05) |",
+                           "four_cell_sensitivity (recount3 loader +",
+                           "four-cell driver, emits sensitivity.parquet)")),
   make_option("--joint-gtex", action = "store_true", default = FALSE),
+  make_option("--gtex-tissue", type = "character", default = NULL,
+              help = "Override recount3 GTEx tissue code (four_cell_sensitivity only)."),
   make_option("--threads", type = "integer", default = 4)
 )
 opts <- parse_args(OptionParser(option_list = option_list))
-stopifnot(!is.null(opts$config), !is.null(opts$`git-sha`),
-          !is.null(opts$`parquet-uri`))
+stopifnot(!is.null(opts$config), !is.null(opts$`git-sha`))
 
 dir.create(opts$`out-dir`, showWarnings = FALSE, recursive = TRUE)
 
@@ -52,6 +57,33 @@ run <- function(script, args) {
 }
 
 f <- function(name) file.path(opts$`out-dir`, name)
+
+# === four_cell_sensitivity: recount3 loader → four-cell driver ==============
+# Bypasses the linear 00→05 GDC-STAR chain. Loads ALL sample groups (TCGA tumor
+# + TCGA adjacent-normal + GTEx normal) from ONE recount3 substrate, then runs
+# cells A/B/C/D and emits sensitivity.parquet + the two contrast parquets.
+if (identical(opts$contrast, "four_cell_sensitivity")) {
+  run("00_load_recount3.R", c(
+    paste0("--config=", shQuote(opts$config)),
+    if (!is.null(opts$`gtex-tissue`))
+      paste0("--gtex-tissue=", shQuote(opts$`gtex-tissue`)) else "",
+    paste0("--out=", shQuote(f("00_recount3.rds")))
+  ))
+  run("06_four_cell_driver.R", c(
+    paste0("--in=",      shQuote(f("00_recount3.rds"))),
+    paste0("--out-dir=", shQuote(opts$`out-dir`)),
+    paste0("--threads=", opts$threads)
+  ))
+  message("=== four-cell sensitivity pipeline complete ===")
+  message("  Sensitivity:  ", f("sensitivity.parquet"))
+  message("  Contrasts:    ", f("tumor_vs_adjacent.parquet"), " + ",
+          f("tumor_vs_gtex.parquet"))
+  message("  Provenance:   ", f("provenance.yaml"))
+  quit(status = 0)
+}
+
+# === tumor_vs_adjacent (legacy GDC-STAR chain) ==============================
+stopifnot(!is.null(opts$`parquet-uri`))
 
 run("00_load_counts.R", c(
   paste0("--config=",       shQuote(opts$config)),

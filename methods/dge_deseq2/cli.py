@@ -85,8 +85,13 @@ def compute_git_sha(repo_path: Path) -> str:
 @click.command()
 @click.option("--indication", required=True, help="OncoTree code (e.g., COADREAD).")
 @click.option("--contrast", default="tumor_vs_adjacent",
-              type=click.Choice(["tumor_vs_adjacent", "tumor_vs_gtex", "subtype_stratified"]),
-              help="DGE contrast. Iter-1 implements tumor_vs_adjacent only.")
+              type=click.Choice(["tumor_vs_adjacent", "four_cell_sensitivity",
+                                  "tumor_vs_gtex", "subtype_stratified"]),
+              help="DGE contrast. tumor_vs_adjacent = legacy GDC-STAR chain; "
+                   "four_cell_sensitivity = recount3 four-cell discipline "
+                   "(cells A/B/C/D + sensitivity.parquet).")
+@click.option("--gtex-tissue", default=None,
+              help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
 @click.option("--release-pin", required=True, help="Catalog release_pin (e.g., 2026-Q2).")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
               default=Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"),
@@ -98,15 +103,19 @@ def compute_git_sha(repo_path: Path) -> str:
 @click.option("--threads", type=int, default=4)
 @click.option("--stratify-by", default=None,
               help="Stratification axis. 'subgroup_catalog' enables per-subgroup DGE. ITER-1 STUB.")
+@click.option("--gtex-tissue-override", "gtex_tissue", default=None,
+              help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
 @click.option("--dry-run", is_flag=True, help="Print the Rscript invocation without running it.")
 def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
          out: Path, parquet_uri: str | None, threads: int, stratify_by: str | None,
-         dry_run: bool) -> int:
+         gtex_tissue: str | None, dry_run: bool) -> int:
     """Invoke the DGE DESeq2 R pipeline for an indication × contrast."""
 
-    if contrast != "tumor_vs_adjacent":
+    if contrast in ("tumor_vs_gtex", "subtype_stratified"):
         raise click.ClickException(
-            f"contrast={contrast} not yet implemented in iter-1. Only tumor_vs_adjacent ships in R4 carve-out."
+            f"contrast={contrast} is not a standalone pipeline. tumor-vs-GTEx is now "
+            f"a cell WITHIN --contrast four_cell_sensitivity (cell C); subtype_stratified "
+            f"remains an iter-1 stub. Use four_cell_sensitivity or tumor_vs_adjacent."
         )
 
     if stratify_by:
@@ -133,7 +142,10 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
         f"--out-dir={out}",
         f"--parquet-uri={parquet_uri}",
         f"--threads={threads}",
+        f"--contrast={contrast}",
     ]
+    if gtex_tissue:
+        cmd.append(f"--gtex-tissue={gtex_tissue}")
 
     click.echo(f"=== dge-deseq2 invocation ===")
     click.echo(f"  indication:   {indication}")
@@ -144,6 +156,8 @@ def main(indication: str, contrast: str, release_pin: str, catalog_repo: Path,
     click.echo(f"  out:          {out}")
     click.echo(f"  parquet-uri:  {parquet_uri}")
     click.echo(f"  git-sha:      {git_sha}")
+    if contrast == "four_cell_sensitivity":
+        click.echo(f"  gtex-tissue:  {gtex_tissue or '(derived from config)'}")
     click.echo()
     click.echo(f"  Rscript cmd:  {' '.join(cmd)}")
 

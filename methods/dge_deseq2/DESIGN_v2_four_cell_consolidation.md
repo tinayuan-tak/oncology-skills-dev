@@ -100,9 +100,22 @@ gold-standard call: `padj<0.05` in the same direction across all four cells.
   `design = ~ group` (NAIVE — source contamination is knowingly present; this
   is the pessimistic baseline that a gene must survive *despite* the confound).
 - Cell D: `counts` = `ComBat_seq(joint TCGA-tumor + GTEx-normal, batch =
-  source, group = group)`, then `design = ~ group`. ComBat_seq's `group=`
-  argument preserves the tumor-vs-normal contrast while removing the empirical
-  TCGA-vs-GTEx source effect. This is the biology-preserving joint estimate.
+  source)` — **without** the `group=` argument — then `design = ~ group`.
+
+  > **CORRECTION (2026-07-06, caught in smoke-test):** an earlier draft passed
+  > `group = group` to ComBat_seq here. That errors with "The covariate is
+  > confounded with batch" — same rank-deficiency as the dropped `~source+group`
+  > design: source and group are the identical partition, so ComBat cannot
+  > preserve group while removing source. Cell D therefore runs source-scrubbing
+  > with NO group protection. This intentionally OVER-corrects (it removes source
+  > effect + some genuine tumor biology), making C and D a true sensitivity
+  > bracket: C (naive) over-estimates tumor-vs-normal (source + biology
+  > combined); D (source-scrubbed) under-estimates (removes source + some
+  > biology). A gene significant in BOTH is robust to how the confound is
+  > handled — exactly the discipline signal we want. Cell B (batch = TCGA-TSS)
+  > keeps `group=` because TSS is only *partially* confounded with group; a
+  > `tryCatch` falls back to no-group if a given indication's cohort structure
+  > makes even TSS fully confounded.
 
 **Alignment consistency (CRITICAL — corrected 2026-07-06):** ALL FOUR cells
 load from **one** substrate: recount3 `tcga-gtex-2023-01-04` (monorail uniform
