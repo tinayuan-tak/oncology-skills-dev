@@ -1146,18 +1146,20 @@ rules:
       activity call stands unchallenged.
 
   # ============================================================================
-  # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v2)
+  # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================
-  # Dual-contrast selectivity from BOTH tumor-vs-TCGA-paired-adjacent AND
-  # tumor-vs-GTEx-population-normal DGE tests. Signal interpretation:
-  # * strong_tumor_selective   → supportive for small_molecule + degrader
-  #     (target is upregulated in tumor vs healthy tissue — a therapeutic-window
-  #      biomarker at the RNA level)
-  # * modest_tumor_selective   → weak-supportive (interpret with caveats)
-  # * not_selective            → NEUTRAL (target-down-in-tumor doesn't kill a
-  #     dependency-driven target; expression selectivity is a separate axis)
-  # * not_informative          → neutral (below effect-size threshold)
-  # * data_unavailable         → insufficient
+  # FOUR-CELL sensitivity selectivity. All four cells (TCGA-adjacent ±ComBat,
+  # GTEx-population ±ComBat) run under ONE DESeq2 pipeline on ONE recount3
+  # substrate, so trust = cells_supporting (0-4), not a single log2FC. Signal
+  # interpretation:
+  # * strong_tumor_selective          → supportive (up in ALL 4 cells, |log2FC|≥1.5)
+  # * modest_tumor_selective          → supportive, lower confidence (≥3 cells up)
+  # * discordant_across_comparators   → NEUTRAL but flagged — comparator-dependent
+  #     (sig cells disagree on direction; "which normal?" changes the answer)
+  # * not_selective                   → NEUTRAL (down in ≥3 cells; expression
+  #     selectivity is orthogonal to a dependency-driven target's viability)
+  # * not_informative                 → neutral (≤1 comparator-robust cell)
+  # * data_unavailable                → insufficient
 
   - rule_id: tvn-strong-selective-supportive
     when:
@@ -1168,11 +1170,13 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Target upregulated in tumor vs normal (max log2FC ≥ 1.5 across TCGA-
-      adjacent and/or GTEx-population contrasts). RNA-level therapeutic-window
-      signal — supportive for both small-molecule (context-of-action) and
-      degrader (target must be expressed to be degraded). Does not imply
-      protein-level selectivity; that's the protein-surface-evidence card's job.
+      Target upregulated in tumor in ALL FOUR sensitivity cells (cells_supporting
+      == 4, dominant up, max |log2FC| ≥ 1.5). Robust to both comparator choice
+      (TCGA-adjacent vs GTEx-population) AND batch handling (raw vs ComBat) — the
+      strongest RNA-level therapeutic-window signal the card can emit. Supportive
+      for small-molecule (context-of-action) and degrader (target must be
+      expressed to be degraded). Does not imply protein-level selectivity; that's
+      the protein-surface-evidence card's job.
 
   - rule_id: tvn-modest-selective-supportive
     when:
@@ -1183,10 +1187,27 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Modest tumor upregulation (max log2FC in [0.5, 1.5)). Supportive but with
-      lower confidence than the strong_tumor_selective class. Interpret
-      alongside field-effect warnings (tvn_field_effect_adjacent) which surface
-      when adjacent-normal shows tumor-like signal.
+      Tumor upregulation in ≥3 of 4 cells (dominant up, max |log2FC| ≥ 0.5).
+      Supportive but lower confidence than strong_tumor_selective — one cell
+      dissents, typically the ComBat-scrubbed GTEx arm (cell D) which
+      over-corrects. Interpret alongside the 4-cell forest in the figure.
+
+  - rule_id: tvn-discordant-neutral-flagged
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: discordant_across_comparators
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Significant cells DISAGREE on direction — the target reads as tumor-up
+      against one normal comparator and tumor-down (or flat) against the other.
+      This is the field-effect / comparator-dependence signal made explicit
+      (e.g. epithelial markers up vs whole-tissue GTEx but flat vs epithelial-
+      rich adjacent margin). NEUTRAL for the modality call, but the divergence
+      is itself informative and must be surfaced in synthesis — do NOT average
+      the cells into a single misleading log2FC. Inspect the 4-cell forest.
 
   - rule_id: tvn-not-selective-neutral
     when:
@@ -1197,9 +1218,9 @@ rules:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      Target expression is LOWER in tumor than in both normal cohorts (max log2FC
-      < 0). NOT a killer — RNA selectivity axis is orthogonal to dependency +
-      target-engagement axes. Many strongly-dependent oncogenes (KRAS, BRAF) have
+      Target expression is LOWER in tumor across ≥3 cells (dominant down). NOT a
+      killer — RNA selectivity axis is orthogonal to dependency + target-
+      engagement axes. Many strongly-dependent oncogenes (KRAS, BRAF) have
       neutral or slightly-negative tumor-vs-normal RNA log2FC because their
       pathology is mutation-driven, not expression-driven. Interpretation
       requires pairing with dependency (E1/E2) and mutation (E3/E4) cards.
@@ -1213,8 +1234,9 @@ rules:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      Max log2FC in [0, 0.5) — below the effect-size threshold for a meaningful
-      selectivity call. Neutral; no signal to reinforce or oppose.
+      ≤1 of the ran cells shows a comparator-robust significant signal in the
+      dominant direction — below the bar for a meaningful selectivity call.
+      Neutral; no signal to reinforce or oppose.
 
   - rule_id: tvn-data-unavailable-insufficient
     when:
@@ -1225,6 +1247,6 @@ rules:
       small_molecule: insufficient
       degrader: insufficient
     rationale: |
-      Neither DGE contrast product is accessible for this indication (no
-      tumor-vs-adjacent manifest AND no tumor-vs-GTEx derived product).
-      Coverage gap; not used as opposing evidence.
+      The four-cell sensitivity product is not accessible for this indication
+      (batch expansion pending, or gene absent). Coverage gap; not used as
+      opposing evidence.

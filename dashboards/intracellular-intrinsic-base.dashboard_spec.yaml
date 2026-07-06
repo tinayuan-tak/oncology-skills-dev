@@ -29,7 +29,7 @@ required_cards:
   - card_id: expression-tumor-vs-adjacent
     version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-07-01
   - card_id: tumor-vs-normal-selectivity
-    version: ">=2.0.0,<3"        # Card E-tvN-Sel v2: dual-contrast (TCGA-adjacent + GTEx), activated 2026-07-02
+    version: ">=3.0.0,<4"        # Card E-tvN-Sel v3: four-cell sensitivity (recount3, A/B/C/D + sensitivity.parquet), activated 2026-07-06
   # Iter-2 Card 1: pan-cancer-crispr-dependency-distribution — the foundational dependency view.
   # Pan-essential targets are DOMINANT KILLER for small_molecule/degrader; selective targets
   # are DOMINANT POSITIVE (therapeutic-window candidates). EG4 dominant-signal-plus-confirmation

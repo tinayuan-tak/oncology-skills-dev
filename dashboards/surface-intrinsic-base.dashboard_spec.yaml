@@ -27,7 +27,7 @@ required_cards:
   - card_id: expression-tumor-vs-adjacent
     version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-07-01
   - card_id: tumor-vs-normal-selectivity
-    version: ">=1.0.0,<3"        # widened: Card refactored to v2.0.0 (dual-contrast) 2026-07-02
+    version: ">=1.0.0,<4"        # widened: Card refactored to v3.0.0 (four-cell sensitivity) 2026-07-06
   - card_id: protein-surface-evidence
     version: ">=1.0.0,<2"
   - card_id: normal-tissue-liability
