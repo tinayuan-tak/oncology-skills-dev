@@ -227,6 +227,21 @@ coldata <- do.call(rbind, coldata_rows)
 rownames(coldata) <- coldata$sample_id
 stopifnot(ncol(counts_mat) == nrow(coldata))
 
+# --- QC: drop empty libraries (libsize == 0) --------------------------------
+# recount3 ships a small number of failed sequencing/alignment libraries
+# (e.g. GTEX-14BMU-1526-SM-5TDE6.1 in the COLON tissue file has libsize=0).
+# These break every downstream normalization (DESeq2 size factors NA-out at
+# assignment). Drop them at the load step so all downstream cells see a
+# clean cohort.
+lib_sizes <- colSums(counts_mat)
+empty <- lib_sizes == 0
+if (any(empty)) {
+  message(sprintf("[00_load_recount3] dropping %d empty libraries (libsize == 0): %s",
+                  sum(empty), paste(head(colnames(counts_mat)[empty], 5), collapse = ", ")))
+  counts_mat <- counts_mat[, !empty, drop = FALSE]
+  coldata    <- coldata[!empty, , drop = FALSE]
+}
+
 # --- map gene_id → HGNC symbol; collapse duplicates by sum ------------------
 gene_stem <- sub("\\..*$", "", common_genes)
 gene_symbol <- ens2hgnc[gene_stem]
