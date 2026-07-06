@@ -84,14 +84,20 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
 
 
 def _dispatch_tumor_vs_normal_selectivity(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route tumor-vs-normal-selectivity card (v2 dual-contrast) to
+    """Dispatcher: route tumor-vs-normal-selectivity card (v3 four-cell) to
     methods/dge_deseq2/read.py:read_tumor_vs_normal_selectivity.
 
-    Composite reader that pulls BOTH DGE products:
-      1. `{indication}-dge-tumor-vs-adjacent` (existing R DESeq2 pipeline output)
-      2. `{indication}-dge-tumor-vs-gtex-v1` (Python-native Welch's t)
-    Returns unified summary with max_log2_fc + selectivity_class. Never returns
-    None; missing indication → selectivity_class=data_unavailable.
+    v3 primary path: reads `{indication}-dge-tumor-vs-normal-sensitivity-v1`
+    (four-cell DESeq2 output — cells A/B TCGA-adjacent ±ComBat, C/D GTEx
+    ±ComBat) and maps to the card v3 summary_fields shape with
+    cells_supporting / dominant_direction / discordant / sig_all_cells.
+
+    v2 fallback: if the sensitivity product isn't yet in S3 for this
+    indication (batch expansion pending), the reader falls back to the legacy
+    two-product path (tumor-vs-adjacent + tumor-vs-GTEx) reshaped into the
+    v3 envelope with cells_ran=2. Renderer + rules see the v3 shape either way.
+
+    Never returns None; missing everything → selectivity_class=data_unavailable.
     """
     dge_module = _import_method("dge_deseq2")
     return dge_module.read_tumor_vs_normal_selectivity(target=target, indication=indication)

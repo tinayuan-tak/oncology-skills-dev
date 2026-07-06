@@ -49,13 +49,17 @@ def _has_live_read_error(summary: dict) -> bool:
 def _emit_tumor_vs_normal_selectivity(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit tumor-vs-normal-selectivity 3-panel figure (v2, dual-contrast).
+    """Emit tumor-vs-normal-selectivity 4-panel figure (v3, four-cell).
 
-    Pulls per-sample log2(CPM+1) for tumor + adjacent-normal + GTEx-normal
-    from recount3 at emit-time. Composes both DGE contrasts from S3 parquets.
+    Uses the v3 sensitivity summary produced by the live-reader dispatcher
+    (already contains the 4 cell log2fc + concordance fields). Pulls per-
+    sample log2(CPM+1) for tumor + adjacent-normal + GTEx-normal from
+    recount3 for the box+strip panel.
 
-    Fetch time: ~30s per (target, indication) for a fresh call — dominated by
-    3 gzipped-counts streams (TCGA + GTEx) + 3 metadata fetches.
+    Fetch time: ~30s for a fresh (target, indication) — dominated by the 3
+    gzipped-counts streams + 3 metadata fetches. Backwards-compatible with
+    the v2_two_product_fallback summary shape from read_tumor_vs_normal_
+    selectivity (missing cells B/D render as absent forest rows).
     """
     if _has_live_read_error(summary):
         return []
@@ -71,26 +75,16 @@ def _emit_tumor_vs_normal_selectivity(
     except Exception:
         per_sample = None
 
-    # DGE summaries from the two sources (may be None on indications without products)
-    try:
-        adj = dge_read.read_dge_gene_row(target, dge_read._INDICATION_TO_ADJ_MANIFEST.get(indication.upper(), ""))
-    except Exception:
-        adj = None
-    try:
-        gtex = dge_read.read_tumor_vs_gtex_gene_row(target, indication)
-    except Exception:
-        gtex = None
-
-    dge_emit.emit_tumor_vs_normal_selectivity_3panel(
-        dge_adj_summary=adj, dge_gtex_summary=gtex,
+    dge_emit.emit_tumor_vs_normal_selectivity_4panel(
+        sensitivity_summary=summary,
         per_sample_data=per_sample,
         target=target, indication=indication,
         out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
     )
     return [
-        {"id": "tumor_vs_normal_selectivity_3panel",
-         "path": "figure_tumor_vs_normal_selectivity_3panel.svg",
-         "type": "box_forest_class_panel", "primary": True},
+        {"id": "tumor_vs_normal_selectivity_4panel",
+         "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
+         "type": "box_forest_sensitivity_panel", "primary": True},
     ]
 
 
