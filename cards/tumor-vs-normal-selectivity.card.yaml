@@ -51,7 +51,8 @@ methods:
 
 outputs:
   summary_fields:
-    - cells_ran                             # how many of the 4 cells could run (2 if no GTEx or no adjacent)
+    - cells_ran                             # PER-GENE: how many cells actually tested this gene (accounts for per-cell pre-filter drops); denominator for cells_supporting
+
     - cells_supporting                      # PRIMARY: cells sig<0.05 in the dominant direction (0-4)
     - dominant_direction                    # up | down | none
     - sig_all_cells                         # gold-standard: sig in ALL cells that ran, same direction
