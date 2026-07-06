@@ -288,19 +288,56 @@ def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
 def read_tumor_vs_normal_selectivity(
     target: str, indication: str,
 ) -> dict:
-    """Composite dispatcher for the tumor-vs-normal-selectivity card.
+    """Composite dispatcher for the tumor-vs-normal-selectivity card (v3).
 
-    Combines results from both DGE contrasts (tumor-vs-adjacent + tumor-vs-GTEx)
-    into the card's summary_fields shape. Never returns None — always returns
-    a dict with `selectivity_class` set (data_unavailable when either product
-    is inaccessible). Live-mode dispatcher for compose-dashboard.
+    Reads the four-cell sensitivity product and maps it to the card v3.0.0
+    summary_fields shape. Trust anchor is cells_supporting (0-4) +
+    dominant_direction; selectivity_class assigned by
+    `_classify_selectivity_from_sensitivity`. Never returns None — always a
+    dict with `selectivity_class` set (data_unavailable when the product is
+    inaccessible). Live-mode dispatcher for compose-dashboard.
 
-    Note: `indication` is used to select the correct DGE manifests. The
-    tumor-vs-adjacent manifest_id is currently hard-coded to coadread-dge-df06320
-    for COADREAD; extension to other indications requires adding manifest_ids
-    to a per-indication registry (deferred to next-session batch expansion).
+    Backward-compat: if the four-cell sensitivity product is not yet in S3 for
+    this indication (batch expansion pending), falls back to the legacy v2
+    two-product path (tumor-vs-adjacent + tumor-vs-GTEx) and synthesizes a
+    v3-shaped record with cells_ran=2 so downstream renderers still function.
     """
-    # Adjacent-normal contrast (currently COADREAD only via coadread-dge-df06320)
+    row = read_tumor_vs_normal_sensitivity_gene_row(target, indication)
+    if row:
+        return {
+            "cells_ran":          row.get("cells_ran"),
+            "cells_supporting":   row.get("cells_supporting"),
+            "dominant_direction": row.get("dominant_direction"),
+            "sig_all_cells":      row.get("sig_all_cells"),
+            "discordant":         row.get("discordant"),
+            "max_abs_log2fc":     row.get("max_abs_log2fc"),
+            "log2fc_cell_a":  row.get("log2fc_cell_a"),
+            "q_value_cell_a": row.get("q_value_cell_a"),
+            "log2fc_cell_b":  row.get("log2fc_cell_b"),
+            "q_value_cell_b": row.get("q_value_cell_b"),
+            "log2fc_cell_c":  row.get("log2fc_cell_c"),
+            "q_value_cell_c": row.get("q_value_cell_c"),
+            "log2fc_cell_d":  row.get("log2fc_cell_d"),
+            "q_value_cell_d": row.get("q_value_cell_d"),
+            "n_tumor":       None,  # cohort-level n lives in provenance.yaml, not per-gene
+            "n_adjacent":    None,
+            "n_gtex_normal": None,
+            "selectivity_class": _classify_selectivity_from_sensitivity(row),
+            "_data_source": row.get("_data_source"),
+            "_schema": "v3_four_cell",
+        }
+
+    # --- legacy v2 fallback (sensitivity product not yet built) --------------
+    return _read_tvn_selectivity_v2_fallback(target, indication)
+
+
+def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
+    """Legacy v2 two-product composite, reshaped into the v3 field envelope.
+
+    Used only until the four-cell sensitivity product lands for `indication`.
+    Maps the two independent contrasts onto cells A (adjacent) and C (GTEx),
+    marks cells_ran=2, and derives cells_supporting from the two q-values.
+    """
     adj_manifest = _INDICATION_TO_ADJ_MANIFEST.get(indication.upper())
     adj = None
     if adj_manifest:
@@ -308,48 +345,56 @@ def read_tumor_vs_normal_selectivity(
             adj = read_dge_gene_row(target, adj_manifest)
         except Exception:
             adj = None
-    # GTEx-normal contrast
     try:
         gtex = read_tumor_vs_gtex_gene_row(target, indication)
     except Exception:
         gtex = None
 
-    log2_fc_adj = (adj or {}).get("log2_fc")
-    q_value_adj = (adj or {}).get("q_value")
-    log2_fc_gtex = (gtex or {}).get("log2_fc")
-    q_value_gtex = (gtex or {}).get("q_value")
+    lfc_a = (adj or {}).get("log2_fc")
+    q_a = (adj or {}).get("q_value")
+    lfc_c = (gtex or {}).get("log2_fc")
+    q_c = (gtex or {}).get("q_value")
 
-    # Selectivity class — max log2FC across the two contrasts, threshold-bucketed
-    lfcs = [v for v in [log2_fc_adj, log2_fc_gtex] if v is not None and v == v]
+    # supporting = # of the 2 available contrasts sig<0.05 in the dominant dir
+    sig = []
+    if lfc_a is not None and q_a is not None and q_a == q_a:
+        sig.append((lfc_a, q_a))
+    if lfc_c is not None and q_c is not None and q_c == q_c:
+        sig.append((lfc_c, q_c))
+    lfcs = [v for v in [lfc_a, lfc_c] if v is not None and v == v]
     if not lfcs:
-        selectivity_class = "data_unavailable"
-        max_lfc = None
+        row = None
     else:
-        max_lfc = max(lfcs)
-        if max_lfc >= 1.5:
-            selectivity_class = "strong_tumor_selective"
-        elif max_lfc >= 0.5:
-            selectivity_class = "modest_tumor_selective"
-        elif max_lfc < 0.0:
-            selectivity_class = "not_selective"
-        else:
-            selectivity_class = "not_informative"
+        dom = "up" if sum(lfcs) > 0 else ("down" if sum(lfcs) < 0 else "none")
+        supporting = sum(1 for lfc, q in sig if q < 0.05 and
+                         ((lfc > 0) == (dom == "up")))
+        any_up = any(lfc > 0 and q < 0.05 for lfc, q in sig)
+        any_down = any(lfc < 0 and q < 0.05 for lfc, q in sig)
+        row = {
+            "cells_ran": 2, "cells_supporting": supporting,
+            "dominant_direction": dom,
+            "sig_all_cells": supporting == 2,
+            "discordant": any_up and any_down,
+            "max_abs_log2fc": max(abs(v) for v in lfcs),
+        }
 
     return {
-        "log2_fc_vs_adjacent":     log2_fc_adj,
-        "q_value_vs_adjacent":     q_value_adj,
-        "log2_fc_vs_gtex":         log2_fc_gtex,
-        "q_value_vs_gtex":         q_value_gtex,
-        "max_log2_fc":             max_lfc,
-        "mean_log2cpm_tumor":      (gtex or {}).get("mean_log2cpm_tumor"),
-        "mean_log2cpm_adjacent":   None,  # tumor-vs-adj DGE product doesn't carry per-sample means
-        "mean_log2cpm_gtex_normal": (gtex or {}).get("mean_log2cpm_gtex_normal"),
+        "cells_ran":          2 if row else None,
+        "cells_supporting":   (row or {}).get("cells_supporting"),
+        "dominant_direction": (row or {}).get("dominant_direction"),
+        "sig_all_cells":      (row or {}).get("sig_all_cells"),
+        "discordant":         (row or {}).get("discordant"),
+        "max_abs_log2fc":     (row or {}).get("max_abs_log2fc"),
+        "log2fc_cell_a": lfc_a, "q_value_cell_a": q_a,
+        "log2fc_cell_b": None,  "q_value_cell_b": None,
+        "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c,
+        "log2fc_cell_d": None,  "q_value_cell_d": None,
         "n_tumor":       (gtex or {}).get("n_tumor") or (adj or {}).get("n_tumor"),
         "n_adjacent":    (adj or {}).get("n_adjacent"),
         "n_gtex_normal": (gtex or {}).get("n_gtex_normal"),
-        "selectivity_class": selectivity_class,
-        "_adj_source":   adj_manifest,
-        "_gtex_source":  (gtex or {}).get("_data_source"),
+        "selectivity_class": _classify_selectivity_from_sensitivity(row),
+        "_data_source": "v2_fallback",
+        "_schema": "v2_two_product_fallback",
     }
 
 
@@ -404,6 +449,85 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
         "_data_source": f"{indication.lower()}-dge-tumor-vs-gtex-v1",
         "_data_s3_uri": s3_uri,
     }
+
+
+def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> Optional[dict]:
+    """Read one gene's row from the four-cell sensitivity DEG parquet.
+
+    Product: {indication.lower()}-dge-tumor-vs-normal-sensitivity-v1 at
+    s3://onc-compbio/data-catalog/derived/
+      {indication}-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet
+
+    The parquet columns use uppercase cell tags (log2fc_A..D, padj_A..D) — the
+    driver's native output. This reader maps them to the card's lowercase
+    summary_field names (log2fc_cell_a etc). Returns None if the row/product is
+    absent.
+    """
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+    _ensure_aws_profile()
+    s3_uri = (f"s3://onc-compbio/data-catalog/derived/"
+              f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1/"
+              f"sensitivity.parquet")
+    path = _s3_uri_to_path(s3_uri)
+    s3fs = fs.S3FileSystem()
+    try:
+        table = pq.read_table(path, filesystem=s3fs,
+                              filters=[("gene_symbol", "=", target)])
+    except Exception:
+        return None
+    if table.num_rows == 0:
+        return None
+    raw = {col: table[col][0].as_py() for col in table.column_names}
+    return {
+        "gene_symbol":        raw.get("gene_symbol"),
+        "cells_ran":          raw.get("cells_ran"),
+        "cells_supporting":   raw.get("cells_supporting"),
+        "dominant_direction": raw.get("dominant_direction"),
+        "sig_all_cells":      raw.get("sig_all_cells"),
+        "discordant":         raw.get("discordant"),
+        "max_abs_log2fc":     raw.get("max_abs_log2fc"),
+        # per-cell log2fc / padj → lowercase card field names
+        "log2fc_cell_a":  raw.get("log2fc_A"),
+        "q_value_cell_a": raw.get("padj_A"),
+        "log2fc_cell_b":  raw.get("log2fc_B"),
+        "q_value_cell_b": raw.get("padj_B"),
+        "log2fc_cell_c":  raw.get("log2fc_C"),
+        "q_value_cell_c": raw.get("padj_C"),
+        "log2fc_cell_d":  raw.get("log2fc_D"),
+        "q_value_cell_d": raw.get("padj_D"),
+        "_data_source": f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1",
+        "_data_s3_uri": s3_uri,
+    }
+
+
+def _classify_selectivity_from_sensitivity(row: dict) -> str:
+    """Assign the v3 selectivity_class from a sensitivity gene row.
+
+    Trust anchor is cells_supporting (0-4) + dominant_direction; magnitude
+    (max_abs_log2fc) is the secondary gate. Mirrors the card v3.0.0 vocabulary
+    (cards/tumor-vs-normal-selectivity.card.yaml). Renderer language MUST mirror
+    this rule (per dashboard-rendering-discipline).
+    """
+    if not row:
+        return "data_unavailable"
+    if row.get("discordant"):
+        return "discordant_across_comparators"
+    supporting = row.get("cells_supporting")
+    direction = row.get("dominant_direction")
+    max_lfc = row.get("max_abs_log2fc")
+    if supporting is None:
+        return "data_unavailable"
+    if direction == "down" and supporting >= 3:
+        return "not_selective"
+    if direction == "up" and supporting >= 4 and (max_lfc or 0) >= 1.5:
+        return "strong_tumor_selective"
+    if direction == "up" and supporting >= 3 and (max_lfc or 0) >= 0.5:
+        return "modest_tumor_selective"
+    if supporting <= 1:
+        return "not_informative"
+    # 2-3 supporting but below magnitude/direction gates → not_informative
+    return "not_informative"
 
 
 # GTEx indication → tissue-of-origin (mirrors dge_tcga_gtex_precompute.cli).

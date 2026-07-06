@@ -259,6 +259,220 @@ def emit_tumor_vs_normal_selectivity_3panel(
     return out_path
 
 
+def emit_tumor_vs_normal_selectivity_4panel(
+    sensitivity_summary: dict,
+    per_sample_data: Optional[dict],
+    target: str,
+    indication: str,
+    out_dir: Path,
+    target_contracts_dir: Path,
+) -> Path:
+    """v3 four-panel figure for the tumor-vs-normal-selectivity card.
+
+    Layout (single SVG, 3-panel row like v2 but the middle forest is now 4 rows):
+      Left:   horizontal box + strip of log2(CPM+1) for Primary Tumor, TCGA
+              Adjacent Normal, and GTEx (unchanged from v2).
+      Middle: forest of the FOUR cell log2FC estimates (A/B/C/D) with q-value
+              stars, colored by up/down. Cells that disagree on sign vs the
+              dominant direction are drawn hollow (discordance flag).
+      Right:  sensitivity callout — cells_supporting badge (n/4),
+              dominant_direction, sig_all_cells check, discordant flag, class.
+
+    `sensitivity_summary` is the dict produced by
+    `read_tumor_vs_normal_selectivity` (v3 schema); backwards-compatible with
+    the v2_two_product_fallback schema (extra cells simply show as missing).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    pal = _load_takeda_palette(target_contracts_dir)
+    out_path = out_dir / "figure_tumor_vs_normal_selectivity_4panel.svg"
+
+    if per_sample_data is None:
+        return _placeholder_svg([
+            f"{target} in {indication} — per-sample expression unavailable",
+            "(recount3 does not cover this indication mapping)"
+        ], out_path, pal)
+
+    tumor = per_sample_data.get("tumor_samples") or []
+    adj = per_sample_data.get("adjacent_samples") or []
+    gtex = per_sample_data.get("gtex_samples") or []
+    if not tumor and not adj and not gtex:
+        return _placeholder_svg([
+            f"{target} in {indication} — no samples found",
+            f"(gene_ensembl_id={per_sample_data.get('gene_ensembl_id')})"
+        ], out_path, pal)
+
+    fig = plt.figure(figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0] * 1.2,
+                              pal.FIGSIZE_DOUBLE_COLUMN[1] * 1.15))
+    gs = fig.add_gridspec(1, 3, width_ratios=[2.8, 2.0, 1.6], wspace=0.45)
+    ax_box = fig.add_subplot(gs[0, 0])
+    ax_forest = fig.add_subplot(gs[0, 1])
+    ax_txt = fig.add_subplot(gs[0, 2])
+
+    # -------- Panel A: box + strip across 3 groups (identical to v2) --------
+    tumor_vals = [s["log2_cpm"] for s in tumor]
+    adj_vals   = [s["log2_cpm"] for s in adj]
+    gtex_vals  = [s["log2_cpm"] for s in gtex]
+
+    groups, labels, colors = [], [], []
+    if tumor_vals:
+        groups.append(tumor_vals); colors.append("#0a2540")
+        labels.append(f"Primary Tumor\n(n={len(tumor_vals)})")
+    if adj_vals:
+        groups.append(adj_vals); colors.append("#f0a020")
+        labels.append(f"TCGA Adjacent\n(n={len(adj_vals)})")
+    if gtex_vals:
+        groups.append(gtex_vals); colors.append("#7fa7c0")
+        tissue = per_sample_data.get("gtex_tissue") or "GTEx"
+        labels.append(f"GTEx {tissue}\n(n={len(gtex_vals)})")
+
+    bp = ax_box.boxplot(groups, vert=False, widths=0.55, patch_artist=True,
+                        showfliers=False,
+                        medianprops={"color": "#222", "linewidth": 1.5})
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color); patch.set_alpha(0.35)
+        patch.set_edgecolor(color)
+    for whisker in bp["whiskers"]: whisker.set_color("#666")
+    for cap in bp["caps"]:         cap.set_color("#666")
+
+    rng = np.random.default_rng(seed=42)
+    for i, (vals, color) in enumerate(zip(groups, colors)):
+        yy = rng.uniform(i + 1 - 0.15, i + 1 + 0.15, size=len(vals))
+        ax_box.scatter(vals, yy, s=6 if len(vals) > 200 else 10, color=color,
+                       alpha=0.5, edgecolor="none", zorder=3)
+    ax_box.set_yticks(range(1, len(labels) + 1))
+    ax_box.set_yticklabels(labels, fontsize=8)
+    ax_box.set_xlabel("log2(CPM + 1) — recount3 per-sample RNA-seq", fontsize=8)
+    ax_box.set_title(f"{target} in {indication}", fontsize=9)
+    ax_box.grid(axis="x", alpha=0.3, linewidth=0.5)
+    for i, vals in enumerate(groups):
+        med = float(np.median(vals))
+        ax_box.text(med, i + 1 - 0.32, f"{med:.2f}", ha="center", va="top",
+                    fontsize=7, color="#222", weight="bold")
+
+    # -------- Panel B: 4-cell forest --------
+    def _sig_stars(q):
+        if q is None or q != q: return ""
+        if q < 1e-10: return "***"
+        if q < 1e-4:  return "**"
+        if q < 0.05:  return "*"
+        return "ns"
+
+    cells = [
+        ("A", "TCGA adj-normal\n(raw)",     "log2fc_cell_a", "q_value_cell_a"),
+        ("B", "TCGA adj-normal\n(ComBat)",  "log2fc_cell_b", "q_value_cell_b"),
+        ("C", "GTEx normal\n(raw joint)",   "log2fc_cell_c", "q_value_cell_c"),
+        ("D", "GTEx normal\n(ComBat)",      "log2fc_cell_d", "q_value_cell_d"),
+    ]
+    rows = []
+    for tag, label, lfc_k, q_k in cells:
+        lfc = sensitivity_summary.get(lfc_k)
+        q   = sensitivity_summary.get(q_k)
+        if lfc is None or lfc != lfc:
+            continue
+        rows.append({"tag": tag, "label": label, "log2_fc": float(lfc),
+                     "q_value": q})
+
+    dom = sensitivity_summary.get("dominant_direction")
+
+    if rows:
+        y_pos = list(range(len(rows)))[::-1]
+        for y, r in zip(y_pos, rows):
+            is_up = r["log2_fc"] > 0
+            color = "#0a2540" if is_up else "#cf2828"
+            # discordant marker: filled if aligned with dominant direction, hollow otherwise
+            aligned = (dom == "up" and is_up) or (dom == "down" and not is_up)
+            face = color if aligned or not dom else "white"
+            ax_forest.plot([0, r["log2_fc"]], [y, y], color=color,
+                           linewidth=2, alpha=0.6)
+            ax_forest.scatter([r["log2_fc"]], [y], s=70, zorder=3,
+                              facecolor=face, edgecolor=color, linewidth=1.5)
+            stars = _sig_stars(r["q_value"])
+            off = 0.20 if is_up else -0.20
+            ax_forest.text(r["log2_fc"] + off, y,
+                           f"{r['log2_fc']:+.2f} {stars}",
+                           ha="left" if is_up else "right",
+                           va="center", fontsize=7, color=color)
+        ax_forest.axvline(0, color="#333", linewidth=0.7)
+        for x in (-1.5, -0.5, 0.5, 1.5):
+            ax_forest.axvline(x, color="#888", linestyle=":", linewidth=0.5)
+        ax_forest.set_yticks(y_pos)
+        ax_forest.set_yticklabels([f"cell {r['tag']}\n{r['label']}" for r in rows],
+                                  fontsize=7)
+        max_abs = max(2.0, max(abs(r["log2_fc"]) for r in rows) * 1.4)
+        ax_forest.set_xlim(-max_abs, max_abs)
+        ax_forest.set_xlabel("log2 FoldChange (tumor vs normal)", fontsize=8)
+        ax_forest.set_title("Four-cell sensitivity", fontsize=9)
+        ax_forest.grid(axis="x", alpha=0.2)
+    else:
+        ax_forest.text(0.5, 0.5, "No cells ran",
+                       transform=ax_forest.transAxes, ha="center", va="center",
+                       fontsize=9, color="#888")
+        ax_forest.set_axis_off()
+
+    # -------- Panel C: sensitivity callout --------
+    ax_txt.set_axis_off()
+    cls = sensitivity_summary.get("selectivity_class") or "data_unavailable"
+    supporting = sensitivity_summary.get("cells_supporting")
+    ran = sensitivity_summary.get("cells_ran")
+    discordant = sensitivity_summary.get("discordant")
+    sig_all = sensitivity_summary.get("sig_all_cells")
+    max_lfc = sensitivity_summary.get("max_abs_log2fc")
+
+    class_color = {
+        "strong_tumor_selective":         "#0a2540",
+        "modest_tumor_selective":         "#7fa7c0",
+        "discordant_across_comparators":  "#c07a20",
+        "not_selective":                  "#cf2828",
+        "not_informative":                "#888888",
+        "data_unavailable":               "#bbbbbb",
+    }.get(cls, "#444")
+
+    def _fmt(v, spec=".2f"):
+        try: return format(float(v), spec)
+        except (TypeError, ValueError): return "NA"
+
+    def _row(y, label, value, weight="normal", color="#222"):
+        ax_txt.text(0.02, y, label, transform=ax_txt.transAxes, ha="left",
+                    va="top", fontsize=8, color="#666", family="monospace")
+        ax_txt.text(0.55, y, value, transform=ax_txt.transAxes, ha="left",
+                    va="top", fontsize=9, color=color, weight=weight,
+                    family="monospace")
+
+    y = 0.96
+    ax_txt.text(0.02, y, "Sensitivity",  transform=ax_txt.transAxes,
+                ha="left", va="top", fontsize=10, weight="bold", color="#222")
+    y -= 0.08
+    ax_txt.text(0.02, y, "(4-cell DESeq2)", transform=ax_txt.transAxes,
+                ha="left", va="top", fontsize=7, style="italic", color="#666")
+    y -= 0.09
+
+    if supporting is not None and ran:
+        badge = f"{int(supporting)}/{int(ran)}"
+        badge_color = "#0a2540" if supporting == ran else "#7fa7c0" if supporting >= 3 else "#888"
+        _row(y, "supporting", badge, weight="bold", color=badge_color); y -= 0.08
+    _row(y, "dominant",  (dom or "—")); y -= 0.08
+    _row(y, "sig(all)",  "yes" if sig_all else "no",
+         color="#0a2540" if sig_all else "#666"); y -= 0.08
+    _row(y, "discordant", "yes" if discordant else "no",
+         weight="bold" if discordant else "normal",
+         color="#c07a20" if discordant else "#666"); y -= 0.08
+    _row(y, "max|lfc|",  _fmt(max_lfc)); y -= 0.10
+    ax_txt.text(0.02, y, "class", transform=ax_txt.transAxes, ha="left",
+                va="top", fontsize=7, style="italic", color="#666")
+    y -= 0.06
+    ax_txt.text(0.02, y, cls.replace("_", " "), transform=ax_txt.transAxes,
+                ha="left", va="top", fontsize=9, weight="bold",
+                color=class_color, family="monospace")
+
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
 def emit_tumor_vs_adjacent_compound(
     summary: dict,
     per_sample_data: Optional[dict],

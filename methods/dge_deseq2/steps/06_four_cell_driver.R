@@ -39,6 +39,13 @@ stopifnot(!is.null(opts$in_path), !is.null(opts$`out-dir`))
 dir.create(opts$`out-dir`, showWarnings = FALSE, recursive = TRUE)
 register(MulticoreParam(workers = opts$threads))
 
+# Force line-buffered writes so a background run's log is inspectable live.
+options(warn = 1)
+flog <- function(msg) {
+  writeLines(paste0("[", format(Sys.time(), "%H:%M:%S"), "] ", msg))
+  flush(stdout())
+}
+
 dat     <- readRDS(opts$in_path)
 counts  <- dat$counts
 coldata <- dat$coldata
@@ -118,25 +125,33 @@ combat_correct <- function(mat, batch, group, preserve_group = TRUE) {
 
 run_cell <- function(label, mat, cd, combat_batch = NULL, preserve_group = TRUE) {
   n_t <- sum(cd$group == "tumor"); n_n <- sum(cd$group == "normal")
+  cache_path <- file.path(opts$`out-dir`, sprintf("_cell_%s.rds", label))
+  if (file.exists(cache_path)) {
+    flog(sprintf("cell %s: reusing cached fit at %s", label, cache_path))
+    return(readRDS(cache_path))
+  }
   if (n_t < min_n || n_n < min_n) {
-    message(sprintf("[06_four_cell]   cell %s SKIPPED (n_tumor=%d, n_normal=%d < %d)",
-                    label, n_t, n_n, min_n))
+    flog(sprintf("cell %s SKIPPED (n_tumor=%d, n_normal=%d < %d)",
+                 label, n_t, n_n, min_n))
     return(NULL)
   }
   if (!is.null(combat_batch)) {
-    message(sprintf("[06_four_cell]   cell %s: ComBat_seq (batch=%s, preserve_group=%s) then DESeq2",
-                    label, combat_batch, preserve_group))
+    flog(sprintf("cell %s: ComBat_seq(batch=%s, preserve_group=%s) START",
+                 label, combat_batch, preserve_group))
     cc <- combat_correct(mat, cd[[combat_batch]], cd$group,
                          preserve_group = preserve_group)
     mat <- cc$counts; cd <- cd[cc$keep, , drop = FALSE]
-  } else {
-    message(sprintf("[06_four_cell]   cell %s: DESeq2 (~ group, n_tumor=%d, n_normal=%d)",
-                    label, n_t, n_n))
+    flog(sprintf("cell %s: ComBat_seq DONE; %d samples remain", label, ncol(mat)))
   }
+  flog(sprintf("cell %s: DESeq2 START (n_tumor=%d, n_normal=%d, n_genes_pre=%d)",
+               label, sum(cd$group=="tumor"), sum(cd$group=="normal"), nrow(mat)))
   fit <- deseq2_fit(mat, cd)
   names(fit)[names(fit) == "log2FoldChange"] <- paste0("log2fc_", label)
   names(fit)[names(fit) == "padj"]           <- paste0("padj_", label)
   names(fit)[names(fit) == "baseMean"]        <- paste0("baseMean_", label)
+  saveRDS(fit, cache_path)
+  flog(sprintf("cell %s: DESeq2 DONE (%d genes, cached at %s)",
+               label, nrow(fit), cache_path))
   fit
 }
 
