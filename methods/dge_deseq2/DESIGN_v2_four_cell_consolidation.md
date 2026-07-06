@@ -57,10 +57,21 @@ Per indication, the R pipeline emits **five** parquets on a single run:
 
 | cell | comparator | ComBat-seq | log2FC column | interpretation |
 |---|---|---|---|---|
-| A | TCGA-adjacent-normal | off | `log2fc_A` | field-effect-inflated but ComBat-clean |
-| B | TCGA-adjacent-normal | on  | `log2fc_B` | ComBat may leak biology (single-source, low risk) |
-| C | joint TCGA + GTEx     | off | `log2fc_C` | source is confounder; DESeq2 covariate handles it |
-| D | joint TCGA + GTEx     | on  | `log2fc_D` | max batch correction; may over-regress |
+| A | TCGA-adjacent-normal | off | `log2fc_A` | field-effect-inflated but single-source clean |
+| B | TCGA-adjacent-normal | on (batch = TCGA plate) | `log2fc_B` | within-TCGA technical-batch removed |
+| C | joint TCGA-tumor + GTEx-normal | off | `log2fc_C` | source contamination present (naive baseline) |
+| D | joint TCGA-tumor + GTEx-normal | on (batch = source) | `log2fc_D` | empirical source-effect removal, biology preserved |
+
+> **CORRECTION (2026-07-06, post data-inspection):** an earlier draft of this
+> table proposed cell C as DESeq2 `~ source + group`. That design is
+> **rank-deficient**: in a TCGA-tumor-vs-GTEx-normal contrast every tumor is
+> TCGA and every normal is GTEx, so `source` is perfectly collinear with
+> `group` and DESeq2 cannot estimate both coefficients. The real {with,
+> without ComBat} axis for the joint regime is C (naive `~ group` on joint raw
+> counts, source-contaminated) vs D (`ComBat_seq(batch=source, group=group)`
+> then `~ group`). This is exactly the batch-biology confound Hui & Goh 2024
+> describe — ComBat_seq's `group=` argument is what preserves the tumor-vs-
+> normal signal while removing the source effect.
 
 Plus:
 
@@ -79,56 +90,91 @@ gold-standard call: `padj<0.05` in the same direction across all four cells.
 
 ### 2.1 Design formulae
 
-- Cell A: `counts` = raw TCGA STAR-counts, `design = ~ group`, `n_batch = 1`.
-- Cell B: `counts` = ComBat-seq of raw TCGA STAR-counts against
-  `~ group` covariates (single source but variable within-source batch effects
-  captured via TCGA plate). `design = ~ group` (batch already regressed out).
-- Cell C: `counts` = joint recount3 TCGA + recount3 GTEx raw counts.
-  `design = ~ source + group` where `source ∈ {TCGA, GTEx}`. This is the
-  standard DESeq2 covariate-adjustment approach — do NOT ComBat before, DESeq2
-  handles it natively via the size-factor + dispersion model.
-- Cell D: `counts` = ComBat-seq of joint recount3 counts against `~ source`,
-  then DESeq2 with `design = ~ group`. Serves as the pessimistic "max batch
-  correction" cell.
+- Cell A: `counts` = recount3 TCGA tumor + recount3 TCGA adjacent-normal,
+  raw. `design = ~ group`, no batch term.
+- Cell B: `counts` = `ComBat_seq(TCGA tumor + adjacent, batch = TCGA-plate,
+  group = group)`, then `design = ~ group` (technical batch already removed).
+  TCGA plate is derived from `gdc_cases.tissue_source_site.code` +
+  aliquot-plate in the recount3 metadata (25 TSS codes in COAD).
+- Cell C: `counts` = joint recount3 TCGA-tumor + recount3 GTEx-normal, raw.
+  `design = ~ group` (NAIVE — source contamination is knowingly present; this
+  is the pessimistic baseline that a gene must survive *despite* the confound).
+- Cell D: `counts` = `ComBat_seq(joint TCGA-tumor + GTEx-normal, batch =
+  source, group = group)`, then `design = ~ group`. ComBat_seq's `group=`
+  argument preserves the tumor-vs-normal contrast while removing the empirical
+  TCGA-vs-GTEx source effect. This is the biology-preserving joint estimate.
 
-**Alignment consistency:** cells C and D require BOTH TCGA and GTEx counts to
-come from **one** alignment pipeline. Recount3's monorail uniform reprocess is
-the field standard for TCGA×GTEx joint DEG (replaces Xena-Toil which is now
-deprecated). Cells A and B use GDC STAR-counts. This means the four-cell run
-loads from **two S3 substrates per indication**:
+**Alignment consistency (CRITICAL — corrected 2026-07-06):** ALL FOUR cells
+load from **one** substrate: recount3 `tcga-gtex-2023-01-04` (monorail uniform
+reprocess, Gencode v26/G026). recount3 carries TCGA-tumor, TCGA-adjacent-normal
+(sample_type "Solid Tissue Normal"), and GTEx all uniformly aligned. Using
+GDC-STAR for A/B and recount3 for C/D would confound *comparator* (adjacent vs
+GTEx) with *aligner* (STAR vs monorail) — a third uncontrolled factor that
+defeats the sensitivity logic. The single-substrate constraint is what makes
+the A/B-vs-C/D disagreement interpretable as a pure comparator effect.
 
-- `s3://onc-compbio/data-catalog/sources/tcga-gdc-dr45-0/…` (GDC STAR-counts, cells A/B)
-- `s3://onc-compbio/data-catalog/sources/recount3/tcga-gtex-2023-01-04/…` (cells C/D)
+- `s3://onc-compbio/data-catalog/sources/recount3/tcga-gtex-2023-01-04/tcga/<STUDY>/…` (cells A/B/C tumor + A/B adjacent-normal)
+- `s3://onc-compbio/data-catalog/sources/recount3/tcga-gtex-2023-01-04/gtex/<TISSUE>/…` (cells C/D normal)
+
+**Consequence for validation:** cell A no longer byte-matches the legacy
+GDC-STAR `coadread-dge-df06320` product (different aligner). The byte-identity
+test is replaced by a **direction + rank concordance** check: cell A log2FC
+should agree in sign with `coadread-dge-df06320` for the top-N-expressed genes
+(Spearman ρ ≥ 0.9 expected), with magnitude differences attributable to
+STAR-vs-monorail. The legacy GDC-STAR product is retained but marked as the
+prior-generation tumor-vs-adjacent source.
+
+**Adjacent-normal availability caveat:** recount3 TCGA adjacent-normal sample
+counts are small for several indications (COAD has 41 Solid-Tissue-Normal vs
+503 Primary Tumor). Cells A/B require ≥3 normals (DESeq2 minimum enforced in
+`01_build_design.R`). Indications below that floor run cells C/D only, and
+`cells_supporting` caps at 2 (mirrors the GTEx-unmapped HNSC case, opposite
+axis).
 
 ## 3. Implementation
 
 ### 3.1 New files
 
-- `methods/dge_deseq2/steps/00_load_counts_recount3.R` — new recount3 loader
-  branch (loads TCGA + GTEx from the recount3 `gene_sums` matrices; sets
-  `source ∈ {TCGA, GTEx}` and `group ∈ {tumor, normal}`).
-- `methods/dge_deseq2/steps/06_four_cell_driver.R` — orchestrator that runs
-  cells A..D in sequence and emits `sensitivity.parquet`.
+- `methods/dge_deseq2/steps/00_load_recount3.R` — recount3 loader that returns
+  a single .rds bundling all sample groups needed by the four cells: TCGA
+  tumor, TCGA adjacent-normal (Solid Tissue Normal), and GTEx normal — each
+  labelled with `group ∈ {tumor, normal}` and `source ∈ {TCGA, GTEx}` and
+  `tcga_tss` (for cell B plate batch). Loads `gene_sums` matrices (genes ×
+  samples, header row is the gene_id + sample UUIDs; `##`-prefixed comment
+  lines skipped). Maps versioned Ensembl gene_id → HGNC via the same
+  Ensembl-116 map the Python precompute uses.
+- `methods/dge_deseq2/steps/06_four_cell_driver.R` — orchestrator: from the
+  one loaded .rds, subsets to each cell's sample set, builds each cell's
+  design + optional ComBat, runs DESeq2 four times, joins the four result
+  tables on `gene_symbol`, computes `cells_supporting` / `dominant_direction`
+  / `sig_all_four`, and writes `sensitivity.parquet` + the two primary
+  contrast parquets.
 
 ### 3.2 Modified files
 
-- `steps/00_load_counts.R` — add `provider == "recount3"` branch (currently a
-  stub, per line 320-330). Reuses the existing GDC branch pattern.
-- `steps/run_pipeline.R` — replace `--joint-gtex` boolean with `--contrast`
-  choice: `tumor_vs_adjacent | tumor_vs_gtex | four_cell_sensitivity` (default
-  `four_cell_sensitivity` for indications where GTEx mapping exists).
-- `steps/01_build_design.R` — support `~ source + group` (four-cell C) in
-  addition to the existing `~ batch + group` and `~ group`.
-- `steps/02_combat_seq.R` — accept `--covariates` flag (default `group`,
-  optional `source`) to differentiate the two batch-correction regimes.
-- `steps/03_deseq2.R` — accept `--out-prefix` so it can be called four times
-  per run without result overwrites.
-- `steps/04_write_parquet.R` — accept `--append-cell-tag` so per-cell outputs
-  are distinguishable (A/B/C/D).
+- `steps/run_pipeline.R` — add `--contrast` choice:
+  `tumor_vs_adjacent | tumor_vs_gtex | four_cell_sensitivity`. For
+  `four_cell_sensitivity`, dispatch to `00_load_recount3.R` →
+  `06_four_cell_driver.R` (bypasses the linear 00→05 GDC chain).
+- `steps/01_build_design.R` — no change needed (four-cell driver builds its
+  own per-cell designs); existing `~ group` / `~ batch + group` paths are
+  reused by the driver via a shared helper.
+- `steps/02_combat_seq.R` — refactor the `ComBat_seq` call into a sourced
+  helper `combat_correct(counts, batch, group)` so the driver can call it per
+  cell without shelling out. Keep the standalone CLI for the legacy path.
+- `steps/03_deseq2.R` — refactor the DESeq2 fit + apeglm shrink into a sourced
+  helper `deseq2_fit(counts, coldata, design)` returning the tidy results
+  frame. Keep the standalone CLI.
 - `cli.py` — accept `--contrast four_cell_sensitivity`, wire through to
   `run_pipeline.R`.
-- `read.py` — new function `read_tumor_vs_normal_sensitivity(target, indication)`
-  that reads `sensitivity.parquet` and returns the per-gene concordance summary.
+- `read.py` — new `read_tumor_vs_normal_sensitivity(target, indication)`
+  reading `sensitivity.parquet`; `read_tumor_vs_normal_selectivity` refactored
+  to derive its composite from the sensitivity product instead of two v1
+  parquets.
+
+The GDC-STAR chain (00_load_counts.R → 05_provenance.R) is UNTOUCHED and
+remains the `--contrast tumor_vs_adjacent` legacy path. The four-cell path is
+additive; nothing about the existing COADREAD tumor-vs-adjacent product breaks.
 
 ### 3.3 Removed files
 
