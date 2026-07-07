@@ -1,0 +1,99 @@
+"""rules_loader — single canonical entry point for Tier-2 interpretation rules.
+
+Both compose-dashboard (Macro synthesis) and compositional skills load
+rules from the same YAML files under target-contracts/interpretation-rules/.
+Previously, each side had its own loader:
+
+  - Macro: compose-dashboard.scripts._synthesis._load_interpretation_rules
+  - Skills: reached into Macro's private helper via cross-skill import
+
+That coupling meant every compositional-skill Python module needed
+compose-dashboard's scripts/ package on sys.path. This module extracts the
+loader into a shared home so both sides import from one canonical location
+— de-couples the runtime layers and makes the rules file the single source
+of truth its architecture intends.
+
+Rules file location:
+  <target-contracts-repo>/interpretation-rules/{axis-kebab}.rules.yaml
+
+Expected top-level YAML keys: `axis` (must match caller's requested axis),
+`rules_id`, `rules` (list). See intracellular-intrinsic.rules.yaml for the
+reference shape.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+import yaml
+
+
+# Same TARGET_CONTRACTS constant compose-dashboard uses. We duplicate rather
+# than import so this module has no compose-dashboard dependency — that's the
+# point of the extraction.
+TARGET_CONTRACTS = Path(
+    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+)
+
+
+def load_interpretation_rules(
+    axis: str,
+    contracts_root: Optional[Path] = None,
+) -> Optional[list[dict]]:
+    """Load the Tier-2 rules file for a given biology axis.
+
+    Arguments:
+        axis: biology axis name (e.g. "intracellular_intrinsic",
+            "surface_intrinsic"). Underscores are converted to kebab-case for
+            the filename lookup.
+        contracts_root: optional override; defaults to TARGET_CONTRACTS.
+
+    Returns:
+        A list of rule dicts on success. None when:
+          - axis is empty
+          - target-contracts/interpretation-rules/ directory missing
+          - {axis}.rules.yaml file missing
+          - YAML unreadable or malformed
+          - file's declared axis doesn't match the requested axis
+          - rules key missing or empty
+
+    Callers should treat None as "no rules available for this axis" and fall
+    back to whatever their legacy or graceful-degradation path is. This mirrors
+    the original _synthesis._load_interpretation_rules contract exactly.
+    """
+    if not axis:
+        return None
+    root = Path(contracts_root) if contracts_root is not None else TARGET_CONTRACTS
+    rules_dir = root / "interpretation-rules"
+    if not rules_dir.is_dir():
+        return None
+    axis_kebab = axis.replace("_", "-")
+    rules_path = rules_dir / f"{axis_kebab}.rules.yaml"
+    if not rules_path.is_file():
+        return None
+    try:
+        doc = yaml.safe_load(rules_path.read_text())
+    except Exception:
+        return None
+    if not isinstance(doc, dict) or doc.get("axis") != axis:
+        return None
+    rules = doc.get("rules")
+    if not isinstance(rules, list) or not rules:
+        return None
+    return rules
+
+
+def filter_rules_by_card_ids(
+    rules: list[dict],
+    card_ids: list[str],
+) -> list[dict]:
+    """Filter a rules list to those whose when.card_id is in the given set.
+
+    Useful for compositional skills that consume a card subset. Mirrors the
+    filter logic previously inline in _micro_common.fired_rules().
+    """
+    if not card_ids:
+        return rules
+    keep = set(card_ids)
+    return [r for r in rules if (r.get("when") or {}).get("card_id") in keep]

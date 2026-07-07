@@ -562,35 +562,25 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
 
 
 def _load_interpretation_rules(contracts_root, axis: str) -> "list[dict] | None":
-    """Load the Tier-2 rules file for a given axis. Returns the list of rules,
-    or None if the rules file is absent / unreadable / has the wrong axis.
+    """Load the Tier-2 rules file for a given axis. Thin shim delegating to
+    the canonical loader in _skills_common/rules_loader.py — extracted
+    2026-07-07 so Macro synthesis and compositional skills share one loader.
 
-    Returning None signals the synthesis caller to use the legacy
-    _build_dominant_calls_map fallback. This keeps the refactor incremental.
+    Returns the list of rules, or None if the rules file is absent /
+    unreadable / has the wrong axis. Returning None signals the synthesis
+    caller to use the legacy _build_dominant_calls_map fallback.
     """
     if contracts_root is None or not axis:
         return None
+    # Add skills/_skills_common to sys.path if not already there. Same pattern
+    # compose-dashboard already uses to reach sibling scripts modules.
+    import sys
     from pathlib import Path
-    import yaml
-    rules_dir = Path(contracts_root) / "interpretation-rules"
-    if not rules_dir.is_dir():
-        return None
-    # Look for {axis}.rules.yaml (e.g. intracellular-intrinsic.rules.yaml)
-    # Convert underscore-separated axis names to kebab-case filename:
-    axis_kebab = axis.replace("_", "-")
-    rules_path = rules_dir / f"{axis_kebab}.rules.yaml"
-    if not rules_path.is_file():
-        return None
-    try:
-        doc = yaml.safe_load(rules_path.read_text())
-    except Exception:
-        return None
-    if not isinstance(doc, dict):
-        return None
-    if doc.get("axis") != axis:
-        return None
-    rules = doc.get("rules")
-    return rules if isinstance(rules, list) and rules else None
+    skills_dir = Path(__file__).resolve().parent.parent.parent
+    if str(skills_dir) not in sys.path:
+        sys.path.insert(0, str(skills_dir))
+    from _skills_common.rules_loader import load_interpretation_rules
+    return load_interpretation_rules(axis, contracts_root=contracts_root)
 
 
 def _build_signal_matrix(
