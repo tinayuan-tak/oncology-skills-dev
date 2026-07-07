@@ -53,6 +53,7 @@ from .composition_schema import (
 )
 from .llm import synthesize_structured
 from .placeholder import emit_placeholder
+from .composite_panel import render_composite_panel
 
 
 # --- environment discovery -------------------------------------------------

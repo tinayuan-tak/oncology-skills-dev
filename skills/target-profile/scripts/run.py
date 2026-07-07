@@ -24,7 +24,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
-    synthesize_structured,
+    synthesize_structured, render_composite_panel,
 )
 from _skills_common.rules_loader import load_interpretation_rules
 
@@ -254,63 +254,176 @@ def _build_user_prompt(
 
 # --- Rendering --------------------------------------------------------------
 
+# --- Per-phase evidence rows -----------------------------------------------
+# For each sub-skill's "short" key, name the 2-4 key metric fields to inline
+# in the per-phase evidence table. Field names must match those actually
+# exposed by each sub-skill's underlying card summaries (audited empirically).
+PHASE_METRIC_FIELDS: dict[str, list[tuple[str, str]]] = {
+    "expression": [
+        ("median_log2tpm_panel",    "median log2TPM (pan-cancer)"),
+        ("fraction_expressed",       "fraction expressed"),
+        ("log2_fc",                  "log2FC tumor vs adj"),
+        ("q_value",                  "q-value (tumor vs adj)"),
+    ],
+    "selectivity": [
+        ("cells_supporting",         "cells supporting"),
+        ("cells_ran",                "cells ran"),
+        ("dominant_direction",       "dominant direction"),
+        ("max_abs_log2fc",           "max |log2FC|"),
+        ("discordant",               "discordant"),
+    ],
+    "dependency": [
+        ("median_chronos_indication", "median CRISPR score"),
+        ("pct_dependent_indication",  "pct cell lines dependent"),
+        ("lineage_selectivity_class", "lineage selectivity"),
+        ("concordance_class",         "CRISPR-RNAi concordance"),
+    ],
+    "mutation": [
+        ("mutation_landscape_class",     "landscape class"),
+        ("mutation_stratification_class", "stratification class"),
+        ("mut_dominant_mutation_class",  "dominant variant class"),
+        ("overall_mutation_frequency",   "cohort mutation frequency"),
+    ],
+    "tractability": [
+        ("n_compounds_screened",     "n compounds screened"),
+        ("activity_class",           "activity class"),
+        ("concordance_class",        "PRISM-CRISPR concordance"),
+        ("predictability_class",     "predictability"),
+    ],
+    "population": [
+        ("overall_mutation_frequency", "mutation frequency (indication)"),
+        ("n_samples_in_indication",    "n samples in indication"),
+        ("n_samples_mutated",          "n samples mutated"),
+    ],
+}
+
+
+def _first_card_summary_field(sub_result: dict, field: str):
+    """Search each card in the sub-result for a summary field; return the
+    first non-None value found. Cards each expose different summary shapes,
+    so a targeted search is more robust than positional assumption."""
+    for c in sub_result.get("cards") or []:
+        s = (c.get("summary") or {})
+        if field in s and s[field] is not None:
+            return s[field]
+    return None
+
+
+def _fmt_metric(value):
+    """Human-render a metric value for the markdown table."""
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, float):
+        if abs(value) < 1e-3 or abs(value) >= 1e6:
+            return f"{value:.3g}"
+        return f"{value:.3f}"
+    if isinstance(value, int):
+        return str(value)
+    s = str(value)
+    return s if len(s) <= 60 else s[:57] + "..."
+
+
+def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, str, str]]:
+    """Map sub-verdicts onto the 6-category risk framing (biological /
+    druggability / translational / clinical / safety / commercial),
+    producing (category, level, driver) triples. Categories with no
+    wired coverage return level=insufficient_evidence — honest coverage
+    signal for governance readers used to the 6-category shape.
+
+    This is a NON-LLM mapping — deterministic reshape of the deterministic
+    sub-verdicts. The v1 risk-assessment framing lives here as an output
+    convention, not as a re-derivation via literature.
+    """
+    def _v(short):
+        r = sub_results.get(short) or {}
+        v = r.get("verdict")
+        return v if v else (None, None)
+
+    exp_v, exp_r = _v("expression")
+    sel_v, sel_r = _v("selectivity")
+    dep_v, dep_r = _v("dependency")
+    mut_v, mut_r = _v("mutation")
+    trk_v, trk_r = _v("tractability")
+
+    # Biological: strongest positive across A/B/C/mut wins
+    # Simple mapping: at least one strong-supportive → LOW risk; not_selective
+    # or non_dependent → HIGH; discordant / not_informative → MEDIUM
+    def _biological():
+        signals = [exp_v, sel_v, dep_v, mut_v]
+        if any(s in ("strong_tumor_selective", "concordant_dependent",
+                      "biomarker_stratified_dependency",
+                      "broadly_high_expression") for s in signals):
+            return "LOW", "strong support across A/B/C/mut sub-verdicts"
+        if any(s in ("not_selective", "non_dependent",
+                      "broadly_low_expression") for s in signals):
+            return "HIGH", "negative signal in A/B/C sub-verdicts"
+        if any(s == "discordant_across_comparators" for s in signals):
+            return "MEDIUM", "comparator-dependent expression/selectivity signal"
+        if all(s in (None, "insufficient", "not_informative") for s in signals):
+            return "insufficient_evidence", "no rule-fired verdicts across A/B/C"
+        return "MEDIUM", "mixed signals across A/B/C"
+
+    def _druggability():
+        if trk_v in ("well_covered", "chemically_confirmed_genetic"):
+            return "LOW", trk_r or "PRISM-CRISPR triangulated"
+        if trk_v in ("chemically_active",):
+            return "LOW-MEDIUM", trk_r or "clinically-active compounds"
+        if trk_v in ("tool_compound_only", "weakly_active"):
+            return "MEDIUM-HIGH", trk_r or "tool compounds only"
+        if trk_v in ("chemically_unhit", "discordant"):
+            return "HIGH", trk_r or "no compound hits or discordant"
+        return "insufficient_evidence", "tractability sub-verdict absent"
+
+    # For phases we don't have wired data on, report insufficient_evidence
+    # honestly rather than fabricate:
+    return [
+        ("biological",   *_biological()),
+        ("druggability", *_druggability()),
+        ("translational", "insufficient_evidence",
+            "Phase-J (translational-readiness) placeholder — data not wired"),
+        ("clinical",      "insufficient_evidence",
+            "Phase-E (clinical precedent) placeholder — data feed not wired"),
+        ("safety",        "insufficient_evidence",
+            "Phase-G (on-target-safety) placeholder — HPA + gnomAD cards not wired"),
+        ("commercial",    "insufficient_evidence",
+            "Phase-E (competitive/IP) placeholder — Cortellis/IQVIA not licensed"),
+    ]
+
+
 def _render_target_profile_md(
     target: str,
     indication: str,
     sub_results: dict,
     llm_output: dict,
     invoked_lenses: dict,
+    composite_figure_relpath: Optional[str] = None,
 ) -> str:
-    """Render target_profile.md with clearly-tagged LLM sections."""
+    """Render target_profile.md with clearly-tagged LLM sections + per-phase
+    evidence tables + risk-by-category summary + embedded composite figure."""
     lines = [
         f"# Target profile — {target} in {indication}",
         "",
         f"Generated {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
     ]
     if invoked_lenses:
-        lines.append(f"Invoked lenses: {invoked_lenses}")
+        lines.append(f"Invoked lenses: `{invoked_lenses}`")
     lines.append("")
 
+    # --- Composite figure (Shape C) ----------------------------------------
+    if composite_figure_relpath:
+        lines.append(f"![Target profile at a glance]({composite_figure_relpath})")
+        lines.append("")
+
+    # --- Executive summary (LLM) -------------------------------------------
     exec_summary = llm_output.get("executive_summary", {}).get("value", "")
     lines.append("## Executive summary *(LLM-synthesized)*")
     lines.append("")
     lines.append(exec_summary)
     lines.append("")
 
-    tension = llm_output.get("tension_analysis", {}).get("value", "")
-    lines.append("## Tension analysis *(LLM-synthesized)*")
-    lines.append("")
-    lines.append(tension)
-    lines.append("")
-
-    lines.append("## Sub-verdicts *(deterministic, rule-fired)*")
-    lines.append("")
-    lines.append("| Dimension | Verdict | Driving rule |")
-    lines.append("|---|---|---|")
-    for short, r in sub_results.items():
-        v = r["verdict"]
-        if v is None:
-            lines.append(f"| {short} | — | (raw metrics; no rule verdict) |")
-        else:
-            verdict_str, driving_rule = v
-            lines.append(f"| {short} | `{verdict_str}` | `{driving_rule}` |")
-    lines.append("")
-
-    for_args = llm_output.get("top_arguments_for", {}).get("value", []) or []
-    against_args = llm_output.get("top_arguments_against", {}).get("value", []) or []
-    lines.append("## Top arguments *(LLM-synthesized)*")
-    lines.append("")
-    lines.append("**For:**")
-    for a in for_args:
-        lines.append(f"- {a}")
-    lines.append("")
-    lines.append("**Against:**")
-    for a in against_args:
-        lines.append(f"- {a}")
-    lines.append("")
-
-    # llm_output stamps every field as a dict with `value` + provenance
-    # metadata. Unwrap for display; nomination.json still carries full stamp.
+    # --- Recommendation (LLM) — pulled up front for governance readers -----
     def _val(field: str, default: str = "—") -> str:
         raw = llm_output.get(field)
         if isinstance(raw, dict):
@@ -325,12 +438,95 @@ def _render_target_profile_md(
     lines.append(f"- **Confidence:** `{conf}`")
     lines.append("")
 
+    # --- Risk-by-category summary (deterministic, from sub-verdicts) -------
+    lines.append("## Risk-by-category summary *(deterministic reshape "
+                 "of sub-verdicts)*")
+    lines.append("")
+    lines.append("Governance-facing 6-category framing mapped from the rule-"
+                 "fired sub-verdicts below. Categories with no wired data "
+                 "return `insufficient_evidence` rather than fabricated risk "
+                 "levels.")
+    lines.append("")
+    lines.append("| Category | Risk level | Driver |")
+    lines.append("|---|---|---|")
+    for cat, level, driver in _risk_by_category_from_sub_verdicts(sub_results):
+        lines.append(f"| **{cat}** | `{level}` | {driver} |")
+    lines.append("")
+
+    # --- Tension analysis (LLM) --------------------------------------------
+    tension = llm_output.get("tension_analysis", {}).get("value", "")
+    lines.append("## Tension analysis *(LLM-synthesized)*")
+    lines.append("")
+    lines.append(tension)
+    lines.append("")
+
+    # --- Sub-verdicts (rule-fired) -----------------------------------------
+    lines.append("## Sub-verdicts *(deterministic, rule-fired)*")
+    lines.append("")
+    lines.append("| Dimension | Verdict | Driving rule |")
+    lines.append("|---|---|---|")
+    for short, r in sub_results.items():
+        v = r["verdict"]
+        if v is None:
+            lines.append(f"| {short} | — | (raw metrics; no rule verdict) |")
+        else:
+            verdict_str, driving_rule = v
+            lines.append(f"| {short} | `{verdict_str}` | `{driving_rule}` |")
+    lines.append("")
+
+    # --- Per-phase evidence tables (Shape A enrichment) --------------------
+    lines.append("## Per-phase evidence *(deterministic, from card summaries)*")
+    lines.append("")
+    lines.append("Key metrics inlined from each sub-skill's underlying card "
+                 "summaries. Use these to trace a verdict back to its "
+                 "supporting data.")
+    lines.append("")
+    for short, r in sub_results.items():
+        fields = PHASE_METRIC_FIELDS.get(short, [])
+        if not fields:
+            continue
+        v = r["verdict"]
+        header = f"### {short}"
+        if v:
+            header += f" — `{v[0]}`"
+        lines.append(header)
+        lines.append("")
+        lines.append("| Metric | Value |")
+        lines.append("|---|---|")
+        any_value = False
+        for field, label in fields:
+            value = _first_card_summary_field(r, field)
+            if value is None:
+                continue
+            lines.append(f"| {label} | `{_fmt_metric(value)}` |")
+            any_value = True
+        if not any_value:
+            lines.append("| (no metrics available) | — |")
+        lines.append("")
+
+    # --- Top arguments (LLM) -----------------------------------------------
+    for_args = llm_output.get("top_arguments_for", {}).get("value", []) or []
+    against_args = llm_output.get("top_arguments_against", {}).get("value", []) or []
+    lines.append("## Top arguments *(LLM-synthesized)*")
+    lines.append("")
+    lines.append("**For:**")
+    for a in for_args:
+        lines.append(f"- {a}")
+    lines.append("")
+    lines.append("**Against:**")
+    for a in against_args:
+        lines.append(f"- {a}")
+    lines.append("")
+
+    # --- Provenance footer -------------------------------------------------
     lines.append("---")
     lines.append("")
     lines.append("*LLM-synthesized sections carry `_source: llm_synthesized` "
-                 "provenance in `nomination.json`. Sub-verdicts + fired rules "
-                 "are deterministic; rerunning with identical inputs "
-                 "reproduces them exactly.*")
+                 "provenance (see `nomination.json`). Sub-verdicts + "
+                 "per-phase evidence + risk-by-category are deterministic "
+                 "and reproducible from the same inputs. The composite "
+                 "figure is rendered from the same sub-verdicts and can be "
+                 "regenerated identically.*")
 
     return "\n".join(lines)
 
@@ -380,9 +576,32 @@ def main() -> int:
         tool_schema=tool_schema,
     )
 
-    # 3. Render + emit artefacts.
+    # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
+    figures_dir = args.out / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    composite_png = figures_dir / "target_profile_at_a_glance.png"
+    try:
+        render_composite_panel(
+            out_path=composite_png,
+            target=args.target,
+            indication=args.indication,
+            sub_results=sub_results,
+            llm_output=llm_output,
+        )
+        composite_rel = f"figures/{composite_png.name}"
+        print(f"[target-profile] wrote {composite_png} (+ .svg companion)",
+              file=sys.stderr)
+    except Exception as e:
+        # Panel rendering must never block artefact emission. Log + continue
+        # with no image reference in the markdown.
+        composite_rel = None
+        print(f"[target-profile] WARN: composite panel render failed: {e}",
+              file=sys.stderr)
+
+    # 3b. Render + emit markdown artefact (Shape A — enriched).
     md = _render_target_profile_md(
         args.target, args.indication, sub_results, llm_output, invoked_lenses,
+        composite_figure_relpath=composite_rel,
     )
     (args.out / "target_profile.md").write_text(md)
 
@@ -419,7 +638,12 @@ def main() -> int:
         "sub_skills_ran": [s for s, _ in SUB_SKILLS],
         "llm_prompt_hash": llm_output.get("executive_summary", {}).get("_prompt_hash"),
         "llm_model_id": llm_output.get("executive_summary", {}).get("_model_id"),
-        "artefacts": ["target_profile.md", "nomination.json"],
+        "artefacts": [
+            "target_profile.md",
+            "nomination.json",
+            "figures/target_profile_at_a_glance.png",
+            "figures/target_profile_at_a_glance.svg",
+        ],
     }
     (args.out / "provenance.yaml").write_text(yaml.safe_dump(provenance, sort_keys=False))
 
