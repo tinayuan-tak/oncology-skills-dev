@@ -68,3 +68,25 @@ that Macro uses. If the sensitivity product is not yet in S3 for the
 requested indication, the reader's v2 fallback kicks in and the skill
 still returns a decision (with `_schema: v2_two_product_fallback` visible
 in the underlying summary).
+
+## How Claude invokes this skill
+
+When called as `/micro-tumor-selectivity`, Claude should:
+
+1. Extract `target` (HGNC gene symbol, uppercase) and `indication`
+   (AACR OncoTree code, uppercase — e.g. COADREAD, LUAD, BRCA) from the
+   user's prompt. Ask if either is missing or ambiguous.
+2. Pick an `out` directory. Default: `/tmp/micro-tumor-selectivity/{target}-{indication}`
+   unless the user specifies one.
+3. Run:
+   ```
+   export AWS_PROFILE=cbg && \
+   python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/micro-tumor-selectivity/scripts/run.py \
+     --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
+   ```
+4. Read `<OUT_DIR>/decision.json`, present the headline + the driving_rule_id
+   inline, and offer to open the full JSON if the user wants details.
+5. If the underlying card summary carries `_schema: v2_two_product_fallback`
+   (only `micro-tumor-selectivity`), flag that the v3 sensitivity product
+   is not yet in S3 for that indication and the response is on legacy
+   two-contrast data.
