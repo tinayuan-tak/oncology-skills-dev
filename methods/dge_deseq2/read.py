@@ -504,10 +504,15 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
 def _classify_selectivity_from_sensitivity(row: dict) -> str:
     """Assign the v3 selectivity_class from a sensitivity gene row.
 
-    Trust anchor is cells_supporting (0-4) + dominant_direction; magnitude
-    (max_abs_log2fc) is the secondary gate. Mirrors the card v3.0.0 vocabulary
-    (cards/tumor-vs-normal-selectivity.card.yaml). Renderer language MUST mirror
-    this rule (per dashboard-rendering-discipline).
+    Trust anchor is cells_supporting (0-cells_ran) + dominant_direction;
+    magnitude (max_abs_log2fc) is the secondary gate. Mirrors the card v3.0.0
+    vocabulary (cards/tumor-vs-normal-selectivity.card.yaml). Renderer language
+    MUST mirror this rule (per dashboard-rendering-discipline).
+
+    Thresholds are expressed as fractions of cells_ran so the classifier reads
+    correctly whether the product ran 3 cells (current design after cell D
+    retirement) or is extended to N in the future — a 3/3 is `strong` if the
+    magnitude clears 1.5, same as a 4/4 would be.
     """
     if not row:
         return "data_unavailable"
@@ -516,17 +521,19 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     supporting = row.get("cells_supporting")
     direction = row.get("dominant_direction")
     max_lfc = row.get("max_abs_log2fc")
-    if supporting is None:
+    cells_ran = row.get("cells_ran")
+    if supporting is None or cells_ran is None or cells_ran == 0:
         return "data_unavailable"
-    if direction == "down" and supporting >= 3:
+    supporting_frac = supporting / cells_ran
+    if direction == "down" and supporting_frac >= 1.0:
         return "not_selective"
-    if direction == "up" and supporting >= 4 and (max_lfc or 0) >= 1.5:
+    if direction == "up" and supporting_frac >= 1.0 and (max_lfc or 0) >= 1.5:
         return "strong_tumor_selective"
-    if direction == "up" and supporting >= 3 and (max_lfc or 0) >= 0.5:
+    if direction == "up" and supporting_frac >= 2 / 3 and (max_lfc or 0) >= 0.5:
         return "modest_tumor_selective"
     if supporting <= 1:
         return "not_informative"
-    # 2-3 supporting but below magnitude/direction gates → not_informative
+    # 2/3 supporting but below magnitude/direction gates → not_informative
     return "not_informative"
 
 
