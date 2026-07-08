@@ -174,13 +174,15 @@ def render_pan_tissue_landscape(
     )
 
     n_rows = len(rows_data)
-    # Layout: one row per indication, all 3 boxes side-by-side within the row's
-    # single axis. Y-position within the row: 3 (top) = Tumor, 2 = TCGA-Adj,
-    # 1 (bottom) = GTEx. Row height accommodates 3 boxes cleanly.
-    fig_height = max(6.0, 0.75 * n_rows + 2.0)
+    # Layout: compact one-row-per-indication with 3 boxes stacked vertically
+    # within each row (Tumor top, Adj middle, GTEx bottom). Row title moved
+    # OUT of ax.set_title slot (which collided with neighbor row's data at
+    # aggressive hspace) INTO the leftmost side as a horizontally-anchored
+    # text block spanning the row.
+    fig_height = max(4.5, 0.55 * n_rows + 0.8)
     fig, axes = plt.subplots(
-        n_rows, 1, figsize=(11, fig_height),
-        sharex=True, gridspec_kw={"hspace": 0.35},
+        n_rows, 1, figsize=(9.5, fig_height),
+        sharex=True, gridspec_kw={"hspace": 0.15, "left": 0.13, "right": 0.93},
     )
     if n_rows == 1:
         axes = np.array([axes])
@@ -189,10 +191,16 @@ def render_pan_tissue_landscape(
     adj_color = "#f0a020"
     gtex_color = "#4a7c9e"
 
-    # Compute a shared x-axis limit across all values for readability
+    # Clip x-axis at the 99th percentile of all values so the meaningful
+    # density (medians 2-6 log2TPM) fills the visual space instead of being
+    # compressed by rare outliers (some indications have single samples out
+    # at log2TPM=10 that stretch the axis without adding information).
     all_vals = [v for r in rows_data for v in (r["tumor_vals"] + r["adjacent_vals"] + r["gtex_vals"])]
-    xmax = max(all_vals) * 1.05 if all_vals else 10
-    xmin = -0.5
+    if all_vals:
+        xmax = float(np.percentile(all_vals, 99)) * 1.05
+    else:
+        xmax = 10
+    xmin = -0.3
 
     def _sig_stars(q):
         if q is None or q != q:
@@ -208,17 +216,18 @@ def render_pan_tissue_landscape(
     for i, row in enumerate(rows_data):
         ax = axes[i]
         ax.set_xlim(xmin, xmax)
-        ax.set_ylim(0.35, 3.65)
-        ax.set_yticks([Y_TUMOR, Y_ADJ, Y_GTEX])
-        ax.set_yticklabels(
-            ["Tumor", "Adj", "GTEx"],
-            fontsize=7, color="#333",
-        )
-        ax.tick_params(axis="x", labelsize=6, pad=1)
-        ax.tick_params(axis="y", pad=2)
-        for spine_name in ("top", "right"):
+        ax.set_ylim(0.4, 3.6)
+        # Only bottom row shows x-tick labels; interior rows suppress them.
+        if i < n_rows - 1:
+            ax.tick_params(axis="x", labelbottom=False, length=0)
+        else:
+            ax.tick_params(axis="x", labelsize=7, pad=1)
+        for spine_name in ("top", "right", "left"):
             ax.spines[spine_name].set_visible(False)
-        ax.grid(axis="x", alpha=0.25, linewidth=0.5)
+        ax.grid(axis="x", alpha=0.20, linewidth=0.4)
+        # NOTE: y-tick suppression happens AFTER the boxplot calls below —
+        # boxplot(positions=[y_pos]) re-sets ticks each call, so any
+        # set_yticks([]) issued now would be silently overwritten.
 
         # Draw each of the three boxes at its y-position
         for vals, color, y_pos, sig_q in [
@@ -227,8 +236,11 @@ def render_pan_tissue_landscape(
             (row["gtex_vals"],     gtex_color,  Y_GTEX,  row["padj_C"]),
         ]:
             if not vals:
-                ax.text(xmax * 0.98, y_pos, "n/a", ha="right", va="center",
-                        fontsize=6, color="#aaa", style="italic")
+                from matplotlib.transforms import blended_transform_factory
+                trans = blended_transform_factory(ax.transAxes, ax.transData)
+                ax.text(0.50, y_pos, "n/a", transform=trans,
+                        ha="center", va="center",
+                        fontsize=6, color="#bbb", style="italic")
                 continue
 
             bp = ax.boxplot(
@@ -249,56 +261,133 @@ def render_pan_tissue_landscape(
             yy = rng.uniform(y_pos - 0.20, y_pos + 0.20, size=len(vals))
             ax.scatter(vals, yy, s=3, color=color, alpha=0.35, edgecolor="none")
 
-            # n annotation (left edge of the row, at this y position)
+            # n annotation — placed OUTSIDE the plot area to the right of
+            # the box on its y-row. Positioned using MIXED transform
+            # (axes-x, data-y) so it aligns with the box's y-position
+            # regardless of ylim + never collides with box contents.
+            from matplotlib.transforms import blended_transform_factory
+            trans = blended_transform_factory(ax.transAxes, ax.transData)
             ax.text(
-                xmin + 0.05, y_pos, f"n={len(vals)}",
+                1.015, y_pos, f"n={len(vals)}",
+                transform=trans,
                 ha="left", va="center",
                 fontsize=6, color="#666", family="monospace",
+                clip_on=False,
             )
 
-            # Significance annotation (right edge, for the adj/gtex rows)
+            # Significance annotation — inside plot at right edge,
+            # aligned with box y-position via mixed transform.
             if sig_q is not None:
                 stars = _sig_stars(sig_q)
                 if stars:
                     color_star = "#0a2540" if stars in ("*", "**", "***") else "#888"
                     ax.text(
-                        xmax * 0.98, y_pos, stars,
+                        0.985, y_pos, stars,
+                        transform=trans,
                         ha="right", va="center",
                         fontsize=8, color=color_star, weight="bold",
                     )
 
-        # Row label: indication + discordance flag + cells_supporting badge
+        # Row label — placed in the LEFT MARGIN of the axis (not as
+        # ax.set_title, which collides with neighbor row's data at compact
+        # hspace). Uses figure-fraction transform so it aligns with the
+        # gridspec left margin.
+        #
+        # Badge discipline (revised): drop the misleading "n/3" cells_supporting
+        # count entirely — it read as "1 of 3 cells passed" (failure-like) for
+        # every indication where cells B or C simply didn't fire on the given
+        # gene, even though the rule engine's cell-A signal was strong. The
+        # sig-stars on the right edge already carry the actual signal per
+        # comparator. Retain only:
+        #   • discordant flag  (when sig cells disagree in direction)
+        #   (Adj only) / (GTEx only) qualifier when a comparator was skipped
         disc_marker = " •" if row.get("discordant") else ""
-        cs = row.get("cells_supporting")
-        cs_label = f" {int(cs)}/3" if cs is not None else ""
-        title_str = f"{row['indication']}{disc_marker}{cs_label}"
-        ax.set_title(
-            title_str, loc="left", fontsize=9, weight="bold",
-            color="#222", pad=2,
+        n_adj = row.get("n_adj", 0)
+        n_gtex = row.get("n_gtex", 0)
+        # Qualifiers name what's MISSING (accurate) rather than what's present
+        # (misleading — "GTEx only" reads as "no tumor" when it really means
+        # "no adjacent-normal, tumor+GTEx both present").
+        if n_adj == 0 and n_gtex > 0:
+            qualifier = " (no adj)"
+        elif n_gtex == 0 and n_adj > 0:
+            qualifier = " (no GTEx)"
+        else:
+            qualifier = ""
+        title_str = f"{row['indication']}{disc_marker}{qualifier}"
+
+        # Place at left margin, centered vertically on the row
+        from matplotlib.transforms import blended_transform_factory
+        trans_left = blended_transform_factory(fig.transFigure, ax.transAxes)
+        ax.text(
+            0.12, 0.5, title_str,
+            transform=trans_left,
+            ha="right", va="center",
+            fontsize=8, weight="bold", color="#222",
+            clip_on=False,
         )
+
+        # Suppress y-ticks AFTER all boxplot calls on this axis.
+        # boxplot(positions=[y_pos]) re-sets ticks each call, so any earlier
+        # set_yticks([]) is silently overwritten. Doing it here strips the
+        # residual "1 / 2 / 3" numeric labels that were fighting the row
+        # title text on the left margin.
+        ax.set_yticks([])
+        ax.set_yticklabels([])
 
     # X-axis label on the bottom axis only (all axes share x)
     unit = rows_data[0]["unit"]
     unit_label = "log2(TPM + 1)" if unit == "log2_tpm" else "log2(CPM + 1)"
-    axes[-1].set_xlabel(unit_label, fontsize=8)
+    axes[-1].set_xlabel(unit_label, fontsize=8, labelpad=2)
 
-    # Figure title + caveat
+    # Figure title + caveat — tight against the plot area, minimal padding.
+    # Use tight_layout with explicit rect to reserve just enough room for
+    # title (top) and caveat (bottom), eliminating the ~40% wasted whitespace
+    # bbox_inches='tight' alone was leaving in place.
+    # Title + inline color legend across the top — legend replaces the
+    # per-row Y-tick text and reads as a single glance-key. Bullet dots
+    # match box colors so the legend visually anchors to the plot.
+    #
+    # Layout: title at y=0.995, legend at y=0.98 (JUST above the first
+    # row), and subplots_adjust(top=0.94) so the legend has room without
+    # overlapping the first row's Tumor box. Bottom stays tight.
     fig.suptitle(
         f"{target} — pan-tissue expression landscape",
-        fontsize=13, weight="bold", y=0.995,
+        fontsize=11, weight="bold", y=0.995,
     )
+    from matplotlib.lines import Line2D
+    legend_handles = [
+        Line2D([0], [0], marker="s", color=tumor_color, lw=0,
+                markerfacecolor=tumor_color, markersize=9, label="Tumor"),
+        Line2D([0], [0], marker="s", color=adj_color, lw=0,
+                markerfacecolor=adj_color, markersize=9, label="TCGA Adjacent"),
+        Line2D([0], [0], marker="s", color=gtex_color, lw=0,
+                markerfacecolor=gtex_color, markersize=9, label="GTEx Normal"),
+    ]
+    fig.legend(
+        handles=legend_handles,
+        loc="upper center", bbox_to_anchor=(0.5, 0.955),
+        ncol=3, frameon=False, fontsize=8, handletextpad=0.4,
+        columnspacing=1.8,
+    )
+
+    # Move caveat below the x-axis label so they don't overlap. The
+    # x-axis label sits at ~y=0.02 in figure coords; caveat gets its own
+    # sub-row at y=0.005 with fig.subplots_adjust bottom=0.06 to reserve
+    # space.
     fig.text(
         0.5, 0.005,
-        "Rows sorted by median tumor expression. Within each row: Tumor "
-        "(top, navy), TCGA-Adjacent (middle, ochre), GTEx (bottom, blue). "
-        "Sig. stars: * q<0.05, ** q<1e-4, *** q<1e-10 (from tumor-vs-"
-        "normal-selectivity cells A and C). • = discordant across comparators.",
-        ha="center", fontsize=6.5, color="#666", style="italic",
+        "Sorted by median tumor expression. Sig stars: * q<0.05, ** q<1e-4, "
+        "*** q<1e-10 (cells A + C). • = discordant. X clipped at q99.",
+        ha="center", fontsize=6, color="#666", style="italic",
     )
+
+    # Reserve top=0.93 (title + legend fit above without overlapping row 1),
+    # bottom=0.06 (x-label + caveat fit below without overlapping row N).
+    fig.subplots_adjust(top=0.93, bottom=0.06, left=0.13, right=0.93)
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=300, bbox_inches="tight")
-    fig.savefig(out_path.with_suffix(".svg"), bbox_inches="tight")
+    fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(out_path.with_suffix(".svg"), bbox_inches="tight", pad_inches=0.05)
     plt.close(fig)
     return out_path
