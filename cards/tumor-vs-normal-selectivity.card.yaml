@@ -34,7 +34,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.0.0
+version: 3.1.0
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across four independent tumor-vs-normal comparators (TCGA-adjacent ± batch correction, GTEx-population ± source correction)?"
 
 applies_when:
@@ -87,9 +87,14 @@ outputs:
   figures:
     - id: tumor_vs_normal_selectivity_4panel
       type: box_forest_sensitivity_panel
-      description: "Compound figure: (left) horizontal box + jittered strip of log2(CPM+1) per group across Primary Tumor, TCGA Adjacent Normal, and GTEx tissue-of-origin — individual sample dots overlaid, group medians annotated. (middle) forest of the FOUR cell log2FC estimates (A/B/C/D) with q-value stars, colored by up/down, reference lines at 0/0.5/1.5; cells that disagree in sign are visually flagged. (right) sensitivity callout: cells_supporting badge (n/4), dominant_direction, sig_all_cells check, discordant flag, class."
+      description: "Per-indication compound figure: (left) horizontal box + jittered strip of log2(CPM+1) per group across Primary Tumor, TCGA Adjacent Normal, and GTEx tissue-of-origin — individual sample dots overlaid, group medians annotated. (middle) forest of the FOUR cell log2FC estimates (A/B/C/D) with q-value stars, colored by up/down, reference lines at 0/0.5/1.5; cells that disagree in sign are visually flagged. (right) sensitivity callout: cells_supporting badge (n/4), dominant_direction, sig_all_cells check, discordant flag, class."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
+    - id: tumor_vs_normal_pan_tissue_landscape
+      type: pan_tissue_box_scatter_matrix
+      description: "Cross-indication pan-tissue landscape (added v3.1.0, 2026-07-08). Rows = up to 18 wired indications, sorted by median tumor log2TPM descending. Columns = Primary Tumor / TCGA-Adjacent-Normal / GTEx-tissue-of-origin. Each cell shows a horizontal box + jittered scatter of log2(TPM+1) with n annotation. Sig. stars per (indication, cells A/C) from the sensitivity parquet's padj_A and padj_C fields: * q<0.05, ** q<1e-4, *** q<1e-10. Discordant indications (cells disagree in sign) flagged with a • bullet next to the row label. Cross-tissue comparability requires TPM (not CPM), enabled by Gencode-v26 gene-length normalization in the read layer as of dge_deseq2 v0.4."
+      preferred_surfaces: [markdown, ppt, decision_memo, poster]
+      primary: false
 
 thresholds:
   strong_selectivity_log2fc: 1.5

@@ -5,7 +5,7 @@
 #   - the baseline DGE pattern (tumor vs paired adjacent normal)
 
 card_id: expression-tumor-vs-adjacent
-version: 2.0.0                                  # bumped 2026-07-01: pure-data v2 refactor
+version: 2.1.0                                  # bumped 2026-07-08: TPM fields now backed by real data (Gencode v26 gene-length norm)
 question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
 
 applies_when:
@@ -28,8 +28,10 @@ outputs:
   summary_fields:
     - log2_fc
     - q_value
-    - tumor_mean_tpm
-    - adjacent_mean_tpm
+    - tumor_median_log2tpm                     # per-sample TPM via Gencode-v26 gene lengths, median across tumor cohort
+    - adjacent_median_log2tpm                  # same, adjacent-normal cohort
+    - tumor_median_log2cpm                     # backward-compat; equal to what DEG uses
+    - adjacent_median_log2cpm
     - n_tumor
     - n_adjacent
     - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
@@ -40,6 +42,14 @@ outputs:
       - modest_upregulation                     # q < 0.05 AND 0.5 <= log2_fc < 1.5
       - not_informative                         # q >= 0.05 OR log2_fc < 0.5
       - data_unavailable                        # DGE derived-product unreachable / target absent
+
+  # Field semantics (aligned to actual data v2.1.0):
+  # - log2tpm fields: length-normalized (Gencode v26 union-of-exons), library-normalized.
+  #   Cross-tissue comparable. Preferred unit for absolute-expression comparisons.
+  # - log2cpm fields: library-normalized only (no gene-length). Retained for backward compat
+  #   with the DEG pipeline's internal normalization and legacy consumers.
+  # v2.0 card mistakenly declared `tumor_mean_tpm`/`adjacent_mean_tpm` before the read
+  # layer supported TPM. v2.1.0 (2026-07-08) closes that schema-vs-data drift.
 
   figure: violin_paired_with_significance
   plot_data: long_format_paired_samples
