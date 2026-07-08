@@ -130,6 +130,19 @@ combat_correct <- function(mat, batch, group, preserve_group = TRUE) {
     })
   }
   if (is.null(adj)) adj <- run(NULL)   # confounded / cell D → no group arg
+  # ESCA failure fix (2026-07-08): ComBat_seq's batch-mean shift can push
+  # already-large counts past R's 32-bit integer max (2,147,483,647) for
+  # indications with very high per-gene library sizes (esophageal squamous
+  # carcinoma mucin/keratin family). `storage.mode(adj) <- "integer"`
+  # silently NAs any value beyond that, then DESeq2's matrix validator
+  # rejects the NAs with "NA values are not allowed in the count matrix".
+  # Fix: clip to integer.max BEFORE cast so counts stay representable.
+  # Round + clip to non-negative int range (ComBat can also produce small
+  # negative values on rare genes — clip those to 0, matches DESeq2's
+  # implicit non-negative-count contract).
+  adj <- round(adj)
+  adj[adj < 0] <- 0
+  adj[adj > .Machine$integer.max] <- .Machine$integer.max
   storage.mode(adj) <- "integer"
   list(counts = adj, keep = ok)
 }
