@@ -285,6 +285,85 @@ def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
     return pd.Series(totals, index=sample_cols, name="library_size")
 
 
+# --- TPM support (Gencode v26 gene-length normalization) ------------------
+
+RPK_CACHE_DIR = Path.home() / ".cache" / "framework-recount3-rpk-sums"
+
+
+def _fetch_recount3_rpk_sums(
+    cohort: str, code: str,
+) -> "pd.Series":
+    """Per-sample sum(count_j / length_kb_j) for a study or GTEx tissue.
+
+    This is the denominator for TPM normalization: TPM = (count / length_kb)
+    / sum(count_j / length_kb_j) * 1e6. Computed by streaming the recount3
+    gene_sums matrix once per (cohort, code), dividing each row by its
+    Gencode-v26 gene length in kb, and accumulating per-column sums.
+
+    Cached as parquet at ~/.cache/framework-recount3-rpk-sums/{cohort}-{code}.parquet
+    (~10 KB per file). First-time computation is ~30-60 sec of S3 fetch +
+    ~10 sec of numpy work; subsequent calls load the parquet directly.
+
+    Args:
+        cohort: 'tcga' or 'gtex'
+        code: TCGA study code ('COAD') or GTEx tissue code ('COLON')
+
+    Returns:
+        pandas.Series indexed by sample UUID → per-sample RPK-sum (float64)
+    """
+    import pandas as pd
+    RPK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_path = RPK_CACHE_DIR / f"{cohort}-{code}.parquet"
+    if cache_path.exists():
+        return pd.read_parquet(cache_path)["rpk_sum"]
+
+    from .gene_lengths import load_gene_lengths
+    gene_lengths = load_gene_lengths()  # unversioned Ensembl → bp
+
+    _ensure_aws_profile()
+    import boto3, gzip, io
+    import numpy as np
+    s3 = boto3.client("s3")
+    key = (
+        f"{RECOUNT3_S3_PREFIX}/{cohort}/{code}/gene_sums/"
+        f"{cohort}.gene_sums.{code}.G026.gz"
+    )
+    body = s3.get_object(Bucket="onc-compbio", Key=key)["Body"].read()
+
+    with gzip.open(io.BytesIO(body), "rt") as f:
+        line = f.readline()
+        while line.startswith("##"):
+            line = f.readline()
+        header = line.rstrip("\n").split("\t")
+        sample_cols = header[1:]
+        totals = np.zeros(len(sample_cols), dtype=np.float64)
+        n_rows = 0
+        n_length_missing = 0
+        for line in f:
+            gid_end = line.find("\t")
+            gene_id_versioned = line[:gid_end]
+            gene_id = gene_id_versioned.split(".")[0]
+            length_bp = gene_lengths.get(gene_id)
+            if length_bp is None or length_bp <= 0:
+                n_length_missing += 1
+                continue
+            length_kb = length_bp / 1000.0
+            row_counts = np.fromstring(
+                line[gid_end + 1:].rstrip("\n"), dtype=np.float64, sep="\t"
+            )
+            totals += row_counts / length_kb
+            n_rows += 1
+
+    rpk = pd.Series(totals, index=sample_cols, name="rpk_sum")
+    rpk.to_frame().to_parquet(cache_path)
+    print(
+        f"[read] cached RPK sums for {cohort}/{code}: "
+        f"{n_rows:,} genes contributed, {n_length_missing:,} genes had no "
+        f"Gencode-v26 length (skipped) → {cache_path}"
+    )
+    return rpk
+
+
 def read_tumor_vs_normal_selectivity(
     target: str, indication: str,
 ) -> dict:
@@ -681,21 +760,48 @@ def read_per_sample_expression_all_three_groups(
     if gtex_counts.empty:
         return {**two_group, "gtex_samples": [], "n_gtex": 0, "gtex_tissue": gtex_tissue}
     gtex_lib = _fetch_recount3_gtex_library_sizes(gtex_tissue)
+    gtex_rpk = _fetch_recount3_rpk_sums("gtex", gtex_tissue)
     gtex_md = _fetch_recount3_gtex_metadata(gtex_tissue)
+    from .gene_lengths import load_gene_lengths
+    gene_lengths = load_gene_lengths()
 
     merged = gtex_counts.merge(
         gtex_lib.reset_index().rename(columns={"index": "sample_id"}),
         on="sample_id",
     )
+    merged = merged.merge(
+        gtex_rpk.reset_index().rename(columns={"index": "sample_id"}),
+        on="sample_id",
+    )
     merged = merged.merge(gtex_md, left_on="sample_id", right_on="external_id", how="left")
     merged["cpm"] = merged["count"] / merged["library_size"].replace(0, np.nan) * 1e6
     merged["log2_cpm"] = np.log2(merged["cpm"].fillna(0) + 1.0)
+    # TPM: same target gene across all GTEx samples for this tissue.
+    target_ens_versioned = merged["gene_id"].iloc[0] if "gene_id" in merged.columns else None
+    target_ens_unversioned = (
+        target_ens_versioned.split(".")[0] if target_ens_versioned else next(iter(target_ensembl_ids))
+    )
+    length_bp = gene_lengths.get(target_ens_unversioned)
+    if length_bp and length_bp > 0:
+        length_kb = length_bp / 1000.0
+        rpk_per_sample = merged["count"] / length_kb
+        merged["tpm"] = np.where(
+            merged["rpk_sum"] > 0,
+            rpk_per_sample / merged["rpk_sum"] * 1e6,
+            0.0,
+        )
+        merged["log2_tpm"] = np.log2(merged["tpm"].fillna(0) + 1.0)
+    else:
+        merged["tpm"] = np.nan
+        merged["log2_tpm"] = np.nan
 
     gtex_records = [
         {
             "sample_id": r["sample_id"],
             "tissue_subregion": r.get("SMTSD") or "",
             "log2_cpm": float(r["log2_cpm"]),
+            "log2_tpm": float(r["log2_tpm"]) if r["log2_tpm"] == r["log2_tpm"] else None,
+            "tpm": float(r["tpm"]) if r["tpm"] == r["tpm"] else None,
         }
         for _, r in merged.iterrows()
         if r["log2_cpm"] == r["log2_cpm"]
@@ -742,22 +848,53 @@ def read_per_sample_expression_tumor_vs_adjacent(
         return None
 
     import pandas as pd
+    import numpy as np
+    from .gene_lengths import load_gene_lengths
+    gene_lengths = load_gene_lengths()
+
     per_sample = []
     for study in studies:
-        # Get gene counts + library sizes + metadata for this study
+        # Get gene counts + library sizes + RPK-sums + metadata for this study
         gene_df = _fetch_recount3_gene_row(study, target_ensembl_ids)
         if gene_df.empty:
             continue
         lib_sizes = _fetch_recount3_library_sizes(study)
+        rpk_sums = _fetch_recount3_rpk_sums("tcga", study)
         md = _fetch_recount3_metadata(study)
-        # Merge counts + library-size + sample-type
-        merged = gene_df.merge(lib_sizes.reset_index().rename(columns={"index": "sample_id"}),
-                                on="sample_id")
+        # Merge counts + library-size + RPK-sum + sample-type
+        merged = gene_df.merge(
+            lib_sizes.reset_index().rename(columns={"index": "sample_id"}),
+            on="sample_id",
+        )
+        merged = merged.merge(
+            rpk_sums.reset_index().rename(columns={"index": "sample_id"}),
+            on="sample_id",
+        )
         merged = merged.merge(md, left_on="sample_id", right_on="gdc_file_id", how="left")
-        # CPM + log-transform
-        import numpy as np
+        # CPM (kept for backward compat + DEG-consistent view)
         merged["cpm"] = merged["count"] / merged["library_size"].replace(0, np.nan) * 1e6
         merged["log2_cpm"] = np.log2(merged["cpm"].fillna(0) + 1.0)
+        # TPM (gene-length + library normalized; comparable across tissues)
+        # ENSG id column carries versioned form; strip .N for length lookup.
+        # Since we filtered to target_ensembl_ids (all resolve to the same gene),
+        # we take the first gene_id, look up its unversioned length, apply uniformly.
+        target_ens_versioned = merged["gene_id"].iloc[0] if "gene_id" in merged.columns else None
+        target_ens_unversioned = (
+            target_ens_versioned.split(".")[0] if target_ens_versioned else next(iter(target_ensembl_ids))
+        )
+        length_bp = gene_lengths.get(target_ens_unversioned)
+        if length_bp and length_bp > 0:
+            length_kb = length_bp / 1000.0
+            rpk_per_sample = merged["count"] / length_kb
+            merged["tpm"] = np.where(
+                merged["rpk_sum"] > 0,
+                rpk_per_sample / merged["rpk_sum"] * 1e6,
+                0.0,
+            )
+            merged["log2_tpm"] = np.log2(merged["tpm"].fillna(0) + 1.0)
+        else:
+            merged["tpm"] = np.nan
+            merged["log2_tpm"] = np.nan
         merged["study"] = study
         per_sample.append(merged)
 
@@ -773,6 +910,8 @@ def read_per_sample_expression_tumor_vs_adjacent(
                 "sample_id": r["sample_id"],
                 "submitter_id": r.get("submitter_id") or "",
                 "log2_cpm": float(r["log2_cpm"]),
+                "log2_tpm": float(r["log2_tpm"]) if r["log2_tpm"] == r["log2_tpm"] else None,
+                "tpm": float(r["tpm"]) if r["tpm"] == r["tpm"] else None,
                 "study": r["study"],
             }
             for _, r in df.iterrows()
