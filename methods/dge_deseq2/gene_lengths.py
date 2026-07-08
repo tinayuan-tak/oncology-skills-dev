@@ -36,24 +36,108 @@ from typing import Optional
 CACHE_DIR = Path.home() / ".cache" / "framework-gencode-v26"
 CACHE_FILE = CACHE_DIR / "gene_lengths_v26.parquet"
 
-# Gencode v26 primary_assembly GTF — matches recount3 G026 annotation exactly.
-# Version confirmed via recount3 Bioconductor docs + monorail README.
+# Preferred: S3-cataloged derived product (fastest + audit-traceable).
+# Manifests:
+#   sources/gencode-v26-primary-assembly.yaml (source: 35.9 MB GTF)
+#   derived/gencode-v26-gene-lengths-union-of-exons-v1.yaml (parquet)
+S3_BUCKET = "onc-compbio"
+S3_KEY_GTF = (
+    "data-catalog/sources/gencode/gencode-v26-primary-assembly/"
+    "gencode.v26.primary_assembly.annotation.gtf.gz"
+)
+S3_KEY_LENGTHS = (
+    "data-catalog/derived/gencode-v26-gene-lengths-union-of-exons-v1/"
+    "gene_lengths_v26.parquet"
+)
+# md5 pins matching the data-catalog manifests. If S3 delivers a file
+# with a different md5, the manifest was updated without a version bump —
+# fail fast rather than silently use drifted data.
+S3_MD5_GTF = "2c4494f53b61a8f0ef8b36d1900fa49d"
+S3_MD5_LENGTHS = "59ee41fc87c801f70f53013e1cd144e6"
+
+# Fallback: live GENCODE FTP (used only if S3 unreachable / manifest not
+# yet uploaded). This is the original ingestion source; the S3 copy above
+# is a mirror of this exact file.
 GENCODE_V26_GTF_URL = (
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/"
     "release_26/gencode.v26.primary_assembly.annotation.gtf.gz"
 )
 
 
+def _md5_of_file(path: Path) -> str:
+    """Compute md5 hex of a local file."""
+    import hashlib
+    h = hashlib.md5()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _try_s3_fetch(s3_key: str, local_path: Path, expected_md5: str) -> bool:
+    """Attempt to fetch s3://onc-compbio/{s3_key} → local_path with md5
+    verification. Returns True on success, False on any failure
+    (auth error, missing object, md5 mismatch). Failure is silent by
+    design — callers fall back to the live-fetch path.
+    """
+    try:
+        import boto3
+        import os
+        os.environ.setdefault("AWS_PROFILE", "cbg")
+        s3 = boto3.client("s3")
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        s3.download_file(S3_BUCKET, s3_key, str(local_path))
+    except Exception as e:
+        print(f"[gene_lengths] S3 fetch of {s3_key} failed: {e}")
+        return False
+    actual = _md5_of_file(local_path)
+    if actual != expected_md5:
+        print(
+            f"[gene_lengths] md5 mismatch for {s3_key}: "
+            f"expected {expected_md5}, got {actual}. "
+            f"Removing local copy; will fall back."
+        )
+        try:
+            local_path.unlink()
+        except Exception:
+            pass
+        return False
+    return True
+
+
 def _download_gtf(local_path: Path) -> Path:
-    """Fetch Gencode v26 GTF to local_path. Idempotent."""
+    """Fetch Gencode v26 GTF to local_path. Idempotent.
+
+    Fetch order:
+      1. Cached local file (if md5 matches manifest pin)
+      2. S3 mirror (data-catalog) with md5 verification
+      3. Live GENCODE FTP fallback (records provenance-degraded warning)
+    """
     if local_path.exists() and local_path.stat().st_size > 0:
+        actual = _md5_of_file(local_path)
+        if actual == S3_MD5_GTF:
+            return local_path
+        print(
+            f"[gene_lengths] local cache md5 mismatch ({actual} vs "
+            f"{S3_MD5_GTF}); refetching."
+        )
+        local_path.unlink()
+
+    if _try_s3_fetch(S3_KEY_GTF, local_path, S3_MD5_GTF):
+        print(f"[gene_lengths] fetched Gencode v26 GTF from S3 → {local_path}")
         return local_path
+
+    # Fallback: live GENCODE FTP
     local_path.parent.mkdir(parents=True, exist_ok=True)
-    print(f"[gene_lengths] downloading Gencode v26 GTF (~30 MB) → {local_path}")
+    print(
+        f"[gene_lengths] WARN: S3 mirror unavailable; falling back to "
+        f"live GENCODE FTP ({GENCODE_V26_GTF_URL}). Provenance is "
+        f"degraded — the S3-manifested version is the audit source."
+    )
     with urllib.request.urlopen(GENCODE_V26_GTF_URL, timeout=120) as resp:
         with local_path.open("wb") as f:
             while True:
-                chunk = resp.read(1 << 20)  # 1 MB
+                chunk = resp.read(1 << 20)
                 if not chunk:
                     break
                 f.write(chunk)
@@ -116,12 +200,14 @@ def _parse_gtf_to_gene_lengths(gtf_gz_path: Path) -> "pd.Series":
 def load_gene_lengths(refresh: bool = False) -> "pd.Series":
     """Load Gencode v26 gene lengths (unversioned Ensembl ID → bp) with cache.
 
-    First call downloads the GTF + computes exon unions (~30-60 sec on
-    a warm connection). Subsequent calls load the cached parquet
-    directly (~50 ms).
+    Fetch order:
+      1. Local cache (~/.cache/framework-gencode-v26/gene_lengths_v26.parquet)
+         if md5 matches the manifest-pinned value
+      2. S3-catalogued derived product (single 0.6 MB parquet, ~1 sec fetch)
+      3. Fallback: fetch GTF + parse locally (~30-60 sec first time)
 
     Args:
-        refresh: force re-download + re-parse even if cache exists.
+        refresh: force re-fetch even if cache exists.
 
     Returns:
         pandas.Series indexed by unversioned Ensembl gene_id (e.g.
@@ -129,14 +215,33 @@ def load_gene_lengths(refresh: bool = False) -> "pd.Series":
     """
     import pandas as pd
 
+    # Step 1: cached local parquet with md5 verification
     if CACHE_FILE.exists() and not refresh:
-        return pd.read_parquet(CACHE_FILE)["effective_length_bp"]
+        actual = _md5_of_file(CACHE_FILE)
+        if actual == S3_MD5_LENGTHS:
+            return pd.read_parquet(CACHE_FILE)["effective_length_bp"]
+        print(
+            f"[gene_lengths] local parquet md5 mismatch ({actual} vs "
+            f"{S3_MD5_LENGTHS}); refetching."
+        )
+        CACHE_FILE.unlink()
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Step 2: S3 mirror (fast, audit-traceable)
+    if _try_s3_fetch(S3_KEY_LENGTHS, CACHE_FILE, S3_MD5_LENGTHS):
+        print(f"[gene_lengths] fetched from S3 → {CACHE_FILE}")
+        return pd.read_parquet(CACHE_FILE)["effective_length_bp"]
+
+    # Step 3: fallback — fetch GTF + parse locally
+    print(
+        f"[gene_lengths] WARN: S3 mirror unavailable; parsing GTF locally. "
+        f"Result will match the S3 version deterministically, but the "
+        f"provenance link is degraded."
+    )
     gtf_path = CACHE_DIR / "gencode.v26.primary_assembly.annotation.gtf.gz"
     _download_gtf(gtf_path)
     lengths = _parse_gtf_to_gene_lengths(gtf_path)
-    # Persist as parquet (small — ~60K genes × 4 bytes = well under 1 MB)
     lengths.to_frame().to_parquet(CACHE_FILE)
     print(f"[gene_lengths] cached {len(lengths):,} gene lengths → {CACHE_FILE}")
     return lengths
