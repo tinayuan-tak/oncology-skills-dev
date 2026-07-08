@@ -174,10 +174,13 @@ def render_pan_tissue_landscape(
     )
 
     n_rows = len(rows_data)
-    fig_height = max(6.0, 0.4 * n_rows + 2.0)
+    # Layout: one row per indication, all 3 boxes side-by-side within the row's
+    # single axis. Y-position within the row: 3 (top) = Tumor, 2 = TCGA-Adj,
+    # 1 (bottom) = GTEx. Row height accommodates 3 boxes cleanly.
+    fig_height = max(6.0, 0.75 * n_rows + 2.0)
     fig, axes = plt.subplots(
-        n_rows, 3, figsize=(11, fig_height),
-        sharex=False, gridspec_kw={"wspace": 0.15, "hspace": 0.05},
+        n_rows, 1, figsize=(11, fig_height),
+        sharex=True, gridspec_kw={"hspace": 0.35},
     )
     if n_rows == 1:
         axes = np.array([axes])
@@ -199,32 +202,42 @@ def render_pan_tissue_landscape(
         if q < 0.05:  return "*"
         return "ns"
 
-    for i, row in enumerate(rows_data):
-        for j, (vals, color, group_label, sig_q) in enumerate([
-            (row["tumor_vals"],    tumor_color, "Tumor",    None),
-            (row["adjacent_vals"], adj_color,   "TCGA-Adj", row["padj_A"]),
-            (row["gtex_vals"],     gtex_color,  "GTEx",     row["padj_C"]),
-        ]):
-            ax = axes[i, j]
-            ax.set_xlim(xmin, xmax)
-            ax.set_yticks([])
-            ax.tick_params(axis="x", labelsize=6, pad=1)
-            for spine_name in ("top", "right", "left"):
-                ax.spines[spine_name].set_visible(False)
+    # Y positions within each row (3 boxes stacked top → bottom)
+    Y_TUMOR, Y_ADJ, Y_GTEX = 3, 2, 1
 
+    for i, row in enumerate(rows_data):
+        ax = axes[i]
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(0.35, 3.65)
+        ax.set_yticks([Y_TUMOR, Y_ADJ, Y_GTEX])
+        ax.set_yticklabels(
+            ["Tumor", "Adj", "GTEx"],
+            fontsize=7, color="#333",
+        )
+        ax.tick_params(axis="x", labelsize=6, pad=1)
+        ax.tick_params(axis="y", pad=2)
+        for spine_name in ("top", "right"):
+            ax.spines[spine_name].set_visible(False)
+        ax.grid(axis="x", alpha=0.25, linewidth=0.5)
+
+        # Draw each of the three boxes at its y-position
+        for vals, color, y_pos, sig_q in [
+            (row["tumor_vals"],    tumor_color, Y_TUMOR, None),
+            (row["adjacent_vals"], adj_color,   Y_ADJ,   row["padj_A"]),
+            (row["gtex_vals"],     gtex_color,  Y_GTEX,  row["padj_C"]),
+        ]:
             if not vals:
-                ax.text(0.5, 0.5, "n/a", ha="center", va="center",
-                        transform=ax.transAxes, fontsize=7, color="#aaa")
+                ax.text(xmax * 0.98, y_pos, "n/a", ha="right", va="center",
+                        fontsize=6, color="#aaa", style="italic")
                 continue
 
-            # Horizontal box
             bp = ax.boxplot(
-                vals, vert=False, widths=0.55, patch_artist=True,
-                showfliers=False,
+                vals, vert=False, positions=[y_pos], widths=0.55,
+                patch_artist=True, showfliers=False,
                 medianprops={"color": "#222", "linewidth": 1.0},
             )
             for patch in bp["boxes"]:
-                patch.set_facecolor(color); patch.set_alpha(0.30)
+                patch.set_facecolor(color); patch.set_alpha(0.32)
                 patch.set_edgecolor(color)
             for whisker in bp["whiskers"]:
                 whisker.set_color("#666"); whisker.set_linewidth(0.7)
@@ -232,50 +245,42 @@ def render_pan_tissue_landscape(
                 cap.set_color("#666"); cap.set_linewidth(0.7)
 
             # Jittered strip
-            rng = np.random.default_rng(seed=42 + i * 3 + j)
-            yy = rng.uniform(0.85, 1.15, size=len(vals))
+            rng = np.random.default_rng(seed=42 + i * 3 + y_pos)
+            yy = rng.uniform(y_pos - 0.20, y_pos + 0.20, size=len(vals))
             ax.scatter(vals, yy, s=3, color=color, alpha=0.35, edgecolor="none")
 
-            # Significance annotation (right edge, only for cells with a q-value)
+            # n annotation (left edge of the row, at this y position)
+            ax.text(
+                xmin + 0.05, y_pos, f"n={len(vals)}",
+                ha="left", va="center",
+                fontsize=6, color="#666", family="monospace",
+            )
+
+            # Significance annotation (right edge, for the adj/gtex rows)
             if sig_q is not None:
                 stars = _sig_stars(sig_q)
                 if stars:
                     color_star = "#0a2540" if stars in ("*", "**", "***") else "#888"
                     ax.text(
-                        0.97, 0.5, stars,
-                        transform=ax.transAxes,
+                        xmax * 0.98, y_pos, stars,
                         ha="right", va="center",
                         fontsize=8, color=color_star, weight="bold",
                     )
 
-            # n annotation, left edge
-            ax.text(
-                0.02, 0.95, f"n={len(vals)}",
-                transform=ax.transAxes,
-                ha="left", va="top",
-                fontsize=6, color="#666", family="monospace",
-            )
-
-        # Row label (leftmost cell's ylabel)
+        # Row label: indication + discordance flag + cells_supporting badge
         disc_marker = " •" if row.get("discordant") else ""
         cs = row.get("cells_supporting")
         cs_label = f" {int(cs)}/3" if cs is not None else ""
-        row_label = f"{row['indication']}{disc_marker}{cs_label}"
-        # Use the tumor cell's y-axis to hold the label
-        axes[i, 0].set_ylabel(row_label, rotation=0, ha="right", va="center",
-                              fontsize=8, labelpad=8)
+        title_str = f"{row['indication']}{disc_marker}{cs_label}"
+        ax.set_title(
+            title_str, loc="left", fontsize=9, weight="bold",
+            color="#222", pad=2,
+        )
 
-    # Column headers
-    for j, hdr in enumerate(["Primary Tumor (TCGA)",
-                              "Adjacent-Normal (TCGA)",
-                              "Population-Normal (GTEx)"]):
-        axes[0, j].set_title(hdr, fontsize=9, weight="bold", pad=6)
-
-    # Overall xlabel on bottom row
+    # X-axis label on the bottom axis only (all axes share x)
     unit = rows_data[0]["unit"]
     unit_label = "log2(TPM + 1)" if unit == "log2_tpm" else "log2(CPM + 1)"
-    for j in range(3):
-        axes[-1, j].set_xlabel(unit_label, fontsize=7)
+    axes[-1].set_xlabel(unit_label, fontsize=8)
 
     # Figure title + caveat
     fig.suptitle(
@@ -283,10 +288,11 @@ def render_pan_tissue_landscape(
         fontsize=13, weight="bold", y=0.995,
     )
     fig.text(
-        0.5, 0.02,
-        "Rows sorted by median tumor expression. Sig. stars: * q<0.05, "
-        "** q<1e-4, *** q<1e-10 (from tumor-vs-normal-selectivity cells A "
-        "and C). • = discordant across comparators.",
+        0.5, 0.005,
+        "Rows sorted by median tumor expression. Within each row: Tumor "
+        "(top, navy), TCGA-Adjacent (middle, ochre), GTEx (bottom, blue). "
+        "Sig. stars: * q<0.05, ** q<1e-4, *** q<1e-10 (from tumor-vs-"
+        "normal-selectivity cells A and C). • = discordant across comparators.",
         ha="center", fontsize=6.5, color="#666", style="italic",
     )
 
