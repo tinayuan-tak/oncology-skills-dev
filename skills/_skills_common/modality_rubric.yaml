@@ -1,0 +1,158 @@
+# modality_rubric.yaml — ADC/TCE letter-grade weights + thresholds.
+#
+# Reviewer-driven design (2026-07-08): the dashboard's letter-grade rubric
+# was hand-curated. We keep the letter-grade output format for slide-drop
+# familiarity but expose the underlying weights + thresholds AS DATA so the
+# rubric is auditable, versioned, and tunable per-modality-program.
+#
+# Consumer: the adc-tce-modality-fit composed card computes letter grades
+# by weighting the topology + PTM + surface-family features per this file.
+# The rubric_version field is stamped in every emitted lens-conditional row
+# (arch A2) so governance readers can reproduce any letter grade from
+# (rubric_version, biology inputs).
+#
+# ARCH A2 discipline: letter grades are LENS-CONDITIONAL. The rubric weights
+# are consumed ONLY when the modality lens is invoked at runtime; without
+# the lens, the rubric YAML is read but no letter grade is emitted (the
+# composed card returns fit_class biology-agnostic categorical only).
+#
+# Update discipline: rubric weight tuning is a GOVERNANCE decision, not a
+# per-target decision. Bump version on any weight change; downstream target-
+# profile invocations pin against a specific rubric_version for
+# reproducibility. Historical rubric versions should be preserved (comment
+# them out below rather than deleting) so old grades can be re-computed.
+
+rubric_version: 1.0.0
+snapshot_date: "2026-07-08"
+curator: ryan.abo@takeda.com
+
+# ---------------------------------------------------------------------------
+# ADC rubric
+# ---------------------------------------------------------------------------
+#
+# Design rationale (per feature):
+#   tm_pass_count_ideal_1: single-pass TM is the ADC-canonical topology.
+#     Multi-pass = poor antibody accessibility; 0-pass = not a surface target.
+#   ec_domain_length_ge_200: extracellular domain must be large enough for
+#     antibody epitope engagement. 200 residues is conservative; some ADC
+#     targets have shorter ECDs (Nectin-4 at ~340) but 200 is the floor.
+#   endocytosis_motif_count_high_confidence_ge_3: ADC internalization is
+#     required for payload delivery. YXXphi + NPXY + Dileucine motifs on
+#     intracellular tail predict clathrin-mediated / PTB-domain / AP-1/AP-3
+#     internalization. Using the pLDDT-accessibility-filtered count per
+#     reviewer R1 rigor fix.
+#   ubiquitination_site_count_ge_5: high turnover = lysosomal delivery of
+#     ADC payload = productive kill. Low turnover = ADC internalizes but
+#     recycles, payload never released.
+#
+# Weights sum to 100. Each is a boolean feature (0 or 25) evaluated against
+# the surface-topology-and-ptm card's summary fields.
+
+adc_rubric:
+  weights:
+    tm_pass_count_ideal_1:
+      weight: 25
+      feature: "surface-topology-and-ptm.tm_pass_count == 1"
+      rationale: "Single-pass TM is ADC-canonical topology (Ritchie 2013 MAbs)."
+    ec_domain_length_ge_200:
+      weight: 25
+      feature: "surface-topology-and-ptm.extracellular_residue_count >= 200"
+      rationale: "Sufficient ECD length for antibody epitope engagement."
+    endocytosis_motif_count_high_confidence_ge_3:
+      weight: 25
+      feature: "surface-topology-and-ptm.endocytosis_motif_count_high_confidence >= 3"
+      rationale: >
+        Endocytosis motifs (YXXphi + NPXY + Dileucine) on intracellular tail
+        predict internalization. Uses pLDDT-accessibility-filtered count per
+        reviewer R1 rigor fix — raw regex count is FP-prone on unstructured
+        cytoplasmic tails.
+    ubiquitination_site_count_ge_5:
+      weight: 25
+      feature: "surface-topology-and-ptm.n_ubiquitination_sites >= 5"
+      rationale: >
+        High turnover aids lysosomal payload delivery. Low turnover risks
+        surface-recycling without payload release.
+
+  grade_thresholds:
+    A: 90       # >= 3 of 4 boolean features
+    B: 70       # >= 2 of 4
+    C: 50       # >= 1 of 4
+    D: 0        # 0 of 4
+
+# ---------------------------------------------------------------------------
+# TCE rubric
+# ---------------------------------------------------------------------------
+#
+# Design rationale:
+#   tm_pass_count_ge_1: TCE requires ANY surface accessibility.
+#   ec_domain_length_ge_100: shorter ECD is acceptable for TCE (T-cell
+#     synapse requires only ~100 residues of accessible epitope).
+#   endocytosis_motif_count_le_2: LOW internalization keeps antigen on
+#     surface stable — opposite of ADC. Uses high-confidence count.
+#   ubiquitination_site_count_le_3: LOW turnover keeps surface density
+#     high — opposite of ADC.
+#
+# Note: ADC and TCE rubrics are OPPOSITE on the turnover axis. A target
+# that is A-grade ADC is typically D-grade TCE (or vice versa). Both A
+# grades simultaneously => "modality_ambiguous" — needs biology context.
+
+tce_rubric:
+  weights:
+    tm_pass_count_ge_1:
+      weight: 25
+      feature: "surface-topology-and-ptm.tm_pass_count >= 1"
+      rationale: "Any surface accessibility suffices for T-cell synapse formation."
+    ec_domain_length_ge_100:
+      weight: 25
+      feature: "surface-topology-and-ptm.extracellular_residue_count >= 100"
+      rationale: "T-cell synapse requires ~100 residues of accessible epitope."
+    endocytosis_motif_count_high_confidence_le_2:
+      weight: 25
+      feature: "surface-topology-and-ptm.endocytosis_motif_count_high_confidence <= 2"
+      rationale: >
+        Low internalization keeps antigen on surface stable — opposite of
+        ADC. Uses pLDDT-accessibility-filtered count.
+    ubiquitination_site_count_le_3:
+      weight: 25
+      feature: "surface-topology-and-ptm.n_ubiquitination_sites <= 3"
+      rationale: >
+        Low turnover keeps surface density high (Slaga 2018 TCE viability
+        threshold >1,000 copies/cell requires stable surface expression).
+
+  grade_thresholds:
+    A: 90
+    B: 70
+    C: 50
+    D: 0
+
+# ---------------------------------------------------------------------------
+# Grade stability computation (reviewer R2 uncertainty quantification)
+# ---------------------------------------------------------------------------
+#
+# For each grade, perturb every weight by +/-20% and recompute. If the
+# resulting grade tier changes under any perturbation in the bootstrap
+# ensemble, the grade_stability is 'sensitive'. Otherwise 'stable'. The
+# adc_grade_stability + tce_grade_stability fields are emitted alongside
+# the letter grade so governance readers see tier-boundary sensitivity.
+
+grade_stability:
+  bootstrap_perturbation_range: 0.20   # +/-20%
+  n_bootstrap_samples: 100
+  stability_classes:
+    stable: "grade unchanged across all bootstrap samples"
+    sensitive: "grade tier shifts under any bootstrap perturbation"
+    unstable: "grade tier shifts under > 50% of bootstrap perturbations"
+
+# ---------------------------------------------------------------------------
+# Isoform-selective suppression (arch A3 hook)
+# ---------------------------------------------------------------------------
+#
+# When surface-topology-and-ptm.isoform_selective_warning == true, letter
+# grades are SUPPRESSED unconditionally (even when modality lens invoked).
+# fit_class becomes 'isoform_dependent_undefined' and no grade / score is
+# emitted. The isoform_selective_targets.yaml vocabulary is authoritative.
+
+isoform_suppression:
+  enabled: true
+  vocabulary_id: isoform-selective-targets
+  vocabulary_version_min: "1.0.0"

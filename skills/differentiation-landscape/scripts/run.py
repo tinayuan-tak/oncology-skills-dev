@@ -1,70 +1,92 @@
 #!/usr/bin/env python3
-"""differentiation-landscape — placeholder skill for un-wired Phase-E question.
+"""differentiation-landscape — Phase-E partial skill (graduated 2026-07-08).
 
-Emits a structured decision.json naming the wiring gaps. See SKILL.md.
+Co-mutation + mutual-exclusivity landscape from panel-intersect-aware Fisher
+scan across TCGA MC3 + GENIE 19.0-public.
+
+W4c refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
+Skill-specific logic reduces to CARDS + verdict + headline callbacks.
 """
 
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import emit_placeholder
+from _skills_common.dispatcher import run_wired_skill
+
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.0.0"
-PHASE = "E"
-QUESTION = 'How does target X differentiate from portfolio + competitive landscape — precedent, patents, novelty, paralog buffering, co-occurrence?'
-REQUIRED_CARDS = [
-    'clinical-precedent',
-    'patent-landscape',
-    'paralog-buffering',
-    'co-occurrence-and-mutual-exclusivity',
-]
-UNWIRED_CARDS = [
-    'clinical-precedent',
-    'patent-landscape',
-    'paralog-buffering',
-    'co-occurrence-and-mutual-exclusivity',
-]
-DATA_GAPS = [
-    'Clinical-precedent feed (Cortellis / IQVIA) not licensed',
-    'Patent landscape (PatBase or similar) not wired',
-    'Paralog-buffering — adjacent SL work produces some of this; needs wiring into a dedicated card',
-    'Co-occurrence/mutual-exclusivity partial (mutation-hotspot-frequency card shows lists but no dedicated skill)',
-]
+SKILL_VERSION = "1.2.0"
+
+CARDS = ["co-mutation-and-mutual-exclusivity"]
+
+QUESTION = ("What genes co-occur with or are mutually exclusive to "
+            "{target} mutations across TCGA MC3 + GENIE 19.0-public, "
+            "and what patient-selection or combination-biology hypotheses "
+            "does the pattern support in {indication}?")
+
+PARTIAL_STATUS_NOTE = (
+    "differentiation-landscape is status: partial; clinical-precedent + "
+    "patent-landscape cards not wired (licensing pending). Only co-mutation "
+    "signal reflected in this decision."
+)
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--target", required=True)
-    ap.add_argument("--indication", required=True)
-    ap.add_argument("--out", required=True, type=Path)
-    args = ap.parse_args()
+def _verdict(fired: list[dict]) -> tuple[str, str | None]:
+    fired_by_id = {r["rule_id"]: r for r in fired}
+    if "strong-mutual-exclusivity-supportive" in fired_by_id:
+        return "strong_mutually_exclusive", "strong-mutual-exclusivity-supportive"
+    if "has-cooccurring-driver-supportive" in fired_by_id:
+        return "has_cooccurring_driver", "has-cooccurring-driver-supportive"
+    if "cooccurrence-data-unavailable-insufficient" in fired_by_id:
+        return "data_unavailable", "cooccurrence-data-unavailable-insufficient"
+    return "insufficient", None
 
-    path = emit_placeholder(
-        out_dir=args.out,
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        target=args.target,
-        indication=args.indication,
-        phase=PHASE,
-        question=QUESTION,
-        required_cards=REQUIRED_CARDS,
-        unwired_cards=UNWIRED_CARDS,
-        data_gaps=DATA_GAPS,
-    )
-    print(f"wrote placeholder decision.json to {path}")
-    print(f"phase: Phase-{PHASE}, status: not_wired")
-    print(f"data gaps ({len(DATA_GAPS)}):")
-    for g in DATA_GAPS:
-        print(f"  - {g}")
-    return 0
+
+def _headline(cards, fired, verdict_pair):
+    def _get(cid: str, key: str):
+        for c in cards:
+            if c["card_id"] == cid:
+                return (c["summary"] or {}).get(key)
+        return None
+
+    v, drv = verdict_pair or ("insufficient", None)
+    return {
+        "differentiation_verdict":          v,
+        "driving_rule_id":                  drv,
+        "cooccurrence_class":               _get("co-mutation-and-mutual-exclusivity",
+                                                 "cooccurrence_class"),
+        "n_significant_cooccurring":        _get("co-mutation-and-mutual-exclusivity",
+                                                 "n_significant_cooccurring"),
+        "n_significant_mutually_exclusive": _get("co-mutation-and-mutual-exclusivity",
+                                                 "n_significant_mutually_exclusive"),
+        "n_pairs_panel_intersect_eligible": _get("co-mutation-and-mutual-exclusivity",
+                                                 "n_pairs_panel_intersect_eligible"),
+        "n_pairs_per_source_only":          _get("co-mutation-and-mutual-exclusivity",
+                                                 "n_pairs_per_source_only"),
+        "has_cooccurring_driver":           _get("co-mutation-and-mutual-exclusivity",
+                                                 "has_cooccurring_driver"),
+        "has_mutually_exclusive_driver":    _get("co-mutation-and-mutual-exclusivity",
+                                                 "has_mutually_exclusive_driver"),
+        "top_cooccurring":                  _get("co-mutation-and-mutual-exclusivity",
+                                                 "top_cooccurring"),
+        "top_mutually_exclusive":           _get("co-mutation-and-mutual-exclusivity",
+                                                 "top_mutually_exclusive"),
+    }
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_wired_skill(
+        skill_name=SKILL_NAME,
+        skill_version=SKILL_VERSION,
+        cards=CARDS,
+        axis="intracellular_intrinsic",
+        question=QUESTION,
+        verdict_fn=_verdict,
+        headline_fn=_headline,
+        partial_status_note=PARTIAL_STATUS_NOTE,
+    ))

@@ -34,6 +34,18 @@ OPTIONAL_LENSES = {"modality", "therapeutic_hypothesis", "subgroup"}
 
 STATUSES = {"wired", "not_wired", "partial"}
 
+# Behavior a composed skill takes when a dependency card is `status: partial`
+# (i.e., graduated from placeholder but not yet fully wired). Reviewer-driven
+# arch upgrade A4 (2026-07-08) — makes the placeholder → partial → wired
+# migration path safe for composed skills like target-profile that fan out
+# across many cards. Values:
+#   skip_section      — omit the section that consumes this dep; log a note
+#   fail              — refuse to run; surface the partial dep as an error
+#   emit_with_caveat  — run + include the section + auto-emit a caveat naming
+#                       the partial dep so downstream readers know the epistemic
+#                       ceiling
+DEPENDENCY_STATUS_BEHAVIORS = {"skip_section", "fail", "emit_with_caveat"}
+
 
 class CompositionError(ValueError):
     """Raised when a SKILL.md's composition block is invalid."""
@@ -56,6 +68,11 @@ class Composition:
     steps_covered: list[int]
     optional_lenses: list[str] = field(default_factory=list)
     status: str = "wired"
+    # Composed skills only: per-dependency behavior when a card is `partial`.
+    # Map card_id -> one of DEPENDENCY_STATUS_BEHAVIORS. Skills that consume
+    # only fully-wired cards may leave this empty. Enforced by
+    # test_composed_skill_status_matrix (verification Test 9).
+    on_dependency_status: dict = field(default_factory=dict)
 
 
 def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
@@ -141,6 +158,33 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
     status = raw.get("status", "wired")
     _one_of(status, STATUSES, "status")
 
+    # on_dependency_status (optional; composed skills only)
+    # W3b fix (2026-07-09): `raw.get(key, {})` returns None when the key
+    # exists with a YAML-null value (`on_dependency_status: null` or a bare
+    # `on_dependency_status:` line). Coerce None → {} explicitly.
+    on_dependency_status = raw.get("on_dependency_status") or {}
+    if on_dependency_status:
+        if not isinstance(on_dependency_status, dict):
+            raise CompositionError(
+                f"{label}: 'on_dependency_status' must be a mapping of "
+                f"card_id -> behavior, got {type(on_dependency_status).__name__}"
+            )
+        for card_id, behavior in on_dependency_status.items():
+            if not isinstance(card_id, str):
+                raise CompositionError(
+                    f"{label}: 'on_dependency_status' key {card_id!r} must be a string"
+                )
+            if behavior not in DEPENDENCY_STATUS_BEHAVIORS:
+                raise CompositionError(
+                    f"{label}: 'on_dependency_status[{card_id!r}]' value "
+                    f"{behavior!r} not in {sorted(DEPENDENCY_STATUS_BEHAVIORS)}"
+                )
+            if card_id not in cards_used:
+                raise CompositionError(
+                    f"{label}: 'on_dependency_status' references card_id "
+                    f"{card_id!r} not in cards_used ({cards_used!r})"
+                )
+
     return Composition(
         data_mode=data_mode,
         phase=phases,
@@ -151,6 +195,7 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
         steps_covered=steps_raw,
         optional_lenses=optional_lenses,
         status=status,
+        on_dependency_status=on_dependency_status,
     )
 
 

@@ -1,19 +1,28 @@
 ---
 name: on-target-safety-liability
 description: |
-  PLACEHOLDER SKILL — Phase-G question is declared in the framework but
-  the underlying evidence cards are NOT yet wired. Invoking this skill emits
-  a structured "phase-not-yet-wired" response naming the specific data gaps.
+  Phase-G skill — germline LoF-constraint safety signal from gnomAD +
+  (iter-2) HPA normal-tissue liability + IMPC + ClinVar. Consumes the
+  gnomad-lof-constraint card as its first wired evidence.
 
-  Question this skill would answer once wired:
-  What are target X's on-target safety liabilities — normal-tissue expression, LoF tolerance, critical-cell essentiality, historical clinical failures?
+  GRADUATED 2026-07-08: placeholder → partial. gnomAD constraint card
+  wired against the existing gnomad-constraint-snapshot-2026-07-02 source
+  manifest (data-catalog PR #79). Remaining cards
+  (normal-tissue-liability, protein-surface-evidence) stay placeholder;
+  their data sources are catalogued but the dispatchers are not built.
 
-  Visible in the skill catalog for transparency: the framework's coverage
-  gaps are exposed rather than hidden. See gaps + backlog in
-  ~/.claude/plans/deep-foraging-thompson.md.
+  Question this skill answers:
+  Is {target} highly constrained against loss-of-function variants in the
+  gnomAD population, and what does this imply for on-target safety of a
+  full-KO modality (degrader, RNA therapeutic, or full-inhibition SM)?
+
+  Reviewer-driven graduation (2026-07-08): this closes the plan's most
+  obvious G-phase gap. gnomAD data was landed; wiring is a ~1-day fix
+  that moves the skill from `not_wired` → `partial` with a concrete
+  germline-safety signal.
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -21,47 +30,75 @@ composition:
   data_mode: derived_read
   phase: [G]
   cards_used:
-    - normal-tissue-liability
-    - protein-surface-evidence
+    - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
+    - normal-tissue-liability          # Placeholder (HPA dispatcher pending)
+    - protein-surface-evidence         # Placeholder (HPA IHC dispatcher pending)
   rules_scope:
-    - none
+    - gnomad-lof-constraint
   synthesis:
-    - none
+    - rule_engine
   output_shape:
     - data_package
-  steps_covered: [1, 2]
-  status: not_wired
+  steps_covered: [1, 2, 3, 4, 6]
+  status: partial
+  on_dependency_status:
+    normal-tissue-liability: skip_section       # arch A4 discipline
+    protein-surface-evidence: skip_section
 ---
 
-# on-target-safety-liability — placeholder
+# on-target-safety-liability — Phase G partial skill
 
-## Status: not wired
+## What this skill does (iter-1 partial wiring)
 
-This skill exists to make the framework's Phase-G coverage gap explicit
-and inspectable. When invoked, it emits `decision.json` with:
+Given a target:
+  1. Loads the gnomad-lof-constraint card summary (pLI, LOEUF, mis_z,
+     constraint_class).
+  2. Rules engine consumes constraint_class categorical → per-modality
+     safety signals (highly_constrained → warning; tolerant → supportive).
+  3. Emits a data_package output tree with the constraint-derived safety
+     verdict.
 
-- `status: "not_wired"`
-- `verdict: "phase_not_yet_wired"`
-- `unwired_cards`: `normal-tissue-liability`, `protein-surface-evidence`
-- `data_gaps`: specific pointers to what would need to be wired
+## What this skill does NOT do (yet)
 
-## What would this skill do once wired?
+- **Normal-tissue liability from HPA IHC:** the normal-tissue-liability
+  card's HPA IHC-intensity dispatcher is not built. When invoked, this
+  skill's per-tissue liability section will be SKIPPED per the
+  on_dependency_status: skip_section arch A4 contract.
+- **Protein-surface evidence:** same — dispatcher pending.
+- **IMPC mouse KO phenotypes:** not catalogued; iter-2 backlog.
+- **ClinVar germline outcomes:** not catalogued; iter-2 backlog.
+- **Historical trial-outcome DB:** external data feed licensing pending.
 
-What are target X's on-target safety liabilities — normal-tissue expression, LoF tolerance, critical-cell essentiality, historical clinical failures?
+## Output tree (data_package shape)
 
-## Wiring backlog
+```
+<out>/
+├── decision.json                 # rule verdicts + fired rules
+├── summary.yaml                  # card summary_fields (gnomad only in iter-1)
+├── figures/
+│   └── constraint_scores_gauge.png
+├── tables/
+│   └── gnomad_constraint_summary.csv
+└── provenance.yaml               # gnomAD manifest md5, partial-status notice
+```
 
-- normal-tissue-liability dispatcher not wired (HPA card pending)
-- protein-surface-evidence dispatcher not wired
-- gnomAD LoF constraint card not yet added (data-catalog PR #79 landed source manifest; needs a card)
-- clinical-precedent (historical trial-outcome DB) has no data feed
+## Invocation
 
-## How Claude invokes this skill
+```
+/on-target-safety-liability KRAS
+```
 
-When called as `/on-target-safety-liability`, Claude should:
+## Provenance discipline
 
-1. Run the skill (it accepts `--target` and `--indication` like any other
-   compositional skill).
-2. Read the decision.json — the `data_gaps` field enumerates the blockers.
-3. Optionally point the user at ~/.claude/plans/deep-foraging-thompson.md
-   §"Gaps + backlog" for the wiring roadmap.
+- `gnomad_snapshot`: manifest ID pin (gnomad-constraint-snapshot-2026-07-02)
+- `skill_status`: `partial` — surfaced in every output so consumers see the
+  epistemic ceiling
+- `skipped_sections`: enumerates which cards were skipped due to
+  placeholder dependencies (per arch A4)
+
+## Iter-2 wiring roadmap
+
+1. Build HPA IHC-intensity dispatcher for normal-tissue-liability card.
+2. Add IMPC + ClinVar source manifests to data-catalog.
+3. Add on-target-safety-clinical-precedent card (external trial-outcome
+   feed licensing).

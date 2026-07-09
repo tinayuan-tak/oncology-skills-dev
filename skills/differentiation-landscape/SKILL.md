@@ -1,19 +1,30 @@
 ---
 name: differentiation-landscape
 description: |
-  PLACEHOLDER SKILL — Phase-E question is declared in the framework but
-  the underlying evidence cards are NOT yet wired. Invoking this skill emits
-  a structured "phase-not-yet-wired" response naming the specific data gaps.
+  Phase-E skill — co-mutation + mutual-exclusivity landscape for a target,
+  panel-intersect-aware Fisher's-exact scan across TCGA MC3 + GENIE 19.0.
 
-  Question this skill would answer once wired:
-  How does target X differentiate from portfolio + competitive landscape — precedent, patents, novelty, paralog buffering, co-occurrence?
+  GRADUATED 2026-07-08: placeholder → partial. Co-mutation card wired via
+  cooccurrence_fisher_pancohort method + pancohort-cooccurrence-fisher-v1
+  derived manifest. Remaining cards (clinical-precedent, patent-landscape)
+  stay placeholder; their commercial-data-licensing dependencies are not
+  resolved. Paralog-buffering was RE-HOMED to functional-requirement skill
+  (Phase C-adjacent) per reviewer content flag — buffering is a
+  dependency-hardening signal, not a differentiation signal.
 
-  Visible in the skill catalog for transparency: the framework's coverage
-  gaps are exposed rather than hidden. See gaps + backlog in
-  ~/.claude/plans/deep-foraging-thompson.md.
+  Question this skill answers:
+  What genes co-occur with or are mutually exclusive to {target} mutations
+  across TCGA MC3 + GENIE 19.0-public, and what patient-selection or
+  combination-biology hypotheses does the pattern support?
+
+  Reviewer-driven BLOCKER FIX (2026-07-08): pooled Fisher analysis is
+  restricted to the panel-intersect gene set. Genes absent from GENIE
+  panels get per-source q-values only (`pooled_eligible: false`),
+  preventing the naive-pooling failure mode that would produce
+  artifactual mutual-exclusivity signals for panel-absent genes.
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -21,49 +32,74 @@ composition:
   data_mode: derived_read
   phase: [E]
   cards_used:
-    - clinical-precedent
-    - patent-landscape
-    - paralog-buffering
-    - co-occurrence-and-mutual-exclusivity
+    - co-mutation-and-mutual-exclusivity   # Wired 2026-07-08 (Layer 6f)
+    - clinical-precedent                   # Placeholder (Cortellis licensing)
+    - patent-landscape                     # Placeholder (PatBase licensing)
   rules_scope:
-    - none
+    - co-mutation-and-mutual-exclusivity
   synthesis:
-    - none
+    - rule_engine
   output_shape:
     - data_package
-  steps_covered: [1, 2]
-  status: not_wired
+  steps_covered: [1, 2, 3, 4, 6]
+  status: partial
+  on_dependency_status:
+    clinical-precedent: skip_section       # arch A4 discipline
+    patent-landscape: skip_section
 ---
 
-# differentiation-landscape — placeholder
+# differentiation-landscape — Phase E partial skill
 
-## Status: not wired
+## What this skill does (iter-1 partial wiring)
 
-This skill exists to make the framework's Phase-E coverage gap explicit
-and inspectable. When invoked, it emits `decision.json` with:
+Given a target + indication:
+  1. Loads the co-mutation-and-mutual-exclusivity card summary from
+     pancohort-cooccurrence-fisher-v1 (panel-intersect-aware Fisher scan).
+  2. Rules engine consumes cooccurrence_class categorical +
+     has_cooccurring_driver + strong_mutually_exclusive fields.
+  3. Emits data_package output tree with top_cooccurring + top_mutually_
+     exclusive tables + per-source q-value provenance.
 
-- `status: "not_wired"`
-- `verdict: "phase_not_yet_wired"`
-- `unwired_cards`: `clinical-precedent`, `patent-landscape`, `paralog-buffering`, `co-occurrence-and-mutual-exclusivity`
-- `data_gaps`: specific pointers to what would need to be wired
+## What this skill does NOT do (yet)
 
-## What would this skill do once wired?
+- **Clinical-precedent feed:** Cortellis / IQVIA licensing pending. Skill
+  will SKIP that section per on_dependency_status: skip_section (arch A4).
+- **Patent landscape:** PatBase licensing pending. Similarly skipped.
+- **Paralog buffering** (re-homed): functional-requirement skill consumes
+  this — paralog buffering is a Phase C-adjacent dependency-hardening
+  signal, not a Phase E differentiation signal (reviewer content flag).
 
-How does target X differentiate from portfolio + competitive landscape — precedent, patents, novelty, paralog buffering, co-occurrence?
+## Output tree (data_package shape)
 
-## Wiring backlog
+```
+<out>/
+├── decision.json                 # rule verdicts + fired rules
+├── summary.yaml                  # co-mutation card summary_fields
+├── figures/
+│   └── cooccurrence_forest.png
+├── tables/
+│   ├── top_cooccurring.csv       # per-partner Fisher q-values
+│   └── top_mutually_exclusive.csv
+└── provenance.yaml               # MC3 + GENIE manifests, panel-intersect stats
+```
 
-- Clinical-precedent feed (Cortellis / IQVIA) not licensed
-- Patent landscape (PatBase or similar) not wired
-- Paralog-buffering — adjacent SL work produces some of this; needs wiring into a dedicated card
-- Co-occurrence/mutual-exclusivity partial (mutation-hotspot-frequency card shows lists but no dedicated skill)
+## Invocation
 
-## How Claude invokes this skill
+```
+/differentiation-landscape KRAS in COADREAD
+```
 
-When called as `/differentiation-landscape`, Claude should:
+## Reviewer BLOCKER FIX discipline (governance-critical)
 
-1. Run the skill (it accepts `--target` and `--indication` like any other
-   compositional skill).
-2. Read the decision.json — the `data_gaps` field enumerates the blockers.
-3. Optionally point the user at ~/.claude/plans/deep-foraging-thompson.md
-   §"Gaps + backlog" for the wiring roadmap.
+Every emitted decision.json carries `panel_intersect_mode: strict` in
+provenance + `pooled_eligible: bool` per top_cooccurring / top_mutually_
+exclusive row. Governance readers can filter to pooled_eligible=True for
+maximum-cohort claims; per-source (TCGA MC3 only OR GENIE only) claims
+are always available for panel-ineligible genes.
+
+## Iter-2 roadmap
+
+1. Cortellis / IQVIA licensing → clinical-precedent card wiring.
+2. PatBase or equivalent → patent-landscape card wiring.
+3. Method upgrade: DISCOVER (Canisius 2016) or SELECT (Mina 2020)
+   alongside Fisher — cited in the card's caveats as principled successors.

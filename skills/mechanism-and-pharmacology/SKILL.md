@@ -1,67 +1,102 @@
 ---
 name: mechanism-and-pharmacology
 description: |
-  PLACEHOLDER SKILL — Phase-D question is declared in the framework but
-  the underlying evidence cards are NOT yet wired. Invoking this skill emits
-  a structured "phase-not-yet-wired" response naming the specific data gaps.
+  Phase-D skill — signaling-network mechanism + candidate MoA hooks + PD-
+  marker suggestions for a target. Consumes the signaling-network-mechanism
+  evidence card, which fuses SIGNOR-tagged edges from OmniPath into a
+  21-class MoA ontology.
 
-  Question this skill would answer once wired:
-  What does inhibiting target X do downstream — PD markers, biomarker of response, pathway centrality?
+  GRADUATED 2026-07-08: placeholder → wired. Uses OmniPath's
+  license=commercial-filtered interactions.tsv (SIGNOR-tagged subset only)
+  via the signor_mechanism_network method module. Provenance flows through
+  the omnipath-snapshot-2026-06-29 source manifest + signor-mechanism-
+  network-per-gene-v1 derived manifest.
 
-  Visible in the skill catalog for transparency: the framework's coverage
-  gaps are exposed rather than hidden. See gaps + backlog in
-  ~/.claude/plans/deep-foraging-thompson.md.
+  Question this skill answers:
+  For {target} in {indication}, what upstream regulators + downstream
+  effectors are catalogued in SIGNOR, and which MoA classes are candidate
+  hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
+  method_version_pins:
+    signor_mechanism_network: '0.1.0'
+    moa_ontology: '1.0.0'
 
 composition:
   data_mode: derived_read
   phase: [D]
   cards_used:
-    - pathway-centrality
-    - downstream-pd-signature
-    - phenotype-of-dependency
+    - signaling-network-mechanism
   rules_scope:
-    - none
+    - all
   synthesis:
-    - none
+    - rule_engine
   output_shape:
     - data_package
-  steps_covered: [1, 2]
-  status: not_wired
+  steps_covered: [1, 2, 3, 4, 6]
+  optional_lenses:
+    - modality
+  status: wired
 ---
 
-# mechanism-and-pharmacology — placeholder
+# mechanism-and-pharmacology — Phase D wired skill
 
-## Status: not wired
+## What this skill does
 
-This skill exists to make the framework's Phase-D coverage gap explicit
-and inspectable. When invoked, it emits `decision.json` with:
+Given a target + indication:
+  1. Loads the target's SIGNOR-tagged signaling network from
+     `signor-mechanism-network-per-gene-v1` (per-UniProt-AC edge parquet).
+  2. Classifies each edge under the 21-class MoA ontology
+     (methods/signor_mechanism_network/moa_ontology.py v1.0.0).
+  3. Emits a MoA opportunities table (upstream regulators, per-edge
+     mechanism, MoA class, modality relevance) + a PD-marker opportunities
+     table (downstream effectors, per-edge mechanism, PD-marker relevance).
+  4. Rule engine consumes categorical `network_class` +
+     `has_actionable_moa` + `has_pd_marker` fields; emits per-modality
+     signals (small_molecule + degrader).
 
-- `status: "not_wired"`
-- `verdict: "phase_not_yet_wired"`
-- `unwired_cards`: `pathway-centrality`, `downstream-pd-signature`, `phenotype-of-dependency`
-- `data_gaps`: specific pointers to what would need to be wired
+## Output tree (data_package shape)
 
-## What would this skill do once wired?
+```
+<out>/
+├── decision.json                 # rule verdicts + fired rules
+├── summary.yaml                  # card summary_fields
+├── figures/
+│   └── signaling_network_summary.png    # MoA + PD-marker two-column table
+├── tables/
+│   ├── moa_opportunities.csv     # upstream regulators, per-row MoA class
+│   └── pd_marker_opportunities.csv
+└── provenance.yaml               # OmniPath manifest md5 + MoA ontology version
+```
 
-What does inhibiting target X do downstream — PD markers, biomarker of response, pathway centrality?
+## Invocation
 
-## Wiring backlog
+```
+/mechanism-and-pharmacology KRAS in COADREAD
+```
 
-- Pathway centrality data (Reactome/PID edges) not wired
-- Downstream PD signature datasets not catalogued
-- Phenotype-of-dependency (differentiation/migration/apoptosis screens) not wired
+## Provenance discipline
 
-## How Claude invokes this skill
+Every emitted decision.json + summary.yaml stamps:
+  - `omnipath_snapshot`: manifest ID pin
+  - `moa_ontology_version`: from methods/signor_mechanism_network/moa_ontology.py
+  - `moa_ontology_unmapped_fraction`: fraction of SIGNOR edges that fell
+    to 'unmapped' class (target <5%; CI test enforces)
+  - `method_version`: signor_mechanism_network v0.1.0
 
-When called as `/mechanism-and-pharmacology`, Claude should:
+## Data gaps (iter-2 upgrade path)
 
-1. Run the skill (it accepts `--target` and `--indication` like any other
-   compositional skill).
-2. Read the decision.json — the `data_gaps` field enumerates the blockers.
-3. Optionally point the user at ~/.claude/plans/deep-foraging-thompson.md
-   §"Gaps + backlog" for the wiring roadmap.
+- **Pathway centrality (Reactome/PID betweenness):** SIGNOR-via-OmniPath
+  gives edge-level MoA classification but not pathway-topological
+  centrality. Reactome v96 is catalogued but not yet consumed by this
+  skill; iter-2 extension.
+- **Downstream PD-signature datasets:** the MoA ontology names PD markers
+  by mechanism (e.g. "monitor KRAS-RAF1 association") but does not link
+  to published PD signature datasets. Consumers of this skill's output
+  must cross-reference literature for actual signature-based readouts.
+- **Phenotype-of-dependency screens:** differentiation / migration /
+  apoptosis phenotype-following-inhibition data (Genentech iDEP, etc.)
+  not yet catalogued.

@@ -34,21 +34,38 @@ metadata:
 
 composition:
   data_mode: derived_read
-  phase: [A, B, C, F, H, K]
+  phase: [A, B, C, D, E, F, G, H, K]           # EXTENDED 2026-07-08: added D, E, G
   cards_used:
+    # Phase A + B (presence + selectivity)
     - expression-distribution
     - expression-tumor-vs-adjacent
     - tumor-vs-normal-selectivity
+    - protein-presence-cptac                   # Layer 6h addition (Phase A)
+    # Phase C (requirement)
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
+    - paralog-buffering                        # Layer 6h addition (Phase C-adjacent)
+    # Phase E (mutation profile + differentiation)
     - mutation-type-counts
     - mutation-stratified-dependency
     - mutation-hotspot-frequency
+    - co-mutation-and-mutual-exclusivity       # Layer 6h addition (Phase E)
+    # Phase D (mechanism)
+    - signaling-network-mechanism              # Layer 6h addition (Phase D)
+    # Phase F (tractability + modality)
     - prism-compound-activity
     - prism-crispr-concordance
     - dependency-predictability
+    - surface-topology-and-ptm                 # Layer 6h addition (Phase F)
+    - surfaceome-family-classification         # Layer 6h addition
+    - structure-features-static                # Layer 6h addition
+    - surface-abundance-density                # Layer 6h addition
+    - adc-tce-modality-fit                     # Layer 6h addition (composed)
+    - surfaceome-cohort-ranking                # Layer 6h addition (target-scan)
+    # Phase G (safety)
+    - gnomad-lof-constraint                    # Layer 6h addition (Phase G)
   rules_scope:
     - all
   synthesis:

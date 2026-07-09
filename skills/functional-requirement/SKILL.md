@@ -30,11 +30,13 @@ composition:
     - pan-cancer-rnai-dependency-distribution
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
+    - paralog-buffering                  # Layer 6d addition: dependency-hardening signal
   rules_scope:
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
+    - paralog-buffering
   synthesis:
     - rule_engine
   output_shape:

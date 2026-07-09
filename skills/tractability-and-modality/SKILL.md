@@ -1,29 +1,35 @@
 ---
 name: tractability-and-modality
 description: |
-  Focused question skill: "Given known chemical + genetic evidence, does
-  target X in indication Y look druggable — is there a compound that hits
-  it, and does the compound's activity concord with the genetic
-  dependency?" Consumes 3 chemical-genetic cards (prism-activity + prism-
-  crispr concordance + dependency-predictability) + prism-* / predictability-*
-  / E7 rules. Emits a data-package output tree with a rank-ordered
-  tractability verdict.
+  Phase-F skill: "Given known chemical + genetic evidence, plus surface
+  topology + structural features + surfaceome family + cohort ranking,
+  does target X in indication Y look druggable — and which modality fits
+  best?"
+
+  EXTENDED 2026-07-08: composition expanded from 3 chemical-genetic cards
+  to 9 cards. Adds 6 F-phase cards (4 leaves + 1 composed + 1 target-scan
+  hook). Consumes both intracellular-intrinsic rules (via the 3 chemical-
+  genetic cards) AND surface-intrinsic rules (via the 6 new F-phase cards).
+
+  Modality-lens discipline (arch A2, 2026-07-08): letter grades (adc_grade,
+  tce_grade) are LENS-CONDITIONAL — emitted only when --modality is invoked.
+  Without --modality, biology-first fit_class categorical is emitted only.
+  The isoform-selective vocabulary (arch A3) suppresses letter grades
+  unconditionally for targets with clinically-dominant alt isoforms.
 
   Use for questions like "does PRISM show anyone hitting KRAS in COADREAD?",
-  "does the compound-genetic signal agree for CDK7?", "how predictable is
-  the MET dependency phenotype from features?"
-
-  Modality-lensed. Pass --modality small_molecule|degrader|adc|bite|antibody
-  as an OPTIONAL flag to project fired rules onto a modality viability
-  tally. The primary output (druggability_snapshot + driving_rule_id) is
-  modality-agnostic.
+  "does EGFR look ADC-favorable in COADREAD?", "is CDH17 top-percentile in
+  the surfaceome ranking for gastric?"
 
 metadata:
-  version: 1.0.0
+  version: 2.0.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
     - AWS_PROFILE=cbg
+  method_version_pins:
+    modality_rubric: '1.0.0'
+    isoform_selective_targets: '1.0.0'
 
 composition:
   data_mode: derived_read
@@ -32,10 +38,14 @@ composition:
     - prism-compound-activity
     - prism-crispr-concordance
     - dependency-predictability
+    - surface-topology-and-ptm
+    - surfaceome-family-classification
+    - structure-features-static
+    - surface-abundance-density
+    - adc-tce-modality-fit
+    - surfaceome-cohort-ranking
   rules_scope:
-    - prism-compound-activity
-    - prism-crispr-concordance
-    - dependency-predictability
+    - all
   synthesis:
     - rule_engine
   output_shape:

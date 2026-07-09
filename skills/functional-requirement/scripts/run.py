@@ -1,38 +1,37 @@
 #!/usr/bin/env python3
 """functional-requirement — is target X a genetic dependency in indication Y.
 
-Consumes 4 dependency-relevant cards + the dependency-* rule subset. Emits
-a data-package output tree with a rank-ordered dependency verdict.
+Consumes 5 dependency-relevant cards (CRISPR + RNAi + concordance +
+lineage-selectivity + paralog-buffering) + the dependency-* rule subset.
+
+W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
 """
 
 from __future__ import annotations
 
-import argparse
-import json
 import sys
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import (
-    resolve_cards, fired_rules, modality_lens,
-    make_decision_json, write_package,
-)
+from _skills_common.dispatcher import run_wired_skill
+
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.1.0"
 
 CARDS = [
     "pan-cancer-crispr-dependency-distribution",
     "pan-cancer-rnai-dependency-distribution",
     "crispr-rnai-dependency-concordance",
     "dependency-lineage-selectivity",
+    "paralog-buffering",                        # Layer 6d addition
 ]
 
 QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
-            "the call hold up across CRISPR, RNAi, concordance, and lineage-"
-            "selectivity views?")
+            "the call hold up across CRISPR, RNAi, concordance, lineage-"
+            "selectivity, and paralog-buffering views?")
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
@@ -67,72 +66,39 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return "insufficient", None
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--target", required=True)
-    ap.add_argument("--indication", required=True)
-    ap.add_argument("--out", required=True, type=Path)
-    ap.add_argument("--modality", default=None,
-                    help="OPTIONAL post-hoc modality lens: "
-                         "small_molecule | degrader | adc | bite | antibody.")
-    args = ap.parse_args()
-
-    cards = resolve_cards(CARDS, args.target, args.indication)
-    fired = fired_rules(cards, axis="intracellular_intrinsic",
-                        card_id_filter=CARDS)
-    verdict, driving_rule = _verdict(fired)
-
+def _headline(cards, fired, verdict_pair):
     def _get(cid: str, key: str):
         for c in cards:
             if c["card_id"] == cid:
                 return (c["summary"] or {}).get(key)
         return None
 
-    headline = {
-        "dependency_verdict":   verdict,
-        "driving_rule_id":      driving_rule,
-        "crispr_call":          _get("pan-cancer-crispr-dependency-distribution",
-                                     "dependency_class"),
-        "rnai_call":            _get("pan-cancer-rnai-dependency-distribution",
-                                     "dependency_class"),
-        "concordance_call":     _get("crispr-rnai-dependency-concordance",
-                                     "concordance_class"),
-        "lineage_selectivity":  _get("dependency-lineage-selectivity",
-                                     "lineage_selectivity_class"),
-        "cards_available":      sum(1 for c in cards if not c.get("_missing")),
-        "cards_missing":        [c["card_id"] for c in cards if c.get("_missing")],
+    v, drv = verdict_pair or ("insufficient", None)
+    return {
+        "dependency_verdict":       v,
+        "driving_rule_id":          drv,
+        "crispr_call":              _get("pan-cancer-crispr-dependency-distribution",
+                                          "dependency_class"),
+        "rnai_call":                _get("pan-cancer-rnai-dependency-distribution",
+                                          "dependency_class"),
+        "concordance_call":         _get("crispr-rnai-dependency-concordance",
+                                          "concordance_class"),
+        "lineage_selectivity":      _get("dependency-lineage-selectivity",
+                                          "lineage_selectivity_class"),
+        "paralog_buffering_class":  _get("paralog-buffering",
+                                          "paralog_buffering_class"),
+        "strongest_paralog_symbol": _get("paralog-buffering",
+                                          "strongest_paralog_symbol"),
     }
-
-    lenses = None
-    invoked_lenses: dict = {}
-    if args.modality:
-        lenses = {args.modality: modality_lens(fired, args.modality)}
-        invoked_lenses["modality"] = args.modality
-
-    decision = make_decision_json(
-        skill_name=SKILL_NAME,
-        target=args.target, indication=args.indication,
-        question=QUESTION.format(target=args.target, indication=args.indication),
-        card_outputs=cards, fired=fired,
-        headline=headline, modality_lenses=lenses,
-    )
-
-    written = write_package(
-        out_dir=args.out,
-        decision=decision,
-        card_outputs=cards,
-        target=args.target,
-        indication=args.indication,
-        skill_name=SKILL_NAME,
-        skill_version=SKILL_VERSION,
-        invoked_lenses=invoked_lenses,
-    )
-    print(f"wrote data-package to {args.out}")
-    print(f"  tables: {len(written['tables'])}  figures: {len(written['figures'])}")
-    print()
-    print(json.dumps(headline, indent=2, default=str))
-    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_wired_skill(
+        skill_name=SKILL_NAME,
+        skill_version=SKILL_VERSION,
+        cards=CARDS,
+        axis="intracellular_intrinsic",
+        question=QUESTION,
+        verdict_fn=_verdict,
+        headline_fn=_headline,
+    ))

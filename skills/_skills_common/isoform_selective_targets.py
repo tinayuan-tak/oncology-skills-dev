@@ -1,0 +1,173 @@
+"""isoform_selective_targets — consumer for the isoform-selective-targets vocabulary.
+
+Reviewer-driven arch upgrade A3 (2026-07-08). Any card or skill that emits
+modality-relevant fields (surface topology, PTM sites, ADC/TCE letter grades,
+ectodomain-length-derived features) should call `check_target(symbol)` before
+emitting to determine whether the target has a clinically-dominant alternative
+isoform that makes gene-level modality reasoning systematically wrong.
+
+Vocabulary source of truth:
+  target-contracts/vocabularies/isoform_selective_targets.yaml
+
+Failure mode this addresses (see reviewer R5, plan file § reviewer revisions):
+  A gene-symbol-keyed card can emit `adc_grade: A` for ERBB2 based on full-
+  length HER2 ectodomain accessibility, but in a p95HER2-dominant gastric
+  tumor, the ADC-relevant N-terminal ectodomain has been proteolytically shed.
+  Documenting this in caveats does NOT prevent the wrong categorical from
+  reaching target_profile.md.
+
+Usage pattern (from a card dispatcher):
+
+    from _skills_common.isoform_selective_targets import check_target
+
+    warning = check_target(target_symbol)
+    if warning is not None:
+        summary["_isoform_selective_caveat"] = warning.caveat
+        summary["_isoform_selective_severity"] = warning.warning_severity
+        # Suppress lens-conditional letter grades (arch A2)
+        summary.pop("adc_grade", None)
+        summary.pop("tce_grade", None)
+        # Include the caveat in warnings emitted by the compose-dashboard
+        # validation pass:
+        warnings.append({
+            "warning_id": "isoform_selective_target_dominant_variant",
+            "message": warning.formatted_message(target_symbol),
+        })
+
+The consumer chooses how to handle the warning (suppression vs annotation);
+this module provides the vocabulary lookup + formatted-message helpers only.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from typing import Optional
+
+
+# Canonical vocabulary location. Overridable via env var for tests + repo-
+# root-relative execution outside the standard layout.
+_VOCAB_ENV_VAR = "ISOFORM_SELECTIVE_TARGETS_YAML"
+_VOCAB_DEFAULT_RELATIVE = (
+    "rnd-computational-biology-oncology-target-contracts/"
+    "vocabularies/isoform_selective_targets.yaml"
+)
+
+
+@dataclass(frozen=True)
+class IsoformWarning:
+    """Structured warning for a target with a clinically-dominant alt isoform."""
+    target_symbol: str
+    dominant_isoform: str
+    variant_type: str
+    warning_severity: str  # "high" | "moderate" | "high_conditional"
+    caveat: str
+    warning_conditional_on: Optional[str]  # e.g. relapsed-post-CD19-therapy
+    primary_source_doi: str
+    primary_source_citation: str
+    vocabulary_version: str
+
+    def formatted_message(self, template_target_ref: Optional[str] = None) -> str:
+        """Human-readable message for downstream surfaces (warnings list,
+        card panel, target-profile LLM synthesis prompt).
+        """
+        target = template_target_ref or self.target_symbol
+        return (
+            f"{target} has a clinically-dominant alternative isoform "
+            f"({self.dominant_isoform}, variant type: {self.variant_type}). "
+            f"{self.caveat.strip()} "
+            f"See vocabularies/isoform_selective_targets.yaml "
+            f"v{self.vocabulary_version} — citation: "
+            f"{self.primary_source_citation.strip()} "
+            f"(doi:{self.primary_source_doi})"
+        )
+
+
+def _resolve_vocab_path() -> Path:
+    """Find the vocabulary YAML. Priority: env var → repo-root walk."""
+    env = os.environ.get(_VOCAB_ENV_VAR)
+    if env:
+        return Path(env)
+    # Try common locations: caller's cwd upward + $HOME
+    candidates = [
+        Path.cwd() / _VOCAB_DEFAULT_RELATIVE,
+        Path.home() / _VOCAB_DEFAULT_RELATIVE,
+    ]
+    # Also walk up from this file's location in case we're inside a sibling repo
+    here = Path(__file__).resolve()
+    for parent in [here] + list(here.parents):
+        candidate = parent / _VOCAB_DEFAULT_RELATIVE
+        if candidate.exists():
+            return candidate
+        # Also try treating parent as the target-contracts repo directly
+        alt = parent / "vocabularies" / "isoform_selective_targets.yaml"
+        if alt.exists():
+            return alt
+    for c in candidates:
+        if c.exists():
+            return c
+    raise FileNotFoundError(
+        f"isoform_selective_targets.yaml not found. Set {_VOCAB_ENV_VAR} or "
+        f"ensure the file exists at one of: {candidates}"
+    )
+
+
+@lru_cache(maxsize=1)
+def _load_vocabulary() -> dict:
+    """Parse the vocabulary YAML once, cache in-process."""
+    import yaml
+
+    with _resolve_vocab_path().open() as f:
+        vocab = yaml.safe_load(f)
+    # W3b fix (2026-07-09): reject entries: null explicitly. The prior shape
+    # check `"entries" not in vocab` passes when entries exists with a null
+    # value, and downstream .get(target) crashes with AttributeError.
+    if not isinstance(vocab, dict) or not isinstance(vocab.get("entries"), dict):
+        raise ValueError(
+            f"isoform_selective_targets.yaml: malformed vocabulary — expected "
+            f"top-level dict with non-null 'entries' mapping, got vocab type "
+            f"{type(vocab).__name__} with entries type "
+            f"{type(vocab.get('entries') if isinstance(vocab, dict) else None).__name__}"
+        )
+    return vocab
+
+
+def vocabulary_version() -> str:
+    """Return the vocabulary version string. Useful for provenance stamping."""
+    return str(_load_vocabulary().get("version", "unknown"))
+
+
+def known_targets() -> set[str]:
+    """Return the set of HGNC symbols with a curated isoform-selective entry.
+    Useful for tests + validators to check coverage.
+    """
+    return set((_load_vocabulary().get("entries") or {}).keys())
+
+
+def check_target(target_symbol: str) -> Optional[IsoformWarning]:
+    """Look up a target in the isoform-selective vocabulary.
+
+    Args:
+        target_symbol: HGNC gene symbol (case-sensitive; canonical uppercase)
+
+    Returns:
+        IsoformWarning if the target has a curated dominant-alt-isoform entry.
+        None otherwise (the common case; ~20k HGNC symbols, ~10 entries here).
+    """
+    vocab = _load_vocabulary()
+    entry = (vocab.get("entries") or {}).get(target_symbol)
+    if entry is None:
+        return None
+    return IsoformWarning(
+        target_symbol=target_symbol,
+        dominant_isoform=str(entry.get("dominant_isoform", "unknown")),
+        variant_type=str(entry.get("variant_type", "unknown")),
+        warning_severity=str(entry.get("warning_severity", "moderate")),
+        caveat=str(entry.get("caveat", "")).strip(),
+        warning_conditional_on=entry.get("warning_conditional_on"),
+        primary_source_doi=str(entry.get("primary_source_doi", "")),
+        primary_source_citation=str(entry.get("primary_source_citation", "")).strip(),
+        vocabulary_version=str(vocab.get("version", "unknown")),
+    )

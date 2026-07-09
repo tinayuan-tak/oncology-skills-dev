@@ -32,9 +32,11 @@ composition:
   cards_used:
     - expression-distribution
     - expression-tumor-vs-adjacent
+    - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence
   rules_scope:
     - expression-distribution
     - expression-tumor-vs-adjacent
+    - protein-presence-cptac
   synthesis:
     - rule_engine
   output_shape:

@@ -49,20 +49,35 @@ def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
     return getattr(module, "_verdict", None) or getattr(module, "_snapshot", None)
 
 
-# The 6 wired question-answering skills to compose. Order matches phase A→H.
+# The wired question-answering skills to compose. Order matches phase A→K.
+# EXPANDED 2026-07-09 (fix rollup W2d): 4 new sub-skills added
+# (mechanism-and-pharmacology, differentiation-landscape,
+# on-target-safety-liability, surfaceome-cohort-ranking) reflecting the
+# Layer 6 graduations. Each existing sub-skill's card list also expanded
+# to match its SKILL.md's cards_used (which grew in Layer 6c/6d and Layer 6b).
 SUB_SKILLS = [
     ("tumor-presence",                 "expression"),
     ("tumor-selectivity",              "selectivity"),
     ("functional-requirement",         "dependency"),
+    ("mechanism-and-pharmacology",     "mechanism"),         # Layer 6a graduation
     ("mutation-profile",               "mutation"),
+    ("differentiation-landscape",      "differentiation"),   # Layer 6f graduation
     ("tractability-and-modality",      "tractability"),
+    ("on-target-safety-liability",     "safety"),            # Layer 6e graduation
     ("patient-population-and-access",  "population"),
+    ("surfaceome-cohort-ranking",      "cohort_rank"),       # Layer 6g new skill
 ]
 
 # Card set for each sub-skill (must match SKILL.md composition.cards_used).
+# EXPANDED 2026-07-09 (fix rollup W2d): entries updated to include the
+# reviewer-added cards (protein-presence-cptac, paralog-buffering,
+# surfaceome-family / structure-features / adc-tce-modality-fit /
+# surface-abundance-density / cohort-ranking / gnomad-lof-constraint / etc.).
 SUB_SKILL_CARDS = {
     "tumor-presence": [
-        "expression-distribution", "expression-tumor-vs-adjacent",
+        "expression-distribution",
+        "expression-tumor-vs-adjacent",
+        "protein-presence-cptac",           # Layer 6c addition
     ],
     "tumor-selectivity": ["tumor-vs-normal-selectivity"],
     "functional-requirement": [
@@ -70,18 +85,38 @@ SUB_SKILL_CARDS = {
         "pan-cancer-rnai-dependency-distribution",
         "crispr-rnai-dependency-concordance",
         "dependency-lineage-selectivity",
+        "paralog-buffering",                 # Layer 6d addition
+    ],
+    "mechanism-and-pharmacology": [
+        "signaling-network-mechanism",       # Layer 6a graduation
     ],
     "mutation-profile": [
         "mutation-type-counts",
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",
     ],
+    "differentiation-landscape": [
+        "co-mutation-and-mutual-exclusivity",  # Layer 6f graduation
+    ],
     "tractability-and-modality": [
         "prism-compound-activity",
         "prism-crispr-concordance",
         "dependency-predictability",
+        # Layer 6b additions — 6 new F-phase cards
+        "surface-topology-and-ptm",
+        "surfaceome-family-classification",
+        "structure-features-static",
+        "surface-abundance-density",
+        "adc-tce-modality-fit",
+        "surfaceome-cohort-ranking",
+    ],
+    "on-target-safety-liability": [
+        "gnomad-lof-constraint",              # Layer 6e graduation
     ],
     "patient-population-and-access": ["mutation-hotspot-frequency"],
+    "surfaceome-cohort-ranking": [
+        "surfaceome-cohort-ranking",          # Layer 6g new skill
+    ],
 }
 
 
@@ -116,14 +151,22 @@ def _run_sub_skills(target: str, indication: str) -> dict:
 _SYSTEM_PROMPT = (
     "You are synthesizing a target-profile summary for a drug-discovery "
     "scientist at a major pharma. You will be given deterministic, rule-"
-    "derived sub-verdicts from 6 evidence dimensions (expression, "
-    "selectivity, dependency, mutation, tractability, population). Your "
-    "job is to (a) write a concise executive summary, (b) surface any "
-    "tension across the sub-verdicts, (c) list top arguments for and "
-    "against pursuing this target, and (d) recommend a nomination "
-    "action. Base every claim on the provided evidence. Do NOT invent "
-    "biology. If evidence is thin or missing for a dimension, say so "
-    "explicitly rather than filling with generalities."
+    "derived sub-verdicts from up to 10 evidence dimensions (expression, "
+    "selectivity, dependency, mechanism, mutation, differentiation, "
+    "tractability, safety, population, cohort_rank). Your job is to (a) "
+    "write a concise executive summary, (b) surface any tension across "
+    "the sub-verdicts, (c) list top arguments for and against pursuing "
+    "this target, and (d) recommend a nomination action. Base every "
+    "claim on the provided evidence. Do NOT invent biology. If evidence "
+    "is thin or missing for a dimension, say so explicitly rather than "
+    "filling with generalities. Note (arch A2): the tractability sub-"
+    "verdict emits letter grades (adc_grade, tce_grade) ONLY when the "
+    "modality lens was invoked at runtime — if those fields are absent, "
+    "reason from the biology-agnostic fit_class categorical instead. "
+    "Note (arch A3): the mechanism sub-verdict flags isoform-selective "
+    "targets (e.g., ERBB2/p95HER2, AR/AR-V7, MET/exon14, EGFR/vIII); if "
+    "isoform_selective_warning is true, gene-level modality claims should "
+    "be qualified with isoform-resolution caveats."
 )
 
 
