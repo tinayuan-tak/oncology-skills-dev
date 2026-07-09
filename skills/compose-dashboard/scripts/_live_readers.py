@@ -311,6 +311,158 @@ def _dispatch_prism_crispr_concordance(target: str, indication: str) -> Optional
     return concord_module.read_prism_crispr_concordance(target=target, indication=indication)
 
 
+# -----------------------------------------------------------------------------
+# RT1 fix-rollup 2026-07-09: dispatchers for the 11 new Phase D/E/F/G cards
+# from the Layer 6 skill graduations. Each dispatcher delegates to a method's
+# read.py::read_target_summary(). Hybrid cache-then-compute pattern lives in
+# the method's read.py — dispatchers stay thin.
+# -----------------------------------------------------------------------------
+
+def _dispatch_signaling_network_mechanism(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: signaling-network-mechanism card → COMPOSED Phase-D output
+    unioning SIGNOR + CollecTri + Reactome via methods/mechanism_composed/read.py.
+
+    Sources composed (per PSP-replacement research 2026-07-10):
+      - signor_mechanism_network (causal signaling edges)
+      - collectri_tf_regulon (signed TF-target regulons)
+      - reactome_pathway_context (pathway-membership annotations)
+
+    Updated 2026-07-10 from single-source SIGNOR to composed 3-source output.
+    """
+    mod = _import_method("mechanism_composed")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_co_mutation_and_mutual_exclusivity(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: co-mutation-and-mutual-exclusivity card → panel-intersect
+    Fisher scan via methods/cooccurrence_fisher_pancohort/read.py.
+    """
+    mod = _import_method("cooccurrence_fisher_pancohort")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_signaling_network_mechanism_composed(target: str, indication: str) -> Optional[dict]:
+    """Alias for the ADC/TCE composed card's derived_from resolution.
+    (Unused as a card-registered dispatcher; kept for symmetry.)"""
+    return _dispatch_signaling_network_mechanism(target, indication)
+
+
+def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: surface-topology-and-ptm card → TMbed topology + UniProt PTM
+    + AlphaFold pLDDT + motif regex via methods/topology_predictions_tmbed/read.py.
+    """
+    mod = _import_method("topology_predictions_tmbed")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_surfaceome_family_classification(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: surfaceome-family-classification card → SURFY + HPA + UniProt
+    EC + IUPHAR fusion via methods/surfaceome_family_fusion/read.py.
+    """
+    mod = _import_method("surfaceome_family_fusion")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_structure_features_static(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: structure-features-static card → PDB + AlphaFold scalar
+    features via methods/structure_features_static/read.py.
+    """
+    mod = _import_method("structure_features_static")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_surface_abundance_density(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: surface-abundance-density card → CPTAC protein intensity +
+    HPA IHC anchor → copies-per-cell estimate via
+    methods/cptac_protein_deg/read.py::read_abundance_density_summary().
+    """
+    mod = _import_method("cptac_protein_deg")
+    return mod.read_abundance_density_summary(target=target, indication=indication)
+
+
+def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: adc-tce-modality-fit COMPOSED card. Reads the upstream
+    cards (surface-topology-and-ptm + surfaceome-family-classification +
+    structure-features-static) via their dispatchers, then applies the ADC/TCE
+    modality rubric to compute fit_class + lens-conditional letter grades.
+    """
+    topology = _dispatch_surface_topology_and_ptm(target, indication) or {}
+    family = _dispatch_surfaceome_family_classification(target, indication) or {}
+    structure = _dispatch_structure_features_static(target, indication) or {}
+    # Compose fit_class biology-agnostic categorical from the three biology
+    # inputs. Letter grades are lens-conditional — emitted only if modality
+    # lens is invoked at target-profile time; dispatcher only emits biology.
+    is_surface = family.get("is_surface_protein", False)
+    tm_count = topology.get("tm_pass_count", 0) or 0
+    ec_length = topology.get("extracellular_residue_count", 0) or 0
+    endo_high_conf = topology.get("endocytosis_motif_count_high_confidence", 0) or 0
+    n_ubiq = topology.get("n_ubiquitination_sites", 0) or 0
+
+    if not is_surface or tm_count == 0:
+        fit_class = "neither_viable"
+    else:
+        adc_favorable = (tm_count == 1 and ec_length >= 200 and
+                         endo_high_conf >= 3 and n_ubiq >= 5)
+        tce_favorable = (tm_count >= 1 and ec_length >= 100 and
+                         endo_high_conf <= 2 and n_ubiq <= 3)
+        if adc_favorable and tce_favorable:
+            fit_class = "both_viable"
+        elif adc_favorable:
+            fit_class = "ADC_preferred"
+        elif tce_favorable:
+            fit_class = "TCE_preferred"
+        else:
+            fit_class = "modality_ambiguous"
+
+    # Isoform-selective A3 suppression check
+    if topology.get("isoform_selective_warning"):
+        fit_class = "isoform_dependent_undefined"
+
+    return {
+        "fit_class": fit_class,
+        "fit_rationale": f"tm_count={tm_count}, ec_length={ec_length}, "
+                         f"endo_motif_hc={endo_high_conf}, n_ubiq={n_ubiq}",
+        "is_adc_topology_favorable": tm_count == 1 and ec_length >= 200,
+        "is_tce_topology_favorable": tm_count >= 1 and ec_length >= 100,
+        "surface_family_class": family.get("family_class"),
+        "isoform_selective_suppressed": bool(topology.get("isoform_selective_warning")),
+        "_data_source": "adc-tce-modality-fit (composed card; no direct S3 product)",
+    }
+
+
+def _dispatch_surfaceome_cohort_ranking(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: surfaceome-cohort-ranking card → per-indication whole-
+    surfaceome ranking via methods/surfaceome_cohort_ranking/read.py.
+    """
+    mod = _import_method("surfaceome_cohort_ranking")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_protein_presence_cptac(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: protein-presence-cptac card → CPTAC protein tumor-vs-normal
+    DEG via methods/cptac_protein_deg/read.py.
+    """
+    mod = _import_method("cptac_protein_deg")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_paralog_buffering(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: paralog-buffering card → DepMap PARIS + Sanger paralog fusion
+    via methods/depmap_paralog_aggregator/read.py.
+    """
+    mod = _import_method("depmap_paralog_aggregator")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
+def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: gnomad-lof-constraint card → gnomAD constraint table lookup.
+    The gnomAD constraint manifest is a simple per-gene TSV; a light method
+    read.py handles the load + row filter.
+    """
+    mod = _import_method("gnomad_constraint")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
@@ -328,6 +480,18 @@ CARD_DISPATCHERS = {
     "prism-compound-activity": _dispatch_prism_compound_activity,
     "prism-crispr-concordance": _dispatch_prism_crispr_concordance,
     "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
+    # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
+    "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
+    "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
+    "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
+    "surfaceome-family-classification": _dispatch_surfaceome_family_classification,
+    "structure-features-static": _dispatch_structure_features_static,
+    "surface-abundance-density": _dispatch_surface_abundance_density,
+    "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
+    "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,
+    "protein-presence-cptac": _dispatch_protein_presence_cptac,
+    "paralog-buffering": _dispatch_paralog_buffering,
+    "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py
