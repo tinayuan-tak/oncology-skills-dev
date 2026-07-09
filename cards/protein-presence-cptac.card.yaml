@@ -1,0 +1,100 @@
+# Card Phase-A — PROTEIN PRESENCE CPTAC (v1)
+#
+# REVIEWER-ADDED card (2026-07-08). Content-reviewer flagged that the plan's
+# original 7-card scope was RNA-forward with a protein-shaped hole. CPTAC
+# protein-level tumor-vs-normal is the primary evidence layer for ADC/TCE
+# decisions where RNA underestimates or overestimates surface abundance.
+# This card graduates tumor-presence from RNA-only to dual-layer.
+#
+# Coverage: 10 CPTAC cohorts (BRCA, CCRCC, COAD, GBM, HNSCC, LSCC, LUAD, OV,
+# PDAC, UCEC). Indications without CPTAC coverage return
+# 'data_unavailable' — the RNA-based expression-tumor-vs-adjacent card
+# remains authoritative for those tissues.
+
+card_id: protein-presence-cptac
+version: 1.0.0
+question: "Is {target.symbol} present at the protein level in {indication.label} tumors vs matched normals per CPTAC?"
+
+applies_when:
+  - "context.indication in ['BRCA', 'CCRCC', 'COAD', 'GBM', 'HNSCC', 'LSCC', 'LUAD', 'OV', 'PDAC', 'UCEC']"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1
+    indication: "{indication}"
+
+methods:
+  - call: cptac-protein-deg
+    args:
+      cohort: "{indication}"
+      gene_symbol: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - protein_expression_class                     # PRIMARY categorical
+    - protein_median_log2_tumor                    # float
+    - protein_median_log2_normal                   # float
+    - protein_effect_size                          # float — median_log2_t - median_log2_n
+    - protein_effect_size_pooled_sd                # float
+    - protein_p_value                              # float
+    - protein_bh_q_value                           # float
+    - n_tumor_samples
+    - n_normal_samples
+    - stat_test_used                               # 'welch_t' | 'wilcoxon' | 'skipped_low_n'
+    - method_version
+
+  summary_fields_vocabulary:
+    protein_expression_class:
+      - strong_up                                  # q<0.05, effect>=1.5
+      - modest_up                                  # q<0.05, 0.5<=effect<1.5
+      - ns                                         # q>=0.05
+      - strong_down                                # q<0.05, effect<=-0.5
+      - not_detected                               # missing from tumor + normal MS
+      - data_unavailable
+    stat_test_used:
+      - welch_t
+      - wilcoxon
+      - skipped_low_n
+
+  figure: protein_boxplot_tumor_vs_normal
+
+thresholds:
+  strong_up_effect: 1.5
+  modest_up_effect: 0.5
+  significance_q: 0.05
+
+warning_predicates:
+  - warning_id: low_normal_arm_count
+    if: "n_normal_samples < 10"
+    message: "Normal arm has < 10 samples in this CPTAC cohort — protein tumor-vs-normal calls are underpowered. Interpret protein_expression_class cautiously."
+  - warning_id: rna_protein_discordance
+    if: "protein_expression_class == 'strong_up' && context.rna_expression_class == 'ns'"
+    message: "Protein is strongly upregulated but RNA (expression-tumor-vs-adjacent card) is not significant. Post-transcriptional regulation elevates protein beyond RNA — this pattern is ADC/TCE-favorable but should be verified with additional evidence."
+
+caveats:
+  - |
+    CPTAC-PDC declared md5 + size are advisory (stale) per source manifest;
+    the compute layer trusts streamed md5. See methods/cptac_protein_deg/
+    for the ingest discipline.
+  - |
+    Protein abundance is TMT-labeled mass-spec ratio-based. Absolute
+    intensity is NOT copies-per-cell — the surface-abundance-density card
+    (Phase F) derives copies-per-cell separately using HPA IHC intensity
+    anchoring. Slaga 2018 (Sci Transl Med) established the TCE viability
+    threshold at > 1,000 copies/cell.
+  - |
+    10 CPTAC cohorts do NOT cover all TCGA indications. Missing: BLCA,
+    SKCM, KIRC, STAD, ESCA, LIHC, CESC, PRAD, CHOL, ACC. For those
+    indications, expression-tumor-vs-adjacent (RNA) remains the primary
+    presence signal.
+  - |
+    Small normal arms (GBM, OV, PDAC): stat_test_used='skipped_low_n' when
+    < 5 samples per arm. Consumers should treat those rows as data-
+    unavailable for statistical claims.
+  - |
+    Protein-level presence does NOT guarantee surface accessibility — a
+    protein highly expressed in tumors that is exclusively intracellular
+    is not ADC/TCE-actionable. Cross-reference the surface-topology-and-ptm
+    + surfaceome-family-classification cards before treating a strong_up
+    call as modality-actionable.
+
+schema_version: 1

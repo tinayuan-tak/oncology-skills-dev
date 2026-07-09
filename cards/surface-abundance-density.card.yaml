@@ -1,0 +1,110 @@
+# Card Phase-F — SURFACE ABUNDANCE DENSITY (v1)
+#
+# REVIEWER-ADDED card (2026-07-08). Content-reviewer flagged that TCE
+# viability requires > 1,000 copies-per-cell surface expression (Slaga et al
+# 2018 Sci Transl Med) — a threshold that neither RNA nor CPTAC bulk
+# intensity directly measures. This card derives an estimated copies-per-cell
+# class from CPTAC protein tumor intensity anchored against HPA IHC
+# staining intensity for the tumor tissue-of-origin.
+#
+# Interpretation surface (surface_density_class is PRIMARY):
+#   `high`       → > 10,000 copies/cell — TCE-viable, high-payload ADC
+#   `moderate`   → 1,000-10,000 copies/cell — TCE-viable, standard ADC
+#   `low`        → 100-1,000 copies/cell — TCE-marginal, low-payload ADC only
+#   `very_low`   → < 100 copies/cell — TCE-non-viable
+#   `unmeasured` → no CPTAC coverage OR no HPA IHC anchor
+
+card_id: surface-abundance-density
+version: 1.0.0
+question: "What is the estimated surface copies-per-cell of {target.symbol} in {indication.label} tumors, and is it above the TCE viability threshold?"
+
+applies_when:
+  - "context.data_sources.cptac_available == true"
+  - "context.data_sources.hpa_available == true"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1
+    indication: "{indication}"
+
+derived_from:
+  - card_id: surfaceome-family-classification
+  - card_id: protein-presence-cptac
+  - card_id: surface-topology-and-ptm
+
+methods:
+  - call: surface-abundance-density
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - surface_density_class                          # PRIMARY categorical
+    - estimated_copies_per_cell_median               # float; anchored estimate
+    - estimated_copies_per_cell_lower                # float; conservative lower bound
+    - estimated_copies_per_cell_upper                # float; optimistic upper bound
+    - hpa_ihc_anchor_used                            # string; which HPA tissue IHC provided the anchor
+    - hpa_ihc_intensity_class                        # 'high' | 'medium' | 'low' | 'not_detected' | 'unmeasured'
+    - is_tce_viable                                  # bool — surface_density_class in {high, moderate}
+    - is_adc_high_payload_viable                     # bool — surface_density_class == 'high'
+    - method_version
+
+  summary_fields_vocabulary:
+    surface_density_class:
+      - high
+      - moderate
+      - low
+      - very_low
+      - unmeasured
+    hpa_ihc_intensity_class:
+      - high
+      - medium
+      - low
+      - not_detected
+      - unmeasured
+
+  figure: surface_density_estimation_with_uncertainty_band
+
+thresholds:
+  tce_viability_copies_per_cell: 1000              # Slaga 2018 Sci Transl Med
+  adc_high_payload_copies_per_cell: 10000
+
+warning_predicates:
+  - warning_id: no_ihc_anchor
+    if: "hpa_ihc_intensity_class == 'unmeasured'"
+    message: "No HPA IHC anchor available for {target.symbol} in the {indication.label} tumor tissue-of-origin. Copies-per-cell estimate is unconstrained; surface_density_class is 'unmeasured'."
+  - warning_id: below_tce_threshold
+    if: "estimated_copies_per_cell_upper < 1000"
+    message: "Estimated copies-per-cell upper bound is below the TCE viability threshold (1,000/cell, Slaga 2018). TCE modality is likely non-viable regardless of other biology signals."
+  - warning_id: wide_uncertainty_band
+    if: "estimated_copies_per_cell_upper > 10 * estimated_copies_per_cell_lower"
+    message: "Copies-per-cell uncertainty band spans > 10x. Cross-anchor with additional evidence (flow cytometry counts, IHC quantitation) before treating surface_density_class as governance-fit."
+
+caveats:
+  - |
+    surface_density_class is an ESTIMATE derived from CPTAC bulk protein
+    intensity anchored against HPA IHC intensity for the tumor tissue-of-
+    origin. It is NOT a direct measurement of surface copies-per-cell.
+    Governance-grade copies-per-cell requires flow cytometry (QIFIKIT-
+    calibrated) or absolute IHC quantitation — this card provides an
+    audit-defensible first-pass estimate.
+  - |
+    Slaga et al 2018 (Sci Transl Med) established > 1,000 copies-per-cell
+    as the TCE viability threshold. Below this, T-cell synapse formation
+    and downstream cytolytic activity are compromised. This card's
+    is_tce_viable flag operationalizes that literature threshold.
+  - |
+    HPA IHC intensity is scored qualitatively (high / medium / low /
+    not_detected). The anchor-to-copies-per-cell conversion uses published
+    calibration curves for the specific HPA antibody clone (when available)
+    or a class-average calibration otherwise. Uncertainty is emitted in
+    estimated_copies_per_cell_upper / _lower.
+  - |
+    Cross-reference isoform_selective_targets vocabulary: for targets with
+    clinically-dominant alt isoforms (p95HER2 in gastric, etc.), gene-level
+    surface_density_class is systematically wrong — the isoform-specific
+    ectodomain may be absent from the dominant tumor-expressed isoform.
+    surface-topology-and-ptm card fires the isoform warning; consumers of
+    this card should honor it.
+
+schema_version: 1

@@ -1,0 +1,99 @@
+# Card Phase-G — gnomAD LoF CONSTRAINT (v1)
+#
+# REVIEWER-DRIVEN card (2026-07-08). Wires the existing gnomAD constraint
+# source manifest (gnomad-constraint-snapshot-2026-07-02) into the framework.
+# Data was already landed at data-catalog PR #79; this card graduates the
+# on-target-safety-liability skill from placeholder → partial by adding a
+# germline LoF-tolerance safety signal.
+#
+# Interpretation surface (constraint_class is PRIMARY):
+#   `highly_constrained`     → pLI >= 0.9 AND LOEUF <= 0.35 — LoF is highly
+#                              disallowed at population scale; safety concern
+#                              for targets with essential-function requirement
+#   `moderately_constrained` → pLI >= 0.5 OR LOEUF <= 0.6
+#   `tolerant`               → pLI < 0.5 AND LOEUF > 0.6 — LoF is tolerated
+#                              in gnomAD population; less safety concern
+#   `indeterminate`          → not covered in gnomAD constraint table
+
+card_id: gnomad-lof-constraint
+version: 1.0.0
+question: "How constrained is {target.symbol} against loss-of-function variants in the gnomAD population, and what does this imply for on-target safety?"
+
+applies_when: []
+
+required_inputs:
+  - product_id: gnomad-constraint-snapshot-2026-07-02
+
+methods:
+  - call: gnomad-constraint-lookup
+    args:
+      gene_symbol: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - constraint_class                              # PRIMARY categorical
+    - pli_score                                     # float; probability of LoF-intolerance (gnomAD pLI)
+    - loeuf_score                                   # float; LoF observed/expected upper fraction (gnomAD LOEUF)
+    - mis_z_score                                   # float; missense Z-score
+    - syn_z_score                                   # float; synonymous Z-score (sanity check)
+    - obs_lof_count                                 # int; observed LoF variants
+    - exp_lof_count                                 # float; expected LoF variants under neutrality
+    - gene_length_bp                                # int; for context
+    - method_version
+
+  summary_fields_vocabulary:
+    constraint_class:
+      - highly_constrained
+      - moderately_constrained
+      - tolerant
+      - indeterminate
+
+  figure: constraint_scores_gauge_panel
+
+thresholds:
+  high_pli: 0.9
+  moderate_pli: 0.5
+  high_loeuf: 0.35
+  moderate_loeuf: 0.6
+
+warning_predicates:
+  - warning_id: high_constraint_safety_concern
+    if: "constraint_class == 'highly_constrained'"
+    message: "{target.symbol} is highly LoF-constrained in gnomAD (pli>=0.9, loeuf<=0.35). Population evidence suggests LoF is not tolerated — on-target safety risk if the therapy fully abrogates protein function. Consider partial-agonism, allosteric, or dose-controlled strategies vs full-KO modalities."
+  - warning_id: syn_z_outlier
+    if: "syn_z_score > 3.0 || syn_z_score < -3.0"
+    message: "Synonymous Z-score is an outlier — the constraint calibration may be unreliable for {target.symbol}. Interpret pli + loeuf cautiously."
+  - warning_id: indeterminate_common_target
+    if: "constraint_class == 'indeterminate'"
+    message: "{target.symbol} is not in the gnomAD constraint table (possibly on non-canonical chromosomes, or excluded by quality filters). No germline LoF-tolerance signal available."
+
+caveats:
+  - |
+    pLI (probability of LoF-intolerance) and LOEUF (loss-of-function
+    observed/expected upper fraction) are gnomAD's canonical constraint
+    metrics. Highly-constrained genes (pLI >= 0.9) are enriched for
+    haploinsufficiency + developmental disorders — a therapy that fully
+    abrogates function may recapitulate the disease phenotype systemically.
+  - |
+    Constraint signals are BULK-POPULATION averages; they do NOT capture
+    tissue-specific or age-specific requirements. A gene that is constrained
+    at the germline / developmental level may be dispensable in adult
+    tissues (e.g. hedgehog pathway components tolerated post-development).
+    Governance readers should cross-reference IMPC mouse-KO phenotypes
+    (iter-2 backlog) for tissue-specific requirements.
+  - |
+    LOEUF is preferred over pLI for confidence intervals — pLI is a binary-
+    ish score whereas LOEUF encodes uncertainty directly. Recent literature
+    (Karczewski et al 2020) recommends LOEUF as the primary constraint
+    metric.
+  - |
+    Constraint does NOT preclude therapeutic development — many well-
+    validated oncology targets (e.g. TP53) are highly constrained. The
+    signal informs modality choice + safety monitoring, not go/no-go.
+  - |
+    Iter-2 upgrades: pair with IMPC mouse KO phenotypes (tissue-specific
+    lethality), ClinVar germline (population variant health outcomes),
+    OMIM disease associations (autosomal dominant / recessive contexts).
+    All three are docs-first Phase-G expansions beyond this card.
+
+schema_version: 1

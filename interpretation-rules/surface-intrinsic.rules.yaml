@@ -1,0 +1,358 @@
+# Tier-2 signal-mapping rules for the surface-intrinsic biology axis.
+# Maps card-emitted descriptive labels → per-modality signals consumed by
+# Tier-3 synthesis. Applies to surface-targeting modalities: ADC, TCE
+# (T-cell engager), naked antibody, radiopharmaceutical.
+#
+# Reviewer-driven arch upgrade A2 discipline (2026-07-08): rules fire ONLY
+# against BIOLOGY-AGNOSTIC card fields (family_class, topology_class,
+# fit_class, surface_density_class, cohort_rank_class, hotspot_pocket_
+# adjacency_call). LENS-CONDITIONAL fields (adc_grade, tce_grade,
+# adc_score, tce_score) are NOT consumed by rules — those are emitted only
+# when the modality lens is invoked at runtime, and treated as absent by
+# the rules engine when the lens is not invoked.
+
+rules_id: surface-intrinsic
+version: 1.0.0
+axis: surface_intrinsic
+schema_version: 1
+
+rationale: |
+  Surface-intrinsic targets (extracellular / plasma-membrane proteins) are
+  pursued via ADC, TCE, naked antibody, and radiopharmaceutical modalities.
+  Therapeutic viability requires (a) confirmed surface residency +
+  favorable family class, (b) adequate epitope-accessibility per topology,
+  (c) sufficient tumor-vs-normal selectivity in the cohort context, and
+  (d) modality-appropriate turnover (high for ADC payload delivery, low
+  for TCE surface stability). This rules file encodes those modality-
+  specific requirements as signal mappings over descriptive evidence
+  labels — biology-first, lens-agnostic.
+
+rules:
+
+  # ============================================================================
+  # F1 — Surface-topology-and-ptm card
+  # ============================================================================
+
+  - rule_id: no-transmembrane-adc-killer
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: no_transmembrane
+    signals:
+      adc: killer
+      bite_tce: killer
+      antibody: killer
+    killer_message: |
+      No transmembrane segment predicted. Target is either secreted (soluble)
+      or intracellular; neither is accessible for antibody-based modalities.
+    rationale: |
+      TMbed reports zero TM helices AND no signal peptide → likely cytosolic
+      protein. Requires cross-check with UniProt subcellular annotations before
+      hard-killing, but the categorical is unambiguous at Tier-2 signal-mapping.
+
+  - rule_id: single-pass-type1-adc-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: single_pass_type_1
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Single-pass type-I topology (N-term signal peptide + 1 TM + ECD-outside)
+      is the ADC-canonical topology. Trastuzumab-DXd, sacituzumab-govitecan,
+      enfortumab-vedotin, mirvetuximab-soravtansine — all target single-pass
+      type-I proteins. Best biology-first signal for surface-modality viability.
+
+  - rule_id: single-pass-type2-adc-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: single_pass_type_2
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Single-pass type-II topology (no signal peptide + 1 TM + ECD-outside).
+      Less common in ADC-approved targets but favorable — the C-terminal
+      extracellular domain is still antibody-accessible.
+
+  - rule_id: multi-pass-tce-concern
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: multi_pass
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Multi-pass TM proteins (>= 2 TM helices) have limited extracellular
+      residue area for antibody engagement. Not a hard-kill — some multi-pass
+      surface proteins (e.g. CLDN18.2) work as TCE targets when the epitope-
+      specific antibody has sufficient affinity. But signal is neutral, not
+      supportive.
+
+  - rule_id: gpi-anchored-adc-concern
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: gpi_anchored
+    signals:
+      adc: neutral
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      GPI-anchored proteins lack a canonical intracellular tail — endocytosis
+      motifs (YXXphi, NPXY, Dileucine) do not apply. ADC internalization may
+      require raft-mediated / caveolar pathways rather than clathrin-mediated.
+      Neutral for ADC, supportive for TCE (surface stability is often high).
+
+  - rule_id: isoform-selective-warning-modality-suppression
+    when:
+      card_id: surface-topology-and-ptm
+      field: isoform_selective_warning
+      equals: 'true'
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    dominant: true
+    rationale: |
+      Target has a curated clinically-dominant alt isoform in the
+      isoform_selective_targets.yaml vocabulary. Gene-level topology / PTM /
+      ECD reasoning is systematically wrong. Fires a WARNING signal (not
+      killer) because the target may still be pursuable via isoform-specific
+      antibody; but the composed adc-tce-modality-fit card will suppress
+      lens-conditional letter grades regardless of biology-first signal.
+      Governance readers must use isoform-resolved measurement, not gene-
+      level rubric grades.
+
+  # ============================================================================
+  # F2 — Surfaceome-family-classification card
+  # ============================================================================
+
+  - rule_id: not-surface-adc-killer
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: not_surface
+    signals:
+      adc: killer
+      bite_tce: killer
+      antibody: killer
+    killer_message: |
+      SURFY / HPA agreed the target is NOT surface-resident. Antibody-based
+      modalities require surface accessibility.
+
+  - rule_id: cd-molecule-tce-supportive
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: cd_molecule
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      CD markers are canonical TCE targets — CD3, CD19, CD20, CD22, CD33,
+      CD79b, CD123 all clinically-precedented. Family class alone confers
+      supportive signal.
+
+  - rule_id: kinase-surface-adc-supportive
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: kinase_surface
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Receptor tyrosine kinases (HER2, HER3, MET, EGFR, ROR1, etc.) are
+      well-precedented ADC targets. Family class + surface confirmation is
+      an ADC-friendly baseline.
+
+  - rule_id: gpcr-adc-concern
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: gpcr
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      GPCRs have historically been challenging antibody-based targets due to
+      short extracellular loops and multi-pass topology. Neutral signal —
+      not disqualifying but not supportive.
+
+  # ============================================================================
+  # F3 — Structure-features-static card
+  # ============================================================================
+
+  - rule_id: hotspot-in-druggable-pocket-sm-supportive
+    when:
+      card_id: structure-features-static
+      field: mutation_hotspot_in_druggable_pocket
+      equals: 'true'
+    signals:
+      small_molecule: supportive
+    dominant: true
+    rationale: |
+      Known TCGA mutation hotspot sits in a druggable pocket → small-molecule
+      structure-guided design is actionable. Signal for SM modality, not for
+      surface modalities.
+
+  - rule_id: no-structure-coverage-neutral
+    when:
+      card_id: structure-features-static
+      field: hotspot_pocket_adjacency_call
+      equals: no_structure
+    signals:
+      small_molecule: neutral
+      adc: neutral
+      bite_tce: neutral
+    rationale: |
+      Neither PDB nor AlphaFold has usable structural coverage. Cannot make
+      structure-based druggability call; treat as data-unavailable in
+      synthesis.
+
+  # ============================================================================
+  # F4 — Surfaceome-cohort-ranking card
+  # ============================================================================
+
+  - rule_id: top-1-percent-cohort-rank-supportive
+    when:
+      card_id: surfaceome-cohort-ranking
+      field: cohort_rank_class
+      equals: top_1_percent
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Target is in the top 1% of surface proteins in the indication by
+      tumor-vs-normal effect size (cells_supporting-filtered). Strongest
+      cohort-context signal available.
+
+  - rule_id: rna-protein-disagreement-warning
+    when:
+      card_id: surfaceome-cohort-ranking
+      field: rna_protein_concordance
+      equals: disagreement
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      RNA vs CPTAC protein signals point in opposite directions. For ADC/TCE
+      decisions where protein-level evidence is authoritative, this discordance
+      is a red flag — investigate before treating either signal as truth.
+
+  - rule_id: below-25-percent-cohort-rank-neutral
+    when:
+      card_id: surfaceome-cohort-ranking
+      field: cohort_rank_class
+      equals: below_25_percent
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Target is not in the top quartile of surface proteins in this
+      indication — the ADC/TCE-favorable cohort-context signal is absent.
+      Not a killer (target may still work if biology + tractability align),
+      but not supportive.
+
+  # ============================================================================
+  # F5 — Adc-tce-modality-fit composed card
+  # ============================================================================
+  # NOTE: rules fire on the BIOLOGY-AGNOSTIC fit_class categorical only.
+  # Letter grades (adc_grade, tce_grade) are lens-conditional and NOT
+  # consumed here — the rules engine treats them as absent when the modality
+  # lens is not invoked.
+
+  - rule_id: adc-preferred-supportive
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: ADC_preferred
+    signals:
+      adc: supportive
+      bite_tce: neutral
+    dominant: true
+    rationale: |
+      Biology-agnostic fit class = ADC_preferred. Rubric weights favor ADC
+      over TCE based on topology + PTM + family features. Signal for the
+      ADC modality; TCE remains neutral.
+
+  - rule_id: tce-preferred-supportive
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: TCE_preferred
+    signals:
+      adc: neutral
+      bite_tce: supportive
+    dominant: true
+
+  - rule_id: both-viable-supportive
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: both_viable
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    dominant: true
+    rationale: |
+      Both ADC and TCE viable per biology-agnostic assessment — governance-
+      grade multi-modality candidate. HER2 archetype.
+
+  - rule_id: neither-viable-killer
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: neither_viable
+    signals:
+      adc: killer
+      bite_tce: killer
+    killer_message: |
+      Biology-agnostic assessment: neither ADC nor TCE viable. Cross-reference
+      the constituent surface-topology-and-ptm + surfaceome-family cards for
+      root-cause interpretation.
+
+  - rule_id: isoform-dependent-modality-suppression
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: isoform_dependent_undefined
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    dominant: true
+    rationale: |
+      Isoform-selective suppression fired — target has clinically-dominant
+      alt isoform. Gene-level letter grades are suppressed by the arch A3
+      guardrail; biology-first fit_class is undefined until isoform-resolved
+      measurement is provided.
+
+# ============================================================================
+# Signal-vocabulary reference
+# ============================================================================
+#
+# Each rule assigns per-modality signals from the enum:
+#   killer     — rules out the modality; downstream synthesis should NOT
+#                emit affirmative recommendations for this modality.
+#   warning    — flag for governance review; modality may still be pursued
+#                but requires an override justification.
+#   neutral    — no positive or negative signal.
+#   supportive — positive signal for this modality.
+#
+# Rules with dominant=true carry extra weight in Tier-3 synthesis.

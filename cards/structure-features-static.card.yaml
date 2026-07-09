@@ -1,0 +1,105 @@
+# Card Phase-F — STRUCTURE FEATURES STATIC (v1)
+#
+# Reviewer-driven Phase F card. Static scalar structural features from PDB
+# REST API + AlphaFold DB REST API + gdc_somatic_hotspot coordinates.
+# Emits categorical / scalar fields that rules engine consumes — NO
+# interactive viewer, NO atomic coordinates. Per user selection: "static
+# card only" (viewer belongs in a dashboard, not slide-drop framework).
+#
+# Interpretation surface (hotspot_pocket_adjacency_call is PRIMARY):
+#   `adjacent`      → known TCGA hotspot for target sits in a druggable pocket
+#   `distant`       → known hotspot exists but NOT in a druggable pocket
+#   `no_structure`  → neither PDB nor AlphaFold has usable coverage
+
+card_id: structure-features-static
+version: 1.0.0
+question: "Are {target.symbol}'s known TCGA mutation hotspots in druggable pockets, and how confident is the structural context?"
+
+applies_when: []
+
+required_inputs:
+  - product_id: pdb-alphafold-structure-features-per-uniprot-v1
+
+methods:
+  - call: structure-features-static
+    args:
+      target_uniprot_ac: "{target.uniprot_canonical}"
+
+outputs:
+  summary_fields:
+    - hotspot_pocket_adjacency_call                # PRIMARY categorical
+    - mutation_hotspot_in_druggable_pocket         # bool
+    - pdb_coverage_class                           # 'strong' | 'partial' | 'af_only' | 'none'
+    - alphafold_confidence_class                   # 'high' | 'moderate' | 'low' | 'unavailable'
+    - pdb_ids_available                            # list<string>
+    - pdb_best_resolution_angstrom                 # float; NaN if no X-ray
+    - pdb_best_method                              # 'X-ray' | 'cryo-EM' | 'NMR' | 'none'
+    - alphafold_plddt_mean                         # float
+    - alphafold_plddt_min                          # float
+    - alphafold_plddt_min_domain                   # float — lowest per-domain mean
+    - n_domains_low_plddt                          # int; domains with pLDDT_mean < 70
+    - disordered_fraction                          # float; fraction with pLDDT < 50
+    - method_version
+
+  summary_fields_vocabulary:
+    hotspot_pocket_adjacency_call:
+      - adjacent
+      - distant
+      - no_structure
+      - no_hotspots_annotated
+    pdb_coverage_class:
+      - strong
+      - partial
+      - af_only
+      - none
+    alphafold_confidence_class:
+      - high
+      - moderate
+      - low
+      - unavailable
+
+  figure: structure_features_scalar_panel
+
+thresholds:
+  alphafold_high_confidence_plddt: 70
+  alphafold_low_confidence_plddt: 50
+  disordered_dominant_fraction: 0.50
+
+warning_predicates:
+  - warning_id: alphafold_low_confidence_domain
+    if: "alphafold_plddt_min_domain < 50"
+    message: "At least one AlphaFold-predicted domain has mean pLDDT < 50 — likely intrinsically disordered. Low-pLDDT regions are NOT undruggable per se (many biologically-important IDPs), but small-molecule pocket-based reasoning does not apply. Consider alternative modality context."
+  - warning_id: high_disordered_fraction
+    if: "disordered_fraction > 0.5"
+    message: "{target.symbol} is majority-disordered (pLDDT < 50 for > 50% of residues). Small-molecule tractability is likely constrained. Molecular glue / degrader / RNA-therapeutic modalities may be more actionable — see mechanism-and-pharmacology card for MoA-relevant modality hooks."
+  - warning_id: no_structure_coverage
+    if: "hotspot_pocket_adjacency_call == 'no_structure'"
+    message: "Neither PDB nor AlphaFold has usable structural coverage for {target.symbol}. Structural druggability claims cannot be made from this card; investigate homology models or wait for AlphaFold DB refresh."
+
+caveats:
+  - |
+    pLDDT is AlphaFold's per-residue confidence, NOT a solvent-accessibility
+    or druggability score. Low-pLDDT regions are typically intrinsically
+    disordered — often functionally-relevant (transcription factors, IDPs)
+    but not directly druggable by canonical small molecules. Do NOT conflate
+    low-pLDDT with 'undruggable'.
+  - |
+    hotspot_pocket_adjacency_call='no_structure' means neither PDB nor
+    AlphaFold has usable coverage. Treat as data-unavailable, NOT a
+    druggability call.
+  - |
+    Iter-1 uses a pLDDT + SASA heuristic for pocket adjacency. Governance-
+    grade druggability scoring should use fpocket (Le Guilloux 2009 BMC
+    Bioinformatics doi:10.1186/1471-2105-10-168) or canSAR (Mitsopoulos
+    2021 NAR doi:10.1093/nar/gkaa1059). Iter-2 upgrade planned.
+  - |
+    Snapshots are point-in-time (PDB + AlphaFold: 2026-07-08). Newly-
+    deposited structures are not covered until snapshot refresh.
+  - |
+    Hotspot coordinates from gdc_somatic_hotspot are UniProt-canonical-
+    referenced. For targets with clinically-dominant alt isoforms (see
+    isoform_selective_targets vocabulary), hotspots may map to residues
+    absent from the alt isoform — the isoform-selective warning in
+    surface-topology-and-ptm card fires accordingly.
+
+schema_version: 1

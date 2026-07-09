@@ -1,0 +1,316 @@
+# isoform_selective_targets.yaml
+#
+# Curated vocabulary of gene symbols where at least one clinically-dominant
+# alternative isoform (splice variant, proteolytic cleavage product, or fusion)
+# makes gene-level modality-fit reasoning SYSTEMATICALLY WRONG in the
+# clinical-decision-relevant context.
+#
+# Reviewer-driven arch upgrade A3 (2026-07-08). Failure mode this addresses:
+# a gene-symbol-keyed card (all our current cards) can emit e.g.
+# `adc_grade: A` for ERBB2 based on full-length HER2 ectodomain accessibility.
+# But in a p95HER2-dominant gastric tumor, the ADC-relevant N-terminal
+# ectodomain has been proteolytically shed — the epitope is absent, the ADC
+# grade is wrong. Documenting this in card caveats does NOT prevent the
+# incorrect categorical from propagating to target_profile.md.
+#
+# Usage discipline (per card):
+#   1. Cards that emit MODALITY-RELEVANT fields (surface topology, PTM sites,
+#      ADC/TCE letter grades, ectodomain-length-derived features) MUST cross-
+#      reference this vocabulary in their `warning_predicates:` block.
+#   2. If the target's HGNC symbol appears in `entries:` here, the card fires
+#      a `warning_id: isoform_selective_target_dominant_variant` warning that
+#      SUPPRESSES modality letter grades and includes the entry's `caveat`
+#      text verbatim in the output.
+#   3. The `mechanism_context` field is human-readable; downstream target-
+#      profile LLM synthesis is prompted to consume it as authoritative context.
+#
+# Curation discipline:
+#   - Only entries with FDA-approved therapies or Phase III precedent that
+#     validate the isoform-dominance claim in a clinical context. Not
+#     research-grade "an isoform exists" claims.
+#   - Every entry cites (a) a primary published source, (b) an FDA / EMA /
+#     regulatory context if applicable, and (c) the mechanism-of-failure it
+#     surfaces (why gene-level reasoning is wrong).
+#   - v1 is small (~8-10 archetypes). Extension is cheap — bump version.
+#   - Two OncoKB-referenced sources are used opportunistically where they
+#     provide the cleanest structured statement; the primary lit citation
+#     is the authoritative pointer for scientific defensibility.
+
+version: 1.0.0
+snapshot_date: "2026-07-08"
+curator: ryan.abo@takeda.com
+
+# ---------------------------------------------------------------------------
+# Sources: canonical references consulted for curation. Cited per-entry below.
+# ---------------------------------------------------------------------------
+sources:
+  - id: oncokb
+    name: OncoKB Precision Oncology Knowledge Base
+    url: https://www.oncokb.org/
+    note: >
+      Alternative-transcript + fusion annotations consulted for tumor-relevant
+      isoform prevalence + therapeutic-context validation.
+  - id: fda_orange_book
+    name: FDA Approved Drug Products with Therapeutic Equivalence Evaluations
+    url: https://www.accessdata.fda.gov/scripts/cder/ob/index.cfm
+    note: >
+      Approval-context evidence for isoform-selective therapies (e.g.,
+      capmatinib / tepotinib for MET exon14).
+  - id: literature
+    name: Primary published citations
+    note: >
+      Peer-reviewed publications establishing the isoform's tumor-relevance +
+      the failure mode of gene-level modality reasoning.
+
+# ---------------------------------------------------------------------------
+# Entries: one per gene symbol.
+# ---------------------------------------------------------------------------
+entries:
+
+  ERBB2:
+    dominant_isoform: p95HER2 (611-CTF, 100/95 kDa)
+    variant_type: proteolytic_cleavage_product
+    tumor_context:
+      - indication: gastric_cancer
+        prevalence_note: "Constitutively-active p95HER2 detected in ~30% of HER2+ gastric tumors; ADC epitope absent in the cleaved fragment"
+      - indication: breast_cancer
+        prevalence_note: "p95HER2-dominant subset (~10-15% of HER2+ breast); trastuzumab response reduced; pertuzumab epitope inaccessible"
+    modality_failure_mode: >
+      p95HER2 lacks the trastuzumab-binding N-terminal ectodomain (residues
+      ~1-611 of full-length HER2). ADC constructs targeting the ectodomain
+      (e.g., trastuzumab-DXd / Enhertu, trastuzumab-emtansine / Kadcyla) show
+      reduced efficacy in p95HER2-dominant tumors. Full-length ERBB2
+      ectodomain length + endocytosis-motif counts are irrelevant to the
+      p95HER2 population.
+    warning_severity: high
+    caveat: >
+      Gene-level HER2 (ERBB2) ADC/TCE metrics DO NOT apply to p95HER2-
+      dominant tumors. Recommend isoform-resolved expression measurement
+      (Western blot / mass-spec) before ADC nomination in gastric or
+      pertuzumab-refractory breast.
+    primary_source_doi: 10.1093/jnci/djm105
+    primary_source_citation: >
+      Scaltriti M et al. 2007. Expression of p95HER2, a truncated form of the
+      HER2 receptor, and response to anti-HER2 therapies in breast cancer.
+      JNCI 99(8):628-38.
+
+  AR:
+    dominant_isoform: AR-V7 (androgen-receptor splice variant 7)
+    variant_type: splice_variant
+    tumor_context:
+      - indication: metastatic_castration_resistant_prostate_cancer
+        prevalence_note: "AR-V7 detected in ~30-40% of mCRPC after progression on abiraterone/enzalutamide; predicts anti-androgen resistance"
+    modality_failure_mode: >
+      AR-V7 lacks the ligand-binding domain (LBD) targeted by second-generation
+      anti-androgens (enzalutamide, apalutamide, darolutamide). Small-molecule
+      programs targeting the AR LBD systematically fail against AR-V7-driven
+      tumors. Full-length AR druggability metrics (pocket adjacency, LBD
+      accessibility) do NOT reflect the AR-V7 population.
+    warning_severity: high
+    caveat: >
+      Gene-level AR druggability metrics DO NOT apply to AR-V7-dominant
+      mCRPC. Recommend AR-V7 status assessment (Oncotype DX AR-V7 Nucleus
+      Detect or equivalent) before AR-LBD small-molecule nomination in
+      post-abi/enza mCRPC.
+    primary_source_doi: 10.1056/NEJMoa1315815
+    primary_source_citation: >
+      Antonarakis ES et al. 2014. AR-V7 and Resistance to Enzalutamide and
+      Abiraterone in Prostate Cancer. NEJM 371(11):1028-38.
+
+  MET:
+    dominant_isoform: MET exon 14 skipping (METex14)
+    variant_type: splice_variant
+    tumor_context:
+      - indication: non_small_cell_lung_cancer
+        prevalence_note: "METex14 detected in ~3-4% of NSCLC (higher in older, non-smoker adenocarcinoma); FDA-approved biomarker for capmatinib + tepotinib"
+    modality_failure_mode: >
+      METex14 skipping removes the juxtamembrane exon 14 encoding the CBL
+      ubiquitin-ligase binding site. The resulting protein evades degradation
+      and shows constitutive signaling. Full-length-MET small-molecule
+      druggability (Type I/II inhibitor binding) applies, BUT the mechanism-
+      of-approval + patient-selection require exon14-specific status. Gene-
+      level dependency screens do NOT differentiate wild-type-driven MET
+      dependency (frequently indirect / off-target) from METex14-driven
+      dependency (validated genetic driver).
+    modality_failure_mode_secondary: >
+      Sensitivity vs resistance to specific MET-TKI classes differs by exon14
+      background — capmatinib (Type Ib) + tepotinib (Type Ib) have Phase III
+      data specifically in METex14; crizotinib activity is real but not the
+      approved context.
+    warning_severity: high
+    caveat: >
+      Gene-level MET dependency + druggability metrics may be MET-context-
+      appropriate but the clinically-actionable patient population is METex14
+      only. Recommend METex14 status (DNA + RNA sequencing) as a required
+      biomarker before MET-TKI nomination in NSCLC.
+    primary_source_doi: 10.1200/JCO.2015.63.4600
+    primary_source_citation: >
+      Frampton GM et al. 2015. Activation of MET via Diverse Exon 14 Splicing
+      Alterations Occurs in Multiple Tumor Types and Confers Clinical
+      Sensitivity to MET Inhibitors. Cancer Discov 5(8):850-9.
+    regulatory_context: >
+      FDA-approved: capmatinib (Tabrecta, 2020), tepotinib (Tepmetko, 2021)
+      — both with METex14 companion diagnostic.
+
+  EGFR:
+    dominant_isoform: EGFRvIII (variant III, exon 2-7 deletion)
+    variant_type: exon_deletion
+    tumor_context:
+      - indication: glioblastoma
+        prevalence_note: "EGFRvIII detected in ~30% of EGFR-amplified glioblastoma; also GBM-restricted (rare in other tumors)"
+    modality_failure_mode: >
+      EGFRvIII deletes exons 2-7 (residues 6-273 of the ectodomain),
+      generating a truncated receptor lacking the ligand-binding domain but
+      capable of ligand-independent constitutive activation. Full-length
+      EGFR ADC constructs (e.g., depatuxizumab-mafodotin) targeting the
+      ectodomain hit the vIII epitope + wild-type EGFR; TCE constructs
+      targeting normal EGFR epitopes may not distinguish vIII from wild-
+      type. Gene-level ectodomain-length + endocytosis metrics do NOT
+      characterize the vIII isoform.
+    modality_failure_mode_secondary: >
+      Small-molecule EGFR TKIs (erlotinib, osimertinib) are approved for
+      NSCLC-EGFR-mutant contexts; EGFRvIII is a GBM-specific driver that
+      TKIs have failed against in Phase III (INTEREST, RTOG 0525).
+    warning_severity: moderate
+    caveat: >
+      Gene-level EGFR ADC/TCE metrics do NOT apply to EGFRvIII-driven GBM.
+      Vintafolide-class + vIII-specific-epitope-targeting programs require
+      isoform-resolved reasoning.
+    primary_source_doi: 10.1038/nrc3131
+    primary_source_citation: >
+      Gan HK, Kaye AH, Luwor RB. 2009. The EGFRvIII variant in glioblastoma
+      multiforme. J Clin Neurosci 16(6):748-54.
+
+  BRAF:
+    dominant_isoform: BRAF fusions (KIAA1549-BRAF, AGK-BRAF, others)
+    variant_type: gene_fusion
+    tumor_context:
+      - indication: pediatric_low_grade_glioma
+        prevalence_note: "KIAA1549-BRAF fusion in ~70% of pilocytic astrocytoma; also in adult melanoma-rare + spitzoid neoplasms"
+    modality_failure_mode: >
+      BRAF fusions retain the kinase domain but delete the N-terminal
+      autoinhibitory RBD-CRD. The fusion protein is a paradoxical activator
+      of MAPK signaling that RESPONDS DIFFERENTLY to Type II BRAF inhibitors
+      than to Type I inhibitors used in BRAF V600E melanoma. Gene-level
+      BRAF druggability metrics (validated for V600E) do NOT predict fusion-
+      driven pediatric LGG response — where MEK inhibitors (trametinib,
+      selumetinib) are the current standard rather than BRAF inhibitors.
+    warning_severity: moderate
+    caveat: >
+      Gene-level BRAF druggability metrics reflect V600E-dominant contexts
+      (adult melanoma / thyroid / CRC). BRAF-fusion-dominant contexts
+      (pediatric LGG, spitzoid tumors) require fusion-specific reasoning —
+      MEK inhibition, not Type I BRAF inhibition.
+    primary_source_doi: 10.1038/ng.2611
+    primary_source_citation: >
+      Jones DTW et al. 2013. Recurrent somatic alterations of FGFR1 and NTRK2
+      in pilocytic astrocytoma. Nat Genet 45(8):927-32.
+
+  MDM2:
+    dominant_isoform: MDM2 splice variants (MDM2-A, MDM2-B, others)
+    variant_type: splice_variant
+    tumor_context:
+      - indication: liposarcoma
+        prevalence_note: "MDM2-A/B splice variants enriched in high-grade sarcomas; alter the p53-binding N-terminal domain"
+    modality_failure_mode: >
+      MDM2 splice variants (MDM2-A, MDM2-B, MDM2-C) alter or delete the
+      N-terminal p53-binding domain that small-molecule MDM2 inhibitors
+      (nutlin-3, RG7112, siremadlin) target. Splice-variant-dominant tumors
+      may show reduced small-molecule MDM2-inhibitor sensitivity. Full-
+      length MDM2 druggability metrics do NOT apply.
+    warning_severity: moderate
+    caveat: >
+      MDM2 small-molecule druggability metrics apply to full-length MDM2
+      contexts (typically MDM2-amplified liposarcoma). Splice-variant-
+      dominant contexts require isoform-resolved reasoning; consider PROTAC-
+      based MDM2 degraders as a mechanism-agnostic alternative.
+    primary_source_doi: 10.1074/jbc.M501378200
+    primary_source_citation: >
+      Bartel F et al. 2005. Expression of alternatively and aberrantly spliced
+      transcripts of the MDM2 mRNA is not tumor-specific.
+      J Biol Chem 280(4):3179-84.
+
+  CD19:
+    dominant_isoform: CD19 exon 2 skipping / delΔex2
+    variant_type: acquired_resistance_splice_variant
+    tumor_context:
+      - indication: b_cell_acute_lymphoblastic_leukemia
+        prevalence_note: "CD19-Δex2 isoform enriched at relapse post CD19-CAR-T (blinatumomab / tisagenlecleucel); antigen-loss escape mechanism"
+    modality_failure_mode: >
+      CD19-Δex2 skips the exon encoding the FMC63-scFv binding epitope.
+      Cells expressing Δex2 evade CD19-CAR-T + CD3-CD19 bispecific
+      (blinatumomab). Baseline gene-level CD19 metrics do NOT capture
+      acquired-resistance emergence. For a target profile in a relapsed-
+      post-CD19-therapy cohort, isoform-resolved reasoning is mandatory.
+    warning_severity: high_conditional
+    warning_conditional_on: "clinical_context = relapsed_post_cd19_therapy"
+    caveat: >
+      In treatment-naive contexts, gene-level CD19 metrics apply. In
+      relapsed-post-CD19-CAR-T or -blinatumomab contexts, isoform-resolved
+      CD19 measurement is required — CD19-Δex2 antigen-escape is a known
+      resistance mechanism.
+    primary_source_doi: 10.1158/2159-8290.CD-15-1020
+    primary_source_citation: >
+      Sotillo E et al. 2015. Convergence of Acquired Mutations and Alternative
+      Splicing of CD19 Enables Resistance to CART-19 Immunotherapy.
+      Cancer Discov 5(12):1282-95.
+
+  FGFR2:
+    dominant_isoform: FGFR2 IIIb vs IIIc + intracellular fusions (FGFR2-BICC1, FGFR2-AHCYL1)
+    variant_type: mixed_splice_variant_and_fusion
+    tumor_context:
+      - indication: intrahepatic_cholangiocarcinoma
+        prevalence_note: "FGFR2 fusions detected in ~10-15% of iCCA; FDA-approved biomarker for pemigatinib + futibatinib"
+      - indication: epithelial_cancers_general
+        prevalence_note: "FGFR2-IIIb (epithelial) vs IIIc (mesenchymal) isoform switch alters ligand specificity + tumor-vs-normal expression"
+    modality_failure_mode: >
+      FGFR2 splice-variant switching (IIIb ↔ IIIc) changes ligand-binding
+      specificity + tumor-vs-normal-tissue expression patterns. Antibody
+      programs targeting IIIb-specific epitopes (e.g., bemarituzumab) do
+      NOT bind IIIc-expressing tumors. FGFR2-fusion-driven iCCA requires
+      fusion-partner-specific-inhibitor reasoning distinct from full-length
+      FGFR2 kinase druggability. Gene-level cards mix these populations.
+    warning_severity: moderate
+    caveat: >
+      Gene-level FGFR2 antibody/ADC metrics require isoform-resolved
+      expression (IIIb vs IIIc) for tumor-selectivity claims. FGFR2-fusion-
+      dominant iCCA is a distinct clinical context with fusion-partner-
+      specific druggability (pemigatinib approved 2020, futibatinib 2022).
+    primary_source_doi: 10.1158/2159-8290.CD-13-0050
+    primary_source_citation: >
+      Wu YM et al. 2013. Identification of targetable FGFR gene fusions in
+      diverse cancers. Cancer Discov 3(6):636-47.
+
+# ---------------------------------------------------------------------------
+# Card-side wiring contract
+# ---------------------------------------------------------------------------
+#
+# Cards emitting modality-relevant fields (surface topology, PTM sites, ADC/TCE
+# grades, ectodomain-length-derived features) MUST include the following
+# `warning_predicates:` entry — or its equivalent — to consume this vocabulary:
+#
+#   - warning_id: isoform_selective_target_dominant_variant
+#     if: "target.symbol in ISOFORM_SELECTIVE_TARGETS.entries"
+#     message: "{target.symbol} has a clinically-dominant alternative isoform
+#              ({entry.dominant_isoform}). {entry.caveat} See
+#              vocabularies/isoform_selective_targets.yaml v{version}."
+#
+# The predicate resolves against this vocabulary at compose time; the message
+# template pulls the entry's `dominant_isoform` + `caveat` fields verbatim.
+#
+# When this warning fires, the card's `validation_state` becomes
+# `passed_with_warnings` (per card.schema.json warning_predicates semantics),
+# AND — per the composition contract A2 lens-conditional-fields split — any
+# `lens_conditional_on: modality` fields (letter grades) are SUPPRESSED from
+# the emitted summary_fields for this target.
+
+# ---------------------------------------------------------------------------
+# Deferred entries (NOT included in v1 — surface here for iter-2 curation)
+# ---------------------------------------------------------------------------
+#   ESR1: ligand-binding-domain mutations (Y537S, D538G) in mBC — mostly
+#         point-mutation, not isoform-selective in the strict sense; iter-2.
+#   KIT: activating-loop splice variants + exon 11 vs exon 17 mutant heterogeneity.
+#   ROS1: fusion-partner diversity affects TKI response depth; may warrant
+#         a separate fusion-selectivity vocabulary.
+#   NRG1: fusion partner determines juxtacrine vs autocrine signaling context.
+#   RET: fusion vs point-mutant (M918T) contexts differ therapeutically.

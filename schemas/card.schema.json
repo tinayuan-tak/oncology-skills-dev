@@ -67,7 +67,7 @@
     },
     "required_inputs": {
       "type": "array",
-      "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory).",
+      "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory). May be empty ONLY for COMPOSED cards (cards that declare `derived_from:` upstream card_ids); leaf cards must declare at least one product_id. Composed-card empty-array eligibility is checked by the cross-reference validator, not the JSON Schema.",
       "items": {
         "type": "object",
         "required": ["product_id"],
@@ -96,7 +96,7 @@
           }
         }
       },
-      "minItems": 1,
+      "minItems": 0,
       "maxItems": 10
     },
     "methods": {
@@ -132,10 +132,37 @@
       "properties": {
         "summary_fields": {
           "type": "array",
-          "description": "Names of fields that must be present in the card's emitted summary.json. Used by compose-dashboard's post-invocation validation (B1 § compose-dashboard subsection 5) to gate the validation_state.",
+          "description": "Names of fields that must be present in the card's emitted summary.json. Used by compose-dashboard's post-invocation validation (B1 § compose-dashboard subsection 5) to gate the validation_state. Each entry may be a bare string (biology-agnostic field, emitted unconditionally) OR an object with `name` + optional `lens_conditional_on` marker (field emitted only when a specific optional lens is invoked — e.g. `adc_grade` gated on `modality` lens). Bare-string form is preserved for backward compatibility; the reviewer-driven arch upgrade A2 (2026-07-08) adds the object form to prevent lens-only fields from leaking into biology-first invocations.",
           "items": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Bare field name. Emitted unconditionally (biology-agnostic)."
+              },
+              {
+                "type": "object",
+                "required": ["name"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "description": "Field name (same shape as bare-string form)."
+                  },
+                  "lens_conditional_on": {
+                    "type": "string",
+                    "enum": ["modality", "therapeutic_hypothesis", "subgroup"],
+                    "description": "When set, this field is emitted only when the named optional lens is invoked at runtime. The rules engine treats the field as absent when the lens is not invoked; downstream consumers (target-profile LLM synthesis, provenance.yaml) must handle absence gracefully. Enables clean separation between biology-first outputs (always emitted) and lens-conditional outputs (e.g., ADC/TCE letter grades gated on the modality lens)."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional per-field description surfaced in the card manifest.",
+                    "maxLength": 300
+                  }
+                }
+              }
+            ]
           },
           "minItems": 1,
           "maxItems": 50
@@ -176,7 +203,7 @@
               "description": {"type": "string"},
               "preferred_surfaces": {
                 "type": "array",
-                "items": {"type": "string", "enum": ["markdown", "markdown_alt", "html", "ppt", "decision_memo"]},
+                "items": {"type": "string", "enum": ["markdown", "markdown_alt", "html", "ppt", "decision_memo", "poster"]},
                 "description": "Which renderer surfaces should prefer this figure variant. Renderers iterate their surface and pick the first matching figure."
               },
               "primary": {

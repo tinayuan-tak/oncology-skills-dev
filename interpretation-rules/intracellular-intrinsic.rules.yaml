@@ -1250,3 +1250,193 @@ rules:
       The four-cell sensitivity product is not accessible for this indication
       (batch expansion pending, or gene absent). Coverage gap; not used as
       opposing evidence.
+
+  # ============================================================================
+  # Phase D — Signaling-network-mechanism card (added 2026-07-08)
+  # ============================================================================
+
+  - rule_id: mechanism-well-characterized-supportive
+    when:
+      card_id: signaling-network-mechanism
+      field: network_class
+      equals: well_characterized
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      >= 3 upstream regulators AND >= 3 downstream effectors annotated in
+      SIGNOR-via-OmniPath. Well-characterized network context — MoA hooks
+      + PD marker candidates are enumerable. Supportive for both SM and
+      degrader modalities.
+
+  - rule_id: mechanism-sparse-warning
+    when:
+      card_id: signaling-network-mechanism
+      field: network_class
+      equals: sparse
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      0-1 edges in SIGNOR-via-OmniPath. Mechanism-of-action reasoning is
+      unconstrained by prior signaling context — governance readers should
+      require additional mechanism evidence before nomination.
+
+  - rule_id: mechanism-data-unavailable-insufficient
+    when:
+      card_id: signaling-network-mechanism
+      field: network_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target not present in SIGNOR-via-OmniPath. Coverage gap; not opposing
+      evidence.
+
+  - rule_id: has-pd-marker-supportive
+    when:
+      card_id: signaling-network-mechanism
+      field: has_pd_marker
+      equals: 'true'
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      At least one downstream effector identified. PD-marker candidates
+      exist for pharmacodynamic monitoring — a governance-critical
+      trial-design signal.
+
+  # ============================================================================
+  # Phase E — Co-mutation-and-mutual-exclusivity card (added 2026-07-08)
+  # ============================================================================
+
+  - rule_id: has-cooccurring-driver-supportive
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: has_cooccurring_driver
+      equals: 'true'
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      >= 1 significantly-cooccurring driver partner at q<0.001. Combination
+      biology + patient-selection biomarkers can be reasoned from the
+      cooccurrence pattern.
+
+  - rule_id: strong-mutual-exclusivity-supportive
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: strong_mutually_exclusive
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Target has strong mutually-exclusive partners at q<0.001, log2_or<-1.
+      Indicates the target operates in a distinct oncogenic pathway from
+      its exclusive partners — provides patient-selection stratification
+      for a monotherapy trial.
+
+  - rule_id: cooccurrence-data-unavailable-insufficient
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target not present in the panel-intersect Fisher scan output. Coverage
+      gap; not opposing evidence.
+
+  # ============================================================================
+  # Phase C-adjacent — Paralog-buffering card (added 2026-07-08)
+  # ============================================================================
+
+  - rule_id: strong-paralog-buffering-degrader-preferred
+    when:
+      card_id: paralog-buffering
+      field: paralog_buffering_class
+      equals: strong
+    signals:
+      small_molecule: opposing
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Target has a strongly-buffering paralog (dep_delta > 0.5). Small-
+      molecule active-site inhibitors typically cannot hit both paralogs;
+      degrader modalities (PROTAC, molecular glue) may if the ligand-binding
+      domain is shared. Strongest degrader-vs-SM differentiation signal
+      available in the framework.
+
+  - rule_id: partial-paralog-buffering-warning
+    when:
+      card_id: paralog-buffering
+      field: paralog_buffering_class
+      equals: partial
+    signals:
+      small_molecule: opposing
+      degrader: neutral
+    rationale: |
+      Partial paralog buffering (delta 0.2-0.5). SM programs should model
+      paralog-escape scenarios in trial design.
+
+  - rule_id: no-paralog-buffering-sm-supportive
+    when:
+      card_id: paralog-buffering
+      field: paralog_buffering_class
+      equals: none
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      Paralogs annotated but no functional buffering in DepMap PARIS or
+      Sanger screens. Single-agent SM inhibition is not paralog-escape-
+      constrained.
+
+  # ============================================================================
+  # Phase G — gnomAD LoF-constraint card (added 2026-07-08)
+  # ============================================================================
+
+  - rule_id: highly-constrained-safety-warning
+    when:
+      card_id: gnomad-lof-constraint
+      field: constraint_class
+      equals: highly_constrained
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      Target is highly LoF-constrained in gnomAD (pLI>=0.9, LOEUF<=0.35).
+      Population evidence suggests LoF is not tolerated — on-target safety
+      risk if the therapy fully abrogates protein function. Governance
+      readers should require dose-limiting-toxicity study before full
+      program commit.
+
+  - rule_id: tolerant-safety-supportive
+    when:
+      card_id: gnomad-lof-constraint
+      field: constraint_class
+      equals: tolerant
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      gnomAD population tolerates LoF variants at this locus (pLI<0.5,
+      LOEUF>0.6). Reduced on-target-off-tumor safety risk; degrader
+      modalities in particular gain a safety-margin signal.
+
+  - rule_id: constraint-data-unavailable-insufficient
+    when:
+      card_id: gnomad-lof-constraint
+      field: constraint_class
+      equals: indeterminate
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target not in gnomAD constraint table. Coverage gap; not opposing
+      evidence.

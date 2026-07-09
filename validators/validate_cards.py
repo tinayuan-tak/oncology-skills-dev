@@ -151,13 +151,55 @@ def _shallow_predicate_check(spec: dict, report: ValidationReport) -> None:
         lint_predicate(wp.get('if', ''), f'warning_predicates[{i}].if')
 
 
+def _summary_field_names(spec: dict) -> set[str]:
+    """Extract field name strings from summary_fields, tolerating both the
+    legacy bare-string form and the arch-A2 object form
+    ({name, lens_conditional_on?, description?}). Introduced 2026-07-08 with
+    the lens-conditional field split.
+    """
+    raw = spec.get('outputs', {}).get('summary_fields', [])
+    names: set[str] = set()
+    for entry in raw:
+        if isinstance(entry, str):
+            names.add(entry)
+        elif isinstance(entry, dict) and 'name' in entry:
+            names.add(entry['name'])
+    return names
+
+
+def _composed_card_semantics_check(spec: dict, report: ValidationReport) -> None:
+    """Layer 2d (arch A1 enforcement, 2026-07-08): required_inputs may be
+    empty ONLY when the card is COMPOSED (declares derived_from upstream
+    card_ids). Leaf cards must have at least one required_inputs entry.
+
+    W3d fix (2026-07-09): removed the reciprocal "declares BOTH
+    required_inputs AND derived_from" warning. Empirically, hybrid cards
+    that declare BOTH are the correct pattern for cards needing target-
+    identity resolution (via derived_from: target-identity-summary) AND a
+    raw product pull (via required_inputs). Examples:
+      - crispr-rnai-dependency-concordance (pre-existing)
+      - signaling-network-mechanism (new)
+      - surface-abundance-density (new)
+    The prior warning fired on all three, breaking --strict-warnings CI.
+    Only the empty-neither error remains (the A1 semantic invariant).
+    """
+    required_inputs = spec.get('required_inputs', [])
+    derived_from = spec.get('derived_from', [])
+    if not required_inputs and not derived_from:
+        report.add_error(
+            'COMPOSED_CARD [required_inputs]: empty required_inputs is only '
+            'valid when derived_from is declared (composed-card semantics). '
+            'Leaf cards must reference at least one product_id.'
+        )
+
+
 def _interpretation_summary_field_check(spec: dict, report: ValidationReport) -> None:
     """Layer 2c (best-effort): each interpretation_hints.if SHOULD reference at least one
     declared summary_field. This catches the failure mode where an interpretation rule
     references a field the card doesn't actually emit. Best-effort because a predicate
     may reference helper functions or thresholds only.
     """
-    summary_fields = set(spec.get('outputs', {}).get('summary_fields', []))
+    summary_fields = _summary_field_names(spec)
     for i, hint in enumerate(spec.get('interpretation_hints', [])):
         pred = hint.get('if', '')
         referenced_idents = set(re.findall(r'\b([a-z_][a-z0-9_]*)\b', pred))
@@ -196,6 +238,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _threshold_ref_check(spec, report)
         _shallow_predicate_check(spec, report)
         _interpretation_summary_field_check(spec, report)
+        _composed_card_semantics_check(spec, report)
     return report
 
 

@@ -1,0 +1,123 @@
+# Card Phase-F — SURFACE TOPOLOGY AND PTM (v1)
+#
+# Reviewer-driven Phase F card. Per-target membrane topology + PTM
+# annotations (glycosylation, ubiquitination sites) + endocytosis motif
+# detection. Feeds the adc-tce-modality-fit composed card. Uses TMbed
+# (Apache-2.0) as the predictor — DeepTMHMM's non-commercial license
+# blocked its use at Takeda.
+#
+# REVIEWER-DRIVEN RIGOR FIX (2026-07-08): endocytosis motif detection
+# (YXXΦ, NPXY, Dileucine) must cross-reference AlphaFold pLDDT-low regions.
+# Raw motif regex hits are false-positive-prone on unstructured cytoplasmic
+# tails. Emit both `endocytosis_motif_count` (raw) AND
+# `endocytosis_motif_count_high_confidence` (pLDDT-accessibility-filtered).
+# The downstream ADC rubric consumes only the high-confidence count.
+#
+# ARCH A3 (2026-07-08): This card MUST cross-reference the
+# isoform_selective_targets.yaml vocabulary. If the target has a curated
+# clinically-dominant alt isoform (p95HER2, AR-V7, MET exon14, EGFRvIII,
+# BRAF fusions, MDM2 splice variants, CD19 Δex2, FGFR2 IIIb/IIIc/fusions),
+# a hard warning fires suppressing lens-conditional letter grades in
+# downstream composed cards.
+
+card_id: surface-topology-and-ptm
+version: 1.0.0
+question: "What is the predicted membrane topology and PTM profile of {target.symbol}, and does the target have clinically-dominant alt isoforms that make gene-level reasoning systematically wrong?"
+
+applies_when:
+  - "context.data_sources.tmbed_predictor_available == true"
+
+required_inputs:
+  - product_id: topology-predictions-tmbed-v1
+
+methods:
+  - call: topology-predictions-tmbed
+    args:
+      target_uniprot_ac: "{target.uniprot_canonical}"
+
+outputs:
+  summary_fields:
+    - topology_class                            # PRIMARY categorical
+    - tm_pass_count                              # int; count of TM alpha-helical segments
+    - has_tm_beta                                # bool; typically false in human proteome
+    - extracellular_residue_count                # int; length of longest ECD run
+    - ecd_orientation                            # 'outside' | 'inside' | 'unknown'
+    - signal_peptide_present                     # bool
+    - signal_peptide_length                      # int
+    - n_glycosylation_sites                      # int; from UniProt PTM
+    - n_ubiquitination_sites                     # int
+    - endocytosis_motif_count                    # int; raw regex hits (YXXΦ + NPXY + Dileucine)
+    - endocytosis_motif_count_high_confidence    # int; pLDDT-accessibility-filtered (reviewer fix)
+    - endocytosis_motif_types                    # list<string>; which motif types were detected
+    - isoform_selective_warning                  # bool — arch A3
+    - isoform_selective_dominant_isoform         # string — from vocabulary if warning fires
+    - tmbed_model_version                        # string; pin for reproducibility
+    - vocabulary_version_isoform                 # string; pin for reproducibility
+
+  summary_fields_vocabulary:
+    topology_class:
+      - single_pass_type_1                       # signal peptide + 1 TM + ECD-outside (N-term extracellular)
+      - single_pass_type_2                       # no signal peptide + 1 TM + ECD-outside (C-term extracellular)
+      - single_pass_type_other                   # 1 TM but topology ambiguous
+      - multi_pass                               # 2+ TM helices
+      - gpi_anchored                             # GPI attachment site + ECD-outside (heuristic)
+      - beta_barrel                              # TM beta (rare in human)
+      - no_transmembrane                         # 0 TM (secreted or intracellular)
+      - data_unavailable
+    endocytosis_motif_types:
+      - YXXphi                                   # tyrosine-based (clathrin-mediated)
+      - NPXY                                     # NPXY tyrosine-based (PTB-domain binding)
+      - Dileucine                                # [DE]-X-X-X-L-[LI]
+
+  figure: topology_diagram_with_ptm_overlay
+
+thresholds:
+  min_ecd_length_adc_favorable: 200               # residues; ADC epitope-accessibility floor
+  max_endocytosis_motif_high_conf_tce_favorable: 2  # low turnover keeps surface stable for TCE
+
+warning_predicates:
+  - warning_id: isoform_selective_target_dominant_variant
+    if: "isoform_selective_warning == true"
+    message: "{target.symbol} has a clinically-dominant alt isoform ({isoform_selective_dominant_isoform}). Modality letter grades suppressed. See vocabularies/isoform_selective_targets.yaml v{vocabulary_version_isoform}."
+  - warning_id: endocytosis_motif_low_confidence_gap
+    if: "endocytosis_motif_count > 5 && endocytosis_motif_count_high_confidence < 2"
+    message: "Raw endocytosis motif count is high but high-confidence count (pLDDT-accessibility-filtered) is low. Many predicted motifs likely fall in unstructured cytoplasmic-tail regions and may not mediate internalization. ADC-favorability arguments should use endocytosis_motif_count_high_confidence."
+  - warning_id: multi_tm_low_epitope_area
+    if: "tm_pass_count > 3 && extracellular_residue_count < 100"
+    message: "Multi-pass TM protein with limited extracellular residue area. ADC / TCE epitope-accessibility is likely compromised — even if the target is 'on the surface', antibody engagement may be sterically constrained."
+
+caveats:
+  - |
+    TMbed benchmarks at ~89% TMH-count accuracy per Bernhofer & Rost 2022.
+    Multi-TM SLC transporter families are the weakest class. Consumers with
+    modality stakes should verify against UniProt TOPO_DOM annotations for
+    critical targets — the surface-topology-and-ptm card is a first-pass
+    filter, not engineering-grade coordinate.
+  - |
+    ECD orientation is heuristic: for type-I/II single-pass this is the
+    biologic extracellular domain; for multi-pass it is the longest
+    extracellular loop; for GPI-anchored proteins the heuristic may miss
+    the anchor context. Consumers should cross-reference UniProt topology
+    annotations for critical modality decisions.
+  - |
+    Endocytosis motif detection is regex-based (YXXΦ, NPXY, Dileucine).
+    YXXΦ is a 4-residue motif that occurs by chance ~once per 400 residues
+    in random protein sequence; a 200-residue cytoplasmic tail will have
+    ~0.5 false hits. The reviewer-driven pLDDT-accessibility filter
+    (`endocytosis_motif_count_high_confidence`) cross-references AlphaFold
+    predictions to filter false positives — downstream rubric weights
+    consume ONLY the high-confidence count.
+  - |
+    Isoform-selective warning fires when target has a curated clinically-
+    dominant alt isoform in the isoform_selective_targets vocabulary v1.
+    Currently curated: ERBB2 (p95HER2), AR (AR-V7), MET (exon14), EGFR
+    (vIII), BRAF (fusions), MDM2 (splice variants), CD19 (Δex2), FGFR2
+    (IIIb/IIIc/fusions). See vocabularies/isoform_selective_targets.yaml
+    for citations + regulatory context. Curation is opt-in; genes without
+    entries are treated as gene-level-safe by default.
+  - |
+    TMbed is Apache-2.0-licensed (verified 2026-07-08 from upstream repo).
+    Model checkpoint + inference source pinned via tmbed-v1-predictor-
+    snapshot-2026-07-08 for reproducibility.
+
+schema_version: 1

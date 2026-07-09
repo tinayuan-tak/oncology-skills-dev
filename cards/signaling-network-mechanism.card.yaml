@@ -1,0 +1,124 @@
+# Card Phase-D — SIGNALING NETWORK MECHANISM (v1)
+#
+# Reviewer-driven Phase D card (mechanism-and-pharmacology skill graduation).
+# Emits a directed signaling-network summary keyed on the target's UniProt-AC,
+# derived from the SIGNOR-tagged subset of OmniPath's commercially-cleared
+# interactions.tsv. The 21-class MoA ontology
+# (methods/signor_mechanism_network/moa_ontology.py v1.0.0) maps each raw
+# SIGNOR mechanism to a rules-firing categorical MoA class + modality-relevance
+# tuple.
+#
+# Interpretation surface (network_class is the PRIMARY categorical for rules):
+#   `well_characterized` → >= 3 upstream regulators AND >= 3 downstream effectors
+#   `partial`            → >= 1 upstream OR >= 1 downstream (but not both >=3)
+#   `sparse`             → 0-1 total edges to the target
+#   `data_unavailable`   → target not in the SIGNOR-via-OmniPath snapshot
+
+card_id: signaling-network-mechanism
+version: 1.0.0
+question: "What is the upstream+downstream signaling context of {target.symbol}, and which MoA classes are candidate hooks?"
+
+applies_when:
+  - "context.data_sources.omnipath_snapshot_available == true"
+
+required_inputs:
+  - product_id: signor-mechanism-network-per-gene-v1
+
+derived_from:
+  - card_id: target-identity-summary  # UniProt-AC resolution
+
+methods:
+  - call: signor-mechanism-network
+    args:
+      target: "{target.symbol}"
+      target_uniprot_ac: "{target.uniprot_canonical}"
+
+outputs:
+  summary_fields:
+    - network_class                         # PRIMARY categorical: well_characterized | partial | sparse | data_unavailable
+    - n_upstream_regulators                 # count of distinct upstream partners
+    - n_downstream_effectors                # count of distinct downstream partners
+    - upstream_regulators                   # list<struct: partner_uniprot_ac, partner_symbol, raw_mechanism, moa_class, modality_relevance>
+    - downstream_effectors                  # list<struct: partner_uniprot_ac, partner_symbol, raw_mechanism, moa_class, pd_marker_relevance>
+    - moa_classes_present                   # list<string> — unique MoA classes hit by upstream partners
+    - pd_marker_classes_present             # list<string> — unique MoA classes hit by downstream partners
+    - has_actionable_moa                    # bool — >= 1 upstream partner with modality_relevance intersect actionable_modalities
+    - has_pd_marker                         # bool — >= 1 downstream partner
+    - moa_ontology_version                  # string — pin for reproducibility
+    - moa_ontology_unmapped_fraction        # float — fraction of edges that fell to 'unmapped' class
+
+  summary_fields_vocabulary:
+    network_class:
+      - well_characterized
+      - partial
+      - sparse
+      - data_unavailable
+    moa_classes_present:
+      - upstream_gap_modulation
+      - upstream_gef_modulation
+      - upstream_kinase_modulation
+      - upstream_ppase_modulation
+      - upstream_ubl_modulation
+      - upstream_dub_modulation
+      - upstream_methyltransferase_modulation
+      - upstream_hat_modulation
+      - upstream_hdac_modulation
+      - upstream_protease_modulation
+      - upstream_transcriptional_modulation
+      - molecular_glue_disruptor
+      - unmapped
+    pd_marker_classes_present:
+      - downstream_pd_marker
+      - downstream_pd_kinase
+      - downstream_pd_dephospho
+      - downstream_pd_ubiquitin
+      - downstream_pd_gap
+      - downstream_pd_gef
+      - transcriptional_pd_marker
+      - downstream_pd_cleavage
+      - downstream_pd_methylation
+      - unmapped
+
+  figures:
+    - id: signaling_network_summary
+      type: directed_network_table_with_moa_annotation
+      description: "Table view: upstream regulators (top) + downstream effectors (bottom) with mechanism + MoA class + modality-relevance tag. Rules-firing MoA classes highlighted; unmapped rows called out with citation link to moa_ontology.py version."
+      preferred_surfaces: [markdown, decision_memo]
+      primary: true
+
+thresholds:
+  min_edges_well_characterized: 3
+  max_edges_sparse: 1
+
+warning_predicates:
+  - warning_id: moa_ontology_unmapped_high
+    if: "moa_ontology_unmapped_fraction > 0.05"
+    message: "More than 5% of SIGNOR edges for {target.symbol} fell to 'unmapped' MoA class. Extend moa_ontology.py or accept the reduced classification coverage; see the run's _unmapped_mechanisms.jsonl."
+  - warning_id: signor_only_one_direction
+    if: "n_upstream_regulators == 0 || n_downstream_effectors == 0"
+    message: "Signaling network is one-directional in SIGNOR (only upstream OR only downstream partners characterized). Interpret MoA / PD-marker calls cautiously — the other direction may exist in non-SIGNOR sources not covered here (Reactome, IntAct)."
+
+caveats:
+  - |
+    SIGNOR is a curator-tight, causally-directed subset of OmniPath (~30k
+    human interactions). Extending to full OmniPath-license-commercial edges
+    is a documented iter-2 backlog item; the trade-off is more edges vs.
+    lower directional confidence.
+  - |
+    moa_ontology_version is stamped in every emitted row and in this card's
+    output. A bump in the ontology (methods/signor_mechanism_network/moa_ontology.py)
+    triggers a new versioned derived manifest; consumers pin against a
+    specific ontology snapshot for reproducibility.
+  - |
+    Modality-relevance tuples on each MoA class are candidate hooks — they
+    identify what modality could act at that mechanism, NOT what modality
+    will succeed against this target. The tractability-and-modality skill
+    performs the joint reasoning across MoA-relevance + structural
+    features + surface-topology to reach modality-fit conclusions.
+  - |
+    Reproducibility: OmniPath is a stateless API. This card pins to the
+    specific omnipath-snapshot-2026-06-29 md5. A re-pull would surface as
+    a new dated snapshot; consumer skills receive an explicit version bump
+    signal.
+
+schema_version: 1

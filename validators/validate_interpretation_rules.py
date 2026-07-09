@@ -117,6 +117,24 @@ def _producible_values_for_field(card_spec: dict, field_name: str) -> Optional[s
     return None
 
 
+def _summary_field_names(card_spec: dict) -> set[str]:
+    """Extract field name strings from summary_fields, tolerating both the
+    legacy bare-string form and the arch-A2 object form
+    ({name, lens_conditional_on?, description?}). W3d fix (2026-07-09):
+    parallel to _summary_field_names in validate_cards.py — needed here so
+    rules targeting lens-conditional object-form fields (e.g., adc_grade
+    declared as `- name: adc_grade`) validate correctly.
+    """
+    raw = (card_spec.get("outputs", {}) or {}).get("summary_fields", [])
+    names: set[str] = set()
+    for entry in raw:
+        if isinstance(entry, str):
+            names.add(entry)
+        elif isinstance(entry, dict) and "name" in entry:
+            names.add(entry["name"])
+    return names
+
+
 def _check_field_declared(card_spec: dict, field_name: str) -> bool:
     """Is `field_name` in the card's outputs.summary_fields? Also accept the legacy
     pseudo-field "interpretation_call" which doesn't appear in summary_fields but
@@ -125,8 +143,7 @@ def _check_field_declared(card_spec: dict, field_name: str) -> bool:
         # Legacy field; always reachable from any card that emits interpretation_hints
         hints = card_spec.get("interpretation_hints", []) or []
         return len(hints) > 0
-    summary_fields = (card_spec.get("outputs", {}) or {}).get("summary_fields", [])
-    return field_name in summary_fields
+    return field_name in _summary_field_names(card_spec)
 
 
 def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
