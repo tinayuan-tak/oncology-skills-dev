@@ -55,6 +55,13 @@ UPSTREAM_ROWS = [
      ("small_molecule_allosteric", "degrader")),
     ("guanine nucleotide exchange factor", "upstream_gef_modulation",
      ("small_molecule_allosteric", "degrader")),
+    # Generic effect-derived fallback mechanisms (SIGNOR rows with empty
+    # MECHANISM but is_stimulation/is_inhibition flags): treat as untyped
+    # activity-regulation candidates for downstream reasoning.
+    ("stimulation", "upstream_stimulator",
+     ("small_molecule",)),
+    ("inhibition", "upstream_inhibitor",
+     ("small_molecule",)),
     # Direct binding: molecular glue / disruptor tractability
     ("binding", "molecular_glue_disruptor",
      ("small_molecule", "molecular_glue", "protac")),
@@ -79,11 +86,24 @@ UPSTREAM_ROWS = [
     # Transcriptional / translational regulation upstream
     ("transcriptional regulation", "upstream_transcriptional_modulation",
      ("rna_therapeutic", "small_molecule_transcription_factor")),
+    # CollecTri signed TF→target edges (extension 2026-07-10). Splits
+    # generic "transcriptional regulation" into signed variants so
+    # downstream reasoning can distinguish activator-loss (loss-of-function
+    # target when the activating TF is drugged) from repressor-loss.
+    ("transcriptional activation", "upstream_transcriptional_activator",
+     ("rna_therapeutic", "small_molecule_transcription_factor")),
+    ("transcriptional repression", "upstream_transcriptional_repressor",
+     ("rna_therapeutic", "small_molecule_transcription_factor")),
 ]
 
 # Downstream edges: target → something. The "something" is a candidate PD marker.
 DOWNSTREAM_ROWS = [
     ("binding", "downstream_pd_marker",
+     ("pd_biomarker",)),
+    # Generic effect-derived fallback (empty MECHANISM with is_stim/is_inh flag)
+    ("stimulation", "downstream_activation_readout",
+     ("pd_biomarker",)),
+    ("inhibition", "downstream_repression_readout",
      ("pd_biomarker",)),
     ("phosphorylation", "downstream_pd_kinase",
      ("pd_biomarker_phospho",)),
@@ -96,6 +116,14 @@ DOWNSTREAM_ROWS = [
     ("guanine nucleotide exchange factor", "downstream_pd_gef",
      ("pd_biomarker",)),
     ("transcriptional regulation", "transcriptional_pd_marker",
+     ("pd_biomarker_transcriptional", "rna_ihc_readout")),
+    # CollecTri signed TF→target edges (extension 2026-07-10) — when target
+    # IS a TF acting on downstream genes, split signed variants for
+    # PD-marker reasoning (rna_ihc_readout on activator target ≠ same on
+    # repressor target).
+    ("transcriptional activation", "downstream_transcriptional_activation_readout",
+     ("pd_biomarker_transcriptional", "rna_ihc_readout")),
+    ("transcriptional repression", "downstream_transcriptional_repression_readout",
      ("pd_biomarker_transcriptional", "rna_ihc_readout")),
     ("cleavage", "downstream_pd_cleavage",
      ("pd_biomarker",)),
