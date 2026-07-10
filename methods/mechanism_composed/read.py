@@ -48,12 +48,20 @@ from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
 from methods.signor_mechanism_network import read as signor_read
 from methods.collectri_tf_regulon import read as collectri_read
 from methods.reactome_pathway_context import read as reactome_read
+from methods.kinome_atlas_prediction import read as kinome_atlas_read
 
 
-# Source keys for provenance stamping
+# Source keys for provenance stamping. Curated sources first; kinome-atlas
+# is PREDICTION so consumers/synthesis should weight it lower.
 SOURCE_KEY_SIGNOR = "signor"
 SOURCE_KEY_COLLECTRI = "collectri"
 SOURCE_KEY_REACTOME = "reactome"
+SOURCE_KEY_KINOME_ATLAS = "kinome_atlas_prediction"
+
+# Curated sources — governance-grade evidence. Kinome-atlas is separately
+# labelled so downstream can filter/weight distinctly.
+CURATED_SOURCE_KEYS = {SOURCE_KEY_SIGNOR, SOURCE_KEY_COLLECTRI, SOURCE_KEY_REACTOME}
+PREDICTION_SOURCE_KEYS = {SOURCE_KEY_KINOME_ATLAS}
 
 
 def _edge_key(edge: dict) -> tuple:
@@ -197,7 +205,18 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     except Exception as e:
         reactome_result = {"_data_note": f"reactome_failed: {e}"}
 
-    # Union edges (SIGNOR + CollecTri; Reactome is layered, not unioned)
+    # Sprint 3 (2026-07-10): kinome-atlas prediction lane
+    kinome_atlas_result: dict = {}
+    try:
+        kinome_atlas_result = kinome_atlas_read.read_target_summary(target, indication)
+        if kinome_atlas_result.get("network_class") not in (None, "data_unavailable"):
+            sources_wired.append(SOURCE_KEY_KINOME_ATLAS)
+    except Exception as e:
+        kinome_atlas_result = {"_data_note": f"kinome_atlas_failed: {e}",
+                                "upstream_regulators": [], "downstream_effectors": []}
+
+    # Curated union: SIGNOR + CollecTri edges (Reactome is layered as
+    # pathway context; kinome-atlas is a SEPARATE prediction lane).
     signor_up = signor_result.get("upstream_regulators", [])
     signor_dn = signor_result.get("downstream_effectors", [])
     collectri_up = collectri_result.get("upstream_regulators", [])
@@ -205,6 +224,11 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 
     union_upstream = _union_edges(signor_up, collectri_up)
     union_downstream = _union_edges(signor_dn, collectri_dn)
+
+    # Kinome-atlas predictions kept SEPARATE from the curated union so
+    # downstream synthesis can weight them lower.
+    kinome_atlas_upstream = kinome_atlas_result.get("upstream_regulators", []) or []
+    kinome_atlas_downstream = kinome_atlas_result.get("downstream_effectors", []) or []
 
     n_up = len(union_upstream)
     n_dn = len(union_downstream)
@@ -252,6 +276,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             SOURCE_KEY_SIGNOR: signor_total_edges,
             SOURCE_KEY_COLLECTRI: collectri_total_edges,
             SOURCE_KEY_REACTOME: reactome_result.get("pathway_count", 0),
+            SOURCE_KEY_KINOME_ATLAS: len(kinome_atlas_upstream) + len(kinome_atlas_downstream),
         },
         "sources_wired": sources_wired,
         "reactome_pathway_context": {
@@ -259,6 +284,16 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             "pathway_count": reactome_result.get("pathway_count", 0),
             "top_level_pathways": reactome_result.get("top_level_pathways", []),
             "is_signaling": reactome_result.get("is_signaling", False),
+        },
+        # Sprint 3 (2026-07-10): PREDICTION lane kept separate from the
+        # curated edge union. Consumers weight lower per reviewer guidance.
+        "kinome_atlas_predictions": {
+            "network_class": kinome_atlas_result.get("network_class", "data_unavailable"),
+            "n_upstream_predicted_kinases": len(kinome_atlas_upstream),
+            "n_downstream_predicted_substrates": len(kinome_atlas_downstream),
+            "upstream_predicted_kinases": kinome_atlas_upstream,
+            "downstream_predicted_substrates": kinome_atlas_downstream,
+            "source_note": kinome_atlas_result.get("_source_note", ""),
         },
         "_data_source": "mechanism-composed-per-gene-v1",
     }

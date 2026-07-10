@@ -20,3 +20,5 @@ ranking is cells_supporting-aware (surface proteins with cells_supporting < 3
 are excluded so the top of the list isn't dominated by 1-cell false positives).
 """
 METHOD_VERSION = "0.1.0"
+
+from .read import read_target_summary  # noqa: F401,E402

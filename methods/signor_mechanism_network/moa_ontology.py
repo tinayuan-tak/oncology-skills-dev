@@ -94,6 +94,14 @@ UPSTREAM_ROWS = [
      ("rna_therapeutic", "small_molecule_transcription_factor")),
     ("transcriptional repression", "upstream_transcriptional_repressor",
      ("rna_therapeutic", "small_molecule_transcription_factor")),
+    # Kinome-atlas PWM-derived predictions (Sprint 3, 2026-07-10).
+    # Distinct from curated `phosphorylation` — these are PREDICTIONS from
+    # positional-scanning peptide-array PWMs (Johnson 2023 + Yaron-Barir
+    # 2024 Nature). Downstream synthesis should weight lower than curated.
+    ("predicted phosphorylation (ser_thr)", "upstream_predicted_kinase_modulation",
+     ("small_molecule_kinase_inhibitor_predicted",)),
+    ("predicted phosphorylation (tyr)", "upstream_predicted_kinase_modulation",
+     ("small_molecule_kinase_inhibitor_predicted",)),
 ]
 
 # Downstream edges: target → something. The "something" is a candidate PD marker.
@@ -125,6 +133,12 @@ DOWNSTREAM_ROWS = [
      ("pd_biomarker_transcriptional", "rna_ihc_readout")),
     ("transcriptional repression", "downstream_transcriptional_repression_readout",
      ("pd_biomarker_transcriptional", "rna_ihc_readout")),
+    # Kinome-atlas PWM-derived downstream predictions (Sprint 3, 2026-07-10).
+    # Target-as-KINASE case: predicted substrates → phospho PD readouts.
+    ("predicted phosphorylation (ser_thr)", "downstream_predicted_phospho_readout",
+     ("pd_biomarker_phospho_predicted",)),
+    ("predicted phosphorylation (tyr)", "downstream_predicted_phospho_readout",
+     ("pd_biomarker_phospho_predicted",)),
     ("cleavage", "downstream_pd_cleavage",
      ("pd_biomarker",)),
     ("methylation", "downstream_pd_methylation",

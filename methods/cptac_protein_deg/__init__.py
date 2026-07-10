@@ -11,3 +11,5 @@ Consumer: protein-presence-cptac + surface-abundance-density cards (Phase A, F)
 via tumor-presence + tractability-and-modality skills.
 """
 METHOD_VERSION = "0.1.0"
+
+from .read import read_target_summary  # noqa: F401,E402
