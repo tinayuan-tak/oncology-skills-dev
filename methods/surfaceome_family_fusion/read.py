@@ -4,14 +4,13 @@ Consumer: surfaceome-family-classification evidence card (Phase F) via
 tractability-and-modality skill. Emits per-target surface-protein family
 classification fused from 4 upstream sources with source-agreement scoring.
 
-Iter-1 wiring approach:
-  - Reads the derived parquet at
-    s3://onc-compbio/data-catalog/derived/surfaceome-family-classification-per-uniprot-v1/
-  - Falls back to `data_unavailable` gracefully when the derived product
-    isn't in S3 (SURFY XLSX extractor + HPA parse + UniProt EC + IUPHAR
-    REST is a batch ETL, not per-target compute).
-
-Runtime discipline: @lru_cache + module-level negative cache.
+Runtime discipline (v2, 2026-07-10 — mirrors kinome-atlas PR #7 pattern):
+  - pd.read_parquet with no predicate pushdown (20K rows total, small enough)
+  - Column-array iteration (df.col.values) to build gene_symbol + uniprot_ac
+    indices — NOT iterrows (which is O(rows) Python-object materialization)
+  - Lazy per-target row materialization via df.iloc[[idx]].to_dict — bounded
+    to a single row per lookup instead of the full 20K
+  - @lru_cache(maxsize=1) on load+index + module-level negative cache
 
 Companion:
   data-catalog:manifests/derived/surfaceome-family-classification-per-uniprot-v1.yaml
@@ -64,40 +63,64 @@ def _ensure_derived_cached() -> Optional[Path]:
 
 
 @lru_cache(maxsize=1)
-def _load_indexed() -> dict:
+def _load_indexed():
+    """Load derived parquet + build gene_symbol and uniprot_ac indices.
+
+    Returns (df, gene_idx, ac_idx):
+        - df: pandas.DataFrame with 20K rows (source-of-truth; row lookups
+          happen lazily via df.iloc[[idx]] at read_target_summary time)
+        - gene_idx: dict[gene_symbol_upper -> row_index_in_df]
+        - ac_idx: dict[uniprot_ac -> row_index_in_df]
+
+    On failure returns (empty DataFrame, {}, {}).
+    """
     path = _ensure_derived_cached()
     if path is None:
-        return {}
+        import pandas as pd
+        return pd.DataFrame(), {}, {}
     try:
         import pandas as pd
         df = pd.read_parquet(path)
     except Exception:
-        return {}
+        import pandas as pd
+        return pd.DataFrame(), {}, {}
     if df.empty:
-        return {}
-    idx: dict[str, dict] = {}
-    for _, row in df.iterrows():
-        sym = str(row.get("gene_symbol", "")).strip().upper()
-        ac = str(row.get("uniprot_ac", "")).strip()
-        rec = row.to_dict()
-        if sym:
-            idx[sym] = rec
-        if ac:
-            idx[ac] = rec
-    return idx
+        return df, {}, {}
+
+    # Column-array iteration builds indices in ~10ms on 20K rows.
+    gene_col = df['gene_symbol'].values
+    ac_col = df['uniprot_ac'].values
+    gene_idx: dict[str, int] = {}
+    ac_idx: dict[str, int] = {}
+    for i in range(len(df)):
+        g = gene_col[i]
+        a = ac_col[i]
+        if g:
+            gene_idx[str(g).strip().upper()] = i
+        if a:
+            ac_idx[str(a).strip()] = i
+    return df, gene_idx, ac_idx
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
     try:
-        idx = _load_indexed()
+        df, gene_idx, ac_idx = _load_indexed()
     except Exception as e:
         return _empty(f"surfaceome_family_load_failed: {type(e).__name__}: {e}")
-    if not idx:
+    if df is None or df.empty:
         return _empty("surfaceome_family_data_unavailable")
 
-    row = idx.get(target.upper().strip()) or idx.get(target.strip())
-    if row is None:
+    # Accept either HGNC symbol or UniProt AC as input
+    sym_key = target.upper().strip()
+    ac_key = target.strip()
+    row_idx = gene_idx.get(sym_key)
+    if row_idx is None:
+        row_idx = ac_idx.get(ac_key)
+    if row_idx is None:
         return _empty("target_not_in_surfaceome_family")
+
+    # Lazy: single-row dict materialization
+    row = df.iloc[row_idx].to_dict()
 
     return {
         "family_class": row.get("family_class", "data_unavailable"),
@@ -109,7 +132,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         "source_uniprot_ec_number": row.get("source_uniprot_ec_number", ""),
         "source_iuphar_family": row.get("source_iuphar_family", ""),
         "hpa_protein_class_verbatim": row.get("hpa_protein_class_verbatim", ""),
-        "fusion_provenance": row.get("fusion_provenance") or [],
+        "fusion_provenance": [str(x) for x in (row.get("fusion_provenance") if row.get("fusion_provenance") is not None else [])],
         "method_version": "0.1.0",
         "_data_source": DERIVED_MANIFEST_ID,
     }
