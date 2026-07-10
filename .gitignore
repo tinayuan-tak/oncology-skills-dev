@@ -25,3 +25,9 @@ __pycache__/
 
 # Local DepMap cache directories that some loaders fall back to
 depmap-26q1/
+
+
+# Cross-session coordination (see CLAUDE.md)
+!.claude/config
+!.claude/hooks/
+.claude/branch-scope
