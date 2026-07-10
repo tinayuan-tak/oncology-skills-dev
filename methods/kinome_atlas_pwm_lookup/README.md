@@ -7,8 +7,11 @@ log-odds enrichment value.
 
 ## Coverage
 
-- **396 canonical kinases**: 303 Ser/Thr (Johnson 2023) + 93 Tyr canonical
-  + non-canonical (Yaron-Barir 2024)
+- **396 kinases**: 303 Ser/Thr (Johnson 2023) + 93 Tyr (Yaron-Barir 2024).
+  Tyr count breaks down as 78 canonical + 15 non-canonical Tyr /
+  dual-specificity kinases (with `_TYR` suffix in the kinase column:
+  BMPR2_TYR, LIMK1/2_TYR, MKK4/6/7_TYR, MYT1_TYR, NEK10_TYR,
+  PDHK1/3/4_TYR, PINK1_TYR, TESK1_TYR, TNNI3K_TYR, WEE1_TYR)
 - **10 positions per Tyr kinase (-5..-1, +1..+5)**; 9 positions per Ser/Thr
   kinase (-5..-1, +1..+4). Position 0 (phospho-acceptor) is by definition
   S/T/Y and is NOT stored in this table.

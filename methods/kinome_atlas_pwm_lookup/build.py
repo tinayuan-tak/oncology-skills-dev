@@ -15,8 +15,11 @@ Sheet layout (both workbooks):
 Wide-matrix shape: (~300 rows kinases) × (208 or 231 columns).
 Column names: "{position}{amino_acid}" — e.g. "-5P" (position -5, Pro),
 "+3Y" (position +3, Tyr), "0S", "0T", "0Y" (phospho-position acceptors).
-Position range: -5 .. +4 (10 positions). Amino acids: 20 standard + 3
-phospho (pS, pT, pY, denoted 's', 't', 'y' or as suffix).
+Position range: -5..+5, EXCLUDING position 0 (phospho-acceptor slot is
+by definition S/T/Y). Ser/Thr atlas: -5..-1, +1..+4 (9 positions).
+Tyr atlas: -5..-1, +1..+5 (10 positions). Amino acids: 20 standard + 3
+phospho (pS, pT, pY, denoted 's', 't', 'y' or as suffix) = 23 total per
+position.
 
 Output schema (7 columns):
     family              str  - 'ser_thr' or 'tyrosine'
@@ -31,8 +34,9 @@ Output schema (7 columns):
 Row layout: sorted by (family, kinase, position, amino_acid) for
 predicate-pushdown-friendly reads.
 
-Expected row count: 381 kinases × 10 positions × ~22 amino acids ≈ ~79K rows.
-Expected size: ~2-4 MB snappy parquet.
+Row count: 396 kinases across both atlases (303 Ser/Thr × 207 cells/kinase
++ 93 Tyr × 230 cells/kinase) = 84,111 rows.
+Size on disk: ~240 KB snappy parquet.
 
 Usage:
     python -m methods.kinome_atlas_pwm_lookup.build \\
