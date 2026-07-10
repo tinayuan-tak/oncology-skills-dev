@@ -1,0 +1,7 @@
+# Per-repo config consumed by ~/.claude/git-hooks/pre-commit.
+
+# Approved branch prefixes for this repo.
+prefixes: feat/ fix/ chore/
+
+# Human-readable top-level scope roots.
+scope_roots: cards/ interpretation-rules/ schemas/ vocabularies/ tests/

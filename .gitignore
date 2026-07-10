@@ -23,3 +23,9 @@ __pycache__/
 
 # Claude Code local settings
 .claude/
+
+
+# Cross-session coordination (see CLAUDE.md)
+!.claude/config
+!.claude/hooks/
+.claude/branch-scope
