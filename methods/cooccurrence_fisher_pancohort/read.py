@@ -64,24 +64,42 @@ def _ensure_derived_cached() -> Optional[Path]:
 
 
 @lru_cache(maxsize=1)
-def _load_indexed() -> dict:
-    """Load Fisher parquet, index by target_gene_symbol → list of pair-rows."""
+def _load_indexed():
+    """Load Fisher parquet with column-iter indexing + lazy materialization.
+
+    Mirrors the kinome-atlas PR #7 perf pattern:
+      - pd.read_parquet with predicate pushdown (bh_q_value <= 0.5)
+      - column-array iteration (df.col.values) to build indices — NOT iterrows
+      - lazy per-target row materialization at read_target_summary time
+      - @lru_cache(maxsize=1) means load+index once per Python process
+
+    Returns (df, index_by_target):
+      df — pandas DataFrame with predicate-pushed rows
+      index_by_target — dict[gene_symbol_upper -> list[row_index_in_df]]
+    """
     path = _ensure_derived_cached()
     if path is None:
-        return {}
+        import pandas as pd
+        return pd.DataFrame(), {}
     try:
         import pandas as pd
-        df = pd.read_parquet(path)
+        df = pd.read_parquet(
+            path,
+            filters=[('bh_q_value', '<=', 0.5)],
+        )
     except Exception:
-        return {}
+        import pandas as pd
+        return pd.DataFrame(), {}
     if df.empty:
-        return {}
-    idx: dict[str, list[dict]] = {}
-    for _, row in df.iterrows():
-        sym = str(row.get("target_gene_symbol", "")).strip().upper()
-        if sym:
-            idx.setdefault(sym, []).append(row.to_dict())
-    return idx
+        return df, {}
+    # Column-array iteration (5x faster than iterrows for this size)
+    target_col = df['target_gene_symbol'].values
+    idx: dict[str, list[int]] = {}
+    for i in range(len(df)):
+        t = target_col[i]
+        if t:
+            idx.setdefault(str(t).strip().upper(), []).append(i)
+    return df, idx
 
 
 def _classify_cooccurrence(rows: list[dict]) -> str:
@@ -127,16 +145,19 @@ def _classify_cooccurrence(rows: list[dict]) -> str:
 
 def read_target_summary(target: str, indication: str = None) -> dict:
     try:
-        idx = _load_indexed()
+        df, idx = _load_indexed()
     except Exception as e:
         return _empty(f"cooccurrence_load_failed: {type(e).__name__}: {e}")
-    if not idx:
+    if df is None or df.empty or not idx:
         return _empty("cooccurrence_data_unavailable")
 
     sym = target.upper().strip()
-    rows = idx.get(sym, [])
-    if not rows:
+    row_indices = idx.get(sym, [])
+    if not row_indices:
         return _empty("target_not_in_cooccurrence_scan")
+
+    # Lazy: materialize only this target's rows to dicts
+    rows = df.iloc[row_indices].to_dict(orient="records")
 
     # Partition rows into per-source vs pooled
     per_source = [r for r in rows if str(r.get("source", "")).lower() != "pooled"]

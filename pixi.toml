@@ -16,9 +16,21 @@ jsonschema = "*"
 click = "*"                      # CLI scaffolding for method entrypoints
 pytest = "*"
 
-# R + bioconductor (for dge_deseq2 and any future R-driven methods)
+# R + bioconductor (for dge_deseq2 + cooccurrence_fisher_pancohort + any future R-driven methods)
 r-base = ">=4.3"
 r-tidyverse = "*"
+r-arrow = "*"                    # write parquet from R
+r-optparse = "*"                 # CLI arg parsing in R stage scripts
+r-devtools = "*"                 # cooccurrence_fisher_pancohort: install DISCOVER from GitHub via setup.R
+r-remotes = "*"                  # cooccurrence_fisher_pancohort: devtools 2.5+ delegates install_github to remotes
+"r-data.table" = "*"             # cooccurrence_fisher_pancohort: fast MAF parse + binary matrix build
+"r-r.utils" = "*"                # cooccurrence_fisher_pancohort: peer dep of data.table for gz reads
+r-igraph = "*"                   # cooccurrence_fisher_pancohort: SELECT dependency (Mina 2020)
+r-matrix = "*"                   # cooccurrence_fisher_pancohort: SELECT dependency (sparse matrices)
+r-matrixstats = "*"              # cooccurrence_fisher_pancohort: SELECT dependency (column-wise stats)
+r-foreach = "*"                  # cooccurrence_fisher_pancohort: SELECT dependency (parallel loops)
+r-doparallel = "*"               # cooccurrence_fisher_pancohort: SELECT dependency (parallel backend)
+bioconductor-birewire = "*"      # cooccurrence_fisher_pancohort: SELECT dependency (bipartite network null model)
 bioconductor-deseq2 = "*"
 bioconductor-sva = "*"           # combat-seq batch correction
 
