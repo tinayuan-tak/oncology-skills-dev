@@ -59,3 +59,9 @@ skills/*/*_cohort_assignments.csv
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+
+# Cross-session coordination (see CLAUDE.md)
+!.claude/config
+!.claude/hooks/
+.claude/branch-scope

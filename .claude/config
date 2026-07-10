@@ -1,0 +1,11 @@
+# Per-repo config consumed by ~/.claude/git-hooks/pre-commit.
+#
+# This repo has existing branching conventions in DEVELOPMENT_GUIDELINES.md
+# (`main -> dev -> feature/*` flow; `feat/{name}` / `fix/{name}` / `chore/{name}`
+# prefixes). The prefixes list below matches that existing convention.
+
+# Approved branch prefixes for this repo.
+prefixes: feat/ fix/ chore/ feature/
+
+# Human-readable top-level scope roots.
+scope_roots: skills/ libs/ notebooks/ tests/
