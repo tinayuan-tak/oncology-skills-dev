@@ -1,0 +1,55 @@
+# Card (PLACEHOLDER) — FUSION / REARRANGEMENT LANDSCAPE
+#
+# Declared 2026-07-14 as the fusion/structural-variant axis of the reframed
+# genomic-alteration-profile skill (SNV + CN wired; fusion pending data).
+# NOT yet backed by a method or a derived product — resolve_cards flags it
+# `_missing` until the fusion data lands, and the skill degrades honestly
+# (the fusion axis simply doesn't contribute to the verdict yet). This mirrors
+# the clinical-precedent / combo-crispr-screen declared-placeholder pattern.
+#
+# When wired, candidate data sources: GENIE structural-variant calls
+# (data_sv.txt), Mitelman, ChimerDB. Target categorical below is the intended
+# contract, not a live output.
+
+card_id: fusion-rearrangement-landscape
+version: 0.1.0
+question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
+
+applies_when:
+  - "context.data_sources.fusion_calls_available == true"   # false everywhere today → card skipped/missing
+
+required_inputs:
+  - product_id: genie-structural-variants          # NOT yet catalogued — placeholder
+    release_pin: "{release_pin}"
+
+methods:
+  - call: fusion-rearrangement-landscape            # NOT yet implemented — placeholder dispatcher
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - n_samples_with_fusion
+    - fusion_frequency
+    - recurrent_partners
+    - fusion_class                                  # categorical driving future rules
+  summary_fields_vocabulary:
+    fusion_class:
+      - recurrent_fusion_driver                     # >=threshold samples with a recurrent partner
+      - sporadic_fusion                             # fusions present but non-recurrent
+      - no_recurrent_fusion                         # no recurrent fusion signal
+      - data_unavailable                            # DEFAULT today — no fusion product landed
+  figures:
+    - id: fusion_partner_bar
+      type: ranked_bar
+      description: "Recurrent fusion partners for the target, ranked by sample count."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_sample_fusion_calls
+
+caveats:
+  - "PLACEHOLDER card (v0.1.0): no method or derived product exists yet; the card resolves to data_unavailable / _missing. Declared to document the fusion axis of genomic-alteration-profile so the skill's scope is honest about what is not yet wired."
+  - "Fusion detection methodology differs materially from SNV/CN; when wired, this axis may warrant its own skill if it grows heavy (per the 2026-07-14 scope review)."
+
+schema_version: 1
