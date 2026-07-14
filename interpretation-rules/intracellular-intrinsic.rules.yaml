@@ -1269,6 +1269,23 @@ rules:
       + PD marker candidates are enumerable. Supportive for both SM and
       degrader modalities.
 
+  - rule_id: mechanism-partial-neutral
+    when:
+      card_id: signaling-network-mechanism
+      field: network_class
+      equals: partial
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Some — but not richly-characterized — upstream/downstream signaling
+      context annotated (between sparse and well_characterized). Added
+      2026-07-14: the reader emits `partial` as the fall-through class
+      (mechanism_composed read.py:162) but no rule matched it, so
+      partial-network targets fired nothing and collapsed to `insufficient`.
+      MoA hooks are partially enumerable; informative but not
+      decision-driving on its own.
+
   - rule_id: mechanism-sparse-warning
     when:
       card_id: signaling-network-mechanism
@@ -1350,6 +1367,86 @@ rules:
     rationale: |
       Target not present in the panel-intersect Fisher scan output. Coverage
       gap; not opposing evidence.
+
+  # ----------------------------------------------------------------------------
+  # Coverage completion (added 2026-07-14): the reader emits SIX cooccurrence_
+  # class values (both_patterns_present | strong_cooccurring |
+  # strong_mutually_exclusive | modest_cooccurring | modest_mutually_exclusive
+  # | ns) plus data_unavailable, but only strong_mutually_exclusive +
+  # data_unavailable had rules — so a target landing on any co-occurring or
+  # both-pattern class fired NOTHING and its verdict silently collapsed to
+  # `insufficient` despite real, significant data (e.g. KRAS/COADREAD:
+  # both_patterns_present, 709 cooc / 59 mutex partners). These rows close
+  # that gap. (NOTE: the card docstring's vocabulary list omits
+  # both_patterns_present — a reader↔card doc drift flagged for the card
+  # owner; rules here match what the reader actually emits, read.py:134-142.)
+  - rule_id: cooccurrence-both-patterns-supportive
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: both_patterns_present
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Target has BOTH strong co-occurring (q<0.001, log2_or>1) AND strong
+      mutually-exclusive (q<0.001, log2_or<-1) partners. The richest
+      differentiation signal: co-occurring partners inform combination +
+      patient-selection biology; exclusive partners inform monotherapy
+      stratification.
+
+  - rule_id: cooccurrence-strong-supportive
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: strong_cooccurring
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Strong co-occurring partners (q<0.001, log2_or>1). Combination biology
+      + patient-selection biomarkers reason from the co-occurrence pattern.
+
+  - rule_id: cooccurrence-modest-cooccurring-neutral
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: modest_cooccurring
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Modest co-occurring partners (q<0.05, log2_or>0.5). A weak
+      differentiation signal — informative but not decision-driving.
+
+  - rule_id: cooccurrence-modest-mutually-exclusive-neutral
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: modest_mutually_exclusive
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Modest mutually-exclusive partners (q<0.05, log2_or<-0.5). Weak
+      pathway-distinctness signal; informative but not decision-driving.
+
+  - rule_id: cooccurrence-ns-neutral
+    when:
+      card_id: co-mutation-and-mutual-exclusivity
+      field: cooccurrence_class
+      equals: ns
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      No significant co-occurrence or mutual-exclusivity pattern for this
+      target. Present in the scan (distinct from data_unavailable) but the
+      co-mutation axis is not informative for differentiation here — neutral
+      signal (neither supports nor opposes). NOTE: signal must be one of the
+      schema enum {supportive, opposing, killer, neutral, insufficient};
+      `not_informative` is NOT a valid signal value (fixed 2026-07-14).
 
   # ============================================================================
   # Phase C-adjacent — Paralog-buffering card (added 2026-07-08)
