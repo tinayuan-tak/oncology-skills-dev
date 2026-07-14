@@ -1,12 +1,12 @@
 # Target profile — KRAS in COADREAD
 
-Generated 2026-07-14T00:40:35+00:00
+Generated 2026-07-14T04:33:07+00:00
 
 ![Target profile at a glance](figures/target_profile_at_a_glance.png)
 
 ## Executive summary *(LLM-synthesized)*
 
-KRAS in COADREAD presents as a well-validated, biomarker-stratified oncology target with strong functional and pharmacological evidence. CRISPR and RNAi both show bimodal, lineage-selective dependency enriched in Bowel (54% strongly dependent) and Pancreas, and hotspot-mutant lines are dramatically more dependent than WT (delta Chronos -1.32, q~1e-102). ~42% of COADREAD tumors carry KRAS mutations (dominated by G12D/G12V/G13D; G12C only ~3%), co-occurring with APC/SMAD4/CDKN2A and mutually exclusive with BRAF/EGFR — a coherent biomarker-defined population. Tractability is de-risked by clinically active PRISM compounds (RMC-7977, eloronrasib, daraxonrasib) triangulated with CRISPR engagement, and mutation-driven dependency is highly predictable (RF R²≈0.47, top feature own_mut_hotspot). Expression is broadly moderate/non-selective and safety/surface data are uninformative — expected for an intracellular GTPase — so the target profile is intracellular small-molecule/tri-complex, not surface/ADC.
+KRAS in COADREAD presents as a biomarker-stratified, lineage-selective dependency with strong triangulation across CRISPR, RNAi, and PRISM compound activity. Hotspot mutants (G12D, G12V, G13D, G12C, A146T) collectively account for ~42% of COADREAD samples and show a large dependency delta (Δchronos ≈ -1.32, q≈1e-102) vs. wildtype, with 'own_mut_hotspot' as the dominant predictive feature. Mechanism is well-characterized with PD markers, and small-molecule tractability is validated by clinically active tri-complex and G12C-selective inhibitors (RMC-7977, eliornrasib, daraxonrasib). Expression is broadly moderate and tumor-vs-normal selectivity is discordant, but these dimensions are not decision-drivers here; surface-modality is a killer only if pursuing ADC/TCE (KRAS is intracellular), and safety evidence is missing.
 
 ## Recommendation *(LLM-synthesized, enum-constrained)*
 
@@ -19,8 +19,8 @@ Governance-facing 6-category framing mapped from the rule-fired sub-verdicts bel
 
 | Category | Risk level | Driver |
 |---|---|---|
-| **biological** | `LOW` | strong support across A/B/C/mut sub-verdicts |
-| **druggability** | `LOW` | e7-triangulated-target-engaged-supportive |
+| **biological** | `MEDIUM` | mixed signals across A/B/C |
+| **druggability** | `insufficient_evidence` | tractability sub-verdict absent |
 | **translational** | `insufficient_evidence` | Phase-J (translational-readiness) placeholder — data not wired |
 | **clinical** | `insufficient_evidence` | Phase-E (clinical precedent) placeholder — data feed not wired |
 | **safety** | `insufficient_evidence` | Phase-G (on-target-safety) placeholder — HPA + gnomAD cards not wired |
@@ -28,7 +28,7 @@ Governance-facing 6-category framing mapped from the rule-fired sub-verdicts bel
 
 ## Tension analysis *(LLM-synthesized)*
 
-Minimal biological tension. Expression is "broadly moderate" and tumor-vs-normal selectivity is discordant/down — but this is expected for a ubiquitously expressed intracellular GTPase where selectivity comes from mutant-state pharmacology, not expression differential. The main mismatch is dimensional: surfaceome/ADC/TCE cards are empty and cohort_rank is data_unavailable because KRAS is not a surface protein (surfaceome_confidence 1.0 not_surface, Kinase/Enzyme family) — these dimensions are not applicable rather than negative. Differentiation and safety sub-verdicts are flagged "insufficient" (no rule fired), though the underlying co-mutation card actually shows rich landscape data (APC/SMAD4 co-occurrence, BRAF/EGFR exclusivity) that is informative for combination strategy.
+Minor tension: tumor-vs-normal selectivity is discordant and CPTAC protein shows tumor ≤ normal, which would normally weaken a tumor-antigen thesis — but this is irrelevant for a mutant-selective small-molecule strategy, where the discriminator is hotspot genotype rather than expression differential. The surface_modality 'not_surface' killer is expected and only forecloses ADC/TCE routes, not the small-molecule path that is already clinically validated. Paralog buffering by NRAS (moderate) and cross-RAS co-inhibition is partially reflected in the pan-RAS tri-complex compound MOAs.
 
 ## Sub-verdicts *(deterministic, rule-fired)*
 
@@ -38,12 +38,11 @@ Minimal biological tension. Expression is "broadly moderate" and tumor-vs-normal
 | selectivity | — | (raw metrics; no rule verdict) |
 | dependency | `lineage_selective` | `lineage-selective-supportive` |
 | mechanism | `well_characterized` | `mechanism-well-characterized-supportive` |
-| mutation | `biomarker_stratified_dependency` | `mutant-strongly-dependent-supportive` |
-| differentiation | `insufficient` | `None` |
-| tractability | `well_covered` | `e7-triangulated-target-engaged-supportive` |
+| genomic_alteration | `biomarker_stratified_dependency` | `mutant-strongly-dependent-supportive` |
+| differentiation | `both_patterns_present` | `cooccurrence-both-patterns-supportive` |
+| tractability_sm | `well_covered` | `e7-triangulated-target-engaged-supportive` |
+| surface_modality | `insufficient` | `None` |
 | safety | `insufficient` | `None` |
-| population | — | (raw metrics; no rule verdict) |
-| cohort_rank | — | (raw metrics; no rule verdict) |
 
 ## Per-phase evidence *(deterministic, from card summaries)*
 
@@ -74,44 +73,21 @@ Key metrics inlined from each sub-skill's underlying card summaries. Use these t
 |---|---|
 | CRISPR-RNAi concordance | `strongly_concordant_non_dependent` |
 
-### mutation — `biomarker_stratified_dependency`
-
-| Metric | Value |
-|---|---|
-| landscape class | `missense_dominant` |
-| stratification class | `mutant_strongly_dependent` |
-| dominant variant class | `missense` |
-| cohort mutation frequency | `0.420` |
-
-### tractability — `well_covered`
-
-| Metric | Value |
-|---|---|
-| predictability | `own_omics_driven` |
-
-### population
-
-| Metric | Value |
-|---|---|
-| mutation frequency (indication) | `0.420` |
-| n samples in indication | `559` |
-| n samples mutated | `235` |
-
 ## Top arguments *(LLM-synthesized)*
 
 **For:**
-- Biomarker-stratified dependency is exceptionally strong: hotspot-mutant vs WT delta Chronos -1.32 (q~1.7e-102, effect size 0.90), and own_mut_hotspot is the dominant predictive feature (RF importance 0.44, R²≈0.47).
-- Lineage-selective essentiality in Bowel (54.5% strongly dependent, median Chronos -1.18, q~4e-16) with CRISPR/RNAi concordance and bimodal selective distribution — hallmark of a genotype-defined driver.
-- High indication prevalence: ~42% of COADREAD samples KRAS-mutant (n=559), missense-dominant, with a broad hotspot spectrum (G12D 10.9%, G12V 9.3%, G13D 7.2%, G12C 3.0%, A146T 2.9%) enabling pan-KRAS or multi-allele strategies beyond G12C.
-- Tractability triangulated: 23 PRISM compounds with clinically active signal (RMC-7977, eloronrasib, daraxonrasib in phase 1+), CRISPR–PRISM concordance class 'triangulated_target_engaged', and best responder LFC -13.6 in mutant lines.
-- Well-characterized mechanism (71 upstream regulators, 12 downstream effectors) supports rational combination design; co-mutation with APC/SMAD4/CDKN2A and mutual exclusivity with BRAF/EGFR define a clean CRC-specific biomarker context.
+- Biomarker-stratified dependency is very strong: 223 hotspot-mutant lines show median chronos -1.73 vs -0.41 in WT (Δ=-1.32, q=1.7e-102, effect size 0.90), and hotspot mutation is the top predictive feature (RF R²≈0.47).
+- COADREAD mutation frequency ~42% with a diverse hotspot spectrum (G12D 10.9%, G12V 9.3%, G13D 7.2%, G12C 3.0%, A146T 2.9%), enabling both allele-specific and pan-KRAS strategies.
+- Small-molecule tractability is clinically triangulated: 23 targeting compounds in PRISM with phase 1+ assets (RMC-7977, eliornrasib, daraxonrasib), and CRISPR–PRISM concordance class = triangulated_target_engaged with 20 dual responders enriched in Pancreas/Bowel.
+- Bowel is the #2 dependent lineage (CRISPR fraction strongly dependent 0.55, median chronos -1.18; RNAi 0.41), and co-mutation with APC, SMAD4, CDKN2A plus mutual exclusivity with BRAF/EGFR provides clean patient-selection biology.
+- Mechanism is well-characterized (71 upstream regulators, 12 downstream effectors, PD marker available), supporting robust PK/PD strategy and combination rationale.
 
 **Against:**
-- Expression is broadly moderate across lineages (fraction_expressed 99.9%, no lineage restriction) and tumor-vs-adjacent is down/not-informative — no expression-based therapeutic window; selectivity must come entirely from mutant-state pharmacology.
-- Tumor-vs-normal selectivity is discordant across comparators (dominant direction 'down'), meaning wild-type KRAS suppression risks on-target normal-tissue toxicity for pan-KRAS agents.
-- Moderate paralog buffering by NRAS (dual-KO effect -1.04) and weaker HRAS/RALA buffering — pan-RAS or vertical pathway coverage may be required, complicating therapeutic index.
-- Safety card is empty (no gnomAD LoF constraint data returned) and differentiation sub-verdict flagged insufficient — key risk dimensions not formally scored.
-- Not a surface protein (surfaceome_confidence 1.0 not_surface; no PDB coverage in the structure card returned here) — ADC/TCE modalities inapplicable, and the competitive landscape in KRAS small molecules (G12C approved, G12D and pan-KRAS advancing) raises the bar for differentiation.
+- Tumor-vs-normal selectivity is discordant across comparators and CPTAC COAD protein trends lower in tumor than normal — irrelevant for mutant-selective SM but forecloses any expression-based targeting.
+- Surface-modality fit is a hard 'not_surface' killer (intracellular GTPase, EC 3.6.5.2), removing ADC/TCE options entirely.
+- On-target safety evidence is missing (no gnomAD LoF constraint data provided) — WT-KRAS coverage by pan-RAS or tri-complex agents is a known liability that this profile does not quantify.
+- Paralog buffering by NRAS is moderate (dual-KO effect -1.04), meaning KRAS-selective inhibition may be bypassed by NRAS/HRAS in some contexts — consistent with the pan-RAS MOA of the leading clinical compounds.
+- Competitive landscape is crowded (23 compounds targeting KRAS in PRISM including multiple phase 1+ tri-complex and G12C assets), so any new program needs a clear differentiation angle (novel allele, resistance mechanism, or combination).
 
 ---
 
