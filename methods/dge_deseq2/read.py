@@ -635,6 +635,17 @@ INDICATION_TO_GTEX_TISSUE = {
 }
 
 
+# NOTE: the three on-demand recount3 GTEx helpers below
+# (_fetch_recount3_gtex_metadata, _fetch_recount3_gtex_gene_row,
+# _fetch_recount3_gtex_library_sizes) are no longer called by
+# read_per_sample_expression_all_three_groups after the switch to the derived
+# product gtex-tpm-recount3-long-v1. They are retained (not deleted) because
+# they are legitimate utilities for anyone needing sample-metadata (SMTS/SMTSD)
+# or library-size denominators directly from the recount3 substrate — e.g.
+# batch precomputes, ad-hoc analyses, or a future consumer that needs raw
+# counts rather than TPM. Grep for their names before removing.
+
+
 def _fetch_recount3_gtex_metadata(tissue: str) -> "pd.DataFrame":
     """Fetch GTEx tissue metadata; returns DataFrame with external_id + SMTS + SMTSD."""
     _ensure_aws_profile()
@@ -707,16 +718,77 @@ def _fetch_recount3_gtex_library_sizes(tissue: str) -> "pd.Series":
     return pd.Series(totals, index=sample_cols, name="library_size")
 
 
+GTEX_TPM_LONG_S3_URI = (
+    "s3://onc-compbio/data-catalog/derived/gtex-tpm-recount3-long-v1/"
+    "gtex_tpm_long.parquet"
+)
+
+
+def _fetch_gtex_samples_from_long_product(
+    target: str, gtex_tissue: str,
+) -> "list[dict]":
+    """Predicate-pushdown read of the long GTEx TPM product for one (gene, tissue).
+
+    Replaces the multi-stream on-demand recount3 compute (gene_row + library_sizes
+    + rpk_sums + tissue metadata + gene_lengths join + TPM formula) with a single
+    pq.read_table call against the derived product gtex-tpm-recount3-long-v1.
+
+    Returns [] if no rows match. Values are bit-identical to what the on-demand
+    path would have produced for the same (target, gtex_tissue) — verified at
+    the long product's emit time (see manifests/derived/gtex-tpm-recount3-long-v1.yaml).
+    """
+    _ensure_aws_profile()
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+
+    # The long product lives on S3 alongside the wide v1; open via pyarrow's
+    # S3FileSystem so predicate pushdown short-circuits before full download.
+    bucket, key = GTEX_TPM_LONG_S3_URI.replace("s3://", "").split("/", 1)
+    s3fs = fs.S3FileSystem()
+    table = pq.read_table(
+        f"{bucket}/{key}",
+        filesystem=s3fs,
+        filters=[
+            ("gene_symbol", "=", target),
+            ("tissue", "=", gtex_tissue),
+        ],
+        columns=["ensembl_gene_id", "sample_id", "log2_tpm"],
+    )
+    if table.num_rows == 0:
+        return []
+    df = table.to_pandas()
+    # tissue_subregion (SMTSD) is not stored in the long product — the current
+    # consumer (emit_pan_tissue) does not read it, so we emit an empty string
+    # for backward-compat. If a future consumer needs SMTSD, join the wide v1
+    # sidecar (gtex_sample_tissue.parquet) which carries SMTS + SMTSD.
+    # log2_cpm is likewise not carried in the long product; the caller
+    # (_log2tpm_or_cpm in emit_pan_tissue) prefers log2_tpm and only falls back
+    # to log2_cpm when every sample has log2_tpm=None — which never happens on
+    # this path because the long product stores concrete float32 values (0.0
+    # for length-missing genes, matching the upstream wide product's semantics).
+    return [
+        {
+            "sample_id": r["sample_id"],
+            "tissue_subregion": "",
+            "log2_cpm": None,
+            "log2_tpm": float(r["log2_tpm"]),
+            "tpm": None,
+            "_gene_ensembl_id": r["ensembl_gene_id"],
+        }
+        for _, r in df.iterrows()
+    ]
+
+
 def read_per_sample_expression_all_three_groups(
     target: str, indication: str,
 ) -> Optional[dict]:
-    """Fetch per-sample log2(CPM+1) for tumor + adjacent-normal + GTEx-normal.
+    """Fetch per-sample expression for tumor + adjacent-normal + GTEx-normal.
 
     Returns dict:
       {
-        "tumor_samples":     list<{sample_id, submitter_id, log2_cpm}>,
-        "adjacent_samples":  list<{sample_id, submitter_id, log2_cpm}>,
-        "gtex_samples":      list<{sample_id, tissue_subregion, log2_cpm}>,
+        "tumor_samples":     list<{sample_id, submitter_id, log2_cpm, log2_tpm, tpm, study}>,
+        "adjacent_samples":  list<{sample_id, submitter_id, log2_cpm, log2_tpm, tpm, study}>,
+        "gtex_samples":      list<{sample_id, tissue_subregion, log2_cpm, log2_tpm, tpm}>,
         "gene_ensembl_id":   str,
         "n_tumor":           int,
         "n_adjacent":        int,
@@ -732,6 +804,11 @@ def read_per_sample_expression_all_three_groups(
     third group when the indication has a canonical GTEx tissue-of-origin
     (INDICATION_TO_GTEX_TISSUE). Indications without a GTEx counterpart return
     gtex_samples=[] and gtex_tissue=None.
+
+    The GTEx branch reads the derived product gtex-tpm-recount3-long-v1 (single
+    per-gene pq.read_table with predicate pushdown; 3-8s cold-cache vs ~10-20s
+    for the previous on-demand recount3 stream). The TCGA branch is unchanged
+    — it continues to stream recount3 counts + compute TPM on demand.
     """
     two_group = read_per_sample_expression_tumor_vs_adjacent(target, indication)
     if two_group is None:
@@ -739,7 +816,7 @@ def read_per_sample_expression_all_three_groups(
 
     gtex_tissue = INDICATION_TO_GTEX_TISSUE.get(indication.upper())
     if gtex_tissue is None:
-        # No canonical GTEx mapping for this indication; return two-group shape + empty gtex
+        # No canonical GTEx mapping for this indication; return two-group + empty gtex
         return {
             **two_group,
             "gtex_samples": [],
@@ -747,66 +824,7 @@ def read_per_sample_expression_all_three_groups(
             "gtex_tissue": None,
         }
 
-    # HGNC → Ensembl-IDs (reuse the map)
-    ensembl_map = _load_ensembl_hgnc_map()
-    target_ensembl_ids = {eid for eid, sym in ensembl_map.items() if sym == target}
-    if not target_ensembl_ids:
-        return {**two_group, "gtex_samples": [], "n_gtex": 0, "gtex_tissue": gtex_tissue}
-
-    import numpy as np
-    import pandas as pd
-
-    gtex_counts = _fetch_recount3_gtex_gene_row(gtex_tissue, target_ensembl_ids)
-    if gtex_counts.empty:
-        return {**two_group, "gtex_samples": [], "n_gtex": 0, "gtex_tissue": gtex_tissue}
-    gtex_lib = _fetch_recount3_gtex_library_sizes(gtex_tissue)
-    gtex_rpk = _fetch_recount3_rpk_sums("gtex", gtex_tissue)
-    gtex_md = _fetch_recount3_gtex_metadata(gtex_tissue)
-    from .gene_lengths import load_gene_lengths
-    gene_lengths = load_gene_lengths()
-
-    merged = gtex_counts.merge(
-        gtex_lib.reset_index().rename(columns={"index": "sample_id"}),
-        on="sample_id",
-    )
-    merged = merged.merge(
-        gtex_rpk.reset_index().rename(columns={"index": "sample_id"}),
-        on="sample_id",
-    )
-    merged = merged.merge(gtex_md, left_on="sample_id", right_on="external_id", how="left")
-    merged["cpm"] = merged["count"] / merged["library_size"].replace(0, np.nan) * 1e6
-    merged["log2_cpm"] = np.log2(merged["cpm"].fillna(0) + 1.0)
-    # TPM: same target gene across all GTEx samples for this tissue.
-    target_ens_versioned = merged["gene_id"].iloc[0] if "gene_id" in merged.columns else None
-    target_ens_unversioned = (
-        target_ens_versioned.split(".")[0] if target_ens_versioned else next(iter(target_ensembl_ids))
-    )
-    length_bp = gene_lengths.get(target_ens_unversioned)
-    if length_bp and length_bp > 0:
-        length_kb = length_bp / 1000.0
-        rpk_per_sample = merged["count"] / length_kb
-        merged["tpm"] = np.where(
-            merged["rpk_sum"] > 0,
-            rpk_per_sample / merged["rpk_sum"] * 1e6,
-            0.0,
-        )
-        merged["log2_tpm"] = np.log2(merged["tpm"].fillna(0) + 1.0)
-    else:
-        merged["tpm"] = np.nan
-        merged["log2_tpm"] = np.nan
-
-    gtex_records = [
-        {
-            "sample_id": r["sample_id"],
-            "tissue_subregion": r.get("SMTSD") or "",
-            "log2_cpm": float(r["log2_cpm"]),
-            "log2_tpm": float(r["log2_tpm"]) if r["log2_tpm"] == r["log2_tpm"] else None,
-            "tpm": float(r["tpm"]) if r["tpm"] == r["tpm"] else None,
-        }
-        for _, r in merged.iterrows()
-        if r["log2_cpm"] == r["log2_cpm"]
-    ]
-
+    gtex_records = _fetch_gtex_samples_from_long_product(target, gtex_tissue)
     return {
         **two_group,
         "gtex_samples": gtex_records,
