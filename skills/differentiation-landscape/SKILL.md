@@ -24,7 +24,7 @@ description: |
   artifactual mutual-exclusivity signals for panel-absent genes.
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -43,9 +43,12 @@ composition:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
   status: partial
-  on_dependency_status:
-    clinical-precedent: skip_section       # arch A4 discipline
-    patent-landscape: skip_section
+  # NOTE: clinical-precedent + patent-landscape are intentionally NOT in
+  # cards_used above — they are excluded from the runtime card set (their
+  # commercial-data licensing is unresolved), so they never reach dispatch.
+  # (A previous `on_dependency_status: skip_section` block was removed here
+  # because run.py never passed it — the skip is by omission, not by that
+  # mechanism. Wiring on_dependency_status is a separate feature decision.)
 ---
 
 # differentiation-landscape — Phase E partial skill
@@ -62,9 +65,9 @@ Given a target + indication:
 
 ## What this skill does NOT do (yet)
 
-- **Clinical-precedent feed:** Cortellis / IQVIA licensing pending. Skill
-  will SKIP that section per on_dependency_status: skip_section (arch A4).
-- **Patent landscape:** PatBase licensing pending. Similarly skipped.
+- **Clinical-precedent feed:** Cortellis / IQVIA licensing pending. The card
+  is not in this skill's runtime card set, so no section is produced for it.
+- **Patent landscape:** PatBase licensing pending. Likewise not in the card set.
 - **Paralog buffering** (re-homed): functional-requirement skill consumes
   this — paralog buffering is a Phase C-adjacent dependency-hardening
   signal, not a Phase E differentiation signal (reviewer content flag).
@@ -75,13 +78,15 @@ Given a target + indication:
 <out>/
 ├── decision.json                 # rule verdicts + fired rules
 ├── summary.yaml                  # co-mutation card summary_fields
-├── figures/
-│   └── cooccurrence_forest.png
 ├── tables/
 │   ├── top_cooccurring.csv       # per-partner Fisher q-values
 │   └── top_mutually_exclusive.csv
-└── provenance.yaml               # MC3 + GENIE manifests, panel-intersect stats
+└── provenance.yaml               # data_provenance (manifest IDs) + panel-intersect stats
 ```
+
+(No `figures/` are emitted by this skill — the shared writer only records
+figures a caller places in the dir, and this skill wires no emitter. Invoke
+`compose-dashboard` for the rendered co-occurrence figure set.)
 
 ## Invocation
 

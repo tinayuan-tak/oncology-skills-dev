@@ -22,7 +22,7 @@ description: |
   the surfaceome ranking for gastric?"
 
 metadata:
-  version: 2.0.0
+  version: 2.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

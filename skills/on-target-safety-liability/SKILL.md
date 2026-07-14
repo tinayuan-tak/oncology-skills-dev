@@ -22,7 +22,7 @@ description: |
   germline-safety signal.
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -41,9 +41,15 @@ composition:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
   status: partial
-  on_dependency_status:
-    normal-tissue-liability: skip_section       # arch A4 discipline
-    protein-surface-evidence: skip_section
+  # KNOWN GAP (2026-07-13 review): the gnomad-lof-constraint dispatcher
+  # currently imports methods.gnomad_constraint, which does NOT exist — so
+  # this card resolves to _missing (its source manifest landed, but the
+  # reader method was never written). The skill therefore produces no real
+  # constraint verdict yet. Tracked as a separate feature workstream (build
+  # the gnomad_constraint method module). status stays `partial` honestly.
+  # normal-tissue-liability + protein-surface-evidence are excluded from the
+  # runtime card set (dispatchers pending); a prior on_dependency_status
+  # block was removed because run.py never passed it.
 ---
 
 # on-target-safety-liability — Phase G partial skill
@@ -60,11 +66,15 @@ Given a target:
 
 ## What this skill does NOT do (yet)
 
+- **gnomAD constraint (the one "wired" card):** currently NON-FUNCTIONAL —
+  the dispatcher imports `methods.gnomad_constraint`, a method module that
+  has not been written yet (the gnomAD source manifest landed, but the
+  reader did not). The card resolves to `_missing`; no constraint verdict is
+  produced until that method is built. Tracked as a separate workstream.
 - **Normal-tissue liability from HPA IHC:** the normal-tissue-liability
-  card's HPA IHC-intensity dispatcher is not built. When invoked, this
-  skill's per-tissue liability section will be SKIPPED per the
-  on_dependency_status: skip_section arch A4 contract.
-- **Protein-surface evidence:** same — dispatcher pending.
+  card's HPA IHC-intensity dispatcher is not built; the card is not in this
+  skill's runtime card set, so no section is produced for it.
+- **Protein-surface evidence:** same — dispatcher pending, not in card set.
 - **IMPC mouse KO phenotypes:** not catalogued; iter-2 backlog.
 - **ClinVar germline outcomes:** not catalogued; iter-2 backlog.
 - **Historical trial-outcome DB:** external data feed licensing pending.
@@ -75,12 +85,12 @@ Given a target:
 <out>/
 ├── decision.json                 # rule verdicts + fired rules
 ├── summary.yaml                  # card summary_fields (gnomad only in iter-1)
-├── figures/
-│   └── constraint_scores_gauge.png
 ├── tables/
-│   └── gnomad_constraint_summary.csv
-└── provenance.yaml               # gnomAD manifest md5, partial-status notice
+│   └── gnomad_constraint_summary.csv   # emitted only when the card resolves
+└── provenance.yaml               # data_provenance (manifest IDs) + partial-status notice
 ```
+
+(No `figures/` are emitted by this skill — no figure emitter is wired.)
 
 ## Invocation
 
@@ -90,11 +100,13 @@ Given a target:
 
 ## Provenance discipline
 
-- `gnomad_snapshot`: manifest ID pin (gnomad-constraint-snapshot-2026-07-02)
+- `data_provenance`: per-card data_source (derived-manifest ID) + missing
+  flag/reason, emitted by the shared writer.
 - `skill_status`: `partial` — surfaced in every output so consumers see the
-  epistemic ceiling
-- `skipped_sections`: enumerates which cards were skipped due to
-  placeholder dependencies (per arch A4)
+  epistemic ceiling.
+- Placeholder cards (normal-tissue-liability, protein-surface-evidence) are
+  excluded from the runtime card set rather than skipped via a runtime
+  mechanism.
 
 ## Iter-2 wiring roadmap
 

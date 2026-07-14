@@ -18,7 +18,7 @@ description: |
   hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
@@ -64,12 +64,12 @@ Given a target + indication:
 <out>/
 ├── decision.json                 # rule verdicts + fired rules
 ├── summary.yaml                  # card summary_fields
-├── figures/
-│   └── signaling_network_summary.png    # MoA + PD-marker two-column table
 ├── tables/
 │   ├── moa_opportunities.csv     # upstream regulators, per-row MoA class
 │   └── pd_marker_opportunities.csv
-└── provenance.yaml               # OmniPath manifest md5 + MoA ontology version
+└── provenance.yaml               # data_provenance (manifest IDs) + MoA ontology version
+
+(No `figures/` are emitted — no figure emitter is wired for this skill.)
 ```
 
 ## Invocation

@@ -25,7 +25,7 @@ description: |
   agree with the CPTAC protein signal?
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -90,13 +90,15 @@ does MSLN rank against all surface proteins in this tissue?"
 <out>/
 ├── decision.json                          # rule verdicts on target (if provided)
 ├── summary.yaml
-├── figures/
-│   └── cohort_ranking_waterfall.png       # target highlighted in gold
-├── tables/
-│   ├── surfaceome_ranking_full.csv        # all cells_supporting>=3 surface proteins
-│   └── surfaceome_ranking_top100.csv      # top-100 by ranking_score
-└── provenance.yaml                        # sensitivity + surfaceome-family manifests
+└── provenance.yaml                        # data_provenance (manifest IDs)
 ```
+
+NOTE: this skill is `status: partial` — the surfaceome-cohort-ranking
+derived product is NOT yet on S3, so the ranking returns `data_unavailable`
+and NO ranking tables or waterfall figure are produced. The
+`surfaceome_ranking_full.csv` / `_top100.csv` tables + `cohort_ranking_
+waterfall.png` figure land once the derived product is published and the
+method reader returns rows.
 
 ## What this skill does NOT do
 

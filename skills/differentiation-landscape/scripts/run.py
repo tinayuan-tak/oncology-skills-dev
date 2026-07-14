@@ -37,13 +37,29 @@ PARTIAL_STATUS_NOTE = (
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
+    """Map fired rule_ids to a verdict, rank-ordered most-informative first.
+
+    Must cover EVERY cooccurrence rule the target-contracts axis can fire
+    (added 2026-07-14): the 5 cooccurrence_class-keyed rows + the pre-existing
+    has-cooccurring-driver + data-unavailable rows. A fired rule with no
+    branch here would silently fall through to `insufficient` — the exact
+    decision-layer collapse this precedence list closes.
+    """
     fired_by_id = {r["rule_id"]: r for r in fired}
-    if "strong-mutual-exclusivity-supportive" in fired_by_id:
-        return "strong_mutually_exclusive", "strong-mutual-exclusivity-supportive"
-    if "has-cooccurring-driver-supportive" in fired_by_id:
-        return "has_cooccurring_driver", "has-cooccurring-driver-supportive"
-    if "cooccurrence-data-unavailable-insufficient" in fired_by_id:
-        return "data_unavailable", "cooccurrence-data-unavailable-insufficient"
+    # (rule_id, verdict) in strict precedence order.
+    precedence = [
+        ("cooccurrence-both-patterns-supportive",        "both_patterns_present"),
+        ("strong-mutual-exclusivity-supportive",         "strong_mutually_exclusive"),
+        ("cooccurrence-strong-supportive",               "strong_cooccurring"),
+        ("has-cooccurring-driver-supportive",            "has_cooccurring_driver"),
+        ("cooccurrence-modest-cooccurring-neutral",      "modest_cooccurring"),
+        ("cooccurrence-modest-mutually-exclusive-neutral", "modest_mutually_exclusive"),
+        ("cooccurrence-ns-not-informative",              "ns"),
+        ("cooccurrence-data-unavailable-insufficient",   "data_unavailable"),
+    ]
+    for rule_id, verdict in precedence:
+        if rule_id in fired_by_id:
+            return verdict, rule_id
     return "insufficient", None
 
 

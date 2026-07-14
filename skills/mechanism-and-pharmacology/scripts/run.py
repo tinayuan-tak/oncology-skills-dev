@@ -44,8 +44,14 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     Precedence (most-informative first):
       1. well_characterized (>=3 upstream AND >=3 downstream partners)
       2. has_pd_marker (>=1 downstream effector; supportive signal)
-      3. sparse (0-1 total edges — reviewer-added warning signal)
-      4. data_unavailable (target not in SIGNOR/OmniPath snapshot)
+      3. partial (some context, between sparse and well_characterized)
+      4. sparse (0-1 total edges — reviewer-added warning signal)
+      5. data_unavailable (target not in SIGNOR snapshot)
+
+    The `partial` branch was added 2026-07-14 alongside the
+    mechanism-partial-neutral rule: the reader emits network_class=partial as
+    its fall-through class, but with no branch here a partial-network target
+    fired the rule yet still collapsed to `insufficient`.
     """
     fired_by_id = {r["rule_id"]: r for r in fired}
 
@@ -53,6 +59,8 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
         return "well_characterized", "mechanism-well-characterized-supportive"
     if "has-pd-marker-supportive" in fired_by_id:
         return "has_pd_marker", "has-pd-marker-supportive"
+    if "mechanism-partial-neutral" in fired_by_id:
+        return "partial", "mechanism-partial-neutral"
     if "mechanism-sparse-warning" in fired_by_id:
         return "sparse", "mechanism-sparse-warning"
     if "mechanism-data-unavailable-insufficient" in fired_by_id:

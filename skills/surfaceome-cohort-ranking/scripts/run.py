@@ -30,22 +30,56 @@ SKILL_VERSION = "1.1.0"
 
 
 def _load_ranking(indication: str, target: str | None) -> dict:
-    """Load per-indication ranking parquet. iter-1 scaffold: empty fallback."""
+    """Load the per-indication surface-protein ranking from the CATALOG-wired
+    derived product (surfaceome-cohort-ranking-per-indication-v1), via the
+    method module's S3-cache helper — NOT a hardcoded /tmp path.
+
+    Fixed 2026-07-14: previously read a hardcoded
+    `/tmp/surfaceome_cohort_ranking_v1.parquet` that NOTHING writes, so the
+    skill returned empty even after the S3 product would land (and was a
+    /tmp trust surface). Now uses the method reader's `_ensure_derived_cached`,
+    which downloads from the pinned S3 key and returns None (→ honest
+    data_unavailable) until the derived product is published.
+    """
     import pandas as pd
-    ranking_path = Path("/tmp/surfaceome_cohort_ranking_v1.parquet")
-    if ranking_path.exists():
+
+    empty_cols = [
+        "indication", "gene_symbol", "uniprot_ac",
+        "surface_protein_family", "cells_supporting",
+        "max_abs_log2fc", "ranking_score",
+        "tissue_rank", "tissue_percentile_rna",
+        "tissue_percentile_protein", "rna_protein_concordance",
+        "cohort_rank_class", "method_version",
+    ]
+
+    # Reach the method module's cache helper via the same compose-dashboard
+    # method loader the dispatchers use. _skills_common knows where
+    # _live_readers lives (COMPOSE_SCRIPTS). The whole import+cache chain is
+    # wrapped: any failure (unimportable _live_readers/method module, S3
+    # error) degrades to an EMPTY ranking (→ honest data_unavailable) rather
+    # than crashing the skill — the old /tmp `.exists()` check never raised,
+    # so we preserve that graceful-degradation contract.
+    ranking_path = None
+    try:
+        from _skills_common import COMPOSE_SCRIPTS
+        if str(COMPOSE_SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(COMPOSE_SCRIPTS))
+        from _live_readers import _import_method
+        _import_method("surfaceome_cohort_ranking")  # ensures methods repo on path
+        from methods.surfaceome_cohort_ranking import read as _srm_read
+        ranking_path = _srm_read._ensure_derived_cached()  # Path or None
+    except Exception as e:
+        print(f"[surfaceome-cohort-ranking] ranking load failed "
+              f"({type(e).__name__}: {e}); treating as data_unavailable",
+              file=sys.stderr)
+        ranking_path = None
+
+    if ranking_path is not None and Path(ranking_path).exists():
         df = pd.read_parquet(ranking_path)
         df = df[df["indication"] == indication]
         df = df[df["cells_supporting"] >= 3]
     else:
-        df = pd.DataFrame(columns=[
-            "indication", "gene_symbol", "uniprot_ac",
-            "surface_protein_family", "cells_supporting",
-            "max_abs_log2fc", "ranking_score",
-            "tissue_rank", "tissue_percentile_rna",
-            "tissue_percentile_protein", "rna_protein_concordance",
-            "cohort_rank_class", "method_version",
-        ])
+        df = pd.DataFrame(columns=empty_cols)
 
     result = {
         "indication": indication,
@@ -135,11 +169,18 @@ def main() -> int:
                                           else ["surfaceome-cohort-ranking"],
     }
 
-    # Synthesize card_output stub matching the wired-skill contract shape
+    # Synthesize card_output stub matching the wired-skill contract shape.
+    # Use `_missing` (underscore) so resolve_cards/write_package + the RC1
+    # coverage-honesty logic recognize an unavailable ranking; stamp
+    # `_data_source` so it flows into provenance.yaml's data_provenance block.
+    _unavailable = ranking["n_ranked_after_filter"] == 0
+    ranking["_data_source"] = "surfaceome-cohort-ranking-per-indication-v1"
     card_outputs = [{
         "card_id": "surfaceome-cohort-ranking",
         "summary": ranking,
-        "missing": ranking["n_ranked_after_filter"] == 0,
+        "_missing": _unavailable,
+        "_missing_reason": "cohort_ranking_data_unavailable (derived product "
+                           "not yet on S3)" if _unavailable else None,
     }]
 
     decision = make_decision_json(
