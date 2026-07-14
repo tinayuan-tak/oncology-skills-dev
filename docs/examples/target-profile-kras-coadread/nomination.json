@@ -1,0 +1,150 @@
+{
+  "skill": "target-profile",
+  "skill_version": "1.0.0",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "generated_at": "2026-07-14T00:40:35+00:00",
+  "invoked_lenses": {},
+  "sub_verdicts": {
+    "expression": {
+      "skill_dir": "tumor-presence",
+      "verdict": "broadly_moderate_expression",
+      "driving_rule_id": "expression-broadly-moderate-neutral",
+      "fired_rule_ids": [
+        "expression-call-not-informative-degrader-killer",
+        "expression-broadly-moderate-neutral"
+      ],
+      "cards_missing": []
+    },
+    "selectivity": {
+      "skill_dir": "tumor-selectivity",
+      "verdict": null,
+      "driving_rule_id": null,
+      "fired_rule_ids": [
+        "tvn-discordant-neutral-flagged"
+      ],
+      "cards_missing": []
+    },
+    "dependency": {
+      "skill_dir": "functional-requirement",
+      "verdict": "lineage_selective",
+      "driving_rule_id": "lineage-selective-supportive",
+      "fired_rule_ids": [
+        "strongly-selective-supportive",
+        "rnai-strongly-selective-supportive",
+        "concordant-non-dependent-neutral",
+        "lineage-selective-supportive"
+      ],
+      "cards_missing": []
+    },
+    "mechanism": {
+      "skill_dir": "mechanism-and-pharmacology",
+      "verdict": "well_characterized",
+      "driving_rule_id": "mechanism-well-characterized-supportive",
+      "fired_rule_ids": [
+        "mechanism-well-characterized-supportive"
+      ],
+      "cards_missing": []
+    },
+    "mutation": {
+      "skill_dir": "mutation-profile",
+      "verdict": "biomarker_stratified_dependency",
+      "driving_rule_id": "mutant-strongly-dependent-supportive",
+      "fired_rule_ids": [
+        "mutant-strongly-dependent-supportive",
+        "mut-missense-dominant-supportive"
+      ],
+      "cards_missing": []
+    },
+    "differentiation": {
+      "skill_dir": "differentiation-landscape",
+      "verdict": "insufficient",
+      "driving_rule_id": null,
+      "fired_rule_ids": [],
+      "cards_missing": []
+    },
+    "tractability": {
+      "skill_dir": "tractability-and-modality",
+      "verdict": "well_covered",
+      "driving_rule_id": "e7-triangulated-target-engaged-supportive",
+      "fired_rule_ids": [
+        "predictability-biomarker-hypothesis-supportive",
+        "prism-clinically-active-supportive-sm",
+        "prism-no-lineage-signal-neutral",
+        "e7-triangulated-target-engaged-supportive"
+      ],
+      "cards_missing": []
+    },
+    "safety": {
+      "skill_dir": "on-target-safety-liability",
+      "verdict": "insufficient",
+      "driving_rule_id": null,
+      "fired_rule_ids": [],
+      "cards_missing": []
+    },
+    "population": {
+      "skill_dir": "patient-population-and-access",
+      "verdict": null,
+      "driving_rule_id": null,
+      "fired_rule_ids": [],
+      "cards_missing": []
+    },
+    "cohort_rank": {
+      "skill_dir": "surfaceome-cohort-ranking",
+      "verdict": null,
+      "driving_rule_id": null,
+      "fired_rule_ids": [],
+      "cards_missing": []
+    }
+  },
+  "llm_synthesis": {
+    "confidence": {
+      "value": "high",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-7",
+      "_prompt_hash": "b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba"
+    },
+    "executive_summary": {
+      "value": "KRAS in COADREAD presents as a well-validated, biomarker-stratified oncology target with strong functional and pharmacological evidence. CRISPR and RNAi both show bimodal, lineage-selective dependency enriched in Bowel (54% strongly dependent) and Pancreas, and hotspot-mutant lines are dramatically more dependent than WT (delta Chronos -1.32, q~1e-102). ~42% of COADREAD tumors carry KRAS mutations (dominated by G12D/G12V/G13D; G12C only ~3%), co-occurring with APC/SMAD4/CDKN2A and mutually exclusive with BRAF/EGFR \u2014 a coherent biomarker-defined population. Tractability is de-risked by clinically active PRISM compounds (RMC-7977, eloronrasib, daraxonrasib) triangulated with CRISPR engagement, and mutation-driven dependency is highly predictable (RF R\u00b2\u22480.47, top feature own_mut_hotspot). Expression is broadly moderate/non-selective and safety/surface data are uninformative \u2014 expected for an intracellular GTPase \u2014 so the target profile is intracellular small-molecule/tri-complex, not surface/ADC.",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-7",
+      "_prompt_hash": "b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba"
+    },
+    "tension_analysis": {
+      "value": "Minimal biological tension. Expression is \"broadly moderate\" and tumor-vs-normal selectivity is discordant/down \u2014 but this is expected for a ubiquitously expressed intracellular GTPase where selectivity comes from mutant-state pharmacology, not expression differential. The main mismatch is dimensional: surfaceome/ADC/TCE cards are empty and cohort_rank is data_unavailable because KRAS is not a surface protein (surfaceome_confidence 1.0 not_surface, Kinase/Enzyme family) \u2014 these dimensions are not applicable rather than negative. Differentiation and safety sub-verdicts are flagged \"insufficient\" (no rule fired), though the underlying co-mutation card actually shows rich landscape data (APC/SMAD4 co-occurrence, BRAF/EGFR exclusivity) that is informative for combination strategy.",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-7",
+      "_prompt_hash": "b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba"
+    },
+    "top_arguments_for": {
+      "value": [
+        "Biomarker-stratified dependency is exceptionally strong: hotspot-mutant vs WT delta Chronos -1.32 (q~1.7e-102, effect size 0.90), and own_mut_hotspot is the dominant predictive feature (RF importance 0.44, R\u00b2\u22480.47).",
+        "Lineage-selective essentiality in Bowel (54.5% strongly dependent, median Chronos -1.18, q~4e-16) with CRISPR/RNAi concordance and bimodal selective distribution \u2014 hallmark of a genotype-defined driver.",
+        "High indication prevalence: ~42% of COADREAD samples KRAS-mutant (n=559), missense-dominant, with a broad hotspot spectrum (G12D 10.9%, G12V 9.3%, G13D 7.2%, G12C 3.0%, A146T 2.9%) enabling pan-KRAS or multi-allele strategies beyond G12C.",
+        "Tractability triangulated: 23 PRISM compounds with clinically active signal (RMC-7977, eloronrasib, daraxonrasib in phase 1+), CRISPR\u2013PRISM concordance class 'triangulated_target_engaged', and best responder LFC -13.6 in mutant lines.",
+        "Well-characterized mechanism (71 upstream regulators, 12 downstream effectors) supports rational combination design; co-mutation with APC/SMAD4/CDKN2A and mutual exclusivity with BRAF/EGFR define a clean CRC-specific biomarker context."
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-7",
+      "_prompt_hash": "b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba"
+    },
+    "top_arguments_against": {
+      "value": [
+        "Expression is broadly moderate across lineages (fraction_expressed 99.9%, no lineage restriction) and tumor-vs-adjacent is down/not-informative \u2014 no expression-based therapeutic window; selectivity must come entirely from mutant-state pharmacology.",
+        "Tumor-vs-normal selectivity is discordant across comparators (dominant direction 'down'), meaning wild-type KRAS suppression risks on-target normal-tissue toxicity for pan-KRAS agents.",
+        "Moderate paralog buffering by NRAS (dual-KO effect -1.04) and weaker HRAS/RALA buffering \u2014 pan-RAS or vertical pathway coverage may be required, complicating therapeutic index.",
+        "Safety card is empty (no gnomAD LoF constraint data returned) and differentiation sub-verdict flagged insufficient \u2014 key risk dimensions not formally scored.",
+        "Not a surface protein (surfaceome_confidence 1.0 not_surface; no PDB coverage in the structure card returned here) \u2014 ADC/TCE modalities inapplicable, and the competitive landscape in KRAS small molecules (G12C approved, G12D and pan-KRAS advancing) raises the bar for differentiation."
+      ],
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-7",
+      "_prompt_hash": "b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba"
+    },
+    "overall_recommendation": {
+      "value": "nominate",
+      "_source": "llm_synthesized",
+      "_model_id": "us.anthropic.claude-opus-4-7",
+      "_prompt_hash": "b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba"
+    }
+  }
+}

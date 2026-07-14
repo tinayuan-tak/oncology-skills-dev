@@ -3,13 +3,18 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out to the 5 wired question-answering skills:
+  synthesis." Fans out (sequentially, in-process) to the 10 wired
+  question-answering skills:
     - tumor-presence
     - tumor-selectivity
     - functional-requirement
+    - mechanism-and-pharmacology
     - mutation-profile
+    - differentiation-landscape
     - tractability-and-modality
+    - on-target-safety-liability
     - patient-population-and-access
+    - surfaceome-cohort-ranking
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +
@@ -84,9 +89,14 @@ composition:
 
 ## What this skill does
 
-- Runs the 6 wired question-answering skills in parallel (all data-package
-  producers): tumor-presence, tumor-selectivity, functional-requirement,
-  mutation-profile, tractability-and-modality, patient-population-and-access.
+- Runs the 10 wired question-answering skills sequentially in-process (all
+  data-package producers): tumor-presence, tumor-selectivity,
+  functional-requirement, mechanism-and-pharmacology, mutation-profile,
+  differentiation-landscape, tractability-and-modality,
+  on-target-safety-liability, patient-population-and-access,
+  surfaceome-cohort-ranking. (The authoritative list is `SUB_SKILLS` in
+  `scripts/run.py`; three of these — selectivity, population, cohort_rank —
+  expose raw metrics rather than a `_verdict()` and report "no verdict".)
 - Collects each sub-verdict + fired rules + card summaries.
 - Invokes Bedrock (Opus by default via env `ANTHROPIC_MODEL`) with a
   structured tool_use forcing the LLM to emit:
@@ -94,7 +104,7 @@ composition:
   - `tension_analysis` — where sub-verdicts disagree + why
   - `top_arguments_for` — up to 5 strongest positive points
   - `top_arguments_against` — up to 5 strongest negatives
-  - `overall_recommendation` — nominate / hold / veto (enum)
+  - `overall_recommendation` — nominate / hold / veto / insufficient_evidence (enum)
   - `confidence` — high / medium / low / insufficient (enum)
 - Emits:
   - `target_profile.md` — rendered narrative with clearly-tagged LLM
@@ -130,7 +140,8 @@ When called as `/target-profile`, Claude should:
 1. Extract `target` + `indication`. Optionally extract `modality`
    and/or `therapeutic-hypothesis` from the user's natural-language
    prompt if named.
-2. Pick an `out` directory (default `/tmp/target-profile/{target}-{indication}`).
+2. Pick a durable `out` directory (prefer `~/dev/framework-runs/{target}-{indication}-{date}/`;
+   avoid `/tmp`, which is wiped on SageMaker restart and opaque from JupyterLab).
 3. Run:
    ```
    export AWS_PROFILE=cbg && \
@@ -139,5 +150,17 @@ When called as `/target-profile`, Claude should:
    ```
    Add `--modality <M>` and/or `--therapeutic-hypothesis "<text>"` if
    supplied by the user.
+
+   Environment prerequisites (both are easy to trip on):
+   - The Python running this must have BOTH the scientific stack
+     (pandas/pyarrow/boto3, for the sub-skill card readers) AND
+     `anthropic[bedrock]` (for the synthesis). The base SageMaker python3
+     (3.12) has the data stack; `pip install --user "anthropic[bedrock]"`
+     adds the synthesis client. (The workflow-skill pixi env has anthropic
+     but NOT the data stack.)
+   - `ANTHROPIC_MODEL` must be a raw Bedrock-invokable ID (the skill's own
+     default `us.anthropic.claude-opus-4-7` works). The Claude Code harness
+     sets `ANTHROPIC_MODEL=...opus-4-8[1m]`; that `[1m]` alias is NOT
+     Bedrock-invokable and returns HTTP 400 — override it before running.
 4. Read `<OUT_DIR>/target_profile.md` and present the executive summary
    inline; offer the full nomination.json for detail.

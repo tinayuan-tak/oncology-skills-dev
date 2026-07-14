@@ -1,0 +1,24 @@
+skill: target-profile
+skill_version: 1.0.0
+target: KRAS
+indication: COADREAD
+generated_at: '2026-07-14T00:40:35+00:00'
+invoked_lenses: {}
+sub_skills_ran:
+- tumor-presence
+- tumor-selectivity
+- functional-requirement
+- mechanism-and-pharmacology
+- mutation-profile
+- differentiation-landscape
+- tractability-and-modality
+- on-target-safety-liability
+- patient-population-and-access
+- surfaceome-cohort-ranking
+llm_prompt_hash: b481f0400f7cc628b63968058c7a712f7438ba03bccc65075f330ed8b49932ba
+llm_model_id: us.anthropic.claude-opus-4-7
+artefacts:
+- target_profile.md
+- nomination.json
+- figures/target_profile_at_a_glance.png
+- figures/target_profile_at_a_glance.svg

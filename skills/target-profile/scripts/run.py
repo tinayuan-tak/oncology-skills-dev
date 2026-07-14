@@ -189,7 +189,7 @@ def _build_synthesis_tool() -> dict:
             "executive_summary": {
                 "type": "string",
                 "description": (
-                    "3-5 sentence synthesis of what the 6 sub-verdicts "
+                    "3-5 sentence synthesis of what the (up to 10) sub-verdicts "
                     "collectively imply for this (target, indication)."
                 ),
             },
