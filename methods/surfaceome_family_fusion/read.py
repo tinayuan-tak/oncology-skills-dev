@@ -56,8 +56,20 @@ def _ensure_derived_cached() -> Optional[Path]:
             s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
             _DERIVED_STATUS = True
             return CACHE_PARQUET
-        except Exception:
-            _DERIVED_STATUS = False
+        except Exception as e:
+            # Distinguish "genuinely not published yet" (a definitive 404 /
+            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
+            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
+            # False on the definitive case — that safely short-circuits every
+            # later call in the process. For a transient error, LEAVE
+            # _DERIVED_STATUS = None so a subsequent call retries instead of
+            # poisoning the whole process with a false data_unavailable.
+            resp = getattr(e, "response", None)
+            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
+            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
+                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            if definitive:
+                _DERIVED_STATUS = False
             return None
     return None
 
