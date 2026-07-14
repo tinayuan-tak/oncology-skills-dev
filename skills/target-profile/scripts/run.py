@@ -50,34 +50,37 @@ def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
 
 
 # The wired question-answering skills to compose. Order matches phase A→K.
-# EXPANDED 2026-07-09 (fix rollup W2d): 4 new sub-skills added
-# (mechanism-and-pharmacology, differentiation-landscape,
-# on-target-safety-liability, surfaceome-cohort-ranking) reflecting the
-# Layer 6 graduations. Each existing sub-skill's card list also expanded
-# to match its SKILL.md's cards_used (which grew in Layer 6c/6d and Layer 6b).
+# RESTRUCTURED 2026-07-14 (scope deep-dive):
+#   - tractability-and-modality SPLIT → tractability-small-molecule (SM
+#     chemical-genetic verdict) + surface-modality-fit (biologics-modality call
+#     the old skill only displayed).
+#   - mutation-profile REFRAMED → genomic-alteration-profile (SNV + copy-number
+#     + fusion placeholder).
+#   - patient-population-and-access DELETED (thin re-projection of the
+#     mutation-hotspot-frequency card; its prevalence fields folded into
+#     genomic-alteration-profile).
+#   - surfaceome-cohort-ranking DROPPED from the fan-out (per-indication scan,
+#     not a per-target question-skill; its cohort_rank_class is now covered
+#     inside surface-modality-fit). The scan skill still exists as a utility.
 SUB_SKILLS = [
     ("tumor-presence",                 "expression"),
     ("tumor-selectivity",              "selectivity"),
     ("functional-requirement",         "dependency"),
-    ("mechanism-and-pharmacology",     "mechanism"),         # Layer 6a graduation
-    ("mutation-profile",               "mutation"),
-    ("differentiation-landscape",      "differentiation"),   # Layer 6f graduation
-    ("tractability-and-modality",      "tractability"),
-    ("on-target-safety-liability",     "safety"),            # Layer 6e graduation
-    ("patient-population-and-access",  "population"),
-    ("surfaceome-cohort-ranking",      "cohort_rank"),       # Layer 6g new skill
+    ("mechanism-and-pharmacology",     "mechanism"),
+    ("genomic-alteration-profile",     "genomic_alteration"),  # reframed from mutation-profile
+    ("differentiation-landscape",      "differentiation"),
+    ("tractability-small-molecule",    "tractability_sm"),     # split (SM half)
+    ("surface-modality-fit",           "surface_modality"),    # split (biologics half)
+    ("on-target-safety-liability",     "safety"),
 ]
 
 # Card set for each sub-skill (must match SKILL.md composition.cards_used).
-# EXPANDED 2026-07-09 (fix rollup W2d): entries updated to include the
-# reviewer-added cards (protein-presence-cptac, paralog-buffering,
-# surfaceome-family / structure-features / adc-tce-modality-fit /
-# surface-abundance-density / cohort-ranking / gnomad-lof-constraint / etc.).
+# RESTRUCTURED 2026-07-14 — keys track the SUB_SKILLS renames above.
 SUB_SKILL_CARDS = {
     "tumor-presence": [
         "expression-distribution",
         "expression-tumor-vs-adjacent",
-        "protein-presence-cptac",           # Layer 6c addition
+        "protein-presence-cptac",
     ],
     "tumor-selectivity": ["tumor-vs-normal-selectivity"],
     "functional-requirement": [
@@ -85,37 +88,35 @@ SUB_SKILL_CARDS = {
         "pan-cancer-rnai-dependency-distribution",
         "crispr-rnai-dependency-concordance",
         "dependency-lineage-selectivity",
-        "paralog-buffering",                 # Layer 6d addition
+        "paralog-buffering",
     ],
     "mechanism-and-pharmacology": [
-        "signaling-network-mechanism",       # Layer 6a graduation
+        "signaling-network-mechanism",
     ],
-    "mutation-profile": [
+    "genomic-alteration-profile": [          # reframed from mutation-profile
         "mutation-type-counts",
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",
+        "copy-number-distribution",          # CN axis wired 2026-07-14
+        "fusion-rearrangement-landscape",    # placeholder (resolves _missing)
     ],
     "differentiation-landscape": [
-        "co-mutation-and-mutual-exclusivity",  # Layer 6f graduation
+        "co-mutation-and-mutual-exclusivity",
     ],
-    "tractability-and-modality": [
+    "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",
         "prism-crispr-concordance",
         "dependency-predictability",
-        # Layer 6b additions — 6 new F-phase cards
+    ],
+    "surface-modality-fit": [                # split: biologics-modality half
         "surface-topology-and-ptm",
         "surfaceome-family-classification",
         "structure-features-static",
         "surface-abundance-density",
         "adc-tce-modality-fit",
-        "surfaceome-cohort-ranking",
     ],
     "on-target-safety-liability": [
-        "gnomad-lof-constraint",              # Layer 6e graduation
-    ],
-    "patient-population-and-access": ["mutation-hotspot-frequency"],
-    "surfaceome-cohort-ranking": [
-        "surfaceome-cohort-ranking",          # Layer 6g new skill
+        "gnomad-lof-constraint",
     ],
 }
 
@@ -130,11 +131,22 @@ def _run_sub_skills(target: str, indication: str) -> dict:
         sub-skill doesn't expose a verdict function (e.g. patient-
         population-and-access has no rules; verdict is None)
     """
-    axis = "intracellular_intrinsic"
+    # Fire BOTH rule axes and merge. load_interpretation_rules loads exactly
+    # one axis file, so a sub-skill whose cards span axes (surface-modality-fit
+    # fires surface_intrinsic; most others fire intracellular_intrinsic) would
+    # otherwise silently fire nothing on the un-loaded axis. filter_by_card_ids
+    # scopes each axis's rules to the sub-skill's cards, so firing both is safe
+    # (no cross-contamination) and card-correct regardless of which file a
+    # card's rules live in. (Fixed 2026-07-14 when the tractability split first
+    # made a surface-only sub-skill a peer in the composer.)
+    axes = ("intracellular_intrinsic", "surface_intrinsic")
     results: dict = {}
     for skill_dir, short in SUB_SKILLS:
         cards = resolve_cards(SUB_SKILL_CARDS[skill_dir], target, indication)
-        fired = fired_rules(cards, axis=axis, card_id_filter=SUB_SKILL_CARDS[skill_dir])
+        fired: list[dict] = []
+        for axis in axes:
+            fired.extend(fired_rules(cards, axis=axis,
+                                     card_id_filter=SUB_SKILL_CARDS[skill_dir]))
         verdict_fn = _load_sub_skill_verdict_fn(skill_dir)
         verdict_pair = verdict_fn(fired) if verdict_fn else None
         results[short] = {

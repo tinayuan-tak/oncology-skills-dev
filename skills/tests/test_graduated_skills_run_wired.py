@@ -47,13 +47,15 @@ _ALWAYS_WIRED = [
     "tumor-presence",
     "tumor-selectivity",
     "functional-requirement",
-    "mutation-profile",
-    "tractability-and-modality",
+    "genomic-alteration-profile",        # reframed from mutation-profile 2026-07-14
+    "tractability-small-molecule",       # split from tractability-and-modality 2026-07-14
+    "surface-modality-fit",              # split from tractability-and-modality 2026-07-14 (partial)
     "mechanism-and-pharmacology",       # W2a graduation
     "differentiation-landscape",         # W2b graduation
     "on-target-safety-liability",        # W2c graduation
     "surfaceome-cohort-ranking",         # W4-only skill (no target arg required)
-    "patient-population-and-access",     # pre-existing partial
+    # patient-population-and-access DELETED 2026-07-14 (prevalence folded into
+    # genomic-alteration-profile; was a thin re-projection of one shared card).
 ]
 
 
@@ -177,18 +179,20 @@ def test_run_py_dispatcher_emits_matching_status(skill_name: str, tmp_path):
 # mechanism, and co-mutation all have real signal.
 #
 # Deliberately EXCLUDED (real data-unavailable, not a bug):
-#   - tractability-and-modality: 6 of 9 cards are surface-oriented; KRAS is
-#     intracellular, and structure/surfaceome derived products are not all
-#     landed — a partial verdict is honest here.
+#   - surface-modality-fit (split from tractability-and-modality 2026-07-14):
+#     KRAS is intracellular; structure/surfaceome derived products not all
+#     landed — honest `insufficient` here, not a fireable signal.
 #   - surfaceome-cohort-ranking: KRAS is not a surface protein; empty is correct.
 #   - on-target-safety-liability: gnomad_constraint method module not yet
 #     written (tracked separately) — cannot fire until that lands.
-#   - patient-population-and-access: status:partial, no rule engine (raw metrics).
+# NOTE: tractability-small-molecule (the SM half of the split) DOES fire on
+# KRAS (well_covered / e7-triangulated) so it IS in the must-fire list.
 _MUST_FIRE_ON_KRAS_COADREAD = [
     "tumor-presence",
     "tumor-selectivity",
     "functional-requirement",
-    "mutation-profile",
+    "genomic-alteration-profile",       # reframed from mutation-profile
+    "tractability-small-molecule",      # SM half of the tractability split
     "mechanism-and-pharmacology",
     "differentiation-landscape",
 ]

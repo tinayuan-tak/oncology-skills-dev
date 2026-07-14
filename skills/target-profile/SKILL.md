@@ -3,22 +3,27 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out (sequentially, in-process) to the 10 wired
+  synthesis." Fans out (sequentially, in-process) to the 9 wired
   question-answering skills:
     - tumor-presence
     - tumor-selectivity
     - functional-requirement
     - mechanism-and-pharmacology
-    - mutation-profile
+    - genomic-alteration-profile        (SNV + copy-number + fusion placeholder)
     - differentiation-landscape
-    - tractability-and-modality
+    - tractability-small-molecule       (small-molecule chemical-genetic half)
+    - surface-modality-fit              (biologics ADC/TCE half)
     - on-target-safety-liability
-    - patient-population-and-access
-    - surfaceome-cohort-ranking
   Collects each sub-verdict, then invokes Tier-3 structured LLM synthesis
   (Bedrock tool_choice-forced) for executive_summary + tension_analysis +
   recommendation. Emits `target_profile.md` + `nomination.json` +
   provenance.
+
+  RESTRUCTURED 2026-07-14 (scope deep-dive): tractability-and-modality SPLIT
+  into tractability-small-molecule + surface-modality-fit; mutation-profile
+  REFRAMED to genomic-alteration-profile; patient-population-and-access DELETED
+  (prevalence folded into genomic-alteration-profile); surfaceome-cohort-ranking
+  DROPPED from the fan-out (per-indication scan, not a per-target skill).
 
   Every LLM-produced field is tagged with `_source: llm_synthesized`,
   `_model_id`, and `_prompt_hash`. Sub-verdicts (deterministic, rule-
@@ -52,23 +57,26 @@ composition:
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
     - paralog-buffering                        # Layer 6h addition (Phase C-adjacent)
-    # Phase E (mutation profile + differentiation)
+    # Phase A/E (genomic-alteration-profile: SNV + copy-number + fusion)
     - mutation-type-counts
     - mutation-stratified-dependency
     - mutation-hotspot-frequency
-    - co-mutation-and-mutual-exclusivity       # Layer 6h addition (Phase E)
+    - copy-number-distribution                 # 2026-07-14 CN axis wired
+    - fusion-rearrangement-landscape           # 2026-07-14 placeholder (resolves _missing)
+    - co-mutation-and-mutual-exclusivity       # (differentiation-landscape)
     # Phase D (mechanism)
     - signaling-network-mechanism              # Layer 6h addition (Phase D)
-    # Phase F (tractability + modality)
+    # Phase F (tractability-small-molecule: chemical-genetic)
     - prism-compound-activity
     - prism-crispr-concordance
     - dependency-predictability
-    - surface-topology-and-ptm                 # Layer 6h addition (Phase F)
-    - surfaceome-family-classification         # Layer 6h addition
-    - structure-features-static                # Layer 6h addition
-    - surface-abundance-density                # Layer 6h addition
-    - adc-tce-modality-fit                     # Layer 6h addition (composed)
-    - surfaceome-cohort-ranking                # Layer 6h addition (target-scan)
+    # Phase F (surface-modality-fit: biologics ADC/TCE)
+    - surface-topology-and-ptm
+    - surfaceome-family-classification
+    - structure-features-static
+    - surface-abundance-density
+    - adc-tce-modality-fit
+    # (surfaceome-cohort-ranking DROPPED from fan-out 2026-07-14 — per-indication scan)
     # Phase G (safety)
     - gnomad-lof-constraint                    # Layer 6h addition (Phase G)
   rules_scope:
@@ -89,14 +97,9 @@ composition:
 
 ## What this skill does
 
-- Runs the 10 wired question-answering skills sequentially in-process (all
-  data-package producers): tumor-presence, tumor-selectivity,
-  functional-requirement, mechanism-and-pharmacology, mutation-profile,
-  differentiation-landscape, tractability-and-modality,
-  on-target-safety-liability, patient-population-and-access,
-  surfaceome-cohort-ranking. (The authoritative list is `SUB_SKILLS` in
-  `scripts/run.py`; three of these — selectivity, population, cohort_rank —
-  expose raw metrics rather than a `_verdict()` and report "no verdict".)
+- Runs the 6 wired question-answering skills in parallel (all data-package
+  producers): tumor-presence, tumor-selectivity, functional-requirement,
+  mutation-profile, tractability-and-modality, patient-population-and-access.
 - Collects each sub-verdict + fired rules + card summaries.
 - Invokes Bedrock (Opus by default via env `ANTHROPIC_MODEL`) with a
   structured tool_use forcing the LLM to emit:
@@ -104,7 +107,7 @@ composition:
   - `tension_analysis` — where sub-verdicts disagree + why
   - `top_arguments_for` — up to 5 strongest positive points
   - `top_arguments_against` — up to 5 strongest negatives
-  - `overall_recommendation` — nominate / hold / veto / insufficient_evidence (enum)
+  - `overall_recommendation` — nominate / hold / veto (enum)
   - `confidence` — high / medium / low / insufficient (enum)
 - Emits:
   - `target_profile.md` — rendered narrative with clearly-tagged LLM
@@ -140,8 +143,7 @@ When called as `/target-profile`, Claude should:
 1. Extract `target` + `indication`. Optionally extract `modality`
    and/or `therapeutic-hypothesis` from the user's natural-language
    prompt if named.
-2. Pick a durable `out` directory (prefer `~/dev/framework-runs/{target}-{indication}-{date}/`;
-   avoid `/tmp`, which is wiped on SageMaker restart and opaque from JupyterLab).
+2. Pick an `out` directory (default `/tmp/target-profile/{target}-{indication}`).
 3. Run:
    ```
    export AWS_PROFILE=cbg && \
@@ -150,17 +152,5 @@ When called as `/target-profile`, Claude should:
    ```
    Add `--modality <M>` and/or `--therapeutic-hypothesis "<text>"` if
    supplied by the user.
-
-   Environment prerequisites (both are easy to trip on):
-   - The Python running this must have BOTH the scientific stack
-     (pandas/pyarrow/boto3, for the sub-skill card readers) AND
-     `anthropic[bedrock]` (for the synthesis). The base SageMaker python3
-     (3.12) has the data stack; `pip install --user "anthropic[bedrock]"`
-     adds the synthesis client. (The workflow-skill pixi env has anthropic
-     but NOT the data stack.)
-   - `ANTHROPIC_MODEL` must be a raw Bedrock-invokable ID (the skill's own
-     default `us.anthropic.claude-opus-4-7` works). The Claude Code harness
-     sets `ANTHROPIC_MODEL=...opus-4-8[1m]`; that `[1m]` alias is NOT
-     Bedrock-invokable and returns HTTP 400 — override it before running.
 4. Read `<OUT_DIR>/target_profile.md` and present the executive summary
    inline; offer the full nomination.json for detail.
