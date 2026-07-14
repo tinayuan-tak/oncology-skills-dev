@@ -31,3 +31,7 @@ depmap-26q1/
 !.claude/config
 !.claude/hooks/
 .claude/branch-scope
+
+# MSstatsTMT drops a timestamped log in CWD on every groupComparisonTMT call
+MSstatsTMT_summarization_MSstats_*.log
+MSstats_log_*.log

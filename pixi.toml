@@ -15,6 +15,8 @@ pyyaml = "*"
 jsonschema = "*"
 click = "*"                      # CLI scaffolding for method entrypoints
 pytest = "*"
+boto3 = "*"                      # S3 client for pull/prep stages
+openpyxl = "*"                   # Excel parsing (CPTAC clinical XLSX + SURFY)
 
 # R + bioconductor (for dge_deseq2 + cooccurrence_fisher_pancohort + any future R-driven methods)
 r-base = ">=4.3"
@@ -33,6 +35,8 @@ r-doparallel = "*"               # cooccurrence_fisher_pancohort: SELECT depende
 bioconductor-birewire = "*"      # cooccurrence_fisher_pancohort: SELECT dependency (bipartite network null model)
 bioconductor-deseq2 = "*"
 bioconductor-sva = "*"           # combat-seq batch correction
+bioconductor-msstatstmt = "*"    # cptac_protein_deg: CPTAC TMT protein DEG with plex-batch mixed model
+bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood)
 
 [pypi-dependencies]
 # (target_id_resolver itself; installed as editable pip package once carved over)

@@ -6,20 +6,20 @@ differential expression stats from CPTAC-PDC mass-spec data (10 cohorts).
 
 Cohorts: BRCA, CCRCC, COAD, GBM, HNSCC, LSCC, LUAD, OV, PDAC, UCEC.
 
-Reviewer-driven governance discipline (2026-07-08): protein-level
-tumor-vs-normal is the reviewer-flagged missing evidence layer for ADC/TCE
-decisions. This method makes it available at the per-target read layer.
+Runtime discipline (v2, 2026-07-10):
+  - Column-array iteration to build (cohort, gene) index (NOT df.iterrows —
+    the pattern the kinome-atlas PR #7 refactored away from).
+  - Lazy per-target row materialization: keep DataFrame in memory,
+    materialize only the row(s) for a specific target at query time.
+  - @lru_cache(maxsize=1) on load+index — cold path runs ONCE per process.
+  - Module-level negative cache when derived not on S3.
 
-Iter-1 wiring approach:
-  - Reads derived parquet at
+Reads: derived parquet at
     s3://onc-compbio/data-catalog/derived/cptac-protein-tumor-vs-normal-per-cohort-v1/
-  - Falls back to `data_unavailable` gracefully when derived product not on S3.
-
-Runtime discipline: @lru_cache + module-level negative cache.
+Falls back to `data_unavailable` gracefully when derived product not on S3.
 """
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -74,64 +74,46 @@ def _ensure_derived_cached() -> Optional[Path]:
 
 
 @lru_cache(maxsize=1)
-def _load_indexed() -> dict:
-    """Load CPTAC DEG parquet, index by (cohort, gene_symbol) → row.
-    Also builds a gene_symbol → list-of-cohorts secondary index.
+def _load_indexed():
+    """Load derived parquet + build (cohort, gene) index + gene-only index.
+
+    Returns (df, cohort_gene_idx, gene_idx):
+        - df: pandas.DataFrame with all rows (~180K rows across 10 cohorts,
+          fits trivially in memory).
+        - cohort_gene_idx: dict[(cohort, gene_upper) -> row_index_in_df]
+        - gene_idx: dict[gene_upper -> list[row_index_in_df]] (across cohorts)
+        Empty structures if load failed.
     """
     path = _ensure_derived_cached()
     if path is None:
-        return {"by_cohort_gene": {}, "by_gene": {}}
+        import pandas as pd
+        return pd.DataFrame(), {}, {}
+
     try:
         import pandas as pd
         df = pd.read_parquet(path)
     except Exception:
-        return {"by_cohort_gene": {}, "by_gene": {}}
+        import pandas as pd
+        return pd.DataFrame(), {}, {}
+
     if df.empty:
-        return {"by_cohort_gene": {}, "by_gene": {}}
-    by_cohort_gene: dict[tuple, dict] = {}
-    by_gene: dict[str, list[dict]] = {}
-    for _, row in df.iterrows():
-        rec = row.to_dict()
-        cohort = str(rec.get("cohort", "")).strip().upper()
-        sym = str(rec.get("gene_symbol", "")).strip().upper()
-        if cohort and sym:
-            by_cohort_gene[(cohort, sym)] = rec
-            by_gene.setdefault(sym, []).append(rec)
-    return {"by_cohort_gene": by_cohort_gene, "by_gene": by_gene}
+        return df, {}, {}
 
+    # Column-array iteration (NOT iterrows). Direct numpy access.
+    cohort_gene_idx: dict[tuple, int] = {}
+    gene_idx: dict[str, list[int]] = {}
 
-def read_target_summary(target: str, indication: str = None) -> dict:
-    try:
-        idx = _load_indexed()
-    except Exception as e:
-        return _empty(f"cptac_load_failed: {type(e).__name__}: {e}")
-    if not idx.get("by_cohort_gene"):
-        return _empty("cptac_data_unavailable")
+    cohort_col = df["cohort"].values
+    gene_col = df["gene_symbol"].values
+    for idx in range(len(df)):
+        cohort = str(cohort_col[idx]).strip().upper()
+        gene = str(gene_col[idx]).strip().upper()
+        if not cohort or not gene:
+            continue
+        cohort_gene_idx[(cohort, gene)] = idx
+        gene_idx.setdefault(gene, []).append(idx)
 
-    sym = target.upper().strip()
-
-    # Resolve indication → CPTAC cohort
-    cohort = None
-    if indication:
-        cohort = INDICATION_TO_CPTAC.get(indication.upper().strip())
-
-    # Primary path: indication-specific lookup
-    if cohort:
-        row = idx["by_cohort_gene"].get((cohort, sym))
-        if row is None:
-            # Cohort maps to CPTAC but target not in that cohort's data
-            return _empty(f"target_not_in_cptac_cohort_{cohort}")
-        return _row_to_summary(row, matched_cohort=cohort)
-
-    # Fallback: no indication or non-CPTAC indication → aggregate across
-    # all cohorts (returns "best-effect" row for governance context)
-    rows = idx["by_gene"].get(sym, [])
-    if not rows:
-        return _empty("target_not_in_any_cptac_cohort")
-
-    # Return the row with the largest absolute effect size (governance signal)
-    best_row = max(rows, key=lambda r: abs(float(r.get("protein_effect_size", 0) or 0)))
-    return _row_to_summary(best_row, matched_cohort=str(best_row.get("cohort", "")).upper())
+    return df, cohort_gene_idx, gene_idx
 
 
 def _row_to_summary(row: dict, matched_cohort: str) -> dict:
@@ -145,8 +127,8 @@ def _row_to_summary(row: dict, matched_cohort: str) -> dict:
         "protein_median_log2_normal": row.get("protein_median_log2_normal"),
         "n_tumor_samples": row.get("n_tumor_samples"),
         "n_normal_samples": row.get("n_normal_samples"),
-        "stat_test_used": row.get("stat_test_used", "welch_t"),
-        "method_version": "0.1.0",
+        "stat_test_used": row.get("stat_test_used", "msstatstmt_limma_ebayes_moderated"),
+        "method_version": row.get("method_version", "1.0.0"),
         "_data_source": DERIVED_MANIFEST_ID,
     }
 
@@ -163,6 +145,48 @@ def _empty(note: str) -> dict:
         "n_tumor_samples": None,
         "n_normal_samples": None,
         "stat_test_used": "skipped_low_n",
-        "method_version": "0.1.0",
+        "method_version": "1.0.0",
         "_data_note": note,
     }
+
+
+def read_target_summary(target: str, indication: str = None) -> dict:
+    """Per-target CPTAC protein tumor-vs-normal DEG summary.
+
+    Args:
+        target: HGNC gene symbol.
+        indication: If given, restrict to the CPTAC cohort mapped from this
+            indication. Otherwise return the largest-|effect_size| row
+            across cohorts.
+    """
+    try:
+        df, cohort_gene_idx, gene_idx = _load_indexed()
+    except Exception as e:
+        return _empty(f"cptac_load_failed: {type(e).__name__}: {e}")
+    if df is None or df.empty:
+        return _empty("cptac_data_unavailable")
+
+    sym = target.upper().strip()
+
+    # Resolve indication → CPTAC cohort
+    cohort = None
+    if indication:
+        cohort = INDICATION_TO_CPTAC.get(indication.upper().strip())
+
+    # Primary path: indication-specific lookup
+    if cohort:
+        idx = cohort_gene_idx.get((cohort, sym))
+        if idx is None:
+            return _empty(f"target_not_in_cptac_cohort_{cohort}")
+        row = df.iloc[idx].to_dict()
+        return _row_to_summary(row, matched_cohort=cohort)
+
+    # Fallback: no indication or non-CPTAC indication → aggregate across
+    # all cohorts, return "best-effect" row (largest |effect_size|)
+    indices = gene_idx.get(sym, [])
+    if not indices:
+        return _empty("target_not_in_any_cptac_cohort")
+
+    rows = df.iloc[indices].to_dict(orient="records")
+    best_row = max(rows, key=lambda r: abs(float(r.get("protein_effect_size", 0) or 0)))
+    return _row_to_summary(best_row, matched_cohort=str(best_row.get("cohort", "")).upper())
