@@ -73,13 +73,53 @@ def _import_dispatcher():
 
 # --- Skill API -------------------------------------------------------------
 
+def _primary_class_value(summary: dict):
+    """The card's PRIMARY interpretation categorical — the same field
+    resolve_cards lifts into `interpretation_call`. Only this field decides
+    availability; a data-unavailable value in a secondary sub-field (e.g. a
+    dual-layer card's protein sub-layer) must NOT mark the whole card missing.
+    """
+    return (summary.get("selectivity_class")
+            or summary.get("class")
+            or summary.get("interpretation_call"))
+
+
+def _summary_is_unavailable(summary: dict) -> Optional[str]:
+    """Return a short reason string if this dispatcher summary represents a
+    NON-answer (error or data-unavailable) at the PRIMARY level, else None.
+
+    A card is NOT genuinely available if the dispatcher:
+      - raised and returned a `{"_live_read_error": ...}` sentinel, OR
+      - the PRIMARY class field carries a data-unavailable marker
+        (`data_unavailable` or `<topic>_data_unavailable`).
+
+    Only the primary field is checked (NOT a scan of every summary key), so a
+    partially-available card that reports a real primary verdict alongside an
+    unavailable secondary sub-layer is still counted available. Counting a
+    genuinely-errored/empty card as "available" would overstate coverage.
+    """
+    if not isinstance(summary, dict):
+        return "non_dict_summary"
+    if "_live_read_error" in summary:
+        return f"live_read_error: {summary['_live_read_error']}"
+    primary = _primary_class_value(summary)
+    if isinstance(primary, str) and (
+        primary == "data_unavailable" or primary.endswith("_data_unavailable")
+    ):
+        return f"primary_class={primary}"
+    return None
+
+
 def resolve_cards(card_ids: list[str], target: str, indication: str) -> list[dict]:
     """Fetch live summaries for a list of card_ids via the compose-dashboard
     dispatcher registry. Returns one card_output dict per card_id.
 
-    Missing cards (dispatcher returns None) are still included in the output
-    list, tagged `_missing: True` so the caller can distinguish "no signal"
-    from "not implemented."
+    Cards that are missing (dispatcher returns None), errored
+    (`_live_read_error`), or explicitly data-unavailable are all tagged
+    `_missing: True` with a `_missing_reason`, so `cards_available` reflects
+    only cards that returned a real, usable signal. (Previously an errored
+    dispatcher returned a dict and was silently counted as available —
+    overstating coverage on every skill.)
     """
     read_live = _import_dispatcher()
     outputs: list[dict] = []
@@ -90,6 +130,17 @@ def resolve_cards(card_ids: list[str], target: str, indication: str) -> list[dic
                 "card_id": card_id, "summary": {},
                 "interpretation_call": "not_implemented",
                 "_missing": True,
+                "_missing_reason": "dispatcher_returned_none",
+            })
+            continue
+        unavailable = _summary_is_unavailable(summary)
+        if unavailable is not None:
+            outputs.append({
+                "card_id": card_id,
+                "summary": summary,
+                "interpretation_call": "data_unavailable",
+                "_missing": True,
+                "_missing_reason": unavailable,
             })
             continue
         outputs.append({
@@ -100,6 +151,34 @@ def resolve_cards(card_ids: list[str], target: str, indication: str) -> list[dic
                 or summary.get("interpretation_call"),
         })
     return outputs
+
+
+def _rule_values_equal(actual, expected) -> bool:
+    """Compare a card summary value against a rule's `equals`/`in` operand,
+    tolerant ONLY of the bool-vs-string mismatch between readers and rule YAML.
+
+    Readers emit native Python types (e.g. `True`); rule YAML encodes the
+    operand as a string (`equals: 'true'`). A bare `==` makes `True == 'true'`
+    False, silently killing every boolean-keyed rule. We bridge exactly that
+    gap: when one side is a bool and the other its lowercase-string form.
+
+    Everything else keeps strict semantics — in particular string-vs-string
+    stays CASE-SENSITIVE (`equals: 'BRAF'` must not match `'braf'`), and
+    numeric comparison is unchanged.
+    """
+    if actual == expected:
+        return True
+
+    def _bool_as_str(b: bool) -> str:
+        return "true" if b else "false"
+
+    # Bridge ONLY bool <-> its 'true'/'false' string spelling (case-insensitive
+    # on the string side, since YAML may carry 'True'/'true'/'TRUE').
+    if isinstance(actual, bool) and isinstance(expected, str):
+        return _bool_as_str(actual) == expected.strip().lower()
+    if isinstance(expected, bool) and isinstance(actual, str):
+        return actual.strip().lower() == _bool_as_str(expected)
+    return False
 
 
 def fired_rules(card_outputs: list[dict],
@@ -139,8 +218,9 @@ def fired_rules(card_outputs: list[dict],
             actual = card.get("interpretation_call")
         else:
             actual = summary.get(field) if field in summary else card.get(field)
-        matched = (equals is not None and actual == equals) \
-                  or (equals is None and in_list and actual in in_list)
+        matched = (equals is not None and _rule_values_equal(actual, equals)) \
+                  or (equals is None and in_list
+                      and any(_rule_values_equal(actual, opt) for opt in in_list))
         if not matched:
             continue
         fired.append({

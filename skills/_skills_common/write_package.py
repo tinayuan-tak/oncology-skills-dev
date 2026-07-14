@@ -140,6 +140,24 @@ def write_package(
     existing_figures = sorted(figures_dir.glob("*"))
     written["figures"] = existing_figures
 
+    # data_provenance — per-card derived-manifest / source pins. Card readers
+    # already stamp their summary with `_data_source` (the derived-manifest id,
+    # e.g. `pancohort-cooccurrence-fisher-v1`); harvest it here so the audit
+    # anchor records WHICH data product each card resolved against, not just
+    # that the card ran. Closes the "reproducible & traceable" gap where
+    # provenance.yaml previously named no manifest IDs / release pins.
+    data_provenance = []
+    for c in card_outputs:
+        s = c.get("summary") or {}
+        entry = {
+            "card_id": c["card_id"],
+            "data_source": s.get("_data_source"),
+            "_missing": bool(c.get("_missing")),   # match card_output + cards_missing key
+        }
+        if c.get("_missing_reason"):
+            entry["_missing_reason"] = c["_missing_reason"]
+        data_provenance.append(entry)
+
     # provenance.yaml — the audit anchor
     provenance = {
         "skill": skill_name,
@@ -151,6 +169,7 @@ def write_package(
         "cards_resolved": [c["card_id"] for c in card_outputs],
         "cards_missing": [c["card_id"] for c in card_outputs
                           if c.get("_missing")],
+        "data_provenance": data_provenance,
         "artefacts": {
             "decision_json": str(decision_path.name),
             "summary_yaml": str(summary_path.name),

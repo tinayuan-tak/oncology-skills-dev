@@ -164,3 +164,100 @@ def test_run_py_dispatcher_emits_matching_status(skill_name: str, tmp_path):
         f"{decision['skill']!r} does not match SKILL.md directory name "
         f"= {comp_name!r}. Dispatcher wrote wrong skill_name."
     )
+
+
+# Skills whose cards genuinely return real data for KRAS/COADREAD today, so
+# a wired verdict MUST be produced (not a silent collapse to `insufficient`).
+# This is the DATA-QUALITY complement to the shape checks above — it is what
+# would have caught the 2026-07-13 decision-layer bugs (differentiation-
+# landscape returning `insufficient` on 709 real co-occurring hits because
+# no rule matched `cooccurrence_class=both_patterns_present`, and the
+# bool-vs-string rule-match failure). KRAS in COADREAD is a maximally-
+# characterized reference target: expression, dependency, mutation,
+# mechanism, and co-mutation all have real signal.
+#
+# Deliberately EXCLUDED (real data-unavailable, not a bug):
+#   - tractability-and-modality: 6 of 9 cards are surface-oriented; KRAS is
+#     intracellular, and structure/surfaceome derived products are not all
+#     landed — a partial verdict is honest here.
+#   - surfaceome-cohort-ranking: KRAS is not a surface protein; empty is correct.
+#   - on-target-safety-liability: gnomad_constraint method module not yet
+#     written (tracked separately) — cannot fire until that lands.
+#   - patient-population-and-access: status:partial, no rule engine (raw metrics).
+_MUST_FIRE_ON_KRAS_COADREAD = [
+    "tumor-presence",
+    "tumor-selectivity",
+    "functional-requirement",
+    "mutation-profile",
+    "mechanism-and-pharmacology",
+    "differentiation-landscape",
+]
+
+
+@pytest.mark.parametrize("skill_name", _MUST_FIRE_ON_KRAS_COADREAD)
+def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
+    """DATA-QUALITY check (not just shape): a skill whose cards return real
+    data on the KRAS/COADREAD reference target must actually FIRE >=1 rule
+    (or emit a non-`insufficient` verdict). A skill that gathers real card
+    data and then collapses to `insufficient`/no-fired-rules is the exact
+    decision-layer failure this suite previously missed.
+
+    If ALL of the skill's cards come back `_missing` (e.g. an S3 outage),
+    the test skips rather than fails — this asserts the DECISION layer, not
+    data availability.
+    """
+    skill_md, run_py = _skill_paths(skill_name)
+    if not run_py.exists():
+        pytest.skip(f"{skill_name} has no scripts/run.py")
+
+    out_dir = tmp_path / f"fire-{skill_name}"
+    argv = [
+        sys.executable, str(run_py),
+        "--target", "KRAS", "--indication", "COADREAD",
+        "--out", str(out_dir),
+    ]
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, (
+        f"{skill_name}: run.py exited {result.returncode}.\n{result.stderr}"
+    )
+    decision = json.loads((out_dir / "decision.json").read_text())
+
+    cards = decision.get("cards") or []
+    available = [c for c in cards if not c.get("_missing")]
+    if cards and not available:
+        pytest.skip(
+            f"{skill_name}: all cards _missing on KRAS/COADREAD "
+            f"(data availability, not a decision-layer bug)."
+        )
+
+    fired = decision.get("fired_rules") or []
+    headline = decision.get("headline") or {}
+
+    # Each skill names its primary verdict differently (presence_verdict,
+    # selectivity_class, dependency_verdict, mutation_landscape_class,
+    # mechanism_verdict, differentiation_verdict, ...). Extract GENERICALLY —
+    # any headline key ending in `_verdict` or `_class` — so this check does
+    # not silently miss a skill's verdict (and rot when a 7th skill is added).
+    SENTINELS = (None, "insufficient", "data_unavailable")
+    verdict_fields = {
+        k: v for k, v in headline.items()
+        if (k.endswith("_verdict") or k.endswith("_class")) and isinstance(v, str)
+    }
+    # Also honor a plain top-level `verdict` if a skill uses that.
+    if isinstance(decision.get("verdict"), str):
+        verdict_fields["verdict"] = decision["verdict"]
+
+    # A real verdict = at least one verdict field holds a non-sentinel value.
+    has_real_verdict = any(v not in SENTINELS for v in verdict_fields.values())
+
+    # With real card data present, EITHER a rule fired OR a real (non-sentinel)
+    # verdict was emitted. Both being absent = the decision-layer collapse.
+    assert fired or has_real_verdict, (
+        f"{skill_name}: gathered {len(available)} card(s) with real data on "
+        f"KRAS/COADREAD but fired 0 rules and all verdict fields are sentinels "
+        f"({verdict_fields}). This is a decision-layer collapse (real data -> "
+        f"null verdict), not a data gap. Check for (a) rule categorical-"
+        f"coverage holes for the emitted class value, (b) a bool-vs-string "
+        f"rule-match failure in _skills_common.fired_rules, or (c) the leaf "
+        f"skill's _verdict() not mapping the fired rule_id to a verdict."
+    )
