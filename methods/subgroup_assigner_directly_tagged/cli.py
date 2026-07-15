@@ -195,6 +195,35 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     return df
 
 
+def _load_genie_bpc_lot(catalog_repo: Path, indication: str) -> pd.DataFrame:
+    """Load GENIE-BPC line-of-therapy (LOT) per-sample labels.
+
+    Returns a DataFrame with columns: sample_id (GENIE cpt_genie_sample_id),
+    patient_id (GENIE record_id), source_native_id, lot_category
+    (LOT_1L_only / LOT_2L / LOT_3Lplus), max_lot.
+
+    LOT is DERIVED (not a single source column): the prefetch step
+    (scripts/prefetch_source_maf.py --source genie_bpc_lot) reads the
+    GENIE-BPC regimen_cancer_level_dataset.csv, takes max(regimen_number_
+    within_cancer) per patient index-cancer (ca_seq=0), maps to a LOT
+    category, and joins to sample_id via cancer_panel_test_level_dataset.csv.
+    This loader reads the prefetched per-indication parquet.
+
+    Real derivation 2026-07-15: 1,176 CRC samples — 205 1L-only, 203 2L,
+    768 3L+.
+    """
+    fallback = (Path.home() / ".cache" / "framework-genie-bpc-crc-v2"
+                / f"{indication.lower()}-bpc-lot.parquet")
+    if fallback.exists():
+        return pd.read_parquet(fallback)
+    raise FileNotFoundError(
+        f"GENIE-BPC LOT parquet for {indication} not found at {fallback}. "
+        f"Run scripts/prefetch_source_maf.py --source genie_bpc_lot "
+        f"--indication {indication} to derive it from the BPC regimen +"
+        f"cancer-panel-test datasets."
+    )
+
+
 def _load_depmap_inferred_subtypes(catalog_repo: Path) -> pd.DataFrame:
     """Load DepMap OmicsInferredMolecularSubtypes.csv + Model.csv join.
 
@@ -393,7 +422,7 @@ def _md5sum(path: Path) -> str:
 @click.command()
 @click.option("--subgroup-catalog", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
               help="Path to the subgroup_catalog YAML.")
-@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap"]),
+@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap", "genie_bpc"]),
               help="Which data source to assign against.")
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier (e.g., 2026-Q2).")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
@@ -448,6 +477,11 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     if data_source == "tcga":
         source_df = _load_tcga_marker_paper_labels(catalog_repo, indication)
         sample_id_col = "sample_id"      # produced by loader normalization
+        patient_id_col = "patient_id"
+        native_id_col = "source_native_id"
+    elif data_source == "genie_bpc":
+        source_df = _load_genie_bpc_lot(catalog_repo, indication)
+        sample_id_col = "sample_id"
         patient_id_col = "patient_id"
         native_id_col = "source_native_id"
     else:  # depmap

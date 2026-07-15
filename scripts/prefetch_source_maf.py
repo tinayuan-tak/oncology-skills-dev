@@ -110,6 +110,13 @@ S3_BUCKET = "onc-compbio"
 GENIE_CANCER_TYPE = {"COADREAD": "Colorectal Cancer"}
 DEPMAP_LINEAGE = {"COADREAD": "Bowel"}
 
+# GENIE-BPC LOT derivation is a distinct mode (not a MAF filter): it derives
+# per-sample line-of-therapy from the BPC regimen + cancer-panel-test datasets.
+# Handled by prefetch_genie_bpc_lot() rather than the generic MAF path.
+GENIE_BPC_S3_PREFIX = {
+    "COADREAD": "data-catalog/sources/synapse/genie-bpc-crc-v2.0/CRC_2.0-public_clinical_data",
+}
+
 
 def _log(msg: str) -> None:
     click.echo(f"[prefetch-source-maf] {msg}", err=True)
@@ -193,14 +200,80 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
     raise ValueError(f"Unknown filter_strategy: {cfg.filter_strategy}")
 
 
+def prefetch_genie_bpc_lot(indication: str, dry_run: bool) -> int:
+    """Derive per-sample line-of-therapy (LOT) from GENIE-BPC regimen data.
+
+    Distinct from the generic MAF path: LOT is DERIVED, not filtered. Reads
+    regimen_cancer_level_dataset.csv (max regimen_number_within_cancer per
+    patient index-cancer) + cancer_panel_test_level_dataset.csv (record_id →
+    cpt_genie_sample_id), emits a sample→lot_category parquet at the cache
+    path the directly-tagged assigner reads (--data-source genie_bpc).
+    """
+    import pandas as pd
+
+    prefix = GENIE_BPC_S3_PREFIX.get(indication)
+    if not prefix:
+        _log(f"No GENIE-BPC S3 prefix for {indication}; add to GENIE_BPC_S3_PREFIX.")
+        sys.exit(1)
+
+    cache_dir = Path.home() / ".cache" / "framework-genie-bpc-crc-v2"
+    reg_local = cache_dir / "regimen_cancer_level_dataset.csv"
+    cpt_local = cache_dir / "cancer_panel_test_level_dataset.csv"
+    out_path = cache_dir / f"{indication.lower()}-bpc-lot.parquet"
+
+    _log(f"=== prefetch genie_bpc_lot × {indication} ===")
+    _log(f"  regimen s3:  s3://{S3_BUCKET}/{prefix}/regimen_cancer_level_dataset.csv")
+    _log(f"  output:      {out_path}")
+
+    _s3_download(f"{prefix}/regimen_cancer_level_dataset.csv", reg_local, dry_run)
+    _s3_download(f"{prefix}/cancer_panel_test_level_dataset.csv", cpt_local, dry_run)
+    if dry_run:
+        _log("DRY_RUN: skipping LOT derivation")
+        return 0
+
+    reg = pd.read_csv(reg_local, low_memory=False)
+    cpt = pd.read_csv(cpt_local, low_memory=False)
+
+    # LOT = max regimen number within the index cancer (ca_seq=0)
+    reg_index = reg[reg["ca_seq"] == 0]
+    lot = reg_index.groupby("record_id")["regimen_number_within_cancer"].max().reset_index()
+    lot = lot.rename(columns={"regimen_number_within_cancer": "max_lot"})
+
+    def _cat(m):
+        return "LOT_3Lplus" if m >= 3 else ("LOT_2L" if m == 2 else "LOT_1L_only")
+    lot["lot_category"] = lot["max_lot"].apply(_cat)
+
+    # Join to sample_id via cancer_panel_test (record_id → cpt_genie_sample_id)
+    linked = cpt[["record_id", "cpt_genie_sample_id"]].merge(lot, on="record_id", how="inner")
+    out = pd.DataFrame({
+        "sample_id": linked["cpt_genie_sample_id"],
+        "patient_id": linked["record_id"],
+        "source_native_id": linked["cpt_genie_sample_id"],
+        "lot_category": linked["lot_category"],
+        "max_lot": linked["max_lot"],
+    }).drop_duplicates(subset=["sample_id"])
+
+    out.to_parquet(out_path, index=False)
+    _log(f"wrote {out_path}: {len(out):,} samples")
+    for cat, n in out["lot_category"].value_counts().items():
+        _log(f"    {cat}: {n}")
+    return 0
+
+
 @click.command()
-@click.option("--source", required=True, type=click.Choice(list(SOURCE_CONFIGS)))
+@click.option("--source", required=True,
+              type=click.Choice(list(SOURCE_CONFIGS) + ["genie_bpc_lot"]))
 @click.option("--indication", required=True)
 def main(source: str, indication: str) -> int:
     """Prefetch + filter + normalize a mutation source into a per-indication MAF parquet."""
     import pandas as pd
 
     dry_run = bool(os.environ.get("DRY_RUN"))
+
+    # LOT derivation is a distinct, non-MAF path
+    if source == "genie_bpc_lot":
+        return prefetch_genie_bpc_lot(indication, dry_run)
+
     cfg = SOURCE_CONFIGS[source]
 
     out_path = _cache_path(

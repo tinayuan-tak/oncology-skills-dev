@@ -49,3 +49,30 @@ def test_dry_run_depmap(tmp_path):
     assert "prefetch depmap_somatic × COADREAD" in result.stderr
     assert "depmap_lineage" in result.stderr
     assert "DRY_RUN" in result.stderr
+
+
+def test_genie_bpc_lot_prefix_present():
+    """LOT derivation is a distinct non-MAF mode with its own S3 prefix map."""
+    from scripts.prefetch_source_maf import GENIE_BPC_S3_PREFIX
+    assert "COADREAD" in GENIE_BPC_S3_PREFIX
+    assert "CRC_2.0-public_clinical_data" in GENIE_BPC_S3_PREFIX["COADREAD"]
+
+
+def test_dry_run_genie_bpc_lot():
+    """LOT dry-run prints the regimen + cancer-panel-test plan without deriving.
+
+    genie_bpc_lot is NOT in SOURCE_CONFIGS — it's a distinct derivation path
+    (regimen max-line per index-cancer → sample). The dry-run must still route
+    through prefetch_genie_bpc_lot() and stop before pandas work.
+    """
+    result = subprocess.run(
+        ["python", "-m", "scripts.prefetch_source_maf",
+         "--source", "genie_bpc_lot", "--indication", "COADREAD"],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=60,
+        env={"PATH": "/opt/conda/bin:/usr/bin:/bin", "HOME": str(Path.home()),
+             "DRY_RUN": "1", "AWS_PROFILE": "cbg"},
+    )
+    assert result.returncode == 0, f"failed: {result.stderr}"
+    assert "prefetch genie_bpc_lot × COADREAD" in result.stderr
+    assert "regimen_cancer_level_dataset.csv" in result.stderr
+    assert "DRY_RUN: skipping LOT derivation" in result.stderr
