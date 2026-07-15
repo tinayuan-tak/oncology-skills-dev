@@ -15,7 +15,39 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from functools import partial
+
+from methods.subgroup_common.iteration import subgroup_iterable
+from methods.subgroup_common.panorama import (
+    SUBGROUP_N_FLOOR,
+    build_panorama,
+    delta_reducer,
+    evidence_state,
+)
+
 DEFAULT_AWS_PROFILE = "cbg"
+
+# Per-sample MC3 MAF cache (the raw substrate for subgroup-stratified frequency;
+# distinct from the pre-aggregated hotspot Parquet read_hotspot_summary consumes).
+DEFAULT_MC3_MAF_CACHE = Path.home() / ".cache" / "framework-gdc-pancohort-somatic"
+
+# Registry of per-sample MAF sources the stratified reader can group by member-set.
+# Each entry: (parquet-path template, cohort label). The same groupby-within-member-set
+# logic serves both the TCGA molecular strata (MC3) and the GENIE-BPC LOT strata
+# (GENIE-registry MAF, which carries KRAS calls for the BPC sample_ids).
+MAF_SOURCES = {
+    "tcga_mc3": {
+        "path": DEFAULT_MC3_MAF_CACHE / "{ind}-mc3.parquet",
+        "cohort": "TCGA-MC3",
+    },
+    "genie_registry": {
+        "path": Path.home() / ".cache" / "framework-genie-public-v19" / "{ind}-genie-maf.parquet",
+        "cohort": "GENIE-registry",
+    },
+}
+
+# SUBGROUP_N_FLOOR + evidence_state are imported from subgroup_common.panorama
+# (single source of truth shared across all stratified readers).
 
 # Default cache location for aggregator outputs. Iter-2 may register these as
 # proper derived manifests in data-catalog.
@@ -128,3 +160,189 @@ def read_hotspot_summary(
         "_aggregate_path": str(aggregate_path),
         "_co_occurrence_note": "co-occurrence + mutual-exclusivity analysis is iter-2 work",
     }
+
+
+def _mc3_maf_path(indication: str, maf_cache: Path = DEFAULT_MC3_MAF_CACHE) -> Path:
+    """Locate the per-sample MC3 MAF parquet for an indication."""
+    return maf_cache / f"{indication.lower()}-mc3.parquet"
+
+
+def _mutation_class(freq: float | None) -> str:
+    """Coarse frequency class for a subgroup (descriptive, not a verdict).
+
+    Bins mirror the biology-agnostic language the mutation-hotspot-frequency
+    card already uses; they feed the render + interpretation_hints only.
+    """
+    if freq is None:
+        return "insufficient"
+    if freq >= 0.20:
+        return "recurrently_mutated"
+    if freq >= 0.05:
+        return "occasionally_mutated"
+    return "rarely_mutated"
+
+
+def _hotspot_freq_for_samples(maf, target, member_ids, hotspot_change):
+    """Frequency of a specific hotspot protein_change within a member sample-set."""
+    n = len(member_ids)
+    if n == 0:
+        return None, 0
+    hit = maf[
+        (maf["gene_symbol"] == target)
+        & (maf["protein_change"] == hotspot_change)
+        & (maf["sample_id"].isin(member_ids))
+    ]["sample_id"].nunique()
+    return (hit / n), hit
+
+
+def _resolve_maf_source(maf_source: str, indication: str, maf_cache: Path | None):
+    """Return (parquet_path, cohort_label) for a registered MAF source.
+
+    `maf_cache` (when given) overrides the directory of the tcga_mc3 source —
+    preserves the existing test/override contract. Other sources resolve from
+    MAF_SOURCES templates.
+    """
+    if maf_source == "tcga_mc3" and maf_cache is not None:
+        return maf_cache / f"{indication.lower()}-mc3.parquet", MAF_SOURCES["tcga_mc3"]["cohort"]
+    src = MAF_SOURCES.get(maf_source)
+    if src is None:
+        raise ValueError(f"Unknown maf_source {maf_source!r}; known: {sorted(MAF_SOURCES)}")
+    return Path(str(src["path"]).format(ind=indication.lower())), src["cohort"]
+
+
+@subgroup_iterable
+def read_stratified_mutation_frequency(
+    target: str,
+    indication: str,
+    hotspot_changes: tuple[str, ...] = (),
+    maf_source: str = "tcga_mc3",
+    maf_cache: Path | None = None,
+    _sample_id_filter: set[str] | None = None,
+) -> dict:
+    """Per-subgroup mutation frequency of `target` from a per-sample MAF.
+
+    DESCRIPTIVE (panorama) reader. Unlike read_hotspot_summary — which reads a
+    pre-aggregated parquet with frequencies baked in at emit time — this reads
+    the RAW per-sample MAF so a subgroup member-set can be filtered at read time
+    (the "compute rerun, not read-side filter" point: frequency must be
+    recomputed within each stratum's denominator).
+
+    `maf_source` selects the substrate (MAF_SOURCES): `tcga_mc3` for the TCGA
+    molecular strata (MSI/MSS/sidedness/KRAS), `genie_registry` for the GENIE-BPC
+    LOT strata (the GENIE-registry MAF carries KRAS calls for the BPC sample_ids).
+    Both flow through this ONE groupby-within-member-set path.
+
+    Called two ways:
+      * Scalar (no @subgroup_iterable fan-out): returns the whole-cohort record.
+      * Via @subgroup_iterable with subgroups=[...] + subgroup_assignments_manifest:
+        the decorator injects `_sample_id_filter` (the member sample_id set) per
+        subgroup and returns {stratum_id: record}. The card composes those into
+        per_subgroup_metrics.
+
+    Each record carries `evidence_state` ∈ {measured, underpowered, absent} so a
+    real negative (freq~0 on a floor-clearing cohort) is distinguishable from an
+    unknown (too few samples) — the positive/negative/unknown trichotomy.
+    """
+    import pandas as pd
+
+    maf_path, cohort = _resolve_maf_source(maf_source, indication, maf_cache)
+    if not maf_path.exists():
+        return {
+            "target": target, "indication": indication,
+            "subgroup_n": 0, "overall_mutation_frequency": None,
+            "n_samples_mutated": None, "subgroup_n_floor_met": False,
+            "evidence_state": "absent", "mutation_class": "insufficient",
+            "hotspot_frequencies": [], "source_cohort": cohort,
+            "_data_note": f"No per-sample MAF at {maf_path}.",
+        }
+
+    maf = pd.read_parquet(maf_path)
+    cohort_ids = set(maf["sample_id"].dropna())
+
+    # Restrict to the subgroup member-set if the decorator injected one.
+    member_ids = (cohort_ids & _sample_id_filter) if _sample_id_filter is not None else cohort_ids
+
+    n = len(member_ids)
+    mutated = maf[
+        (maf["gene_symbol"] == target) & (maf["sample_id"].isin(member_ids))
+    ]["sample_id"].nunique()
+    freq = (mutated / n) if n else None
+
+    hotspots = []
+    for change in hotspot_changes:
+        hf, hn = _hotspot_freq_for_samples(maf, target, member_ids, change)
+        hotspots.append({
+            "protein_change": change,
+            "frequency": (round(hf, 4) if hf is not None else None),
+            "n_samples": hn,
+        })
+
+    floor_met = n >= SUBGROUP_N_FLOOR
+    return {
+        "target": target,
+        "indication": indication,
+        "subgroup_n": n,
+        "overall_mutation_frequency": (round(freq, 4) if freq is not None else None),
+        "n_samples_mutated": int(mutated),
+        "subgroup_n_floor_met": floor_met,
+        "evidence_state": evidence_state(n, floor_met),
+        "mutation_class": _mutation_class(freq),
+        "hotspot_frequencies": hotspots,
+        "source_cohort": cohort,
+    }
+
+
+def _mutation_freq_projection(stratum_id: str, rec: dict) -> dict:
+    """Project a per-stratum mutation-frequency record → the card's flat record.
+
+    The ONLY substrate-specific step in the mutation-frequency panorama; the
+    fan-out + cross-stratum reduction are handled generically by build_panorama.
+    """
+    return {
+        "stratum": stratum_id,
+        "class": rec["mutation_class"],
+        "evidence_state": rec["evidence_state"],
+        "overall_mutation_frequency": rec["overall_mutation_frequency"],
+        "n_samples_mutated": rec["n_samples_mutated"],
+        "subgroup_n": rec["subgroup_n"],
+        "subgroup_n_floor_met": rec["subgroup_n_floor_met"],
+        "subtype_defining_data": "genomic",
+        "source_cohort": rec["source_cohort"],
+        "hotspot_frequencies": rec["hotspot_frequencies"],
+    }
+
+
+def build_mutation_frequency_panorama(
+    target: str,
+    indication: str,
+    subgroups: list[str],
+    subgroup_assignments_manifest: str,
+    hotspot_changes: tuple[str, ...] = (),
+    subgroup_catalog_repo: Path | str | None = None,
+    maf_source: str = "tcga_mc3",
+    maf_cache: Path | None = None,
+) -> dict:
+    """Assemble the mutation-frequency card's per_subgroup_metrics panorama.
+
+    Thin call into the substrate-agnostic subgroup_common.panorama.build_panorama:
+    supplies the mutation-frequency reader, a projection, and the frequency
+    delta-reducer. The fan-out + cross-stratum summary are generic. Purely
+    descriptive — emits no signals.
+
+    `maf_source` picks the substrate: `tcga_mc3` for TCGA molecular strata,
+    `genie_registry` for the GENIE-BPC LOT strata (the RWD line-of-therapy axis).
+    """
+    panorama = build_panorama(
+        read_stratified_mutation_frequency,
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
+        subgroup_assignments_manifest=subgroup_assignments_manifest,
+        record_projection=_mutation_freq_projection,
+        reducer=partial(delta_reducer, metric_key="overall_mutation_frequency", label="frequency"),
+        subgroup_catalog_repo=subgroup_catalog_repo,
+        reader_kwargs={"hotspot_changes": hotspot_changes, "maf_source": maf_source,
+                       "maf_cache": maf_cache},
+    )
+    panorama["_data_source"] = f"{maf_source} per-sample MAF (subgroup-stratified)"
+    return panorama

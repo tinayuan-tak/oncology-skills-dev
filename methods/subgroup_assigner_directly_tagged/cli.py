@@ -224,12 +224,34 @@ def _load_genie_bpc_lot(catalog_repo: Path, indication: str) -> pd.DataFrame:
     )
 
 
-def _load_depmap_inferred_subtypes(catalog_repo: Path) -> pd.DataFrame:
+# Indication → DepMap OncotreeLineage. Mirrors target-contracts
+# vocabularies/indication_crosswalk.yaml `depmap_lineage`. Without this filter a
+# DepMap assignments shard is pan-cancer (MSI_H across ALL lineages), which
+# silently corrupts any per-indication dependency/expression panorama that
+# intersects it — the cross-source-fragmentation failure the design flags.
+INDICATION_TO_DEPMAP_LINEAGE = {
+    "COADREAD": "Bowel",
+    "NSCLC": "Lung",
+    "SCLC": "Lung",
+    "HNSC": "Head and Neck",
+    "STAD": "Stomach",
+    "ESCA": "Esophagus",
+    "PAAD": "Pancreas",
+    "AML": "Myeloid",
+}
+
+
+def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = None) -> pd.DataFrame:
     """Load DepMap OmicsInferredMolecularSubtypes.csv + Model.csv join.
 
     Returns a DataFrame with columns: ModelID, OncotreeLineage,
     OncotreePrimaryDisease, OncotreeSubtype, and the OmicsInferredMolecularSubtypes
     flag columns (KRAS_G12C, MSI, EWSR1_FLI1, etc.).
+
+    When `indication` is given, the frame is FILTERED to that indication's
+    DepMap OncotreeLineage (INDICATION_TO_DEPMAP_LINEAGE) — without this the
+    shard is pan-cancer and a COADREAD dependency panorama would compute KRAS
+    dependency across every lineage's MSI-H lines, not Bowel's.
 
     Phase 2a.4 (subgroup_common/loaders.py) will provide the canonical
     S3-plus-local-cache resolver. Here we delegate to the existing
@@ -255,6 +277,16 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path) -> pd.DataFrame:
     subtypes = pd.read_csv(fallback)
     model = pd.read_csv(model_fallback)
     df = model.merge(subtypes, on="ModelID", how="left")
+
+    # Restrict to the indication's DepMap lineage (else the shard is pan-cancer).
+    if indication is not None:
+        lineage = INDICATION_TO_DEPMAP_LINEAGE.get(indication.upper())
+        if lineage is None:
+            raise ValueError(
+                f"No DepMap lineage mapping for indication {indication!r}; add it "
+                f"to INDICATION_TO_DEPMAP_LINEAGE (mirror indication_crosswalk.yaml)."
+            )
+        df = df[df["OncotreeLineage"] == lineage].copy()
 
     # ---- Source-specific column normalization (Phase 2b/c real-data fix) ----
     # DepMap Model.csv uses `ModelID` as the cell-line identifier. Normalize to
@@ -485,7 +517,7 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
         patient_id_col = "patient_id"
         native_id_col = "source_native_id"
     else:  # depmap
-        source_df = _load_depmap_inferred_subtypes(catalog_repo)
+        source_df = _load_depmap_inferred_subtypes(catalog_repo, indication)
         sample_id_col = "ModelID"
         patient_id_col = None  # cell lines have no patient concept
         native_id_col = "ModelID"

@@ -37,11 +37,94 @@ Typical use in a Phase-3 method:
 
 from __future__ import annotations
 
+import warnings
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
 from methods.subgroup_common.loaders import load_assignments
+
+
+@dataclass(frozen=True)
+class JoinCoverage:
+    """Diagnostic for a subgroup member-set ↔ method-data join.
+
+    The load-bearing guard against silent sample-id-convention mismatch
+    (provenance-audit Finding 5): a bare `.isin()` that drops 100% of rows
+    because the assignment's `sample_id` is patient-level (TCGA-XX-XXXX) while
+    the method keys on full aliquot barcode (TCGA-XX-XXXX-01A-...) looks
+    identical to "nobody is a member." This makes the difference observable.
+
+    Fields:
+      subgroup_id:        the stratum being joined
+      n_members:          members with is_member==True in the assignments
+      n_matched:          members present in the method's own data
+      n_assignment_only:  members absent from the method data (expected if the
+                          method cohort is a subset — e.g. MAF covers fewer
+                          samples than the marker-paper — but a red flag at ~0)
+      match_rate:         n_matched / n_members (None if n_members == 0)
+      id_convention_warning: True when match_rate is suspiciously low given a
+                          non-empty member set — the signature of an id mismatch
+    """
+    subgroup_id: str
+    n_members: int
+    n_matched: int
+    n_assignment_only: int
+    match_rate: float | None
+    id_convention_warning: bool
+
+
+# Below this match rate (with a non-empty member set) we suspect an id-convention
+# mismatch rather than a legitimate cohort subset. Deliberately low: legitimate
+# subsetting (MAF ⊂ marker-paper) commonly lands at 0.3-0.8; a true convention
+# mismatch lands at ~0.0.
+_MATCH_RATE_FLOOR = 0.05
+
+
+def compute_join_coverage(
+    df: pd.DataFrame,
+    sample_id_col: str,
+    subgroup_id: str,
+    assignments_manifest_id: str,
+    data_catalog_repo: Path | None = None,
+    warn: bool = True,
+) -> JoinCoverage:
+    """Report how well a subgroup member-set joins to a method's data.
+
+    Call this (or use filter_samples_by_subgroup, which calls it internally)
+    before computing a per-stratum statistic. Emits a JoinCoverage diagnostic
+    and, when `warn`, raises a UserWarning on a near-zero match rate so an
+    id-convention mismatch surfaces instead of masquerading as an empty stratum.
+    """
+    assignments = load_assignments(assignments_manifest_id, data_catalog_repo=data_catalog_repo)
+    members = set(assignments.loc[
+        (assignments["stratum_id"] == subgroup_id) & (assignments["is_member"] == True),
+        "sample_id",
+    ])
+    data_ids = set(df[sample_id_col].dropna())
+    matched = members & data_ids
+    n_members = len(members)
+    match_rate = (len(matched) / n_members) if n_members else None
+    id_warn = bool(n_members and match_rate is not None and match_rate < _MATCH_RATE_FLOOR)
+    if id_warn and warn:
+        warnings.warn(
+            f"subgroup '{subgroup_id}': only {len(matched)}/{n_members} members "
+            f"({match_rate:.1%}) matched column '{sample_id_col}'. This is the "
+            f"signature of a sample-id-convention mismatch (e.g. patient-barcode "
+            f"assignments vs full-aliquot method data), NOT necessarily an empty "
+            f"stratum. Check id normalization before trusting per-stratum stats.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return JoinCoverage(
+        subgroup_id=subgroup_id,
+        n_members=n_members,
+        n_matched=len(matched),
+        n_assignment_only=n_members - len(matched),
+        match_rate=match_rate,
+        id_convention_warning=id_warn,
+    )
 
 
 def filter_samples_by_subgroup(
@@ -75,6 +158,10 @@ def filter_samples_by_subgroup(
       - is_member=null OR row-absent in assignments → sample EXCLUDED
         (tri-value insufficient → downstream synthesis handles this;
         method-level filter conservatively excludes)
+
+    Emits a JoinCoverage diagnostic (via compute_join_coverage) so a near-zero
+    match rate from a sample-id-convention mismatch surfaces as a warning rather
+    than a silently-empty result.
     """
     assignments = load_assignments(assignments_manifest_id, data_catalog_repo=data_catalog_repo)
     members = assignments.loc[
@@ -82,6 +169,9 @@ def filter_samples_by_subgroup(
         "sample_id",
     ]
     member_set = set(members)
+    # Guard the join: warns on the id-convention-mismatch signature (Finding 5).
+    compute_join_coverage(df, sample_id_col, subgroup_id, assignments_manifest_id,
+                          data_catalog_repo=data_catalog_repo)
     return df[df[sample_id_col].isin(member_set)].copy()
 
 

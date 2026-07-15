@@ -227,23 +227,32 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
     if data_catalog_repo is None:
         data_catalog_repo = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
 
-    manifest_path = data_catalog_repo / "manifests" / "derived" / f"{manifest_id}.yaml"
-    if not manifest_path.exists():
-        raise FileNotFoundError(
-            f"Derived manifest not found: {manifest_path}. "
-            f"Phase 2b/c ships these derived manifests (~20 shards, one PR per "
-            f"source × indication)."
-        )
-
-    import yaml
-    manifest = yaml.safe_load(manifest_path.read_text())
-    # Prefer local session cache; fall back to S3 (Phase 2b/c wiring).
+    # Resolution order mirrors the source loaders above: session cache first,
+    # then the data-catalog derived manifest's S3 pointer (Phase 2b/c). The
+    # assigner writes the parquet + a sibling manifest.yaml into the session
+    # cache at emit time, so a locally-emitted product resolves here WITHOUT a
+    # published derived manifest — the manifest-in-repo requirement applies
+    # only to the not-yet-wired S3 fetch path.
     parquet_local = CACHE_ASSIGNMENTS / manifest_id / "assignments.parquet"
     if parquet_local.exists():
         _log(f"[subgroup_common] loaded assignments for {manifest_id} from local cache")
         return pd.read_parquet(parquet_local)
+
+    manifest_path = data_catalog_repo / "manifests" / "derived" / f"{manifest_id}.yaml"
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            f"Assignments for {manifest_id} not in session cache "
+            f"({parquet_local}) and no derived manifest at {manifest_path}. "
+            f"Either emit the product locally (run the matching subgroup_assigner "
+            f"with --out {CACHE_ASSIGNMENTS / manifest_id}) or ship the derived "
+            f"manifest (Phase 2b/c, ~20 shards, one PR per source × indication)."
+        )
+
+    import yaml
+    manifest = yaml.safe_load(manifest_path.read_text())
     raise FileNotFoundError(
-        f"Assignments parquet not in session cache for {manifest_id}. "
-        f"Expected at {parquet_local}. Phase 2b/c wires S3 fetch from "
+        f"Assignments parquet not in session cache for {manifest_id} "
+        f"(expected {parquet_local}); derived manifest exists but S3 fetch is "
+        f"not yet wired (Phase 2b/c). Manifest s3_uri: "
         f"{manifest.get('s3_uri', '<manifest.s3_uri missing>')}."
     )

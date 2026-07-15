@@ -18,11 +18,26 @@ cli's emit_* helpers separately. Same code path the unit tests exercise.
 from __future__ import annotations
 
 import os
+from functools import partial
+from pathlib import Path
 from typing import Optional
 
 from . import cli as _cli
+from methods.subgroup_common.iteration import subgroup_iterable
+from methods.subgroup_common.panorama import (
+    SUBGROUP_N_FLOOR,
+    build_panorama,
+    delta_reducer,
+    evidence_state,
+)
 
 DEFAULT_AWS_PROFILE = "cbg"
+
+# Per-ModelID Chronos gene-effect matrix (the raw substrate for subgroup-
+# stratified dependency). Columns are `SYMBOL (ENTREZ)`; index/col `ModelID`.
+DEFAULT_CHRONOS_PARQUET = (
+    Path.home() / ".cache" / "framework-depmap-26q1-parquet" / "CRISPRGeneEffect.parquet"
+)
 
 # Indication → OncotreeLineage mapping (DepMap Model.csv categorical).
 # Mirrors cli.compute_lineage_summary's INDICATION_LINEAGE; kept here for back-compat
@@ -83,3 +98,135 @@ def read_lineage_selectivity(
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
     )
+
+
+# ---- Subgroup-stratified dependency panorama (descriptive) ----------------
+
+def _dependency_class(median_chronos: float | None,
+                      strong: float = -1.0, moderate: float = -0.5) -> str:
+    """Coarse dependency class for a subgroup (descriptive, not a verdict)."""
+    if median_chronos is None:
+        return "insufficient"
+    if median_chronos <= strong:
+        return "strong_dependency"
+    if median_chronos <= moderate:
+        return "moderate_dependency"
+    return "not_dependent"
+
+
+def _chronos_gene_column(columns, target: str) -> str | None:
+    """Resolve the `SYMBOL (ENTREZ)` Chronos column for an HGNC symbol."""
+    prefix = f"{target} ("
+    for c in columns:
+        if c == target or c.startswith(prefix):
+            return c
+    return None
+
+
+@subgroup_iterable
+def read_stratified_dependency(
+    target: str,
+    indication: str,
+    chronos_parquet: Path | None = None,
+    _sample_id_filter: set[str] | None = None,
+) -> dict:
+    """Per-subgroup CRISPR (Chronos) dependency of `target` across cell lines.
+
+    DESCRIPTIVE panorama reader — the SECOND substrate proving the composer is
+    substrate-agnostic (dependency, not mutation). Reads the per-ModelID Chronos
+    matrix and computes median gene-effect within each subgroup's member-set
+    (the DepMap-side assignments shard, already lineage-scoped by the assigner).
+
+    Chronos gene-effect: ≤ -1.0 strong dependency, ≤ -0.5 moderate, > -0.5 not.
+    Member-set intersection at read time via `_sample_id_filter` (ModelIDs).
+    """
+    import pandas as pd
+    import numpy as np
+
+    path = chronos_parquet or DEFAULT_CHRONOS_PARQUET
+    if not path.exists():
+        return {
+            "target": target, "indication": indication,
+            "subgroup_n": 0, "median_chronos": None, "n_strong_dependent": None,
+            "subgroup_n_floor_met": False, "evidence_state": "absent",
+            "dependency_class": "insufficient", "source_cohort": "DepMap-26Q1",
+            "_data_note": f"No Chronos parquet at {path}.",
+        }
+
+    ce = pd.read_parquet(path)
+    if "ModelID" in ce.columns:
+        ce = ce.set_index("ModelID")
+    col = _chronos_gene_column(ce.columns, target)
+    if col is None:
+        return {
+            "target": target, "indication": indication,
+            "subgroup_n": 0, "median_chronos": None, "n_strong_dependent": None,
+            "subgroup_n_floor_met": False, "evidence_state": "absent",
+            "dependency_class": "insufficient", "source_cohort": "DepMap-26Q1",
+            "_data_note": f"{target!r} not a Chronos column.",
+        }
+
+    gene = ce[col].dropna()
+    if _sample_id_filter is not None:
+        gene = gene[gene.index.isin(_sample_id_filter)]
+
+    n = int(gene.shape[0])
+    median = float(gene.median()) if n else None
+    n_strong = int((gene <= -1.0).sum()) if n else None
+    floor_met = n >= SUBGROUP_N_FLOOR
+    return {
+        "target": target,
+        "indication": indication,
+        "subgroup_n": n,
+        "median_chronos": (round(median, 4) if median is not None else None),
+        "n_strong_dependent": n_strong,
+        "subgroup_n_floor_met": floor_met,
+        "evidence_state": evidence_state(n, floor_met),
+        "dependency_class": _dependency_class(median),
+        "source_cohort": "DepMap-26Q1",
+    }
+
+
+def _dependency_projection(stratum_id: str, rec: dict) -> dict:
+    """Project a per-stratum dependency record → the card's flat record."""
+    return {
+        "stratum": stratum_id,
+        "class": rec["dependency_class"],
+        "evidence_state": rec["evidence_state"],
+        "median_chronos": rec["median_chronos"],
+        "n_strong_dependent": rec["n_strong_dependent"],
+        "subgroup_n": rec["subgroup_n"],
+        "subgroup_n_floor_met": rec["subgroup_n_floor_met"],
+        "subtype_defining_data": "genomic",
+        "source_cohort": rec["source_cohort"],
+    }
+
+
+def build_dependency_panorama(
+    target: str,
+    indication: str,
+    subgroups: list[str],
+    subgroup_assignments_manifest: str,
+    subgroup_catalog_repo: Path | str | None = None,
+    chronos_parquet: Path | None = None,
+) -> dict:
+    """Assemble the dependency card's per_subgroup_metrics panorama.
+
+    Thin call into subgroup_common.panorama.build_panorama — same composer as the
+    mutation-frequency panorama, different substrate. Descriptive; emits no signals.
+    The subgroup_assignments_manifest MUST be the DepMap-side shard (cell-line
+    ModelIDs), e.g. 'depmap-subgroup-assignments-coadread-v1'.
+    """
+    panorama = build_panorama(
+        read_stratified_dependency,
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
+        subgroup_assignments_manifest=subgroup_assignments_manifest,
+        record_projection=_dependency_projection,
+        reducer=partial(delta_reducer, metric_key="median_chronos", label="dependency"),
+        subgroup_catalog_repo=subgroup_catalog_repo,
+        reader_kwargs={"chronos_parquet": chronos_parquet},
+    )
+    panorama["_data_source"] = "DepMap-26Q1 Chronos (subgroup-stratified)"
+    return panorama
