@@ -158,30 +158,37 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     # cms_labels_public_all.txt (573 TCGA samples with canonical CMS1-4 labels;
     # see manifests/sources/guinney-2015-crc-cms-consortium.yaml in data-catalog).
     if indication == "COADREAD":
+        # --- Guinney 2015 CMS labels (cms_labels_public_all.txt) ---
         cms_fallback = Path.home() / ".cache" / "framework-guinney-2015-crc-cms" / "cms_labels_public_all.txt"
         if cms_fallback.exists():
             cms_df = pd.read_csv(cms_fallback, sep="\t")
-            # Filter to TCGA samples (dataset column = 'tcga') and pick the
-            # canonical final CMS column. Rename to `cms_label` for the catalog
-            # rule (clinical.cms_label == 'CMS1', etc.).
             tcga_cms = cms_df[cms_df["dataset"] == "tcga"][
                 ["sample", "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples"]
             ].rename(columns={
                 "sample": "patient_id",
                 "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples": "cms_label",
             })
-            # Outer join: TCGA marker-paper (276 patients) and Guinney (573 TCGA
-            # samples) overlap only partially. Marker-paper covers ~276 patients
-            # with MSI/methylation/sidedness metadata; Guinney's 573 come from
-            # a different sample-selection with CMS labels. Outer join preserves
-            # all samples from both sources; strata evaluating on missing fields
-            # correctly emit is_member=null (tri-value insufficient) per the
-            # resolver-product design.
             df = df.merge(tcga_cms, on="patient_id", how="outer")
             # Backfill sample_id + source_native_id for Guinney-only rows
-            # (patient_id is present from the merge key; sample_id/source_
-            # native_id come from marker-paper side and are NaN for Guinney-
-            # only rows). Marker-paper is patient-level so sample_id == patient_id.
+            df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
+            df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
+
+        # --- Guinney 2015 clinical/molecular (clinical_molecular_public_all.txt) ---
+        # Same Guinney 2015 CCS Consortium source; separate file with richer
+        # clinical + molecular metadata. Iter-1 uses cimp column for CIMP-High/
+        # CIMP-Low/CIMP-Neg atomic strata (Weisenberger 2006 methylator
+        # phenotype). Also carries msi/kras_mut/braf_mut for cross-validation
+        # against marker-paper + MC3 (cross-validation opportunity — not yet
+        # wired as strata since we already have those from the other sources).
+        clinical_fallback = Path.home() / ".cache" / "framework-guinney-2015-crc-cms" / "clinical_molecular_public_all.txt"
+        if clinical_fallback.exists():
+            clin_df = pd.read_csv(clinical_fallback, sep="\t")
+            tcga_clin = clin_df[clin_df["dataset"] == "tcga"][["sample", "cimp"]].rename(
+                columns={"sample": "patient_id"}
+            )
+            df = df.merge(tcga_clin, on="patient_id", how="outer")
+            # Backfill sample_id + source_native_id in case Guinney-clinical-
+            # only rows exist that aren't in the marker-paper or Guinney-CMS files
             df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
             df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
 
