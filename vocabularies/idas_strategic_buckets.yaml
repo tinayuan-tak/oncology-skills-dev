@@ -1,0 +1,75 @@
+# idas_strategic_buckets.yaml
+# Strategic groupings over iDAS indications. Buckets are METADATA — they
+# resolve to indication lists at query time via the resolve_bucket() helper.
+# Buckets are NOT iDAS entities themselves. Users never query with `bucket=X`;
+# they query with the resolved `indications=[bucket_expansion]`.
+#
+# Groupings per user 2026-07-14 direction:
+#   - Thoracic: Lung (NSCLC+SCLC) + Head-and-Neck (HNSC) [shared squamous
+#     biology, checkpoint-inhibitor landscape, tobacco-driven mutation signatures]
+#   - GI-upper: Gastric (STAD) + Esophageal (ESCA) + Pancreatic (PAAD)
+#   - GI-lower: CRC (COADREAD) — standalone bucket for parity
+#   - Heme: AML + CML [iter-1 has AML only; CML iter-1b deferred]
+#
+# See indication_crosswalk.yaml for the per-indication data-source
+# expansion, and IDAS_SUBTYPE_PIPELINE.md for the Scope contract that
+# consumes buckets.
+
+version: 1.0.0
+schema_version: 1
+curation_status: iter1_authored
+
+buckets:
+
+  - bucket_id: Thoracic
+    display_name: "Thoracic (Lung + Head & Neck)"
+    indications: [NSCLC, SCLC, HNSC]
+    rationale: >
+      Shared squamous biology (LUSC + HNSC + ESCC squamous convergence),
+      shared checkpoint-inhibitor landscape (PD-L1 CPS-high, TMB-high strata
+      across all three), tobacco-driven mutation signatures. HNSC placement
+      here per Takeda strategic grouping (2026-07-14); anatomically upper-
+      aerodigestive rather than chest-cavity.
+
+  - bucket_id: GI-upper
+    display_name: "Upper GI + Pancreatic"
+    indications: [STAD, ESCA, PAAD]
+    rationale: >
+      HER2+ upper-GI cross-indication opportunity (STAD-HER2-amp +
+      EAC-HER2-amp share ToGA-precedent); CIN biology shared between STAD-CIN
+      and EAC. PAAD included per user 2026-07-14 direction; note that PDAC
+      biology is genomically distinct from gastric/esophageal (KRAS-dominant
+      vs HER2/CIN-dominant) but grouped here for iDAS-strategic reasons.
+
+  - bucket_id: GI-lower
+    display_name: "Colorectal Cancer"
+    indications: [COADREAD]
+    rationale: >
+      Singleton bucket for iDAS-list parity; CRC treatment paradigms
+      (FOLFOX, cetuximab/bevacizumab, MSI-H immunotherapy) are distinct
+      from upper-GI+pancreatic and merit standalone bucket-level queries.
+
+  - bucket_id: Heme
+    display_name: "Hematologic Malignancies"
+    indications: [AML, CML]
+    rationale: >
+      AML + CML share myeloid lineage + TKI-based therapeutic paradigms
+      (FLT3-inhibitors in AML, BCR-ABL TKIs in CML). iter-1 has AML only;
+      CML iter-1b deferred pending data-catalog ingestion (see
+      docs/design/idas-strata/cml.md).
+
+# Design invariants:
+# - Every `indications` entry must appear in indication_crosswalk.yaml
+# - An indication may appear in AT MOST ONE bucket (mutual exclusion —
+#   simplifies UI/synthesis reasoning). Cross-bucket biology (e.g.
+#   HER2+ spanning GI-upper + Breast) is handled at synthesis-layer,
+#   NOT via multi-bucket membership.
+# - Buckets do NOT nest — no bucket is a subset of another.
+# - Bucket labels are display-facing; users pick a bucket, the framework
+#   resolves to Scope(indications=[...]) transparently.
+
+# Validation:
+# - schema_version + version pinned per data-catalog convention
+# - `curation_status: iter1_authored` marks this as first-pass content
+#   pending clinical-lead sign-off (per plan's discipline for user-
+#   direction-driven vocabularies)

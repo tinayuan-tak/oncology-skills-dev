@@ -1,0 +1,161 @@
+# indication_crosswalk.yaml
+# Canonical vocabulary: iDAS indication → data-source-specific codes across
+# TCGA study, GDC project, OncoTree, DepMap lineage, CPTAC cohort, GTEx normal,
+# and adjacent-normal manifest. This is the reference vocabulary for methods
+# that iterate across data sources for a single indication — supersedes the
+# six inconsistent `INDICATION_TO_*` Python dicts (dge_deseq2/read.py:157,
+# depmap_chronos/read.py:30, gdc_somatic_hotspot/read.py:26, cptac_protein_deg/
+# read.py:42, dge_deseq2/read.py:620, dge_tcga_gtex_precompute/cli.py:36).
+#
+# See IDAS_SUBTYPE_PIPELINE.md master design + parent plan
+# .claude/plans/deep-foraging-thompson.md Phase 1.
+
+version: 1.0.0
+schema_version: 1
+curation_status: iter1_authored
+
+# iter-1 iDAS scope: 8 indications live + 1 (CML) deferred to iter-1b
+# Strategic-bucket assignments per user 2026-07-14 direction
+
+indications:
+
+  # ===== GI-lower (standalone bucket) =====
+  - canonical_code: COADREAD
+    display_name: "Colorectal Cancer (CRC)"
+    strategic_bucket: GI-lower
+    oncotree_code: COADREAD
+    tcga_studies: [TCGA-COAD, TCGA-READ]
+    gdc_project_ids: [TCGA-COAD, TCGA-READ]
+    depmap_lineage: Bowel
+    depmap_oncotree_lineage: Colorectal_Adenocarcinoma
+    cptac_cohort: COAD
+    gtex_normal_tissue: Colon
+    adj_normal_manifest: coadread-adj-normal-dge-v1
+    iter1_status: live
+    notes: "Design anchored in .claude/plans/you-are-a-skilled-drifting-pixel.md ~1360-1700"
+
+  # ===== Thoracic bucket =====
+  - canonical_code: NSCLC
+    display_name: "Non-Small Cell Lung Cancer"
+    strategic_bucket: Thoracic
+    oncotree_code: NSCLC
+    tcga_studies: [TCGA-LUAD, TCGA-LUSC]
+    gdc_project_ids: [TCGA-LUAD, TCGA-LUSC]
+    depmap_lineage: Lung
+    depmap_oncotree_lineage: Non-Small_Cell_Lung_Cancer
+    cptac_cohort: LUAD  # note: LUAD only; LUSC is LSCC (separate CPTAC cohort — see LUSC-side of crosswalk if needed)
+    gtex_normal_tissue: Lung
+    adj_normal_manifest: null  # not yet ingested; TCGA-LUAD paired-adjacent exists
+    iter1_status: live
+
+  - canonical_code: SCLC
+    display_name: "Small Cell Lung Cancer"
+    strategic_bucket: Thoracic
+    oncotree_code: SCLC
+    tcga_studies: []  # No TCGA-SCLC cohort (SCLC not in TCGA-standard)
+    gdc_project_ids: []
+    depmap_lineage: Lung  # DepMap groups all lung; filter by OncoTree SCLC subtype
+    depmap_oncotree_lineage: Small_Cell_Lung_Cancer
+    cptac_cohort: null  # No CPTAC SCLC cohort
+    gtex_normal_tissue: Lung
+    adj_normal_manifest: null
+    iter1_status: live_depmap_only  # Patient-side strata deferred pending SCLC cohort ingestion
+    notes: "SCLC has NO TCGA-standard cohort. iter-1 SCLC is DepMap-only. Patient-cohort ingestion (George 2015, cBioPortal SCLC) is iter-2 unblock."
+
+  - canonical_code: HNSC
+    display_name: "Head & Neck Cancer"
+    strategic_bucket: Thoracic
+    oncotree_code: HNSC
+    tcga_studies: [TCGA-HNSC]
+    gdc_project_ids: [TCGA-HNSC]
+    depmap_lineage: Head_and_Neck
+    depmap_oncotree_lineage: Head_and_Neck_Squamous_Cell_Carcinoma
+    cptac_cohort: HNSCC
+    gtex_normal_tissue: null  # No exact GTEx match; Skin - Sun Exposed / Minor Salivary Gland are best-available; verify at Phase 2 wire-in
+    adj_normal_manifest: null
+    iter1_status: live
+    notes: "HPV-status axis is dominant biological + treatment discriminator; see docs/design/idas-strata/hnsc.md"
+
+  # ===== GI-upper bucket =====
+  - canonical_code: STAD
+    display_name: "Gastric Cancer"
+    strategic_bucket: GI-upper
+    oncotree_code: STAD
+    tcga_studies: [TCGA-STAD]
+    gdc_project_ids: [TCGA-STAD]
+    depmap_lineage: Stomach
+    depmap_oncotree_lineage: Stomach_Adenocarcinoma
+    cptac_cohort: null  # Verify PDC has a STAD cohort at Phase 2
+    gtex_normal_tissue: Stomach
+    adj_normal_manifest: null
+    iter1_status: live
+
+  - canonical_code: ESCA
+    display_name: "Esophageal Cancer"
+    strategic_bucket: GI-upper
+    oncotree_code: ESCA  # (contains both ESCC and EAC — histology stratum distinguishes)
+    tcga_studies: [TCGA-ESCA]
+    gdc_project_ids: [TCGA-ESCA]
+    depmap_lineage: Esophagus/Stomach  # DepMap groups these; filter by OncoTree for ESCA
+    depmap_oncotree_lineage: Esophageal_Adenocarcinoma  # for EAC; ESCC uses different code
+    cptac_cohort: null  # No CPTAC ESCA cohort
+    gtex_normal_tissue: Esophagus
+    adj_normal_manifest: null
+    iter1_status: live
+    notes: "ESCC and EAC are biologically distinct — see docs/design/idas-strata/esca.md open question about splitting into two iDAS entries"
+
+  - canonical_code: PAAD
+    display_name: "Pancreatic Ductal Adenocarcinoma (PDAC)"
+    strategic_bucket: GI-upper
+    oncotree_code: PAAD
+    tcga_studies: [TCGA-PAAD]
+    gdc_project_ids: [TCGA-PAAD]
+    depmap_lineage: Pancreas
+    depmap_oncotree_lineage: Pancreatic_Adenocarcinoma
+    cptac_cohort: PDAC
+    gtex_normal_tissue: Pancreas
+    adj_normal_manifest: null
+    iter1_status: live
+
+  # ===== Heme bucket =====
+  - canonical_code: AML
+    display_name: "Acute Myeloid Leukemia"
+    strategic_bucket: Heme
+    oncotree_code: AML
+    tcga_studies: [TCGA-LAML]
+    gdc_project_ids: [TCGA-LAML, BEATAML1.0-COHORT, TARGET-AML, TARGET-ALL-P2, TARGET-ALL-P3]
+    depmap_lineage: Myeloid
+    depmap_oncotree_lineage: Acute_Myeloid_Leukemia
+    cptac_cohort: null  # CPTAC AML studies are FLT3-inhibitor-resistance cell-line proteomes, not patient-cohort — see notes
+    gtex_normal_tissue: "Whole Blood"  # functional matched-normal; NOT matched-adjacent
+    adj_normal_manifest: null  # AML has no matched-adjacent-normal concept
+    iter1_status: live
+    notes: "Multi-cohort iter-1: TCGA-LAML (~200) + BeatAML1 (~500) + TARGET-AML pediatric. GENIE panels PROV-AMLC + VICC-01-MYELOID. CPTAC has AML drug-resistance cell-line proteomics only (FLT3 gilteritinib/quizartinib resistance) — flag as `cell-line-context-only` if wired downstream."
+
+  - canonical_code: CML
+    display_name: "Chronic Myeloid Leukemia"
+    strategic_bucket: Heme
+    oncotree_code: CML
+    tcga_studies: []  # No TCGA-CML
+    gdc_project_ids: []
+    depmap_lineage: Myeloid  # ~5-6 CML cell lines (K562, KCL-22, KU812, MEG-01, LAMA-84)
+    depmap_oncotree_lineage: Chronic_Myeloid_Leukemia
+    cptac_cohort: null
+    gtex_normal_tissue: "Whole Blood"
+    adj_normal_manifest: null
+    iter1_status: deferred_iter1b  # See docs/design/idas-strata/cml.md for iter-1b prerequisites
+    notes: "iter-1b deferred pending patient-cohort ingestion (cBioPortal CML, ICGC-CMLE, or multi-omics cohort survey)."
+
+# Column-level notes:
+# - `gdc_project_ids` includes non-TCGA GDC-accessible projects (BeatAML,
+#   TARGET, etc.); crosswalk-consumers should filter by project prefix if
+#   only TCGA-native cohorts are relevant to their query
+# - `depmap_oncotree_lineage` is the finer OncoTree stratification within
+#   the DepMap `Model.csv OncotreeLineage` column; needed to distinguish
+#   NSCLC vs SCLC within Lung, or NSCLC-Adeno vs NSCLC-SCC within NSCLC
+# - `cptac_cohort` code differences: CPTAC uses `PDAC` (not `PAAD`),
+#   `LSCC` (not `LUSC`), `HNSCC` (not `HNSC`); consumer methods must
+#   translate via this crosswalk
+# - `adj_normal_manifest: null` means no derived DGE-with-adjacent-normal
+#   product exists yet in data-catalog; TCGA-side paired samples exist
+#   for most solid tumors but no derived manifest has been authored
