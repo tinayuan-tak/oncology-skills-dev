@@ -263,22 +263,42 @@ def _load_genie_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     )
 
 
-def _load_depmap_somatic_mutations(catalog_repo: Path) -> pd.DataFrame:
-    """Load DepMap OmicsSomaticMutations.csv.
+def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = None) -> pd.DataFrame:
+    """Load DepMap somatic mutations, normalized to MAF-like shape.
 
-    Returns DataFrame with columns normalized to MAF-like shape:
-    ModelID (cell-line ID), gene_symbol, protein_change, effect, exon.
+    Prefers the per-indication prefetched parquet produced by
+    scripts/prefetch_source_maf.py --source depmap_somatic (already
+    lineage-filtered + column-normalized: sample_id / gene_symbol /
+    protein_change / effect). Falls back to the raw
+    OmicsSomaticMutations.csv only if the prefetched parquet is absent.
 
-    Iter-1b: reads from cache fallback pending Phase 2a.4's canonical loader.
+    DepMap MAF uses Hugo_Symbol / Protein_Change / Variant_Classification /
+    ModelID; the prefetch step already renames these to the resolver
+    convention. DepMap Protein_Change is in `p.G12C` HGVS form — identical
+    to the catalog rule syntax, no value normalization needed.
     """
+    # Prefer prefetched, lineage-filtered, column-normalized parquet
+    if indication:
+        prefetched = (Path.home() / ".cache" / "framework-depmap-26q1"
+                      / f"{indication.lower()}-depmap-maf.parquet")
+        if prefetched.exists():
+            return pd.read_parquet(prefetched)
+
     fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "OmicsSomaticMutations.csv"
     if fallback.exists():
-        return pd.read_csv(fallback)
+        df = pd.read_csv(fallback)
+        # Raw CSV needs column normalization (prefetch parquet already has it)
+        rename = {"Hugo_Symbol": "gene_symbol", "Protein_Change": "protein_change",
+                  "Variant_Classification": "effect", "ModelID": "sample_id"}
+        df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
+        if "sample_id" in df.columns:
+            df["source_native_id"] = df["sample_id"]
+        return df
     raise FileNotFoundError(
-        f"DepMap OmicsSomaticMutations.csv not found at {fallback}. "
-        f"Phase 2a.4 provides the canonical loader. For immediate execution: "
-        f"pull from s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/ "
-        f"into the fallback path."
+        f"No DepMap somatic MAF found for {indication}. Run "
+        f"scripts/prefetch_source_maf.py --source depmap_somatic "
+        f"--indication {indication or '<IND>'} to produce the prefetched parquet, "
+        f"or place OmicsSomaticMutations.csv at {fallback}."
     )
 
 
@@ -456,10 +476,12 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
         patient_id_col = None             # GENIE has PATIENT_ID but is not carried in the CRC-scoped subset
         native_id_col = "source_native_id"
     else:
-        maf = _load_depmap_somatic_mutations(catalog_repo)
-        sample_id_col = "ModelID"
+        maf = _load_depmap_somatic_mutations(catalog_repo, indication)
+        # Prefetched parquet normalizes to sample_id/source_native_id; the raw-CSV
+        # fallback also renames ModelID→sample_id. Prefer sample_id when present.
+        sample_id_col = "sample_id" if "sample_id" in maf.columns else "ModelID"
         patient_id_col = None
-        native_id_col = "ModelID"
+        native_id_col = "source_native_id" if "source_native_id" in maf.columns else sample_id_col
 
     click.echo(f"  loaded {len(maf):,} MAF rows")
 
