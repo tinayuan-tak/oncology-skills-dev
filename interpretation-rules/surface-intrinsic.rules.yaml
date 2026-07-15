@@ -344,6 +344,173 @@ rules:
       measurement is provided.
 
 # ============================================================================
+# Phase F (surface abundance) — surface-abundance-density
+# Added 2026-07-14 (Pass 1 of legacy-cleanup): both surface_density_class and
+# hpa_ihc_intensity_class were emitted by the card but no rule keyed off
+# either, so surface-abundance evidence was decision-inert for ADC/TCE.
+# Threshold anchors from the card itself:
+#   tce_viability_copies_per_cell   = 1000    (Slaga 2018 Sci Transl Med)
+#   adc_high_payload_copies_per_cell = 10000
+# Note: today the card reads bulk-protein-MS as a proxy; when the HPA-IHC
+# card lands (per MODALITY_TAXONOMY.md), the IHC-specific hpa_ihc_intensity_class
+# rules below will fire against that data directly.
+# ============================================================================
+
+  - rule_id: surface-density-high-supportive
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: high
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    dominant: true
+    rationale: |
+      Estimated surface density is high (>=10,000 copies/cell — the ADC
+      high-payload viability floor). Clears both the TCE lower bound
+      (~1,000) and the ADC high-payload bar. Dominant because surface
+      abundance is a hard viability constraint for both biologic modalities.
+
+  - rule_id: surface-density-moderate-supportive
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: moderate
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    rationale: |
+      Moderate surface density (>=1,000 copies/cell — clears the TCE floor
+      but below the ADC high-payload bar). Supportive for both modalities;
+      ADC program may need a high-DAR / high-potency payload strategy.
+
+  - rule_id: surface-density-low-opposing
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: low
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      Low surface density (below the 1,000 copies/cell TCE viability
+      threshold). Opposing signal for both biologic modalities — TCE
+      efficacy is jeopardized; ADC needs an ultra-potent payload strategy
+      or a bispecific-avidity mechanism. Not a hard killer (a strategy
+      response can still salvage the program), but governance readers
+      should require override justification.
+
+  - rule_id: surface-density-very-low-killer
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: very_low
+    signals:
+      adc: killer
+      bite_tce: killer
+    dominant: true
+    killer_message: >
+      Surface density is very low (well below the ~1,000 copies/cell TCE
+      viability floor and the ~10,000 copies/cell ADC high-payload bar).
+      Biologic modalities cannot be rescued by program-strategy adjustment
+      at this abundance level.
+    rationale: |
+      Very low surface density (well below TCE + ADC viability floors).
+      Kills both biologic modalities on abundance grounds alone. Dominant
+      because surface abundance is a first-order constraint that no
+      program-strategy adjustment can rescue.
+
+  - rule_id: surface-density-unmeasured-insufficient
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: unmeasured
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+    rationale: |
+      Surface density could not be estimated for this target (missing from
+      the bulk-protein cohort, or the surface-topology gate was not passed).
+      Coverage gap; not opposing evidence.
+
+  # ---- hpa_ihc_intensity_class (independent categorical on the same card) ----
+  # These rules will fire only when HPA IHC data is joined to the card
+  # (per MODALITY_TAXONOMY.md, Slice Y candidate). Until then they lie
+  # dormant against `unmeasured`.
+
+  - rule_id: ihc-high-supportive
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: high
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    rationale: |
+      HPA IHC scores this target as HIGH intensity in the indication's
+      tissue-of-origin. Protein-level, spatial confirmation of surface
+      expression — the gold-standard modality-window signal biologic
+      programs anchor on (DLL3, HER2 canonical patterns).
+
+  - rule_id: ihc-medium-supportive
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: medium
+    signals:
+      adc: supportive
+      bite_tce: neutral
+    rationale: |
+      HPA IHC scores this target as MEDIUM intensity. Sufficient for an
+      ADC program with reasonable payload potency; TCE efficacy is
+      abundance-sensitive at medium levels — proceed with caution.
+
+  - rule_id: ihc-low-opposing
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: low
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      HPA IHC scores this target as LOW intensity. Opposing signal for
+      both biologic modalities — low-intensity IHC is a common failure
+      pattern for TCE efficacy and ADC therapeutic index. Not a hard
+      killer; a governance override with a strong payload/avidity plan
+      can still proceed.
+
+  - rule_id: ihc-not-detected-killer
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: not_detected
+    signals:
+      adc: killer
+      bite_tce: killer
+    dominant: true
+    killer_message: >
+      HPA IHC does not detect this target in the indication's tissue-of-origin.
+      Absence of protein-level surface staining is a hard killer for ADC and
+      TCE modalities — no surface substrate for either mechanism to engage.
+    rationale: |
+      HPA IHC does NOT detect this target in the indication's tissue-of-origin.
+      Absence of protein-level surface staining is a hard killer for both
+      ADC and TCE modalities. Dominant.
+
+  - rule_id: ihc-unmeasured-insufficient
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: unmeasured
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+    rationale: |
+      HPA IHC data not joined to this card yet (pending HPA-IHC data-catalog
+      landing per MODALITY_TAXONOMY.md). Coverage gap; not opposing evidence.
+
+# ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
 #

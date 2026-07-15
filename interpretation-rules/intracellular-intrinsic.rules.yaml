@@ -1537,3 +1537,94 @@ rules:
     rationale: |
       Target not in gnomAD constraint table. Coverage gap; not opposing
       evidence.
+
+# ============================================================================
+# Phase A (protein layer) — protein-presence-cptac (measurement: bulk_protein_ms)
+# Added 2026-07-14 (Pass 1 of legacy-cleanup): CPTAC bulk-protein categorical
+# was emitted after the tumor-presence protein wiring but no rule consumed it,
+# so the protein signal was decision-inert. These rules complete the
+# per-modality reasoning for the bulk_protein_ms axis of Phase A.
+# ============================================================================
+
+  - rule_id: protein-strongly-up-supportive
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: strong_up
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Protein-level tumor-vs-normal differential is strong (q<0.05, effect
+      size >=1.5) in the CPTAC cohort. Bulk-protein confirmation of the
+      RNA-level tumor-elevation call — reduces the risk that a strong-RNA
+      signal is post-transcriptionally attenuated. Dominant because
+      protein-level confirmation is the modality-decision anchor for
+      intracellular programs.
+
+  - rule_id: protein-modestly-up-neutral
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: modest_up
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Protein-level differential is significant but modest (q<0.05,
+      0.5<=effect<1.5). Informative but not decision-driving on its own;
+      concordance with the RNA-level call matters more than the effect
+      magnitude here.
+
+  - rule_id: protein-strongly-down-opposing
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: strong_down
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      Protein is DOWN in tumor vs normal in the CPTAC cohort. If the
+      RNA-level call says elevated, this is a red flag — post-transcriptional
+      down-regulation or antibody/MS artifact. Governance readers should
+      resolve the RNA/protein discordance before program commit.
+
+  - rule_id: protein-not-detected-degrader-killer
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: not_detected
+    signals:
+      small_molecule: opposing
+      degrader: killer
+    killer_message: >
+      Protein was not detected in tumor OR matched normal by CPTAC mass-spec.
+      Degrader modalities require a protein substrate to engage — absence of
+      detectable protein is a hard killer for a degrader program.
+    rationale: |
+      Protein was not detected in either tumor OR matched normal by CPTAC
+      mass-spec. Degrader modalities require a protein substrate to degrade;
+      absence-of-protein is a hard killer for a degrader program.
+      Small-molecule inhibitor is not automatically ruled out (MS limits
+      of detection can miss low-abundance functional proteins), but the
+      lack of detected protein is opposing evidence for governance review.
+
+  - rule_id: protein-data-unavailable-insufficient
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target not resolved in the CPTAC protein cohort for this indication
+      (missing from tumor + normal MS, or CPTAC cohort n < min). Coverage
+      gap, not opposing evidence.
+
+  # NOTE: protein_expression_class = 'ns' is deliberately un-ruled. A
+  # not-significant protein differential is neither supportive nor opposing
+  # for a presence call — it's the neutral null we don't want to fire on.
+  # Same discipline as expression_class = 'broadly_moderate' (see above).
