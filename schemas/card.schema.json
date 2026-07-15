@@ -324,6 +324,16 @@
       "description": "Phase 4 (2026-07-15) — Optional annotation of which channel-precedence tier this card's evidence belongs to. Used by validators to enforce tier-appropriate applies_when predicates (target-tier cards should not reference indication.* or subtype.* keys). Enum: target | indication | panel | subtype. Cards without tier tag are un-classified (backward-compat for pre-Phase-4 cards).",
       "enum": ["target", "indication", "panel", "subtype"]
     },
+    "measurement": {
+      "type": "string",
+      "description": "OPTIONAL. For expression-family cards only, names the measurement modality this card carries. Distinguishes bulk-population vs single-cell vs protein-imaging evidence so the skill layer can emit per-modality sub-verdicts (a target can be bulk-RNA-high but IHC-restricted, and the framework should surface that pattern, not average it away). Cards outside the expression family omit this field.",
+      "enum": [
+        "bulk_rna",
+        "bulk_protein_ms",
+        "sc_rna",
+        "protein_ihc"
+      ]
+    },
     "schema_version": {
       "type": "integer",
       "description": "Version of card.schema.json this spec validates against. Currently always 1; bumps when card.schema.json itself takes a breaking change.",

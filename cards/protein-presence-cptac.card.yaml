@@ -97,4 +97,6 @@ caveats:
     + surfaceome-family-classification cards before treating a strong_up
     call as modality-actionable.
 
+measurement: bulk_protein_ms
+
 schema_version: 1

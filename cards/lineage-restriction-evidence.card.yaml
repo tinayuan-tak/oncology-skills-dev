@@ -75,4 +75,6 @@ caveats:
   - "Isoform-specific restriction (CLDN18.2 vs CLDN18.1, AR-V7 vs AR full-length) is not captured at iter-2 gene-level granularity. Isoform resolution is iter-3+."
   - "The dominant-signal interpretation calls (lineage-restricted: single/two tissues) drive synthesis fit_level scoring for surface modalities — see EG4 in master plan § Evidence-Gathering Patterns Not Yet Captured."
 
+measurement: bulk_rna
+
 schema_version: 1

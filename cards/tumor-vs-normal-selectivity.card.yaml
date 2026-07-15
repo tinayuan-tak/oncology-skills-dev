@@ -154,4 +154,6 @@ caveats:
     a consequence, cell A does NOT byte-match the prior-generation GDC-STAR
     tumor-vs-adjacent product; it agrees in direction + rank, not in magnitude.
 
+measurement: bulk_rna
+
 schema_version: 1

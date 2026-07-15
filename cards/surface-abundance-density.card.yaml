@@ -107,4 +107,6 @@ caveats:
     surface-topology-and-ptm card fires the isoform warning; consumers of
     this card should honor it.
 
+measurement: bulk_protein_ms
+
 schema_version: 1

@@ -66,4 +66,6 @@ caveats:
   - "RNA expression does not imply protein abundance; pair with proteomics card when available."
   - "TCGA adjacent-normal samples are not random; surgical-margin selection bias may inflate apparent differential."
 
+measurement: bulk_rna
+
 schema_version: 1

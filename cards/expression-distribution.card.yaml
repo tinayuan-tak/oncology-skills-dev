@@ -91,4 +91,6 @@ caveats:
   - "Expression class is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
   - "Lineage-restricted expression in DepMap is informative but the gold-standard normal-tissue safety signal comes from GTEx via the lineage-restriction-evidence card."
 
+measurement: bulk_rna
+
 schema_version: 1
