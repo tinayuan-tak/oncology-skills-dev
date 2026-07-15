@@ -193,6 +193,28 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path) -> pd.DataFrame:
     df["sample_id"] = df["ModelID"]
     df["source_native_id"] = df["ModelID"]
     df["patient_id"] = None  # cell lines have no clinical-patient concept
+
+    # ---- Source-specific value normalization ----
+    # DepMap OmicsInferredMolecularSubtypes uses `MSI` as a boolean flag column
+    # (True = MSI-H, False = MSS-equivalent, NaN = insufficient). COADREAD
+    # catalog rules use TCGA marker-paper's categorical form
+    # (clinical.MSI_status == 'MSI-H' / 'MSS'). Normalize DepMap's flag →
+    # marker-paper categorical so a single rule set fires on both sources.
+    # Real-data validation (2026-07-15): 140 Colorectal cell lines →
+    # 30 MSI-H, 106 MSS, 4 insufficient.
+    if "MSI" in df.columns:
+        def _msi_flag_to_status(v):
+            if pd.isna(v):
+                return None
+            return "MSI-H" if v else "MSS"
+        df["MSI_status"] = df["MSI"].apply(_msi_flag_to_status)
+
+    # DepMap has no anatomic_organ_subdivision equivalent (cell lines don't
+    # have anatomic site metadata beyond `OncotreePrimaryDisease` which is
+    # tumor-type, not tumor location). `primary_site` rule will emit is_member=
+    # null (insufficient) for all rows — this is CORRECT tri-value behavior:
+    # sidedness cannot be evaluated for cell lines.
+
     return df
 
 
@@ -234,6 +256,24 @@ def _evaluate_stratum(
     lhs, op, values = parse_rule(stratum["rule"])
     _, field = lhs.split(".", 1) if "." in lhs else (None, lhs)
 
+    df = df.copy()
+
+    # Phase 2b/c real-data fix: if the rule's field doesn't exist on this
+    # data source, emit is_member=null for every row (tri-value insufficient).
+    # Do NOT crash the assigner. Example: DepMap has no `primary_site`
+    # (sidedness) → all DepMap rows for that stratum emit `null`.
+    if field not in df.columns:
+        out = pd.DataFrame({
+            "sample_id": df[sample_id_col],
+            "patient_id": df[patient_id_col] if patient_id_col else None,
+            "source_native_id": df[native_id_col],
+            "stratum_id": stratum["id"],
+            "is_member": None,
+            "derivation_source": stratum["derivation_source"],
+            "derivation_value": "",
+        })
+        return out
+
     def _predicate(row):
         v = row.get(field)
         if pd.isna(v):
@@ -242,7 +282,6 @@ def _evaluate_stratum(
             return v == values[0]
         return v in values
 
-    df = df.copy()
     df["_is_member"] = df.apply(_predicate, axis=1)
 
     out = pd.DataFrame({
