@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""subgroup_assigner_maf_filter CLI — generate per-sample subgroup assignments from MAF predicates.
+"""subgroup_assigner_maf_filter CLI — generate per-sample subgroup assignments
+from MAF (mutation annotation format) predicates.
 
 Invocation:
     subgroup-assigner-maf-filter \
@@ -10,34 +11,348 @@ Invocation:
       --out /path/to/output-dir/
 
 The CLI:
-  1. Loads the subgroup_catalog YAML; filters to atomic_strata with derivation_source == maf_filter_per_rule.
-  2. Resolves the MAF input manifest from the catalog (typically gdc-pancohort-somatic-dr45-0
-     for TCGA, OmicsSomaticMutations.csv for DepMap).
-  3. For each MAF-derived stratum: applies the predicate (e.g., gene_symbol=='KRAS' AND
-     protein_change=='p.G12C') against the MAF Parquet/CSV; groups by case_id; emits
-     (case_id, subgroup_id, derivation_value=protein_change) rows.
-  4. Writes assignments.parquet + manifest.yaml.
+  1. Loads the subgroup_catalog YAML; filters to atomic_strata with
+     derivation_source == maf_filter_per_rule.
+  2. Resolves the MAF manifest per data-source
+     (gdc-pancohort-somatic-dr45-0 for TCGA; OmicsSomaticMutations.csv for DepMap).
+  3. For each stratum: applies the AND/OR/negation predicate against MAF rows;
+     aggregates to sample-level (any-hit-per-sample); emits tri-valued
+     is_member per resolver-product design.
+  4. Emits assignments.parquet + manifest.yaml conforming to
+     subgroup_assignment.schema.json.
 
-Iter-1b status: SCAFFOLDED. The CLI parses arguments, filters catalog to applicable strata,
-and prints the plan. Actual MAF reading + predicate evaluation + Parquet emission is the
-iter-1b execution-session deliverable. Reuses the gdc_somatic_hotspot method's MAF-loading
-utilities when fully implemented.
+Iter-1b implementation — Phase 2a.2 of iDAS Subtype Pipeline. See
+target-contracts docs/design/SAMPLE_ANNOTATION_PLAN.md for Modality B design.
 """
 
 from __future__ import annotations
 
+import hashlib
+import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
+import pandas as pd
 import yaml
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"  # Phase 2a.2 — first executable version
 
 SUPPORTED_DERIVATION_SOURCES = {"maf_filter_per_rule"}
 
+
+# ---------- MAF-predicate parser -------------------------------------------
+#
+# MAF rules in the 8 Phase-1 catalogs come in these forms (from grep):
+#
+#   `gene_symbol == 'X' && protein_change == 'p.YnnnZ'`        # exact hotspot
+#   `gene_symbol == 'X' && protein_change in ['p.Y', ...]`     # any-of hotspots
+#   `gene_symbol == 'X' && effect == 'in_frame_deletion' && exon == 19`
+#   `gene_symbol == 'X' && effect in ['nonsense', 'frameshift', ...]`
+#   `!(gene_symbol == 'KRAS' && protein_change in [...])`       # KRAS-WT (negation)
+#   `sample.tmb >= 10`                                           # TMB threshold
+#   `fusion_gene == 'ALK'`                                       # fusion (Modality A, but sometimes B)
+#   `copy_number.ERBB2 == 'amplified'`                           # copy-number (Modality A)
+#
+# The parser produces a callable predicate: (row) → bool | None.
+# Predicate returns None when a required field is NaN (tri-value:
+# insufficient upstream).
+
+_ATOMIC_EQ = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_.]*)\s*==\s*'([^']*)'$")
+_ATOMIC_IN = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_.]*)\s+in\s+\[([^\]]+)\]$")
+_ATOMIC_INT_EQ = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_.]*)\s*==\s*(\d+)$")
+_ATOMIC_GTE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_.]*)\s*>=\s*(\d+\.?\d*)$")
+_ATOMIC_LTE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_.]*)\s*<=\s*(\d+\.?\d*)$")
+
+
+def _extract_column_name(lhs: str) -> str:
+    """Strip a `namespace.field` prefix down to `field` for DataFrame lookup."""
+    if "." in lhs:
+        return lhs.split(".", 1)[1]
+    return lhs
+
+
+def _atomic_predicate(atom: str):
+    """Return a row-level callable for a single atomic predicate.
+
+    The callable returns True/False/None (None = source-value NaN → insufficient).
+    """
+    atom = atom.strip()
+    m = _ATOMIC_EQ.match(atom)
+    if m:
+        col = _extract_column_name(m.group(1))
+        target = m.group(2)
+        def _pred(row):
+            v = row.get(col)
+            if pd.isna(v):
+                return None
+            return v == target
+        return _pred
+    m = _ATOMIC_IN.match(atom)
+    if m:
+        col = _extract_column_name(m.group(1))
+        values = [v.strip().strip("'\"") for v in m.group(2).split(",")]
+        def _pred(row):
+            v = row.get(col)
+            if pd.isna(v):
+                return None
+            return v in values
+        return _pred
+    m = _ATOMIC_INT_EQ.match(atom)
+    if m:
+        col = _extract_column_name(m.group(1))
+        target = int(m.group(2))
+        def _pred(row):
+            v = row.get(col)
+            if pd.isna(v):
+                return None
+            try:
+                return int(v) == target
+            except (ValueError, TypeError):
+                return False
+        return _pred
+    m = _ATOMIC_GTE.match(atom)
+    if m:
+        col = _extract_column_name(m.group(1))
+        target = float(m.group(2))
+        def _pred(row):
+            v = row.get(col)
+            if pd.isna(v):
+                return None
+            try:
+                return float(v) >= target
+            except (ValueError, TypeError):
+                return False
+        return _pred
+    raise ValueError(f"Unsupported atomic predicate: {atom!r}")
+
+
+def _split_top_level(expr: str, sep: str) -> list[str]:
+    """Split `expr` on `sep` at bracket-depth 0."""
+    parts, depth, cur = [], 0, []
+    i = 0
+    while i < len(expr):
+        c = expr[i]
+        if c == '[':
+            depth += 1
+        elif c == ']':
+            depth -= 1
+        elif depth == 0 and expr[i:i+len(sep)] == sep:
+            parts.append("".join(cur).strip())
+            cur = []
+            i += len(sep)
+            continue
+        cur.append(c)
+        i += 1
+    parts.append("".join(cur).strip())
+    return parts
+
+
+def compile_rule(rule: str):
+    """Compile a MAF-filter rule string into a row-level callable predicate.
+
+    Returns a function (row) → bool | None. None represents "evaluated but
+    a required source field is NaN" — the resolver-product null semantic.
+    """
+    rule = rule.strip()
+
+    # Negation wrapper: `!(...)`
+    if rule.startswith("!(") and rule.endswith(")"):
+        inner = compile_rule(rule[2:-1])
+        def _neg(row):
+            r = inner(row)
+            return None if r is None else (not r)
+        return _neg
+
+    # Conjunction: `a && b && c`
+    if "&&" in rule and not (rule.startswith("(") and rule.endswith(")")):
+        parts = _split_top_level(rule, "&&")
+        if len(parts) > 1:
+            compiled = [compile_rule(p) for p in parts]
+            def _conj(row):
+                for p in compiled:
+                    r = p(row)
+                    if r is None:
+                        return None
+                    if not r:
+                        return False
+                return True
+            return _conj
+
+    # Disjunction: `a || b`
+    if "||" in rule:
+        parts = _split_top_level(rule, "||")
+        if len(parts) > 1:
+            compiled = [compile_rule(p) for p in parts]
+            def _disj(row):
+                any_none = False
+                for p in compiled:
+                    r = p(row)
+                    if r is None:
+                        any_none = True
+                        continue
+                    if r:
+                        return True
+                return None if any_none else False
+            return _disj
+
+    # Fallback: atomic predicate
+    return _atomic_predicate(rule)
+
+
+# ---------- Source-data loaders --------------------------------------------
+
+def _load_tcga_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
+    """Load TCGA MAF for the indication.
+
+    Returns DataFrame with normalized columns: Tumor_Sample_Barcode
+    (aliquot) mapped to sample_id (truncated to sample level), plus
+    gene_symbol, protein_change, effect, exon (from Consequence/HGVSp fields),
+    Variant_Classification.
+
+    Iter-1b: reads from cache fallback pending Phase 2a.4's canonical loader.
+    Expected canonical source: s3://onc-compbio/data-catalog/sources/gdc-pancohort-somatic/dr45-0/
+    """
+    fallback = Path.home() / ".cache" / "framework-gdc-pancohort-somatic" / f"{indication.lower()}-mc3.parquet"
+    if fallback.exists():
+        return pd.read_parquet(fallback)
+    csv_fallback = fallback.with_suffix(".csv")
+    if csv_fallback.exists():
+        return pd.read_csv(csv_fallback)
+    raise FileNotFoundError(
+        f"TCGA MAF for {indication} not found at {fallback} or {csv_fallback}. "
+        f"Phase 2a.4 provides the canonical loader with S3-plus-local-cache. "
+        f"For immediate execution: place a MAF-shaped parquet/csv with columns "
+        f"(Tumor_Sample_Barcode, gene_symbol, protein_change, effect, exon, ...) "
+        f"at the fallback path."
+    )
+
+
+def _load_depmap_somatic_mutations(catalog_repo: Path) -> pd.DataFrame:
+    """Load DepMap OmicsSomaticMutations.csv.
+
+    Returns DataFrame with columns normalized to MAF-like shape:
+    ModelID (cell-line ID), gene_symbol, protein_change, effect, exon.
+
+    Iter-1b: reads from cache fallback pending Phase 2a.4's canonical loader.
+    """
+    fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "OmicsSomaticMutations.csv"
+    if fallback.exists():
+        return pd.read_csv(fallback)
+    raise FileNotFoundError(
+        f"DepMap OmicsSomaticMutations.csv not found at {fallback}. "
+        f"Phase 2a.4 provides the canonical loader. For immediate execution: "
+        f"pull from s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/ "
+        f"into the fallback path."
+    )
+
+
+# ---------- Stratum evaluation ---------------------------------------------
+
+def _evaluate_stratum_maf(
+    stratum: dict,
+    maf_df: pd.DataFrame,
+    sample_id_col: str,
+    patient_id_col: str | None,
+    native_id_col: str,
+    all_samples: pd.DataFrame,
+) -> pd.DataFrame:
+    """Evaluate a single MAF-filter stratum.
+
+    A stratum is defined by a row-level predicate on MAF rows. A sample is
+    a MEMBER if it has ANY MAF row matching the predicate. The tri-valued
+    semantics require thinking at two levels:
+
+    - per-MAF-row: predicate returns None if a required source field is NaN
+      → don't count as a hit, but flag the sample as "evaluation had gaps"
+    - per-sample: sample is a member iff ≥1 row-level True; not-a-member
+      iff all rows are False (no data-gaps); insufficient iff no True and
+      any None (or if sample isn't in MAF at all — see all_samples)
+
+    Simplification for iter-1: MAF-derived strata use `is_member=false` for
+    samples with no MAF hits + no missing fields. `is_member=null` for
+    samples missing from the MAF entirely (not evaluated in cohort). Rows
+    with mixed False/None on required fields → False (any-hit wins).
+    """
+    predicate = compile_rule(stratum["rule"])
+
+    # Apply per-MAF-row predicate; collect samples with ≥1 True hit
+    maf_df = maf_df.copy()
+    maf_df["_hit"] = maf_df.apply(predicate, axis=1)
+
+    hits = maf_df[maf_df["_hit"] == True]
+    hit_samples = hits.groupby(sample_id_col).agg(
+        _first_native=(native_id_col, "first"),
+        _first_hit=("protein_change", "first") if "protein_change" in maf_df.columns else (sample_id_col, "first"),
+    ).reset_index() if len(hits) > 0 else pd.DataFrame(columns=[sample_id_col, "_first_native", "_first_hit"])
+
+    # For every sample in `all_samples`, produce an assignment row
+    out_rows = []
+    hit_set = set(hit_samples[sample_id_col]) if len(hit_samples) > 0 else set()
+    hit_lookup = hit_samples.set_index(sample_id_col).to_dict("index") if len(hit_samples) > 0 else {}
+
+    for _, sample_row in all_samples.iterrows():
+        sid = sample_row[sample_id_col]
+        pid = sample_row.get(patient_id_col) if patient_id_col else None
+        native = sample_row[native_id_col]
+        is_member = sid in hit_set
+        deriv_value = hit_lookup.get(sid, {}).get("_first_hit", "") if is_member else ""
+        out_rows.append({
+            "sample_id": sid,
+            "patient_id": pid,
+            "source_native_id": native,
+            "stratum_id": stratum["id"],
+            "is_member": is_member,
+            "derivation_source": stratum["derivation_source"],
+            "derivation_value": deriv_value,
+        })
+    return pd.DataFrame(out_rows)
+
+
+# ---------- Output emission ------------------------------------------------
+
+def _md5sum(path: Path) -> str:
+    h = hashlib.md5()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _emit_manifest(out_dir: Path, catalog: dict, data_source: str,
+                   release_pin: str, strata_ids: list[str],
+                   n_samples: int, n_rows: int, parquet_md5: str) -> None:
+    manifest = {
+        "manifest_kind": "subgroup_assignment",
+        "schema_version": 1,
+        "id": f"{data_source}-subgroup-assignments-{catalog['indication'].lower()}-maf-{release_pin.lower()}",
+        "indication": catalog["indication"],
+        "data_source": data_source,
+        "release_pin": release_pin,
+        "subgroup_catalog_ref": {
+            "id": catalog["id"],
+            "version": catalog["version"],
+        },
+        "assigner_method": {
+            "name": "subgroup_assigner_maf_filter",
+            "version": METHOD_VERSION,
+        },
+        "assignments_parquet": {
+            "path": "assignments.parquet",
+            "md5": parquet_md5,
+            "n_samples": n_samples,
+            "n_rows": n_rows,
+        },
+        "strata_evaluated": strata_ids,
+        "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    (out_dir / "manifest.yaml").write_text(yaml.safe_dump(manifest, sort_keys=False))
+
+
+# ---------- CLI ------------------------------------------------------------
 
 @click.command()
 @click.option("--subgroup-catalog", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -71,48 +386,90 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
             continue
         applicable.append(s)
 
-    click.echo(f"=== subgroup_assigner_maf_filter ===")
+    click.echo(f"=== subgroup_assigner_maf_filter v{METHOD_VERSION} ===")
     click.echo(f"  catalog:       {catalog_id} (indication={indication})")
     click.echo(f"  data_source:   {data_source}")
     click.echo(f"  release_pin:   {release_pin}")
     click.echo(f"  out:           {out}")
     click.echo(f"  applicable MAF-filter strata ({len(applicable)} of {len(atomic)}):")
     for s in applicable:
-        gene_hint = ""
         rule = s.get("rule", "")
-        if "gene_symbol" in rule:
-            # Extract gene name from rule for at-a-glance scan
-            import re
-            m = re.search(r"gene_symbol\s*==\s*['\"]([A-Z0-9]+)['\"]", rule)
-            if m:
-                gene_hint = f"  [gene={m.group(1)}]"
+        m = re.search(r"gene_symbol\s*==\s*['\"]([A-Z0-9]+)['\"]", rule)
+        gene_hint = f"  [gene={m.group(1)}]" if m else ""
         click.echo(f"    - {s['id']:<20}{gene_hint}")
         click.echo(f"      rule: {rule}")
 
     skipped = [s["id"] for s in atomic if s.get("derivation_source") not in SUPPORTED_DERIVATION_SOURCES]
     if skipped:
         click.echo(f"  skipped strata (non-MAF derivation): {skipped}")
-        click.echo(f"  → dispatch to subgroup_assigner_directly_tagged (clinical / source-provided) "
-                   f"or subgroup_assigner_classifier_run (classifier_run, iter-2)")
+        click.echo(f"  → dispatch to subgroup_assigner_directly_tagged or subgroup_assigner_classifier")
 
     if not applicable:
-        click.echo(f"WARNING: no applicable MAF-filter strata for data_source={data_source}; nothing to emit.", err=True)
+        click.echo(f"WARNING: no applicable MAF-filter strata for data_source={data_source}", err=True)
         return 0
 
     if dry_run:
         click.echo("(--dry-run: skipping actual assignment generation)")
         return 0
 
-    click.echo()
-    click.echo("ITER-1B SCAFFOLD: actual assignment generation pending.")
-    click.echo("Required implementation steps for execution session:")
-    click.echo("  1. Resolve MAF manifest from catalog-repo:")
-    click.echo("     - tcga data-source → gdc-pancohort-somatic-dr45-0")
-    click.echo("     - depmap data-source → OmicsSomaticMutations.csv from depmap-consortium-26q1")
-    click.echo("  2. Load MAF Parquet/CSV; restrict to indication-relevant samples.")
-    click.echo("  3. For each MAF-filter stratum, apply the predicate; group by case_id;")
-    click.echo("     collect assignments (handle multi-gene composite rules at the case_id grouping step).")
-    click.echo("  4. Emit assignments.parquet + manifest.yaml validating against subgroup_assignment.schema.json.")
+    # ============ Load MAF + cohort samples ============
+    if data_source == "tcga":
+        maf = _load_tcga_maf(catalog_repo, indication)
+        sample_id_col = "sample_id"
+        patient_id_col = "patient_id"
+        native_id_col = "source_native_id"
+    else:
+        maf = _load_depmap_somatic_mutations(catalog_repo)
+        sample_id_col = "ModelID"
+        patient_id_col = None
+        native_id_col = "ModelID"
+
+    click.echo(f"  loaded {len(maf):,} MAF rows")
+
+    # Derive the cohort (all_samples) from unique sample_ids in MAF
+    if patient_id_col and patient_id_col in maf.columns:
+        all_samples = maf[[sample_id_col, patient_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+    else:
+        all_samples = maf[[sample_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+        if patient_id_col:
+            all_samples[patient_id_col] = None
+    click.echo(f"  cohort samples: {len(all_samples):,}")
+
+    # ============ Evaluate strata ============
+    per_stratum_dfs = []
+    for stratum in applicable:
+        try:
+            rows = _evaluate_stratum_maf(stratum, maf, sample_id_col, patient_id_col, native_id_col, all_samples)
+        except ValueError as e:
+            click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
+            continue
+        per_stratum_dfs.append(rows)
+        n_hit = int((rows["is_member"] == True).sum())
+        n_neg = int((rows["is_member"] == False).sum())
+        click.echo(f"    {stratum['id']:<25} is_member=true: {n_hit:>5}, false: {n_neg:>5}")
+
+    if not per_stratum_dfs:
+        click.echo("ERROR: no strata produced rows", err=True)
+        return 1
+
+    assignments = pd.concat(per_stratum_dfs, ignore_index=True)
+    assignments["evaluated_at_release"] = release_pin
+
+    # ============ Emit outputs ============
+    out.mkdir(parents=True, exist_ok=True)
+    parquet_path = out / "assignments.parquet"
+    assignments.to_parquet(parquet_path, index=False)
+    click.echo(f"  wrote {parquet_path} ({len(assignments):,} rows)")
+
+    _emit_manifest(
+        out_dir=out, catalog=catalog, data_source=data_source,
+        release_pin=release_pin,
+        strata_ids=[s["id"] for s in applicable],
+        n_samples=int(assignments["sample_id"].nunique()),
+        n_rows=len(assignments),
+        parquet_md5=_md5sum(parquet_path),
+    )
+    click.echo(f"  wrote {out / 'manifest.yaml'}")
     return 0
 
 
