@@ -119,16 +119,38 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     # Delegate to a lightweight local resolver that reads a session-cached
     # copy if present, otherwise returns None + prints a fetch instruction.
     fallback = Path.home() / ".cache" / "framework-tcga-marker-paper" / indication.lower() / "subtypes.csv"
-    if fallback.exists():
-        return pd.read_csv(fallback)
-    raise FileNotFoundError(
-        f"TCGA marker-paper labels for {indication} not found at {fallback}. "
-        f"Phase 2a.1 stubs the fetch; Phase 2a.4 (subgroup_common/loaders.py) "
-        f"provides the canonical loader with S3-plus-local-cache resolution. "
-        f"For immediate execution: place a CSV with columns "
-        f"(bcr_patient_barcode, {indication}_subtype_columns...) at the "
-        f"fallback path."
-    )
+    if not fallback.exists():
+        raise FileNotFoundError(
+            f"TCGA marker-paper labels for {indication} not found at {fallback}. "
+            f"Phase 2a.1 stubs the fetch; Phase 2a.4 (subgroup_common/loaders.py) "
+            f"provides the canonical loader with S3-plus-local-cache resolution. "
+            f"For immediate execution: pull the source file from "
+            f"s3://onc-compbio/data-catalog/sources/tcga-marker-papers/subtypes-2018/ "
+            f"into the fallback path."
+        )
+
+    df = pd.read_csv(fallback)
+
+    # ---- Source-specific column normalization (Phase 2b/c real-data fix) ----
+    # TCGA marker-paper CSVs (TCGAbiolinks::PanCancerAtlas_subtypes export) are
+    # patient-level with column `patient` = TCGA barcode. Normalize to the
+    # resolver-product convention: sample_id / patient_id / source_native_id
+    # per docs/design/IDAS_SUBTYPE_PIPELINE.md.
+    if "patient" in df.columns and "sample_id" not in df.columns:
+        df = df.rename(columns={"patient": "patient_id"})
+        # Marker-paper is patient-level; sample_id == patient_id for this source.
+        df["sample_id"] = df["patient_id"]
+        df["source_native_id"] = df["patient_id"]
+
+    # ---- Source-specific value normalization ----
+    # TCGA anatomic_organ_subdivision uses Title-Case-With-Spaces
+    # (`Sigmoid Colon`, `Ascending Colon`). Catalog rules use lowercase-with-
+    # underscores (`sigmoid_colon`). Normalize at load time so catalog rules
+    # stay clean.
+    if "anatomic_organ_subdivision" in df.columns:
+        df["primary_site"] = df["anatomic_organ_subdivision"].str.lower().str.replace(" ", "_")
+
+    return df
 
 
 def _load_depmap_inferred_subtypes(catalog_repo: Path) -> pd.DataFrame:
@@ -151,17 +173,27 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path) -> pd.DataFrame:
         pass
     fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "OmicsInferredMolecularSubtypes.csv"
     model_fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "Model.csv"
-    if fallback.exists() and model_fallback.exists():
-        subtypes = pd.read_csv(fallback)
-        model = pd.read_csv(model_fallback)
-        return model.merge(subtypes, on="ModelID", how="left")
-    raise FileNotFoundError(
-        f"DepMap OmicsInferredMolecularSubtypes.csv + Model.csv not found at "
-        f"{fallback} + {model_fallback}. Phase 2a.4 provides the canonical "
-        f"loader. For immediate execution: pull both CSVs from "
-        f"s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/ "
-        f"into the fallback path."
-    )
+    if not (fallback.exists() and model_fallback.exists()):
+        raise FileNotFoundError(
+            f"DepMap OmicsInferredMolecularSubtypes.csv + Model.csv not found at "
+            f"{fallback} + {model_fallback}. Phase 2a.4 provides the canonical "
+            f"loader. For immediate execution: pull both CSVs from "
+            f"s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/ "
+            f"into the fallback path."
+        )
+    subtypes = pd.read_csv(fallback)
+    model = pd.read_csv(model_fallback)
+    df = model.merge(subtypes, on="ModelID", how="left")
+
+    # ---- Source-specific column normalization (Phase 2b/c real-data fix) ----
+    # DepMap Model.csv uses `ModelID` as the cell-line identifier. Normalize to
+    # resolver-product convention: sample_id / source_native_id. DepMap has NO
+    # patient concept (cell lines have anonymous PatientID that isn't a
+    # clinical patient), so patient_id is null.
+    df["sample_id"] = df["ModelID"]
+    df["source_native_id"] = df["ModelID"]
+    df["patient_id"] = None  # cell lines have no clinical-patient concept
+    return df
 
 
 # ---------- Rule evaluation ------------------------------------------------
