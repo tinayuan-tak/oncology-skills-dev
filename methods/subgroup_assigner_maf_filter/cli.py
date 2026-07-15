@@ -231,6 +231,38 @@ def _load_tcga_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     )
 
 
+def _load_genie_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
+    """Load GENIE public v19-0 MAF pre-filtered to indication-relevant samples.
+
+    Returns DataFrame with columns already normalized to resolver-product
+    convention: sample_id (GENIE-{CENTER}-{PATIENT}-{SAMPLE}), gene_symbol,
+    protein_change, effect, plus source_native_id (= sample_id since GENIE
+    doesn't have a distinct aliquot-level ID).
+
+    GENIE public v19 covers ~271K samples across ~30 sequencing centers; per
+    indication the pre-filter step (via data_clinical_sample.txt CANCER_TYPE)
+    reduces this substantially (e.g. Colorectal Cancer = 23,312 samples,
+    22,642 with MAF rows). This method reads the pre-filtered per-indication
+    parquet from cache; a Phase-2b/c prefetch step is responsible for pulling
+    the 1.12 GB MAF from S3 + slicing to the indication.
+
+    Iter-1b: reads from cache fallback pending Phase 2a.4's canonical loader.
+    Expected canonical source: s3://onc-compbio/data-catalog/sources/synapse/
+    genie-public-v19-0/data_mutations_extended.txt (1.12 GB) filtered via
+    data_clinical_sample.txt to the target indication's CANCER_TYPE.
+    """
+    fallback = Path.home() / ".cache" / "framework-genie-public-v19" / f"{indication.lower()}-genie-maf.parquet"
+    if fallback.exists():
+        return pd.read_parquet(fallback)
+    raise FileNotFoundError(
+        f"GENIE MAF for {indication} not found at {fallback}. "
+        f"For immediate execution: pull s3://onc-compbio/data-catalog/sources/"
+        f"synapse/genie-public-v19-0/data_mutations_extended.txt (1.12 GB) + "
+        f"data_clinical_sample.txt, filter to CANCER_TYPE == '{indication} '"
+        f"target, save as {fallback}."
+    )
+
+
 def _load_depmap_somatic_mutations(catalog_repo: Path) -> pd.DataFrame:
     """Load DepMap OmicsSomaticMutations.csv.
 
@@ -357,7 +389,7 @@ def _emit_manifest(out_dir: Path, catalog: dict, data_source: str,
 @click.command()
 @click.option("--subgroup-catalog", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path),
               help="Path to the subgroup_catalog YAML.")
-@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap"]),
+@click.option("--data-source", required=True, type=click.Choice(["tcga", "depmap", "genie"]),
               help="Which data source's MAF to assign against.")
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier (e.g., 2026-Q2).")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
@@ -417,6 +449,11 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
         maf = _load_tcga_maf(catalog_repo, indication)
         sample_id_col = "sample_id"
         patient_id_col = "patient_id"
+        native_id_col = "source_native_id"
+    elif data_source == "genie":
+        maf = _load_genie_maf(catalog_repo, indication)
+        sample_id_col = "sample_id"       # already normalized in the prefetch step
+        patient_id_col = None             # GENIE has PATIENT_ID but is not carried in the CRC-scoped subset
         native_id_col = "source_native_id"
     else:
         maf = _load_depmap_somatic_mutations(catalog_repo)
