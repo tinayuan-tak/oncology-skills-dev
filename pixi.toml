@@ -34,6 +34,7 @@ r-foreach = "*"                  # cooccurrence_fisher_pancohort: SELECT depende
 r-doparallel = "*"               # cooccurrence_fisher_pancohort: SELECT dependency (parallel backend)
 bioconductor-birewire = "*"      # cooccurrence_fisher_pancohort: SELECT dependency (bipartite network null model)
 bioconductor-deseq2 = "*"
+bioconductor-apeglm = "*"        # dge_deseq2: lfcShrink() adaptive-prior shrinkage (03_deseq2.R)
 bioconductor-sva = "*"           # combat-seq batch correction
 bioconductor-msstatstmt = "*"    # cptac_protein_deg: CPTAC TMT protein DEG with plex-batch mixed model
 bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood)
