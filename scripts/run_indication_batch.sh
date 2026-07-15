@@ -19,9 +19,12 @@
 #   - Resume-safe: an indication whose destination S3 sensitivity.parquet
 #     already exists is skipped (see IS_ALREADY_DONE below). Re-invoke with
 #     the same $RUN_DIR to pick up where a previous batch left off.
-#   - MD5 stamping happens inside dge-deseq2 / R stage 04_write_parquet.R at
-#     upload time; this script does not stamp separately (avoids double-hash
-#     drift). Verification is via `aws s3 head-object` post-run.
+#   - S3 upload is handled BY THIS SCRIPT after the R pipeline exits
+#     successfully (see upload_indication below). The four_cell_sensitivity
+#     branch of run_pipeline.R invokes stage 00 -> stage 06 and then quit(0);
+#     it does NOT invoke stage 04's S3 write. So the batch driver takes on
+#     the upload responsibility for this contrast. MD5 is computed locally
+#     with md5sum and stamped as x-amz-meta-md5 on each upload.
 #
 # Exit codes:
 #   0 — every requested indication produced a sensitivity.parquet
@@ -86,6 +89,52 @@ throttle() {
     done
 }
 
+# S3 prefix for a completed indication's outputs.
+dest_prefix() {
+    local ind="$1"
+    printf 's3://%s/data-catalog/derived/%s-dge-tumor-vs-normal-sensitivity-v1' \
+        "$S3_BUCKET" "$(printf '%s' "$ind" | tr '[:upper:]' '[:lower:]')"
+}
+
+# Upload every artifact the R pipeline emitted to $out_dir up to the
+# indication's S3 prefix, stamping x-amz-meta-md5 for content integrity.
+# sensitivity.parquet is the primary product; tumor_vs_adjacent.parquet
+# and tumor_vs_gtex.parquet are byproducts of the same DESeq2 run;
+# provenance.yaml records inputs + software versions. All four ship
+# together so the derived manifest catalogs a coherent unit.
+#
+# The four_cell driver skips cells based on cohort composition — so not
+# every indication will emit every parquet. We upload whichever files
+# actually exist on disk and log a note for the missing ones (this is a
+# valid outcome for e.g. OV/LGG where adjacent-normal=0 skips cells A/B,
+# and HNSC where no GTEx mapping skips cells C/D).
+upload_indication() {
+    local ind="$1"
+    local out_dir="$2"
+    local pfx
+    pfx="$(dest_prefix "$ind")"
+
+    local n_uploaded=0 n_missing=0
+    for fname in sensitivity.parquet tumor_vs_adjacent.parquet tumor_vs_gtex.parquet provenance.yaml; do
+        local local_path="$out_dir/$fname"
+        if [[ ! -f "$local_path" ]]; then
+            log "  $ind: $fname absent locally (expected for some sparse-cohort configurations); skipping upload"
+            ((n_missing++))
+            continue
+        fi
+        local md5
+        md5="$(md5sum "$local_path" | awk '{print $1}')"
+        if ! aws s3 cp "$local_path" "$pfx/$fname" \
+                --metadata "md5=$md5" --no-progress >/dev/null 2>&1; then
+            log "  $ind: FAILED to upload $fname ($md5)"
+            return 1
+        fi
+        ((n_uploaded++))
+    done
+    log "  $ind: uploaded $n_uploaded file(s); $n_missing not emitted by pipeline"
+    return 0
+}
+
 # --- main --------------------------------------------------------------------
 
 # Positional args = indication subset; empty = all.
@@ -145,8 +194,15 @@ run_one() {
     # `setsid` decouples the R subprocess from the parent's terminal so
     # a disconnected shell doesn't SIGHUP the batch. Output goes to $logf.
     if setsid "${cmd[@]}" >"$logf" 2>&1; then
-        log "OK    $ind"
-        write_status "$ind" ok
+        log "COMPUTE-OK $ind — uploading to S3"
+        if upload_indication "$ind" "$out_dir" >>"$logf" 2>&1; then
+            log "OK    $ind"
+            write_status "$ind" ok
+        else
+            log "UPLOAD-FAIL $ind — see $logf; compute artifacts stay in $out_dir for retry"
+            write_status "$ind" upload-failed
+            return 1
+        fi
     else
         local rc=$?
         log "FAIL  $ind (rc=$rc) — see $logf"
@@ -170,20 +226,21 @@ wait || true
 
 echo
 echo "=================== batch report ==================="
-n_ok=0; n_skip=0; n_fail=0
+n_ok=0; n_skip=0; n_fail=0; n_upfail=0
 for ind in "${INDICATIONS[@]}"; do
     s="$(read_status "$ind")"
     printf '  %-8s %s\n' "$ind" "$s"
     case "$s" in
         ok) ((n_ok++));;
         skipped-cached) ((n_skip++));;
+        upload-failed) ((n_upfail++));;
         failed) ((n_fail++));;
     esac
 done
 echo "----------------------------------------------------"
-printf '  ok=%d  skipped-cached=%d  failed=%d  total=%d\n' \
-    "$n_ok" "$n_skip" "$n_fail" "${#INDICATIONS[@]}"
+printf '  ok=%d  skipped-cached=%d  upload-failed=%d  failed=%d  total=%d\n' \
+    "$n_ok" "$n_skip" "$n_upfail" "$n_fail" "${#INDICATIONS[@]}"
 
-if (( n_fail > 0 )); then
+if (( n_fail + n_upfail > 0 )); then
     exit 2
 fi
