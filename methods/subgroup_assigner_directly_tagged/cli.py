@@ -150,6 +150,41 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     if "anatomic_organ_subdivision" in df.columns:
         df["primary_site"] = df["anatomic_organ_subdivision"].str.lower().str.replace(" ", "_")
 
+    # ---- Optional: Guinney 2015 CMS join (COADREAD only) --------------------
+    # The TCGA marker-paper CRC file carries MSI/methylation/expression-3-class
+    # subtypes but NOT the Guinney 2015 CMS1-4 framework. Land Guinney CMS as
+    # an additive column via a left-join on TCGA patient barcode. Source cached
+    # from s3://onc-compbio/data-catalog/sources/guinney-2015-crc-cms/
+    # cms_labels_public_all.txt (573 TCGA samples with canonical CMS1-4 labels;
+    # see manifests/sources/guinney-2015-crc-cms-consortium.yaml in data-catalog).
+    if indication == "COADREAD":
+        cms_fallback = Path.home() / ".cache" / "framework-guinney-2015-crc-cms" / "cms_labels_public_all.txt"
+        if cms_fallback.exists():
+            cms_df = pd.read_csv(cms_fallback, sep="\t")
+            # Filter to TCGA samples (dataset column = 'tcga') and pick the
+            # canonical final CMS column. Rename to `cms_label` for the catalog
+            # rule (clinical.cms_label == 'CMS1', etc.).
+            tcga_cms = cms_df[cms_df["dataset"] == "tcga"][
+                ["sample", "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples"]
+            ].rename(columns={
+                "sample": "patient_id",
+                "CMS_final_network_plus_RFclassifier_in_nonconsensus_samples": "cms_label",
+            })
+            # Outer join: TCGA marker-paper (276 patients) and Guinney (573 TCGA
+            # samples) overlap only partially. Marker-paper covers ~276 patients
+            # with MSI/methylation/sidedness metadata; Guinney's 573 come from
+            # a different sample-selection with CMS labels. Outer join preserves
+            # all samples from both sources; strata evaluating on missing fields
+            # correctly emit is_member=null (tri-value insufficient) per the
+            # resolver-product design.
+            df = df.merge(tcga_cms, on="patient_id", how="outer")
+            # Backfill sample_id + source_native_id for Guinney-only rows
+            # (patient_id is present from the merge key; sample_id/source_
+            # native_id come from marker-paper side and are NaN for Guinney-
+            # only rows). Marker-paper is patient-level so sample_id == patient_id.
+            df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
+            df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
+
     return df
 
 
