@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts/schemas/interpretation_rules.schema.json",
   "title": "Interpretation Rules (Tier 2)",
-  "description": "Schema for the Tier-2 signal-mapping config that translates descriptive evidence labels emitted by cards into per-modality signals consumed by the Tier-3 synthesis layer. Consolidates normative knowledge that previously lived scattered across (a) card_spec interpretation_hints[].dominant flags, (b) modality-module killer_conditions, and (c) the synthesis-layer NOT_INFORMATIVE_CALLS set. Reviewable by domain experts in PR; version-controlled with the contracts.",
+  "description": "Schema for the Tier-2 signal-mapping config that translates descriptive evidence labels emitted by cards into per-modality signals consumed by the Tier-3 synthesis layer. Consolidates normative knowledge that previously lived scattered across (a) card_spec interpretation_hints[].dominant flags, (b) modality-module killer_conditions, and (c) the synthesis-layer NOT_INFORMATIVE_CALLS set. Reviewable by domain experts in PR; version-controlled with the contracts. Phase 4 (2026-07-15): extended with target-first signal channels, tier metadata, list-typed field matching via in_record, and signal-absence not_applicable enum. All extensions backward-compatible.",
   "type": "object",
   "required": ["rules_id", "version", "axis", "rules", "schema_version"],
   "unevaluatedProperties": false,
@@ -20,12 +20,12 @@
     },
     "axis": {
       "type": "string",
-      "description": "The biology axis this rules file applies to (e.g. intracellular_intrinsic, surface_intrinsic). Matches the dashboard_spec's axis_resolution outputs.",
+      "description": "The biology axis this rules file applies to. Matches the dashboard_spec's axis_resolution outputs.",
       "enum": ["intracellular_intrinsic", "surface_intrinsic", "extrinsic", "mixed"]
     },
     "rules": {
       "type": "array",
-      "description": "Ordered list of evidence→signal mappings. Each rule fires when its predicate matches a card's emitted descriptive label; emits a per-modality signal vector. Multiple matching rules accumulate signals.",
+      "description": "Ordered list of evidence→signal mappings. Each rule fires when its predicate matches a card's emitted descriptive label; emits a per-channel signal vector. Multiple matching rules accumulate signals.",
       "items": {"$ref": "#/$defs/rule"},
       "minItems": 1,
       "maxItems": 200
@@ -36,18 +36,57 @@
     },
     "rationale": {
       "type": "string",
-      "description": "Optional free-text explanation of the rules file's design intent (audience: future biology reviewers)."
+      "description": "Optional free-text explanation of the rules file's design intent."
     }
   },
   "$defs": {
     "signal_vocabulary": {
       "type": "string",
-      "description": "Controlled signal vocabulary. 'supportive' = evidence consistent with this modality. 'opposing' = evidence against. 'killer' = hard gate to not_viable (Tier-3 deterministic). 'neutral' = informational, no fit-level effect. 'insufficient' = data missing/uninformative; counts toward coverage gap.",
-      "enum": ["supportive", "opposing", "killer", "neutral", "insufficient"]
+      "description": "Controlled signal vocabulary. 'supportive' = evidence consistent. 'opposing' = evidence against. 'killer' = hard gate to not_viable (Tier-3 deterministic). 'neutral' = informational, no fit-level effect. 'insufficient' = evidence in-scope but weak/missing (coverage gap). 'not_applicable' (Phase 4, 2026-07-15) = evidence out-of-scope for this rule's tier — semantically distinct from 'insufficient' per resolver-product design.",
+      "enum": ["supportive", "opposing", "killer", "neutral", "insufficient", "not_applicable"]
     },
     "modality_id": {
       "type": "string",
+      "description": "Legacy modality-only channel enum, retained for backward compatibility with pre-Phase-4 rules files.",
       "enum": ["small_molecule", "degrader", "adc", "bite_tce", "antibody"]
+    },
+    "signal_channel_id": {
+      "type": "string",
+      "description": "Phase 4 (2026-07-15) — extended channel enum covering target-first tiers (axis/target/indication/subtype) + modality tier. Rules opt into channels by including them as keys in the signals map. Channel-precedence at synthesis time: axis_fit → target_* → indication_fit_* → subtype_fit_* → modality_fit_*. Killers short-circuit within their own tier only. See target-contracts/docs/design/IDAS_SUBTYPE_PIPELINE.md.",
+      "enum": [
+        "axis_fit",
+        "target_essentiality",
+        "target_tractability",
+        "target_precedent",
+        "indication_fit_convergence",
+        "indication_fit_single",
+        "subtype_fit_genomic",
+        "subtype_fit_expression",
+        "subtype_fit_immune",
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ]
+    },
+    "tier_id": {
+      "type": "string",
+      "description": "Which tier of the channel-precedence hierarchy this rule fires within. Optional; used by validators + synthesis-layer routing. Enforced iter-1 discipline: subtype-tier rules require subgroup metadata (see rule.subgroup_metadata_declared).",
+      "enum": ["axis", "target", "indication", "subtype", "modality"]
+    },
+    "in_record_predicate": {
+      "type": "object",
+      "description": "Phase 4 (2026-07-15) — Match records within a list-typed field. Used with card outputs like per_subgroup_metrics: [{stratum, class, subgroup_n, ...}]. All key/value pairs in in_record must match a record for the rule to fire on that record. Each map value is either a scalar (exact match), an array (in-list match), or an object with an 'in' key.",
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "string"},
+          {"type": "integer"},
+          {"type": "boolean"},
+          {"type": "array", "items": {"type": ["string", "integer", "boolean"]}}
+        ]
+      },
+      "minProperties": 1
     },
     "rule": {
       "type": "object",
@@ -56,14 +95,13 @@
       "properties": {
         "rule_id": {
           "type": "string",
-          "description": "Stable kebab-case identifier for this rule. Surfaced in provenance for audit ('this signal came from rule X').",
           "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
           "minLength": 3,
           "maxLength": 100
         },
         "when": {
           "type": "object",
-          "description": "Predicate that matches the rule against a card's emitted descriptive label. The card_id + field together identify which summary_field on which card to inspect; equals/in selects matching values.",
+          "description": "Predicate that matches the rule against a card's emitted descriptive label. Either scalar (equals/in) OR list-record (in_record) matching. card_id + field together identify which summary_field on which card to inspect.",
           "required": ["card_id", "field"],
           "unevaluatedProperties": false,
           "properties": {
@@ -73,40 +111,73 @@
             },
             "field": {
               "type": "string",
-              "description": "The summary_field on the card to inspect (e.g. 'dependency_class', 'selectivity_class', 'correlation_class')."
+              "description": "The summary_field on the card to inspect."
             },
             "equals": {"type": "string"},
             "in": {
               "type": "array",
               "items": {"type": "string"},
               "minItems": 1
-            }
+            },
+            "in_record": {"$ref": "#/$defs/in_record_predicate"}
           },
           "oneOf": [
             {"required": ["equals"]},
-            {"required": ["in"]}
+            {"required": ["in"]},
+            {"required": ["in_record"]}
           ]
         },
         "signals": {
           "type": "object",
-          "description": "Map of modality_id → signal_vocabulary. Each rule emits a signal for each listed modality. Modalities not listed receive 'neutral'.",
+          "description": "Map of signal_channel_id → signal_vocabulary. Each rule emits a signal for each listed channel. Channels not listed receive 'neutral' at the synthesis layer.",
           "additionalProperties": {"$ref": "#/$defs/signal_vocabulary"},
-          "minProperties": 1
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/signal_channel_id"}
+        },
+        "tier": {
+          "$ref": "#/$defs/tier_id",
+          "description": "Phase 4 (2026-07-15) optional tier annotation. Enables validator to enforce tier-specific requirements (e.g. subtype-tier rules must declare subgroup_metadata_declared)."
+        },
+        "emits": {
+          "type": "array",
+          "description": "Phase 4 (2026-07-15) — Explicit declaration of which signal_vocabulary values this rule can emit. Enables coverage validators to reason about signal-absence semantics (insufficient vs not_applicable). Validator error if signals block emits a value NOT in this list.",
+          "items": {"$ref": "#/$defs/signal_vocabulary"},
+          "uniqueItems": true
+        },
+        "subgroup_metadata_declared": {
+          "type": "object",
+          "description": "Phase 4 (2026-07-15) — REQUIRED for subtype-tier rules (rule.tier == 'subtype'). Declares the subgroup-n floor discipline this rule respects. Validator error if a subtype-tier rule omits this or if any field is missing.",
+          "unevaluatedProperties": false,
+          "properties": {
+            "subtype_defining_data": {
+              "type": "string",
+              "enum": ["genomic", "expression", "immune", "clinical", "composite"]
+            },
+            "subgroup_n_source": {
+              "type": "string",
+              "description": "Which resolver-manifest / cohort_size call sources the subgroup_n at rule-firing time (informational; runtime enforcement lives in the rule-firing layer)."
+            },
+            "min_n_required": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Minimum subgroup_n for this rule to fire as 'supportive' rather than 'insufficient'. Default 30 unless overridden."
+            }
+          },
+          "required": ["subtype_defining_data"]
         },
         "dominant": {
           "type": "boolean",
-          "description": "If true AND signal == supportive for a given modality, this is treated as a DOMINANT positive signal in Tier-3 EG4 scoring (one dominant signal + non-contradiction is sufficient for 'strong' fit). Mirrors today's interpretation_hints[].dominant semantics but now lives in the rules layer.",
+          "description": "If true AND signal == supportive for a given channel, treated as a DOMINANT positive signal in Tier-3 scoring.",
           "default": false
         },
         "killer_message": {
           "type": "string",
-          "description": "Stakeholder-readable rationale shown when this rule fires a 'killer' signal. Required for rules emitting any killer signal; ignored otherwise. Surfaces in the dashboard's modality-fit narrative.",
+          "description": "Required when this rule fires a 'killer' signal.",
           "minLength": 10,
           "maxLength": 500
         },
         "rationale": {
-          "type": "string",
-          "description": "Optional biology explanation of why this evidence→signal mapping holds. Free text; for PR review."
+          "type": "string"
         }
       }
     }

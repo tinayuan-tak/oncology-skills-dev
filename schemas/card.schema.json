@@ -177,6 +177,28 @@
             "maxItems": 30
           }
         },
+        "summary_fields_record_schemas": {
+          "type": "object",
+          "description": "Phase 4 (2026-07-15) — Declare record shapes for list-typed summary_fields (e.g. per_subgroup_metrics: [{stratum, class, subgroup_n, ...}]). Rules matching these fields use `when.in_record` (interpretation_rules.schema.json). Map of field_name → object describing the record's key names + expected value types. Per key, value spec is either `enum: [...]` (categorical), a JSON-schema type string ('integer', 'boolean', 'string'), or an object with an `enum` key. See target-contracts/docs/design/IDAS_SUBTYPE_PIPELINE.md for the list-typed card convention.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {"type": "string", "enum": ["integer", "boolean", "string", "number"]},
+                {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                {
+                  "type": "object",
+                  "properties": {
+                    "enum": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                    "type": {"type": "string", "enum": ["integer", "boolean", "string", "number"]}
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "minProperties": 1
+          }
+        },
         "figure": {
           "type": "string",
           "description": "Iter-1b single-figure declaration. Identifier for the canonical figure type emitted by this card. Backward-compatible with cards that emit one figure; for multi-figure cards (iter-2+), use the `figures` array instead.",
@@ -296,6 +318,11 @@
         }
       },
       "maxItems": 20
+    },
+    "tier": {
+      "type": "string",
+      "description": "Phase 4 (2026-07-15) — Optional annotation of which channel-precedence tier this card's evidence belongs to. Used by validators to enforce tier-appropriate applies_when predicates (target-tier cards should not reference indication.* or subtype.* keys). Enum: target | indication | panel | subtype. Cards without tier tag are un-classified (backward-compat for pre-Phase-4 cards).",
+      "enum": ["target", "indication", "panel", "subtype"]
     },
     "schema_version": {
       "type": "integer",
