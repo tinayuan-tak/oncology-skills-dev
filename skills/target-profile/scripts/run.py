@@ -158,6 +158,59 @@ def _run_sub_skills(target: str, indication: str) -> dict:
     return results
 
 
+# --- Deterministic recommendation gate --------------------------------------
+#
+# The overall_recommendation was historically 100% LLM-chosen (the LLM saw the
+# sub-verdicts as prompt text and picked nominate|hold|veto|insufficient_evidence).
+# A killer sub-verdict must FORCE the call, not merely suggest it. This gate
+# mirrors compose-dashboard/_synthesis.py's killer short-circuit (killers → not_viable
+# first, before any positive logic), reimplemented on target-profile's sub-verdict
+# tuples (the two engines take different inputs — card interpretation_calls vs.
+# skill verdict strings — so the pattern is copied, not the code; sharing them is
+# the separate two-engine-unification effort).
+#
+# CURATED veto set (conservative, signed off 2026-07-16): only genuine CROSS-TARGET
+# vetoes force veto. Modality-scoped killers (surface neither_viable, degrader
+# expression killers) are deliberately EXCLUDED — they foreclose one modality, not
+# the target (KRAS hits surface/degrader killers yet is a correct `nominate` via
+# small molecule; see the KRAS×COADREAD golden). This set is hardcoded here for
+# now; a follow-up externalizes it to a target-contracts verdict-gate vocabulary
+# so the veto/hold policy is reviewable without code.
+#
+# (short_name, verdict_str) -> forced overall_recommendation
+_GATE_VERDICTS: dict[tuple[str, str], str] = {
+    ("dependency", "pan_essential_killer"): "veto",   # non-selective essentiality — no window
+    ("dependency", "non_dependent"): "veto",          # no dependency at all
+    ("safety", "highly_constrained_safety_concern"): "hold",  # concern → hold, not veto
+}
+# Precedence when multiple gates fire: veto dominates hold.
+_GATE_ACTION_RANK = {"veto": 2, "hold": 1}
+
+
+def _gate_recommendation(sub_results: dict) -> tuple[Optional[str], list[dict]]:
+    """Deterministically derive a forced overall_recommendation from sub-verdicts.
+
+    Returns (forced_action | None, hits) where hits is the list of
+    {short, verdict, action, driving_rule_id} that triggered — for provenance.
+    None means no gate fired (the LLM's choice stands). When multiple gates fire,
+    the highest-rank action wins (veto > hold).
+    """
+    hits: list[dict] = []
+    for short, r in sub_results.items():
+        v = r.get("verdict")
+        if not v:
+            continue
+        verdict_str, driving_rule_id = v[0], (v[1] if len(v) > 1 else None)
+        action = _GATE_VERDICTS.get((short, verdict_str))
+        if action:
+            hits.append({"short": short, "verdict": verdict_str,
+                         "action": action, "driving_rule_id": driving_rule_id})
+    if not hits:
+        return None, []
+    forced = max((h["action"] for h in hits), key=lambda a: _GATE_ACTION_RANK[a])
+    return forced, hits
+
+
 # --- LLM synthesis ----------------------------------------------------------
 
 _SYSTEM_PROMPT = (
@@ -631,6 +684,32 @@ def main() -> int:
         tool_schema=tool_schema,
     )
 
+    # 2b. Deterministic recommendation gate. A killer sub-verdict FORCES the
+    # recommendation regardless of what the LLM chose — the auditable rule wins.
+    # We clamp the wrapped {value, _source, ...} in place and record the override
+    # in nomination.json + provenance so the gate is never silent.
+    gate_action, gate_hits = _gate_recommendation(sub_results)
+    recommendation_gate = {"fired": bool(gate_action)}
+    if gate_action:
+        rec = llm_output.get("overall_recommendation")
+        llm_value = rec.get("value") if isinstance(rec, dict) else rec
+        recommendation_gate = {
+            "fired": True,
+            "forced_recommendation": gate_action,
+            "llm_recommendation": llm_value,
+            "overridden": llm_value != gate_action,
+            "triggered_by": gate_hits,
+        }
+        if isinstance(rec, dict):
+            rec["value"] = gate_action
+            rec["_gated"] = True  # mark the value as rule-forced, not LLM-chosen
+        else:
+            llm_output["overall_recommendation"] = {
+                "value": gate_action, "_source": "recommendation_gate"}
+        print(f"[target-profile] recommendation GATE fired: forced '{gate_action}' "
+              f"(LLM said '{llm_value}') via {[h['short']+':'+h['verdict'] for h in gate_hits]}",
+              file=sys.stderr)
+
     # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
     figures_dir = args.out / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -677,6 +756,7 @@ def main() -> int:
             }
             for short, r in sub_results.items()
         },
+        "recommendation_gate": recommendation_gate,
         "llm_synthesis": llm_output,
     }
     (args.out / "nomination.json").write_text(
@@ -691,6 +771,7 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "invoked_lenses": invoked_lenses,
         "sub_skills_ran": [s for s, _ in SUB_SKILLS],
+        "recommendation_gate": recommendation_gate,
         "llm_prompt_hash": llm_output.get("executive_summary", {}).get("_prompt_hash"),
         "llm_model_id": llm_output.get("executive_summary", {}).get("_model_id"),
         "artefacts": [
