@@ -41,8 +41,8 @@
     },
     "data_source": {
       "type": "string",
-      "enum": ["tcga", "depmap", "ccle", "gdsc"],
-      "description": "Which data source's samples are assigned. iter-1b: tcga + depmap. Tempus is excluded — pre-aggregated upstream, per-sample assignment not accessible."
+      "enum": ["tcga", "depmap", "ccle", "gdsc", "genie", "genie_bpc"],
+      "description": "Which data source's samples are assigned. iter-1b: tcga + depmap. genie = AACR GENIE registry MAF (per-sample mutation strata). genie_bpc = GENIE Biopharma Collaborative curated cohort (per-sample line-of-therapy + treatment strata; landed 2026-07-15). Tempus is excluded — pre-aggregated upstream, per-sample assignment not accessible."
     },
     "release_pin": {
       "type": "string",
@@ -53,6 +53,11 @@
       "type": "string",
       "description": "Reference to the subgroup_catalog manifest used to generate these assignments (e.g., 'coadread-subgroups-2026-q2').",
       "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+    },
+    "subgroup_catalog_content_pin": {
+      "type": "string",
+      "description": "SHA-256 (hex) of the RESOLVED subgroup-catalog file content at generation time. The release_pin label (e.g. '2026-Q2') is a moving target — catalogs are edited in place under a fixed version label (COADREAD/2026-Q2 grew 6→18 strata across 5 in-place edits in 48h). This content-pin makes staleness detectable: an assignments product whose pin differs from the current catalog's hash was derived against a different stratum set, even if release_pin matches. Consumers and the coverage matrix compare this against a freshly-hashed catalog to flag re-emit-needed cells.",
+      "pattern": "^[0-9a-f]{64}$"
     },
     "input_manifest_ids": {
       "type": "array",
