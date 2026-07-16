@@ -91,6 +91,45 @@ def test_no_verdict_and_none_verdict_ignored():
     assert forced is None and hits == []
 
 
+def test_loader_reads_vocab_when_present(tmp_path):
+    """_load_gate_verdicts reads the target-contracts vocab and returns source='vocab'."""
+    vocab_dir = tmp_path / "vocabularies"; vocab_dir.mkdir()
+    (vocab_dir / "nomination_verdict_gate.yaml").write_text(
+        "gates:\n"
+        "  - {sub_skill: dependency, verdict: pan_essential_killer, action: veto}\n"
+        "  - {sub_skill: safety, verdict: highly_constrained_safety_concern, action: hold}\n"
+    )
+    mapping, source = tp._load_gate_verdicts(contracts_repo=tmp_path)
+    assert source == "vocab"
+    assert mapping[("dependency", "pan_essential_killer")] == "veto"
+    assert mapping[("safety", "highly_constrained_safety_concern")] == "hold"
+
+
+def test_loader_falls_back_conservatively_on_missing_vocab(tmp_path):
+    """SAFETY: a missing vocab returns the hardcoded conservative set, NOT empty."""
+    mapping, source = tp._load_gate_verdicts(contracts_repo=tmp_path / "nonexistent")
+    assert source == "fallback"
+    assert mapping == tp._FALLBACK_GATE_VERDICTS
+    # the pan-essential veto MUST survive the fallback (never permissive)
+    assert mapping[("dependency", "pan_essential_killer")] == "veto"
+
+
+def test_loader_falls_back_on_malformed_vocab(tmp_path):
+    vocab_dir = tmp_path / "vocabularies"; vocab_dir.mkdir()
+    (vocab_dir / "nomination_verdict_gate.yaml").write_text("gates: []\n")  # empty → invalid
+    mapping, source = tp._load_gate_verdicts(contracts_repo=tmp_path)
+    assert source == "fallback"
+    assert ("dependency", "pan_essential_killer") in mapping
+
+
+def test_gate_uses_fallback_when_vocab_absent(tmp_path):
+    """End-to-end: with no vocab, the gate still vetoes a pan-essential killer."""
+    subs = _sub("dependency", "pan_essential_killer", "pan-essential-killer")
+    forced, hits = tp._gate_recommendation(subs, contracts_repo=tmp_path / "nope")
+    assert forced == "veto"
+    assert hits[0]["policy_source"] == "fallback"
+
+
 def test_clamp_semantics_on_wrapped_output():
     """Simulate the run.py clamp: a killer forces veto over an LLM 'nominate',
     preserving the wrapped {value, _source, ...} shape + marking _gated."""

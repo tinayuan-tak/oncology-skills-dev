@@ -169,16 +169,20 @@ def _run_sub_skills(target: str, indication: str) -> dict:
 # skill verdict strings — so the pattern is copied, not the code; sharing them is
 # the separate two-engine-unification effort).
 #
-# CURATED veto set (conservative, signed off 2026-07-16): only genuine CROSS-TARGET
-# vetoes force veto. Modality-scoped killers (surface neither_viable, degrader
-# expression killers) are deliberately EXCLUDED — they foreclose one modality, not
-# the target (KRAS hits surface/degrader killers yet is a correct `nominate` via
-# small molecule; see the KRAS×COADREAD golden). This set is hardcoded here for
-# now; a follow-up externalizes it to a target-contracts verdict-gate vocabulary
-# so the veto/hold policy is reviewable without code.
+# CURATED veto set (conservative): only genuine CROSS-TARGET vetoes force veto.
+# Modality-scoped killers (surface neither_viable, degrader expression killers)
+# are deliberately EXCLUDED — they foreclose one modality, not the target (KRAS
+# hits surface/degrader killers yet is a correct `nominate` via small molecule;
+# see the KRAS×COADREAD golden).
 #
-# (short_name, verdict_str) -> forced overall_recommendation
-_GATE_VERDICTS: dict[tuple[str, str], str] = {
+# The AUTHORITATIVE policy lives in target-contracts/vocabularies/
+# nomination_verdict_gate.yaml (reviewable by product owners without a code
+# change). This hardcoded set is the FALLBACK-OF-RECORD: if the vocab is
+# missing/unparseable, _load_gate_verdicts() returns this and warns. The gate
+# must NEVER become permissive on a missing policy file — a silently-disabled
+# pan-essential veto would be a safety regression — so the fallback is
+# conservative-and-complete, and the vocab can only match-or-tighten it.
+_FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
     ("dependency", "pan_essential_killer"): "veto",   # non-selective essentiality — no window
     ("dependency", "non_dependent"): "veto",          # no dependency at all
     ("safety", "highly_constrained_safety_concern"): "hold",  # concern → hold, not veto
@@ -186,25 +190,59 @@ _GATE_VERDICTS: dict[tuple[str, str], str] = {
 # Precedence when multiple gates fire: veto dominates hold.
 _GATE_ACTION_RANK = {"veto": 2, "hold": 1}
 
+_CONTRACTS_REPO = Path(
+    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+)
 
-def _gate_recommendation(sub_results: dict) -> tuple[Optional[str], list[dict]]:
+
+def _load_gate_verdicts(contracts_repo: Path | None = None) -> tuple[dict[tuple[str, str], str], str]:
+    """Load the (sub_skill, verdict) → action policy from the target-contracts
+    vocabulary. Returns (mapping, source) where source ∈ {"vocab", "fallback"}.
+
+    SAFETY CONTRACT: on ANY failure (file missing, parse error, malformed) this
+    returns the conservative hardcoded _FALLBACK_GATE_VERDICTS + "fallback" and
+    warns — it must never return an empty/permissive map, which would silently
+    disable the veto.
+    """
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        gates = data["gates"]
+        mapping = {(g["sub_skill"], g["verdict"]): g["action"] for g in gates}
+        if not mapping:
+            raise ValueError("empty gates list")
+        return mapping, "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → safe conservative fallback
+        print(f"[target-profile] WARN: could not load nomination_verdict_gate vocab "
+              f"({type(e).__name__}: {e}); using hardcoded conservative fallback.",
+              file=sys.stderr)
+        return dict(_FALLBACK_GATE_VERDICTS), "fallback"
+
+
+def _gate_recommendation(
+    sub_results: dict, contracts_repo: Path | None = None
+) -> tuple[Optional[str], list[dict]]:
     """Deterministically derive a forced overall_recommendation from sub-verdicts.
 
     Returns (forced_action | None, hits) where hits is the list of
     {short, verdict, action, driving_rule_id} that triggered — for provenance.
     None means no gate fired (the LLM's choice stands). When multiple gates fire,
-    the highest-rank action wins (veto > hold).
+    the highest-rank action wins (veto > hold). The policy comes from the
+    target-contracts vocab (conservative hardcoded fallback on load failure).
     """
+    gate_verdicts, policy_source = _load_gate_verdicts(contracts_repo)
     hits: list[dict] = []
     for short, r in sub_results.items():
         v = r.get("verdict")
         if not v:
             continue
         verdict_str, driving_rule_id = v[0], (v[1] if len(v) > 1 else None)
-        action = _GATE_VERDICTS.get((short, verdict_str))
+        action = gate_verdicts.get((short, verdict_str))
         if action:
             hits.append({"short": short, "verdict": verdict_str,
-                         "action": action, "driving_rule_id": driving_rule_id})
+                         "action": action, "driving_rule_id": driving_rule_id,
+                         "policy_source": policy_source})
     if not hits:
         return None, []
     forced = max((h["action"] for h in hits), key=lambda a: _GATE_ACTION_RANK[a])
