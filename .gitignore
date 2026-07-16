@@ -29,3 +29,7 @@ __pycache__/
 !.claude/config
 !.claude/hooks/
 .claude/branch-scope
+
+# Subgroup coverage matrices are generated from emitted products (session cache);
+# they become CI-lockable only once products are published to S3 (Phase 2b/c).
+coverage/*.coverage.yaml
