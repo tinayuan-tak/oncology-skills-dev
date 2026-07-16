@@ -46,6 +46,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from methods.subgroup_common.manifest import emit_assignment_manifest
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -215,47 +217,11 @@ def _run_single_gene_threshold(expression_df: pd.DataFrame, config: dict) -> pd.
 
 # ---------- Output emission ------------------------------------------------
 
-def _md5sum(path: Path) -> str:
-    h = hashlib.md5()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _emit_manifest(out_dir: Path, catalog: dict, classifier_config: dict,
-                   data_source: str, release_pin: str, strata_ids: list[str],
-                   n_samples: int, n_rows: int, parquet_md5: str) -> None:
-    manifest = {
-        "manifest_kind": "subgroup_assignment",
-        "schema_version": 1,
-        "id": (f"{data_source}-subgroup-assignments-{catalog['indication'].lower()}"
-               f"-classifier-{release_pin.lower()}"),
-        "indication": catalog["indication"],
-        "data_source": data_source,
-        "release_pin": release_pin,
-        "subgroup_catalog_ref": {
-            "id": catalog["id"],
-            "version": catalog["version"],
-        },
-        "classifier_config_ref": {
-            "id": classifier_config.get("id"),
-            "classifier_method": classifier_config["classifier_method"],
-        },
-        "assigner_method": {
-            "name": "subgroup_assigner_classifier",
-            "version": METHOD_VERSION,
-        },
-        "assignments_parquet": {
-            "path": "assignments.parquet",
-            "md5": parquet_md5,
-            "n_samples": n_samples,
-            "n_rows": n_rows,
-        },
-        "strata_evaluated": strata_ids,
-        "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }
-    (out_dir / "manifest.yaml").write_text(yaml.safe_dump(manifest, sort_keys=False))
+# The schema-valid subgroup_assignment_product manifest is emitted via the
+# shared subgroup_common.manifest.emit_assignment_manifest (variant="classifier").
+# NB: the classifier-config lineage is intentionally NOT stamped on the manifest
+# — subgroup_assignment.schema.json has unevaluatedProperties:false and no
+# classifier_config_ref field; config provenance belongs in input_manifest_ids.
 
 
 # ---------- CLI ------------------------------------------------------------
@@ -363,13 +329,12 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
     assignments.to_parquet(parquet_path, index=False)
     click.echo(f"  wrote {parquet_path} ({len(assignments):,} rows)")
 
-    _emit_manifest(
-        out_dir=out, catalog=catalog, classifier_config=config,
+    emit_assignment_manifest(
+        out_dir=out, catalog=catalog, catalog_path=subgroup_catalog,
         data_source=data_source, release_pin=release_pin,
-        strata_ids=sorted(applicable_ids),
-        n_samples=int(assignments["sample_id"].nunique()),
-        n_rows=len(assignments),
-        parquet_md5=_md5sum(parquet_path),
+        assignments=assignments,
+        assigner_method="subgroup_assigner_classifier",
+        variant="classifier",
     )
     click.echo(f"  wrote {out / 'manifest.yaml'}")
     return 0

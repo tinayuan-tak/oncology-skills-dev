@@ -167,10 +167,14 @@ def test_real_execution_synthetic_tcga_maf(tmp_path):
     assert (braf["is_member"] == True).sum() == 1
     assert (braf["is_member"] == False).sum() == 7  # 8 samples in cohort, 1 hit
 
-    # Manifest shape
+    # Manifest is the schema-valid subgroup_assignment_product shape (variant=maf)
     manifest = yaml.safe_load(manifest_path.read_text())
-    assert manifest["manifest_kind"] == "subgroup_assignment"
+    assert manifest["manifest_kind"] == "subgroup_assignment_product"
     assert manifest["indication"] == "COADREAD"
     assert manifest["data_source"] == "tcga"
-    assert "KRAS_G12C" in manifest["strata_evaluated"]
-    assert manifest["assignments_parquet"]["n_samples"] == 8
+    assert manifest["assignment_product_id"] == "subgroup-assignments-coadread-tcga-maf-2026-q2"
+    assert manifest["assigner_method"] == "subgroup_assigner_maf_filter"
+    strata = {s["subgroup_id"]: s for s in manifest["strata_summary"]}
+    assert "KRAS_G12C" in strata
+    assert manifest["n_samples_total"] == 8
+    assert len(manifest["subgroup_catalog_content_pin"]) == 64

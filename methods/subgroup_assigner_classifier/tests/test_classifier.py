@@ -136,9 +136,14 @@ def test_e2e_napy_synthetic_depmap(tmp_path):
     sclc_y = assignments[assignments["stratum_id"] == "SCLC_Y"]
     assert (sclc_y["is_member"] == True).sum() == 2
 
-    # Manifest shape
+    # Manifest is the schema-valid subgroup_assignment_product shape (variant=classifier)
     manifest = yaml.safe_load(manifest_path.read_text())
-    assert manifest["manifest_kind"] == "subgroup_assignment"
+    assert manifest["manifest_kind"] == "subgroup_assignment_product"
     assert manifest["indication"] == "SCLC"
-    assert manifest["classifier_config_ref"]["classifier_method"] == "napy_zscore_classifier"
-    assert set(manifest["strata_evaluated"]) >= {"SCLC_A", "SCLC_N", "SCLC_P", "SCLC_Y"}
+    # bare 'subgroup_assigner_classifier' maps to the schema enum '_classifier_run'
+    assert manifest["assigner_method"] == "subgroup_assigner_classifier_run"
+    # NB: classifier_config_ref is intentionally NOT on the manifest (schema has
+    # unevaluatedProperties:false + no such field). Config lineage → input_manifest_ids.
+    assert "classifier_config_ref" not in manifest
+    strata = {s["subgroup_id"] for s in manifest["strata_summary"]}
+    assert strata >= {"SCLC_A", "SCLC_N", "SCLC_P", "SCLC_Y"}

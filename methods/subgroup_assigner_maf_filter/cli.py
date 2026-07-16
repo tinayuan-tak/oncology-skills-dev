@@ -37,6 +37,8 @@ import click
 import pandas as pd
 import yaml
 
+from methods.subgroup_common.manifest import emit_assignment_manifest
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.2.0"  # Phase 2a.2 — first executable version
@@ -366,42 +368,10 @@ def _evaluate_stratum_maf(
 
 # ---------- Output emission ------------------------------------------------
 
-def _md5sum(path: Path) -> str:
-    h = hashlib.md5()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _emit_manifest(out_dir: Path, catalog: dict, data_source: str,
-                   release_pin: str, strata_ids: list[str],
-                   n_samples: int, n_rows: int, parquet_md5: str) -> None:
-    manifest = {
-        "manifest_kind": "subgroup_assignment",
-        "schema_version": 1,
-        "id": f"{data_source}-subgroup-assignments-{catalog['indication'].lower()}-maf-{release_pin.lower()}",
-        "indication": catalog["indication"],
-        "data_source": data_source,
-        "release_pin": release_pin,
-        "subgroup_catalog_ref": {
-            "id": catalog["id"],
-            "version": catalog["version"],
-        },
-        "assigner_method": {
-            "name": "subgroup_assigner_maf_filter",
-            "version": METHOD_VERSION,
-        },
-        "assignments_parquet": {
-            "path": "assignments.parquet",
-            "md5": parquet_md5,
-            "n_samples": n_samples,
-            "n_rows": n_rows,
-        },
-        "strata_evaluated": strata_ids,
-        "evaluated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }
-    (out_dir / "manifest.yaml").write_text(yaml.safe_dump(manifest, sort_keys=False))
+# The schema-valid subgroup_assignment_product manifest is emitted via the
+# shared subgroup_common.manifest.emit_assignment_manifest. The maf_filter
+# product uses variant="maf" so its product id doesn't collide with the
+# directly_tagged product on the same (source × indication).
 
 
 # ---------- CLI ------------------------------------------------------------
@@ -520,13 +490,12 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     assignments.to_parquet(parquet_path, index=False)
     click.echo(f"  wrote {parquet_path} ({len(assignments):,} rows)")
 
-    _emit_manifest(
-        out_dir=out, catalog=catalog, data_source=data_source,
-        release_pin=release_pin,
-        strata_ids=[s["id"] for s in applicable],
-        n_samples=int(assignments["sample_id"].nunique()),
-        n_rows=len(assignments),
-        parquet_md5=_md5sum(parquet_path),
+    emit_assignment_manifest(
+        out_dir=out, catalog=catalog, catalog_path=subgroup_catalog,
+        data_source=data_source, release_pin=release_pin,
+        assignments=assignments,
+        assigner_method="subgroup_assigner_maf_filter",
+        variant="maf",
     )
     click.echo(f"  wrote {out / 'manifest.yaml'}")
     return 0
