@@ -1,0 +1,79 @@
+# nomination_verdict_gate.yaml
+# Controlled policy: which sub-skill verdicts DETERMINISTICALLY force the
+# target-profile overall_recommendation, overriding the LLM's choice.
+#
+# Background: target-profile's overall_recommendation was historically 100%
+# LLM-chosen — a killer sub-verdict only appeared in the synthesis prompt as
+# text and never forced the call (the framework's own "Decision #5": is the
+# nomination LLM judgment we trust, or logic we can audit?). This file makes
+# the veto/hold policy AUDITABLE and reviewable by product owners without a
+# code change. The gate in
+# claude-oncology-skills/skills/target-profile/scripts/run.py loads it and
+# clamps overall_recommendation when a listed (sub_skill, verdict) fires.
+#
+# SAFETY-CRITICAL LOADER CONTRACT: the gate treats this file as an OVERRIDE of
+# a conservative hardcoded fallback, NOT as the sole source. If this file is
+# missing/unparseable the gate falls back to the hardcoded set and warns — it
+# must NEVER become permissive (a missing policy silently disabling a
+# pan-essential veto is a safety regression). Editing this file can only make
+# the gate as-conservative-or-more against the fallback.
+#
+# CURATION PRINCIPLE — only genuine CROSS-TARGET vetoes belong here. A verdict
+# that forecloses one MODALITY (e.g. surface neither_viable, degrader
+# expression killers) must NOT force a blanket veto: the target may still be
+# viable via another modality. KRAS×COADREAD is the canonical guard — it hits
+# surface + degrader killers yet is a correct `nominate` via small molecule.
+# Adding a modality-scoped killer here would regress that golden.
+
+enum_id: nomination_verdict_gate
+version: 1.0.0
+description: |
+  Deterministic (sub_skill, verdict) → forced overall_recommendation policy for
+  the target-profile nomination gate. Precedence when multiple fire: veto > hold.
+
+# Forced-action precedence (higher wins when multiple gates fire).
+action_precedence:
+  veto: 2
+  hold: 1
+
+gates:
+  - sub_skill: dependency               # functional-requirement sub-skill
+    verdict: pan_essential_killer
+    action: veto
+    rationale: |
+      Non-selective (pan-lineage) essentiality — inhibiting the target kills
+      normal cells as readily as tumor cells, so there is no therapeutic
+      window at ANY modality. A genuine cross-target veto.
+    driving_rule_ids: [pan-essential-killer, rnai-pan-essential-killer]
+
+  - sub_skill: dependency
+    verdict: non_dependent
+    action: veto
+    rationale: |
+      No dependency in the relevant lineage at all — the target is not required
+      for tumor-cell survival, so on-target inhibition has no efficacy basis.
+    driving_rule_ids: [non-dependent-killer]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill
+    verdict: highly_constrained_safety_concern
+    action: hold
+    rationale: |
+      A serious on-target safety liability (e.g. essential normal-tissue
+      expression). Treated as HOLD, not veto: a constrained window may still be
+      addressable in a specific subtype / with a selective modality / with a
+      narrow therapeutic index. Escalation to veto is a product decision, not a
+      default.
+    driving_rule_ids: [highly-constrained-safety-warning]
+
+# DELIBERATELY NOT GATED (documented so future edits don't "helpfully" add them):
+#   - surface_modality:neither_viable   → forecloses ADC/TCE only; SM may work
+#   - expression:broadly_low_expression → degrader-scoped killer; SM/other may work
+#   - expression:not_informative        → degrader-scoped killer
+# These are modality-scoped, not target-foreclosing. See the curation principle above.
+excluded_modality_scoped:
+  - sub_skill: surface_modality
+    verdict: neither_viable
+  - sub_skill: expression
+    verdict: broadly_low_expression
+  - sub_skill: expression
+    verdict: not_informative
