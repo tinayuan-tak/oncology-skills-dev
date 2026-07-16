@@ -198,8 +198,27 @@ if (length(adjacent_ids) >= min_n) {
   ids <- c(tumor_ids, adjacent_ids)
   cellA <- run_cell("A", counts[, ids], coldata[ids, ])
 
-  # cell B: same samples, ComBat on TCGA tissue-source-site (plate proxy)
-  cellB <- run_cell("B", counts[, ids], coldata[ids, ], combat_batch = "tcga_tss")
+  # cell B: same samples, ComBat on TCGA tissue-source-site (plate proxy).
+  #
+  # SKIP_CELL_B env-var gate (added 2026-07-16): ComBat_seq's inner
+  # sva:::match_quantiles is a doubly-nested pure-R loop over
+  # (n_genes x n_samples) per batch, and on cohorts with many small TSS
+  # batches (e.g. UCEC: 24 batches after singleton drop) it can grind for
+  # 20+ hours without terminating in reasonable time. Cell B is only the
+  # batch-correction robustness re-run of cell A; cells A + C carry the
+  # load-bearing biology (raw tumor-vs-adjacent + tumor-vs-GTEx). This
+  # env-var lets a targeted rerun skip cell B when it hits the perf
+  # pathology, producing a valid A+C sensitivity.parquet (same shape as
+  # HNSC's A/B-only or OV/SKCM's C-only products, which the downstream
+  # fusion code already handles). Follow-up: replace match_quantiles with
+  # a vectorized quantile-match, or collapse small TSS batches before
+  # ComBat-seq.
+  if (Sys.getenv("SKIP_CELL_B") == "1") {
+    message("[06_four_cell] cell B SKIPPED — SKIP_CELL_B=1 env-var set ",
+            "(match_quantiles perf cliff mitigation)")
+  } else {
+    cellB <- run_cell("B", counts[, ids], coldata[ids, ], combat_batch = "tcga_tss")
+  }
 } else {
   message("[06_four_cell] cells A/B SKIPPED — TCGA adjacent-normal < ", min_n)
 }
