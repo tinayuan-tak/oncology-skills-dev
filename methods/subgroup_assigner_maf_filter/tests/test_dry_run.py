@@ -6,6 +6,7 @@ test_rule_compiler_supported_forms: unit tests for the MAF-predicate compiler.
 test_real_execution_synthetic_tcga_maf: end-to-end with synthetic MAF.
 """
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -99,7 +100,10 @@ def test_rule_compiler_supported_forms():
 
 def test_real_execution_synthetic_tcga_maf(tmp_path):
     """End-to-end test with synthetic TCGA MAF placed at the loader's fallback location."""
-    cache = Path.home() / ".cache" / "framework-gdc-pancohort-somatic"
+    # Stage the fixture under a TMP cache root (FRAMEWORK_CACHE_ROOT), never the
+    # real ~/.cache — a subprocess writing the real path would clobber real data.
+    cache_root = tmp_path / ".cache"
+    cache = cache_root / "framework-gdc-pancohort-somatic"
     cache.mkdir(parents=True, exist_ok=True)
     maf_path = cache / "coadread-mc3.parquet"
 
@@ -143,6 +147,7 @@ def test_real_execution_synthetic_tcga_maf(tmp_path):
             "--out", str(out_dir),
         ],
         cwd=METHODS_REPO, capture_output=True, text=True,
+        env={**os.environ, "FRAMEWORK_CACHE_ROOT": str(cache_root)},
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}\nstdout:\n{result.stdout}"
 

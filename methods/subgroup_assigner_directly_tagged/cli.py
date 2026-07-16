@@ -37,6 +37,7 @@ import pandas as pd
 import yaml
 
 from methods.subgroup_common.manifest import emit_assignment_manifest
+from methods.subgroup_common.paths import cache_root
 
 
 METHOD_DIR = Path(__file__).resolve().parent
@@ -120,7 +121,7 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     """
     # Delegate to a lightweight local resolver that reads a session-cached
     # copy if present, otherwise returns None + prints a fetch instruction.
-    fallback = Path.home() / ".cache" / "framework-tcga-marker-paper" / indication.lower() / "subtypes.csv"
+    fallback = cache_root() / "framework-tcga-marker-paper" / indication.lower() / "subtypes.csv"
     if not fallback.exists():
         raise FileNotFoundError(
             f"TCGA marker-paper labels for {indication} not found at {fallback}. "
@@ -161,7 +162,7 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     # see manifests/sources/guinney-2015-crc-cms-consortium.yaml in data-catalog).
     if indication == "COADREAD":
         # --- Guinney 2015 CMS labels (cms_labels_public_all.txt) ---
-        cms_fallback = Path.home() / ".cache" / "framework-guinney-2015-crc-cms" / "cms_labels_public_all.txt"
+        cms_fallback = cache_root() / "framework-guinney-2015-crc-cms" / "cms_labels_public_all.txt"
         if cms_fallback.exists():
             cms_df = pd.read_csv(cms_fallback, sep="\t")
             tcga_cms = cms_df[cms_df["dataset"] == "tcga"][
@@ -182,7 +183,7 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
         # phenotype). Also carries msi/kras_mut/braf_mut for cross-validation
         # against marker-paper + MC3 (cross-validation opportunity — not yet
         # wired as strata since we already have those from the other sources).
-        clinical_fallback = Path.home() / ".cache" / "framework-guinney-2015-crc-cms" / "clinical_molecular_public_all.txt"
+        clinical_fallback = cache_root() / "framework-guinney-2015-crc-cms" / "clinical_molecular_public_all.txt"
         if clinical_fallback.exists():
             clin_df = pd.read_csv(clinical_fallback, sep="\t")
             tcga_clin = clin_df[clin_df["dataset"] == "tcga"][["sample", "cimp"]].rename(
@@ -214,7 +215,7 @@ def _load_genie_bpc_lot(catalog_repo: Path, indication: str) -> pd.DataFrame:
     Real derivation 2026-07-15: 1,176 CRC samples — 205 1L-only, 203 2L,
     768 3L+.
     """
-    fallback = (Path.home() / ".cache" / "framework-genie-bpc-crc-v2"
+    fallback = (cache_root() / "framework-genie-bpc-crc-v2"
                 / f"{indication.lower()}-bpc-lot.parquet")
     if fallback.exists():
         return pd.read_parquet(fallback)
@@ -266,8 +267,8 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
         # a Phase-2a.4 add. For now, try local-cache fallback.
     except ImportError:
         pass
-    fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "OmicsInferredMolecularSubtypes.csv"
-    model_fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "Model.csv"
+    fallback = cache_root() / "framework-depmap-26q1" / "OmicsInferredMolecularSubtypes.csv"
+    model_fallback = cache_root() / "framework-depmap-26q1" / "Model.csv"
     if not (fallback.exists() and model_fallback.exists()):
         raise FileNotFoundError(
             f"DepMap OmicsInferredMolecularSubtypes.csv + Model.csv not found at "

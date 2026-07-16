@@ -7,6 +7,7 @@ test_real_execution_synthetic_tcga: real (non-dry) execution against a
 test_rule_parser_supported_forms: unit-level tests of the CEL-subset parser.
 """
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -69,8 +70,12 @@ def test_real_execution_synthetic_tcga(tmp_path):
       - MSI_H stratum recovers the synthetic MSI-H patients
       - is_member=null rows correctly represent source-value missing
     """
-    # Fabricate a 10-row TCGA-marker-paper CSV in the loader's fallback path
-    cache = Path.home() / ".cache" / "framework-tcga-marker-paper" / "coadread"
+    # Fabricate a 10-row TCGA-marker-paper CSV under a TMP cache root
+    # (FRAMEWORK_CACHE_ROOT), never the real ~/.cache — a subprocess writing the
+    # real path would clobber real cached data (and, with no Guinney CMS files in
+    # the tmp root, the CMS outer-join self-skips, keeping the fixture hermetic).
+    cache_root = tmp_path / ".cache"
+    cache = cache_root / "framework-tcga-marker-paper" / "coadread"
     cache.mkdir(parents=True, exist_ok=True)
     csv_path = cache / "subtypes.csv"
 
@@ -96,6 +101,7 @@ def test_real_execution_synthetic_tcga(tmp_path):
             "--out", str(out_dir),
         ],
         cwd=METHODS_REPO, capture_output=True, text=True,
+        env={**os.environ, "FRAMEWORK_CACHE_ROOT": str(cache_root)},
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}\nstdout:\n{result.stdout}"
 
@@ -110,17 +116,13 @@ def test_real_execution_synthetic_tcga(tmp_path):
                      "derivation_value", "evaluated_at_release"}
     assert expected_cols.issubset(set(assignments.columns))
 
-    # Assert MSI_H stratum recovers the 2 synthetic MSI-H members. Scope to the
-    # fixture's own patient ids: the COADREAD catalog's CMS/CIMP strata outer-join
-    # the Guinney consortium file (landed 2026-07-15), which brings many
-    # non-synthetic samples into the frame under Guinney's own id column — the
-    # synthetic marker-paper ids survive under patient_id, so filter there.
-    synth_pids = {f"TCGA-XX-000{i}" for i in range(10)}
-    msi_h = assignments[
-        (assignments["stratum_id"] == "MSI_H") & (assignments["patient_id"].isin(synth_pids))
-    ]
-    # 2 MSI-H members among the synthetic samples that carry an MSI_status value.
+    # MSI_H tri-value on the synthetic fixture (hermetic: no Guinney CMS join in
+    # the tmp cache root, so counts are exactly the 10-row fixture). 2 MSI-H, 6
+    # MSS non-members, 2 null-MSI_status insufficient.
+    msi_h = assignments[assignments["stratum_id"] == "MSI_H"]
     assert (msi_h["is_member"] == True).sum() == 2
+    assert (msi_h["is_member"] == False).sum() == 6
+    assert msi_h["is_member"].isna().sum() == 2
 
     # Manifest is the schema-valid subgroup_assignment_product shape.
     manifest = yaml.safe_load(manifest_path.read_text())
@@ -128,13 +130,10 @@ def test_real_execution_synthetic_tcga(tmp_path):
     assert manifest["indication"] == "COADREAD"
     assert manifest["data_source"] == "tcga"
     assert manifest["assignment_product_id"] == "subgroup-assignments-coadread-tcga-2026-q2"
-    # strata_summary carries per-stratum counts (replaces the old strata_evaluated
-    # id-list). We assert on presence + shape rather than exact counts, since the
-    # CMS/CIMP strata outer-join the Guinney file (counts are data-dependent).
+    # strata_summary carries per-stratum member counts — exact on the hermetic fixture.
     strata = {s["subgroup_id"]: s for s in manifest["strata_summary"]}
-    assert "MSI_H" in strata and "MSS" in strata
-    assert all(isinstance(s["n_samples"], int) for s in manifest["strata_summary"])
-    assert isinstance(manifest["n_samples_total"], int) and manifest["n_samples_total"] >= 10
+    assert strata["MSI_H"]["n_samples"] == 2
+    assert manifest["n_samples_total"] == 10
     # content-pin (sha256) + provenance present
     assert len(manifest["subgroup_catalog_content_pin"]) == 64
     assert manifest["generated_by"].startswith("methods/subgroup_assigner_directly_tagged@")

@@ -47,6 +47,7 @@ import pandas as pd
 import yaml
 
 from methods.subgroup_common.manifest import emit_assignment_manifest
+from methods.subgroup_common.paths import cache_root
 
 
 METHOD_DIR = Path(__file__).resolve().parent
@@ -106,7 +107,7 @@ def _load_depmap_expression(gene_symbols: list[str]) -> pd.DataFrame:
 
     Iter-1 cache-fallback protocol; Phase 2a.4 provides canonical S3 fetch.
     """
-    fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
+    fallback = cache_root() / "framework-depmap-26q1" / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     if not fallback.exists():
         raise FileNotFoundError(
             f"DepMap expression matrix not found at {fallback}. "
@@ -126,7 +127,7 @@ def _load_tcga_expression(gene_symbols: list[str], indication: str) -> pd.DataFr
 
     Same cache-fallback pattern; Phase 2a.4 canonical loader.
     """
-    fallback = Path.home() / ".cache" / "framework-tcga-recount3" / f"{indication.lower()}-expression.parquet"
+    fallback = cache_root() / "framework-tcga-recount3" / f"{indication.lower()}-expression.parquet"
     if not fallback.exists():
         raise FileNotFoundError(
             f"TCGA expression matrix for {indication} not found at {fallback}. "

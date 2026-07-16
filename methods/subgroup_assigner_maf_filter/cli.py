@@ -38,6 +38,7 @@ import pandas as pd
 import yaml
 
 from methods.subgroup_common.manifest import emit_assignment_manifest
+from methods.subgroup_common.paths import cache_root
 
 
 METHOD_DIR = Path(__file__).resolve().parent
@@ -218,7 +219,7 @@ def _load_tcga_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     Iter-1b: reads from cache fallback pending Phase 2a.4's canonical loader.
     Expected canonical source: s3://onc-compbio/data-catalog/sources/gdc-pancohort-somatic/dr45-0/
     """
-    fallback = Path.home() / ".cache" / "framework-gdc-pancohort-somatic" / f"{indication.lower()}-mc3.parquet"
+    fallback = cache_root() / "framework-gdc-pancohort-somatic" / f"{indication.lower()}-mc3.parquet"
     if fallback.exists():
         return pd.read_parquet(fallback)
     csv_fallback = fallback.with_suffix(".csv")
@@ -253,7 +254,7 @@ def _load_genie_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     genie-public-v19-0/data_mutations_extended.txt (1.12 GB) filtered via
     data_clinical_sample.txt to the target indication's CANCER_TYPE.
     """
-    fallback = Path.home() / ".cache" / "framework-genie-public-v19" / f"{indication.lower()}-genie-maf.parquet"
+    fallback = cache_root() / "framework-genie-public-v19" / f"{indication.lower()}-genie-maf.parquet"
     if fallback.exists():
         return pd.read_parquet(fallback)
     raise FileNotFoundError(
@@ -281,12 +282,12 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
     """
     # Prefer prefetched, lineage-filtered, column-normalized parquet
     if indication:
-        prefetched = (Path.home() / ".cache" / "framework-depmap-26q1"
+        prefetched = (cache_root() / "framework-depmap-26q1"
                       / f"{indication.lower()}-depmap-maf.parquet")
         if prefetched.exists():
             return pd.read_parquet(prefetched)
 
-    fallback = Path.home() / ".cache" / "framework-depmap-26q1" / "OmicsSomaticMutations.csv"
+    fallback = cache_root() / "framework-depmap-26q1" / "OmicsSomaticMutations.csv"
     if fallback.exists():
         df = pd.read_csv(fallback)
         # Raw CSV needs column normalization (prefetch parquet already has it)
