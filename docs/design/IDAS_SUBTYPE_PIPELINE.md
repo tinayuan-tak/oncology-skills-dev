@@ -98,6 +98,40 @@ Layer 2: Subtype resolver derived product
         +
   data-catalog/manifests/derived/{source}-subgroup-assignments-{ind}-v1
   yielding subgroup_assignments.parquet per (source × indication)
+
+  ── Two identifiers, two roles (do NOT unify — they group differently) ──
+  A subgroup-assignment product carries TWO ids with distinct leading-token
+  conventions. This is intentional; they are optimized for different groupings
+  and the schema pins them to differ:
+
+  1. manifest_id  — the CATALOG + LOADER handle.
+       Form: {source}-subgroup-assignments-{ind}-v1
+       e.g.  tcga-subgroup-assignments-coadread-v1
+       This is the data-catalog derived-manifest filename + `id:`, what
+       subgroup_common.load_assignments(manifest_id) requests, and the target
+       of upstream-source cited_by back-refs. STABLE across quarterly re-emits
+       (leads with {source} → a source's products group together; the `-v1`
+       is a catalog-schema handle version, NOT the data release). Consumers
+       reference this and keep working when the underlying data is re-emitted.
+
+  2. assignment_product_id — the release-pinned CONTENT identity.
+       Form: subgroup-assignments-{ind}-{source}[-{variant}]-{release_pin}
+       e.g.  subgroup-assignments-coadread-tcga-2026-q2
+             subgroup-assignments-coadread-tcga-maf-2026-q2   (variant=maf)
+       Lives INSIDE the S3 sibling manifest.yaml (subgroup_assignment_product
+       schema). Schema-pinned to `^subgroup-assignments-[a-z][a-z0-9-]+$`
+       (leads with the literal `subgroup-assignments-` → ALL products group
+       together in a listing) + encodes the release_pin (content-versioned).
+
+  Why not unify: the schema pattern forbids reordering assignment_product_id to
+  the manifest_id's {source}-first order; and collapsing to one would force
+  either losing the stable-handle property (if pinned) or the schema pattern
+  (if unpinned). They map deterministically: given manifest_id
+  `{src}-subgroup-assignments-{ind}-v1` + a release_pin, the product_id is
+  `subgroup-assignments-{ind}-{src}[-{variant}]-{pin}`. The emit helper
+  (analysis-methods subgroup_common/manifest.py) derives the product_id; the
+  data-catalog derived manifest records BOTH (id: = handle, parameters.
+  assignment_product_id = content identity) as the crosswalk.
         │
         │  Phase 2: assigner methods land; parquets emit
         ▼
