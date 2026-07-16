@@ -250,9 +250,22 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
 
     import yaml
     manifest = yaml.safe_load(manifest_path.read_text())
-    raise FileNotFoundError(
-        f"Assignments parquet not in session cache for {manifest_id} "
-        f"(expected {parquet_local}); derived manifest exists but S3 fetch is "
-        f"not yet wired (Phase 2b/c). Manifest s3_uri: "
-        f"{manifest.get('s3_uri', '<manifest.s3_uri missing>')}."
-    )
+    s3_uri = manifest.get("s3_uri")
+    if not s3_uri:
+        raise FileNotFoundError(
+            f"Assignments for {manifest_id} not in session cache ({parquet_local}) "
+            f"and its derived manifest declares no s3_uri to fetch from."
+        )
+    # S3 fetch → session cache → read. First fetch of a published product pays
+    # the download; subsequent reads hit the local cache (+ the lru_cache above).
+    parquet_local.parent.mkdir(parents=True, exist_ok=True)
+    _log(f"[subgroup_common] fetching assignments for {manifest_id} from {s3_uri}")
+    import subprocess
+    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(parquet_local), "--no-progress"],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not parquet_local.exists():
+        raise FileNotFoundError(
+            f"S3 fetch of {manifest_id} failed ({s3_uri}): {r.stderr.strip()[:200]}. "
+            f"Check AWS_PROFILE (needs onc-compbio GetObject) + that the product is published."
+        )
+    return pd.read_parquet(parquet_local)

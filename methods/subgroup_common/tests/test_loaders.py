@@ -109,6 +109,65 @@ def test_assignments_load_synthetic(tmp_path, monkeypatch):
     assert set(got["stratum_id"]) == {"MSI_H", "MSS"}
 
 
+def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
+    """On cache miss + a manifest with s3_uri, load_assignments fetches from S3
+    (aws s3 cp) into the session cache, then reads. Mocks subprocess so no network."""
+    import subprocess
+    monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
+
+    fake_catalog = tmp_path / "data-catalog"
+    manifest_dir = fake_catalog / "manifests" / "derived"
+    manifest_dir.mkdir(parents=True)
+    (manifest_dir / "depmap-subgroup-assignments-coadread-v1.yaml").write_text(
+        "id: depmap-subgroup-assignments-coadread-v1\n"
+        "type: derived\n"
+        "s3_uri: s3://onc-compbio/data-catalog/derived/subgroup-assignments/"
+        "COADREAD/depmap/2026-Q2/assignments.parquet\n"
+    )
+    # NB: no local cache entry → forces the S3-fetch branch.
+
+    df = pd.DataFrame({"sample_id": ["ACH-1", "ACH-2"], "stratum_id": ["MSI_H", "MSS"],
+                       "is_member": [True, True]})
+
+    def _fake_aws_cp(cmd, capture_output, text):
+        # cmd = ["aws","s3","cp", s3_uri, dest, "--no-progress"]
+        assert cmd[:3] == ["aws", "s3", "cp"]
+        assert cmd[3].startswith("s3://onc-compbio/")
+        dest = Path(cmd[4])
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(dest, index=False)  # simulate the download
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("subprocess.run", _fake_aws_cp)
+
+    loaders.load_assignments.cache_clear()
+    got = loaders.load_assignments("depmap-subgroup-assignments-coadread-v1",
+                                   data_catalog_repo=fake_catalog)
+    assert len(got) == 2
+    assert set(got["stratum_id"]) == {"MSI_H", "MSS"}
+    # the fetch wrote into the session cache (so a repeat read is local)
+    assert (loaders.CACHE_ASSIGNMENTS / "depmap-subgroup-assignments-coadread-v1"
+            / "assignments.parquet").exists()
+
+
+def test_assignments_s3_fetch_failure_raises(tmp_path, monkeypatch):
+    """A failed aws cp raises a clear FileNotFoundError (not a silent empty result)."""
+    import subprocess
+    monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
+    fake_catalog = tmp_path / "data-catalog"
+    md = fake_catalog / "manifests" / "derived"; md.mkdir(parents=True)
+    (md / "x-v1.yaml").write_text("id: x-v1\ntype: derived\ns3_uri: s3://onc-compbio/x.parquet\n")
+
+    def _fail(cmd, capture_output, text):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="AccessDenied")
+    monkeypatch.setattr("subprocess.run", _fail)
+
+    loaders.load_assignments.cache_clear()
+    import pytest
+    with pytest.raises(FileNotFoundError, match="S3 fetch"):
+        loaders.load_assignments("x-v1", data_catalog_repo=fake_catalog)
+
+
 def test_lru_cache_amortization(tmp_path, monkeypatch):
     """Path-B I/O check — repeat calls to load_assignments hit the lru_cache."""
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
