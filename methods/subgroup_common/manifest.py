@@ -148,7 +148,13 @@ def emit_assignment_manifest(
     parts.append(release_pin.lower())
     product_id = "-".join(parts)
 
-    s3_uri = f"{S3_BASE}/{catalog['indication']}/{data_source}/{release_pin}/{parquet_filename}"
+    # S3 path MUST carry the variant when present — two products can share a
+    # data_source (tcga directly_tagged + tcga maf_filter) but are distinct
+    # products; without the variant segment they collide at the same S3 key and
+    # overwrite each other. Layout: {IND}/{data_source}[/{variant}]/{pin}/file.
+    _variant_seg = f"{variant}/" if variant else ""
+    s3_uri = (f"{S3_BASE}/{catalog['indication']}/{data_source}/"
+              f"{_variant_seg}{release_pin}/{parquet_filename}")
 
     manifest = {
         "manifest_kind": "subgroup_assignment_product",

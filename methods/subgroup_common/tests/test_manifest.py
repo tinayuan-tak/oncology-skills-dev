@@ -98,6 +98,29 @@ def test_variant_disambiguates_product_id(tmp_path):
     )
     m = yaml.safe_load(mpath.read_text())
     assert m["assignment_product_id"] == "subgroup-assignments-coadread-tcga-maf-2026-q2"
+    # the variant MUST also appear in the S3 path — otherwise the maf product
+    # collides with the directly_tagged product at the same tcga key.
+    assert "/tcga/maf/2026-Q2/" in m["parquet_s3_uri"]
+
+
+def test_same_source_variants_do_not_collide_on_s3(tmp_path):
+    """Two products sharing data_source (tcga directly_tagged + tcga maf) must
+    land at DISTINCT S3 keys — the collision that would overwrite one on publish."""
+    cat, cat_path = _catalog(tmp_path)
+    out1 = tmp_path / "dt"; out1.mkdir()
+    out2 = tmp_path / "maf"; out2.mkdir()
+    dt = yaml.safe_load(M.emit_assignment_manifest(
+        out_dir=out1, catalog=cat, catalog_path=cat_path, data_source="tcga",
+        release_pin="2026-Q2", assignments=_assignments(),
+        assigner_method="subgroup_assigner_directly_tagged").read_text())
+    maf = yaml.safe_load(M.emit_assignment_manifest(
+        out_dir=out2, catalog=cat, catalog_path=cat_path, data_source="tcga",
+        release_pin="2026-Q2", assignments=_assignments(),
+        assigner_method="subgroup_assigner_maf_filter", variant="maf").read_text())
+    assert dt["parquet_s3_uri"] != maf["parquet_s3_uri"]
+    # directly_tagged (no variant) stays at the base source path
+    assert "/tcga/2026-Q2/" in dt["parquet_s3_uri"]
+    assert "/tcga/maf/2026-Q2/" in maf["parquet_s3_uri"]
 
 
 def test_classifier_method_enum_mapping(tmp_path):
