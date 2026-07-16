@@ -80,11 +80,38 @@ Then a ~15-line `build_{substrate}_panorama` = a `build_panorama` call with a
 projection dict + a named reducer.
 
 ### Validated CRC biology (real data, descriptive)
-- Mutation frequency: right-sided KRAS 49% vs left 33%; MSI-H 29% < MSS 40%;
-  G12C rare (≤6%). Flat across line-of-therapy (45/45/45 — a trusted negative).
-- Dependency (Chronos, Bowel): MSS median −1.22 (strong, measured) vs MSI-H −0.69
-  (moderate, underpowered n=17). Two substrates agree: MSS is where KRAS both
-  mutates more AND is a stronger dependency.
+
+**Admissibility rule:** underpowered strata (below `SUBGROUP_N_FLOOR=30`) are
+INADMISSIBLE in comparative prose. They appear in per-stratum panorama tables
+tagged `underpowered`, but the narrator cannot compare them to admissible strata.
+Comparisons here run only within measured strata (n≥30) or against floor-cleared
+whole-cohort baselines. This is what prevents the panorama's descriptive
+findings from producing quantitative claims on unknown data.
+
+- **Mutation frequency (admissible strata only):** Right-sided KRAS 49% (n=80)
+  vs left-sided 33% (n=119) — the literature-consistent sidedness gradient. MSS
+  40% (n=151) slightly above the pan-COAD baseline of 37.5% (n=208). G12C rare
+  within MSS at 4% — a framing insight versus its NSCLC prominence rather than
+  a verdict-modifier. Flat across line-of-therapy in GENIE-BPC (45/45/45 for
+  LOT_1L_only/LOT_2L/LOT_3Lplus, all measured n≥198) — a trusted negative:
+  KRAS-mut prevalence does not enrich in later-line CRC.
+- **Dependency (Chronos, Bowel, admissible strata only):** MSS median −1.22
+  (n=71, measured) — stronger than the whole-cohort Bowel call of −0.94 (n=88,
+  measured). The MSS-scoped dependency is the load-bearing subtype-scoped
+  signal; whole-cohort Bowel alone would rate KRAS "moderate" and miss the
+  subtype divergence.
+- **INADMISSIBLE and not compared:** MSI-H mutation frequency (n=24 < 30) and
+  MSI-H dependency (n=17 < 30). These strata appear in the per-stratum panorama
+  tables tagged `underpowered`, but no comparative claim can be made. MSI-H is
+  UNKNOWN for these axes, not a confirmed negative. Larger MSI-H-specific
+  cohorts are the prerequisite for evaluating KRAS's MSI-H story.
+
+Two substrates AGREE on the admissible finding: MSS carries slightly higher
+KRAS mutation prevalence (40% vs 37.5% pan-COAD) AND materially stronger
+dependency (−1.22 vs −0.94 whole-cohort Bowel). This convergence is a
+subtype-scoped divergence from the whole-cohort call — not a claim that MSS
+"beats" MSI-H (which we cannot say from underpowered data) — worth surfacing
+to human review.
 
 ## Per-indication recipe (to extend beyond CRC)
 1. Author/extend the subgroup catalog (`subgroup-catalogs/{IND}/{quarter}.yaml`).
