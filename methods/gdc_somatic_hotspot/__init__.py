@@ -12,6 +12,16 @@ this is compute-only — no orchestration logic.
 
 __version__ = "0.1.0"
 
-from .read import read_hotspot_summary
+from .read import (
+    read_hotspot_summary,
+    read_stratified_mutation_frequency,
+    build_mutation_frequency_panorama,
+)
 
-__all__ = ["read_hotspot_summary"]
+__all__ = [
+    "read_hotspot_summary",
+    # Subgroup-panorama surface (descriptive): re-exported so the skills
+    # dispatcher can reach the builder via _import_method("gdc_somatic_hotspot").
+    "read_stratified_mutation_frequency",
+    "build_mutation_frequency_panorama",
+]
