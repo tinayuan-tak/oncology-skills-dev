@@ -1,5 +1,9 @@
 # Design docs — per-card + per-skill technical reference
 
+**New here? Start with [`FRAMEWORK_OVERVIEW.md`](FRAMEWORK_OVERVIEW.md)** — the
+data→skills orientation map (four repos, the two synthesis engines, the guard
+rails, what's wired vs. deferred). Then drop into the per-card/per-skill docs below.
+
 Concise-but-detailed technical design docs for the target-evaluation framework, at two layers:
 
 - **`cards/`** — one doc per evidence card (the atom): data source → method → emitted categorical → plots → interpretation rules → caveats. This is where the detail lives.
