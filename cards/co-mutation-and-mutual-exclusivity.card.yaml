@@ -22,6 +22,23 @@ card_id: co-mutation-and-mutual-exclusivity
 version: 1.0.0
 question: "Which genes co-occur with or are mutually exclusive to {target.symbol} mutations across TCGA MC3 + GENIE 19.0-public?"
 
+# tier intentionally unset: this card is pan-cohort (TCGA MC3 + GENIE, no single
+# indication), so neither `target` (would forbid its subtype-eligibility) nor
+# `indication` fits cleanly. The subgroup_stratification block below carries the
+# subtype-eligibility signal without over-claiming a tier.
+
+# BLOCKED (2026-07-16): co-mutation structure genuinely varies by molecular
+# subgroup (e.g. BRAF co-mutation differs MSI-H vs MSS; filter 1 met), but the
+# bound `cooccurrence-fisher-pancohort` product ships pan-cohort Fisher pairs
+# aggregated at emit time — no per-sample mutation rows to re-run Fisher within a
+# stratum member-set (filter 2 FAILS). Tagged not-live; no per-subgroup panorama
+# field until a per-sample co-occurrence reader ships.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Co-mutation patterns vary by subgroup but pancohort-cooccurrence-fisher-v1 is an emit-time aggregate; needs per-sample mutation rows to recompute Fisher per stratum."
+
 applies_when:
   - "context.data_sources.tcga_mc3_available == true"
 

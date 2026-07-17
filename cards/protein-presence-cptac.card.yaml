@@ -15,6 +15,17 @@ card_id: protein-presence-cptac
 version: 1.0.0
 question: "Is {target.symbol} present at the protein level in {indication.label} tumors vs matched normals per CPTAC?"
 
+tier: indication   # indication-scoped CPTAC protein presence; subtype-eligible once a per-sample protein reader ships
+
+# BLOCKED (2026-07-16): protein presence varies by molecular subgroup (filter 1
+# met), but cptac-protein-deg emits a whole-cohort tumor-vs-normal aggregate
+# (filter 2 FAILS). Tagged not-live pending a per-sample CPTAC protein reader.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Protein presence varies by subgroup but cptac-protein-deg is a whole-cohort aggregate; needs a per-sample protein reader to recompute per stratum."
+
 applies_when:
   - "context.indication in ['BRCA', 'CCRCC', 'COAD', 'GBM', 'HNSCC', 'LSCC', 'LUAD', 'OV', 'PDAC', 'UCEC']"
 

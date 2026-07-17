@@ -25,6 +25,8 @@ card_id: surfaceome-family-classification
 version: 1.0.0
 question: "Is {target.symbol} a surface protein, and what family does it belong to (for modality-fit reasoning)?"
 
+tier: target   # scope-invariant: surface-protein family membership is a property of the protein, not of any tumor subgroup. Never stratifies.
+
 applies_when: []
 
 required_inputs:

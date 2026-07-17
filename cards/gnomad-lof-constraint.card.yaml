@@ -19,6 +19,8 @@ card_id: gnomad-lof-constraint
 version: 1.0.0
 question: "How constrained is {target.symbol} against loss-of-function variants in the gnomAD population, and what does this imply for on-target safety?"
 
+tier: target   # scope-invariant: population LoF constraint is a property of the human gene, not of any tumor subgroup. Never stratifies.
+
 applies_when: []
 
 required_inputs:

@@ -4,8 +4,22 @@
 # not sample-level lineage. See plan Tier-3 honest-limitation discussion (post-adversarial-review T3.1).
 
 card_id: rwd-stratified-expression
-version: 1.0.0
+version: 1.1.0
 question: "How does {target.symbol} expression vary across treatment-line strata in real-world {indication.label} RWD?"
+
+tier: subtype
+
+# BLOCKED (2026-07-16): treatment-line biology genuinely varies (filter 1 met),
+# but Tempus RWD is PRE-AGGREGATED upstream — the card's own honesty note (below)
+# says the `pinned` mode pins "an opaque CSV column, not sample-level lineage."
+# With no per-sample substrate the framework cannot recompute a metric within each
+# stratum's member-set (filter 2 FAILS). Tagged not-live; the `per_stratum_metrics`
+# record field is dropped until a per-sample RWD reader exists. Grain-check enforced.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [line_of_therapy, ras_mutation_status]
+  rationale: "Tempus RWD is pre-aggregated upstream (opaque CSV columns, no sample-level rows); cannot recompute per-stratum. Needs a per-sample RWD substrate."
 
 applies_when:
   - "indication.has_pre_aggregated_rwd == true"
@@ -25,8 +39,11 @@ methods:
       strata: "all_available"
 
 outputs:
+  # `per_stratum_metrics` DROPPED 2026-07-16 — card blocked (see
+  # subgroup_stratification above): Tempus RWD is pre-aggregated, no per-sample
+  # substrate to recompute per-stratum. Reducer scalars describe intended output
+  # once a per-sample RWD reader ships.
   summary_fields:
-    - per_stratum_metrics
     - n_strata_with_data
     - max_stratum_size
     - min_stratum_size

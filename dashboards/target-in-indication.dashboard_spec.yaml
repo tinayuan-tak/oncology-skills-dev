@@ -39,6 +39,17 @@ optional_cards:
   - card_id: subgroup-stratified-expression
     version: ">=1.0.0,<2"
     when: "subgroup_spec != null"
+  # Subgroup-panorama LIVE cards (2026-07-16). Descriptive per-subgroup enumeration
+  # of {target}'s mutation frequency + dependency across the resolved molecular
+  # subgroups. Composed only when a subgroup scope is requested. Backed by per-sample
+  # panorama builders (gdc-somatic-hotspot / depmap-chronos); see the cards' own
+  # subgroup_stratification: {status: live} block + the grain-check that gates them.
+  - card_id: subgroup-stratified-mutation-frequency
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+  - card_id: subgroup-stratified-dependency
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
 
 synthesis_prompts:
   - section: headline

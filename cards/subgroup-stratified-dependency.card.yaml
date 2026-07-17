@@ -1,0 +1,96 @@
+# Subgroup-panorama card (2026-07-16) — LIVE, descriptive-only.
+#
+# Enumerates {target}'s CRISPR (Chronos) dependency ACROSS the molecular subgroups
+# of one indication (e.g. MSI/MSS), using the DepMap ModelID side of the subgroup
+# assignments. DESCRIPTIVE subgroup panorama: shows every stratum row (positive
+# AND negative), emits NO verdict signal.
+#
+# DISTINCT from `dependency-lineage-selectivity` (tier: target, pan-cancer — how
+# dependency stratifies across DepMap LINEAGES) and from `mutation-stratified-
+# dependency` (target's OWN mutation status). This card stratifies by MOLECULAR
+# SUBGROUP within one indication — a different axis, requiring the per-indication
+# DepMap-side assignments shard.
+#
+# Backed by a PER-SAMPLE (per-ModelID) stratified reader (filter 2 met):
+#   methods/depmap_chronos/read.py :: build_dependency_panorama
+#   (fans read_stratified_dependency across strata via @subgroup_iterable;
+#    recomputes median Chronos WITHIN each stratum's cell-line member-set).
+# Related: [[subgroup-stratified-mutation-frequency]], [[dependency-lineage-selectivity]].
+
+card_id: subgroup-stratified-dependency
+version: 1.0.0
+question: "How does {target.symbol} CRISPR dependency vary across the molecular subgroups of {indication.label}?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [msi_status]
+  rationale: "Dependency strength varies by molecular subgroup (e.g. KRAS stronger in MSS than MSI-H cell lines); backed by per-ModelID Chronos the reader recomputes within each stratum member-set."
+
+applies_when:
+  - "subgroup_spec != null"
+  - "indication.subgroup_catalog_available == true"
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  - product_id: subgroup-catalog
+    indication: "{indication}"
+    subgroup_catalog: "{subgroup_spec}"
+
+methods:
+  - call: depmap-chronos
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      stratify_by: subgroup_catalog
+      subgroup_spec: "{subgroup_spec}"
+
+outputs:
+  # Per-subgroup panorama record — one entry per stratum. Matches
+  # _dependency_projection exactly (methods/depmap_chronos/read.py).
+  summary_fields:
+    - per_subgroup_metrics
+    # Cross-stratum reducer scalars (delta_reducer over median_chronos):
+    - n_subgroups_with_data
+    - max_subgroup_dependency
+    - min_subgroup_dependency
+    - cross_subgroup_delta_dependency
+  summary_fields_record_schemas:
+    per_subgroup_metrics:
+      stratum: string
+      class: {enum: [strong_dependency, moderate_dependency, not_dependent, insufficient], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      median_chronos: number
+      n_strong_dependent: integer
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      subtype_defining_data: string
+      source_cohort: string
+  figure: per_subgroup_dependency_panel
+  plot_data: per_subgroup_chronos_with_stratum_tags
+
+interpretation_hints:
+  - if: "cross_subgroup_delta_dependency >= THRESHOLD.meaningful_subgroup_delta"
+    call: "subgroup-specific dependency pattern"
+  - if: "cross_subgroup_delta_dependency < THRESHOLD.meaningful_subgroup_delta && n_subgroups_with_data >= THRESHOLD.min_subgroups_for_call"
+    call: "uniform dependency across subgroups"
+  - if: "n_subgroups_with_data < THRESHOLD.min_subgroups_for_call"
+    call: "not informative"
+
+thresholds:
+  meaningful_subgroup_delta: 0.3     # max-min median-Chronos delta across strata (Chronos units)
+  min_subgroups_for_call: 2          # need ≥2 measured strata to speak to cross-subgroup variation
+
+caveats:
+  - "DESCRIPTIVE panorama only — emits no verdict signal; per-subgroup rows inform via render, not synthesis."
+  - "Underpowered strata (subgroup_n < SUBGROUP_N_FLOOR=30) are tagged `underpowered` and INADMISSIBLE in comparative prose. DepMap per-indication cell-line strata are frequently underpowered (few lines per molecular subgroup) — read the evidence_state tag before comparing."
+  - "Chronos dependency is cell-line-derived; in-vivo dependency may differ (microenvironment, immune context)."
+  - "When the subgroup axis is defined by the target's OWN mutation status, mind the double-source-of-truth: DepMap computes mutant/WT internally too. MSI-defined strata are clean of this; a KRAS-mut-defined stratum on a KRAS dependency query is not."
+  - "Each row is tagged with source_cohort (DepMap-26Q1); never merged across cohorts with the TCGA-side mutation panorama."
+
+schema_version: 1

@@ -37,6 +37,17 @@ card_id: tumor-vs-normal-selectivity
 version: 3.1.0
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across four independent tumor-vs-normal comparators (TCGA-adjacent ± batch correction, GTEx-population ± source correction)?"
 
+tier: indication   # indication-scoped tumor-vs-normal selectivity; subtype-eligible once a per-sample expression reader ships
+
+# BLOCKED (2026-07-16): selectivity varies by molecular subgroup (filter 1 met),
+# but dge-tumor-vs-normal-selectivity emits whole-cohort comparators baked at
+# emit time (filter 2 FAILS). Tagged not-live pending a per-sample reader.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Selectivity varies by subgroup but the four comparators are whole-cohort aggregates; needs a per-sample expression reader."
+
 applies_when:
   - "context.data_sources.recount3_tcga_gtex_available == true"
 

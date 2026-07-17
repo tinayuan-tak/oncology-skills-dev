@@ -73,6 +73,16 @@ optional_cards:
   - card_id: rwd-stratified-expression
     version: ">=1.0.0,<2"
     when: "indication in [\"COADREAD\"]"
+  # Subgroup-panorama LIVE cards (2026-07-16) — descriptive per-subgroup enumeration
+  # of {target}'s mutation frequency + CRISPR dependency across the resolved molecular
+  # subgroups. Composed only when a subgroup scope is requested. Backed by per-sample
+  # panorama builders (gdc-somatic-hotspot / depmap-chronos); grain-check gated.
+  - card_id: subgroup-stratified-mutation-frequency
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+  - card_id: subgroup-stratified-dependency
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
 
 # Modality modules that may load on top of this base. Resolved at compose-dashboard runtime:
 #   - if context.modality is specified, load only the matching module

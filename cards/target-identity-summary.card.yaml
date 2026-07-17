@@ -8,6 +8,8 @@ card_id: target-identity-summary
 version: 1.0.0
 question: "Does {target.symbol} resolve cleanly to a canonical HGNC/Ensembl/UniProt identity, and what is its curated biology axis?"
 
+tier: target   # scope-invariant: gene identity is a property of the gene, identical across every patient subpopulation. Never stratifies.
+
 applies_when: []                                # this card always applies; no gating
 
 required_inputs:

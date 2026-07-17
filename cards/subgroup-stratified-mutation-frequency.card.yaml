@@ -1,0 +1,94 @@
+# Subgroup-panorama card (2026-07-16) — LIVE, descriptive-only.
+#
+# Enumerates {target}'s somatic mutation frequency ACROSS the molecular subgroups
+# of one indication (MSI/MSS, sidedness, and — via the GENIE registry MAF source —
+# line-of-therapy). This is the DESCRIPTIVE subgroup panorama: it shows the
+# landscape (positive AND negative stratifications, every stratum row) and emits
+# NO verdict signal. Distinct from the whole-cohort `mutation-hotspot-frequency`
+# card, which answers the indication-level question.
+#
+# Backed by a PER-SAMPLE stratified reader (filter 2 of the two-filter rule met):
+#   methods/gdc_somatic_hotspot/read.py :: build_mutation_frequency_panorama
+#   (fans read_stratified_mutation_frequency across strata via @subgroup_iterable;
+#    recomputes frequency WITHIN each stratum member-set — not an emit-time slice).
+# Related: [[subgroup-stratified-dependency]], [[mutation-hotspot-frequency]].
+
+card_id: subgroup-stratified-mutation-frequency
+version: 1.0.0
+question: "How does {target.symbol} somatic mutation frequency vary across the molecular subgroups of {indication.label}?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [msi_status, sidedness, line_of_therapy]
+  rationale: "Mutation prevalence varies sharply by subgroup (MSI-H KRAS-lower/BRAF-enriched; right-vs-left sidedness gradient); backed by per-sample MAF the reader recomputes within each stratum member-set."
+
+applies_when:
+  - "subgroup_spec != null"
+  - "indication.subgroup_catalog_available == true"
+  - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"
+
+required_inputs:
+  - product_id: gdc-pancohort-somatic
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  - product_id: subgroup-catalog
+    indication: "{indication}"
+    subgroup_catalog: "{subgroup_spec}"
+
+methods:
+  - call: gdc-somatic-hotspot
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      stratify_by: subgroup_catalog
+      subgroup_spec: "{subgroup_spec}"
+
+outputs:
+  # Per-subgroup panorama record — one entry per stratum. Shape declared below in
+  # summary_fields_record_schemas; matches _mutation_freq_projection exactly.
+  summary_fields:
+    - per_subgroup_metrics
+    # Cross-stratum reducer scalars (delta_reducer over overall_mutation_frequency):
+    - n_subgroups_with_data
+    - max_subgroup_frequency
+    - min_subgroup_frequency
+    - cross_subgroup_delta_frequency
+  summary_fields_record_schemas:
+    per_subgroup_metrics:
+      stratum: string
+      class: {enum: [recurrently_mutated, occasionally_mutated, rarely_mutated, insufficient], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      overall_mutation_frequency: number
+      n_samples_mutated: integer
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      subtype_defining_data: string
+      source_cohort: string
+      hotspot_frequencies: string        # serialized {protein_change: freq} map
+  figure: per_subgroup_mutation_frequency_panel
+  plot_data: per_subgroup_variants_with_hotspot_tags
+
+interpretation_hints:
+  - if: "cross_subgroup_delta_frequency >= THRESHOLD.meaningful_subgroup_delta"
+    call: "subgroup-specific mutation pattern"
+  - if: "cross_subgroup_delta_frequency < THRESHOLD.meaningful_subgroup_delta && n_subgroups_with_data >= THRESHOLD.min_subgroups_for_call"
+    call: "uniform mutation frequency across subgroups"
+  - if: "n_subgroups_with_data < THRESHOLD.min_subgroups_for_call"
+    call: "not informative"
+
+thresholds:
+  min_samples_with_maf: 50           # below this, per-stratum frequency CIs are too wide
+  meaningful_subgroup_delta: 0.10    # max-min frequency delta across strata; iter-1 conservative
+  min_subgroups_for_call: 2          # need ≥2 measured strata to speak to cross-subgroup variation
+
+caveats:
+  - "DESCRIPTIVE panorama only — emits no verdict signal; per-subgroup rows inform via render, not synthesis."
+  - "Underpowered strata (subgroup_n < SUBGROUP_N_FLOOR=30) are tagged `underpowered` and are INADMISSIBLE in comparative prose — a real negative (measured, floor-met, frequency ~0) is distinct from an underpowered unknown."
+  - "Each row is tagged with its source_cohort (TCGA-MC3 vs GENIE-registry); rows from different cohorts are NOT merged — MSI-H-from-TCGA is a different sample universe than a GENIE LOT stratum."
+  - "Line-of-therapy strata are available only via the GENIE-registry MAF source (RWD); TCGA-MC3 provides the molecular strata (MSI/MSS, sidedness)."
+
+schema_version: 1

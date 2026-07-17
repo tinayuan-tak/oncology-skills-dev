@@ -4,8 +4,24 @@
 # Iter-2 expansion: CMS1-4 when Ellrott classifier + Table S1 label-dictionary land.
 
 card_id: subgroup-stratified-expression
-version: 1.0.0
+version: 1.1.0
 question: "How does {target.symbol} expression vary across molecular subgroups in {indication.label}?"
+
+tier: subtype
+
+# BLOCKED (2026-07-16): the biology genuinely varies by subgroup (filter 1 met),
+# but the bound method `dge-deseq2` returns an aggregate log2FC computed across the
+# whole cohort at emit time (filter 2 FAILS). There is no per-sample expression
+# reader that can honestly recompute within each stratum's member-set, so this card
+# cannot emit a per-subgroup panorama yet. It is tagged not-live and the
+# `per_subgroup_metrics` record field is dropped until a per-sample stratified
+# expression reader (a `read_stratified_expression` / `build_expression_panorama`
+# in methods/) ships. The grain-check in validators/validate_cards.py enforces this.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Expression varies by MSI/MSS, but dge-deseq2 emits a whole-cohort aggregate; needs a per-sample stratified expression reader before it can recompute per-stratum."
 
 applies_when:
   - "subgroup_spec != null"
@@ -30,8 +46,12 @@ methods:
       subgroup_spec: "{subgroup_spec}"
 
 outputs:
+  # `per_subgroup_metrics` DROPPED 2026-07-16 — this card is blocked (see
+  # subgroup_stratification above): dge-deseq2 cannot honestly emit per-stratum
+  # records. The cross-stratum reducer scalars below describe the intended output
+  # ONCE a per-sample stratified expression reader ships; until then this card is
+  # not-live and produces no per-subgroup panorama.
   summary_fields:
-    - per_subgroup_metrics
     - n_subgroups_with_data
     - max_subgroup_log2fc
     - min_subgroup_log2fc

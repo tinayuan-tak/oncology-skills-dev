@@ -324,6 +324,33 @@
       "description": "Phase 4 (2026-07-15) — Optional annotation of which channel-precedence tier this card's evidence belongs to. Used by validators to enforce tier-appropriate applies_when predicates (target-tier cards should not reference indication.* or subtype.* keys). Enum: target | indication | panel | subtype. Cards without tier tag are un-classified (backward-compat for pre-Phase-4 cards).",
       "enum": ["target", "indication", "panel", "subtype"]
     },
+    "subgroup_stratification": {
+      "type": "object",
+      "description": "Subgroup-panorama layer (2026-07-16) — Optional attestation block declaring whether this card enumerates a target's evidence across molecular subgroups (the DESCRIPTIVE subgroup panorama). Consumed by validators/validate_cards.py grain-check: a card with status:live MUST bind a per-sample stratified reader (read_stratified_* / build_*_panorama) — NOT an aggregate-substrate method whose values are baked at emit time. `tier: target` cards may NOT carry this block (scope-invariant target evidence never stratifies). Cards without the block are non-stratified (backward-compat).",
+      "required": ["eligible", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "eligible": {
+          "type": "boolean",
+          "description": "True when the card's biology genuinely varies by subgroup (author attestation, PR-reviewed — filter 1 of the two-filter card-selection rule)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["live", "blocked_needs_per_sample_reader", "out_of_scope"],
+          "description": "live = bound to a per-sample stratified reader, panorama emits per_subgroup_metrics. blocked_needs_per_sample_reader = biology varies but the bound method returns an emit-time aggregate (filter 2 fails); the card is honestly tagged as not-yet-stratifiable and the grain-check forbids it from declaring per_subgroup_metrics. out_of_scope = deliberately not stratified this iteration."
+        },
+        "axes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "description": "Subgroup axes this card enumerates when live (e.g. [msi_status, sidedness, line_of_therapy]). Descriptive only."
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "One-line attestation of why the biology varies by subgroup (or, for blocked/out_of_scope, what the blocker is)."
+        }
+      }
+    },
     "measurement": {
       "type": "string",
       "description": "OPTIONAL. For expression-family cards only, names the measurement modality this card carries. Distinguishes bulk-population vs single-cell vs protein-imaging evidence so the skill layer can emit per-modality sub-verdicts (a target can be bulk-RNA-high but IHC-restricted, and the framework should surface that pattern, not average it away). Cards outside the expression family omit this field.",

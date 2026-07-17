@@ -8,6 +8,18 @@ card_id: expression-tumor-vs-adjacent
 version: 2.1.0                                  # bumped 2026-07-08: TPM fields now backed by real data (Gencode v26 gene-length norm)
 question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
 
+tier: indication   # indication-scoped tumor-vs-adjacent contrast; subtype-eligible once a per-sample expression reader ships
+
+# BLOCKED (2026-07-16): tumor-vs-adjacent log2FC varies by molecular subgroup
+# (filter 1 met), but dge-deseq2 emits a whole-cohort aggregate (filter 2 FAILS).
+# Tagged not-live; a per-sample stratified expression reader is the prerequisite
+# to graduate this to a live per-subgroup panorama. Related: [[subgroup-stratified-expression]].
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "tumor-vs-adjacent log2FC varies by subgroup but dge-deseq2 is a whole-cohort aggregate; needs a per-sample expression reader."
+
 applies_when:
   - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
   - "indication.paired_normals.count >= THRESHOLD.paired_normals_min"

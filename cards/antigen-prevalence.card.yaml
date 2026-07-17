@@ -7,6 +7,20 @@ card_id: antigen-prevalence
 version: 1.0.0
 question: "What fraction of {indication.label} tumors express {target.symbol} at clinically relevant levels?"
 
+tier: indication   # primary scope is indication-level prevalence; subtype-eligible (see below) once a per-sample reader ships
+
+# BLOCKED (2026-07-16): expressing-fraction genuinely varies by molecular subgroup
+# (filter 1 met), but the prevalence estimate composes from the whole-cohort
+# `dge-tumor-vs-adjacent` aggregate — no per-sample expression rows survive to
+# read time to recount within a stratum member-set (filter 2 FAILS). Tagged
+# not-live; carries no per-subgroup panorama field until a per-sample expression
+# reader ships. This card is subtype-eligible-in-principle, not yet stratifiable.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Expressing-fraction varies by subgroup but dge-tumor-vs-adjacent is a whole-cohort aggregate; needs a per-sample expression reader to recount per stratum."
+
 applies_when:
   - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
   - "indication.tumor_sample_count >= THRESHOLD.min_samples_for_prevalence"

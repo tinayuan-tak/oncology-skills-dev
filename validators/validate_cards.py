@@ -46,6 +46,26 @@ RECOGNIZED_OPERATORS = {'==', '!=', '>=', '<=', '>', '<', '&&', '||', '!', 'in'}
 # Predicate-allowed top-level identifiers (the context object's roots + summary fields)
 RECOGNIZED_CONTEXT_ROOTS = {'target', 'indication', 'subgroup_spec', 'release_pin', 'data_mode'}
 
+# Grain-check (subgroup-panorama layer, 2026-07-16). A card that enumerates a
+# target's evidence ACROSS molecular subgroups (declares per_subgroup_metrics or
+# subgroup_stratification.status == "live") must bind a PER-SAMPLE stratified
+# reader — one that can honestly recompute the metric within each stratum's
+# member-set. A method whose values are baked at emit time (an aggregate) cannot;
+# binding one is the "subgroup-stratified-expression trap" this check exists to
+# forbid. The allowlist is the set of method `call:` names whose analysis-methods
+# module ships a @subgroup_iterable read_stratified_* reader + build_*_panorama.
+# When a new per-sample stratified reader lands, add its `call` here.
+PER_SAMPLE_STRATIFIABLE_CALLS = {
+    'gdc-somatic-hotspot',   # methods/gdc_somatic_hotspot: read_stratified_mutation_frequency + build_mutation_frequency_panorama
+    'depmap-chronos',        # methods/depmap_chronos: read_stratified_dependency + build_dependency_panorama
+}
+
+# The list-typed summary field names that signal a card emits a per-subgroup
+# panorama. Both spellings are in use: `per_subgroup_metrics` (molecular-subgroup
+# cards) and `per_stratum_metrics` (the RWD line-of-therapy card). Either implies
+# a per-sample stratified reader is required.
+PANORAMA_RECORD_FIELDS = {'per_subgroup_metrics', 'per_stratum_metrics'}
+
 
 @dataclass
 class ValidationReport:
@@ -215,6 +235,79 @@ def _interpretation_summary_field_check(spec: dict, report: ValidationReport) ->
                 )
 
 
+def _method_calls(spec: dict) -> list[str]:
+    """The `call:` names declared in the card's methods: block."""
+    return [m.get('call') for m in spec.get('methods', []) if isinstance(m, dict) and m.get('call')]
+
+
+def _grain_and_tier_check(spec: dict, report: ValidationReport) -> None:
+    """Layer 2e (subgroup-panorama layer, 2026-07-16) — GRAIN + TIER enforcement.
+
+    Two invariants that keep the descriptive subgroup panorama honest:
+
+    GRAIN. A card that enumerates a target across molecular subgroups — i.e. it
+      declares `per_subgroup_metrics` (in summary_fields OR
+      summary_fields_record_schemas) OR sets subgroup_stratification.status ==
+      "live" — MUST bind a per-sample stratified reader (a `call:` in
+      PER_SAMPLE_STRATIFIABLE_CALLS). Binding an aggregate-substrate method whose
+      values are baked at emit time is the trap this check forbids: the card
+      would CLAIM per-stratum recomputation its substrate cannot honestly do.
+
+    TIER. A `tier: target` card is scope-invariant (its evidence is a property of
+      the gene/protein, identical across every patient subpopulation). It may NOT
+      carry a subgroup_stratification block or declare per_subgroup_metrics —
+      stratifying it is noise (filter 1 of the two-filter card-selection rule).
+    """
+    tier = spec.get('tier')
+    strat = spec.get('subgroup_stratification') or {}
+    strat_status = strat.get('status')
+    summary_names = _summary_field_names(spec)
+    record_schemas = spec.get('outputs', {}).get('summary_fields_record_schemas', {}) or {}
+    panorama_fields = (summary_names | set(record_schemas)) & PANORAMA_RECORD_FIELDS
+    declares_panorama = bool(panorama_fields)
+    calls = _method_calls(spec)
+    has_per_sample_reader = any(c in PER_SAMPLE_STRATIFIABLE_CALLS for c in calls)
+
+    # TIER invariant: target-tier cards never stratify.
+    if tier == 'target':
+        if strat:
+            report.add_error(
+                'GRAIN_TIER [subgroup_stratification]: card is `tier: target` '
+                '(scope-invariant target evidence) but declares a '
+                'subgroup_stratification block. Target-tier cards never stratify '
+                '(two-filter rule, filter 1). Remove the block or change the tier.'
+            )
+        if declares_panorama:
+            report.add_error(
+                f'GRAIN_TIER [outputs]: card is `tier: target` but declares '
+                f'{sorted(panorama_fields)}. Target-tier evidence does not vary by '
+                f'subgroup; per-subgroup enumeration is noise on a target-tier card.'
+            )
+
+    # GRAIN invariant: a live/panorama card must bind a per-sample stratified reader.
+    claims_live = (strat_status == 'live') or declares_panorama
+    if claims_live and not has_per_sample_reader:
+        report.add_error(
+            f'GRAIN [methods]: card declares a subgroup panorama '
+            f'(status={strat_status!r}, panorama field(s)={sorted(panorama_fields)}) '
+            f'but its method call(s) {calls} are NOT per-sample stratifiable. A '
+            f'panorama must recompute the metric WITHIN each stratum member-set; '
+            f'an emit-time aggregate cannot. Bind one of '
+            f'{sorted(PER_SAMPLE_STRATIFIABLE_CALLS)}, or set '
+            f'subgroup_stratification.status: blocked_needs_per_sample_reader and '
+            f'drop the panorama field until a per-sample reader ships.'
+        )
+
+    # A blocked card must NOT still be declaring the panorama field (the trap).
+    if strat_status == 'blocked_needs_per_sample_reader' and declares_panorama:
+        report.add_error(
+            f'GRAIN [outputs]: card is tagged '
+            f'subgroup_stratification.status: blocked_needs_per_sample_reader but '
+            f'still declares {sorted(panorama_fields)}. A blocked card cannot emit '
+            f'per-subgroup records — drop the field until a per-sample reader is bound.'
+        )
+
+
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
     """Validate a single card_spec YAML file. Returns a ValidationReport."""
     path = Path(path)
@@ -239,6 +332,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _shallow_predicate_check(spec, report)
         _interpretation_summary_field_check(spec, report)
         _composed_card_semantics_check(spec, report)
+        _grain_and_tier_check(spec, report)
     return report
 
 
