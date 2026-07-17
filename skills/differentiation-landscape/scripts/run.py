@@ -54,7 +54,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
         ("has-cooccurring-driver-supportive",            "has_cooccurring_driver"),
         ("cooccurrence-modest-cooccurring-neutral",      "modest_cooccurring"),
         ("cooccurrence-modest-mutually-exclusive-neutral", "modest_mutually_exclusive"),
-        ("cooccurrence-ns-not-informative",              "ns"),
+        ("cooccurrence-ns-neutral",                      "ns"),
         ("cooccurrence-data-unavailable-insufficient",   "data_unavailable"),
     ]
     for rule_id, verdict in precedence:

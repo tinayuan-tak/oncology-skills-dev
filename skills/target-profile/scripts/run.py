@@ -478,22 +478,22 @@ PHASE_METRIC_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("lineage_selectivity_class", "lineage selectivity"),
         ("concordance_class",         "CRISPR-RNAi concordance"),
     ],
-    "mutation": [
-        ("mutation_landscape_class",     "landscape class"),
+    # Keys MUST match SUB_SKILLS shorts (run.py:65) or the per-phase evidence table
+    # silently doesn't render (PHASE_METRIC_FIELDS.get(short, []) misses). Fixed
+    # 2026-07-17: `mutation`→`genomic_alteration`, `tractability`→`tractability_sm`
+    # (renamed in the 2026-07-14 restructure but this dict was missed — same
+    # rename-drift class as the _risk_by_category fix); `population` DROPPED (skill
+    # deleted, prevalence folded into genomic_alteration).
+    "genomic_alteration": [
+        ("mutation_landscape_class",      "landscape class"),
         ("mutation_stratification_class", "stratification class"),
-        ("mut_dominant_mutation_class",  "dominant variant class"),
-        ("overall_mutation_frequency",   "cohort mutation frequency"),
+        ("copy_number_class",             "copy-number class"),
+        ("overall_mutation_frequency",    "cohort mutation frequency (indication)"),
     ],
-    "tractability": [
-        ("n_compounds_screened",     "n compounds screened"),
-        ("activity_class",           "activity class"),
-        ("concordance_class",        "PRISM-CRISPR concordance"),
-        ("predictability_class",     "predictability"),
-    ],
-    "population": [
-        ("overall_mutation_frequency", "mutation frequency (indication)"),
-        ("n_samples_in_indication",    "n samples in indication"),
-        ("n_samples_mutated",          "n samples mutated"),
+    "tractability_sm": [
+        ("prism_activity_class",            "PRISM activity class"),
+        ("crispr_prism_concordance_class",  "PRISM-CRISPR concordance"),
+        ("predictability_class",            "predictability"),
     ],
 }
 
