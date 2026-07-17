@@ -273,3 +273,52 @@ def test_render_excluded_card_shows_reason():
     md = render_evidence_package(_minimal_kras_coadread_ep())
     assert "data_blocked" in md
     assert "HPA" in md
+
+
+# ============================================================================
+# Test 8: Subgroup-panorama table renders the evidence_state trichotomy
+# ============================================================================
+
+def _panorama_rows():
+    return [
+        {"stratum": "MSS", "class": "strong_dependency", "evidence_state": "measured",
+         "median_chronos": -1.22, "subgroup_n": 71, "subgroup_n_floor_met": True,
+         "source_cohort": "DepMap-26Q1"},
+        {"stratum": "MSI_H", "class": "moderate_dependency", "evidence_state": "underpowered",
+         "median_chronos": -0.69, "subgroup_n": 17, "subgroup_n_floor_met": False,
+         "source_cohort": "DepMap-26Q1"},
+        {"stratum": "POLE", "class": "insufficient", "evidence_state": "absent",
+         "median_chronos": None, "subgroup_n": 0, "subgroup_n_floor_met": False,
+         "source_cohort": "DepMap-26Q1"},
+    ]
+
+
+def test_panorama_table_distinguishes_evidence_states():
+    from scripts.render_markdown import _render_subgroup_panorama_table
+    lines = _render_subgroup_panorama_table(_panorama_rows())
+    md = "\n".join(lines)
+    # measured is trusted; underpowered is flagged inline with n<floor; absent is marked.
+    assert "● measured" in md
+    assert "◐ underpowered (n=17<30)" in md, "underpowered row must flag n vs floor inline"
+    assert "○ absent" in md
+    # stratum + evidence_state pinned as the first two columns.
+    header = lines[0]
+    assert header.index("stratum") < header.index("evidence_state")
+    assert header.index("evidence_state") < header.index("class")
+    # legend states the admissibility rule.
+    assert "inadmissible in comparative claims" in md
+
+
+def test_panorama_field_routes_to_trichotomy_renderer_not_generic():
+    """A card whose summary carries per_subgroup_metrics gets the evidence_state
+    renderer (badges), not the plain list-of-dicts table."""
+    from scripts.render_markdown import _render_card_panel
+    card = {
+        "card_id": "subgroup-stratified-dependency",
+        "interpretation_call": "subgroup-specific dependency pattern",
+        "validation_state": "pass",
+        "summary": {"per_subgroup_metrics": _panorama_rows(), "n_subgroups_with_data": 3},
+        "caveats": [],
+    }
+    md = "\n".join(_render_card_panel(card))
+    assert "● measured" in md and "◐ underpowered" in md, "panorama field must use the trichotomy renderer"

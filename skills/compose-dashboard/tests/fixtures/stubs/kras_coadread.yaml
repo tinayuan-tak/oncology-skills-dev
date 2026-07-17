@@ -407,6 +407,64 @@ subgroup-stratified-expression:
   cross_subgroup_delta_log2fc: 0.26
   any_subgroup_significant: true
 
+subgroup-stratified-mutation-frequency:
+  # Subgroup-panorama LIVE card (2026-07-16). Record shape matches
+  # gdc_somatic_hotspot._mutation_freq_projection. Values are the real TCGA-COADREAD
+  # KRAS numbers verified live: MSS 39.7% measured (n=151), MSI-H 29.2% underpowered (n=24).
+  per_subgroup_metrics:
+    - stratum: MSI_H
+      class: recurrently_mutated
+      evidence_state: underpowered
+      overall_mutation_frequency: 0.2917
+      n_samples_mutated: 7
+      subgroup_n: 24
+      subgroup_n_floor_met: false
+      subtype_defining_data: genomic
+      source_cohort: TCGA-MC3
+      hotspot_frequencies: "{}"
+    - stratum: MSS
+      class: recurrently_mutated
+      evidence_state: measured
+      overall_mutation_frequency: 0.3974
+      n_samples_mutated: 60
+      subgroup_n: 151
+      subgroup_n_floor_met: true
+      subtype_defining_data: genomic
+      source_cohort: TCGA-MC3
+      hotspot_frequencies: "{}"
+  n_subgroups_with_data: 2
+  max_subgroup_frequency: 0.3974
+  min_subgroup_frequency: 0.2917
+  cross_subgroup_delta_frequency: 0.1057
+
+subgroup-stratified-dependency:
+  # Subgroup-panorama LIVE card (2026-07-16). Record shape matches
+  # depmap_chronos._dependency_projection. Values are the real DepMap-Bowel KRAS
+  # numbers verified live: MSS -1.22 measured (n=71), MSI-H -0.69 underpowered (n=17).
+  per_subgroup_metrics:
+    - stratum: MSI_H
+      class: moderate_dependency
+      evidence_state: underpowered
+      median_chronos: -0.6893
+      n_strong_dependent: 4
+      subgroup_n: 17
+      subgroup_n_floor_met: false
+      subtype_defining_data: genomic
+      source_cohort: DepMap-26Q1
+    - stratum: MSS
+      class: strong_dependency
+      evidence_state: measured
+      median_chronos: -1.2186
+      n_strong_dependent: 45
+      subgroup_n: 71
+      subgroup_n_floor_met: true
+      subtype_defining_data: genomic
+      source_cohort: DepMap-26Q1
+  n_subgroups_with_data: 2
+  max_subgroup_dependency: -0.6893
+  min_subgroup_dependency: -1.2186
+  cross_subgroup_delta_dependency: 0.5293
+
 rwd-stratified-expression:
   per_stratum_metrics:
     - stratum_id: MSS_RASMut_3Lplus

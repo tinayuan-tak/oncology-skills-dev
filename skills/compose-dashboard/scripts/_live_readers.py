@@ -119,6 +119,69 @@ def _dispatch_mutation_hotspot_frequency(target: str, indication: str) -> Option
     return hotspot_module.read_hotspot_summary(target=target, indication=indication)
 
 
+# ---- Subgroup-panorama dispatchers (descriptive; 2026-07-16) ------------------
+# These route the two NEW live subgroup cards to the per-sample panorama BUILDERS
+# (not the scalar readers above). They fire only when subgroups are in scope
+# (subgroup_context carries resolved_strata_ids); the skill decides WHICH
+# assignments shard, the method decides HOW to fan out + recompute per stratum.
+# Cross-source reality: the mutation panorama reads the TCGA-side shard, the
+# dependency panorama the DepMap-side shard — different sample universes for the
+# "same" axis, surfaced honestly via each record's source_cohort field.
+
+# indication → the assignments shard carrying the ENUMERATION AXIS for each panorama.
+# Iter-1b ships COADREAD only; iter-2 extends as shards land.
+#
+# NB — shard choice is the axis-membership source, NOT the value substrate:
+#   - mutation-FREQUENCY across MSI/MSS/sidedness enumerates the DIRECTLY-TAGGED
+#     shard (which carries MSI_H, MSS, left/right_sided membership); the MAF values
+#     come from the per-sample MAF the reader loads. The `tcga-maf-...` shard defines
+#     mutation-STATUS strata (KRAS_mut, KRAS_G12C, BRAF_V600E) — the right shard only
+#     when the axis IS a mutation stratum, not for the molecular MSI/sidedness axes.
+#   - dependency uses the DepMap shard (cell-line ModelIDs carry MSI status directly).
+_MUTATION_ASSIGNMENTS_MANIFEST = {
+    "COADREAD": "tcga-subgroup-assignments-coadread-v1",   # directly-tagged: MSI_H/MSS/sidedness/CMS/CIMP
+}
+_DEPENDENCY_ASSIGNMENTS_MANIFEST = {
+    "COADREAD": "depmap-subgroup-assignments-coadread-v1",
+}
+
+
+def _dispatch_subgroup_stratified_mutation_frequency(
+    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+) -> Optional[dict]:
+    """Route subgroup-stratified-mutation-frequency to the per-sample panorama builder.
+
+    methods/gdc_somatic_hotspot/read.py::build_mutation_frequency_panorama fans
+    read_stratified_mutation_frequency across `subgroups` and recomputes frequency
+    WITHIN each stratum member-set (never an emit-time slice). Descriptive — no signal.
+    """
+    hotspot_module = _import_method("gdc_somatic_hotspot")
+    return hotspot_module.build_mutation_frequency_panorama(
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
+        subgroup_assignments_manifest=subgroup_assignments_manifest,
+    )
+
+
+def _dispatch_subgroup_stratified_dependency(
+    target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
+) -> Optional[dict]:
+    """Route subgroup-stratified-dependency to the per-sample (per-ModelID) panorama builder.
+
+    methods/depmap_chronos/read.py::build_dependency_panorama fans
+    read_stratified_dependency across `subgroups` and recomputes median Chronos
+    WITHIN each stratum's cell-line member-set. Descriptive — no signal.
+    """
+    chronos_module = _import_method("depmap_chronos")
+    return chronos_module.build_dependency_panorama(
+        target=target,
+        indication=indication,
+        subgroups=subgroups,
+        subgroup_assignments_manifest=subgroup_assignments_manifest,
+    )
+
+
 def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route target-identity-summary card to libs/target_id_resolver/.
 
@@ -500,13 +563,62 @@ CARD_DISPATCHERS = {
     #   "rwd-stratified-expression": _dispatch_rwd_stratified_expression,
     #       → methods/tempus_rwd_aggregator/read.py
     #   "subgroup-stratified-expression": _dispatch_subgroup_stratified_expression,
-    #       → methods/dge_deseq2/read.py + methods/subgroup_assigner_*/read.py
+    #       → BLOCKED (2026-07-16): dge-deseq2 is an emit-time aggregate; no per-sample
+    #         reader. Card tagged blocked_needs_per_sample_reader in target-contracts.
+}
+
+# Subgroup-panorama dispatchers (2026-07-16). Kept SEPARATE from CARD_DISPATCHERS
+# because they take a different signature — they need the resolved strata +
+# assignments-shard id from subgroup_context. read_live_summary routes here when a
+# card_id is present AND subgroups are in scope. Value = (dispatcher, indication→manifest map).
+PANORAMA_DISPATCHERS = {
+    "subgroup-stratified-mutation-frequency": (
+        _dispatch_subgroup_stratified_mutation_frequency, _MUTATION_ASSIGNMENTS_MANIFEST),
+    "subgroup-stratified-dependency": (
+        _dispatch_subgroup_stratified_dependency, _DEPENDENCY_ASSIGNMENTS_MANIFEST),
 }
 
 
-def read_live_summary(card_id: str, target: str, indication: str) -> Optional[dict]:
+def read_live_summary(card_id: str, target: str, indication: str,
+                       subgroup_context: Optional[dict] = None) -> Optional[dict]:
     """Dispatch a live-read for the named card to its corresponding method module.
-    Returns None if no dispatcher exists yet (caller falls back to stub or marks failed)."""
+
+    Two dispatch paths:
+      - PANORAMA (subgroup-aware): if the card is in PANORAMA_DISPATCHERS AND
+        subgroup_context carries resolved_strata_ids, route to the per-sample
+        panorama builder with the resolved strata + assignments-shard id. This is
+        the descriptive subgroup panorama — it returns per_subgroup_metrics.
+      - SCALAR (default): route to CARD_DISPATCHERS with (target, indication).
+
+    subgroup_context (the run_plan's subgroup_resolution) shape:
+      {subgroup_catalog_ref, catalog_status, resolved_strata_ids, applicable_data_sources}.
+    Accepting the kwarg (rather than the legacy scalar-only signature) is what lets
+    _execution._call_live_reader pass it through without hitting the TypeError shim.
+
+    Returns None if no dispatcher exists yet (caller falls back to stub or marks failed).
+    """
+    ctx = subgroup_context or {}
+    subgroups = ctx.get("resolved_strata_ids") or []
+
+    # Panorama path: only when the card is panorama-capable AND strata are in scope.
+    panorama = PANORAMA_DISPATCHERS.get(card_id)
+    if panorama is not None:
+        if not subgroups:
+            # Panorama card invoked without a resolved subgroup scope — nothing to
+            # enumerate. Return a data-note rather than erroring (the card is only
+            # admitted when subgroup_spec != null, but guard defensively).
+            return {"_data_note": f"{card_id} requires resolved subgroups; none in scope"}
+        dispatcher, manifest_map = panorama
+        manifest_id = manifest_map.get(indication)
+        if manifest_id is None:
+            return {"_data_note": f"no subgroup-assignments shard for indication={indication!r} "
+                                  f"(iter-1b ships COADREAD only)"}
+        try:
+            return dispatcher(target=target, indication=indication,
+                              subgroups=subgroups, subgroup_assignments_manifest=manifest_id)
+        except Exception as e:
+            return {"_live_read_error": str(e)}
+
     dispatcher = CARD_DISPATCHERS.get(card_id)
     if dispatcher is None:
         return None

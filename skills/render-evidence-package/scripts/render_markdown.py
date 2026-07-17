@@ -349,7 +349,12 @@ def _render_card_panel(card: dict) -> list[str]:
         for k, rows in tabular:
             sections.append(f"**{k}**:")
             sections.append("")
-            sections.extend(_render_list_of_dicts_as_table(rows))
+            if k in _PANORAMA_RECORD_FIELDS:
+                # Subgroup panorama — render with evidence_state trichotomy so a
+                # measured negative reads differently from an underpowered unknown.
+                sections.extend(_render_subgroup_panorama_table(rows))
+            else:
+                sections.extend(_render_list_of_dicts_as_table(rows))
             sections.append("")
 
     # Warning IDs
@@ -447,6 +452,80 @@ def _render_list_of_dicts_as_table(rows: list[dict]) -> list[str]:
             else:
                 cells.append(str(v))
         lines.append("| " + " | ".join(cells) + " |")
+    return lines
+
+
+# Subgroup-panorama record fields (2026-07-16). Rendered with evidence_state
+# awareness rather than the generic list-of-dicts table. Both spellings in use.
+_PANORAMA_RECORD_FIELDS = {"per_subgroup_metrics", "per_stratum_metrics"}
+
+# evidence_state → (icon, label) for the descriptive trichotomy. A `measured`
+# negative (real value on a floor-clearing cohort) is a trusted finding; an
+# `underpowered` / `absent` row is an UNKNOWN and must read differently.
+_EVIDENCE_STATE_BADGE = {
+    "measured": ("●", "measured"),
+    "underpowered": ("◐", "underpowered"),
+    "absent": ("○", "absent"),
+}
+_SUBGROUP_N_FLOOR = 30  # mirrors methods/subgroup_common/panorama.py SUBGROUP_N_FLOOR
+
+
+def _render_subgroup_panorama_table(rows: list[dict]) -> list[str]:
+    """Render a per-subgroup panorama with the evidence_state trichotomy made legible.
+
+    Descriptive-only: enumerates EVERY stratum row (positive AND negative). The
+    evidence_state column distinguishes a trusted `measured` value (floor-cleared)
+    from an `underpowered` / `absent` UNKNOWN. Underpowered rows are flagged
+    inline with their n vs the floor so a reader never mistakes an unknown for a
+    confirmed negative — and (per the admissibility rule) never lifts an
+    underpowered number into a comparative claim.
+
+    `stratum` and `evidence_state` are pinned as the first two columns; the rest
+    follow first-seen order. Internal (underscore-prefixed) keys are hidden.
+    """
+    if not rows:
+        return ["_(no subgroup rows)_"]
+
+    # Column order: stratum, evidence_state, then the rest (first-seen), no _keys.
+    lead = [c for c in ("stratum", "evidence_state") if any(c in r for r in rows)]
+    cols = list(lead)
+    for r in rows:
+        for k in r.keys():
+            if k.startswith("_") or k in cols:
+                continue
+            cols.append(k)
+
+    lines = ["| " + " | ".join(cols) + " |",
+             "|" + "|".join(["---"] * len(cols)) + "|"]
+    for r in rows:
+        state = r.get("evidence_state")
+        cells = []
+        for k in cols:
+            if k == "evidence_state":
+                icon, label = _EVIDENCE_STATE_BADGE.get(state, ("?", str(state)))
+                # Flag underpowered rows inline with n vs floor.
+                if state == "underpowered":
+                    n = r.get("subgroup_n")
+                    label = f"underpowered (n={n}<{_SUBGROUP_N_FLOOR})" if n is not None else "underpowered"
+                cells.append(f"{icon} {label}")
+                continue
+            v = r.get(k, "")
+            if isinstance(v, float):
+                cells.append(f"{v:.{_FLOAT_PRECISION}f}")
+            elif isinstance(v, (list, dict)):
+                cells.append(json.dumps(v, default=str))
+            else:
+                cells.append(str(v))
+        lines.append("| " + " | ".join(cells) + " |")
+
+    # Legend + admissibility note — the descriptive payoff made explicit.
+    lines.append("")
+    lines.append(
+        "_● measured (n≥{floor}, trusted — a real negative is as informative as a "
+        "positive) · ◐ underpowered (n<{floor}, UNKNOWN — inadmissible in comparative "
+        "claims) · ○ absent (no samples in this stratum). Rows tagged by source_cohort "
+        "are not merged across cohorts._".format(floor=_SUBGROUP_N_FLOOR)
+    )
     return lines
 
 
