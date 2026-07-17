@@ -544,8 +544,15 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
     exp_v, exp_r = _v("expression")
     sel_v, sel_r = _v("selectivity")
     dep_v, dep_r = _v("dependency")
-    mut_v, mut_r = _v("mutation")
-    trk_v, trk_r = _v("tractability")
+    # Short keys MUST match SUB_SKILLS (run.py:65). Fixed 2026-07-17: the
+    # 2026-07-14 restructure renamed these two shorts (mutation→genomic_alteration,
+    # tractability→tractability_sm) but this reshape wasn't updated, so _v() silently
+    # returned (None,None) — druggability was dead-wired to insufficient_evidence and
+    # the mutation signal was dropped from _biological(). A display bug (this feeds the
+    # 6-category render table, not the gate), but a real one.
+    mut_v, mut_r = _v("genomic_alteration")
+    trk_v, trk_r = _v("tractability_sm")
+    saf_v, saf_r = _v("safety")
 
     # Biological: strongest positive across A/B/C/mut wins
     # Simple mapping: at least one strong-supportive → LOW risk; not_selective
@@ -576,7 +583,19 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
             return "HIGH", trk_r or "no compound hits or discordant"
         return "insufficient_evidence", "tractability sub-verdict absent"
 
-    # For phases we don't have wired data on, report insufficient_evidence
+    def _safety():
+        # on-target-safety-liability IS wired (gnomAD LoF-constraint). Fixed
+        # 2026-07-17: this row was hardcoded insufficient_evidence with a stale
+        # "gnomAD cards not wired" note, contradicting the wired safety sub-skill
+        # that already feeds the nomination gate. Map its verdict here too.
+        # Higher germline constraint → higher on-target (full-KO) safety RISK.
+        if saf_v == "highly_constrained_safety_concern":
+            return "HIGH", saf_r or "highly LoF-constrained gene (full-KO liability)"
+        if saf_v == "tolerant_reduced_safety_risk":
+            return "LOW", saf_r or "LoF-tolerant gene (reduced full-KO liability)"
+        return "insufficient_evidence", "gnomAD constraint sub-verdict absent"
+
+    # For phases we still have no wired data on, report insufficient_evidence
     # honestly rather than fabricate:
     return [
         ("biological",   *_biological()),
@@ -585,8 +604,7 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
             "Phase-J (translational-readiness) placeholder — data not wired"),
         ("clinical",      "insufficient_evidence",
             "Phase-E (clinical precedent) placeholder — data feed not wired"),
-        ("safety",        "insufficient_evidence",
-            "Phase-G (on-target-safety) placeholder — HPA + gnomAD cards not wired"),
+        ("safety",        *_safety()),
         ("commercial",    "insufficient_evidence",
             "Phase-E (competitive/IP) placeholder — Cortellis/IQVIA not licensed"),
     ]
