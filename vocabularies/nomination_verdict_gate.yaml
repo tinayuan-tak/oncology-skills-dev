@@ -26,7 +26,7 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.0.0
+version: 1.1.0   # 1.1.0 (2026-07-17): + positive tier (confidence-floor, F1-safe). `gates` unchanged.
 description: |
   Deterministic (sub_skill, verdict) → forced overall_recommendation policy for
   the target-profile nomination gate. Precedence when multiple fire: veto > hold.
@@ -93,3 +93,55 @@ excluded_modality_scoped:
     verdict: broadly_low_expression
   - sub_skill: expression
     verdict: not_informative
+
+# ============================================================================
+# POSITIVE TIER (2026-07-17) — deterministic confidence FLOOR, never an action.
+# ============================================================================
+# Graded positives raise an AUDITABLE confidence tier (strong/moderate) instead of
+# being LLM-advisory only. STRICTLY F1-SAFE:
+#   - The positive tier is computed ONLY when NO kill (veto/hold) fired — the gate
+#     resolves kills first, positives in the else-branch. A positive can therefore
+#     never mask or subordinate a kill (structural, not policy).
+#   - It writes ONLY to the `confidence` field as a FLOOR (max with the LLM's
+#     confidence), never to `overall_recommendation`. It cannot force `nominate`.
+#   - INVERTED FALLBACK vs the kill `gates`: if this file is missing/malformed the
+#     positive loader returns EMPTY (kill-only, LLM confidence stands) — it must
+#     NEVER mint a spurious `strong`. (The kill fallback is the opposite: conservative-
+#     and-complete so a missing file still fires vetoes.)
+#
+# SAME CURATION PRINCIPLE as `gates`: only CROSS-TARGET axes count. dependency +
+# tumor-selectivity are the two axes that can both kill AND confirm; small-molecule
+# tractability can confirm but not kill. Surface/expression/mechanism are advisory in
+# BOTH directions (a biologics-favorable surface does not make the TARGET strong — the
+# F-symmetry of why surface neither_viable is excluded from kills above).
+positive_signals:
+  - {sub_skill: dependency,      verdict: concordant_dependent,          weight: dominant}
+  - {sub_skill: dependency,      verdict: lineage_selective,             weight: supportive}
+  - {sub_skill: dependency,      verdict: selective_dependent,           weight: supportive}
+  - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
+  - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
+  - {sub_skill: tractability_sm, verdict: well_covered,                  weight: dominant}
+  - {sub_skill: tractability_sm, verdict: chemically_confirmed_genetic,  weight: dominant}
+
+# An OPPOSING MEASURED verdict on a positive-eligible axis blocks `strong`. NOTE:
+# insufficient / data_unavailable / not_informative are NOT contradictions — absence
+# of measurement is not opposing evidence (measured-vs-null discipline).
+positive_contradictions:
+  - {sub_skill: selectivity,     verdict: not_selective}
+  - {sub_skill: selectivity,     verdict: discordant_across_comparators}
+  - {sub_skill: dependency,      verdict: discordant}
+  - {sub_skill: dependency,      verdict: broadly_dependent}
+  - {sub_skill: tractability_sm, verdict: discordant}
+  - {sub_skill: tractability_sm, verdict: chemically_unhit}
+
+positive_tier_config:
+  min_dimensions_for_strong: 2    # analog of compose-dashboard MIN_IN_SCOPE_FOR_STRONG
+  require_dominant_for_strong: true
+
+# Documented exclusions from the positive set (symmetric to excluded_modality_scoped
+# for kills) — so a future edit doesn't "helpfully" add a modality-scoped positive.
+excluded_positive_modality_scoped:
+  - {sub_skill: surface_modality, verdict: adc_favorable}
+  - {sub_skill: surface_modality, verdict: tce_favorable}
+  - {sub_skill: expression,       verdict: broadly_high_expression}
+  - {sub_skill: mechanism,        verdict: well_characterized}   # advisory network context only
