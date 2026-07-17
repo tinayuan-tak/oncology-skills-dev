@@ -55,9 +55,14 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     if "concordance-discordant-warning" in fired_by_id:
         return "discordant", "concordance-discordant-warning"
 
-    for rid in ("non-dependent-killer", "rnai-non-dependent-neutral"):
-        if rid in fired_by_id:
-            return "non_dependent", rid
+    # non_dependent → gate VETO. Only CRISPR non-dependence (reliable) qualifies.
+    # RNAi non-dependence is NOT included (2026-07-17): rnai-non-dependent-neutral
+    # emits `neutral` signals — RNAi is false-negative-prone, so RNAi-alone-not-
+    # dependent is absence-of-confirmation, not evidence-against. Collapsing it into
+    # `non_dependent` here silently upgraded a neutral signal to a veto. RNAi-only
+    # non-dependence now falls through to `insufficient` (honest "not established").
+    if "non-dependent-killer" in fired_by_id:
+        return "non_dependent", "non-dependent-killer"
 
     for rid in ("broadly-dependent-neutral", "rnai-broadly-dependent-neutral"):
         if rid in fired_by_id:

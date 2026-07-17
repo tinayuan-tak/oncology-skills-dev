@@ -40,6 +40,12 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
         return "highly_constrained_safety_concern", "highly-constrained-safety-warning"
     if "tolerant-safety-supportive" in fired_by_id:
         return "tolerant_reduced_safety_risk", "tolerant-safety-supportive"
+    # C2c (2026-07-17): the middle constraint band now fires a NEUTRAL rule. Map it
+    # to a distinct verdict so it surfaces in the 6-category risk table (→ MEDIUM),
+    # rather than collapsing to `insufficient` as it did when the band was unruled.
+    # NOT gated (neutral, not a hold) — only highly_constrained triggers a safety hold.
+    if "moderately-constrained-safety-neutral" in fired_by_id:
+        return "moderately_constrained_safety", "moderately-constrained-safety-neutral"
     if "constraint-data-unavailable-insufficient" in fired_by_id:
         return "data_unavailable", "constraint-data-unavailable-insufficient"
     return "insufficient", None

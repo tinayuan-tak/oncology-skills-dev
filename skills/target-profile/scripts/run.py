@@ -670,6 +670,8 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
         # Higher germline constraint → higher on-target (full-KO) safety RISK.
         if saf_v == "highly_constrained_safety_concern":
             return "HIGH", saf_r or "highly LoF-constrained gene (full-KO liability)"
+        if saf_v == "moderately_constrained_safety":   # C2c: middle band → MEDIUM
+            return "MEDIUM", saf_r or "moderately LoF-constrained gene (equivocal safety)"
         if saf_v == "tolerant_reduced_safety_risk":
             return "LOW", saf_r or "LoF-tolerant gene (reduced full-KO liability)"
         return "insufficient_evidence", "gnomAD constraint sub-verdict absent"
