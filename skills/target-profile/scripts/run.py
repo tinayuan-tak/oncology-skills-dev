@@ -121,7 +121,41 @@ SUB_SKILL_CARDS = {
 }
 
 
-def _run_sub_skills(target: str, indication: str) -> dict:
+# --- Subtype tier (verdict-affecting, opt-in via --subtypes) ----------------
+# The subtype sub-result is CONDITIONAL: it only enters sub_results when a
+# subtype scope is requested. This preserves exact backward-compat — no
+# --subtypes → sub_results is byte-identical to before → gate unchanged. It
+# implements the design's "subtype channel terminal WHEN Scope.subtypes
+# populated" as opt-in-by-scope.
+SUBTYPE_SHORT = "subtype_fit"
+SUBTYPE_CARDS = [
+    "subgroup-stratified-dependency",
+    "subgroup-stratified-mutation-frequency",
+]
+
+
+def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
+    """Verdict producer for the subtype tier. NEGATIVE-SELECTION only.
+
+    Fires the verdict that the nomination gate maps to `hold` iff a subtype-tier
+    rule fired (the subtype-non-dependence-opposing rule, which only matches a
+    MEASURED, floor-cleared, not-dependent stratum — an underpowered row cannot
+    match, so admissibility is enforced upstream at rule-fire time). Returns None
+    when no subtype rule fired — a POSITIVE/absent subtype finding produces no
+    verdict, so it can never inflate a nomination (gate is one-directional).
+    """
+    subtype_hits = [f for f in fired
+                    if f.get("tier") == "subtype"
+                    and "opposing" in (f.get("signals") or {}).get("subtype_fit_genomic", "")]
+    if not subtype_hits:
+        return None
+    # Name the driving rule + the matched stratum for provenance.
+    hit = subtype_hits[0]
+    return ("subtype_specific_non_dependence", hit.get("rule_id"))
+
+
+def _run_sub_skills(target: str, indication: str,
+                    subtypes: Optional[list[str]] = None) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
       - `skill_dir`
@@ -154,6 +188,26 @@ def _run_sub_skills(target: str, indication: str) -> dict:
             "cards": cards,
             "fired": fired,
             "verdict": verdict_pair,  # (str, driving_rule_id) or None
+        }
+
+    # Subtype tier — ONLY when a subtype scope was requested. Panorama cards need
+    # the resolved strata + assignments shard threaded via subgroup_context; the
+    # subtype rule fires in_record on measured, floor-cleared, not-dependent rows.
+    if subtypes:
+        subgroup_context = {"resolved_strata_ids": list(subtypes),
+                            "catalog_status": "resolved_active"}
+        sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication,
+                                  subgroup_context=subgroup_context)
+        sub_fired: list[dict] = []
+        for axis in axes:
+            sub_fired.extend(fired_rules(sub_cards, axis=axis,
+                                         card_id_filter=SUBTYPE_CARDS))
+        results[SUBTYPE_SHORT] = {
+            "skill_dir": None,             # not a directory sub-skill; composed inline
+            "cards": sub_cards,
+            "fired": sub_fired,
+            "verdict": _subtype_verdict(sub_fired),
+            "scope_subtypes": list(subtypes),
         }
     return results
 
@@ -682,6 +736,12 @@ def main() -> int:
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--subtypes", default=None,
+                    help="Comma-separated molecular subgroup ids to scope the "
+                         "profile to (e.g. 'MSI_H,MSS'). When set, the subtype "
+                         "tier is evaluated: a MEASURED, floor-cleared subtype "
+                         "that is NOT a dependency holds the nomination. Omit for "
+                         "a whole-cohort profile (backward-compatible default).")
     ap.add_argument("--modality", default=None,
                     help="OPTIONAL post-hoc modality lens.")
     ap.add_argument("--therapeutic-hypothesis", default=None,
@@ -701,7 +761,8 @@ def main() -> int:
     # 1. Fan out to sub-skills.
     print(f"[target-profile] Running {len(SUB_SKILLS)} sub-skills for "
           f"{args.target} in {args.indication}...", file=sys.stderr)
-    sub_results = _run_sub_skills(args.target, args.indication)
+    subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else None
+    sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes)
     for short, r in sub_results.items():
         v = r["verdict"]
         verdict_str = v[0] if v else "(no verdict)"

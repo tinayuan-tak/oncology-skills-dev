@@ -110,7 +110,8 @@ def _summary_is_unavailable(summary: dict) -> Optional[str]:
     return None
 
 
-def resolve_cards(card_ids: list[str], target: str, indication: str) -> list[dict]:
+def resolve_cards(card_ids: list[str], target: str, indication: str,
+                  subgroup_context: Optional[dict] = None) -> list[dict]:
     """Fetch live summaries for a list of card_ids via the compose-dashboard
     dispatcher registry. Returns one card_output dict per card_id.
 
@@ -120,11 +121,23 @@ def resolve_cards(card_ids: list[str], target: str, indication: str) -> list[dic
     only cards that returned a real, usable signal. (Previously an errored
     dispatcher returned a dict and was silently counted as available —
     overstating coverage on every skill.)
+
+    subgroup_context (optional): when provided, threaded to the dispatcher so
+    panorama cards (subgroup-stratified-*) fan out across the resolved strata.
+    Scalar cards ignore it. None → scalar-only (backward-compat).
     """
     read_live = _import_dispatcher()
     outputs: list[dict] = []
     for card_id in card_ids:
-        summary = read_live(card_id, target, indication)
+        if subgroup_context is not None:
+            try:
+                summary = read_live(card_id, target, indication,
+                                    subgroup_context=subgroup_context)
+            except TypeError:
+                # Dispatcher predates the subgroup_context kwarg — scalar fallback.
+                summary = read_live(card_id, target, indication)
+        else:
+            summary = read_live(card_id, target, indication)
         if summary is None:
             outputs.append({
                 "card_id": card_id, "summary": {},
@@ -181,6 +194,30 @@ def _rule_values_equal(actual, expected) -> bool:
     return False
 
 
+def _record_matches(record: dict, in_record: dict) -> bool:
+    """True iff `record` satisfies EVERY key/value pair in an `in_record` predicate.
+
+    Each predicate value is a scalar (exact match, via _rule_values_equal so the
+    bool<->string bridge applies to subgroup_n_floor_met: true), an array (in-list),
+    or an object {"in": [...]} (explicit in-list). A missing key never matches.
+    This is the list-typed counterpart to the scalar equals/in path.
+    """
+    for key, expected in in_record.items():
+        if key not in record:
+            return False
+        actual = record[key]
+        if isinstance(expected, dict) and "in" in expected:
+            if not any(_rule_values_equal(actual, opt) for opt in expected["in"]):
+                return False
+        elif isinstance(expected, list):
+            if not any(_rule_values_equal(actual, opt) for opt in expected):
+                return False
+        else:
+            if not _rule_values_equal(actual, expected):
+                return False
+    return True
+
+
 def fired_rules(card_outputs: list[dict],
                 axis: str,
                 card_id_filter: Optional[list[str]] = None) -> list[dict]:
@@ -208,6 +245,7 @@ def fired_rules(card_outputs: list[dict],
         field = when.get("field")
         equals = when.get("equals")
         in_list = when.get("in") or []
+        in_record = when.get("in_record")
         if not card_id or not field:
             continue
         card = card_by_id.get(card_id)
@@ -218,6 +256,27 @@ def fired_rules(card_outputs: list[dict],
             actual = card.get("interpretation_call")
         else:
             actual = summary.get(field) if field in summary else card.get(field)
+
+        if in_record is not None:
+            # List-typed match: `actual` is a records list (e.g. per_subgroup_metrics).
+            # Fire once per matching record, carrying the matched record so the
+            # sub-verdict + provenance can name WHICH stratum drove the signal.
+            records = actual if isinstance(actual, list) else []
+            for rec in records:
+                if isinstance(rec, dict) and _record_matches(rec, in_record):
+                    fired.append({
+                        "rule_id": rule.get("rule_id"),
+                        "card_id": card_id,
+                        "field": field,
+                        "value": rec,                       # the matched record
+                        "matched_stratum": rec.get("stratum"),
+                        "signals": rule.get("signals") or {},
+                        "tier": rule.get("tier"),
+                        "dominant": bool(rule.get("dominant")),
+                        "rationale": (rule.get("rationale") or "").strip(),
+                    })
+            continue
+
         matched = (equals is not None and _rule_values_equal(actual, equals)) \
                   or (equals is None and in_list
                       and any(_rule_values_equal(actual, opt) for opt in in_list))
@@ -229,6 +288,7 @@ def fired_rules(card_outputs: list[dict],
             "field": field,
             "value": actual,
             "signals": rule.get("signals") or {},
+            "tier": rule.get("tier"),
             "dominant": bool(rule.get("dominant")),
             "rationale": (rule.get("rationale") or "").strip(),
         })
