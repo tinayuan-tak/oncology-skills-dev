@@ -186,11 +186,37 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
         field_name = when.get("field")
         equals = when.get("equals")
         in_list = when.get("in") or []
+        in_record = when.get("in_record")
         values = [equals] if equals is not None else list(in_list)
+        tier = rule.get("tier")
 
         if not card_id:
             report.errors.append(f"[{rule_id}] when.card_id missing")
             continue
+
+        # Subtype-tier discipline (2026-07-17): a rule tagged tier: subtype MUST
+        # declare subgroup_metadata_declared (schema promises validator
+        # enforcement; this is that enforcement). Its when: must use in_record —
+        # a subtype rule matches per-subgroup records, not a scalar field — and
+        # that in_record MUST pin subgroup_n_floor_met: true so an underpowered
+        # stratum is INADMISSIBLE by construction (the F4/admissibility guard).
+        if tier == "subtype":
+            if not rule.get("subgroup_metadata_declared"):
+                report.errors.append(
+                    f"[{rule_id}] tier: subtype but no subgroup_metadata_declared "
+                    f"block (required for subtype-tier rules)."
+                )
+            if in_record is None:
+                report.errors.append(
+                    f"[{rule_id}] tier: subtype must match per-subgroup records via "
+                    f"when.in_record (got equals/in on a scalar field instead)."
+                )
+            elif in_record.get("subgroup_n_floor_met") is not True:
+                report.errors.append(
+                    f"[{rule_id}] tier: subtype in_record must pin "
+                    f"subgroup_n_floor_met: true — otherwise an underpowered stratum "
+                    f"could fire a verdict-affecting rule (admissibility violation)."
+                )
 
         # Check 2: card_id reachable?
         if card_id not in card_idx:
@@ -212,22 +238,43 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
             continue
 
         # Check 3b: each value producible from the card?
-        producible = _producible_values_for_field(card_spec, field_name)
-        if producible is None:
-            # Card hasn't declared its value vocabulary yet (transition state)
-            report.warnings.append(
-                f"[{rule_id}] cannot verify value reachability for field={field_name!r} "
-                f"on card={card_id!r} — card_spec declares no value vocabulary. "
-                f"After card refactors land, add outputs.summary_fields_vocabulary to enforce."
-            )
+        # in_record rules match RECORDS in a list-typed field (per_subgroup_metrics),
+        # not a scalar value vocabulary — the reachability check (flat
+        # summary_fields_vocabulary) doesn't apply. Verify the matched keys exist
+        # in the field's summary_fields_record_schemas instead.
+        if in_record is not None:
+            record_schemas = (card_spec.get("outputs", {}) or {}).get(
+                "summary_fields_record_schemas", {}) or {}
+            rec_schema = record_schemas.get(field_name)
+            if rec_schema is None:
+                report.errors.append(
+                    f"[{rule_id}] in_record on field={field_name!r} but card={card_id!r} "
+                    f"declares no summary_fields_record_schemas.{field_name} record shape."
+                )
+            else:
+                for key in in_record:
+                    if key not in rec_schema:
+                        report.errors.append(
+                            f"[{rule_id}] in_record key={key!r} not in card's "
+                            f"{field_name} record schema. Declared keys: {sorted(rec_schema)}"
+                        )
         else:
-            for v in values:
-                if v not in producible:
-                    report.errors.append(
-                        f"[{rule_id}] value={v!r} for field={field_name!r} on "
-                        f"card={card_id!r} is NOT producible. "
-                        f"Producible values: {sorted(producible)}"
-                    )
+            producible = _producible_values_for_field(card_spec, field_name)
+            if producible is None:
+                # Card hasn't declared its value vocabulary yet (transition state)
+                report.warnings.append(
+                    f"[{rule_id}] cannot verify value reachability for field={field_name!r} "
+                    f"on card={card_id!r} — card_spec declares no value vocabulary. "
+                    f"After card refactors land, add outputs.summary_fields_vocabulary to enforce."
+                )
+            else:
+                for v in values:
+                    if v not in producible:
+                        report.errors.append(
+                            f"[{rule_id}] value={v!r} for field={field_name!r} on "
+                            f"card={card_id!r} is NOT producible. "
+                            f"Producible values: {sorted(producible)}"
+                        )
 
         # Check 4: killer messages required for killer signals
         signals = rule.get("signals", {}) or {}

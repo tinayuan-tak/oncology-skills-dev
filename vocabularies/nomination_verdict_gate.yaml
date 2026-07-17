@@ -65,6 +65,22 @@ gates:
       default.
     driving_rule_ids: [highly-constrained-safety-warning]
 
+  - sub_skill: subtype_fit              # subtype-panorama sub-verdict (2026-07-17)
+    verdict: subtype_specific_non_dependence
+    action: hold
+    rationale: |
+      The QUERIED molecular subtype shows a MEASURED (floor-cleared, n>=30)
+      absence of dependency on the target — a trusted subtype-specific efficacy
+      gap, not an unknown. HOLD, not veto: this forecloses the SUBTYPE, not the
+      target. The target may remain a strong dependency in other subtypes of the
+      same indication, so a blanket veto would be wrong (mirrors the
+      safety-concern → hold precedent and the curation principle above). Only
+      fires when Scope.subtypes is populated AND the subtype row cleared the
+      subgroup-n floor; an underpowered subtype row is INADMISSIBLE and cannot
+      reach this verdict. One-directional: this can only make a nomination MORE
+      conservative, never force nominate.
+    driving_rule_ids: [subtype-non-dependence-opposing]
+
 # DELIBERATELY NOT GATED (documented so future edits don't "helpfully" add them):
 #   - surface_modality:neither_viable   → forecloses ADC/TCE only; SM may work
 #   - expression:broadly_low_expression → degrader-scoped killer; SM/other may work

@@ -1628,3 +1628,55 @@ rules:
   # not-significant protein differential is neither supportive nor opposing
   # for a presence call — it's the neutral null we don't want to fire on.
   # Same discipline as expression_class = 'broadly_moderate' (see above).
+
+  # ============================================================================
+  # SUBTYPE TIER — verdict-affecting subgroup signal (2026-07-17)
+  # ============================================================================
+  # First verdict-affecting subtype rule. Fires on the subgroup-stratified-
+  # dependency panorama card via an in_record match against per_subgroup_metrics.
+  #
+  # SEMANTICS (negative-selection only, F1-safe): the queried subtype's
+  # dependency row is MEASURED (subgroup_n_floor_met: true — i.e. n >= 30, so
+  # the finding is trustworthy) AND the target is NOT a dependency in that
+  # subtype. This is a subtype-specific efficacy gap: nominating the target FOR
+  # THIS SUBTYPE has no dependency basis. Emits subtype_fit_genomic: opposing.
+  #
+  # WHY in_record + subgroup_n_floor_met: true is the F4/admissibility guard.
+  # An underpowered row (n < 30, subgroup_n_floor_met: false) FAILS this match
+  # and cannot fire the rule — INADMISSIBLE by construction, not by convention.
+  # This is the mechanical enforcement of "below floor = excluded, not tagged."
+  #
+  # WHY this is HOLD (not veto) at the nomination gate: it forecloses one
+  # SUBTYPE, not the target — the target may be a strong dependency in other
+  # subtypes (mirrors the safety-concern → hold precedent, and the
+  # curation principle in nomination_verdict_gate.yaml). The gate mapping lives
+  # in vocabularies/nomination_verdict_gate.yaml (sub_skill: subtype_fit).
+  #
+  # DESCRIPTIVE POSITIVE cases (subtype IS a strong dependency) deliberately do
+  # NOT get a verdict-affecting rule: the gate can only ratchet conservative
+  # (hold/veto, never nominate), so a positive subtype finding stays descriptive
+  # — it appears in the panorama render but cannot inflate a nomination.
+  - rule_id: subtype-non-dependence-opposing
+    when:
+      card_id: subgroup-stratified-dependency
+      field: per_subgroup_metrics
+      in_record:
+        class: not_dependent
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_genomic: opposing
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: genomic
+      subgroup_n_source: depmap-subgroup-assignments (Chronos per-ModelID cohort_size)
+      min_n_required: 30
+    rationale: |
+      The queried molecular subtype shows a MEASURED absence of CRISPR
+      dependency on the target (median Chronos in the not-dependent band, on a
+      cohort that clears the subgroup-n floor of 30). Because the row is
+      floor-cleared this is a trusted negative, not an unknown — the target is
+      genuinely not required for survival in this subtype's cell models.
+      Nominating the target for THIS subtype therefore lacks an on-target
+      efficacy basis. Subtype-scoped (→ hold, not veto): the target may remain a
+      valid dependency in other subtypes of the same indication.

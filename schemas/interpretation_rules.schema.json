@@ -77,13 +77,21 @@
     },
     "in_record_predicate": {
       "type": "object",
-      "description": "Phase 4 (2026-07-15) — Match records within a list-typed field. Used with card outputs like per_subgroup_metrics: [{stratum, class, subgroup_n, ...}]. All key/value pairs in in_record must match a record for the rule to fire on that record. Each map value is either a scalar (exact match), an array (in-list match), or an object with an 'in' key.",
+      "description": "Phase 4 (2026-07-15; object-form added 2026-07-17) — Match records within a list-typed field. Used with card outputs like per_subgroup_metrics: [{stratum, class, subgroup_n, subgroup_n_floor_met, ...}]. The rule fires on a record when ALL key/value pairs in in_record match that record. Each map value is a scalar (exact match), an array (in-list match), or an object with an 'in' key (in-list match, explicit form). The subgroup-n floor is enforced declaratively by including `subgroup_n_floor_met: true` — an underpowered record simply fails the match, so an underpowered stratum is INADMISSIBLE by construction (cannot fire a verdict-affecting rule).",
       "additionalProperties": {
         "oneOf": [
           {"type": "string"},
           {"type": "integer"},
           {"type": "boolean"},
-          {"type": "array", "items": {"type": ["string", "integer", "boolean"]}}
+          {"type": "array", "items": {"type": ["string", "integer", "boolean"]}},
+          {
+            "type": "object",
+            "properties": {
+              "in": {"type": "array", "items": {"type": ["string", "integer", "boolean"]}, "minItems": 1}
+            },
+            "required": ["in"],
+            "additionalProperties": false
+          }
         ]
       },
       "minProperties": 1
