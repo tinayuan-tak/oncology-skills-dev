@@ -1513,6 +1513,25 @@ rules:
       readers should require dose-limiting-toxicity study before full
       program commit.
 
+  - rule_id: moderately-constrained-safety-neutral
+    when:
+      card_id: gnomad-lof-constraint
+      field: constraint_class
+      equals: moderately_constrained
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target sits in the MIDDLE gnomAD constraint band (between highly_constrained
+      and tolerant — e.g. 0.5<=pLI<0.9 / 0.35<LOEUF<=0.6). Population evidence is
+      genuinely equivocal on LoF tolerance: not a clear safety liability (so NOT
+      opposing / NOT a hold) but not a safety-margin signal either (so NOT
+      supportive). Emitting `neutral` fills the previously decision-INERT middle
+      band with an honest read — the card declared moderately_constrained in its
+      vocab but no rule consumed it (safety returned `insufficient` for every
+      mid-band gene). Added 2026-07-17 (defensible-v1 C2c). Deliberately NEUTRAL,
+      not hold: only highly_constrained warrants a safety hold at the nomination gate.
+
   - rule_id: tolerant-safety-supportive
     when:
       card_id: gnomad-lof-constraint
