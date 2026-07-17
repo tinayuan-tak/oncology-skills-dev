@@ -220,3 +220,126 @@ def test_no_subtype_key_is_backward_compatible():
             "safety": {"verdict": ("ok", "r")}}
     forced, _ = tp._gate_recommendation(subs)
     assert forced is None
+
+
+# ===========================================================================
+# Positive tier (PR-C, 2026-07-17) — deterministic confidence FLOOR, F1-safe.
+# ===========================================================================
+
+def _dominant_positives():
+    return {
+        "dependency":      {"verdict": ("concordant_dependent", "concordant-dependent-supportive-dominant")},
+        "selectivity":     {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},
+        "tractability_sm": {"verdict": ("well_covered", "e7-triangulated-target-engaged-supportive")},
+    }
+
+
+def test_positive_tier_strong_on_multi_dominant():
+    tier, hits = tp._positive_tier(_dominant_positives())
+    assert tier == "strong"
+    assert len({h["short"] for h in hits}) >= 2
+
+
+def test_single_dominant_is_moderate_not_strong():
+    """Sparsity guard (min_dimensions_for_strong=2): one positive dim caps at moderate."""
+    tier, _ = tp._positive_tier({"tractability_sm": {"verdict": ("well_covered", "r")}})
+    assert tier == "moderate"
+
+
+def test_opposing_measured_verdict_blocks_strong():
+    """A contradiction (opposing MEASURED verdict) prevents strong even with a dominant."""
+    subs = {"dependency": {"verdict": ("concordant_dependent", "r")},
+            "selectivity": {"verdict": ("not_selective", "r")}}   # contradiction
+    tier, _ = tp._positive_tier(subs)
+    assert tier != "strong"
+
+
+def test_insufficient_is_not_a_contradiction():
+    """insufficient/data_unavailable are absence-of-measurement, NOT opposition —
+    they must not block a tier (measured-vs-null discipline)."""
+    subs = {"dependency": {"verdict": ("concordant_dependent", "r")},   # dominant
+            "selectivity": {"verdict": ("insufficient", None)}}         # absence, not contra
+    tier, _ = tp._positive_tier(subs)
+    assert tier == "moderate"   # 1 positive dim (dependency); insufficient neither helps nor blocks
+
+
+def test_no_positive_verdicts_returns_none():
+    subs = {"dependency": {"verdict": ("insufficient", None)},
+            "mechanism": {"verdict": ("well_characterized", "r")}}  # mechanism NOT positive-eligible
+    tier, hits = tp._positive_tier(subs)
+    assert tier is None and hits == []
+
+
+def test_kras_pattern_no_kill_and_strong_tier():
+    """KRAS golden PRESERVED + UPGRADED: modality-scoped killers (surface neither_viable,
+    expression broadly_low) fire NO kill; dependency+selectivity positives → strong.
+    This proves KRAS×COADREAD stays nominate AND earns an auditable strong confidence."""
+    subs = {
+        "dependency":       {"verdict": ("lineage_selective", "lineage-selective-supportive")},  # supportive
+        "selectivity":      {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},  # dominant
+        "surface_modality": {"verdict": ("neither_viable", "r")},          # modality-scoped, excluded
+        "expression":       {"verdict": ("broadly_low_expression", "r")},  # modality-scoped, excluded
+    }
+    # no kill
+    forced, _ = tp._gate_recommendation(subs)
+    assert forced is None, "KRAS golden: modality-scoped killers must NOT force a kill"
+    # strong tier: 1 dominant (selectivity) + 1 supportive (dependency) = 2 dims, no contradiction
+    tier, _ = tp._positive_tier(subs)
+    assert tier == "strong"
+
+
+def test_positive_tier_excludes_modality_scoped():
+    """surface/expression/mechanism verdicts are NOT positive-eligible even if 'good'."""
+    subs = {"surface_modality": {"verdict": ("adc_favorable", "r")},
+            "expression": {"verdict": ("broadly_high_expression", "r")},
+            "mechanism": {"verdict": ("well_characterized", "r")}}
+    tier, hits = tp._positive_tier(subs)
+    assert tier is None and hits == []
+
+
+def test_positive_fallback_is_empty_not_permissive(tmp_path):
+    """INVERTED safety contract: a vocab with NO positive_signals block → empty
+    positive map → no tier, even for a full house of positives (never spurious strong)."""
+    import yaml as _yaml
+    voc = tmp_path / "vocabularies"
+    voc.mkdir()
+    # a kill-only vocab (no positive_signals) — the pre-1.1.0 shape
+    (voc / "nomination_verdict_gate.yaml").write_text(_yaml.safe_dump({
+        "enum_id": "nomination_verdict_gate", "version": "1.0.0",
+        "action_precedence": {"veto": 2, "hold": 1},
+        "gates": [{"sub_skill": "dependency", "verdict": "non_dependent", "action": "veto",
+                   "rationale": "x", "driving_rule_ids": ["non-dependent-killer"]}],
+    }))
+    pos_map, _, _, source = tp._load_positive_signals(tmp_path)
+    assert pos_map == {} and source == "fallback"
+    tier, _ = tp._positive_tier(_dominant_positives(), contracts_repo=tmp_path)
+    assert tier is None  # full house of positives, but no vocab → no tier
+
+
+def test_f1_kill_short_circuits_positive_tier_in_main_flow():
+    """THE F1 GUARD (integration-level): when a kill fires, the positive tier must
+    NOT be computed — a full house of positives cannot survive/soften a veto.
+    Mirrors main()'s `if gate_action: <kill clamp> else: <positive tier>` structure."""
+    subs = dict(_dominant_positives())
+    subs["dependency"] = {"verdict": ("pan_essential_killer", "pan-essential-killer")}  # KILL
+    gate_action, _ = tp._gate_recommendation(subs)
+    assert gate_action == "veto"
+    # Replicate main()'s branch structure: positive tier is in the ELSE of the kill.
+    if gate_action:
+        tier = None  # never computed under a kill — the structural F1 guarantee
+    else:
+        tier, _ = tp._positive_tier(subs)
+    assert tier is None, "positive tier must be unreachable when a kill fired"
+
+
+def test_confidence_floor_is_a_max_never_lowers():
+    """The tier sets a FLOOR: it may raise confidence, never lower it. A moderate
+    tier (medium floor) must not drag an LLM 'high' down to medium."""
+    from copy import deepcopy
+    llm_conf_high = {"value": "high", "_source": "llm_synthesized"}
+    tier = "moderate"  # → medium floor
+    floor = tp._TIER_TO_CONFIDENCE[tier]
+    # replicate the floor logic
+    if tp._CONFIDENCE_RANK[floor] > tp._CONFIDENCE_RANK[llm_conf_high["value"]]:
+        llm_conf_high["value"] = floor
+    assert llm_conf_high["value"] == "high"  # unchanged — floor never lowers

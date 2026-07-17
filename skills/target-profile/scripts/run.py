@@ -303,6 +303,85 @@ def _gate_recommendation(
     return forced, hits
 
 
+# --- Positive tier (deterministic confidence FLOOR; F1-safe) ----------------
+#
+# Graded positives (dependency/selectivity/small-molecule tractability) raise an
+# AUDITABLE confidence tier (strong/moderate) instead of being LLM-advisory only.
+# STRICTLY F1-SAFE: this is computed ONLY when NO kill fired (the else-branch of
+# the gate clamp in main), so a positive can never mask a kill; and it writes ONLY
+# to `confidence` as a FLOOR, never to `overall_recommendation` — it cannot force
+# `nominate`. Policy in target-contracts/vocabularies/nomination_verdict_gate.yaml.
+#
+# INVERTED FALLBACK vs the kill gate: the kill loader falls back conservative-and-
+# complete (missing vocab still fires vetoes). The positive loader falls back to
+# EMPTY (missing/malformed vocab → no positive tier, LLM confidence stands) — it must
+# NEVER mint a spurious `strong`.
+_CONFIDENCE_RANK = {"insufficient": 0, "low": 1, "medium": 2, "high": 3}
+_TIER_TO_CONFIDENCE = {"strong": "high", "moderate": "medium"}
+
+
+def _load_positive_signals(contracts_repo: Path | None = None) -> tuple[dict, set, dict, str]:
+    """Load the positive-tier policy. Returns
+    (positive_map: {(short,verdict): weight}, contradiction_set: {(short,verdict)},
+     config: dict, source). EMPTY-on-failure (never permissive)."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        pos = {(p["sub_skill"], p["verdict"]): p["weight"] for p in data["positive_signals"]}
+        contra = {(c["sub_skill"], c["verdict"]) for c in data["positive_contradictions"]}
+        cfg = data["positive_tier_config"]
+        if not pos:
+            raise ValueError("empty positive_signals")
+        return pos, contra, cfg, "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no positive tier)
+        print(f"[target-profile] WARN: could not load positive_signals vocab "
+              f"({type(e).__name__}: {e}); positive tier DISABLED (LLM confidence stands).",
+              file=sys.stderr)
+        return {}, set(), {"min_dimensions_for_strong": 2, "require_dominant_for_strong": True}, "fallback"
+
+
+def _positive_tier(
+    sub_results: dict, contracts_repo: Path | None = None
+) -> tuple[Optional[str], list[dict]]:
+    """Deterministic confidence tier from graded positive sub-verdicts.
+
+    Returns (tier | None, hits). tier ∈ {strong, moderate}. None = no positive
+    signal (LLM confidence stands). MUST be called only when no kill fired (caller
+    guards this) — but it is also self-safe: it reads only positive_signals and
+    never emits an action. A contradiction (opposing MEASURED verdict on a
+    positive-eligible axis) blocks `strong`. insufficient/data_unavailable are NOT
+    contradictions (measured-vs-null).
+    """
+    pos_map, contra_set, cfg, _src = _load_positive_signals(contracts_repo)
+    if not pos_map:
+        return None, []
+    hits: list[dict] = []
+    contradicted = False
+    for short, r in sub_results.items():
+        v = r.get("verdict")
+        if not v:
+            continue
+        verdict_str = v[0]
+        if (short, verdict_str) in contra_set:
+            contradicted = True
+            continue
+        weight = pos_map.get((short, verdict_str))
+        if weight:
+            hits.append({"short": short, "verdict": verdict_str, "weight": weight,
+                         "driving_rule_id": v[1] if len(v) > 1 else None})
+    if not hits:
+        return None, []
+    n_dims = len({h["short"] for h in hits})
+    has_dominant = any(h["weight"] == "dominant" for h in hits)
+    min_dims = cfg.get("min_dimensions_for_strong", 2)
+    require_dom = cfg.get("require_dominant_for_strong", True)
+    strong_ok = (n_dims >= min_dims and (has_dominant or not require_dom)
+                 and not contradicted)
+    tier = "strong" if strong_ok else "moderate"
+    return tier, hits
+
+
 # --- LLM synthesis ----------------------------------------------------------
 
 _SYSTEM_PROMPT = (
@@ -807,6 +886,7 @@ def main() -> int:
     # in nomination.json + provenance so the gate is never silent.
     gate_action, gate_hits = _gate_recommendation(sub_results)
     recommendation_gate = {"fired": bool(gate_action)}
+    confidence_tier = {"tier": None}
     if gate_action:
         rec = llm_output.get("overall_recommendation")
         llm_value = rec.get("value") if isinstance(rec, dict) else rec
@@ -826,6 +906,29 @@ def main() -> int:
         print(f"[target-profile] recommendation GATE fired: forced '{gate_action}' "
               f"(LLM said '{llm_value}') via {[h['short']+':'+h['verdict'] for h in gate_hits]}",
               file=sys.stderr)
+    else:
+        # NO kill fired → the positive tier may raise a deterministic confidence
+        # FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches
+        # ONLY `confidence`, never `overall_recommendation` (never forces nominate).
+        tier, pos_hits = _positive_tier(sub_results)
+        confidence_tier = {"tier": tier, "hits": pos_hits}
+        if tier:
+            floor = _TIER_TO_CONFIDENCE[tier]  # strong→high, moderate→medium
+            conf = llm_output.get("confidence")
+            llm_conf = conf.get("value") if isinstance(conf, dict) else conf
+            # Apply as a floor: never lower the LLM's confidence, only raise it.
+            if _CONFIDENCE_RANK.get(floor, 0) > _CONFIDENCE_RANK.get(llm_conf, 0):
+                if isinstance(conf, dict):
+                    conf["value"] = floor
+                    conf["_floored_by_positive_tier"] = True
+                else:
+                    llm_output["confidence"] = {
+                        "value": floor, "_source": "positive_tier"}
+                confidence_tier["floored_from"] = llm_conf
+                confidence_tier["floored_to"] = floor
+            print(f"[target-profile] positive tier: {tier} "
+                  f"(dims={sorted({h['short'] for h in pos_hits})}); "
+                  f"confidence floor {floor}", file=sys.stderr)
 
     # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
     figures_dir = args.out / "figures"
@@ -874,6 +977,7 @@ def main() -> int:
             for short, r in sub_results.items()
         },
         "recommendation_gate": recommendation_gate,
+        "confidence_tier": confidence_tier,
         "llm_synthesis": llm_output,
     }
     (args.out / "nomination.json").write_text(
@@ -889,6 +993,7 @@ def main() -> int:
         "invoked_lenses": invoked_lenses,
         "sub_skills_ran": [s for s, _ in SUB_SKILLS],
         "recommendation_gate": recommendation_gate,
+        "confidence_tier": confidence_tier,
         "llm_prompt_hash": llm_output.get("executive_summary", {}).get("_prompt_hash"),
         "llm_model_id": llm_output.get("executive_summary", {}).get("_model_id"),
         "artefacts": [
