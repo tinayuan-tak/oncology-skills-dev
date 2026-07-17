@@ -82,14 +82,20 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
     effect (essential when both paralogs are knocked out) but each single
     KO is neutral.
 
-    Iter-1 approximation: we compute the median dual-KO effect from
-    ParalogGeneEffect only (single-KO baselines from ParalogGeneEffectUncorrected
-    or the separate single-KO screens can be added in a Sprint 2 follow-up).
+    Buffering metric (2026-07-17, aligns reader to the card + rules contract):
+    the buffering signal is NOT the dual-KO effect alone — it is how much MORE
+    lethal the dual KO is than the best single KO:
+        dep_delta_paired_vs_max_single(A,B) = median_dual(A,B) - max(single(A), single(B))
+    A strongly-negative delta means each paralog rescues the other (true buffering),
+    distinct from a pair that is essential simply because one member is a
+    baseline-essential gene. Single-KO baselines are the bare-gene-symbol columns in
+    the SAME ParalogGeneEffect.csv (4547 present), previously skipped.
 
     Returns:
-      (pair_effect_index, per_gene_pair_index)
-      - pair_effect_index: dict[(gene_a_upper, gene_b_upper) -> median_effect]
-      - per_gene_pair_index: dict[gene_upper -> list[(other_gene, pair_median_effect)]]
+      (pair_delta_index, per_gene_pair_index)
+      - pair_delta_index: dict[(gene_a_upper, gene_b_upper) -> {
+            median_dual, single_a, single_b, delta_vs_max_single}]
+      - per_gene_pair_index: dict[gene_upper -> list[(other_gene, pair_record)]]
     """
     path = _ensure_paralog_cached()
     if path is None:
@@ -111,104 +117,138 @@ def _load_paralog_indexed() -> tuple[dict, dict]:
         #   controls:  "AAVS1_AAVS1", "AAVS1_chr2", "AAVS1_nonTarget", etc.
         # We only index dual-KO columns where BOTH tokens look like real
         # gene symbols and neither is a control marker.
+        # Classify each column as a DUAL-KO pair, a SINGLE-KO baseline, or skip.
         pair_labels: list[tuple[Optional[tuple[str, str]], int]] = []
+        single_labels: list[tuple[Optional[str], int]] = []
         CONTROL_MARKERS = {"AAVS1", "CHR2", "NONTARGET", "SAFE"}
         for idx, col_name in enumerate(header):
+            pair_labels.append((None, idx))       # default: not a pair
+            single_labels.append((None, idx))     # default: not a single
             if idx == 0:
-                pair_labels.append((None, idx))
                 continue
-            # Skip single-gene columns (no underscore or 1 token)
-            tokens = [t.strip().upper() for t in col_name.strip().split("_")]
+            raw = col_name.strip()
+            tokens = [t.strip().upper() for t in raw.split("_")]
+            if len(tokens) == 1:
+                # SINGLE-KO baseline: bare gene symbol (e.g. "A3GALT2").
+                g = tokens[0]
+                if g and g not in CONTROL_MARKERS:
+                    single_labels[idx] = (g, idx)
+                continue
             if len(tokens) != 2:
-                # Not a canonical 2-gene dual-KO label; skip
-                # (also covers 3+ token controls like "AAVS1_chr2_extra")
-                pair_labels.append((None, idx))
-                continue
+                continue   # 3+ token controls
             gene_a, gene_b = tokens
             if not gene_a or not gene_b:
-                pair_labels.append((None, idx))
                 continue
-            # Skip AAVS1-anything and other control combinations
             if gene_a in CONTROL_MARKERS or gene_b in CONTROL_MARKERS:
-                pair_labels.append((None, idx))
                 continue
             if gene_a == gene_b:
-                pair_labels.append((None, idx))
                 continue
-            key = tuple(sorted([gene_a, gene_b]))
-            pair_labels.append((key, idx))
+            pair_labels[idx] = (tuple(sorted([gene_a, gene_b])), idx)
 
-        # Stream rows: for each pair-column with a valid key, collect effects
+        single_effects: dict[str, list[float]] = {}
+        # Stream rows once: collect dual-KO effects per pair + single-KO per gene.
         for row in reader:
             for key, idx in pair_labels:
                 if key is None or idx >= len(row):
                     continue
-                val = row[idx].strip()
-                if not val:
+                v = row[idx].strip()
+                if v:
+                    try:
+                        pair_effects.setdefault(key, []).append(float(v))
+                    except ValueError:
+                        pass
+            for gene, idx in single_labels:
+                if gene is None or idx >= len(row):
                     continue
-                try:
-                    fval = float(val)
-                except ValueError:
-                    continue
-                pair_effects.setdefault(key, []).append(fval)
+                v = row[idx].strip()
+                if v:
+                    try:
+                        single_effects.setdefault(gene, []).append(float(v))
+                    except ValueError:
+                        pass
 
-    # Aggregate to median per pair
-    pair_effect_index: dict[tuple, float] = {}
-    for key, values in pair_effects.items():
-        if values:
-            pair_effect_index[key] = statistics.median(values)
+    # Aggregate to median per pair + per single gene.
+    dual_median = {k: statistics.median(v) for k, v in pair_effects.items() if v}
+    single_median = {g: statistics.median(v) for g, v in single_effects.items() if v}
 
-    # Reverse index: per gene → list of (partner, median_effect)
-    per_gene_pair_index: dict[str, list[tuple[str, float]]] = {}
-    for (a, b), med in pair_effect_index.items():
-        per_gene_pair_index.setdefault(a, []).append((b, med))
-        per_gene_pair_index.setdefault(b, []).append((a, med))
+    # Compute the buffering delta per pair: median_dual - max(single_a, single_b).
+    # Single-KO baseline missing for a member → that member's single effect is
+    # treated as unavailable (None); delta falls back to None (NOT to 0, which would
+    # fabricate a baseline — measured-vs-null discipline).
+    # SIGN CONVENTION (matches the card contract): dep_delta_paired_vs_max_single is
+    # the POSITIVE additional lethality of the dual KO over the best single KO =
+    #   max(single_a, single_b) - median_dual.
+    # On the Chronos scale (more-negative = more lethal), a dual KO that is more
+    # lethal than either single → max_single (less negative) minus median_dual (more
+    # negative) → POSITIVE delta. strong → delta > 0.5; partial → 0.2-0.5; none → <0.2.
+    pair_delta_index: dict[tuple, dict] = {}
+    for (a, b), med_dual in dual_median.items():
+        sa = single_median.get(a)
+        sb = single_median.get(b)
+        singles = [s for s in (sa, sb) if s is not None]
+        max_single = max(singles) if singles else None
+        delta = (max_single - med_dual) if max_single is not None else None
+        pair_delta_index[(a, b)] = {
+            "median_dual": med_dual,
+            "single_a": sa,
+            "single_b": sb,
+            "delta_vs_max_single": delta,
+        }
 
-    return pair_effect_index, per_gene_pair_index
+    per_gene_pair_index: dict[str, list[tuple[str, dict]]] = {}
+    for (a, b), rec in pair_delta_index.items():
+        per_gene_pair_index.setdefault(a, []).append((b, rec))
+        per_gene_pair_index.setdefault(b, []).append((a, rec))
+
+    return pair_delta_index, per_gene_pair_index
 
 
-def _classify_buffering(median_effect: float) -> str:
-    """Coarse buffering strength classification from median dual-KO effect.
+# Card-contract thresholds (paralog-buffering.card.yaml:60-61) on the POSITIVE
+# dep_delta_paired_vs_max_single (dual-KO additional lethality over the best single).
+_STRONG_DELTA = 0.5
+_PARTIAL_DELTA = 0.2
 
-    Chronos-scale: negative = fitness cost; -1.0 is a common "essential"
-    threshold. Strong buffering = dual KO is essential (median_effect < -1.0)
-    while single KOs are viable (approximated by absence in DepMap single-KO
-    essential list; iter-1 skips that check).
+
+def _classify_buffering(delta: Optional[float]) -> str:
+    """Buffering class from dep_delta_paired_vs_max_single (card contract).
+
+    delta = max(single_a, single_b) - median_dual (positive = dual KO is more lethal
+    than either single = the paralogs buffer each other). Card vocab: strong/partial/
+    none. A missing delta (no single-KO baseline for either member) is NOT classified
+    as `none` — it is genuinely unmeasured; callers treat a None delta as excluded
+    from the buffering call (measured-vs-null discipline), never as a confirmed no-buffer.
     """
-    if median_effect is None:
-        return "unknown"
-    if median_effect < -1.5:
+    if delta is None:
+        return "unmeasured"
+    if delta > _STRONG_DELTA:
         return "strong"
-    if median_effect < -1.0:
-        return "moderate"
-    if median_effect < -0.5:
-        return "weak"
+    if delta >= _PARTIAL_DELTA:
+        return "partial"
     return "none"
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
-    """Per-target paralog-buffering summary.
+    """Per-target paralog-buffering summary (aligned to the card + rule contract).
 
     Args:
         target: HGNC gene symbol (paralog data keys on symbol directly).
-        indication: unused (paralog buffering is indication-agnostic;
-            accepted for dispatcher signature consistency).
+        indication: unused (paralog buffering is indication-agnostic).
 
-    Returns:
-        dict with paralog-buffering summary:
-          - paralog_buffering_class ('strong' | 'moderate' | 'weak' | 'none' | 'data_unavailable')
-          - n_paralogs_annotated: count of paired genes in DepMap
-          - n_paralogs_functionally_buffering: count with strong/moderate class
-          - functional_paralogs: list<{partner_gene_symbol, median_dual_ko_effect, buffering_class}>
-          - strongest_paralog_symbol: partner with lowest median (strongest buffering)
-          - strongest_paralog_effect: numeric
+    Returns dict with:
+      - paralog_buffering_class ∈ {strong, partial, none, data_unavailable}
+        (the card's `no_paralog` maps to our target_not_in_paralog_screens →
+        data_unavailable; strong/partial/none per dep_delta thresholds)
+      - n_paralogs_annotated, n_paralogs_functionally_buffering (strong or partial)
+      - functional_paralogs: list<{partner_gene_symbol, median_dual_ko_effect,
+        single_ko_effect (max of the pair), dep_delta_paired_vs_max_single, buffering_class}>
+      - strongest_paralog_symbol / strongest_paralog_delta (the card's primary numeric)
     """
     try:
-        pair_effect_index, per_gene_pair_index = _load_paralog_indexed()
+        pair_delta_index, per_gene_pair_index = _load_paralog_indexed()
     except Exception as e:
         return _empty_result(f"paralog_load_failed: {type(e).__name__}: {e}")
 
-    if not pair_effect_index:
+    if not pair_delta_index:
         return _empty_result("paralog_data_unavailable")
 
     target_upper = target.upper().strip()
@@ -218,53 +258,60 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         return _empty_result("target_not_in_paralog_screens")
 
     functional_paralogs = []
-    for partner, med_effect in pairs:
-        b_class = _classify_buffering(med_effect)
+    for partner, rec in pairs:
+        delta = rec["delta_vs_max_single"]
+        # max single-KO effect of the pair (the baseline the delta is measured against)
+        singles = [s for s in (rec["single_a"], rec["single_b"]) if s is not None]
+        max_single = max(singles) if singles else None
         functional_paralogs.append({
             "partner_gene_symbol": partner,
-            "median_dual_ko_effect": med_effect,
-            "buffering_class": b_class,
+            "median_dual_ko_effect": rec["median_dual"],
+            "single_ko_effect": max_single,
+            "dep_delta_paired_vs_max_single": delta,
+            "buffering_class": _classify_buffering(delta),
         })
 
-    # Sort by effect (most-negative-first; strongest buffering first)
-    functional_paralogs.sort(key=lambda x: x["median_dual_ko_effect"])
+    # Rank by delta descending (strongest buffering first); unmeasured (None) last.
+    functional_paralogs.sort(
+        key=lambda x: (x["dep_delta_paired_vs_max_single"] is not None,
+                       x["dep_delta_paired_vs_max_single"] or 0.0),
+        reverse=True,
+    )
 
     n_annotated = len(functional_paralogs)
     n_buffering = sum(1 for p in functional_paralogs
-                       if p["buffering_class"] in ("strong", "moderate"))
+                       if p["buffering_class"] in ("strong", "partial"))
 
-    # Skill-level paralog_buffering_class from the strongest partner
-    strongest = functional_paralogs[0] if functional_paralogs else None
-    if strongest is None:
-        paralog_buffering_class = "none"
-        strongest_symbol = ""
-        strongest_effect = None
-    else:
-        paralog_buffering_class = strongest["buffering_class"]
-        strongest_symbol = strongest["partner_gene_symbol"]
-        strongest_effect = strongest["median_dual_ko_effect"]
-
+    # Skill-level class from the strongest MEASURED partner. If every partner is
+    # unmeasured (no single-KO baseline anywhere), the buffering call is unavailable,
+    # not `none` — absence of the baseline is not evidence of no buffering.
+    measured = [p for p in functional_paralogs
+                if p["dep_delta_paired_vs_max_single"] is not None]
+    if not measured:
+        return _empty_result("paralog_single_ko_baseline_unavailable",
+                             n_annotated=n_annotated)
+    strongest = measured[0]
     return {
-        "paralog_buffering_class": paralog_buffering_class,
+        "paralog_buffering_class": strongest["buffering_class"],
         "n_paralogs_annotated": n_annotated,
         "n_paralogs_functionally_buffering": n_buffering,
-        "functional_paralogs": functional_paralogs[:20],  # top 20 for compact output
-        "strongest_paralog_symbol": strongest_symbol,
-        "strongest_paralog_effect": strongest_effect,
-        "method_version": "0.1.0",
+        "functional_paralogs": functional_paralogs[:20],
+        "strongest_paralog_symbol": strongest["partner_gene_symbol"],
+        "strongest_paralog_delta": strongest["dep_delta_paired_vs_max_single"],
+        "method_version": "0.2.0",   # re-derived to dep_delta_paired_vs_max_single
         "_data_source": "depmap-paralog-buffering-per-gene-v1",
         "_data_source_upstream": PARALOG_SOURCE_MANIFEST_ID,
     }
 
 
-def _empty_result(note: str) -> dict:
+def _empty_result(note: str, n_annotated: int = 0) -> dict:
     return {
         "paralog_buffering_class": "data_unavailable",
-        "n_paralogs_annotated": 0,
+        "n_paralogs_annotated": n_annotated,
         "n_paralogs_functionally_buffering": 0,
         "functional_paralogs": [],
         "strongest_paralog_symbol": "",
-        "strongest_paralog_effect": None,
-        "method_version": "0.1.0",
+        "strongest_paralog_delta": None,
+        "method_version": "0.2.0",
         "_data_note": note,
     }
