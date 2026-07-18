@@ -40,5 +40,5 @@ def test_moderate_band_does_not_gate_a_hold():
     """Neutral middle band must NOT force a nomination hold (only highly_constrained does)."""
     tp = _load(TP_RUN, "tp_run_c2c2")
     sr = {"safety": {"verdict": ("moderately_constrained_safety", "r")}}
-    forced, _ = tp._gate_recommendation(sr)
+    forced, _, _sup = tp._gate_recommendation(sr)
     assert forced is None

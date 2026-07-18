@@ -274,16 +274,108 @@ def _load_gate_verdicts(contracts_repo: Path | None = None) -> tuple[dict[tuple[
         return dict(_FALLBACK_GATE_VERDICTS), "fallback"
 
 
+# Biologics modalities for which the dependency veto is INFORMATIVE-only (a
+# surface-directed biologic kills via antigen engagement, not genetic dependency).
+_BIOLOGICS_MODALITIES = {"adc", "bite_tce", "antibody"}
+
+
+def _load_veto_suppressors(
+    contracts_repo: Path | None = None,
+) -> tuple[list[dict], list[dict], str]:
+    """Load the two veto-suppression policies (v1.2.0) from the vocab. Returns
+    (context_escape_suppressors, modality_scoped_suppression, source).
+
+    CONSERVATIVE FALLBACK (mirrors the never-permissive contract, inverted for a
+    suppressor): on ANY failure this returns EMPTY lists — a missing/malformed
+    suppressor block means NO suppression fires and the full veto stands. A
+    suppressor can therefore only ever make the gate MORE conservative when its
+    own policy is present; its absence can never disable a veto.
+    """
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        ctx = data.get("veto_suppressors", []) or []
+        msvs = data.get("modality_scoped_veto_suppression", []) or []
+        return ctx, msvs, "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no suppression, veto stands)
+        print(f"[target-profile] WARN: could not load veto suppressors "
+              f"({type(e).__name__}: {e}); suppression DISABLED (full veto stands).",
+              file=sys.stderr)
+        return [], [], "fallback"
+
+
+def _suppressed_gate_hits(
+    hits: list[dict],
+    sub_results: dict,
+    modality: Optional[str],
+    contracts_repo: Path | None = None,
+) -> tuple[list[dict], list[dict]]:
+    """Apply v1.2.0 veto suppression to the fired gate hits. Returns
+    (surviving_hits, suppression_records). A hit is suppressed when EITHER:
+
+    (A) context-escape — a `veto_suppressors` rule names it as `suppresses` AND one
+        of its `when_present` rescue verdicts fired (a MEASURED biomarker-stratified
+        dependency proves the target is required in its stratum → the pooled
+        non_dependent read is a dilution artifact). Rescues EGFR/IDH1/FLT3.
+    (B) modality-scoped — a `modality_scoped_veto_suppression` rule names it AND the
+        declared modality is in the rule's `when_modality_in` (a surface biologic
+        kills via antigen engagement, not dependency). Rescues CD19/TROP2/DLL3.
+        Fires ONLY when a modality is explicitly declared.
+
+    CONSERVATIVE: empty suppressor policy → nothing suppressed (full veto stands).
+    Only `dependency` veto arms are ever suppressible (the vocab enforces this too).
+    """
+    ctx_supps, msvs, src = _load_veto_suppressors(contracts_repo)
+    if not ctx_supps and not msvs:
+        return hits, []
+
+    present = {(short, (r.get("verdict") or [None])[0]) for short, r in sub_results.items()}
+    survivors: list[dict] = []
+    suppressions: list[dict] = []
+    for h in hits:
+        key = (h["short"], h["verdict"])
+        suppressed_by = None
+        # (A) context-escape
+        for s in ctx_supps:
+            sup = s.get("suppresses", {})
+            if (sup.get("sub_skill"), sup.get("verdict")) != key:
+                continue
+            trigger = next((w for w in s.get("when_present", [])
+                            if (w["sub_skill"], w["verdict"]) in present), None)
+            if trigger:
+                suppressed_by = {"kind": "context_escape",
+                                 "trigger": f"{trigger['sub_skill']}:{trigger['verdict']}"}
+                break
+        # (B) modality-scoped
+        if suppressed_by is None and modality:
+            for m in msvs:
+                sup = m.get("suppresses", {})
+                if (sup.get("sub_skill"), sup.get("verdict")) != key:
+                    continue
+                if modality in set(m.get("when_modality_in", [])):
+                    suppressed_by = {"kind": "modality_scoped", "modality": modality}
+                    break
+        if suppressed_by:
+            suppressions.append({**h, "suppressed_by": suppressed_by, "policy_source": src})
+        else:
+            survivors.append(h)
+    return survivors, suppressions
+
+
 def _gate_recommendation(
-    sub_results: dict, contracts_repo: Path | None = None
-) -> tuple[Optional[str], list[dict]]:
+    sub_results: dict, contracts_repo: Path | None = None,
+    modality: Optional[str] = None,
+) -> tuple[Optional[str], list[dict], list[dict]]:
     """Deterministically derive a forced overall_recommendation from sub-verdicts.
 
-    Returns (forced_action | None, hits) where hits is the list of
-    {short, verdict, action, driving_rule_id} that triggered — for provenance.
-    None means no gate fired (the LLM's choice stands). When multiple gates fire,
-    the highest-rank action wins (veto > hold). The policy comes from the
-    target-contracts vocab (conservative hardcoded fallback on load failure).
+    Returns (forced_action | None, hits, suppressions). `hits` is the list of
+    surviving {short, verdict, action, driving_rule_id} that force the action —
+    for provenance. `suppressions` records any veto hit that fired but was
+    suppressed (v1.2.0 context-escape / modality-scoped) — also for provenance, so
+    a suppressed veto is never silent. None action means no (surviving) gate fired.
+    When multiple survive, the highest-rank action wins (veto > hold). Policy comes
+    from the target-contracts vocab (conservative hardcoded fallback on load failure).
     """
     gate_verdicts, policy_source = _load_gate_verdicts(contracts_repo)
     hits: list[dict] = []
@@ -297,10 +389,13 @@ def _gate_recommendation(
             hits.append({"short": short, "verdict": verdict_str,
                          "action": action, "driving_rule_id": driving_rule_id,
                          "policy_source": policy_source})
+    # v1.2.0: apply veto suppression (context-escape + modality-scoped) before
+    # resolving the forced action. A suppressed veto does not force — but is recorded.
+    hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo)
     if not hits:
-        return None, []
+        return None, [], suppressions
     forced = max((h["action"] for h in hits), key=lambda a: _GATE_ACTION_RANK[a])
-    return forced, hits
+    return forced, hits, suppressions
 
 
 # --- Positive tier (deterministic confidence FLOOR; F1-safe) ----------------
@@ -886,8 +981,14 @@ def main() -> int:
     # recommendation regardless of what the LLM chose — the auditable rule wins.
     # We clamp the wrapped {value, _source, ...} in place and record the override
     # in nomination.json + provenance so the gate is never silent.
-    gate_action, gate_hits = _gate_recommendation(sub_results)
-    recommendation_gate = {"fired": bool(gate_action)}
+    gate_action, gate_hits, gate_suppressions = _gate_recommendation(
+        sub_results, modality=args.modality)
+    recommendation_gate = {"fired": bool(gate_action),
+                           "suppressed_vetoes": gate_suppressions}
+    if gate_suppressions:
+        print(f"[target-profile] recommendation gate SUPPRESSED "
+              f"{[s['short']+':'+s['verdict']+' via '+s['suppressed_by']['kind'] for s in gate_suppressions]}",
+              file=sys.stderr)
     confidence_tier = {"tier": None}
     if gate_action:
         rec = llm_output.get("overall_recommendation")
@@ -898,6 +999,7 @@ def main() -> int:
             "llm_recommendation": llm_value,
             "overridden": llm_value != gate_action,
             "triggered_by": gate_hits,
+            "suppressed_vetoes": gate_suppressions,
         }
         if isinstance(rec, dict):
             rec["value"] = gate_action
