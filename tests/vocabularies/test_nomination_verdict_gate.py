@@ -91,13 +91,67 @@ def test_positive_set_disjoint_from_kills_and_contradictions():
 
 def test_positives_only_from_cross_target_axes():
     """Curation discipline: positives come ONLY from the cross-target axes
-    (dependency, selectivity, tractability_sm) — surface/expression/mechanism are
-    modality-scoped/advisory and must NOT be positive-eligible."""
+    (dependency, selectivity, tractability_sm, genomic_alteration) — surface/
+    expression/mechanism are modality-scoped/advisory and must NOT be
+    positive-eligible. genomic_alteration was added v1.2.0 (2026-07-17): a
+    biomarker-stratified dependency is a genuine cross-target requirement signal
+    (the rescue for pooled-CRISPR-diluted mutant-restricted targets)."""
     v = _load()
-    allowed = {"dependency", "selectivity", "tractability_sm"}
+    allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration"}
     used = {p["sub_skill"] for p in v["positive_signals"]}
     assert used <= allowed, f"positive from non-cross-target axis: {used - allowed}"
     excl = {(e["sub_skill"], e["verdict"]) for e in v["excluded_positive_modality_scoped"]}
     # the modality-scoped/advisory positives are explicitly documented as excluded
     assert ("surface_modality", "adc_favorable") in excl
     assert ("mechanism", "well_characterized") in excl
+
+
+# ---------------------------------------------------------------------------
+# Veto suppression (v1.2.0, 2026-07-17) — backtest-driven gate-C correction
+# ---------------------------------------------------------------------------
+
+def test_veto_suppressors_well_formed_and_conservative():
+    """Context-escape suppressors must (a) be well-formed, (b) only suppress
+    `non_dependent` (the dilution artifact) — NEVER pan_essential_killer, which is
+    a distinct too-essential failure a stratified signal cannot rescue."""
+    v = _load()
+    supps = v["veto_suppressors"]
+    assert isinstance(supps, list) and supps
+    for s in supps:
+        assert set(s["suppresses"]) == {"sub_skill", "verdict"}
+        assert s["suppresses"]["verdict"] == "non_dependent", (
+            "context-escape must not suppress pan_essential_killer")
+        assert s["when_present"] and s["rationale"].strip()
+    # the biomarker-stratified rescue verdicts are the trigger + are also positives
+    triggers = {(w["sub_skill"], w["verdict"])
+                for s in supps for w in s["when_present"]}
+    pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
+    assert ("genomic_alteration", "biomarker_stratified_dependency") in triggers
+    assert triggers <= pos, "every suppressor trigger must also be a positive_signal"
+
+
+def test_modality_scoped_veto_suppression_biologics_only():
+    """Biologics-modality veto suppression must (a) target only the dependency veto
+    arms, (b) fire only for surface-directed modalities (adc/bite_tce/antibody) —
+    never for SM/degrader (where dependency IS a necessary condition)."""
+    v = _load()
+    msvs = v["modality_scoped_veto_suppression"]
+    assert isinstance(msvs, list) and msvs
+    biologics = {"adc", "bite_tce", "antibody"}
+    suppressed_verdicts = set()
+    for m in msvs:
+        assert m["suppresses"]["sub_skill"] == "dependency"
+        suppressed_verdicts.add(m["suppresses"]["verdict"])
+        assert set(m["when_modality_in"]) <= biologics, (
+            "dependency veto must NOT be suppressed for SM/degrader modalities")
+    # both dependency veto arms are suppressed for biologics
+    assert suppressed_verdicts == {"non_dependent", "pan_essential_killer"}
+
+
+def test_gates_still_unchanged_by_v1_2_0():
+    """v1.2.0 adds suppression + a positive; the `gates` veto set itself is byte-
+    stable (suppression is applied by the loader, not by removing a gate)."""
+    v = _load()
+    veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
+    assert veto == {("dependency", "pan_essential_killer"),
+                    ("dependency", "non_dependent")}
