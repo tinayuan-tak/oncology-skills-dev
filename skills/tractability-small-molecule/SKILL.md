@@ -16,7 +16,7 @@ description: |
   dependency?"
 
 metadata:
-  version: 3.0.0
+  version: 3.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -29,6 +29,7 @@ composition:
     - prism-compound-activity
     - prism-crispr-concordance
     - dependency-predictability
+    - structure-features-static      # E8: forward ligandability (pocket structure)
   rules_scope:
     - all
   synthesis:
@@ -55,22 +56,34 @@ composition:
 
 ## Snapshot resolution (rank-ordered, first match wins)
 
+Chemical-genetic evidence (RETROSPECTIVE — a compound has actually hit the target)
+ranks highest; structural / forward ligandability (E8 — a druggable pocket, no
+compound required) ranks below a real chemical hit but above `chemically_unhit`.
+
   1. `e7-triangulated-target-engaged-supportive` → `well_covered`
      (chemical hits agree with genetic dependency — highest confidence)
   2. `e7-crispr-confirmed-supportive-sm` → `chemically_confirmed_genetic`
   3. `prism-clinically-active-supportive-sm` → `chemically_active`
   4. `prism-tool-compound-only-weak-supportive-sm` → `tool_compound_only`
   5. `prism-weakly-active-weak-supportive-sm` → `weakly_active`
-  6. `e7-discordant-off-target-warning` → `discordant`
-  7. `prism-no-compounds-found-neutral` → `chemically_unhit`
-  8. else → `insufficient`
+  6. `hotspot-in-druggable-pocket-sm-supportive-e8` → `structurally_ligandable`
+     (E8: druggable pocket, forward — the KRAS-G12C switch-II archetype)
+  7. `structure-pocket-adjacent-sm-supportive` → `structurally_ligandable`
+  8. `e7-discordant-off-target-warning` → `discordant`
+  9. `structure-low-confidence-sm-opposing` → `structurally_intractable`
+     (E8: low-confidence/disordered fold — SM-opposing, NOT a killer)
+  10. `prism-no-compounds-found-neutral` → `chemically_unhit`
+  11. else → `insufficient`
 
 ## What this skill does NOT do
 
 - Does NOT assess biologics-modality fit (ADC / TCE / degrader surface
-  topology, surfaceome family, structure pockets). That is the sibling
-  `surface-modality-fit` skill. A full modality workup chains both.
-- No new dispatchers, no new rules.
+  topology, surfaceome family). That is the sibling `surface-modality-fit`
+  skill. A full modality workup chains both. NB: `structure-features-static`
+  is consumed by BOTH skills — this one reads it for SM pocket ligandability
+  (E8, small_molecule-scoped rules); surface-modality-fit reads it for
+  adc/bite_tce topology (surface-axis rules). Same card, two axis-scoped reads.
+- No new dispatchers.
 
 ## How Claude invokes this skill
 

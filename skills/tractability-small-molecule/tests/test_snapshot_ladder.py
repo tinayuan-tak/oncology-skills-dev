@@ -1,0 +1,85 @@
+"""Tests for the tractability-small-molecule _snapshot ladder.
+
+Focus: the E8 structure/forward-ligandability rung added 2026-07-17. A druggable
+pocket must raise `structurally_ligandable` (ranked below a real chemical hit,
+above chemically_unhit) — the fix for the KRAS-G12C switch-II pocket being
+invisible to gate E1 pre-sotorasib. Pure-helper tests (no Bedrock, no I/O)."""
+
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
+
+
+def _load():
+    spec = importlib.util.spec_from_file_location("tsm_run", RUN_PY)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+tp = _load()
+
+
+def _fired(*rule_ids):
+    return [{"rule_id": r} for r in rule_ids]
+
+
+# --- chemical-genetic tier unchanged (regression) ---
+
+def test_triangulated_still_top():
+    v, drv = tp._snapshot(_fired("e7-triangulated-target-engaged-supportive"))
+    assert v == "well_covered"
+
+
+def test_chemically_active():
+    v, drv = tp._snapshot(_fired("prism-clinically-active-supportive-sm"))
+    assert v == "chemically_active"
+
+
+# --- E8: structural forward ligandability ---
+
+def test_druggable_pocket_is_structurally_ligandable():
+    """KRAS-G12C archetype: a hotspot in a druggable pocket, no compound in PRISM."""
+    v, drv = tp._snapshot(_fired("hotspot-in-druggable-pocket-sm-supportive-e8"))
+    assert v == "structurally_ligandable"
+    assert drv == "hotspot-in-druggable-pocket-sm-supportive-e8"
+
+
+def test_pocket_adjacent_is_structurally_ligandable():
+    v, drv = tp._snapshot(_fired("structure-pocket-adjacent-sm-supportive"))
+    assert v == "structurally_ligandable"
+
+
+def test_chemical_hit_outranks_structure():
+    """A real chemical hit (retrospective) must outrank a mere pocket (forward)."""
+    v, drv = tp._snapshot(_fired(
+        "prism-clinically-active-supportive-sm",
+        "hotspot-in-druggable-pocket-sm-supportive-e8"))
+    assert v == "chemically_active"
+
+
+def test_structure_outranks_chemically_unhit():
+    """The whole point: a druggable pocket with no compound is BETTER than
+    chemically_unhit — the KRAS-G12C-pre-sotorasib case must not read unhit."""
+    v, drv = tp._snapshot(_fired(
+        "prism-no-compounds-found-neutral",
+        "hotspot-in-druggable-pocket-sm-supportive-e8"))
+    assert v == "structurally_ligandable", "a druggable pocket must beat chemically_unhit"
+
+
+def test_low_confidence_structure_is_intractable_not_killer():
+    v, drv = tp._snapshot(_fired("structure-low-confidence-sm-opposing"))
+    assert v == "structurally_intractable"
+
+
+def test_chemically_unhit_when_only_negative():
+    v, drv = tp._snapshot(_fired("prism-no-compounds-found-neutral"))
+    assert v == "chemically_unhit"
+
+
+def test_insufficient_when_nothing_fires():
+    v, drv = tp._snapshot(_fired())
+    assert v == "insufficient" and drv is None
