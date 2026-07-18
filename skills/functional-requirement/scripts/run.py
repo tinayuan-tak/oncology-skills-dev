@@ -55,6 +55,17 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     if "concordance-discordant-warning" in fired_by_id:
         return "discordant", "concordance-discordant-warning"
 
+    # DepMap-power admissibility guard (2026-07-17): a below-floor pooled negative
+    # CONTRADICTED by a well-sampled concentrated-dependent lineage (EGFR-mut lung,
+    # FLT3-mut AML, IDH1-mut under-sampled in DepMap). Distinct from non_dependent:
+    # this is a coverage gap (pooled power diluted), NOT a measured negative, so it
+    # must NOT reach the `non_dependent` gate veto. Checked BEFORE non-dependent-killer
+    # (the classifier emits one or the other; both never fire together) so the
+    # underpowered verdict + its driving rule are recorded for provenance rather than
+    # collapsing into a bare `insufficient` fall-through.
+    if "non-dependent-underpowered-insufficient" in fired_by_id:
+        return "insufficient_underpowered", "non-dependent-underpowered-insufficient"
+
     # non_dependent → gate VETO. Only CRISPR non-dependence (reliable) qualifies.
     # RNAi non-dependence is NOT included (2026-07-17): rnai-non-dependent-neutral
     # emits `neutral` signals — RNAi is false-negative-prone, so RNAi-alone-not-
