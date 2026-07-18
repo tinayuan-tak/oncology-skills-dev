@@ -4,6 +4,11 @@
 data→skills orientation map (four repos, the two synthesis engines, the guard
 rails, what's wired vs. deferred). Then drop into the per-card/per-skill docs below.
 
+**Iterating on the wiring?** [`DATA_CARD_RULE_VERDICT_MAP.md`](DATA_CARD_RULE_VERDICT_MAP.md)
+is the complete end-to-end map of every target-profile dimension (data → card → rule →
+verdict → gate/risk consumption), the full verdict vocabularies, and the iteration
+backlog (coverage gaps, under-weightings, verdict-inert cards).
+
 Concise-but-detailed technical design docs for the target-evaluation framework, at two layers:
 
 - **`cards/`** — one doc per evidence card (the atom): data source → method → emitted categorical → plots → interpretation rules → caveats. This is where the detail lives.
