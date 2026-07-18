@@ -69,6 +69,26 @@ rules:
       No functional dependency detected across the cell-line panel. Without dependency
       evidence there is no rationale for therapeutic investment regardless of modality.
 
+  - rule_id: non-dependent-underpowered-insufficient
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      equals: non_dependent_underpowered
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      DepMap-power admissibility guard (2026-07-17). The POOLED pan-cancer fraction is
+      below the dependency floor, but a well-sampled lineage (n>=5) is concentrated-
+      dependent — the relevant lineage/genotype is simply UNDER-SAMPLED in DepMap
+      (EGFR-mut lung, FLT3-mut AML, IDH1-mut), so the pooled negative is diluted, not
+      trusted. This is a COVERAGE GAP (insufficient), NOT a measured negative — it must
+      NOT fire the non_dependent veto (measured-vs-null discipline: absence of pooled
+      power is not evidence-against). The lineage-scoped or mutation-stratified
+      dependency cards carry the real read for the concentrated context; synthesis
+      should surface "insufficient pan-cancer power; see lineage/mutation-stratified
+      evidence" rather than a false-negative veto.
+
   - rule_id: broadly-dependent-neutral
     when:
       card_id: pan-cancer-crispr-dependency-distribution
