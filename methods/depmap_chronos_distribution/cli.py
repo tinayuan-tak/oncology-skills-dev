@@ -293,6 +293,7 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
         fraction_strongly_dependent=frac_strong,
         median_chronos_panel=summary["median_chronos_panel"],
         distribution_shape=shape,
+        top_dependent_lineages=summary["top_dependent_lineages"],
         pan_essential_fraction=pan_essential_fraction,
         selective_min=selective_min,
         selective_max=selective_max,
@@ -301,24 +302,50 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     return summary
 
 
+# --- DepMap-power admissibility guard (2026-07-17) --------------------------
+# A pooled pan-cancer `non_dependent` call (< 5% of ~1500 lines strongly dependent)
+# is only a TRUSTED NEGATIVE if no well-sampled lineage is concentrated-dependent.
+# When a lineage IS concentrated-dependent but its cell lines are too few to lift the
+# POOLED fraction above the floor (the EGFR-in-lung / FLT3-mut-AML / IDH1-mut case:
+# a handful of relevant lines diluted across ~1500), the pooled `non_dependent` is
+# UNDERPOWERED, not a negative. We emit a distinct class so the gate treats it as
+# `insufficient` (measured-vs-null discipline) rather than firing a false-negative veto.
+LINEAGE_CONCENTRATED_DEP_FRACTION = 0.30   # a lineage with >=30% strongly-dependent lines...
+LINEAGE_MIN_N_FOR_ADMISSIBILITY = 5        # ...and >=5 lines (already the top_lineages floor)
+
+
 def _classify_dependency(fraction_strongly_dependent: float,
                           median_chronos_panel: float,
                           distribution_shape: str,
+                          top_dependent_lineages: list | None = None,
                           pan_essential_fraction: float = 0.85,
                           selective_min: float = 0.05,
                           selective_max: float = 0.60) -> str:
     """Map summary stats to a DepMap-convention dependency_class categorical.
 
     Returns one of: common_essential | strongly_selective | broadly_dependent |
-                    non_dependent | data_unavailable
+                    non_dependent | non_dependent_underpowered | data_unavailable
 
     The vocabulary matches target-contracts/cards/pan-cancer-crispr-dependency-distribution
     .card.yaml's outputs.summary_fields_vocabulary.dependency_class. Tier-2 rules
     in interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
+
+    `non_dependent_underpowered` (2026-07-17): a below-floor pooled call that is
+    contradicted by a concentrated-dependent well-sampled lineage — an admissibility
+    guard so a lineage/genotype-restricted dependency (EGFR, FLT3, IDH1) that DepMap
+    under-samples is not silently vetoed as a trusted negative.
     """
     if fraction_strongly_dependent >= pan_essential_fraction:
         return "common_essential"
     if fraction_strongly_dependent < selective_min:
+        # Below the pooled floor. Admissibility check: is there a well-sampled lineage
+        # that IS concentrated-dependent? If so the pooled negative is underpowered
+        # (diluted), not trusted — flag it so the gate treats it as insufficient.
+        for lin in (top_dependent_lineages or []):
+            if (lin.get("n_in_lineage", 0) >= LINEAGE_MIN_N_FOR_ADMISSIBILITY
+                    and lin.get("fraction_strongly_dependent", 0.0)
+                    >= LINEAGE_CONCENTRATED_DEP_FRACTION):
+                return "non_dependent_underpowered"
         return "non_dependent"
     if distribution_shape == "bimodal_selective":
         return "strongly_selective"

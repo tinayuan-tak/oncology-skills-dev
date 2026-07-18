@@ -217,3 +217,99 @@ def test_synthetic_kras_full_cli_invocation(tmp_path, monkeypatch):
         summary = json.load(f)
     assert summary["n_cell_lines_evaluated"] == 150
     assert "distribution_shape" in summary
+
+
+# ===========================================================================
+# DepMap-power admissibility guard (2026-07-17) — the EGFR/FLT3/IDH1 case.
+# A dependency concentrated in ONE small lineage, diluted below the 5% pooled
+# floor, must classify as `non_dependent_underpowered` (→ insufficient), NOT
+# `non_dependent` (→ false-negative veto).
+# ===========================================================================
+
+def _build_underpowered_depmap_dir(target_dir, n_cell_lines=300):
+    """One small lineage (9 lines, 3% of a 300-line panel) is STRONGLY dependent on
+    the target; all other lineages non-dependent. Pooled fraction_strongly_dependent
+    = 9/300 = 3% — BELOW the 5% selective_min floor, so the pooled call is
+    `non_dependent` (would VETO) — but the lung lineage (n=9 >= 5) is clearly
+    concentrated-dependent (100% strong). This is the exact EGFR-mut-lung / FLT3-mut-AML
+    under-sampling case the guard must catch: below-floor pooled negative contradicted
+    by a well-sampled concentrated lineage → non_dependent_underpowered, not a veto."""
+    import numpy as np
+    import pandas as pd
+    rng = np.random.default_rng(seed=7)
+    cell_line_ids = [f"ACH-{i:06d}" for i in range(n_cell_lines)]
+
+    n_lung = 9   # the dependent lineage: >=5 (admissible) but only 3% of the panel
+    lineage_pool = ["lung_nsclc"] * n_lung + ["other"] * (n_cell_lines - n_lung)
+    rng.shuffle(lineage_pool)
+
+    chronos = []
+    for lg in lineage_pool:
+        if lg == "lung_nsclc":
+            chronos.append(float(rng.normal(loc=-1.5, scale=0.15)))   # strong dep
+        else:
+            chronos.append(float(rng.normal(loc=-0.05, scale=0.15)))  # non-essential
+    crispr_df = pd.DataFrame({"ModelID": cell_line_ids, "EGFR (1956)": chronos})
+    crispr_df.to_csv(target_dir / "CRISPRGeneEffect.csv", index=False)
+    model_df = pd.DataFrame({
+        "ModelID": cell_line_ids,
+        "CellLineName": [f"CL{i}" for i in range(n_cell_lines)],
+        "OncotreeLineage": lineage_pool,
+        "OncotreeSubtype": ["adenocarcinoma"] * n_cell_lines,
+        "PrimaryDisease": ["Non-Small Cell Lung Cancer" if lg == "lung_nsclc"
+                           else "Other" for lg in lineage_pool],
+    })
+    model_df.to_csv(target_dir / "Model.csv", index=False)
+
+
+def test_underpowered_lineage_not_false_negative(tmp_path, monkeypatch):
+    """The guard: a lineage-concentrated dependency diluted below the pooled floor
+    classifies as non_dependent_underpowered, NOT non_dependent."""
+    import sys
+    fake = tmp_path / "depmap-26q1"; fake.mkdir()
+    _build_underpowered_depmap_dir(fake, n_cell_lines=300)
+    sys.path.insert(0, str(METHODS_REPO))
+    import methods.depmap_chronos_distribution.cli as cli_mod
+    monkeypatch.setattr(cli_mod, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake])
+
+    chronos_by_model, meta, errs = cli_mod.load_depmap_files(release_pin="26q1", target_symbol="EGFR")
+    assert errs == []
+    summary = cli_mod.compute_summary_stats(chronos_by_model, meta,
+                                            strong_threshold=-1.0, moderate_threshold=-0.5)
+
+    # Pooled fraction is BELOW the 5% floor (9/300 = 3%) — pooled call is non_dependent...
+    assert summary["fraction_strongly_dependent"] < 0.05, \
+        f"test fixture must dilute below the floor; got {summary['fraction_strongly_dependent']:.3f}"
+    # ...but lung (n=9) is concentrated-dependent, so the guard must fire:
+    assert summary["dependency_class"] == "non_dependent_underpowered", (
+        f"expected underpowered guard to fire (lung concentrated-dependent, pooled diluted); "
+        f"got {summary['dependency_class']!r} @ frac={summary['fraction_strongly_dependent']:.3f}")
+
+
+def test_genuine_non_dependent_still_classifies_non_dependent(tmp_path, monkeypatch):
+    """CONTROL: a target non-dependent EVERYWHERE (no concentrated lineage) must
+    still classify non_dependent — the guard must not fire spuriously."""
+    import sys
+    import numpy as np
+    import pandas as pd
+    fake = tmp_path / "depmap-26q1"; fake.mkdir()
+    rng = np.random.default_rng(seed=11)
+    n = 200
+    ids = [f"ACH-{i:06d}" for i in range(n)]
+    # everyone non-essential; lineages present but NONE concentrated-dependent
+    lineages = (["lung_nsclc"] * 40 + ["colorectal"] * 40 + ["breast"] * 40
+                + ["skin"] * 40 + ["pancreas"] * 40)
+    rng.shuffle(lineages)
+    chronos = rng.normal(loc=-0.05, scale=0.15, size=n).tolist()
+    pd.DataFrame({"ModelID": ids, "FOOBAR (999)": chronos}).to_csv(fake / "CRISPRGeneEffect.csv", index=False)
+    pd.DataFrame({"ModelID": ids, "CellLineName": [f"CL{i}" for i in range(n)],
+                  "OncotreeLineage": lineages, "OncotreeSubtype": ["x"] * n,
+                  "PrimaryDisease": ["Other"] * n}).to_csv(fake / "Model.csv", index=False)
+    sys.path.insert(0, str(METHODS_REPO))
+    import methods.depmap_chronos_distribution.cli as cli_mod
+    monkeypatch.setattr(cli_mod, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake])
+    chronos_by_model, meta, errs = cli_mod.load_depmap_files(release_pin="26q1", target_symbol="FOOBAR")
+    summary = cli_mod.compute_summary_stats(chronos_by_model, meta,
+                                            strong_threshold=-1.0, moderate_threshold=-0.5)
+    assert summary["dependency_class"] == "non_dependent", (
+        f"genuine non-dependent must NOT trip the guard; got {summary['dependency_class']!r}")
