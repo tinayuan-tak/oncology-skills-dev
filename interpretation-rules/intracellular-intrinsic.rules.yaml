@@ -1146,6 +1146,83 @@ rules:
       activity call stands unchallenged.
 
   # ============================================================================
+  # E8 — Structure / small-molecule ligandability (Card structure-features-static)
+  # ============================================================================
+  # FORWARD ligandability for the small-molecule druggability call. Added 2026-07-17
+  # (gate-scaffold backtest follow-up): E6/E7 (PRISM) measure whether a compound has
+  # ALREADY been found — retrospective. They cannot credit a target that is
+  # structurally druggable but not yet drugged (the KRAS-G12C switch-II pocket was
+  # invisible to E1 pre-sotorasib). These rules add the "CAN it be drugged" signal
+  # from AlphaFold/PDB pocket structure. structure-features-static is tier:target
+  # (a protein property, subgroup-invariant) and is ALSO consumed by
+  # surface-modality-fit on the surface axis — its surface-scoped rules live in
+  # surface-intrinsic.rules.yaml. These intracellular rules are small_molecule-scoped
+  # ONLY (a druggable pocket says nothing about a biologics modality) and are a
+  # deliberate axis-local copy of the SM-relevant structure signal, NOT a move.
+
+  # NB: rule_id is intracellular-axis-specific (…-e8) to disambiguate from the
+  # surface-axis copy in surface-intrinsic.rules.yaml, which emits adc/bite_tce
+  # neutral signals for the SAME card. The rules loader reads one axis file per
+  # skill, so both coexist safely; distinct ids keep provenance unambiguous.
+  - rule_id: hotspot-in-druggable-pocket-sm-supportive-e8
+    when:
+      card_id: structure-features-static
+      field: mutation_hotspot_in_druggable_pocket
+      equals: 'true'
+    signals:
+      small_molecule: supportive
+    dominant: true
+    rationale: |
+      A known TCGA mutation hotspot sits in a druggable pocket → small-molecule
+      structure-guided design is actionable (the KRAS-G12C switch-II archetype).
+      This is FORWARD ligandability: it credits druggability the retrospective PRISM
+      cards (E6/E7) miss for a not-yet-drugged target. SM-scoped only.
+
+  - rule_id: structure-pocket-adjacent-sm-supportive
+    when:
+      card_id: structure-features-static
+      field: hotspot_pocket_adjacency_call
+      equals: adjacent
+    signals:
+      small_molecule: supportive
+    rationale: |
+      A mutation hotspot sits ADJACENT to a resolved pocket (PDB or high-confidence
+      AlphaFold) — structure-guided small-molecule design has a handle even without an
+      existing compound. Supportive (not dominant): weaker than a hotspot IN a
+      druggable pocket. SM-scoped forward-ligandability signal.
+
+  - rule_id: structure-low-confidence-sm-opposing
+    when:
+      card_id: structure-features-static
+      field: alphafold_confidence_class
+      equals: low
+    signals:
+      small_molecule: opposing
+    rationale: |
+      AlphaFold structural confidence is LOW (the card's categorical proxy for a
+      largely disordered / poorly-resolved fold; the method thresholds pLDDT at
+      emit time) — classical small-molecule pocket-based design is unlikely to have
+      a handle. A MEASURED structural negative for the SM modality, not an absence.
+      NOT a killer: low-confidence/disordered targets can still be addressable by
+      degraders / molecular glue / RNA therapeutics (see mechanism-and-pharmacology).
+      SM-scoped. (Rule-layer discipline: keyed on the card's categorical, not a raw
+      threshold — thresholding happens at emit time in the method.)
+
+  - rule_id: structure-no-coverage-sm-insufficient
+    when:
+      card_id: structure-features-static
+      field: hotspot_pocket_adjacency_call
+      equals: no_structure
+    signals:
+      small_molecule: insufficient
+    rationale: |
+      Neither PDB nor AlphaFold has usable structural coverage — a structure-based
+      SM ligandability call cannot be made. Coverage gap (insufficient), NOT an
+      opposing signal (measured-vs-null discipline: absence of structure is not
+      evidence of undruggability). The surface axis handles this card's adc/bite_tce
+      neutral signal separately in surface-intrinsic.rules.yaml.
+
+  # ============================================================================
   # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================
   # FOUR-CELL sensitivity selectivity. All four cells (TCGA-adjacent ±ComBat,
