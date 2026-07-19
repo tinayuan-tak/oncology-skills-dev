@@ -1,0 +1,26 @@
+{
+  "skill": "functional-requirement",
+  "target": "MARK2",
+  "indication": "PAAD",
+  "generated_at": "2026-07-18T19:04:25+00:00",
+  "headline": {
+    "dependency_verdict": "non_dependent",
+    "driving_rule_id": "non-dependent-killer",
+    "crispr_call": "non_dependent",
+    "rnai_call": null,
+    "concordance_call": "strongly_concordant_non_dependent",
+    "lineage_selectivity": null,
+    "paralog_buffering_class": "strong",
+    "strongest_paralog_symbol": "MARK3",
+    "cards_available": 5,
+    "cards_missing": []
+  },
+  "_crispr_provenance": {
+    "n_cell_lines_evaluated": 1538,
+    "median_chronos_panel": -0.23466450721025467,
+    "fraction_strongly_dependent": 0.02600780234070221,
+    "dependency_class": "non_dependent",
+    "distribution_shape": "non_essential"
+  },
+  "_snapshot_note": "Minimal live-captured decision snapshot for calibration harness. See known_target_calibration_set.yaml."
+}
