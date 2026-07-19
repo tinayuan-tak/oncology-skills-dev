@@ -526,6 +526,17 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_shed_ectodomain_liability(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: shed-ectodomain-liability card → curated serum-marker crosswalk
+    (target-contracts vocab) + HPA v25-1 secretome proxy via
+    methods/shed_ectodomain_liability/read.py. Gate-F surface-window no-go:
+    a shed circulating ectodomain is an antigen sink for antibody/ADC/TCE.
+    Protein-intrinsic — indication accepted for contract, not consumed.
+    """
+    mod = _import_method("shed_ectodomain_liability")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
@@ -555,6 +566,7 @@ CARD_DISPATCHERS = {
     "protein-presence-cptac": _dispatch_protein_presence_cptac,
     "paralog-buffering": _dispatch_paralog_buffering,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
+    "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py
