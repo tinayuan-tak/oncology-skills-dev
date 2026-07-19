@@ -510,6 +510,68 @@ rules:
       HPA IHC data not joined to this card yet (pending HPA-IHC data-catalog
       landing per MODALITY_TAXONOMY.md). Coverage gap; not opposing evidence.
 
+  # ============================================================================
+  # F3 — Shed-ectodomain-liability card (gate-F surface-window, 2026-07-19)
+  # ============================================================================
+  # A surface-present, correctly-targetable antigen whose ectodomain is shed as a
+  # soluble circulating decoy ("antigen sink") that neutralizes/sequesters an
+  # antibody/ADC/TCE before tumor delivery. `opposing`, NOT killer: approved and
+  # late-stage biologics exist against shed antigens (mirvetuximab/FOLR1 approved;
+  # MUC16/MSLN in advanced trials) — shedding de-prioritizes and drives epitope +
+  # dosing strategy, it does not categorically foreclose the modality.
+
+  - rule_id: shed-ectodomain-clinical-opposing
+    when:
+      card_id: shed-ectodomain-liability
+      field: shed_liability_class
+      equals: clinically_shed
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Target has a clinically-established shed ectodomain (an FDA-cleared /
+      widely-used serum tumor marker — CA125=MUC16, CA15-3=MUC1, SMRP=MSLN,
+      shed-HER2-ECD, CEA=CEACAM5). A circulating soluble decoy is a first-order
+      pharmacology liability for all antibody-based modalities: it binds drug in
+      the periphery before tumor delivery. Opposing (not killer) — require a
+      shed-resistant (membrane-proximal) epitope and model the antigen sink in
+      dose selection. DISTINCT from the isoform-loss mechanism (p95HER2/EGFRvIII
+      in isoform_selective_targets.yaml); a target may carry both.
+
+  - rule_id: shed-ectodomain-secretome-proxy-opposing
+    when:
+      card_id: shed-ectodomain-liability
+      field: shed_liability_class
+      equals: secretome_proxy_shed
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Target is not in the curated clinical shed-antigen vocabulary, but HPA
+      annotates it as secreted (proxy that a soluble form circulates and may act
+      as a partial antigen sink). Weaker than the clinical tier — confirm with
+      isoform-resolved / soluble-antigen measurement before an antibody/ADC/TCE
+      nomination. This is the tier that catches MUC13-class targets (secreted per
+      HPA, no established serum marker).
+
+  - rule_id: shed-ectodomain-indeterminate-insufficient
+    when:
+      card_id: shed-ectodomain-liability
+      field: shed_liability_class
+      equals: indeterminate
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    rationale: |
+      Shedding status could not be evidenced either way (gene absent from the
+      curated vocab and from HPA). COVERAGE GAP, NOT a trusted negative —
+      structured shedding sources systematically under-annotate shed receptors,
+      so absence of annotation must not be read as "not shed." Surfaced, not
+      scored against the modality.
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================

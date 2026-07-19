@@ -1,0 +1,145 @@
+# Card Phase-F — SHED-ECTODOMAIN LIABILITY (v1)
+#
+# Gate-F surface-window no-go signal (2026-07-19). Third of the validated
+# gate-F surface-modality-fit builds (siblings: gnomad-lof-constraint safety,
+# surface-topology-and-ptm epitope-viability, surfaceome-family-classification
+# not_surface/secreted-ECM). Answers a question none of those cover: for a
+# surface-PRESENT, correctly-targetable antigen, is its ectodomain proteolytically
+# SHED into circulation as a soluble decoy — an "antigen sink" that neutralizes /
+# sequesters an antibody / ADC / T-cell-engager before it reaches the tumor?
+#
+# This is a DE-PRIORITIZATION signal for biologics, not a small-molecule concern
+# (a shed ectodomain is irrelevant to an intracellular SM target). It fires
+# `opposing` (NOT killer): ADCs/TCEs against shed antigens DO reach clinic
+# (mirvetuximab/FOLR1 approved; MUC16/MSLN in late trials) — a shed antigen
+# demands a shed-resistant epitope + sink-aware dosing, it does not categorically
+# foreclose the modality.
+#
+# DISTINCT from isoform-selectivity (isoform_selective_targets.yaml): that axis
+# is "the dominant protein variant LACKS the epitope" (p95HER2, EGFRvIII). This
+# axis is "the full-length epitope IS present on the tumor cell but is DUPLICATED
+# into a circulating decoy pool." ERBB2/MET appear in both — different mechanism,
+# different mitigation. See cross_reference fields in shed_antigen_targets.yaml.
+#
+# Interpretation surface (shed_liability_class is PRIMARY):
+#   `clinically_shed`            → target is in the curated shed-antigen vocab with
+#                                  an established clinical serum marker (CA125=MUC16,
+#                                  CA15-3=MUC1, SMRP=MSLN, shed-HER2-ECD, CEA, ...).
+#                                  Highest-confidence sink liability.
+#   `secretome_proxy_shed`       → not in the curated vocab, but HPA "Secreted to
+#                                  blood" / UniProt Secreted-fragment features
+#                                  corroborate a soluble form. Weaker (proxy) tier.
+#   `not_shed_membrane_retained` → surface-present with no shed/secreted evidence
+#                                  at any tier AND membrane-retained topology. The
+#                                  shed axis is clear (a supportive absence).
+#   `indeterminate`              → could not evidence shedding either way (gene not
+#                                  in vocab, no HPA/UniProt signal, or topology
+#                                  unknown). Coverage gap — NOT a claim of "not shed"
+#                                  (structured shedding sources have systematic
+#                                  false negatives, esp. for shed RTKs).
+
+card_id: shed-ectodomain-liability
+version: 1.0.0
+question: "Is the extracellular domain of {target.symbol} proteolytically shed as a soluble circulating decoy, creating an antigen-sink liability for antibody / ADC / T-cell-engager modalities?"
+
+tier: target   # scope-invariant: ectodomain shedding is a property of the protein, not of any tumor subgroup. Never stratifies.
+
+# Biologics-relevant only. The composed card is modality-scoped downstream; the
+# signal is meaningless for intracellular small-molecule targets.
+applies_when: []
+
+required_inputs:
+  # The PROXY tier reads an already-landed catalog source (HPA secretome).
+  # The RELIABLE `clinically_shed` tier is the curated serum-marker crosswalk
+  # `vocabularies/shed_antigen_targets.yaml` — a target-contracts-internal
+  # reference consumed by the reader (like isoform_selective_targets.yaml), NOT
+  # a catalog product, so it is intentionally absent from required_inputs.
+  - product_id: hpa-v25-1                          # HPA secretome ("Secreted to blood") proxy
+  # UniProt SwissProt features (CHAIN/PEPTIDE + Secreted) are an additional proxy
+  # source already landed (uniprot-sprot-human-2026-02-snapshot-2026-06-18); the
+  # reader consumes it opportunistically where topology is available.
+
+methods:
+  - call: shed-ectodomain-lookup
+    args:
+      gene_symbol: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - shed_liability_class                          # PRIMARY categorical
+    - shed_evidence_tier                            # clinical | secretome_proxy | uniprot_feature | none
+    - serum_marker                                  # str|null; clinical assay anchor if clinically_shed (e.g. "CA125")
+    - shed_product                                  # str|null; named soluble form
+    - shedding_protease                             # str|null; sheddase where known (ADAM10/17, BACE1, MMP, GPI-cleavage)
+    - hpa_secretome_location                        # str|null; HPA "Secretome location" value (proxy)
+    - source_citation                               # str|null; primary published citation for the shed claim
+    - method_version
+
+  summary_fields_vocabulary:
+    shed_liability_class:
+      - clinically_shed
+      - secretome_proxy_shed
+      - not_shed_membrane_retained
+      - indeterminate
+    shed_evidence_tier:
+      - clinical
+      - secretome_proxy
+      - uniprot_feature
+      - none
+
+  figure: shed_liability_evidence_panel
+
+warning_predicates:
+  - warning_id: clinically_shed_antigen_sink
+    if: "shed_liability_class == 'clinically_shed'"
+    message: "{target.symbol} has a clinically-established shed ectodomain ({shed_product}; serum marker {serum_marker}). A soluble decoy sequesters antibody/ADC/TCE drug before tumor delivery. Require a membrane-proximal epitope and model the antigen sink in dosing. Not a small-molecule concern."
+  - warning_id: secretome_proxy_shed_liability
+    if: "shed_liability_class == 'secretome_proxy_shed'"
+    message: "{target.symbol} is HPA-annotated as secreted — a proxy that a soluble form may circulate as a partial antigen sink for biologics. Weaker than a clinical serum-marker; confirm with isoform-resolved / soluble-antigen measurement before an antibody/ADC/TCE nomination."
+  - warning_id: shed_indeterminate
+    if: "shed_liability_class == 'indeterminate'"
+    message: "Shedding status of {target.symbol} could not be evidenced (not in the curated shed vocab; no HPA secretome signal). COVERAGE GAP, not a determination that the ectodomain is not shed — structured sources under-annotate shed receptors. Treat shed liability as UNKNOWN for biologics."
+
+caveats:
+  - |
+    A shed ectodomain is a liability SPECIFIC to antibody-based modalities
+    (antibody / ADC / bispecific T-cell-engager). It is IRRELEVANT to an
+    intracellular small-molecule target. The composed, modality-scoped card
+    applies this signal only in a biologics lens.
+  - |
+    Signal severity is `opposing`, never `killer`. Approved and late-stage
+    biologics exist against shed antigens (mirvetuximab soravtansine targets
+    the shed-capable FOLR1; anti-MUC16 and anti-MSLN programs are in advanced
+    trials). A shed ectodomain de-prioritizes and constrains the design (drives
+    epitope choice toward the membrane-retained fragment and sink-aware dosing)
+    — it does not categorically foreclose the modality.
+  - |
+    This is DISTINCT from isoform-selectivity (isoform_selective_targets.yaml).
+    Shedding = the full-length epitope is present on the tumor cell AND targetable,
+    but a soluble copy circulates as a decoy. Isoform-loss = the dominant tumor
+    variant lacks the epitope entirely (p95HER2, EGFRvIII). ERBB2 and MET appear
+    in BOTH vocabularies with different mechanism-of-failure and mitigation; a
+    governance reader should consult both.
+  - |
+    The `clinically_shed` tier is grounded in FDA-cleared / widely-used serum
+    tumor markers (a serum tumor marker IS a shed ectodomain by clinical-chemistry
+    definition). This is the RELIABLE tier and the only one that reliably covers
+    shed receptor tyrosine kinases (HER2-ECD, sMET), which structured shedding
+    databases (MEROPS, TopFIND) systematically miss. The HPA/UniProt PROXY tier
+    is broader but noisier and biased toward signal-peptide-route secretion.
+  - |
+    `indeterminate` (could-not-evidence) is deliberately NOT collapsed into
+    `not_shed`. There is no clean, redistributable, structured, oncology-complete
+    shedding system-of-record (deep-research survey 2026-07-19: SheddomeDB has no
+    bulk download, TopFIND is CC-BY-ND, MEROPS is frozen and misses shed RTKs).
+    Absence of a shedding annotation therefore carries high false-negative risk
+    and must not be read as a trusted negative.
+  - |
+    Iter-2 upgrades: (a) add MEROPS sheddase→substrate cleavage evidence (ADAM10/17,
+    BACE1) as a mechanistic tier if its LGPL redistribution is legally cleared;
+    (b) derive a UniProt CHAIN/PEPTIDE-vs-transmembrane-topology shed classifier
+    genome-wide (structured, landed source) to broaden the proxy tier beyond the
+    HPA secretome column; (c) extend the curated vocab as new shed antigens are
+    clinically characterized (bump vocabulary version).
+
+schema_version: 1
