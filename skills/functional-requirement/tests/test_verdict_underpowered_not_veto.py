@@ -45,3 +45,32 @@ def test_pan_essential_precedence_intact():
     v, _ = fr._verdict([{"rule_id": "pan-essential-killer"},
                         {"rule_id": "non-dependent-underpowered-insufficient"}])
     assert v == "pan_essential_killer"
+
+
+# --- pan-essential admissibility guard (H fix 2026-07-20) ------------------
+
+def test_underpowered_pan_essential_does_not_veto():
+    """H fix: a >=85% pan-essential call on an underpowered panel (< coverage floor)
+    escapes the pan-essential VETO — routes to a distinct insufficient verdict, checked
+    BEFORE the pan-essential killer. Symmetric to the non_dependent underpowered guard."""
+    for rid in ("common-essential-underpowered-insufficient",
+                "rnai-common-essential-underpowered-insufficient"):
+        v, drv = fr._verdict([{"rule_id": rid}])
+        assert v == "insufficient_underpowered_pan_essential", (
+            f"{rid} must escape the pan-essential veto")
+        assert drv == rid
+
+
+def test_genuine_pan_essential_still_vetoes_control():
+    """CONTROL: a real pan-essential (adequate panel) must still veto — the guard only
+    spares the underpowered case."""
+    assert fr._verdict([{"rule_id": "pan-essential-killer"}]) == (
+        "pan_essential_killer", "pan-essential-killer")
+
+
+def test_underpowered_pan_essential_precedence_over_killer():
+    """If both somehow co-fire (defensive — the classifier emits one or the other),
+    the underpowered guard wins (checked first) so an underpowered call never vetoes."""
+    v, _ = fr._verdict([{"rule_id": "common-essential-underpowered-insufficient"},
+                        {"rule_id": "pan-essential-killer"}])
+    assert v == "insufficient_underpowered_pan_essential"

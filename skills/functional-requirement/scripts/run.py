@@ -38,6 +38,17 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """Rank-ordered verdict resolution. Returns (verdict, driving_rule_id)."""
     fired_by_id = {r["rule_id"]: r for r in fired}
 
+    # Pan-essential ADMISSIBILITY guard (H fix 2026-07-20): a >=85% pan-essential call on
+    # an underpowered panel (< coverage floor) is a tiny-panel artifact, NOT a trusted
+    # pan-essential. Checked BEFORE the pan-essential killer so it escapes the VETO and
+    # routes to insufficient. The classifier emits common_essential OR
+    # common_essential_underpowered (never both). Symmetric to the non-dependent-
+    # underpowered guard below. Distinct verdict for provenance.
+    for rid in ("common-essential-underpowered-insufficient",
+                "rnai-common-essential-underpowered-insufficient"):
+        if rid in fired_by_id:
+            return "insufficient_underpowered_pan_essential", rid
+
     for rid in ("pan-essential-killer", "rnai-pan-essential-killer"):
         if rid in fired_by_id:
             return "pan_essential_killer", rid
