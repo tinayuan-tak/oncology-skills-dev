@@ -1021,9 +1021,14 @@ def _render_target_profile_md(
     llm_output: dict,
     invoked_lenses: dict,
     composite_figure_relpath: Optional[str] = None,
+    deciding_axis: Optional[dict] = None,
+    ordinal_matrix: Optional[dict] = None,
 ) -> str:
     """Render target_profile.md with clearly-tagged LLM sections + per-phase
-    evidence tables + risk-by-category summary + embedded composite figure."""
+    evidence tables + risk-by-category summary + deciding-axis routing + the
+    ordinal evidence matrix + embedded composite figure. deciding_axis + ordinal_matrix
+    are DETERMINISTIC (not LLM) — surfaced so a human reader sees the same routing +
+    modality view that land in nomination.json, not only the LLM narrative."""
     lines = [
         f"# Target profile — {target} in {indication}",
         "",
@@ -1060,6 +1065,32 @@ def _render_target_profile_md(
     lines.append(f"- **Confidence:** `{conf}`")
     lines.append("")
 
+    # --- Deciding axis (deterministic router; reports, never predicts) -----
+    if deciding_axis:
+        lines.append("## Deciding axis *(deterministic — what the call hinges on)*")
+        lines.append("")
+        basis = deciding_axis.get("basis")
+        lines.append(f"_{deciding_axis.get('routing', '')}_")
+        lines.append("")
+        if basis == "gate_fired":
+            da = deciding_axis.get("deciding_axis", {})
+            lines.append(f"- **Load-bearing gate:** {da.get('gate')} ({da.get('gate_name')}) "
+                         f"— `{da.get('short')}`")
+            lines.append(f"- **Framework coverage of that gate:** `{da.get('framework_can_evidence')}`")
+        elif basis == "abstention_coverage_gaps":
+            lines.append("The framework cannot decide from its own evidence. Gates it could not "
+                         "evidence this run (necessity first — these are the routing targets):")
+            lines.append("")
+            lines.append("| gate | short | band | framework can evidence |")
+            lines.append("|---|---|---|---|")
+            for g in deciding_axis.get("unevidenced_gates", []):
+                lines.append(f"| {g.get('gate')} | `{g.get('short')}` | {g.get('band')} "
+                             f"| `{g.get('framework_can_evidence')}` |")
+        elif basis == "positive_signal":
+            axes = ", ".join(f"`{r.get('short')}`" for r in deciding_axis.get("deciding_axes", []))
+            lines.append(f"- **Supporting axes (necessity biology evidenced):** {axes}")
+        lines.append("")
+
     # --- Risk-by-category summary (deterministic, from sub-verdicts) -------
     lines.append("## Risk-by-category summary *(deterministic reshape "
                  "of sub-verdicts)*")
@@ -1095,6 +1126,28 @@ def _render_target_profile_md(
             verdict_str, driving_rule = v
             lines.append(f"| {short} | `{verdict_str}` | `{driving_rule}` |")
     lines.append("")
+
+    # --- Ordinal evidence matrix (deterministic VIEW; gate × modality) -----
+    if ordinal_matrix:
+        cols = ordinal_matrix["axes"]["columns"]
+        leg = ordinal_matrix["legend"]
+        lines.append("## Modality-scoped evidence matrix *(deterministic VIEW — not a score)*")
+        lines.append("")
+        lines.append(f"> {ordinal_matrix.get('_disclaimer', '')}")
+        lines.append("")
+        lines.append("| gate | " + " | ".join(cols) + " | verdict |")
+        lines.append("|" + "---|" * (len(cols) + 2))
+        for row in ordinal_matrix["rows"]:
+            cells = row["cells"]
+            glyphs = " | ".join(ordinal_view._cell_glyph(cells[m]) for m in cols)
+            lines.append(f"| {row['short']} | {glyphs} | {row.get('verdict') or '—'} |")
+        on = ", ".join(f"{k}={v:+d}" for k, v in sorted(leg["on_scale"].items(), key=lambda t: -t[1]))
+        lines.append("")
+        lines.append(f"_Scale (order-preserving, NOT metric): {on}; off-scale (coverage, not a "
+                     f"low score): {', '.join(leg['off_scale'])} (`insf`/`n/a`); `·` = no signal. "
+                     f"A cell shows the strongest raw signal for that (gate, modality); when it "
+                     f"differs from the resolved verdict, the verdict is the decision._")
+        lines.append("")
 
     # --- Per-phase evidence tables (Shape A enrichment) --------------------
     lines.append("## Per-phase evidence *(deterministic, from card summaries)*")
@@ -1306,6 +1359,8 @@ def main() -> int:
     md = _render_target_profile_md(
         args.target, args.indication, sub_results, llm_output, invoked_lenses,
         composite_figure_relpath=composite_rel,
+        deciding_axis=deciding_axis,
+        ordinal_matrix=ordinal_matrix,
     )
     (args.out / "target_profile.md").write_text(md)
 
