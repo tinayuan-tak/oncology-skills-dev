@@ -28,9 +28,12 @@ QUESTION = ("Is {target} highly constrained against loss-of-function "
             "therapeutic, full-inhibition SM) in {indication}?")
 
 PARTIAL_STATUS_NOTE = (
-    "on-target-safety-liability is status: partial; normal-tissue-liability "
-    "+ protein-surface-evidence cards not wired (HPA IHC dispatcher pending). "
-    "Only gnomAD germline constraint signal reflected in this decision."
+    "on-target-safety-liability is status: partial; this skill reflects only the "
+    "gnomAD GERMLINE constraint signal (modality-agnostic / SM-relevant). The "
+    "normal-tissue-liability HPA-IHC signal (biologics on-target-off-tumor safety) "
+    "is now WIRED, but on the surface_intrinsic axis — it is consumed by the "
+    "surface-modality-fit skill (adc/bite_tce/antibody channels), not here. "
+    "protein-surface-evidence card remains unwired."
 )
 
 

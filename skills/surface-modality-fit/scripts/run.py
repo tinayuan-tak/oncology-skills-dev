@@ -36,6 +36,7 @@ CARDS = [
     "structure-features-static",
     "surface-abundance-density",
     "adc-tce-modality-fit",
+    "normal-tissue-liability",          # HPA IHC on-target-off-tumor safety (wired 2026-07-20)
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -89,6 +90,13 @@ def _headline(cards, fired, verdict_pair):
         "hotspot_pocket_adjacency_call":  _get("structure-features-static",
                                                "hotspot_pocket_adjacency_call"),
         "surface_density_class":          _get("surface-abundance-density", "surface_density_class"),
+        # Normal-tissue on-target-off-tumor safety (HPA IHC). Its rules fire on the
+        # surface_intrinsic axis (adc/bite_tce/antibody): essential-tissue → BiTE killer
+        # + adc/antibody opposing; broad footprint → opposing; restricted/not-detected →
+        # supportive. Surfaced here so the biologics-fit call reflects the safety window.
+        "normal_tissue_breadth_class":    _get("normal-tissue-liability", "normal_tissue_breadth_class"),
+        "essential_tissue_flag":          _get("normal-tissue-liability", "essential_tissue_flag"),
+        "normal_tissue_safety_flags":     _get("normal-tissue-liability", "safety_tissue_flags"),
     }
 
 
