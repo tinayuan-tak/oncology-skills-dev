@@ -1,0 +1,123 @@
+# Card E3b — PROTEIN ABUNDANCE across DepMap cell-line panel  (pure-data)
+#
+# The PROTEIN twin of expression-distribution (E3a, bulk_rna x cell_line). Reports
+# mass-spec protein abundance distribution across DepMap cell lines + per-lineage
+# breakdown. Answers "is this gene's PROTEIN measurably present across cancer cell
+# lines, and is it lineage-stratified?" — the substrate that catches the
+# RNA-high / protein-absent false-positive the modality taxonomy names.
+#
+# Substrate: DepMap Consortium 26Q1 proteomics, Gygi Lab CCLE TMT MS (Nusinow 2020),
+# harmonized_MS_CCLE_Gygi.csv — a (ModelID x UniProt-accession) whole-proteome
+# TMT mass-spec matrix (~12,558 proteins). Distinct from:
+#   - expression-distribution:   bulk_rna x cell_line (DepMap RNA)
+#   - protein-presence-cptac:    bulk_protein_ms x TUMOR (CPTAC patient cohort)
+# This card is bulk_protein_ms x CELL-LINE — the cell-line protein-presence axis.
+#
+# TMT MS abundance is a normalized relative log2-ratio (protein-level, batch-
+# corrected in the harmonized release), NOT an absolute concentration. "Detected"
+# = a non-null quantified value in the matrix; abundance percentiles are relative
+# within the panel. Thresholds below are on the harmonized log2 abundance scale.
+
+card_id: protein-abundance-celline
+version: 1.0.0
+question: "Across DepMap cell lines (Gygi TMT MS), what is the protein-abundance distribution of {target.symbol}, and is it lineage-stratified?"
+
+tier: target   # cell-line protein abundance is a per-ModelID property; stratifies by DepMap LINEAGE (read-side), not by patient molecular subtype. Not indication-scoped.
+
+applies_when:
+  - "context.data_sources.depmap_proteomics_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1-proteomics
+
+methods:
+  - call: depmap-protein-abundance-distribution
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - n_cell_lines_evaluated                      # cell lines with a quantified value for this protein
+    - n_cell_lines_in_panel                       # total lines in the MS matrix (detection denominator)
+    - fraction_detected                           # n_evaluated / n_in_panel — MS detection is sparse; this is load-bearing
+    - median_log2_abundance_panel
+    - p25_log2_abundance_panel
+    - p75_log2_abundance_panel
+    - p5_log2_abundance_panel
+    - p95_log2_abundance_panel
+    - log2_abundance_iqr
+    - protein_expression_class                    # CATEGORICAL — same vocab the Slice-Y protein rules consume
+    - protein_effect_size                         # panel median (relative abundance) — parity with protein-presence-cptac field name
+    - n_lineages_evaluated
+    - per_lineage_stats                           # list of {lineage, n, median_log2_abundance, fraction_detected}
+    - n_lineage_restricted_lineages               # lineages with >50% detected but panel <30%
+    - method_version
+
+  summary_fields_vocabulary:
+    protein_expression_class:
+      - broadly_high                              # detected in >70% of panel AND high median abundance
+      - broadly_moderate                          # detected in >70% but not high abundance
+      - lineage_restricted                        # detected in 10-70%; lineage-stratified
+      - broadly_low                               # detected in <30% of panel (MS-absent across most lines)
+      - data_unavailable                          # protein not in the MS matrix / couldn't read
+
+  figures:
+    - id: density_protein_abundance
+      type: density_histogram_with_kde
+      description: "Histogram + KDE of harmonized log2 protein abundance across quantified cell lines, with a detection-fraction annotation. Distribution shape + detection sparsity are the primary diagnostics."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_strip_protein
+      type: per_lineage_strip_plot
+      description: "Per-lineage log2 protein-abundance strip plot, lineages ordered by median descending (n>=5 only). Lineage-restriction visible as bimodal-by-lineage; red tick = lineage median."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_cell_line_protein_abundance_with_lineage_tags
+
+thresholds:
+  # Detection-fraction bands (MS is sparse — detection is a first-class signal here,
+  # unlike RNA where near-everything is quantified).
+  broadly_detected_fraction_threshold: 0.70
+  low_detection_fraction_threshold: 0.30
+  lineage_restricted_min_fraction: 0.10
+  lineage_restricted_max_fraction: 0.70
+  # High-abundance band on the harmonized log2 scale (panel-relative; the reader
+  # computes the panel-relative high cutoff — see method).
+  high_abundance_percentile: 0.70
+  min_lineage_size: 5
+
+warning_predicates:
+  - warning_id: sparse_ms_detection
+    if: "fraction_detected < 0.30"
+    message: "{target.symbol} protein is quantified in <30% of DepMap cell lines. Low MS detection may reflect genuine low abundance OR TMT sensitivity limits (membrane/low-abundance proteins under-sampled). Interpret protein absence cautiously; cross-reference RNA (expression-distribution)."
+  - warning_id: protein_absent_data_unavailable
+    if: "protein_expression_class == 'data_unavailable'"
+    message: "{target.symbol} is not present in the Gygi TMT MS matrix (not quantified in any line, or absent from the accession set). No cell-line protein-abundance signal — a COVERAGE GAP, not evidence of protein absence."
+
+caveats:
+  - |
+    TMT MS abundance is a normalized RELATIVE log2 ratio (batch-corrected in the
+    DepMap-harmonized release), not an absolute copies-per-cell. Percentiles are
+    panel-relative. Detection sparsity is intrinsic to shotgun MS — a protein
+    absent from the matrix is often below MS sensitivity, NOT biologically absent.
+  - |
+    This is the PROTEIN twin of expression-distribution (RNA). Their disagreement
+    is diagnostic, not noise: RNA-high + protein-low is the canonical
+    post-transcriptional / MS-sensitivity signal the measurement-modality taxonomy
+    (docs/design/MODALITY_TAXONOMY.md) exists to surface — the tumor-presence skill
+    emits both as distinct per-modality sub-verdicts rather than averaging them.
+  - |
+    Cell-line protein abundance does not equal tumor protein abundance; DepMap
+    lines are immortalized cultures biased toward proliferation programs. The
+    tumor protein-presence comparator is protein-presence-cptac (CPTAC patient MS).
+  - |
+    Lineage stratification here is the DepMap OncotreeLineage axis (a read-side
+    groupby over per-ModelID rows), NOT patient molecular subtype (MSI/CMS) — those
+    are a distinct axis blocked on per-sample patient readers.
+  - |
+    protein_expression_class is descriptive; therapeutic interpretation lives in
+    target-contracts/interpretation-rules/ (the intracellular-intrinsic
+    protein_expression_class rules, shared with protein-presence-cptac).
+
+measurement: bulk_protein_ms
+
+schema_version: 1

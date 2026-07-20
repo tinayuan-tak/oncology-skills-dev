@@ -1746,6 +1746,93 @@ rules:
   # Same discipline as expression_class = 'broadly_moderate' (see above).
 
   # ============================================================================
+  # E3b — Protein abundance distribution (Card E3b: protein-abundance-celline)
+  # ============================================================================
+  # The PROTEIN twin of expression-distribution (E3a). Cell-line whole-proteome
+  # TMT MS (Gygi/Nusinow) DISTRIBUTION — distinct from protein-presence-cptac,
+  # which is a tumor-vs-normal CONTRAST (strong_up/down vocab). This card uses the
+  # DISTRIBUTION vocab (broadly_high/broadly_low/lineage_restricted), so it gets
+  # its OWN rules — exactly parallel to how expression-distribution and
+  # expression-tumor-vs-adjacent each have their own rule sets. Signal mappings
+  # mirror the E3a RNA-distribution rules: broadly_low → degrader killer (no
+  # protein to degrade), broadly_high/lineage_restricted → supportive, moderate/
+  # data_unavailable → neutral/insufficient. This is the substrate that catches
+  # the RNA-high / protein-absent false-positive the modality taxonomy names.
+
+  - rule_id: protein-abundance-broadly-low-degrader-killer
+    when:
+      card_id: protein-abundance-celline
+      field: protein_expression_class
+      equals: broadly_low
+    signals:
+      degrader: killer
+    killer_message: |
+      Target protein is detected in <30% of DepMap cell lines by TMT MS. Degraders
+      require protein presence to degrade; broadly-low cell-line protein abundance is
+      strong evidence the protein is not present in cellular models. Not viable for
+      degrader. (Cross-check RNA + MS-sensitivity caveat — sparse MS detection can
+      also reflect membrane/low-abundance under-sampling.)
+    rationale: |
+      Protein twin of expression-broadly-low-degrader-killer. A degrader needs a
+      target protein to degrade; broadly-low MS detection across the cell-line panel
+      is strong negative evidence for that condition. Small-molecule signal neutral
+      (the SM rationale lives in patient-level cards, not the cell-line panel).
+
+  - rule_id: protein-abundance-broadly-high-supportive
+    when:
+      card_id: protein-abundance-celline
+      field: protein_expression_class
+      equals: broadly_high
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target protein is broadly + highly abundant across DepMap cell lines (TMT MS).
+      Confirms measurable PROTEIN presence — stronger presence evidence than RNA
+      alone. Supportive for both modalities; not dominant (selectivity lives in the
+      tumor-vs-normal + lineage cards).
+
+  - rule_id: protein-abundance-lineage-restricted-supportive
+    when:
+      card_id: protein-abundance-celline
+      field: protein_expression_class
+      equals: lineage_restricted
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Lineage-restricted protein abundance across DepMap (some lineages express
+      protein, others don't). Therapeutic-window candidate by selectivity; the
+      indication-of-interest must overlap an expressing lineage (synthesis-layer
+      lookup over per_lineage_stats). Protein twin of the E3a lineage-restricted rule.
+
+  - rule_id: protein-abundance-broadly-moderate-neutral
+    when:
+      card_id: protein-abundance-celline
+      field: protein_expression_class
+      equals: broadly_moderate
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Protein detected broadly at moderate abundance — informative that protein
+      presence isn't a differentiator, but no directional call. Not a killer
+      (degrader-viable protein IS present), not supportive (no selectivity signal).
+
+  - rule_id: protein-abundance-data-unavailable-insufficient
+    when:
+      card_id: protein-abundance-celline
+      field: protein_expression_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the Gygi TMT MS matrix (not quantified in any line, or
+      accession not present). Coverage gap, NOT opposing evidence — MS sensitivity
+      limits under-sample membrane/low-abundance proteins.
+
+  # ============================================================================
   # SUBTYPE TIER — verdict-affecting subgroup signal (2026-07-17)
   # ============================================================================
   # First verdict-affecting subtype rule. Fires on the subgroup-stratified-
