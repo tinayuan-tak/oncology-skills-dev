@@ -119,10 +119,12 @@ def test_new_declared_not_emitted_errors(tmp_path, monkeypatch):
 # --- WARN: card on the KNOWN_FIGURE_DEBT waiver → tracked debt, build stays green ---
 
 def test_waiver_card_warns_not_errors(tmp_path, monkeypatch):
-    _patch_registry(monkeypatch, _FAKE_EMITTERS)   # normal-tissue-liability NOT registered
+    _patch_registry(monkeypatch, _FAKE_EMITTERS)   # shed-ectodomain-liability NOT registered
+    # shed-ectodomain-liability is on KNOWN_FIGURE_DEBT (not yet backfilled). The 2
+    # safety cards were REMOVED from the waiver on 2026-07-20 once their emitters landed.
     card = _base_card(
-        card_id="normal-tissue-liability",   # on KNOWN_FIGURE_DEBT
-        outputs={"summary_fields": ["x"], "figure": "normal_tissue_expression_heatmap"},
+        card_id="shed-ectodomain-liability",
+        outputs={"summary_fields": ["x"], "figure": "shed_liability_evidence_panel"},
     )
     report = _validate(tmp_path, card)
     assert report.ok, "a waiver card must not error (build stays green)"

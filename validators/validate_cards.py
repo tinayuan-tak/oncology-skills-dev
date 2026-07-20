@@ -106,8 +106,8 @@ def _registered_figure_emitters() -> Optional[set[str]]:
 # ALSO here — they can't emit until their data lands, but they still declare a
 # figure, so they're tracked debt not silent gaps.)
 KNOWN_FIGURE_DEBT = {
-    # SAFETY tier (highest — being backfilled first):
-    'normal-tissue-liability', 'gnomad-lof-constraint',
+    # SAFETY tier — CLEARED 2026-07-20: gnomad-lof-constraint + normal-tissue-liability
+    # emitters registered in CARD_FIGURE_EMITTERS (they now pass the check, not waived).
     # expression / protein:
     'protein-abundance-celline', 'protein-presence-cptac',
     # driver / differentiation / mechanism:
