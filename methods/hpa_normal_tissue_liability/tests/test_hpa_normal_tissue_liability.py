@@ -147,3 +147,24 @@ def test_read_target_summary_graceful_on_failure(monkeypatch):
     out = hc_read.read_target_summary(target="EGFR")
     assert out["normal_tissue_breadth_class"] == "data_unavailable"
     assert out["_live_read_error"] == "hpa_normal_tissue_read_failed"
+
+
+# --- figure emission (viz-coverage backfill 2026-07-20) ------------------
+
+def test_emit_normal_tissue_bar_writes_svg(tmp_path):
+    """The bar emitter writes an SVG from a summary dict. Covers the with-tissues
+    path + the empty-specific-list (broad / not-detected) placeholder path."""
+    import pytest
+    pytest.importorskip("matplotlib")
+    TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    summ = {"normal_tissue_breadth_class": "broad_normal_expression",
+            "specific_tissues": [{"tissue": "lung", "intensity": 2.2e7},
+                                 {"tissue": "salivary gland", "intensity": 2.4e6}],
+            "essential_tissues_flagged": ["lung"]}
+    p = hc.emit_normal_tissue_bar(summ, "TACSTD2", tmp_path / "trop2", TC)
+    assert p.exists() and p.stat().st_size > 0
+    # empty specific list → informative breadth panel, still an SVG
+    p2 = hc.emit_normal_tissue_bar({"normal_tissue_breadth_class": "not_detected_in_normal",
+                                    "specific_tissues": [], "essential_tissues_flagged": []},
+                                   "MLANA", tmp_path / "mlana", TC)
+    assert p2.exists()

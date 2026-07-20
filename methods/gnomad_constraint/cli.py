@@ -142,6 +142,75 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
     }
 
 
+def _load_takeda_style(target_contracts_dir):
+    """Load the Takeda mplstyle + palette (idempotent). Returns the palette module."""
+    import sys as _sys
+    import matplotlib.pyplot as plt
+    from pathlib import Path as _Path
+    style_path = _Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    _sys.path.insert(0, str(_Path(target_contracts_dir) / "plot_styles"))
+    import takeda_palette  # type: ignore
+    return takeda_palette
+
+
+def emit_constraint_gauge(summary: dict, target_symbol: str, out_dir, target_contracts_dir):
+    """Emit the constraint_scores_gauge_panel figure for gnomad-lof-constraint.
+
+    Two horizontal gauges (pLI 0-1, LOEUF 0-2) with the card's constraint-band
+    reference lines (pLI>=0.9 / LOEUF<=0.35 = highly-constrained safety concern).
+    Summary-driven (thin lookup) — draws from pli_score/loeuf_score/constraint_class
+    already in the summary; no data reload. On indeterminate/missing scores, emits a
+    placeholder panel explaining the gap (so the dashboard shows a cell, not nothing).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from pathlib import Path as _Path
+
+    pal = _load_takeda_style(target_contracts_dir)
+    out_dir = _Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "figure_constraint_scores_gauge_panel.svg"
+
+    pli = summary.get("pli_score")
+    loeuf = summary.get("loeuf_score")
+    klass = summary.get("constraint_class", "indeterminate")
+
+    fig, axes = plt.subplots(2, 1, figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+    concern = klass == "highly_constrained"
+    bar_color = pal.REFLINE_KILLER["color"] if concern else "#0a2540"
+
+    if pli is None and loeuf is None:
+        for ax in axes:
+            ax.axis("off")
+        axes[0].text(0.5, 0.5, f"{target_symbol}: no gnomAD constraint scores\n"
+                     f"(constraint_class = {klass})", ha="center", va="center", fontsize=10)
+        fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+        return out_path
+
+    # pLI gauge (0-1; >=0.9 = constrained)
+    ax = axes[0]
+    ax.barh([0], [pli if pli is not None else 0], color=bar_color, height=0.5)
+    ax.axvline(HIGH_PLI, color=pal.REFLINE_KILLER["color"], linestyle="--", linewidth=1,
+               label=f"high-constraint (pLI≥{HIGH_PLI})")
+    ax.set_xlim(0, 1); ax.set_yticks([]); ax.set_xlabel("pLI (prob. LoF-intolerant)")
+    ax.set_title(f"{target_symbol} — gnomAD LoF constraint  [{klass}]")
+    ax.legend(loc="lower right", fontsize=7)
+
+    # LOEUF gauge (0-2; <=0.35 = constrained — LOWER is more constrained)
+    ax = axes[1]
+    ax.barh([0], [loeuf if loeuf is not None else 0], color=bar_color, height=0.5)
+    ax.axvline(HIGH_LOEUF, color=pal.REFLINE_KILLER["color"], linestyle="--", linewidth=1,
+               label=f"high-constraint (LOEUF≤{HIGH_LOEUF})")
+    ax.set_xlim(0, 2); ax.set_yticks([]); ax.set_xlabel("LOEUF (obs/exp LoF upper CI)")
+    ax.legend(loc="lower right", fontsize=7)
+
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
 if __name__ == "__main__":
     import argparse
     import json

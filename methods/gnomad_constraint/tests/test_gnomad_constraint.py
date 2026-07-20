@@ -121,3 +121,21 @@ def test_read_target_summary_graceful_on_unreadable_source(monkeypatch):
     out = gc_read.read_target_summary(target="KRAS", indication="COADREAD")
     assert out["constraint_class"] == "data_unavailable"
     assert out["_live_read_error"] == "gnomad_constraint_read_failed"
+
+
+# --- figure emission (viz-coverage backfill 2026-07-20) ------------------
+
+def test_emit_constraint_gauge_writes_svg(tmp_path):
+    """The gauge emitter writes an SVG from a summary dict (no S3). Covers the
+    real-scores path + the indeterminate placeholder path."""
+    import pytest
+    pytest.importorskip("matplotlib")
+    TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    summary = {"constraint_class": "highly_constrained", "pli_score": 0.99,
+               "loeuf_score": 0.12, "method_version": gc.METHOD_VERSION}
+    p = gc.emit_constraint_gauge(summary, "TP53", tmp_path / "tp53", TC)
+    assert p.exists() and p.stat().st_size > 0
+    # indeterminate (no scores) → placeholder panel, still an SVG
+    p2 = gc.emit_constraint_gauge({"constraint_class": "indeterminate", "pli_score": None,
+                                   "loeuf_score": None}, "FOO", tmp_path / "foo", TC)
+    assert p2.exists()

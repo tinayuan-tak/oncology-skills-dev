@@ -170,6 +170,74 @@ def load_and_classify(gene: str, hpa_path=None) -> dict:
     return compute_summary(gene, hit.iloc[0].to_dict())
 
 
+def _load_takeda_style(target_contracts_dir):
+    """Load the Takeda mplstyle + palette (idempotent). Returns the palette module."""
+    import sys as _sys
+    import matplotlib.pyplot as plt
+    from pathlib import Path as _Path
+    style_path = _Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    _sys.path.insert(0, str(_Path(target_contracts_dir) / "plot_styles"))
+    import takeda_palette  # type: ignore
+    return takeda_palette
+
+
+def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_contracts_dir):
+    """Emit the normal_tissue_expression_heatmap figure for normal-tissue-liability.
+
+    A horizontal bar of per-tissue IHC intensities (from specific_tissues), tissues
+    colored RED if essential (on-target-off-tumor risk) else navy, sorted by intensity.
+    Title carries the breadth class. Summary-driven (no reload). When there is no
+    specific-tissue list (a broad gene, or Not detected), emits an informative panel
+    stating the breadth class — because breadth, not the per-tissue list, carries the
+    liability there.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from pathlib import Path as _Path
+
+    pal = _load_takeda_style(target_contracts_dir)
+    out_dir = _Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "figure_normal_tissue_expression_heatmap.svg"
+
+    breadth = summary.get("normal_tissue_breadth_class", "data_unavailable")
+    specific = summary.get("specific_tissues") or []
+    essential_set = set(summary.get("essential_tissues_flagged") or [])
+
+    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+    rows = [(t.get("tissue"), t.get("intensity")) for t in specific
+            if t.get("intensity") is not None]
+    rows.sort(key=lambda r: r[1], reverse=True)
+
+    if not rows:
+        ax.axis("off")
+        msg = {
+            "broad_normal_expression": "detected broadly across normal tissues (IHC 'all/many')\n— on-target-off-tumor liability; no tissue-specific list.",
+            "not_detected_in_normal": "NOT detected in normal tissues (IHC)\n— favorable therapeutic window.",
+        }.get(breadth, f"breadth class = {breadth}")
+        ax.text(0.5, 0.5, f"{target_symbol} — normal-tissue liability\n{msg}",
+                ha="center", va="center", fontsize=10)
+        fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+        return out_path
+
+    labels = [r[0] for r in rows]
+    vals = [r[1] for r in rows]
+    colors = [pal.REFLINE_KILLER["color"] if lab in essential_set else "#0a2540"
+              for lab in labels]
+    ypos = range(len(labels))
+    ax.barh(list(ypos), vals, color=colors, height=0.6)
+    ax.set_yticks(list(ypos)); ax.set_yticklabels(labels, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("HPA IHC tissue-specific intensity")
+    ax.set_title(f"{target_symbol} — normal-tissue protein footprint  [{breadth}]\n"
+                 f"(red = essential tissue)", fontsize=9)
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
 def _main(argv=None):
     import argparse, json
     ap = argparse.ArgumentParser(description="HPA normal-tissue liability for a target.")
