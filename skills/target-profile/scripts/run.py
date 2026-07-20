@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1014,6 +1015,72 @@ def _risk_by_category_from_sub_verdicts(sub_results: dict) -> list[tuple[str, st
     ]
 
 
+# --- Gate scorecard (deterministic; category × status × finding) ------------
+#
+# The top-of-report glanceable grid: one row per QUESTION-GATE (A Present … H Translational),
+# rows driven by the gate_coverage registry so a gate with NO sub-verdict this run (e.g. H, which
+# has no sub-skill) STILL appears — greyed — rather than being silently dropped (the "no cell for
+# we-didn't-look" failure a 3-color RAG light has; scorecard-level version of L's discipline).
+#
+# The 4-state status is a PURE PROJECTION of the SAME policy the deterministic gate uses — reusing
+# _load_gate_verdicts (kill tuples), _load_positive_signals (positive + contradiction sets) — so
+# the scorecard can NEVER disagree with the recommendation gate. No new classification logic:
+#   opposing     = verdict in the kill tuples OR a positive_contradiction (a MEASURED negative)
+#   supportive   = verdict in positive_signals (a MEASURED positive)
+#   coverage_gap = insufficient / data_unavailable / None / gate absent this run (we didn't look)
+_SCORECARD_STATUS_ORDER = {"opposing": 0, "supportive": 1, "coverage_gap": 2}
+_COVERAGE_GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_implemented",
+                          "phase_not_yet_wired"}
+
+
+def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
+                    contracts_repo: Path | None = None) -> list[dict]:
+    """Build the 8-gate scorecard rows. Rows come from the gate_coverage REGISTRY (not from
+    iterating sub_results), so gates we're blind on this run still render as greyed rows. Status
+    reuses the nomination-gate policy so it cannot diverge from the deterministic verdict."""
+    baseline, _ = _load_gate_coverage(contracts_repo)
+    kill_map, _ = _load_gate_verdicts(contracts_repo)          # {(short,verdict): action}
+    positive_map, contradictions, _, _ = _load_positive_signals(contracts_repo)
+    deciding_short = None
+    if deciding_axis and deciding_axis.get("basis") == "gate_fired":
+        deciding_short = (deciding_axis.get("deciding_axis") or {}).get("short")
+
+    def _status(short: str, verdict: Optional[str]) -> str:
+        if verdict in _COVERAGE_GAP_VERDICTS:
+            return "coverage_gap"
+        if (short, verdict) in kill_map or (short, verdict) in contradictions:
+            return "opposing"
+        if (short, verdict) in positive_map:
+            return "supportive"
+        # A measured verdict that is neither a gate kill nor a curated positive/contradiction
+        # (e.g. a neutral 'broadly_dependent') — report it as measured-but-neutral, still on-scale,
+        # NOT a coverage gap (we DID look). Treated as supportive-family for chip purposes only if
+        # it's a positive; otherwise 'neutral'.
+        return "neutral"
+
+    rows = []
+    # Registry order = gate letter A..H. gate_coverage rows carry gate/gate_name/band.
+    for short, meta in baseline.items():
+        r = sub_results.get(short) or {}
+        v = r.get("verdict")
+        verdict_str = v[0] if v else None
+        driving = v[1] if (v and len(v) > 1) else None
+        rows.append({
+            "short": short,
+            "gate": meta.get("gate"),
+            "gate_name": meta.get("gate_name"),
+            "band": meta.get("band"),
+            "verdict": verdict_str,
+            "driving_rule_id": driving,
+            "status": _status(short, verdict_str),
+            "framework_can_evidence": _run_coverage_for_short(short, r, baseline),
+            "is_deciding": short == deciding_short,
+        })
+    # Sort by gate letter (A..H), then band (necessity first) as a stable tiebreak.
+    rows.sort(key=lambda x: (str(x.get("gate") or "Z"), x.get("band") != "necessity"))
+    return rows
+
+
 def _render_target_profile_md(
     target: str,
     indication: str,
@@ -1206,6 +1273,488 @@ def _render_target_profile_md(
     return "\n".join(lines)
 
 
+# ============================================================================
+# HTML renderer — static, self-contained governance artifact (2026-07-20)
+# ============================================================================
+# A projection of the SAME nomination data the .md carries: adds NO computation, NO new LLM
+# surface, NO client-side JS (nothing can recompute → the "renderer adds nothing" rule is
+# structural). The honesty distinctions become visual STRUCTURE: LLM sections are tinted; the
+# 4-state scorecard distinguishes measured-negative (🔴) from coverage-gap (⚪); the ordinal
+# matrix carries its "not a score" disclaimer. Colors mirror composite_panel.VERDICT_COLORS +
+# the Takeda palette so the page matches the inlined figure.
+import html as _html
+
+_HTML_STATUS = {   # 4-state scorecard chip → (glyph, css class, human label)
+    "supportive":   ("●", "chip-pos",  "Supports"),
+    "neutral":      ("○", "chip-neu",  "Measured — neutral"),
+    "opposing":     ("◆", "chip-neg",  "Counts against"),
+    "coverage_gap": ("□", "chip-gap",  "Not evaluated"),
+}
+
+# --- Plain-English label layer (reader-facing; raw tokens stay in nomination.json) -----------
+# The internal vocabulary (verdict strings, gate shorts, coverage terms) leaks jargon to a human
+# reader. These maps turn it into plain English for the HTML report. Curated overrides for the
+# load-bearing terms; a snake_case→Title-Case fallback for the rest so nothing renders as a raw id.
+_GATE_SHORT_LABEL = {
+    "expression": "Expression (is it present?)",
+    "selectivity": "Tumor selectivity (vs normal)",
+    "dependency": "Functional dependency (is it required?)",
+    "synthetic_lethal_partners": "Synthetic-lethal partners",
+    "mechanism": "Mechanism / mode of action",
+    "genomic_alteration": "Genomic alteration",
+    "differentiation": "Differentiation (co-mutation)",
+    "tractability_sm": "Small-molecule druggability",
+    "surface_modality": "Surface / biologics fit",
+    "safety": "On-target safety",
+    "subtype_fit": "Subtype-specific fit",
+}
+_COVERAGE_LABEL = {
+    "captured": "Well covered",
+    "partial": "Partially covered",
+    "blind": "Not covered (framework blind)",
+    "license_blocked": "License-blocked data",
+    "out_of_scope": "Out of scope (Tier-2)",
+}
+# Plain-English band labels (reader-facing) — the "necessity/sufficiency" jargon is dropped in
+# favor of the question each band actually asks.
+_BAND_LABEL = {"necessity": "Is it real biology?",
+               "sufficiency": "Will it become a drug?"}
+# Nomination action → (display term, plain-English gloss). Shown as "Term — gloss" in the header.
+_ACTION_GLOSS = {
+    "nominate": ("Nominate", "advance this target"),
+    "hold": ("Hold", "do not advance yet — a concern must be resolved first"),
+    "veto": ("Veto", "do not pursue — a disqualifying finding"),
+    "insufficient_evidence": ("Insufficient evidence", "the framework cannot make a call"),
+}
+# Load-bearing verdict humanizations (the ones a reader most needs unambiguous).
+_VERDICT_LABEL = {
+    "lineage_selective": "Selective dependency (lineage-restricted)",
+    "concordant_dependent": "Strong dependency (CRISPR + RNAi agree)",
+    "selective_dependent": "Selective dependency",
+    "chemical_genetic_confirmed_dependent": "Dependency confirmed (chemical + genetic)",
+    "non_dependent": "Not a dependency (pooled)",
+    "pan_essential_killer": "Pan-essential (no therapeutic window)",
+    "broadly_dependent": "Broadly dependent",
+    "strong_tumor_selective": "Strongly tumor-selective",
+    "modest_tumor_selective": "Modestly tumor-selective",
+    "not_selective": "Not tumor-selective",
+    "discordant_across_comparators": "Discordant across comparators",
+    "highly_constrained_safety_concern": "High on-target safety concern",
+    "biomarker_stratified_dependency": "Biomarker-stratified dependency",
+    "well_covered": "Well-covered by compounds",
+    "well_characterized": "Well-characterized mechanism",
+    "both_patterns_present": "Co-mutation + mutual-exclusivity present",
+    "broadly_moderate_expression": "Broadly moderate expression",
+    "has_experimental_sl_partner": "Has an experimental SL partner",
+    "insufficient": "Insufficient evidence",
+    "data_unavailable": "Data unavailable",
+    None: "Not evaluated",
+}
+
+
+def _humanize(token: Optional[str]) -> str:
+    """snake_case / lowercase identifier → readable Title Case, with curated overrides."""
+    if token is None:
+        return "Not evaluated"
+    if token in _VERDICT_LABEL:
+        return _VERDICT_LABEL[token]
+    return str(token).replace("_", " ").replace("-", " ").strip().capitalize()
+
+# CSS design system (dataviz-skill method; Takeda Okabe-Ito palette as the brand parameters).
+# Color roles as CSS custom properties. Status chips use VALIDATED constructions — dark status-ink
+# on a pale same-hue tint + a glyph + a label (never color-alone) — WCAG 4.8-6.3:1 (computed with
+# the dataviz validator, NOT eyeballed; the validator caught that saturated status colors on white
+# fail contrast, so chips are tinted backgrounds). The ordinal heatmap uses a DIVERGING blue↔red
+# ramp (a magnitude), deliberately distinct from the status chips so the two color languages don't
+# collide (dataviz rule: status colors are reserved, never reused as a scale).
+_HTML_CSS = """
+:root{
+  --surface:#ffffff; --surface-2:#f7f9fb; --surface-3:#eef2f6;
+  --ink:#141c26; --ink-2:#4a5763; --muted:#6b7783; --line:#e2e8ee; --line-2:#cfd8e0;
+  --brand:#0a2540; --brand-accent:#0072B2;                 /* Takeda deep navy + Okabe-Ito blue */
+  --pos-ink:#1a6b1a; --pos-bg:#e6f4e6;                      /* status: good */
+  --neg-ink:#a1231d; --neg-bg:#fbe6e4;                      /* status: critical */
+  --neu-ink:#8a5a00; --neu-bg:#fcf1db;                      /* status: warning */
+  --gap-ink:#5b6b7b; --gap-bg:#eef1f4;                      /* coverage gap (hatched) */
+  --llm-bg:#f5f2fb; --llm-bd:#d9ccf0; --llm-ink:#5b3fa0;    /* AI-generated section tint */
+  --div-p2:#2166ac; --div-p0:#e9eef3; --div-n1:#f4a582; --div-n3:#b2182b;  /* diverging blue↔red */
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  color:var(--ink);background:var(--surface-3);margin:0;padding:0}
+/* Header band — full-bleed; inner content aligned to the same max-width as the shell */
+header{background:linear-gradient(100deg,var(--brand),#123a5e);color:#fff;
+  padding:24px 40px;border-bottom:3px solid var(--brand-accent)}
+header>*{max-width:1560px;margin-left:auto;margin-right:auto}
+header h1{font-size:25px;font-weight:650;margin:0;letter-spacing:-.01em;line-height:1.25}
+header .rec{font-size:14px;margin-top:10px;opacity:.95;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+header .pill{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.32);
+  border-radius:999px;padding:2px 12px;font-weight:650}
+.badge-rule{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
+  border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600;cursor:help}
+/* 2-column shell: sticky left nav + content. Wide — uses the full viewport up to a large cap. */
+.shell{display:flex;gap:36px;max-width:1560px;margin:0 auto;padding:26px 40px 64px;align-items:flex-start}
+nav.toc{position:sticky;top:20px;flex:0 0 220px;font-size:13px;line-height:1.3}
+nav.toc .h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  font-weight:700;margin:0 0 8px}
+nav.toc a{display:block;padding:6px 10px;border-radius:7px;color:var(--ink-2);text-decoration:none;
+  border-left:2px solid transparent}
+nav.toc a:hover{background:var(--surface);color:var(--brand);border-left-color:var(--brand-accent)}
+.content{flex:1 1 auto;min-width:0}
+.sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+/* Responsive inline SVG — strip matplotlib's fixed pt size, scale to the card (viewBox holds ratio) */
+section svg{width:100%!important;height:auto!important;display:block}
+/* Section cards */
+section{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:18px 20px;margin:0 0 18px;box-shadow:0 1px 2px rgba(20,28,38,.04)}
+h2{font-size:16px;font-weight:650;margin:0 0 12px;color:var(--brand);letter-spacing:-.005em}
+h2 .n{color:var(--muted);font-weight:500;font-size:13px}
+/* Tables */
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:8px 11px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{background:var(--surface-2);font-weight:600;color:var(--ink-2);font-size:12px;
+  text-transform:uppercase;letter-spacing:.03em;border-bottom:1.5px solid var(--line-2)}
+tr:last-child td{border-bottom:0}
+code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--surface-3);padding:1px 5px;border-radius:4px;color:var(--ink-2)}
+/* LLM vs deterministic provenance tags */
+.llm{background:var(--llm-bg);border:1px solid var(--llm-bd);border-radius:12px;padding:16px 20px;margin:0 0 18px}
+.llm h2{color:var(--llm-ink)}
+.tag{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;
+  padding:2px 8px;border-radius:5px;margin-bottom:8px}
+.llm .tag{color:var(--llm-ink);background:rgba(91,63,160,.1)}
+.det .tag{color:var(--muted);background:var(--surface-3)}
+/* Status chips — validated: tinted bg + dark ink + glyph + label */
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
+  font-size:12px;font-weight:650;white-space:nowrap;line-height:1.3}
+.chip .g{font-size:11px}
+.chip-pos{background:var(--pos-bg);color:var(--pos-ink)}
+.chip-neu{background:var(--neu-bg);color:var(--neu-ink)}
+.chip-neg{background:var(--neg-bg);color:var(--neg-ink)}
+.chip-gap{background:var(--gap-bg);color:var(--gap-ink);
+  background-image:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(91,107,123,.13) 5px,rgba(91,107,123,.13) 6px)}
+/* Scorecard hero */
+.scorecard th:first-child,.scorecard td:first-child{text-align:center;font-weight:700;color:var(--brand);width:38px}
+.scorecard tr.gate-start td{border-top:2px solid var(--line-2)}
+.scorecard tr.deciding{background:#fff9ec}
+.scorecard tr.deciding td:first-child{box-shadow:inset 3px 0 0 var(--neu-ink)}
+.badge-deciding{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--neu-ink);background:var(--neu-bg);padding:1px 6px;border-radius:4px;margin-left:6px}
+/* Deciding-axis banner */
+.banner{background:linear-gradient(90deg,#eef4f8,var(--surface));border-left:4px solid var(--brand-accent);
+  padding:12px 16px;border-radius:8px;margin:0 0 12px;font-size:14px}
+/* Ordinal matrix heatmap */
+.mtx{font-size:12.5px}
+.mtx td{text-align:center;font-variant-numeric:tabular-nums;font-weight:600;border:2px solid var(--surface)}
+.mtx td:first-child,.mtx td:last-child{text-align:left;font-weight:400;background:var(--surface)!important}
+.mtx th{text-align:center}
+.mtx .p2{background:var(--div-p2);color:#fff}.mtx .p0{background:var(--div-p0);color:var(--ink-2)}
+.mtx .n1{background:var(--div-n1);color:#3a1207}.mtx .n3{background:var(--div-n3);color:#fff}
+.mtx .off{background:var(--gap-bg);color:var(--gap-ink);font-style:italic}
+.disclaimer{font-size:12px;color:var(--muted);font-style:italic;margin:6px 0}
+details{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600;color:var(--ink-2);font-size:13px}
+footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
+"""
+
+
+def _esc(x) -> str:
+    return _html.escape(str(x if x is not None else "—"), quote=True)
+
+
+def _inline_svg(svg_path: Optional[Path]) -> Optional[str]:
+    """Read an emitted matplotlib SVG (svg.fonttype:none → text-preserving) and return its
+    <svg>...</svg> body for inline embedding. Strips the XML/doctype preamble so it drops into
+    the page. Returns None on any failure (render never blocks on the figure)."""
+    if not svg_path or not Path(svg_path).exists():
+        return None
+    try:
+        raw = Path(svg_path).read_text()
+        i = raw.find("<svg")
+        if i < 0:
+            return None
+        body = raw[i:]
+        # Strip matplotlib's fixed pt width/height on the root <svg> so it scales to the card
+        # (the viewBox preserves the aspect ratio). Belt-and-suspenders with the CSS rule.
+        end = body.find(">")
+        head, rest = body[:end], body[end:]
+        head = re.sub(r'\s(width|height)="[^"]*"', "", head)
+        return head + rest
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _mtx_cell_class(cell: dict) -> str:
+    if cell.get("signal") is None:
+        return ""
+    o = cell.get("ordinal")
+    if o is None:
+        return "off"
+    return {2: "p2", 0: "p0", -1: "n1", -3: "n3"}.get(o, "p0")
+
+
+def _prettify_field(key: str) -> str:
+    """A summary-field key → readable label (snake/camel → words)."""
+    k = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", str(key)).replace("_", " ").strip()
+    return k[:1].upper() + k[1:]
+
+
+def _render_card_data_html(sub_results: dict) -> list[str]:
+    """Per-question 'Evidence' section: render each sub-skill's card SUMMARY metrics (already in
+    sub_results from resolve_cards) as clean data. Leads with the PHASE_METRIC_FIELDS curated key
+    metrics where defined; otherwise shows the card's scalar summary fields. This is the
+    'sections with the actual card data' the reader asked for — plots are a scoped follow-up
+    (a target-profile run does not currently invoke the method figure-generators)."""
+    out = ["<section id=s-evidence class=det><span class=tag>Computed from the evidence</span>"
+           "<h2>Evidence by question <span class=n>— the card data behind each call</span></h2>"]
+    for short, r in sub_results.items():
+        cards = r.get("cards") or []
+        # gather scalar summary fields across this sub-skill's cards (skip private _ + nested)
+        rows: list[tuple[str, str]] = []
+        curated = PHASE_METRIC_FIELDS.get(short, [])
+        seen = set()
+        for field, label in curated:
+            val = _first_card_summary_field(r, field)
+            if val is not None:
+                rows.append((label, _fmt_metric(val))); seen.add(field)
+        for c in cards:
+            if c.get("_missing"):
+                continue
+            for k, v in (c.get("summary") or {}).items():
+                if k.startswith("_") or k in seen or isinstance(v, (list, dict)):
+                    continue
+                rows.append((_prettify_field(k), _fmt_metric(v))); seen.add(k)
+        label = _GATE_SHORT_LABEL.get(short, _humanize(short))
+        if not rows:
+            missing = [c["card_id"] for c in cards if c.get("_missing")]
+            note = ("no card data (cards not available this run: "
+                    + ", ".join(f"<code>{_esc(m)}</code>" for m in missing) + ")") if missing \
+                    else "no scalar metrics emitted"
+            out.append(f"<details><summary>{_esc(label)}</summary>"
+                       f"<p class=sub>{note}.</p></details>")
+            continue
+        out.append(f"<details open><summary>{_esc(label)}</summary><table>")
+        for lab, val in rows[:18]:   # cap to keep the section scannable
+            out.append(f"<tr><td style='color:var(--muted);width:45%'>{_esc(lab)}</td>"
+                       f"<td>{_esc(val)}</td></tr>")
+        out.append("</table></details>")
+    out.append("</section>")
+    return out
+
+
+def _render_target_profile_html(
+    target: str,
+    indication: str,
+    sub_results: dict,
+    llm_output: dict,
+    invoked_lenses: dict,
+    deciding_axis: Optional[dict] = None,
+    ordinal_matrix: Optional[dict] = None,
+    scorecard: Optional[list[dict]] = None,
+    composite_svg_path: Optional[Path] = None,
+    catalogue_rows: Optional[list[dict]] = None,
+    recommendation_gate: Optional[dict] = None,
+    show_deciding_axis: bool = False,
+) -> str:
+    """Render a static, self-contained target_profile.html — the governance artifact. Pure
+    projection of the same nomination data the .md carries; no recompute, no JS, no external deps.
+    All new-this-session structured outputs (scorecard, deciding-axis, ordinal matrix) are shown
+    as DETERMINISTIC sections, visually distinct from the AI-generated sections."""
+    def _val(field, default="—"):
+        raw = llm_output.get(field)
+        return raw.get("value", default) if isinstance(raw, dict) else (raw if raw is not None else default)
+
+    p: list[str] = ["<!DOCTYPE html><html lang=en><head><meta charset=utf-8>",
+                    "<meta name=viewport content='width=device-width,initial-scale=1'>",
+                    f"<title>Target profile — {_esc(target)} × {_esc(indication)}</title>",
+                    f"<style>{_HTML_CSS}</style></head><body>"]
+
+    # --- Header band: title + the headline recommendation ------------------
+    action = str(_val("overall_recommendation"))
+    term, gloss = _ACTION_GLOSS.get(action, (action, ""))
+    action_html = f"<b>{_esc(term)}</b>" + (f" — {_esc(gloss)}" if gloss else "")
+    # "Rule-checked" badge: when a deterministic gate overrode the AI's choice, say so on hover.
+    rg = recommendation_gate or {}
+    if rg.get("fired"):
+        forced = rg.get("forced_recommendation", action)
+        llm_said = rg.get("llm_recommendation")
+        tip = (f"A deterministic safety/quality rule set this call. "
+               f"The AI suggested '{llm_said}'; a rule required '{forced}'."
+               if rg.get("overridden") else
+               "A deterministic rule confirmed the AI's call.")
+        checked = f"<span class=badge-rule title=\"{_esc(tip)}\">✓ rule-checked</span>"
+    else:
+        checked = ("<span class=badge-rule title=\"No override rule fired; the AI's recommendation "
+                   "stands, checked against the deterministic gate.\">✓ rule-checked</span>")
+    p.append("<header>"
+             f"<h1>{_esc(target)} <span style='opacity:.7;font-weight:400'>in</span> {_esc(indication)}"
+             " — target profile</h1>"
+             f"<div class=rec>Recommendation: {action_html}"
+             f" · confidence <span class=pill>{_esc(_val('confidence'))}</span> {checked}"
+             f" <span style='opacity:.7;font-size:12px'>· AI-generated</span></div>"
+             "</header>")
+
+    # --- 2-column shell: sticky left nav (jump-links) + content ---
+    # NOTE: the composite-panel SVG is deliberately NOT embedded here — it is a matplotlib
+    # text-badge grid sized for a slide (~1583px) that renders poorly in a web card. The
+    # scorecard below IS the native-HTML "at a glance". The SVG remains a .md/PPT slide asset.
+    nav = ["<div class=shell><nav class=toc><p class=h>Sections</p>",
+           "<a href='#s-exec'>Executive summary</a>"]
+    if scorecard:
+        nav.append("<a href='#s-scorecard'>Gate scorecard</a>")
+    if deciding_axis and show_deciding_axis:
+        nav.append("<a href='#s-deciding'>Deciding axis</a>")
+    nav.append("<a href='#s-risk'>Risk by category</a>")
+    nav.append("<a href='#s-tension'>Conflicting signals</a>")
+    nav.append("<a href='#s-evidence'>Evidence by question</a>")
+    if ordinal_matrix:
+        nav.append("<a href='#s-matrix'>Modality fit</a>")
+    nav.append("</nav><div class=content>")
+    p.append("".join(nav))
+
+    # --- Executive summary (LLM) — TOP, the lead the reader needs first ----
+    p.append("<div class=llm id=s-exec><span class=tag>AI-generated</span>"
+             f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
+
+    # --- Gate scorecard (deterministic, top-of-report) ---------------------
+    # Rows are the sub-skills GROUPED under their A–H gate letter (a gate can have several
+    # sub-skills — C has dependency + SL-partner + subtype). Grouping shows the 8-gate structure
+    # WITHOUT collapsing: each sub-skill keeps its own honest status (a gate-letter roll-up that
+    # merged them could hide a disagreeing sub-skill — the same information-loss the 4-state
+    # design refuses). A greyed row = coverage gap (we didn't/couldn't look), NOT a negative.
+    if scorecard:
+        p.append("<section id=s-scorecard class=scorecard><h2>Gate scorecard</h2>")
+        p.append("<p class=sub>One row per evidence question, grouped A–H. "
+                 "<span class='chip chip-gap'><span class=g>□</span> Not evaluated</span> = a gap, "
+                 "not a negative. Deciding question highlighted.</p>")
+        p.append("<table><tr><th>Gate</th><th>Question</th><th>Status</th>"
+                 "<th>Finding</th><th>Coverage</th></tr>")
+        _last = object()
+        for row in scorecard:
+            glyph, cls, label = _HTML_STATUS.get(row["status"], _HTML_STATUS["coverage_gap"])
+            gate = row.get("gate")
+            new_gate = gate != _last
+            gate_cell = f"<td>{_esc(gate)}</td>" if new_gate else "<td></td>"
+            _last = gate
+            finding = _esc(_humanize(row.get("verdict")))
+            if row.get("driving_rule_id"):
+                finding += f" <span class=sub><code>{_esc(row['driving_rule_id'])}</code></span>"
+            # Display cross-references (logic unchanged; these clarify signals that live under one
+            # gate but FEED another — logged as wiring backlog, surfaced honestly here):
+            vtok = (row.get("verdict") or "")
+            if row.get("short") == "genomic_alteration" and "biomarker_stratified" in vtok:
+                finding += " <span class=sub>→ feeds Dependency (C)</span>"
+            if row.get("short") == "tractability_sm":
+                finding += " <span class=sub>(also confirms Dependency)</span>"
+            qname = _esc(_GATE_SHORT_LABEL.get(row.get("short"), _humanize(row.get("short"))))
+            if row.get("is_deciding"):
+                qname += " <span class=badge-deciding>deciding</span>"
+            trcls = [c for c in (("deciding" if row.get("is_deciding") else ""),
+                                 ("gate-start" if new_gate else "")) if c]
+            rowcls = f" class='{' '.join(trcls)}'" if trcls else ""
+            p.append(f"<tr{rowcls}>{gate_cell}"
+                     f"<td>{qname}</td>"
+                     f"<td><span class='chip {cls}'><span class=g>{glyph}</span> {label}</span></td>"
+                     f"<td>{finding}</td>"
+                     f"<td class=sub>{_esc(_COVERAGE_LABEL.get(row.get('framework_can_evidence'), row.get('framework_can_evidence')))}</td></tr>")
+        p.append("</table></section>")
+
+    # --- Deciding axis (deterministic router) ------------------------------
+    # HIDDEN by default (show_deciding_axis=False): the router can over-claim confidence when a
+    # deciding gate rests on one thin input (e.g. gate F on gnomAD alone) — a known LOGIC issue on
+    # the backlog. Data still lands in nomination.json; the section is re-enabled once the router
+    # logic factors gate coverage into what it asserts as "deciding".
+    if deciding_axis and show_deciding_axis:
+        p.append("<section id=s-deciding><span class=tag>Deterministic router</span>"
+                 "<h2>Deciding axis <span class=n>— what the call hinges on</span></h2>")
+        p.append(f"<div class=banner>{_esc(deciding_axis.get('routing',''))}</div>")
+        if deciding_axis.get("basis") == "abstention_coverage_gaps" and deciding_axis.get("unevidenced_gates"):
+            p.append("<p class=sub>Can't decide from framework evidence — questions left unassessed:</p>")
+            p.append("<table><tr><th>Gate</th><th>Question</th><th>Coverage</th></tr>")
+            for g in deciding_axis["unevidenced_gates"]:
+                p.append(f"<tr><td>{_esc(g.get('gate'))}</td>"
+                         f"<td>{_esc(_GATE_SHORT_LABEL.get(g.get('short'), _humanize(g.get('short'))))}</td>"
+                         f"<td class=sub>{_esc(_COVERAGE_LABEL.get(g.get('framework_can_evidence'), g.get('framework_can_evidence')))}</td></tr>")
+            p.append("</table>")
+        p.append("</section>")
+
+    # --- Risk-by-category (deterministic) ----------------------------------
+    p.append("<section id=s-risk class=det><span class=tag>Computed from the evidence</span>"
+             "<h2>Risk by category</h2>")
+    p.append("<table><tr><th>Category</th><th>Risk level</th><th>Driver</th></tr>")
+    for cat, level, driver in _risk_by_category_from_sub_verdicts(sub_results):
+        p.append(f"<tr><td><b>{_esc(str(cat).capitalize())}</b></td>"
+                 f"<td>{_esc(_humanize(level))}</td><td>{_esc(driver)}</td></tr>")
+    p.append("</table></section>")
+
+    # --- Tension analysis (LLM) → reader-facing "Conflicting signals & trade-offs" ---
+    p.append("<div class=llm id=s-tension><span class=tag>AI-generated</span>"
+             "<h2>Conflicting signals &amp; trade-offs</h2>"
+             f"<p>{_esc(_val('tension_analysis'))}</p></div>")
+
+    # --- Evidence by question (deterministic; the actual card data) --------
+    # NOTE: the standalone "Sub-verdicts" table was removed as redundant — the scorecard above
+    # already carries the per-question verdict + rule + status. One source, not two.
+    p.extend(_render_card_data_html(sub_results))
+
+    # --- Ordinal matrix heatmap (deterministic VIEW) -----------------------
+    if ordinal_matrix:
+        cols = ordinal_matrix["axes"]["columns"]
+        p.append("<section id=s-matrix class=det><span class=tag>Ordering, not a score</span>"
+                 "<h2>Modality fit by question <span class=n>— strongest signal per (question, "
+                 "modality); the verdict, not a cell, is the call</span></h2>")
+        col_lbl = {"small_molecule": "Small mol.", "degrader": "Degrader", "adc": "ADC",
+                   "bite_tce": "BiTE/TCE", "antibody": "Antibody"}
+        p.append("<table class=mtx><tr><th>Question</th>"
+                 + "".join(f"<th>{_esc(col_lbl.get(c, c))}</th>" for c in cols) + "<th>Verdict</th></tr>")
+        for row in ordinal_matrix["rows"]:
+            cells = row["cells"]
+            tds = "".join(f"<td class='{_mtx_cell_class(cells[m])}'>{_esc(ordinal_view._cell_glyph(cells[m]))}</td>"
+                          for m in cols)
+            p.append(f"<tr><td>{_esc(_GATE_SHORT_LABEL.get(row['short'], _humanize(row['short'])))}</td>{tds}"
+                     f"<td>{_esc(_humanize(row.get('verdict')))}</td></tr>")
+        p.append("</table>")
+        p.append(f"<p class=disclaimer>{_esc(ordinal_matrix.get('_disclaimer',''))}</p>")
+        # --- Data-catalogue summary tucked into the same deterministic card ---
+        if catalogue_rows:
+            p.append("<details><summary>Data catalogue — what backed this run</summary>")
+            p.append("<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
+            for cr in catalogue_rows:
+                p.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"
+                         f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
+            p.append("</table></details>")
+        p.append("</section>")
+    elif catalogue_rows:
+        p.append("<section class=det><h2>Data catalogue</h2>"
+                 "<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
+        for cr in catalogue_rows:
+            p.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"
+                     f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
+        p.append("</table></section>")
+
+    p.append("<footer>"
+             f"Generated {_esc(datetime.now(timezone.utc).isoformat(timespec='seconds'))}"
+             + (f" · lenses <code>{_esc(invoked_lenses)}</code>" if invoked_lenses else "")
+             + "<br>Static self-contained governance artifact — a projection of nomination.json. "
+             "AI-generated sections are tinted; all other sections are deterministic and "
+             "reproducible from the same inputs. No content is recomputed at render time.</footer>")
+    p.append("</div></body></html>")   # close .wrap
+    return "".join(p)
+
+
+def _catalogue_rows_from_sub_results(sub_results: dict) -> list[dict]:
+    """Distill a manifest→consumers lineage table from the per-card provenance already in the run.
+    Envelope-only (no live catalog read → keeps the renderer a pure projection)."""
+    by_manifest: dict[str, set] = {}
+    for short, r in sub_results.items():
+        for c in r.get("cards") or []:
+            prov = (c.get("provenance") or {}) if isinstance(c, dict) else {}
+            for mid in prov.get("input_manifest_ids", []) or []:
+                by_manifest.setdefault(mid, set()).add(short)
+    return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_manifest.items())]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -1333,6 +1882,11 @@ def main() -> int:
     print(f"[target-profile] deciding axis [{deciding_axis['basis']}]: "
           f"{deciding_axis.get('routing', '')}", file=sys.stderr)
 
+    # Gate scorecard (deterministic, top-of-report): 8-gate rows from the gate registry, 4-state
+    # status reusing the nomination-gate policy. Also emitted in nomination.json.
+    scorecard = _gate_scorecard(sub_results, deciding_axis)
+    catalogue_rows = _catalogue_rows_from_sub_results(sub_results)
+
     # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
     figures_dir = args.out / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -1364,6 +1918,21 @@ def main() -> int:
     )
     (args.out / "target_profile.md").write_text(md)
 
+    # 3c. Render + emit the static HTML governance artifact (self-contained; inlines the
+    # composite SVG). Pure projection — never blocks emission on failure.
+    try:
+        composite_svg = composite_png.with_suffix(".svg") if composite_rel else None
+        htmldoc = _render_target_profile_html(
+            args.target, args.indication, sub_results, llm_output, invoked_lenses,
+            deciding_axis=deciding_axis, ordinal_matrix=ordinal_matrix,
+            scorecard=scorecard, composite_svg_path=composite_svg,
+            catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
+        )
+        (args.out / "target_profile.html").write_text(htmldoc)
+        print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001
+        print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
+
     nomination = {
         "skill": SKILL_NAME,
         "skill_version": SKILL_VERSION,
@@ -1384,6 +1953,7 @@ def main() -> int:
         "recommendation_gate": recommendation_gate,
         "confidence_tier": confidence_tier,
         "deciding_axis": deciding_axis,
+        "gate_scorecard": scorecard,
         "ordinal_matrix_view": ordinal_matrix,
         "llm_synthesis": llm_output,
     }
@@ -1410,6 +1980,7 @@ def main() -> int:
         "framework_model_version": _framework_model_version(),
         "artefacts": [
             "target_profile.md",
+            "target_profile.html",
             "nomination.json",
             "figures/target_profile_at_a_glance.png",
             "figures/target_profile_at_a_glance.svg",
