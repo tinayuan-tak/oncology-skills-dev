@@ -1,0 +1,183 @@
+"""hpa_normal_tissue_liability.cli — normal-tissue on-target-off-tumor safety.
+
+Reads the HPA master TSV (hpa-v25-1, already landed + consumed by 8 other cards)
+IHC-derived protein-tissue fields and emits the `normal-tissue-liability` card
+summary — the dominant biologics on-target-off-tumor safety signal.
+
+Two fields:
+  - `Protein tissue distribution` (Not detected | Detected in single | some | many
+    | all) — pathologist-scored IHC BREADTH across normal tissues (~96% coverage).
+    → normal_tissue_breadth_class (the primary categorical).
+  - `Protein tissue specific Intensity` ("intestine: 2.3e5;lymphoid tissue: ...")
+    — named-tissue list (~51% coverage, the tissue-enriched subset). Parsed to flag
+    ESSENTIAL-tissue expression.
+
+HPA uses a CLOSED 16-name tissue vocabulary in the specific-intensity field, so the
+essential-tissue set is an EXACT membership test (no fuzzy matching). A gene absent
+from HPA / with no tissue-distribution call → data_unavailable (coverage gap, NOT a
+favorable window — do not read absence as safety).
+"""
+
+from __future__ import annotations
+
+import io
+import os
+import zipfile
+from typing import Optional
+
+METHOD_VERSION = "0.1.0"
+
+S3_BUCKET = "onc-compbio"
+HPA_KEY = "data-catalog/sources/hpa/v25-1/proteinatlas.tsv.zip"
+DEFAULT_AWS_PROFILE = "cbg"
+
+HPA_GENE_COL = "Gene"
+HPA_DIST_COL = "Protein tissue distribution"
+HPA_SPEC_COL = "Protein tissue specificity"
+HPA_INTENSITY_COL = "Protein tissue specific Intensity"
+
+# HPA `Protein tissue distribution` → normal_tissue_breadth_class.
+_DIST_TO_CLASS = {
+    "detected in all":    "broad_normal_expression",
+    "detected in many":   "broad_normal_expression",
+    "detected in some":   "moderate_normal_expression",
+    "detected in single": "restricted_normal_expression",
+    "not detected":       "not_detected_in_normal",
+}
+
+# Essential-tissue set (exact membership over HPA's closed 16-name vocabulary):
+# life-critical tissues where on-target-off-tumor toxicity is catastrophic. The
+# strict-modality (BiTE/TCE/cell) killer keys off ANY hit here.
+ESSENTIAL_TISSUES = {
+    "cerebral cortex",   # CNS
+    "bone marrow",       # hematopoietic
+    "liver",
+    "heart muscle",      # cardiac
+    "lung",
+    "kidney",
+    "pancreas",          # endocrine/exocrine — DKA/tox risk
+}
+# GI epithelium — modality-dependent (ADC non-cleavable may tolerate; BiTE not).
+GI_TISSUES = {"intestine", "stomach"}
+
+
+def _ensure_aws_profile():
+    if "AWS_PROFILE" not in os.environ:
+        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+
+
+def _read_hpa(hpa_path=None):
+    import pandas as pd
+    cols = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
+    if hpa_path is not None:
+        p = str(hpa_path)
+        if p.endswith(".zip"):
+            z = zipfile.ZipFile(p)
+            with z.open(z.namelist()[0]) as f:
+                return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
+        return pd.read_csv(p, sep="\t", usecols=cols, dtype=str)
+    _ensure_aws_profile()
+    import boto3
+    body = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=HPA_KEY)["Body"].read()
+    z = zipfile.ZipFile(io.BytesIO(body))
+    with z.open(z.namelist()[0]) as f:
+        return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
+
+
+def parse_specific_tissues(intensity_value: Optional[str]) -> list:
+    """Parse 'intestine: 2.3e5;lymphoid tissue: 1.1e4' → [{tissue, intensity}]."""
+    if not intensity_value or str(intensity_value) == "nan":
+        return []
+    out = []
+    for part in str(intensity_value).split(";"):
+        if ":" not in part:
+            continue
+        name, val = part.rsplit(":", 1)
+        name = name.strip().lower()
+        try:
+            intensity = float(val.strip())
+        except (ValueError, AttributeError):
+            intensity = None
+        if name:
+            out.append({"tissue": name, "intensity": intensity})
+    return out
+
+
+def classify_breadth(dist_value: Optional[str]) -> str:
+    """Protein tissue distribution → normal_tissue_breadth_class."""
+    if dist_value is None or str(dist_value) == "nan":
+        return "data_unavailable"
+    return _DIST_TO_CLASS.get(str(dist_value).strip().lower(), "data_unavailable")
+
+
+def compute_summary(gene: str, row: Optional[dict]) -> dict:
+    """Build the normal-tissue-liability card summary from an HPA row."""
+    if row is None:
+        return {
+            "normal_tissue_breadth_class": "data_unavailable",
+            "essential_tissue_flag": "absent",
+            "hpa_tissue_distribution": None,
+            "hpa_tissue_specificity": None,
+            "n_essential_tissues_with_expression": 0,
+            "essential_tissues_flagged": [],
+            "n_specific_tissues": 0,
+            "specific_tissues": [],
+            "safety_tissue_flags": [],
+            "method_version": METHOD_VERSION,
+        }
+    dist = row.get(HPA_DIST_COL)
+    dist = None if (dist is None or str(dist) == "nan") else str(dist)
+    spec = row.get(HPA_SPEC_COL)
+    spec = None if (spec is None or str(spec) == "nan") else str(spec)
+    breadth = classify_breadth(dist)
+    specific = parse_specific_tissues(row.get(HPA_INTENSITY_COL))
+    names = {t["tissue"] for t in specific}
+    essential = sorted(names & ESSENTIAL_TISSUES)
+    gi = sorted(names & GI_TISSUES)
+
+    flags = []
+    if essential:
+        flags.append("essential_tissue")
+    if gi:
+        flags.append("gi_tract")
+    if breadth == "broad_normal_expression":
+        flags.append("broad")
+
+    return {
+        "normal_tissue_breadth_class": breadth,
+        # Scalar categorical the essential-tissue rule matches with `equals` (the rules
+        # engine is categorical-only — no list-membership predicate; so the list→scalar
+        # reduction happens here at emit time).
+        "essential_tissue_flag": "present" if essential else "absent",
+        "hpa_tissue_distribution": dist,
+        "hpa_tissue_specificity": spec,
+        "n_essential_tissues_with_expression": len(essential),
+        "essential_tissues_flagged": essential,
+        "n_specific_tissues": len(specific),
+        "specific_tissues": specific,
+        "safety_tissue_flags": flags,
+        "method_version": METHOD_VERSION,
+    }
+
+
+def load_and_classify(gene: str, hpa_path=None) -> dict:
+    """Full pipeline: look up the gene's HPA row → normal-tissue-liability summary."""
+    import pandas as pd
+    df = _read_hpa(hpa_path)
+    hit = df[df[HPA_GENE_COL].astype(str).str.upper() == gene.strip().upper()]
+    if not len(hit):
+        return compute_summary(gene, None)
+    return compute_summary(gene, hit.iloc[0].to_dict())
+
+
+def _main(argv=None):
+    import argparse, json
+    ap = argparse.ArgumentParser(description="HPA normal-tissue liability for a target.")
+    ap.add_argument("--gene", required=True)
+    ap.add_argument("--hpa-path", default=None)
+    args = ap.parse_args(argv)
+    print(json.dumps(load_and_classify(args.gene, hpa_path=args.hpa_path), indent=2, default=str))
+
+
+if __name__ == "__main__":
+    _main()
