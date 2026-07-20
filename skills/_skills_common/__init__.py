@@ -221,19 +221,25 @@ def _record_matches(record: dict, in_record: dict) -> bool:
 
 def fired_rules(card_outputs: list[dict],
                 axis: str,
-                card_id_filter: Optional[list[str]] = None) -> list[dict]:
-    """Return a FLAT list of {rule_id, card_id, field, value, signals} for
-    each rule whose when: predicate matched some card_output. Signals kept
-    as the raw dict from the rules file so downstream can either ignore
-    them (biology-first skills) or project onto a modality lens.
+                card_id_filter: Optional[list[str]] = None,
+                rules: Optional[list[dict]] = None) -> list[dict]:
+    """Return a FLAT list of {rule_id, card_id, field, value, signals, dominant,
+    killer_message, ...} for each rule whose when: predicate matched some card_output.
+    Signals kept as the raw dict from the rules file so downstream can either ignore
+    them (biology-first skills) or project onto a modality lens / signal matrix.
 
-    Matches on the same semantics compose-dashboard's rule engine uses:
+    THE ONE shared rule-`when` matcher (gap #5 step 5): target-profile calls it (→ per-gate
+    verdict via the resolver) and compose-dashboard's _build_signal_matrix calls it (→ per-
+    modality matrix via a pivot). Pass `rules=` to match against a PRE-LOADED rules list
+    (compose-dashboard already resolves them with its own contracts_root); omit it to
+    load-by-axis (target-profile's path). Either way the matching semantics are identical:
     - when.card_id + when.field required
-    - when.equals takes precedence; when.in falls back
+    - when.equals takes precedence; when.in falls back; when.in_record for list fields
     - field lookup checks summary[<field>], then card[<field>]; field name
       "interpretation_call" is lifted to the card root
     """
-    rules = load_interpretation_rules(axis) or []
+    if rules is None:
+        rules = load_interpretation_rules(axis) or []
     rules = filter_rules_by_card_ids(rules, card_id_filter or [])
 
     card_by_id = {c["card_id"]: c for c in card_outputs
@@ -274,6 +280,7 @@ def fired_rules(card_outputs: list[dict],
                         "signals": rule.get("signals") or {},
                         "tier": rule.get("tier"),
                         "dominant": bool(rule.get("dominant")),
+                        "killer_message": rule.get("killer_message"),
                         "rationale": (rule.get("rationale") or "").strip(),
                     })
             continue
@@ -291,6 +298,7 @@ def fired_rules(card_outputs: list[dict],
             "signals": rule.get("signals") or {},
             "tier": rule.get("tier"),
             "dominant": bool(rule.get("dominant")),
+            "killer_message": rule.get("killer_message"),
             "rationale": (rule.get("rationale") or "").strip(),
         })
     return fired

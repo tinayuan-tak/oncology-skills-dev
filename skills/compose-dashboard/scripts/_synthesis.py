@@ -583,6 +583,17 @@ def _load_interpretation_rules(contracts_root, axis: str) -> "list[dict] | None"
     return load_interpretation_rules(axis, contracts_root=contracts_root)
 
 
+# The five delivery-modality channels compose-dashboard scores per-modality fit over.
+# This engine is the PER-MODALITY consumer of the shared rule matcher, so it projects
+# ONLY these channels into its signal matrix. The shared matcher (fired_rules) is
+# deliberately channel-agnostic and also surfaces target-first / subtype_fit_* channels —
+# those are consumed by target-profile's per-gate resolver, NOT by compose-dashboard's
+# per-modality fit loop (whose `modality` key only ever takes one of these five values).
+# Canonical source: target-contracts/schemas/interpretation_rules.schema.json `modality_id`.
+_MODALITY_CHANNELS = frozenset(
+    {"small_molecule", "degrader", "adc", "bite_tce", "antibody"})
+
+
 def _build_signal_matrix(
     card_outputs: list[dict],
     rules: "list[dict] | None",
@@ -592,66 +603,50 @@ def _build_signal_matrix(
     Returns dict keyed by (card_id, modality) → list of {signal, rule_id, dominant,
     killer_message} entries (a list because multiple rules may fire on the same
     (card_id, field) producing signals for different modalities, or even multiple
-    rules matching the same card output).
+    rules matching the same card output). Only the five delivery-modality channels
+    (_MODALITY_CHANNELS) are projected — non-modality channels (subtype_fit_*, target_*)
+    the shared matcher may also emit belong to target-profile's resolver, not this
+    per-modality fit loop, so they're filtered out here (keeps this matrix's
+    (card_id, modality) contract exact and byte-identical to the pre-convergence path).
 
     When `rules` is None or empty: returns an empty dict (caller falls back to legacy).
     """
     if not rules:
         return {}
-    # Index cards by id for fast lookup
-    card_by_id = {c["card_id"]: c for c in card_outputs
-                   if c.get("card_id") and not c.get("excluded_by_applies_when")}
+    # CONVERGENCE (gap #5 step 5, 2026-07-20): the rule-`when`-matching (card_id/field/
+    # equals/in + the interpretation_call root-lift) is now done by the ONE shared matcher
+    # `_skills_common.fired_rules` — the SAME matcher target-profile uses. This function no
+    # longer re-implements it (that was the copied-not-shared duplication); it only PIVOTS
+    # the shared matcher's flat output into compose-dashboard's per-(card_id, modality)
+    # signal matrix (the compose-dashboard-specific shape target-profile doesn't need). One
+    # matcher, two consumers: target-profile → per-gate verdict via the resolver; compose-
+    # dashboard → per-modality matrix via this pivot.
+    from _skills_common import fired_rules  # shared rule-when matcher
+
+    # fired_rules keys off card.get("_missing"); compose-dashboard marks skipped cards with
+    # `excluded_by_applies_when`. Normalize so an excluded card is not matched (same
+    # exclusion the old inline matcher applied).
+    normed = [dict(c, _missing=True) if c.get("excluded_by_applies_when") else c
+              for c in card_outputs]
+    surviving = [c["card_id"] for c in normed
+                 if c.get("card_id") and not c.get("_missing")]
 
     matrix: dict[tuple[str, str], list[dict]] = {}
-
-    for rule in rules:
-        rule_id = rule.get("rule_id", "<no-id>")
-        when = rule.get("when") or {}
-        card_id = when.get("card_id")
-        field = when.get("field")
-        equals = when.get("equals")
-        in_list = when.get("in") or []
-        signals = rule.get("signals") or {}
-        is_dominant = bool(rule.get("dominant"))
-        killer_message = rule.get("killer_message")
-
-        if not card_id or not field:
-            continue
-        card = card_by_id.get(card_id)
-        if card is None:
-            continue
-
-        # Look the field up — first in summary, then on the card output root
-        # (interpretation_call lives on the card_output root, not inside summary).
-        summary = card.get("summary") or {}
-        if field == "interpretation_call":
-            actual = card.get("interpretation_call")
-        else:
-            actual = summary.get(field) if field in summary else card.get(field)
-
-        # Match? equals takes precedence; otherwise check in-list.
-        if equals is not None:
-            matched = (actual == equals)
-        elif in_list:
-            matched = actual in in_list
-        else:
-            matched = False
-
-        if not matched:
-            continue
-
-        # Rule fires — emit signal entries per modality
-        for modality, signal in signals.items():
-            key = (card_id, modality)
+    # axis="" is unused when rules= is passed (fired_rules skips the axis-load); we pass the
+    # caller's PRE-LOADED tier-2 rules so the rule set is identical to the old inline path.
+    for fr in fired_rules(normed, axis="", card_id_filter=surviving, rules=rules):
+        card_id = fr["card_id"]
+        for modality, signal in (fr.get("signals") or {}).items():
+            if modality not in _MODALITY_CHANNELS:
+                continue   # non-modality channel → target-profile's resolver owns it, not this loop
             entry = {
                 "signal": signal,
-                "rule_id": rule_id,
-                "dominant": is_dominant,
+                "rule_id": fr.get("rule_id", "<no-id>"),
+                "dominant": bool(fr.get("dominant")),
             }
-            if signal == "killer" and killer_message:
-                entry["killer_message"] = killer_message
-            matrix.setdefault(key, []).append(entry)
-
+            if signal == "killer" and fr.get("killer_message"):
+                entry["killer_message"] = fr["killer_message"]
+            matrix.setdefault((card_id, modality), []).append(entry)
     return matrix
 
 
