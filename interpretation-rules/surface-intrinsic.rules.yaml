@@ -193,22 +193,21 @@ rules:
       not disqualifying but not supportive.
 
   # ============================================================================
-  # F3 — Structure-features-static card
+  # F3 — Structure-features-static card (surface-axis SIGNAL ONLY)
   # ============================================================================
-
-  - rule_id: hotspot-in-druggable-pocket-sm-supportive
-    when:
-      card_id: structure-features-static
-      field: mutation_hotspot_in_druggable_pocket
-      equals: 'true'
-    signals:
-      small_molecule: supportive
-    dominant: true
-    rationale: |
-      Known TCGA mutation hotspot sits in a druggable pocket → small-molecule
-      structure-guided design is actionable. Signal for SM modality, not for
-      surface modalities.
-
+  # structure-features-static is tier:target and consumed on BOTH axes. Its
+  # small-molecule FORWARD-ligandability signal (hotspot-in-druggable-pocket,
+  # pocket-adjacency, low-confidence, no-coverage) lives on the INTRACELLULAR axis
+  # (intracellular-intrinsic.rules.yaml, the `…-e8` block) — that is where the SM
+  # modality is scored. The surface axis only ever scores adc/bite_tce/antibody
+  # (surface-intrinsic-base enumerates [adc, bite_tce, antibody]; no small_molecule
+  # module loads), so an SM-scoped rule here emits a signal NOTHING consumes.
+  # The former `hotspot-in-druggable-pocket-sm-supportive` (small_molecule:supportive,
+  # dominant) was exactly that: a dead SM signal on the surface axis, byte-identical
+  # to the live `hotspot-in-druggable-pocket-sm-supportive-e8` intracellular twin.
+  # REMOVED 2026-07-20 (E card-hygiene sweep) so this card's SM ligandability has a
+  # single home (intracellular/E1). The one legitimately-surface signal — a topology
+  # neutral for the biologics modalities when structure is absent — is KEPT below.
   - rule_id: no-structure-coverage-neutral
     when:
       card_id: structure-features-static
