@@ -343,6 +343,26 @@ rules:
       guardrail; biology-first fit_class is undefined until isoform-resolved
       measurement is provided.
 
+  - rule_id: modality-ambiguous-insufficient
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: modality_ambiguous
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+    rationale: |
+      C2 fix (2026-07-20): `modality_ambiguous` (both A/B grades OR conflicting
+      surface biology) previously had NO rule — a target landing here fired nothing
+      and the surface-modality-fit skill fell through SILENTLY to `insufficient`, an
+      unhandled state masquerading as an honest gap. This makes the ambiguity an
+      EXPLICIT, provenance-carrying verdict: evidence is in-scope but does not resolve
+      a modality direction → `insufficient` for both biologic arms (NOT neutral, which
+      would imply no signal; NOT a killer, since the biology is present but mixed).
+      Governance readers should treat this as "surface biology is genuinely
+      inconclusive between ADC and TCE — needs disambiguating measurement", distinct
+      from neither_viable (a measured no) and data_unavailable (couldn't look).
+
 # ============================================================================
 # Phase F (surface abundance) — surface-abundance-density
 # Added 2026-07-14 (Pass 1 of legacy-cleanup): both surface_density_class and
