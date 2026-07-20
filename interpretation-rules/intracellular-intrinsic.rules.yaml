@@ -43,6 +43,23 @@ rules:
       Pursuing these requires either tissue-restricted delivery (out of scope for systemic
       small-molecule/degrader) or context-conditional inhibition (mutant-specific, etc.).
 
+  - rule_id: common-essential-underpowered-insufficient
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      equals: common_essential_underpowered
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      H fix (2026-07-20): a >=85% pan-essential fraction on a panel BELOW the coverage
+      floor (PAN_ESSENTIAL_MIN_PANEL_N=300) — an underpowered tiny-panel artifact, NOT a
+      trusted pan-essential. Symmetric top-end admissibility guard to
+      non-dependent-underpowered-insufficient: this must NOT fire the pan-essential VETO
+      (an underpowered positive is a coverage gap, not a measured pan-essential).
+      Checked as a distinct verdict so the functional-requirement _verdict routes it to
+      insufficient before the pan-essential killer. Measured-vs-null discipline.
+
   - rule_id: strongly-selective-supportive
     when:
       card_id: pan-cancer-crispr-dependency-distribution
@@ -124,6 +141,19 @@ rules:
     rationale: |
       DEMETER2 ≥85% strong-dep matches DepMap's common_essential convention on the RNAi
       panel. Same therapeutic-window argument as CRISPR's pan-essential rule.
+
+  - rule_id: rnai-common-essential-underpowered-insufficient
+    when:
+      card_id: pan-cancer-rnai-dependency-distribution
+      field: rnai_dependency_class
+      equals: common_essential_underpowered
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      H fix (2026-07-20): RNAi >=85% pan-essential on a panel below the coverage floor —
+      underpowered artifact, NOT a trusted pan-essential. Must not fire the RNAi
+      pan-essential veto. Symmetric with the CRISPR common-essential-underpowered guard.
 
   - rule_id: rnai-strongly-selective-supportive
     when:
@@ -1883,3 +1913,68 @@ rules:
       Nominating the target for THIS subtype therefore lacks an on-target
       efficacy basis. Subtype-scoped (→ hold, not veto): the target may remain a
       valid dependency in other subtypes of the same indication.
+
+  # ============================================================================
+  # SYNTHETIC-LETHAL PARTNERS (SynLethDB v3, Gate-C step 2, 2026-07-20)
+  # ============================================================================
+  # Curated SL-partner ANNOTATION → sub-verdict the nomination gate's veto-suppressor
+  # keys on. These rules map the synthetic-lethal-partners card's sl_partner_class to
+  # the rule_ids the sub-skill _verdict resolves. The GATE ACTION (suppress the
+  # dependency non_dependent veto) is driven by the (synthetic_lethal_partners,
+  # has_experimental_sl_partner) tuple in nomination_verdict_gate.yaml veto_suppressors
+  # — NOT by these signals (which stay advisory). ANNOTATION: never nominates.
+
+  - rule_id: sl-experimental-partner-context-conditional
+    when:
+      card_id: synthetic-lethal-partners
+      field: sl_partner_class
+      equals: has_experimental_sl_partner
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target has an experimentally-supported curated SL partner (SynLethDB v3, CRISPR/
+      RNAi/throughput screen). A pooled pan-cancer non_dependent CRISPR read is a
+      CONTEXT-CONDITIONAL false negative — the target may be a genuine dependency once
+      the partner is altered (SMARCA2←SMARCA4-loss). Drives the gate veto-suppressor
+      (dependency:non_dependent → insufficient). ANNOTATION: suppresses a veto, does
+      NOT nominate. Signals are advisory-supportive (a druggable context-SL target is
+      an SM/degrader opportunity IN the partner-altered context), not a positive-tier
+      nomination.
+
+  - rule_id: sl-computational-partner-informational
+    when:
+      card_id: synthetic-lethal-partners
+      field: sl_partner_class
+      equals: has_computational_sl_partner
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Curated SL partner(s) exist but only from computational prediction — too weak to
+      suppress a measured pooled negative. Surfaced for context (the gate suppressor
+      requires an EXPERIMENTAL partner, so this class does NOT fire it). Neutral.
+
+  - rule_id: sl-no-partner-neutral
+    when:
+      card_id: synthetic-lethal-partners
+      field: sl_partner_class
+      equals: no_curated_sl_partner
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Gene is in the SynLethDB universe with no curated SL partner — a real negative
+      read (NOT data_unavailable). No context-conditional escape for a pooled negative;
+      neutral (does not suppress, does not oppose).
+
+  - rule_id: sl-data-unavailable-insufficient
+    when:
+      card_id: synthetic-lethal-partners
+      field: sl_partner_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      SL-partner derived product unreachable. Coverage gap; not opposing evidence.

@@ -62,6 +62,11 @@ outputs:
   summary_fields_vocabulary:
     dependency_class:
       - common_essential
+      - common_essential_underpowered  # H fix 2026-07-20: >=85% pan-essential fraction BUT
+                                     # panel < PAN_ESSENTIAL_MIN_PANEL_N (300) — an underpowered
+                                     # tiny-panel artifact, NOT a trusted pan-essential. Symmetric
+                                     # top-end admissibility guard: routes to insufficient (not the
+                                     # pan-essential veto). Mirrors non_dependent_underpowered.
       - strongly_selective
       - broadly_dependent
       - non_dependent
