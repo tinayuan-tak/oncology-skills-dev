@@ -1,0 +1,76 @@
+# Dependency gate verdict resolver (gap #5, 2026-07-20).
+#
+# Declarative transcription of skills/functional-requirement/scripts/run.py::_verdict.
+# ORDERED precedence — first match wins. This is the framework's hardest-won, most
+# opinionated dependency biology, now VISIBLE and PR-reviewable instead of buried in a
+# per-skill if-chain. A single shared interpreter (_skills_common/resolver.py) evaluates
+# it; the golden-oracle migration asserts this spec == the Python _verdict byte-for-byte
+# (verdict + driving_rule_id) across the calibration set before the if-chain is deleted.
+#
+# GUARDRAIL: pattern-matching over fired rule IDs ONLY. The two admissibility guards
+# (underpowered pan-essential, underpowered non-dependent) and the paralog suppressor are
+# all expressed as rung ordering + when_all_fired — NO arithmetic here (the floors live in
+# the analysis-methods classifier; the labels live in the cards).
+
+gate: dependency
+version: 1.0.0
+description: |
+  Dependency (Gate C) verdict precedence. Both admissibility guards
+  (common_essential_underpowered top-rail, non_dependent_underpowered bottom-rail) and
+  the paralog veto-suppressor (compound: non-dependent-killer AND strong paralog buffer)
+  are encoded as ordered rungs, so an underpowered or buffered pooled call NEVER reaches
+  the gate veto. CRISPR-beats-RNAi and suppressor-before-veto are the load-bearing
+  precedence, now legible.
+
+resolve:
+  # Pan-essential ADMISSIBILITY guard — BEFORE the pan-essential killer (H fix): a
+  # >=85% call on an underpowered panel is a tiny-panel artifact, escapes the veto.
+  - verdict: insufficient_underpowered_pan_essential
+    when_any_fired:
+      - common-essential-underpowered-insufficient
+      - rnai-common-essential-underpowered-insufficient
+
+  - verdict: pan_essential_killer
+    when_any_fired:
+      - pan-essential-killer
+      - rnai-pan-essential-killer
+
+  - verdict: concordant_dependent
+    when_fired: concordant-dependent-supportive-dominant
+
+  - verdict: lineage_selective
+    when_fired: lineage-selective-supportive
+
+  - verdict: selective_dependent
+    when_any_fired:
+      - strongly-selective-supportive
+      - rnai-strongly-selective-supportive
+
+  - verdict: discordant
+    when_fired: concordance-discordant-warning
+
+  # DepMap-power admissibility guard (bottom-rail): below-floor pooled negative
+  # contradicted by a concentrated-dependent well-sampled lineage → escapes the veto.
+  - verdict: insufficient_underpowered
+    when_fired: non-dependent-underpowered-insufficient
+
+  # Paralog-buffering veto-suppressor (COMPOUND): a pooled non-dependence AND a strong
+  # paralog buffer → buffering artifact, escapes the veto. driving_rule names the buffer
+  # rule as the provenance anchor (matches the if-chain's return).
+  - verdict: non_dependent_paralog_buffered
+    when_all_fired:
+      - non-dependent-killer
+      - strong-paralog-buffering-degrader-preferred
+    driving_rule: strong-paralog-buffering-degrader-preferred
+
+  # non_dependent → gate VETO. Only CRISPR non-dependence qualifies (RNAi-only
+  # non-dependence is neutral, falls through to insufficient — false-negative-prone).
+  - verdict: non_dependent
+    when_fired: non-dependent-killer
+
+  - verdict: broadly_dependent
+    when_any_fired:
+      - broadly-dependent-neutral
+      - rnai-broadly-dependent-neutral
+
+default: insufficient

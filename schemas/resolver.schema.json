@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onetakeda.oncology/schemas/resolver.schema.json",
+  "title": "Verdict resolver spec",
+  "description": "Declarative per-gate verdict-resolution spec. Replaces the hand-rolled if-chains in each sub-skill's _verdict() with an ordered, PR-reviewable precedence ladder over the set of FIRED rule IDs. A single shared interpreter (claude-oncology-skills _skills_common/resolver.py) evaluates it; both engines (target-profile, compose-dashboard) call the same interpreter, so the two engines cannot drift. GUARDRAIL (deliberately NOT Turing-complete): a resolver may ONLY pattern-match over the set of fired rule IDs — ordered precedence + when_fired / when_any_fired / when_all_fired. NO arithmetic, thresholds, loops, or data lookups: that logic belongs in a CARD (compute the label) or a METHOD (compute the number), never here. This keeps the interpreter small, typed, and unit-tested, and keeps the framework's hardest-won biology precedence (e.g. 'CRISPR beats RNAi', 'suppressor before veto') visible and reviewable instead of buried in per-skill Python.",
+  "type": "object",
+  "required": ["gate", "version", "resolve", "default"],
+  "additionalProperties": false,
+  "properties": {
+    "gate": {
+      "type": "string",
+      "description": "The sub-skill / gate this resolver governs (matches the SUB_SKILLS short, e.g. 'dependency', 'expression', 'surface_modality').",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "SemVer of THIS resolver spec. A verdict-precedence change is a reviewable contract bump, not a silent code diff.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "description": {"type": "string"},
+    "resolve": {
+      "type": "array",
+      "description": "ORDERED precedence ladder — first matching rung wins (the precedence, now visible). Each rung fires a verdict when its fired-set predicate matches.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["verdict"],
+        "additionalProperties": false,
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "description": "The verdict string this rung emits when it matches.",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "when_fired": {
+            "type": "string",
+            "description": "Matches iff this single rule_id is in the fired set. driving_rule_id = this rule_id."
+          },
+          "when_any_fired": {
+            "type": "array",
+            "description": "Matches iff ANY listed rule_id is in the fired set. driving_rule_id = the FIRST listed rule_id that fired (list order = tie-break, so it is deterministic).",
+            "items": {"type": "string"},
+            "minItems": 1
+          },
+          "when_all_fired": {
+            "type": "array",
+            "description": "Matches iff ALL listed rule_ids are in the fired set (the compound conjunction — e.g. the paralog suppressor needs non-dependent-killer AND strong-paralog-buffering both fired). driving_rule defaults to the LAST listed rule_id unless `driving_rule` is set explicitly.",
+            "items": {"type": "string"},
+            "minItems": 2
+          },
+          "driving_rule": {
+            "type": "string",
+            "description": "OPTIONAL explicit driving_rule_id for the rung (must be one of the rung's own rule_ids). Used mainly with when_all_fired to name WHICH of the conjoined rules is the provenance anchor. Defaults: when_fired → its rule; when_any_fired → first-fired; when_all_fired → last listed."
+          }
+        },
+        "oneOf": [
+          {"required": ["when_fired"]},
+          {"required": ["when_any_fired"]},
+          {"required": ["when_all_fired"]}
+        ]
+      }
+    },
+    "default": {
+      "type": "string",
+      "description": "The verdict when NO rung matches (typically 'insufficient'). driving_rule_id is null for the default. Making the default EXPLICIT is what lets the exhaustiveness validator prove there is no silent fall-through.",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    }
+  }
+}
