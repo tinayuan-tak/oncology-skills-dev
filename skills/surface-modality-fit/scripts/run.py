@@ -25,6 +25,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "surface-modality-fit"
@@ -45,40 +46,17 @@ QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Rank-ordered surface-modality resolution (first match wins).
-
-    Resolves from the composed adc-tce-modality-fit `fit_class` rules — the
-    single card that fuses the surface leaves into a modality call. When those
-    rules did not fire (fit_class data_unavailable, or the composed card's
-    surface inputs are absent), returns an honest `insufficient` rather than
-    fabricating a modality verdict.
-
-    NOTE (design gap flagged 2026-07-14): fit_class == `modality_ambiguous`
-    has NO rule in surface-intrinsic.rules.yaml, so a target landing there fires
-    nothing and falls through to `insufficient`. Adding that rule is in
-    target-contracts' PR #2 (rule-coverage-holes) territory, not this branch.
-    """
-    fired_by_id = {r["rule_id"]: r for r in fired}
-    # Map the adc-tce-modality-fit fit_class rules to a surface-modality verdict.
-    if "adc-preferred-supportive" in fired_by_id:
-        return "adc_preferred", "adc-preferred-supportive"
-    if "tce-preferred-supportive" in fired_by_id:
-        return "tce_preferred", "tce-preferred-supportive"
-    if "both-viable-supportive" in fired_by_id:
-        return "both_viable", "both-viable-supportive"
-    if "neither-viable-killer" in fired_by_id:
-        return "neither_viable", "neither-viable-killer"
-    if "isoform-dependent-modality-suppression" in fired_by_id:
-        return "isoform_dependent_undefined", "isoform-dependent-modality-suppression"
-    # C2 fix (2026-07-20): modality_ambiguous previously had NO rule + NO branch → the
-    # skill fell through SILENTLY to insufficient (an unhandled fireable state, not an
-    # honest gap). Now an EXPLICIT, provenance-carrying verdict: surface biology is
-    # in-scope but does not resolve a modality direction. Distinct from a bare
-    # insufficient (nothing fired) — this one names WHY (mixed/conflicting fit).
-    if "modality-ambiguous-insufficient" in fired_by_id:
-        return "modality_ambiguous", "modality-ambiguous-insufficient"
-    return "insufficient", None
-
+    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    The former if-chain now lives in resolvers/surface_modality.resolver.yaml (target-contracts),
+    evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
+    the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
+    the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
+    result = resolve_verdict_for_gate(fired, "surface_modality")
+    if result is None:
+        raise RuntimeError(
+            "surface_modality resolver spec missing (target-contracts/resolvers/surface_modality.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result
 
 def _headline(cards, fired, verdict_pair):
     def _get(cid: str, key: str):

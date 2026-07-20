@@ -17,6 +17,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "differentiation-landscape"
@@ -37,31 +38,17 @@ PARTIAL_STATUS_NOTE = (
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Map fired rule_ids to a verdict, rank-ordered most-informative first.
-
-    Must cover EVERY cooccurrence rule the target-contracts axis can fire
-    (added 2026-07-14): the 5 cooccurrence_class-keyed rows + the pre-existing
-    has-cooccurring-driver + data-unavailable rows. A fired rule with no
-    branch here would silently fall through to `insufficient` — the exact
-    decision-layer collapse this precedence list closes.
-    """
-    fired_by_id = {r["rule_id"]: r for r in fired}
-    # (rule_id, verdict) in strict precedence order.
-    precedence = [
-        ("cooccurrence-both-patterns-supportive",        "both_patterns_present"),
-        ("strong-mutual-exclusivity-supportive",         "strong_mutually_exclusive"),
-        ("cooccurrence-strong-supportive",               "strong_cooccurring"),
-        ("has-cooccurring-driver-supportive",            "has_cooccurring_driver"),
-        ("cooccurrence-modest-cooccurring-neutral",      "modest_cooccurring"),
-        ("cooccurrence-modest-mutually-exclusive-neutral", "modest_mutually_exclusive"),
-        ("cooccurrence-ns-neutral",                      "ns"),
-        ("cooccurrence-data-unavailable-insufficient",   "data_unavailable"),
-    ]
-    for rule_id, verdict in precedence:
-        if rule_id in fired_by_id:
-            return verdict, rule_id
-    return "insufficient", None
-
+    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    The former if-chain now lives in resolvers/differentiation.resolver.yaml (target-contracts),
+    evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
+    the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
+    the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
+    result = resolve_verdict_for_gate(fired, "differentiation")
+    if result is None:
+        raise RuntimeError(
+            "differentiation resolver spec missing (target-contracts/resolvers/differentiation.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result
 
 def _headline(cards, fired, verdict_pair):
     def _get(cid: str, key: str):

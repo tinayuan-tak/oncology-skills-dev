@@ -23,6 +23,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
@@ -39,38 +40,17 @@ QUESTION = ("For {target} in {indication}, what upstream regulators + "
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Rank-ordered verdict from fired rules.
-
-    Precedence (2026-07-17 — NETWORK SHAPE resolves before the PD-marker flag):
-      1. well_characterized (>=3 upstream AND >=3 downstream partners)
-      2. partial (some context, between sparse and well_characterized)
-      3. sparse (0-1 total edges — the reviewer-added OPPOSING warning signal)
-      4. has_pd_marker (>=1 downstream effector; supportive) — only when the
-         network shape didn't classify
-      5. data_unavailable (target not in SIGNOR snapshot)
-
-    WHY the reorder: has_pd_marker fires whenever >=1 downstream effector exists,
-    which is ALSO true for many sparse/partial networks. When it outranked sparse
-    (the pre-2026-07-17 order), a sparse network with any PD marker reported the
-    supportive-flavored `has_pd_marker` and the `sparse`→opposing signal never
-    surfaced in the verdict. Network shape is the primary mechanism read; the PD
-    marker is a secondary annotation, not a headline that can bury a sparse warning.
-    """
-    fired_by_id = {r["rule_id"]: r for r in fired}
-
-    if "mechanism-well-characterized-supportive" in fired_by_id:
-        return "well_characterized", "mechanism-well-characterized-supportive"
-    if "mechanism-partial-neutral" in fired_by_id:
-        return "partial", "mechanism-partial-neutral"
-    if "mechanism-sparse-warning" in fired_by_id:
-        return "sparse", "mechanism-sparse-warning"
-    if "has-pd-marker-supportive" in fired_by_id:
-        return "has_pd_marker", "has-pd-marker-supportive"
-    if "mechanism-data-unavailable-insufficient" in fired_by_id:
-        return "data_unavailable", "mechanism-data-unavailable-insufficient"
-
-    return "insufficient", None
-
+    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    The former if-chain now lives in resolvers/mechanism.resolver.yaml (target-contracts),
+    evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
+    the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
+    the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
+    result = resolve_verdict_for_gate(fired, "mechanism")
+    if result is None:
+        raise RuntimeError(
+            "mechanism resolver spec missing (target-contracts/resolvers/mechanism.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result
 
 def _headline(cards, fired, verdict_pair):
     """Skill-specific headline: SIGNOR-network descriptive fields."""

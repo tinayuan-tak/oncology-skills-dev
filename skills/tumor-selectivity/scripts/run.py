@@ -13,6 +13,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "tumor-selectivity"
@@ -27,35 +28,19 @@ QUESTION = ("How selectively is {target} expressed in {indication} tumor "
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Rank-ordered tumor-vs-normal selectivity verdict (first match wins).
-
-    Added 2026-07-17: tumor-selectivity previously passed NO verdict_fn, so
-    _run_sub_skills recorded verdict=None and the entire Phase-B selectivity
-    signal — a first-order nomination criterion (a non-tumor-selective target is
-    an on-target-toxicity liability) — never reached synthesis, the nomination
-    gate, or the 6-category risk table. It was computed (selectivity_class) and
-    silently dropped.
-
-    Keys off the tvn-* rules that fire on the card's selectivity_class (mirrors
-    tractability-small-molecule's _snapshot pattern). Verdict strings are the
-    selectivity_class values verbatim so the risk-table reshape's _biological()
-    — which already checks for strong_tumor_selective / not_selective — picks
-    them up without a translation layer.
-    """
-    fired_by_id = {r["rule_id"]: r for r in fired}
-    if "tvn-strong-selective-supportive" in fired_by_id:
-        return "strong_tumor_selective", "tvn-strong-selective-supportive"
-    if "tvn-modest-selective-supportive" in fired_by_id:
-        return "modest_tumor_selective", "tvn-modest-selective-supportive"
-    if "tvn-discordant-neutral-flagged" in fired_by_id:
-        return "discordant_across_comparators", "tvn-discordant-neutral-flagged"
-    if "tvn-not-selective-neutral" in fired_by_id:
-        return "not_selective", "tvn-not-selective-neutral"
-    if "tvn-not-informative-neutral" in fired_by_id:
-        return "not_informative", "tvn-not-informative-neutral"
-    if "tvn-data-unavailable-insufficient" in fired_by_id:
-        return "data_unavailable", "tvn-data-unavailable-insufficient"
-    return "insufficient", None
+    """Tumor-vs-normal selectivity verdict — DELEGATES to the shared declarative
+    resolver (gap #5, 2026-07-20). The if-chain that used to live here is now
+    resolvers/selectivity.resolver.yaml (target-contracts), evaluated by the ONE
+    interpreter both engines call. Proven byte-for-byte equivalent to the former
+    if-chain by the golden-oracle test (test_resolver_flat_gates_oracle.py). A missing
+    spec raises (the resolver is now the source of truth — NO silent fallback to a stale
+    copy, which would reintroduce the drift this refactor eliminates)."""
+    result = resolve_verdict_for_gate(fired, "selectivity")
+    if result is None:
+        raise RuntimeError(
+            "selectivity resolver spec missing (target-contracts/resolvers/"
+            "selectivity.resolver.yaml) — the verdict source of truth is absent.")
+    return result
 
 
 def _headline(cards, fired, verdict_pair):

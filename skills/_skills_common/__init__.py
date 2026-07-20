@@ -45,6 +45,7 @@ from .rules_loader import (
     filter_rules_by_card_ids,
 )
 from .write_package import write_package
+from .resolver import resolve_verdict, resolve_verdict_for_gate, load_resolver  # noqa: F401
 from .composition_schema import (
     Composition,
     CompositionError,

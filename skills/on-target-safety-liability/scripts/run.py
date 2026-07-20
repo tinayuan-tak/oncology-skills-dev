@@ -15,6 +15,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "on-target-safety-liability"
@@ -38,21 +39,17 @@ PARTIAL_STATUS_NOTE = (
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    fired_by_id = {r["rule_id"]: r for r in fired}
-    if "highly-constrained-safety-warning" in fired_by_id:
-        return "highly_constrained_safety_concern", "highly-constrained-safety-warning"
-    if "tolerant-safety-supportive" in fired_by_id:
-        return "tolerant_reduced_safety_risk", "tolerant-safety-supportive"
-    # C2c (2026-07-17): the middle constraint band now fires a NEUTRAL rule. Map it
-    # to a distinct verdict so it surfaces in the 6-category risk table (→ MEDIUM),
-    # rather than collapsing to `insufficient` as it did when the band was unruled.
-    # NOT gated (neutral, not a hold) — only highly_constrained triggers a safety hold.
-    if "moderately-constrained-safety-neutral" in fired_by_id:
-        return "moderately_constrained_safety", "moderately-constrained-safety-neutral"
-    if "constraint-data-unavailable-insufficient" in fired_by_id:
-        return "data_unavailable", "constraint-data-unavailable-insufficient"
-    return "insufficient", None
-
+    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    The former if-chain now lives in resolvers/safety.resolver.yaml (target-contracts),
+    evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
+    the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
+    the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
+    result = resolve_verdict_for_gate(fired, "safety")
+    if result is None:
+        raise RuntimeError(
+            "safety resolver spec missing (target-contracts/resolvers/safety.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result
 
 def _headline(cards, fired, verdict_pair):
     def _get(cid: str, key: str):

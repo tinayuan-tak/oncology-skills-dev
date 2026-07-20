@@ -22,6 +22,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "synthetic-lethal-partners"
@@ -35,24 +36,17 @@ QUESTION = ("Does {target} have a curated synthetic-lethal partner (SynLethDB v3
 
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Map the SL-partner card's class → the sub-verdict the gate suppressor reads.
-
-    The verdict string MUST equal the sl_partner_class value the gate's veto_suppressor
-    names (`has_experimental_sl_partner`) — that exact (synthetic_lethal_partners,
-    has_experimental_sl_partner) tuple is what suppresses (dependency, non_dependent).
-    A computational-only partner is surfaced but does NOT trigger suppression.
-    """
-    fired_by_id = {r["rule_id"]: r for r in fired}
-    if "sl-experimental-partner-context-conditional" in fired_by_id:
-        return "has_experimental_sl_partner", "sl-experimental-partner-context-conditional"
-    if "sl-computational-partner-informational" in fired_by_id:
-        return "has_computational_sl_partner", "sl-computational-partner-informational"
-    if "sl-no-partner-neutral" in fired_by_id:
-        return "no_curated_sl_partner", "sl-no-partner-neutral"
-    if "sl-data-unavailable-insufficient" in fired_by_id:
-        return "data_unavailable", "sl-data-unavailable-insufficient"
-    return "insufficient", None
-
+    """Verdict — DELEGATES to the shared declarative resolver (gap #5, 2026-07-20).
+    The former if-chain now lives in resolvers/synthetic_lethal_partners.resolver.yaml (target-contracts),
+    evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
+    the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
+    the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
+    result = resolve_verdict_for_gate(fired, "synthetic_lethal_partners")
+    if result is None:
+        raise RuntimeError(
+            "synthetic_lethal_partners resolver spec missing (target-contracts/resolvers/synthetic_lethal_partners.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result
 
 def _headline(cards, fired, verdict_pair):
     def _get(cid: str, key: str):
