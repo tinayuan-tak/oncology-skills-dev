@@ -1,0 +1,21 @@
+# tumor-selectivity (Gate B) verdict resolver (gap #5, 2026-07-20).
+# Declarative transcription of skills/tumor-selectivity/scripts/run.py::_verdict.
+# Verdict strings are the selectivity_class values verbatim (the risk-table _biological()
+# reshape keys off strong_tumor_selective / not_selective without translation).
+gate: selectivity
+version: 1.0.0
+description: Tumor-vs-normal selectivity precedence (first match wins).
+resolve:
+  - verdict: strong_tumor_selective
+    when_fired: tvn-strong-selective-supportive
+  - verdict: modest_tumor_selective
+    when_fired: tvn-modest-selective-supportive
+  - verdict: discordant_across_comparators
+    when_fired: tvn-discordant-neutral-flagged
+  - verdict: not_selective
+    when_fired: tvn-not-selective-neutral
+  - verdict: not_informative
+    when_fired: tvn-not-informative-neutral
+  - verdict: data_unavailable
+    when_fired: tvn-data-unavailable-insufficient
+default: insufficient

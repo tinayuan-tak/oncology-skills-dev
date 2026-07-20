@@ -1,0 +1,21 @@
+# surface-modality-fit (Gate F/E2) verdict resolver (gap #5, 2026-07-20).
+# Declarative transcription of skills/surface-modality-fit/scripts/run.py::_verdict
+# (incl. the C2 modality_ambiguous branch added 2026-07-20). Resolves from the composed
+# adc-tce-modality-fit fit_class rules.
+gate: surface_modality
+version: 1.0.0
+description: Biologics surface-modality fit precedence (from adc-tce-modality-fit fit_class).
+resolve:
+  - verdict: adc_preferred
+    when_fired: adc-preferred-supportive
+  - verdict: tce_preferred
+    when_fired: tce-preferred-supportive
+  - verdict: both_viable
+    when_fired: both-viable-supportive
+  - verdict: neither_viable
+    when_fired: neither-viable-killer
+  - verdict: isoform_dependent_undefined
+    when_fired: isoform-dependent-modality-suppression
+  - verdict: modality_ambiguous
+    when_fired: modality-ambiguous-insufficient
+default: insufficient
