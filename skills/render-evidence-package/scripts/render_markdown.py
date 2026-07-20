@@ -207,44 +207,59 @@ def _render_toc(ep: dict, fit: list[dict]) -> list[str]:
     sections.append("- [Governance](#governance)")
     sections.append("- [Card Evidence](#card-evidence)")
     for card in ep.get("cards", []):
-        if card.get("excluded_by_applies_when"):
+        # Excluded + unavailable cards render their own stub panels but are not TOC-linked as
+        # evidence (they carry no interpretation_call); the Cards-Without-Evidence section
+        # accounts for the unavailable ones.
+        if card.get("excluded_by_applies_when") or card.get("availability_state"):
             continue
         cid = card.get("card_id", "")
         anchor = cid.replace("_", "-")
         interp = card.get("interpretation_call", "")
         sections.append(f"  - [`{cid}`](#-{anchor}--{interp.lower().replace(' ', '-').replace('—', '').replace('--', '-')[:40]}) — _{interp}_")
-    sections.append("- [Failed Cards](#failed-cards)")
+    if any(c.get("availability_state") for c in ep.get("cards", [])) or \
+            (ep.get("governance", {}).get("validation_summary", {}) or {}).get("n_cards_failed"):
+        sections.append("- [Cards Without Evidence](#cards-without-evidence)")
     sections.append("- [Provenance Footer](#provenance-footer)")
     sections.append("")
     return sections
 
 
 def _render_failed_cards_section(ep: dict) -> list[str]:
-    """Explicit accounting for n_cards_failed. The envelope drops failed cards (they
-    return None and are skipped in phase-2). Stakeholders reading 'n_cards_failed: 3'
-    but seeing no failed entries in Card Evidence get confused. This section lists
-    what was attempted-and-missing so the count becomes auditable."""
+    """Reconcile the n_cards_failed count with the reasoned-absence panels (F, 2026-07-20).
+
+    Cards whose reader returned None are now emitted as card_unavailable entries (rendered
+    as their own reasoned panels above), so the failure count is auditable BY NAME. This
+    section reconciles the count: it points at the reasoned panels and only speculates for
+    any RESIDUAL that has no card_unavailable entry (a genuine drop, e.g. a validation
+    failure that never reached the availability path)."""
     gov = ep.get("governance", {}) or {}
     vs = gov.get("validation_summary", {}) or {}
     n_failed = vs.get("n_cards_failed", 0)
     if not n_failed:
         return []
 
-    sections = []
-    sections.append("## Failed Cards")
-    sections.append("")
-    sections.append(
-        f"{n_failed} card(s) were attempted but did not produce evidence in this run. "
-        f"In live mode this typically means the card has no live dispatcher registered yet "
-        f"(framework coverage gap, not a data issue). Affected cards are dropped from the "
-        f"per-card panels above; the validation_summary count below reflects the gap."
-    )
-    sections.append("")
-    sections.append(
-        "_Likely causes_: (a) missing live dispatcher in `_live_readers.CARD_DISPATCHERS`, "
-        "(b) method module not importable, (c) all input data sources returned errors."
-    )
-    sections.append("")
+    unavailable = [c for c in ep.get("cards", []) if c.get("availability_state")]
+    n_reasoned = len(unavailable)
+    n_residual = n_failed - n_reasoned
+
+    sections = ["## Cards Without Evidence", ""]
+    if n_reasoned:
+        sections.append(
+            f"{n_reasoned} of {n_failed} card(s) that produced no evidence are shown above as "
+            f"**reasoned-absence panels** (🚧/🔎) with a typed `availability_state` — "
+            f""
+            "`" + "`, `".join(sorted({c['availability_state'] for c in unavailable})) + "`. "
+            "Those are coverage gaps (or, for `insufficient`, a measured absence), not results."
+        )
+        sections.append("")
+    if n_residual > 0:
+        sections.append(
+            f"{n_residual} further card(s) were dropped without a reasoned-absence entry — a "
+            f"genuine drop (e.g. a validation failure that never reached the availability path). "
+            f"_Likely causes_: method not importable, or all input sources errored. "
+            f"See `validation_report.json`."
+        )
+        sections.append("")
     return sections
 
 
@@ -280,8 +295,21 @@ def _render_governance(ep: dict) -> list[str]:
     return sections
 
 
+# Human-readable gloss per availability_state (F, 2026-07-20). Keep in sync with
+# target-contracts/vocabularies/availability_state.enum.yaml.
+_AVAILABILITY_GLOSS = {
+    "not_wired": "no live reader is registered for this card yet (framework-coverage gap — "
+                 "the card is a contract/placeholder, not backed by a method). NOT a data finding.",
+    "data_blocked": "the reader exists but its derived data product is not available yet "
+                    "(coverage gap gated on data acquisition, not the target's biology).",
+    "read_error": "the reader was invoked and errored (transient/operational — may resolve on retry).",
+    "insufficient": "the reader ran and looked, but the target is genuinely absent from the dataset "
+                    "or below the power floor — a MEASURED coverage gap, not a negative result.",
+}
+
+
 def _render_card_panel(card: dict) -> list[str]:
-    """Render a single card_present or card_excluded entry."""
+    """Render a single card_present, card_excluded, or card_unavailable entry."""
     sections = []
     card_id = card.get("card_id", "unknown-card")
 
@@ -293,6 +321,28 @@ def _render_card_panel(card: dict) -> list[str]:
         sections.append("")
         sections.append(f"**Reason**: {card.get('exclusion_reason', '(no reason provided)')}")
         sections.append("")
+        sections.append("---")
+        sections.append("")
+        return sections
+
+    # Unavailable card (F, 2026-07-20) → a reasoned absence, NOT a present card. Surfaces the
+    # typed availability_state so a reader can tell "not built yet" from a measured absence
+    # (previously such a card fell through to the present-card path and rendered as
+    # "? uninterpreted", losing the reason entirely).
+    state = card.get("availability_state")
+    if state:
+        measured = state == "insufficient"
+        icon = "🔎" if measured else "🚧"
+        sections.append(f"### {icon} `{card_id}` — unavailable (`{state}`)")
+        sections.append("")
+        sections.append(f"_{_AVAILABILITY_GLOSS.get(state, 'no signal produced.')}_")
+        sections.append("")
+        sections.append(f"**Reason**: {card.get('availability_reason', '(no reason provided)')}")
+        sections.append("")
+        if not measured:
+            sections.append("> This is a **coverage gap, not evidence** — do not read the absence "
+                            "as a negative result for the target.")
+            sections.append("")
         sections.append("---")
         sections.append("")
         return sections

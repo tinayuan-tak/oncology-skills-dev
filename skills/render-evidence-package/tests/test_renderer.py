@@ -322,3 +322,59 @@ def test_panorama_field_routes_to_trichotomy_renderer_not_generic():
     }
     md = "\n".join(_render_card_panel(card))
     assert "● measured" in md and "◐ underpowered" in md, "panorama field must use the trichotomy renderer"
+
+
+# ============================================================================
+# Test: card_unavailable reasoned-absence panels (F, 2026-07-20)
+# ============================================================================
+
+def test_card_unavailable_not_wired_renders_as_reasoned_absence():
+    """A not_wired card_unavailable entry must render as a reasoned coverage-gap panel —
+    NOT fall through to the present-card path ('? uninterpreted', the pre-fix bug)."""
+    from scripts.render_markdown import _render_card_panel
+    md = "\n".join(_render_card_panel({
+        "card_id": "fusion-rearrangement-landscape", "card_version": "0.1.0",
+        "availability_state": "not_wired", "availability_reason": "dispatcher_returned_none"}))
+    assert "unavailable (`not_wired`)" in md
+    assert "dispatcher_returned_none" in md
+    assert "coverage gap, not evidence" in md          # the honesty warning for a non-measured gap
+    assert "uninterpreted" not in md                    # must NOT render as a broken present card
+    assert "?" not in md.split("\n")[0]                 # no '?' state icon in the heading
+
+
+def test_card_unavailable_insufficient_is_measured_no_coverage_warning():
+    """An `insufficient` entry is a MEASURED absence (the reader looked) — it uses the 🔎 icon
+    and must NOT carry the 'coverage gap, not evidence' warning reserved for never-looked gaps."""
+    from scripts.render_markdown import _render_card_panel
+    md = "\n".join(_render_card_panel({
+        "card_id": "gnomad-lof-constraint", "card_version": "1.0.0",
+        "availability_state": "insufficient", "availability_reason": "primary_class=data_unavailable"}))
+    assert "unavailable (`insufficient`)" in md
+    assert "🔎" in md
+    assert "coverage gap, not evidence" not in md
+    assert "MEASURED coverage gap" in md
+
+
+def test_cards_without_evidence_section_reconciles_reasoned_and_residual():
+    """The section reconciles n_cards_failed against the reasoned-absence panels: it names the
+    reasoned count + only speculates for a genuine residual drop."""
+    from scripts.render_markdown import _render_failed_cards_section
+    ep = {
+        "governance": {"validation_summary": {"n_cards_failed": 2}},
+        "cards": [
+            {"card_id": "fusion-rearrangement-landscape", "availability_state": "not_wired",
+             "availability_reason": "dispatcher_returned_none"},
+            # 1 reasoned + (2 - 1) = 1 residual genuine drop
+        ],
+    }
+    md = "\n".join(_render_failed_cards_section(ep))
+    assert "## Cards Without Evidence" in md
+    assert "reasoned-absence panels" in md
+    assert "1 of 2" in md                       # reasoned count reconciled against the total
+    assert "1 further card(s) were dropped" in md   # the residual
+    assert "validation_report.json" in md
+
+
+def test_no_failed_no_section():
+    from scripts.render_markdown import _render_failed_cards_section
+    assert _render_failed_cards_section({"governance": {"validation_summary": {"n_cards_failed": 0}}}) == []
