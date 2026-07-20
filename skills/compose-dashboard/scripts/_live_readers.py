@@ -526,6 +526,16 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_protein_abundance_celline(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: protein-abundance-celline card → DepMap 26Q1 proteomics Gygi TMT MS
+    cell-line protein-abundance distribution via methods/depmap_protein_abundance/read.py.
+    The bulk_protein_ms x cell_line presence axis (protein twin of expression-distribution).
+    Protein-intrinsic — indication accepted for contract, not consumed.
+    """
+    mod = _import_method("depmap_protein_abundance")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 def _dispatch_shed_ectodomain_liability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: shed-ectodomain-liability card → curated serum-marker crosswalk
     (target-contracts vocab) + HPA v25-1 secretome proxy via
@@ -567,6 +577,7 @@ CARD_DISPATCHERS = {
     "paralog-buffering": _dispatch_paralog_buffering,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
+    "protein-abundance-celline": _dispatch_protein_abundance_celline,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py
