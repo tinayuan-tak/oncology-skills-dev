@@ -196,6 +196,13 @@ positive_signals:
   - {sub_skill: dependency,      verdict: concordant_dependent,          weight: dominant}
   - {sub_skill: dependency,      verdict: lineage_selective,             weight: supportive}
   - {sub_skill: dependency,      verdict: selective_dependent,           weight: supportive}
+  # E-PRISM re-home (2026-07-20): chemical+genetic target-engagement (triangulated PRISM
+  # concordance) as a gate-C dependency CONFIRMATION. SUPPORTIVE, not dominant, on purpose:
+  # the SAME rule (e7-triangulated-target-engaged-supportive) already contributes a
+  # `tractability_sm: well_covered` DOMINANT positive below — making this dominant too
+  # would let ONE measurement manufacture a `strong` tier by being counted twice. As a
+  # supportive it corroborates (raises confidence) without double-counting into `strong`.
+  - {sub_skill: dependency,      verdict: chemical_genetic_confirmed_dependent, weight: supportive}
   - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
   - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
   - {sub_skill: tractability_sm, verdict: well_covered,                  weight: dominant}

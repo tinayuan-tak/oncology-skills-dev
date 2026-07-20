@@ -46,6 +46,28 @@ resolve:
       - strongly-selective-supportive
       - rnai-strongly-selective-supportive
 
+  # CHEMICAL-GENETIC confirmation arm (E-PRISM re-home, 2026-07-20). The
+  # prism-crispr-concordance card's `triangulated_target_engaged` class (CRISPR AND
+  # RNAi dependency BOTH correlate with PRISM compound kill) is chemical+genetic
+  # corroboration that the target is REQUIRED — a gate-C dependency signal, not just
+  # SM tractability. Reuses the EXISTING rule (e7-triangulated-target-engaged-supportive)
+  # rather than a duplicate: one measurement routes many-to-many to gates
+  # (CARD_ARCHITECTURE_DECISION) — tractability_sm reads it for `well_covered` (E1: a
+  # compound was found), dependency reads it here for confirmed-required (C).
+  # POSITIVE-ONLY and veto-safe. Placement is IDENTICAL in kind to the three genetic
+  # positives above (concordant/lineage/selective): it sits BELOW pan_essential_killer
+  # (a pan-essential target is never rescued by a positive — verified: yields to it) and
+  # ABOVE the bottom-rail non_dependent veto — so, exactly like the existing positives, a
+  # measured chemical-genetic dependency confirmation outranks a POOLED non-dependence
+  # (the pooled call is the false-negative-prone one; if per-line CRISPR+RNAi both track
+  # compound kill while the pooled median reads non_dependent, that is the biomarker-
+  # dilution pattern the framework already resolves in favor of the measured positive).
+  # It can never CREATE a veto: PRISM absence is `no_compounds_found` → neutral, never a
+  # killer (not-yet-drugged ≠ undruggable). Ranks BELOW the genetic positives — it
+  # CONFIRMS a dependency, it is not a stronger call than a direct genetic dependency.
+  - verdict: chemical_genetic_confirmed_dependent
+    when_fired: e7-triangulated-target-engaged-supportive
+
   - verdict: discordant
     when_fired: concordance-discordant-warning
 
