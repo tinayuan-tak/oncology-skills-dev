@@ -70,6 +70,13 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
         return "neither_viable", "neither-viable-killer"
     if "isoform-dependent-modality-suppression" in fired_by_id:
         return "isoform_dependent_undefined", "isoform-dependent-modality-suppression"
+    # C2 fix (2026-07-20): modality_ambiguous previously had NO rule + NO branch → the
+    # skill fell through SILENTLY to insufficient (an unhandled fireable state, not an
+    # honest gap). Now an EXPLICIT, provenance-carrying verdict: surface biology is
+    # in-scope but does not resolve a modality direction. Distinct from a bare
+    # insufficient (nothing fired) — this one names WHY (mixed/conflicting fit).
+    if "modality-ambiguous-insufficient" in fired_by_id:
+        return "modality_ambiguous", "modality-ambiguous-insufficient"
     return "insufficient", None
 
 
