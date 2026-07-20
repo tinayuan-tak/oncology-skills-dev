@@ -1,0 +1,110 @@
+# Card Phase-C — SYNTHETIC-LETHAL PARTNERS (curated, SynLethDB v3)
+#
+# Gate-C step 2 (2026-07-20). The PUBLISHED, citable synthetic-lethality ANNOTATION
+# layer — complements paralog-buffering (which is the DUA-measured, intra-gene-family
+# self-rescue signal). This card answers: does {target} have a CURATED synthetic-lethal
+# partner (from published SL screens), and how strong is the evidence?
+#
+# WHY IT MATTERS (the veto-suppressor input): a curated SL partner means a pooled
+# pan-cancer `non_dependent` CRISPR read is NOT a trusted negative — the target may be
+# a genuine dependency in the partner-altered context (SMARCA2 depends on SMARCA4-loss;
+# ARID1B on ARID1A-loss). This is the arbitrary partner-conditional case the paralog
+# card (intra-family) structurally cannot catch.
+#
+# ANNOTATION, not measurement (measurement-vs-annotation ruling): this card SUPPRESSES a
+# dependency veto to `insufficient` (abstention); it NEVER nominates (a curated SL
+# relationship is not a measured dependency) and NEVER suppresses pan_essential (a
+# common-essential target is not rescued by an SL partner — different failure mode).
+#
+# Data: SynLethDB v3 (CC-BY-4.0, 37,943 human SL pairs) → derived
+# synlethdb-sl-partners-per-gene-v1 (per-gene partner index). rel_source is
+# tier-bucketed: an EXPERIMENTAL partner (CRISPR/RNAi/throughput screen) is the
+# trustworthy suppressor; a computational-only annotation is weaker (surfaced but does
+# NOT suppress a veto — the gate keys on has_experimental_sl_partner).
+#
+# Interpretation surface (sl_partner_class is PRIMARY):
+#   `has_experimental_sl_partner`  → ≥1 partner from an experimental screen (the
+#                                     trustworthy tier; drives the veto-suppressor)
+#   `has_computational_sl_partner` → partners exist but computational-only (weaker;
+#                                     surfaced, does NOT suppress a veto)
+#   `no_curated_sl_partner`        → gene present in the analysis, no SL partner (a real
+#                                     negative read, NOT data_unavailable)
+#   `data_unavailable`             → derived product unreachable
+
+card_id: synthetic-lethal-partners
+version: 1.0.0
+question: "Does {target.symbol} have a curated synthetic-lethal partner (SynLethDB v3), and is the evidence experimental — such that a pooled non-dependent CRISPR read may be a context-conditional false negative?"
+
+tier: target   # SL pairs are gene-gene relations; a property of the gene, not a tumor subgroup. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: synlethdb-sl-partners-per-gene-v1
+
+methods:
+  - call: synleth-partner-lookup
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - sl_partner_class                              # PRIMARY categorical
+    - sl_partner_count
+    - n_experimental_partners
+    - has_experimental_partner                      # the gate-suppressor field
+    - best_evidence_tier                            # experimental | other | computational
+    - sl_partner_symbols                            # list<string>
+    - top_partners                                  # list<struct> {partner, evidence_tier, pubmed_id, cell_line}
+    - method_version
+
+  summary_fields_vocabulary:
+    sl_partner_class:
+      - has_experimental_sl_partner
+      - has_computational_sl_partner
+      - no_curated_sl_partner
+      - data_unavailable
+    best_evidence_tier:
+      - experimental
+      - other
+      - computational
+
+  figure: sl_partners_evidence_panel
+
+warning_predicates:
+  - warning_id: experimental_sl_partner_context_conditional
+    if: "sl_partner_class == 'has_experimental_sl_partner'"
+    message: "{target.symbol} has an experimentally-supported synthetic-lethal partner ({sl_partner_count} total). A pooled non-dependent CRISPR read is NOT a trusted negative — may be a context-conditional dependency. Suppresses the dependency veto to insufficient; does NOT nominate."
+  - warning_id: computational_only_sl_partner
+    if: "sl_partner_class == 'has_computational_sl_partner'"
+    message: "{target.symbol} has curated SL partner(s) but computational-prediction only — weaker evidence. Surfaced for context; does NOT suppress a dependency veto (the gate requires an experimental partner)."
+
+caveats:
+  - |
+    ANNOTATION, not measurement. A curated SL relationship suppresses a dependency VETO
+    to `insufficient` (the pooled negative is not trusted); it NEVER nominates a target
+    (annotation ≠ a measured dependency) and NEVER suppresses pan_essential (a common-
+    essential target is not rescued by an SL partner). Symmetric to how the biomarker-
+    stratified-dependency suppressor works (nomination_verdict_gate.yaml).
+  - |
+    Evidence tier is load-bearing. `has_experimental_partner` (CRISPR/RNAi/throughput
+    screen) is the trustworthy suppressor. A computational-only prediction is surfaced
+    (`has_computational_sl_partner`) but does NOT suppress a veto — SynLethDB's
+    computational tier is deep-learning-predicted and false-positive-prone.
+  - |
+    COMPLEMENTS paralog-buffering, does not replace it. Paralog-buffering is the DUA-
+    measured, intra-gene-family self-rescue signal (MARK2↔MARK3 dual-KO delta);
+    SynLethDB is the published/citable layer catching ARBITRARY partner-conditional SL
+    (SMARCA2←SMARCA4) that intra-family measurement cannot see. Both feed Gate-C
+    veto-suppression through their respective mechanisms.
+  - |
+    `no_curated_sl_partner` is a REAL read (the gene is in the SL universe, no partner
+    found), distinct from `data_unavailable` (the derived product was unreachable) —
+    measured-vs-null discipline: absence of a curated partner is not a coverage gap.
+  - |
+    SynLethDB v3 (CC-BY-4.0) aggregates published SL screens across species; this card
+    consumes the HUMAN, Tier-1 (experimentally-supported + computationally-predicted)
+    table only. Tier-2 (deep-learning top-1% predictions) is excluded — it would flood
+    the index with low-confidence partners.
+
+schema_version: 1

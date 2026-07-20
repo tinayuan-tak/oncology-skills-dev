@@ -132,6 +132,30 @@ veto_suppressors:
       is not a trusted negative. Suppress the veto; the stratified signal carries
       the target through the positive tier. Does NOT touch pan_essential_killer.
 
+  # (A2) Curated synthetic-lethal partner (SynLethDB v3, published). A pooled
+  # `non_dependent` CRISPR read is a CONTEXT-CONDITIONAL false negative when the target
+  # has an experimentally-supported SL partner: the target is dispensable in the
+  # unperturbed pool but REQUIRED once the partner is altered (SMARCA2←SMARCA4-loss,
+  # ARID1B←ARID1A). This is the arbitrary partner-conditional case the paralog signal
+  # (intra-gene-family) cannot catch. ANNOTATION not measurement: suppresses the veto
+  # to `insufficient` (abstention) — it does NOT nominate (annotation ≠ a measured
+  # dependency; no positive_signal entry) and does NOT touch pan_essential_killer.
+  # ONLY the experimental tier suppresses (has_experimental_sl_partner) — a
+  # computational-only prediction is too weak to override a measured pooled negative.
+  - suppresses: {sub_skill: dependency, verdict: non_dependent}
+    when_present:
+      - {sub_skill: synthetic_lethal_partners, verdict: has_experimental_sl_partner}
+    rationale: |
+      An experimentally-supported curated SL partner (SynLethDB v3) means the pooled
+      pan-cancer `non_dependent` read is not a trusted negative — the target may be a
+      genuine dependency in the partner-altered context (SMARCA2←SMARCA4). Suppress the
+      veto → the target routes to `insufficient` (NOT nominate — a curated SL
+      relationship is annotation, not a measured dependency). Complements the paralog-
+      buffering suppressor (intra-family); catches arbitrary partner-conditional SL.
+      ONLY has_experimental_sl_partner qualifies (computational-only is too weak).
+      Does NOT touch pan_essential_killer (an essential target is not rescued by an SL
+      partner — different failure mode).
+
 # (B) Modality-scoped: for a BIOLOGICS query (ADC / TCE / naked antibody) the target
 # is engaged via a surface antigen regardless of genetic essentiality (CD19, TROP2,
 # DLL3 are approved and none are dependencies). Dependency is INFORMATIVE-only for

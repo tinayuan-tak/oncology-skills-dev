@@ -122,12 +122,24 @@ def test_veto_suppressors_well_formed_and_conservative():
         assert s["suppresses"]["verdict"] == "non_dependent", (
             "context-escape must not suppress pan_essential_killer")
         assert s["when_present"] and s["rationale"].strip()
-    # the biomarker-stratified rescue verdicts are the trigger + are also positives
+    # Two suppressor CLASSES (by design), distinguished by whether the trigger also
+    # nominates:
+    #  (1) rescue-and-nominate — the biomarker-stratified trigger both suppresses the
+    #      veto AND is a positive_signal (carries the target through the positive tier).
+    #  (2) rescue-to-insufficient — the SynLethDB curated-SL trigger suppresses the veto
+    #      to `insufficient` but is ANNOTATION, not measurement, so it must NEVER be a
+    #      positive_signal (a curated SL relationship does not nominate a target).
     triggers = {(w["sub_skill"], w["verdict"])
                 for s in supps for w in s["when_present"]}
     pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
+    # (1) the biomarker trigger IS a positive
     assert ("genomic_alteration", "biomarker_stratified_dependency") in triggers
-    assert triggers <= pos, "every suppressor trigger must also be a positive_signal"
+    assert ("genomic_alteration", "biomarker_stratified_dependency") in pos
+    # (2) the SL-annotation trigger is a suppressor but MUST NOT be a positive (never nominates)
+    assert ("synthetic_lethal_partners", "has_experimental_sl_partner") in triggers
+    assert ("synthetic_lethal_partners", "has_experimental_sl_partner") not in pos, (
+        "curated SL is annotation, not measurement — it suppresses a veto but must "
+        "never nominate (no positive_signal entry)")
 
 
 def test_modality_scoped_veto_suppression_biologics_only():

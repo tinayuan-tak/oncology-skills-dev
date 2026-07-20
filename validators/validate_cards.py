@@ -115,6 +115,7 @@ KNOWN_FIGURE_DEBT = {
     'signaling-network-mechanism',
     # dependency-hardening + subgroup panels:
     'paralog-buffering', 'subgroup-stratified-mutation-frequency',
+    'synthetic-lethal-partners',   # figure backfill deferred (viz-debt queue)
     'subgroup-stratified-dependency', 'subgroup-stratified-expression',
     # surface tier + shed:
     'shed-ectodomain-liability', 'surface-topology-and-ptm',
