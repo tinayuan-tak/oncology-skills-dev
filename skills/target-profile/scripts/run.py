@@ -416,6 +416,118 @@ def _gate_recommendation(
     return forced, hits, suppressions
 
 
+# --- Deciding-axis router (L / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 3) -----
+#
+# Turns a bare `insufficient_evidence` into a ROUTING statement: which gate is load-bearing
+# for THIS run, and whether the framework can evidence it. HONESTY GUARDRAIL (Reframe 3 lines
+# 103-106): this does NOT predict which gate WILL decide a target prospectively ("a mis-route
+# fails more confidently than a portrait"). It only REPORTS, from the run's actual sub-verdicts:
+#   - gate FIRED (veto/hold)  → the firing gate IS the deciding axis (known, not predicted);
+#                               framework_can_evidence = captured (we evidenced it → it fired).
+#   - abstaining (no gate)    → list the NECESSITY gates we could not evidence + their standing
+#                               ("we can't decide because gates X,Y are the ones we're blind on").
+#   - positive (no gate)      → the strongest positive dimension is the load-bearing axis.
+# The gate_coverage.yaml baseline is the STATIC standing; the router DOWNGRADES it per-run to
+# `blind`/`data_blocked` when a gate's own cards came back missing, and never upgrades past it.
+_COVERAGE_RANK = {"captured": 3, "partial": 2, "license_blocked": 1, "blind": 0, "out_of_scope": 0}
+
+
+def _load_gate_coverage(contracts_repo: Path | None = None) -> tuple[dict, str]:
+    """Load the per-short gate_coverage map from the target-contracts vocab. Returns
+    ({short: {gate, gate_name, band, framework_can_evidence, ...}}, source). EMPTY-on-failure
+    (source='none'): the router then degrades to a bare abstention note rather than fabricating
+    a coverage claim — a missing map must never invent a `captured`."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "gate_coverage.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        by_short = {g["short"]: g for g in data["gates"]}
+        if not by_short:
+            raise ValueError("empty gates list")
+        return by_short, "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → empty (never a fabricated coverage)
+        print(f"[target-profile] WARN: could not load gate_coverage vocab "
+              f"({type(e).__name__}: {e}); deciding-axis router degrades to a bare note.",
+              file=sys.stderr)
+        return {}, "none"
+
+
+def _sub_result_has_signal(r: dict) -> bool:
+    """A sub-result 'evidenced its gate' iff it produced a non-sentinel verdict OR fired any
+    rule on a card that returned real (non-missing) data. Absence of both = we could not look."""
+    v = r.get("verdict")
+    verdict_str = v[0] if v else None
+    if verdict_str and verdict_str not in ("insufficient", "data_unavailable", None):
+        return True
+    return bool(r.get("fired"))
+
+
+def _run_coverage_for_short(short: str, r: dict, baseline: dict) -> str:
+    """Per-run framework_can_evidence for a sub-result: start from the static baseline and
+    DOWNGRADE (never upgrade) when this gate's cards actually came back missing this run.
+    All cards missing → the framework could not look here → `blind` for this run."""
+    base = baseline.get(short, {}).get("framework_can_evidence", "blind")
+    cards = r.get("cards") or []
+    if cards and all(c.get("_missing") for c in cards):
+        return "blind"          # every card for this gate was unavailable this run
+    return base
+
+
+def _deciding_axis(sub_results: dict, gate_action: Optional[str],
+                   gate_hits: list[dict], positive_hits: list[dict],
+                   contracts_repo: Path | None = None) -> dict:
+    """Build the deciding_axis block (see module comment above). Deterministic; never predicts."""
+    baseline, source = _load_gate_coverage(contracts_repo)
+
+    def _row(short: str) -> dict:
+        b = baseline.get(short, {})
+        return {
+            "short": short,
+            "gate": b.get("gate"),
+            "gate_name": b.get("gate_name"),
+            "band": b.get("band"),
+            "framework_can_evidence": _run_coverage_for_short(short, sub_results.get(short, {}), baseline),
+        }
+
+    # (1) A gate FIRED → the deciding axis is KNOWN (the firing gate). captured by definition.
+    if gate_action and gate_hits:
+        top = gate_hits[0]["short"]
+        row = _row(top)
+        row["framework_can_evidence"] = "captured"   # it fired → we evidenced it
+        return {"basis": "gate_fired", "coverage_source": source,
+                "deciding_axis": row,
+                "routing": f"decided by gate {row.get('gate')} ({row.get('gate_name')}): "
+                           f"{top} forced '{gate_action}'."}
+
+    # (2) A positive tier exists → the load-bearing axis is the strongest positive dimension.
+    if positive_hits:
+        shorts = sorted({h["short"] for h in positive_hits})
+        rows = [_row(s) for s in shorts]
+        return {"basis": "positive_signal", "coverage_source": source,
+                "deciding_axes": rows,
+                "routing": f"supported by {', '.join(shorts)} (necessity biology evidenced)."}
+
+    # (3) Abstaining → report the NECESSITY gates we could NOT evidence this run + their standing.
+    # This is the routing instruction: "the decision lives in a gate we're blind on."
+    unevidenced = []
+    for short, r in sub_results.items():
+        if short not in baseline:
+            continue
+        if not _sub_result_has_signal(r):
+            unevidenced.append(_row(short))
+    # necessity first, then by weakest coverage (blind before partial) — the gates most likely
+    # to be the reason we can't decide.
+    unevidenced.sort(key=lambda x: (x.get("band") != "necessity",
+                                    _COVERAGE_RANK.get(x.get("framework_can_evidence"), 0)))
+    return {"basis": "abstention_coverage_gaps", "coverage_source": source,
+            "unevidenced_gates": unevidenced,
+            "routing": ("cannot decide from framework evidence; unevidenced gates (necessity "
+                        "first): " + ", ".join(
+                            f"{g['short']}[{g.get('gate')}/{g.get('framework_can_evidence')}]"
+                            for g in unevidenced) if unevidenced else
+                        "cannot decide; no gate produced a signal and no coverage map available.")}
+
+
 # --- Positive tier (deterministic confidence FLOOR; F1-safe) ----------------
 #
 # Graded positives (dependency/selectivity/small-molecule tractability) raise an
@@ -1052,6 +1164,17 @@ def main() -> int:
                   f"(dims={sorted({h['short'] for h in pos_hits})}); "
                   f"confidence floor {floor}", file=sys.stderr)
 
+    # Deciding-axis router (L): name the load-bearing gate + whether the framework can
+    # evidence it. Reports (never predicts): a fired gate is the deciding axis; on abstention,
+    # the unevidenced necessity gates are the routing instruction. Purely additive — reads the
+    # already-resolved gate/positive state, touches no verdict.
+    deciding_axis = _deciding_axis(
+        sub_results, gate_action, gate_hits,
+        positive_hits=confidence_tier.get("hits", []) or [],
+    )
+    print(f"[target-profile] deciding axis [{deciding_axis['basis']}]: "
+          f"{deciding_axis.get('routing', '')}", file=sys.stderr)
+
     # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
     figures_dir = args.out / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -1100,6 +1223,7 @@ def main() -> int:
         },
         "recommendation_gate": recommendation_gate,
         "confidence_tier": confidence_tier,
+        "deciding_axis": deciding_axis,
         "llm_synthesis": llm_output,
     }
     (args.out / "nomination.json").write_text(
@@ -1116,6 +1240,7 @@ def main() -> int:
         "sub_skills_ran": [s for s, _ in SUB_SKILLS],
         "recommendation_gate": recommendation_gate,
         "confidence_tier": confidence_tier,
+        "deciding_axis": deciding_axis,
         "llm_prompt_hash": llm_output.get("executive_summary", {}).get("_prompt_hash"),
         "llm_model_id": llm_output.get("executive_summary", {}).get("_model_id"),
         # Governance item B (2026-07-20): the DECLARED framework model pin. Distinct
