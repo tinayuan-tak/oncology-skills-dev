@@ -561,6 +561,48 @@ def _emit_prism_crispr_concordance(
     ]
 
 
+def _emit_gnomad_lof_constraint(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the gnomad-lof-constraint gauge panel (pLI + LOEUF vs constraint bands).
+
+    Summary-driven (thin lookup — the summary already carries pli/loeuf/class). On
+    _live_read_error, no data to plot → []. On indeterminate (no scores) the method
+    helper renders an informative placeholder panel, so we still return a descriptor.
+    """
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.gnomad_constraint import cli as gccli
+    out_dir.mkdir(parents=True, exist_ok=True)
+    gccli.emit_constraint_gauge(summary, target, out_dir, TARGET_CONTRACTS)
+    return [
+        {"id": "constraint_scores_gauge_panel",
+         "path": "figure_constraint_scores_gauge_panel.svg",
+         "type": "constraint_scores_gauge_panel", "primary": True},
+    ]
+
+
+def _emit_normal_tissue_liability(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the normal-tissue-liability figure (per-tissue IHC intensity bar,
+    essential tissues in red). Summary-driven. On _live_read_error → []. On a broad
+    gene / not-detected (empty specific-tissue list) the helper renders an
+    informative breadth panel, so a descriptor is still returned."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.hpa_normal_tissue_liability import cli as ntcli
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ntcli.emit_normal_tissue_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    return [
+        {"id": "normal_tissue_expression_heatmap",
+         "path": "figure_normal_tissue_expression_heatmap.svg",
+         "type": "normal_tissue_expression_heatmap", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
@@ -576,6 +618,9 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "prism-crispr-concordance": _emit_prism_crispr_concordance,
     "expression-tumor-vs-adjacent": _emit_expression_tumor_vs_adjacent,
     "tumor-vs-normal-selectivity": _emit_tumor_vs_normal_selectivity,
+    # SAFETY tier (viz-debt backfill 2026-07-20):
+    "gnomad-lof-constraint": _emit_gnomad_lof_constraint,
+    "normal-tissue-liability": _emit_normal_tissue_liability,
 }
 
 
