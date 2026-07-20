@@ -155,8 +155,16 @@ From the card→question map (all 37 cards inventoried). Messiest clusters, all
 data-source-up artifacts to be re-routed (not urgent; guides the staged reorg):
 - **Presence (7 cards, messy):** 3 cards ask different questions of ONE
   `dge-tumor-vs-adjacent` product (fine — routing); presence/selectivity boundary blurred.
-- **Safety (3, messy):** `lineage-restriction-evidence` + `normal-tissue-liability` are
-  near-duplicate questions on the SAME HPA product → collapse/route.
+- **Safety/window (2, RESOLVED — NOT duplicates):** an earlier read flagged
+  `lineage-restriction-evidence` + `normal-tissue-liability` as "near-duplicate on the
+  SAME HPA product → collapse." That is STALE as of 2026-07-20 (normal-tissue-liability
+  v2.0.0). They are distinct axes on different molecular layers: `normal-tissue-liability`
+  = protein-IHC breadth + essential-tissue flag (`measurement: protein_ihc`, product
+  `hpa-v25-1`) → on-target-off-tumor SAFETY/liability; `lineage-restriction-evidence` =
+  RNA per-tissue TPM breadth COUNT (`measurement: bulk_rna`, product
+  `hpa-normal-tissue-expression`) → target-SELECTION window (DLL3/CLDN18.2 pattern).
+  Different product, layer, and question → KEEP BOTH; do not collapse. Each card now
+  carries a cross-ref caveat enforcing this.
 - **Alteration (6, messy):** co-occurrence signal computed in BOTH
   `mutation-hotspot-frequency` and `co-mutation-and-mutual-exclusivity` → de-dup.
 - **8 straddle cards** emit multiple independent class fields (worst:

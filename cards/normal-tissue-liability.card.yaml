@@ -112,6 +112,13 @@ caveats:
     Substrate reconciliation (v2.0.0, 2026-07-20): v1 was specced against a per-tissue
     TPM product that never landed; v2 reads the landed HPA IHC categorical fields.
     TPM thresholds removed in favor of IHC-breadth categorical logic.
+  - |
+    DISTINCT AXIS, not a duplicate of lineage-restriction-evidence (an earlier
+    "near-duplicate on same HPA product → collapse" note is STALE as of v2.0.0). This
+    card = protein-IHC breadth + essential-tissue flag (measurement: protein_ihc, product
+    hpa-v25-1) → on-target-off-tumor SAFETY. LRE = RNA per-tissue TPM breadth count
+    (measurement: bulk_rna) → target-SELECTION window (DLL3/CLDN18.2). Different product,
+    layer, question → keep both; do not collapse.
 
 measurement: protein_ihc
 
