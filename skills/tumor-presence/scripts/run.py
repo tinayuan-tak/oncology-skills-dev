@@ -56,10 +56,16 @@ QUESTION = ("Is {target} expressed in {indication} tumor tissue, and how "
             "paired tumor/adjacent samples?")
 
 
-# Verdict rank order (highest-precedence first). Shared by the collapsed verdict
-# and each per-modality verdict — a single source of truth so the two can never
-# drift. (rule_id → verdict_string).
-_VERDICT_RANK: list[tuple[str, str]] = [
+# Verdict rank order (highest-precedence first). rule_id → verdict_string.
+# TWO ladders, one per measurement substrate — the bulk_rna cards fire `expression-*`
+# rules; the bulk_protein_ms cards fire `protein-*` rules (CPTAC tumor-vs-normal
+# contrast vocab) + `protein-abundance-*` rules (cell-line distribution vocab). A
+# single expression-only ladder SWALLOWED the entire bulk_protein_ms modality —
+# protein rules matched nothing and every protein-only target collapsed to
+# `insufficient`, silently dropping even a protein-not-detected killer (C1 fix
+# 2026-07-20; regression introduced when the protein cards were added to CARDS +
+# CARD_MODALITY in the per-modality refactor without teaching the ladder their rules).
+_EXPRESSION_RANK: list[tuple[str, str]] = [
     ("expression-broadly-high-supportive",              "broadly_high_expression"),
     ("expression-strong-upregulation-supportive",       "strongly_upregulated_in_tumor"),
     ("expression-lineage-restricted-supportive",        "lineage_restricted"),
@@ -71,11 +77,43 @@ _VERDICT_RANK: list[tuple[str, str]] = [
     ("expression-call-data-unavailable-insufficient",   "data_unavailable"),
 ]
 
+# bulk_protein_ms ladder. Presence-positive tiers first; measured-absence (the
+# degrader killers) ranked ABOVE data_unavailable so a measured "protein not
+# detected" is never swallowed. Covers BOTH protein cards (CPTAC contrast +
+# cell-line distribution). Verdict strings are the protein-native classes.
+_PROTEIN_RANK: list[tuple[str, str]] = [
+    ("protein-strongly-up-supportive",                  "protein_strongly_upregulated"),
+    ("protein-abundance-broadly-high-supportive",       "protein_broadly_high"),
+    ("protein-abundance-lineage-restricted-supportive", "protein_lineage_restricted"),
+    ("protein-modestly-up-neutral",                     "protein_modestly_upregulated"),
+    ("protein-abundance-broadly-moderate-neutral",      "protein_broadly_moderate"),
+    ("protein-strongly-down-opposing",                  "protein_strongly_downregulated"),
+    ("protein-not-detected-degrader-killer",            "protein_not_detected"),
+    ("protein-abundance-broadly-low-degrader-killer",   "protein_broadly_low"),
+    ("protein-data-unavailable-insufficient",           "data_unavailable"),
+    ("protein-abundance-data-unavailable-insufficient", "data_unavailable"),
+]
 
-def _rank_verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Rank-ordered verdict from a set of fired rules (the shared ladder)."""
+# Per-modality ladder selection. Modalities without a card in this skill (sc_rna,
+# protein_ihc) have no ladder → they emit data_unavailable in _per_modality_verdicts.
+_MODALITY_RANK: dict[str, list[tuple[str, str]]] = {
+    "bulk_rna": _EXPRESSION_RANK,
+    "bulk_protein_ms": _PROTEIN_RANK,
+}
+
+# Collapsed ladder = expression FIRST (RNA is the presence backbone; keeps existing
+# RNA-target verdicts byte-stable), then protein appended BELOW. Strictly additive:
+# an RNA-target still resolves on an expression rule (wins first); a protein-ONLY
+# target now gets a real verdict instead of the silent `insufficient` collapse.
+_VERDICT_RANK: list[tuple[str, str]] = _EXPRESSION_RANK + _PROTEIN_RANK
+
+
+def _rank_verdict(fired: list[dict], ladder: list[tuple[str, str]] | None = None) -> tuple[str, str | None]:
+    """Rank-ordered verdict from a set of fired rules against a ladder (default =
+    the collapsed expression+protein ladder)."""
+    ladder = ladder if ladder is not None else _VERDICT_RANK
     fired_by_id = {r["rule_id"]: r for r in fired}
-    for rid, verdict in _VERDICT_RANK:
+    for rid, verdict in ladder:
         if rid in fired_by_id:
             return verdict, rid
     return "insufficient", None
@@ -83,8 +121,9 @@ def _rank_verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """COLLAPSED presence verdict across ALL modalities — the audit spine the
-    target-profile consumer + risk table read as `verdict`. Kept byte-stable:
-    same ranking over the full fired set as before the per-modality refactor."""
+    target-profile consumer + risk table read as `verdict`. Expression-primary
+    (RNA backbone, byte-stable for RNA targets); protein rules append below so a
+    protein-only target resolves instead of collapsing to insufficient (C1 fix)."""
     return _rank_verdict(fired)
 
 
@@ -109,7 +148,10 @@ def _per_modality_verdicts(fired: list[dict]) -> dict[str, dict]:
     for mod in ALL_MODALITIES:
         group = by_modality.get(mod, [])
         if group:
-            v, drv = _rank_verdict(group)
+            # rank WITHIN the modality using ITS OWN ladder — bulk_protein_ms must
+            # rank against _PROTEIN_RANK, not the expression ladder (the C1 bug was
+            # ranking the protein group against expression-only rule_ids → insufficient).
+            v, drv = _rank_verdict(group, _MODALITY_RANK.get(mod))
             out[mod] = {"verdict": v, "driving_rule_id": drv,
                         "evidence_state": "measured"}
         else:

@@ -59,12 +59,36 @@ def test_bulk_rna_group_ranks_within_modality():
 
 
 def test_protein_group_is_separate_from_rna():
+    # bulk_protein_ms fires a REAL protein rule_id (protein-strongly-down-opposing),
+    # ranked against _PROTEIN_RANK — NOT an expression rule_id. (The prior version of
+    # this test mislabeled an expression-* rule onto the protein card and only passed
+    # because the ladder was broken — the C1 bug it now guards against.)
     fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
-             _fr("expression-broadly-low-degrader-killer", "protein-presence-cptac")]
+             _fr("protein-strongly-down-opposing", "protein-presence-cptac")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna"]["verdict"] == "broadly_high_expression"
-    assert pm["bulk_protein_ms"]["verdict"] == "broadly_low_expression"
+    assert pm["bulk_protein_ms"]["verdict"] == "protein_strongly_downregulated"
     assert pm["bulk_protein_ms"]["evidence_state"] == "measured"
+
+
+def test_protein_only_signal_not_swallowed_C1_regression():
+    """C1 regression guard (2026-07-20): a target with a MEASURED bulk_protein_ms
+    signal and NO expression signal must produce a real protein verdict — NOT the
+    silent `insufficient` collapse the expression-only ladder caused. Also asserts a
+    protein KILLER (not-detected) is not swallowed."""
+    # measured protein presence, no RNA
+    pm = tp._per_modality_verdicts([_fr("protein-abundance-broadly-high-supportive",
+                                        "protein-abundance-celline")])
+    assert pm["bulk_protein_ms"]["verdict"] == "protein_broadly_high"
+    assert pm["bulk_protein_ms"]["verdict"] != "insufficient"
+    # protein-not-detected killer must surface, not vanish
+    pm2 = tp._per_modality_verdicts([_fr("protein-not-detected-degrader-killer",
+                                         "protein-presence-cptac")])
+    assert pm2["bulk_protein_ms"]["verdict"] == "protein_not_detected"
+    # collapsed verdict: a protein-only target resolves instead of collapsing
+    v, drv = tp._verdict([_fr("protein-abundance-broadly-high-supportive",
+                              "protein-abundance-celline")])
+    assert v == "protein_broadly_high" and drv is not None
 
 
 def test_celline_proteomics_card_feeds_bulk_protein_ms():
@@ -83,8 +107,8 @@ def test_rna_high_protein_low_disagreement_is_legible():
     breakdown EXPOSES that protein contradicts RNA (the RNA-high/protein-absent
     false-positive the doc names)."""
     fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
-             _fr("expression-broadly-low-degrader-killer", "protein-presence-cptac")]
-    assert tp._verdict(fired)[0] == "broadly_high_expression"   # collapsed unchanged
+             _fr("protein-strongly-down-opposing", "protein-presence-cptac")]
+    assert tp._verdict(fired)[0] == "broadly_high_expression"   # collapsed unchanged (RNA wins)
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna"]["verdict"] != pm["bulk_protein_ms"]["verdict"]  # disagreement visible
 
