@@ -1,0 +1,146 @@
+# gate_coverage.yaml
+# The deciding-axis router's static map (L / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 1 + 3).
+#
+# WHAT THIS IS: a per-gate declaration of (a) which NECESSITY/SUFFICIENCY band the gate sits
+# in, and (b) the framework's BASELINE standing on evidencing that gate. It lets the
+# target-profile nomination turn a bare `insufficient_evidence` into a routing statement:
+# "the decision here lives in gate X, which the framework is <coverage> on — route to Y."
+#
+# WHAT THIS IS NOT — the honesty guardrail (KNOWN_TARGET_FRAMEWORK_REFRAMES lines 103-106):
+# this does NOT predict which gate WILL decide a given target (a prospective mis-route "fails
+# more confidently than a portrait"). The router uses this map only to REPORT, from a run's
+# actual sub-verdicts: (1) when a gate FIRED, name it as the deciding axis (known, not
+# predicted); (2) when abstaining, list the gates we could not evidence + their band + standing.
+# `framework_can_evidence` here is the STATIC baseline; the router downgrades it per-run to
+# `blind`/`data_blocked` when the actual cards for that gate came back unavailable (F's
+# availability_state) — it never UPGRADES beyond this baseline.
+#
+# COVERAGE VOCAB (shared with vocabularies/known_target_calibration_set.yaml reference_profiles
+# + tests/calibration/test_known_target_calibration.py::_COVERAGE_VOCAB):
+#   captured        — the framework wires real data for this gate; a correct read is expected.
+#   partial         — wired but thin / one-axis / known-gap-prone (e.g. gate C's pooled scalar).
+#   blind           — the framework does not model the deciding evidence for this gate.
+#   license_blocked — the deciding data exists but is commercial-license-walled (not an eng gap).
+#   out_of_scope    — Tier-2 / a different engine's job (e.g. dynamic-perturbation, TME).
+
+enum_id: gate_coverage
+version: 1.0.0
+description: |
+  Per-gate necessity/sufficiency band + baseline framework-evidence standing, consumed by the
+  target-profile deciding-axis router. Keyed by the SUB_SKILLS short name (the sub_verdict slot
+  in nomination.json), so the router can join a run's sub_results directly. Bands per Reframe 1:
+  necessity (A Present / B Selective / C Required / D Mechanism) = "is this real, actionable
+  biology?" — the framework's validated lane; sufficiency (E Druggable / F Safe / G
+  Differentiated / H Translational) = "will it become a drug in this modality?" — partially
+  data-blocked / Tier-2, the axes known targets actually advance or decline on.
+
+gates:
+  - short: expression
+    gate: A
+    gate_name: Present
+    band: necessity
+    framework_can_evidence: captured
+    evidences: "RNA transcribed / protein made (recount3 + DepMap + CPTAC)."
+
+  - short: selectivity
+    gate: B
+    gate_name: Selective
+    band: necessity
+    framework_can_evidence: captured
+    evidences: "tumor-vs-normal window (recount3 4-cell DESeq2; adjacent + GTEx comparators)."
+
+  - short: dependency
+    gate: C
+    gate_name: Required
+    band: necessity
+    framework_can_evidence: partial
+    evidences: "functional requirement (DepMap CRISPR + RNAi)."
+    coverage_note: |
+      partial, NOT captured: gate C is computed from a POOLED pan-cancer scalar and conflates
+      six biologically distinct dependency modes (only oncogene-addiction is fully wired).
+      Context-conditional modes (biomarker-stratified, paralog-buffered, SL-partner) are
+      veto-suppressor-rescued but not first-class; the pooled veto is the known false-negative.
+
+  - short: synthetic_lethal_partners
+    gate: C
+    gate_name: Required (SL arm)
+    band: necessity
+    framework_can_evidence: partial
+    evidences: "curated SL partner annotation (SynLethDB v3) — suppresses a pooled non-dependent veto."
+    coverage_note: "annotation, not measured co-dependency; never nominates on its own."
+
+  - short: mechanism
+    gate: D
+    gate_name: Mechanism
+    band: necessity
+    framework_can_evidence: partial
+    evidences: "network position / MoA hook (SIGNOR + CollecTri + Reactome + kinome)."
+    coverage_note: "advisory-only today; does not move the deterministic verdict."
+
+  - short: genomic_alteration
+    gate: A
+    gate_name: Present (alteration) / Required (biomarker-stratified)
+    band: necessity
+    framework_can_evidence: captured
+    evidences: "somatic alteration landscape (TCGA-MC3 + GENIE) + biomarker-stratified dependency."
+    coverage_note: |
+      dual-role: alteration frequency feeds gate A (present-as-altered); the biomarker-
+      stratified-dependency verdict feeds gate C as a veto-suppressor + dominant positive.
+
+  - short: tractability_sm
+    gate: E
+    gate_name: Druggable (small molecule)
+    band: sufficiency
+    framework_can_evidence: partial
+    evidences: "chemical-genetic (PRISM) + forward ligandability (AlphaFold/PDB pocket structure)."
+    coverage_note: |
+      partial: retrospective PRISM (has it been drugged) + structural pocket ligandability are
+      wired; ternary/degrader feasibility + medchem tractability are not.
+
+  - short: surface_modality
+    gate: E
+    gate_name: Druggable (surface biologics)
+    band: sufficiency
+    framework_can_evidence: blind
+    evidences: "surface density / internalization / topology for ADC/BiTE/antibody."
+    coverage_note: |
+      blind on the DECIDING axis for most biologics: surface abundance/density MS + avidity/
+      co-expression are data-blocked (3/5 surface cards not on S3). Family/topology only.
+
+  - short: safety
+    gate: F
+    gate_name: Safe
+    band: sufficiency
+    framework_can_evidence: partial
+    evidences: "germline LoF constraint (gnomAD) + normal-tissue liability (HPA IHC)."
+    coverage_note: |
+      partial: germline constraint (SM/degrader-relevant) + HPA normal-tissue IHC breadth are
+      wired; normal-tissue-SURFACE window (the biologics-deciding axis) is thin.
+
+  - short: differentiation
+    gate: G
+    gate_name: Differentiated
+    band: sufficiency
+    framework_can_evidence: partial
+    evidences: "co-mutation / mutual-exclusivity + biomarker definability (TCGA-MC3 + GENIE Fisher)."
+    coverage_note: |
+      partial → license_blocked for the decisive axis: clinical precedent + competitive
+      differentiation live in Cortellis/IQVIA/Flatiron (commercial-license-walled), not code.
+
+  - short: subtype_fit
+    gate: C
+    gate_name: Required (subtype-scoped)
+    band: necessity
+    framework_can_evidence: partial
+    evidences: "subtype-stratified dependency (DepMap panorama) — one-directional hold only."
+    coverage_note: "opt-in via --subtypes; negative-selection only, floor-gated (n>=30)."
+
+# H (Translational — models, PD/imaging, combination/resistance) has NO sub-skill: it is an
+# unbuilt placeholder. A target whose decision hinges on H is, by construction, blind. The
+# router treats an absent gate as band: sufficiency, framework_can_evidence: blind.
+unbuilt_gates:
+  - gate: H
+    gate_name: Translational
+    band: sufficiency
+    framework_can_evidence: blind
+    reason: "No sub-skill wired (translational-readiness is a placeholder phase)."
