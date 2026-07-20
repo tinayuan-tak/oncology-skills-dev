@@ -53,6 +53,28 @@ def test_model_config_defaults_when_env_missing() -> None:
     assert cfg.max_output_tokens > 0
 
 
+def test_default_pins_the_declared_framework_model(monkeypatch) -> None:
+    """Governance item B: with no env override, the synthesis default MUST equal the
+    single declared FRAMEWORK_SYNTHESIS_MODEL pin (not a drifting bare literal), and
+    the config carries the framework_model_version for provenance."""
+    from integrated_report.bedrock_client import (ModelConfig, FRAMEWORK_SYNTHESIS_MODEL,
+                                FRAMEWORK_EXTRACTION_MODEL, FRAMEWORK_MODEL_VERSION)
+    for k in ('ANTHROPIC_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL'):
+        monkeypatch.delenv(k, raising=False)
+    cfg = ModelConfig.from_env()
+    assert cfg.synthesis_model == FRAMEWORK_SYNTHESIS_MODEL == 'us.anthropic.claude-opus-4-8'
+    assert cfg.extraction_model == FRAMEWORK_EXTRACTION_MODEL
+    assert cfg.framework_model_version == FRAMEWORK_MODEL_VERSION
+
+
+def test_env_override_still_respected(monkeypatch) -> None:
+    """The pin is a DEFAULT, not a lock — a deliberate env override (A/B eval) still
+    works, and the divergence is what provenance surfaces to auditors."""
+    from integrated_report.bedrock_client import ModelConfig
+    monkeypatch.setenv('ANTHROPIC_MODEL', 'us.anthropic.claude-opus-4-7')
+    assert ModelConfig.from_env().synthesis_model == 'us.anthropic.claude-opus-4-7'
+
+
 def test_model_config_is_frozen() -> None:
     """Frozen dataclass — accidental mutation should raise."""
     cfg = ModelConfig.from_env()

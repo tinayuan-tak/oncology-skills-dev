@@ -25,26 +25,45 @@ except ImportError:  # pragma: no cover — handled in get_bedrock_client
     AnthropicBedrock = None  # type: ignore[assignment]
 
 
+# ── FRAMEWORK MODEL PIN (governance item B, 2026-07-20) ──────────────────────
+# ONE declared framework model version — the single source of truth for which LLM
+# synthesizes the narrative. Previously the default was a bare string literal inside
+# from_env(), env-overridable per-run with no surfaced "framework model version" —
+# a governance exposure (the least-controlled component is the most-visible one).
+# These constants are stamped into provenance (framework_model_version) so a
+# governance audience can see EXACTLY which model produced a given narrative.
+#
+# UPGRADE CADENCE (deliberate, not per-run drift): bump these constants in a
+# reviewed PR when adopting a new model. Every candidate MUST be verified Bedrock-
+# invokable in the account first — NOTE: the `...[1m]` context-alias is NOT
+# Bedrock-invokable (400s); use the base ID. `us.anthropic.claude-opus-4-8` was
+# verified invokable via the framework's own client (cmp-dev) on 2026-07-20.
+FRAMEWORK_MODEL_VERSION = "2026-07-20"          # bump on any pin change (audit anchor)
+FRAMEWORK_SYNTHESIS_MODEL = "us.anthropic.claude-opus-4-8"   # Opus 4.8 (verified invokable)
+FRAMEWORK_EXTRACTION_MODEL = "us.anthropic.claude-sonnet-4-6"
+
+
 @dataclass(frozen=True)
 class ModelConfig:
-    """Bedrock model IDs, sourced from the harness env vars (with defaults)."""
+    """Bedrock model IDs. Defaults are the PINNED framework model version
+    (FRAMEWORK_SYNTHESIS_MODEL / FRAMEWORK_EXTRACTION_MODEL); env vars still allow a
+    deliberate per-run override (e.g. A/B eval), but the DEFAULT is now a single
+    declared version, not a bare literal."""
 
     extraction_model: str    # Stage 1: per-abstract claim extraction (Sonnet)
     synthesis_model: str     # Stage 2: per-category synthesis (Opus)
     max_output_tokens: int
+    framework_model_version: str = FRAMEWORK_MODEL_VERSION   # stamped into provenance
 
     @classmethod
     def from_env(cls) -> 'ModelConfig':
-        """Read model IDs from the same env vars Claude Code uses."""
+        """Model IDs default to the PINNED framework version; env vars override for
+        deliberate experiments (the override is recorded via _model_id provenance)."""
         return cls(
             extraction_model=os.environ.get(
-                'ANTHROPIC_DEFAULT_SONNET_MODEL',
-                'us.anthropic.claude-sonnet-4-6',
-            ),
+                'ANTHROPIC_DEFAULT_SONNET_MODEL', FRAMEWORK_EXTRACTION_MODEL),
             synthesis_model=os.environ.get(
-                'ANTHROPIC_MODEL',
-                'us.anthropic.claude-opus-4-7',
-            ),
+                'ANTHROPIC_MODEL', FRAMEWORK_SYNTHESIS_MODEL),
             max_output_tokens=int(os.environ.get(
                 'CLAUDE_CODE_MAX_OUTPUT_TOKENS', '16384',
             )),

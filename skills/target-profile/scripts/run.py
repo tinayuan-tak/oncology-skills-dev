@@ -32,6 +32,20 @@ SKILL_NAME = "target-profile"
 SKILL_VERSION = "1.0.0"
 
 
+def _framework_model_version() -> str | None:
+    """The DECLARED framework model pin (governance item B). Read from the single
+    source-of-truth constant in the bedrock client. Graceful None on import failure —
+    provenance simply omits it rather than crashing the run (conservative fallback)."""
+    try:
+        wf = (Path(__file__).resolve().parent.parent.parent
+              / "workflow-target-evaluation-onc" / "scripts" / "integrated_report")
+        sys.path.insert(0, str(wf))
+        from bedrock_client import FRAMEWORK_MODEL_VERSION  # type: ignore
+        return FRAMEWORK_MODEL_VERSION
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # --- Sub-skill orchestration ------------------------------------------------
 
 def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
@@ -1104,6 +1118,10 @@ def main() -> int:
         "confidence_tier": confidence_tier,
         "llm_prompt_hash": llm_output.get("executive_summary", {}).get("_prompt_hash"),
         "llm_model_id": llm_output.get("executive_summary", {}).get("_model_id"),
+        # Governance item B (2026-07-20): the DECLARED framework model pin. Distinct
+        # from llm_model_id (the model that actually ran) — when the two diverge, an
+        # env override was used. Auditors compare them to detect per-run drift.
+        "framework_model_version": _framework_model_version(),
         "artefacts": [
             "target_profile.md",
             "nomination.json",
