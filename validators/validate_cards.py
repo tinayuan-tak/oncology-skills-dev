@@ -66,6 +66,67 @@ PER_SAMPLE_STRATIFIABLE_CALLS = {
 # a per-sample stratified reader is required.
 PANORAMA_RECORD_FIELDS = {'per_subgroup_metrics', 'per_stratum_metrics'}
 
+# Figure-emission check (viz-coverage, 2026-07-20; re-pointed at the live registry).
+# A card that DECLARES a `figure:`/`figures:` must have a live-path FIGURE EMITTER —
+# an entry in claude-oncology-skills compose-dashboard `_figure_emitters.py`
+# `CARD_FIGURE_EMITTERS` (card_id → emit fn that draws from the card summary). The
+# render-evidence-package skill only embeds a pre-existing figure PATH; the emitter
+# registry is what actually produces that path in the live compose path. A card
+# promising a figure with no registered emitter is a DECLARED-NOT-EMITTED gap: the
+# rendered evidence package shows a broken/absent figure reference.
+#
+# The authoritative source is the registry itself — we PARSE its card_id keys from
+# the skills repo (graceful-skip if the sibling repo is absent, e.g. isolated CI).
+# This replaces an earlier method-`call:`-keyed heuristic: the live producer is the
+# registry, not the analysis-methods emit_* (which serve the batch/precompute path).
+_SKILLS_REPO = Path(
+    "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills")
+_FIGURE_EMITTERS_PATH = (_SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
+                         / "_figure_emitters.py")
+
+
+def _registered_figure_emitters() -> Optional[set[str]]:
+    """Parse the card_id keys registered in CARD_FIGURE_EMITTERS. Returns None if the
+    skills repo / registry file is unreachable (→ the check graceful-skips, never a
+    false failure in an isolated checkout)."""
+    try:
+        txt = _FIGURE_EMITTERS_PATH.read_text()
+    except OSError:
+        return None
+    # registry entries are  "card-id": _emit_fn,
+    return set(re.findall(r'"([a-z0-9-]+)"\s*:\s*_emit', txt))
+
+
+# KNOWN figure debt (viz-coverage audit 2026-07-20): cards that declare a figure but
+# have NO emitter registered in CARD_FIGURE_EMITTERS yet. Enumerated so the build
+# stays green while the debt is worked down — but a NEW card cannot silently join
+# this list (it would fail the check), and each entry is REMOVED as its emitter is
+# added to the registry. The shrinking, build-enforced viz-debt queue. Keyed by
+# card_id. (Cards whose backing method is a stub / composed / not-yet-built are
+# ALSO here — they can't emit until their data lands, but they still declare a
+# figure, so they're tracked debt not silent gaps.)
+KNOWN_FIGURE_DEBT = {
+    # SAFETY tier (highest — being backfilled first):
+    'normal-tissue-liability', 'gnomad-lof-constraint',
+    # expression / protein:
+    'protein-abundance-celline', 'protein-presence-cptac',
+    # driver / differentiation / mechanism:
+    'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
+    'signaling-network-mechanism',
+    # dependency-hardening + subgroup panels:
+    'paralog-buffering', 'subgroup-stratified-mutation-frequency',
+    'subgroup-stratified-dependency', 'subgroup-stratified-expression',
+    # surface tier + shed:
+    'shed-ectodomain-liability', 'surface-topology-and-ptm',
+    'surfaceome-family-classification', 'surfaceome-cohort-ranking',
+    'structure-features-static',
+    # data-blocked (no runnable method yet, but the card declares a figure):
+    'antigen-prevalence', 'clinical-precedent', 'lineage-restriction-evidence',
+    'protein-surface-evidence', 'surface-abundance-density', 'adc-tce-modality-fit',
+    'fusion-rearrangement-landscape', 'rwd-stratified-expression',
+    'target-identity-summary',
+}
+
 
 @dataclass
 class ValidationReport:
@@ -308,6 +369,47 @@ def _grain_and_tier_check(spec: dict, report: ValidationReport) -> None:
         )
 
 
+def _figure_emission_check(spec: dict, report: ValidationReport) -> None:
+    """Viz-coverage (2026-07-20): a card declaring a figure must be backed by a
+    method that emits it. render-evidence-package only embeds a pre-existing figure
+    path — it does not generate figures from plot_data — so a declared figure whose
+    method emits none renders as a broken/absent reference.
+
+    ERROR when: the card declares `figure:`/`figures:` AND its method `call:` is a
+    real (non-exempt) runnable method that is NOT a known figure-emitter AND the
+    card is NOT already on the KNOWN_FIGURE_DEBT waiver. This blocks a NEW card from
+    silently joining the declared-not-emitted class while letting the enumerated
+    debt be worked down. WARNING (not error) for cards ON the waiver — surfaced as
+    tracked debt on every run.
+    """
+    outputs = spec.get('outputs') or {}
+    declares_figure = bool(outputs.get('figure') or outputs.get('figures'))
+    if not declares_figure:
+        return
+    card_id = spec.get('card_id', '<unknown>')
+    emitters = _registered_figure_emitters()
+    if emitters is None:
+        return  # skills repo unreachable — graceful skip, never a false failure
+    # a card with a registered live-path emitter is complete.
+    if card_id in emitters:
+        return
+    if card_id in KNOWN_FIGURE_DEBT:
+        report.add_warning(
+            f'FIGURE_DEBT: card `{card_id}` declares a figure but has NO emitter in '
+            f'compose-dashboard CARD_FIGURE_EMITTERS (tracked viz-debt, audit 2026-07-20). '
+            f'Add a `_emit_{card_id.replace("-", "_")}` to _figure_emitters.py + register it '
+            f'to clear (then drop from KNOWN_FIGURE_DEBT).'
+        )
+        return
+    report.add_error(
+        f'FIGURE_DECLARED_NOT_EMITTED: card `{card_id}` declares a figure but has no '
+        f'emitter registered in compose-dashboard CARD_FIGURE_EMITTERS and is not on the '
+        f'KNOWN_FIGURE_DEBT waiver. Register a figure emitter for it, or add it to '
+        f'KNOWN_FIGURE_DEBT with a tracked-debt rationale. New cards must not silently '
+        f'declare a figure nothing produces.'
+    )
+
+
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
     """Validate a single card_spec YAML file. Returns a ValidationReport."""
     path = Path(path)
@@ -333,6 +435,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _interpretation_summary_field_check(spec, report)
         _composed_card_semantics_check(spec, report)
         _grain_and_tier_check(spec, report)
+        _figure_emission_check(spec, report)
     return report
 
 
