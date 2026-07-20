@@ -72,6 +72,7 @@ def execute_run_plan(
     subgroup_context = run_plan.get("subgroup_resolution", {}) or {}
 
     card_outputs: list[dict] = []
+    unavailable_cards: list[dict] = []   # F: structured card_unavailable stubs (not synthesis inputs)
     n_passed = 0
     n_passed_with_warnings = 0
     n_failed = 0
@@ -106,7 +107,24 @@ def execute_run_plan(
                 summary = _load_stub_summary(card_id, target, indication, fixtures_dir)
 
         if summary is None:
+            # No live dispatcher registered for this card_id (read_live_summary returns
+            # None when CARD_DISPATCHERS.get(card_id) is None) — the card is UNWIRED (a
+            # framework-coverage gap), e.g. fusion-rearrangement-landscape (placeholder card,
+            # no method). Previously this was silently dropped to the n_cards_failed integer
+            # with NO per-card reason. Now record a structured availability stub (F, 2026-
+            # 07-20) carrying a typed availability_state, surfaced as a card_unavailable
+            # envelope entry so a consumer can distinguish "not built yet" from a measured
+            # absence. Kept SEPARATE from card_outputs (the synthesis-input stream): an
+            # unwired card has no signal to interpret, so it must not enter card_call_map /
+            # the signal matrix (and it is not a valid card_output per card_output.schema —
+            # present-or-excluded only). Still counted in n_cards_failed for tally back-compat.
             n_failed += 1
+            unavailable_cards.append({
+                "card_id": card_id,
+                "card_version": plan_entry.get("card_version", "n/a"),
+                "availability_state": "not_wired",
+                "availability_reason": "dispatcher_returned_none",
+            })
             continue
 
         # Apply interpretation_hints (with applied_threshold_overlays)
@@ -150,6 +168,7 @@ def execute_run_plan(
     n_attempted = n_passed + n_passed_with_warnings + n_failed
     return {
         "cards": card_outputs,
+        "unavailable_cards": unavailable_cards,   # F: reasoned absences → card_unavailable envelope entries
         "validation_summary": {
             "n_cards_attempted": n_attempted,
             "n_cards_passed": n_passed,

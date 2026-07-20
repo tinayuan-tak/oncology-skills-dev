@@ -254,6 +254,7 @@ def compose(
     evidence_package = _assemble_evidence_package(
         run_plan=run_plan,
         card_outputs=phase2_result["cards"],
+        unavailable_cards=phase2_result.get("unavailable_cards", []),
         validation_summary=phase2_result["validation_summary"],
         synthesis_block=synthesis_block,
         deterministic_timestamps=deterministic_timestamps,
@@ -290,8 +291,15 @@ def _assemble_evidence_package(
     validation_summary: dict,
     synthesis_block: dict,
     deterministic_timestamps: bool,
+    unavailable_cards: "list[dict] | None" = None,
 ) -> dict:
-    """Build the evidence_package envelope from phase outputs."""
+    """Build the evidence_package envelope from phase outputs.
+
+    `unavailable_cards` (F, 2026-07-20): reasoned absences (unwired / data-blocked / etc.)
+    collected by phase-2 separately from the synthesis-input card_outputs; emitted as
+    card_unavailable envelope entries so a consumer can see WHY a card is absent instead of
+    an opaque n_cards_failed integer.
+    """
     ctx = run_plan["input_context"]
     target = ctx["target_symbol"]
     indication = ctx["indication"]
@@ -366,6 +374,18 @@ def _assemble_evidence_package(
             if c.get("figures"):
                 entry["figures"] = c["figures"]
             cards.append(entry)
+
+    # Append reasoned-absence entries (F, 2026-07-20): the card_unavailable envelope variant.
+    # A card whose live reader returned None (unwired) is no longer silently dropped to the
+    # n_cards_failed integer — it appears here with a typed availability_state so a consumer
+    # (and the deciding-axis router) can distinguish "not built yet" from a measured absence.
+    for u in (unavailable_cards or []):
+        cards.append({
+            "card_id": u["card_id"],
+            "card_version": u.get("card_version", "n/a"),
+            "availability_state": u["availability_state"],
+            "availability_reason": u.get("availability_reason", "unavailable"),
+        })
 
     # Build the top-level evidence_package
     timestamp = "2026-06-26T00:00:00Z" if deterministic_timestamps else (
