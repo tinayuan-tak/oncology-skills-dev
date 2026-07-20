@@ -137,11 +137,12 @@
     },
     "cards": {
       "type": "array",
-      "description": "Per-card outputs. Each entry is EITHER a present-and-validated card (with summary, figure_ref, plot_data_ref, interpretation_call, provenance) OR an explicit 'excluded_by_applies_when' stub with structured reason. Failed cards do NOT appear in this array (A2 rule: validation runs at compose time; failed cards are excluded from the envelope, surfaced only in validation_report.json).",
+      "description": "Per-card outputs. Each entry is ONE of: (1) a present-and-validated card (card_present — summary, interpretation_call, provenance); (2) an applies_when exclusion stub (card_excluded — a structured predicate reason); (3) an availability stub (card_unavailable — the card produced no usable signal, carrying a typed availability_state that says WHY: not_wired / data_blocked / read_error / insufficient). card_unavailable replaces the historical silent drop-to-n_cards_failed: an unwired or data-blocked card is now a first-class, reasoned absence a consumer can key on, not an opaque integer. Validation-FAILED cards (method exception / schema violation) still do NOT appear here — they are surfaced only in validation_report.json (A2 rule).",
       "items": {
         "oneOf": [
           {"$ref": "#/$defs/card_present"},
-          {"$ref": "#/$defs/card_excluded"}
+          {"$ref": "#/$defs/card_excluded"},
+          {"$ref": "#/$defs/card_unavailable"}
         ]
       },
       "minItems": 0,
@@ -277,6 +278,26 @@
           "type": "string",
           "minLength": 5,
           "description": "Structured reason: the applies_when predicate (or cascading-exclusion link) that failed. NOT free text — must reference the failed predicate."
+        }
+      }
+    },
+    "card_unavailable": {
+      "type": "object",
+      "description": "A card that produced NO usable signal, carrying a typed reason WHY. Replaces the historical silent drop-to-n_cards_failed: an unwired / data-blocked / errored / measured-absent card is a first-class reasoned absence, so a consumer (and the deciding-axis router) can distinguish 'we haven't built it' from 'we looked and it's genuinely unknown'. Discriminator: `availability_state` present (card_present has validation_state; card_excluded has excluded_by_applies_when).",
+      "required": ["card_id", "card_version", "availability_state", "availability_reason"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "availability_state": {
+          "type": "string",
+          "enum": ["not_wired", "data_blocked", "read_error", "insufficient"],
+          "description": "WHY the card is unavailable. See vocabularies/availability_state.enum.yaml. not_wired/data_blocked/read_error are framework-COVERAGE gaps (never looked / could not look); insufficient is a MEASURED gap (looked, target genuinely absent / below floor). None is opposing evidence."
+        },
+        "availability_reason": {
+          "type": "string",
+          "minLength": 5,
+          "description": "Human-readable, structured reason string (e.g. 'dispatcher_returned_none', 'live_read_error: <detail>', 'primary_class=data_unavailable'). Names the concrete cause; not free-form narrative."
         }
       }
     }

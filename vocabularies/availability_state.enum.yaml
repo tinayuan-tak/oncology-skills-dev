@@ -1,0 +1,84 @@
+# availability_state.enum.yaml
+# Controlled vocabulary: WHY a card produced no usable signal.
+#
+# The framework's honesty guarantee ("we never fabricate — we abstain") is only
+# meaningful if a consumer can tell WHY a card is absent. Historically the governance
+# evidence_package collapsed several very different absences into one signal: an unwired
+# card (no dispatcher registered yet) was dropped to a bare `n_cards_failed` integer with
+# NO per-card reason, while a genuinely-absent-from-a-dataset target surfaced only as an
+# opaque `data_unavailable` value buried inside the untyped `summary`. A reader could not
+# distinguish "we haven't built this yet" from "we looked and it's genuinely unknown" —
+# the two read identically, which quietly turns an honest gap into a misleading one.
+#
+# This enum is the discriminated, machine-readable reason. It is the availability
+# counterpart to validation_state (which grades a PRESENT card's output quality); this
+# grades WHY a card is NOT present. Sibling pattern: validation_state.enum.yaml.
+#
+# Schemas that reference this enum: evidence_package.schema.json (the card_unavailable
+# variant). Set by compose-dashboard at card-resolution time from the dispatcher's return
+# contract; NEVER self-graded by a card.
+
+enum_id: availability_state
+version: 1.0.0
+description: |
+  Per-card reason a card produced no usable signal, emitted by compose-dashboard when a
+  card cannot be rendered as card_present. Distinguishes framework-coverage gaps (we
+  haven't built the wiring/data yet) from measured absences (we looked; the target is
+  genuinely absent) — a distinction load-bearing for honest abstention and for the
+  deciding-axis router (which reads per-gate coverage as the aggregate of these).
+
+  The MEASURED-vs-NOT-BUILT boundary is the point of the vocabulary:
+    - not_wired / data_blocked / read_error = a COVERAGE gap (the framework did not/could
+      not look) — never evidence of a negative.
+    - insufficient = a MEASURED coverage gap (we looked; the target is absent from an
+      existing dataset, or n < floor) — still not opposing evidence, but a genuine "we
+      looked and cannot call it," distinct from "we never looked."
+
+values:
+  - value: not_wired
+    label: "Not wired"
+    description: |
+      No live dispatcher is registered for this card_id (CARD_DISPATCHERS.get(card_id) is
+      None) — the card exists as a contract but its reader is not yet built, OR it is a
+      declared placeholder (e.g. fusion-rearrangement-landscape: card v0.1.0, no method,
+      no dispatcher). A FRAMEWORK-COVERAGE gap, not a data gap and never a negative.
+      Previously this was silently dropped to the n_cards_failed integer with no reason.
+    is_coverage_gap: true
+    measured: false
+    typical_example: "fusion-rearrangement-landscape — placeholder card, no method module or dispatcher registered."
+
+  - value: data_blocked
+    label: "Data blocked"
+    description: |
+      A dispatcher/method exists but the derived data product it needs is not on S3 yet,
+      or a required input manifest could not be resolved. The framework WOULD look but
+      cannot — a coverage gap gated on data acquisition, not on the target's biology.
+      (Distinct from not_wired: here the reader is built; the DATA is missing.)
+    is_coverage_gap: true
+    measured: false
+    typical_example: "a surface-density card whose MS product has not landed; modality-module additional_cards tagged data_status: data_blocked."
+
+  - value: read_error
+    label: "Read error"
+    description: |
+      The dispatcher was invoked and RAISED (S3 read exception, resolver failure, parquet
+      corruption) — surfaced today as a `_live_read_error` sentinel. A transient/operational
+      coverage gap, not a statement about the target. Distinct from data_blocked (a known-
+      absent product) — this is an unexpected failure that may resolve on retry.
+    is_coverage_gap: true
+    measured: false
+    typical_example: "target-identity-summary resolver_error; a reader that threw on a malformed manifest."
+
+  - value: insufficient
+    label: "Insufficient (measured)"
+    description: |
+      The reader RAN and looked, but the target is genuinely absent from the dataset it
+      queried (not in the panel/cohort) or the evidence is below the power floor (n < min).
+      A MEASURED coverage gap — the framework looked and honestly cannot make a call. NOT
+      opposing evidence (absence of measurement is not a measured negative), but categorically
+      different from not_wired/data_blocked: here we DID look. This is the value a present
+      card would carry as `data_unavailable` in its primary class today; surfacing it as a
+      typed availability_state makes "we looked, it's unknown" legible to consumers.
+    is_coverage_gap: true
+    measured: true
+    typical_example: "gnomAD constraint for a gene absent from the gnomAD release; a dependency card for a gene not in the DepMap panel."
