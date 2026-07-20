@@ -66,6 +66,22 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     if "non-dependent-underpowered-insufficient" in fired_by_id:
         return "insufficient_underpowered", "non-dependent-underpowered-insufficient"
 
+    # Paralog-buffering veto-suppressor (2026-07-20): a pooled CRISPR non-dependence
+    # CONTRADICTED by a measured STRONG paralog buffer (MARK2/3, SMARCA2/4-class). A
+    # strong buffer means the single-gene KO is rescued by its paralog — so the pooled
+    # non-dependence is a BUFFERING ARTIFACT, not a trusted negative (the target may be
+    # a genuine dependency once the paralog is co-inhibited / lost). Like the power-guard
+    # above, this is checked BEFORE non-dependent-killer and emits a DISTINCT verdict so
+    # the gate's `non_dependent` veto does not fire (auditable: the verdict names the
+    # buffering reason, not a bare insufficient). Mirrors the shipped
+    # non_dependent_underpowered pattern — measured-vs-null discipline: a strong buffer
+    # is a measured reason the pooled negative is untrustworthy. Only `strong` buffering
+    # qualifies (partial/none do not rescue the veto). Requires the non-dependent-killer
+    # to have fired (a real pooled negative) AND strong paralog buffering.
+    if ("non-dependent-killer" in fired_by_id
+            and "strong-paralog-buffering-degrader-preferred" in fired_by_id):
+        return "non_dependent_paralog_buffered", "strong-paralog-buffering-degrader-preferred"
+
     # non_dependent → gate VETO. Only CRISPR non-dependence (reliable) qualifies.
     # RNAi non-dependence is NOT included (2026-07-17): rnai-non-dependent-neutral
     # emits `neutral` signals — RNAi is false-negative-prone, so RNAi-alone-not-
