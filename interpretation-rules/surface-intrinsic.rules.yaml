@@ -572,6 +572,115 @@ rules:
       so absence of annotation must not be read as "not shed." Surfaced, not
       scored against the modality.
 
+  # ============================================================================
+  # F4 — Normal-tissue-liability card (HPA IHC, WIRED 2026-07-20)
+  # ============================================================================
+  # The dominant biologics on-target-off-tumor SAFETY axis (previously data-blocked;
+  # HPA now landed). normal_tissue_breadth_class = IHC breadth across normal tissues.
+  # Modality-tiered severity: BiTE/TCE has NO buffer (any essential-tissue expression
+  # is disqualifying → killer); ADC has payload-bystander tolerance (→ opposing);
+  # antibody is binding-consequence-dependent (→ opposing). A NARROW normal footprint
+  # (restricted / not-detected) is a favorable window → supportive.
+
+  - rule_id: normal-tissue-essential-bite-killer
+    when:
+      card_id: normal-tissue-liability
+      field: essential_tissue_flag
+      equals: present
+    signals:
+      bite_tce: killer
+    dominant: true
+    killer_message: |
+      Target shows IHC protein expression in an ESSENTIAL normal tissue (CNS / heart /
+      liver / lung / kidney / bone marrow / pancreas). T-cell engagers have no payload
+      buffer and no binding-consequence gating — any essential-tissue expression is a
+      first-order on-target-off-tumor safety liability. Not viable for BiTE/TCE without
+      a mitigation strategy (conditional activation, dual-antigen gating).
+    rationale: |
+      The strict-modality (no-buffer) safety killer. TROP2/HER2-class normal-tissue tox.
+      ADC + antibody get an opposing (not killer) signal on the same evidence — they
+      have payload-bystander / binding-consequence tolerance the TCE lacks.
+
+  - rule_id: normal-tissue-essential-adc-antibody-opposing
+    when:
+      card_id: normal-tissue-liability
+      field: essential_tissue_flag
+      equals: present
+    signals:
+      adc: opposing
+      antibody: opposing
+    rationale: |
+      Essential-tissue expression is an on-target-off-tumor liability for ADC +
+      antibody too, but NOT a categorical killer: ADCs tolerate some normal-tissue
+      binding via payload/linker design + bystander effect; antibody consequence is
+      binding-context-dependent. Opposing → requires a therapeutic-window
+      justification (tumor-vs-normal differential), not an automatic veto.
+
+  - rule_id: normal-tissue-broad-opposing
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: broad_normal_expression
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Protein detected broadly across normal tissues (HPA IHC 'Detected in all/many').
+      Broad normal footprint is an on-target-off-tumor liability for all biologic
+      modalities; the therapeutic window depends on the tumor-vs-normal differential
+      (tumor-selectivity card). Opposing, not killer — a strong tumor-vs-normal
+      overexpression can still open a window. (This fires even when the specific-tissue
+      list is empty — a broad gene has nothing 'tissue-specific', so breadth carries
+      the liability, not the essential-tissue flag.)
+
+  - rule_id: normal-tissue-restricted-supportive
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: restricted_normal_expression
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Protein detected in only a SINGLE normal tissue type (HPA IHC 'Detected in
+      single') — a favorable therapeutic window for biologics (narrow normal
+      footprint). Supportive; the single expressing tissue should still be checked
+      against the indication + essential-tissue flags (a single ESSENTIAL tissue still
+      fires the essential-tissue killer above — the two rules compose).
+
+  - rule_id: normal-tissue-not-detected-supportive
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: not_detected_in_normal
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Protein NOT detected in normal tissues by IHC — the most favorable biologics
+      safety profile (neoantigen-like / tumor-restricted, e.g. MLANA-class). Dominant
+      supportive: minimal on-target-off-tumor liability. (Confirm tumor expression via
+      the presence cards — 'not detected in normal' is a safety signal, not a presence
+      signal.)
+
+  - rule_id: normal-tissue-data-unavailable-insufficient
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: data_unavailable
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    rationale: |
+      No HPA IHC tissue-distribution call for this target. COVERAGE GAP — normal-tissue
+      liability is UNKNOWN, NOT low. Must NOT be read as a favorable window (measured-
+      vs-null discipline: absence of a safety read is not a safety pass).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================

@@ -1,72 +1,118 @@
-# Card iter-1b/6 — NORMAL TISSUE LIABILITY
-# Data-blocked iter-1b card: HPA (Human Protein Atlas) mirror not yet wired into catalog.
-# The card ships with applies_when that fails when the HPA manifest is unavailable,
-# emitting excluded_by_applies_when with structured 'data_blocked' reason. When HPA lands
-# (iter-2 catalog work), the applies_when starts passing and the card runs.
+# Card iter-1b/6 — NORMAL TISSUE LIABILITY  (HPA IHC-derived)
 #
-# This is the load-bearing safety card for ADC, BiTE/TCE, and antibody modalities.
-# BiTE/TCE in particular is killed by ANY normal-tissue expression on essential tissue.
+# The load-bearing on-target-off-tumor SAFETY card for ADC, BiTE/TCE, and antibody
+# modalities. BiTE/TCE in particular is killed by ANY normal-tissue expression on
+# essential tissue (no payload buffer, no binding-consequence gating).
+#
+# WIRED 2026-07-20 (was data-blocked since iter-1b): the HPA master TSV (hpa-v25-1)
+# is landed + already consumed by 8 other cards. This card reads its IHC-DERIVED
+# protein-tissue fields:
+#   - `Protein tissue distribution`  (Not detected | Detected in single | some |
+#     many | all) — pathologist-scored IHC BREADTH across normal tissues. 96%
+#     coverage. Primary normal-tissue-footprint signal.
+#   - `Protein tissue specific Intensity` (named tissues + intensity, e.g.
+#     "intestine: 2.3e5;lymphoid tissue: ...") — ~51% coverage (the tissue-
+#     enriched/enhanced subset), parsed to flag ESSENTIAL-tissue expression.
+#
+# SUBSTRATE NOTE: this is CATEGORICAL IHC breadth + named-tissue intensities, NOT a
+# per-tissue TPM matrix. v1 was specced against a hypothetical per-tissue-TPM product
+# (`hpa-normal-tissue-expression`) that never landed; v2 is reconciled to what
+# actually landed. Thresholds are on the IHC breadth categorical + an essential-
+# tissue name set, NOT TPM.
 
 card_id: normal-tissue-liability
-version: 1.0.0
-question: "What is the normal-tissue expression liability of {target.symbol}, and which tissues raise safety concern?"
+version: 2.0.0
+question: "How broad is {target.symbol}'s normal-tissue protein footprint (HPA IHC), and does it hit essential tissues — the on-target-off-tumor liability for biologics?"
+
+tier: target   # normal-tissue protein footprint is a property of the gene, not a tumor subgroup. Never stratifies.
 
 applies_when:
   - "context.data_sources.hpa_mirror_available == true"
 
 required_inputs:
-  - product_id: hpa-normal-tissue-expression
-    release_pin: "{release_pin}"
+  - product_id: hpa-v25-1
 
 methods:
-  - call: hpa-normal-tissue-aggregator
+  - call: hpa-normal-tissue-liability
     args:
       target: "{target.symbol}"
-      release_pin: "{release_pin}"
 
 outputs:
   summary_fields:
-    - max_normal_tissue_expression
-    - max_normal_tissue_name
-    - n_essential_tissues_with_expression
-    - n_non_essential_tissues_with_expression
-    - safety_tissue_flags
-    - normal_expression_breadth
+    - normal_tissue_breadth_class                 # PRIMARY categorical (from Protein tissue distribution)
+    - essential_tissue_flag                       # present | absent — scalar the essential-tissue rule matches (list→scalar at emit time)
+    - hpa_tissue_distribution                     # raw HPA value (Detected in all/many/some/single | Not detected)
+    - hpa_tissue_specificity                      # raw HPA value (Tissue enriched/enhanced/Group enriched/Low/Not detected)
+    - n_essential_tissues_with_expression         # count of essential tissues in the specific-intensity list
+    - essential_tissues_flagged                   # list of essential tissue names hit
+    - n_specific_tissues                          # total named tissues in the intensity field
+    - specific_tissues                            # list of {tissue, intensity} parsed from the intensity field
+    - safety_tissue_flags                         # coarse flags: essential_tissue, gi_tract, broad
+    - method_version
+
+  summary_fields_vocabulary:
+    normal_tissue_breadth_class:
+      - broad_normal_expression                   # Detected in all / many — high on-target-off-tumor risk
+      - moderate_normal_expression                # Detected in some
+      - restricted_normal_expression              # Detected in single — favorable window
+      - not_detected_in_normal                    # Not detected — neoantigen-like, lowest liability
+      - data_unavailable                          # gene absent from HPA / no IHC call
+    essential_tissue_flag:
+      - present                                   # >=1 essential normal tissue in the specific-intensity list
+      - absent
+
   figure: normal_tissue_expression_heatmap
-  plot_data: per_tissue_expression_long_format
+  plot_data: per_tissue_intensity_long_format
 
-interpretation_hints:
-  - if: "n_essential_tissues_with_expression >= 1 && max_normal_tissue_expression >= THRESHOLD.essential_tissue_active_threshold"
-    call: "ESSENTIAL TISSUE LIABILITY — strict-modality programs likely not viable"
-  - if: "n_non_essential_tissues_with_expression >= THRESHOLD.broad_normal_count_threshold"
-    call: "broad normal-tissue expression — modality-dependent caveats"
-  - if: "n_essential_tissues_with_expression == 0 && n_non_essential_tissues_with_expression < THRESHOLD.broad_normal_count_threshold"
-    call: "low normal-tissue liability"
-
-# Tiered thresholds — C2 fix (post-adversarial-review).
-# `essential_tissue_active_threshold` is the threshold actually evaluated by the predicate;
-# modality modules override `essential_tissue_severity_tier` (a symbolic name) and
-# phase-2 resolves it to the corresponding numerical threshold via tier mapping below.
-# Default tier when no modality module loads: 'strict' (conservative).
+# Modality-tiered severity PRESERVED from v1 (the design was right): the SAME normal-
+# tissue footprint is a harder liability for BiTE/TCE (no buffer) than ADC (payload
+# bystander tolerance) than antibody (binding-consequence-dependent). The tier selects
+# WHICH breadth class trips a modality caution; resolved at compose time by the
+# modality module (default: strict / conservative).
 thresholds:
-  essential_tissue_severity_tier: strict       # one of: strict | moderate | pathway_dependent
-  essential_tissue_strict_threshold: 1.0       # TPM; BiTE/TCE / cell therapy (no payload buffer)
-  essential_tissue_moderate_threshold: 5.0     # TPM; ADC (bystander payload tolerance)
-  essential_tissue_pathway_dependent_threshold: 10.0  # TPM; antibody (binding-consequence-dependent)
-  essential_tissue_active_threshold: 1.0       # populated at compose time by phase-2 tier resolution
-  broad_normal_count_threshold: 5
+  essential_tissue_severity_tier: strict          # strict (BiTE/TCE/cell) | moderate (ADC) | pathway_dependent (antibody)
+  broad_liability_class_strict: moderate_normal_expression    # BiTE: even "some" tissues is a concern
+  broad_liability_class_moderate: broad_normal_expression     # ADC: only "all/many" trips it
+  broad_liability_class_pathway_dependent: broad_normal_expression
+  essential_tissue_count_killer_threshold: 1      # >=1 essential tissue → strict-modality killer
 
 warning_predicates:
   - warning_id: essential_tissue_expression
     if: "n_essential_tissues_with_expression >= 1"
-    message: "Target expressed in essential tissue (cardiac / neuronal / hematopoietic SC) — strict-tolerance modalities (BiTE/TCE, cell therapy) likely not viable without mitigation strategy."
-  - warning_id: gi_tract_expression
-    if: "'gi_tract' in safety_tissue_flags"
-    message: "Target expressed in GI tract — modality-dependent concern; ADCs with non-cleavable linkers may tolerate, BiTEs typically not."
+    message: "{target.symbol} shows IHC protein expression in essential tissue ({essential_tissues_flagged}) — strict-tolerance modalities (BiTE/TCE, cell therapy) likely not viable without a mitigation strategy."
+  - warning_id: broad_normal_footprint
+    if: "normal_tissue_breadth_class == 'broad_normal_expression'"
+    message: "{target.symbol} protein is detected broadly across normal tissues (HPA IHC 'Detected in all/many') — on-target-off-tumor liability for biologics; window depends on the tumor-vs-normal differential."
+  - warning_id: normal_tissue_data_unavailable
+    if: "normal_tissue_breadth_class == 'data_unavailable'"
+    message: "{target.symbol} has no HPA IHC tissue-distribution call — normal-tissue liability UNKNOWN (coverage gap), not low. Do not read absence as a favorable window."
 
 caveats:
-  - "HPA mirror is iter-2 data-catalog work; iter-1b this card emits excluded_by_applies_when until the mirror lands. The framework surfaces the data-blocked state explicitly rather than silently omitting."
-  - "Normal-tissue RNA expression does not perfectly predict protein expression or surface accessibility; protein-surface-evidence card carries complementary information."
-  - "Essential vs non-essential tissue classification is curated; controversial cases (e.g., specific neuronal subpopulations) may warrant manual review."
+  - |
+    HPA `Protein tissue distribution` is pathologist-scored IHC BREADTH (in how many
+    normal tissue types the protein is detected), NOT a quantitative per-tissue level.
+    "Detected in all/many" = broad footprint = on-target-off-tumor liability;
+    "Detected in single" / "Not detected" = favorable window. Dominant biologics
+    safety axis (TROP2 / HER2 / CD44v6-class normal-tissue tox).
+  - |
+    Essential-tissue flags are parsed from `Protein tissue specific Intensity` (the
+    named-tissue list, ~51% coverage — the tissue-enriched/enhanced subset). A gene
+    with `broad_normal_expression` may have an EMPTY specific-tissue list (it's
+    everywhere, so nothing is "specific") — absence of an essential-tissue flag on a
+    broad gene is NOT reassurance; the breadth class already carries the liability.
+  - |
+    IHC antibody staining has antibody-dependent reliability; HPA reliability scores
+    should be consulted for controversial single-tissue calls. Complementary to
+    protein-surface-evidence (surface accessibility) and the RNA normal-tissue signal.
+  - |
+    Essential vs non-essential tissue classification is curated (heart, brain/CNS,
+    kidney, liver, lung, bone marrow/hematopoietic, GI epithelium). Controversial
+    cases (specific neuronal subpopulations) may warrant manual review.
+  - |
+    Substrate reconciliation (v2.0.0, 2026-07-20): v1 was specced against a per-tissue
+    TPM product that never landed; v2 reads the landed HPA IHC categorical fields.
+    TPM thresholds removed in favor of IHC-breadth categorical logic.
+
+measurement: protein_ihc
 
 schema_version: 1
