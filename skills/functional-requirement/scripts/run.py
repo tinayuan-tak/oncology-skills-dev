@@ -28,6 +28,15 @@ CARDS = [
     "crispr-rnai-dependency-concordance",
     "dependency-lineage-selectivity",
     "paralog-buffering",                        # Layer 6d addition
+    "prism-crispr-concordance",                 # E-PRISM re-home 2026-07-20 — chemical-genetic
+                                                # CONFIRMATION arm (gate C). Its triangulated_target_engaged
+                                                # class fires e7-triangulated-target-engaged-supportive, which
+                                                # the dependency resolver now reads as
+                                                # chemical_genetic_confirmed_dependent (a positive-only,
+                                                # veto-safe confirmation). The card is ALSO in tractability-
+                                                # small-molecule's CARDS (E1: "a compound was found") — one
+                                                # measurement routes many-to-many to gates; each gate's
+                                                # resolver/snapshot reads only its own rule_ids.
 ]
 
 QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
