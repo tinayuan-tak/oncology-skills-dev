@@ -294,6 +294,7 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
         median_chronos_panel=summary["median_chronos_panel"],
         distribution_shape=shape,
         top_dependent_lineages=summary["top_dependent_lineages"],
+        n_cell_lines_evaluated=summary["n_cell_lines_evaluated"],
         pan_essential_fraction=pan_essential_fraction,
         selective_min=selective_min,
         selective_max=selective_max,
@@ -312,30 +313,45 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
 # `insufficient` (measured-vs-null discipline) rather than firing a false-negative veto.
 LINEAGE_CONCENTRATED_DEP_FRACTION = 0.30   # a lineage with >=30% strongly-dependent lines...
 LINEAGE_MIN_N_FOR_ADMISSIBILITY = 5        # ...and >=5 lines (already the top_lineages floor)
+# Panel-coverage floor for a TRUSTWORTHY pan-essential VETO (H fix, 2026-07-20). DepMap
+# Chronos panels are typically ~1000-1500 lines; a `common_essential` call on a tiny panel
+# is an underpowered artifact, not a trusted pan-essential. Below this floor, a >=85%
+# strongly-dependent fraction routes to `common_essential_underpowered` → insufficient (NOT
+# the pan-essential veto). Conservative: 300 only trips genuinely small panels.
+PAN_ESSENTIAL_MIN_PANEL_N = 300
 
 
 def _classify_dependency(fraction_strongly_dependent: float,
                           median_chronos_panel: float,
                           distribution_shape: str,
                           top_dependent_lineages: list | None = None,
+                          n_cell_lines_evaluated: int | None = None,
                           pan_essential_fraction: float = 0.85,
                           selective_min: float = 0.05,
                           selective_max: float = 0.60) -> str:
     """Map summary stats to a DepMap-convention dependency_class categorical.
 
-    Returns one of: common_essential | strongly_selective | broadly_dependent |
-                    non_dependent | non_dependent_underpowered | data_unavailable
+    Returns one of: common_essential | common_essential_underpowered |
+                    strongly_selective | broadly_dependent | non_dependent |
+                    non_dependent_underpowered | data_unavailable
 
     The vocabulary matches target-contracts/cards/pan-cancer-crispr-dependency-distribution
     .card.yaml's outputs.summary_fields_vocabulary.dependency_class. Tier-2 rules
     in interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
 
-    `non_dependent_underpowered` (2026-07-17): a below-floor pooled call that is
-    contradicted by a concentrated-dependent well-sampled lineage — an admissibility
-    guard so a lineage/genotype-restricted dependency (EGFR, FLT3, IDH1) that DepMap
-    under-samples is not silently vetoed as a trusted negative.
+    ADMISSIBILITY GUARDS at BOTH veto-producing ends (measured-vs-null discipline —
+    an underpowered panel is a coverage gap, NOT a trusted negative/positive, so it must
+    NOT force a gate VETO):
+      - `non_dependent_underpowered` (2026-07-17): below-floor pooled call contradicted
+        by a concentrated-dependent well-sampled lineage (EGFR/FLT3/IDH1 under-sampled).
+      - `common_essential_underpowered` (H fix 2026-07-20): a >=85% pan-essential call on
+        a panel below PAN_ESSENTIAL_MIN_PANEL_N — a tiny-panel artifact, not a trusted
+        pan-essential. Routes to insufficient instead of the pan-essential veto.
     """
     if fraction_strongly_dependent >= pan_essential_fraction:
+        if (n_cell_lines_evaluated is not None
+                and n_cell_lines_evaluated < PAN_ESSENTIAL_MIN_PANEL_N):
+            return "common_essential_underpowered"
         return "common_essential"
     if fraction_strongly_dependent < selective_min:
         # Below the pooled floor. Admissibility check: is there a well-sampled lineage

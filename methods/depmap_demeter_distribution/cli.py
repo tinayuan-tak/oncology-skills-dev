@@ -309,6 +309,7 @@ def compute_summary_stats(demeter_by_model: dict, model_metadata: dict,
         fraction_strongly_dependent=frac_strong,
         median_dep_score=median_panel,
         distribution_shape=shape,
+        n_cell_lines_evaluated=summary["rnai_n_cell_lines_evaluated"],
         moderate_threshold=moderate_threshold,
         pan_essential_fraction=pan_essential_fraction,
         selective_min=selective_min,
@@ -347,21 +348,35 @@ def compute_summary_stats(demeter_by_model: dict, model_metadata: dict,
     return summary
 
 
+# Panel-coverage floor for a trustworthy RNAi pan-essential VETO (H fix, 2026-07-20).
+# Mirrors the CRISPR sibling. DEMETER2 panels (~700 lines) are smaller than Chronos, so
+# 300 still only trips genuinely underpowered panels.
+RNAI_PAN_ESSENTIAL_MIN_PANEL_N = 300
+
+
 def _classify_rnai_dependency(fraction_strongly_dependent: float,
                                median_dep_score: float,
                                distribution_shape: str,
+                               n_cell_lines_evaluated: int | None = None,
                                moderate_threshold: float = -0.25,
                                pan_essential_fraction: float = 0.85,
                                selective_min: float = 0.05,
                                selective_max: float = 0.60) -> str:
     """Map RNAi distribution stats to a DepMap-convention dependency_class categorical.
 
-    Returns one of: common_essential | strongly_selective | broadly_dependent |
-                    non_dependent | data_unavailable
+    Returns one of: common_essential | common_essential_underpowered |
+                    strongly_selective | broadly_dependent | non_dependent |
+                    data_unavailable
 
-    Same vocabulary as the CRISPR sibling, applied to DEMETER2 scale.
+    Same vocabulary as the CRISPR sibling, applied to DEMETER2 scale. H fix (2026-07-20):
+    a >=85% pan-essential call on a panel below RNAI_PAN_ESSENTIAL_MIN_PANEL_N is an
+    underpowered artifact → common_essential_underpowered (routes to insufficient, NOT
+    the pan-essential veto). Symmetric with the CRISPR guard.
     """
     if fraction_strongly_dependent >= pan_essential_fraction:
+        if (n_cell_lines_evaluated is not None
+                and n_cell_lines_evaluated < RNAI_PAN_ESSENTIAL_MIN_PANEL_N):
+            return "common_essential_underpowered"
         return "common_essential"
     if selective_min <= fraction_strongly_dependent <= selective_max:
         return "strongly_selective"
