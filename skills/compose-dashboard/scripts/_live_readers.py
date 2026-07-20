@@ -526,6 +526,16 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_synthetic_lethal_partners(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: synthetic-lethal-partners card → curated SynLethDB SL-partner
+    annotation via methods/synleth_partner_lookup/read.py. Gate-C context-conditional
+    dependency: an experimentally-supported curated SL partner suppresses the pooled
+    non_dependent veto (SMARCA2←SMARCA4). Gene-level — indication accepted, not consumed.
+    """
+    mod = _import_method("synleth_partner_lookup")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 def _dispatch_normal_tissue_liability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: normal-tissue-liability card → HPA IHC normal-tissue footprint via
     methods/hpa_normal_tissue_liability/read.py. The dominant biologics on-target-off-
@@ -589,6 +599,7 @@ CARD_DISPATCHERS = {
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
     "protein-abundance-celline": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
+    "synthetic-lethal-partners": _dispatch_synthetic_lethal_partners,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
     #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py

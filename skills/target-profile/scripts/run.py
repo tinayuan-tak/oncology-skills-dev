@@ -66,6 +66,7 @@ SUB_SKILLS = [
     ("tumor-presence",                 "expression"),
     ("tumor-selectivity",              "selectivity"),
     ("functional-requirement",         "dependency"),
+    ("synthetic-lethal-partners",      "synthetic_lethal_partners"),  # gate-C SL veto-suppressor input
     ("mechanism-and-pharmacology",     "mechanism"),
     ("genomic-alteration-profile",     "genomic_alteration"),  # reframed from mutation-profile
     ("differentiation-landscape",      "differentiation"),
@@ -89,6 +90,9 @@ SUB_SKILL_CARDS = {
         "crispr-rnai-dependency-concordance",
         "dependency-lineage-selectivity",
         "paralog-buffering",
+    ],
+    "synthetic-lethal-partners": [
+        "synthetic-lethal-partners",
     ],
     "mechanism-and-pharmacology": [
         "signaling-network-mechanism",

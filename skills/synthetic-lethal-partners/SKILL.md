@@ -1,0 +1,44 @@
+---
+name: synthetic-lethal-partners
+description: |
+  Gate-C step 2 skill — curated synthetic-lethal partner annotation from the
+  PUBLISHED SynLethDB v3 (CC-BY-4.0). Consumes the synthetic-lethal-partners card
+  (derived synlethdb-sl-partners-per-gene-v1).
+
+  Question this skill answers:
+  Does {target} have a curated synthetic-lethal partner, and is the evidence
+  experimental — such that a pooled pan-cancer non-dependent CRISPR read may be a
+  CONTEXT-CONDITIONAL false negative (the target is required only once the partner is
+  altered: SMARCA2←SMARCA4-loss, ARID1B←ARID1A)?
+
+  ANNOTATION, not measurement: an experimentally-supported SL partner SUPPRESSES the
+  dependency non_dependent veto → insufficient (nomination_verdict_gate.yaml
+  veto_suppressors). It NEVER nominates (a curated SL relationship is not a measured
+  dependency) and NEVER suppresses pan_essential. A computational-only partner is
+  surfaced but does NOT suppress a veto.
+
+  COMPLEMENTS functional-requirement's paralog-buffering (the DUA-measured, intra-gene-
+  family self-rescue signal). This is the published/citable layer catching ARBITRARY
+  partner-conditional SL that intra-family measurement cannot see. Runs as its OWN
+  sub_skill (`synthetic_lethal_partners`) — a sub_skill cannot emit both the dependency
+  veto AND its own suppressor, so the SL signal rides a separate sub_skill exactly as
+  the biomarker-stratified suppressor rides genomic_alteration.
+
+  Biology-first output; modality-independent primary verdict.
+composition:
+  data_mode: derived_read
+  cards_used:
+    - synthetic-lethal-partners
+  rules_scope:
+    - sl-experimental-partner-context-conditional
+    - sl-computational-partner-informational
+    - sl-no-partner-neutral
+    - sl-data-unavailable-insufficient
+---
+
+# synthetic-lethal-partners
+
+See the description frontmatter. Emits `sl_partner_verdict` ∈
+{`has_experimental_sl_partner` | `has_computational_sl_partner` |
+`no_curated_sl_partner` | `data_unavailable` | `insufficient`}. The
+`has_experimental_sl_partner` verdict is the gate-C veto-suppressor trigger.
