@@ -26,6 +26,7 @@ from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
     synthesize_structured, render_composite_panel,
 )
+from _skills_common import ordinal_view
 from _skills_common.rules_loader import load_interpretation_rules
 
 SKILL_NAME = "target-profile"
@@ -528,6 +529,62 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
                         "cannot decide; no gate produced a signal and no coverage map available.")}
 
 
+# --- Ordinal matrix VIEW (gap #3 "now" / gap #4 demo) ------------------------
+#
+# A gate × modality signal matrix, projected onto the ordinal scale for DISPLAY + RANKING.
+# This is the "evidence matrix" made concrete for a single (target, indication) run: rows = the
+# gates (sub-skills), columns = the 5 delivery modalities, cells = the strongest signal that
+# gate's fired rules emit for that modality, shown as its ordinal.
+#
+# HONESTY (ordinal_view module contract): this is a labeled VIEW, NOT measurement and NOT a
+# verdict input. It reads already-resolved fired-rule signals and never feeds back into any
+# rule/resolver/gate. insufficient/not_applicable cells are off-scale (coverage), not low scores.
+_MATRIX_MODALITIES = ("small_molecule", "degrader", "adc", "bite_tce", "antibody")
+
+
+def _strongest_signal_for_modality(fired: list[dict], modality: str) -> Optional[str]:
+    """The most-decisive signal a gate's fired rules emit for one modality channel. 'Most
+    decisive' = lowest ordinal (killer < opposing < neutral < supportive); off-scale
+    (insufficient/not_applicable) only when NO on-scale signal was emitted. Mirrors the
+    display convention that a killer dominates a co-fired supportive in the same cell."""
+    on_scale: list[tuple[int, str]] = []
+    off_scale: Optional[str] = None
+    for r in fired:
+        sig = (r.get("signals") or {}).get(modality)
+        if sig is None:
+            continue
+        o = ordinal_view.ordinal_of(sig)
+        if o is None:
+            off_scale = off_scale or sig      # remember an off-scale signal as a fallback
+        else:
+            on_scale.append((o, sig))
+    if on_scale:
+        return min(on_scale, key=lambda t: t[0])[1]   # most-negative wins the cell
+    return off_scale                                   # else an off-scale coverage marker (or None)
+
+
+def _ordinal_matrix(sub_results: dict) -> dict:
+    """Build the gate × modality ordinal-view matrix for this run (see section comment).
+    Returns {rows: [{short, gate signals+ordinals per modality}], legend, _disclaimer}."""
+    rows = []
+    for short, r in sub_results.items():
+        fired = r.get("fired") or []
+        by_mod = {m: _strongest_signal_for_modality(fired, m) for m in _MATRIX_MODALITIES}
+        view = ordinal_view.project_signals(by_mod)
+        rows.append({
+            "short": short,
+            "verdict": (r.get("verdict") or [None])[0],
+            "cells": view["cells"],          # {modality: {signal, ordinal, on_scale}}
+        })
+    return {
+        "axes": {"rows": "gate (sub-skill)", "columns": list(_MATRIX_MODALITIES),
+                 "cell": "strongest signal for (gate, modality), ordinal-projected"},
+        "rows": rows,
+        "legend": ordinal_view.scale_legend(),
+        "_disclaimer": ordinal_view.scale_legend()["_disclaimer"],
+    }
+
+
 # --- Positive tier (deterministic confidence FLOOR; F1-safe) ----------------
 #
 # Graded positives (dependency/selectivity/small-molecule tractability) raise an
@@ -627,7 +684,16 @@ _SYSTEM_PROMPT = (
     "Note (arch A3): the mechanism sub-verdict flags isoform-selective "
     "targets (e.g., ERBB2/p95HER2, AR/AR-V7, MET/exon14, EGFR/vIII); if "
     "isoform_selective_warning is true, gene-level modality claims should "
-    "be qualified with isoform-resolution caveats."
+    "be qualified with isoform-resolution caveats. "
+    "Note (matrix view): you are also given a modality-scoped evidence matrix "
+    "(gate x modality). It is a REPROJECTION of the same signals, NOT new "
+    "evidence and NOT a score — use it to reason about WHICH MODALITY each gate "
+    "favors (e.g. a degrader-preferred vs small-molecule split) and to ground the "
+    "modality framing of your recommendation. The ordinals are order-preserving, "
+    "NOT calibrated: never sum or average them, and treat off-scale cells "
+    "(insufficient/not_applicable) as coverage gaps, not low scores. When a matrix "
+    "cell disagrees with a gate's resolved verdict, the VERDICT is the decision — "
+    "the cell is the raw per-modality signal behind it."
 )
 
 
@@ -697,15 +763,45 @@ def _build_synthesis_tool() -> dict:
     }
 
 
+def _render_matrix_slice_for_prompt(ordinal_matrix: dict) -> list[str]:
+    """The gate × modality ordinal matrix as prompt text (gap #4b): lets synthesis reason over
+    the MATRIX-SLICE (which modality does each gate favor?) instead of only the flat verdict list.
+    Emphatically labeled a REPROJECTION of the same signals — not new evidence, not a score."""
+    cols = ordinal_matrix["axes"]["columns"]
+    leg = ordinal_matrix["legend"]
+    lines = [
+        "### Modality-scoped evidence matrix (a VIEW — reprojection, NOT new evidence)",
+        "Each cell is the STRONGEST signal a gate emits for that modality, on an ORDER-PRESERVING "
+        "ordinal scale (NOT calibrated — gaps are not metric). Use it to see WHICH MODALITY each "
+        "gate favors (e.g. a degrader-preferred vs small-molecule-opposing split) — a nuance the "
+        "flat verdict list flattens. A cell can differ from the resolved verdict (the cell is the "
+        "raw signal; the verdict is the ordered-precedence decision). The verdict is the decision; "
+        "the matrix is for modality reasoning only. Do NOT sum or average the ordinals.",
+        "Scale: " + ", ".join(f"{k}={v:+d}" for k, v in sorted(leg["on_scale"].items(),
+                                                               key=lambda t: -t[1]))
+        + f"; off-scale (coverage, not a low score): {', '.join(leg['off_scale'])}; `·` = no signal.",
+        "",
+        "| gate | " + " | ".join(cols) + " |",
+        "|" + "---|" * (len(cols) + 1),
+    ]
+    for row in ordinal_matrix["rows"]:
+        cells = row["cells"]
+        glyphs = " | ".join(ordinal_view._cell_glyph(cells[m]) for m in cols)
+        lines.append(f"| {row['short']} | {glyphs} |")
+    lines.append("")
+    return lines
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
     sub_results: dict,
     modality: Optional[str] = None,
     therapeutic_hypothesis: Optional[str] = None,
+    ordinal_matrix: Optional[dict] = None,
 ) -> str:
-    """Compose the user-message text: sub-verdicts + card summaries +
-    optional lens context."""
+    """Compose the user-message text: sub-verdicts + modality-scoped matrix slice + card
+    summaries + optional lens context."""
     lines = [
         f"Target: {target}",
         f"Indication: {indication}",
@@ -727,6 +823,8 @@ def _build_user_prompt(
             lines.append(f"- **{short}** ({r['skill_dir']}): "
                          f"`{verdict_str}` (driving rule: {driving_rule})")
     lines.append("")
+    if ordinal_matrix is not None:
+        lines.extend(_render_matrix_slice_for_prompt(ordinal_matrix))
     lines.append("### Card summaries (raw, per-card)")
     for short, r in sub_results.items():
         lines.append(f"\n#### {short} ({r['skill_dir']})")
@@ -1092,6 +1190,12 @@ def main() -> int:
         verdict_str = v[0] if v else "(no verdict)"
         print(f"  - {short:15s} -> {verdict_str}", file=sys.stderr)
 
+    # Ordinal matrix VIEW (gap #3 "now"): gate × modality signals projected onto the ordinal
+    # scale. Labeled, additive, NOT a verdict input (ordinal_view contract). Computed BEFORE the
+    # prompt so synthesis can reason over the matrix-SLICE (gap #4b), not only the flat verdict
+    # list; also emitted in nomination.json for downstream consumers.
+    ordinal_matrix = _ordinal_matrix(sub_results)
+
     # 2. LLM synthesis via Bedrock (structured tool_use).
     print(f"[target-profile] Invoking Bedrock synthesis...", file=sys.stderr)
     tool_schema = _build_synthesis_tool()
@@ -1099,6 +1203,7 @@ def main() -> int:
         args.target, args.indication, sub_results,
         modality=args.modality,
         therapeutic_hypothesis=args.therapeutic_hypothesis,
+        ordinal_matrix=ordinal_matrix,
     )
     llm_output = synthesize_structured(
         system_prompt=_SYSTEM_PROMPT,
@@ -1224,6 +1329,7 @@ def main() -> int:
         "recommendation_gate": recommendation_gate,
         "confidence_tier": confidence_tier,
         "deciding_axis": deciding_axis,
+        "ordinal_matrix_view": ordinal_matrix,
         "llm_synthesis": llm_output,
     }
     (args.out / "nomination.json").write_text(
