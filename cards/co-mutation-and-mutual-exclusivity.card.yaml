@@ -120,4 +120,7 @@ caveats:
     Governance readers should surface per-source disagreement when the
     pooled call disagrees with either source.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_cooccurrence` claim.
+measurement_type: mutation_cooccurrence
+entity_grains: [target, target_subtype]
 schema_version: 1

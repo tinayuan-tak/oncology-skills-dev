@@ -93,4 +93,7 @@ caveats:
 
 measurement: bulk_rna
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `cell_line_rna_expression` claim.
+measurement_type: cell_line_rna_expression
+entity_grains: [target, target_lineage]
 schema_version: 1

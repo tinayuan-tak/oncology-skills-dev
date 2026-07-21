@@ -104,4 +104,7 @@ caveats:
     absent from the alt isoform — the isoform-selective warning in
     surface-topology-and-ptm card fires accordingly.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `structure_druggability` claim.
+measurement_type: structure_druggability
+entity_grains: [target]
 schema_version: 1

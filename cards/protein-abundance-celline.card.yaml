@@ -120,4 +120,7 @@ caveats:
 
 measurement: bulk_protein_ms
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `cell_line_protein_abundance` claim.
+measurement_type: cell_line_protein_abundance
+entity_grains: [target, target_lineage]
 schema_version: 1

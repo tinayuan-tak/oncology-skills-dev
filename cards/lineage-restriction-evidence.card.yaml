@@ -100,4 +100,7 @@ caveats:
 
 measurement: bulk_rna
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_rna_breadth` claim.
+measurement_type: normal_tissue_rna_breadth
+entity_grains: [target]
 schema_version: 1

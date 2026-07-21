@@ -52,4 +52,7 @@ caveats:
   - "PLACEHOLDER card (v0.1.0): no method or derived product exists yet; the card resolves to data_unavailable / _missing. Declared to document the fusion axis of genomic-alteration-profile so the skill's scope is honest about what is not yet wired."
   - "Fusion detection methodology differs materially from SNV/CN; when wired, this axis may warrant its own skill if it grows heavy (per the 2026-07-14 scope review)."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim.
+measurement_type: fusion_rearrangement
+entity_grains: [target_indication]
 schema_version: 1

@@ -69,4 +69,7 @@ caveats:
   - "Strata are RAS-mutation-status × treatment-line; reading across strata implicitly conditions on RAS biology."
   - "Detection rate (pct_detected) reflects assay sensitivity in the Tempus panel; cross-platform comparison with TCGA RNA-seq requires care."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `rwd_stratified_expression` claim.
+measurement_type: rwd_stratified_expression
+entity_grains: [target_subtype]
 schema_version: 1

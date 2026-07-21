@@ -98,4 +98,7 @@ caveats:
     OMIM disease associations (autosomal dominant / recessive contexts).
     All three are docs-first Phase-G expansions beyond this card.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gnomad_lof_constraint` claim.
+measurement_type: gnomad_lof_constraint
+entity_grains: [target]
 schema_version: 1

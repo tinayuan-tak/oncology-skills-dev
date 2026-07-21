@@ -110,4 +110,7 @@ caveats:
 
 measurement: bulk_protein_ms
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_protein_abundance` claim.
+measurement_type: tumor_protein_abundance
+entity_grains: [target_indication]
 schema_version: 1

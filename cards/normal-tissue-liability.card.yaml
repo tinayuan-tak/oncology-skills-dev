@@ -122,4 +122,7 @@ caveats:
 
 measurement: protein_ihc
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_protein_breadth` claim.
+measurement_type: normal_tissue_protein_breadth
+entity_grains: [target]
 schema_version: 1

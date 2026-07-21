@@ -103,4 +103,7 @@ caveats:
   - "Mutation profile is descriptive — 'missense_dominant' alone doesn't prove oncogene status (synthetic-lethal partners and DNA-repair genes also show missense-dominant patterns). Pair with dependency cards for therapeutic inference."
   - "Card uses IsDefaultEntryForModel=Yes filter — collapses to one entry per Model (avoids double-counting cell lines that have multiple ModelConditions)."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_variant_class_spectrum` claim.
+measurement_type: mutation_variant_class_spectrum
+entity_grains: [target, target_lineage]
 schema_version: 1

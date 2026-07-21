@@ -48,4 +48,7 @@ caveats:
   - "Mutation frequency is an indication-level summary; per-subgroup frequencies (e.g., MSI-H enriched) require subgroup-stratified analysis."
   - "Hotspot calls depend on the variant caller and filtering thresholds upstream; cross-validate with MC3 or GENIE for low-confidence hotspots."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_hotspot_frequency` claim.
+measurement_type: mutation_hotspot_frequency
+entity_grains: [target_indication]
 schema_version: 1

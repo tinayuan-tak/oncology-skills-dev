@@ -77,4 +77,7 @@ caveats:
   - "Subgroup-stratified DGE has lower power than indication-level DGE; small subgroups may fail significance even when underlying biology is real."
   - "MSI-H stratum biology is dominated by mismatch-repair hypermutation; gene-specific calls may reflect global expression dysregulation, not target-specific signal."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `tumor_vs_adjacent_expression` at target_subtype grain (LIVE per-sample slice).
+measurement_type: tumor_vs_adjacent_expression
+entity_grains: [target_subtype]
 schema_version: 1

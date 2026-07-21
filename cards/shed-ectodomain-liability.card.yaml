@@ -142,4 +142,7 @@ caveats:
     HPA secretome column; (c) extend the curated vocab as new shed antigens are
     clinically characterized (bump vocabulary version).
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `shed_ectodomain_liability` claim.
+measurement_type: shed_ectodomain_liability
+entity_grains: [target]
 schema_version: 1

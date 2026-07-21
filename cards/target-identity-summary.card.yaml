@@ -51,4 +51,7 @@ caveats:
   - "Resolver releases pin specific HGNC/Ensembl/UniProt/MyGene.info snapshots; cross-release comparisons require explicit pin matching."
   - "Biology axis is sourced from target_biology_axis_lookup.yaml (curated). Targets not in the lookup default to 'unknown' and framework surfaces the gap honestly."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `target_identity` claim.
+measurement_type: target_identity
+entity_grains: [target]
 schema_version: 1

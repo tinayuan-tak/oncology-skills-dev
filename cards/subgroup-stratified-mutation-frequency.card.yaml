@@ -91,4 +91,7 @@ caveats:
   - "Each row is tagged with its source_cohort (TCGA-MC3 vs GENIE-registry); rows from different cohorts are NOT merged — MSI-H-from-TCGA is a different sample universe than a GENIE LOT stratum."
   - "Line-of-therapy strata are available only via the GENIE-registry MAF source (RWD); TCGA-MC3 provides the molecular strata (MSI/MSS, sidedness)."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `mutation_hotspot_frequency` at target_subtype grain (LIVE per-sample slice).
+measurement_type: mutation_hotspot_frequency
+entity_grains: [target_subtype]
 schema_version: 1

@@ -50,4 +50,7 @@ caveats:
   - "Approved-agents and trial-stage information may lag the current state of the field by 1-3 months depending on literature-mining cadence."
   - "Modality-specific precedent (e.g., approved ADCs for the target) is more informative than overall precedent — synthesis emphasizes modality-precedent when modality is specified."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `clinical_precedent` claim.
+measurement_type: clinical_precedent
+entity_grains: [target_indication]
 schema_version: 1

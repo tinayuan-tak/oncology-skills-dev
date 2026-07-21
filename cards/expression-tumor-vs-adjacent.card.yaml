@@ -80,4 +80,7 @@ caveats:
 
 measurement: bulk_rna
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_adjacent_expression` claim.
+measurement_type: tumor_vs_adjacent_expression
+entity_grains: [target_indication]
 schema_version: 1

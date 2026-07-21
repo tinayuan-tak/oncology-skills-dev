@@ -144,4 +144,7 @@ caveats:
   - "CN scale is raw relative CN (median ~1.0 = diploid), NOT log2 ratio. Thresholds: deep del < 0.5, shallow del < 0.92, neutral 0.92-1.07, shallow amp >1.07, focal amp >1.5, high amp >4."
   - "Copy number ≠ functional effect: a focal amplification can be passenger; a homozygous deletion of a tumor-suppressor can be a driver. Functional inference requires the dependency cards as orthogonal evidence."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `copy_number_alteration` claim.
+measurement_type: copy_number_alteration
+entity_grains: [target, target_lineage]
 schema_version: 1

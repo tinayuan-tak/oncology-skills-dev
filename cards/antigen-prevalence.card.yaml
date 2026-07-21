@@ -70,4 +70,7 @@ caveats:
   - "RNA-derived prevalence is an upper-bound estimate; protein-level prevalence (via IHC) is typically narrower and is the gating clinical question."
   - "Patient-selection biomarker development requires a deployable assay; iter-1b cannot assess assay feasibility."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `antigen_expressing_prevalence` claim.
+measurement_type: antigen_expressing_prevalence
+entity_grains: [target_indication]
 schema_version: 1

@@ -121,4 +121,7 @@ caveats:
     a new dated snapshot; consumer skills receive an explicit version bump
     signal.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `signaling_network_mechanism` claim.
+measurement_type: signaling_network_mechanism
+entity_grains: [target]
 schema_version: 1

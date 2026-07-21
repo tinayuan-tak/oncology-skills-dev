@@ -209,4 +209,7 @@ caveats:
     test as in E2. Coarser signal, scipy-free precompute. Per-lineage n varies
     widely (5 to ~110 lines); interpret rank confidence proportional to n_lines_screened.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `prism_compound_activity` claim.
+measurement_type: prism_compound_activity
+entity_grains: [target, target_lineage]
 schema_version: 1
