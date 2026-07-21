@@ -566,12 +566,15 @@ def _emit_dependency_predictability(
     e5cli.emit_lineage_conditional_panel(summary, target, out_dir, TARGET_CONTRACTS)
     parquet_uri = e5cli.RELEASE_PIN_TO_PARQUET.get("26q1-v2", "<unset>")
     e5cli.emit_manifest(target, "26q1-v2", summary, out_dir, parquet_uri)
-    return [
+    figures = [
         {"id": "feature_importance_bar", "path": "figure_feature_importance_bar.svg",
          "type": "horizontal_bar_feature_importance", "primary": True},
         {"id": "lineage_predictability", "path": "figure_lineage_predictability.svg",
          "type": "horizontal_bar_lineage_predictability", "primary": False},
     ]
+    # Interactive twin — top-10 SHAP feature-importance bar from the SAME summary (no drift).
+    figures += _plotly_from(e5cli, "emit_plotly_specs", summary, target, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_prism_compound_activity(
