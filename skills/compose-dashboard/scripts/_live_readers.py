@@ -523,17 +523,97 @@ def _dispatch_protein_presence_cptac(target: str, indication: str) -> Optional[d
     return mod.read_target_summary(target=target, indication=indication)
 
 
-def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route tumor-elevation-breadth card → pan-cancer K-of-N tumor-elevation
-    roll-up via methods/cptac_protein_deg/read.py::read_tumor_elevation_breadth.
+_BREADTH_ELEVATED_CLASSES = frozenset({"broadly_tumor_elevated", "multi_tumor_elevated",
+                                       "single_tumor_elevated"})
 
-    TARGET-GRAIN: rolls up CPTAC per-cohort tumor-vs-normal over ALL cohorts ("elevated in
-    K of N cancers"). Target-only — indication accepted for the dispatcher contract but NOT
-    consumed (breadth is pan-cancer by construction). This is the one tumor-context presence
-    card that fires without an indication, so it gives a target-only query a real tumor signal.
-    """
-    mod = _import_method("cptac_protein_deg")
-    return mod.read_tumor_elevation_breadth(target=target)
+
+def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional[str]) -> str:
+    """Derive breadth_layer_concordance from the two per-layer breadth classes.
+
+    Mirrors the card's vocabulary (tumor-elevation-breadth.card.yaml):
+      concordant   — BOTH layers elevated (any of broadly/multi/single)
+      protein_only — protein elevated, RNA a MEASURED not_tumor_elevated
+      rna_only      — RNA elevated, protein a MEASURED not_tumor_elevated
+      discordant    — reserved shape; here folded into protein_only/rna_only since "one
+                      elevated + other measured-negative" IS the discordance the card names
+      single_layer  — only one layer had data (the other data_unavailable) — concordance UNTESTED
+
+    surface_discordance discipline: the two classes are NEVER averaged; this only NAMES the
+    relationship for the reader. A data_unavailable layer is a coverage gap, not a negative —
+    so it yields single_layer, never a false 'protein_only'/'rna_only' negative claim."""
+    p_elev = protein_class in _BREADTH_ELEVATED_CLASSES
+    r_elev = rna_class in _BREADTH_ELEVATED_CLASSES
+    p_measured_neg = protein_class == "not_tumor_elevated"
+    r_measured_neg = rna_class == "not_tumor_elevated"
+    p_gap = protein_class in (None, "data_unavailable")
+    r_gap = rna_class in (None, "data_unavailable")
+
+    if p_gap and r_gap:
+        return "single_layer"        # neither layer had data — degenerate; concordance untested
+    if p_elev and r_elev:
+        return "concordant"
+    if p_elev and r_measured_neg:
+        return "discordant"
+    if r_elev and p_measured_neg:
+        return "discordant"
+    if p_elev and r_gap:
+        return "protein_only"        # protein elevated; RNA a coverage gap (not a negative)
+    if r_elev and p_gap:
+        return "rna_only"            # RNA elevated; protein a coverage gap (CPTAC's 10 vs RNA's 27)
+    # remaining: at least one measured-negative, neither elevated → not an elevation call
+    if p_gap != r_gap:
+        return "single_layer"        # exactly one layer had data, and it was a measured negative
+    return "concordant"              # both measured, both not-elevated → they AGREE (on 'not elevated')
+
+
+def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-elevation-breadth card → the TWO-LAYER pan-cancer breadth roll-up.
+
+    Fuses two independent target-grain breadth readers (surface_discordance — surfaced
+    ALONGSIDE, never averaged):
+      - PROTEIN: methods/cptac_protein_deg::read_tumor_elevation_breadth (CPTAC, 10 cohorts) —
+        drives the PRIMARY tumor_elevation_breadth_class.
+      - RNA: methods/dge_deseq2::read_rna_tumor_elevation_breadth (pan-cancer DESeq2, 27
+        indications) — the PARALLEL rna_* block.
+    Then computes breadth_layer_concordance {concordant|protein_only|rna_only|discordant|
+    single_layer} so the two-layer relationship is legible without collapsing to one number.
+
+    TARGET-GRAIN, target-only — indication accepted for the dispatcher contract but NOT
+    consumed (breadth is pan-cancer by construction). The one tumor-context presence card
+    that fires without an indication.
+
+    The RNA read degrades gracefully (returns a data_unavailable envelope) if its stacked
+    product is unreachable, so a protein-only environment still yields the protein breadth +
+    single_layer/protein-side concordance — never an error."""
+    protein = _import_method("cptac_protein_deg").read_tumor_elevation_breadth(target=target)
+    protein = protein or {}
+    try:
+        rna = _import_method("dge_deseq2").read_rna_tumor_elevation_breadth(target=target) or {}
+    except Exception as e:
+        # RNA layer unreachable — surface an honest data_unavailable envelope, don't fail the card.
+        rna = {"rna_tumor_elevation_breadth_class": "data_unavailable",
+               "_rna_read_error": f"{type(e).__name__}: {e}"}
+
+    # The RNA reader emits GENERIC field names (n_indications_tested, ...); the card contract
+    # (tumor-elevation-breadth.card.yaml, Slice C-4) declares them rna_-PREFIXED so they never
+    # collide with the protein layer's n_cohorts_* fields. Namespace them here so the card's
+    # declared summary_fields resolve (the class field is already rna_-prefixed by the reader).
+    _RNA_FIELD_MAP = {
+        "n_indications_tested": "rna_n_indications_tested",
+        "n_indications_elevated": "rna_n_indications_elevated",
+        "fraction_elevated": "rna_fraction_elevated",
+        "median_max_log2fc_across_elevated": "rna_median_max_log2fc_across_elevated",
+        "most_elevated_indications": "rna_most_elevated_indications",
+    }
+    rna_ns = {_RNA_FIELD_MAP.get(k, k): v for k, v in rna.items()}
+
+    merged = dict(protein)                       # protein fields (incl. the PRIMARY class) verbatim
+    merged.update(rna_ns)                        # rna_-namespaced fields are disjoint — no clobber
+    merged["breadth_layer_concordance"] = _breadth_layer_concordance(
+        protein.get("tumor_elevation_breadth_class"),
+        rna.get("rna_tumor_elevation_breadth_class"),
+    )
+    return merged
 
 
 def _dispatch_paralog_buffering(target: str, indication: str) -> Optional[dict]:
