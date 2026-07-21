@@ -51,6 +51,15 @@
 # `gates:` list) → {short: entry} of the biology_gates + modality_fit + sub_skill-grain facets
 # (card-grain facets excluded from the row set). See claude-oncology-skills PR-A.
 #
+# risk_category (additive, 2026-07-21) — the dashboard's PRESENTATION SPINE, anchored to the
+# AstraZeneca 5R framework (Cook 2014). Every gate rolls up into one of:
+#   biological (5R Right Target) · biomarker (Right Patient) · druggability (Right Target /
+#   tractability) · safety (Right Safety) · translational (Right Tissue) · commercial (Right
+#   Commercial Potential) · clinical (clinical precedent).
+# DATA-DRIVEN SURFACING: the dashboard shows a category IFF ≥1 of its member sub-skills produced
+# evidence this run — no unwired placeholder rows; a category appears automatically as data lands.
+# See docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md. Purely a grouping VIEW — no verdict impact.
+#
 # COVERAGE VOCAB (shared with vocabularies/known_target_calibration_set.yaml reference_profiles
 # + tests/calibration/test_known_target_calibration.py::_COVERAGE_VOCAB):
 #   captured        — the framework wires real data for this gate; a correct read is expected.
@@ -76,6 +85,7 @@ description: |
 # ============================================================================
 biology_gates:
   - short: expression
+    risk_category: biological
     axis: biology
     gate: A
     gate_name: Expressed
@@ -84,6 +94,7 @@ biology_gates:
     evidences: "RNA transcribed / protein made (recount3 + DepMap + CPTAC)."
 
   - short: selectivity
+    risk_category: biological
     axis: biology
     gate: B
     gate_name: Selective
@@ -92,6 +103,7 @@ biology_gates:
     evidences: "tumor-vs-normal window (recount3 4-cell DESeq2; adjacent + GTEx comparators)."
 
   - short: dependency
+    risk_category: biological
     axis: biology
     gate: C
     gate_name: Functional dependence
@@ -108,6 +120,7 @@ biology_gates:
       report into this gate, not veto-suppressor-only afterthoughts.
 
   - short: mechanism
+    risk_category: biological
     axis: biology
     gate: D
     gate_name: Mechanism
@@ -120,6 +133,7 @@ biology_gates:
   # gate_name. The alteration FREQUENCY is the biology fact here (Altered); the biomarker-stratified
   # half is a FACET (mutation_stratified, below) that reports into Required (C).
   - short: genomic_alteration
+    risk_category: biological
     axis: biology
     gate: E
     gate_name: Altered
@@ -140,6 +154,7 @@ biology_gates:
 biomarker_facets:
   # --- sub_skill grain: real sub-verdict slots → scorecard rows (as in v1) -------------------
   - short: synthetic_lethal_partners
+    risk_category: biomarker
     grain: sub_skill
     axis: biology
     band: necessity
@@ -151,6 +166,7 @@ biomarker_facets:
     coverage_note: "annotation, not measured co-dependency; never nominates on its own."
 
   - short: subtype_fit
+    risk_category: biomarker
     grain: sub_skill
     axis: biology
     band: necessity
@@ -163,6 +179,7 @@ biomarker_facets:
 
   # --- card grain: card-level facets → render IN a gate section, NOT their own row ----------
   - short: mutation_stratified          # mutation-stratified-dependency card
+    risk_category: biomarker
     grain: card
     card_id: mutation-stratified-dependency   # machine-readable card binding (was comment-only)
     role: stratification                # feature partitions outcome → WHO responds
@@ -173,6 +190,7 @@ biomarker_facets:
     note: "carries verdict biomarker_stratified_dependency; already rescues the C veto (kept)."
 
   - short: expression_correlation       # expression-dependency-correlation card
+    risk_category: biomarker
     grain: card
     card_id: expression-dependency-correlation
     role: stratification
@@ -182,6 +200,7 @@ biomarker_facets:
     evidences: "own mRNA expression predicts own dependency (expression-as-biomarker)."
 
   - short: crispr_rnai_concordance      # crispr-rnai-dependency-concordance card
+    risk_category: biomarker
     grain: card
     card_id: crispr-rnai-dependency-concordance
     role: corroboration                 # two measures of the SAME thing agree → confidence
@@ -191,6 +210,7 @@ biomarker_facets:
     evidences: "CRISPR and RNAi LOF assays agree the target is required."
 
   - short: chemical_genetic_concordance # prism-crispr-concordance card
+    risk_category: biomarker
     grain: card
     card_id: prism-crispr-concordance
     role: corroboration
@@ -201,6 +221,7 @@ biomarker_facets:
     note: "the one card that legitimately feeds two gates; the anti-double-count guard in the verdict gate stays."
 
   - short: dependency_predictability    # dependency-predictability card
+    risk_category: biomarker
     grain: card
     card_id: dependency-predictability
     role: corroboration
@@ -215,6 +236,7 @@ biomarker_facets:
 # ============================================================================
 modality_fit:
   - short: tractability_sm
+    risk_category: druggability
     axis: modality_fit
     gate_name: Small-molecule druggability
     modality_relevance: [small_molecule, degrader]
@@ -226,6 +248,7 @@ modality_fit:
       wired; ternary/degrader feasibility + medchem tractability are not.
 
   - short: surface_modality
+    risk_category: druggability
     axis: modality_fit
     gate_name: Surface-biologics fit
     modality_relevance: [adc, bite_tce, antibody]
@@ -237,6 +260,7 @@ modality_fit:
       co-expression are data-blocked (3/5 surface cards not on S3). Family/topology only.
 
   - short: safety
+    risk_category: safety
     axis: modality_fit
     gate_name: Safety
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]   # tiered severity per lens
@@ -249,6 +273,7 @@ modality_fit:
       normal-tissue breadth trips a harder caution for BiTE/TCE than ADC.
 
   - short: differentiation
+    risk_category: commercial
     axis: modality_fit
     gate_name: Differentiation
     band: sufficiency
@@ -262,6 +287,7 @@ modality_fit:
 # The router treats an absent gate as band: sufficiency, framework_can_evidence: blind.
 unbuilt:
   - short: translational
+    risk_category: translational
     axis: modality_fit
     gate_name: Translational
     band: sufficiency

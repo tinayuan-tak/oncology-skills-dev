@@ -26,6 +26,10 @@ AXES = {"biology", "modality_fit"}
 ROLES = {"stratification", "corroboration"}
 GRAINS = {"sub_skill", "card"}
 MODALITIES = {"small_molecule", "degrader", "adc", "bite_tce", "antibody"}
+# Drug-discovery risk categories (5R-anchored) — the dashboard's presentation spine. Every gate
+# declares which category it rolls up into. See docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md.
+RISK_CATEGORIES = {"biological", "biomarker", "druggability", "safety",
+                   "translational", "clinical", "commercial"}
 
 # The sub-verdict slots the target-profile composer emits (SUB_SKILLS shorts + subtype_fit). Every
 # one must resolve to a ROW entry (biology gate, modality-fit gate, or sub_skill-grain facet).
@@ -101,6 +105,26 @@ def test_facets_carry_grain_role_and_reports_into():
         assert f.get("role") in ROLES, f"{f['short']}: bad role {f.get('role')!r}"
         assert f.get("reports_into"), f"{f['short']}: a facet must declare reports_into"
         assert f["short"] not in f.get("reports_into", []), f"{f['short']}: self reports_into"
+
+
+def test_every_gate_declares_a_valid_risk_category():
+    """Each gate (incl. facets) rolls up into a 5R-anchored risk category (the dashboard's
+    presentation spine). Data-driven surfacing keys off this: a category shows iff a member
+    sub-skill fired. Every entry must therefore carry a valid risk_category."""
+    for g in COV["biology_gates"] + COV["modality_fit"] + COV["biomarker_facets"]:
+        assert g.get("risk_category") in RISK_CATEGORIES, \
+            f"{g['short']}: bad/missing risk_category {g.get('risk_category')!r}"
+
+
+def test_risk_category_axis_alignment():
+    """Sanity: biology gates → biological; biomarker_facets → biomarker; modality_fit splits across
+    druggability/safety/commercial (not biological/biomarker)."""
+    for g in COV["biology_gates"]:
+        assert g["risk_category"] == "biological", g["short"]
+    for g in COV["biomarker_facets"]:
+        assert g["risk_category"] == "biomarker", g["short"]
+    for g in COV["modality_fit"]:
+        assert g["risk_category"] in {"druggability", "safety", "commercial", "translational"}, g["short"]
 
 
 def test_card_grain_facets_declare_a_card_id():
