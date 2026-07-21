@@ -259,3 +259,35 @@ def test_absent_gate_is_skipped():
     assert "id=s-gate-b" not in h and "id=s-gate-d" not in h
     assert "id=s-gate-surface-biologics-fit" not in h
     assert "id=s-gate-a" in h   # present one still renders
+
+
+# --- remaining modality-fit gates: Small-molecule tractability + Safety ------
+
+def _sr_modality_fit():
+    sr = _sr()
+    sr["tractability_sm"] = {"skill_dir": "tractability-small-molecule", "cards": [
+        {"card_id": "prism-compound-activity", "summary": {"prism_activity_class": "active", "n_compounds_targeting": 7}},
+        {"card_id": "prism-crispr-concordance", "summary": {"crispr_prism_concordance_class": "triangulated"}},
+        {"card_id": "dependency-predictability", "summary": {"predictability_class": "own_omics_driven"}}],
+        "verdict": ("chemically_confirmed_genetic", "r"), "fired": []}
+    sr["safety"] = {"skill_dir": "on-target-safety-liability", "cards": [
+        {"card_id": "gnomad-lof-constraint", "summary": {"constraint_class": "highly_constrained", "pli_score": 0.99}}],
+        "verdict": ("highly_constrained_safety_concern", "r"), "fired": []}
+    return sr
+
+
+def test_small_molecule_gate_primary_leads_corroboration_facets():
+    h = _render(_sr_modality_fit())
+    sm = re.search(r"<section id=s-gate-small-molecule-druggability\b.*?</section>", h, re.S).group(0)
+    order = re.findall(r"<button class='tab[^>]*>([^<]+)", sm)
+    assert order[0] == "Compound activity"                 # primary tractability evidence first
+    assert "Chemical-genetic" in order and "Predictability" in order   # corroboration facets present
+    assert "confidence</span>" in sm                        # facets carry the confidence badge
+    assert "small-molecule / degrader" in sm                # modality banner
+
+
+def test_safety_gate_renders_with_tiered_banner():
+    h = _render(_sr_modality_fit())
+    sf = re.search(r"<section id=s-gate-safety\b.*?</section>", h, re.S).group(0)
+    assert "Constraint" in sf and "pLI" in sf
+    assert "tiered severity" in sf and "Modality-fit assessment" in sf

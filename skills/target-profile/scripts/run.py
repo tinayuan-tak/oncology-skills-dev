@@ -1788,6 +1788,10 @@ _CARD_TITLE = {
     "surfaceome-family-classification": ("Surfaceome family", "SURFY/HPA surface-residency class"),
     "structure-features-static":    ("Structure", "PDB/AlphaFold pocket + disorder features"),
     "surface-abundance-density":    ("Surface density", "copies-per-cell estimate (TCE viability)"),
+    # Small-molecule tractability (modality-fit)
+    "prism-compound-activity":      ("Compound activity", "PRISM per-compound kill across cell lines"),
+    # Safety (modality-fit)
+    "gnomad-lof-constraint":        ("Germline constraint", "gnomAD LoF-intolerance (pLI / LOEUF)"),
 }
 
 # v2 role of a card WITHIN its gate (gate-model v2, docs/design/GATE_MODEL_V2_MEMO.md). Cards not
@@ -1857,6 +1861,11 @@ _CARD_KEYFACTS = {
     # Mechanism (D)
     "signaling-network-mechanism": [("Network", "network_class"), ("Upstream", "n_upstream_regulators"),
                                     ("Downstream", "n_downstream_effectors")],
+    # Small-molecule tractability (modality-fit)
+    "prism-compound-activity": [("Activity", "prism_activity_class"), ("Compounds", "n_compounds_targeting"),
+                                ("Top clinical phase", "highest_clinical_phase")],
+    # Safety (modality-fit)
+    "gnomad-lof-constraint": [("Constraint", "constraint_class"), ("pLI", "pli_score"), ("LOEUF", "loeuf_score")],
 }
 
 
@@ -2211,8 +2220,12 @@ def _render_target_profile_html(
             nav.append("<a href='#s-gate-c'>Required (Gate C)</a>")
         if "mechanism" in sub_results:
             nav.append("<a href='#s-gate-d'>Mechanism (Gate D)</a>")
+        if "tractability_sm" in sub_results:
+            nav.append("<a href='#s-gate-small-molecule-druggability'>Small-molecule druggability</a>")
         if "surface_modality" in sub_results:
             nav.append("<a href='#s-gate-surface-biologics-fit'>Surface-biologics fit</a>")
+        if "safety" in sub_results:
+            nav.append("<a href='#s-gate-safety'>Safety</a>")
         nav.append("<a href='#s-risk'>Risk by category</a>")
         nav.append("<a href='#s-tension'>Conflicting signals</a>")
         nav.append("<a href='#s-evidence'>Evidence by question</a>")
@@ -2267,9 +2280,15 @@ def _render_target_profile_html(
         ("B", "Selective", ["selectivity"], None),
         ("C", "Required", ["dependency", "synthetic_lethal_partners", "genomic_alteration"], None),
         ("D", "Mechanism", ["mechanism"], None),
+        ("", "Small-molecule druggability", ["tractability_sm"],
+         "Modality-fit assessment — relevant for small-molecule / degrader programs. Includes the "
+         "chemical-genetic corroboration facets (they also feed Required)."),
         ("", "Surface-biologics fit", ["surface_modality"],
          "Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
          "(not applicable to a small-molecule or degrader strategy)."),
+        ("", "Safety", ["safety"],
+         "Modality-fit assessment — applies to all modalities, with tiered severity "
+         "(a full-KO modality like degrader/RNA is more constrained by germline LoF-intolerance)."),
     ]
     for gate, gname, gshorts, mnote in _GATE_SECTIONS:
         present = [s for s in gshorts if s in sub_results]
