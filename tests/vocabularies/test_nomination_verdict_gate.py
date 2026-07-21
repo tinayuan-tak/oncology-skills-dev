@@ -90,20 +90,31 @@ def test_positive_set_disjoint_from_kills_and_contradictions():
 
 
 def test_positives_only_from_cross_target_axes():
-    """Curation discipline: positives come ONLY from the cross-target axes
-    (dependency, selectivity, tractability_sm, genomic_alteration) — surface/
-    expression/mechanism are modality-scoped/advisory and must NOT be
-    positive-eligible. genomic_alteration was added v1.2.0 (2026-07-17): a
-    biomarker-stratified dependency is a genuine cross-target requirement signal
-    (the rescue for pooled-CRISPR-diluted mutant-restricted targets)."""
+    """Curation discipline: positives come ONLY from cross-target / target-INTRINSIC axes
+    (dependency, selectivity, tractability_sm, genomic_alteration, + expression's target-intrinsic
+    tumor-vs-adjacent verdict). MODALITY-scoped/advisory signals (surface, mechanism, and expression's
+    modality-adjacent broadly_high_expression) must NOT be positive-eligible.
+
+    genomic_alteration added v1.2.0 (biomarker-stratified dependency = a genuine cross-target
+    requirement). expression added v1.3.0 (2026-07-21) for the TARGET-INTRINSIC
+    strongly_upregulated_in_tumor ONLY — the target's own tumor-vs-normal biology, distinct from the
+    modality-scoped broadly_high_expression which stays excluded (the KRAS-guard symmetry)."""
     v = _load()
-    allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration"}
+    allowed = {"dependency", "selectivity", "tractability_sm", "genomic_alteration", "expression"}
     used = {p["sub_skill"] for p in v["positive_signals"]}
-    assert used <= allowed, f"positive from non-cross-target axis: {used - allowed}"
+    assert used <= allowed, f"positive from disallowed axis: {used - allowed}"
+    # expression is positive-eligible ONLY for the target-intrinsic verdict, never the modality-scoped one.
+    expr_pos = {p["verdict"] for p in v["positive_signals"] if p["sub_skill"] == "expression"}
+    assert expr_pos <= {"strongly_upregulated_in_tumor"}, \
+        f"only the target-intrinsic expression verdict may be a positive; got {expr_pos}"
     excl = {(e["sub_skill"], e["verdict"]) for e in v["excluded_positive_modality_scoped"]}
     # the modality-scoped/advisory positives are explicitly documented as excluded
     assert ("surface_modality", "adc_favorable") in excl
     assert ("mechanism", "well_characterized") in excl
+    assert ("expression", "broadly_high_expression") in excl   # modality-scoped expression stays OUT
+    # and the excluded modality-scoped verdict must NOT also appear as a positive (no contradiction)
+    pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
+    assert ("expression", "broadly_high_expression") not in pos
 
 
 # ---------------------------------------------------------------------------

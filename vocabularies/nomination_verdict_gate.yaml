@@ -26,9 +26,12 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.2.0   # 1.2.0 (2026-07-17): + modality-conditional veto suppression + genomic_alteration
-                 #   biomarker-stratified rescue (backtest-driven: gate C false-negatived 10/16 approved
-                 #   targets). 1.1.0: + positive tier (confidence-floor, F1-safe). `gates` unchanged in both.
+version: 1.3.0   # 1.3.0 (2026-07-21): + target-intrinsic expression positive
+                 #   (expression:strongly_upregulated_in_tumor, SUPPORTIVE; broadly_high_expression stays
+                 #   excluded — modality-scoped). `gates` (kills) unchanged. 1.2.0 (2026-07-17): +
+                 #   modality-conditional veto suppression + genomic_alteration biomarker-stratified rescue
+                 #   (backtest-driven: gate C false-negatived 10/16 approved targets). 1.1.0: + positive
+                 #   tier (confidence-floor, F1-safe). `gates` unchanged in all.
 description: |
   Deterministic (sub_skill, verdict) → forced overall_recommendation policy for
   the target-profile nomination gate. Precedence when multiple fire: veto > hold.
@@ -205,6 +208,14 @@ positive_signals:
   - {sub_skill: dependency,      verdict: chemical_genetic_confirmed_dependent, weight: supportive}
   - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
   - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
+  # 2026-07-21: target-INTRINSIC expression positive. strongly_upregulated_in_tumor comes from the
+  # tumor-vs-adjacent card (the target's own biology in the disease: up in tumor vs matched normal),
+  # NOT from a modality-favorable expression level. SUPPORTIVE (a confidence floor, mirrors
+  # selectivity:modest_tumor_selective), never an action. DISTINCT from broadly_high_expression,
+  # which stays in excluded_positive_modality_scoped below — that one is modality-adjacent (high
+  # panel expression favors biologics, not target strength; the KRAS-guard symmetry). Promoting the
+  # intrinsic verdict without touching the excluded one threads that distinction.
+  - {sub_skill: expression,      verdict: strongly_upregulated_in_tumor, weight: supportive}
   - {sub_skill: tractability_sm, verdict: well_covered,                  weight: dominant}
   - {sub_skill: tractability_sm, verdict: chemically_confirmed_genetic,  weight: dominant}
   # 2026-07-17: biomarker-stratified dependency is a CROSS-TARGET positive — a
