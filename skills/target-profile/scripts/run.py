@@ -98,6 +98,10 @@ SUB_SKILL_CARDS = {
         "expression-distribution",
         "expression-tumor-vs-adjacent",
         "protein-presence-cptac",
+        "protein-abundance-celline",     # Gygi cell-line MS — cell_line_protein_abundance axis.
+                                         # Added to tumor-presence/run.py CARDS in PR #80 but never
+                                         # to this composer map → dropped from the composed profile.
+                                         # Restored so the dual RNA+protein presence reaches the LLM.
     ],
     "tumor-selectivity": ["tumor-vs-normal-selectivity"],
     "functional-requirement": [

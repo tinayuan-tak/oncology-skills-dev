@@ -32,18 +32,22 @@ composition:
   cards_used:
     - expression-distribution
     - expression-tumor-vs-adjacent
-    - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence
+    - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
+    - protein-abundance-celline      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
-  # tumor_vs_adjacent_expression) and protein (tumor_protein_abundance) are DISTINCT types — the dual
-  # RNA+protein presence pattern is surfaced, not averaged.
+  # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
+  # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
+  # pattern is surfaced, not averaged.
   measurement_types_pulled:
     - cell_line_rna_expression
     - tumor_vs_adjacent_expression
     - tumor_protein_abundance
+    - cell_line_protein_abundance
   rules_scope:
     - expression-distribution
     - expression-tumor-vs-adjacent
     - protein-presence-cptac
+    - protein-abundance-celline
   synthesis:
     - rule_engine
   output_shape:
