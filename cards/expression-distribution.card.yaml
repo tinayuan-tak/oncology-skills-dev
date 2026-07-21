@@ -46,7 +46,7 @@ outputs:
     - expression_class                            # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
     - n_lineages_evaluated
     - per_lineage_stats                           # list of {lineage, n, median_log2tpm, fraction_expressed}
-    - n_lineage_restricted_lineages               # lineages with >50% expressed but panel <30%
+    - n_lineage_restricted_lineages               # lineages whose expressed-fraction is >=0.40 ABOVE the panel mean (relative rule; cli.py:227-230 — deliberately NOT a strict panel<30% gate)
 
   summary_fields_vocabulary:
     expression_class:

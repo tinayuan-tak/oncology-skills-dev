@@ -1,41 +1,50 @@
-# Card iter-2/E-tvN-Sel — TUMOR vs NORMAL SELECTIVITY  (v3 — four-cell sensitivity)
+# Card iter-2/E-tvN-Sel — TUMOR vs NORMAL SELECTIVITY  (v3 — multi-cell sensitivity)
 #
 # Composes from ONE consolidated derived product:
-#   `{indication}-dge-tumor-vs-normal-sensitivity-v1` — the four-cell DESeq2
+#   `{indication}-dge-tumor-vs-normal-sensitivity-v1` — the multi-cell DESeq2
 #   sensitivity DEG produced by methods.dge_deseq2 --contrast four_cell_sensitivity.
 #
 # v3 (2026-07-06) REPLACES the v2 two-independent-products design with a single
-# methodologically-consistent product. All four cells run under ONE pipeline
+# methodologically-consistent product. All cells run under ONE pipeline
 # (DESeq2 NB-GLM + apeglm shrinkage), ONE substrate (recount3 tcga-gtex-2023-01-04,
 # uniform monorail alignment), so log2FC values ARE comparable across cells — the
 # scale-inconsistency that v2's Welch-vs-DESeq2 split introduced is gone.
 #
-# The four cells (see analysis-methods DESIGN_v2_four_cell_consolidation.md):
+# The THREE live cells (see analysis-methods DESIGN_v2_four_cell_consolidation.md +
+# steps/06_four_cell_driver.R):
 #   A  tumor vs TCGA adjacent-normal  | raw            | field-effect-inflated
 #   B  tumor vs TCGA adjacent-normal  | ComBat(TSS)    | technical-batch removed
 #   C  tumor vs GTEx population-normal | raw (naive)   | source-contaminated baseline
-#   D  tumor vs GTEx population-normal | ComBat(source)| source-scrubbed (over-corrects)
 #
-# WHY four cells: neither comparator is clean. TCGA-adjacent carries field-effect
+# Cell D (tumor vs GTEx, ComBat(source)) was RETIRED after the full-cohort/COADREAD
+# validation showed it collapses the biology: because source (TCGA/GTEx) is perfectly
+# confounded with group (tumor/normal) in the joint contrast, ComBat-seq regressed out
+# the tumor-vs-normal signal along with the source effect — the intended "pessimistic
+# anchor" read as noise, not signal. The pipeline assembles only cells A/B/C
+# (06_four_cell_driver.R:227-244); the trust anchor is therefore 3/3, not 4/4.
+#
+# WHY multiple cells: neither comparator is clean. TCGA-adjacent carries field-effect
 # (Sorokin & Buzdin 2023); the TCGA-vs-GTEx joint is batch-confounded with biology
-# (Hui & Goh 2024). A gene's TRUST is how many cells agree — `cells_supporting`
-# (0-4). A gene significant in all four (`sig_all_cells`) is robust to every
-# comparator + batch-handling choice. A gene where cells DISAGREE in direction
-# (`discordant`) is comparator-dependent — the interesting failure mode where
-# "which normal?" changes the answer (e.g. epithelial markers up vs whole-tissue
-# GTEx but flat vs epithelial-rich adjacent margin).
+# (Hui & Goh 2024). A gene's TRUST is how many cells agree — `cells_supporting` out of
+# the cells that RAN (`cells_ran`, ≤3). A gene significant in all cells that ran
+# (`sig_all_cells`) is robust to every comparator + batch-handling choice. A gene where
+# cells DISAGREE in direction (`discordant`) is comparator-dependent — the interesting
+# failure mode where "which normal?" changes the answer (e.g. epithelial markers up vs
+# whole-tissue GTEx but flat vs epithelial-rich adjacent margin).
 #
-# Interpretation surface (cells_supporting is the PRIMARY trust anchor):
-#   `strong_tumor_selective`  → cells_supporting == 4, dominant up, max|log2FC| >= 1.5
-#   `modest_tumor_selective`  → cells_supporting >= 3, dominant up, max|log2FC| >= 0.5
+# Interpretation surface (supporting_frac = cells_supporting / cells_ran is the PRIMARY
+# trust anchor — a 3/3 is strong if the magnitude clears 1.5, same as a 4/4 would have
+# been; see read.py:592-611):
+#   `strong_tumor_selective`  → all cells that ran support, dominant up, max|log2FC| >= 1.5
+#   `modest_tumor_selective`  → supporting_frac >= 2/3, dominant up, max|log2FC| >= 0.5
 #   `discordant_across_comparators` → discordant == true (sig cells disagree in sign)
-#   `not_selective`           → cells_supporting >= 3, dominant DOWN
-#   `not_informative`         → cells_supporting <= 1 (no comparator-robust signal)
+#   `not_selective`           → supporting_frac >= 2/3, dominant DOWN
+#   `not_informative`         → supporting_frac low (no comparator-robust signal)
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.1.0
-question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across four independent tumor-vs-normal comparators (TCGA-adjacent ± batch correction, GTEx-population ± source correction)?"
+version: 3.2.0
+question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 tier: indication   # indication-scoped tumor-vs-normal selectivity; subtype-eligible once a per-sample expression reader ships
 
@@ -64,7 +73,7 @@ outputs:
   summary_fields:
     - cells_ran                             # PER-GENE: how many cells actually tested this gene (accounts for per-cell pre-filter drops); denominator for cells_supporting
 
-    - cells_supporting                      # PRIMARY: cells sig<0.05 in the dominant direction (0-4)
+    - cells_supporting                      # PRIMARY: cells sig<0.05 in the dominant direction (0-cells_ran, ≤3)
     - dominant_direction                    # up | down | none
     - sig_all_cells                         # gold-standard: sig in ALL cells that ran, same direction
     - discordant                            # >=1 sig cell up AND >=1 sig cell down
@@ -75,8 +84,7 @@ outputs:
     - q_value_cell_b
     - log2fc_cell_c                         # tumor vs GTEx, raw (naive joint)
     - q_value_cell_c
-    - log2fc_cell_d                         # tumor vs GTEx, ComBat(source)
-    - q_value_cell_d
+    # cell D (tumor vs GTEx, ComBat(source)) RETIRED — see header + read.py:592. Not emitted.
     - n_tumor
     - n_adjacent
     - n_gtex_normal
@@ -88,17 +96,17 @@ outputs:
       - down
       - none
     selectivity_class:
-      - strong_tumor_selective              # cells_supporting==4, up, max|log2FC|>=1.5
-      - modest_tumor_selective              # cells_supporting>=3, up, max|log2FC|>=0.5
+      - strong_tumor_selective              # all cells that ran support, up, max|log2FC|>=1.5
+      - modest_tumor_selective              # supporting_frac>=2/3, up, max|log2FC|>=0.5
       - discordant_across_comparators       # sig cells disagree in direction
-      - not_selective                       # cells_supporting>=3, dominant DOWN
-      - not_informative                     # cells_supporting<=1
+      - not_selective                       # supporting_frac>=2/3, dominant DOWN
+      - not_informative                     # supporting_frac low
       - data_unavailable
 
   figures:
     - id: tumor_vs_normal_selectivity_4panel
       type: box_forest_sensitivity_panel
-      description: "Per-indication compound figure: (left) horizontal box + jittered strip of log2(CPM+1) per group across Primary Tumor, TCGA Adjacent Normal, and GTEx tissue-of-origin — individual sample dots overlaid, group medians annotated. (middle) forest of the FOUR cell log2FC estimates (A/B/C/D) with q-value stars, colored by up/down, reference lines at 0/0.5/1.5; cells that disagree in sign are visually flagged. (right) sensitivity callout: cells_supporting badge (n/4), dominant_direction, sig_all_cells check, discordant flag, class."
+      description: "Per-indication compound figure: (left) horizontal box + jittered strip of log2(CPM+1) per group across Primary Tumor, TCGA Adjacent Normal, and GTEx tissue-of-origin — individual sample dots overlaid, group medians annotated. (middle) forest of the three live cell log2FC estimates (A/B/C; cell D retired) with q-value stars, colored by up/down, reference lines at 0/0.5/1.5; cells that disagree in sign are visually flagged. (right) sensitivity callout: cells_supporting badge (n/cells_ran), dominant_direction, sig_all_cells check, discordant flag, class."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: tumor_vs_normal_pan_tissue_landscape
@@ -110,39 +118,38 @@ outputs:
 thresholds:
   strong_selectivity_log2fc: 1.5
   modest_selectivity_log2fc: 0.5
-  min_cells_supporting_strong: 4
-  min_cells_supporting_modest: 3
+  # cells_supporting is judged as a FRACTION of cells_ran (≤3), not against a fixed count —
+  # a 3/3 is strong, a 2/3 is modest. See read.py:606-611 (supporting_frac >= 1.0 / >= 2/3).
+  min_supporting_frac_strong: 1.0
+  min_supporting_frac_modest: 0.667
   min_expressed_log2cpm: 1.0     # log2(CPM+1) baseline for "detected in tumor"
 
 warning_predicates:
   - warning_id: tvn_field_effect_discordant
     if: "discordant == true"
-    message: "Comparator-dependent: significant cells disagree on direction. Typically tumor up vs GTEx-population but flat/down vs TCGA-adjacent-margin (field effect), or vice versa. 'Which normal?' changes the call — inspect the 4-cell forest before trusting either direction."
+    message: "Comparator-dependent: significant cells disagree on direction. Typically tumor up vs GTEx-population but flat/down vs TCGA-adjacent-margin (field effect), or vice versa. 'Which normal?' changes the call — inspect the 3-cell forest before trusting either direction."
   - warning_id: tvn_adjacent_only
     if: "cells_ran == 2 && n_gtex_normal == 0"
-    message: "Only TCGA-adjacent cells (A/B) ran — no GTEx tissue maps to this indication. cells_supporting is capped at 2; selectivity vs population-normal is UNTESTED. Treat a '2/2' as weaker evidence than a true 4/4."
+    message: "Only TCGA-adjacent cells (A/B) ran — no GTEx tissue maps to this indication. cells_supporting is capped at 2/2; selectivity vs population-normal is UNTESTED. Treat a '2/2' as weaker evidence than a full 3/3."
   - warning_id: tvn_gtex_only
-    if: "cells_ran == 2 && n_adjacent == 0"
-    message: "Only GTEx cells (C/D) ran — TCGA adjacent-normal below the DESeq2 sample floor for this indication. cells_supporting is capped at 2; the within-patient field-effect contrast is UNTESTED."
-  - warning_id: tvn_gtex_correction_fragile
-    if: "sign(log2fc_cell_c) != sign(log2fc_cell_d) && q_value_cell_c < 0.05"
-    message: "Cell C (naive joint) and cell D (source-scrubbed) disagree in direction. The tumor-vs-GTEx signal is sensitive to how the TCGA-vs-GTEx batch confound is handled — the naive estimate is likely inflated by the source effect. Weight the TCGA-adjacent cells (A/B) more heavily here."
+    if: "cells_ran == 1 && n_adjacent == 0"
+    message: "Only the GTEx cell (C) ran — TCGA adjacent-normal below the DESeq2 sample floor for this indication. cells_supporting is capped at 1/1; the within-patient field-effect contrast is UNTESTED and there is no cross-comparator robustness."
 
 caveats:
   - |
-    cells_supporting (0-4) is the trust anchor, NOT any single log2FC. Four
-    cells bracket the two irreducible uncertainties: WHICH normal (TCGA-adjacent
-    vs GTEx-population) and HOW to handle batch (raw vs ComBat). A gene at 4/4
-    is differential no matter how you frame the comparison; a gene at 1/4 is an
-    artifact of one specific framing. Do not cite a log2FC without its
-    cells_supporting.
+    cells_supporting AS A FRACTION of cells_ran (≤3) is the trust anchor, NOT any
+    single log2FC. The cells bracket two irreducible uncertainties: WHICH normal
+    (TCGA-adjacent vs GTEx-population) and HOW to handle batch (raw vs ComBat). A
+    gene at 3/3 is differential no matter how you frame the comparison; a gene at
+    1/3 is an artifact of one specific framing. Do not cite a log2FC without its
+    cells_supporting / cells_ran.
   - |
-    Cell D intentionally OVER-corrects. Because source (TCGA/GTEx) is perfectly
-    confounded with group (tumor/normal) in the joint contrast, ComBat-seq
-    cannot preserve biology while removing source — cell D runs without group
-    protection, so it removes some genuine tumor signal along with the source
-    effect. It is the pessimistic floor, not an unbiased estimate. A gene that
-    survives cell D has survived the harshest correction.
+    Cell D (tumor vs GTEx, ComBat(source)) was RETIRED, not run. Source (TCGA/GTEx)
+    is perfectly confounded with group (tumor/normal) in the joint contrast, so
+    ComBat-seq regressed out the genuine tumor signal along with the source effect —
+    the intended "pessimistic floor" read as noise, not signal (confirmed on the
+    full COADREAD cohort). The pipeline now assembles only cells A/B/C
+    (06_four_cell_driver.R:227-244); the GTEx comparator survives as the naive cell C.
   - |
     TCGA paired-adjacent-normal (cells A/B) is a surgical selection artifact —
     uninvolved margin chosen at the surgeon's discretion, often bearing
@@ -159,7 +166,7 @@ caveats:
     surface level. Pair with protein-surface-evidence card (HPA/CPTAC-based)
     when available.
   - |
-    All four cells share ONE alignment substrate (recount3 monorail). This is
+    All three cells share ONE alignment substrate (recount3 monorail). This is
     deliberate: mixing aligners (e.g. GDC-STAR for adjacent, recount3 for GTEx)
     would confound comparator with aligner and defeat the sensitivity logic. As
     a consequence, cell A does NOT byte-match the prior-generation GDC-STAR

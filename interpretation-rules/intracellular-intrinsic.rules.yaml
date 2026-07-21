@@ -1275,17 +1275,18 @@ rules:
   # ============================================================================
   # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================
-  # FOUR-CELL sensitivity selectivity. All four cells (TCGA-adjacent ±ComBat,
-  # GTEx-population ±ComBat) run under ONE DESeq2 pipeline on ONE recount3
-  # substrate, so trust = cells_supporting (0-4), not a single log2FC. Signal
-  # interpretation:
-  # * strong_tumor_selective          → supportive (up in ALL 4 cells, |log2FC|≥1.5)
-  # * modest_tumor_selective          → supportive, lower confidence (≥3 cells up)
+  # MULTI-CELL sensitivity selectivity. The three live cells (TCGA-adjacent raw +
+  # ComBat, GTEx-population raw; cell D retired — ComBat over-corrected the GTEx
+  # joint) run under ONE DESeq2 pipeline on ONE recount3 substrate, so trust =
+  # cells_supporting AS A FRACTION of cells_ran (≤3), not a single log2FC. Signal
+  # interpretation (rules fire on selectivity_class, the categorical — not a count):
+  # * strong_tumor_selective          → supportive (up in ALL cells that ran, |log2FC|≥1.5)
+  # * modest_tumor_selective          → supportive, lower confidence (supporting_frac ≥ 2/3 up)
   # * discordant_across_comparators   → NEUTRAL but flagged — comparator-dependent
   #     (sig cells disagree on direction; "which normal?" changes the answer)
-  # * not_selective                   → NEUTRAL (down in ≥3 cells; expression
+  # * not_selective                   → NEUTRAL (down in supporting_frac ≥ 2/3; expression
   #     selectivity is orthogonal to a dependency-driven target's viability)
-  # * not_informative                 → neutral (≤1 comparator-robust cell)
+  # * not_informative                 → neutral (no comparator-robust signal)
   # * data_unavailable                → insufficient
 
   - rule_id: tvn-strong-selective-supportive
@@ -1297,8 +1298,8 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Target upregulated in tumor in ALL FOUR sensitivity cells (cells_supporting
-      == 4, dominant up, max |log2FC| ≥ 1.5). Robust to both comparator choice
+      Target upregulated in tumor in ALL sensitivity cells that ran (cells_supporting
+      == cells_ran, dominant up, max |log2FC| ≥ 1.5). Robust to both comparator choice
       (TCGA-adjacent vs GTEx-population) AND batch handling (raw vs ComBat) — the
       strongest RNA-level therapeutic-window signal the card can emit. Supportive
       for small-molecule (context-of-action) and degrader (target must be
@@ -1314,10 +1315,10 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Tumor upregulation in ≥3 of 4 cells (dominant up, max |log2FC| ≥ 0.5).
-      Supportive but lower confidence than strong_tumor_selective — one cell
-      dissents, typically the ComBat-scrubbed GTEx arm (cell D) which
-      over-corrects. Interpret alongside the 4-cell forest in the figure.
+      Tumor upregulation in most cells that ran (supporting_frac ≥ 2/3, dominant up,
+      max |log2FC| ≥ 0.5). Supportive but lower confidence than strong_tumor_selective
+      — one comparator dissents, typically the naive GTEx arm (cell C) where the
+      TCGA-vs-GTEx batch confound bites. Interpret alongside the 3-cell forest in the figure.
 
   - rule_id: tvn-discordant-neutral-flagged
     when:
@@ -1374,7 +1375,7 @@ rules:
       small_molecule: insufficient
       degrader: insufficient
     rationale: |
-      The four-cell sensitivity product is not accessible for this indication
+      The multi-cell sensitivity product is not accessible for this indication
       (batch expansion pending, or gene absent). Coverage gap; not used as
       opposing evidence.
 

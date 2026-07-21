@@ -50,7 +50,7 @@ outputs:
     - protein_bh_q_value                           # float
     - n_tumor_samples
     - n_normal_samples
-    - stat_test_used                               # 'welch_t' | 'wilcoxon' | 'skipped_low_n'
+    - stat_test_used                               # 'msstatstmt_limma_ebayes_moderated' | 'skipped_low_n'
     - method_version
 
   summary_fields_vocabulary:
@@ -58,12 +58,15 @@ outputs:
       - strong_up                                  # q<0.05, effect>=1.5
       - modest_up                                  # q<0.05, 0.5<=effect<1.5
       - ns                                         # q>=0.05
-      - strong_down                                # q<0.05, effect<=-0.5
+      - modest_down                                # q<0.05, -1.5<effect<=-0.5
+      - strong_down                                # q<0.05, effect<=-1.5
       - not_detected                               # missing from tumor + normal MS
       - data_unavailable
     stat_test_used:
-      - welch_t
-      - wilcoxon
+      # MSstatsTMT::groupComparisonTMT tumor-vs-normal — plex batch as a random effect +
+      # limma-eBayes moderated t (steps/02_msstats_deg.R + 03_pool_and_write.py:32). NOT the
+      # welch_t/wilcoxon the v2 draft assumed.
+      - msstatstmt_limma_ebayes_moderated
       - skipped_low_n
 
   figure: protein_boxplot_tumor_vs_normal
