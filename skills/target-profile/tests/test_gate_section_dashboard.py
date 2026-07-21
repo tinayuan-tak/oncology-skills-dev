@@ -218,3 +218,44 @@ def test_surface_gate_carries_modality_relevance_banner():
     h = _render(_sr_surface())
     seg = h.split("id=s-gate-surface-biologics-fit")[1].split("</section>")[0]
     assert "Modality-fit assessment" in seg and "ADC" in seg
+
+
+# --- multi-gate sequence (B Selective + D Mechanism, clean biology gates) ----
+
+def _sr_all_gates():
+    sr = _sr_required()
+    sr["selectivity"] = {"skill_dir": "tumor-selectivity", "cards": [
+        {"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": "strong_tumor_selective",
+                                                               "cells_supporting": 3, "dominant_direction": "up"}}],
+        "verdict": ("strong_tumor_selective", "strong-selective-supportive"), "fired": []}
+    sr["mechanism"] = {"skill_dir": "mechanism-and-pharmacology", "cards": [
+        {"card_id": "signaling-network-mechanism", "summary": {"network_class": "well_characterized",
+                                                              "n_upstream_regulators": 12}}],
+        "verdict": ("well_characterized", "network-well-characterized"), "fired": []}
+    return sr
+
+
+def test_biology_gates_render_in_A_B_C_D_order():
+    h = _render(_sr_all_gates())
+    positions = {g: h.find(f"id=s-gate-{g}") for g in ("a", "b", "c", "d")}
+    assert all(v >= 0 for v in positions.values()), positions
+    assert positions["a"] < positions["b"] < positions["c"] < positions["d"]
+
+
+def test_selective_and_mechanism_key_facts():
+    h = _render(_sr_all_gates())
+    # split on the SECTION tag (not the nav href='#s-gate-b' which also contains the id)
+    b = re.search(r"<section id=s-gate-b\b.*?</section>", h, re.S).group(0)
+    assert "Selectivity" in b and "Cells supporting" in b
+    d = re.search(r"<section id=s-gate-d\b.*?</section>", h, re.S).group(0)
+    assert "Network" in d and "Upstream" in d
+
+
+def test_absent_gate_is_skipped():
+    """A gate whose sub-skills are all absent this run renders no section (not an empty one)."""
+    sr = _sr()   # has expression + dependency (bare) but no selectivity/mechanism/surface
+    del sr["dependency"]
+    h = _render(sr)
+    assert "id=s-gate-b" not in h and "id=s-gate-d" not in h
+    assert "id=s-gate-surface-biologics-fit" not in h
+    assert "id=s-gate-a" in h   # present one still renders

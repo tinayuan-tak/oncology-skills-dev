@@ -1760,6 +1760,10 @@ _SIG_CLASS = {"supportive": "sig-pos", "opposing": "sig-neg", "killer": "sig-kil
 # Human title + one-line "what it shows" per presence-gate card. Keeps the subtab label short and
 # the panel self-explaining. Extend as more gates migrate to the card-subtab style.
 _CARD_TITLE = {
+    # Selective (B)
+    "tumor-vs-normal-selectivity":  ("Tumor-vs-normal", "3-cell sensitivity DEG (adjacent + GTEx comparators)"),
+    # Mechanism (D)
+    "signaling-network-mechanism":  ("Signaling network", "SIGNOR/CollecTri/Reactome MoA context"),
     # Presence (A)
     "expression-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
     "expression-tumor-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
@@ -1847,6 +1851,12 @@ _CARD_KEYFACTS = {
     "structure-features-static": [("Druggable pocket", "has_druggable_pocket"), ("Disorder", "disorder_fraction")],
     "surface-abundance-density": [("Copies/cell", "estimated_copies_per_cell"),
                                   ("TCE-viable", "above_tce_threshold")],
+    # Selective (B)
+    "tumor-vs-normal-selectivity": [("Selectivity", "selectivity_class"),
+                                    ("Cells supporting", "cells_supporting"), ("Direction", "dominant_direction")],
+    # Mechanism (D)
+    "signaling-network-mechanism": [("Network", "network_class"), ("Upstream", "n_upstream_regulators"),
+                                    ("Downstream", "n_downstream_effectors")],
 }
 
 
@@ -2195,8 +2205,12 @@ def _render_target_profile_html(
             nav.append("<a href='#s-deciding'>Deciding axis</a>")
         if "expression" in sub_results:
             nav.append("<a href='#s-gate-a'>Presence (Gate A)</a>")
+        if "selectivity" in sub_results:
+            nav.append("<a href='#s-gate-b'>Selective (Gate B)</a>")
         if "dependency" in sub_results:
             nav.append("<a href='#s-gate-c'>Required (Gate C)</a>")
+        if "mechanism" in sub_results:
+            nav.append("<a href='#s-gate-d'>Mechanism (Gate D)</a>")
         if "surface_modality" in sub_results:
             nav.append("<a href='#s-gate-surface-biologics-fit'>Surface-biologics fit</a>")
         nav.append("<a href='#s-risk'>Risk by category</a>")
@@ -2239,48 +2253,36 @@ def _render_target_profile_html(
     p.append("<div class=llm id=s-exec><span class=tag>AI-generated</span>"
              f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
 
-    # --- Presence gate (A / expression) — subtabbed section (iterative dashboard, 2026-07-21) ----
-    # SCOPED ROLLOUT: only Gate A is rendered in the new gate-section+subtabs style so far. The
-    # remaining gates still appear in the flat "Evidence by question" section below; they migrate to
-    # this style one at a time. _render_gate_section_html is gate-agnostic — this is a wiring choice.
+    # --- Gate sections (gate-model v2). Declarative sequence: each entry is a gate rendered as a
+    # card-subtab section. BIOLOGY gates (A Present / B Selective / C Required / D Mechanism) carry a
+    # letter; MODALITY-FIT gates (Surface-biologics, ...) are named (gate="") + carry a modality_note.
+    # A gate whose sub-skills are all absent this run is skipped. Required (C) UNIFIES 3 sub-skills
+    # (dependency + SL + genomic_alteration) — the audit's "one gate, many sub-skills" case; its
+    # cards' _CARD_V2_ROLE drives ordering + facet badges. presence_only renders ONLY the first
+    # (Present) entry — see the early-return below. _render_gate_section_html is gate-agnostic.
     scorecard_by_short = {r["short"]: r for r in (scorecard or [])}
     n_gate_plotly = 0
-    if "expression" in sub_results:
-        gate_html, n_gate_plotly = _render_gate_section_html(
-            "A", "Present", ["expression"], sub_results, scorecard_by_short,
-            card_figures, figures_dir, indication=indication)
+    _GATE_SECTIONS = [
+        ("A", "Present", ["expression"], None),
+        ("B", "Selective", ["selectivity"], None),
+        ("C", "Required", ["dependency", "synthetic_lethal_partners", "genomic_alteration"], None),
+        ("D", "Mechanism", ["mechanism"], None),
+        ("", "Surface-biologics fit", ["surface_modality"],
+         "Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
+         "(not applicable to a small-molecule or degrader strategy)."),
+    ]
+    for gate, gname, gshorts, mnote in _GATE_SECTIONS:
+        present = [s for s in gshorts if s in sub_results]
+        if not present:
+            continue
+        # presence_only: render ONLY the Present gate, skip the rest.
+        if presence_only and gname != "Present":
+            continue
+        gate_html, n_g = _render_gate_section_html(
+            gate, gname, present, sub_results, scorecard_by_short,
+            card_figures, figures_dir, indication=indication, modality_note=mnote)
         p.extend(gate_html)
-
-    # --- Required gate (C) — subtabbed section (gate-model v2: exercises biomarker FACETS) --------
-    # C is the audit's "one gate, many sub-skills" case: its evidence is scattered across dependency
-    # (primary CRISPR/RNAi/concordance/lineage/paralog), synthetic_lethal_partners (stratification
-    # facet), and genomic_alteration (mutation-stratified = stratification facet). The gate section
-    # UNIFIES them; each card's _CARD_V2_ROLE drives ordering (primary first, then facets) + its
-    # confidence/patient-selection badge. Cross-gate cards whose HOME is E but that report_into C
-    # (prism-crispr, predictability) stay under E for now — that's the reports_into edge, a later
-    # refinement, not a card move. Skipped in presence_only.
-    if not presence_only and "dependency" in sub_results:
-        req_shorts = [s for s in ("dependency", "synthetic_lethal_partners", "genomic_alteration")
-                      if s in sub_results]
-        req_html, n_req_plotly = _render_gate_section_html(
-            "C", "Required", req_shorts, sub_results, scorecard_by_short,
-            card_figures, figures_dir, indication=indication)
-        p.extend(req_html)
-        n_gate_plotly += n_req_plotly
-
-    # --- Surface-biologics fit — MODALITY-FIT gate (gate-model v2 axis 2, first non-lettered gate) --
-    # Not a biology-necessity letter: a per-lens sufficiency assessment. The composed adc-tce-modality-fit
-    # card is the VERDICT (role 'composed', sorts first); the topology/family/structure/density cards are
-    # its inputs. Carries a modality-relevance banner (its relevance is lens-conditional). Skipped in
-    # presence_only. gate="" → named, not lettered.
-    if not presence_only and "surface_modality" in sub_results:
-        surf_html, n_surf_plotly = _render_gate_section_html(
-            "", "Surface-biologics fit", ["surface_modality"], sub_results, scorecard_by_short,
-            card_figures, figures_dir, indication=indication,
-            modality_note="Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
-                          "(not applicable to a small-molecule or degrader strategy).")
-        p.extend(surf_html)
-        n_gate_plotly += n_surf_plotly
+        n_gate_plotly += n_g
 
     # FOCUSED VIEW (item 5): presence-only — close out after the Presence section, skipping the
     # scorecard/risk/tension/evidence/matrix. Everything below is the full-report body.
