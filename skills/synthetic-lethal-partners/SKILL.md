@@ -29,6 +29,10 @@ composition:
   data_mode: derived_read
   cards_used:
     - synthetic-lethal-partners
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled (annotation type; suppresses a
+  # veto to insufficient, never nominates).
+  measurement_types_pulled:
+    - synthetic_lethal_partner
   rules_scope:
     - sl-experimental-partner-context-conditional
     - sl-computational-partner-informational

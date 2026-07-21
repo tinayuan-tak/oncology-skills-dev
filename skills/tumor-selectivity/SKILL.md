@@ -28,6 +28,10 @@ composition:
   phase: [B]
   cards_used:
     - tumor-vs-normal-selectivity
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. tumor_vs_normal_selectivity is
+  # the efficacy-window framing (distinct from safety's normal_tissue_breadth — Rule 1 discriminator b).
+  measurement_types_pulled:
+    - tumor_vs_normal_selectivity
   rules_scope:
     - tumor-vs-normal-selectivity
   synthesis:

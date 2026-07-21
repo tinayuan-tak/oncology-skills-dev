@@ -35,6 +35,11 @@ composition:
     - co-mutation-and-mutual-exclusivity   # Wired 2026-07-08 (Layer 6f)
     - clinical-precedent                   # Placeholder (Cortellis licensing)
     - patent-landscape                     # Placeholder (PatBase licensing)
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
+  # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent is pulled.
+  measurement_types_pulled:
+    - mutation_cooccurrence
+    - clinical_precedent
   rules_scope:
     - co-mutation-and-mutual-exclusivity
   synthesis:

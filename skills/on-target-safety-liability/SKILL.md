@@ -33,6 +33,13 @@ composition:
     - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
     - normal-tissue-liability          # Placeholder (HPA dispatcher pending)
     - protein-surface-evidence         # Placeholder (HPA IHC dispatcher pending)
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. normal_tissue_protein_breadth is
+  # the safety-framed normal-tissue type (distinct from selectivity's tumor_vs_normal). surface_
+  # confirmation is pulled-but-data-blocked (its card needs the CSPA/HPA reader) — a visible-gap state.
+  measurement_types_pulled:
+    - gnomad_lof_constraint
+    - normal_tissue_protein_breadth
+    - surface_confirmation
   rules_scope:
     - gnomad-lof-constraint
   synthesis:

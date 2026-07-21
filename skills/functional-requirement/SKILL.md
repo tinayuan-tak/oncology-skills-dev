@@ -31,6 +31,13 @@ composition:
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
     - paralog-buffering                  # Layer 6d addition: dependency-hardening signal
+  # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type CLAIMS this gate PULLs (resolves against
+  # target-contracts/vocabularies/measurement_types.yaml; the 2 CRISPR cards fold into one type).
+  measurement_types_pulled:
+    - crispr_lof_dependency
+    - rnai_lof_dependency
+    - crispr_rnai_concordance
+    - paralog_buffering
   rules_scope:
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution

@@ -30,6 +30,9 @@ composition:
   phase: [D]
   cards_used:
     - signaling-network-mechanism
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled.
+  measurement_types_pulled:
+    - signaling_network_mechanism
   rules_scope:
     - all
   synthesis:

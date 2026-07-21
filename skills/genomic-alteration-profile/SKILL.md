@@ -37,6 +37,15 @@ composition:
     - mutation-hotspot-frequency
     - copy-number-distribution
     - fusion-rearrangement-landscape        # PLACEHOLDER — data not yet landed
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
+  # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);
+  # fusion_rearrangement is pulled-but-data-blocked (placeholder provider) — a visible-gap state.
+  measurement_types_pulled:
+    - mutation_variant_class_spectrum
+    - mutation_stratified_dependency
+    - mutation_hotspot_frequency
+    - copy_number_alteration
+    - fusion_rearrangement
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency

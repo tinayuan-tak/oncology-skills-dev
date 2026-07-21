@@ -33,6 +33,13 @@ composition:
     - expression-distribution
     - expression-tumor-vs-adjacent
     - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence
+  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
+  # tumor_vs_adjacent_expression) and protein (tumor_protein_abundance) are DISTINCT types — the dual
+  # RNA+protein presence pattern is surfaced, not averaged.
+  measurement_types_pulled:
+    - cell_line_rna_expression
+    - tumor_vs_adjacent_expression
+    - tumor_protein_abundance
   rules_scope:
     - expression-distribution
     - expression-tumor-vs-adjacent
