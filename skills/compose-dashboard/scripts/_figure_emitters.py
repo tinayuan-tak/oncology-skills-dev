@@ -706,6 +706,31 @@ def _emit_protein_abundance_celline(
     return figures
 
 
+def _emit_protein_presence_cptac(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the CPTAC per-cohort tumor-vs-normal protein panel (dumbbell) + plot_data + plotly.
+    The derived product is per-cohort SUMMARY (not per-sample), so the figure is the cross-cohort
+    tumor-vs-normal comparison, drawn via read_all_cohorts (indication-agnostic — the panel shows
+    ALL cohorts the target was tested in). On _live_read_error or no cohort hit → []."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.cptac_protein_deg import read as cptac
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if not cptac.read_all_cohorts(target):
+        return []                                   # target absent from every CPTAC cohort
+    cptac.emit_per_cohort_panel(target, out_dir, TARGET_CONTRACTS)
+    cptac.emit_plot_data(target, out_dir)
+    figures = [
+        {"id": "protein_per_cohort_tumor_vs_normal",
+         "path": "figure_protein_per_cohort_tumor_vs_normal.svg",
+         "type": "per_cohort_dumbbell_tumor_vs_normal", "primary": True},
+    ]
+    figures += _plotly_from(cptac, "emit_plotly_specs", target, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
@@ -724,8 +749,9 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     # SAFETY tier (viz-debt backfill 2026-07-20):
     "gnomad-lof-constraint": _emit_gnomad_lof_constraint,
     "normal-tissue-liability": _emit_normal_tissue_liability,
-    # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi):
+    # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi + CPTAC):
     "protein-abundance-celline": _emit_protein_abundance_celline,
+    "protein-presence-cptac": _emit_protein_presence_cptac,
 }
 
 
