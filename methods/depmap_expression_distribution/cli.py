@@ -408,6 +408,76 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
     return out_path
 
 
+def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
+                      summary: dict, out_dir: Path, target_contracts_dir: Path) -> list:
+    """Emit interactive Plotly figure specs SIBLING to the matplotlib SVGs (dynamic-dashboard
+    Phase A). Built from the SAME in-memory tpm_by_model the SVGs + plot_data_expression.parquet
+    use → the interactive chart cannot drift (one data source, three renderings). Writes:
+      - figure_density_expression.plotly.json   (histogram density + expressed/highly-expressed reflines)
+      - figure_waterfall_expression.plotly.json (ranked per-cell-line bars)
+    fig.to_json() (renderer embeds via Plotly.newPlot; NO kaleido). Best-effort — the SVGs are the
+    guaranteed artifact. Reflines mirror the SVGs: 1.0 (expressed) / 5.0 (highly expressed)."""
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+        sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+        from takeda_palette import get_lineage_color  # type: ignore  # noqa: F401
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
+        print(f"[expression-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    # log2(TPM+1) reflines mirror the SVGs (expressed ≥1.0 amber, highly ≥5.0 red).
+    reflines = [(1.0, "#f0a020", "dash", "expressed ≥1.0"),
+                (5.0, "#cf2828", "dash", "highly expressed ≥5.0")]
+    written = []
+
+    # --- Density histogram (mirrors emit_density_plot; navy bars + reflines) ---
+    try:
+        scores = np.array(list(tpm_by_model.values()), dtype=float)
+        fig = go.Figure(go.Histogram(
+            x=scores, histnorm="probability density", nbinsx=50,
+            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.55,
+            hovertemplate="log2(TPM+1) %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        for xv, col, dash, lab in reflines:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top")
+        fig.update_layout(
+            title=f"{target_symbol} — pan-cancer expression distribution (n={len(scores)})",
+            xaxis_title="log2(TPM+1)", yaxis_title="Density",
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_dir / "figure_density_expression.plotly.json").write_text(fig.to_json())
+        written.append({"id": "density_expression", "path": "figure_density_expression.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[expression-distribution] density plotly skipped: {e}", file=sys.stderr)
+
+    # --- Ranked waterfall (mirrors emit_waterfall_plot; sorted per-cell-line bars, lineage hover) ---
+    try:
+        rows = sorted(
+            ((mid, v, (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"))
+             for mid, v in tpm_by_model.items()), key=lambda r: r[1])
+        vals = [v for _, v, _ in rows]
+        names = [model_metadata.get(mid, {}).get("CCLEName", mid) for mid, _, _ in rows]
+        lineages = [lg for _, _, lg in rows]
+        fig = go.Figure(go.Bar(
+            x=list(range(len(rows))), y=vals, marker_color="#0a2540",
+            customdata=list(zip(names, lineages)),
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>log2(TPM+1) %{y:.2f}<extra></extra>"))
+        for yv, col, dash, lab in reflines:
+            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top left")
+        fig.update_layout(
+            title=f"{target_symbol} — pan-cancer expression (ranked waterfall)",
+            xaxis_title=f"Cell lines (n={len(rows)}, sorted by expression)",
+            yaxis_title="log2(TPM+1)", template="plotly_white", showlegend=False,
+            bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+        (out_dir / "figure_waterfall_expression.plotly.json").write_text(fig.to_json())
+        written.append({"id": "waterfall_expression", "path": "figure_waterfall_expression.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[expression-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(tpm_by_model: dict, model_metadata: dict,
                     expressed_threshold: float, out_path: Path) -> Path:
     import pandas as pd
@@ -428,7 +498,7 @@ def emit_plot_data(tpm_by_model: dict, model_metadata: dict,
 
 
 def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
-                   out_dir: Path, load_errors: list) -> Path:
+                   out_dir: Path, load_errors: list, plotly_specs: Optional[list] = None) -> Path:
     import yaml
     manifest = {
         "method_id": "depmap-expression-distribution",
@@ -444,6 +514,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
         "n_cell_lines_evaluated": summary.get("n_cell_lines_evaluated", 0),
         "expression_class": summary.get("expression_class", "data_unavailable"),
         "load_errors": load_errors,
+        "plotly_figures": plotly_specs or [],   # interactive figure specs (Phase A); [] if unavailable
     }
     out_file = out_dir / "manifest.yaml"
     with open(out_file, "w") as f:
@@ -472,9 +543,10 @@ def main(target, release_pin, expressed_threshold, out):
     emit_density_plot(tpm_by_model, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_waterfall_plot(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_lineage_strip(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
+    plotly_specs = emit_plotly_specs(tpm_by_model, model_meta, target, summary, out, DEFAULT_TARGET_CONTRACTS)
     emit_plot_data(tpm_by_model, model_meta, expressed_threshold, out)
-    emit_manifest(target, release_pin, summary, out, [])
-    click.echo(f"  -> {out}", err=True)
+    emit_manifest(target, release_pin, summary, out, [], plotly_specs)
+    click.echo(f"  -> {out}  (plotly specs: {len(plotly_specs)})", err=True)
 
 
 if __name__ == "__main__":
