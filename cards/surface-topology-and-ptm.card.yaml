@@ -120,4 +120,9 @@ caveats:
     Model checkpoint + inference source pinned via tmbed-v1-predictor-
     snapshot-2026-07-08 for reproducibility.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `surface_topology` claim (predicted membrane topology
+# + PTM/endocytosis-motif profile). Distinct atom from surface_confirmation (predicted TM domain is
+# complementary to measured residency, not interchangeable — the concordance test, Rule 2).
+measurement_type: surface_topology
+entity_grains: [target]
 schema_version: 1

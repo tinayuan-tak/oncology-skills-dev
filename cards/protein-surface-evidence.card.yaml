@@ -53,4 +53,10 @@ caveats:
   - "IHC positivity fraction is technology-dependent — antibody clone, fixation, scoring system all matter."
   - "Surface localization confirmed at one tissue context does not guarantee surface accessibility at another (different glycosylation, masking, internalization rates)."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — this card is a view of the `surface_confirmation` claim (is the
+# target detected/accessible on the extracellular surface). Providers: HPA-IHC + CSPA (measured) and
+# SURFY (inferred), tier_dominant — see vocabularies/measurement_types.yaml. Residency is a target
+# property; the question is indication-framed but the claim is not.
+measurement_type: surface_confirmation
+entity_grains: [target]
 schema_version: 1

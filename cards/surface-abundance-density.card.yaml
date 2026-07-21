@@ -109,4 +109,10 @@ caveats:
 
 measurement: bulk_protein_ms
 
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `surface_density` claim (estimated surface
+# copies-per-cell vs the TCE-viability threshold), derived_from [tumor_protein_abundance,
+# surfaceome_family, surface_topology]. The card's derived_from block above declares the card-level
+# upstream reads; the measurement_type names the type→type DAG node.
+measurement_type: surface_density
+entity_grains: [target_indication]
 schema_version: 1

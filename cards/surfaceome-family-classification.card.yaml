@@ -108,4 +108,8 @@ caveats:
     transporter / CD-molecule / GPCR assignments. Where HPA is silent,
     UniProt EC number + IUPHAR receptor class provide fallback family calls.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `surfaceome_family` claim (is the target a surface
+# protein + which family, for modality-fit). tier: target above already marks it scope-invariant.
+measurement_type: surfaceome_family
+entity_grains: [target]
 schema_version: 1

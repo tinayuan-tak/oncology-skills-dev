@@ -145,4 +145,8 @@ caveats:
     treat as tier-boundary. 'stable' means grade holds across the full
     perturbation range.
 
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `adc_tce_modality_fit` claim (which biologic
+# modalities are viable), derived_from [surface_topology, surfaceome_family, structure_druggability].
+measurement_type: adc_tce_modality_fit
+entity_grains: [target]
 schema_version: 1
