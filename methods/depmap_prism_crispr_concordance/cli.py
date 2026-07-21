@@ -360,6 +360,76 @@ def emit_concordance_vocabulary_panel(summary: dict, target: str, out_dir: Path,
     return out_path
 
 
+def emit_plotly_specs(summary: dict, target: str, out_path: Path,
+                      contracts_root: Path = DEFAULT_TARGET_CONTRACTS) -> list:
+    """Emit interactive Plotly spec SIBLING to the concordance-scatter SVG (Gate-C plotly debt, 2026-07-21).
+
+    Interactive twin of emit_concordance_scatter: per-compound Spearman ρ vs CRISPR (x) vs RNAi (y),
+    SAME quadrant coloring (triangulated navy / CRISPR-confirmed / RNAi-confirmed / mixed / discordant)
+    keyed on CONCORDANCE_STRONG_SPEARMAN (0.30) + CONCORDANCE_WEAK_SPEARMAN (0.10), same reflines,
+    per-compound hover (drug name). Built from the SAME summary['per_compound_concordance'] the SVG +
+    the shared v4 parquet use (no drift). Writes figure_concordance_scatter.plotly.json.
+    Best-effort (Plotly optional → SVG guaranteed); thin/absent evidence → no-op."""
+    try:
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifact
+        print(f"[prism-crispr-concordance] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    per_compound = summary.get("per_compound_concordance") or []
+    points = [c for c in per_compound
+              if c.get("spearman_r_crispr") is not None or c.get("spearman_r_rnai") is not None]
+    if not points:
+        return []   # thin evidence / no data — SVG placeholder already covers this state
+
+    written = []
+    try:
+        s, w = CONCORDANCE_STRONG_SPEARMAN, CONCORDANCE_WEAK_SPEARMAN
+
+        def _color(x, y):
+            if x >= s and y >= s:
+                return "#0a2540"   # triangulated (navy)
+            if x >= s:
+                return "#7fa7c0"   # CRISPR-confirmed
+            if y >= s:
+                return "#7fbb99"   # RNAi-confirmed
+            if x >= w or y >= w:
+                return "#f0a020"   # mixed
+            return "#bbbbbb"       # discordant
+
+        xs = [c.get("spearman_r_crispr") if c.get("spearman_r_crispr") is not None else 0.0
+              for c in points]
+        ys = [c.get("spearman_r_rnai") if c.get("spearman_r_rnai") is not None else 0.0
+              for c in points]
+        colors = [_color(x, y) for x, y in zip(xs, ys)]
+        drugs = [c.get("drug_name") or c.get("compound_id") or "?" for c in points]
+        fig = go.Figure(go.Scatter(
+            x=xs, y=ys, mode="markers",
+            marker=dict(color=colors, size=10, line=dict(width=0.6, color="white")),
+            customdata=drugs,
+            hovertemplate="%{customdata}<br>ρ CRISPR %{x:.2f} / ρ RNAi %{y:.2f}<extra></extra>"))
+        # threshold + zero reflines mirror the SVG (0.10 weak, 0.30 strong, on both axes; 0 axes).
+        for t in (w, s):
+            fig.add_vline(x=t, line=dict(color="#888888", dash="dash", width=1))
+            fig.add_hline(y=t, line=dict(color="#888888", dash="dash", width=1))
+        fig.add_vline(x=0, line=dict(color="#333333", width=1))
+        fig.add_hline(y=0, line=dict(color="#333333", width=1))
+        cls = (summary.get("crispr_prism_concordance_class") or "unknown").replace("_", " ")
+        n = summary.get("n_compounds_evaluated", len(points))
+        fig.update_layout(
+            title=f"{target} — chemical-genetic concordance ({n} compounds · {cls})",
+            xaxis_title="Spearman ρ vs CRISPR Chronos", yaxis_title="Spearman ρ vs RNAi DEMETER2",
+            xaxis=dict(range=[-0.5, 1.0]), yaxis=dict(range=[-0.5, 1.0]),
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_concordance_scatter.plotly.json").write_text(fig.to_json())
+        written.append({"id": "concordance_scatter",
+                        "path": "figure_concordance_scatter.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[prism-crispr-concordance] scatter plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_manifest(target: str, release_pin: str, summary: dict,
                     out_dir: Path, parquet_uri: str) -> Path:
     import yaml
