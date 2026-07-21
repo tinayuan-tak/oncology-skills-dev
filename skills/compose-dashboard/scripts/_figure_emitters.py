@@ -276,10 +276,15 @@ def _emit_card2_dependency_lineage_selectivity(
     c2cli.emit_manifest(target, indication, "26q1", lineage_summary,
                          chronos_by_model, out_dir, [])
 
-    return [
+    figures = [
         {"id": "forest_plot", "path": "figure_forest_plot.svg", "type": "lineage_forest_plot", "primary": True},
         {"id": "lineage_strip", "path": "figure_lineage_strip.svg", "type": "lineage_strip_plot", "primary": False},
     ]
+    # Interactive twin — per-lineage forest from the SAME _per_lineage_records the SVG used (no drift).
+    figures += _plotly_from(c2cli, "emit_plotly_specs",
+                            lineage_summary.get("_per_lineage_records", []), target_lineage,
+                            target, indication, lineage_summary, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_card4_expression_dependency_correlation(
