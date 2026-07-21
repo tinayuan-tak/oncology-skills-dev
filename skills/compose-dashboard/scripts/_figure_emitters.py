@@ -527,7 +527,10 @@ def _emit_card3_mutation_stratified_dependency(
     c3cli.emit_per_hotspot_chronos_plot(chronos_by_model, recomputed.get("per_hotspot_stats", []),
                                           target, out_dir, TARGET_CONTRACTS)
     c3cli.emit_manifest(target, indication, "26q1", recomputed, out_dir, [])
-    return [
+    # Interactive twin — mut-vs-WT box+strip from the SAME chronos + hotspot/damaging membership (no drift).
+    plotly_figs = _plotly_from(c3cli, "emit_plotly_specs", chronos_by_model, hot, dam,
+                               target, recomputed, out_dir, TARGET_CONTRACTS)
+    return plotly_figs + [
         {"id": "mut_vs_wt_strip", "path": "figure_mut_vs_wt_strip.svg",
          "type": "mutation_stratified_strip", "primary": True},
         {"id": "per_hotspot_chronos", "path": "figure_per_hotspot_chronos.svg",
