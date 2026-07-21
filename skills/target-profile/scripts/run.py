@@ -102,6 +102,9 @@ SUB_SKILL_CARDS = {
                                          # Added to tumor-presence/run.py CARDS in PR #80 but never
                                          # to this composer map → dropped from the composed profile.
                                          # Restored so the dual RNA+protein presence reaches the LLM.
+        "tumor-elevation-breadth",       # pan-cancer K-of-N breadth (Slice B3) — same drift class:
+                                         # added to tumor-presence CARDS but not this map, so it was
+                                         # silently dropped from the composed profile. Restored.
     ],
     "tumor-selectivity": ["tumor-vs-normal-selectivity"],
     "functional-requirement": [
@@ -1399,8 +1402,8 @@ header .pill{display:inline-block;background:rgba(255,255,255,.16);border:1px so
 .badge-rule{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
   border-radius:6px;padding:2px 9px;font-size:12px;font-weight:600;cursor:help}
 /* 2-column shell: sticky left nav + content. Wide — uses the full viewport up to a large cap. */
-.shell{display:flex;gap:36px;max-width:1560px;margin:0 auto;padding:26px 40px 64px;align-items:flex-start}
-nav.toc{position:sticky;top:20px;flex:0 0 220px;font-size:13px;line-height:1.3}
+.shell{display:flex;gap:28px;max-width:1680px;margin:0 auto;padding:26px 40px 64px;align-items:flex-start}
+nav.toc{position:sticky;top:20px;flex:0 0 150px;font-size:12.5px;line-height:1.3}   /* narrower (item 7) */
 nav.toc .h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
   font-weight:700;margin:0 0 8px}
 nav.toc a{display:block;padding:6px 10px;border-radius:7px;color:var(--ink-2);text-decoration:none;
@@ -1461,8 +1464,59 @@ code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 details{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
 summary{cursor:pointer;font-weight:600;color:var(--ink-2);font-size:13px}
 footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
-/* Interactive figures (Phase B) */
-.plotly-fig{width:100%;min-height:340px;margin:8px 0 4px}
+/* Interactive figures (Phase B). Tighter default height (item 1) — the method sets each figure's
+   own height; this caps the container so charts don't dominate. */
+.plotly-fig{width:100%;min-height:250px;margin:6px 0 2px}
+/* Gate section + subtabs (iterative dashboard, 2026-07-21). A gate section is a normal section
+   card; inside it a radio-driven tab strip (Plots / Evidence / Rules) — pure CSS, no framework, so
+   the report stays a self-contained archivable file. Each gate's radios share a name scoped by the
+   gate short (name=tab-<short>) so gates toggle independently. */
+.gate .gate-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+.gate .gate-letter{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+  border-radius:7px;background:var(--brand);color:#fff;font-weight:700;font-size:13px;flex:0 0 auto}
+.gate .gate-verdict{margin-left:auto;font-size:13px;color:var(--ink-2)}
+/* Tabbed card subsections. A tiny JS handler (in the page bootstrap) toggles .active on the
+   clicked label + its target panel — robust across any tab count, and JS is already present for the
+   Plotly resize-on-show. The button strip is a <div role=tablist> of <button> tabs; panels carry
+   .panel and are hidden unless .active. Degrades gracefully: with JS off, ALL panels show stacked
+   (no data hidden) since :not(.active) only hides when the script has run (html.tabs-js). */
+.tabs{margin-top:8px}
+.tabs .tablist{display:flex;flex-wrap:wrap;gap:3px;border-bottom:1px solid var(--line)}
+.tabs .tab{padding:7px 13px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;
+  border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;background:var(--surface-2);
+  margin-bottom:-1px}
+.tabs .tab:hover{color:var(--brand)}
+.tabs .tab.active{background:var(--surface);color:var(--brand);box-shadow:0 -2px 0 var(--brand-accent) inset}
+.tabs .tab.gap{color:var(--muted);opacity:.72}
+.tabs .panel{border:1px solid var(--line);border-radius:0 8px 8px 8px;padding:16px 18px;
+  background:var(--surface)}
+html.tabs-js .tabs .panel{display:none}
+html.tabs-js .tabs .panel.active{display:block}
+/* Panel body: plots (left ~78%) + summary rail (right ~22%) — item 3. Stacks on narrow screens. */
+.card-body{display:grid;grid-template-columns:minmax(0,3.5fr) minmax(200px,1fr);gap:20px;align-items:start}
+@media(max-width:900px){.card-body{grid-template-columns:1fr}}
+.card-plots{min-width:0}
+.card-rail{font-size:12.5px;border-left:1px solid var(--line);padding-left:16px}
+.card-rail .rail-h{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  font-weight:700;margin:0 0 6px}
+.card-rail .rail-sec{margin:0 0 14px}
+.card-rail .interp{background:var(--surface-2);border-radius:7px;padding:9px 11px;font-size:12.5px;
+  line-height:1.5;color:var(--ink-2)}
+.card-rail .kf{margin:0 0 7px}.card-rail .kf b{color:var(--brand);font-variant-numeric:tabular-nums;font-size:14px}
+.card-rail .kf span{color:var(--muted);display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}
+.panel .empty-note{color:var(--muted);font-size:13px;margin:4px 0}
+/* Per-card panel: verdict strip + key-facts + plot */
+.card-verdict{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;
+  padding:9px 12px;background:var(--surface-2);border-radius:8px;font-size:13.5px}
+.card-verdict .drv{color:var(--muted);font-size:12px}
+.card-verdict .drv code{font-size:11.5px}
+.keyfacts{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 12px}
+.keyfacts .kf{font-size:13px}.keyfacts .kf b{color:var(--brand);font-variant-numeric:tabular-nums}
+.keyfacts .kf span{color:var(--muted);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.card-src{font-size:11.5px;color:var(--muted);margin-top:10px}
+.rules-tbl td code{font-size:11.5px}
+.sig-pos{color:var(--pos-ink);font-weight:600}.sig-neg{color:var(--neg-ink);font-weight:600}
+.sig-neu{color:var(--neu-ink)}.sig-kill{color:var(--neg-ink);font-weight:700}
 /* GI-style components (Phase B PR-3) — About band + data-loaded status banner + navy section bars */
 .about{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:0 0 18px}
 .about .h{font-weight:700;color:var(--ink-2);font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:7px}
@@ -1494,18 +1548,57 @@ section>h2:first-child,.llm>h2:first-child{margin-top:-18px;border-radius:12px 1
 # page.
 _PLOTLY_BOOTSTRAP_JS = """<script>
 (function(){
-  if(typeof Plotly==='undefined')return;
-  var specs=document.querySelectorAll('script.plotly-spec');
-  for(var i=0;i<specs.length;i++){
-    try{
-      var el=specs[i], fig=JSON.parse(el.textContent),
-          tgt=document.getElementById(el.getAttribute('data-target'));
-      if(!tgt)continue;
-      (fig.layout=fig.layout||{}).autosize=true;
-      Plotly.newPlot(tgt,fig.data,fig.layout,{responsive:true,displaylogo:false,
-        modeBarButtonsToRemove:['lasso2d','select2d']});
-    }catch(e){if(window.console)console.warn('plotly spec draw failed',e);}
+  function draw(){
+    if(typeof Plotly==='undefined'){return setTimeout(draw,60);}   // wait for the inlined bundle
+    var specs=document.querySelectorAll('script.plotly-spec');
+    for(var i=0;i<specs.length;i++){
+      try{
+        var el=specs[i], tgt=document.getElementById(el.getAttribute('data-target'));
+        if(!tgt||tgt.getAttribute('data-drawn'))continue;
+        var fig=JSON.parse(el.textContent);
+        (fig.layout=fig.layout||{}).autosize=true;
+        Plotly.newPlot(tgt,fig.data,fig.layout,{responsive:true,displaylogo:false,
+          modeBarButtonsToRemove:['lasso2d','select2d']});
+        tgt.setAttribute('data-drawn','1');
+      }catch(e){if(window.console)console.warn('plotly spec draw failed',e);}
+    }
   }
+  // A chart drawn inside a display:none tab panel has zero size → renders blank until resized.
+  // On any tab radio toggle, resize every already-drawn plot in the newly-shown panel(s). Also
+  // resize on window resize. This is what makes non-default subtabs (and their plots) render.
+  function resizeVisible(){
+    if(typeof Plotly==='undefined')return;
+    document.querySelectorAll('.plotly-fig[data-drawn]').forEach(function(d){
+      if(d.offsetParent!==null){try{Plotly.Plots.resize(d);}catch(e){}}   // offsetParent null = hidden
+    });
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){draw();resizeVisible();});
+  }else{draw();resizeVisible();}
+  window.addEventListener('resize',resizeVisible);
+  // Expose so the tab bootstrap can resize the plots in a panel it just revealed.
+  window.__resizePlots=resizeVisible;
+})();
+</script>"""
+
+# Tab bootstrap — ALWAYS emitted when gate sections are present (independent of Plotly). Adds
+# html.tabs-js (which flips the panel CSS from "all shown, stacked" to "only .active shown"), then
+# on a tab click toggles .active on the clicked button + its target panel within the same .tabs
+# group, and asks the Plotly layer (if present) to resize the now-visible charts. No framework.
+_TAB_BOOTSTRAP_JS = """<script>
+(function(){
+  document.documentElement.classList.add('tabs-js');
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest?e.target.closest('.tabs .tab'):null;
+    if(!btn)return;
+    var group=btn.closest('.tabs');
+    var pid=btn.getAttribute('data-panel');
+    group.querySelectorAll(':scope > .tablist > .tab').forEach(function(t){t.classList.remove('active');});
+    group.querySelectorAll(':scope > .panel').forEach(function(p){p.classList.remove('active');});
+    btn.classList.add('active');
+    var pan=document.getElementById(pid); if(pan)pan.classList.add('active');
+    if(window.__resizePlots)setTimeout(window.__resizePlots,0);
+  });
 })();
 </script>"""
 
@@ -1655,6 +1748,278 @@ def _render_card_data_html(sub_results: dict, card_figures: Optional[dict] = Non
     return out, n_plotly
 
 
+# --- Gate section with subtabs (iterative dashboard, 2026-07-21) ------------------------------
+# One gate (A–H) rendered as a section card with a radio-tab strip: Plots | Evidence | Rules.
+# PURE PROJECTION — reads the same sub_results + card_figures the flat view uses; recomputes nothing.
+# Scoped rollout: only the Presence gate (A / expression) is wired into the report today; the shared
+# helper is gate-agnostic so the remaining gates slot in later without a rewrite.
+
+_SIG_CLASS = {"supportive": "sig-pos", "opposing": "sig-neg", "killer": "sig-kill",
+              "neutral": "sig-neu", "insufficient": "sig-neu"}
+
+# Human title + one-line "what it shows" per presence-gate card. Keeps the subtab label short and
+# the panel self-explaining. Extend as more gates migrate to the card-subtab style.
+_CARD_TITLE = {
+    "expression-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
+    "expression-tumor-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
+    "protein-presence-cptac":       ("Tumor protein (CPTAC)", "per-cohort tumor-vs-normal protein"),
+    "protein-abundance-celline":    ("Cell-line protein", "Gygi TMT MS abundance distribution"),
+    "tumor-elevation-breadth":      ("Pan-cancer breadth", "elevated in K of N cancers"),
+}
+# Which summary fields to surface as the card's "key facts" (label, field). First hit wins per card;
+# unknown cards fall back to their first ~4 scalar summary fields.
+_CARD_KEYFACTS = {
+    "expression-distribution": [("Call", "expression_call_class"), ("Median log2TPM", "median_log2tpm_panel"),
+                                ("Cell lines", "n_cell_lines")],
+    "expression-tumor-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
+                                     ("q-value", "q_value")],
+    "protein-presence-cptac": [("Class", "protein_expression_class"), ("Effect size", "protein_effect_size"),
+                               ("Cohorts", "n_cohorts")],
+    "protein-abundance-celline": [("Class", "protein_expression_class")],
+    "tumor-elevation-breadth": [("Breadth", "tumor_elevation_breadth_class"),
+                                ("Protein K/N", "n_cohorts_elevated"), ("RNA K/N", "rna_n_indications_elevated")],
+}
+
+
+# Per-card figure curation for the gate subtabs: which figure ids to show, in order. A card that
+# emits several figures may want only a subset surfaced in the dashboard (the rest stay in the
+# data package). None → show all, in emit order. Presence gate: Cell-line RNA leads with the
+# pan-cancer DENSITY then the per-LINEAGE box (the indication-relevant view); the ranked waterfall
+# is available in the package but not surfaced here (redundant with the density for this section).
+_CARD_FIGURE_ORDER = {
+    "expression-distribution": ["density_expression", "lineage_expression"],
+}
+
+
+def _card_plot_divs(card_id: str, card_figures, figures_dir) -> tuple[list[str], int]:
+    """Interactive Plotly divs for ONE card (same embed the flat view uses). When the card has a
+    curated figure order (_CARD_FIGURE_ORDER), only those ids are shown, in that order."""
+    specs = {s["id"]: s for s in _read_card_plotly_specs(card_figures, figures_dir, card_id)}
+    order = _CARD_FIGURE_ORDER.get(card_id) or list(specs.keys())
+    divs, n = [], 0
+    for sid in order:
+        spec = specs.get(sid)
+        if not spec:
+            continue
+        dom_id = f"plt-card-{card_id}-{spec['id']}"
+        divs.append(f"<div class=plotly-fig id={dom_id}></div>"
+                    f"<script type='application/json' class=plotly-spec data-target={dom_id}>"
+                    f"{spec['spec_json']}</script>")
+        n += 1
+    return divs, n
+
+
+def _card_key_facts(card: dict) -> list[tuple[str, str]]:
+    """The card's headline facts (label, formatted value) — curated per card, else first scalars."""
+    cid = card.get("card_id")
+    summ = card.get("summary") or {}
+    facts: list[tuple[str, str]] = []
+    for label, field in _CARD_KEYFACTS.get(cid, []):
+        if summ.get(field) is not None:
+            facts.append((label, _fmt_metric(summ[field])))
+    if not facts:   # fallback: first few scalar summary fields
+        for k, v in summ.items():
+            if k.startswith("_") or isinstance(v, (list, dict)):
+                continue
+            facts.append((_prettify_field(k), _fmt_metric(v)))
+            if len(facts) >= 4:
+                break
+    return facts
+
+
+def _card_fired_rules(card_id: str, fired: list) -> list[dict]:
+    """The fired rules attributable to THIS card (by card_id)."""
+    return [f for f in (fired or []) if isinstance(f, dict) and f.get("card_id") == card_id]
+
+
+# Indication → DepMap OncotreeLineage (cell lines are lineage-keyed; the indication-relevant
+# cell-line view is its lineage). Mirrors the method-side map; kept here so the renderer can pull
+# the indication's lineage row without importing the method.
+_INDICATION_LINEAGE = {
+    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "PDAC": "Pancreas", "PAAD": "Pancreas",
+    "NSCLC": "Lung", "LUAD": "Lung", "LUSC": "Lung", "SCLC": "Lung", "GC": "Stomach", "STAD": "Stomach",
+    "BRCA": "Breast", "OV": "Ovary/Fallopian Tube", "GBM": "CNS/Brain", "HNSCC": "Head and Neck",
+}
+
+
+def _expression_indication_focus(card: dict, indication: str) -> Optional[dict]:
+    """Item 4: for the cell-line RNA card, pull the INDICATION's lineage row from per_lineage_stats
+    (COADREAD→Bowel) and build human-readable interpretation. Returns None if not applicable / no
+    lineage data. Output: {lineage, median_log2tpm, fraction_expressed, n, rank, n_lineages, interp}."""
+    summ = card.get("summary") or {}
+    stats = summ.get("per_lineage_stats")
+    if not indication or not isinstance(stats, list) or not stats:
+        return None
+    lineage = _INDICATION_LINEAGE.get(indication.upper())
+    if not lineage:
+        return None
+    # per_lineage_stats is sorted by median_log2tpm desc → index = rank
+    row = None
+    for i, s in enumerate(stats):
+        if s.get("lineage") == lineage:
+            row = dict(s); row["rank"] = i + 1
+            break
+    n_lin = summ.get("n_lineages_evaluated") or len(stats)
+    if row is None:
+        # indication's lineage not among the evaluated lineages (below the n≥5 floor, or absent)
+        return {"lineage": lineage, "absent": True, "n_lineages": n_lin,
+                "interp": (f"No {lineage} cell-line cohort cleared the n≥5 floor in DepMap this "
+                           f"release, so a {indication}-lineage expression readout isn't available "
+                           f"— the pan-cancer distribution is the only cell-line view here.")}
+    med = row.get("median_log2tpm")
+    frac = row.get("fraction_expressed")
+    n = row.get("n")
+    rank = row.get("rank")
+    # human-readable interpretation (bucketed against the 1.0 / 5.0 reflines)
+    if med is None:
+        level = "unknown"
+    elif med >= 5.0:
+        level = "highly expressed"
+    elif med >= 1.0:
+        level = "expressed"
+    else:
+        level = "low / not expressed"
+    pct = f"{frac*100:.0f}%" if isinstance(frac, (int, float)) else "—"
+    interp = (f"In {lineage} cell lines ({indication}'s DepMap lineage; n={n}), the target is "
+              f"<b>{level}</b> — median log2(TPM+1) {med:.1f}, {pct} of lines above the expressed "
+              f"threshold. It ranks {rank} of {n_lin} lineages by median expression"
+              + (" (among the highest)." if rank and rank <= 3 else
+                 " (mid-to-low among lineages)." if rank and rank > n_lin/2 else "."))
+    return {"lineage": lineage, "median_log2tpm": med, "fraction_expressed": frac,
+            "n": n, "rank": rank, "n_lineages": n_lin, "interp": interp, "level": level}
+
+
+def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_results: dict,
+                              scorecard_by_short: dict, card_figures, figures_dir,
+                              indication: str = None) -> tuple[list[str], int]:
+    """Render ONE gate as a section whose SUBTABS are its evidence CARDS. Each card subtab shows,
+    top-to-bottom: a verdict strip (the rule/verdict this card drove), the card's key facts, and its
+    interactive Plotly figure. PURE PROJECTION — recomputes nothing. Returns (html, n_plotly).
+
+    `shorts` are the sub-skills grouped under this gate letter (usually one; C has several). A gate's
+    cards are the union of its sub-skills' cards, in declaration order. Cards with no data this run
+    still get a subtab (greyed 'gap' label) — a coverage gap is shown, never hidden."""
+    glow = gate.lower()
+    sec_id = f"s-gate-{glow}"
+    out = [f"<section id={sec_id} class='det gate'><span class=tag>Computed from the evidence</span>"]
+
+    # header: gate letter + name + roll-up verdict chip(s) (the gate's own sub-verdict)
+    chips = []
+    for short in shorts:
+        row = scorecard_by_short.get(short) or {}
+        glyph, cls, _lab = _HTML_STATUS.get(row.get("status"), _HTML_STATUS["coverage_gap"])
+        chips.append(f"<span class='chip {cls}'><span class=g>{glyph}</span>"
+                     f"{_esc(_humanize(row.get('verdict') or 'not evaluated'))}</span>")
+    q = _GATE_SHORT_LABEL.get(shorts[0], _humanize(shorts[0])) if len(shorts) == 1 else gate_name
+    out.append(f"<div class=gate-head><span class=gate-letter>{_esc(gate)}</span>"
+               f"<h2 style='margin:0;background:none;color:var(--brand);padding:0'>{_esc(gate_name)} "
+               f"<span class=n>— {_esc(q)}</span></h2>"
+               f"<span class=gate-verdict>{''.join(chips)}</span></div>")
+
+    # collect this gate's cards (union across sub-skills), each with its owning sub-skill's fired rules
+    cards: list[tuple[dict, list]] = []
+    for short in shorts:
+        r = sub_results.get(short, {})
+        fired = r.get("fired") or []
+        for c in (r.get("cards") or []):
+            cards.append((c, fired))
+    if not cards:
+        out.append("<p class=empty-note>No evidence cards ran for this gate this run.</p></section>")
+        return out, 0
+
+    n_plotly_total = 0
+    # default tab = first card that has a live plot, else first card
+    default_idx = 0
+    for i, (c, _f) in enumerate(cards):
+        if _card_plot_divs(c.get("card_id"), card_figures, figures_dir)[0]:
+            default_idx = i
+            break
+
+    # tablist (buttons) + panels. JS (page bootstrap) toggles .active on click; a panel is
+    # data-tabgroup-scoped so gates switch independently. Panel id = <sec_id>-p<i>.
+    tabs = [f"<div class=tabs data-tabgroup={sec_id}>", "<div class=tablist role=tablist>"]
+    panels = []
+    for i, (c, fired) in enumerate(cards):
+        cid = c.get("card_id")
+        title, _blurb = _CARD_TITLE.get(cid, (_humanize(cid), ""))   # blurb no longer shown (was mislabeling multi-plot cards)
+        missing = c.get("_missing")
+        active = " active" if i == default_idx else ""
+        pid = f"{sec_id}-p{i}"
+        lab_cls = " gap" if missing else ""
+        tabs.append(f"<button class='tab{lab_cls}{active}' data-panel={pid}>{_esc(title)}</button>")
+
+        pan = [f"<div class='panel{active}' id={pid}>"]
+        if missing:
+            pan.append(f"<p class=empty-note>{_esc(title)} — card not available this run "
+                       f"(<code>{_esc(cid)}</code>). Coverage gap, not a negative.</p></div>")
+            panels.append("".join(pan)); continue
+
+        # 2-column body (item 3): plots (left) + summary rail (right).
+        pan.append("<div class=card-body>")
+
+        # -- LEFT: the interactive plot(s) --
+        divs, npl = _card_plot_divs(cid, card_figures, figures_dir)
+        n_plotly_total += npl
+        pan.append("<div class=card-plots>")
+        if divs:
+            pan.extend(divs)
+        else:
+            pan.append("<p class=empty-note>No interactive figure this run — the summary metrics "
+                       "are at right; a static/summary run embeds no chart for this card.</p>")
+        pan.append("</div>")   # .card-plots
+
+        # -- RIGHT: summary rail — key facts, indication focus (item 4), rule/verdict fired --
+        pan.append("<div class=card-rail>")
+        facts = _card_key_facts(c)
+        if facts:
+            pan.append("<div class=rail-sec><p class=rail-h>Key metrics</p>")
+            for label, val in facts:
+                pan.append(f"<div class=kf><span>{_esc(label)}</span><b>{_esc(val)}</b></div>")
+            pan.append("</div>")
+        # indication-lineage focus (cell-line RNA): metric + human-readable interpretation
+        focus = _expression_indication_focus(c, indication) if cid == "expression-distribution" else None
+        if focus:
+            pan.append(f"<div class=rail-sec><p class=rail-h>{_esc(indication)} focus "
+                       f"({_esc(focus['lineage'])})</p>")
+            if not focus.get("absent"):
+                pan.append(f"<div class=kf><span>Median log2TPM</span><b>{focus['median_log2tpm']:.1f}</b></div>"
+                           if isinstance(focus.get('median_log2tpm'), (int, float)) else "")
+                if isinstance(focus.get("fraction_expressed"), (int, float)):
+                    pan.append(f"<div class=kf><span>% lines expressed</span>"
+                               f"<b>{focus['fraction_expressed']*100:.0f}%</b></div>")
+                if focus.get("rank"):
+                    pan.append(f"<div class=kf><span>Lineage rank</span>"
+                               f"<b>{focus['rank']} / {focus['n_lineages']}</b></div>")
+            pan.append(f"<div class=interp>{focus['interp']}</div>")
+            pan.append("</div>")
+        # rule / verdict fired for this card
+        crules = _card_fired_rules(cid, fired)
+        pan.append("<div class=rail-sec><p class=rail-h>Rule fired</p>")
+        if crules:
+            top = crules[0]
+            sigs = top.get("signals") or {}
+            sig_html = " · ".join(
+                f"<span class={_SIG_CLASS.get(v, 'sig-neu')}>{_esc(m)}: {_esc(v)}</span>"
+                for m, v in sigs.items()) or "—"
+            pan.append(f"<div><code>{_esc(top.get('rule_id'))}</code></div>"
+                       f"<div style='margin-top:4px'>{sig_html}</div>")
+        else:
+            pan.append("<div class=sub>No rule fired (neutral / below threshold).</div>")
+        pan.append("</div>")
+        pan.append(f"<p class=card-src>Card <code>{_esc(cid)}</code></p>")
+        pan.append("</div>")   # .card-rail
+
+        pan.append("</div>")   # .card-body
+        pan.append("</div>")   # .panel
+        panels.append("".join(pan))
+
+    tabs.append("</div>")     # .tablist
+    out.extend(tabs)
+    out.extend(panels)
+    out.append("</div></section>")   # .tabs
+    return out, n_plotly_total
+
+
 def _render_target_profile_html(
     target: str,
     indication: str,
@@ -1670,6 +2035,7 @@ def _render_target_profile_html(
     show_deciding_axis: bool = False,
     card_figures: Optional[dict] = None,
     figures_dir: Optional[Path] = None,
+    presence_only: bool = False,
 ) -> str:
     """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
     same nomination data the .md carries; no recompute. All structured outputs (scorecard,
@@ -1710,63 +2076,104 @@ def _render_target_profile_html(
     else:
         checked = ("<span class=badge-rule title=\"No override rule fired; the AI's recommendation "
                    "stands, checked against the deterministic gate.\">✓ rule-checked</span>")
-    p.append("<header>"
-             f"<h1>{_esc(target)} <span style='opacity:.7;font-weight:400'>in</span> {_esc(indication)}"
-             " — target profile</h1>"
-             f"<div class=rec>Recommendation: {action_html}"
-             f" · confidence <span class=pill>{_esc(_val('confidence'))}</span> {checked}"
-             f" <span style='opacity:.7;font-size:12px'>· AI-generated</span></div>"
-             "</header>")
+    if presence_only:
+        # Focused view: clean "TARGET × INDICATION" header, no recommendation clutter.
+        p.append(f"<header><h1>{_esc(target)} <span style='opacity:.6;font-weight:400'>×</span> "
+                 f"{_esc(indication)}</h1></header>")
+    else:
+        p.append("<header>"
+                 f"<h1>{_esc(target)} <span style='opacity:.7;font-weight:400'>in</span> {_esc(indication)}"
+                 " — target profile</h1>"
+                 f"<div class=rec>Recommendation: {action_html}"
+                 f" · confidence <span class=pill>{_esc(_val('confidence'))}</span> {checked}"
+                 f" <span style='opacity:.7;font-size:12px'>· AI-generated</span></div>"
+                 "</header>")
 
     # --- 2-column shell: sticky left nav (jump-links) + content ---
     # NOTE: the composite-panel SVG is deliberately NOT embedded here — it is a matplotlib
     # text-badge grid sized for a slide (~1583px) that renders poorly in a web card. The
     # scorecard below IS the native-HTML "at a glance". The SVG remains a .md/PPT slide asset.
-    nav = ["<div class=shell><nav class=toc><p class=h>Sections</p>",
+    # Nav: no "Sections" heading; narrow column (CSS). In presence_only, just Exec + Presence.
+    shell_cls = "shell focused" if presence_only else "shell"
+    nav = [f"<div class={shell_cls}><nav class=toc>",
            "<a href='#s-exec'>Executive summary</a>"]
-    if scorecard:
-        nav.append("<a href='#s-scorecard'>Gate scorecard</a>")
-    if deciding_axis and show_deciding_axis:
-        nav.append("<a href='#s-deciding'>Deciding axis</a>")
-    nav.append("<a href='#s-risk'>Risk by category</a>")
-    nav.append("<a href='#s-tension'>Conflicting signals</a>")
-    nav.append("<a href='#s-evidence'>Evidence by question</a>")
-    if ordinal_matrix:
-        nav.append("<a href='#s-matrix'>Modality fit</a>")
+    if presence_only:
+        nav.append("<a href='#s-gate-a'>Presence</a>")
+    else:
+        if scorecard:
+            nav.append("<a href='#s-scorecard'>Gate scorecard</a>")
+        if deciding_axis and show_deciding_axis:
+            nav.append("<a href='#s-deciding'>Deciding axis</a>")
+        if "expression" in sub_results:
+            nav.append("<a href='#s-gate-a'>Presence (Gate A)</a>")
+        nav.append("<a href='#s-risk'>Risk by category</a>")
+        nav.append("<a href='#s-tension'>Conflicting signals</a>")
+        nav.append("<a href='#s-evidence'>Evidence by question</a>")
+        if ordinal_matrix:
+            nav.append("<a href='#s-matrix'>Modality fit</a>")
     nav.append("</nav><div class=content>")
     p.append("".join(nav))
 
     # --- "About this analysis" band + data-loaded status banner (GI-style, PR-B3) ----------
-    # Descriptive framing + provenance, mirroring the GI dashboard's About/citation header. Pure
-    # projection — names what the framework did + on what, no new computation.
-    n_gates = len({(r.get("skill_dir") or short) for short, r in sub_results.items()})
-    n_cards = sum(1 for r in sub_results.values() for c in (r.get("cards") or [])
-                  if isinstance(c, dict) and not c.get("_missing"))
-    n_plotly_total = sum(1 for figs in (card_figures or {}).values()
-                         for f in figs if f.get("dynamic"))
-    p.append(
-        "<div class=about><p class=h>About this analysis</p><ul>"
-        "<li><b>Target-evaluation profile</b> — the 8 question-gates (Present, Selective, Required, "
-        "Mechanism, Druggable, Safe, Differentiated, Translational) evaluated for this "
-        f"target×indication, each from curated evidence cards.</li>"
-        "<li>The recommendation is <b>rule-checked</b>: a deterministic gate can override the "
-        "AI-generated call (a measured killer forces the verdict); AI sections are tinted + labeled.</li>"
-        "<li>Coverage gaps are shown as gaps, never as negatives — “we didn’t look” is "
-        "distinct from “we looked and it’s absent.”</li></ul>"
-        f"<div class=citation>Framework: <code>{_esc(SKILL_NAME)} v{_esc(SKILL_VERSION)}</code>"
-        + (f" · model <code>{_esc(_framework_model_version())}</code>" if _framework_model_version() else "")
-        + " · a projection of <code>nomination.json</code>; sub-verdicts are deterministic and "
-        "reproducible from the same inputs.</div></div>")
-    fignote = (f" · <span class=n>{n_plotly_total} interactive figure"
-               f"{'s' if n_plotly_total != 1 else ''}</span>" if n_plotly_total else "")
-    p.append(
-        f"<div class=statusbar>Evaluated {_esc(target)} × {_esc(indication)}"
-        f"<span class=n>· {n_gates} question-gate{'s' if n_gates != 1 else ''} assessed "
-        f"· {n_cards} evidence card{'s' if n_cards != 1 else ''}{fignote}</span></div>")
+    # Descriptive framing + provenance. SKIPPED in the focused presence-only view (item 5).
+    if not presence_only:
+        n_gates = len({(r.get("skill_dir") or short) for short, r in sub_results.items()})
+        n_cards = sum(1 for r in sub_results.values() for c in (r.get("cards") or [])
+                      if isinstance(c, dict) and not c.get("_missing"))
+        n_plotly_total = sum(1 for figs in (card_figures or {}).values()
+                             for f in figs if f.get("dynamic"))
+        p.append(
+            "<div class=about><p class=h>About this analysis</p><ul>"
+            "<li><b>Target-evaluation profile</b> — the 8 question-gates (Present, Selective, Required, "
+            "Mechanism, Druggable, Safe, Differentiated, Translational) evaluated for this "
+            f"target×indication, each from curated evidence cards.</li>"
+            "<li>The recommendation is <b>rule-checked</b>: a deterministic gate can override the "
+            "AI-generated call (a measured killer forces the verdict); AI sections are tinted + labeled.</li>"
+            "<li>Coverage gaps are shown as gaps, never as negatives — “we didn’t look” is "
+            "distinct from “we looked and it’s absent.”</li></ul>"
+            f"<div class=citation>Framework: <code>{_esc(SKILL_NAME)} v{_esc(SKILL_VERSION)}</code>"
+            + (f" · model <code>{_esc(_framework_model_version())}</code>" if _framework_model_version() else "")
+            + " · a projection of <code>nomination.json</code>; sub-verdicts are deterministic and "
+            "reproducible from the same inputs.</div></div>")
+        fignote = (f" · <span class=n>{n_plotly_total} interactive figure"
+                   f"{'s' if n_plotly_total != 1 else ''}</span>" if n_plotly_total else "")
+        p.append(
+            f"<div class=statusbar>Evaluated {_esc(target)} × {_esc(indication)}"
+            f"<span class=n>· {n_gates} question-gate{'s' if n_gates != 1 else ''} assessed "
+            f"· {n_cards} evidence card{'s' if n_cards != 1 else ''}{fignote}</span></div>")
 
     # --- Executive summary (LLM) — TOP, the lead the reader needs first ----
     p.append("<div class=llm id=s-exec><span class=tag>AI-generated</span>"
              f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
+
+    # --- Presence gate (A / expression) — subtabbed section (iterative dashboard, 2026-07-21) ----
+    # SCOPED ROLLOUT: only Gate A is rendered in the new gate-section+subtabs style so far. The
+    # remaining gates still appear in the flat "Evidence by question" section below; they migrate to
+    # this style one at a time. _render_gate_section_html is gate-agnostic — this is a wiring choice.
+    scorecard_by_short = {r["short"]: r for r in (scorecard or [])}
+    n_gate_plotly = 0
+    if "expression" in sub_results:
+        gate_html, n_gate_plotly = _render_gate_section_html(
+            "A", "Present", ["expression"], sub_results, scorecard_by_short,
+            card_figures, figures_dir, indication=indication)
+        p.extend(gate_html)
+
+    # FOCUSED VIEW (item 5): presence-only — close out after the Presence section, skipping the
+    # scorecard/risk/tension/evidence/matrix. Everything below is the full-report body.
+    if presence_only:
+        n_plotly = n_gate_plotly
+        p.append("<footer>"
+                 f"Generated {_esc(datetime.now(timezone.utc).isoformat(timespec='seconds'))}"
+                 " · focused Presence view · projection of nomination.json (no recompute).</footer>")
+        p.append("</div>")   # close .content (matches the full-report path's single close)
+        if n_plotly:
+            bundle = _plotly_bundle()
+            if bundle:
+                p.append(f"<script>{bundle}</script>")
+                p.append(_PLOTLY_BOOTSTRAP_JS)
+        p.append(_TAB_BOOTSTRAP_JS)
+        p.append("</body></html>")
+        return "".join(p)
 
     # --- Gate scorecard (deterministic, top-of-report) ---------------------
     # Rows are the sub-skills GROUPED under their A–H gate letter (a gate can have several
@@ -1904,6 +2311,10 @@ def _render_target_profile_html(
         if bundle:
             p.append(f"<script>{bundle}</script>")
             p.append(_PLOTLY_BOOTSTRAP_JS)
+    # Tab bootstrap whenever a gate section (with subtabs) was rendered — independent of Plotly, so
+    # the tabs work even on a static/no-figure run. Presence gate is the current trigger.
+    if "expression" in sub_results:
+        p.append(_TAB_BOOTSTRAP_JS)
     p.append("</body></html>")
     return "".join(p)
 

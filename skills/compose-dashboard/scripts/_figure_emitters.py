@@ -408,7 +408,7 @@ def _emit_expression_distribution(
          "type": "ranked_waterfall_expression", "primary": False},
     ]
     figures += _plotly_from(e3acli, "emit_plotly_specs", tpm_by_model, model_metadata,
-                            target, recomputed, out_dir, TARGET_CONTRACTS)
+                            target, recomputed, out_dir, TARGET_CONTRACTS, indication)
     return figures
 
 
