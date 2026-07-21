@@ -78,7 +78,7 @@ biology_gates:
   - short: expression
     axis: biology
     gate: A
-    gate_name: Present
+    gate_name: Expressed
     band: necessity
     framework_can_evidence: captured
     evidences: "RNA transcribed / protein made (recount3 + DepMap + CPTAC)."
@@ -94,7 +94,7 @@ biology_gates:
   - short: dependency
     axis: biology
     gate: C
-    gate_name: Required
+    gate_name: Functional dependence
     band: necessity
     framework_can_evidence: partial
     receives_facets: [mutation_stratified, expression_correlation, crispr_rnai_concordance,
