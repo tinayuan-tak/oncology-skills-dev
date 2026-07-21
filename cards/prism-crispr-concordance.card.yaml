@@ -174,4 +174,10 @@ caveats:
     concordance carries more variance; interpret rnai_confirmed_engagement
     with caution when n < 30.
 
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `chemical_genetic_concordance` claim (does
+# compound kill-pattern track CRISPR+RNAi dependency = on-target engagement?), derived_from
+# [prism_compound_activity, crispr_lof_dependency, rnai_lof_dependency]. This is the E7 target-
+# engagement corroboration that feeds BOTH Required (gate C) and Tractability (E1) — flow-pattern 2.
+measurement_type: chemical_genetic_concordance
+entity_grains: [target]
 schema_version: 1

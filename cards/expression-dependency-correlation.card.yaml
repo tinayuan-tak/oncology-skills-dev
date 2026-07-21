@@ -124,4 +124,10 @@ caveats:
   - "Lineage-stratified figure may reveal that pan-cancer correlation is driven by 1-2 dominant lineages; biomarker hypothesis may be lineage-specific."
   - "Cell lines with metadata IsDefaultEntryForModel == False are excluded; some ModelIDs may have multiple sequencing entries — only the canonical one is used."
 
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `expression_dependency_correlation` claim
+# (does mRNA correlate with own dependency?), derived_from [cell_line_rna_expression,
+# crispr_lof_dependency]. Comparison-is-the-claim → derived even though single-dataset-sourced
+# (appendix case 7); the card doesn't self-declare derived_from but the type edge captures it.
+measurement_type: expression_dependency_correlation
+entity_grains: [target, target_lineage]
 schema_version: 1

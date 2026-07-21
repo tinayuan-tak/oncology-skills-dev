@@ -125,4 +125,11 @@ caveats:
   - "Recurrent hotspot list is target-specific; framework defers to DepMap's hotspot annotation rather than re-deriving."
   - "Strict 'is the target mutated' boolean — does not stratify by clonality / VAF / co-mutation patterns. Those are downstream questions."
 
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `mutation_stratified_dependency` claim (is
+# dependency stratified by the target's own mutation status?), derived_from [mutation_status,
+# crispr_lof_dependency]. mutation_status is the per-line mutant/WT boolean (a registered type with
+# no standalone card — the latent-unowned input the survey surfaced), distinct from the variant-class
+# spectrum. Both inputs co-resident in DepMap but still a type→type edge (appendix case 7).
+measurement_type: mutation_stratified_dependency
+entity_grains: [target]
 schema_version: 1

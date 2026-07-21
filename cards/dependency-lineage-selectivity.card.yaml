@@ -108,4 +108,9 @@ caveats:
   - "DepMap lineage assignments are based on OncotreeLineage; some cancer types may have ambiguous lineage classification."
   - "enrichment_class is descriptive only — therapeutic interpretation (which lineage matters for which indication) lives in interpretation-rules/."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `crispr_lof_dependency` at the lineage grain (the
+# lineage-selectivity slice of the same Chronos-LOF claim; concordance test folds it in, not a new
+# type). tier: target above marks the card scope-invariant across patient subgroups.
+measurement_type: crispr_lof_dependency
+entity_grains: [target, target_lineage]
 schema_version: 1

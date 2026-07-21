@@ -93,4 +93,9 @@ caveats:
   - "When the subgroup axis is defined by the target's OWN mutation status, mind the double-source-of-truth: DepMap computes mutant/WT internally too. MSI-defined strata are clean of this; a KRAS-mut-defined stratum on a KRAS dependency query is not."
   - "Each row is tagged with source_cohort (DepMap-26Q1); never merged across cohorts with the TCGA-side mutation panorama."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `crispr_lof_dependency` at target_subtype grain (the LIVE
+# subtype slice; binds a per-sample stratified reader, satisfying the Rule 4 partition dependency).
+# Same claim as the pan-cancer + lineage cards, a finer grain — not a new type.
+measurement_type: crispr_lof_dependency
+entity_grains: [target_subtype]
 schema_version: 1

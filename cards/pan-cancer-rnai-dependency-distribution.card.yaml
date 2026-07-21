@@ -111,4 +111,9 @@ caveats:
   - "RNAi panel is ~712 cell lines (Achilles+DRIVE+Marcotte combined), smaller and differently-composed than CRISPR's ~1500. Lineage coverage is partial."
   - "Dependency classification (common_essential/strongly_selective/...) is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `rnai_lof_dependency` claim (RNAi/DEMETER2 LOF). A
+# DISTINCT type from crispr_lof_dependency: the two orthogonal assays are shown as concordant/
+# discordant (crispr_rnai_concordance), never interchangeable — the concordance test's canonical case.
+measurement_type: rnai_lof_dependency
+entity_grains: [target, target_lineage]
 schema_version: 1

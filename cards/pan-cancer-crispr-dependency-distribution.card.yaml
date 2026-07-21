@@ -123,4 +123,10 @@ caveats:
   - "Dependency classification (common_essential/strongly_selective/...) is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
   - "Cell-line dependency does not guarantee in-vivo dependency. The card answers 'is this a real dependency in cellular models?' — translational validation is separate."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `crispr_lof_dependency` claim (shape of CRISPR/Chronos
+# LOF dependency). Shares this type with dependency-lineage-selectivity + subgroup-stratified-
+# dependency — same claim, different grain slice (concordance test, Rule 2). target_subtype is LIVE
+# via the subgroup card's per-sample reader.
+measurement_type: crispr_lof_dependency
+entity_grains: [target, target_lineage, target_subtype]
 schema_version: 1

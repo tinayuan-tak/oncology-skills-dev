@@ -119,4 +119,9 @@ caveats:
   - "Discordance can reflect biology (partial RNAi knockdown vs complete CRISPR knockout reveal different dependency thresholds) — not necessarily error."
   - "Concordance class is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
 
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `crispr_rnai_concordance` claim (do the two
+# orthogonal LOF assays agree?), derived_from [crispr_lof_dependency, rnai_lof_dependency]. The
+# comparison IS the claim — the canonical type→type DAG edge (appendix case 1).
+measurement_type: crispr_rnai_concordance
+entity_grains: [target]
 schema_version: 1

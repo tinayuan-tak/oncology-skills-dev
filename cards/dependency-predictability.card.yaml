@@ -156,4 +156,9 @@ caveats:
   - "Bootstrap CI on r² is over cell-line indices at the OOF-prediction level. It does NOT propagate uncertainty from feature-selection (KBest inside folds) or hyperparameter choice. A tighter CI would nest bootstrap around the full CV loop — infeasible at ~18k-gene scale."
   - "Own driver flags (driver_{target}_GoF / driver_{target}_LoF) are EXCLUDED from the OncoKB flag feature block for each target — same feature as own_mut_hotspot / own_mut_damaging; would leak label information. Cross-driver flags (driver_TP53_LoF when target=KRAS, etc.) are retained since they capture co-driver context."
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `dependency_predictability` claim (can Chronos
+# dependency be predicted from omics?). Registered but pulled by no gate today — a first-class
+# visible 'no-puller' state (Rule 3), not a dead end.
+measurement_type: dependency_predictability
+entity_grains: [target, target_lineage]
 schema_version: 1

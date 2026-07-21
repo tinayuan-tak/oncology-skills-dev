@@ -107,4 +107,9 @@ caveats:
     table only. Tier-2 (deep-learning top-1% predictions) is excluded — it would flood
     the index with low-confidence partners.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `synthetic_lethal_partner` claim (curated SL partner
+# → a pooled non-dependent read is untrusted). Annotation (evidence_tier: inferred), never a measured
+# dependency — suppresses a veto to insufficient, never nominates. tier: target above (gene-gene).
+measurement_type: synthetic_lethal_partner
+entity_grains: [target]
 schema_version: 1

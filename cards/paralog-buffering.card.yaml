@@ -100,4 +100,9 @@ caveats:
     Downstream tractability-and-modality skill should read paralog_buffering
     when reasoning about degrader vs SM tradeoffs.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `paralog_buffering` claim (does a functional paralog
+# buffer the dependency / create escape risk?). A distinct dependency-hardening axis, not a slice of
+# crispr_lof_dependency (shown alongside it — concordance test → separate type).
+measurement_type: paralog_buffering
+entity_grains: [target]
 schema_version: 1
