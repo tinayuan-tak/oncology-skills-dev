@@ -1979,3 +1979,85 @@ rules:
       degrader: insufficient
     rationale: |
       SL-partner derived product unreachable. Coverage gap; not opposing evidence.
+
+  # ============================================================================
+  # tumor_elevation_breadth (Slice B, 2026-07-21) — pan-cancer presence breadth
+  # ============================================================================
+  # The TARGET-GRAIN presence signal (card tumor-elevation-breadth, measurement
+  # bulk_protein_ms x sample_context tumor). It is the ONE tumor-context card that
+  # can fire in a TARGET-ONLY query — CPTAC per-cohort + tumor-vs-adjacent both need
+  # an indication, but breadth rolls up over all cohorts. Adding these rules is what
+  # makes the bulk_protein_ms/tumor per-modality bucket read `measured` (not
+  # data_unavailable) in a target-only run — completing the degenerate-case fix
+  # (Slice A1/A2). Without a rule the card would be decision-inert (the 2026-07-14
+  # "emitted-but-un-ruled" lesson). Signals mirror the CPTAC protein-presence family:
+  # breadth is presence-SUPPORTIVE, never a killer (absence-of-elevation is not
+  # absence-of-protein). BREADTH ≠ SELECTIVITY: these say "elevated in many cancers",
+  # not "selective in this one" — selectivity lives in the tumor-vs-normal cards.
+
+  - rule_id: tumor-breadth-broadly-supportive
+    when:
+      card_id: tumor-elevation-breadth
+      field: tumor_elevation_breadth_class
+      equals: broadly_tumor_elevated
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target protein is elevated vs normal in >=3 CPTAC cohorts AND in >=50% of the
+      cohorts it was tested in — pan-cancer tumor-presence breadth. Confirms measurable,
+      tumor-elevated PROTEIN across multiple cancers; supportive for both modalities.
+      Not dominant: breadth is a presence signal, not selectivity-in-this-indication
+      (that lives in protein-presence-cptac + tumor-vs-normal-selectivity).
+
+  - rule_id: tumor-breadth-multi-supportive
+    when:
+      card_id: tumor-elevation-breadth
+      field: tumor_elevation_breadth_class
+      equals: multi_tumor_elevated
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target protein is elevated in >=2 CPTAC cohorts (but below the broadly threshold).
+      Multi-cancer tumor-presence — supportive presence evidence, weaker than broadly.
+
+  - rule_id: tumor-breadth-single-neutral
+    when:
+      card_id: tumor-elevation-breadth
+      field: tumor_elevation_breadth_class
+      equals: single_tumor_elevated
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target protein is elevated in exactly ONE CPTAC cohort — an indication-specific
+      signal, not pan-cancer breadth. Neutral for a breadth claim (the per-indication
+      protein-presence-cptac card carries the single-cancer signal); the card's own
+      single_cohort_breadth warning flags not to over-generalize.
+
+  - rule_id: tumor-breadth-not-elevated-neutral
+    when:
+      card_id: tumor-elevation-breadth
+      field: tumor_elevation_breadth_class
+      equals: not_tumor_elevated
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Measured negative: tested in >=1 CPTAC cohort, elevated in NONE. This is a real
+      negative for the tumor-ELEVATION claim, but NOT for protein presence (an
+      un-elevated protein may still be abundantly present) — so neutral, never a
+      killer. Do not read as absence-of-protein.
+
+  - rule_id: tumor-breadth-data-unavailable-insufficient
+    when:
+      card_id: tumor-elevation-breadth
+      field: tumor_elevation_breadth_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target not quantified in any CPTAC cohort (CPTAC covers 10 cohorts). Coverage
+      gap, NOT opposing evidence — distinct from not_tumor_elevated (a measured negative).

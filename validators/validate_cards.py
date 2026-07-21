@@ -157,6 +157,11 @@ KNOWN_FIGURE_DEBT = {
     'protein-surface-evidence', 'surface-abundance-density', 'adc-tce-modality-fit',
     'fusion-rearrangement-landscape', 'rwd-stratified-expression',
     'target-identity-summary',
+    # tumor_elevation_breadth (Slice B2, 2026-07-21): card + reader
+    # (read_tumor_elevation_breadth) land first to lock the measurement_type contract;
+    # the breadth bar emitter is the Slice-B3/fast-follow item. Tracked debt, not a
+    # silent gap — drop from this list when the emitter registers in CARD_FIGURE_EMITTERS.
+    'tumor-elevation-breadth',
 }
 
 

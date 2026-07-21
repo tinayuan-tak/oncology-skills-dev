@@ -1,0 +1,108 @@
+# Card — TUMOR ELEVATION BREADTH  (pan-cancer, CPTAC-protein-derived)
+#
+# The TARGET-GRAIN presence signal that fixes the degenerate target-only case. A
+# target-only query (no indication) previously fell back to cell-line RNA/protein
+# only — no tumor evidence at all. This card gives it a real pan-cancer tumor signal:
+# "elevated in K of the N CPTAC cohorts the target was quantified in."
+#
+# CONTRACT DISTINCTION (load-bearing — see measurement_types.yaml tumor_elevation_breadth):
+#   - This is breadth OVER INDICATIONS for ONE target ("how many cancers at all"),
+#     an ALLOWED per-target claim (precedent: normal_tissue_protein_breadth).
+#   - It is NOT a ranking OVER TARGETS (the surfaceome-cohort-ranking non-goal) — the
+#     roll-up axis is indications, never other genes.
+#   - It is NOT the per-indication tumor_vs_adjacent contrast (protein-presence-cptac):
+#     breadth ≠ selectivity IN THIS cancer. protein-presence-cptac answers "is it up in
+#     THIS tumor"; this card answers "in how many tumors at all".
+#
+# SUBSTRATE: derived roll-up over the CPTAC per-cohort tumor-vs-normal product
+# (cptac-protein-tumor-vs-normal-per-cohort-v1, 10 cohorts). "Elevated" reuses the
+# already-q-gated per-cohort protein_expression_class (strong_up / modest_up) — a
+# COUNT over existing classes, no new statistics. The stacked pan-cancer RNA product
+# is an ADDITIVE second input in the Slice-C fast-follow (breadth over 27 indications).
+
+card_id: tumor-elevation-breadth
+version: 1.0.0
+question: "Across how many cancer indications is {target.symbol} elevated at the protein level vs normal (pan-cancer tumor-presence breadth)?"
+
+tier: target   # pan-cancer breadth is a target property (rolled up over indications); does not stratify by subgroup
+
+applies_when:
+  - "context.data_sources.cptac_protein_available == true"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1
+
+methods:
+  - call: cptac-tumor-elevation-breadth
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - tumor_elevation_breadth_class               # PRIMARY categorical (drives Tier-2 rules)
+    - n_cohorts_tested                            # cohorts the target was quantified in (denominator)
+    - n_cohorts_elevated                          # of those, class in {strong_up, modest_up}
+    - fraction_elevated                           # n_elevated / n_tested (null if n_tested == 0)
+    - median_effect_across_elevated               # median protein_effect_size over ELEVATED cohorts only
+    - most_elevated_cohorts                        # [{cohort, protein_expression_class, protein_effect_size, protein_bh_q_value}] effect-desc, elevated-only
+    - cohorts_tested                              # sorted list of all cohort codes tested (provenance)
+
+  summary_fields_vocabulary:
+    tumor_elevation_breadth_class:
+      - broadly_tumor_elevated                    # fraction_elevated >= 0.5 AND n_cohorts_elevated >= 3 — pan-cancer breadth
+      - multi_tumor_elevated                      # n_cohorts_elevated >= 2 — elevated in multiple cancers
+      - single_tumor_elevated                     # n_cohorts_elevated == 1 — one-cancer signal only
+      - not_tumor_elevated                        # tested in >=1 cohort, elevated in none (measured negative)
+      - data_unavailable                          # target absent from all CPTAC cohorts / product unavailable (coverage gap, NOT a negative)
+
+  figure: tumor_elevation_breadth_bar
+  plot_data: per_cohort_elevation_long_format
+
+thresholds:
+  broadly_elevated_fraction: 0.5                  # fraction of tested cohorts elevated for "broadly"
+  broadly_elevated_min_cohorts: 3                 # AND at least this many elevated cohorts
+  multi_elevated_min_cohorts: 2
+
+warning_predicates:
+  - warning_id: single_cohort_breadth
+    if: "n_cohorts_elevated == 1"
+    message: "{target.symbol} is protein-elevated in only ONE CPTAC cohort — a single-cancer signal, not pan-cancer breadth. Treat as indication-specific; do not generalize the tumor-presence claim across cancers."
+  - warning_id: breadth_data_unavailable
+    if: "tumor_elevation_breadth_class == 'data_unavailable'"
+    message: "{target.symbol} was not quantified in any CPTAC cohort — pan-cancer tumor-elevation breadth is UNKNOWN (coverage gap; CPTAC covers 10 cohorts), NOT low. Do not read absence as 'not elevated'."
+  - warning_id: narrow_cptac_coverage
+    if: "n_cohorts_tested < 3"
+    message: "{target.symbol} was quantified in fewer than 3 CPTAC cohorts — the breadth denominator is small, so the breadth class is weakly powered. Interpret K-of-N cautiously."
+
+caveats:
+  - |
+    Breadth is over INDICATIONS for ONE target ("in how many cancers"), NOT a ranking
+    over targets and NOT selectivity within a single cancer. For "is it up in THIS
+    tumor" use protein-presence-cptac (the per-indication tumor-vs-normal contrast);
+    for "how many cancers at all" use this card.
+  - |
+    "Elevated" = the per-cohort protein_expression_class is strong_up or modest_up,
+    which already encode q<0.05 significance gating in the underlying CPTAC DEG. This
+    card COUNTS those calls — it introduces no new statistics and inherits the
+    underlying MSstatsTMT limma-eBayes moderated-t provenance.
+  - |
+    CPTAC covers 10 cohorts (BRCA, CCRCC, COAD, GBM, HNSCC, LSCC, LUAD, OV, PDAC,
+    UCEC). n_cohorts_tested is the target's coverage WITHIN those, not all cancers. A
+    low breadth count on a target tested in few cohorts is under-powered, not
+    necessarily narrow — see the narrow_cptac_coverage warning.
+  - |
+    data_unavailable (target absent from all CPTAC cohorts) is a COVERAGE GAP, never a
+    measured negative. not_tumor_elevated (tested, elevated in none) IS a measured
+    negative. The vocabulary keeps the two distinct — do not conflate.
+  - |
+    Protein-level breadth does NOT imply surface accessibility. An intracellular
+    protein elevated across many tumors is not thereby biologics-actionable — pair with
+    protein-surface-evidence + surface-topology cards for modality decisions.
+
+measurement: bulk_protein_ms
+sample_context: tumor         # pan-cancer tumor protein (CPTAC) rolled up over cohorts — orthogonal to measurement (2026-07-21)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_elevation_breadth` claim (derived, target-grain).
+measurement_type: tumor_elevation_breadth
+entity_grains: [target]
+schema_version: 1

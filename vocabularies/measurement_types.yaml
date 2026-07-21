@@ -7,10 +7,11 @@
 # PUSHES providers. Ingestion and consumption meet here and never wire directly.
 #
 # SEEDED (2026-07-21) from the existing 40 cards' implied claims (migration step 2),
-# grounded by a per-card survey. 35 types (29 dataset + 6 derived_from); 4 subgroup
+# grounded by a per-card survey. 37 types (30 dataset + 7 derived_from); 4 subgroup
 # cards fold into an existing type as a NEW GRAIN (not a new type — the concordance
 # test, Rule 2); 1 card excluded (surfaceome-cohort-ranking = a population-relative
 # ranking, not a per-target claim — Rule non-goal / appendix case 14).
+# +1 derived (tumor_elevation_breadth) added 2026-07-21 for the pan-cancer breadth card.
 #
 # GOVERNANCE (the two rules that keep this honest — doc "missing middle" §):
 #   1. The CONCORDANCE TEST defines type identity. Two providers share a type IFF
@@ -343,6 +344,22 @@ measurement_types:
     cards: [adc-tce-modality-fit]
     providers:
       - {kind: derived_from, inputs: [surface_topology, surfaceome_family, structure_druggability], method: modality_fit, evidence_tier: inferred}
+
+  tumor_elevation_breadth:
+    claim: "In how many cancer indications is target's tumor protein ELEVATED vs normal (pan-cancer breadth)?"
+    # target-grain roll-up OVER INDICATIONS for ONE target — "elevated in K of N cancers". ALLOWED:
+    # breadth over indications for a single target is a per-target claim (precedent:
+    # normal_tissue_rna_breadth / normal_tissue_protein_breadth). It is NOT a ranking OVER TARGETS
+    # (the surfaceome-cohort-ranking non-goal below) — the roll-up axis is indications, not other
+    # genes. DISTINCT from the per-indication tumor_vs_adjacent contrast: breadth ≠ selectivity in
+    # THIS cancer; it is "how many cancers at all". Derived because the claim is a roll-up (K-of-N
+    # count) over an underlying per-indication type — the count is the scientific object (Rule 4).
+    # inputs: [tumor_protein_abundance] today (CPTAC-only, Slice B); the stacked RNA product
+    # (tumor_vs_normal_selectivity) is an ADDITIVE second input in the Slice-C fast-follow.
+    entity_grains: [target]
+    cards: [tumor-elevation-breadth]
+    providers:
+      - {kind: derived_from, inputs: [tumor_protein_abundance], method: breadth_rollup, evidence_tier: measured}
 
 # ============================================================================
 # EXCLUDED — NOT a per-target measurement_type (Rule non-goal / appendix case 14):
