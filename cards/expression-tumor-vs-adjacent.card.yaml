@@ -52,7 +52,9 @@ outputs:
     expression_call_class:
       - strong_upregulation                     # q < 0.05 AND log2_fc >= 1.5
       - modest_upregulation                     # q < 0.05 AND 0.5 <= log2_fc < 1.5
-      - not_informative                         # q >= 0.05 OR log2_fc < 0.5
+      - not_informative                         # q >= 0.05 OR -0.5 < log2_fc < 0.5 (truly flat)
+      - modest_downregulation                   # q < 0.05 AND -1.5 < log2_fc <= -0.5
+      - strong_downregulation                   # q < 0.05 AND log2_fc <= -1.5
       - data_unavailable                        # DGE derived-product unreachable / target absent
 
   # Field semantics (aligned to actual data v2.1.0):

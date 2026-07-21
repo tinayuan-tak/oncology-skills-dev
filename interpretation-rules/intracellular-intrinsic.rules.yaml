@@ -662,6 +662,42 @@ rules:
       DGE data unreachable or target absent from the indication's DGE table. Coverage
       gap; not used as opposing evidence for either modality.
 
+  # Down-regulation labels (2026-07-21): a significantly NEGATIVE tumor-vs-adjacent log2_fc means
+  # the target is DEPLETED in tumor relative to normal — adverse for a target you want present in
+  # tumor. Previously these contrasts fell to not_informative (folding down into "flat"); now
+  # labelled honestly. Degrader is killed (same as not_informative: degraders need demonstrable
+  # tumor protein presence, and depletion is the opposite); small-molecule is opposed (not killed —
+  # SM can still engage a present-but-not-elevated target, but tumor-depletion is a genuine negative).
+  - rule_id: expression-strong-downregulation-degrader-killer
+    when:
+      card_id: expression-tumor-vs-adjacent
+      field: expression_call_class
+      equals: strong_downregulation
+    signals:
+      small_molecule: opposing
+      degrader: killer
+    killer_message: |
+      Degrader not viable — target is strongly DEPLETED in tumor vs adjacent normal
+      (q < 0.05 AND log2_fc <= -1.5). Degrader investment requires confirmed tumor protein
+      presence; strong tumor-depletion is the opposite of the required signal.
+    rationale: |
+      Strong tumor-vs-adjacent downregulation. RNA-level evidence the target is lower in tumor
+      than normal — a genuine negative (distinct from not_informative's "flat/absent" coverage
+      gap). Degrader killed; small-molecule opposed but not killed.
+
+  - rule_id: expression-modest-downregulation-opposing
+    when:
+      card_id: expression-tumor-vs-adjacent
+      field: expression_call_class
+      equals: modest_downregulation
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      Modest tumor-vs-adjacent downregulation (q < 0.05 AND -1.5 < log2_fc <= -0.5). Directionally
+      adverse (target lower in tumor) but small effect size — opposing, not killing, for both
+      modalities; other cards carry the therapeutic-window story.
+
   # ============================================================================
   # E3a — Expression distribution (Card E3a: expression-distribution)
   # ============================================================================
