@@ -448,6 +448,70 @@ def emit_lineage_strip(merged_data: list, target_lineage: str, target_symbol: st
     plt.close(fig)
 
 
+def emit_plotly_specs(per_lineage_records: list, target_lineage: str,
+                      target_symbol: str, indication: str, summary: dict,
+                      out_path: Path, contracts_root: Path) -> list:
+    """Emit interactive Plotly spec SIBLING to the lineage forest SVG (Gate-C plotly debt, 2026-07-21).
+
+    Interactive twin of emit_forest_plot: per-lineage median Chronos with a p25–p75 IQR bar, top-20
+    most-dependent lineages, the target lineage highlighted (red diamond). Built from the SAME
+    per_lineage_records the SVG + plot_data.parquet use (no drift). Reflines at 0 / -0.5 / -1.0
+    (CHRONOS_STRONG_DEPENDENCY) mirror the SVG. Writes figure_forest_plot.plotly.json.
+    Best-effort (Plotly optional → SVG guaranteed)."""
+    try:
+        import plotly.graph_objects as go
+        sys.path.insert(0, str(contracts_root / "plot_styles"))
+        from takeda_palette import get_lineage_color, CHRONOS_STRONG_DEPENDENCY  # type: ignore
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifact
+        print(f"[depmap_chronos] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+    if not per_lineage_records:
+        return []
+
+    written = []
+    try:
+        # top-20 most-dependent (records are pre-sorted ascending by median_chronos); reverse so the
+        # MOST dependent sits at the TOP of the horizontal plot (mirrors the SVG's invert_yaxis).
+        plotted = list(per_lineage_records[:20])[::-1]
+        ys = list(range(len(plotted)))
+        labels = [f"{r['lineage']} (n={r['n']})" for r in plotted]
+        medians = [r["median_chronos"] for r in plotted]
+        p25 = [r["p25_chronos"] for r in plotted]
+        p75 = [r["p75_chronos"] for r in plotted]
+        colors = ["#B22222" if r["lineage"] == target_lineage else get_lineage_color(r["lineage"])
+                  for r in plotted]
+        fig = go.Figure()
+        # IQR bars as per-row line traces (one shape per lineage keeps hover on the median marker).
+        for i, r in enumerate(plotted):
+            fig.add_trace(go.Scatter(
+                x=[r["p25_chronos"], r["p75_chronos"]], y=[i, i], mode="lines",
+                line=dict(color=colors[i], width=3 if r["lineage"] == target_lineage else 1.5),
+                hoverinfo="skip", showlegend=False))
+        fig.add_trace(go.Scatter(
+            x=medians, y=ys, mode="markers",
+            marker=dict(color=colors, size=[11 if r["lineage"] == target_lineage else 7 for r in plotted],
+                        symbol=["diamond" if r["lineage"] == target_lineage else "circle" for r in plotted],
+                        line=dict(width=0.8, color="white")),
+            customdata=list(zip([r["lineage"] for r in plotted], [r["n"] for r in plotted])),
+            hovertemplate="%{customdata[0]} (n=%{customdata[1]})<br>median Chronos %{x:.2f}<extra></extra>",
+            showlegend=False))
+        for xv, col, dash in [(0.0, "#999999", "solid"), (-0.5, "#666666", "dash"),
+                              (CHRONOS_STRONG_DEPENDENCY, "#B22222", "dash")]:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5))
+        fig.update_layout(
+            title=f"{target_symbol}: per-lineage dependency in {indication}",
+            xaxis_title="Chronos score (more dependent ←)",
+            yaxis=dict(tickmode="array", tickvals=ys, ticktext=labels),
+            template="plotly_white", margin=dict(l=140, r=20, t=50, b=50))
+        (out_path / "figure_forest_plot.plotly.json").write_text(fig.to_json())
+        written.append({"id": "forest_plot", "path": "figure_forest_plot.plotly.json",
+                        "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[depmap_chronos] forest plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(chronos_by_model: dict, model_metadata: dict, target_lineage: str,
                      strong_threshold: float, out_path: Path) -> list:
     """Emit plot_data.parquet — one row per cell line. Returns the merged data
