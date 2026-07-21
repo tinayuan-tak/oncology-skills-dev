@@ -13,7 +13,7 @@
 # the analysis-methods classifier; the labels live in the cards).
 
 gate: dependency
-version: 1.0.0
+version: 1.1.0   # 1.1.0: + exhaustiveness/provenance rung for data-unavailable calls (verdict unchanged; driving_rule_id no longer null on a measured coverage gap)
 description: |
   Dependency (Gate C) verdict precedence. Both admissibility guards
   (common_essential_underpowered top-rail, non_dependent_underpowered bottom-rail) and
@@ -95,4 +95,23 @@ resolve:
       - broadly-dependent-neutral
       - rnai-broadly-dependent-neutral
 
+  # EXHAUSTIVENESS / provenance rung (v1.1.0). A measured `data_unavailable` /
+  # partially-assayed call on ANY dependency card is honestly `insufficient` — but WITHOUT
+  # this rung it fell through to `default: insufficient` with driving_rule_id=None, so a
+  # reviewer could not tell "a card ran and reported no usable data" (coverage gap, named
+  # here) from "no dependency rule fired at all" (the card didn't run — still the bare
+  # default). Verdict is UNCHANGED (still `insufficient`, F1-safe); this only attaches a
+  # provenance anchor. Placed at the BOTTOM (above default): it fires ONLY when no positive,
+  # veto, admissibility-guard, or neutral rung above it matched — so it can never outrank a
+  # real signal. when_any_fired order = deterministic tie-break; CRISPR (the backbone) first.
+  - verdict: insufficient
+    when_any_fired:
+      - data-unavailable-insufficient                      # pan-cancer-crispr
+      - concordance-partially-assayed-insufficient         # crispr-rnai-concordance (one assay only)
+      - concordance-data-unavailable-insufficient          # crispr-rnai-concordance (neither)
+      - rnai-data-unavailable-insufficient                 # pan-cancer-rnai
+      - lineage-selectivity-data-unavailable-insufficient  # dependency-lineage-selectivity
+
+# default fires ONLY when NOT EVEN a data-unavailable rule fired (i.e. no dependency card
+# produced any rule at all) → insufficient with null provenance, the honest "nothing ran" state.
 default: insufficient
