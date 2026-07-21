@@ -23,10 +23,10 @@ Output schema (per row):
     protein_median_log2_normal          float
     protein_effect_size                 float  — median_log2_tumor - median_log2_normal
     protein_effect_size_pooled_sd       float
-    protein_p_value                     float  — Welch's t or Wilcoxon rank-sum
+    protein_p_value                     float  — MSstatsTMT groupComparisonTMT (limma-eBayes moderated t)
     protein_bh_q_value                  float
-    protein_expression_class            str    — 'strong_up' | 'modest_up' | 'ns' | 'strong_down' | 'not_detected'
-    stat_test_used                      str    — 'welch_t' | 'wilcoxon' | 'skipped_low_n'
+    protein_expression_class            str    — 'strong_up' | 'modest_up' | 'ns' | 'modest_down' | 'strong_down' | 'not_detected'
+    stat_test_used                      str    — 'msstatstmt_limma_ebayes_moderated' | 'skipped_low_n'
     method_version                      str
 
 Reviewer note: Slaga et al 2018 (Sci Transl Med) established that TCE viability

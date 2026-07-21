@@ -269,15 +269,17 @@ def emit_tumor_vs_normal_selectivity_4panel(
     out_dir: Path,
     target_contracts_dir: Path,
 ) -> Path:
-    """v3 four-panel figure for the tumor-vs-normal-selectivity card.
+    """v3 sensitivity-panel figure for the tumor-vs-normal-selectivity card.
+    (Function name retains the historical `_4panel` suffix for API stability; the
+    middle forest now draws 3 live cells A/B/C — cell D was retired.)
 
-    Layout (single SVG, 3-panel row like v2 but the middle forest is now 4 rows):
+    Layout (single SVG, 3-panel row like v2; the middle forest is 3 rows A/B/C):
       Left:   horizontal box + strip of log2(CPM+1) for Primary Tumor, TCGA
               Adjacent Normal, and GTEx (unchanged from v2).
-      Middle: forest of the FOUR cell log2FC estimates (A/B/C/D) with q-value
-              stars, colored by up/down. Cells that disagree on sign vs the
+      Middle: forest of the live cell log2FC estimates (A/B/C; cell D retired) with
+              q-value stars, colored by up/down. Cells that disagree on sign vs the
               dominant direction are drawn hollow (discordance flag).
-      Right:  sensitivity callout — cells_supporting badge (n/4),
+      Right:  sensitivity callout — cells_supporting badge (n/cells_ran),
               dominant_direction, sig_all_cells check, discordant flag, class.
 
     `sensitivity_summary` is the dict produced by
@@ -355,7 +357,7 @@ def emit_tumor_vs_normal_selectivity_4panel(
         ax_box.text(med, i + 1 - 0.32, f"{med:.2f}", ha="center", va="top",
                     fontsize=7, color="#222", weight="bold")
 
-    # -------- Panel B: 4-cell forest --------
+    # -------- Panel B: multi-cell forest (A/B/C live; cell D retired) --------
     def _sig_stars(q):
         if q is None or q != q: return ""
         if q < 1e-10: return "***"
@@ -363,11 +365,12 @@ def emit_tumor_vs_normal_selectivity_4panel(
         if q < 0.05:  return "*"
         return "ns"
 
+    # Cell D (GTEx, ComBat(source)) was RETIRED — the reader no longer emits log2fc_cell_d;
+    # the forest draws the three live cells A/B/C. See card + 06_four_cell_driver.R:227-244.
     cells = [
         ("A", "TCGA adj-normal\n(raw)",     "log2fc_cell_a", "q_value_cell_a"),
         ("B", "TCGA adj-normal\n(ComBat)",  "log2fc_cell_b", "q_value_cell_b"),
         ("C", "GTEx normal\n(raw joint)",   "log2fc_cell_c", "q_value_cell_c"),
-        ("D", "GTEx normal\n(ComBat)",      "log2fc_cell_d", "q_value_cell_d"),
     ]
     rows = []
     for tag, label, lfc_k, q_k in cells:
@@ -448,7 +451,7 @@ def emit_tumor_vs_normal_selectivity_4panel(
     ax_txt.text(0.02, y, "Sensitivity",  transform=ax_txt.transAxes,
                 ha="left", va="top", fontsize=10, weight="bold", color="#222")
     y -= 0.08
-    ax_txt.text(0.02, y, "(4-cell DESeq2)", transform=ax_txt.transAxes,
+    ax_txt.text(0.02, y, "(3-cell DESeq2)", transform=ax_txt.transAxes,
                 ha="left", va="top", fontsize=7, style="italic", color="#666")
     y -= 0.09
 
