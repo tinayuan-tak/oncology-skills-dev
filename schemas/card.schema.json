@@ -361,6 +361,25 @@
         "protein_ihc"
       ]
     },
+    "measurement_type": {
+      "type": "string",
+      "description": "DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) — the card's IDENTITY: the single per-target-entity CLAIM it measures (e.g. crispr_lof_dependency, surface_confirmation, normal_tissue_breadth). Must be a key registered in vocabularies/measurement_types.yaml. A card owns exactly one measurement_type; distinct claims (per the concordance test, Rule 2) are distinct cards. OPTIONAL during migration (existing cards are un-migrated; a validator warns, does not error) — REQUIRED for all NEW cards per the frozen identity rule. The type registry declares the value_vocabulary, providers, evidence tiers, grains, and multi_provider_policy; the card names which type it is a view of.",
+      "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "entity_grains": {
+      "type": "array",
+      "description": "DATA_TO_SKILL_CONTRACT.md Rule 5 (2026-07-21) — the CAPABILITY CEILING: the entity grains this card's substrate can emit (a per-sample reader can support target_subtype; an aggregate reader cannot). The runtime query SELECTS a grain within this ceiling; a request above the ceiling gets an honest data_unavailable for that grain and MUST NOT silently fall back to a coarser grain. Values are governed by the grain vocabulary (target | target_indication | target_subtype | target_lineage | cohort | single_cell — extensible by vocabulary entry, never a schema change). OPTIONAL during migration; when present, must be non-empty. Complements the existing `tier` field (channel-precedence tier) — grain is the slicing dimension, tier is the precedence class.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$",
+        "minLength": 3,
+        "maxLength": 40
+      },
+      "minItems": 1,
+      "maxItems": 8
+    },
     "schema_version": {
       "type": "integer",
       "description": "Version of card.schema.json this spec validates against. Currently always 1; bumps when card.schema.json itself takes a breaking change.",

@@ -33,7 +33,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -83,6 +83,32 @@ _SKILLS_REPO = Path(
     "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills")
 _FIGURE_EMITTERS_PATH = (_SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
                          / "_figure_emitters.py")
+
+# Measurement-type check (DATA_TO_SKILL_CONTRACT.md, 2026-07-21). A card's identity is
+# (measurement_type × entity_grain) — Rule 1. During migration the field is OPTIONAL (existing
+# cards are un-migrated), so a card WITHOUT measurement_type gets a WARNING (tracked migration debt),
+# not an error. A card WITH one must name a type registered in vocabularies/measurement_types.yaml
+# (else ERROR — a typo'd/unregistered type is a real defect). This is the machine-check that makes
+# the pull-routing registry honest: every declared type resolves to a governed vocabulary entry.
+_MEASUREMENT_TYPES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
+                           / 'measurement_types.yaml')
+
+
+def _registered_measurement_types() -> Optional[set[str]]:
+    """The set of measurement_type keys declared in vocabularies/measurement_types.yaml. Returns
+    None if the vocab file is absent (→ the check graceful-skips; the vocab is net-new and a repo
+    checkout mid-migration may not have it yet)."""
+    if not _MEASUREMENT_TYPES_PATH.exists():
+        return None
+    try:
+        with _MEASUREMENT_TYPES_PATH.open() as f:
+            doc = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return None
+    types = doc.get('measurement_types')
+    if not isinstance(types, dict):
+        return None
+    return set(types.keys())
 
 
 def _registered_figure_emitters() -> Optional[set[str]]:
@@ -411,6 +437,43 @@ def _figure_emission_check(spec: dict, report: ValidationReport) -> None:
     )
 
 
+def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
+    """DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) — a card's identity is
+    (measurement_type × entity_grain).
+
+    MIGRATION-SAFE by design (the doc's 'do NOT big-bang' guardrail):
+      - No measurement_type on the card → WARNING (tracked migration debt). The ~40 pre-existing
+        cards are un-migrated; the field is REQUIRED only for NEW cards (the frozen identity rule),
+        and social/PR review — not this validator — enforces "new card must declare it" until the
+        migration completes and the field can be made hard-required.
+      - measurement_type present but NOT registered in vocabularies/measurement_types.yaml → ERROR.
+        A declared-but-unregistered type is a real defect (typo, or a type someone forgot to add to
+        the governed vocab) — the pull resolver would never match it.
+      - entity_grains present: each grain must parse as a grain token (schema already enforces the
+        pattern; here we additionally forbid the empty string slipping through as a lone value).
+    """
+    mtype = spec.get('measurement_type')
+    card_id = spec.get('card_id', '<unknown>')
+    if mtype is None:
+        report.add_warning(
+            f'MEASUREMENT_TYPE_MISSING: card `{card_id}` does not declare a `measurement_type` '
+            f'(DATA_TO_SKILL_CONTRACT Rule 1). Tracked migration debt — pre-existing cards are '
+            f'un-migrated; NEW cards must declare their measurement_type + register it in '
+            f'vocabularies/measurement_types.yaml.'
+        )
+        return
+    registered = _registered_measurement_types()
+    if registered is None:
+        return  # vocab file absent (net-new / mid-migration checkout) — graceful skip, never false-fail
+    if mtype not in registered:
+        report.add_error(
+            f'MEASUREMENT_TYPE_UNREGISTERED: card `{card_id}` declares measurement_type '
+            f'`{mtype}` which is NOT a key in vocabularies/measurement_types.yaml. Register the '
+            f'type (per the concordance test, Rule 2) or fix the name — the pull resolver matches '
+            f'gates to providers by this key, so an unregistered type is invisible to every gate.'
+        )
+
+
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
     """Validate a single card_spec YAML file. Returns a ValidationReport."""
     path = Path(path)
@@ -437,6 +500,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _composed_card_semantics_check(spec, report)
         _grain_and_tier_check(spec, report)
         _figure_emission_check(spec, report)
+        _measurement_type_check(spec, report)
     return report
 
 

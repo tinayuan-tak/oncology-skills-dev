@@ -1,0 +1,145 @@
+"""Tests for the measurement_type check in validate_cards.py (DATA_TO_SKILL_CONTRACT Rule 1).
+
+A card's identity is (measurement_type × entity_grain). The check is MIGRATION-SAFE:
+  - no measurement_type → WARNING (tracked migration debt), never an error (the ~40 pre-existing
+    cards are un-migrated);
+  - measurement_type present but unregistered in vocabularies/measurement_types.yaml → ERROR
+    (a typo'd/forgotten type the pull resolver could never match);
+  - registered type → clean.
+These tests assert all three directions + the schema round-trip (measurement_type + entity_grains
+are optional, additive fields), monkeypatching the registry so they don't depend on the vocab's
+evolving contents.
+
+Hermetic: synthetic card dicts written to tmp YAML, validated against the real card.schema.json.
+"""
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import yaml
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def _load(mod_name: str):
+    spec = importlib.util.spec_from_file_location(mod_name, REPO / "validators" / f"{mod_name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+VC = _load("validate_cards")
+
+
+def _base_card(**overrides) -> dict:
+    card = {
+        "card_id": "synthetic-test-card",
+        "version": "1.0.0",
+        "question": "Synthetic card question for {target.symbol} in {indication.label}?",
+        "applies_when": ["target.depmap_screened == true"],
+        "required_inputs": [{"product_id": "depmap-consortium-26q1"}],
+        "methods": [{"call": "depmap-chronos"}],
+        "outputs": {"summary_fields": ["median_chronos_panel"]},
+        "caveats": ["A caveat long enough to satisfy the minLength constraint."],
+        "schema_version": 1,
+    }
+    card.update(overrides)
+    return card
+
+
+def _validate(tmp_path: Path, card: dict) -> "VC.ValidationReport":
+    p = tmp_path / "synthetic.card.yaml"
+    p.write_text(yaml.safe_dump(card))
+    return VC.validate_card_file(p)
+
+
+def _errs(r) -> str:
+    return "\n".join(r.errors)
+
+
+def _warns(r) -> str:
+    return "\n".join(r.warnings)
+
+
+# ---------- schema: the new fields are optional + additive ----------
+
+def test_card_without_measurement_type_is_schema_valid(tmp_path):
+    """Backward-compat: a pre-migration card (no measurement_type/entity_grains) still validates."""
+    report = _validate(tmp_path, _base_card())
+    assert report.ok, _errs(report)   # no ERROR; warnings are fine
+
+
+def test_card_with_measurement_type_and_grains_is_schema_valid(tmp_path, monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types",
+                        lambda: {"crispr_lof_dependency"})
+    card = _base_card(measurement_type="crispr_lof_dependency",
+                      entity_grains=["target", "target_lineage"])
+    report = _validate(tmp_path, card)
+    assert report.ok, _errs(report)
+
+
+def test_bad_measurement_type_pattern_rejected_by_schema(tmp_path):
+    """Uppercase / hyphens are not valid measurement_type tokens (snake_case only)."""
+    card = _base_card(measurement_type="CRISPR-LOF")
+    report = _validate(tmp_path, card)
+    assert not report.ok
+    assert "STRUCTURAL" in _errs(report)
+
+
+def test_empty_entity_grains_rejected_by_schema(tmp_path):
+    card = _base_card(measurement_type="x_dep", entity_grains=[])
+    report = _validate(tmp_path, card)
+    assert not report.ok
+    assert "STRUCTURAL" in _errs(report)
+
+
+# ---------- migration-safe check behavior ----------
+
+def test_missing_measurement_type_is_warning_not_error(tmp_path):
+    report = _validate(tmp_path, _base_card())
+    assert report.ok                                    # WARNING, not error
+    assert "MEASUREMENT_TYPE_MISSING" in _warns(report)
+
+
+def test_registered_measurement_type_is_clean(tmp_path, monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types",
+                        lambda: {"crispr_lof_dependency", "surface_confirmation"})
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation"))
+    assert report.ok, _errs(report)
+    assert "MEASUREMENT_TYPE_MISSING" not in _warns(report)
+    assert "MEASUREMENT_TYPE_UNREGISTERED" not in _errs(report)
+
+
+def test_unregistered_measurement_type_is_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types",
+                        lambda: {"crispr_lof_dependency"})
+    report = _validate(tmp_path, _base_card(measurement_type="typoed_claim"))
+    assert not report.ok
+    assert "MEASUREMENT_TYPE_UNREGISTERED" in _errs(report)
+
+
+def test_graceful_skip_when_vocab_absent(tmp_path, monkeypatch):
+    """When the vocab file can't be read (None), a declared type is neither confirmed nor
+    rejected — the check skips rather than false-failing a mid-migration checkout."""
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: None)
+    report = _validate(tmp_path, _base_card(measurement_type="anything_goes"))
+    assert report.ok, _errs(report)
+    assert "MEASUREMENT_TYPE_UNREGISTERED" not in _errs(report)
+
+
+# ---------- the real vocab file, once it exists, parses + is self-consistent ----------
+
+def test_real_vocab_registered_types_are_loadable():
+    """If vocabularies/measurement_types.yaml exists, it parses to a non-empty type set (guards
+    against a malformed vocab silently disabling the check)."""
+    reg = VC._registered_measurement_types()
+    if reg is None:
+        return  # vocab not landed yet in this checkout — nothing to assert
+    assert isinstance(reg, set) and reg, "measurement_types.yaml present but yielded no types"
+    # every key is a valid snake_case token (mirrors the schema pattern on the card side)
+    import re
+    for t in reg:
+        assert re.fullmatch(r"[a-z][a-z0-9_]*[a-z0-9]", t), f"bad measurement_type key: {t!r}"

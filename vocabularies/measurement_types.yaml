@@ -1,0 +1,352 @@
+# measurement_types.yaml — the governed measurement-type registry
+# ============================================================================
+# DATA_TO_SKILL_CONTRACT.md (2026-07-21). The "missing middle" the design doc
+# names: a card's IDENTITY is (measurement_type × entity_grain). This file is the
+# single governed vocabulary of measurement_types — the per-target-entity CLAIMS
+# the framework can measure. Cards are VIEWS of a type; gates PULL type keys; data
+# PUSHES providers. Ingestion and consumption meet here and never wire directly.
+#
+# SEEDED (2026-07-21) from the existing 40 cards' implied claims (migration step 2),
+# grounded by a per-card survey. 35 types (29 dataset + 6 derived_from); 4 subgroup
+# cards fold into an existing type as a NEW GRAIN (not a new type — the concordance
+# test, Rule 2); 1 card excluded (surfaceome-cohort-ranking = a population-relative
+# ranking, not a per-target claim — Rule non-goal / appendix case 14).
+#
+# GOVERNANCE (the two rules that keep this honest — doc "missing middle" §):
+#   1. The CONCORDANCE TEST defines type identity. Two providers share a type IFF
+#      they are corroborating (interchangeable) evidence for the SAME claim. Distinct
+#      claims shown ALONGSIDE each other are distinct types. Same claim, new source =
+#      a new PROVIDER (extend); same claim, new grain = a new entity_grain (extend);
+#      genuinely new claim = a NEW type.
+#   2. evidence_tier is MANDATORY per provider (measured | inferred | estimated). An
+#      inferred/estimated provider must NEVER fire a measured-strength killer (the
+#      measured-vs-null discipline, applied to provenance).
+#
+# CONFLICT: a type with >1 provider MUST declare multi_provider_policy
+#   (tier_dominant | surface_discordance). Averaging / arbitrary pick-one is forbidden.
+#
+# GRAIN: entity_grains is the CAPABILITY CEILING (Rule 5). A query selects a grain
+#   WITHIN it; a request above the ceiling → honest data_unavailable, NEVER a silent
+#   fall-back to a coarser grain. target_subtype/target_lineage carry a PARTITION
+#   dependency (Rule 4): the subgroup-catalog + subgroup-assignment product. A subtype
+#   grain marked `blocked` is eligible-but-not-live (needs a per-sample reader).
+#
+# NOT here: population-relative claims (rankings, cross-cohort convergence, cross-
+#   target mutual-exclusivity) — a different product class (panorama / cohort-scan),
+#   kept out of the per-target skills. See Non-goals in the design doc.
+#
+# STATUS: scaffold slice (migration step 2). This registry is authored + validated;
+#   provider wiring in analysis-methods and gate-view PULLs in skills are LATER
+#   cross-repo slices (surface/CSPA family first). measurement_type on cards is
+#   OPTIONAL during migration (validator warns, does not error) → REQUIRED for new
+#   cards once the migration completes.
+# ============================================================================
+
+schema_version: 1
+
+# Governed grain vocabulary (Rule 1/5). Extensible by a vocabulary entry here,
+# NEVER by a card.schema.json change. `partition_required: true` grains need a
+# subgroup-catalog + subgroup-assignment product (the Rule 4 upstream dependency).
+entity_grain_vocabulary:
+  target:            {partition_required: false, note: "scope-invariant: a property of the gene/protein"}
+  target_indication: {partition_required: false, note: "within one indication cohort"}
+  target_lineage:    {partition_required: false, note: "DepMap cell-line lineage; read-side groupby over per-ModelID rows"}
+  target_subtype:    {partition_required: true,  note: "molecular subgroup; needs subgroup-catalog + assignment product"}
+  cohort:            {partition_required: false, note: "reserved — a named sample cohort"}
+  single_cell:       {partition_required: false, note: "reserved — per-cell resolution"}
+
+evidence_tiers: [measured, inferred, estimated]   # mandatory per provider
+
+# ============================================================================
+# DATASET types — a source+method measures the claim directly.
+# ============================================================================
+measurement_types:
+
+  target_identity:
+    claim: "Does the symbol resolve to a canonical HGNC/Ensembl/UniProt identity plus curated biology axis?"
+    entity_grains: [target]
+    cards: [target-identity-summary]
+    providers:
+      - {kind: dataset, source: target-id-resolver-release, evidence_tier: measured}
+
+  cell_line_rna_expression:
+    claim: "How is target mRNA distributed across DepMap cell lines, and is it lineage-stratified?"
+    entity_grains: [target, target_lineage]
+    cards: [expression-distribution]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
+  tumor_vs_adjacent_expression:
+    claim: "Is target RNA upregulated in tumor vs matched adjacent normal (presence framing)?"
+    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (needs per-sample reader)
+    cards: [expression-tumor-vs-adjacent, subgroup-stratified-expression]
+    providers:
+      - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}
+
+  tumor_vs_normal_selectivity:
+    claim: "How robustly tumor-selective is target across four tumor-vs-normal comparators (efficacy-window framing)?"
+    # Rule 1 discriminator (b): distinct from normal_tissue_*_breadth — same tumor-vs-normal biology,
+    # but pulled by Selectivity (efficacy window), not Safety (off-tumor floor).
+    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
+    cards: [tumor-vs-normal-selectivity]
+    providers:
+      - {kind: dataset, source: coadread-dge-tumor-vs-normal-sensitivity-v1, evidence_tier: measured}
+
+  antigen_expressing_prevalence:
+    claim: "What fraction of tumors express target above a clinically relevant level (patient-selection prevalence)?"
+    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
+    cards: [antigen-prevalence]
+    providers:
+      - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}
+
+  tumor_protein_abundance:
+    claim: "Is target present at protein level in tumor vs matched normal (CPTAC MS)?"
+    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
+    cards: [protein-presence-cptac]
+    providers:
+      - {kind: dataset, source: cptac-protein-tumor-vs-normal-per-cohort-v1, evidence_tier: measured}
+
+  cell_line_protein_abundance:
+    claim: "What is target's Gygi-TMT-MS protein abundance across DepMap cell lines?"
+    # Distinct from cell_line_rna_expression: RNA vs MS protein are orthogonal layers whose
+    # disagreement is diagnostic (never averaged) — the concordance-test signal for two types.
+    entity_grains: [target, target_lineage]
+    cards: [protein-abundance-celline]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}
+
+  crispr_lof_dependency:
+    claim: "What is the shape of CRISPR (Chronos) LOF dependency on target, incl. lineage and molecular-subgroup slices?"
+    entity_grains: [target, target_lineage, target_subtype]   # target_subtype LIVE (subgroup-stratified-dependency binds a per-sample reader)
+    cards: [pan-cancer-crispr-dependency-distribution, dependency-lineage-selectivity, subgroup-stratified-dependency]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
+  rnai_lof_dependency:
+    claim: "What is the shape of RNAi (DEMETER2) LOF dependency on target?"
+    entity_grains: [target, target_lineage]
+    cards: [pan-cancer-rnai-dependency-distribution]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1-rnai, evidence_tier: measured}
+
+  dependency_predictability:
+    claim: "Can target's Chronos dependency be predicted from omics (biomarker-anchored / context-driven / unpredictable)?"
+    # Registered but pulled by no gate today (mirror of the CSPA case, Rule 3): a first-class
+    # visible 'no-puller' state, not a dead end.
+    entity_grains: [target, target_lineage]
+    cards: [dependency-predictability]
+    providers:
+      - {kind: dataset, source: depmap-predictability, evidence_tier: measured}
+
+  paralog_buffering:
+    claim: "Does a functional paralog buffer target's dependency (dual-KO delta / escape risk)?"
+    entity_grains: [target]
+    cards: [paralog-buffering]
+    providers:
+      - {kind: dataset, source: depmap-paralog-buffering-per-gene-v1, evidence_tier: measured}
+
+  synthetic_lethal_partner:
+    claim: "Does target have a curated (experimental) synthetic-lethal partner making a pooled non-dependent read untrusted?"
+    # Annotation, not measurement — suppresses a veto to insufficient, never nominates (per the
+    # synleth wiring). evidence_tier: inferred reflects curated-pair annotation, not a measured screen.
+    entity_grains: [target]
+    cards: [synthetic-lethal-partners]
+    providers:
+      - {kind: dataset, source: synlethdb-sl-partners-per-gene-v1, evidence_tier: inferred}
+
+  prism_compound_activity:
+    claim: "Does an annotated compound hit target, and is its activity lineage-selective or pan-cancer?"
+    entity_grains: [target, target_lineage]
+    cards: [prism-compound-activity]
+    providers:
+      - {kind: dataset, source: depmap-prism-activity-v3, evidence_tier: measured}
+
+  mutation_hotspot_frequency:
+    claim: "What is target's somatic mutation frequency + hotspot landscape in patient cohorts, incl. subgroup slices?"
+    entity_grains: [target_indication, target_subtype]   # target_subtype LIVE (subgroup-stratified-mutation-frequency)
+    cards: [mutation-hotspot-frequency, subgroup-stratified-mutation-frequency]
+    providers:
+      - {kind: dataset, source: gdc-pancohort-somatic, evidence_tier: measured}
+
+  mutation_variant_class_spectrum:
+    claim: "What variant classes does target carry in cell lines (missense vs LOF vs mixed = oncogene/TSG pattern)?"
+    # Distinct from mutation_hotspot_frequency (concordance test, appendix case 3): both 'about
+    # mutations' but one is per-cohort recurrence, the other is per-line variant-class spectrum.
+    entity_grains: [target, target_lineage]
+    cards: [mutation-type-counts]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
+  mutation_status:
+    claim: "Is target hotspot/damaging-mutant vs wild-type per sample (a per-line boolean, the biomarker axis)?"
+    # LATENT UNOWNED input surfaced by the survey: mutation_stratified_dependency's mutation input
+    # is a per-line mutant/WT boolean (DepMap hotspot/damaging matrices), NOT the variant-class
+    # spectrum above. No standalone card is a view of it today — it exists as a derived-edge input.
+    entity_grains: [target, target_lineage]
+    cards: []
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
+  copy_number_alteration:
+    claim: "Is target recurrently amplified/deleted or broadly copy-neutral across cell lines?"
+    entity_grains: [target, target_lineage]
+    cards: [copy-number-distribution]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
+  fusion_rearrangement:
+    claim: "Is target recurrently involved in gene fusions or structural rearrangements?"
+    entity_grains: [target_indication]
+    cards: [fusion-rearrangement-landscape]
+    providers:
+      - {kind: dataset, source: placeholder, evidence_tier: measured}   # genie-structural-variants not yet catalogued (card is a placeholder)
+
+  mutation_cooccurrence:
+    claim: "Which genes co-occur with or are mutually exclusive to target mutations?"
+    entity_grains: [target, target_subtype]   # target_subtype eligible-but-blocked; pan-cohort
+    cards: [co-mutation-and-mutual-exclusivity]
+    providers:
+      - {kind: dataset, source: pancohort-cooccurrence-fisher-v1, evidence_tier: measured}   # TCGA MC3 + GENIE 19.0
+
+  signaling_network_mechanism:
+    claim: "What upstream/downstream SIGNOR signaling context and candidate MoA hooks does target have?"
+    entity_grains: [target]
+    cards: [signaling-network-mechanism]
+    providers:
+      - {kind: dataset, source: signor-mechanism-network-per-gene-v1, evidence_tier: measured}
+
+  structure_druggability:
+    claim: "Are target's known hotspots in druggable pockets, and how confident is the structural context?"
+    entity_grains: [target]
+    cards: [structure-features-static]
+    providers:
+      - {kind: dataset, source: pdb-alphafold-structure-features-per-uniprot-v1, evidence_tier: inferred}
+
+  surface_topology:
+    claim: "What is target's predicted membrane topology + PTM / endocytosis-motif profile?"
+    entity_grains: [target]
+    cards: [surface-topology-and-ptm]
+    providers:
+      - {kind: dataset, source: topology-predictions-tmbed-v1, evidence_tier: inferred}
+
+  surfaceome_family:
+    claim: "Is target a surface protein and which family does it belong to (for modality-fit)?"
+    entity_grains: [target]
+    cards: [surfaceome-family-classification]
+    providers:
+      - {kind: dataset, source: surfaceome-family-classification-per-uniprot-v1, evidence_tier: inferred}   # SURFY + HPA + UniProt-EC + IUPHAR
+
+  # --- the CSPA orphan case (design doc worked example) — 3 providers, tier-dominant ---
+  surface_confirmation:
+    claim: "Is the target protein detected/accessible on the extracellular cell surface?"
+    entity_grains: [target]   # residency is a target property; the card's question is indication-framed but the claim is not
+    modality_relevance: [adc, bite_tce, antibody]   # ROUTING metadata only — NOT modality-specific values
+    multi_provider_policy: tier_dominant            # measured HPA/CSPA beats inferred SURFY (Rule 5)
+    cards: [protein-surface-evidence]
+    providers:
+      - {kind: dataset, source: hpa-protein-ihc,          evidence_tier: measured}   # + subcellular-localization-uniprot; card currently data-blocked
+      - {kind: dataset, source: cspa-bausch-fluck-2015,   evidence_tier: measured}   # CSPA orphan resolved: registers here per Rule 2 / the doc's worked example
+      - {kind: dataset, source: surfaceome-family-surfy-prediction, evidence_tier: inferred}   # SURFY prediction — second, lower-tier provider
+
+  normal_tissue_rna_breadth:
+    claim: "In how many adult tissues is target RNA-expressed (target-selection therapeutic-window count)?"
+    # Distinct from normal_tissue_protein_breadth: RNA-breadth for selection vs protein-IHC for
+    # safety — different layer AND different gate (Rule 1 discriminators (a) and (b) both fire).
+    entity_grains: [target]
+    cards: [lineage-restriction-evidence]
+    providers:
+      - {kind: dataset, source: hpa-normal-tissue-expression, evidence_tier: measured}   # product not yet landed; card dormant-by-design (applies_when)
+
+  normal_tissue_protein_breadth:
+    claim: "How broad is target's normal-tissue protein-IHC footprint, and does it hit essential tissue (safety)?"
+    entity_grains: [target]
+    cards: [normal-tissue-liability]
+    providers:
+      - {kind: dataset, source: hpa-v25-1, evidence_tier: measured}
+
+  gnomad_lof_constraint:
+    claim: "How constrained is target against germline LoF in the gnomAD population (safety)?"
+    entity_grains: [target]
+    cards: [gnomad-lof-constraint]
+    providers:
+      - {kind: dataset, source: gnomad-constraint-snapshot-2026-07-02, evidence_tier: measured}
+
+  shed_ectodomain_liability:
+    claim: "Is target's ectodomain shed as a soluble circulating decoy (antigen-sink liability for biologics)?"
+    entity_grains: [target]
+    cards: [shed-ectodomain-liability]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: hpa-v25-1,                  evidence_tier: measured}
+      - {kind: dataset, source: uniprot-sprot-human-2026-02, evidence_tier: inferred}
+      - {kind: dataset, source: shed_antigen_targets-curated, evidence_tier: inferred}   # vocabularies/shed_antigen_targets.yaml
+
+  clinical_precedent:
+    claim: "What is the clinical precedent (stage / approved agents / failures / resistance) for target?"
+    entity_grains: [target_indication]
+    cards: [clinical-precedent]
+    providers:
+      - {kind: dataset, source: literature-snapshot, evidence_tier: inferred}   # iter-1b literature-mining surface (placeholder-ish)
+
+  rwd_stratified_expression:
+    claim: "How does target expression vary across treatment-line / RAS strata in real-world data?"
+    entity_grains: [target_subtype]   # eligible-but-blocked (pre-aggregated RWD; per-sample reader not landed)
+    cards: [rwd-stratified-expression]
+    providers:
+      - {kind: dataset, source: tempus-rwd-stratified-expression, evidence_tier: measured}   # Tempus stub; product not landed
+
+  # ==========================================================================
+  # DERIVED types — the CLAIM is a comparison of other types (Rule 4, type→type edge).
+  # The comparison itself is the scientific object; agnostic to how many datasets back it.
+  # ==========================================================================
+
+  crispr_rnai_concordance:
+    claim: "Do the two orthogonal LOF assays agree that target is required?"
+    entity_grains: [target]
+    cards: [crispr-rnai-dependency-concordance]
+    providers:
+      - {kind: derived_from, inputs: [crispr_lof_dependency, rnai_lof_dependency], method: concordance, evidence_tier: measured}
+
+  expression_dependency_correlation:
+    claim: "Does target's mRNA expression correlate with its own dependency (expression-as-biomarker)?"
+    # Comparison-is-the-claim → derived (appendix case 7 logic), even though single-dataset-sourced
+    # and the card does not self-declare derived_from.
+    entity_grains: [target, target_lineage]
+    cards: [expression-dependency-correlation]
+    providers:
+      - {kind: derived_from, inputs: [cell_line_rna_expression, crispr_lof_dependency], method: correlation, evidence_tier: measured}
+
+  mutation_stratified_dependency:
+    claim: "Is target dependency stratified by target's own mutation status (oncogene-addiction biomarker)?"
+    entity_grains: [target]
+    cards: [mutation-stratified-dependency]
+    providers:
+      - {kind: derived_from, inputs: [mutation_status, crispr_lof_dependency], method: stratified_effect, evidence_tier: measured}
+
+  chemical_genetic_concordance:
+    claim: "Does compound kill-pattern track CRISPR + RNAi dependency (on-target engagement)?"
+    entity_grains: [target]
+    cards: [prism-crispr-concordance]
+    providers:
+      - {kind: derived_from, inputs: [prism_compound_activity, crispr_lof_dependency, rnai_lof_dependency], method: concordance, evidence_tier: measured}
+
+  surface_density:
+    claim: "What is estimated surface copies-per-cell, and is it above the TCE-viability threshold?"
+    entity_grains: [target_indication]
+    cards: [surface-abundance-density]
+    providers:
+      - {kind: derived_from, inputs: [tumor_protein_abundance, surfaceome_family, surface_topology], method: density_estimate, evidence_tier: estimated}
+
+  adc_tce_modality_fit:
+    claim: "Which biologic modalities (ADC / TCE / both / neither) are viable candidates for target?"
+    entity_grains: [target]
+    cards: [adc-tce-modality-fit]
+    providers:
+      - {kind: derived_from, inputs: [surface_topology, surfaceome_family, structure_druggability], method: modality_fit, evidence_tier: inferred}
+
+# ============================================================================
+# EXCLUDED — NOT a per-target measurement_type (Rule non-goal / appendix case 14):
+#   surfaceome-cohort-ranking — a population-relative ranking over all surface proteins
+#   in an indication (percentile / tissue_rank among N), not a claim about one target.
+#   It is a panorama/cohort-scan product, correctly kept out of the per-target skills.
+# ============================================================================
