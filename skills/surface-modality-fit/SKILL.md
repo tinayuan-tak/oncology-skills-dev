@@ -36,6 +36,21 @@ composition:
     - structure-features-static
     - surface-abundance-density
     - adc-tce-modality-fit
+  # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
+  # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
+  # which datasets provide them. Keys resolve against target-contracts/vocabularies/
+  # measurement_types.yaml. During migration cards_used (above) is the live wiring; this list is
+  # the machine-checkable pull-intent a resolver will match on (migration step 5 — resolver matches
+  # on type, falling back to card_id/product_id). surface_confirmation is pulled but not yet in
+  # cards_used because its card (protein-surface-evidence) is data-blocked until the CSPA/HPA reader
+  # lands — the pull makes that gap explicit (a registered type with a puller but no live provider),
+  # exactly the first-class visible state Rule 3 describes.
+  measurement_types_pulled:
+    - surface_confirmation
+    - surface_topology
+    - surfaceome_family
+    - surface_density
+    - adc_tce_modality_fit
   rules_scope:
     - all
   synthesis:
