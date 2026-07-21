@@ -671,6 +671,41 @@ def _emit_normal_tissue_liability(
     ]
 
 
+def _emit_protein_abundance_celline(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the Gygi cell-line protein-abundance figures (density + lineage-strip SVG + plot_data +
+    interactive plotly). Re-runs the method load path (the summary doesn't preserve the raw
+    abundance_by_model / lineage_by_model the plots need) — mirrors _emit_expression_distribution.
+    On _live_read_error or no MS detection → []."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_protein_abundance import cli as pac
+    out_dir.mkdir(parents=True, exist_ok=True)
+    acc = pac.resolve_accession(target)
+    if acc is None:
+        return []
+    abundance_by_model, _panel = pac.load_abundance_column(acc)
+    if not abundance_by_model:
+        return []
+    lineage_by_model = pac.load_model_lineage()
+    recomputed = pac.compute_summary(target, abundance_by_model, lineage_by_model, n_panel=_panel)
+    pac.emit_density_protein(abundance_by_model, target, recomputed, out_dir, TARGET_CONTRACTS)
+    pac.emit_lineage_strip_protein(abundance_by_model, lineage_by_model, target, recomputed,
+                                   out_dir, TARGET_CONTRACTS)
+    pac.emit_plot_data_protein(abundance_by_model, lineage_by_model, out_dir)
+    figures = [
+        {"id": "density_protein_abundance", "path": "figure_density_protein_abundance.svg",
+         "type": "density_histogram_with_kde", "primary": True},
+        {"id": "lineage_strip_protein", "path": "figure_lineage_strip_protein.svg",
+         "type": "per_lineage_strip_plot", "primary": False},
+    ]
+    figures += _plotly_from(pac, "emit_plotly_specs", abundance_by_model, lineage_by_model,
+                            target, recomputed, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
@@ -689,6 +724,8 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     # SAFETY tier (viz-debt backfill 2026-07-20):
     "gnomad-lof-constraint": _emit_gnomad_lof_constraint,
     "normal-tissue-liability": _emit_normal_tissue_liability,
+    # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi):
+    "protein-abundance-celline": _emit_protein_abundance_celline,
 }
 
 
