@@ -135,7 +135,11 @@ KNOWN_FIGURE_DEBT = {
     # SAFETY tier — CLEARED 2026-07-20: gnomad-lof-constraint + normal-tissue-liability
     # emitters registered in CARD_FIGURE_EMITTERS (they now pass the check, not waived).
     # expression / protein:
-    'protein-abundance-celline', 'protein-presence-cptac',
+    # protein-abundance-celline CLEARED 2026-07-21 (Slice 7): emitters registered in
+    # CARD_FIGURE_EMITTERS (density + lineage-strip + plotly) — now passes the check, not waived.
+    # protein-presence-cptac stays: its method (cptac_protein_deg) is still a 0-row scaffold, so it
+    # cannot emit a figure until its compute lands — genuine tracked debt, not a silent gap.
+    'protein-presence-cptac',
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
