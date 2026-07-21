@@ -6,6 +6,8 @@ R dependency. Called from compose-dashboard's _figure_emitters.py at phase-2.
 Public API:
     emit_tumor_vs_adjacent_compound(summary, per_sample_data, target, indication,
                                       out_dir, target_contracts_dir) -> Path
+    emit_plotly_specs(per_sample_data, contrasts, target, indication, out_dir,
+                       target_contracts_dir, basename) -> list   # dynamic-dashboard Phase A
 """
 
 from __future__ import annotations
@@ -614,3 +616,119 @@ def emit_tumor_vs_adjacent_compound(
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
+
+
+# --- interactive Plotly figure specs (dynamic-dashboard Phase A) -----------------------------
+
+_GROUP_STYLE = [
+    ("tumor_samples", "Primary Tumor", "#0a2540"),      # navy — mirrors the SVG box+strip
+    ("adjacent_samples", "Adjacent Normal", "#f0a020"),  # ochre
+    ("gtex_samples", "GTEx Normal", "#7fa7c0"),          # gray-blue
+]
+
+
+def emit_plotly_specs(
+    per_sample_data: Optional[dict],
+    contrasts: Optional[list],
+    target: str,
+    indication: str,
+    out_dir: Path,
+    target_contracts_dir: Path,
+    basename: str = "tumor_vs_normal",
+) -> list:
+    """Emit interactive Plotly figure specs SIBLING to the matplotlib DGE SVGs (dynamic-dashboard
+    Phase A). Built from the SAME in-memory ``per_sample_data`` (per-sample log2(CPM+1) arrays) and
+    ``contrasts`` (the log2FC/q the SVG forest draws) — so the interactive charts cannot drift from
+    the static figure. Writes, keyed by ``basename`` so the 3-group and tumor-vs-adjacent call sites
+    don't collide:
+      - figure_{basename}_groups.plotly.json   (box + jittered strip across the present groups)
+      - figure_{basename}_contrasts.plotly.json (horizontal forest of the log2FC contrasts, q stars)
+
+    ``contrasts`` = [{"label": str, "log2_fc": float, "q_value": float|None}, ...] — the caller
+    extracts these from the SAME summary dicts the SVG forest uses (no recompute here). fig.to_json()
+    (renderer embeds via Plotly.newPlot; NO kaleido). Best-effort — the SVGs are the guaranteed
+    artifact; if Plotly is unavailable or there are no samples, returns []."""
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
+        print(f"[dge_deseq2] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    if not per_sample_data:
+        return []
+    present = [(key, label, color) for key, label, color in _GROUP_STYLE
+               if per_sample_data.get(key)]
+    if not present:
+        return []
+
+    written = []
+
+    # --- Box + jittered strip across the present groups (mirrors the SVG box+strip panel) ---
+    try:
+        fig = go.Figure()
+        rng = np.random.default_rng(seed=42)   # deterministic jitter (matches the SVG's seed)
+        for key, label, color in present:
+            vals = [s["log2_cpm"] for s in per_sample_data[key] if s.get("log2_cpm") is not None]
+            if not vals:
+                continue
+            name = f"{label} (n={len(vals)})"
+            fig.add_trace(go.Box(
+                y=vals, name=name, boxpoints="all", jitter=0.4, pointpos=0,
+                marker=dict(color=color, size=4, opacity=0.5),
+                line=dict(color=color), fillcolor=color, opacity=0.55,
+                hovertemplate="%{y:.2f} log2(CPM+1)<extra>" + name + "</extra>"))
+        gtex_tissue = per_sample_data.get("gtex_tissue")
+        subtitle = f" (GTEx {gtex_tissue})" if gtex_tissue else ""
+        fig.update_layout(
+            title=f"{target} expression — tumor vs normal groups in {indication}{subtitle}",
+            yaxis_title="log2(CPM + 1) — recount3 per-sample RNA-seq",
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=60))
+        (out_dir / f"figure_{basename}_groups.plotly.json").write_text(fig.to_json())
+        written.append({"id": f"{basename}_groups",
+                        "path": f"figure_{basename}_groups.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[dge_deseq2] groups plotly skipped: {e}", file=sys.stderr)
+
+    # --- Forest of the log2FC contrasts (mirrors the SVG forest panel; reflines at 0/±0.5) ---
+    try:
+        rows = [c for c in (contrasts or []) if c.get("log2_fc") is not None]
+        if rows:
+            labels = [c["label"].replace("\n", " ") for c in rows]
+            lfcs = [float(c["log2_fc"]) for c in rows]
+            qs = [c.get("q_value") for c in rows]
+            colors = ["#0a2540" if v > 0 else "#cf2828" for v in lfcs]  # up navy / down red
+            texts = [f"{v:+.2f} {_sig_stars_plotly(q)}" for v, q in zip(lfcs, qs)]
+            fig = go.Figure(go.Bar(
+                x=lfcs, y=labels, orientation="h", marker_color=colors,
+                text=texts, textposition="outside",
+                customdata=[[(q if q is not None else float('nan'))] for q in qs],
+                hovertemplate="%{y}<br>log2 FC %{x:+.2f}<br>q %{customdata[0]:.2e}<extra></extra>"))
+            for xv, dash in [(0.0, "solid"), (0.5, "dot"), (-0.5, "dot")]:
+                fig.add_vline(x=xv, line=dict(color="#888" if xv else "#333",
+                              dash=dash, width=0.7 if xv else 1.0))
+            max_abs = max(2.0, max(abs(v) for v in lfcs) * 1.5)
+            fig.update_layout(
+                title=f"{target} — DGE contrasts (tumor vs normal) in {indication}",
+                xaxis_title="log2 FC", xaxis_range=[-max_abs, max_abs],
+                template="plotly_white", showlegend=False, margin=dict(l=120, r=40, t=50, b=50))
+            (out_dir / f"figure_{basename}_contrasts.plotly.json").write_text(fig.to_json())
+            written.append({"id": f"{basename}_contrasts",
+                            "path": f"figure_{basename}_contrasts.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[dge_deseq2] contrasts plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
+def _sig_stars_plotly(q):
+    """q-value significance stars — mirrors the SVG forest's _sig_stars thresholds exactly."""
+    if q is None or q != q:
+        return ""
+    if q < 1e-10:
+        return "***"
+    if q < 1e-4:
+        return "**"
+    if q < 0.05:
+        return "*"
+    return "ns"
