@@ -635,7 +635,7 @@ def _emit_prism_crispr_concordance(
     e7cli.emit_concordance_vocabulary_panel(summary, target, out_dir, TARGET_CONTRACTS)
     parquet_uri = e7cli.RELEASE_PIN_TO_PARQUET.get("prism-activity-v4", "<unset>")
     e7cli.emit_manifest(target, "prism-activity-v4", summary, out_dir, parquet_uri)
-    return [
+    figures = [
         {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
          "type": "two_d_scatter_correlation", "primary": True},
         {"id": "dual_responders_bar", "path": "figure_dual_responders_bar.svg",
@@ -643,6 +643,9 @@ def _emit_prism_crispr_concordance(
         {"id": "concordance_vocab_panel", "path": "figure_concordance_vocab_panel.svg",
          "type": "text_summary_panel", "primary": False},
     ]
+    # Interactive twin — per-compound ρ-CRISPR vs ρ-RNAi scatter from the SAME summary (no drift).
+    figures += _plotly_from(e7cli, "emit_plotly_specs", summary, target, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_gnomad_lof_constraint(
