@@ -2088,6 +2088,15 @@ def _card_plot_divs(card_id: str, card_figures, figures_dir) -> tuple[list[str],
     return divs, n
 
 
+def _fmt_fact_value(value):
+    """Rail key-metric value formatter: numbers via _fmt_metric, but snake_case STRING enums are
+    humanized (broadly_high → "Broadly high") so raw tokens never leak into visible dashboard text.
+    (The .md table keeps _fmt_metric's backticked raw values — code style there is fine.)"""
+    if isinstance(value, str) and value and not value.replace(".", "").replace("-", "").isdigit():
+        return _humanize(value)
+    return _fmt_metric(value)
+
+
 def _card_key_facts(card: dict) -> list[tuple[str, str]]:
     """The card's headline facts (label, formatted value) — curated per card, else first scalars."""
     cid = card.get("card_id")
@@ -2095,12 +2104,12 @@ def _card_key_facts(card: dict) -> list[tuple[str, str]]:
     facts: list[tuple[str, str]] = []
     for label, field in _CARD_KEYFACTS.get(cid, []):
         if summ.get(field) is not None:
-            facts.append((label, _fmt_metric(summ[field])))
+            facts.append((label, _fmt_fact_value(summ[field])))
     if not facts:   # fallback: first few scalar summary fields
         for k, v in summ.items():
             if k.startswith("_") or isinstance(v, (list, dict)):
                 continue
-            facts.append((_prettify_field(k), _fmt_metric(v)))
+            facts.append((_prettify_field(k), _fmt_fact_value(v)))
             if len(facts) >= 4:
                 break
     return facts

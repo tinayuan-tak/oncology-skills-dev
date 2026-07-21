@@ -389,3 +389,21 @@ def test_no_self_referential_breadcrumb():
     # C's own cards don't self-reference C; the only 'Also feeds' pointing at C comes from the
     # Altered (E) section's mutation-stratified card, which is a different section.
     assert "href='#s-gate-c'" not in c
+
+
+# --- rail key-metric humanization (no raw snake_case token leaks) ------------
+
+def test_rail_key_metrics_humanize_enum_values():
+    """Rail 'Key metrics' values must be human-readable — raw snake_case enum tokens
+    (modest_upregulation, ...) must NOT leak into visible <b> text. Numbers pass through unformatted.
+    Uses a REAL classifier label (modest_upregulation with a matching +log2FC) — not a fabricated
+    class/value combo."""
+    card = {"card_id": "expression-tumor-vs-adjacent",
+            "summary": {"expression_call_class": "modest_upregulation", "log2_fc": 0.8, "q_value": 3e-6}}
+    facts = dict(tp._card_key_facts(card))
+    assert facts["Call"] == "Modest upregulation"   # humanized, not "modest_upregulation"
+    assert facts["log2FC"] == "0.800"               # numbers preserved (positive lfc = up, correct)
+    # and a full render carries no raw snake_case token in a rail value
+    import re
+    h = _render(_sr())
+    assert not re.findall(r"<b>[a-z]+_[a-z_]+</b>", h), "raw snake_case token leaked into a rail value"
