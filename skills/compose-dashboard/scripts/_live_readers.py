@@ -434,6 +434,20 @@ def _dispatch_structure_features_static(target: str, indication: str) -> Optiona
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_protein_surface_evidence(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: protein-surface-evidence card → CSPA wet-lab surface confirmation via
+    methods/cspa_surface_confirmation/read.py (the live-firing provider of the surface_confirmation
+    measurement_type — resolves the CSPA orphan, DATA_TO_SKILL_CONTRACT).
+
+    CSPA is the `measured` tier of surface_confirmation. Reads the derived per-UniProt-AC product +
+    resolver sidecar (cspa-surface-confirmation-per-uniprot-v1); resolves target→UniProt AC via the
+    sidecar. An absent target is an honest measured-negative (`not_surface`, measured_in_cspa=False),
+    NOT data_unavailable — so the surface-presence + safety gates read a trusted negative, not a gap.
+    """
+    mod = _import_method("cspa_surface_confirmation")
+    return mod.read_surface_confirmation(target=target, indication=indication)
+
+
 def _dispatch_surface_abundance_density(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: surface-abundance-density card → CPTAC protein intensity +
     HPA IHC anchor → copies-per-cell estimate via
@@ -590,6 +604,7 @@ CARD_DISPATCHERS = {
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,
     "structure-features-static": _dispatch_structure_features_static,
+    "protein-surface-evidence": _dispatch_protein_surface_evidence,
     "surface-abundance-density": _dispatch_surface_abundance_density,
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,

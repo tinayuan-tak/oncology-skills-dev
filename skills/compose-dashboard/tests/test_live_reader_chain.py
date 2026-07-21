@@ -53,6 +53,7 @@ CARDS_WITH_DISPATCHERS = [
     ("mutation-stratified-dependency", "KRAS", "COADREAD"),
     ("mutation-hotspot-frequency", "KRAS", "COADREAD"),
     ("expression-tumor-vs-adjacent", "KRAS", "COADREAD"),
+    ("protein-surface-evidence", "EGFR", "COADREAD"),   # CSPA surface_confirmation live provider
 ]
 
 
