@@ -71,7 +71,9 @@ def test_dynamic_html_embeds_plotly_div_and_spec(tmp_path):
     assert "class=plotly-fig" in h                        # a figure div is present
     assert "class=plotly-spec" in h                       # its JSON spec block is present
     assert '"KRAS waterfall"' in h                        # the spec content is inlined verbatim
-    assert "data-target=plt-dependency-waterfall" in h    # spec wired to its div id
+    # plotly now embeds inside the gate section (Evidence-by-question was removed); the div id is
+    # the gate-section card scheme plt-card-<card_id>-<fig_id>.
+    assert "data-target=plt-card-crispr-waterfall" in h   # spec wired to its div id
 
 
 def test_dynamic_html_inlines_plotlyjs_and_bootstrap(tmp_path):

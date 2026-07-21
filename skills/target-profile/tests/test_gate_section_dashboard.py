@@ -131,7 +131,7 @@ def test_tab_bootstrap_always_present_when_gate_rendered():
 
 def test_full_report_still_renders_all_sections():
     h = _render(_sr(), presence_only=False)
-    assert "Gate scorecard" in h and "id=s-gate-a" in h   # both the scorecard AND the new gate section
+    assert "id=s-riskcat" in h and "id=s-gate-a" in h   # both the risk-category lead lens AND the gate section
 
 
 # --- Required (C) gate — v2 biomarker facets ---------------------------------
@@ -159,7 +159,7 @@ def _sr_required():
 
 def test_required_gate_section_renders():
     h = _render(_sr_required())
-    assert "id=s-gate-c" in h and "Required" in h
+    assert "id=s-gate-c" in h and "Functional dependence" in h   # gate C renamed from "Required"
 
 
 def test_required_unifies_dependency_and_sl_under_c():
@@ -368,13 +368,16 @@ def test_axis_band_suppressed_in_presence_only():
 
 def test_reports_into_breadcrumb_on_cross_gate_card():
     """A card whose home gate differs from a gate it feeds shows an 'Also feeds → <gate>' breadcrumb.
-    prism-crispr-concordance lives under Small-molecule but also feeds Required (C)."""
+    prism-crispr-concordance lives under Small-molecule but also feeds gate C. The breadcrumb LINKS
+    to the gate-C section + is labelled '(C)'; the label text itself is read from the contract's
+    gate_name (which may be renamed on other branches), so we assert on the letter + link, not the
+    exact name."""
     sr = _sr_required()
     sr["tractability_sm"] = _sr_modality_fit()["tractability_sm"]   # prism-crispr under SM
     h = _render(sr)
     sm = re.search(r"<section id=s-gate-small-molecule-druggability\b.*?</section>", h, re.S).group(0)
-    assert "Also feeds" in sm and "Required (C)" in sm
-    assert "href='#s-gate-c'" in sm   # links to the Required section
+    assert "Also feeds" in sm and "(C)" in sm
+    assert "href='#s-gate-c'" in sm   # links to the gate-C section (label tracks the contract name)
 
 
 def test_no_self_referential_breadcrumb():

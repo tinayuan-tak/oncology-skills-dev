@@ -1107,12 +1107,16 @@ def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
         verdict_str = v[0] if v else None
         driving = v[1] if (v and len(v) > 1) else None
         axis = meta.get("axis") or ("biology" if meta.get("band") == "necessity" else "modality_fit")
+        # risk_category (5R dashboard spine) from the contract; fall back to axis if a pre-field
+        # contract is live (biology→biological; else the row is uncategorized, grouped under 'other').
+        risk_category = meta.get("risk_category") or ("biological" if axis == "biology" else None)
         rows.append({
             "short": short,
             "gate": meta.get("gate"),
             "gate_name": meta.get("gate_name"),
             "band": meta.get("band"),
             "axis": axis,
+            "risk_category": risk_category,
             "verdict": verdict_str,
             "driving_rule_id": driving,
             "status": _status(short, verdict_str),
@@ -1127,6 +1131,76 @@ def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
                              str(x.get("gate") or "Z"),
                              x.get("band") != "necessity"))
     return rows
+
+
+# --- Risk-category roll-up (5R dashboard spine, 2026-07-21) ------------------
+#
+# The committee-facing lead lens: roll the per-gate scorecard rows up into drug-discovery risk
+# categories (5R-anchored — see target-contracts docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md).
+# DATA-DRIVEN SURFACING: a category is surfaced IFF >=1 of its member sub-skills produced evidence
+# this run (a non-coverage-gap status). Categories with no evidenced member are NOT rendered as
+# rows — they collapse into a one-line "not yet evidenced" footnote. This keeps the dashboard
+# honest (absence = "we don't evidence this yet") AND self-extending (wire a new sub-skill → its
+# category appears automatically). Category risk LEVEL is a computed roll-up of member statuses,
+# reusing the SAME 4-state the scorecard already assigned — no new classification logic.
+_RISK_CATEGORY_ORDER = ["biological", "biomarker", "druggability", "safety",
+                        "translational", "clinical", "commercial"]
+_RISK_CATEGORY_LABEL = {
+    "biological":    ("Biological", "Right Target — is this real, actionable biology?"),
+    "biomarker":     ("Biomarker", "Right Patient — who responds?"),
+    "druggability":  ("Druggability", "can it be drugged (small-molecule / biologic)?"),
+    "safety":        ("Safety", "Right Safety — on-target liability?"),
+    "translational": ("Translational", "Right Tissue — models / PD / exposure?"),
+    "clinical":      ("Clinical", "clinical precedent?"),
+    "commercial":    ("Commercial", "Right Commercial Potential — differentiation?"),
+}
+
+
+def _risk_category_rollup(scorecard: list[dict]) -> dict:
+    """Group scorecard rows by risk_category → the 5R lead lens. Returns
+    {surfaced: [{category, label, sub, risk_level, driver, members:[rows], anchor}],
+     not_evidenced: [category,...]}. A category surfaces iff >=1 member has an on-scale status
+     (supportive/opposing/neutral — i.e. we looked); all-coverage-gap categories are 'not evidenced'.
+    risk_level: opposing member → 'elevated'; else any supportive → 'supported'; else 'neutral'."""
+    by_cat: dict = {}
+    for row in scorecard or []:
+        cat = row.get("risk_category") or "other"
+        by_cat.setdefault(cat, []).append(row)
+
+    def _level(members: list[dict]) -> tuple[str, str]:
+        statuses = [m.get("status") for m in members]
+        opp = [m for m in members if m.get("status") == "opposing"]
+        sup = [m for m in members if m.get("status") == "supportive"]
+        if opp:
+            drv = opp[0]
+            return "elevated", f"{_humanize(drv.get('verdict') or drv.get('short'))} (opposing)"
+        if sup:
+            drv = sup[0]
+            return "supported", f"{_humanize(drv.get('verdict') or drv.get('short'))}"
+        return "neutral", "measured; no strong signal either way"
+
+    surfaced, not_evidenced = [], []
+    for cat in _RISK_CATEGORY_ORDER + sorted(k for k in by_cat if k not in _RISK_CATEGORY_ORDER):
+        members = by_cat.get(cat)
+        if not members:
+            not_evidenced.append(cat)
+            continue
+        # evidenced iff >=1 member has an on-scale (non-coverage-gap) status
+        if not any(m.get("status") in ("supportive", "opposing", "neutral") for m in members):
+            not_evidenced.append(cat)
+            continue
+        level, driver = _level(members)
+        label, sub = _RISK_CATEGORY_LABEL.get(cat, (_humanize(cat), ""))
+        # anchor: link to the first evidenced member's gate section (roll-up → detail)
+        anchor = None
+        for m in members:
+            a = _SHORT_TO_GATE_ANCHOR.get(m.get("short"))
+            if a:
+                anchor = a
+                break
+        surfaced.append({"category": cat, "label": label, "sub": sub, "risk_level": level,
+                         "driver": driver, "members": members, "anchor": anchor})
+    return {"surfaced": surfaced, "not_evidenced": not_evidenced}
 
 
 def _render_target_profile_md(
@@ -1344,9 +1418,9 @@ _HTML_STATUS = {   # 4-state scorecard chip → (glyph, css class, human label)
 # reader. These maps turn it into plain English for the HTML report. Curated overrides for the
 # load-bearing terms; a snake_case→Title-Case fallback for the rest so nothing renders as a raw id.
 _GATE_SHORT_LABEL = {
-    "expression": "Expression (is it present?)",
+    "expression": "Expression (is it expressed?)",
     "selectivity": "Tumor selectivity (vs normal)",
-    "dependency": "Functional dependency (is it required?)",
+    "dependency": "Functional dependence (is it required?)",
     "synthetic_lethal_partners": "Synthetic-lethal partners",
     "mechanism": "Mechanism / mode of action",
     "genomic_alteration": "Genomic alteration",
@@ -1473,6 +1547,12 @@ code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   padding:2px 8px;border-radius:5px;margin-bottom:8px}
 .llm .tag{color:var(--llm-ink);background:rgba(91,63,160,.1)}
 .det .tag{color:var(--muted);background:var(--surface-3)}
+/* AI-generated provenance chip in the exec summary's upper-right corner. The h2 purple bar hugs the
+   box top (first-child), so the chip floats on that bar → give it translucent-white-on-purple so it
+   reads against the dark band rather than the light in-flow tag treatment. */
+.llm-exec{position:relative}
+.llm-exec .tag-corner{position:absolute;top:9px;right:14px;margin:0;z-index:2;
+  color:#fff;background:rgba(255,255,255,.18)}
 /* Status chips — validated: tinted bg + dark ink + glyph + label */
 .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;
   font-size:12px;font-weight:650;white-space:nowrap;line-height:1.3}
@@ -2105,7 +2185,10 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
     # gates are NAMED, not lettered in v2). glow is the unique key used for panel ids + tab scoping.
     glow = gate.lower() if gate else re.sub(r"[^a-z0-9]+", "-", gate_name.lower()).strip("-")
     sec_id = f"s-gate-{glow}"
-    out = [f"<section id={sec_id} class='det gate'><span class=tag>Computed from the evidence</span>"]
+    # No "Computed from the evidence" tag on gate sections — it's redundant chrome repeated on every
+    # gate (the whole Biology/Modality-fit axis IS the deterministic evidence; the AI-generated
+    # exec summary is the only section that needs a provenance tag).
+    out = [f"<section id={sec_id} class='det gate'>"]
 
     # header: gate letter + name + roll-up verdict chip(s) (the gate's own sub-verdict)
     chips = []
@@ -2238,6 +2321,18 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
             pan.append(f"<div class=rail-sec><p class=rail-h>Also feeds</p>"
                        f"<div class=sub>{links} "
                        f"(this evidence corroborates that gate too)</div></div>")
+        # Data-source / version tag: card readers stamp summary._data_source with the derived-
+        # manifest id or release-pinned source (e.g. "DepMap-26Q1 Chronos",
+        # "coadread-dge-tumor-vs-normal-sensitivity-v1", "recount3-tcga-gtex-2023-01-04"). Surface it
+        # so each panel names WHICH data product + version it resolved against (provenance at a glance,
+        # mirroring provenance.yaml's data_provenance). _data_s3_uri, when present, is the hover title.
+        csum = c.get("summary") or {}
+        dsrc = csum.get("_data_source")
+        if dsrc:
+            title = csum.get("_data_s3_uri") or ""
+            title_attr = f" title='{_esc(str(title))}'" if title else ""
+            pan.append(f"<div class=rail-sec><p class=rail-h>Data source</p>"
+                       f"<div class=sub{title_attr}><code>{_esc(str(dsrc))}</code></div></div>")
         pan.append(f"<p class=card-src>Card <code>{_esc(cid)}</code></p>")
         pan.append("</div>")   # .card-rail
 
@@ -2321,38 +2416,70 @@ def _render_target_profile_html(
                  f" <span style='opacity:.7;font-size:12px'>· AI-generated</span></div>"
                  "</header>")
 
+    # --- Gate sections declarative list (SINGLE SOURCE for both the left nav AND the section
+    # render loop below — so the nav can never drift out of sync with what actually renders, the
+    # exact bug where the nav still said "Presence" + omitted Gate E). Each entry:
+    # (axis, gate_letter, gate_name, [sub_skill shorts], modality_note). See the render loop below
+    # for the axis-band semantics. _gate_section_anchor mirrors _render_gate_section_html's sec_id.
+    _AXIS_BANDS = {
+        "biology": ("Biology", "is this real, actionable biology? (modality-independent)"),
+        "modality_fit": ("Modality fit", "will it become a drug in a given modality? (per-lens)"),
+    }
+    _GATE_SECTIONS = [
+        ("biology", "A", "Expressed", ["expression"], None),
+        ("biology", "B", "Selective", ["selectivity"], None),
+        ("biology", "C", "Functional dependence", ["dependency", "synthetic_lethal_partners"], None),
+        ("biology", "D", "Mechanism", ["mechanism"], None),
+        ("biology", "E", "Altered", ["genomic_alteration"],
+         "Somatic alteration landscape (mutation / CN / fusion frequency). The biomarker-stratified-"
+         "dependency signal reports into Functional dependence (C) — see its facet there."),
+        ("modality_fit", "", "Small-molecule druggability", ["tractability_sm"],
+         "Modality-fit assessment — relevant for small-molecule / degrader programs. Includes the "
+         "chemical-genetic corroboration facets (they also feed Functional dependence)."),
+        ("modality_fit", "", "Surface-biologics fit", ["surface_modality"],
+         "Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
+         "(not applicable to a small-molecule or degrader strategy)."),
+        ("modality_fit", "", "Safety", ["safety"],
+         "Modality-fit assessment — applies to all modalities, with tiered severity "
+         "(a full-KO modality like degrader/RNA is more constrained by germline LoF-intolerance)."),
+    ]
+
+    def _gate_section_anchor(gate: str, gname: str) -> str:
+        glow = gate.lower() if gate else re.sub(r"[^a-z0-9]+", "-", gname.lower()).strip("-")
+        return f"s-gate-{glow}"
+
+    # rendered gates this run = those with at least one present sub-skill (presence_only → only A).
+    _rendered_gates = [(ax, g, gn, ss, mn) for (ax, g, gn, ss, mn) in _GATE_SECTIONS
+                       if any(s in sub_results for s in ss)
+                       and not (presence_only and gn != "Expressed")]
+
     # --- 2-column shell: sticky left nav (jump-links) + content ---
     # NOTE: the composite-panel SVG is deliberately NOT embedded here — it is a matplotlib
     # text-badge grid sized for a slide (~1583px) that renders poorly in a web card. The
     # scorecard below IS the native-HTML "at a glance". The SVG remains a .md/PPT slide asset.
-    # Nav: no "Sections" heading; narrow column (CSS). In presence_only, just Exec + Presence.
+    # Nav: no "Sections" heading; narrow column (CSS). Gate links are DERIVED from _rendered_gates
+    # (with axis sub-headers), so a new/renamed gate appears automatically — no hardcoded drift.
     shell_cls = "shell focused" if presence_only else "shell"
     nav = [f"<div class={shell_cls}><nav class=toc>",
            "<a href='#s-exec'>Executive summary</a>"]
     if presence_only:
-        nav.append("<a href='#s-gate-a'>Presence</a>")
+        for _ax, g, gn, _ss, _mn in _rendered_gates:
+            nav.append(f"<a href='#{_gate_section_anchor(g, gn)}'>{_esc(gn)}</a>")
     else:
         if scorecard:
-            nav.append("<a href='#s-scorecard'>Gate scorecard</a>")
+            nav.append("<a href='#s-riskcat'>Risk by category</a>")   # 5R lead lens
         if deciding_axis and show_deciding_axis:
             nav.append("<a href='#s-deciding'>Deciding axis</a>")
-        if "expression" in sub_results:
-            nav.append("<a href='#s-gate-a'>Presence (Gate A)</a>")
-        if "selectivity" in sub_results:
-            nav.append("<a href='#s-gate-b'>Selective (Gate B)</a>")
-        if "dependency" in sub_results:
-            nav.append("<a href='#s-gate-c'>Required (Gate C)</a>")
-        if "mechanism" in sub_results:
-            nav.append("<a href='#s-gate-d'>Mechanism (Gate D)</a>")
-        if "tractability_sm" in sub_results:
-            nav.append("<a href='#s-gate-small-molecule-druggability'>Small-molecule druggability</a>")
-        if "surface_modality" in sub_results:
-            nav.append("<a href='#s-gate-surface-biologics-fit'>Surface-biologics fit</a>")
-        if "safety" in sub_results:
-            nav.append("<a href='#s-gate-safety'>Safety</a>")
-        nav.append("<a href='#s-risk'>Risk by category</a>")
+        # gate links, grouped by axis band (a tiny header per axis for orientation)
+        _nav_axis = None
+        for _ax, g, gn, _ss, _mn in _rendered_gates:
+            if _ax != _nav_axis:
+                _nav_axis = _ax
+                nav.append(f"<span class=h>{_esc(_AXIS_BANDS.get(_ax, (_ax, ''))[0])}</span>")
+            label = f"{_esc(gn)} <span style='color:var(--muted)'>({g})</span>" if g else _esc(gn)
+            nav.append(f"<a href='#{_gate_section_anchor(g, gn)}'>{label}</a>")
         nav.append("<a href='#s-tension'>Conflicting signals</a>")
-        nav.append("<a href='#s-evidence'>Evidence by question</a>")
+        nav.append("<a href='#s-scorecard'>Gate detail</a>")
         if ordinal_matrix:
             nav.append("<a href='#s-matrix'>Modality fit</a>")
     nav.append("</nav><div class=content>")
@@ -2387,58 +2514,60 @@ def _render_target_profile_html(
             f"· {n_cards} evidence card{'s' if n_cards != 1 else ''}{fignote}</span></div>")
 
     # --- Executive summary (LLM) — TOP, the lead the reader needs first ----
-    p.append("<div class=llm id=s-exec><span class=tag>AI-generated</span>"
+    # AI-generated tag moved to the upper-right corner (out of the heading's way) — the exec summary
+    # is the one AI section, so its provenance sits as a corner chip rather than a leading banner.
+    p.append("<div class='llm llm-exec' id=s-exec><span class='tag tag-corner'>AI-generated</span>"
              f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
 
-    # --- Gate sections (gate-model v2). Declarative sequence GROUPED BY AXIS: each entry is a gate
-    # rendered as a card-subtab section, under one of the two v2 axis bands.
-    #   AXIS 1 — BIOLOGY (necessity, modality-independent): "is this real, actionable biology?"
-    #     A Present · B Selective · C Required · D Mechanism · E Altered. Lettered. Required (C)
-    #     UNIFIES dependency + SL-partners (+ the mutation-stratified FACET, which now reports_into
-    #     it from the Altered gate). "Altered" (E) is its own section in v2 — genomic-alteration
-    #     FREQUENCY is a distinct biology question, split out of the v1 A/C overload.
-    #   AXIS 2 — MODALITY FIT (sufficiency, per-lens): "will it become a drug in THIS modality?"
-    #     Small-molecule · Surface-biologics · Safety. NAMED (gate=""), lens-conditional (mnote).
-    # A gate whose sub-skills are all absent this run is skipped; an axis band with no rendered gate
-    # emits no header. presence_only renders ONLY the Present gate. Each entry: (axis, gate, name,
-    # shorts, modality_note). _render_gate_section_html is gate-agnostic (lettered or named).
+    # --- Risk by category (5R lead lens; deterministic) --------------------
+    # The committee-facing glance: drug-discovery risk categories rolled up from the gate scorecard
+    # (5R-anchored). DATA-DRIVEN — only categories with >=1 evidenced sub-skill this run appear; the
+    # rest are a one-line footnote. Replaces the gate scorecard as the top lens (the detailed gate
+    # sections below carry every gate). Suppressed in presence_only.
+    if scorecard and not presence_only:
+        rollup = _risk_category_rollup(scorecard)
+        p.append("<section id=s-riskcat class=scorecard><span class=tag>Computed from the evidence</span>"
+                 "<h2>Risk by category <span class=n>— 5R framework; the committee lens</span></h2>")
+        p.append("<p class=sub>Drug-discovery risk categories, rolled up from the evidence gates below. "
+                 "Only categories the framework can evidence this run are shown; click a category to jump "
+                 "to its detail. Risk level is computed from the member gates, never authored.</p>")
+        p.append("<table><tr><th>Category</th><th>Risk level</th><th>Driver</th></tr>")
+        _RL_CHIP = {"elevated": ("chip-neg", "elevated"), "supported": ("chip-pos", "supported"),
+                    "neutral": ("chip-neu", "neutral")}
+        for c in rollup["surfaced"]:
+            cls, lab = _RL_CHIP.get(c["risk_level"], ("chip-neu", c["risk_level"]))
+            cat_cell = _esc(c["label"])
+            if c.get("anchor") and f"id={c['anchor']}" in "".join(p):
+                cat_cell = (f"<a href='#{c['anchor']}' style='color:inherit;text-decoration:none;"
+                            f"border-bottom:1px dotted var(--line-2)'>{cat_cell}</a>")
+            cat_cell += f" <span class=sub>— {_esc(c['sub'])}</span>"
+            p.append(f"<tr><td>{cat_cell}</td>"
+                     f"<td><span class='chip {cls}'>{_esc(lab)}</span></td>"
+                     f"<td class=sub>{_esc(c['driver'])}</td></tr>")
+        p.append("</table>")
+        if rollup["not_evidenced"]:
+            labels = [_RISK_CATEGORY_LABEL.get(c, (c, ""))[0] for c in rollup["not_evidenced"]]
+            p.append(f"<p class=sub style='margin-top:8px'><b>Not yet evidenced</b> "
+                     f"(no wired data this run): {_esc(', '.join(labels))}. "
+                     f"These categories surface automatically as their data sources are wired.</p>")
+        p.append("</section>")
+
+    # --- Gate sections (gate-model v2), GROUPED BY AXIS. Iterates _rendered_gates (defined above,
+    # the SAME list the left nav uses — no drift). Each gate renders as a card-subtab section under
+    # its axis band. AXIS 1 BIOLOGY (necessity): A Expressed · B Selective · C Functional dependence ·
+    # D Mechanism · E Altered (lettered; "Altered" split out of the v1 A/C overload). AXIS 2 MODALITY
+    # FIT (sufficiency): Small-molecule · Surface-biologics · Safety (named, lens-conditional mnote).
+    # An axis band emits its header once, before its first rendered gate (suppressed in presence_only).
     scorecard_by_short = {r["short"]: r for r in (scorecard or [])}
     # cross-gate breadcrumb edges, read from the contract (card_id + reports_into on card-grain
     # facets), computed once + passed to every gate section. Fails open to the static fallback.
     reports_into_map = _card_reports_into()
     n_gate_plotly = 0
-    _AXIS_BANDS = {
-        "biology": ("Biology", "is this real, actionable biology? (modality-independent)"),
-        "modality_fit": ("Modality fit", "will it become a drug in a given modality? (per-lens)"),
-    }
-    _GATE_SECTIONS = [
-        ("biology", "A", "Present", ["expression"], None),
-        ("biology", "B", "Selective", ["selectivity"], None),
-        ("biology", "C", "Required", ["dependency", "synthetic_lethal_partners"], None),
-        ("biology", "D", "Mechanism", ["mechanism"], None),
-        ("biology", "E", "Altered", ["genomic_alteration"],
-         "Somatic alteration landscape (mutation / CN / fusion frequency). The biomarker-stratified-"
-         "dependency signal reports into Required (C) — see its facet there."),
-        ("modality_fit", "", "Small-molecule druggability", ["tractability_sm"],
-         "Modality-fit assessment — relevant for small-molecule / degrader programs. Includes the "
-         "chemical-genetic corroboration facets (they also feed Required)."),
-        ("modality_fit", "", "Surface-biologics fit", ["surface_modality"],
-         "Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
-         "(not applicable to a small-molecule or degrader strategy)."),
-        ("modality_fit", "", "Safety", ["safety"],
-         "Modality-fit assessment — applies to all modalities, with tiered severity "
-         "(a full-KO modality like degrader/RNA is more constrained by germline LoF-intolerance)."),
-    ]
     _cur_axis = None
-    for axis, gate, gname, gshorts, mnote in _GATE_SECTIONS:
+    for axis, gate, gname, gshorts, mnote in _rendered_gates:
         present = [s for s in gshorts if s in sub_results]
-        if not present:
-            continue
-        # presence_only: render ONLY the Present gate, skip the rest (+ its axis band).
-        if presence_only and gname != "Present":
-            continue
-        # Axis band header — emitted once, before the first rendered gate of each axis (so an axis
-        # with no gates this run shows no orphan header). Suppressed in presence_only.
+        # Axis band header — emitted once, before the first rendered gate of each axis. Suppressed
+        # in presence_only (single-section focused view).
         if axis != _cur_axis and not presence_only:
             _cur_axis = axis
             _btitle, _bsub = _AXIS_BANDS.get(axis, (axis, ""))
@@ -2475,9 +2604,10 @@ def _render_target_profile_html(
     # merged them could hide a disagreeing sub-skill — the same information-loss the 4-state
     # design refuses). A greyed row = coverage gap (we didn't/couldn't look), NOT a negative.
     if scorecard:
-        p.append("<section id=s-scorecard class=scorecard><h2>Gate scorecard</h2>")
-        p.append("<p class=sub>One row per evidence question, grouped A–H — the top-level lens; "
-                 "click a question to jump to its detailed section below. "
+        p.append("<section id=s-scorecard class=scorecard><span class=tag>Computed from the evidence</span>"
+                 "<h2>Gate detail <span class=n>— every evidence question, grouped by gate</span></h2>")
+        p.append("<p class=sub>The per-gate breakdown behind the risk categories above — one row per "
+                 "evidence question. "
                  "<span class='chip chip-gap'><span class=g>□</span> Not evaluated</span> = a gap, "
                  "not a negative. Deciding question highlighted.</p>")
         p.append("<table><tr><th>Gate</th><th>Question</th><th>Status</th>"
@@ -2538,25 +2668,22 @@ def _render_target_profile_html(
             p.append("</table>")
         p.append("</section>")
 
-    # --- Risk-by-category (deterministic) ----------------------------------
-    p.append("<section id=s-risk class=det><span class=tag>Computed from the evidence</span>"
-             "<h2>Risk by category</h2>")
-    p.append("<table><tr><th>Category</th><th>Risk level</th><th>Driver</th></tr>")
-    for cat, level, driver in _risk_by_category_from_sub_verdicts(sub_results):
-        p.append(f"<tr><td><b>{_esc(str(cat).capitalize())}</b></td>"
-                 f"<td>{_esc(_humanize(level))}</td><td>{_esc(driver)}</td></tr>")
-    p.append("</table></section>")
+    # --- Risk-by-category REMOVED here (2026-07-21): superseded by the contract-driven
+    # "Risk by category" LEAD LENS (id=s-riskcat) rendered right after the exec summary via
+    # _risk_category_rollup. That version is data-driven (surfaces only evidenced categories),
+    # adds the Biomarker category, and reads risk_category from the contract — replacing this
+    # hardcoded _risk_by_category_from_sub_verdicts table. (The .md renderer still uses the old
+    # function pending md/html convergence — tracked follow-up.)
 
     # --- Tension analysis (LLM) → reader-facing "Conflicting signals & trade-offs" ---
     p.append("<div class=llm id=s-tension><span class=tag>AI-generated</span>"
              "<h2>Conflicting signals &amp; trade-offs</h2>"
              f"<p>{_esc(_val('tension_analysis'))}</p></div>")
 
-    # --- Evidence by question (deterministic; the actual card data + interactive figures) ---
-    # NOTE: the standalone "Sub-verdicts" table was removed as redundant — the scorecard above
-    # already carries the per-question verdict + rule + status. One source, not two.
-    evidence_html, n_plotly = _render_card_data_html(sub_results, card_figures, figures_dir)
-    p.extend(evidence_html)
+    # --- Evidence by question REMOVED (2026-07-21): the axis-grouped gate sections above already
+    # render each card's data + interactive figures per question, so this standalone recap was a
+    # duplicate. The gate sections are now the single home for per-card evidence.
+    n_plotly = n_gate_plotly
 
     # --- Ordinal matrix heatmap (deterministic VIEW) -----------------------
     if ordinal_matrix:

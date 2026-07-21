@@ -126,13 +126,12 @@ def test_html_is_static_self_contained():
 
 def test_html_llm_sections_tinted_and_separated():
     h = _html()
-    assert h.count("class=llm") >= 2               # exec summary + tension in tinted panels
-    # LLM sections carry an AI-authorship tag; deterministic sections carry a computed-from tag —
-    # the two provenance classes are visually distinct (the honesty separation).
+    assert h.count("class='llm") + h.count("class=llm") >= 2   # exec summary + tension in tinted panels
+    # LLM sections carry an AI-authorship tag (exec summary's is a corner chip); deterministic
+    # sections are marked class=det. The two provenance classes stay visually distinct.
     assert "AI-generated" in h
-    assert "Computed from the evidence" in h
     assert "class=det" in h                        # deterministic sections marked
-    assert "Gate scorecard" in h
+    assert "Risk by category" in h                 # the 5R lead lens (replaced "Gate scorecard")
 
 
 def test_html_scorecard_and_matrix_honesty_survives():
@@ -156,7 +155,7 @@ def test_composite_svg_not_embedded_scorecard_is_the_glance():
                                            scorecard=tp._gate_scorecard(sr, _DA),
                                            composite_svg_path=svg)
     assert "SLIDE" not in h and "<svg" not in h    # the slide SVG is NOT injected
-    assert "Gate scorecard" in h                    # the scorecard is the at-a-glance instead
+    assert "Risk by category" in h                  # the risk-category lead lens is the at-a-glance instead
 
 
 def test_exec_summary_is_first_content_section():
@@ -165,18 +164,21 @@ def test_exec_summary_is_first_content_section():
     assert h.index("id=s-exec") < h.index("id=s-scorecard")
 
 
-def test_evidence_by_question_section_present():
-    """The per-question card-DATA section renders (summaries from the run)."""
+def test_evidence_by_question_section_removed():
+    """The standalone 'Evidence by question' recap was REMOVED (2026-07-21) — the axis-grouped gate
+    sections now carry each card's data + figures, so the recap was a duplicate."""
     h = _html()
-    assert "id=s-evidence" in h
-    assert "Evidence by question" in h
+    assert "id=s-evidence" not in h
+    assert "Evidence by question" not in h
+    # the per-card data still lives in the gate sections (this fixture has dependency + safety)
+    assert "id=s-gate-c" in h and "card-rail" in h
 
 
 def test_language_is_humanized_no_raw_tokens_leak():
     """Reader-facing labels are plain English; internal identifiers are humanized (raw snake_case
     verdict/gate tokens must not appear as bare cell text)."""
     h = _html()
-    assert "Functional dependency" in h            # gate short → human label
+    assert "Functional dependence" in h            # gate short → human label (gate C renamed)
     assert "Not evaluated" in h                     # coverage_gap → human
     # a couple of raw tokens that must NOT appear as visible text
     assert "framework_can_evidence" not in h
@@ -295,3 +297,37 @@ def test_html_status_banner_counts_interactive_figures_when_present(tmp_path):
 def test_html_section_bars_do_not_break_wellformedness():
     """The navy section-header bars are pure CSS on existing <h2>; the doc still parses."""
     HTMLParser().feed(_html())
+
+
+# ---------- risk-category roll-up (5R lead lens) ----------
+
+def test_risk_category_rollup_surfaces_only_evidenced():
+    """Data-driven surfacing: a category appears iff >=1 member sub-skill has an on-scale status.
+    Categories with no evidenced member fall to not_evidenced (no placeholder row)."""
+    sc = tp._gate_scorecard(_sr(), _DA)   # _sr has dependency (biological) + safety
+    ru = tp._risk_category_rollup(sc)
+    cats = {c["category"] for c in ru["surfaced"]}
+    assert "biological" in cats           # dependency fired → biological surfaces
+    assert "safety" in cats               # safety fired → safety surfaces
+    # categories with no evidenced sub-skill this run are NOT surfaced as rows
+    assert "translational" in ru["not_evidenced"]
+    assert "clinical" in ru["not_evidenced"]
+    # every surfaced category carries a computed risk level + driver
+    for c in ru["surfaced"]:
+        assert c["risk_level"] in ("elevated", "supported", "neutral")
+        assert c["driver"]
+
+
+def test_risk_category_rollup_level_is_computed_from_members():
+    """Risk level rolls up member statuses: an opposing member → elevated; else supportive → supported."""
+    sc = tp._gate_scorecard(_sr(), _DA)
+    ru = {c["category"]: c for c in tp._risk_category_rollup(sc)["surfaced"]}
+    # safety fired a kill (opposing) in _sr → elevated
+    assert ru["safety"]["risk_level"] == "elevated"
+
+
+def test_risk_category_lead_lens_renders_and_replaces_scorecard_heading():
+    h = _html()
+    assert "id=s-riskcat" in h and "Risk by category" in h   # the lead lens
+    assert "5R framework" in h                                # anchored
+    assert "Gate detail" in h                                 # old scorecard demoted, not deleted
