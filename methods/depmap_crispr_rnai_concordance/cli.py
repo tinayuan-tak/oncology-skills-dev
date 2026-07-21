@@ -388,6 +388,64 @@ def emit_partition_bar(summary: dict, target_symbol: str,
     return out_path
 
 
+def emit_plotly_specs(per_line: list, target_symbol: str, out_path: Path,
+                      contracts_root: Path) -> list:
+    """Emit interactive Plotly spec SIBLING to the concordance SVGs (Gate-C plotly debt, 2026-07-21).
+
+    Interactive twin of emit_concordance_scatter: CRISPR Chronos (x) vs RNAi DEMETER2 (y) for the
+    cell lines assayed in BOTH, with the same quadrant thresholds (-0.5 CRISPR / -0.25 RNAi) and
+    per-line hover. Built from the SAME per_line concordance list the SVG + plot_data.parquet use
+    (no drift). Points colored by concordance bucket so the both-dependent quadrant reads at a glance.
+    Writes figure_concordance_scatter.plotly.json. Best-effort (Plotly optional → SVGs guaranteed)."""
+    try:
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
+        print(f"[crispr-rnai-concordance] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    written = []
+    try:
+        in_both = [p for p in per_line
+                   if p.get("chronos") is not None and p.get("demeter2") is not None]
+        crispr_only = sum(1 for p in per_line
+                          if p.get("chronos") is not None and p.get("demeter2") is None)
+        rnai_only = sum(1 for p in per_line
+                        if p.get("chronos") is None and p.get("demeter2") is not None)
+        # color by concordance_label (the per-line bucket _classify_cell_line assigns); else navy.
+        # Only in-both lines appear here, so the relevant labels are the agree/disagree ones.
+        bucket_color = {"agree_dependent": "#cf2828", "agree_non_dependent": "#CCCCCC",
+                        "disagree_crispr_dependent": "#0072B2",
+                        "disagree_rnai_dependent": "#f0a020"}
+        xs = [p["chronos"] for p in in_both]
+        ys = [p["demeter2"] for p in in_both]
+        colors = [bucket_color.get(p.get("concordance_label"), "#0a2540") for p in in_both]
+        names = [p.get("model_id", "?") for p in in_both]
+        buckets = [p.get("concordance_label", "?") for p in in_both]
+        fig = go.Figure(go.Scatter(
+            x=xs, y=ys, mode="markers",
+            marker=dict(color=colors, size=7, opacity=0.6, line=dict(width=0.5, color="white")),
+            customdata=list(zip(names, buckets)),
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}"
+                          "<br>CRISPR %{x:.2f} / RNAi %{y:.2f}<extra></extra>"))
+        # quadrant thresholds mirror the SVG exactly (-0.5 CRISPR / -0.25 RNAi).
+        fig.add_vline(x=-0.5, line=dict(color="#cf2828", dash="dash", width=1.5),
+                      annotation_text="CRISPR dep (-0.5)", annotation_position="top")
+        fig.add_hline(y=-0.25, line=dict(color="#cf2828", dash="dash", width=1.5),
+                      annotation_text="RNAi dep (-0.25)", annotation_position="right")
+        fig.update_layout(
+            title=f"{target_symbol} — CRISPR vs RNAi concordance "
+                  f"(n_in_both={len(in_both)}; crispr_only={crispr_only}, rnai_only={rnai_only})",
+            xaxis_title="CRISPR Chronos", yaxis_title="RNAi DEMETER2",
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_concordance_scatter.plotly.json").write_text(fig.to_json())
+        written.append({"id": "concordance_scatter",
+                        "path": "figure_concordance_scatter.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[crispr-rnai-concordance] scatter plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(per_line: list, out_path: Path) -> Path:
     """Emit per-line concordance Parquet."""
     import pandas as pd
