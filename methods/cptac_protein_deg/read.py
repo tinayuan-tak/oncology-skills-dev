@@ -202,3 +202,154 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     rows = df.iloc[indices].to_dict(orient="records")
     best_row = max(rows, key=lambda r: abs(float(r.get("protein_effect_size", 0) or 0)))
     return _row_to_summary(best_row, matched_cohort=str(best_row.get("cohort", "")).upper())
+
+
+def read_all_cohorts(target: str) -> list[dict]:
+    """Every CPTAC cohort row for a target — the per-cohort tumor-vs-normal panel data.
+
+    The derived product is per-cohort SUMMARY statistics (no per-sample abundances), so this is the
+    honest cross-cohort view: one record per cohort the target was tested in, sorted by effect size
+    descending. Reused by (a) the per-cohort figure emitter, (b) the pan-cancer tumor_elevation_breadth
+    measurement_type (Part 2). Empty list when the target is absent / product unavailable."""
+    try:
+        df, _cohort_gene_idx, gene_idx = _load_indexed()
+    except Exception:
+        return []
+    if df is None or df.empty:
+        return []
+    indices = gene_idx.get(target.upper().strip(), [])
+    if not indices:
+        return []
+    rows = [_row_to_summary(df.iloc[i].to_dict(),
+                            matched_cohort=str(df.iloc[i]["cohort"]).strip().upper())
+            for i in indices]
+    rows.sort(key=lambda r: abs(float(r.get("protein_effect_size") or 0)), reverse=True)
+    return rows
+
+
+# --- figure emitters (Slice 7 CPTAC protein viz) ---------------------------------------------
+# The card declared `protein_boxplot_tumor_vs_normal` but the derived product is per-cohort SUMMARY,
+# not per-sample — a true sample boxplot would require re-reading the 15 GB raw CPTAC-PDC matrix on
+# every render. The honest, architecturally-correct figure from the summary product is a PER-COHORT
+# tumor-vs-normal panel (dumbbell of tumor vs normal median per cohort + effect + q + n). Card figure
+# declaration corrected to match (doc-truth, sibling target-contracts PR).
+
+def _load_takeda_style(target_contracts_dir):
+    import sys as _sys
+    import matplotlib.pyplot as plt
+    style_path = Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    _sys.path.insert(0, str(Path(target_contracts_dir) / "plot_styles"))
+    try:
+        import takeda_palette
+        return takeda_palette
+    except Exception:
+        return None
+
+
+def _sig_stars(q):
+    if q is None or q != q:
+        return ""
+    if q < 1e-10:
+        return "***"
+    if q < 1e-4:
+        return "**"
+    if q < 0.05:
+        return "*"
+    return "ns"
+
+
+def emit_per_cohort_panel(target: str, out_dir: Path,
+                          target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> Path:
+    """Dumbbell panel: per CPTAC cohort, tumor vs normal median log2 protein abundance, ordered by
+    effect size; q-value stars annotate significance. The cross-cohort breadth of the target's
+    tumor-elevated protein signal — the honest summary-level figure."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    _load_takeda_style(target_contracts_dir)
+    out_dir = Path(out_dir)
+    out_path = out_dir / "figure_protein_per_cohort_tumor_vs_normal.svg"
+    rows = read_all_cohorts(target)
+    if not rows:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, f"{target} — not quantified in any CPTAC cohort", ha="center",
+                va="center", fontsize=10, color="#777"); ax.set_axis_off()
+        fig.savefig(out_path); plt.close(fig); return out_path
+
+    # order by effect ascending so most-elevated is at top after invert
+    rows = sorted(rows, key=lambda r: (r.get("protein_effect_size") or 0))
+    labels = [r["cohort"] for r in rows]
+    tum = [r.get("protein_median_log2_tumor") for r in rows]
+    nor = [r.get("protein_median_log2_normal") for r in rows]
+    fig_h = min(max(3.0, len(rows) * 0.4), 6.0)
+    fig, ax = plt.subplots(figsize=(7, fig_h))
+    for i, (t, n) in enumerate(zip(tum, nor)):
+        if t is None or n is None:
+            continue
+        up = t >= n
+        ax.plot([n, t], [i, i], color="#c9d1d9", linewidth=2, zorder=1)
+        ax.scatter([n], [i], color="#7fa7c0", s=45, zorder=2, label="normal" if i == 0 else None)
+        ax.scatter([t], [i], color="#0a2540" if up else "#cf2828", s=55, zorder=3,
+                   label="tumor" if i == 0 else None)
+        stars = _sig_stars(rows[i].get("protein_bh_q_value"))
+        eff = rows[i].get("protein_effect_size")
+        ax.text(max(t, n) + 0.1, i, f"{eff:+.2f} {stars}" if eff is not None else stars,
+                va="center", fontsize=7, color="#222")
+    ax.set_yticks(range(len(labels))); ax.set_yticklabels(labels, fontsize=8)
+    ax.set_xlabel("median log2 protein abundance (CPTAC TMT MS)")
+    ax.set_title(f"{target} — tumor vs normal protein, per CPTAC cohort (n={len(rows)} cohorts)")
+    ax.legend(loc="lower right", fontsize=8)
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
+def emit_plot_data(target: str, out_dir: Path) -> Path:
+    """Per-cohort long-format parquet (the honest plot_data: one row per cohort tested)."""
+    import pandas as pd
+    rows = read_all_cohorts(target)
+    df = pd.DataFrame(rows)
+    out_file = Path(out_dir) / "plot_data_protein_per_cohort.parquet"
+    df.to_parquet(out_file, index=False)
+    return out_file
+
+
+def emit_plotly_specs(target: str, out_dir: Path,
+                      target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> list:
+    """Interactive per-cohort dumbbell (tumor vs normal median per cohort) built from the SAME
+    read_all_cohorts rows the SVG uses — no drift. Best-effort (plotly optional)."""
+    try:
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001
+        print(f"[cptac_protein_deg] plotly spec emission skipped: {e}", file=__import__("sys").stderr)
+        return []
+    rows = read_all_cohorts(target)
+    if not rows:
+        return []
+    rows = sorted(rows, key=lambda r: (r.get("protein_effect_size") or 0))
+    cohorts = [r["cohort"] for r in rows]
+    tum = [r.get("protein_median_log2_tumor") for r in rows]
+    nor = [r.get("protein_median_log2_normal") for r in rows]
+    q = [r.get("protein_bh_q_value") for r in rows]
+    fig = go.Figure()
+    # connector lines
+    for i, (t, n) in enumerate(zip(tum, nor)):
+        if t is None or n is None:
+            continue
+        fig.add_shape(type="line", x0=n, x1=t, y0=cohorts[i], y1=cohorts[i],
+                      line=dict(color="#c9d1d9", width=2))
+    fig.add_trace(go.Scatter(x=nor, y=cohorts, mode="markers", name="normal",
+                             marker=dict(color="#7fa7c0", size=10),
+                             hovertemplate="%{y} normal median %{x:.2f}<extra></extra>"))
+    fig.add_trace(go.Scatter(x=tum, y=cohorts, mode="markers", name="tumor",
+                             marker=dict(color="#0a2540", size=11),
+                             customdata=[[qq if qq is not None else float('nan')] for qq in q],
+                             hovertemplate="%{y} tumor median %{x:.2f}<br>q %{customdata[0]:.2e}<extra></extra>"))
+    fig.update_layout(title=f"{target} — tumor vs normal protein, per CPTAC cohort",
+                      xaxis_title="median log2 protein abundance (CPTAC TMT MS)",
+                      template="plotly_white", margin=dict(l=90, r=40, t=50, b=50))
+    (Path(out_dir) / "figure_protein_per_cohort_tumor_vs_normal.plotly.json").write_text(fig.to_json())
+    return [{"id": "protein_per_cohort_tumor_vs_normal",
+             "path": "figure_protein_per_cohort_tumor_vs_normal.plotly.json", "type": "plotly"}]
