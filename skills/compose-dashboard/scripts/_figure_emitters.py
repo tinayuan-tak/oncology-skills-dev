@@ -361,12 +361,16 @@ def _emit_card1b_pan_cancer_rnai_dependency_distribution(
     c1bcli.emit_plot_data(demeter_by_model, model_metadata, -0.5, out_dir)
     c1bcli.emit_manifest(target, "26q1", recomputed_summary, demeter_by_model, out_dir, [])
 
-    return [
+    figures = [
         {"id": "waterfall_rnai", "path": "figure_waterfall_rnai.svg",
          "type": "ranked_waterfall_rnai", "primary": True},
         {"id": "histogram_kde_rnai", "path": "figure_histogram_kde_rnai.svg",
          "type": "density_histogram_with_kde_rnai", "primary": False},
     ]
+    # Interactive twins — from the SAME demeter_by_model + recomputed_summary the SVGs used (no drift).
+    figures += _plotly_from(c1bcli, "emit_plotly_specs", demeter_by_model, model_metadata,
+                            target, recomputed_summary, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_expression_distribution(
