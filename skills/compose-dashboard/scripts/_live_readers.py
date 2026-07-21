@@ -523,6 +523,19 @@ def _dispatch_protein_presence_cptac(target: str, indication: str) -> Optional[d
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-elevation-breadth card → pan-cancer K-of-N tumor-elevation
+    roll-up via methods/cptac_protein_deg/read.py::read_tumor_elevation_breadth.
+
+    TARGET-GRAIN: rolls up CPTAC per-cohort tumor-vs-normal over ALL cohorts ("elevated in
+    K of N cancers"). Target-only — indication accepted for the dispatcher contract but NOT
+    consumed (breadth is pan-cancer by construction). This is the one tumor-context presence
+    card that fires without an indication, so it gives a target-only query a real tumor signal.
+    """
+    mod = _import_method("cptac_protein_deg")
+    return mod.read_tumor_elevation_breadth(target=target)
+
+
 def _dispatch_paralog_buffering(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: paralog-buffering card → DepMap PARIS + Sanger paralog fusion
     via methods/depmap_paralog_aggregator/read.py.
@@ -609,6 +622,7 @@ CARD_DISPATCHERS = {
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,
     "protein-presence-cptac": _dispatch_protein_presence_cptac,
+    "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
     "paralog-buffering": _dispatch_paralog_buffering,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,

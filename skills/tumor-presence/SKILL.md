@@ -34,20 +34,24 @@ composition:
     - expression-tumor-vs-adjacent
     - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
     - protein-abundance-celline      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
+    - tumor-elevation-breadth        # Slice B3: pan-cancer K-of-N tumor-elevation (target-grain); the one tumor-context card that fires in a target-ONLY query
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
-  # pattern is surfaced, not averaged.
+  # pattern is surfaced, not averaged. tumor_elevation_breadth is the DERIVED target-grain roll-up
+  # over tumor_protein_abundance (breadth over indications for one target — NOT a ranking over targets).
   measurement_types_pulled:
     - cell_line_rna_expression
     - tumor_vs_adjacent_expression
     - tumor_protein_abundance
     - cell_line_protein_abundance
+    - tumor_elevation_breadth
   rules_scope:
     - expression-distribution
     - expression-tumor-vs-adjacent
     - protein-presence-cptac
     - protein-abundance-celline
+    - tumor-elevation-breadth
   synthesis:
     - rule_engine
   output_shape:
@@ -87,6 +91,17 @@ composition:
 
 The `driving_rule_id` is captured in the headline so a reviewer can trace
 the verdict back to the exact rule in intracellular-intrinsic.rules.yaml.
+
+## Per-(measurement, sample_context) sub-verdicts
+
+Beyond the collapsed `presence_verdict`, the skill emits
+`presence_verdict_by_modality` keyed by `measurement/sample_context`
+(e.g. `bulk_rna/cell_line`, `bulk_rna/tumor`, `bulk_protein_ms/tumor`).
+A **target-only** query honestly reads cell-line buckets as `measured`
+and the per-indication tumor buckets as `data_unavailable` — EXCEPT
+`bulk_protein_ms/tumor`, which `tumor-elevation-breadth` keeps `measured`
+even without an indication (it rolls up CPTAC over all cohorts). That is
+the one tumor-context presence signal a target-only query gets.
 
 ## What this skill does NOT do
 

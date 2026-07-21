@@ -113,6 +113,52 @@ def test_protein_only_signal_not_swallowed_C1_regression():
     assert v == "protein_broadly_high" and drv is not None
 
 
+def test_tumor_elevation_breadth_shares_protein_tumor_bucket():
+    """Slice B3: tumor-elevation-breadth is bulk_protein_ms × tumor — SAME bucket as
+    the CPTAC per-indication card, ranked against _PROTEIN_RANK."""
+    assert tp.CARD_CONTEXT["tumor-elevation-breadth"] == ("bulk_protein_ms", "tumor")
+    fired = [_fr("tumor-breadth-broadly-supportive", "tumor-elevation-breadth")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["bulk_protein_ms/tumor"]["verdict"] == "broadly_tumor_elevated"
+    assert pm["bulk_protein_ms/tumor"]["evidence_state"] == "measured"
+
+
+def test_breadth_gives_target_only_query_a_tumor_signal():
+    """THE Slice-B3 payoff: in a target-ONLY query, the per-indication tumor cards
+    (CPTAC, tumor-vs-adjacent) don't fire — but breadth DOES (it rolls up over all
+    cohorts). So bulk_protein_ms/tumor reads `measured` (broadly_tumor_elevated) even
+    though bulk_rna/tumor stays data_unavailable. Breadth is the one tumor-context
+    presence signal a target-only query gets."""
+    # target-only: cell-line RNA + cell-line protein + breadth fire; no per-indication tumor card
+    fired = [_fr("expression-broadly-moderate-neutral", "expression-distribution"),
+             _fr("protein-abundance-broadly-high-supportive", "protein-abundance-celline"),
+             _fr("tumor-breadth-multi-supportive", "tumor-elevation-breadth")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["bulk_protein_ms/tumor"]["evidence_state"] == "measured"
+    assert pm["bulk_protein_ms/tumor"]["verdict"] == "multi_tumor_elevated"
+    # bulk_rna/tumor still has no card firing → honest data_unavailable
+    assert pm["bulk_rna/tumor"]["evidence_state"] == "data_unavailable"
+
+
+def test_specific_cptac_call_outranks_breadth_in_shared_bucket():
+    """When BOTH the per-indication CPTAC strong_up AND pan-cancer breadth fire (a
+    target-INDICATION query), the specific per-indication call wins the shared
+    bulk_protein_ms/tumor bucket — it is more decision-relevant than breadth."""
+    fired = [_fr("protein-strongly-up-supportive", "protein-presence-cptac"),
+             _fr("tumor-breadth-broadly-supportive", "tumor-elevation-breadth")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["bulk_protein_ms/tumor"]["verdict"] == "protein_strongly_upregulated"
+
+
+def test_breadth_not_elevated_is_neutral_not_killer():
+    """A measured 'elevated in no cohort' breadth is NEVER a presence killer (un-elevated
+    protein may still be abundantly present). It ranks above the downs/killers but
+    resolves to the neutral not_tumor_elevated verdict."""
+    pm = tp._per_modality_verdicts([_fr("tumor-breadth-not-elevated-neutral",
+                                        "tumor-elevation-breadth")])
+    assert pm["bulk_protein_ms/tumor"]["verdict"] == "not_tumor_elevated"
+
+
 def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
     """The protein-abundance-celline card (E3b) is bulk_protein_ms × cell_line — its
     fired rule lands in the bulk_protein_ms/cell_line bucket, DISTINCT from CPTAC's

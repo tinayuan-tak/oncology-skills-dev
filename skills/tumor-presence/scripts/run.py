@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""tumor-presence — expression status for a single (target, indication).
+"""tumor-presence — expression/protein presence for a (target, indication).
 
-Consumes 2 wired expression cards + expression-* rule subset. Emits a
-data-package output tree with a rank-ordered presence verdict.
+Consumes 5 wired presence cards (RNA cell-line + tumor, protein cell-line + tumor
+per-indication + pan-cancer breadth) + their rule subsets. Emits a data-package output
+tree with a rank-ordered presence verdict + per-(measurement, sample_context) sub-verdicts.
 
 W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
+Slice B3 (2026-07-21): + tumor-elevation-breadth (the target-grain tumor signal).
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ CARDS = [
     "expression-tumor-vs-adjacent",
     "protein-presence-cptac",           # Layer 6c addition
     "protein-abundance-celline",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
+    "tumor-elevation-breadth",          # Slice B3 — pan-cancer K-of-N tumor-elevation (target-grain)
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -51,8 +54,9 @@ CARDS = [
 CARD_CONTEXT = {
     "expression-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
     "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
-    "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS
+    "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
     "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
+    "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
 }
 
 
@@ -105,19 +109,33 @@ _EXPRESSION_RANK: list[tuple[str, str]] = [
 
 # bulk_protein_ms ladder. Presence-positive tiers first; measured-absence (the
 # degrader killers) ranked ABOVE data_unavailable so a measured "protein not
-# detected" is never swallowed. Covers BOTH protein cards (CPTAC contrast +
-# cell-line distribution). Verdict strings are the protein-native classes.
+# detected" is never swallowed. Covers THREE protein cards (CPTAC per-indication
+# contrast + Gygi cell-line distribution + pan-cancer breadth). Verdict strings are
+# the protein-native classes.
+#
+# BREADTH placement (Slice B3): the pan-cancer breadth verdicts rank BELOW the
+# per-indication/abundance positives — when a target-INDICATION query fires both the
+# specific CPTAC strong_up AND the pan-cancer breadth, the specific per-indication
+# call wins (more decision-relevant). But in a target-ONLY query, breadth is the ONLY
+# protein-tumor card that fires, so it gives that bucket a real `measured` verdict
+# instead of data_unavailable — the degenerate-case fix. Ranked above the downs/
+# killers (breadth is never a killer — un-elevated protein may still be present).
 _PROTEIN_RANK: list[tuple[str, str]] = [
     ("protein-strongly-up-supportive",                  "protein_strongly_upregulated"),
     ("protein-abundance-broadly-high-supportive",       "protein_broadly_high"),
     ("protein-abundance-lineage-restricted-supportive", "protein_lineage_restricted"),
     ("protein-modestly-up-neutral",                     "protein_modestly_upregulated"),
+    ("tumor-breadth-broadly-supportive",                "broadly_tumor_elevated"),
+    ("tumor-breadth-multi-supportive",                  "multi_tumor_elevated"),
     ("protein-abundance-broadly-moderate-neutral",      "protein_broadly_moderate"),
+    ("tumor-breadth-single-neutral",                    "single_tumor_elevated"),
+    ("tumor-breadth-not-elevated-neutral",              "not_tumor_elevated"),
     ("protein-strongly-down-opposing",                  "protein_strongly_downregulated"),
     ("protein-not-detected-degrader-killer",            "protein_not_detected"),
     ("protein-abundance-broadly-low-degrader-killer",   "protein_broadly_low"),
     ("protein-data-unavailable-insufficient",           "data_unavailable"),
     ("protein-abundance-data-unavailable-insufficient", "data_unavailable"),
+    ("tumor-breadth-data-unavailable-insufficient",     "data_unavailable"),
 ]
 
 # Per-MEASUREMENT ladder selection. The rule VOCABULARY (which rules can fire) is a
@@ -238,6 +256,14 @@ def _headline(cards, fired, verdict_pair):
                                           "protein_expression_class"),
         "protein_effect_size":      _get("protein-presence-cptac",
                                           "protein_effect_size"),
+        # Slice B3: the pan-cancer tumor-elevation breadth (target-grain) — the one
+        # tumor-context presence signal available to a target-ONLY query.
+        "tumor_elevation_breadth_class": _get("tumor-elevation-breadth",
+                                              "tumor_elevation_breadth_class"),
+        "tumor_elevation_n_cohorts_elevated": _get("tumor-elevation-breadth",
+                                                   "n_cohorts_elevated"),
+        "tumor_elevation_n_cohorts_tested": _get("tumor-elevation-breadth",
+                                                 "n_cohorts_tested"),
     }
 
 
