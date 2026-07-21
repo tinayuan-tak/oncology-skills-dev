@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """functional-requirement — is target X a genetic dependency in indication Y.
 
-Consumes 5 dependency-relevant cards (CRISPR + RNAi + concordance +
-lineage-selectivity + paralog-buffering) + the dependency-* rule subset.
+Consumes 7 dependency-relevant cards (CRISPR + RNAi + concordance +
+lineage-selectivity + paralog-buffering + prism-crispr chemical-genetic confirmation +
+dependency-predictability) + the dependency-* rule subset.
+
+The verdict is resolved from the first 6 cards via the shared dependency resolver;
+dependency-predictability is META-evidence that drives a CONFIDENCE ANNOTATION only
+(dependency_confidence_note), never the verdict (Gate-C gap 1, Option A, 2026-07-21).
 
 W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
 """
@@ -37,7 +42,58 @@ CARDS = [
                                                 # small-molecule's CARDS (E1: "a compound was found") — one
                                                 # measurement routes many-to-many to gates; each gate's
                                                 # resolver/snapshot reads only its own rule_ids.
+    "dependency-predictability",                # Gate-C gap 1 (Option A, 2026-07-21) — META-evidence
+                                                # ("how omics-predictable is this dependency, and by what?").
+                                                # Composed so it RUNS; it feeds a CONFIDENCE ANNOTATION only
+                                                # (dependency_confidence_note), NEVER the verdict/resolver.
+                                                # predictability is about a dependency call, not a call itself.
 ]
+
+# The verdicts that ARE a real dependency call (positive or veto) — the ones a predictability
+# confidence note meaningfully sharpens. On insufficient/discordant/underpowered verdicts the
+# note stays neutral (there is no call to be confident in).
+_DEPENDENCY_CALL_VERDICTS = frozenset({
+    "concordant_dependent", "lineage_selective", "selective_dependent",
+    "chemical_genetic_confirmed_dependent", "broadly_dependent",
+    "non_dependent", "non_dependent_paralog_buffered", "pan_essential_killer",
+})
+
+
+def _dependency_confidence_note(verdict: str, predictability_class: str | None) -> dict:
+    """Gate-C gap 1 (Option A): a CONFIDENCE ANNOTATION over the dependency verdict, derived
+    from dependency-predictability meta-evidence. NEVER changes the verdict or the resolver —
+    predictability answers "how omics-learnable is this dependency, and by what feature?", which
+    sharpens CONFIDENCE in a call, it is not itself a dependency call.
+
+    Returns {confidence, note} where confidence ∈ {high, moderate, standard, unknown}:
+      - only annotates when the verdict is an actual dependency call (_DEPENDENCY_CALL_VERDICTS);
+        otherwise `standard` with no meta-claim (nothing to be confident about).
+      - own_omics_driven  → high: the dependency is predictable from the target's OWN omics — a
+        biomarker-hypothesis-bearing call.
+      - context_or_driver_dependent → moderate: predictable, but from lineage/driver context (the
+        biomarker is the context, not the target).
+      - weakly_predictable / unpredictable → standard: the call stands on the genetic evidence
+        itself; predictability adds no biomarker handle (NOT a downgrade of the verdict).
+      - data_unavailable / None → unknown: predictability not computed (E5 v2 coverage gap)."""
+    if verdict not in _DEPENDENCY_CALL_VERDICTS:
+        return {"confidence": "standard",
+                "note": "Predictability annotation applies only to an actual dependency call."}
+    pc = predictability_class
+    if pc == "own_omics_driven":
+        return {"confidence": "high",
+                "note": "Dependency is predictable from the target's own omics "
+                        "(biomarker-hypothesis-bearing) — higher confidence in the call."}
+    if pc == "context_or_driver_dependent":
+        return {"confidence": "moderate",
+                "note": "Dependency is omics-predictable, but from lineage/driver context rather "
+                        "than the target's own features — the biomarker is the context."}
+    if pc in ("weakly_predictable", "unpredictable"):
+        return {"confidence": "standard",
+                "note": "Dependency is not well explained by omics — the call rests on the genetic "
+                        "evidence itself; no omics biomarker handle (not a verdict downgrade)."}
+    # data_unavailable or absent
+    return {"confidence": "unknown",
+            "note": "Predictability not computed for this target (E5 precompute coverage gap)."}
 
 QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
             "the call hold up across CRISPR, RNAi, concordance, lineage-"
@@ -65,6 +121,8 @@ def _headline(cards, fired, verdict_pair):
         return None
 
     v, drv = verdict_pair or ("insufficient", None)
+    predictability_class = _get("dependency-predictability", "predictability_class")
+    confidence = _dependency_confidence_note(v, predictability_class)
     return {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
@@ -80,6 +138,13 @@ def _headline(cards, fired, verdict_pair):
                                           "paralog_buffering_class"),
         "strongest_paralog_symbol": _get("paralog-buffering",
                                           "strongest_paralog_symbol"),
+        # Gate-C gap 1 (Option A): predictability CONFIDENCE annotation over the verdict —
+        # additive; the verdict + driving_rule_id above are untouched.
+        "predictability_class":     predictability_class,
+        "pred_dominant_feature_class": _get("dependency-predictability",
+                                            "pred_dominant_feature_class"),
+        "dependency_confidence":    confidence["confidence"],
+        "dependency_confidence_note": confidence["note"],
     }
 
 

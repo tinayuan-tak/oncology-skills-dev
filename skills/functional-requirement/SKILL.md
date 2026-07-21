@@ -31,19 +31,27 @@ composition:
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
     - paralog-buffering                  # Layer 6d addition: dependency-hardening signal
+    - prism-crispr-concordance           # E-PRISM re-home 2026-07-20: chemical-genetic confirmation arm (was in run.py CARDS, missing here)
+    - dependency-predictability          # Gate-C gap 1 (Option A): META-evidence → CONFIDENCE annotation only, NOT the verdict
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type CLAIMS this gate PULLs (resolves against
   # target-contracts/vocabularies/measurement_types.yaml; the 2 CRISPR cards fold into one type).
+  # chemical_genetic_concordance = the prism-crispr CONFIRMATION arm; dependency_predictability is
+  # pulled as confidence META-evidence (feeds dependency_confidence_note, not the verdict).
   measurement_types_pulled:
     - crispr_lof_dependency
     - rnai_lof_dependency
     - crispr_rnai_concordance
     - paralog_buffering
+    - chemical_genetic_concordance
+    - dependency_predictability
   rules_scope:
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
     - paralog-buffering
+    - prism-crispr-concordance
+    - dependency-predictability
   synthesis:
     - rule_engine
   output_shape:
