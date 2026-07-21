@@ -1778,6 +1778,12 @@ _CARD_TITLE = {
     "mutation-stratified-dependency":     ("Mutation-stratified", "dependency by mutation status (patient-selection)"),
     "expression-dependency-correlation":  ("Expression biomarker", "expression predicts dependency (patient-selection)"),
     "synthetic-lethal-partners":          ("SL partners", "curated synthetic-lethal context (patient-selection)"),
+    # Surface-biologics modality-fit (axis 2) — composed verdict + its inputs
+    "adc-tce-modality-fit":         ("ADC/TCE fit", "composed modality verdict (topology + family + structure)"),
+    "surface-topology-and-ptm":     ("Topology & PTM", "TMbed transmembrane + endocytosis + PTM sites"),
+    "surfaceome-family-classification": ("Surfaceome family", "SURFY/HPA surface-residency class"),
+    "structure-features-static":    ("Structure", "PDB/AlphaFold pocket + disorder features"),
+    "surface-abundance-density":    ("Surface density", "copies-per-cell estimate (TCE viability)"),
 }
 
 # v2 role of a card WITHIN its gate (gate-model v2, docs/design/GATE_MODEL_V2_MEMO.md). Cards not
@@ -1785,14 +1791,18 @@ _CARD_TITLE = {
 #   corroboration  → agreement between measures of the same thing → CONFIDENCE in the verdict
 #   stratification → a feature partitions the outcome → PATIENT-SELECTION (who responds)
 _CARD_V2_ROLE = {
+    # Required (C) biomarker facets
     "crispr-rnai-dependency-concordance": "corroboration",
     "prism-crispr-concordance":           "corroboration",
     "dependency-predictability":          "corroboration",
     "mutation-stratified-dependency":     "stratification",
     "expression-dependency-correlation":  "stratification",
     "synthetic-lethal-partners":          "stratification",
+    # Surface-biologics (modality-fit): the composed verdict leads; the rest are its inputs.
+    "adc-tce-modality-fit":               "composed",
 }
 _V2_ROLE_BADGE = {
+    "composed":       ("verdict", "chip-pos"),
     "corroboration":  ("confidence", "chip-neu"),
     "stratification": ("patient-selection", "chip-pos"),
 }
@@ -1828,6 +1838,15 @@ _CARD_KEYFACTS = {
     "expression-dependency-correlation": [("Correlation", "correlation_class")],
     "synthetic-lethal-partners": [("SL class", "sl_partner_class"),
                                   ("Strongest partner", "strongest_partner_symbol")],
+    # Surface-biologics modality-fit
+    "adc-tce-modality-fit": [("Fit", "fit_class"), ("ADC topology", "is_adc_topology_favorable"),
+                             ("TCE topology", "is_tce_topology_favorable")],
+    "surface-topology-and-ptm": [("TM passes", "tm_pass_count"), ("EC residues", "extracellular_residue_count"),
+                                 ("Endo motifs", "endocytosis_motif_count_high_confidence")],
+    "surfaceome-family-classification": [("Surface?", "is_surface_protein"), ("Family", "family_class")],
+    "structure-features-static": [("Druggable pocket", "has_druggable_pocket"), ("Disorder", "disorder_fraction")],
+    "surface-abundance-density": [("Copies/cell", "estimated_copies_per_cell"),
+                                  ("TCE-viable", "above_tce_threshold")],
 }
 
 
@@ -1941,15 +1960,19 @@ def _expression_indication_focus(card: dict, indication: str) -> Optional[dict]:
 
 def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_results: dict,
                               scorecard_by_short: dict, card_figures, figures_dir,
-                              indication: str = None) -> tuple[list[str], int]:
+                              indication: str = None, modality_note: str = None) -> tuple[list[str], int]:
     """Render ONE gate as a section whose SUBTABS are its evidence CARDS. Each card subtab shows,
     top-to-bottom: a verdict strip (the rule/verdict this card drove), the card's key facts, and its
     interactive Plotly figure. PURE PROJECTION — recomputes nothing. Returns (html, n_plotly).
 
     `shorts` are the sub-skills grouped under this gate letter (usually one; C has several). A gate's
     cards are the union of its sub-skills' cards, in declaration order. Cards with no data this run
-    still get a subtab (greyed 'gap' label) — a coverage gap is shown, never hidden."""
-    glow = gate.lower()
+    still get a subtab (greyed 'gap' label) — a coverage gap is shown, never hidden.
+    `modality_note`: for axis-2 (modality-fit) gates, a one-line 'relevant for <modalities>' banner —
+    the gate's relevance is lens-conditional (gate-model v2)."""
+    # section id + tab-group key: gate letter if lettered, else a slug of the gate_name (modality-fit
+    # gates are NAMED, not lettered in v2). glow is the unique key used for panel ids + tab scoping.
+    glow = gate.lower() if gate else re.sub(r"[^a-z0-9]+", "-", gate_name.lower()).strip("-")
     sec_id = f"s-gate-{glow}"
     out = [f"<section id={sec_id} class='det gate'><span class=tag>Computed from the evidence</span>"]
 
@@ -1961,10 +1984,14 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         chips.append(f"<span class='chip {cls}'><span class=g>{glyph}</span>"
                      f"{_esc(_humanize(row.get('verdict') or 'not evaluated'))}</span>")
     q = _GATE_SHORT_LABEL.get(shorts[0], _humanize(shorts[0])) if len(shorts) == 1 else gate_name
-    out.append(f"<div class=gate-head><span class=gate-letter>{_esc(gate)}</span>"
+    letter = f"<span class=gate-letter>{_esc(gate)}</span>" if gate else ""   # named (modality-fit) gates: no letter
+    out.append(f"<div class=gate-head>{letter}"
                f"<h2 style='margin:0;background:none;color:var(--brand);padding:0'>{_esc(gate_name)} "
                f"<span class=n>— {_esc(q)}</span></h2>"
                f"<span class=gate-verdict>{''.join(chips)}</span></div>")
+    if modality_note:
+        # axis-2 lens banner: this gate's relevance is modality-conditional (gate-model v2).
+        out.append(f"<div class=banner style='margin-top:6px'>{_esc(modality_note)}</div>")
 
     # collect this gate's cards (union across sub-skills), each with its owning sub-skill's fired rules
     cards: list[tuple[dict, list]] = []
@@ -1979,7 +2006,8 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
 
     # v2 ordering: PRIMARY (the gate's own necessity evidence) first, then biomarker FACETS
     # (corroboration → confidence, stratification → patient-selection). Stable within each group.
-    _role_order = {None: 0, "corroboration": 1, "stratification": 2}
+    # composed verdict FIRST (-1); then primary (0); then facets (corroboration, stratification).
+    _role_order = {"composed": -1, None: 0, "corroboration": 1, "stratification": 2}
     cards.sort(key=lambda cf: _role_order.get(_CARD_V2_ROLE.get(cf[0].get("card_id")), 0))
 
     n_plotly_total = 0
@@ -2169,6 +2197,8 @@ def _render_target_profile_html(
             nav.append("<a href='#s-gate-a'>Presence (Gate A)</a>")
         if "dependency" in sub_results:
             nav.append("<a href='#s-gate-c'>Required (Gate C)</a>")
+        if "surface_modality" in sub_results:
+            nav.append("<a href='#s-gate-surface-biologics-fit'>Surface-biologics fit</a>")
         nav.append("<a href='#s-risk'>Risk by category</a>")
         nav.append("<a href='#s-tension'>Conflicting signals</a>")
         nav.append("<a href='#s-evidence'>Evidence by question</a>")
@@ -2237,6 +2267,20 @@ def _render_target_profile_html(
             card_figures, figures_dir, indication=indication)
         p.extend(req_html)
         n_gate_plotly += n_req_plotly
+
+    # --- Surface-biologics fit — MODALITY-FIT gate (gate-model v2 axis 2, first non-lettered gate) --
+    # Not a biology-necessity letter: a per-lens sufficiency assessment. The composed adc-tce-modality-fit
+    # card is the VERDICT (role 'composed', sorts first); the topology/family/structure/density cards are
+    # its inputs. Carries a modality-relevance banner (its relevance is lens-conditional). Skipped in
+    # presence_only. gate="" → named, not lettered.
+    if not presence_only and "surface_modality" in sub_results:
+        surf_html, n_surf_plotly = _render_gate_section_html(
+            "", "Surface-biologics fit", ["surface_modality"], sub_results, scorecard_by_short,
+            card_figures, figures_dir, indication=indication,
+            modality_note="Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
+                          "(not applicable to a small-molecule or degrader strategy).")
+        p.extend(surf_html)
+        n_gate_plotly += n_surf_plotly
 
     # FOCUSED VIEW (item 5): presence-only — close out after the Presence section, skipping the
     # scorecard/risk/tension/evidence/matrix. Everything below is the full-report body.

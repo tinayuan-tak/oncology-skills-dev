@@ -182,3 +182,39 @@ def test_required_orders_primary_before_facets_with_badges():
     # corroboration precedes stratification
     assert order.index("CRISPR×RNAi") < order.index("Mutation-stratified")
     assert "confidence</span>" in seg and "patient-selection</span>" in seg
+
+
+# --- Surface-biologics — modality-fit gate (v2 axis 2) -----------------------
+
+def _sr_surface():
+    sr = _sr()
+    sr["surface_modality"] = {"skill_dir": "surface-modality-fit", "cards": [
+        {"card_id": "surface-topology-and-ptm", "summary": {"tm_pass_count": 1}},
+        {"card_id": "surfaceome-family-classification", "summary": {"is_surface_protein": True}},
+        {"card_id": "adc-tce-modality-fit", "summary": {"fit_class": "ADC_preferred"}}],
+        "verdict": ("adc_favorable", "adc-favorable-supportive"), "fired": []}
+    return sr
+
+
+def test_surface_modality_gate_renders_named_not_lettered():
+    h = _render(_sr_surface())
+    assert "id=s-gate-surface-biologics-fit" in h
+    assert "Surface-biologics fit" in h
+    assert "<span class=gate-letter></span>" not in h    # named gate → no empty letter square
+
+
+def test_surface_composed_verdict_leads_inputs():
+    """The composed adc-tce-modality-fit card (role 'composed') sorts FIRST + carries a 'verdict'
+    badge; its input cards follow."""
+    h = _render(_sr_surface())
+    seg = h.split("id=s-gate-surface-biologics-fit")[1].split("</section>")[0]
+    order = re.findall(r"<button class='tab[^>]*>([^<]+)", seg)
+    assert order[0] == "ADC/TCE fit"        # composed verdict first
+    assert "verdict</span>" in seg
+
+
+def test_surface_gate_carries_modality_relevance_banner():
+    """A modality-fit gate's relevance is lens-conditional — the section states which modalities."""
+    h = _render(_sr_surface())
+    seg = h.split("id=s-gate-surface-biologics-fit")[1].split("</section>")[0]
+    assert "Modality-fit assessment" in seg and "ADC" in seg
