@@ -277,6 +277,63 @@ def emit_lineage_conditional_panel(summary: dict, target: str,
     return out_path
 
 
+def emit_plotly_specs(summary: dict, target: str, out_path: Path,
+                      contracts_root: Path = DEFAULT_TARGET_CONTRACTS) -> list:
+    """Emit interactive Plotly spec SIBLING to the feature-importance SVG (Gate-C plotly debt, 2026-07-21).
+
+    Interactive twin of emit_feature_importance_bar: horizontal bar of the top-10 SHAP-ranked RF
+    features (pred_top_features_rf), colored by feature_class (SAME FEATURE_CLASS_COLORS as the SVG),
+    per-feature hover (name / class / importance), title with r² + 95% CI + predictability_class +
+    RF↔XGB divergence caveat. Built from the SAME summary the SVG + v2 parquet use (no drift).
+    Writes figure_feature_importance_bar.plotly.json. Best-effort (Plotly optional → SVG guaranteed);
+    no feature data → no-op."""
+    try:
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifact
+        print(f"[depmap_predictability] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    top = summary.get("pred_top_features_rf") or []
+    if not top:
+        return []   # no feature-importance data — SVG placeholder covers this state
+
+    written = []
+    try:
+        # Reverse so the TOP SHAP feature sits at the top of the horizontal bar (mirrors invert_yaxis).
+        top10 = list(top[:10])[::-1]
+        names = [t["feature"] for t in top10]
+        imps = [t["importance"] for t in top10]
+        classes = [t["feature_class"] for t in top10]
+        colors = [FEATURE_CLASS_COLORS.get(c, "#bbbbbb") for c in classes]
+        fig = go.Figure(go.Bar(
+            x=imps, y=list(range(len(names))), orientation="h", marker_color=colors,
+            customdata=list(zip(names, classes)),
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}"
+                          "<br>SHAP mean(|value|) %{x:.3f}<extra></extra>"))
+        r2_rf = summary.get("pearson_r_squared_rf")
+        ci_lo, ci_hi = (summary.get("pearson_r_squared_rf_ci_lo"),
+                        summary.get("pearson_r_squared_rf_ci_hi"))
+        r2_txt = (f"r²={r2_rf:.2f}" if isinstance(r2_rf, (int, float)) else "r²=NA")
+        if ci_lo is not None and ci_hi is not None:
+            r2_txt += f" [95% CI {ci_lo:.2f}, {ci_hi:.2f}]"
+        pred_class = (summary.get("predictability_class") or "unknown").replace("_", " ")
+        subtitle = ""
+        if summary.get("model_agreement") == "divergent" and isinstance(summary.get("delta_r2"), (int, float)):
+            subtitle = f"  |  RF↔XGB divergent (Δr²={summary['delta_r2']:+.2f})"
+        fig.update_layout(
+            title=f"{target} — predictability ({r2_txt}, {pred_class}){subtitle}",
+            xaxis_title="SHAP mean(|value|) (RandomForest)",
+            yaxis=dict(tickmode="array", tickvals=list(range(len(names))), ticktext=names),
+            template="plotly_white", showlegend=False, margin=dict(l=160, r=20, t=50, b=50))
+        (out_path / "figure_feature_importance_bar.plotly.json").write_text(fig.to_json())
+        written.append({"id": "feature_importance_bar",
+                        "path": "figure_feature_importance_bar.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[depmap_predictability] feature-importance plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_manifest(target: str, release_pin: str, summary: dict,
                     out_dir: Path, parquet_uri: str) -> Path:
     import yaml
