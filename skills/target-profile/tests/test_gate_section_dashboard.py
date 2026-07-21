@@ -291,3 +291,35 @@ def test_safety_gate_renders_with_tiered_banner():
     sf = re.search(r"<section id=s-gate-safety\b.*?</section>", h, re.S).group(0)
     assert "Constraint" in sf and "pLI" in sf
     assert "tiered severity" in sf and "Modality-fit assessment" in sf
+
+
+# --- roll-up lens: scorecard rows link down to their gate sections -----------
+
+def _sr_full():
+    """All sub-skills present → all gate sections render."""
+    sr = _sr_all_gates()
+    mf = _sr_modality_fit()
+    sr["tractability_sm"] = mf["tractability_sm"]
+    sr["safety"] = mf["safety"]
+    sr["surface_modality"] = _sr_surface()["surface_modality"]
+    return sr
+
+
+def test_scorecard_rows_link_to_gate_sections():
+    """The scorecard is the top-level lens: each question-row links down to its rendered gate section."""
+    h = _render(_sr_full())
+    sc = re.search(r"<section id=s-scorecard.*?</section>", h, re.S).group(0)
+    links = set(re.findall(r"href='#(s-gate-[^']+)'", sc))
+    # every rendered gate section is reachable from the scorecard
+    for anchor in ("s-gate-a", "s-gate-b", "s-gate-c", "s-gate-d",
+                   "s-gate-small-molecule-druggability", "s-gate-surface-biologics-fit", "s-gate-safety"):
+        assert anchor in links, f"scorecard missing link to {anchor}"
+
+
+def test_scorecard_does_not_link_unrendered_gate():
+    """A sub-skill whose gate section did NOT render this run stays plain text (no dangling anchor)."""
+    sr = _sr()   # only expression (+ bare dependency); no selectivity section
+    del sr["dependency"]
+    h = _render(sr)
+    sc = re.search(r"<section id=s-scorecard.*?</section>", h, re.S).group(0)
+    assert "href='#s-gate-b'" not in sc   # Selective didn't render → no link

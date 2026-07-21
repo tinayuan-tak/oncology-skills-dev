@@ -1814,6 +1814,23 @@ _V2_ROLE_BADGE = {
     "corroboration":  ("confidence", "chip-neu"),
     "stratification": ("patient-selection", "chip-pos"),
 }
+
+# Roll-up lens: sub-skill short → the gate SECTION anchor it belongs to (the id _render_gate_section_html
+# emits). Lets the top scorecard link each question-row down to its detailed section. MUST stay in sync
+# with _GATE_SECTIONS in _render_target_profile_html (biology gates → s-gate-<letter>; modality-fit gates
+# → s-gate-<name-slug>). Sub-skills that report_into another gate but have their own section link to their
+# HOME section (e.g. synthetic_lethal_partners + genomic_alteration are unified UNDER Required's section).
+_SHORT_TO_GATE_ANCHOR = {
+    "expression":                "s-gate-a",
+    "selectivity":               "s-gate-b",
+    "dependency":                "s-gate-c",
+    "synthetic_lethal_partners": "s-gate-c",   # unified under Required's section
+    "genomic_alteration":        "s-gate-c",   # mutation-stratified facet lives in Required's section
+    "mechanism":                 "s-gate-d",
+    "tractability_sm":           "s-gate-small-molecule-druggability",
+    "surface_modality":          "s-gate-surface-biologics-fit",
+    "safety":                    "s-gate-safety",
+}
 # Which summary fields to surface as the card's "key facts" (label, field). First hit wins per card;
 # unknown cards fall back to their first ~4 scalar summary fields.
 _CARD_KEYFACTS = {
@@ -2328,7 +2345,8 @@ def _render_target_profile_html(
     # design refuses). A greyed row = coverage gap (we didn't/couldn't look), NOT a negative.
     if scorecard:
         p.append("<section id=s-scorecard class=scorecard><h2>Gate scorecard</h2>")
-        p.append("<p class=sub>One row per evidence question, grouped A–H. "
+        p.append("<p class=sub>One row per evidence question, grouped A–H — the top-level lens; "
+                 "click a question to jump to its detailed section below. "
                  "<span class='chip chip-gap'><span class=g>□</span> Not evaluated</span> = a gap, "
                  "not a negative. Deciding question highlighted.</p>")
         p.append("<table><tr><th>Gate</th><th>Question</th><th>Status</th>"
@@ -2351,6 +2369,13 @@ def _render_target_profile_html(
             if row.get("short") == "tractability_sm":
                 finding += " <span class=sub>(also confirms Dependency)</span>"
             qname = _esc(_GATE_SHORT_LABEL.get(row.get("short"), _humanize(row.get("short"))))
+            # ROLL-UP LENS: link the scorecard row to its detailed gate section (when one was
+            # rendered this run). The scorecard is the top-level lens; clicking a question jumps to
+            # its module-organized section below. Sub-skills without a gate section (not yet migrated)
+            # stay plain text.
+            anchor = _SHORT_TO_GATE_ANCHOR.get(row.get("short"))
+            if anchor and f"id={anchor}" in "".join(p):   # only link if the section actually rendered
+                qname = f"<a href='#{anchor}' style='color:inherit;text-decoration:none;border-bottom:1px dotted var(--line-2)'>{qname}</a>"
             if row.get("is_deciding"):
                 qname += " <span class=badge-deciding>deciding</span>"
             trcls = [c for c in (("deciding" if row.get("is_deciding") else ""),
