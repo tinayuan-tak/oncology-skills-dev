@@ -124,6 +124,7 @@ caveats:
     call as modality-actionable.
 
 measurement: bulk_protein_ms
+sample_context: tumor         # patient tumor vs normal (CPTAC per-cohort) — orthogonal to measurement (2026-07-21)
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_protein_abundance` claim.
 measurement_type: tumor_protein_abundance

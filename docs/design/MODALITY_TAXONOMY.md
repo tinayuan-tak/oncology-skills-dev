@@ -17,6 +17,22 @@ The expression cards were labeled by biological question (level, tumor-vs-normal
 
 Cards outside the expression family (dependency, mutation, mechanism, tractability, safety) omit `measurement:` entirely.
 
+## The orthogonal second axis: `sample_context` (added 2026-07-21)
+
+`measurement` names the measurement LAYER (how it was measured). It does NOT say WHAT was measured — and that omission caused a real conflation: BOTH `expression-distribution` (DepMap **cell-line** RNA) and `expression-tumor-vs-adjacent` (TCGA **tumor** RNA) carry `measurement: bulk_rna`, so the skill's per-modality view bucketed them together. A target-only query (only the cell-line card fires) then read identically to a target-indication query — the tumor-contrast axis was invisibly absent, not represented.
+
+The fix is a second, ORTHOGONAL tag: **`sample_context` ∈ {cell_line | tumor | normal}** (the biological sample). The two axes are genuinely independent — every combination is real:
+
+| | cell_line | tumor | normal |
+|---|---|---|---|
+| **bulk_rna** | DepMap expression-distribution | TCGA expression-tumor-vs-adjacent / tumor-vs-normal-selectivity | (GTEx, via selectivity's comparators) |
+| **bulk_protein_ms** | Gygi protein-abundance-celline | CPTAC protein-presence-cptac | — |
+| **protein_ihc** | — | — | HPA normal-tissue-liability |
+
+The per-modality sub-verdict view buckets by the PAIR `(measurement, sample_context)`, so a cell-line-RNA signal is never conflated with a tumor-RNA signal. A target-only query now honestly reads `bulk_rna/cell_line: broadly_moderate (measured)` alongside `bulk_rna/tumor: data_unavailable` — the collapsed headline is unchanged (still additive), but the breakdown no longer over-reads.
+
+`sample_context` is OPTIONAL and DEFAULTS from `measurement_type` (cell_line_* → cell_line, tumor_* → tumor, normal_tissue_* → normal); `validate_cards._sample_context_check` enforces that a card declaring both agrees. Cards without a sample substrate (dependency, mutation, mechanism, tractability) omit it. This is the axis this doc previously left as uncaptured prose in the "Data source" column — now first-class.
+
 ## Why per-modality sub-verdicts (not one concordance verdict)
 
 The skill emits one verdict per modality — e.g. `{bulk_rna_verdict, bulk_protein_verdict, sc_rna_verdict, ihc_verdict}` — rather than collapsing them into one string. Rationale:

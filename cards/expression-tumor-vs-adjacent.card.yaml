@@ -79,6 +79,7 @@ caveats:
   - "TCGA adjacent-normal samples are not random; surgical-margin selection bias may inflate apparent differential."
 
 measurement: bulk_rna
+sample_context: tumor         # patient tumor vs adjacent normal (TCGA) — orthogonal to measurement (2026-07-21)
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_adjacent_expression` claim.
 measurement_type: tumor_vs_adjacent_expression

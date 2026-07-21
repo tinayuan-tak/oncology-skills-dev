@@ -479,6 +479,43 @@ def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
         )
 
 
+# sample_context (2026-07-21) is ORTHOGONAL to measurement, but must be CONSISTENT with the card's
+# measurement_type prefix — the type already encodes cell-line-vs-tumor (cell_line_* / tumor_*), so a
+# card claiming e.g. measurement_type: cell_line_rna_expression but sample_context: tumor is a
+# contradiction. This maps each measurement_type prefix to its required sample_context.
+_MEASUREMENT_TYPE_CONTEXT_PREFIX = {
+    "cell_line_": "cell_line",
+    "tumor_": "tumor",
+    "normal_tissue_": "normal",
+}
+
+
+def _sample_context_check(spec: dict, report: ValidationReport) -> None:
+    """sample_context (when present) must agree with the card's measurement_type prefix.
+
+    The two axes are orthogonal in GENERAL, but for a given card the measurement_type already fixes
+    the sample context (cell_line_rna_expression is cell-line; tumor_vs_adjacent_expression is tumor).
+    A card that declares BOTH and disagrees is a real defect (the skill's per-modality grouping would
+    bucket it wrong). No sample_context → nothing to check (optional field). No measurement_type, or a
+    prefix not in the map → skip (can't infer the expected context)."""
+    ctx = spec.get('sample_context')
+    if ctx is None:
+        return
+    card_id = spec.get('card_id', '<unknown>')
+    mtype = spec.get('measurement_type')
+    if not mtype:
+        return
+    for prefix, expected in _MEASUREMENT_TYPE_CONTEXT_PREFIX.items():
+        if mtype.startswith(prefix):
+            if ctx != expected:
+                report.add_error(
+                    f'SAMPLE_CONTEXT_MISMATCH: card `{card_id}` declares sample_context `{ctx}` but '
+                    f'its measurement_type `{mtype}` implies `{expected}` (prefix `{prefix}`). The two '
+                    f'axes are orthogonal in general, but the type already fixes the sample context — '
+                    f'a disagreement would mis-bucket the per-modality sub-verdict. Fix one.')
+            return
+
+
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
     """Validate a single card_spec YAML file. Returns a ValidationReport."""
     path = Path(path)
@@ -506,6 +543,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _grain_and_tier_check(spec, report)
         _figure_emission_check(spec, report)
         _measurement_type_check(spec, report)
+        _sample_context_check(spec, report)
     return report
 
 

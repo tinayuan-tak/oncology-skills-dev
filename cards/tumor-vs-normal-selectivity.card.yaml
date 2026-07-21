@@ -178,6 +178,7 @@ caveats:
     tumor-vs-adjacent product; it agrees in direction + rank, not in magnitude.
 
 measurement: bulk_rna
+sample_context: tumor         # patient tumor vs normal comparators (recount3 TCGA/GTEx) — orthogonal to measurement (2026-07-21)
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_normal_selectivity` claim.
 measurement_type: tumor_vs_normal_selectivity

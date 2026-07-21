@@ -92,6 +92,7 @@ caveats:
   - "Lineage-restricted expression in DepMap is informative but the gold-standard normal-tissue safety signal comes from GTEx via the lineage-restriction-evidence card."
 
 measurement: bulk_rna
+sample_context: cell_line     # DepMap cell lines — NOT patient tumor (orthogonal to measurement; 2026-07-21)
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `cell_line_rna_expression` claim.
 measurement_type: cell_line_rna_expression

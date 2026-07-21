@@ -361,6 +361,15 @@
         "protein_ihc"
       ]
     },
+    "sample_context": {
+      "type": "string",
+      "description": "OPTIONAL (2026-07-21). The BIOLOGICAL SAMPLE the card's evidence comes from, ORTHOGONAL to `measurement` (the measurement layer). measurement says HOW it was measured (bulk_rna / bulk_protein_ms / ...); sample_context says WHAT was measured (cell_line / tumor / normal). Both axes are independent — every combination is real (bulk_rna x cell_line = DepMap expression; bulk_rna x tumor = TCGA DGE; bulk_protein_ms x cell_line = Gygi; bulk_protein_ms x tumor = CPTAC). The per-modality sub-verdict view buckets by (measurement, sample_context) so a cell-line-RNA signal is never conflated with a tumor-RNA signal. Defaults from measurement_type (cell_line_* -> cell_line, tumor_* -> tumor); the validator enforces consistency. Cards without a sample substrate (dependency, mutation, mechanism, tractability) omit this.",
+      "enum": [
+        "cell_line",
+        "tumor",
+        "normal"
+      ]
+    },
     "measurement_type": {
       "type": "string",
       "description": "DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) — the card's IDENTITY: the single per-target-entity CLAIM it measures (e.g. crispr_lof_dependency, surface_confirmation, normal_tissue_breadth). Must be a key registered in vocabularies/measurement_types.yaml. A card owns exactly one measurement_type; distinct claims (per the concordance test, Rule 2) are distinct cards. OPTIONAL during migration (existing cards are un-migrated; a validator warns, does not error) — REQUIRED for all NEW cards per the frozen identity rule. The type registry declares the value_vocabulary, providers, evidence tiers, grains, and multi_provider_policy; the card names which type it is a view of.",
