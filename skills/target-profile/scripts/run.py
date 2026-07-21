@@ -1458,6 +1458,27 @@ summary{cursor:pointer;font-weight:600;color:var(--ink-2);font-size:13px}
 footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
 /* Interactive figures (Phase B) */
 .plotly-fig{width:100%;min-height:340px;margin:8px 0 4px}
+/* GI-style components (Phase B PR-3) — About band + data-loaded status banner + navy section bars */
+.about{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:0 0 18px}
+.about .h{font-weight:700;color:var(--ink-2);font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:7px}
+.about .h::before{content:"\\24D8";color:var(--brand-accent);font-size:15px}   /* circled i */
+.about ul{margin:0;padding-left:20px;font-size:13.5px;color:var(--ink-2)}
+.about li{margin:2px 0}
+.about .citation{border-top:1px solid var(--line);margin-top:10px;padding-top:9px;
+  font-size:12px;color:var(--muted);line-height:1.5}
+.about .citation code{font-size:11.5px}
+.statusbar{background:var(--pos-bg);border:1px solid #bfe3bf;border-left:4px solid var(--pos-ink);
+  border-radius:8px;padding:9px 15px;margin:0 0 18px;font-size:13.5px;color:#144d14;font-weight:600;
+  display:flex;align-items:center;gap:8px}
+.statusbar::before{content:"\\2713";color:var(--pos-ink);font-weight:800}  /* check */
+.statusbar .n{font-weight:400;color:#2c6b2c}
+/* Section title bar — GI dark-navy band. Full-bleed left/right (no top-bleed: the small provenance
+   tag chip sits above it as a kicker). One h2 per section, so a descendant selector is safe. */
+section>h2,.llm>h2{background:var(--brand);color:#fff;margin:8px -20px 14px;
+  padding:11px 20px;font-size:14.5px;letter-spacing:.005em}
+section>h2 .n,.llm>h2 .n{color:rgba(255,255,255,.72)}
+.llm>h2{background:var(--llm-ink)}                               /* AI sections: purple bar, not navy */
+section>h2:first-child,.llm>h2:first-child{margin-top:-18px;border-radius:12px 12px 0 0}  /* no tag → hug top */
 """
 
 
@@ -1709,6 +1730,34 @@ def _render_target_profile_html(
         nav.append("<a href='#s-matrix'>Modality fit</a>")
     nav.append("</nav><div class=content>")
     p.append("".join(nav))
+
+    # --- "About this analysis" band + data-loaded status banner (GI-style, PR-B3) ----------
+    # Descriptive framing + provenance, mirroring the GI dashboard's About/citation header. Pure
+    # projection — names what the framework did + on what, no new computation.
+    n_gates = len({(r.get("skill_dir") or short) for short, r in sub_results.items()})
+    n_cards = sum(1 for r in sub_results.values() for c in (r.get("cards") or [])
+                  if isinstance(c, dict) and not c.get("_missing"))
+    n_plotly_total = sum(1 for figs in (card_figures or {}).values()
+                         for f in figs if f.get("dynamic"))
+    p.append(
+        "<div class=about><p class=h>About this analysis</p><ul>"
+        "<li><b>Target-evaluation profile</b> — the 8 question-gates (Present, Selective, Required, "
+        "Mechanism, Druggable, Safe, Differentiated, Translational) evaluated for this "
+        f"target×indication, each from curated evidence cards.</li>"
+        "<li>The recommendation is <b>rule-checked</b>: a deterministic gate can override the "
+        "AI-generated call (a measured killer forces the verdict); AI sections are tinted + labeled.</li>"
+        "<li>Coverage gaps are shown as gaps, never as negatives — “we didn’t look” is "
+        "distinct from “we looked and it’s absent.”</li></ul>"
+        f"<div class=citation>Framework: <code>{_esc(SKILL_NAME)} v{_esc(SKILL_VERSION)}</code>"
+        + (f" · model <code>{_esc(_framework_model_version())}</code>" if _framework_model_version() else "")
+        + " · a projection of <code>nomination.json</code>; sub-verdicts are deterministic and "
+        "reproducible from the same inputs.</div></div>")
+    fignote = (f" · <span class=n>{n_plotly_total} interactive figure"
+               f"{'s' if n_plotly_total != 1 else ''}</span>" if n_plotly_total else "")
+    p.append(
+        f"<div class=statusbar>Evaluated {_esc(target)} × {_esc(indication)}"
+        f"<span class=n>· {n_gates} question-gate{'s' if n_gates != 1 else ''} assessed "
+        f"· {n_cards} evidence card{'s' if n_cards != 1 else ''}{fignote}</span></div>")
 
     # --- Executive summary (LLM) — TOP, the lead the reader needs first ----
     p.append("<div class=llm id=s-exec><span class=tag>AI-generated</span>"

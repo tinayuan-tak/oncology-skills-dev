@@ -251,3 +251,43 @@ def test_html_additive_without_optional_sections():
     assert h.startswith("<!DOCTYPE") and "</html>" in h
     assert "Gate scorecard" not in h                # omitted cleanly
     assert "Recommendation" in h                    # core still renders
+
+
+# ---------- GI-style layout (PR-B3) ----------
+
+def test_html_has_about_band_with_citation():
+    """The GI-style 'About this analysis' band frames the report + carries a provenance/citation
+    line (framework version + 'projection of nomination.json') — descriptive, no new computation."""
+    h = _html()
+    assert "class=about" in h
+    assert "About this analysis" in h
+    assert "class=citation" in h
+    assert "target-profile v" in h                  # framework version stamped in the citation
+    assert "nomination.json" in h                   # provenance framing
+    # the honesty framing survives into the About copy
+    assert "Coverage gaps are shown as gaps" in h
+
+
+def test_html_status_banner_summarizes_the_run():
+    """The GI-style data-loaded banner names target × indication + what was assessed."""
+    h = _html()   # _sr() has 2 sub-skills (dependency, safety), each 1 card
+    assert "class=statusbar" in h
+    assert "Evaluated KRAS × COADREAD" in h or "Evaluated KRAS × COADREAD" in h
+    assert "question-gate" in h
+    assert "evidence card" in h
+
+
+def test_html_status_banner_counts_interactive_figures_when_present(tmp_path):
+    """When a run produced interactive figures, the banner reports the count; otherwise it's absent."""
+    sr = _sr()
+    # no figures → no interactive-figure note
+    assert "interactive figure" not in tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {})
+    cf = {"g": [{"id": "x", "path": "cards/g/f.plotly.json", "type": "plotly", "dynamic": True}]}
+    h = tp._render_target_profile_html("KRAS", "COADREAD", sr, _LLM, {}, card_figures=cf,
+                                       figures_dir=tmp_path)
+    assert "1 interactive figure" in h
+
+
+def test_html_section_bars_do_not_break_wellformedness():
+    """The navy section-header bars are pure CSS on existing <h2>; the doc still parses."""
+    HTMLParser().feed(_html())
