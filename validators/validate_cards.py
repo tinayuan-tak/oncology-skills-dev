@@ -134,12 +134,13 @@ def _registered_figure_emitters() -> Optional[set[str]]:
 KNOWN_FIGURE_DEBT = {
     # SAFETY tier — CLEARED 2026-07-20: gnomad-lof-constraint + normal-tissue-liability
     # emitters registered in CARD_FIGURE_EMITTERS (they now pass the check, not waived).
-    # expression / protein:
-    # protein-abundance-celline CLEARED 2026-07-21 (Slice 7): emitters registered in
-    # CARD_FIGURE_EMITTERS (density + lineage-strip + plotly) — now passes the check, not waived.
-    # protein-presence-cptac stays: its method (cptac_protein_deg) is still a 0-row scaffold, so it
-    # cannot emit a figure until its compute lands — genuine tracked debt, not a silent gap.
-    'protein-presence-cptac',
+    # expression / protein: BOTH CLEARED 2026-07-21 (Slice 7) — emitters registered in
+    # CARD_FIGURE_EMITTERS, now pass the check (not waived).
+    #   protein-abundance-celline: Gygi density + lineage-strip + plotly.
+    #   protein-presence-cptac: per-cohort tumor-vs-normal dumbbell panel (the earlier "0-row scaffold"
+    #     read was wrong — cli.py is an ingestion scaffold; read.py + the live derived product
+    #     cptac-protein-tumor-vs-normal-per-cohort-v1 are real; the figure is per-cohort summary, drawn
+    #     via read_all_cohorts, so no compute un-stub was needed).
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
