@@ -2067,6 +2067,9 @@ _CARD_KEYFACTS = {
 # is available in the package but not surfaced here (redundant with the density for this section).
 _CARD_FIGURE_ORDER = {
     "expression-distribution": ["density_expression", "lineage_expression"],
+    # cell-line protein (item #2): density (bucket-shaded) + per-lineage box, mirroring RNA;
+    # the ranked waterfall is emitted but not surfaced in the subtab (matches the RNA card).
+    "protein-abundance-celline": ["density_protein_abundance", "lineage_protein_abundance"],
 }
 
 

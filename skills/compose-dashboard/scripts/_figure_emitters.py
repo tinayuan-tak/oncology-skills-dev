@@ -724,7 +724,7 @@ def _emit_protein_abundance_celline(
          "type": "per_lineage_strip_plot", "primary": False},
     ]
     figures += _plotly_from(pac, "emit_plotly_specs", abundance_by_model, lineage_by_model,
-                            target, recomputed, out_dir, TARGET_CONTRACTS)
+                            target, recomputed, out_dir, TARGET_CONTRACTS, indication)
     return figures
 
 
