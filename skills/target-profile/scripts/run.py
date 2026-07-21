@@ -1760,11 +1760,41 @@ _SIG_CLASS = {"supportive": "sig-pos", "opposing": "sig-neg", "killer": "sig-kil
 # Human title + one-line "what it shows" per presence-gate card. Keeps the subtab label short and
 # the panel self-explaining. Extend as more gates migrate to the card-subtab style.
 _CARD_TITLE = {
+    # Presence (A)
     "expression-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
     "expression-tumor-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
     "protein-presence-cptac":       ("Tumor protein (CPTAC)", "per-cohort tumor-vs-normal protein"),
     "protein-abundance-celline":    ("Cell-line protein", "Gygi TMT MS abundance distribution"),
     "tumor-elevation-breadth":      ("Pan-cancer breadth", "elevated in K of N cancers"),
+    # Required (C) — primary dependency evidence
+    "pan-cancer-crispr-dependency-distribution": ("CRISPR dependency", "DepMap Chronos pan-cancer distribution"),
+    "pan-cancer-rnai-dependency-distribution":   ("RNAi dependency", "DEMETER2 pan-cancer distribution"),
+    "dependency-lineage-selectivity":            ("Lineage selectivity", "per-lineage Chronos forest"),
+    "paralog-buffering":                         ("Paralog buffering", "dual-KO buffering (masks single-gene dep)"),
+    # Required (C) — biomarker facets (see _CARD_V2_ROLE)
+    "crispr-rnai-dependency-concordance": ("CRISPR×RNAi", "two LOF assays agree (corroboration)"),
+    "prism-crispr-concordance":           ("Chemical-genetic", "compound kill tracks dependency (corroboration)"),
+    "dependency-predictability":          ("Predictability", "how omics-learnable the dependency is (corroboration)"),
+    "mutation-stratified-dependency":     ("Mutation-stratified", "dependency by mutation status (patient-selection)"),
+    "expression-dependency-correlation":  ("Expression biomarker", "expression predicts dependency (patient-selection)"),
+    "synthetic-lethal-partners":          ("SL partners", "curated synthetic-lethal context (patient-selection)"),
+}
+
+# v2 role of a card WITHIN its gate (gate-model v2, docs/design/GATE_MODEL_V2_MEMO.md). Cards not
+# listed are `primary` (the gate's own necessity evidence). Facets modulate the gate verdict:
+#   corroboration  → agreement between measures of the same thing → CONFIDENCE in the verdict
+#   stratification → a feature partitions the outcome → PATIENT-SELECTION (who responds)
+_CARD_V2_ROLE = {
+    "crispr-rnai-dependency-concordance": "corroboration",
+    "prism-crispr-concordance":           "corroboration",
+    "dependency-predictability":          "corroboration",
+    "mutation-stratified-dependency":     "stratification",
+    "expression-dependency-correlation":  "stratification",
+    "synthetic-lethal-partners":          "stratification",
+}
+_V2_ROLE_BADGE = {
+    "corroboration":  ("confidence", "chip-neu"),
+    "stratification": ("patient-selection", "chip-pos"),
 }
 # Which summary fields to surface as the card's "key facts" (label, field). First hit wins per card;
 # unknown cards fall back to their first ~4 scalar summary fields.
@@ -1778,6 +1808,26 @@ _CARD_KEYFACTS = {
     "protein-abundance-celline": [("Class", "protein_expression_class")],
     "tumor-elevation-breadth": [("Breadth", "tumor_elevation_breadth_class"),
                                 ("Protein K/N", "n_cohorts_elevated"), ("RNA K/N", "rna_n_indications_elevated")],
+    # Required (C)
+    "pan-cancer-crispr-dependency-distribution": [("Class", "dependency_class"),
+                                                  ("Median Chronos", "median_chronos_panel"),
+                                                  ("% dependent", "fraction_dependent")],
+    "pan-cancer-rnai-dependency-distribution": [("Class", "dependency_class"),
+                                                ("Median DEMETER2", "median_demeter2")],
+    "dependency-lineage-selectivity": [("Selectivity", "lineage_selectivity_class"),
+                                       ("Selective lineages", "n_selective_lineages")],
+    "paralog-buffering": [("Buffering", "paralog_buffering_class"),
+                          ("Strongest paralog", "strongest_paralog_symbol")],
+    "crispr-rnai-dependency-concordance": [("Concordance", "concordance_class")],
+    "prism-crispr-concordance": [("Class", "crispr_prism_concordance_class"),
+                                 ("Compounds", "n_compounds_evaluated")],
+    "dependency-predictability": [("Predictability", "predictability_class"),
+                                  ("Top feature", "pred_dominant_feature_class")],
+    "mutation-stratified-dependency": [("Class", "mutation_stratification_class"),
+                                       ("Hotspot q", "hotspot_mannwhitney_q")],
+    "expression-dependency-correlation": [("Correlation", "correlation_class")],
+    "synthetic-lethal-partners": [("SL class", "sl_partner_class"),
+                                  ("Strongest partner", "strongest_partner_symbol")],
 }
 
 
@@ -1927,6 +1977,11 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         out.append("<p class=empty-note>No evidence cards ran for this gate this run.</p></section>")
         return out, 0
 
+    # v2 ordering: PRIMARY (the gate's own necessity evidence) first, then biomarker FACETS
+    # (corroboration → confidence, stratification → patient-selection). Stable within each group.
+    _role_order = {None: 0, "corroboration": 1, "stratification": 2}
+    cards.sort(key=lambda cf: _role_order.get(_CARD_V2_ROLE.get(cf[0].get("card_id")), 0))
+
     n_plotly_total = 0
     # default tab = first card that has a live plot, else first card
     default_idx = 0
@@ -1946,7 +2001,13 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         active = " active" if i == default_idx else ""
         pid = f"{sec_id}-p{i}"
         lab_cls = " gap" if missing else ""
-        tabs.append(f"<button class='tab{lab_cls}{active}' data-panel={pid}>{_esc(title)}</button>")
+        # v2 role badge (confidence / patient-selection) on facet cards; primary cards get none.
+        role = _CARD_V2_ROLE.get(cid)
+        badge = ""
+        if role and role in _V2_ROLE_BADGE:
+            btxt, bcls = _V2_ROLE_BADGE[role]
+            badge = f"<span class='chip {bcls}' style='margin-left:6px;font-size:9.5px;padding:1px 6px'>{btxt}</span>"
+        tabs.append(f"<button class='tab{lab_cls}{active}' data-panel={pid}>{_esc(title)}{badge}</button>")
 
         pan = [f"<div class='panel{active}' id={pid}>"]
         if missing:
@@ -1964,8 +2025,8 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         if divs:
             pan.extend(divs)
         else:
-            pan.append("<p class=empty-note>No interactive figure this run — the summary metrics "
-                       "are at right; a static/summary run embeds no chart for this card.</p>")
+            pan.append("<p class=empty-note>No chart produced this run — the summary metrics "
+                       "are at right; a static/summary run embeds no plot for this card.</p>")
         pan.append("</div>")   # .card-plots
 
         # -- RIGHT: summary rail — key facts, indication focus (item 4), rule/verdict fired --
@@ -2106,6 +2167,8 @@ def _render_target_profile_html(
             nav.append("<a href='#s-deciding'>Deciding axis</a>")
         if "expression" in sub_results:
             nav.append("<a href='#s-gate-a'>Presence (Gate A)</a>")
+        if "dependency" in sub_results:
+            nav.append("<a href='#s-gate-c'>Required (Gate C)</a>")
         nav.append("<a href='#s-risk'>Risk by category</a>")
         nav.append("<a href='#s-tension'>Conflicting signals</a>")
         nav.append("<a href='#s-evidence'>Evidence by question</a>")
@@ -2157,6 +2220,23 @@ def _render_target_profile_html(
             "A", "Present", ["expression"], sub_results, scorecard_by_short,
             card_figures, figures_dir, indication=indication)
         p.extend(gate_html)
+
+    # --- Required gate (C) — subtabbed section (gate-model v2: exercises biomarker FACETS) --------
+    # C is the audit's "one gate, many sub-skills" case: its evidence is scattered across dependency
+    # (primary CRISPR/RNAi/concordance/lineage/paralog), synthetic_lethal_partners (stratification
+    # facet), and genomic_alteration (mutation-stratified = stratification facet). The gate section
+    # UNIFIES them; each card's _CARD_V2_ROLE drives ordering (primary first, then facets) + its
+    # confidence/patient-selection badge. Cross-gate cards whose HOME is E but that report_into C
+    # (prism-crispr, predictability) stay under E for now — that's the reports_into edge, a later
+    # refinement, not a card move. Skipped in presence_only.
+    if not presence_only and "dependency" in sub_results:
+        req_shorts = [s for s in ("dependency", "synthetic_lethal_partners", "genomic_alteration")
+                      if s in sub_results]
+        req_html, n_req_plotly = _render_gate_section_html(
+            "C", "Required", req_shorts, sub_results, scorecard_by_short,
+            card_figures, figures_dir, indication=indication)
+        p.extend(req_html)
+        n_gate_plotly += n_req_plotly
 
     # FOCUSED VIEW (item 5): presence-only — close out after the Presence section, skipping the
     # scorecard/risk/tension/evidence/matrix. Everything below is the full-report body.

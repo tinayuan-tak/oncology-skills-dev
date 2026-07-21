@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -131,3 +132,53 @@ def test_tab_bootstrap_always_present_when_gate_rendered():
 def test_full_report_still_renders_all_sections():
     h = _render(_sr(), presence_only=False)
     assert "Gate scorecard" in h and "id=s-gate-a" in h   # both the scorecard AND the new gate section
+
+
+# --- Required (C) gate — v2 biomarker facets ---------------------------------
+
+def _sr_required():
+    """sub_results with Required (C) evidence scattered across 3 sub-skills (the v2 case)."""
+    sr = _sr()
+    sr["dependency"] = {"skill_dir": "functional-requirement", "cards": [
+        {"card_id": "pan-cancer-crispr-dependency-distribution", "summary": {"dependency_class": "selective"}},
+        {"card_id": "pan-cancer-rnai-dependency-distribution", "summary": {"dependency_class": "selective"}},
+        {"card_id": "crispr-rnai-dependency-concordance", "summary": {"concordance_class": "concordant_dependent"}},
+        {"card_id": "dependency-lineage-selectivity", "summary": {"lineage_selectivity_class": "lineage_selective"}},
+        {"card_id": "paralog-buffering", "summary": {"paralog_buffering_class": "no_buffering"}}],
+        "verdict": ("lineage_selective", "lineage-selective-supportive"),
+        "fired": [_fired("concordant-dependent-supportive-dominant", "crispr-rnai-dependency-concordance",
+                         {"small_molecule": "supportive"})]}
+    sr["synthetic_lethal_partners"] = {"skill_dir": "synthetic-lethal-partners", "cards": [
+        {"card_id": "synthetic-lethal-partners", "summary": {"sl_partner_class": "has_experimental_sl_partner"}}],
+        "verdict": ("has_experimental_sl_partner", "sl-partner-supportive"), "fired": []}
+    sr["genomic_alteration"] = {"skill_dir": "genomic-alteration-profile", "cards": [
+        {"card_id": "mutation-stratified-dependency", "summary": {"mutation_stratification_class": "mutant_strongly_dependent"}}],
+        "verdict": ("biomarker_stratified_dependency", "mutant-strongly-dependent-supportive"), "fired": []}
+    return sr
+
+
+def test_required_gate_section_renders():
+    h = _render(_sr_required())
+    assert "id=s-gate-c" in h and "Required" in h
+
+
+def test_required_unifies_cards_across_three_sub_skills():
+    """Required's cards come from dependency + synthetic_lethal_partners + genomic_alteration —
+    the v2 'one gate, many sub-skills' case. All appear in the one C section."""
+    h = _render(_sr_required())
+    seg = h.split("id=s-gate-c")[1].split("</section>")[0]
+    for title in ("CRISPR dependency", "SL partners", "Mutation-stratified"):
+        assert title in seg, title
+
+
+def test_required_orders_primary_before_facets_with_badges():
+    """v2 ordering: primary dependency cards first, then corroboration (confidence badge), then
+    stratification (patient-selection badge)."""
+    h = _render(_sr_required())
+    seg = h.split("id=s-gate-c")[1].split("</section>")[0]
+    order = re.findall(r"<button class='tab[^>]*>([^<]+)", seg)
+    # primary CRISPR/RNAi/lineage/paralog precede the CRISPR×RNAi corroboration facet
+    assert order.index("CRISPR dependency") < order.index("CRISPR×RNAi")
+    # corroboration precedes stratification
+    assert order.index("CRISPR×RNAi") < order.index("Mutation-stratified")
+    assert "confidence</span>" in seg and "patient-selection</span>" in seg
