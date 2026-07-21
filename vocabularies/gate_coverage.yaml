@@ -1,9 +1,9 @@
-# gate_coverage.yaml
+# gate_coverage.yaml  —  gate-model v2 (2.0.0)
 # The deciding-axis router's static map (L / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 1 + 3).
 #
-# WHAT THIS IS: a per-gate declaration of (a) which NECESSITY/SUFFICIENCY band the gate sits
-# in, and (b) the framework's BASELINE standing on evidencing that gate. It lets the
-# target-profile nomination turn a bare `insufficient_evidence` into a routing statement:
+# WHAT THIS IS: a per-gate declaration of (a) which of the two v2 AXES + necessity/sufficiency
+# band the gate sits in, and (b) the framework's BASELINE standing on evidencing that gate. It
+# lets the target-profile nomination turn a bare `insufficient_evidence` into a routing statement:
 # "the decision here lives in gate X, which the framework is <coverage> on — route to Y."
 #
 # WHAT THIS IS NOT — the honesty guardrail (KNOWN_TARGET_FRAMEWORK_REFRAMES lines 103-106):
@@ -12,8 +12,44 @@
 # actual sub-verdicts: (1) when a gate FIRED, name it as the deciding axis (known, not
 # predicted); (2) when abstaining, list the gates we could not evidence + their band + standing.
 # `framework_can_evidence` here is the STATIC baseline; the router downgrades it per-run to
-# `blind`/`data_blocked` when the actual cards for that gate came back unavailable (F's
-# availability_state) — it never UPGRADES beyond this baseline.
+# `blind`/`data_blocked` when the actual cards for that gate came back unavailable — never UP.
+#
+# ============================================================================
+# v2 (2.0.0) — THE TWO-AXIS RESTRUCTURE (see docs/design/GATE_MODEL_V2_MEMO.md)
+# ----------------------------------------------------------------------------
+# The v1 flat `gates:` list is replaced by THREE lists, splitting the two things the A–H letters
+# conflated + giving biomarker/relational evidence a clean home:
+#
+#   biology_gates   — AXIS 1 (necessity, modality-INDEPENDENT): "is this real, actionable
+#                     biology?" Keep LETTERS A–E. "Altered" (E) is NEW — it splits genomic
+#                     alteration cleanly out of the v1 A/C overload (which needed a slashed
+#                     gate_name 'Present (alteration) / Required (biomarker-stratified)').
+#
+#   modality_fit    — AXIS 2 (sufficiency, per-lens): "will it become a drug in THIS modality?"
+#                     NAMED, not lettered — these are lens-conditional fit assessments selected by
+#                     `modality_relevance`, NOT a sequential ladder, so the v1 "letter E = both SM
+#                     and surface" overload is retired. (Letters are dropped, not renumbered.)
+#
+#   biomarker_facets— relational feature×outcome sub-skills. NOT gates: each surfaces UNDER the
+#                     gate it `reports_into` as a FACET. Two GRAINS live here:
+#                       grain: sub_skill  → a real sub-verdict slot the composer emits
+#                                           (synthetic_lethal_partners, subtype_fit) → the router
+#                                           joins it + it IS a scorecard row (as in v1).
+#                       grain: card       → a card-level facet (mutation_stratified,
+#                                           crispr_rnai_concordance, …) rendered INSIDE its outcome
+#                                           gate's section, NEVER its own scorecard row.
+#                     `role: corroboration` (→ confidence on the outcome gate) vs `stratification`
+#                     (→ patient-selection facet). `surfaces_as` names which.
+#
+# `reports_into: [short, ...]` names cross-gate edges (a verdict modulating ANOTHER gate) that were
+# hand-patched as slashes in v1. These edges ALREADY EXIST as veto_suppressors / positive cross-
+# refs in nomination_verdict_gate.yaml — v2 just names them so a consumer (e.g. the dashboard
+# cross-gate breadcrumb) reads them from the contract instead of hardcoding. VERDICT-NEUTRAL:
+# taxonomy + routing metadata only; no resolver/nomination-gate logic changes in this bump.
+#
+# CONSUMER CONTRACT: skills' _flatten_gate_coverage reads this three-list shape (or the v1 flat
+# `gates:` list) → {short: entry} of the biology_gates + modality_fit + sub_skill-grain facets
+# (card-grain facets excluded from the row set). See claude-oncology-skills PR-A.
 #
 # COVERAGE VOCAB (shared with vocabularies/known_target_calibration_set.yaml reference_profiles
 # + tests/calibration/test_known_target_calibration.py::_COVERAGE_VOCAB):
@@ -24,18 +60,23 @@
 #   out_of_scope    — Tier-2 / a different engine's job (e.g. dynamic-perturbation, TME).
 
 enum_id: gate_coverage
-version: 1.0.0
+version: 2.0.0
 description: |
-  Per-gate necessity/sufficiency band + baseline framework-evidence standing, consumed by the
-  target-profile deciding-axis router. Keyed by the SUB_SKILLS short name (the sub_verdict slot
-  in nomination.json), so the router can join a run's sub_results directly. Bands per Reframe 1:
-  necessity (A Present / B Selective / C Required / D Mechanism) = "is this real, actionable
-  biology?" — the framework's validated lane; sufficiency (E Druggable / F Safe / G
-  Differentiated / H Translational) = "will it become a drug in this modality?" — partially
-  data-blocked / Tier-2, the axes known targets actually advance or decline on.
+  Two-axis target-evaluation model. AXIS 1 (biology_gates): modality-independent necessity gates —
+  is this real, actionable biology? (Present · Selective · Required · Mechanism · Altered). AXIS 2
+  (modality_fit): per-lens sufficiency assessments — will it become a drug in a GIVEN modality?
+  (Small-molecule · Surface-biologics · Safety · Differentiation), named not lettered. Biomarker/
+  relational sub-skills are FACETS of the gate they relate (biomarker_facets, role: corroboration|
+  stratification), surfaced under that gate — not a new gate. `reports_into` names cross-gate edges
+  that were hand-patched as slashes in v1. Keyed by the SUB_SKILLS short (the sub_verdict slot in
+  nomination.json) so the router can join a run's sub_results directly.
 
-gates:
+# ============================================================================
+# AXIS 1 — BIOLOGY GATES (necessity; modality-independent). Keep letters A–E.
+# ============================================================================
+biology_gates:
   - short: expression
+    axis: biology
     gate: A
     gate_name: Present
     band: necessity
@@ -43,6 +84,7 @@ gates:
     evidences: "RNA transcribed / protein made (recount3 + DepMap + CPTAC)."
 
   - short: selectivity
+    axis: biology
     gate: B
     gate_name: Selective
     band: necessity
@@ -50,26 +92,23 @@ gates:
     evidences: "tumor-vs-normal window (recount3 4-cell DESeq2; adjacent + GTEx comparators)."
 
   - short: dependency
+    axis: biology
     gate: C
     gate_name: Required
     band: necessity
     framework_can_evidence: partial
+    receives_facets: [mutation_stratified, expression_correlation, crispr_rnai_concordance,
+                      chemical_genetic_concordance, synthetic_lethal_partners,
+                      dependency_predictability, subtype_fit]
     evidences: "functional requirement (DepMap CRISPR + RNAi)."
     coverage_note: |
       partial, NOT captured: gate C is computed from a POOLED pan-cancer scalar and conflates
       six biologically distinct dependency modes (only oncogene-addiction is fully wired).
-      Context-conditional modes (biomarker-stratified, paralog-buffered, SL-partner) are
-      veto-suppressor-rescued but not first-class; the pooled veto is the known false-negative.
-
-  - short: synthetic_lethal_partners
-    gate: C
-    gate_name: Required (SL arm)
-    band: necessity
-    framework_can_evidence: partial
-    evidences: "curated SL partner annotation (SynLethDB v3) — suppresses a pooled non-dependent veto."
-    coverage_note: "annotation, not measured co-dependency; never nominates on its own."
+      In v2 the context-conditional modes are first-class FACETS (see biomarker_facets) that
+      report into this gate, not veto-suppressor-only afterthoughts.
 
   - short: mechanism
+    axis: biology
     gate: D
     gate_name: Mechanism
     band: necessity
@@ -77,19 +116,108 @@ gates:
     evidences: "network position / MoA hook (SIGNOR + CollecTri + Reactome + kinome)."
     coverage_note: "advisory-only today; does not move the deterministic verdict."
 
+  # NEW GATE — splits genomic-alteration cleanly out of the v1 A/C overload + kills the one slashed
+  # gate_name. The alteration FREQUENCY is the biology fact here (Altered); the biomarker-stratified
+  # half is a FACET (mutation_stratified, below) that reports into Required (C).
   - short: genomic_alteration
-    gate: A
-    gate_name: Present (alteration) / Required (biomarker-stratified)
+    axis: biology
+    gate: E
+    gate_name: Altered
     band: necessity
     framework_can_evidence: captured
-    evidences: "somatic alteration landscape (TCGA-MC3 + GENIE) + biomarker-stratified dependency."
+    reports_into: [dependency]        # biomarker-stratified-dependency verdict modulates Required
+    evidences: "somatic alteration landscape (TCGA-MC3 + GENIE): mutation / CN / fusion frequency."
     coverage_note: |
-      dual-role: alteration frequency feeds gate A (present-as-altered); the biomarker-
-      stratified-dependency verdict feeds gate C as a veto-suppressor + dominant positive.
+      v1 filed this under A with a slashed name 'Present (alteration) / Required
+      (biomarker-stratified)'. v2: its own biology gate (Altered) for the alteration FACT; the
+      stratification relationship is the mutation_stratified facet reporting into Required.
 
+# ============================================================================
+# BIOMARKER FACETS — relational (feature × outcome). NOT gates. Each surfaces UNDER the gate it
+# reports_into. grain: sub_skill facets are scorecard rows (composer emits them); grain: card
+# facets render inside their outcome gate's section only. All backed by derived_from types.
+# ============================================================================
+biomarker_facets:
+  # --- sub_skill grain: real sub-verdict slots → scorecard rows (as in v1) -------------------
+  - short: synthetic_lethal_partners
+    grain: sub_skill
+    axis: biology
+    band: necessity
+    role: stratification                # SL partner defines the context where the target matters
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: partial
+    evidences: "curated SL partner annotation (SynLethDB v3) — suppresses a pooled non-dependent veto."
+    coverage_note: "annotation, not measured co-dependency; never nominates on its own."
+
+  - short: subtype_fit
+    grain: sub_skill
+    axis: biology
+    band: necessity
+    role: stratification                # subtype partitions the outcome → who responds
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: partial
+    evidences: "subtype-stratified dependency (DepMap panorama) — one-directional hold only."
+    coverage_note: "opt-in via --subtypes; negative-selection only, floor-gated (n>=30)."
+
+  # --- card grain: card-level facets → render IN a gate section, NOT their own row ----------
+  - short: mutation_stratified          # mutation-stratified-dependency card
+    grain: card
+    card_id: mutation-stratified-dependency   # machine-readable card binding (was comment-only)
+    role: stratification                # feature partitions outcome → WHO responds
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: captured
+    evidences: "dependency stratified by own mutation status (oncogene-addiction biomarker)."
+    note: "carries verdict biomarker_stratified_dependency; already rescues the C veto (kept)."
+
+  - short: expression_correlation       # expression-dependency-correlation card
+    grain: card
+    card_id: expression-dependency-correlation
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: captured
+    evidences: "own mRNA expression predicts own dependency (expression-as-biomarker)."
+
+  - short: crispr_rnai_concordance      # crispr-rnai-dependency-concordance card
+    grain: card
+    card_id: crispr-rnai-dependency-concordance
+    role: corroboration                 # two measures of the SAME thing agree → confidence
+    reports_into: [dependency]
+    surfaces_as: confidence
+    framework_can_evidence: captured
+    evidences: "CRISPR and RNAi LOF assays agree the target is required."
+
+  - short: chemical_genetic_concordance # prism-crispr-concordance card
+    grain: card
+    card_id: prism-crispr-concordance
+    role: corroboration
+    reports_into: [dependency, tractability_sm]   # the genuine cross-gate case (feeds BOTH)
+    surfaces_as: confidence
+    framework_can_evidence: partial
+    evidences: "compound kill-pattern tracks CRISPR+RNAi dependency (on-target engagement)."
+    note: "the one card that legitimately feeds two gates; the anti-double-count guard in the verdict gate stays."
+
+  - short: dependency_predictability    # dependency-predictability card
+    grain: card
+    card_id: dependency-predictability
+    role: corroboration
+    reports_into: [dependency]
+    surfaces_as: confidence
+    framework_can_evidence: captured
+    evidences: "how omics-predictable the dependency is (meta-evidence → C-confidence)."
+
+# ============================================================================
+# AXIS 2 — MODALITY-FIT ASSESSMENTS (sufficiency; per-lens). NAMED, not lettered. The active
+# modality lens (modality_relevance) selects which of these are relevant for a given target.
+# ============================================================================
+modality_fit:
   - short: tractability_sm
-    gate: E
-    gate_name: Druggable (small molecule)
+    axis: modality_fit
+    gate_name: Small-molecule druggability
+    modality_relevance: [small_molecule, degrader]
     band: sufficiency
     framework_can_evidence: partial
     evidences: "chemical-genetic (PRISM) + forward ligandability (AlphaFold/PDB pocket structure)."
@@ -98,8 +226,9 @@ gates:
       wired; ternary/degrader feasibility + medchem tractability are not.
 
   - short: surface_modality
-    gate: E
-    gate_name: Druggable (surface biologics)
+    axis: modality_fit
+    gate_name: Surface-biologics fit
+    modality_relevance: [adc, bite_tce, antibody]
     band: sufficiency
     framework_can_evidence: blind
     evidences: "surface density / internalization / topology for ADC/BiTE/antibody."
@@ -108,18 +237,20 @@ gates:
       co-expression are data-blocked (3/5 surface cards not on S3). Family/topology only.
 
   - short: safety
-    gate: F
-    gate_name: Safe
+    axis: modality_fit
+    gate_name: Safety
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]   # tiered severity per lens
     band: sufficiency
     framework_can_evidence: partial
     evidences: "germline LoF constraint (gnomAD) + normal-tissue liability (HPA IHC)."
     coverage_note: |
       partial: germline constraint (SM/degrader-relevant) + HPA normal-tissue IHC breadth are
-      wired; normal-tissue-SURFACE window (the biologics-deciding axis) is thin.
+      wired; normal-tissue-SURFACE window (the biologics-deciding axis) is thin. Modality-tiered:
+      normal-tissue breadth trips a harder caution for BiTE/TCE than ADC.
 
   - short: differentiation
-    gate: G
-    gate_name: Differentiated
+    axis: modality_fit
+    gate_name: Differentiation
     band: sufficiency
     framework_can_evidence: partial
     evidences: "co-mutation / mutual-exclusivity + biomarker definability (TCGA-MC3 + GENIE Fisher)."
@@ -127,19 +258,11 @@ gates:
       partial → license_blocked for the decisive axis: clinical precedent + competitive
       differentiation live in Cortellis/IQVIA/Flatiron (commercial-license-walled), not code.
 
-  - short: subtype_fit
-    gate: C
-    gate_name: Required (subtype-scoped)
-    band: necessity
-    framework_can_evidence: partial
-    evidences: "subtype-stratified dependency (DepMap panorama) — one-directional hold only."
-    coverage_note: "opt-in via --subtypes; negative-selection only, floor-gated (n>=30)."
-
-# H (Translational — models, PD/imaging, combination/resistance) has NO sub-skill: it is an
-# unbuilt placeholder. A target whose decision hinges on H is, by construction, blind. The
-# router treats an absent gate as band: sufficiency, framework_can_evidence: blind.
-unbuilt_gates:
-  - gate: H
+# Translational — still unbuilt (no sub-skill). A sufficiency assessment; blind by construction.
+# The router treats an absent gate as band: sufficiency, framework_can_evidence: blind.
+unbuilt:
+  - short: translational
+    axis: modality_fit
     gate_name: Translational
     band: sufficiency
     framework_can_evidence: blind
