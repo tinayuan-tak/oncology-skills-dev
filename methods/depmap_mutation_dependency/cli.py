@@ -512,6 +512,72 @@ def emit_per_hotspot_chronos_plot(chronos_by_model: dict, per_hotspot_records: l
     plt.close(fig)
 
 
+def emit_plotly_specs(chronos_by_model: dict, hotspot_by_model: dict,
+                      damaging_by_model: dict, target_symbol: str, summary: dict,
+                      out_path: Path, contracts_root: Path) -> list:
+    """Emit interactive Plotly spec SIBLING to the mut-vs-WT strip SVG (Gate-C plotly debt, 2026-07-21).
+
+    Interactive twin of emit_mut_vs_wt_strip_plot: Chronos box+strip grouped by mutation status
+    (hotspot mut/WT + damaging mut/WT — same 4 groups, same colors), reflines at 0 / -1.0
+    (CHRONOS_STRONG_DEPENDENCY), q-values in the title. Built from the SAME chronos_by_model +
+    hotspot/damaging membership the SVG + plot_data.parquet use (no drift). Writes
+    figure_mut_vs_wt_strip.plotly.json. Best-effort (Plotly optional → SVG guaranteed)."""
+    try:
+        import plotly.graph_objects as go
+        sys.path.insert(0, str(contracts_root / "plot_styles"))
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY  # type: ignore
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifact
+        print(f"[depmap_mutation_dependency] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+    if not chronos_by_model:
+        return []
+
+    written = []
+    try:
+        # SAME 4 groups + colors as the SVG (hotspot-mut red, damaging-mut amber, WT grey).
+        groups = []
+        if hotspot_by_model:
+            groups.append(("hotspot mutant", [chronos_by_model[m] for m in chronos_by_model
+                           if m in hotspot_by_model and hotspot_by_model[m]], "#B22222"))
+            groups.append(("hotspot WT", [chronos_by_model[m] for m in chronos_by_model
+                           if m in hotspot_by_model and not hotspot_by_model[m]], "#888888"))
+        if damaging_by_model:
+            groups.append(("damaging mutant", [chronos_by_model[m] for m in chronos_by_model
+                           if m in damaging_by_model and damaging_by_model[m]], "#E69F00"))
+            groups.append(("damaging WT", [chronos_by_model[m] for m in chronos_by_model
+                           if m in damaging_by_model and not damaging_by_model[m]], "#888888"))
+
+        fig = go.Figure()
+        for label, scores, color in groups:
+            if not scores:
+                continue
+            fig.add_trace(go.Box(
+                y=scores, name=label, marker_color=color, boxpoints="all", jitter=0.5,
+                pointpos=0, marker=dict(size=4, opacity=0.55),
+                hovertemplate=f"{label}<br>Chronos %{{y:.2f}}<extra></extra>"))
+        for yv, col, dash in [(0.0, "#999999", "solid"), (CHRONOS_STRONG_DEPENDENCY, "#B22222", "dash")]:
+            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5))
+        hot_q, dam_q = summary.get("hotspot_mannwhitney_q"), summary.get("damaging_mannwhitney_q")
+        qparts = []
+        if hot_q is not None:
+            qparts.append(f"hotspot q={hot_q:.2e}")
+        if dam_q is not None:
+            qparts.append(f"damaging q={dam_q:.2e}")
+        cls = summary.get("mutation_stratification_class", "?")
+        qstr = ("  ·  " + "  ·  ".join(qparts)) if qparts else ""
+        fig.update_layout(
+            title=f"{target_symbol}: dependency stratified by mutation status ({cls}){qstr}",
+            yaxis_title="Chronos score (more dependent ↓)",
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_mut_vs_wt_strip.plotly.json").write_text(fig.to_json())
+        written.append({"id": "mut_vs_wt_strip", "path": "figure_mut_vs_wt_strip.plotly.json",
+                        "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[depmap_mutation_dependency] strip plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(chronos_by_model: dict, hotspot_by_model: dict,
                      damaging_by_model: dict, model_metadata: dict,
                      out_path: Path) -> None:
