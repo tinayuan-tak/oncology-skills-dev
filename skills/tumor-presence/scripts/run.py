@@ -28,28 +28,54 @@ CARDS = [
     "protein-abundance-celline",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
 ]
 
-# --- Measurement-modality taxonomy (MODALITY_TAXONOMY.md, Slice Y) ----------
-# Each expression card is tagged (in target-contracts) with a `measurement:`
-# substrate. The presence skill emits ONE sub-verdict PER modality rather than
-# collapsing them, so "bulk_rna: supportive, protein_ihc: data_unavailable" is a
-# distinct, legible epistemic state from full concordance (the whole point of the
-# taxonomy — surface concordance/disagreement, never average it away).
+# --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
+# Each expression/protein card is tagged (in target-contracts) with TWO orthogonal
+# axes: `measurement:` (the measurement LAYER — bulk_rna / bulk_protein_ms / ...)
+# and `sample_context:` (the biological SAMPLE — cell_line / tumor / normal, added
+# 2026-07-21). The presence skill emits ONE sub-verdict PER (measurement,
+# sample_context) bucket rather than collapsing them.
 #
-# card_id → modality for the cards THIS skill consumes. Mirrors the `measurement:`
-# tags in target-contracts/cards/*.card.yaml (verified 2026-07-20). Kept local +
-# explicit rather than parsed from the card specs at runtime: the skill's card set
-# is fixed + small, and a drift guard test asserts this map matches the specs.
-CARD_MODALITY = {
-    "expression-distribution":      "bulk_rna",
-    "expression-tumor-vs-adjacent": "bulk_rna",
-    "protein-presence-cptac":       "bulk_protein_ms",   # tumor MS (CPTAC)
-    "protein-abundance-celline":    "bulk_protein_ms",   # cell-line MS (Gygi) — same substrate
+# WHY BOTH AXES (Slice A2): keying the per-modality view off `measurement:` ALONE
+# conflated the cell-line-RNA card (expression-distribution) with the tumor-RNA card
+# (expression-tumor-vs-adjacent) — both are `bulk_rna` — so a target-only query
+# (only cell-line cards fire) read IDENTICALLY to a target-indication query, hiding
+# that the tumor axis was never touched. Bucketing by the PAIR makes the degenerate
+# case honest: `bulk_rna/cell_line: measured` alongside `bulk_rna/tumor:
+# data_unavailable`. The two axes are genuinely orthogonal (every combination is
+# real — see the 2-axis table in MODALITY_TAXONOMY.md).
+#
+# card_id → (measurement, sample_context) for the cards THIS skill consumes. Mirrors
+# the `measurement:` + `sample_context:` tags in target-contracts/cards/*.card.yaml.
+# Kept local + explicit rather than parsed at runtime: the skill's card set is fixed
+# + small, and a drift guard test asserts this map matches the specs on BOTH axes.
+CARD_CONTEXT = {
+    "expression-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
+    "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
+    "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS
+    "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
 }
 
-# The four modalities in the taxonomy. Those with no card in this skill emit an
-# explicit `data_unavailable` sub-verdict — a NAMED gap, not silence (sc_rna +
-# protein_ihc are the two unbuilt substrates per MODALITY_TAXONOMY.md).
-ALL_MODALITIES = ("bulk_rna", "bulk_protein_ms", "sc_rna", "protein_ihc")
+
+def _ctx_key(measurement: str, sample_context: str) -> str:
+    """The stable string key for a (measurement, sample_context) bucket, e.g.
+    `bulk_rna/cell_line`. This is the key surfaced in presence_verdict_by_modality."""
+    return f"{measurement}/{sample_context}"
+
+
+# The enumerated universe of (measurement, sample_context) buckets this skill
+# reports on. The four card-backed buckets PLUS the two unbuilt substrates named in
+# MODALITY_TAXONOMY.md as explicit gaps: sc_rna in tumor (heterogeneity / minor-
+# population presence) and protein_ihc in normal (HPA IHC normal-tissue-safety
+# comparator). Buckets with no card emit an explicit `data_unavailable` — a NAMED
+# gap, not silence. Ordered for stable, legible output.
+ALL_CONTEXTS = (
+    ("bulk_rna", "cell_line"),
+    ("bulk_rna", "tumor"),
+    ("bulk_protein_ms", "cell_line"),
+    ("bulk_protein_ms", "tumor"),
+    ("sc_rna", "tumor"),          # unbuilt substrate — named gap
+    ("protein_ihc", "normal"),    # unbuilt substrate — named gap (HPA IHC safety)
+)
 
 QUESTION = ("Is {target} expressed in {indication} tumor tissue, and how "
             "does its expression distribute across cancer cell lines vs. "
@@ -94,9 +120,14 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
     ("protein-abundance-data-unavailable-insufficient", "data_unavailable"),
 ]
 
-# Per-modality ladder selection. Modalities without a card in this skill (sc_rna,
-# protein_ihc) have no ladder → they emit data_unavailable in _per_modality_verdicts.
-_MODALITY_RANK: dict[str, list[tuple[str, str]]] = {
+# Per-MEASUREMENT ladder selection. The rule VOCABULARY (which rules can fire) is a
+# function of the measurement LAYER only — bulk_rna cards fire `expression-*` rules,
+# bulk_protein_ms cards fire `protein-*` rules. `sample_context` NEVER changes which
+# rules exist (a cell-line-RNA card and a tumor-RNA card both fire expression rules),
+# so the ladder is keyed by measurement alone even though the BUCKET is keyed by the
+# (measurement, sample_context) pair. Measurements without a card (sc_rna, protein_ihc)
+# have no ladder → their buckets emit data_unavailable in _per_modality_verdicts.
+_MEASUREMENT_RANK: dict[str, list[tuple[str, str]]] = {
     "bulk_rna": _EXPRESSION_RANK,
     "bulk_protein_ms": _PROTEIN_RANK,
 }
@@ -128,36 +159,48 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 
 def _per_modality_verdicts(fired: list[dict]) -> dict[str, dict]:
-    """Slice-Y (MODALITY_TAXONOMY.md): one sub-verdict PER measurement modality.
+    """Slice A2 (MODALITY_TAXONOMY.md): one sub-verdict PER (measurement,
+    sample_context) bucket.
 
-    Groups fired rules by the `measurement:` substrate of the card that fired
-    them (via CARD_MODALITY), then ranks WITHIN each group using the same ladder
-    as the collapsed verdict. Modalities present in the taxonomy but with no card
-    in this skill (sc_rna, protein_ihc) emit an explicit `data_unavailable` —
-    a NAMED coverage gap, never silence. Returned as a map:
-        {modality: {verdict, driving_rule_id, evidence_state}}
+    Groups fired rules by the (measurement, sample_context) PAIR of the card that
+    fired them (via CARD_CONTEXT), then ranks WITHIN each group using the ladder for
+    that group's MEASUREMENT (the rule vocabulary depends on the measurement layer,
+    not the sample context — see _MEASUREMENT_RANK). Buckets in the taxonomy but with
+    no card in this skill (sc_rna/tumor, protein_ihc/normal) emit an explicit
+    `data_unavailable` — a NAMED coverage gap, never silence. Returned as a map keyed
+    by `measurement/sample_context` string (e.g. `bulk_rna/cell_line`):
+        {bucket_key: {measurement, sample_context, verdict, driving_rule_id,
+                      evidence_state}}
     where evidence_state ∈ {measured, data_unavailable}. Additive: does NOT touch
-    the collapsed presence_verdict."""
-    by_modality: dict[str, list[dict]] = {}
+    the collapsed presence_verdict.
+
+    KEY-SHAPE CHANGE (2026-07-21): keys were bare measurement strings (`bulk_rna`);
+    they are now `measurement/sample_context` pairs so a cell-line-RNA signal is
+    never conflated with a tumor-RNA signal (the degenerate-case fix). The bucket
+    now carries `measurement` + `sample_context` as explicit fields too."""
+    by_ctx: dict[tuple[str, str], list[dict]] = {}
     for r in fired:
-        mod = CARD_MODALITY.get(r.get("card_id"))
-        if mod:
-            by_modality.setdefault(mod, []).append(r)
+        ctx = CARD_CONTEXT.get(r.get("card_id"))
+        if ctx:
+            by_ctx.setdefault(ctx, []).append(r)
 
     out: dict[str, dict] = {}
-    for mod in ALL_MODALITIES:
-        group = by_modality.get(mod, [])
+    for measurement, sample_context in ALL_CONTEXTS:
+        key = _ctx_key(measurement, sample_context)
+        group = by_ctx.get((measurement, sample_context), [])
         if group:
-            # rank WITHIN the modality using ITS OWN ladder — bulk_protein_ms must
-            # rank against _PROTEIN_RANK, not the expression ladder (the C1 bug was
-            # ranking the protein group against expression-only rule_ids → insufficient).
-            v, drv = _rank_verdict(group, _MODALITY_RANK.get(mod))
-            out[mod] = {"verdict": v, "driving_rule_id": drv,
+            # rank WITHIN the bucket using the MEASUREMENT's ladder — bulk_protein_ms
+            # must rank against _PROTEIN_RANK, not the expression ladder (the C1 bug
+            # was ranking protein rules against expression-only rule_ids → insufficient).
+            v, drv = _rank_verdict(group, _MEASUREMENT_RANK.get(measurement))
+            out[key] = {"measurement": measurement, "sample_context": sample_context,
+                        "verdict": v, "driving_rule_id": drv,
                         "evidence_state": "measured"}
         else:
-            # No card for this modality in this skill (sc_rna / protein_ihc), OR a
-            # tagged card produced no fired rule. Either way: not measured here.
-            out[mod] = {"verdict": "data_unavailable", "driving_rule_id": None,
+            # No card for this bucket in this skill (sc_rna/tumor, protein_ihc/normal),
+            # OR a tagged card produced no fired rule. Either way: not measured here.
+            out[key] = {"measurement": measurement, "sample_context": sample_context,
+                        "verdict": "data_unavailable", "driving_rule_id": None,
                         "evidence_state": "data_unavailable"}
     return out
 
@@ -176,10 +219,12 @@ def _headline(cards, fired, verdict_pair):
         # Byte-stable across the Slice-Y refactor (F1-safe: additive).
         "presence_verdict":         v,
         "driving_rule_id":          drv,
-        # Slice-Y: per-measurement-modality sub-verdicts. Concordance/disagreement
-        # is now legible (bulk_rna supportive + protein_ihc data_unavailable is a
-        # distinct epistemic state from full concordance). sc_rna + protein_ihc are
-        # explicit data_unavailable — named gaps, not silence.
+        # Slice A2: per-(measurement, sample_context) sub-verdicts. Keyed
+        # `measurement/sample_context` (e.g. bulk_rna/cell_line, bulk_rna/tumor) so a
+        # cell-line signal is never conflated with a tumor signal. A target-only query
+        # now honestly reads `bulk_rna/cell_line: measured` + `bulk_rna/tumor:
+        # data_unavailable`. sc_rna/tumor + protein_ihc/normal are explicit
+        # data_unavailable — named gaps, not silence.
         "presence_verdict_by_modality": per_modality,
         "median_log2tpm_panel":     _get("expression-distribution",
                                           "median_log2tpm_panel"),
