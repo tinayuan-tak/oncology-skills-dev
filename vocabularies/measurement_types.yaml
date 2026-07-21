@@ -346,7 +346,7 @@ measurement_types:
       - {kind: derived_from, inputs: [surface_topology, surfaceome_family, structure_druggability], method: modality_fit, evidence_tier: inferred}
 
   tumor_elevation_breadth:
-    claim: "In how many cancer indications is target's tumor protein ELEVATED vs normal (pan-cancer breadth)?"
+    claim: "In how many cancer indications is target ELEVATED in tumor vs normal, at the protein (CPTAC) and/or RNA (pan-cancer DESeq2) layer (pan-cancer breadth)?"
     # target-grain roll-up OVER INDICATIONS for ONE target — "elevated in K of N cancers". ALLOWED:
     # breadth over indications for a single target is a per-target claim (precedent:
     # normal_tissue_rna_breadth / normal_tissue_protein_breadth). It is NOT a ranking OVER TARGETS
@@ -354,12 +354,21 @@ measurement_types:
     # genes. DISTINCT from the per-indication tumor_vs_adjacent contrast: breadth ≠ selectivity in
     # THIS cancer; it is "how many cancers at all". Derived because the claim is a roll-up (K-of-N
     # count) over an underlying per-indication type — the count is the scientific object (Rule 4).
-    # inputs: [tumor_protein_abundance] today (CPTAC-only, Slice B); the stacked RNA product
-    # (tumor_vs_normal_selectivity) is an ADDITIVE second input in the Slice-C fast-follow.
+    #
+    # TWO INDEPENDENT breadth inputs (Slice C landed the RNA half):
+    #   - tumor_protein_abundance: CPTAC per-cohort protein tumor-vs-normal (10 cohorts). Slice B.
+    #   - tumor_vs_normal_selectivity: the pan-cancer stacked RNA DESeq2 product
+    #     (pancan-dge-tumor-vs-normal-v1, 27 indications). Slice C. The RNA "elevated" predicate is
+    #     VINTAGE-STABLE (dominant_direction + cells_supporting + magnitude; NEVER cell B — see the
+    #     data-catalog manifest's cell_b_semantics note). RNA (27 inds) + protein (10 cohorts) are
+    #     DIFFERENT-layer corroborating breadth counts, reported ALONGSIDE, never averaged into one
+    #     number (the two-provider surface_discordance discipline applies at the card layer).
     entity_grains: [target]
     cards: [tumor-elevation-breadth]
+    multi_provider_policy: surface_discordance   # RNA vs protein breadth are DISTINCT-layer views — surface both, never average
     providers:
-      - {kind: derived_from, inputs: [tumor_protein_abundance], method: breadth_rollup, evidence_tier: measured}
+      - {kind: derived_from, inputs: [tumor_protein_abundance], method: breadth_rollup, evidence_tier: measured}       # CPTAC protein (Slice B)
+      - {kind: derived_from, inputs: [tumor_vs_normal_selectivity], method: breadth_rollup, evidence_tier: measured}   # pan-cancer RNA (Slice C)
 
 # ============================================================================
 # EXCLUDED — NOT a per-target measurement_type (Rule non-goal / appendix case 14):

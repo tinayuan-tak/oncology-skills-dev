@@ -1,9 +1,9 @@
-# Card — TUMOR ELEVATION BREADTH  (pan-cancer, CPTAC-protein-derived)
+# Card — TUMOR ELEVATION BREADTH  (pan-cancer; CPTAC-protein + pan-cancer-RNA)
 #
 # The TARGET-GRAIN presence signal that fixes the degenerate target-only case. A
 # target-only query (no indication) previously fell back to cell-line RNA/protein
 # only — no tumor evidence at all. This card gives it a real pan-cancer tumor signal:
-# "elevated in K of the N CPTAC cohorts the target was quantified in."
+# "elevated in K of N cancers", at the protein layer AND/OR the RNA layer.
 #
 # CONTRACT DISTINCTION (load-bearing — see measurement_types.yaml tumor_elevation_breadth):
 #   - This is breadth OVER INDICATIONS for ONE target ("how many cancers at all"),
@@ -14,15 +14,22 @@
 #     breadth ≠ selectivity IN THIS cancer. protein-presence-cptac answers "is it up in
 #     THIS tumor"; this card answers "in how many tumors at all".
 #
-# SUBSTRATE: derived roll-up over the CPTAC per-cohort tumor-vs-normal product
-# (cptac-protein-tumor-vs-normal-per-cohort-v1, 10 cohorts). "Elevated" reuses the
-# already-q-gated per-cohort protein_expression_class (strong_up / modest_up) — a
-# COUNT over existing classes, no new statistics. The stacked pan-cancer RNA product
-# is an ADDITIVE second input in the Slice-C fast-follow (breadth over 27 indications).
+# TWO SUBSTRATES (surface_discordance — reported ALONGSIDE, never averaged):
+#   - PROTEIN (Slice B): roll-up over the CPTAC per-cohort tumor-vs-normal product
+#     (cptac-protein-tumor-vs-normal-per-cohort-v1, 10 cohorts). "Elevated" reuses the
+#     q-gated per-cohort protein_expression_class (strong_up / modest_up) — a COUNT, no
+#     new statistics. Drives the PRIMARY tumor_elevation_breadth_class.
+#   - RNA (Slice C): roll-up over the stacked pan-cancer DESeq2 product
+#     (pancan-dge-tumor-vs-normal-v1, 27 indications). RNA "elevated" is VINTAGE-STABLE
+#     (dominant_direction + cells_supporting + magnitude; NEVER cell B — see the manifest's
+#     cell_b_semantics note). Emits the PARALLEL rna_tumor_elevation_breadth_class.
+#   The two layers cover DIFFERENT indication sets (10 vs 27) + DIFFERENT molecular layers;
+#   breadth_layer_concordance surfaces agreement/divergence, and the two classes are never
+#   collapsed into one number (Rule 5 / the RNA-vs-protein discordance is itself signal).
 
 card_id: tumor-elevation-breadth
-version: 1.0.0
-question: "Across how many cancer indications is {target.symbol} elevated at the protein level vs normal (pan-cancer tumor-presence breadth)?"
+version: 1.1.0                                    # 1.1.0 (Slice C): + RNA breadth layer (pan-cancer DESeq2)
+question: "Across how many cancer indications is {target.symbol} elevated in tumor vs normal — at the protein layer (CPTAC) and/or the RNA layer (pan-cancer DESeq2) — as pan-cancer tumor-presence breadth?"
 
 tier: target   # pan-cancer breadth is a target property (rolled up over indications); does not stratify by subgroup
 
@@ -30,7 +37,8 @@ applies_when:
   - "context.data_sources.cptac_protein_available == true"
 
 required_inputs:
-  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1     # protein breadth (10 CPTAC cohorts)
+  - product_id: pancan-dge-tumor-vs-normal-v1                   # RNA breadth (27 indications, Slice C)
 
 methods:
   - call: cptac-tumor-elevation-breadth
@@ -39,13 +47,22 @@ methods:
 
 outputs:
   summary_fields:
-    - tumor_elevation_breadth_class               # PRIMARY categorical (drives Tier-2 rules)
+    # --- PROTEIN breadth (CPTAC, 10 cohorts) — the primary/driving layer -------------------------
+    - tumor_elevation_breadth_class               # PRIMARY categorical (drives Tier-2 rules); PROTEIN layer
     - n_cohorts_tested                            # cohorts the target was quantified in (denominator)
     - n_cohorts_elevated                          # of those, class in {strong_up, modest_up}
     - fraction_elevated                           # n_elevated / n_tested (null if n_tested == 0)
     - median_effect_across_elevated               # median protein_effect_size over ELEVATED cohorts only
     - most_elevated_cohorts                        # [{cohort, protein_expression_class, protein_effect_size, protein_bh_q_value}] effect-desc, elevated-only
     - cohorts_tested                              # sorted list of all cohort codes tested (provenance)
+    # --- RNA breadth (pan-cancer DESeq2, 27 indications) — Slice C, SECOND layer, surfaced ALONGSIDE
+    - rna_tumor_elevation_breadth_class           # PARALLEL categorical (RNA layer); NOT averaged with protein
+    - rna_n_indications_tested                    # RNA indications the target was tested in (of 27)
+    - rna_n_indications_elevated                  # of those, vintage-stable elevated (dominant up + supporting + magnitude)
+    - rna_fraction_elevated                       # rna_n_elevated / rna_n_tested (null if 0 tested)
+    - rna_median_max_log2fc_across_elevated       # median max_abs_log2fc over RNA-elevated indications
+    - rna_most_elevated_indications               # [{indication, max_abs_log2fc, cells_supporting}] lfc-desc, elevated-only
+    - breadth_layer_concordance                   # DERIVED: do protein + RNA breadth agree? {concordant | protein_only | rna_only | discordant | single_layer}
 
   summary_fields_vocabulary:
     tumor_elevation_breadth_class:
@@ -54,6 +71,18 @@ outputs:
       - single_tumor_elevated                     # n_cohorts_elevated == 1 — one-cancer signal only
       - not_tumor_elevated                        # tested in >=1 cohort, elevated in none (measured negative)
       - data_unavailable                          # target absent from all CPTAC cohorts / product unavailable (coverage gap, NOT a negative)
+    rna_tumor_elevation_breadth_class:
+      - broadly_tumor_elevated                    # rna_fraction_elevated >= 0.5 AND rna_n_elevated >= 3
+      - multi_tumor_elevated                      # rna_n_elevated >= 2
+      - single_tumor_elevated                     # rna_n_elevated == 1
+      - not_tumor_elevated                        # RNA-tested in >=1 indication, elevated in none (measured negative)
+      - data_unavailable                          # target absent from the pancan RNA product (coverage gap, NOT a negative)
+    breadth_layer_concordance:
+      - concordant                                # both layers elevated (broadly/multi) — strongest breadth call
+      - protein_only                              # protein-elevated, RNA not (post-transcriptional, or RNA coverage gap)
+      - rna_only                                  # RNA-elevated, protein not (protein coverage gap — CPTAC is 10 cohorts vs RNA's 27)
+      - discordant                                # one layer elevated, the other a MEASURED not_tumor_elevated — surface, do not average
+      - single_layer                              # only one layer had data (the other data_unavailable) — concordance UNTESTED
 
   figure: tumor_elevation_breadth_bar
   plot_data: per_cohort_elevation_long_format
@@ -73,6 +102,9 @@ warning_predicates:
   - warning_id: narrow_cptac_coverage
     if: "n_cohorts_tested < 3"
     message: "{target.symbol} was quantified in fewer than 3 CPTAC cohorts — the breadth denominator is small, so the breadth class is weakly powered. Interpret K-of-N cautiously."
+  - warning_id: breadth_layer_discordant
+    if: "breadth_layer_concordance == 'discordant'"
+    message: "{target.symbol}'s protein breadth (CPTAC) and RNA breadth (pan-cancer DESeq2) DISAGREE — one layer elevated across cancers, the other a measured not_tumor_elevated. Do NOT average; inspect both. Usual cause: post-transcriptional regulation or protein under-detection."
 
 caveats:
   - |
@@ -98,6 +130,19 @@ caveats:
     Protein-level breadth does NOT imply surface accessibility. An intracellular
     protein elevated across many tumors is not thereby biologics-actionable — pair with
     protein-surface-evidence + surface-topology cards for modality decisions.
+  - |
+    TWO breadth layers, surfaced ALONGSIDE (never averaged): PROTEIN
+    (tumor_elevation_breadth_class; CPTAC, 10 cohorts) is primary; RNA
+    (rna_tumor_elevation_breadth_class; pan-cancer DESeq2, 27 indications) is a parallel
+    view over a larger indication set. A target can be protein_only (post-transcriptional
+    or RNA gap) or rna_only (protein gap — CPTAC's 10 vs RNA's 27).
+    breadth_layer_concordance names the relationship; read both, do not collapse to one.
+  - |
+    RNA breadth "elevated" is VINTAGE-STABLE: it keys off dominant_direction +
+    cells_supporting + magnitude (cells A/C of the sensitivity design, identical across
+    all 27 products' cell-B vintages), NEVER off cell B — whose meaning differs by
+    vintage (ComBat-TSS / design-comparison / skipped-in-UCEC). See the
+    pancan-dge-tumor-vs-normal-v1 manifest's cell_b_semantics column.
 
 measurement: bulk_protein_ms
 sample_context: tumor         # pan-cancer tumor protein (CPTAC) rolled up over cohorts — orthogonal to measurement (2026-07-21)
