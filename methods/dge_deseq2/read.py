@@ -402,6 +402,9 @@ def read_tumor_vs_normal_selectivity(
             "n_adjacent":    None,
             "n_gtex_normal": None,
             "selectivity_class": _classify_selectivity_from_sensitivity(row),
+            # DERIVED: do the TCGA-adjacent (A/B) and GTEx (C) comparator families agree? Exposes the
+            # cross-comparator robustness cells_supporting collapses to a count (slice-4 finding #3).
+            "comparator_concordance": _comparator_concordance(row),
             "_data_source": row.get("_data_source"),
             "_schema": "v3_four_cell",
         }
@@ -472,6 +475,11 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "n_adjacent":    (adj or {}).get("n_adjacent"),
         "n_gtex_normal": (gtex or {}).get("n_gtex_normal"),
         "selectivity_class": _classify_selectivity_from_sensitivity(row),
+        # v2 fallback carries cell A (TCGA-adjacent) + cell C (GTEx) — the two families — so
+        # comparator_concordance is still meaningful (single_comparator when only one product landed).
+        "comparator_concordance": _comparator_concordance({
+            "log2fc_cell_a": lfc_a, "q_value_cell_a": q_a,
+            "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c}),
         "_data_source": "v2_fallback",
         "_schema": "v2_two_product_fallback",
     }
@@ -614,6 +622,61 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
         return "not_informative"
     # 2/3 supporting but below magnitude/direction gates → not_informative
     return "not_informative"
+
+
+# The two comparator FAMILIES the selectivity design brackets: TCGA-adjacent (cells A + B,
+# within-patient margin — carries field-effect) vs GTEx-population (cell C — carries the
+# TCGA-vs-GTEx source confound). cells_supporting collapses agreement to a COUNT; this exposes
+# whether the two INDEPENDENT comparator types actually concur — the cross-comparator robustness
+# the four-/three-cell design exists to produce (audit finding: "whether TCGA-adjacent and GTEx
+# agree is invisible downstream"). Cell D retired; the GTEx family is cell C alone.
+_ADJACENT_CELLS = (("log2fc_cell_a", "q_value_cell_a"), ("log2fc_cell_b", "q_value_cell_b"))
+_GTEX_CELLS = (("log2fc_cell_c", "q_value_cell_c"),)
+_CONCORDANCE_Q = 0.05
+
+
+def _family_direction(row: dict, cells) -> Optional[str]:
+    """Dominant significant direction (up|down) for a comparator family, or None if no cell in the
+    family ran or reached significance. A family is 'up' if a sig cell is up (and none sig down),
+    'down' if sig down (and none sig up), None if it has no sig cell, 'mixed' if it self-disagrees."""
+    up = down = False
+    for lfc_k, q_k in cells:
+        lfc = row.get(lfc_k)
+        q = row.get(q_k)
+        if lfc is None or q is None or q != q or lfc != lfc:
+            continue
+        if q < _CONCORDANCE_Q:
+            if lfc > 0:
+                up = True
+            elif lfc < 0:
+                down = True
+    if up and down:
+        return "mixed"
+    if up:
+        return "up"
+    if down:
+        return "down"
+    return None
+
+
+def _comparator_concordance(row: dict) -> str:
+    """Do the two INDEPENDENT comparator families (TCGA-adjacent A/B vs GTEx C) agree?
+
+    Returns:
+      concordant       — both families significant in the SAME direction (robust to "which normal?")
+      discordant       — both significant but in OPPOSITE directions (the field-effect failure mode)
+      single_comparator — only one family ran / reached significance (cross-comparator agreement UNTESTED)
+    This is DERIVED (computed here in the reader from the per-cell fields the summary already carries),
+    never in a rule/resolver — it's a categorical the card exposes + the renderer surfaces."""
+    if not row:
+        return "single_comparator"
+    adj = _family_direction(row, _ADJACENT_CELLS)
+    gtex = _family_direction(row, _GTEX_CELLS)
+    if adj is None or gtex is None:
+        return "single_comparator"
+    if adj == "mixed" or gtex == "mixed":
+        return "discordant"          # a family self-disagrees → not a clean concordance
+    return "concordant" if adj == gtex else "discordant"
 
 
 # GTEx indication → tissue-of-origin (mirrors dge_tcga_gtex_precompute.cli).
