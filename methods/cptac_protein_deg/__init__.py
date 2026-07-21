@@ -13,3 +13,6 @@ via tumor-presence + tractability-and-modality skills.
 METHOD_VERSION = "0.1.0"
 
 from .read import read_target_summary  # noqa: F401,E402
+# Slice B1: re-export the pan-cancer breadth reader so compose-dashboard's
+# _import_method (which imports the PACKAGE, then getattr's the fn) resolves it.
+from .read import read_tumor_elevation_breadth  # noqa: F401,E402

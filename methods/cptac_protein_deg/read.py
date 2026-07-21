@@ -227,6 +227,98 @@ def read_all_cohorts(target: str) -> list[dict]:
     return rows
 
 
+# --- tumor_elevation_breadth (Slice B1, 2026-07-21) ------------------------------------------
+# A TARGET-GRAIN roll-up: "elevated in K of the N CPTAC cohorts this target was quantified in."
+# CONTRACT NOTE: this is breadth over INDICATIONS for ONE target (allowed — precedent
+# normal_tissue_protein_breadth), NOT a ranking over TARGETS (forbidden — the
+# surfaceome-cohort-ranking non-goal, DATA_TO_SKILL_CONTRACT.md:467). It gives a target-ONLY
+# query (no indication) a real pan-cancer tumor signal instead of falling back to cell-line-only.
+#
+# "Elevated" reuses the already-significance-gated per-cohort protein_expression_class: strong_up
+# (q<0.05, effect>=1.5) or modest_up (q<0.05, 0.5<=effect<1.5). No new statistics — a count over
+# the existing classes. Down/ns/data_unavailable cohorts are NOT elevated.
+
+_ELEVATED_CLASSES = frozenset({"strong_up", "modest_up"})
+
+
+def read_tumor_elevation_breadth(target: str) -> dict:
+    """Pan-cancer tumor-elevation breadth for a target across all CPTAC cohorts.
+
+    Built on read_all_cohorts (the per-cohort summary list). Returns a target-grain
+    breadth summary:
+        {
+          tumor_elevation_breadth_class,   # categorical (drives rules)
+          n_cohorts_tested,                # cohorts the target was quantified in
+          n_cohorts_elevated,              # of those, class in {strong_up, modest_up}
+          fraction_elevated,               # n_elevated / n_tested (None if n_tested == 0)
+          median_effect_across_elevated,   # median protein_effect_size over elevated cohorts
+          most_elevated_cohorts,           # [{cohort, protein_expression_class, protein_effect_size,
+                                           #   protein_bh_q_value}] effect-desc, elevated only
+          cohorts_tested,                  # sorted list of all cohort codes tested (provenance)
+        }
+    breadth_class ladder (default thresholds; interpretation lives in the card/rules but the
+    class is computed here mirroring read_target_summary's protein_expression_class pattern):
+        broadly_tumor_elevated  -> fraction_elevated >= 0.5 AND n_cohorts_elevated >= 3
+        multi_tumor_elevated    -> n_cohorts_elevated >= 2
+        single_tumor_elevated   -> n_cohorts_elevated == 1
+        not_tumor_elevated      -> n_cohorts_tested >= 1 AND n_cohorts_elevated == 0
+        data_unavailable        -> n_cohorts_tested == 0 (target absent / product unavailable)
+    """
+    rows = read_all_cohorts(target)
+    n_tested = len(rows)
+    if n_tested == 0:
+        return {
+            "tumor_elevation_breadth_class": "data_unavailable",
+            "n_cohorts_tested": 0,
+            "n_cohorts_elevated": 0,
+            "fraction_elevated": None,
+            "median_effect_across_elevated": None,
+            "most_elevated_cohorts": [],
+            "cohorts_tested": [],
+        }
+
+    elevated = [row for row in rows
+                if row.get("protein_expression_class") in _ELEVATED_CLASSES]
+    n_elevated = len(elevated)
+    fraction = n_elevated / n_tested
+
+    # median effect over the ELEVATED cohorts only (None when none elevated)
+    median_effect = None
+    if elevated:
+        effs = sorted(float(row.get("protein_effect_size") or 0.0) for row in elevated)
+        m = len(effs)
+        median_effect = (effs[m // 2] if m % 2
+                         else (effs[m // 2 - 1] + effs[m // 2]) / 2.0)
+
+    if fraction >= 0.5 and n_elevated >= 3:
+        cls = "broadly_tumor_elevated"
+    elif n_elevated >= 2:
+        cls = "multi_tumor_elevated"
+    elif n_elevated == 1:
+        cls = "single_tumor_elevated"
+    else:
+        cls = "not_tumor_elevated"
+
+    # read_all_cohorts already sorts by |effect| desc; elevated preserves that order.
+    most_elevated = [
+        {"cohort": row.get("cohort"),
+         "protein_expression_class": row.get("protein_expression_class"),
+         "protein_effect_size": row.get("protein_effect_size"),
+         "protein_bh_q_value": row.get("protein_bh_q_value")}
+        for row in elevated
+    ]
+
+    return {
+        "tumor_elevation_breadth_class": cls,
+        "n_cohorts_tested": n_tested,
+        "n_cohorts_elevated": n_elevated,
+        "fraction_elevated": fraction,
+        "median_effect_across_elevated": median_effect,
+        "most_elevated_cohorts": most_elevated,
+        "cohorts_tested": sorted(str(row.get("cohort")) for row in rows),
+    }
+
+
 # --- figure emitters (Slice 7 CPTAC protein viz) ---------------------------------------------
 # The card declared `protein_boxplot_tumor_vs_normal` but the derived product is per-cohort SUMMARY,
 # not per-sample — a true sample boxplot would require re-reading the 15 GB raw CPTAC-PDC matrix on
