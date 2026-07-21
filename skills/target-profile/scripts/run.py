@@ -1815,6 +1815,17 @@ _V2_ROLE_BADGE = {
     "stratification": ("patient-selection", "chip-pos"),
 }
 
+# reports_into (gate-model v2): cards whose HOME gate differs from a gate they ALSO feed. The
+# dashboard renders each card under its home gate section; this map surfaces a breadcrumb ("also
+# feeds <Gate>") so the cross-gate contribution is visible. Value = (label, anchor) of the target
+# gate. These edges already exist as veto-suppressors / positive cross-refs in
+# nomination_verdict_gate.yaml — this only makes them LEGIBLE in the dashboard. Keyed by card_id.
+_CARD_REPORTS_INTO = {
+    "prism-crispr-concordance":       ("Required (C)", "s-gate-c"),   # chemical-genetic confirmation, home E
+    "dependency-predictability":      ("Required (C)", "s-gate-c"),   # C-confidence, composed under tractability
+    "mutation-stratified-dependency": ("Required (C)", "s-gate-c"),   # biomarker-stratified, rendered under Required already
+}
+
 # Roll-up lens: sub-skill short → the gate SECTION anchor it belongs to (the id _render_gate_section_html
 # emits). Lets the top scorecard link each question-row down to its detailed section. MUST stay in sync
 # with _GATE_SECTIONS in _render_target_profile_html (biology gates → s-gate-<letter>; modality-fit gates
@@ -2131,6 +2142,15 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         else:
             pan.append("<div class=sub>No rule fired (neutral / below threshold).</div>")
         pan.append("</div>")
+        # reports_into breadcrumb (v2): if this card ALSO feeds another gate, name it — unless that
+        # gate IS the section we're already in (self-reference, e.g. mutation-stratified under Required).
+        ri = _CARD_REPORTS_INTO.get(cid)
+        if ri and ri[1] != sec_id:
+            ri_label, ri_anchor = ri
+            pan.append(f"<div class=rail-sec><p class=rail-h>Also feeds</p>"
+                       f"<div class=sub><a href='#{ri_anchor}' style='color:var(--brand-accent);"
+                       f"text-decoration:none'>→ {_esc(ri_label)}</a> "
+                       f"(this evidence corroborates that gate too)</div></div>")
         pan.append(f"<p class=card-src>Card <code>{_esc(cid)}</code></p>")
         pan.append("</div>")   # .card-rail
 

@@ -323,3 +323,25 @@ def test_scorecard_does_not_link_unrendered_gate():
     h = _render(sr)
     sc = re.search(r"<section id=s-scorecard.*?</section>", h, re.S).group(0)
     assert "href='#s-gate-b'" not in sc   # Selective didn't render → no link
+
+
+# --- reports_into cross-gate breadcrumb --------------------------------------
+
+def test_reports_into_breadcrumb_on_cross_gate_card():
+    """A card whose home gate differs from a gate it feeds shows an 'Also feeds → <gate>' breadcrumb.
+    prism-crispr-concordance lives under Small-molecule but also feeds Required (C)."""
+    sr = _sr_required()
+    sr["tractability_sm"] = _sr_modality_fit()["tractability_sm"]   # prism-crispr under SM
+    h = _render(sr)
+    sm = re.search(r"<section id=s-gate-small-molecule-druggability\b.*?</section>", h, re.S).group(0)
+    assert "Also feeds" in sm and "Required (C)" in sm
+    assert "href='#s-gate-c'" in sm   # links to the Required section
+
+
+def test_no_self_referential_breadcrumb():
+    """mutation-stratified-dependency is rendered UNDER Required already → no 'also feeds Required'
+    self-reference in that section."""
+    sr = _sr_required()   # mutation-stratified is under genomic_alteration, unified into Required
+    h = _render(sr)
+    c = re.search(r"<section id=s-gate-c\b.*?</section>", h, re.S).group(0)
+    assert "Also feeds" not in c
