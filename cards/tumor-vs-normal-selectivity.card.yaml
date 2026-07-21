@@ -89,12 +89,17 @@ outputs:
     - n_adjacent
     - n_gtex_normal
     - selectivity_class                     # DESCRIPTIVE (drives Tier-2 rules)
+    - comparator_concordance                # DERIVED: do the TCGA-adjacent (A/B) + GTEx (C) comparator FAMILIES agree? (cells_supporting is a count; this is the cross-comparator agreement it collapses)
 
   summary_fields_vocabulary:
     dominant_direction:
       - up
       - down
       - none
+    comparator_concordance:
+      - concordant                          # both families sig, SAME direction (robust to "which normal?")
+      - discordant                          # both families sig, OPPOSITE directions (field-effect failure mode; or a family self-disagrees)
+      - single_comparator                   # only one family ran/reached significance — cross-comparator agreement UNTESTED
     selectivity_class:
       - strong_tumor_selective              # all cells that ran support, up, max|log2FC|>=1.5
       - modest_tumor_selective              # supporting_frac>=2/3, up, max|log2FC|>=0.5
