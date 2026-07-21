@@ -46,6 +46,50 @@ def _has_live_read_error(summary: dict) -> bool:
     return isinstance(summary, dict) and "_live_read_error" in summary
 
 
+def _plotly_from(module, fn_name: str, *args) -> list[dict]:
+    """Best-effort call of a method's `emit_plotly_specs` (dynamic-dashboard Phase A/B).
+
+    The method builds `.plotly.json` interactive specs SIBLING to the matplotlib SVGs, from the
+    SAME in-memory series the SVGs use (no drift). This is purely additive: a method that has not
+    yet grown a Plotly emitter (fn_name absent) contributes no descriptors, and any error is
+    swallowed — the SVGs remain the guaranteed artifact. Returned descriptors carry a `dynamic:
+    True` flag so the renderer can prefer the interactive spec when present, SVG otherwise.
+    """
+    fn = getattr(module, fn_name, None)
+    if fn is None:
+        return []
+    try:
+        specs = fn(*args) or []
+    except Exception as e:  # noqa: BLE001
+        import sys as _sys
+        print(f"[compose-dashboard:figures] plotly spec emission skipped "
+              f"({getattr(module, '__name__', module)}.{fn_name}): {type(e).__name__}: {e}",
+              file=_sys.stderr)
+        return []
+    return [{**s, "dynamic": True} for s in specs]
+
+
+# The 4-cell sensitivity contrasts the tumor-vs-normal-selectivity SVG forest draws (Cell A/B/C/D).
+# Kept in step with dge_deseq2.emit.emit_tumor_vs_normal_selectivity_4panel's `cells` list so the
+# interactive forest shows the SAME contrasts (no recompute — read straight off the summary).
+_DGE_SENSITIVITY_CELLS = [
+    ("tumor vs TCGA adj (raw)", "log2fc_cell_a", "q_value_cell_a"),
+    ("tumor vs TCGA adj (ComBat)", "log2fc_cell_b", "q_value_cell_b"),
+    ("tumor vs GTEx (raw joint)", "log2fc_cell_c", "q_value_cell_c"),
+    ("tumor vs GTEx (ComBat)", "log2fc_cell_d", "q_value_cell_d"),
+]
+
+
+def _dge_cell_contrasts(summary: dict) -> list[dict]:
+    rows = []
+    for label, lfc_k, q_k in _DGE_SENSITIVITY_CELLS:
+        lfc = summary.get(lfc_k)
+        if lfc is None or lfc != lfc:   # skip absent / NaN cells (matches the SVG)
+            continue
+        rows.append({"label": label, "log2_fc": float(lfc), "q_value": summary.get(q_k)})
+    return rows
+
+
 def _emit_tumor_vs_normal_selectivity(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -81,11 +125,18 @@ def _emit_tumor_vs_normal_selectivity(
         target=target, indication=indication,
         out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
     )
-    return [
+    figures = [
         {"id": "tumor_vs_normal_selectivity_4panel",
          "path": "figure_tumor_vs_normal_selectivity_4panel.svg",
          "type": "box_forest_sensitivity_panel", "primary": True},
     ]
+    # Interactive twin — same per_sample_data + the 4-cell contrasts the SVG forest draws
+    # (extracted from the SAME sensitivity_summary; no recompute).
+    contrasts = _dge_cell_contrasts(summary)
+    figures += _plotly_from(dge_emit, "emit_plotly_specs", per_sample, contrasts,
+                            target, indication, out_dir, TARGET_CONTRACTS,
+                            "tumor_vs_normal")
+    return figures
 
 
 def _emit_expression_tumor_vs_adjacent(
@@ -120,11 +171,22 @@ def _emit_expression_tumor_vs_adjacent(
         target=target, indication=indication,
         out_dir=out_dir, target_contracts_dir=TARGET_CONTRACTS,
     )
-    return [
+    figures = [
         {"id": "tumor_vs_adjacent_compound",
          "path": "figure_tumor_vs_adjacent_compound.svg",
          "type": "violin_paired_with_significance", "primary": True},
     ]
+    # Interactive twin — same per_sample_data + the single tumor-vs-adjacent contrast the SVG
+    # callout reports (log2_fc / q_value from the SAME summary). basename keys the output so it
+    # can't collide with the 3-group selectivity card in the same package dir.
+    contrasts = []
+    if summary.get("log2_fc") is not None:
+        contrasts = [{"label": "tumor vs adj-normal",
+                      "log2_fc": summary["log2_fc"], "q_value": summary.get("q_value")}]
+    figures += _plotly_from(dge_emit, "emit_plotly_specs", per_sample, contrasts,
+                            target, indication, out_dir, TARGET_CONTRACTS,
+                            "tumor_vs_adjacent")
+    return figures
 
 
 def _emit_card1_pan_cancer_dependency_distribution(
@@ -166,10 +228,13 @@ def _emit_card1_pan_cancer_dependency_distribution(
     c1cli.emit_plot_data(chronos_by_model, model_metadata, -1.0, out_dir)
     c1cli.emit_manifest(target, "26q1", recomputed_summary, chronos_by_model, out_dir, [])
 
-    return [
+    figures = [
         {"id": "waterfall", "path": "figure_waterfall.svg", "type": "waterfall_plot", "primary": True},
         {"id": "histogram_kde", "path": "figure_histogram_kde.svg", "type": "histogram_kde", "primary": False},
     ]
+    figures += _plotly_from(c1cli, "emit_plotly_specs", chronos_by_model, model_metadata,
+                            target, recomputed_summary, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_card2_dependency_lineage_selectivity(
@@ -325,7 +390,7 @@ def _emit_expression_distribution(
     e3acli.emit_lineage_strip(tpm_by_model, model_metadata, target, recomputed, out_dir, TARGET_CONTRACTS)
     e3acli.emit_plot_data(tpm_by_model, model_metadata, 1.0, out_dir)
     e3acli.emit_manifest(target, "26q1", recomputed, out_dir, [])
-    return [
+    figures = [
         {"id": "density_expression", "path": "figure_density_expression.svg",
          "type": "density_histogram_with_kde_expression", "primary": True},
         {"id": "lineage_strip_expression", "path": "figure_lineage_strip_expression.svg",
@@ -333,6 +398,9 @@ def _emit_expression_distribution(
         {"id": "waterfall_expression", "path": "figure_waterfall_expression.svg",
          "type": "ranked_waterfall_expression", "primary": False},
     ]
+    figures += _plotly_from(e3acli, "emit_plotly_specs", tpm_by_model, model_metadata,
+                            target, recomputed, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_mutation_type_counts(

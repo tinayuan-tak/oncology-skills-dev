@@ -1755,6 +1755,63 @@ def _catalogue_rows_from_sub_results(sub_results: dict) -> list[dict]:
     return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_manifest.items())]
 
 
+def _load_figure_registry():
+    """Import compose-dashboard's figure-emission registry (emit_figures_for_card).
+
+    Both engines share ONE figure registry (the gap-#5 one-source-many-consumers lesson): the same
+    per-card emitters that draw compose-dashboard's SVGs + Plotly specs draw them for target-profile.
+    Graceful None on import failure — a run without per-card figures still emits every other artifact.
+    """
+    try:
+        fe_dir = SKILLS_DIR / "compose-dashboard" / "scripts"
+        if str(fe_dir) not in sys.path:
+            sys.path.insert(0, str(fe_dir))
+        import _figure_emitters  # type: ignore
+        return _figure_emitters
+    except Exception as e:  # noqa: BLE001
+        print(f"[target-profile] WARN: figure registry unavailable: {e}", file=sys.stderr)
+        return None
+
+
+def _emit_card_figures(sub_results: dict, figures_dir: Path,
+                       target: str, indication: str) -> dict:
+    """Produce each card's distribution figures (SVG + interactive .plotly.json) by invoking the
+    shared figure registry per card, writing into figures_dir/cards/<card_id>/.
+
+    This is what makes a target-profile RUN produce the per-card charts the dynamic dashboard embeds
+    — previously the run was rules/summary-only and only the composite panel was drawn. Returns a
+    map {card_id: [figure_descriptor, ...]} (paths relative to figures_dir) for the renderer to
+    embed; the `dynamic: True` descriptors are the Plotly specs, the rest are SVGs. Best-effort:
+    a card with no registered emitter or a data-blocked summary simply contributes nothing.
+    """
+    fe = _load_figure_registry()
+    if fe is None:
+        return {}
+    by_card: dict[str, list] = {}
+    seen: set[str] = set()
+    for r in sub_results.values():
+        for c in r.get("cards") or []:
+            if not isinstance(c, dict):
+                continue
+            card_id = c.get("card_id")
+            if not card_id or card_id in seen or c.get("_missing"):
+                continue
+            seen.add(card_id)
+            try:
+                figs = fe.emit_figures_for_card(
+                    card_id, c.get("summary") or {}, figures_dir, target, indication)
+            except Exception as e:  # noqa: BLE001 — figure emission never blocks the run
+                print(f"[target-profile] WARN: figure emit failed for {card_id}: {e}",
+                      file=sys.stderr)
+                figs = []
+            if figs:
+                by_card[card_id] = figs
+    n_plotly = sum(1 for figs in by_card.values() for f in figs if f.get("dynamic"))
+    print(f"[target-profile] per-card figures: {len(by_card)} cards, "
+          f"{n_plotly} interactive Plotly specs", file=sys.stderr)
+    return by_card
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -1909,6 +1966,11 @@ def main() -> int:
         print(f"[target-profile] WARN: composite panel render failed: {e}",
               file=sys.stderr)
 
+    # 3a-bis. Produce per-card distribution figures (SVG + interactive .plotly.json) via the shared
+    # figure registry. This is the dynamic-dashboard Phase B change: a run now PRODUCES the per-card
+    # charts (previously rules/summary-only). Best-effort — never blocks artefact emission.
+    card_figures = _emit_card_figures(sub_results, figures_dir, args.target, args.indication)
+
     # 3b. Render + emit markdown artefact (Shape A — enriched).
     md = _render_target_profile_md(
         args.target, args.indication, sub_results, llm_output, invoked_lenses,
@@ -1955,6 +2017,10 @@ def main() -> int:
         "deciding_axis": deciding_axis,
         "gate_scorecard": scorecard,
         "ordinal_matrix_view": ordinal_matrix,
+        # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
+        # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
+        # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
+        "card_figures": card_figures,
         "llm_synthesis": llm_output,
     }
     (args.out / "nomination.json").write_text(
