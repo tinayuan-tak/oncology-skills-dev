@@ -1644,6 +1644,13 @@ html.tabs-js .tabs .panel.active{display:block}
 .sig-pos{color:var(--pos-ink);font-weight:600}.sig-neg{color:var(--neg-ink);font-weight:600}
 .sig-neu{color:var(--neu-ink)}.sig-kill{color:var(--neg-ink);font-weight:700}
 /* GI-style components (Phase B PR-3) — About band + data-loaded status banner + navy section bars */
+/* Provenance trace — per-sub-skill run record (collapsible, at the bottom). */
+.trace-skill{margin:8px 0 12px;padding:8px 0 0;border-top:1px solid var(--line)}
+.trace-h{margin:0 0 5px;font-size:13px}
+table.trace-cards{width:100%;font-size:12px;border-collapse:collapse;margin:2px 0 4px}
+table.trace-cards th{text-align:left;color:var(--muted);font-weight:600;padding:2px 8px}
+table.trace-cards td{padding:2px 8px;border-top:1px solid var(--line-2);vertical-align:top}
+tr.trace-missing{opacity:.55}
 .about{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:0 0 18px}
 .about .h{font-weight:700;color:var(--ink-2);font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:7px}
 .about .h::before{content:"\\24D8";color:var(--brand-accent);font-size:15px}   /* circled i */
@@ -2554,6 +2561,7 @@ def _render_target_profile_html(
             label = f"{_esc(gn)} <span style='color:var(--muted)'>({g})</span>" if g else _esc(gn)
             nav.append(f"<a href='#{_gate_section_anchor(g, gn)}'>{label}</a>")
         nav.append("<a href='#s-tension'>Conflicting signals</a>")
+        nav.append("<a href='#s-provenance'>Provenance trace</a>")
         nav.append("<a href='#s-about'>About this analysis</a>")
     nav.append("</nav><div class=content>")
     p.append("".join(nav))
@@ -2795,6 +2803,56 @@ def _render_target_profile_html(
             out.append("</table></section>")
         return out
 
+    # --- Provenance trace (deterministic) — the full skill run, for audit/reproducibility.
+    # A collapsible per-sub-skill trace: which sub-skill ran, its verdict + driving rule, each card
+    # it resolved (with the data-source manifest/release it read + a 'missing' flag), and the rule
+    # ids that fired. Pure projection of sub_results (skill_dir/cards/_data_source/fired/verdict) —
+    # nothing new is computed. Sinks to the bottom (reference material) as a <details>, collapsed.
+    def _provenance_trace_html() -> list[str]:
+        if presence_only or not sub_results:
+            return []
+        out = ["<section id=s-provenance class=det><span class=tag>Computed from the evidence</span>"
+               "<h2>Provenance trace <span class=n>— the full skill run behind this profile</span></h2>",
+               "<p class=sub>Every sub-skill invoked, the evidence cards it resolved (+ the data "
+               "source each read), and the rules that fired — the reproducibility spine of "
+               "<code>nomination.json</code>. Collapsed by default.</p>",
+               "<details><summary>Show run trace "
+               f"({len(sub_results)} sub-skills)</summary>"]
+        for short, r in sub_results.items():
+            skill_dir = r.get("skill_dir") or "(inline)"
+            v = r.get("verdict")
+            verdict_str = _humanize(v[0]) if v else "not evaluated"
+            driving = (v[1] if (v and len(v) > 1) else None)
+            cards = r.get("cards") or []
+            fired = r.get("fired") or []
+            n_missing = sum(1 for c in cards if c.get("_missing"))
+            out.append(f"<div class=trace-skill><p class=trace-h><b>{_esc(short)}</b> "
+                       f"<span class=sub>{_esc(skill_dir)}</span> → {_esc(verdict_str)}"
+                       + (f" <span class=sub><code>{_esc(driving)}</code></span>" if driving else "")
+                       + f" <span class=sub>· {len(cards)} card{'s' if len(cards) != 1 else ''}"
+                       + (f", {n_missing} missing" if n_missing else "")
+                       + f", {len(fired)} rule{'s' if len(fired) != 1 else ''} fired</span></p>")
+            if cards:
+                out.append("<table class=trace-cards><tr><th>Card</th><th>Data source</th>"
+                           "<th>Rules fired</th></tr>")
+                for c in cards:
+                    cid = c.get("card_id") or "?"
+                    summ = c.get("summary") or {}
+                    dsrc = summ.get("_data_source") or ("— (missing)" if c.get("_missing") else "—")
+                    s3 = summ.get("_data_s3_uri") or ""
+                    src_cell = (f"<span title='{_esc(str(s3))}'><code>{_esc(str(dsrc))}</code></span>"
+                                if s3 else f"<code>{_esc(str(dsrc))}</code>")
+                    card_rules = [fr.get("rule_id") for fr in fired if fr.get("card_id") == cid]
+                    rules_cell = (", ".join(f"<code>{_esc(rid)}</code>" for rid in card_rules)
+                                  if card_rules else "<span class=sub>—</span>")
+                    miss = " class=trace-missing" if c.get("_missing") else ""
+                    out.append(f"<tr{miss}><td><code>{_esc(cid)}</code></td>"
+                               f"<td>{src_cell}</td><td>{rules_cell}</td></tr>")
+                out.append("</table>")
+            out.append("</div>")
+        out.append("</details></section>")
+        return out
+
     # === ORDERED ASSEMBLY (#4/#7/#8): summaries lead, gate bands, conflicting signals, About last.
     # Exec + Risk-by-category are already in `p` (rendered right after the exec summary). Now:
     #   Gate detail → Modality-fit matrix → deciding-axis → [risk-category gate bands] →
@@ -2804,6 +2862,7 @@ def _render_target_profile_html(
     p.extend(_deciding_html())
     p.extend(bands_html)
     p.extend(_tension_html())
+    p.extend(_provenance_trace_html())
     p.extend(_about_html())
 
     kind = "Interactive" if n_plotly else "Static"

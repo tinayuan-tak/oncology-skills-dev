@@ -423,3 +423,23 @@ def test_rail_key_metrics_humanize_enum_values():
     import re
     h = _render(_sr())
     assert not re.findall(r"<b>[a-z]+_[a-z_]+</b>", h), "raw snake_case token leaked into a rail value"
+
+
+# --- provenance trace section (the full skill run) ---------------------------
+
+def test_provenance_trace_section_renders_run():
+    """The provenance trace lists each sub-skill, its cards + data sources, and fired rules —
+    a projection of sub_results, collapsed at the bottom (reference material)."""
+    h = _render(_sr())
+    assert "id=s-provenance" in h and "Provenance trace" in h
+    seg = re.search(r"<section id=s-provenance\b.*?</section>", h, re.S).group(0)
+    assert "<details>" in seg                       # collapsed by default
+    # names the sub-skills + their cards
+    assert "expression" in seg and "dependency" in seg
+    assert "expression-distribution" in seg          # a resolved card_id appears
+    assert "trace-cards" in seg                       # the per-card table
+
+
+def test_provenance_trace_suppressed_in_presence_only():
+    h = _render(_sr(), presence_only=True)
+    assert "id=s-provenance" not in h
