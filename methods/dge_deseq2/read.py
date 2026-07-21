@@ -117,11 +117,16 @@ def _classify_expression_call(log2_fc, q_value) -> str:
     summary_fields_vocabulary.expression_call_class. Tier-2 rules in
     interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
 
-    Thresholds identical to the pre-v2 interpretation_hints block:
-      strong_upregulation:  q < 0.05 AND log2_fc >= 1.5
-      modest_upregulation:  q < 0.05 AND 0.5 <= log2_fc < 1.5
-      not_informative:      q >= 0.05 OR log2_fc < 0.5
-      data_unavailable:     log2_fc or q_value is None/NaN
+    Thresholds — SYMMETRIC up/down (2026-07-21: added the down-side; previously a significantly
+    NEGATIVE log2_fc mislabelled as not_informative, hiding tumor-depletion — e.g. KRAS COADREAD
+    log2_fc=-0.62, q=4e-11 is a real down signal, not "uninformative"):
+      strong_upregulation:    q < 0.05 AND log2_fc >= 1.5
+      modest_upregulation:    q < 0.05 AND  0.5 <= log2_fc < 1.5
+      not_informative:        q >= 0.05 OR -0.5 < log2_fc < 0.5      (truly flat / non-significant)
+      modest_downregulation:  q < 0.05 AND -1.5 < log2_fc <= -0.5
+      strong_downregulation:  q < 0.05 AND log2_fc <= -1.5
+      data_unavailable:       log2_fc or q_value is None/NaN
+    Direction is the SIGN of log2_fc (a positive lfc below 1.5 is still UP, just modest — not down).
     """
     if log2_fc is None or q_value is None:
         return "data_unavailable"
@@ -133,10 +138,15 @@ def _classify_expression_call(log2_fc, q_value) -> str:
     # NaN check
     if lfc != lfc or q != q:
         return "data_unavailable"
-    if q < 0.05 and lfc >= 1.5:
-        return "strong_upregulation"
-    if q < 0.05 and 0.5 <= lfc < 1.5:
-        return "modest_upregulation"
+    if q < 0.05:
+        if lfc >= 1.5:
+            return "strong_upregulation"
+        if lfc >= 0.5:
+            return "modest_upregulation"
+        if lfc <= -1.5:
+            return "strong_downregulation"
+        if lfc <= -0.5:
+            return "modest_downregulation"
     return "not_informative"
 
 

@@ -317,9 +317,11 @@ def emit_tumor_vs_normal_selectivity_4panel(
     ax_txt = fig.add_subplot(gs[0, 2])
 
     # -------- Panel A: box + strip across 3 groups (identical to v2) --------
-    tumor_vals = [s["log2_cpm"] for s in tumor]
-    adj_vals   = [s["log2_cpm"] for s in adj]
-    gtex_vals  = [s["log2_cpm"] for s in gtex]
+    # Drop None log2_cpm (a sample lacking a value) — matplotlib boxplot's np.mean chokes on None
+    # (TypeError: None+None). The plotly twin already filters these; the SVG path must too.
+    tumor_vals = [s["log2_cpm"] for s in tumor if s.get("log2_cpm") is not None]
+    adj_vals   = [s["log2_cpm"] for s in adj if s.get("log2_cpm") is not None]
+    gtex_vals  = [s["log2_cpm"] for s in gtex if s.get("log2_cpm") is not None]
 
     groups, labels, colors = [], [], []
     if tumor_vals:
