@@ -2180,7 +2180,9 @@ def _expression_indication_focus(card: dict, indication: str) -> Optional[dict]:
 def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_results: dict,
                               scorecard_by_short: dict, card_figures, figures_dir,
                               indication: str = None, modality_note: str = None,
-                              reports_into_map: dict | None = None) -> tuple[list[str], int]:
+                              reports_into_map: dict | None = None,
+                              exclude_card_ids: set | None = None,
+                              include_only_card_ids: list | None = None) -> tuple[list[str], int]:
     """Render ONE gate as a section whose SUBTABS are its evidence CARDS. Each card subtab shows,
     top-to-bottom: a verdict strip (the rule/verdict this card drove), the card's key facts, and its
     interactive Plotly figure. PURE PROJECTION — recomputes nothing. Returns (html, n_plotly).
@@ -2199,14 +2201,19 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
     # exec summary is the only section that needs a provenance tag).
     out = [f"<section id={sec_id} class='det gate'>"]
 
-    # header: gate letter + name + roll-up verdict chip(s) (the gate's own sub-verdict)
+    # header: gate letter + name + roll-up verdict chip(s) (the gate's own sub-verdict). A
+    # facet-collection section (include_only_card_ids, e.g. Biomarker) has NO single sub-verdict —
+    # it's a set of relational facet cards, each with its own role badge — so suppress the chips.
+    _is_facet_section = include_only_card_ids is not None
     chips = []
-    for short in shorts:
-        row = scorecard_by_short.get(short) or {}
-        glyph, cls, _lab = _HTML_STATUS.get(row.get("status"), _HTML_STATUS["coverage_gap"])
-        chips.append(f"<span class='chip {cls}'><span class=g>{glyph}</span>"
-                     f"{_esc(_humanize(row.get('verdict') or 'not evaluated'))}</span>")
-    q = _GATE_SHORT_LABEL.get(shorts[0], _humanize(shorts[0])) if len(shorts) == 1 else gate_name
+    if not _is_facet_section:
+        for short in shorts:
+            row = scorecard_by_short.get(short) or {}
+            glyph, cls, _lab = _HTML_STATUS.get(row.get("status"), _HTML_STATUS["coverage_gap"])
+            chips.append(f"<span class='chip {cls}'><span class=g>{glyph}</span>"
+                         f"{_esc(_humanize(row.get('verdict') or 'not evaluated'))}</span>")
+    q = (gate_name if (_is_facet_section or len(shorts) != 1)
+         else _GATE_SHORT_LABEL.get(shorts[0], _humanize(shorts[0])))
     letter = f"<span class=gate-letter>{_esc(gate)}</span>" if gate else ""   # named (modality-fit) gates: no letter
     out.append(f"<div class=gate-head>{letter}"
                f"<h2 style='margin:0;background:none;color:var(--brand);padding:0'>{_esc(gate_name)} "
@@ -2216,13 +2223,26 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         # axis-2 lens banner: this gate's relevance is modality-conditional (gate-model v2).
         out.append(f"<div class=banner style='margin-top:6px'>{_esc(modality_note)}</div>")
 
-    # collect this gate's cards (union across sub-skills), each with its owning sub-skill's fired rules
+    # collect this gate's cards (union across sub-skills), each with its owning sub-skill's fired rules.
+    # exclude_card_ids: facet cards routed OUT to the Biomarker section (so gates C/E don't double-show
+    # them). include_only_card_ids: when set (the Biomarker section), keep ONLY these cards + render in
+    # that order — collecting the facet cards from wherever their sub-skills live.
+    excl = exclude_card_ids or set()
     cards: list[tuple[dict, list]] = []
     for short in shorts:
         r = sub_results.get(short, {})
         fired = r.get("fired") or []
         for c in (r.get("cards") or []):
+            cid = c.get("card_id")
+            if cid in excl:
+                continue
+            if include_only_card_ids is not None and cid not in include_only_card_ids:
+                continue
             cards.append((c, fired))
+    if include_only_card_ids is not None:
+        # order by the requested include list (stable) so the Biomarker section reads intentionally
+        _ord = {cid: i for i, cid in enumerate(include_only_card_ids)}
+        cards.sort(key=lambda cf: _ord.get(cf[0].get("card_id"), 999))
     if not cards:
         out.append("<p class=empty-note>No evidence cards ran for this gate this run.</p></section>")
         return out, 0
@@ -2426,40 +2446,77 @@ def _render_target_profile_html(
                  "</header>")
 
     # --- Gate sections declarative list (SINGLE SOURCE for both the left nav AND the section
-    # render loop below — so the nav can never drift out of sync with what actually renders, the
-    # exact bug where the nav still said "Presence" + omitted Gate E). Each entry:
-    # (axis, gate_letter, gate_name, [sub_skill shorts], modality_note). See the render loop below
-    # for the axis-band semantics. _gate_section_anchor mirrors _render_gate_section_html's sec_id.
-    _AXIS_BANDS = {
-        "biology": ("Biology", "is this real, actionable biology? (modality-independent)"),
-        "modality_fit": ("Modality fit", "will it become a drug in a given modality? (per-lens)"),
+    # render loop below — so the nav can never drift out of sync with what actually renders). Each
+    # entry: (band, gate_letter, gate_name, [sub_skill shorts], modality_note). `band` is the 5R
+    # RISK CATEGORY (2026-07-21) — the body is grouped by the SAME 5R spine as the lead-lens risk
+    # table, so there is ONE grouping system. Safety is its own band (not folded under modality-fit);
+    # Biomarker is its own band whose section collects the card-grain biomarker facets routed out of
+    # gates C/E. _gate_section_anchor mirrors _render_gate_section_html's sec_id.
+    _BANDS = {  # 5R risk-category bands (order = _RISK_CATEGORY_ORDER); label + one-line gloss
+        "biological":   ("Biological", "Right Target — is this real, actionable biology?"),
+        "biomarker":    ("Biomarker", "Right Patient — who responds?"),
+        "druggability": ("Druggability", "can it be drugged (small-molecule / biologic)?"),
+        "safety":       ("Safety", "Right Safety — on-target liability?"),
     }
+    # Card-grain biomarker facets ROUTED OUT of their home gates (C/E) into the dedicated Biomarker
+    # section (item #5). These are feature×outcome relational cards — "who responds?" (patient-
+    # selection) + "do two measures agree?" (confidence) — a distinct question from the raw
+    # dependency (C) or the alteration-frequency (E) they live under. synthetic-lethal-partners is a
+    # sub_skill-grain sub-verdict (its OWN scorecard row) so it STAYS in gate C, not routed here;
+    # prism-crispr-concordance stays under Druggability (its home) + shows a reports_into breadcrumb.
+    _BIOMARKER_FACET_CARDS = [
+        "mutation-stratified-dependency",     # stratification — mutant vs WT dependency
+        "expression-dependency-correlation",  # stratification — expression-as-biomarker
+        "crispr-rnai-dependency-concordance", # corroboration — two LOF assays agree
+        "dependency-predictability",          # corroboration — omics-predictable dependency
+    ]
     _GATE_SECTIONS = [
-        ("biology", "A", "Expressed", ["expression"], None),
-        ("biology", "B", "Selective", ["selectivity"], None),
-        ("biology", "C", "Functional dependence", ["dependency", "synthetic_lethal_partners"], None),
-        ("biology", "D", "Mechanism", ["mechanism"], None),
-        ("biology", "E", "Altered", ["genomic_alteration"],
+        # --- Biological (Right Target) — the raw necessity biology, facets routed to Biomarker ---
+        ("biological", "A", "Expressed", ["expression"], None),
+        ("biological", "B", "Selective", ["selectivity"], None),
+        ("biological", "C", "Functional dependence", ["dependency", "synthetic_lethal_partners"], None),
+        ("biological", "D", "Mechanism", ["mechanism"], None),
+        ("biological", "E", "Altered", ["genomic_alteration"],
          "Somatic alteration landscape (mutation / CN / fusion frequency). The biomarker-stratified-"
-         "dependency signal reports into Functional dependence (C) — see its facet there."),
-        ("modality_fit", "", "Small-molecule druggability", ["tractability_sm"],
-         "Modality-fit assessment — relevant for small-molecule / degrader programs. Includes the "
-         "chemical-genetic corroboration facets (they also feed Functional dependence)."),
-        ("modality_fit", "", "Surface-biologics fit", ["surface_modality"],
-         "Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
+         "dependency signal is a Biomarker facet (see the Biomarker band)."),
+        # --- Biomarker (Right Patient) — the card-grain facets routed out of C/E (item #5).
+        # `shorts` spans the sub-skills the facet cards live under; include_only keeps just the facets.
+        ("biomarker", "", "Biomarker", ["dependency", "genomic_alteration"],
+         "Patient-selection + confidence facets — feature×outcome relationships (who responds? do "
+         "measures agree?) routed out of Functional dependence (C) and Altered (E)."),
+        # --- Druggability (tractability + surface biologics) ---
+        ("druggability", "", "Small-molecule druggability", ["tractability_sm"],
+         "Druggability — small-molecule / degrader chemical-genetic + structural pocket evidence."),
+        ("druggability", "", "Surface-biologics fit", ["surface_modality"],
+         "Druggability — ADC / BiTE-TCE / antibody surface-biologics fit "
          "(not applicable to a small-molecule or degrader strategy)."),
-        ("modality_fit", "", "Safety", ["safety"],
-         "Modality-fit assessment — applies to all modalities, with tiered severity "
-         "(a full-KO modality like degrader/RNA is more constrained by germline LoF-intolerance)."),
+        # --- Safety (Right Safety) — its OWN band, not under druggability/modality-fit ---
+        ("safety", "", "Safety", ["safety"],
+         "On-target safety liability — intrinsic to the target (germline LoF constraint + "
+         "normal-tissue), with tiered severity per modality."),
     ]
 
     def _gate_section_anchor(gate: str, gname: str) -> str:
         glow = gate.lower() if gate else re.sub(r"[^a-z0-9]+", "-", gname.lower()).strip("-")
         return f"s-gate-{glow}"
 
-    # rendered gates this run = those with at least one present sub-skill (presence_only → only A).
+    def _facets_present() -> bool:
+        """True iff any biomarker-facet card actually ran this run (drives whether the Biomarker
+        section + band render — data-driven, like the risk-category surfacing)."""
+        for short in ("dependency", "genomic_alteration"):
+            for c in (sub_results.get(short, {}).get("cards") or []):
+                if c.get("card_id") in _BIOMARKER_FACET_CARDS:
+                    return True
+        return False
+
+    # rendered gates this run = those with a present sub-skill (presence_only → only Expressed). The
+    # Biomarker section is special: it renders iff a facet card actually ran (not just its sub-skills).
+    def _gate_present(gn: str, shorts: list) -> bool:
+        if gn == "Biomarker":
+            return _facets_present()
+        return any(s in sub_results for s in shorts)
     _rendered_gates = [(ax, g, gn, ss, mn) for (ax, g, gn, ss, mn) in _GATE_SECTIONS
-                       if any(s in sub_results for s in ss)
+                       if _gate_present(gn, ss)
                        and not (presence_only and gn != "Expressed")]
 
     # --- 2-column shell: sticky left nav (jump-links) + content ---
@@ -2479,34 +2536,47 @@ def _render_target_profile_html(
             nav.append("<a href='#s-riskcat'>Risk by category</a>")   # 5R lead lens
         if deciding_axis and show_deciding_axis:
             nav.append("<a href='#s-deciding'>Deciding axis</a>")
-        # gate links, grouped by axis band (a tiny header per axis for orientation)
-        _nav_axis = None
-        for _ax, g, gn, _ss, _mn in _rendered_gates:
-            if _ax != _nav_axis:
-                _nav_axis = _ax
-                nav.append(f"<span class=h>{_esc(_AXIS_BANDS.get(_ax, (_ax, ''))[0])}</span>")
+        # gate links, grouped by 5R risk-category band (a tiny header per band for orientation).
+        # NOTE nav order MUST match the main-page order below (#8): the summary sections (Gate detail
+        # + Modality-fit matrix) lead, then the risk-category gate bands, then conflicting signals,
+        # then About at the very bottom.
+        nav.append("<a href='#s-scorecard'>Gate detail</a>")
+        if ordinal_matrix:
+            nav.append("<a href='#s-matrix'>Modality-fit matrix</a>")
+        _nav_band = None
+        for _bd, g, gn, _ss, _mn in _rendered_gates:
+            if _bd != _nav_band:
+                _nav_band = _bd
+                nav.append(f"<span class=h>{_esc(_BANDS.get(_bd, (_bd, ''))[0])}</span>")
             label = f"{_esc(gn)} <span style='color:var(--muted)'>({g})</span>" if g else _esc(gn)
             nav.append(f"<a href='#{_gate_section_anchor(g, gn)}'>{label}</a>")
         nav.append("<a href='#s-tension'>Conflicting signals</a>")
-        nav.append("<a href='#s-scorecard'>Gate detail</a>")
-        if ordinal_matrix:
-            nav.append("<a href='#s-matrix'>Modality fit</a>")
+        nav.append("<a href='#s-about'>About this analysis</a>")
     nav.append("</nav><div class=content>")
     p.append("".join(nav))
 
-    # --- "About this analysis" band + data-loaded status banner (GI-style, PR-B3) ----------
-    # Descriptive framing + provenance. SKIPPED in the focused presence-only view (item 5).
-    if not presence_only:
+    # --- "About this analysis" band + data-loaded status banner — DEFERRED to the BOTTOM (#4).
+    # Descriptive framing + provenance is reference material, not a lead; _about_html() is defined
+    # here (so it captures the run's counts) and APPENDED at the end of the body. Skipped in
+    # presence_only.
+    def _about_html() -> list[str]:
+        if presence_only:
+            return []
         n_gates = len({(r.get("skill_dir") or short) for short, r in sub_results.items()})
         n_cards = sum(1 for r in sub_results.values() for c in (r.get("cards") or [])
                       if isinstance(c, dict) and not c.get("_missing"))
         n_plotly_total = sum(1 for figs in (card_figures or {}).values()
                              for f in figs if f.get("dynamic"))
-        p.append(
+        fignote = (f" · <span class=n>{n_plotly_total} interactive figure"
+                   f"{'s' if n_plotly_total != 1 else ''}</span>" if n_plotly_total else "")
+        return [
+            f"<div class=statusbar id=s-about>Evaluated {_esc(target)} × {_esc(indication)}"
+            f"<span class=n>· {n_gates} question-gate{'s' if n_gates != 1 else ''} assessed "
+            f"· {n_cards} evidence card{'s' if n_cards != 1 else ''}{fignote}</span></div>",
             "<div class=about><p class=h>About this analysis</p><ul>"
-            "<li><b>Target-evaluation profile</b> — the 8 question-gates (Present, Selective, Required, "
-            "Mechanism, Druggable, Safe, Differentiated, Translational) evaluated for this "
-            f"target×indication, each from curated evidence cards.</li>"
+            "<li><b>Target-evaluation profile</b> — drug-discovery risk categories (Biological, "
+            "Biomarker, Druggability, Safety, …) rolled up from curated evidence gates for this "
+            "target×indication.</li>"
             "<li>The recommendation is <b>rule-checked</b>: a deterministic gate can override the "
             "AI-generated call (a measured killer forces the verdict); AI sections are tinted + labeled.</li>"
             "<li>Coverage gaps are shown as gaps, never as negatives — “we didn’t look” is "
@@ -2514,13 +2584,8 @@ def _render_target_profile_html(
             f"<div class=citation>Framework: <code>{_esc(SKILL_NAME)} v{_esc(SKILL_VERSION)}</code>"
             + (f" · model <code>{_esc(_framework_model_version())}</code>" if _framework_model_version() else "")
             + " · a projection of <code>nomination.json</code>; sub-verdicts are deterministic and "
-            "reproducible from the same inputs.</div></div>")
-        fignote = (f" · <span class=n>{n_plotly_total} interactive figure"
-                   f"{'s' if n_plotly_total != 1 else ''}</span>" if n_plotly_total else "")
-        p.append(
-            f"<div class=statusbar>Evaluated {_esc(target)} × {_esc(indication)}"
-            f"<span class=n>· {n_gates} question-gate{'s' if n_gates != 1 else ''} assessed "
-            f"· {n_cards} evidence card{'s' if n_cards != 1 else ''}{fignote}</span></div>")
+            "reproducible from the same inputs.</div></div>",
+        ]
 
     # --- Executive summary (LLM) — TOP, the lead the reader needs first ----
     # AI-generated tag moved to the upper-right corner (out of the heading's way) — the exec summary
@@ -2572,22 +2637,33 @@ def _render_target_profile_html(
     # facets), computed once + passed to every gate section. Fails open to the static fallback.
     reports_into_map = _card_reports_into()
     n_gate_plotly = 0
-    _cur_axis = None
-    for axis, gate, gname, gshorts, mnote in _rendered_gates:
+    # Gate sections are collected into bands_html (NOT appended to p yet) so the ordered assembly
+    # below can place the summary sections (Gate detail + Modality-fit matrix) ABOVE them (#7).
+    bands_html: list[str] = []
+    _cur_band = None
+    for band, gate, gname, gshorts, mnote in _rendered_gates:
         present = [s for s in gshorts if s in sub_results]
-        # Axis band header — emitted once, before the first rendered gate of each axis. Suppressed
-        # in presence_only (single-section focused view).
-        if axis != _cur_axis and not presence_only:
-            _cur_axis = axis
-            _btitle, _bsub = _AXIS_BANDS.get(axis, (axis, ""))
-            p.append(f"<div class=axis-band><h2>{_esc(_btitle)} "
-                     f"<span class=n>— {_esc(_bsub)}</span></h2></div>")
+        # 5R risk-category band header — emitted once, before the first rendered gate of each band.
+        # Suppressed in presence_only (single-section focused view).
+        if band != _cur_band and not presence_only:
+            _cur_band = band
+            _btitle, _bsub = _BANDS.get(band, (band, ""))
+            bands_html.append(f"<div class=axis-band><h2>{_esc(_btitle)} "
+                              f"<span class=n>— {_esc(_bsub)}</span></h2></div>")
+        # Biomarker section: collect ONLY the facet cards (across dependency + genomic_alteration).
+        # Biological gates C/E: EXCLUDE those same facets (routed to Biomarker) so they don't double-show.
+        include_only = _BIOMARKER_FACET_CARDS if gname == "Biomarker" else None
+        exclude = set(_BIOMARKER_FACET_CARDS) if gname in ("Functional dependence", "Altered") else None
         gate_html, n_g = _render_gate_section_html(
             gate, gname, present, sub_results, scorecard_by_short,
             card_figures, figures_dir, indication=indication, modality_note=mnote,
-            reports_into_map=reports_into_map)
-        p.extend(gate_html)
+            reports_into_map=reports_into_map,
+            exclude_card_ids=exclude, include_only_card_ids=include_only)
+        bands_html.extend(gate_html)
         n_gate_plotly += n_g
+    # presence_only renders the single gate section directly (early-return below handles the rest).
+    if presence_only:
+        p.extend(bands_html)
 
     # FOCUSED VIEW (item 5): presence-only — close out after the Presence section, skipping the
     # scorecard/risk/tension/evidence/matrix. Everything below is the full-report body.
@@ -2606,21 +2682,21 @@ def _render_target_profile_html(
         p.append("</body></html>")
         return "".join(p)
 
-    # --- Gate scorecard (deterministic, top-of-report) ---------------------
-    # Rows are the sub-skills GROUPED under their A–H gate letter (a gate can have several
-    # sub-skills — C has dependency + SL-partner + subtype). Grouping shows the 8-gate structure
-    # WITHOUT collapsing: each sub-skill keeps its own honest status (a gate-letter roll-up that
-    # merged them could hide a disagreeing sub-skill — the same information-loss the 4-state
-    # design refuses). A greyed row = coverage gap (we didn't/couldn't look), NOT a negative.
-    if scorecard:
-        p.append("<section id=s-scorecard class=scorecard><span class=tag>Computed from the evidence</span>"
-                 "<h2>Gate detail <span class=n>— every evidence question, grouped by gate</span></h2>")
-        p.append("<p class=sub>The per-gate breakdown behind the risk categories above — one row per "
-                 "evidence question. "
-                 "<span class='chip chip-gap'><span class=g>□</span> Not evaluated</span> = a gap, "
-                 "not a negative. Deciding question highlighted.</p>")
-        p.append("<table><tr><th>Gate</th><th>Question</th><th>Status</th>"
-                 "<th>Finding</th><th>Coverage</th></tr>")
+    # --- Gate scorecard (deterministic) — a closure emitted near the TOP (#7), the per-gate detail
+    # behind the risk categories. Rows are the sub-skills grouped by gate; each keeps its own honest
+    # 4-state status (a greyed row = coverage gap, never a negative). anchors_in is the HTML already
+    # emitted (so a row only links to a gate section that actually rendered).
+    def _scorecard_html(anchors_in: str) -> list[str]:
+        if not scorecard:
+            return []
+        out = ["<section id=s-scorecard class=scorecard><span class=tag>Computed from the evidence</span>"
+               "<h2>Gate detail <span class=n>— every evidence question, grouped by gate</span></h2>",
+               "<p class=sub>The per-gate breakdown behind the risk categories above — one row per "
+               "evidence question. "
+               "<span class='chip chip-gap'><span class=g>□</span> Not evaluated</span> = a gap, "
+               "not a negative. Deciding question highlighted.</p>",
+               "<table><tr><th>Gate</th><th>Question</th><th>Status</th>"
+               "<th>Finding</th><th>Coverage</th></tr>"]
         _last = object()
         for row in scorecard:
             glyph, cls, label = _HTML_STATUS.get(row["status"], _HTML_STATUS["coverage_gap"])
@@ -2631,103 +2707,101 @@ def _render_target_profile_html(
             finding = _esc(_humanize(row.get("verdict")))
             if row.get("driving_rule_id"):
                 finding += f" <span class=sub><code>{_esc(row['driving_rule_id'])}</code></span>"
-            # Display cross-references (logic unchanged; these clarify signals that live under one
-            # gate but FEED another — logged as wiring backlog, surfaced honestly here):
             vtok = (row.get("verdict") or "")
             if row.get("short") == "genomic_alteration" and "biomarker_stratified" in vtok:
                 finding += " <span class=sub>→ feeds Dependency (C)</span>"
             if row.get("short") == "tractability_sm":
                 finding += " <span class=sub>(also confirms Dependency)</span>"
             qname = _esc(_GATE_SHORT_LABEL.get(row.get("short"), _humanize(row.get("short"))))
-            # ROLL-UP LENS: link the scorecard row to its detailed gate section (when one was
-            # rendered this run). The scorecard is the top-level lens; clicking a question jumps to
-            # its module-organized section below. Sub-skills without a gate section (not yet migrated)
-            # stay plain text.
             anchor = _SHORT_TO_GATE_ANCHOR.get(row.get("short"))
-            if anchor and f"id={anchor}" in "".join(p):   # only link if the section actually rendered
+            if anchor and f"id={anchor}" in anchors_in:   # only link if the section actually rendered
                 qname = f"<a href='#{anchor}' style='color:inherit;text-decoration:none;border-bottom:1px dotted var(--line-2)'>{qname}</a>"
             if row.get("is_deciding"):
                 qname += " <span class=badge-deciding>deciding</span>"
             trcls = [c for c in (("deciding" if row.get("is_deciding") else ""),
                                  ("gate-start" if new_gate else "")) if c]
             rowcls = f" class='{' '.join(trcls)}'" if trcls else ""
-            p.append(f"<tr{rowcls}>{gate_cell}"
-                     f"<td>{qname}</td>"
-                     f"<td><span class='chip {cls}'><span class=g>{glyph}</span> {label}</span></td>"
-                     f"<td>{finding}</td>"
-                     f"<td class=sub>{_esc(_COVERAGE_LABEL.get(row.get('framework_can_evidence'), row.get('framework_can_evidence')))}</td></tr>")
-        p.append("</table></section>")
+            out.append(f"<tr{rowcls}>{gate_cell}"
+                       f"<td>{qname}</td>"
+                       f"<td><span class='chip {cls}'><span class=g>{glyph}</span> {label}</span></td>"
+                       f"<td>{finding}</td>"
+                       f"<td class=sub>{_esc(_COVERAGE_LABEL.get(row.get('framework_can_evidence'), row.get('framework_can_evidence')))}</td></tr>")
+        out.append("</table></section>")
+        return out
 
-    # --- Deciding axis (deterministic router) ------------------------------
-    # HIDDEN by default (show_deciding_axis=False): the router can over-claim confidence when a
-    # deciding gate rests on one thin input (e.g. gate F on gnomAD alone) — a known LOGIC issue on
-    # the backlog. Data still lands in nomination.json; the section is re-enabled once the router
-    # logic factors gate coverage into what it asserts as "deciding".
-    if deciding_axis and show_deciding_axis:
-        p.append("<section id=s-deciding><span class=tag>Deterministic router</span>"
-                 "<h2>Deciding axis <span class=n>— what the call hinges on</span></h2>")
-        p.append(f"<div class=banner>{_esc(deciding_axis.get('routing',''))}</div>")
+    # --- Deciding axis (deterministic router) — closure; HIDDEN by default (show_deciding_axis).
+    def _deciding_html() -> list[str]:
+        if not (deciding_axis and show_deciding_axis):
+            return []
+        out = ["<section id=s-deciding><span class=tag>Deterministic router</span>"
+               "<h2>Deciding axis <span class=n>— what the call hinges on</span></h2>",
+               f"<div class=banner>{_esc(deciding_axis.get('routing',''))}</div>"]
         if deciding_axis.get("basis") == "abstention_coverage_gaps" and deciding_axis.get("unevidenced_gates"):
-            p.append("<p class=sub>Can't decide from framework evidence — questions left unassessed:</p>")
-            p.append("<table><tr><th>Gate</th><th>Question</th><th>Coverage</th></tr>")
+            out.append("<p class=sub>Can't decide from framework evidence — questions left unassessed:</p>")
+            out.append("<table><tr><th>Gate</th><th>Question</th><th>Coverage</th></tr>")
             for g in deciding_axis["unevidenced_gates"]:
-                p.append(f"<tr><td>{_esc(g.get('gate'))}</td>"
-                         f"<td>{_esc(_GATE_SHORT_LABEL.get(g.get('short'), _humanize(g.get('short'))))}</td>"
-                         f"<td class=sub>{_esc(_COVERAGE_LABEL.get(g.get('framework_can_evidence'), g.get('framework_can_evidence')))}</td></tr>")
-            p.append("</table>")
-        p.append("</section>")
+                out.append(f"<tr><td>{_esc(g.get('gate'))}</td>"
+                           f"<td>{_esc(_GATE_SHORT_LABEL.get(g.get('short'), _humanize(g.get('short'))))}</td>"
+                           f"<td class=sub>{_esc(_COVERAGE_LABEL.get(g.get('framework_can_evidence'), g.get('framework_can_evidence')))}</td></tr>")
+            out.append("</table>")
+        out.append("</section>")
+        return out
 
-    # --- Risk-by-category REMOVED here (2026-07-21): superseded by the contract-driven
-    # "Risk by category" LEAD LENS (id=s-riskcat) rendered right after the exec summary via
-    # _risk_category_rollup. That version is data-driven (surfaces only evidenced categories),
-    # adds the Biomarker category, and reads risk_category from the contract — replacing this
-    # hardcoded _risk_by_category_from_sub_verdicts table. (The .md renderer still uses the old
-    # function pending md/html convergence — tracked follow-up.)
+    # --- Tension analysis (LLM) → "Conflicting signals & trade-offs" — closure.
+    def _tension_html() -> list[str]:
+        return ["<div class=llm id=s-tension><span class=tag>AI-generated</span>"
+                "<h2>Conflicting signals &amp; trade-offs</h2>"
+                f"<p>{_esc(_val('tension_analysis'))}</p></div>"]
 
-    # --- Tension analysis (LLM) → reader-facing "Conflicting signals & trade-offs" ---
-    p.append("<div class=llm id=s-tension><span class=tag>AI-generated</span>"
-             "<h2>Conflicting signals &amp; trade-offs</h2>"
-             f"<p>{_esc(_val('tension_analysis'))}</p></div>")
-
-    # --- Evidence by question REMOVED (2026-07-21): the axis-grouped gate sections above already
-    # render each card's data + interactive figures per question, so this standalone recap was a
-    # duplicate. The gate sections are now the single home for per-card evidence.
     n_plotly = n_gate_plotly
 
-    # --- Ordinal matrix heatmap (deterministic VIEW) -----------------------
-    if ordinal_matrix:
-        cols = ordinal_matrix["axes"]["columns"]
-        p.append("<section id=s-matrix class=det><span class=tag>Ordering, not a score</span>"
-                 "<h2>Modality fit by question <span class=n>— strongest signal per (question, "
-                 "modality); the verdict, not a cell, is the call</span></h2>")
-        col_lbl = {"small_molecule": "Small mol.", "degrader": "Degrader", "adc": "ADC",
-                   "bite_tce": "BiTE/TCE", "antibody": "Antibody"}
-        p.append("<table class=mtx><tr><th>Question</th>"
-                 + "".join(f"<th>{_esc(col_lbl.get(c, c))}</th>" for c in cols) + "<th>Verdict</th></tr>")
-        for row in ordinal_matrix["rows"]:
-            cells = row["cells"]
-            tds = "".join(f"<td class='{_mtx_cell_class(cells[m])}'>{_esc(ordinal_view._cell_glyph(cells[m]))}</td>"
-                          for m in cols)
-            p.append(f"<tr><td>{_esc(_GATE_SHORT_LABEL.get(row['short'], _humanize(row['short'])))}</td>{tds}"
-                     f"<td>{_esc(_humanize(row.get('verdict')))}</td></tr>")
-        p.append("</table>")
-        p.append(f"<p class=disclaimer>{_esc(ordinal_matrix.get('_disclaimer',''))}</p>")
-        # --- Data-catalogue summary tucked into the same deterministic card ---
-        if catalogue_rows:
-            p.append("<details><summary>Data catalogue — what backed this run</summary>")
-            p.append("<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
+    # --- Ordinal matrix heatmap (deterministic VIEW) — closure; the modality-fit summary (#7 → top).
+    def _matrix_html() -> list[str]:
+        out: list[str] = []
+        if ordinal_matrix:
+            cols = ordinal_matrix["axes"]["columns"]
+            out.append("<section id=s-matrix class=det><span class=tag>Ordering, not a score</span>"
+                       "<h2>Modality-fit matrix <span class=n>— strongest signal per (question, "
+                       "modality); the verdict, not a cell, is the call</span></h2>")
+            col_lbl = {"small_molecule": "Small mol.", "degrader": "Degrader", "adc": "ADC",
+                       "bite_tce": "BiTE/TCE", "antibody": "Antibody"}
+            out.append("<table class=mtx><tr><th>Question</th>"
+                       + "".join(f"<th>{_esc(col_lbl.get(c, c))}</th>" for c in cols) + "<th>Verdict</th></tr>")
+            for row in ordinal_matrix["rows"]:
+                cells = row["cells"]
+                tds = "".join(f"<td class='{_mtx_cell_class(cells[m])}'>{_esc(ordinal_view._cell_glyph(cells[m]))}</td>"
+                              for m in cols)
+                out.append(f"<tr><td>{_esc(_GATE_SHORT_LABEL.get(row['short'], _humanize(row['short'])))}</td>{tds}"
+                           f"<td>{_esc(_humanize(row.get('verdict')))}</td></tr>")
+            out.append("</table>")
+            out.append(f"<p class=disclaimer>{_esc(ordinal_matrix.get('_disclaimer',''))}</p>")
+            if catalogue_rows:
+                out.append("<details><summary>Data catalogue — what backed this run</summary>")
+                out.append("<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
+                for cr in catalogue_rows:
+                    out.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"
+                               f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
+                out.append("</table></details>")
+            out.append("</section>")
+        elif catalogue_rows:
+            out.append("<section class=det><h2>Data catalogue</h2>"
+                       "<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
             for cr in catalogue_rows:
-                p.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"
-                         f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
-            p.append("</table></details>")
-        p.append("</section>")
-    elif catalogue_rows:
-        p.append("<section class=det><h2>Data catalogue</h2>"
-                 "<table><tr><th>Manifest / source</th><th>Consumed by</th></tr>")
-        for cr in catalogue_rows:
-            p.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"
-                     f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
-        p.append("</table></section>")
+                out.append(f"<tr><td><code>{_esc(cr.get('manifest_id'))}</code></td>"
+                           f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
+            out.append("</table></section>")
+        return out
+
+    # === ORDERED ASSEMBLY (#4/#7/#8): summaries lead, gate bands, conflicting signals, About last.
+    # Exec + Risk-by-category are already in `p` (rendered right after the exec summary). Now:
+    #   Gate detail → Modality-fit matrix → deciding-axis → [risk-category gate bands] →
+    #   Conflicting signals → About (bottom). Nav order (built above) mirrors this exactly.
+    p.extend(_scorecard_html("".join(p) + "".join(bands_html)))  # link rows to sections that render
+    p.extend(_matrix_html())
+    p.extend(_deciding_html())
+    p.extend(bands_html)
+    p.extend(_tension_html())
+    p.extend(_about_html())
 
     kind = "Interactive" if n_plotly else "Static"
     p.append("<footer>"

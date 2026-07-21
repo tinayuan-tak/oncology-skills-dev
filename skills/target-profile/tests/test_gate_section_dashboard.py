@@ -174,24 +174,37 @@ def test_required_unifies_dependency_and_sl_under_c():
 
 
 def test_genomic_alteration_renders_as_own_altered_gate_e():
-    """v2: genomic_alteration is its OWN biology gate 'Altered' (E), not folded into Required.
-    Its mutation-stratified card renders there + shows an 'Also feeds → Required (C)' breadcrumb."""
+    """v2: genomic_alteration is its OWN biology gate 'Altered' (E). The mutation-stratified card is
+    a card-grain FACET routed to the Biomarker section (item #5) — NOT rendered under E anymore."""
     h = _render(_sr_required())
     assert "id=s-gate-e" in h and "Altered" in h
-    # split on the SECTION tag, not the scorecard's href='#s-gate-e' link (which also contains the id)
     seg = re.search(r"<section id=s-gate-e\b.*?</section>", h, re.S).group(0)
-    assert "Mutation-stratified" in seg
-    assert "Also feeds" in seg and "href='#s-gate-c'" in seg   # reports_into breadcrumb to Required
+    # mutation-stratified moved OUT of Altered → the Biomarker section
+    assert "Mutation-stratified" not in seg
 
 
-def test_required_orders_primary_before_corroboration_facets():
-    """v2 ordering within Required: primary dependency cards first, then the corroboration
-    (confidence-badged) CRISPR×RNAi facet."""
+def test_biomarker_section_collects_routed_facets():
+    """Item #5: the Biomarker section (its own risk-category band) collects the card-grain facets
+    routed OUT of Functional dependence (C) + Altered (E): mutation-stratified + CRISPR×RNAi."""
+    h = _render(_sr_required())
+    assert "id=s-gate-biomarker" in h and ">Biomarker<" in h or "Biomarker" in h
+    seg = re.search(r"<section id=s-gate-biomarker\b.*?</section>", h, re.S).group(0)
+    assert "Mutation-stratified" in seg      # stratification facet routed here
+    assert "CRISPR×RNAi" in seg              # corroboration facet routed here
+    # and they are GONE from their old home gates
+    c = re.search(r"<section id=s-gate-c\b.*?</section>", h, re.S).group(0)
+    assert "CRISPR×RNAi" not in c            # corroboration facet no longer under C
+
+
+def test_required_keeps_primary_dependency_cards_only():
+    """After facet routing (item #5), Functional dependence (C) keeps its PRIMARY dependency cards
+    (CRISPR/RNAi distribution, lineage, paralog) — the corroboration/stratification facets moved to
+    the Biomarker section."""
     h = _render(_sr_required())
     seg = h.split("id=s-gate-c")[1].split("</section>")[0]
     order = re.findall(r"<button class='tab[^>]*>([^<]+)", seg)
-    assert order.index("CRISPR dependency") < order.index("CRISPR×RNAi")
-    assert "confidence</span>" in seg   # the corroboration facet's badge
+    assert "CRISPR dependency" in order      # primary dependency card stays
+    assert "CRISPR×RNAi" not in order        # corroboration facet routed to Biomarker
 
 
 # --- Surface-biologics — modality-fit gate (v2 axis 2) -----------------------
@@ -224,10 +237,11 @@ def test_surface_composed_verdict_leads_inputs():
 
 
 def test_surface_gate_carries_modality_relevance_banner():
-    """A modality-fit gate's relevance is lens-conditional — the section states which modalities."""
+    """The surface-biologics (Druggability) gate's relevance is lens-conditional — the section
+    states which modalities."""
     h = _render(_sr_surface())
     seg = h.split("id=s-gate-surface-biologics-fit")[1].split("</section>")[0]
-    assert "Modality-fit assessment" in seg and "ADC" in seg
+    assert "Druggability" in seg and "ADC" in seg
 
 
 # --- multi-gate sequence (B Selective + D Mechanism, clean biology gates) ----
@@ -300,7 +314,7 @@ def test_safety_gate_renders_with_tiered_banner():
     h = _render(_sr_modality_fit())
     sf = re.search(r"<section id=s-gate-safety\b.*?</section>", h, re.S).group(0)
     assert "Constraint" in sf and "pLI" in sf
-    assert "tiered severity" in sf and "Modality-fit assessment" in sf
+    assert "tiered severity" in sf and "On-target safety liability" in sf   # own band, not modality-fit
 
 
 # --- roll-up lens: scorecard rows link down to their gate sections -----------
@@ -337,24 +351,26 @@ def test_scorecard_does_not_link_unrendered_gate():
 
 # --- v2 axis-band grouping ---------------------------------------------------
 
-def test_gate_sections_grouped_under_two_axis_bands():
-    """v2 hybrid: gate sections render under two axis bands — Biology (necessity) then
-    Modality fit (sufficiency) — and Biology precedes Modality fit."""
+def test_gate_sections_grouped_under_risk_category_bands():
+    """5R body grouping (2026-07-21): gate sections render under risk-category bands — Biological,
+    Druggability, then Safety (its OWN band, out of modality-fit). Biological precedes Druggability
+    precedes Safety."""
     sr = _sr_all_gates()
     sr["safety"] = _sr_modality_fit()["safety"]
     sr["tractability_sm"] = _sr_modality_fit()["tractability_sm"]
     h = _render(sr)
     assert "<div class=axis-band>" in h
-    bio = h.find(">Biology ")
-    mod = h.find(">Modality fit ")
-    assert bio >= 0 and mod >= 0, (bio, mod)
-    assert bio < mod, "Biology band must precede Modality-fit band"
-    # the Present (A) SECTION sits after the Biology band + before the Modality-fit band; the Safety
-    # SECTION sits after the Modality-fit band. Use the section-tag position, not the scorecard href.
+    # match the BAND HEADERS specifically (class=axis-band), not the same words in the lead-lens table
+    band_pos = {m.group(1): m.start() for m in
+                re.finditer(r"<div class=axis-band><h2>([A-Za-z]+)", h)}
+    assert {"Biological", "Druggability", "Safety"} <= set(band_pos), band_pos
+    bio, drug, safety = band_pos["Biological"], band_pos["Druggability"], band_pos["Safety"]
+    assert bio < drug < safety, "band order must be Biological → Druggability → Safety"
+    # the Expressed (A) SECTION sits under Biological; the Safety SECTION sits under its own band.
     a_sec = re.search(r"<section id=s-gate-a\b", h).start()
     safety_sec = re.search(r"<section id=s-gate-safety\b", h).start()
-    assert bio < a_sec < mod
-    assert mod < safety_sec
+    assert bio < a_sec < drug
+    assert safety < safety_sec
 
 
 def test_axis_band_suppressed_in_presence_only():
