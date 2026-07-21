@@ -481,7 +481,7 @@ def _emit_card1c_crispr_rnai_concordance(
     c1ccli.emit_partition_bar(recomputed, target, out_dir, TARGET_CONTRACTS)
     c1ccli.emit_plot_data(recomputed["per_line_concordance"], out_dir)
     c1ccli.emit_manifest(target, "26q1", recomputed, out_dir, [])
-    return [
+    figures = [
         {"id": "concordance_overlay_density", "path": "figure_concordance_overlay_density.svg",
          "type": "overlay_kde_with_rug", "primary": True},
         {"id": "concordance_partition_bar", "path": "figure_concordance_partition_bar.svg",
@@ -489,6 +489,10 @@ def _emit_card1c_crispr_rnai_concordance(
         {"id": "concordance_scatter", "path": "figure_concordance_scatter.svg",
          "type": "scatter_with_quadrants", "primary": False},
     ]
+    # Interactive twin — the CRISPR-vs-RNAi scatter from the SAME per_line_concordance (no drift).
+    figures += _plotly_from(c1ccli, "emit_plotly_specs", recomputed["per_line_concordance"],
+                            target, out_dir, TARGET_CONTRACTS)
+    return figures
 
 
 def _emit_card3_mutation_stratified_dependency(
