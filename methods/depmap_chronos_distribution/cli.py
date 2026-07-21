@@ -523,6 +523,95 @@ def emit_histogram_kde_plot(chronos_by_model: dict, target_symbol: str,
     plt.close(fig)
 
 
+def emit_plotly_specs(chronos_by_model: dict, model_metadata: dict,
+                      target_symbol: str, summary: dict, out_path: Path,
+                      contracts_root: Path) -> list:
+    """Emit interactive Plotly figure specs SIBLING to the matplotlib SVGs (dynamic-dashboard
+    Phase A). Built from the SAME in-memory chronos_by_model the SVGs use — so the interactive
+    chart can NOT drift from the static figure or the plot_data.parquet (one data source, three
+    renderings). Writes:
+      - figure_waterfall.plotly.json      (ranked per-cell-line bars, lineage-colored, reflines)
+      - figure_histogram_kde.plotly.json  (density histogram, reflines + strong-dependency shade)
+    Each is fig.to_json() (a self-describing Plotly spec the HTML renderer embeds via Plotly.newPlot;
+    NO kaleido / static export). Returns a list of {id, path, type} descriptors for the manifest.
+    Failures are absorbed (the SVG path is the guaranteed artifact); Plotly is a best-effort add.
+    """
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+        sys.path.insert(0, str(contracts_root / "plot_styles"))
+        from takeda_palette import get_lineage_color, CHRONOS_STRONG_DEPENDENCY  # type: ignore
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
+        print(f"[chronos-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    # matplotlib linestyle → Plotly dash; reflines mirror the SVGs exactly (0 / -0.5 / -1.0).
+    STRONG = CHRONOS_STRONG_DEPENDENCY
+    reflines = [(0.0, "#999999", "solid", "no dependency"),
+                (-0.5, "#666666", "dash", "moderate"),
+                (STRONG, "#B22222", "dash", "strong")]
+    written = []
+
+    # --- Waterfall: sorted bars, top-5 dependent-tail lineages colored, else grey (mirrors SVG) ---
+    try:
+        rows = sorted(
+            ((mid, c, (model_metadata.get(mid, {}).get("OncotreeLineage")
+                       or model_metadata.get(mid, {}).get("lineage")
+                       or model_metadata.get(mid, {}).get("PrimaryDisease") or "unknown"))
+             for mid, c in chronos_by_model.items()),
+            key=lambda r: r[1])
+        from collections import Counter
+        tail = [lg for _, c, lg in rows if c <= STRONG]
+        top_lineages = [n for n, _ in Counter(tail).most_common(5)]
+        names = [model_metadata.get(mid, {}).get("CellLineName", mid) for mid, _, _ in rows]
+        vals = [c for _, c, _ in rows]
+        colors = [get_lineage_color(lg) if lg in top_lineages else "#CCCCCC" for _, _, lg in rows]
+        lineages = [lg for _, _, lg in rows]
+        fig = go.Figure(go.Bar(
+            x=list(range(len(rows))), y=vals, marker_color=colors,
+            customdata=list(zip(names, lineages)),
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>Chronos %{y:.2f}<extra></extra>"))
+        for yv, col, dash, lab in reflines:
+            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top left")
+        n = summary.get("n_cell_lines_evaluated", "?")
+        shape = str(summary.get("distribution_shape", "?")).upper().replace("_", " ")
+        fig.update_layout(
+            title=f"{target_symbol} pan-cancer Chronos distribution (n={n}, {shape})",
+            xaxis_title="Cell line (sorted by dependency)",
+            yaxis_title="Chronos score (more dependent ↓)",
+            template="plotly_white", showlegend=False, bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_waterfall.plotly.json").write_text(fig.to_json())
+        written.append({"id": "waterfall", "path": "figure_waterfall.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[chronos-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
+
+    # --- Histogram (density): mirrors the SVG (blue bars + reflines + strong-dep shade) ---
+    try:
+        scores = np.array(list(chronos_by_model.values()), dtype=float)
+        fig = go.Figure(go.Histogram(
+            x=scores, histnorm="probability density", nbinsx=40,
+            marker_color="#0072B2", marker_line_color="white", marker_line_width=0.5, opacity=0.75,
+            hovertemplate="Chronos %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        fig.add_vrect(x0=float(scores.min()) - 0.1, x1=STRONG, fillcolor="#B22222",
+                      opacity=0.10, line_width=0)
+        for xv, col, dash, lab in reflines:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top")
+        n = summary.get("n_cell_lines_evaluated", "?")
+        med = summary.get("median_chronos_panel", float(np.median(scores)))
+        fig.update_layout(
+            title=f"{target_symbol} Chronos density (n={n}, median {med:.2f})",
+            xaxis_title="Chronos score", yaxis_title="Density",
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_histogram_kde.plotly.json").write_text(fig.to_json())
+        written.append({"id": "histogram_kde", "path": "figure_histogram_kde.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[chronos-distribution] histogram plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(chronos_by_model: dict, model_metadata: dict,
                      strong_threshold: float, out_path: Path) -> None:
     """Emit plot_data.parquet — one row per cell line."""
@@ -555,7 +644,7 @@ def emit_plot_data(chronos_by_model: dict, model_metadata: dict,
 
 def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
                     chronos_by_model: dict, out_path: Path,
-                    load_errors: list) -> None:
+                    load_errors: list, plotly_specs: Optional[list] = None) -> None:
     """Emit manifest.yaml — provenance for this card emission."""
     import yaml
 
@@ -572,6 +661,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
         "cell_lines_list_sample": cell_line_ids[:10] if cell_line_ids else [],
         "cell_lines_total_count": len(cell_line_ids),
         "load_errors": load_errors,
+        "plotly_figures": plotly_specs or [],   # interactive figure specs (Phase A); [] if unavailable
     }
     with (out_path / "manifest.yaml").open("w") as f:
         yaml.safe_dump(manifest, f, sort_keys=False)
@@ -637,19 +727,21 @@ def main(target: str, release_pin: str, strong_dependency_threshold: float,
     with (out / "summary.json").open("w") as f:
         json.dump(summary, f, indent=2, default=str)
 
-    # 4. Emit figures
+    # 4. Emit figures (matplotlib SVG — the guaranteed artifact) + interactive Plotly specs (siblings)
     emit_waterfall_plot(chronos_by_model, model_metadata, target, summary, out, contracts_root)
     emit_histogram_kde_plot(chronos_by_model, target, summary, out, contracts_root)
+    plotly_specs = emit_plotly_specs(chronos_by_model, model_metadata, target, summary, out, contracts_root)
 
     # 5. Emit plot_data.parquet
     emit_plot_data(chronos_by_model, model_metadata, strong_dependency_threshold, out)
 
     # 6. Emit manifest.yaml
-    emit_manifest(target, release_pin, summary, chronos_by_model, out, load_errors)
+    emit_manifest(target, release_pin, summary, chronos_by_model, out, load_errors, plotly_specs)
 
     click.echo(f"  → summary.json:   {out / 'summary.json'}")
     click.echo(f"  → waterfall:      {out / 'figure_waterfall.svg'}")
     click.echo(f"  → histogram_kde:  {out / 'figure_histogram_kde.svg'}")
+    click.echo(f"  → plotly specs:   {len(plotly_specs)} ({', '.join(s['id'] for s in plotly_specs)})")
     click.echo(f"  → plot_data:      {out / 'plot_data.parquet'}")
     click.echo(f"  → manifest:       {out / 'manifest.yaml'}")
     click.echo(f"  distribution_shape: {summary.get('distribution_shape')}")

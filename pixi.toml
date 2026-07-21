@@ -17,6 +17,7 @@ click = "*"                      # CLI scaffolding for method entrypoints
 pytest = "*"
 boto3 = "*"                      # S3 client for pull/prep stages
 openpyxl = "*"                   # Excel parsing (CPTAC clinical XLSX + SURFY)
+plotly = "*"                     # interactive figure specs (emit_plotly_specs → figure_*.plotly.json)
 
 # R + bioconductor (for dge_deseq2 + cooccurrence_fisher_pancohort + any future R-driven methods)
 r-base = ">=4.3"
