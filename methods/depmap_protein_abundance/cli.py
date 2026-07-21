@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import io
 import os
+from pathlib import Path
 from typing import Optional
 
 METHOD_VERSION = "0.1.0"
@@ -255,6 +256,195 @@ def compute_summary(target: str, abundance_by_model: Optional[dict],
         "n_lineage_restricted_lineages": n_lineage_restricted,
         "method_version": METHOD_VERSION,
     }
+
+
+DEFAULT_TARGET_CONTRACTS = Path(
+    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+
+
+def _load_takeda_style(target_contracts_dir: Path):
+    """Load the Takeda mplstyle + palette module (mirror depmap_expression_distribution)."""
+    import sys as _sys
+    import matplotlib.pyplot as plt
+    style_path = target_contracts_dir / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    _sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
+    import takeda_palette
+    return takeda_palette
+
+
+def _panel_high_cutoff(vals: list) -> Optional[float]:
+    """Panel-relative HIGH cutoff = HIGH_ABUNDANCE_PERCENTILE quantile of detected values.
+    MS abundance has no absolute expressed/highly-expressed thresholds like RNA log2(TPM+1);
+    the reference line is panel-relative (mirrors compute_summary's high_cutoff)."""
+    if not vals:
+        return None
+    s = sorted(vals)
+    idx = HIGH_ABUNDANCE_PERCENTILE * (len(s) - 1)
+    lo = int(idx); frac = idx - lo
+    return s[lo] * (1 - frac) + s[min(lo + 1, len(s) - 1)] * frac
+
+
+def emit_density_protein(abundance_by_model: dict, target_symbol: str, summary: dict,
+                         out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+    """PRIMARY figure: KDE + histogram of log2 protein abundance across detected DepMap lines,
+    with the panel-relative HIGH cutoff + the panel median as reference lines. Sparse MS detection
+    means the x-axis is detected-lines-only; fraction_detected (in the title) is load-bearing."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from scipy.stats import gaussian_kde
+
+    _load_takeda_style(target_contracts_dir)
+    out_path = out_dir / "figure_density_protein_abundance.svg"
+    vals = np.array(list((abundance_by_model or {}).values()), dtype=float)
+    if vals.size == 0:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, f"{target_symbol} — not quantified in the Gygi MS panel",
+                ha="center", va="center", fontsize=10, color="#777"); ax.set_axis_off()
+        fig.savefig(out_path); plt.close(fig); return out_path
+
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.hist(vals, bins=40, density=True, alpha=0.45, color="#0a2540", edgecolor="white")
+    if vals.size >= 10:
+        kde = gaussian_kde(vals)
+        xs = np.linspace(vals.min() - 0.2, vals.max() + 0.2, 500)
+        ax.plot(xs, kde(xs), color="#cf2828", linewidth=2)
+    med = summary.get("median_log2_abundance_panel")
+    hi = _panel_high_cutoff(list(vals))
+    if med is not None:
+        ax.axvline(med, color="#888", linestyle=":", linewidth=1, label=f"panel median ({med:.2f})")
+    if hi is not None:
+        ax.axvline(hi, color="#f0a020", linestyle="--", linewidth=1,
+                   label=f"panel-high (p70={hi:.2f})")
+    frac = summary.get("fraction_detected")
+    ax.set_xlabel("log2 protein abundance (Gygi TMT MS)")
+    ax.set_ylabel("Density")
+    ax.set_title(f"{target_symbol} — cell-line protein abundance "
+                 f"(n={vals.size} detected"
+                 + (f", {frac:.0%} of panel)" if frac is not None else ")"))
+    ax.legend(loc="upper right", fontsize=8)
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
+def emit_lineage_strip_protein(abundance_by_model: dict, lineage_by_model: dict,
+                               target_symbol: str, summary: dict, out_dir: Path,
+                               target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> Path:
+    """Per-lineage strip plot of log2 protein abundance, lineages ordered by median desc (n>=5)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
+
+    pal = _load_takeda_style(target_contracts_dir)
+    out_path = out_dir / "figure_lineage_strip_protein.svg"
+    records = [{"lineage": lineage_by_model.get(mid) or "unknown", "abund": v}
+               for mid, v in (abundance_by_model or {}).items()]
+    df = pd.DataFrame(records)
+    if df.empty:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, f"{target_symbol} — no MS detection", ha="center", va="center",
+                fontsize=10, color="#777"); ax.set_axis_off()
+        fig.savefig(out_path); plt.close(fig); return out_path
+
+    lm = df.groupby("lineage")["abund"].agg(["median", "count"])
+    lm = lm[lm["count"] >= MIN_LINEAGE_SIZE].sort_values("median", ascending=False)
+    ordered = list(lm.index)
+    fig_h = min(max(3.5, len(ordered) * 0.2), 7.0)
+    fig, ax = plt.subplots(figsize=(7, fig_h))
+    for i, lin in enumerate(ordered):
+        scores = df[df["lineage"] == lin]["abund"].values
+        jitter = np.random.RandomState(42 + i).uniform(-0.15, 0.15, size=len(scores))
+        color = pal.get_lineage_color(lin) if hasattr(pal, "get_lineage_color") else "#0a2540"
+        ax.scatter(scores, np.full(len(scores), i) + jitter, alpha=0.5, s=8, color=color)
+        ax.scatter([np.median(scores)], [i], color="#B22222", s=30, marker="|", zorder=5)
+    hi = _panel_high_cutoff(list(df["abund"].values))
+    if hi is not None:
+        ax.axvline(hi, color="#f0a020", linestyle="--", linewidth=1)
+    ax.set_yticks(range(len(ordered))); ax.set_yticklabels(ordered, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("log2 protein abundance (Gygi TMT MS)")
+    ax.set_title(f"{target_symbol} — per-lineage protein abundance (n≥5; top=highest median)")
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
+def emit_plot_data_protein(abundance_by_model: dict, lineage_by_model: dict,
+                           out_dir: Path) -> Path:
+    """Per-cell-line long-format parquet (the card's declared plot_data:
+    per_cell_line_protein_abundance_with_lineage_tags) — SAME series the SVGs/plotly draw."""
+    import pandas as pd
+    rows = [{"model_id": mid, "lineage": lineage_by_model.get(mid),
+             "log2_abundance": v} for mid, v in (abundance_by_model or {}).items()]
+    df = pd.DataFrame(rows)
+    out_file = out_dir / "plot_data_protein_abundance.parquet"
+    df.to_parquet(out_file, index=False)
+    return out_file
+
+
+def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_symbol: str,
+                      summary: dict, out_dir: Path,
+                      target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> list:
+    """Interactive Plotly siblings (dynamic-dashboard Phase A) built from the SAME
+    abundance_by_model the SVGs use — no drift. density + ranked waterfall. Best-effort."""
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001
+        print(f"[protein-abundance-celline] plotly spec emission skipped: {e}", file=__import__("sys").stderr)
+        return []
+    if not abundance_by_model:
+        return []
+    written = []
+    vals = list(abundance_by_model.values())
+    hi = _panel_high_cutoff(vals)
+    med = summary.get("median_log2_abundance_panel")
+    reflines = [(med, "#888", "dot", "panel median"), (hi, "#f0a020", "dash", "panel-high p70")]
+    # density histogram
+    try:
+        fig = go.Figure(go.Histogram(x=vals, histnorm="probability density", nbinsx=40,
+                        marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5,
+                        opacity=0.55,
+                        hovertemplate="log2 abundance %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        for xv, col, dash, lab in reflines:
+            if xv is not None:
+                fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
+                              annotation_text=lab, annotation_position="top")
+        fig.update_layout(title=f"{target_symbol} — cell-line protein abundance (n={len(vals)} detected)",
+                          xaxis_title="log2 protein abundance (Gygi TMT MS)", yaxis_title="Density",
+                          template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_dir / "figure_density_protein_abundance.plotly.json").write_text(fig.to_json())
+        written.append({"id": "density_protein_abundance",
+                        "path": "figure_density_protein_abundance.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[protein-abundance-celline] density plotly skipped: {e}", file=__import__("sys").stderr)
+    # ranked waterfall
+    try:
+        rows = sorted(((mid, v, (lineage_by_model.get(mid) or "unknown"))
+                       for mid, v in abundance_by_model.items()), key=lambda r: r[1])
+        y = [v for _, v, _ in rows]
+        names = [mid for mid, _, _ in rows]
+        lins = [lg for _, _, lg in rows]
+        fig = go.Figure(go.Bar(x=list(range(len(rows))), y=y, marker_color="#0a2540",
+                        customdata=list(zip(names, lins)),
+                        hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>log2 abundance %{y:.2f}<extra></extra>"))
+        if hi is not None:
+            fig.add_hline(y=hi, line=dict(color="#f0a020", dash="dash", width=1.5),
+                          annotation_text="panel-high p70", annotation_position="top left")
+        fig.update_layout(title=f"{target_symbol} — cell-line protein abundance (ranked)",
+                          xaxis_title=f"Cell lines (n={len(rows)}, sorted)",
+                          yaxis_title="log2 protein abundance", template="plotly_white",
+                          showlegend=False, bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+        (out_dir / "figure_waterfall_protein_abundance.plotly.json").write_text(fig.to_json())
+        written.append({"id": "waterfall_protein_abundance",
+                        "path": "figure_waterfall_protein_abundance.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[protein-abundance-celline] waterfall plotly skipped: {e}", file=__import__("sys").stderr)
+    return written
 
 
 def load_and_classify(target: str, matrix_path=None, sidecar_path=None,
