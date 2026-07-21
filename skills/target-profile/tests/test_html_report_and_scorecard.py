@@ -108,11 +108,14 @@ def _html():
 
 
 def test_html_is_static_self_contained():
+    """The DEFAULT (no card_figures) path is the static fallback: self-contained, and — because no
+    interactive figure was produced — carries NO JS at all. (The dynamic path adds inline JS; that's
+    tested separately.)"""
     h = _html()
     # zero external references — no CDN, no external stylesheet, no script src, no http(s) src
     assert re.search(r"src=[\"']https?://", h) is None
     assert "<link" not in h
-    assert re.search(r"<script[ >]", h) is None    # no JS at all
+    assert re.search(r"<script[ >]", h) is None    # no JS in the static fallback
     assert "cdn." not in h
     assert h.startswith("<!DOCTYPE")
 

@@ -1456,7 +1456,32 @@ code{font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 details{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
 summary{cursor:pointer;font-weight:600;color:var(--ink-2);font-size:13px}
 footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
+/* Interactive figures (Phase B) */
+.plotly-fig{width:100%;min-height:340px;margin:8px 0 4px}
 """
+
+
+# Vanilla-JS bootstrap: draw every embedded Plotly spec. No framework, DISPLAY-only (Plotly's own
+# hover/zoom) — it re-derives NO evidence (honesty spine: light JS renders, never recomputes). Each
+# spec rides in a <script type=application/json class=plotly-spec data-target=...> block next to its
+# div; we parse + Plotly.newPlot into the target. Responsive; guarded so one bad spec can't blank the
+# page.
+_PLOTLY_BOOTSTRAP_JS = """<script>
+(function(){
+  if(typeof Plotly==='undefined')return;
+  var specs=document.querySelectorAll('script.plotly-spec');
+  for(var i=0;i<specs.length;i++){
+    try{
+      var el=specs[i], fig=JSON.parse(el.textContent),
+          tgt=document.getElementById(el.getAttribute('data-target'));
+      if(!tgt)continue;
+      (fig.layout=fig.layout||{}).autosize=true;
+      Plotly.newPlot(tgt,fig.data,fig.layout,{responsive:true,displaylogo:false,
+        modeBarButtonsToRemove:['lasso2d','select2d']});
+    }catch(e){if(window.console)console.warn('plotly spec draw failed',e);}
+  }
+})();
+</script>"""
 
 
 def _esc(x) -> str:
@@ -1500,14 +1525,58 @@ def _prettify_field(key: str) -> str:
     return k[:1].upper() + k[1:]
 
 
-def _render_card_data_html(sub_results: dict) -> list[str]:
+def _plotly_bundle() -> Optional[str]:
+    """The plotly.js source, for INLINING into the self-contained report (no CDN, no external src).
+    ~4.6 MB — the deliberate weight of the dynamic dashboard. Cached; None if plotly is absent (the
+    report then degrades to static SVG/table). NOTE: an inlined-plotly report is too large for the
+    VS Code Simple Browser to render — download + open in a real browser to review it."""
+    global _PLOTLY_JS_CACHE
+    try:
+        return _PLOTLY_JS_CACHE
+    except NameError:
+        pass
+    try:
+        from plotly.offline import get_plotlyjs
+        _PLOTLY_JS_CACHE = get_plotlyjs()
+    except Exception:  # noqa: BLE001
+        _PLOTLY_JS_CACHE = None
+    return _PLOTLY_JS_CACHE
+
+
+def _read_card_plotly_specs(card_figures: Optional[dict], figures_dir: Optional[Path],
+                            card_id: str) -> list[dict]:
+    """For a card, load its interactive Plotly specs (the `dynamic: True` descriptors produced this
+    run) from disk. Returns [{id, title, spec_json(str)}], newest-schema-safe. Empty when no dynamic
+    figure was produced (→ the card renders its static table only — the fallback)."""
+    if not card_figures or not figures_dir:
+        return []
+    out = []
+    for f in card_figures.get(card_id) or []:
+        if not f.get("dynamic"):
+            continue
+        spec_path = figures_dir / f["path"]
+        try:
+            spec_json = spec_path.read_text()
+        except Exception:  # noqa: BLE001 — a missing spec just drops to the static view
+            continue
+        out.append({"id": f["id"], "spec_json": spec_json})
+    return out
+
+
+def _render_card_data_html(sub_results: dict, card_figures: Optional[dict] = None,
+                           figures_dir: Optional[Path] = None) -> tuple[list[str], int]:
     """Per-question 'Evidence' section: render each sub-skill's card SUMMARY metrics (already in
-    sub_results from resolve_cards) as clean data. Leads with the PHASE_METRIC_FIELDS curated key
-    metrics where defined; otherwise shows the card's scalar summary fields. This is the
-    'sections with the actual card data' the reader asked for — plots are a scoped follow-up
-    (a target-profile run does not currently invoke the method figure-generators)."""
+    sub_results from resolve_cards) as clean data, PLUS — when a run produced them (Phase B) —
+    the card's interactive Plotly figure(s) embedded inline. Leads with the PHASE_METRIC_FIELDS
+    curated key metrics; otherwise shows the card's scalar summary fields.
+
+    Returns (html_lines, n_plotly_embedded). A card with a dynamic spec shows the interactive chart
+    above its data table; a card without one shows the table alone (the static fallback). The plot
+    is a computed, provenanced artifact (drawn by the method from the same series as the SVG) — the
+    renderer only EMBEDS it, never re-plots (honesty spine: renderer adds nothing)."""
     out = ["<section id=s-evidence class=det><span class=tag>Computed from the evidence</span>"
            "<h2>Evidence by question <span class=n>— the card data behind each call</span></h2>"]
+    n_plotly = 0
     for short, r in sub_results.items():
         cards = r.get("cards") or []
         # gather scalar summary fields across this sub-skill's cards (skip private _ + nested)
@@ -1526,7 +1595,20 @@ def _render_card_data_html(sub_results: dict) -> list[str]:
                     continue
                 rows.append((_prettify_field(k), _fmt_metric(v))); seen.add(k)
         label = _GATE_SHORT_LABEL.get(short, _humanize(short))
-        if not rows:
+        # Interactive figures produced for this sub-skill's cards this run (Phase B). Embedded as a
+        # <div> + JSON <script>; the bootstrap at page end calls Plotly.newPlot. Absent → table only.
+        plot_divs: list[str] = []
+        for c in cards:
+            if c.get("_missing"):
+                continue
+            for spec in _read_card_plotly_specs(card_figures, figures_dir, c.get("card_id")):
+                dom_id = f"plt-{short}-{spec['id']}"
+                plot_divs.append(
+                    f"<div class=plotly-fig id={dom_id}></div>"
+                    f"<script type='application/json' class=plotly-spec data-target={dom_id}>"
+                    f"{spec['spec_json']}</script>")
+                n_plotly += 1
+        if not rows and not plot_divs:
             missing = [c["card_id"] for c in cards if c.get("_missing")]
             note = ("no card data (cards not available this run: "
                     + ", ".join(f"<code>{_esc(m)}</code>" for m in missing) + ")") if missing \
@@ -1534,13 +1616,17 @@ def _render_card_data_html(sub_results: dict) -> list[str]:
             out.append(f"<details><summary>{_esc(label)}</summary>"
                        f"<p class=sub>{note}.</p></details>")
             continue
-        out.append(f"<details open><summary>{_esc(label)}</summary><table>")
-        for lab, val in rows[:18]:   # cap to keep the section scannable
-            out.append(f"<tr><td style='color:var(--muted);width:45%'>{_esc(lab)}</td>"
-                       f"<td>{_esc(val)}</td></tr>")
-        out.append("</table></details>")
+        out.append(f"<details open><summary>{_esc(label)}</summary>")
+        out.extend(plot_divs)                          # interactive chart(s) lead
+        if rows:
+            out.append("<table>")
+            for lab, val in rows[:18]:   # cap to keep the section scannable
+                out.append(f"<tr><td style='color:var(--muted);width:45%'>{_esc(lab)}</td>"
+                           f"<td>{_esc(val)}</td></tr>")
+            out.append("</table>")
+        out.append("</details>")
     out.append("</section>")
-    return out
+    return out, n_plotly
 
 
 def _render_target_profile_html(
@@ -1556,11 +1642,22 @@ def _render_target_profile_html(
     catalogue_rows: Optional[list[dict]] = None,
     recommendation_gate: Optional[dict] = None,
     show_deciding_axis: bool = False,
+    card_figures: Optional[dict] = None,
+    figures_dir: Optional[Path] = None,
 ) -> str:
-    """Render a static, self-contained target_profile.html — the governance artifact. Pure
-    projection of the same nomination data the .md carries; no recompute, no JS, no external deps.
-    All new-this-session structured outputs (scorecard, deciding-axis, ordinal matrix) are shown
-    as DETERMINISTIC sections, visually distinct from the AI-generated sections."""
+    """Render a self-contained target_profile.html — the governance artifact. Pure projection of the
+    same nomination data the .md carries; no recompute. All structured outputs (scorecard,
+    deciding-axis, ordinal matrix) are DETERMINISTIC sections, visually distinct from the
+    AI-generated ones.
+
+    DYNAMIC vs STATIC (Phase B): when a run produced per-card interactive figures (`card_figures` +
+    `figures_dir`), their Plotly specs are EMBEDDED inline (plotly.js inlined once, a small vanilla-JS
+    bootstrap draws them) — the dashboard reads like the GI team's interactive charts while staying a
+    single archivable file with zero external deps. When no figure was produced (the default / a
+    data-blocked run / plotly absent), the report degrades to the STATIC card tables — same file, no
+    JS. The renderer only EMBEDS the method-drawn spec; it never re-plots (honesty spine intact).
+    NOTE: an inlined-plotly report is ~4.6 MB and won't render in the VS Code Simple Browser —
+    download + open in a real browser to review."""
     def _val(field, default="—"):
         raw = llm_output.get(field)
         return raw.get("value", default) if isinstance(raw, dict) else (raw if raw is not None else default)
@@ -1693,10 +1790,11 @@ def _render_target_profile_html(
              "<h2>Conflicting signals &amp; trade-offs</h2>"
              f"<p>{_esc(_val('tension_analysis'))}</p></div>")
 
-    # --- Evidence by question (deterministic; the actual card data) --------
+    # --- Evidence by question (deterministic; the actual card data + interactive figures) ---
     # NOTE: the standalone "Sub-verdicts" table was removed as redundant — the scorecard above
     # already carries the per-question verdict + rule + status. One source, not two.
-    p.extend(_render_card_data_html(sub_results))
+    evidence_html, n_plotly = _render_card_data_html(sub_results, card_figures, figures_dir)
+    p.extend(evidence_html)
 
     # --- Ordinal matrix heatmap (deterministic VIEW) -----------------------
     if ordinal_matrix:
@@ -1733,13 +1831,26 @@ def _render_target_profile_html(
                      f"<td>{_esc(', '.join(cr.get('consumed_by', [])) or '—')}</td></tr>")
         p.append("</table></section>")
 
+    kind = "Interactive" if n_plotly else "Static"
     p.append("<footer>"
              f"Generated {_esc(datetime.now(timezone.utc).isoformat(timespec='seconds'))}"
              + (f" · lenses <code>{_esc(invoked_lenses)}</code>" if invoked_lenses else "")
-             + "<br>Static self-contained governance artifact — a projection of nomination.json. "
-             "AI-generated sections are tinted; all other sections are deterministic and "
+             + f"<br>{kind} self-contained governance artifact — a projection of nomination.json. "
+             + ("Charts are pre-computed by the methods (drawn from the same series as the static "
+                "figures) and embedded, not re-plotted here. " if n_plotly else "")
+             + "AI-generated sections are tinted; all other sections are deterministic and "
              "reproducible from the same inputs. No content is recomputed at render time.</footer>")
-    p.append("</div></body></html>")   # close .wrap
+    p.append("</div>")   # close .wrap
+
+    # --- Interactive layer (Phase B): inline plotly.js + a small vanilla-JS bootstrap that draws
+    # every embedded spec. Emitted ONLY when ≥1 figure was produced — the no-figure report stays
+    # pure static HTML (no JS, no 4.6 MB payload). Self-contained: plotly.js is INLINED, never a CDN.
+    if n_plotly:
+        bundle = _plotly_bundle()
+        if bundle:
+            p.append(f"<script>{bundle}</script>")
+            p.append(_PLOTLY_BOOTSTRAP_JS)
+    p.append("</body></html>")
     return "".join(p)
 
 
@@ -1989,6 +2100,7 @@ def main() -> int:
             deciding_axis=deciding_axis, ordinal_matrix=ordinal_matrix,
             scorecard=scorecard, composite_svg_path=composite_svg,
             catalogue_rows=catalogue_rows, recommendation_gate=recommendation_gate,
+            card_figures=card_figures, figures_dir=figures_dir,
         )
         (args.out / "target_profile.html").write_text(htmldoc)
         print(f"[target-profile] wrote {args.out}/target_profile.html", file=sys.stderr)
