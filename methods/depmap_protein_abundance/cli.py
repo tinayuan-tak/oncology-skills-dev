@@ -386,11 +386,29 @@ def emit_plot_data_protein(abundance_by_model: dict, lineage_by_model: dict,
     return out_file
 
 
+# Indication → DepMap OncotreeLineage (mirrors depmap_expression_distribution.INDICATION_LINEAGE) —
+# DepMap has no per-indication axis, so the indication-relevant cell-line signal IS its lineage.
+INDICATION_LINEAGE = {
+    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "LUAD": "Lung", "LUSC": "Lung",
+    "NSCLC": "Lung", "BRCA": "Breast", "PAAD": "Pancreas", "PDAC": "Pancreas", "SKCM": "Skin",
+    "STAD": "Stomach", "PRAD": "Prostate", "OV": "Ovary", "KIRC": "Kidney", "GBM": "CNS/Brain",
+    "LGG": "CNS/Brain", "HNSC": "Head and Neck", "BLCA": "Bladder/Urinary Tract", "LIHC": "Liver",
+    "ESCA": "Esophagus/Stomach", "CESC": "Cervix",
+}
+
+
 def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_symbol: str,
                       summary: dict, out_dir: Path,
-                      target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS) -> list:
+                      target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
+                      indication: str = None) -> list:
     """Interactive Plotly siblings (dynamic-dashboard Phase A) built from the SAME
-    abundance_by_model the SVGs use — no drift. density + ranked waterfall. Best-effort."""
+    abundance_by_model the SVGs use — no drift. Writes:
+      - figure_density_protein_abundance.plotly.json   (histogram + relative abundance BUCKETS)
+      - figure_waterfall_protein_abundance.plotly.json (ranked per-cell-line bars)
+      - figure_lineage_protein_abundance.plotly.json   (per-lineage box, n>=5; indication highlighted)
+    Mirrors the RNA depmap_expression_distribution emitter (item #2). Protein abundance is on a
+    RELATIVE scale (Gygi TMT log2-ratio), so density buckets shade relative to the panel median +
+    panel-high p70 cutoff (not absolute thresholds like RNA's 1.0/5.0). Best-effort."""
     try:
         import numpy as np
         import plotly.graph_objects as go
@@ -404,19 +422,34 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
     hi = _panel_high_cutoff(vals)
     med = summary.get("median_log2_abundance_panel")
     reflines = [(med, "#888", "dot", "panel median"), (hi, "#f0a020", "dash", "panel-high p70")]
-    # density histogram
+    # density histogram + RELATIVE abundance buckets (item #2)
     try:
+        arr = np.array(vals, dtype=float)
+        xmin, xmax = float(arr.min()) - 0.3, float(arr.max()) + 0.3
         fig = go.Figure(go.Histogram(x=vals, histnorm="probability density", nbinsx=40,
                         marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5,
                         opacity=0.55,
                         hovertemplate="log2 abundance %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        # Shade abundance regimes RELATIVE to the panel (protein MS has no absolute expressed cutoff):
+        # below median / median→p70 / ≥p70 (panel-high). Skipped if med/hi absent.
+        if med is not None and hi is not None and hi > med:
+            for x0, x1, fill, lab in [
+                (xmin, med, "rgba(150,160,170,0.10)", "below median"),
+                (med, hi, "rgba(240,160,32,0.09)", "moderate"),
+                (hi, xmax, "rgba(207,40,40,0.09)", "panel-high"),
+            ]:
+                if x1 > x0:
+                    fig.add_vrect(x0=x0, x1=x1, fillcolor=fill, line_width=0, layer="below",
+                                  annotation_text=lab, annotation_position="top",
+                                  annotation=dict(font_size=9, font_color="#8a94a0"))
         for xv, col, dash, lab in reflines:
             if xv is not None:
-                fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
-                              annotation_text=lab, annotation_position="top")
-        fig.update_layout(title=f"{target_symbol} — cell-line protein abundance (n={len(vals)} detected)",
+                fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5))
+        fig.update_layout(title=dict(text=f"{target_symbol} — cell-line protein abundance "
+                                          f"(n={len(vals)} detected)", font_size=13),
                           xaxis_title="log2 protein abundance (Gygi TMT MS)", yaxis_title="Density",
-                          template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+                          template="plotly_white", showlegend=False, height=300,
+                          margin=dict(l=54, r=16, t=40, b=44), font=dict(size=11))
         (out_dir / "figure_density_protein_abundance.plotly.json").write_text(fig.to_json())
         written.append({"id": "density_protein_abundance",
                         "path": "figure_density_protein_abundance.plotly.json", "type": "plotly"})
@@ -444,6 +477,39 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
                         "path": "figure_waterfall_protein_abundance.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
         print(f"[protein-abundance-celline] waterfall plotly skipped: {e}", file=__import__("sys").stderr)
+    # per-lineage box (item #2 — mirrors the RNA lineage plot; n>=5, ordered by median, indication
+    # lineage highlighted red). The indication-relevant cell-line protein view IS its DepMap lineage.
+    try:
+        by_lineage: dict = {}
+        for mid, v in abundance_by_model.items():
+            lg = lineage_by_model.get(mid) or "unknown"
+            by_lineage.setdefault(lg, []).append(v)
+        lins2 = [(lg, lv) for lg, lv in by_lineage.items() if len(lv) >= 5]
+        lins2.sort(key=lambda lv: float(np.median(lv[1])))   # ascending → highest median at top
+        target_lineage = INDICATION_LINEAGE.get((indication or "").upper()) if indication else None
+        fig = go.Figure()
+        for lg, lv in lins2:
+            is_target = (lg == target_lineage)
+            fig.add_trace(go.Box(
+                x=lv, name=lg, orientation="h", boxpoints="all", jitter=0.4, pointpos=0,
+                marker=dict(size=3, opacity=0.5, color="#cf2828" if is_target else "#0a2540"),
+                line=dict(color="#cf2828" if is_target else "#7fa7c0", width=2 if is_target else 1),
+                hovertemplate=f"{lg}<br>log2 abundance %{{x:.2f}}<extra></extra>"))
+        for xv, col, dash, lab in reflines:
+            if xv is not None:
+                fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.2))
+        ttl = f"{target_symbol} — per-lineage protein abundance (n≥5)"
+        if target_lineage:
+            ttl += f" · {target_lineage} highlighted"
+        fig.update_layout(title=dict(text=ttl, font_size=13),
+                          xaxis_title="log2 protein abundance (Gygi TMT MS)", template="plotly_white",
+                          showlegend=False, margin=dict(l=130, r=16, t=40, b=40), font=dict(size=11),
+                          height=max(260, 18 * len(lins2) + 70))
+        (out_dir / "figure_lineage_protein_abundance.plotly.json").write_text(fig.to_json())
+        written.append({"id": "lineage_protein_abundance",
+                        "path": "figure_lineage_protein_abundance.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[protein-abundance-celline] lineage plotly skipped: {e}", file=__import__("sys").stderr)
     return written
 
 

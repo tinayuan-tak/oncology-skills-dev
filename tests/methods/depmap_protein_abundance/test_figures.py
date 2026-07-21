@@ -63,8 +63,12 @@ def test_plotly_specs_valid_and_no_drift():
     expect = sorted(abund.values())
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
-        written = cli.emit_plotly_specs(abund, lin, "EGFR", summary, out, CONTRACTS)
-        assert {w["id"] for w in written} == {"density_protein_abundance", "waterfall_protein_abundance"}
+        written = cli.emit_plotly_specs(abund, lin, "EGFR", summary, out, CONTRACTS,
+                                        indication="COADREAD")
+        # item #2: added the per-lineage box (mirrors the RNA lineage plot)
+        assert {w["id"] for w in written} == {"density_protein_abundance",
+                                              "waterfall_protein_abundance",
+                                              "lineage_protein_abundance"}
         for w in written:
             obj = json.loads((out / w["path"]).read_text())
             assert obj["data"] and "layout" in obj and w["type"] == "plotly"
@@ -73,6 +77,12 @@ def test_plotly_specs_valid_and_no_drift():
         assert _decode(wf["data"][0]["y"]) == expect
         dens = json.loads((out / "figure_density_protein_abundance.plotly.json").read_text())
         assert sorted(_decode(dens["data"][0]["x"])) == expect
+        # per-lineage box: one Box trace per n>=5 lineage; the indication lineage (Bowel) is highlighted red
+        lin_fig = json.loads((out / "figure_lineage_protein_abundance.plotly.json").read_text())
+        assert lin_fig["data"] and all(t.get("type") == "box" for t in lin_fig["data"])
+        assert "Bowel highlighted" in lin_fig["layout"]["title"]["text"]
+        bowel = [t for t in lin_fig["data"] if t.get("name") == "Bowel"]
+        assert bowel and bowel[0]["line"]["color"] == "#cf2828"   # highlighted red
 
 
 def test_empty_abundance_degrades_gracefully():
