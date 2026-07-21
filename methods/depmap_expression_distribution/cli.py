@@ -408,15 +408,31 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
     return out_path
 
 
+# Indication → DepMap OncotreeLineage (cell lines are LINEAGE-keyed, not indication-keyed — the
+# indication-relevant cell-line view IS its lineage). Mirrors depmap_chronos.INDICATION_LINEAGE.
+INDICATION_LINEAGE = {
+    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "PDAC": "Pancreas", "PAAD": "Pancreas",
+    "NSCLC": "Lung", "LUAD": "Lung", "LUSC": "Lung", "SCLC": "Lung", "GC": "Stomach", "STAD": "Stomach",
+    "BRCA": "Breast", "OV": "Ovary/Fallopian Tube", "GBM": "CNS/Brain", "HNSCC": "Head and Neck",
+}
+
+
 def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
-                      summary: dict, out_dir: Path, target_contracts_dir: Path) -> list:
+                      summary: dict, out_dir: Path, target_contracts_dir: Path,
+                      indication: str = None) -> list:
     """Emit interactive Plotly figure specs SIBLING to the matplotlib SVGs (dynamic-dashboard
     Phase A). Built from the SAME in-memory tpm_by_model the SVGs + plot_data_expression.parquet
-    use → the interactive chart cannot drift (one data source, three renderings). Writes:
-      - figure_density_expression.plotly.json   (histogram density + expressed/highly-expressed reflines)
+    use → the interactive chart cannot drift (one data source, N renderings). Writes:
+      - figure_density_expression.plotly.json   (pan-cancer histogram density + reflines)
       - figure_waterfall_expression.plotly.json (ranked per-cell-line bars)
+      - figure_lineage_expression.plotly.json   (per-lineage box, n>=5, ordered by median; the
+        indication's lineage highlighted — the indication-specific cell-line view)
     fig.to_json() (renderer embeds via Plotly.newPlot; NO kaleido). Best-effort — the SVGs are the
-    guaranteed artifact. Reflines mirror the SVGs: 1.0 (expressed) / 5.0 (highly expressed)."""
+    guaranteed artifact. Reflines mirror the SVGs: 1.0 (expressed) / 5.0 (highly expressed).
+
+    `indication` (optional): when given, the box for that indication's DepMap lineage
+    (INDICATION_LINEAGE, e.g. COADREAD→Bowel) is highlighted — DepMap has no per-indication axis,
+    so the indication-relevant cell-line signal IS its lineage."""
     try:
         import numpy as np
         import plotly.graph_objects as go
@@ -431,20 +447,32 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
                 (5.0, "#cf2828", "dash", "highly expressed ≥5.0")]
     written = []
 
-    # --- Density histogram (mirrors emit_density_plot; navy bars + reflines) ---
+    # --- Density histogram (mirrors emit_density_plot; navy bars + reflines + BUCKET regions) ---
     try:
         scores = np.array(list(tpm_by_model.values()), dtype=float)
+        xmax = float(scores.max()) + 0.3
         fig = go.Figure(go.Histogram(
             x=scores, histnorm="probability density", nbinsx=50,
-            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.55,
+            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.6,
             hovertemplate="log2(TPM+1) %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        # Item 2: shade the three expression BUCKETS behind the histogram (not-expressed <1,
+        # expressed 1–5, highly ≥5) so the reader sees which regime the mass sits in.
+        buckets = [(-0.3, 1.0, "rgba(150,160,170,0.10)", "not expressed"),
+                   (1.0, 5.0, "rgba(240,160,32,0.09)", "expressed"),
+                   (5.0, xmax, "rgba(207,40,40,0.09)", "highly expressed")]
+        for x0, x1, fill, lab in buckets:
+            if x1 <= x0:
+                continue
+            fig.add_vrect(x0=x0, x1=x1, fillcolor=fill, line_width=0, layer="below",
+                          annotation_text=lab, annotation_position="top",
+                          annotation=dict(font_size=9, font_color="#8a94a0"))
         for xv, col, dash, lab in reflines:
-            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
-                          annotation_text=lab, annotation_position="top")
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.3))
         fig.update_layout(
-            title=f"{target_symbol} — pan-cancer expression distribution (n={len(scores)})",
+            title=dict(text=f"{target_symbol} — pan-cancer expression (n={len(scores)})", font_size=13),
             xaxis_title="log2(TPM+1)", yaxis_title="Density",
-            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+            template="plotly_white", showlegend=False, height=300,
+            margin=dict(l=54, r=16, t=40, b=44), font=dict(size=11))
         (out_dir / "figure_density_expression.plotly.json").write_text(fig.to_json())
         written.append({"id": "density_expression", "path": "figure_density_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
@@ -474,6 +502,42 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         written.append({"id": "waterfall_expression", "path": "figure_waterfall_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
         print(f"[expression-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
+
+    # --- Per-lineage box (mirrors emit_lineage_strip; n>=5, ordered by median desc). The
+    #     indication's DepMap lineage is highlighted (red) — the indication-specific cell-line view. ---
+    try:
+        by_lineage: dict = {}
+        for mid, v in tpm_by_model.items():
+            lg = model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"
+            by_lineage.setdefault(lg, []).append(v)
+        # n>=5 lineages, ordered by median ascending so the highest-median sits at the TOP of the
+        # horizontal box plot (Plotly renders the last category topmost) — matches the SVG's semantics.
+        lins = [(lg, vals) for lg, vals in by_lineage.items() if len(vals) >= 5]
+        lins.sort(key=lambda lv: float(np.median(lv[1])))
+        target_lineage = INDICATION_LINEAGE.get((indication or "").upper()) if indication else None
+        fig = go.Figure()
+        for lg, vals in lins:
+            is_target = (lg == target_lineage)
+            fig.add_trace(go.Box(
+                x=vals, name=lg, orientation="h", boxpoints="all", jitter=0.4, pointpos=0,
+                marker=dict(size=3, opacity=0.5,
+                            color="#cf2828" if is_target else "#0a2540"),
+                line=dict(color="#cf2828" if is_target else "#7fa7c0",
+                          width=2 if is_target else 1),
+                hovertemplate=f"{lg}<br>log2(TPM+1) %{{x:.2f}}<extra></extra>"))
+        for xv, col, dash, lab in reflines:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.2))
+        ttl = f"{target_symbol} — per-lineage expression (n≥5)"
+        if target_lineage:
+            ttl += f" · {target_lineage} highlighted"
+        fig.update_layout(
+            title=dict(text=ttl, font_size=13), xaxis_title="log2(TPM+1)", template="plotly_white",
+            showlegend=False, margin=dict(l=130, r=16, t=40, b=40), font=dict(size=11),
+            height=max(260, 18 * len(lins) + 70))   # tighter rows (item 1)
+        (out_dir / "figure_lineage_expression.plotly.json").write_text(fig.to_json())
+        written.append({"id": "lineage_expression", "path": "figure_lineage_expression.plotly.json", "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[expression-distribution] lineage plotly skipped: {e}", file=sys.stderr)
 
     return written
 

@@ -56,17 +56,44 @@ def _fixture():
     return tpm, meta, summary
 
 
-def test_emits_two_valid_plotly_specs():
+def test_emits_three_valid_plotly_specs():
+    """density + waterfall + lineage (the per-lineage box added for the dashboard, 2026-07-21)."""
     tpm, meta, summary = _fixture()
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
         written = cli.emit_plotly_specs(tpm, meta, "KRAS", summary, out, CONTRACTS)
         ids = {w["id"] for w in written}
-        assert ids == {"density_expression", "waterfall_expression"}
+        assert ids == {"density_expression", "waterfall_expression", "lineage_expression"}
         for w in written:
             obj = json.loads((out / w["path"]).read_text())
             assert "data" in obj and "layout" in obj and obj["data"], f"{w['id']} not a Plotly spec"
             assert w["type"] == "plotly"
+
+
+def test_density_shades_three_expression_buckets():
+    """Item 2: the density plot shades not-expressed / expressed / highly-expressed regions
+    (vrects) behind the histogram — 3 rect shapes."""
+    tpm, meta, summary = _fixture()
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d)
+        cli.emit_plotly_specs(tpm, meta, "KRAS", summary, out, CONTRACTS)
+        dens = json.loads((out / "figure_density_expression.plotly.json").read_text())
+        rects = [s for s in dens["layout"].get("shapes", []) if s.get("type") == "rect"]
+        assert len(rects) >= 2, f"expected >=2 bucket rects, got {len(rects)}"
+
+
+def test_lineage_plot_highlights_indication_lineage():
+    """The lineage box highlights the indication's DepMap lineage (COADREAD→Bowel) in red."""
+    tpm, meta, summary = _fixture()
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d)
+        cli.emit_plotly_specs(tpm, meta, "KRAS", summary, out, CONTRACTS, indication="COADREAD")
+        ln = json.loads((out / "figure_lineage_expression.plotly.json").read_text())
+        names = [t.get("name") for t in ln["data"]]
+        assert "Bowel" in names
+        reds = [t.get("name") for t in ln["data"]
+                if (t.get("line") or {}).get("color") == "#cf2828"]
+        assert reds == ["Bowel"], f"expected Bowel highlighted, got {reds}"
 
 
 def test_no_drift_density_and_waterfall_series_match_input():
