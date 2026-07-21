@@ -875,6 +875,7 @@ PHASE_METRIC_FIELDS: dict[str, list[tuple[str, str]]] = {
     "selectivity": [
         ("cells_supporting",         "cells supporting"),
         ("cells_ran",                "cells ran"),
+        ("comparator_concordance",   "comparator agreement"),   # TCGA-adjacent vs GTEx concur? (slice 4)
         ("dominant_direction",       "dominant direction"),
         ("max_abs_log2fc",           "max |log2FC|"),
         ("discordant",               "discordant"),
