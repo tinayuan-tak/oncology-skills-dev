@@ -162,26 +162,36 @@ def test_required_gate_section_renders():
     assert "id=s-gate-c" in h and "Required" in h
 
 
-def test_required_unifies_cards_across_three_sub_skills():
-    """Required's cards come from dependency + synthetic_lethal_partners + genomic_alteration —
-    the v2 'one gate, many sub-skills' case. All appear in the one C section."""
+def test_required_unifies_dependency_and_sl_under_c():
+    """v2: Required (C) unifies the dependency sub-skill + synthetic_lethal_partners. The
+    genomic-alteration cards move to their OWN 'Altered' (E) gate (see below)."""
     h = _render(_sr_required())
     seg = h.split("id=s-gate-c")[1].split("</section>")[0]
-    for title in ("CRISPR dependency", "SL partners", "Mutation-stratified"):
+    for title in ("CRISPR dependency", "SL partners"):
         assert title in seg, title
+    # mutation-stratified is NO LONGER unified into C in v2 — it lives under Altered (E).
+    assert "Mutation-stratified" not in seg
 
 
-def test_required_orders_primary_before_facets_with_badges():
-    """v2 ordering: primary dependency cards first, then corroboration (confidence badge), then
-    stratification (patient-selection badge)."""
+def test_genomic_alteration_renders_as_own_altered_gate_e():
+    """v2: genomic_alteration is its OWN biology gate 'Altered' (E), not folded into Required.
+    Its mutation-stratified card renders there + shows an 'Also feeds → Required (C)' breadcrumb."""
+    h = _render(_sr_required())
+    assert "id=s-gate-e" in h and "Altered" in h
+    # split on the SECTION tag, not the scorecard's href='#s-gate-e' link (which also contains the id)
+    seg = re.search(r"<section id=s-gate-e\b.*?</section>", h, re.S).group(0)
+    assert "Mutation-stratified" in seg
+    assert "Also feeds" in seg and "href='#s-gate-c'" in seg   # reports_into breadcrumb to Required
+
+
+def test_required_orders_primary_before_corroboration_facets():
+    """v2 ordering within Required: primary dependency cards first, then the corroboration
+    (confidence-badged) CRISPR×RNAi facet."""
     h = _render(_sr_required())
     seg = h.split("id=s-gate-c")[1].split("</section>")[0]
     order = re.findall(r"<button class='tab[^>]*>([^<]+)", seg)
-    # primary CRISPR/RNAi/lineage/paralog precede the CRISPR×RNAi corroboration facet
     assert order.index("CRISPR dependency") < order.index("CRISPR×RNAi")
-    # corroboration precedes stratification
-    assert order.index("CRISPR×RNAi") < order.index("Mutation-stratified")
-    assert "confidence</span>" in seg and "patient-selection</span>" in seg
+    assert "confidence</span>" in seg   # the corroboration facet's badge
 
 
 # --- Surface-biologics — modality-fit gate (v2 axis 2) -----------------------
@@ -325,6 +335,35 @@ def test_scorecard_does_not_link_unrendered_gate():
     assert "href='#s-gate-b'" not in sc   # Selective didn't render → no link
 
 
+# --- v2 axis-band grouping ---------------------------------------------------
+
+def test_gate_sections_grouped_under_two_axis_bands():
+    """v2 hybrid: gate sections render under two axis bands — Biology (necessity) then
+    Modality fit (sufficiency) — and Biology precedes Modality fit."""
+    sr = _sr_all_gates()
+    sr["safety"] = _sr_modality_fit()["safety"]
+    sr["tractability_sm"] = _sr_modality_fit()["tractability_sm"]
+    h = _render(sr)
+    assert "<div class=axis-band>" in h
+    bio = h.find(">Biology ")
+    mod = h.find(">Modality fit ")
+    assert bio >= 0 and mod >= 0, (bio, mod)
+    assert bio < mod, "Biology band must precede Modality-fit band"
+    # the Present (A) SECTION sits after the Biology band + before the Modality-fit band; the Safety
+    # SECTION sits after the Modality-fit band. Use the section-tag position, not the scorecard href.
+    a_sec = re.search(r"<section id=s-gate-a\b", h).start()
+    safety_sec = re.search(r"<section id=s-gate-safety\b", h).start()
+    assert bio < a_sec < mod
+    assert mod < safety_sec
+
+
+def test_axis_band_suppressed_in_presence_only():
+    """The focused Presence view renders no axis-band chrome (single-section view)."""
+    h = _render(_sr(), presence_only=True)
+    assert "<div class=axis-band>" not in h   # the element, not the CSS rule
+    assert "id=s-gate-a" in h
+
+
 # --- reports_into cross-gate breadcrumb --------------------------------------
 
 def test_reports_into_breadcrumb_on_cross_gate_card():
@@ -339,9 +378,11 @@ def test_reports_into_breadcrumb_on_cross_gate_card():
 
 
 def test_no_self_referential_breadcrumb():
-    """mutation-stratified-dependency is rendered UNDER Required already → no 'also feeds Required'
-    self-reference in that section."""
-    sr = _sr_required()   # mutation-stratified is under genomic_alteration, unified into Required
+    """The breadcrumb names a DIFFERENT gate, never its own. Required (C) hosts dependency + SL
+    (neither reports_into C from elsewhere) → no 'Also feeds' self-reference in the C section."""
+    sr = _sr_required()
     h = _render(sr)
     c = re.search(r"<section id=s-gate-c\b.*?</section>", h, re.S).group(0)
-    assert "Also feeds" not in c
+    # C's own cards don't self-reference C; the only 'Also feeds' pointing at C comes from the
+    # Altered (E) section's mutation-stratified card, which is a different section.
+    assert "href='#s-gate-c'" not in c

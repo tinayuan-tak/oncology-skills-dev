@@ -67,8 +67,12 @@ def test_scorecard_includes_every_registry_sub_skill_even_when_absent():
     assert {"dependency", "safety"} <= shorts
     assert {"expression", "surface_modality", "differentiation", "mechanism"} <= shorts, \
         "registry gates with no sub_result this run must still be rows"
-    # every row has a gate letter A..H
-    assert all(r["gate"] in set("ABCDEFGH") for r in sc)
+    # Every row carries an axis (biology|modality_fit). Version-agnostic letter rule: a row MAY be
+    # letterless (v2 modality-fit gates are named-not-lettered; v2 biology FACETS like SL-partners
+    # are letterless too) — but any row that DOES carry a letter must use a valid one (A..H). This
+    # passes against both the v1 flat contract (all lettered) and the v2 three-list contract.
+    assert all(r.get("axis") in ("biology", "modality_fit") for r in sc)
+    assert all(r["gate"] in set("ABCDEFGH") for r in sc if r.get("gate"))
 
 
 def test_scorecard_status_is_4state_and_gap_is_not_opposing():

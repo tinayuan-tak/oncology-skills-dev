@@ -441,18 +441,49 @@ def _gate_recommendation(
 _COVERAGE_RANK = {"captured": 3, "partial": 2, "license_blocked": 1, "blind": 0, "out_of_scope": 0}
 
 
+# The v2 (2.0.0) gate_coverage splits the v1 flat `gates:` list into three lists by grain/axis:
+#   biology_gates  — the necessity gates (A..E incl. "Altered"); scorecard rows.
+#   modality_fit   — per-lens sufficiency assessments (named, letterless); scorecard rows.
+#   biomarker_facets — relational feature×outcome sub-skills. Two GRAINS live here:
+#       grain: sub_skill  → a real sub-verdict slot the composer emits (synthetic_lethal_partners,
+#                           subtype_fit) → IS a scorecard row (as in v1).
+#       grain: card       → a card-level facet (mutation_stratified, crispr_rnai_concordance, …)
+#                           that surfaces INSIDE its outcome gate's section, NEVER its own row.
+# The loader below reads EITHER shape and returns the same {short: entry} map the router+scorecard
+# consumed under v1 — containing exactly the sub-skill-grain entries (biology + modality_fit + the
+# sub_skill-grain facets), so no phantom card-grain rows appear. Missing `grain:` defaults to
+# sub_skill (fail-open: a mis-tagged facet becomes a visible row rather than silently vanishing).
+_V2_GATE_LISTS = ("biology_gates", "modality_fit", "biomarker_facets")
+
+
+def _flatten_gate_coverage(data: dict) -> dict:
+    """Return {short: entry} for the scorecard/router, accepting v1 (`gates:`) or v2 (three-list).
+    v2 card-grain biomarker_facets are EXCLUDED (they are in-section facets, not scorecard rows)."""
+    if "gates" in data:                      # v1 / v1.1.0 flat shape — every entry is a row.
+        return {g["short"]: g for g in data["gates"]}
+    by_short: dict = {}                      # v2 three-list shape.
+    for key in _V2_GATE_LISTS:
+        for g in data.get(key, []):
+            if key == "biomarker_facets" and g.get("grain", "sub_skill") == "card":
+                continue                     # card-grain facet → rendered in-section, not a row
+            by_short[g["short"]] = g
+    return by_short
+
+
 def _load_gate_coverage(contracts_repo: Path | None = None) -> tuple[dict, str]:
     """Load the per-short gate_coverage map from the target-contracts vocab. Returns
-    ({short: {gate, gate_name, band, framework_can_evidence, ...}}, source). EMPTY-on-failure
-    (source='none'): the router then degrades to a bare abstention note rather than fabricating
-    a coverage claim — a missing map must never invent a `captured`."""
+    ({short: {gate, gate_name, band, axis, framework_can_evidence, ...}}, source). Accepts BOTH the
+    v1 flat `gates:` list and the v2 three-list (biology_gates/modality_fit/biomarker_facets) shape
+    — see _flatten_gate_coverage. EMPTY-on-failure (source='none'): the router then degrades to a
+    bare abstention note rather than fabricating a coverage claim — a missing map must never invent
+    a `captured`."""
     repo = contracts_repo or _CONTRACTS_REPO
     path = repo / "vocabularies" / "gate_coverage.yaml"
     try:
         data = yaml.safe_load(path.read_text())
-        by_short = {g["short"]: g for g in data["gates"]}
+        by_short = _flatten_gate_coverage(data)
         if not by_short:
-            raise ValueError("empty gates list")
+            raise ValueError("no gate entries (neither v1 `gates:` nor v2 three-list)")
         return by_short, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → empty (never a fabricated coverage)
         print(f"[target-profile] WARN: could not load gate_coverage vocab "
@@ -1067,25 +1098,34 @@ def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
         return "neutral"
 
     rows = []
-    # Registry order = gate letter A..H. gate_coverage rows carry gate/gate_name/band.
+    # Rows carry gate/gate_name/band + axis (biology|modality_fit). axis derives from the contract
+    # (v2) or is inferred from the band (v1 has no axis field): necessity→biology, sufficiency→
+    # modality_fit — the 1:1 alignment the additive v1.1.0 file also asserts.
     for short, meta in baseline.items():
         r = sub_results.get(short) or {}
         v = r.get("verdict")
         verdict_str = v[0] if v else None
         driving = v[1] if (v and len(v) > 1) else None
+        axis = meta.get("axis") or ("biology" if meta.get("band") == "necessity" else "modality_fit")
         rows.append({
             "short": short,
             "gate": meta.get("gate"),
             "gate_name": meta.get("gate_name"),
             "band": meta.get("band"),
+            "axis": axis,
             "verdict": verdict_str,
             "driving_rule_id": driving,
             "status": _status(short, verdict_str),
             "framework_can_evidence": _run_coverage_for_short(short, r, baseline),
             "is_deciding": short == deciding_short,
         })
-    # Sort by gate letter (A..H), then band (necessity first) as a stable tiebreak.
-    rows.sort(key=lambda x: (str(x.get("gate") or "Z"), x.get("band") != "necessity"))
+    # Sort AXIS-primary (biology before modality_fit) so grouping is stable even when v2 modality-fit
+    # rows are letterless; then by gate letter (A..H; letterless → 'Z' last within its axis), then
+    # band (necessity first) as a stable tiebreak.
+    _AXIS_ORDER = {"biology": 0, "modality_fit": 1}
+    rows.sort(key=lambda x: (_AXIS_ORDER.get(x.get("axis"), 2),
+                             str(x.get("gate") or "Z"),
+                             x.get("band") != "necessity"))
     return rows
 
 
@@ -1475,6 +1515,12 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
 .gate .gate-letter{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
   border-radius:7px;background:var(--brand);color:#fff;font-weight:700;font-size:13px;flex:0 0 auto}
 .gate .gate-verdict{margin-left:auto;font-size:13px;color:var(--ink-2)}
+/* Axis band header (gate-model v2): the two-axis split — Biology (necessity) vs Modality-fit
+   (sufficiency) — rendered as a band that groups the gate sections beneath it. */
+.axis-band{margin:26px 0 10px;padding:8px 14px;border-radius:9px;background:var(--surface-2);
+  border-left:4px solid var(--brand)}
+.axis-band h2{margin:0;font-size:15px;background:none;color:var(--brand);padding:0;letter-spacing:.2px}
+.axis-band .n{color:var(--muted);font-weight:400;font-size:13px}
 /* Tabbed card subsections. A tiny JS handler (in the page bootstrap) toggles .active on the
    clicked label + its target panel — robust across any tab count, and JS is already present for the
    Plotly resize-on-show. The button strip is a <div role=tablist> of <button> tabs; panels carry
@@ -1816,15 +1862,52 @@ _V2_ROLE_BADGE = {
 }
 
 # reports_into (gate-model v2): cards whose HOME gate differs from a gate they ALSO feed. The
-# dashboard renders each card under its home gate section; this map surfaces a breadcrumb ("also
-# feeds <Gate>") so the cross-gate contribution is visible. Value = (label, anchor) of the target
-# gate. These edges already exist as veto-suppressors / positive cross-refs in
-# nomination_verdict_gate.yaml — this only makes them LEGIBLE in the dashboard. Keyed by card_id.
-_CARD_REPORTS_INTO = {
-    "prism-crispr-concordance":       ("Required (C)", "s-gate-c"),   # chemical-genetic confirmation, home E
-    "dependency-predictability":      ("Required (C)", "s-gate-c"),   # C-confidence, composed under tractability
-    "mutation-stratified-dependency": ("Required (C)", "s-gate-c"),   # biomarker-stratified, rendered under Required already
+# dashboard renders each card under its home gate section; a breadcrumb ("also feeds <Gate>")
+# surfaces the cross-gate contribution. These edges already exist as veto-suppressors / positive
+# cross-refs in nomination_verdict_gate.yaml — this only makes them LEGIBLE in the dashboard.
+#
+# The map {card_id: [(label, anchor), ...]} is now BUILT FROM THE CONTRACT (_card_reports_into),
+# reading each card-grain biomarker_facet's `card_id` + `reports_into` (v2 2.0.0). The hardcoded
+# fallback below is used only when the contract carries no facet data (the v1 merge window, or a
+# missing vocab) — same fail-open discipline as the loader: a missing contract never erases the
+# breadcrumbs, it falls back to the last-known-good static map.
+_CARD_REPORTS_INTO_FALLBACK = {
+    "prism-crispr-concordance":       [("Required (C)", "s-gate-c")],
+    "dependency-predictability":      [("Required (C)", "s-gate-c")],
+    "mutation-stratified-dependency": [("Required (C)", "s-gate-c")],
 }
+
+
+def _card_reports_into(contracts_repo: Path | None = None) -> dict:
+    """{card_id: [(label, anchor), ...]} of cross-gate breadcrumb edges, read from the contract's
+    card-grain biomarker_facets (card_id + reports_into). Each reports_into target short resolves to
+    its section anchor (_SHORT_TO_GATE_ANCHOR) + a human label (letter/name from the gate map). A
+    self-edge (target == the card's own home gate) is dropped by the renderer, not here. Falls back
+    to _CARD_REPORTS_INTO_FALLBACK when the contract exposes no card-grain facets (v1 window)."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "gate_coverage.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        facets = data.get("biomarker_facets", []) or []
+    except Exception:  # noqa: BLE001 — missing/malformed vocab → fall back, never erase breadcrumbs
+        facets = []
+    # short → human gate label (e.g. dependency → "Required (C)"); built from the loaded baseline so
+    # letters/names track the contract. Biology gates: "<name> (<letter>)"; modality-fit: "<name>".
+    baseline, _src = _load_gate_coverage(contracts_repo)
+    def _label(short: str) -> str:
+        m = baseline.get(short, {})
+        nm, letter = m.get("gate_name") or _humanize(short), m.get("gate")
+        return f"{nm} ({letter})" if letter else nm
+    out: dict = {}
+    for f in facets:
+        cid = f.get("card_id")
+        if not cid or f.get("grain") != "card":
+            continue
+        edges = [(_label(s), _SHORT_TO_GATE_ANCHOR[s]) for s in (f.get("reports_into") or [])
+                 if s in _SHORT_TO_GATE_ANCHOR]
+        if edges:
+            out[cid] = edges
+    return out or {k: list(v) for k, v in _CARD_REPORTS_INTO_FALLBACK.items()}
 
 # Roll-up lens: sub-skill short → the gate SECTION anchor it belongs to (the id _render_gate_section_html
 # emits). Lets the top scorecard link each question-row down to its detailed section. MUST stay in sync
@@ -1836,8 +1919,8 @@ _SHORT_TO_GATE_ANCHOR = {
     "selectivity":               "s-gate-b",
     "dependency":                "s-gate-c",
     "synthetic_lethal_partners": "s-gate-c",   # unified under Required's section
-    "genomic_alteration":        "s-gate-c",   # mutation-stratified facet lives in Required's section
     "mechanism":                 "s-gate-d",
+    "genomic_alteration":        "s-gate-e",   # v2: its own "Altered" biology gate (E)
     "tractability_sm":           "s-gate-small-molecule-druggability",
     "surface_modality":          "s-gate-surface-biologics-fit",
     "safety":                    "s-gate-safety",
@@ -2007,7 +2090,8 @@ def _expression_indication_focus(card: dict, indication: str) -> Optional[dict]:
 
 def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_results: dict,
                               scorecard_by_short: dict, card_figures, figures_dir,
-                              indication: str = None, modality_note: str = None) -> tuple[list[str], int]:
+                              indication: str = None, modality_note: str = None,
+                              reports_into_map: dict | None = None) -> tuple[list[str], int]:
     """Render ONE gate as a section whose SUBTABS are its evidence CARDS. Each card subtab shows,
     top-to-bottom: a verdict strip (the rule/verdict this card drove), the card's key facts, and its
     interactive Plotly figure. PURE PROJECTION — recomputes nothing. Returns (html, n_plotly).
@@ -2142,14 +2226,17 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
         else:
             pan.append("<div class=sub>No rule fired (neutral / below threshold).</div>")
         pan.append("</div>")
-        # reports_into breadcrumb (v2): if this card ALSO feeds another gate, name it — unless that
-        # gate IS the section we're already in (self-reference, e.g. mutation-stratified under Required).
-        ri = _CARD_REPORTS_INTO.get(cid)
-        if ri and ri[1] != sec_id:
-            ri_label, ri_anchor = ri
+        # reports_into breadcrumb (v2): if this card ALSO feeds other gate(s), name them — read from
+        # the contract (reports_into_map, {card_id: [(label, anchor), ...]}) with a fallback to the
+        # static map. Self-edges (target == the section we're already in) are dropped, so a card
+        # rendered under its home gate never "also feeds" itself.
+        rmap = reports_into_map if reports_into_map is not None else _CARD_REPORTS_INTO_FALLBACK
+        edges = [(lbl, anc) for (lbl, anc) in (rmap.get(cid) or []) if anc != sec_id]
+        if edges:
+            links = " · ".join(f"<a href='#{anc}' style='color:var(--brand-accent);"
+                               f"text-decoration:none'>→ {_esc(lbl)}</a>" for lbl, anc in edges)
             pan.append(f"<div class=rail-sec><p class=rail-h>Also feeds</p>"
-                       f"<div class=sub><a href='#{ri_anchor}' style='color:var(--brand-accent);"
-                       f"text-decoration:none'>→ {_esc(ri_label)}</a> "
+                       f"<div class=sub>{links} "
                        f"(this evidence corroborates that gate too)</div></div>")
         pan.append(f"<p class=card-src>Card <code>{_esc(cid)}</code></p>")
         pan.append("</div>")   # .card-rail
@@ -2303,40 +2390,64 @@ def _render_target_profile_html(
     p.append("<div class=llm id=s-exec><span class=tag>AI-generated</span>"
              f"<h2>Executive summary</h2><p>{_esc(_val('executive_summary'))}</p></div>")
 
-    # --- Gate sections (gate-model v2). Declarative sequence: each entry is a gate rendered as a
-    # card-subtab section. BIOLOGY gates (A Present / B Selective / C Required / D Mechanism) carry a
-    # letter; MODALITY-FIT gates (Surface-biologics, ...) are named (gate="") + carry a modality_note.
-    # A gate whose sub-skills are all absent this run is skipped. Required (C) UNIFIES 3 sub-skills
-    # (dependency + SL + genomic_alteration) — the audit's "one gate, many sub-skills" case; its
-    # cards' _CARD_V2_ROLE drives ordering + facet badges. presence_only renders ONLY the first
-    # (Present) entry — see the early-return below. _render_gate_section_html is gate-agnostic.
+    # --- Gate sections (gate-model v2). Declarative sequence GROUPED BY AXIS: each entry is a gate
+    # rendered as a card-subtab section, under one of the two v2 axis bands.
+    #   AXIS 1 — BIOLOGY (necessity, modality-independent): "is this real, actionable biology?"
+    #     A Present · B Selective · C Required · D Mechanism · E Altered. Lettered. Required (C)
+    #     UNIFIES dependency + SL-partners (+ the mutation-stratified FACET, which now reports_into
+    #     it from the Altered gate). "Altered" (E) is its own section in v2 — genomic-alteration
+    #     FREQUENCY is a distinct biology question, split out of the v1 A/C overload.
+    #   AXIS 2 — MODALITY FIT (sufficiency, per-lens): "will it become a drug in THIS modality?"
+    #     Small-molecule · Surface-biologics · Safety. NAMED (gate=""), lens-conditional (mnote).
+    # A gate whose sub-skills are all absent this run is skipped; an axis band with no rendered gate
+    # emits no header. presence_only renders ONLY the Present gate. Each entry: (axis, gate, name,
+    # shorts, modality_note). _render_gate_section_html is gate-agnostic (lettered or named).
     scorecard_by_short = {r["short"]: r for r in (scorecard or [])}
+    # cross-gate breadcrumb edges, read from the contract (card_id + reports_into on card-grain
+    # facets), computed once + passed to every gate section. Fails open to the static fallback.
+    reports_into_map = _card_reports_into()
     n_gate_plotly = 0
+    _AXIS_BANDS = {
+        "biology": ("Biology", "is this real, actionable biology? (modality-independent)"),
+        "modality_fit": ("Modality fit", "will it become a drug in a given modality? (per-lens)"),
+    }
     _GATE_SECTIONS = [
-        ("A", "Present", ["expression"], None),
-        ("B", "Selective", ["selectivity"], None),
-        ("C", "Required", ["dependency", "synthetic_lethal_partners", "genomic_alteration"], None),
-        ("D", "Mechanism", ["mechanism"], None),
-        ("", "Small-molecule druggability", ["tractability_sm"],
+        ("biology", "A", "Present", ["expression"], None),
+        ("biology", "B", "Selective", ["selectivity"], None),
+        ("biology", "C", "Required", ["dependency", "synthetic_lethal_partners"], None),
+        ("biology", "D", "Mechanism", ["mechanism"], None),
+        ("biology", "E", "Altered", ["genomic_alteration"],
+         "Somatic alteration landscape (mutation / CN / fusion frequency). The biomarker-stratified-"
+         "dependency signal reports into Required (C) — see its facet there."),
+        ("modality_fit", "", "Small-molecule druggability", ["tractability_sm"],
          "Modality-fit assessment — relevant for small-molecule / degrader programs. Includes the "
          "chemical-genetic corroboration facets (they also feed Required)."),
-        ("", "Surface-biologics fit", ["surface_modality"],
+        ("modality_fit", "", "Surface-biologics fit", ["surface_modality"],
          "Modality-fit assessment — relevant for ADC / BiTE-TCE / antibody programs "
          "(not applicable to a small-molecule or degrader strategy)."),
-        ("", "Safety", ["safety"],
+        ("modality_fit", "", "Safety", ["safety"],
          "Modality-fit assessment — applies to all modalities, with tiered severity "
          "(a full-KO modality like degrader/RNA is more constrained by germline LoF-intolerance)."),
     ]
-    for gate, gname, gshorts, mnote in _GATE_SECTIONS:
+    _cur_axis = None
+    for axis, gate, gname, gshorts, mnote in _GATE_SECTIONS:
         present = [s for s in gshorts if s in sub_results]
         if not present:
             continue
-        # presence_only: render ONLY the Present gate, skip the rest.
+        # presence_only: render ONLY the Present gate, skip the rest (+ its axis band).
         if presence_only and gname != "Present":
             continue
+        # Axis band header — emitted once, before the first rendered gate of each axis (so an axis
+        # with no gates this run shows no orphan header). Suppressed in presence_only.
+        if axis != _cur_axis and not presence_only:
+            _cur_axis = axis
+            _btitle, _bsub = _AXIS_BANDS.get(axis, (axis, ""))
+            p.append(f"<div class=axis-band><h2>{_esc(_btitle)} "
+                     f"<span class=n>— {_esc(_bsub)}</span></h2></div>")
         gate_html, n_g = _render_gate_section_html(
             gate, gname, present, sub_results, scorecard_by_short,
-            card_figures, figures_dir, indication=indication, modality_note=mnote)
+            card_figures, figures_dir, indication=indication, modality_note=mnote,
+            reports_into_map=reports_into_map)
         p.extend(gate_html)
         n_gate_plotly += n_g
 
