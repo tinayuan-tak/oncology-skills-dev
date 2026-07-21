@@ -457,6 +457,85 @@ def emit_histogram_kde_plot(demeter_by_model: dict, target_symbol: str, summary:
     return out_path
 
 
+def emit_plotly_specs(demeter_by_model: dict, model_metadata: dict,
+                      target_symbol: str, summary: dict, out_path: Path,
+                      contracts_root: Path) -> list:
+    """Emit interactive Plotly specs SIBLING to the RNAi SVGs (Gate-C plotly debt, 2026-07-21).
+
+    RNAi twin of depmap_chronos_distribution.emit_plotly_specs. Built from the SAME in-memory
+    demeter_by_model the SVGs use — the interactive chart can NOT drift from the static figure or
+    plot_data.parquet. DEMETER2 scale (strong -0.5 / moderate -0.25; different constants from
+    Chronos), mirroring emit_waterfall_plot + emit_histogram_kde_plot exactly (navy bars, same
+    reflines). Writes figure_waterfall_rnai.plotly.json + figure_histogram_kde_rnai.plotly.json.
+    Best-effort: Plotly absent / any error → SVGs remain the guaranteed artifact, returns what it got."""
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
+        print(f"[demeter-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
+        return []
+
+    # reflines mirror the SVGs exactly: strong -0.5 (red dash), moderate -0.25 (amber dash).
+    reflines = [(-0.25, "#f0a020", "dash", "moderate-dep"),
+                (-0.5, "#cf2828", "dash", "strong-dep (DEMETER2 ≤ -0.5)")]
+    written = []
+
+    # --- Waterfall: sorted navy bars, hover = cell line + lineage + score (mirrors the SVG) ---
+    try:
+        rows = sorted(
+            ((mid, s, (model_metadata.get(mid, {}).get("OncotreeLineage") or "unknown"))
+             for mid, s in demeter_by_model.items()),
+            key=lambda r: r[1])
+        names = [model_metadata.get(mid, {}).get("CellLineName", mid) for mid, _, _ in rows]
+        vals = [s for _, s, _ in rows]
+        lineages = [lg for _, _, lg in rows]
+        fig = go.Figure(go.Bar(
+            x=list(range(len(rows))), y=vals, marker_color="#0a2540",
+            customdata=list(zip(names, lineages)),
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>DEMETER2 %{y:.2f}<extra></extra>"))
+        for yv, col, dash, lab in reflines:
+            fig.add_hline(y=yv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top left")
+        n = summary.get("rnai_n_cell_lines_evaluated", len(rows))
+        shape = str(summary.get("rnai_distribution_shape", "?")).upper().replace("_", " ")
+        fig.update_layout(
+            title=f"{target_symbol} pan-cancer RNAi (DEMETER2) distribution (n={n}, {shape})",
+            xaxis_title="Cell line (sorted by dependency)",
+            yaxis_title="DEMETER2 score (more dependent ↓)",
+            template="plotly_white", showlegend=False, bargap=0, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_waterfall_rnai.plotly.json").write_text(fig.to_json())
+        written.append({"id": "waterfall_rnai", "path": "figure_waterfall_rnai.plotly.json",
+                        "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[demeter-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
+
+    # --- Histogram (density): navy bars + reflines + strong-dep shade (mirrors the SVG) ---
+    try:
+        scores = np.array(list(demeter_by_model.values()), dtype=float)
+        fig = go.Figure(go.Histogram(
+            x=scores, histnorm="probability density", nbinsx=50,
+            marker_color="#0a2540", marker_line_color="white", marker_line_width=0.5, opacity=0.75,
+            hovertemplate="DEMETER2 %{x:.2f}<br>density %{y:.3f}<extra></extra>"))
+        fig.add_vrect(x0=float(scores.min()) - 0.2, x1=-0.5, fillcolor="#cf2828",
+                      opacity=0.10, line_width=0)
+        for xv, col, dash, lab in reflines:
+            fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5),
+                          annotation_text=lab, annotation_position="top")
+        n = summary.get("rnai_n_cell_lines_evaluated", len(scores))
+        med = summary.get("rnai_median_dep_score", float(np.median(scores)))
+        fig.update_layout(
+            title=f"{target_symbol} RNAi DEMETER2 density (n={n}, median {med:.2f})",
+            xaxis_title="DEMETER2 score", yaxis_title="Density",
+            template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=50))
+        (out_path / "figure_histogram_kde_rnai.plotly.json").write_text(fig.to_json())
+        written.append({"id": "histogram_kde_rnai", "path": "figure_histogram_kde_rnai.plotly.json",
+                        "type": "plotly"})
+    except Exception as e:  # noqa: BLE001
+        print(f"[demeter-distribution] histogram plotly skipped: {e}", file=sys.stderr)
+
+    return written
+
+
 def emit_plot_data(demeter_by_model: dict, model_metadata: dict,
                     strong_threshold: float, out_path: Path) -> Path:
     """Emit per-cell-line long-format Parquet for re-rendering / downstream use."""
