@@ -65,6 +65,78 @@ def test_distribution_overlap_separated_vs_identical():
     assert ident > 0.8                                        # identical → high overlap
 
 
+# ---- Q3 normal-tissue-liability primitive ----
+def test_normal_tissue_liability_critical_organ_flag():
+    # a target high in a CRITICAL organ (BRAIN) → critical_organ_liability regardless of breadth
+    atlas = {"BRAIN": [8.0] * 20, "SKIN": [0.2] * 20, "COLON": [0.1] * 20}
+    r = S.normal_tissue_liability(atlas)
+    assert r["highest_tissue"] == "BRAIN" and r["critical_organ_argmax"] == "BRAIN"
+    assert r["critical_organ_max"] >= S.HIGH_LOG2TPM
+    assert r["n_tissues_tested"] == 3
+
+
+def test_normal_tissue_liability_breadth_and_gap():
+    # broadly expressed (all detectable) → breadth 1.0
+    broad = S.normal_tissue_liability({"A": [4.0] * 10, "B": [4.0] * 10, "C": [4.0] * 10})
+    assert broad["tissue_breadth_fraction"] == pytest.approx(1.0)
+    # empty atlas → coverage gap, not fabricated
+    assert S.normal_tissue_liability({})["n_tissues_tested"] == 0
+
+
+# ---- Q2 percentile-crossing assembler (monkeypatched readers, no S3) ----
+def test_q2_strongly_tumor_enriched(monkeypatch):
+    # tumor mostly above normal p95 + separated distributions → strongly_tumor_enriched
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 6.2] * 10)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0, 1.2, 0.8] * 10, "COLON"))
+    out = R.read_tumor_vs_normal_percentile_crossing("CEACAM5", "COADREAD")
+    assert out["selectivity_class"] == "strongly_tumor_enriched"
+    assert out["fraction_tumor_above_normal_p95"] > 0.9
+    assert out["distribution_overlap_tumor_normal"] < 0.4
+
+
+def test_q2_minimally_enriched_and_data_gap(monkeypatch):
+    # tumor ~ normal → minimally/not enriched
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [3.0, 3.5, 4.0] * 10)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([3.0, 3.5, 4.0] * 10, "COLON"))
+    out = R.read_tumor_vs_normal_percentile_crossing("KRAS", "COADREAD")
+    assert out["selectivity_class"] in ("minimally_enriched", "not_enriched")
+    # no matched normal → data_unavailable (not a fabricated 0)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([], None))
+    gap = R.read_tumor_vs_normal_percentile_crossing("X", "COADREAD")
+    assert gap["selectivity_class"] == "data_unavailable"
+
+
+def test_q3_liability_assembler(monkeypatch):
+    monkeypatch.setattr(R, "read_all_normal_tissues",
+                        lambda t: {"BRAIN": [8.0] * 20, "SKIN": [0.1] * 20})
+    out = R.read_normal_tissue_liability("GFAP")
+    assert out["liability_class"] == "critical_organ_liability"
+    monkeypatch.setattr(R, "read_all_normal_tissues", lambda t: {})
+    assert R.read_normal_tissue_liability("GHOST")["liability_class"] == "data_unavailable"
+
+
+def test_q2_q3_cli_build_and_liability_figure(tmp_path, monkeypatch):
+    """CLI build_* entry points + the Q3 liability atlas figure (monkeypatched, no S3)."""
+    import importlib
+    pytest.importorskip("matplotlib")
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0] * 10)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0, 1.2] * 10, "COLON"))
+    q2 = cli.build_selectivity_crossing_summary("CEACAM5", "COADREAD")
+    assert q2["selectivity_class"] == "strongly_tumor_enriched" and "method_version" in q2
+    monkeypatch.setattr(R, "read_all_normal_tissues",
+                        lambda t: {"BRAIN": [8.0] * 20, "COLON": [0.1] * 20, "SKIN": [0.2] * 20})
+    q3 = cli.build_normal_liability_summary("GFAP")
+    assert q3["liability_class"] == "critical_organ_liability"
+    svg = cli.emit_liability_svg("GFAP", tmp_path)
+    assert svg is not None and svg.exists()
+    specs = cli.emit_liability_plotly_specs("GFAP", tmp_path)
+    assert [s["id"] for s in specs] == ["normal_tissue_liability_atlas"]
+    # data-gap safety
+    monkeypatch.setattr(R, "read_all_normal_tissues", lambda t: {})
+    assert cli.emit_liability_svg("GHOST", tmp_path) is None
+
+
 # ---- Q1 assembler (monkeypatched readers, no S3) ----
 def test_assembler_broadly_high(monkeypatch):
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8, 6.1] * 4)

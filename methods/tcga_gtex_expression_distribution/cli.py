@@ -99,6 +99,24 @@ def build_subtype_panorama(target: str, indication: str) -> dict:
     }
 
 
+def build_selectivity_crossing_summary(target: str, indication: str) -> dict:
+    """Q2 (Gate B) — per-sample tumor-vs-normal percentile-crossing selectivity. Thin wrapper over
+    read_tumor_vs_normal_percentile_crossing so the compose-dashboard dispatcher has a stable
+    build_* entry point (mirrors build_summary)."""
+    summary = _read.read_tumor_vs_normal_percentile_crossing(target, indication)
+    summary["method_version"] = METHOD_VERSION
+    return summary
+
+
+def build_normal_liability_summary(target: str, indication: str = None) -> dict:
+    """Q3 (Safety / Surface-modality-fit) — target-grain normal-tissue liability over the GTEx
+    atlas. indication is accepted for the CARD_DISPATCHERS contract but NOT consumed (target-grain).
+    Thin wrapper over read_normal_tissue_liability."""
+    summary = _read.read_normal_tissue_liability(target)
+    summary["method_version"] = METHOD_VERSION
+    return summary
+
+
 def emit_plot_data(target: str, indication: str, out_dir: Path) -> Path:
     """Tier-2: the per-sample long-format rows behind the figure (tumor + matched normal)."""
     import pandas as pd
@@ -273,6 +291,81 @@ def emit_subtype_plotly_specs(target: str, indication: str, out_dir: Path,
     (Path(out_dir) / "figure_expression_distribution_subtype.plotly.json").write_text(fig.to_json())
     return [{"id": "expression_distribution_subtype_panel",
              "path": "figure_expression_distribution_subtype.plotly.json", "type": "plotly"}]
+
+
+# ---- Q3 normal-tissue-liability atlas figure ----
+_CRITICAL_FILL, _CRITICAL_LINE = "#cf2828", "#8f1a1a"   # critical organs — red (liability)
+_NONCRIT_FILL, _NONCRIT_LINE = "#a9c5db", "#5b7f99"      # non-critical — muted blue
+
+
+def emit_liability_svg(target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS) -> Optional[Path]:
+    """Tier-3 SVG for the Q3 liability card: per-GTEx-tissue median expression bar (ranked),
+    critical organs highlighted red, the HIGH cutoff marked. None if the target is absent."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from . import stats as _st
+    _load_style(contracts_dir)
+    atlas = _read.read_all_normal_tissues(target)
+    out_path = Path(out_dir) / "figure_normal_tissue_liability.svg"
+    if not atlas:
+        return None
+    rows = []
+    for tissue, vals in atlas.items():
+        arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]
+        if arr.size:
+            rows.append((str(tissue).upper(), float(np.median(arr))))
+    if not rows:
+        return None
+    rows.sort(key=lambda r: r[1])
+    crit = set(_st.CRITICAL_NORMAL_TISSUES)
+    labels = [r[0] for r in rows]; vals = [r[1] for r in rows]
+    colors = [(_CRITICAL_FILL if t in crit else _NONCRIT_FILL) for t in labels]
+    edges = [(_CRITICAL_LINE if t in crit else _NONCRIT_LINE) for t in labels]
+    fig, ax = plt.subplots(figsize=(7.2, max(3.5, 0.26 * len(rows) + 1.0)))
+    ax.barh(range(len(rows)), vals, color=colors, edgecolor=edges, linewidth=0.8, alpha=0.85)
+    ax.axvline(_st.HIGH_LOG2TPM, color="#444", linewidth=1.0, linestyle="--", zorder=3)
+    ax.text(_st.HIGH_LOG2TPM, len(rows) - 0.3, " high cutoff", color="#444", fontsize=7, va="top")
+    ax.set_yticks(range(len(rows))); ax.set_yticklabels(labels, fontsize=6.5)
+    ax.set_xlabel("median log2(TPM + 1) — GTEx normal (recount3 / GENCODE v26)")
+    ax.set_title(f"{target} — normal-tissue expression atlas (critical organs in red)")
+    ax.grid(axis="x", alpha=0.25, linewidth=0.4)
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
+def emit_liability_plotly_specs(target: str, out_dir: Path,
+                                contracts_dir=DEFAULT_TARGET_CONTRACTS) -> list:
+    """Interactive twin of the liability atlas bar (same per-tissue medians). Best-effort."""
+    try:
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001
+        _log(f"[normal-liability] plotly skipped: {e}")
+        return []
+    import numpy as np
+    from . import stats as _st
+    atlas = _read.read_all_normal_tissues(target)
+    rows = []
+    for tissue, vals in (atlas or {}).items():
+        arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]
+        if arr.size:
+            rows.append((str(tissue).upper(), float(np.median(arr))))
+    if not rows:
+        return []
+    rows.sort(key=lambda r: r[1])
+    crit = set(_st.CRITICAL_NORMAL_TISSUES)
+    fig = go.Figure(go.Bar(
+        x=[r[1] for r in rows], y=[r[0] for r in rows], orientation="h",
+        marker_color=[(_CRITICAL_FILL if r[0] in crit else _NONCRIT_FILL) for r in rows]))
+    fig.add_vline(x=_st.HIGH_LOG2TPM, line_dash="dash", line_color="#444",
+                  annotation_text="high cutoff")
+    fig.update_layout(title=f"{target} — normal-tissue expression atlas (critical organs red)",
+                      xaxis_title="median log2(TPM + 1) — GTEx normal",
+                      template="plotly_white", margin=dict(l=110, r=40, t=50, b=50))
+    (Path(out_dir) / "figure_normal_tissue_liability.plotly.json").write_text(fig.to_json())
+    return [{"id": "normal_tissue_liability_atlas",
+             "path": "figure_normal_tissue_liability.plotly.json", "type": "plotly"}]
 
 
 def emit_manifest(target: str, indication: str, summary: dict, out_dir: Path,

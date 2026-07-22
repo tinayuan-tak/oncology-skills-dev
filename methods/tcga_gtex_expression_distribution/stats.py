@@ -116,6 +116,60 @@ def fraction_above_normal_percentile(tumor_log2tpm, normal_log2tpm, percentile=9
     }
 
 
+# GTEx tissues whose expression carries the highest on-target-off-tumor LIABILITY — a
+# target highly expressed in one of these is a therapeutic-window red flag regardless of
+# tumor abundance. Names match the recount3/GTEx tissue vocabulary (uppercased, in the
+# gtex-long product's `tissue` column). Curated, declared here (not hardcoded downstream)
+# so the card's thresholds/vocab can reference it. Vital/dose-limiting organs.
+CRITICAL_NORMAL_TISSUES = (
+    "HEART", "BRAIN", "LIVER", "LUNG", "KIDNEY", "NERVE",
+    "MUSCLE", "BLOOD", "BONE_MARROW", "ARTERY", "PANCREAS",
+)
+
+
+def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM,
+                            critical=CRITICAL_NORMAL_TISSUES) -> dict:
+    """Q3 normal-tissue-liability summary over the GTEx atlas (per-tissue log2(TPM+1) vectors).
+
+    The therapeutic-window question: WHERE is the target expressed in normal tissue, and does
+    any CRITICAL organ carry high expression (an on-target-off-tumor red flag)?
+
+    Returns:
+      highest_tissue / highest_tissue_median      — the top-expressing normal tissue
+      critical_organ_max / critical_organ_argmax  — max median among CRITICAL tissues + which
+      n_tissues_high                               — # tissues with median >= HIGH cutoff
+      n_tissues_detectable                         — # tissues with median >= DETECTABLE
+      n_tissues_tested
+      tissue_breadth_fraction                      — n_detectable / n_tested (0..1; breadth of normal expression)
+    data-gap-safe: empty atlas → all-None."""
+    import numpy as np
+    rows = []
+    for tissue, vals in (tissue_to_values or {}).items():
+        arr = np.asarray(vals, dtype=float); arr = arr[~np.isnan(arr)]
+        if arr.size == 0:
+            continue
+        rows.append((str(tissue).upper(), float(np.median(arr)), int(arr.size)))
+    if not rows:
+        return {"highest_tissue": None, "highest_tissue_median": None,
+                "critical_organ_max": None, "critical_organ_argmax": None,
+                "n_tissues_high": None, "n_tissues_detectable": None,
+                "n_tissues_tested": 0, "tissue_breadth_fraction": None}
+    rows.sort(key=lambda r: r[1], reverse=True)
+    top_tissue, top_med, _ = rows[0]
+    crit = [(t, m) for t, m, _ in rows if t in set(critical)]
+    crit_max = max(crit, key=lambda x: x[1]) if crit else None
+    n_high = sum(1 for _, m, _ in rows if m >= high)
+    n_detect = sum(1 for _, m, _ in rows if m >= DETECTABLE_LOG2TPM)
+    return {
+        "highest_tissue": top_tissue, "highest_tissue_median": round(top_med, 4),
+        "critical_organ_max": (round(crit_max[1], 4) if crit_max else None),
+        "critical_organ_argmax": (crit_max[0] if crit_max else None),
+        "n_tissues_high": n_high, "n_tissues_detectable": n_detect,
+        "n_tissues_tested": len(rows),
+        "tissue_breadth_fraction": round(n_detect / len(rows), 4),
+    }
+
+
 def distribution_overlap(tumor_log2tpm, normal_log2tpm, bins=50) -> float:
     """Histogram overlap coefficient (OVL) of tumor vs normal distributions ∈ [0,1]: 0 = fully
     separated (clean therapeutic window), 1 = identical. Complements the percentile-crossing metric

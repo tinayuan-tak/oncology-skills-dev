@@ -230,6 +230,91 @@ def _distribution_summary(values: list) -> dict:
     return out
 
 
+def read_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> dict:
+    """Q2 assembler: per-sample tumor-vs-matched-normal PERCENTILE-CROSSING selectivity for a
+    (target, indication). The spec's headline enrichment metric — the fraction of tumors above the
+    Nth percentile of matched-normal expression — computed on the directly-comparable per-sample
+    matrices (recount3/GENCODE-v26). This is SELECTIVITY (Gate B), distinct from the aggregate
+    log2FC on tumor-vs-normal-selectivity and from PRESENCE (Q1). data_unavailable-safe."""
+    tumor = read_tumor_samples(target, indication)
+    normal, tissue = read_normal_samples(target, indication)
+    studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip(), [])
+    if not tumor or not normal:
+        return {"selectivity_class": "data_unavailable",
+                "n_tumor_samples": len(tumor), "n_normal_samples": len(normal or []),
+                "matched_normal_tissue": tissue,
+                "fraction_tumor_above_normal_p95": None, "fraction_tumor_above_normal_p99": None,
+                "distribution_overlap_tumor_normal": None, "studies": studies,
+                "_data_note": ("no matched GTEx normal tissue for this indication" if not normal
+                               else "target absent from TCGA long product for this indication")}
+    out = {"n_tumor_samples": len(tumor), "n_normal_samples": len(normal),
+           "matched_normal_tissue": tissue, "studies": studies}
+    for pct in (95, 99):
+        fa = _stats.fraction_above_normal_percentile(tumor, normal, pct)
+        out[f"fraction_tumor_above_normal_p{pct}"] = fa["fraction_tumor_above"]
+        out[f"normal_p{pct}_log2tpm"] = fa["normal_pN"]
+    out["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(tumor, normal)
+    out["selectivity_class"] = _classify_percentile_crossing(
+        out["fraction_tumor_above_normal_p95"], out["fraction_tumor_above_normal_p99"],
+        out["distribution_overlap_tumor_normal"])
+    return out
+
+
+def _classify_percentile_crossing(frac_p95, frac_p99, overlap) -> str:
+    """Categorical for the Q2 selectivity card/rules (per-sample percentile-crossing vocab):
+      strongly_tumor_enriched — most tumors clear the normal p95 AND distributions separate
+                                (frac_p95 >= 0.5 and overlap <= 0.4)
+      enriched_subset         — a real tumor-high subset above normal p95 (frac_p95 >= 0.25)
+      minimally_enriched      — few tumors exceed normal (frac_p95 < 0.25)
+      not_enriched            — essentially no separation (frac_p95 < 0.05)
+      data_unavailable        — handled by the caller."""
+    if frac_p95 is None:
+        return "data_unavailable"
+    if frac_p95 >= 0.5 and (overlap is not None and overlap <= 0.4):
+        return "strongly_tumor_enriched"
+    if frac_p95 >= 0.25:
+        return "enriched_subset"
+    if frac_p95 < 0.05:
+        return "not_enriched"
+    return "minimally_enriched"
+
+
+def read_normal_tissue_liability(target: str) -> dict:
+    """Q3 assembler: normal-tissue-liability over the GTEx atlas (all tissues) for a target — the
+    therapeutic-window / on-target-off-tumor question. Composes normal_tissue_liability over the
+    per-tissue vectors from read_all_normal_tissues (recount3, same axis as the tumor TPM, so
+    tumor-vs-normal ratios are directly comparable). target-grain (no indication). data-gap-safe."""
+    atlas = read_all_normal_tissues(target)
+    if not atlas:
+        return {"liability_class": "data_unavailable", "n_tissues_tested": 0,
+                "highest_tissue": None, "critical_organ_max": None,
+                "_data_note": "target absent from GTEx long product"}
+    summ = _stats.normal_tissue_liability(atlas)
+    summ["liability_class"] = _classify_normal_liability(
+        summ["critical_organ_max"], summ["highest_tissue_median"], summ["tissue_breadth_fraction"])
+    return summ
+
+
+def _classify_normal_liability(critical_organ_max, highest_median, breadth_fraction) -> str:
+    """Categorical for the Q3 liability card/rules (therapeutic-window vocab):
+      critical_organ_liability — a CRITICAL organ carries high expression (>= HIGH cutoff):
+                                 on-target-off-tumor red flag regardless of tumor abundance
+      broadly_expressed_normal — detectable across most normal tissues (breadth >= 0.7):
+                                 narrow window (housekeeping-like)
+      restricted_normal        — expressed in few normal tissues (breadth < 0.3): favorable window
+      moderate_normal_breadth  — otherwise
+      data_unavailable         — handled by the caller."""
+    if breadth_fraction is None:
+        return "data_unavailable"
+    if critical_organ_max is not None and critical_organ_max >= _stats.HIGH_LOG2TPM:
+        return "critical_organ_liability"
+    if breadth_fraction >= 0.7:
+        return "broadly_expressed_normal"
+    if breadth_fraction < 0.3:
+        return "restricted_normal"
+    return "moderate_normal_breadth"
+
+
 def read_tumor_expression_distribution(target: str, indication: str) -> dict:
     """Q1 assembler: the tumor per-sample distribution summary for a (target, indication).
     Composes the stats primitives into the spec's `tumor_expression` block. data_unavailable-safe."""
