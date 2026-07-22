@@ -1,0 +1,82 @@
+# Card — RECOMMENDED MODELS (patient↔model expression correspondence; Q4)
+#
+# Q4 of the 12-question expression spec: which DepMap models represent the patient tumor population
+# FOR THIS TARGET, and which are the positive / negative-control / resistance models for a screen?
+#
+# SCOPE (P3-Option-B): the EXPRESSION-SIMILARITY correspondence — ranks models by how well their
+# TARGET expression sits within the patient tumor TARGET distribution (both log2(TPM+1), directly
+# comparable: recount3 patient TPM vs DepMap OmicsExpressionTPMLogp1) + classifies screen role from
+# the model's Chronos dependency. This is the expression-plan slice of the shared master-plan P3
+# patient↔model primitive. It is NOT:
+#   - full-transcriptome Celligner alignment (a heavier separate build), nor
+#   - the genomic "same functional event" join (canonical P3 / genomic M11 — needs the unbuilt
+#     alteration-class harmonization layer the genomic-alteration plan owns).
+#
+# ROUTES INTO GATES (master-sequencing plan Part 3): primary = Patient-population (Q10); also
+# corroborates Required (C) — a target with in-lineage positive (expressed+dependent) models has a
+# model-backed dependency basis. modality_relevance metadata is a follow-up (schema field TBD).
+
+card_id: recommended-models
+version: 0.1.0
+question: "Which DepMap models represent {indication.label} tumors for {target.symbol} (expression-matched), and which are the positive / negative-control / resistance models for a screen?"
+
+tier: indication
+
+applies_when:
+  # needs BOTH a patient tumor TPM (indication mapped in the recount3 studies map) AND a DepMap lineage.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # patient tumor TARGET distribution
+  - product_id: depmap-consortium-26q1                 # model TARGET TPM + Chronos + Model.csv lineage
+
+methods:
+  - call: patient-model-expression-correspondence
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - correspondence_class                       # PRIMARY categorical (drives Tier-2 rules)
+    - recommended_models                         # the ranked table (record schema below)
+    - n_models_considered
+    - n_positive_models
+    - n_positive_models_in_lineage
+    - n_lineage_models
+    - patient_median_log2tpm
+    - patient_iqr
+    - depmap_lineage
+    - release_pin
+  summary_fields_record_schemas:
+    recommended_models:
+      model_id: string
+      cell_line: string
+      lineage: string
+      lineage_match: boolean
+      target_log2tpm: number
+      chronos: number
+      screen_role: {enum: [positive_model, resistance_model, negative_control, indeterminate], type: string}
+      representativeness: number
+  summary_fields_vocabulary:
+    correspondence_class: [well_modeled_in_lineage, well_modeled_off_lineage, poorly_modeled, data_unavailable]
+  figure: recommended_models_scatter             # target TPM vs Chronos, roles colored, patient IQR shaded
+
+thresholds:
+  dependent_chronos: -0.5           # model DEPENDENT on target (positive_model gate)
+  not_dependent_chronos: -0.2       # model NOT dependent (resistance_model gate)
+  detectable_log2tpm: 1.0           # model "expresses" target (below → negative_control)
+
+caveats:
+  - "EXPRESSION-similarity correspondence, NOT the genomic same-functional-event join (canonical P3/M11) and NOT full-transcriptome Celligner — both deferred. A model can match on target expression yet carry a different driver context; genomic-event matching is the genomic-alteration plan's job."
+  - "Representativeness is TARGET-focused (model target TPM within the patient target IQR), not whole-transcriptome similarity — a model representative for this target may be unrepresentative overall."
+  - "Chronos is pan-lineage per-model dependency; a positive_model is expressed+dependent but the dependency may be context-driven. Screen role is a starting panel, not a validated model set."
+  - "Lineage is DepMap OncotreeLineage (e.g. Bowel ⊋ COADREAD); in-lineage is a lineage-scoped approximation of the indication."
+
+measurement: bulk_rna
+sample_context: tumor          # patient tumor distribution is the reference; models compared against it
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: the patient↔model correspondence join.
+measurement_type: patient_model_correspondence
+entity_grains: [target_indication]
+schema_version: 1

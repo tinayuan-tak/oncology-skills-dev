@@ -298,6 +298,21 @@ measurement_types:
       - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}          # tumor arm (dominant)
       - {kind: dataset, source: gtex-tpm-recount3-long-v1, evidence_tier: measured}   # matched-normal percentile cutoff (auxiliary)
 
+  patient_model_correspondence:
+    claim: "Which cell-line models represent an indication's tumors for target (expression-matched), and which are the positive/resistance/negative screen models?"
+    # Q4 of the expression spec — the P3 patient↔model join, EXPRESSION-SIMILARITY slice (P3-Option-B):
+    # ranks DepMap models by TARGET-expression fit to the patient tumor TARGET distribution + screen
+    # role from Chronos. NOT the genomic same-functional-event join (canonical P3/M11, blocked on the
+    # unbuilt alteration-class layer) and NOT full-transcriptome Celligner. Routes: Patient-pop (Q10)
+    # primary + corroborates Required (C, model-backed dependency). tier_dominant: TCGA patient TPM is
+    # the reference distribution (dominant); DepMap supplies the model panel matched against it.
+    entity_grains: [target_indication]
+    cards: [recommended-models]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}   # patient reference distribution (dominant)
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}            # model TPM + Chronos + lineage
+
   normal_tissue_protein_breadth:
     claim: "How broad is target's normal-tissue protein-IHC footprint, and does it hit essential tissue (safety)?"
     entity_grains: [target]
