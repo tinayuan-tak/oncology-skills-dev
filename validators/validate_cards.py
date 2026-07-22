@@ -156,6 +156,9 @@ KNOWN_FIGURE_DEBT = {
     # (SK #146, backed by AM #85), so both cards now pass the figure check (not waived).
     # expression Q4 CLEARED 2026-07-22 — _emit_recommended_models is registered in compose-dashboard
     # CARD_FIGURE_EMITTERS (SK #148, backed by AM #86), so the card passes the figure check (not waived).
+    # expression Q5 (2026-07-22): rna-protein-concordance scatter emitted by the method (AM #87),
+    # compose-dashboard wiring is the sibling skills PR — tracked debt until it lands, then remove.
+    'rna-protein-concordance',
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',

@@ -313,6 +313,20 @@ measurement_types:
       - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}   # patient reference distribution (dominant)
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}            # model TPM + Chronos + lineage
 
+  rna_protein_concordance:
+    claim: "Does target RNA predict its protein across cell lines (is RNA an adequate proxy, or must protein be measured directly)?"
+    # Q5 of the expression spec. The rna_as_biomarker question — per-ModelID DepMap RNA vs Gygi MS
+    # protein correlation. CELL-LINE only (tumor CPTAC concordance deferred — no matched per-sample RNA
+    # landed). Routes: Presence (A, is RNA an adequate proxy) + ADC/biologic modality lens (RNA-inadequate
+    # → protein must be confirmed) + dependency M5 (protein-vs-RNA preferred biomarker). tier_dominant:
+    # RNA is the anchored layer (the proxy question); Gygi MS protein is the comparator.
+    entity_grains: [target]
+    cards: [rna-protein-concordance]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}              # RNA (anchor)
+      - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}   # protein comparator
+
   normal_tissue_protein_breadth:
     claim: "How broad is target's normal-tissue protein-IHC footprint, and does it hit essential tissue (safety)?"
     entity_grains: [target]

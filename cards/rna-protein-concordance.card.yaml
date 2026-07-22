@@ -1,0 +1,69 @@
+# Card — RNA↔PROTEIN CONCORDANCE (cell-line; Q5)
+#
+# Q5 of the 12-question expression spec: does RNA predict PROTEIN for this target? Across DepMap
+# cell lines, how tightly does per-ModelID target RNA (OmicsExpression log2TPM) track per-ModelID
+# target protein (Gygi TMT MS log2-abundance)?
+#
+# WHY IT MATTERS (the rna_as_biomarker question): a high correlation means RNA is an adequate proxy
+# for protein — RNA-based patient-selection biomarkers + RNA-inferred target presence are trustworthy.
+# A low correlation means the target is post-transcriptionally decoupled and protein must be measured
+# directly — a caution flag that matters acutely for ADC / protein-modality targets (an ADC needs
+# PROTEIN antigen, not RNA) and for any RNA biomarker.
+#
+# SCOPE: CELL-LINE concordance only. The TUMOR (CPTAC) RNA↔protein concordance is NOT built — CPTAC
+# per-sample protein is landed but there is NO matched per-sample RNA product in the catalog (an
+# ingestion, out of this extraction plan's scope). Named-deferred.
+#
+# ROUTES INTO GATES (master-sequencing plan Part 3): Presence (A) — is RNA an adequate presence proxy;
+# ALSO the ADC/biologic modality lens (RNA-inadequate-proxy → protein must be confirmed) + dependency
+# M5 (protein-vs-RNA as the preferred dependency biomarker). modality_relevance metadata is a follow-up.
+
+card_id: rna-protein-concordance
+version: 0.1.0
+question: "Does {target.symbol} RNA predict its PROTEIN across cell lines — is RNA an adequate proxy, or must protein be measured directly?"
+
+tier: target   # concordance is a per-ModelID target property (indication-independent)
+
+applies_when:
+  - "true"   # target-grain; the DepMap RNA + Gygi MS panels are pan-lineage
+
+required_inputs:
+  - product_id: depmap-consortium-26q1                 # per-model RNA (OmicsExpression)
+  - product_id: depmap-consortium-26q1-proteomics      # per-model protein (Gygi harmonized MS)
+
+methods:
+  - call: depmap-rna-protein-concordance
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - rna_as_biomarker                           # PRIMARY categorical (drives Tier-2 rules)
+    - rna_protein_r                              # Pearson (paired per-model)
+    - rna_protein_spearman
+    - n_paired_models
+    - protein_detection_fraction
+    - rna_expressed_fraction
+    - rna_high_protein_low_fraction              # the population where RNA MISLEADS (RNA-high, protein-low)
+    - release_pin
+  summary_fields_vocabulary:
+    rna_as_biomarker: [adequate_proxy, partial_proxy, poor_proxy, insufficient_paired_models, data_unavailable]
+  figure: rna_protein_concordance_scatter        # per-model RNA vs protein, fitted trend + r
+
+thresholds:
+  strong_concordance_r: 0.7        # >= → adequate_proxy (RNA tracks protein)
+  moderate_concordance_r: 0.4      # 0.4-0.7 → partial_proxy
+  min_paired_models: 20            # below → insufficient_paired_models
+
+caveats:
+  - "CELL-LINE concordance, NOT tumor: DepMap RNA vs Gygi MS across cell lines. Tumor (CPTAC) RNA↔protein concordance is deferred (no matched per-sample RNA product landed). Cell-line concordance may differ from tumor (different proteostasis, no microenvironment)."
+  - "Gygi MS quantifies ~12.5k proteins; a target absent from the MS panel yields data_unavailable (protein_detection_fraction reflects panel coverage, not biology)."
+  - "A poor_proxy verdict is a MODALITY caution (protein must be measured for ADC/TCE; RNA biomarker inadequate), NOT a target killer — the target may still be a valid protein-confirmed target."
+  - "Pearson (linear) + Spearman (rank) are both reported; a high Spearman with low Pearson indicates a monotone-but-nonlinear RNA→protein relationship."
+
+measurement: bulk_rna   # the concordance is anchored on the RNA layer (RNA-as-proxy question); protein is the comparator
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: RNA↔protein concordance (rna_as_biomarker).
+measurement_type: rna_protein_concordance
+entity_grains: [target]
+schema_version: 1
