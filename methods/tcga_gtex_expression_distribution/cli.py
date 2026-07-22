@@ -45,18 +45,48 @@ def build_summary(target: str, indication: str) -> dict:
         summary[f"fraction_tumor_above_normal_p{pct}"] = fa["fraction_tumor_above"]
         summary[f"normal_p{pct}_log2tpm"] = fa["normal_pN"]
     summary["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(tumor, normal)
-    # Subtype layer (COMPUTE-ALL): fan out over the indication's assignment shard, if landed.
-    # The landscape assembler returns the pooled summary as its base + the subtype-specific
-    # keys; take ONLY the subtype keys here so the pooled/normal fields above stay the single
-    # source of truth (no recomputation drift). No shard for the indication → axis_unavailable.
+    # Subtype ROLLUP only (COMPUTE-ALL happens in the assembler; the POOLED card carries only the
+    # scalars + the FEW decision-relevant non-uniform strata). The full per-stratum panorama belongs
+    # on the sibling tumor-expression-distribution-subtype card via build_subtype_panorama — cramming
+    # all 11 strata into the pooled card overflows the synthesis prompt's per-card char cap and the
+    # tail strata get truncated (measured end-to-end). Grain-split: pooled = rollup, subtype = panorama.
     land = _read.read_tumor_expression_subtype_landscape(target, indication)
-    for k in ("subtype_axis_available", "subtype_landscape", "spotlight_subtype",
-              "n_subtypes_measured", "n_subtypes_enriched", "assignment_manifest",
-              "_subtype_note"):
+    for k in ("subtype_axis_available", "spotlight_subtype", "n_subtypes_measured",
+              "n_subtypes_enriched", "assignment_manifest", "_subtype_note"):
         if k in land:
             summary[k] = land[k]
+    # a compact digest: only the strata with a non-uniform signal (enriched/restricted/depleted) —
+    # the actionable few, bounded, so the pooled card names the subtype story without the full table.
+    lscape = land.get("subtype_landscape") or []
+    summary["subtype_signals_nonuniform"] = [
+        {"stratum_id": r["stratum_id"], "subtype_signal": r["subtype_signal"],
+         "median_log2tpm": r.get("median_log2tpm"), "n_tumor_samples": r["n_tumor_samples"]}
+        for r in lscape
+        if r.get("subtype_signal") and r["subtype_signal"] != "subtype_uniform"
+    ]
     summary["method_version"] = METHOD_VERSION
     return summary
+
+
+def build_subtype_panorama(target: str, indication: str) -> dict:
+    """The target_subtype-grain panorama for the tumor-expression-distribution-subtype card.
+
+    Returns the FULL per-stratum landscape as `per_subgroup_metrics` (the framework's panorama
+    record field) plus the cross-stratum rollup scalars — the shape the subtype card declares.
+    This is where the complete 11-stratum table lives (its own prompt char-budget), distinct from
+    the pooled card's compact rollup. data_unavailable-safe (no shard → empty panorama)."""
+    land = _read.read_tumor_expression_subtype_landscape(target, indication)
+    return {
+        "target": target, "indication": indication,
+        "subtype_axis_available": land.get("subtype_axis_available", False),
+        "spotlight_subtype": land.get("spotlight_subtype"),
+        "assignment_manifest": land.get("assignment_manifest"),
+        "n_subtypes_measured": land.get("n_subtypes_measured", 0),
+        "n_subtypes_enriched": land.get("n_subtypes_enriched", 0),
+        "per_subgroup_metrics": land.get("subtype_landscape") or [],
+        **({"_subtype_note": land["_subtype_note"]} if "_subtype_note" in land else {}),
+        "method_version": METHOD_VERSION,
+    }
 
 
 def emit_plot_data(target: str, indication: str, out_dir: Path) -> Path:

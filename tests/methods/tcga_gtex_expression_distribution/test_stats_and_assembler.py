@@ -191,22 +191,41 @@ def test_cli_emits_full_bar(tmp_path, monkeypatch):
     assert [f["id"] for f in man["plotly_figures"]] == ["expression_distribution_per_sample"]
 
 
-def test_cli_build_summary_carries_subtype_landscape(monkeypatch):
-    """build_summary must merge the subtype landscape (additively) without disturbing the
-    pooled/normal fields — the CLI is where the reader's landscape becomes card-visible."""
+def test_cli_pooled_carries_rollup_not_full_landscape(monkeypatch):
+    """POOLED build_summary carries only the subtype ROLLUP (scalars + non-uniform digest), NOT the
+    full per-stratum table — the full panorama lives on the sibling card (build_subtype_panorama).
+    Cramming all strata into the pooled card overflows the synthesis prompt char-cap (measured)."""
     import importlib
     cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
-    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [4.0] * 40 + [2.0] * 40)
     monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0] * 10, "COLON"))
-    # inject a two-stratum landscape via the assembler's substrate hops
+    # HI enriched (~4.0) vs LO depleted (~0.5) vs MID uniform (~2.0); pooled median ~2.0.
+    _wire_subtype(monkeypatch, pooled_vals=[4.0] * 40 + [2.0] * 40 + [0.5] * 40,
+                  bridged_rows=[(f"a{i}", 4.0) for i in range(40)] + [(f"m{i}", 2.0) for i in range(40)]
+                               + [(f"b{i}", 0.5) for i in range(40)],
+                  assignment_rows=[(f"a{i}", "HI", True) for i in range(40)]
+                                  + [(f"m{i}", "MID", True) for i in range(40)]
+                                  + [(f"b{i}", "LO", True) for i in range(40)])
+    summary = cli.build_summary("X", "COADREAD")
+    assert summary["subtype_axis_available"] is True
+    assert summary["n_subtypes_measured"] == 3
+    # pooled card does NOT carry the full landscape (that overflows the prompt budget)
+    assert "subtype_landscape" not in summary
+    # only the NON-UNIFORM strata make the compact digest (HI enriched + LO depleted, not MID)
+    digest = {r["stratum_id"]: r["subtype_signal"] for r in summary["subtype_signals_nonuniform"]}
+    assert digest == {"HI": "subtype_enriched", "LO": "subtype_depleted"}
+    # pooled + normal fields untouched
+    assert summary["median_log2tpm"] is not None and summary["matched_normal_tissue"] == "COLON"
+
+
+def test_cli_subtype_panorama_carries_full_per_subgroup_metrics(monkeypatch):
+    """build_subtype_panorama returns the FULL per-stratum table as per_subgroup_metrics — the
+    shape the tumor-expression-distribution-subtype card declares."""
+    import importlib
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
     _wire_subtype(monkeypatch, pooled_vals=[4.0] * 40 + [2.0] * 40,
                   bridged_rows=[(f"a{i}", 4.0) for i in range(40)] + [(f"b{i}", 2.0) for i in range(40)],
                   assignment_rows=[(f"a{i}", "HI", True) for i in range(40)]
                                   + [(f"b{i}", "LO", True) for i in range(40)])
-    summary = cli.build_summary("X", "COADREAD")
-    assert summary["subtype_axis_available"] is True
-    assert summary["n_subtypes_measured"] == 2
-    assert {r["stratum_id"] for r in summary["subtype_landscape"]} == {"HI", "LO"}
-    # pooled + normal fields untouched by the additive merge
-    assert summary["median_log2tpm"] is not None
-    assert summary["matched_normal_tissue"] == "COLON"
+    pan = cli.build_subtype_panorama("X", "COADREAD")
+    assert pan["subtype_axis_available"] is True and pan["n_subtypes_measured"] == 2
+    assert {r["stratum_id"] for r in pan["per_subgroup_metrics"]} == {"HI", "LO"}
