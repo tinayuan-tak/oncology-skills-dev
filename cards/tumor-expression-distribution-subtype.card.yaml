@@ -85,6 +85,11 @@ caveats:
   - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
   - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-expression-distribution card carries the presence verdict; this card enriches it."
 
+# Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled
+# sibling — this card differs only in GRAIN (target_subtype), not measurement/sample_context.
+measurement: bulk_rna
+sample_context: tumor         # patient tumor per-sample (TCGA), stratified by molecular subtype
+
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of tumor_expression_distribution at target_subtype grain (LIVE per-sample slice).
 measurement_type: tumor_expression_distribution
 entity_grains: [target_subtype]
