@@ -754,6 +754,34 @@ def _emit_protein_presence_cptac(
     return figures
 
 
+def _emit_tumor_elevation_breadth(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the pan-cancer by-tissue tumor-vs-normal TPM DISTRIBUTION for the tumor-elevation-breadth
+    card. TCGA tumor (per study) + GTEx normal (per tissue) co-plotted on ONE log2(TPM+1) axis, read
+    from the precomputed quantile product (tcga-gtex-tpm-tissue-quantiles-v1) — the target-grain
+    RNA companion to the breadth K-of-N roll-up. Indication-agnostic (pan-cancer). On no gene hit
+    (target absent from the quantile product) → [].
+
+    NB this is the RNA-distribution figure; it is NOT gated on the CPTAC-protein summary, so it fires
+    for a target-only query even when protein breadth is data_unavailable — which is exactly the
+    degenerate target-only case the breadth card exists to rescue."""
+    _ensure_methods_path()
+    from methods.tcga_gtex_tpm_quantiles import read as tpmq
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if tpmq.read_pan_cancer_by_tissue(target).empty:
+        return []                                   # target absent from the quantile product
+    tpmq.emit_by_tissue_distribution(target, out_dir, TARGET_CONTRACTS)
+    tpmq.emit_plot_data(target, out_dir)
+    figures = [
+        {"id": "pan_cancer_by_tissue_distribution",
+         "path": "figure_pan_cancer_by_tissue_distribution.svg",
+         "type": "pan_cancer_by_tissue_tumor_vs_normal_distribution", "primary": True},
+    ]
+    figures += _plotly_from(tpmq, "emit_plotly_specs", target, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
@@ -775,6 +803,9 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi + CPTAC):
     "protein-abundance-celline": _emit_protein_abundance_celline,
     "protein-presence-cptac": _emit_protein_presence_cptac,
+    # TARGET-GRAIN breadth (2026-07-22): pan-cancer by-tissue TPM distribution (TCGA tumor + GTEx
+    # normal, one axis) from the quantile product — the RNA companion to the breadth K-of-N roll-up.
+    "tumor-elevation-breadth": _emit_tumor_elevation_breadth,
 }
 
 
