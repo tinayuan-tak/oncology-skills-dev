@@ -81,16 +81,19 @@ def _ensure_derived_cached() -> Optional[Path]:
             _DERIVED_STATUS = True
             return CACHE_PARQUET
         except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 /
-            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
-            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
-            # False on the definitive case — that safely short-circuits every
-            # later call in the process. For a transient error, LEAVE
-            # _DERIVED_STATUS = None so a subsequent call retries instead of
-            # poisoning the whole process with a false data_unavailable.
+            # Distinguish "genuinely not published yet" (a definitive 404 / NoSuchKey) from a
+            # TRANSIENT failure (expired STS creds, IAM propagation delay, network blip, throttling).
+            # Only latch _DERIVED_STATUS = False on the definitive (absent-object) case — that safely
+            # short-circuits every later call. For a transient error LEAVE _DERIVED_STATUS = None so a
+            # later call retries instead of poisoning the whole process with a false data_unavailable.
+            #
+            # 403/AccessDenied is TRANSIENT, not definitive: expired session creds are the common
+            # cause and surface as AccessDenied — latching False there degraded every subsequent read
+            # to data_unavailable for the process lifetime even though re-auth would recover. Only a
+            # true missing-object 404/NoSuchKey latches.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
+            definitive = (code in ("404", "NoSuchKey")
                           or e.__class__.__name__ in ("NoSuchKey", "404"))
             if definitive:
                 _DERIVED_STATUS = False
@@ -264,9 +267,11 @@ def _ensure_per_sample_cached() -> Optional[Path]:
             _PER_SAMPLE_STATUS = True
             return CACHE_PER_SAMPLE
         except Exception as e:
+            # 403/AccessDenied is TRANSIENT (expired STS creds / IAM propagation), not a missing
+            # object — only 404/NoSuchKey latches definitive-absent. See _ensure_derived_cached.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
+            definitive = (code in ("404", "NoSuchKey")
                           or e.__class__.__name__ in ("NoSuchKey", "404"))
             if definitive:
                 _PER_SAMPLE_STATUS = False
@@ -611,14 +616,9 @@ def emit_plotly_specs(target: str, out_dir: Path,
         return []
     # most tumor-elevated first (top of the plot); plotly categorical y stacks bottom-up so reverse
     stats = list(reversed(stats))
-    cohorts, hovertext = [], []
-    for s in stats:
-        p = s["mwu_p"] if s["mwu_p"] is not None else s["welch_p"]
-        label = (f"{s['cohort']} (T={s['n_tumor']} N={s['n_normal']})")
-        cohorts.append(label)
-        d = s["delta_median"]
-        hovertext.append(f"Δmedian {d:+.2f}<br>MWU p {p:.2e}" if (d is not None and p is not None)
-                         else label)
+    # per-cohort y labels; the Δmedian + MWU significance is surfaced via right-margin annotations
+    # below (add_annotation), matching the SVG — so no per-point hovertext is accumulated here.
+    cohorts = [f"{s['cohort']} (T={s['n_tumor']} N={s['n_normal']})" for s in stats]
 
     fig = go.Figure()
     # tumor + normal as two box traces; y = cohort label, x = per-aliquot log-ratio

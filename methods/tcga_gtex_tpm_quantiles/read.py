@@ -50,9 +50,12 @@ def _ensure_cached() -> Optional[Path]:
             _STATUS = True
             return CACHE_PARQUET
         except Exception as e:  # noqa: BLE001
+            # 403/AccessDenied is TRANSIENT (expired STS creds / IAM propagation), not a missing
+            # object — only 404/NoSuchKey latches definitive-absent so a transient blip retries
+            # instead of poisoning every later read to data_unavailable for the process lifetime.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
+            definitive = (code in ("404", "NoSuchKey")
                           or e.__class__.__name__ in ("NoSuchKey", "404"))
             if definitive:
                 _STATUS = False
@@ -80,6 +83,16 @@ def read_pan_cancer_by_tissue(target: str):
     except Exception:  # noqa: BLE001
         import pandas as pd
         return pd.DataFrame(columns=cols)
+
+
+def _n(row) -> int:
+    """Sample count as int, tolerant of a null/NaN `n` (int(nan) raises ValueError and would crash
+    the whole figure emit rather than degrade). A missing count renders as n=0 in the label."""
+    v = row.get("n")
+    try:
+        return int(v) if v is not None and v == v else 0   # v == v is False for NaN
+    except (TypeError, ValueError):
+        return 0
 
 
 def _bxp_stat(row, label: str) -> dict:
@@ -139,12 +152,12 @@ def emit_by_tissue_distribution(target: str, out_dir: Path,
     positions, stats, colors = [], [], []
     y = n_total
     for r in tumor_rows:
-        stats.append(_bxp_stat(r, f"{r['group']} (n={int(r['n'])})")); positions.append(y)
+        stats.append(_bxp_stat(r, f"{r['group']} (n={_n(r)})")); positions.append(y)
         colors.append((_TUMOR_FILL, _TUMOR_LINE)); y -= 1
     # small gap between the tumor block and the normal block
     y -= 0.6
     for r in normal_rows:
-        stats.append(_bxp_stat(r, f"{r['group']} (n={int(r['n'])})")); positions.append(y)
+        stats.append(_bxp_stat(r, f"{r['group']} (n={_n(r)})")); positions.append(y)
         colors.append((_NORMAL_FILL, _NORMAL_LINE)); y -= 1
 
     bp = ax.bxp(stats, positions=positions, orientation="horizontal", widths=0.62,
@@ -206,7 +219,7 @@ def emit_plotly_specs(target: str, out_dir: Path,
                                      (list(reversed(tumor_rows)), (_TUMOR_FILL, _TUMOR_LINE), "TCGA tumor")]:
         if not rows:
             continue
-        ylabels = [f"{r['group']} (n={int(r['n'])})" for r in rows]
+        ylabels = [f"{r['group']} (n={_n(r)})" for r in rows]
         lf = [_fences(r)[0] for r in rows]
         uf = [_fences(r)[1] for r in rows]
         fig.add_trace(go.Box(
