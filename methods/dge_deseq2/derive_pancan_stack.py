@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from functools import lru_cache
 from pathlib import Path
 
 STACKED_PRODUCT_ID = "pancan-dge-tumor-vs-normal-v1"
@@ -174,11 +175,18 @@ def _rna_row_is_elevated(row: dict) -> bool:
     return supporting >= _RNA_ELEVATED_MIN_SUPPORTING and max_lfc >= _RNA_ELEVATED_MIN_LOG2FC
 
 
+@lru_cache(maxsize=64)
 def read_rna_tumor_elevation_breadth(target: str) -> dict:
     """Pan-cancer RNA tumor-elevation breadth for a target across the 27 stacked indications.
 
     Reads the stacked pancan-dge-tumor-vs-normal-v1 product (ONE S3 read, predicate-pushed on
-    gene_symbol) and rolls up K-of-N indications elevated. Mirrors the CPTAC-protein breadth
+    gene_symbol) and rolls up K-of-N indications elevated.
+
+    Memoized on `target` (retrieval-opt #4): previously opened a fresh pyarrow S3FileSystem +
+    predicate-read the 44 MB product COLD on every call, with no cache (unlike the CPTAC + DepMap
+    readers which cache). The breadth dispatcher calls this per render; caching makes a repeat query
+    for the same target within a process free. Returns a plain dict (safe to share; the dispatcher
+    reads it read-only). Mirrors the CPTAC-protein breadth
     reader's return shape (methods/cptac_protein_deg/read.py::read_tumor_elevation_breadth) so the
     two can fuse in the card:
         {rna_tumor_elevation_breadth_class, n_indications_tested, n_indications_elevated,

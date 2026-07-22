@@ -27,6 +27,15 @@ if str(REPO) not in sys.path:
 d = importlib.import_module("methods.dge_deseq2.derive_pancan_stack")
 
 
+@pytest.fixture(autouse=True)
+def _clear_breadth_cache():
+    """read_rna_tumor_elevation_breadth is @lru_cache'd (retrieval-opt #4). Clear it before each test
+    so a target queried by a prior test with different synthetic data can't return a stale result."""
+    d.read_rna_tumor_elevation_breadth.cache_clear()
+    yield
+    d.read_rna_tumor_elevation_breadth.cache_clear()
+
+
 def _full_cols(gene, run_b=True):
     row = {"gene_symbol": gene, "cells_ran": 3.0 if run_b else 2.0,
            "cells_supporting": 3.0 if run_b else 2.0, "dominant_direction": "up",
