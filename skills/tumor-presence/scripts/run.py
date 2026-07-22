@@ -157,11 +157,28 @@ _MEASUREMENT_RANK: dict[str, list[tuple[str, str]]] = {
     "bulk_protein_ms": _PROTEIN_RANK,
 }
 
-# Collapsed ladder = expression FIRST (RNA is the presence backbone; keeps existing
-# RNA-target verdicts byte-stable), then protein appended BELOW. Strictly additive:
-# an RNA-target still resolves on an expression rule (wins first); a protein-ONLY
-# target now gets a real verdict instead of the silent `insufficient` collapse.
-_VERDICT_RANK: list[tuple[str, str]] = _EXPRESSION_RANK + _PROTEIN_RANK
+# Collapsed ladder. Naive concatenation (_EXPRESSION_RANK + _PROTEIN_RANK) is WRONG:
+# it places expression's two `data_unavailable` entries ABOVE every protein rule, so a
+# protein-ONLY target (expression data_unavailable, but CPTAC reads strong_up or a
+# not_detected killer) resolves to `data_unavailable` — silently discarding the measured
+# protein signal (the exact cross-modality-swallow the per-ladder C1 fix does NOT cover).
+#
+# Correct order: ALL measured rules first (expression measured, then protein measured —
+# RNA stays the backbone so existing RNA-target verdicts are byte-stable), then EVERY
+# `data_unavailable` entry sinks to the bottom. A measured protein call therefore always
+# outranks an expression coverage-gap, while an RNA target still resolves on its
+# expression rule first (measured expression precedes measured protein).
+def _partition_measured(ladder: list[tuple[str, str]]) -> tuple[list, list]:
+    measured = [(rid, v) for rid, v in ladder if v != "data_unavailable"]
+    gap = [(rid, v) for rid, v in ladder if v == "data_unavailable"]
+    return measured, gap
+
+
+_EXPR_MEASURED, _EXPR_GAP = _partition_measured(_EXPRESSION_RANK)
+_PROT_MEASURED, _PROT_GAP = _partition_measured(_PROTEIN_RANK)
+_VERDICT_RANK: list[tuple[str, str]] = (
+    _EXPR_MEASURED + _PROT_MEASURED + _EXPR_GAP + _PROT_GAP
+)
 
 
 def _rank_verdict(fired: list[dict], ladder: list[tuple[str, str]] | None = None) -> tuple[str, str | None]:

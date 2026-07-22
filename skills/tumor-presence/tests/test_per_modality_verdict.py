@@ -113,6 +113,43 @@ def test_protein_only_signal_not_swallowed_C1_regression():
     assert v == "protein_broadly_high" and drv is not None
 
 
+def test_measured_protein_outranks_expression_data_unavailable_in_collapsed_spine():
+    """Cross-modality-swallow regression: when an expression `data_unavailable` rule fires
+    ALONGSIDE a measured protein rule, the collapsed presence_verdict must resolve to the
+    measured PROTEIN call — not the expression coverage-gap. The naive
+    _EXPRESSION_RANK + _PROTEIN_RANK concatenation ranked expression's data_unavailable ABOVE
+    every protein rule, silently discarding the protein signal."""
+    # strong protein up + expression data_unavailable (the common target-only-CPTAC case:
+    # expression-tumor-vs-adjacent returns data_unavailable for non-COADREAD indications)
+    fired = [_fr("expression-call-data-unavailable-insufficient", "expression-tumor-vs-adjacent"),
+             _fr("protein-strongly-up-supportive", "protein-presence-cptac")]
+    v, drv = tp._verdict(fired)
+    assert v == "protein_strongly_upregulated"
+    assert drv == "protein-strongly-up-supportive"
+
+    # a measured protein-not-detected KILLER must likewise survive an expression gap
+    fired_killer = [_fr("expression-data-unavailable-insufficient", "expression-distribution"),
+                    _fr("protein-not-detected-degrader-killer", "protein-presence-cptac")]
+    vk, _ = tp._verdict(fired_killer)
+    assert vk == "protein_not_detected"
+
+    # only when BOTH layers are data_unavailable does the verdict stay data_unavailable
+    both_gap = [_fr("expression-data-unavailable-insufficient", "expression-distribution"),
+                _fr("protein-data-unavailable-insufficient", "protein-presence-cptac")]
+    vg, _ = tp._verdict(both_gap)
+    assert vg == "data_unavailable"
+
+
+def test_measured_expression_still_wins_over_measured_protein_byte_stable():
+    """RNA stays the presence backbone: when BOTH a measured expression rule and a measured
+    protein rule fire, expression wins first (existing RNA-target verdicts are byte-stable)."""
+    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+             _fr("protein-strongly-up-supportive", "protein-presence-cptac")]
+    v, drv = tp._verdict(fired)
+    assert v == "broadly_high_expression"
+    assert drv == "expression-broadly-high-supportive"
+
+
 def test_tumor_elevation_breadth_shares_protein_tumor_bucket():
     """Slice B3: tumor-elevation-breadth is bulk_protein_ms × tumor — SAME bucket as
     the CPTAC per-indication card, ranked against _PROTEIN_RANK."""
