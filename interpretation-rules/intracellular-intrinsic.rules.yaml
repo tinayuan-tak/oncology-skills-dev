@@ -599,6 +599,86 @@ rules:
       MAF unreachable or target absent. Coverage gap; not used as opposing evidence.
 
   # ============================================================================
+  # ALTERATION ROLE (typed driver classification; OncoKB × IntOGen) — 2026-07-22
+  # ============================================================================
+  # The FUNCTIONAL-ROLE layer on the descriptive genomic cards. DIRECTIONAL signals (unlike the
+  # broadly-supportive mut-*/cn-* rules) because GoF vs LoF have OPPOSITE implications for direct-
+  # inhibition modalities: an activating driver (GoF) is the classic SM-inhibitor/degrader target;
+  # a loss-of-function driver (LoF/tumor-suppressor) CANNOT be drugged by direct inhibition — it
+  # routes to synthetic-lethality / the partner axis. ADDITIVE (signal + rationale only; the genomic
+  # skill's inline _verdict is untouched → verdict byte-stable). Wiring alteration_role INTO the
+  # verdict (resolver-conversion) is a separate, golden-tested slice.
+  - rule_id: alteration-role-gof-driver-supportive
+    when:
+      card_id: alteration-role
+      field: alteration_role
+      equals: direct_driver_gof
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target is a direct ACTIVATING (gain-of-function) cancer driver in this indication (OncoKB
+      ONCOGENE and/or IntOGen Act, indication-scoped where available). The classic small-molecule-
+      inhibitor / degrader target — block the gained function. Supportive for both direct-inhibition
+      modalities. The strongest driver-rationale the genomic layer can give for SM/degrader.
+
+  - rule_id: alteration-role-lof-driver-neutral
+    when:
+      card_id: alteration-role
+      field: alteration_role
+      equals: direct_driver_lof
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is a direct LOSS-OF-FUNCTION cancer driver (tumor suppressor; OncoKB TSG and/or IntOGen
+      LoF). NEUTRAL for direct-inhibition modalities, NOT supportive: you cannot drug a LOST function
+      by inhibition or degradation — a bona-fide TSG driver is the HARDEST case for SM/degrader and
+      routes instead to the synthetic-lethality / partner axis (see synthetic-lethal-partners). Not
+      opposing either — the target is a real driver, just not a direct-inhibition one. The SL redirect
+      is where a LoF driver's therapeutic hypothesis lives.
+
+  - rule_id: alteration-role-predictive-biomarker-neutral
+    when:
+      card_id: alteration-role
+      field: alteration_role
+      equals: predictive_biomarker
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target's driver role is AMBIGUOUS / bidirectional (OncoKB ONCOGENE_AND_TSG, or an OncoKB↔IntOGen
+      direction conflict). Actionable as a patient-selection / predictive marker but the GoF/LoF
+      direction — hence the direct-inhibition rationale — is unresolved. Neutral for SM/degrader;
+      feeds the biomarker facet (patient stratification), not a direct-modality call.
+
+  - rule_id: alteration-role-passenger-neutral
+    when:
+      card_id: alteration-role
+      field: alteration_role
+      equals: passenger
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      No driver role for this target in the curated + statistical sources (OncoKB NEITHER/INSUFFICIENT
+      and no significant IntOGen call). Alterations here are likely passengers — no genomic-driver
+      rationale for the target. Neutral (informational: the genomic axis is not a differentiator),
+      NOT opposing — absence of a driver call is not evidence against the target on other axes.
+
+  - rule_id: alteration-role-data-unavailable-insufficient
+    when:
+      card_id: alteration-role
+      field: alteration_role
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from both driver-annotation sources (OncoKB gene-role list + IntOGen driver
+      compendium). Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
   # Expression — tumor vs adjacent (Card v2.0.0, pure-data 2026-07-01)
   # ============================================================================
   # Degrader-specific: degraders require demonstrable protein presence in the indication.
