@@ -294,6 +294,19 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Opt
     return mod.build_summary(target, indication)
 
 
+def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-expression-distribution-subtype card (target_subtype grain) to
+    methods/tcga_gtex_expression_distribution/cli.py::build_subtype_panorama.
+
+    Returns the FULL per-stratum landscape as `per_subgroup_metrics` + rollup scalars. Unlike the
+    other PANORAMA dispatchers (which take pre-resolved strata), this method is COMPUTE-ALL — it
+    fans out over EVERY stratum of the indication's landed shard internally (the plan-decided
+    compute-all-spotlight-one), so it takes the scalar (target, indication) signature and lives in
+    CARD_DISPATCHERS. No shard for the indication -> subtype_axis_available:false (honest)."""
+    mod = _import_method("tcga_gtex_expression_distribution.cli")
+    return mod.build_subtype_panorama(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -702,6 +715,7 @@ CARD_DISPATCHERS = {
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
     "expression-distribution": _dispatch_expression_distribution,
     "tumor-expression-distribution": _dispatch_tumor_expression_distribution,
+    "tumor-expression-distribution-subtype": _dispatch_tumor_expression_distribution_subtype,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,

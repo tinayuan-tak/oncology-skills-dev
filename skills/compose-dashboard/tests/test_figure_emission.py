@@ -220,6 +220,44 @@ def test_card4_figure_emission(tmp_path, monkeypatch):
         assert f["path"].startswith("cards/expression-dependency-correlation/")
 
 
+def test_subtype_panel_figure_emission(tmp_path, monkeypatch):
+    """Subtype-panel emitter: gated on subtype_axis_available, renders one row per stratum
+    from the method's shared value reader (monkeypatched offline)."""
+    import methods.tcga_gtex_expression_distribution.read as exprread
+    monkeypatch.setattr(exprread, "read_tumor_subtype_values", lambda t, i: {
+        "available": True, "pooled_median": 2.0, "assignment_manifest": "m",
+        "pooled_values": [4.0] * 40 + [1.0] * 40,
+        "strata": [
+            {"stratum_id": "HI", "values": [4.0] * 40, "subtype_signal": "subtype_enriched",
+             "evidence_state": "measured", "subgroup_n_floor_met": True, "n": 40, "median": 4.0},
+            {"stratum_id": "LO", "values": [1.0] * 40, "subtype_signal": "subtype_depleted",
+             "evidence_state": "measured", "subgroup_n_floor_met": True, "n": 40, "median": 1.0},
+        ]})
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="tumor-expression-distribution-subtype",
+        summary={"subtype_axis_available": True, "n_subtypes_measured": 2},
+        out_root=out_root, target="MLH1", indication="COADREAD",
+    )
+    assert any(f.get("primary") for f in figs), "no primary subtype figure"
+    assert any(f["id"] == "expression_distribution_subtype_panel" for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/tumor-expression-distribution-subtype/")
+
+
+def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
+    """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
+    from _figure_emitters import emit_figures_for_card
+    figs = emit_figures_for_card(
+        card_id="tumor-expression-distribution-subtype",
+        summary={"subtype_axis_available": False},
+        out_root=tmp_path / "compose_out", target="MLH1", indication="BRCA",
+    )
+    assert figs == []
+
+
 def test_emitter_no_op_on_live_read_error(tmp_path):
     """If summary contains _live_read_error, emitter must return [] (no crash, no figures)."""
     from _figure_emitters import emit_figures_for_card

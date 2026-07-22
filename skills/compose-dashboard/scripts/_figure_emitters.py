@@ -807,8 +807,36 @@ def _emit_tumor_expression_distribution(
     return figures
 
 
+def _emit_tumor_expression_distribution_subtype(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the subtype panel (tumor-expression-distribution-subtype card): one box+strip row per
+    molecular subtype, ordered by median, colored by subtype_signal, pooled-median reference line.
+    Gated on subtype_axis_available (no landed shard for the indication → []). The method emitters
+    re-read the shared value substrate (no drift). On _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or not summary.get("subtype_axis_available"):
+        return []                                   # no landed shard for this indication (honest)
+    _ensure_methods_path()
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = exprdist.emit_subtype_svg(target, indication, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []                                   # axis available but no measured strata
+    figures = [
+        {"id": "expression_distribution_subtype_panel",
+         "path": "figure_expression_distribution_subtype.svg",
+         "type": "per_subtype_distribution_panel", "primary": True},
+    ]
+    figures += _plotly_from(exprdist, "emit_subtype_plotly_specs", target, indication,
+                            out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
+    "tumor-expression-distribution-subtype": _emit_tumor_expression_distribution_subtype,
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,

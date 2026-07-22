@@ -108,6 +108,9 @@ SUB_SKILL_CARDS = {
         "tumor-expression-distribution", # Q1 (expression-extraction plan) — per-sample tumor RNA
                                          # distribution; added to tumor-presence CARDS + this composer
                                          # map together (composer-consistency guard).
+        "tumor-expression-distribution-subtype",  # target_subtype-grain sibling — per-molecular-subtype
+                                         # panorama (per_subgroup_metrics). Same pairing rule: wired into
+                                         # tumor-presence CARDS + this composer map together.
     ],
     "tumor-selectivity": ["tumor-vs-normal-selectivity"],
     "functional-requirement": [

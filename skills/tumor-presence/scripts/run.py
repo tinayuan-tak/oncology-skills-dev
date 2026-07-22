@@ -35,6 +35,11 @@ CARDS = [
                                         # distribution summary + figure surface now; mapping its
                                         # tumor_expression_class into the bulk_rna verdict ladder is a
                                         # follow-up rules PR (intersects the subtyping revisit).
+    "tumor-expression-distribution-subtype",  # target_subtype-grain sibling — the per-molecular-subtype
+                                        # panorama (per_subgroup_metrics, compute-all). Surfaces the
+                                        # subtype landscape + faceted panel; subtype_signal is
+                                        # confidence/context (NOT a veto — one-directional gate). Same
+                                        # (bulk_rna, tumor) bucket as the pooled card.
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -61,6 +66,7 @@ CARD_CONTEXT = {
     "expression-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
     "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
     "tumor-expression-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
+    "tumor-expression-distribution-subtype": ("bulk_rna", "tumor"),   # per-subtype panorama of the same — same (bulk_rna, tumor) bucket
     "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
     "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
