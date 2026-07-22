@@ -339,8 +339,9 @@ measurement_types:
     claim: "Which cell-line models represent an indication's tumors for target (expression-matched), and which are the positive/resistance/negative screen models?"
     # Q4 of the expression spec — the P3 patient↔model join, EXPRESSION-SIMILARITY slice (P3-Option-B):
     # ranks DepMap models by TARGET-expression fit to the patient tumor TARGET distribution + screen
-    # role from Chronos. NOT the genomic same-functional-event join (canonical P3/M11, blocked on the
-    # unbuilt alteration-class layer) and NOT full-transcriptome Celligner. Routes: Patient-pop (Q10)
+    # role from Chronos. NOT the genomic same-functional-event join (that is the sibling
+    # genomic_event_model_match / M11, now built on functional_gene_state) and NOT full-transcriptome
+    # Celligner — this is the EXPRESSION-similarity axis. Routes: Patient-pop (Q10)
     # primary + corroborates Required (C, model-backed dependency). tier_dominant: TCGA patient TPM is
     # the reference distribution (dominant); DepMap supplies the model panel matched against it.
     entity_grains: [target_indication]
@@ -417,6 +418,21 @@ measurement_types:
     cards: [crispr-rnai-dependency-concordance]
     providers:
       - {kind: derived_from, inputs: [crispr_lof_dependency, rnai_lof_dependency], method: concordance, evidence_tier: measured}
+
+  genomic_event_model_match:
+    claim: "Which DepMap models carry the SAME functional genomic event (biallelic/monoallelic state) as the indication's tumors for target, and which of those genotype-matched models are dependent (positive screen lines)?"
+    # M11 — the CANONICAL P3 patient↔model join, on GENOMIC EVENT (functional_gene_state), unblocked by
+    # M6. The genomic sibling of patient_model_correspondence (expression-Q4, which matches by TARGET
+    # EXPRESSION). Same P3 question, orthogonal axis: a model can be expression-matched yet GENOTYPE-
+    # mismatched (highly expressing but WILD-TYPE where the tumor is biallelically inactivated → a poor
+    # model for a LoF-driven dependency). Derived (Rule 4 type→type edge): joins the patient + model
+    # functional_gene_state distributions with crispr_lof_dependency (Chronos screen role). Routes:
+    # Patient↔model correspondence (P3) + corroborates Required (C, genotype-matched model-backed
+    # dependency). ZERO new ingestion — reuses M6 both arms + the expression-Q4 Chronos/lineage loader.
+    entity_grains: [target_indication]
+    cards: [genomic-event-model-match]
+    providers:
+      - {kind: derived_from, inputs: [functional_gene_state, crispr_lof_dependency], method: genotype_match_screen_role, evidence_tier: measured}
 
   expression_dependency_correlation:
     claim: "Does target's mRNA expression correlate with its own dependency (expression-as-biomarker)?"
