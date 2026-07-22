@@ -776,6 +776,178 @@ rules:
       Expression matrix unreachable or target absent. Coverage gap.
 
   # ============================================================================
+  # TUMOR EXPRESSION DISTRIBUTION (Q1, per-sample TCGA tumor RNA) — PRESENCE signals
+  # ============================================================================
+  # The tumor-patient analogue of the DepMap cell-line expression-* rules above. CRUCIAL
+  # DIFFERENCE: these fire on a PER-INDICATION tumor class, so — unlike the cell-line
+  # broadly_low (target expressed in NO cell line → a defensible degrader killer) — a tumor
+  # broadly_low is INDICATION-SCOPED: the target may be highly expressed in other indications.
+  # So NO killer here; per-indication tumor absence is neutral context, never a target-wide kill
+  # (same reasoning that keeps the subtype rules non-opposing). Signals feed the LLM/matrix; these
+  # do NOT enter the tumor-presence rank ladder (that stays byte-stable — additive signal only).
+  - rule_id: tumor-expression-broadly-high-supportive
+    when:
+      card_id: tumor-expression-distribution
+      field: tumor_expression_class
+      in: [broadly_high, broadly_detected, subset_high]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target RNA is present across (or in a real high subset of) this indication's tumors —
+      measurable target expression in patient tumor tissue (not just cell lines). Supportive for
+      small-molecule (context-of-action present) and degrader (target must be expressed to be
+      degraded). subset_high additionally flags a target-high patient population for selection.
+      Presence, not selectivity (that is the percentile-crossing card) — interpret alongside Q2.
+
+  - rule_id: tumor-expression-broadly-moderate-neutral
+    when:
+      card_id: tumor-expression-distribution
+      field: tumor_expression_class
+      equals: broadly_moderate
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target expressed at moderate levels across this indication's tumors — informative that
+      expression is present but not a differentiator. Not directional.
+
+  - rule_id: tumor-expression-broadly-low-neutral
+    when:
+      card_id: tumor-expression-distribution
+      field: tumor_expression_class
+      equals: broadly_low
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target RNA is detectable in only a minority of this indication's tumors. NEUTRAL, NOT a
+      killer: this is a PER-INDICATION tumor read — the target may be highly expressed in other
+      indications, so indication-scoped low presence cannot kill a target-wide nomination. A
+      degrader/SM concern only becomes decisive if presence is broadly low ACROSS indications
+      (the cell-line expression-distribution card's job), not from one indication's tumors.
+
+  - rule_id: tumor-expression-data-unavailable-insufficient
+    when:
+      card_id: tumor-expression-distribution
+      field: tumor_expression_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the TCGA long product for this indication, or matrix unreachable. Coverage gap.
+
+  # ============================================================================
+  # TUMOR-VS-NORMAL PERCENTILE-CROSSING (Q2, per-sample selectivity) — SELECTIVITY signals
+  # ============================================================================
+  # Per-sample corroboration of the aggregate tumor-vs-normal-selectivity card. Emits SM/degrader
+  # supportive on real tumor-enrichment; does NOT enter the selectivity RESOLVER ladder (that stays
+  # keyed to the aggregate card's classes — byte-stable), so this is additive signal/rationale that
+  # reaches the LLM + matrix without changing the selectivity verdict. (Cross-routing the per-sample
+  # separation into the SURFACE modality gate — the ADC antigen-selectivity argument — is master-plan
+  # P4 modality-vector work, wired through adc-tce-modality-fit's fit_class, not a direct rule here.)
+  - rule_id: tumor-vs-normal-crossing-strong-supportive
+    when:
+      card_id: tumor-vs-normal-percentile-crossing
+      field: selectivity_class
+      in: [strongly_tumor_enriched, enriched_subset]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      A real fraction of this indication's tumors express the target above the 95th percentile of
+      matched normal tissue (per-sample, on the directly-comparable recount3 axis) — the headline
+      therapeutic-window enrichment signal. strongly_tumor_enriched additionally means the tumor and
+      normal distributions separate (low overlap): the clean-separation pattern surface antigens need.
+      Corroborates the aggregate selectivity card at per-sample resolution.
+
+  - rule_id: tumor-vs-normal-crossing-minimal-neutral
+    when:
+      card_id: tumor-vs-normal-percentile-crossing
+      field: selectivity_class
+      in: [minimally_enriched, not_enriched]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Few tumors exceed the matched-normal percentile / distributions overlap heavily — no per-sample
+      tumor-vs-normal enrichment. Neutral (a broadly-present but non-selective target, e.g. a
+      housekeeping gene, lands here) — not opposing, since presence itself may still support an
+      intracellular modality; it simply isn't a selectivity argument.
+
+  - rule_id: tumor-vs-normal-crossing-data-unavailable-insufficient
+    when:
+      card_id: tumor-vs-normal-percentile-crossing
+      field: selectivity_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No matched GTEx normal for this indication, or target absent. Coverage gap.
+
+  # ============================================================================
+  # NORMAL-TISSUE LIABILITY (Q3, GTEx atlas) — SAFETY / therapeutic-window signals
+  # ============================================================================
+  # On-target-off-tumor liability from the normal-tissue atlas. critical_organ_liability is a genuine
+  # safety concern for FULL-KO modalities (degrader / full-inhibition SM) — high expression in a vital
+  # organ is on-target toxicity risk regardless of tumor abundance → opposing (NOT killer: it narrows
+  # the window / demands a therapeutic-index argument, doesn't foreclose the target). restricted_normal
+  # = favorable window → supportive. Feeds SM/degrader here (intracellular axis); the ADC/TCE
+  # on-target-off-tumor read routes to the surface modality gate (P4, via HPA/surface composition).
+  - rule_id: normal-liability-critical-organ-opposing
+    when:
+      card_id: normal-tissue-liability-gtex
+      field: liability_class
+      equals: critical_organ_liability
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      The target is highly expressed (>= the HIGH cutoff) in a CRITICAL/vital organ in the GTEx
+      normal atlas — an on-target-off-tumor liability that holds regardless of tumor abundance. Opposing
+      for full-KO modalities (degrader, full-inhibition SM): the therapeutic window is narrow and a
+      target-index argument is required. Opposing, NOT killer — a real (documented) therapeutic index
+      or a tumor-restricted delivery modality can still rescue it; the flag demands justification.
+
+  - rule_id: normal-liability-restricted-supportive
+    when:
+      card_id: normal-tissue-liability-gtex
+      field: liability_class
+      equals: restricted_normal
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target is expressed in few normal tissues (breadth < ~30%) with no critical-organ liability —
+      a favorable therapeutic window. Supportive for both intracellular modalities.
+
+  - rule_id: normal-liability-broadly-expressed-neutral
+    when:
+      card_id: normal-tissue-liability-gtex
+      field: liability_class
+      in: [broadly_expressed_normal, moderate_normal_breadth]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      The target is detectable across many/most normal tissues but without a single-critical-organ
+      high-liability flag. Neutral window context — broad normal presence is a housekeeping-like caution
+      (narrower window) but not, by itself, an on-target-off-tumor killer.
+
+  - rule_id: normal-liability-data-unavailable-insufficient
+    when:
+      card_id: normal-tissue-liability-gtex
+      field: liability_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the GTEx normal atlas, or matrix unreachable. Coverage gap.
+
+  # ============================================================================
   # expression-dependency-correlation — biomarker hypothesis
   # (v2 refactor 2026-06-30: card now pure-data; 5 vocab values, 5 rules)
   # ============================================================================
