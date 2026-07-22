@@ -54,8 +54,12 @@ def test_concordance_one_gap_one_measured_negative_is_single_layer():
     assert lr._breadth_layer_concordance(None, "not_tumor_elevated") == "single_layer"
 
 
-def test_concordance_both_measured_negative_agree():
-    assert lr._breadth_layer_concordance("not_tumor_elevated", "not_tumor_elevated") == "concordant"
+def test_concordance_both_measured_negative_is_concordant_not_elevated():
+    # both layers MEASURED + both not_tumor_elevated: they agree the target is NOT elevated.
+    # This is a MEASURED negative agreement — NOT `concordant` (reserved for "both elevated —
+    # strongest breadth call"); a consumer must not read a non-elevated target as elevated.
+    assert (lr._breadth_layer_concordance("not_tumor_elevated", "not_tumor_elevated")
+            == "concordant_not_elevated")
 
 
 # --- the dispatcher fusion -----------------------------------------------------------------

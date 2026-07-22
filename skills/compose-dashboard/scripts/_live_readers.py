@@ -542,16 +542,20 @@ def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional
     """Derive breadth_layer_concordance from the two per-layer breadth classes.
 
     Mirrors the card's vocabulary (tumor-elevation-breadth.card.yaml):
-      concordant   — BOTH layers elevated (any of broadly/multi/single)
-      protein_only — protein elevated, RNA a MEASURED not_tumor_elevated
-      rna_only      — RNA elevated, protein a MEASURED not_tumor_elevated
-      discordant    — reserved shape; here folded into protein_only/rna_only since "one
-                      elevated + other measured-negative" IS the discordance the card names
-      single_layer  — only one layer had data (the other data_unavailable) — concordance UNTESTED
+      concordant             — BOTH layers ELEVATED (any of broadly/multi/single) — strongest call
+      concordant_not_elevated— BOTH layers MEASURED and both not_tumor_elevated — they agree the
+                               target is NOT elevated (a measured negative agreement, NOT the
+                               `concordant` elevation call — kept distinct so a consumer never
+                               reads a non-elevated target as the "strongest breadth call")
+      protein_only           — protein elevated, RNA a coverage gap (data_unavailable)
+      rna_only               — RNA elevated, protein a coverage gap (CPTAC's 10 vs RNA's 27)
+      discordant             — one layer ELEVATED, the other a MEASURED not_tumor_elevated —
+                               surface, do not average (this branch DOES return discordant)
+      single_layer           — only one layer had data (the other data_unavailable) — UNTESTED
 
     surface_discordance discipline: the two classes are NEVER averaged; this only NAMES the
     relationship for the reader. A data_unavailable layer is a coverage gap, not a negative —
-    so it yields single_layer, never a false 'protein_only'/'rna_only' negative claim."""
+    so it yields single_layer / protein_only / rna_only, never a false negative claim."""
     p_elev = protein_class in _BREADTH_ELEVATED_CLASSES
     r_elev = rna_class in _BREADTH_ELEVATED_CLASSES
     p_measured_neg = protein_class == "not_tumor_elevated"
@@ -574,7 +578,10 @@ def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional
     # remaining: at least one measured-negative, neither elevated → not an elevation call
     if p_gap != r_gap:
         return "single_layer"        # exactly one layer had data, and it was a measured negative
-    return "concordant"              # both measured, both not-elevated → they AGREE (on 'not elevated')
+    # both measured, both not-elevated → they AGREE the target is NOT elevated. This is a MEASURED
+    # negative agreement, NOT the `concordant` ELEVATION call (which the card reserves for "both
+    # elevated — strongest breadth call"); labeling it `concordant` would read as elevation.
+    return "concordant_not_elevated"
 
 
 def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[dict]:
