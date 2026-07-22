@@ -348,6 +348,16 @@ def _dispatch_rna_protein_concordance(target: str, indication: str) -> Optional[
     return mod.build_summary(target, indication)
 
 
+def _dispatch_rna_protein_concordance_tumor(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route rna-protein-concordance-tumor card (Q5 tumor arm) to
+    methods/depmap_rna_protein_concordance/cli.py::build_tumor_summary.
+
+    Per-tumor CPTAC RNA vs protein correlation for the indication's CPTAC cohort → rna_as_biomarker
+    (tumor). Indication-scoped (cohort-specific — the tumor-grain sibling of the cell-line card)."""
+    mod = _import_method("depmap_rna_protein_concordance.cli")
+    return mod.build_tumor_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -761,6 +771,7 @@ CARD_DISPATCHERS = {
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "recommended-models": _dispatch_recommended_models,
     "rna-protein-concordance": _dispatch_rna_protein_concordance,
+    "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,

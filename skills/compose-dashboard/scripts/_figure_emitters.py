@@ -934,10 +934,37 @@ def _emit_rna_protein_concordance(
     return figures
 
 
+def _emit_rna_protein_concordance_tumor(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the Q5 TUMOR RNA↔protein concordance scatter (rna-protein-concordance-tumor card):
+    per-tumor RNA (x) vs protein (y) from the matched CPTAC product. Gated on rna_as_biomarker
+    (data_unavailable / insufficient_paired_tumors → no figure). On _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or summary.get("rna_as_biomarker") in (None, "data_unavailable",
+                                                          "insufficient_paired_tumors"):
+        return []
+    _ensure_methods_path()
+    from methods.depmap_rna_protein_concordance import cli as rpc
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = rpc.emit_tumor_svg(target, indication, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    figures = [
+        {"id": "rna_protein_concordance_tumor_scatter",
+         "path": "figure_rna_protein_concordance_tumor.svg",
+         "type": "rna_protein_concordance_tumor_scatter", "primary": True},
+    ]
+    figures += _plotly_from(rpc, "emit_tumor_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
+    "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,
     "recommended-models": _emit_recommended_models,
     "rna-protein-concordance": _emit_rna_protein_concordance,
     "tumor-expression-distribution-subtype": _emit_tumor_expression_distribution_subtype,

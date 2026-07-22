@@ -341,6 +341,29 @@ def test_q5_rna_protein_concordance_figure_emission(tmp_path, monkeypatch):
         out_root=tmp_path / "o5", target="X", indication="COADREAD") == []
 
 
+def test_q5_tumor_concordance_figure_emission(tmp_path, monkeypatch):
+    """Q5 TUMOR concordance scatter; gated on rna_as_biomarker. Monkeypatch the matched-cohort reader."""
+    import pandas as pd
+    import methods.depmap_rna_protein_concordance.read as rpr
+    rows = [{"patient_id": f"01CO{i:03d}", "gene": "CDX2",
+             "rna_log2tpm": 3.0 + (i % 8) * 0.3, "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1}
+            for i in range(40)]
+    monkeypatch.setattr(rpr, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="rna-protein-concordance-tumor",
+        summary={"rna_as_biomarker": "adequate_proxy", "rna_protein_r": 0.99, "n_paired_tumors": 40},
+        out_root=out_root, target="CDX2", indication="COADREAD")
+    assert any(f["id"] == "rna_protein_concordance_tumor_scatter" for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/rna-protein-concordance-tumor/")
+    assert emit_figures_for_card(
+        card_id="rna-protein-concordance-tumor", summary={"rna_as_biomarker": "data_unavailable"},
+        out_root=tmp_path / "o5t", target="X", indication="SKCM") == []
+
+
 def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
     """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
     from _figure_emitters import emit_figures_for_card
