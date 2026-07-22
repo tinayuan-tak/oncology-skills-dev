@@ -1,0 +1,79 @@
+# Card — EXPRESSION PURITY CONFOUND (is the tumor signal tumor-intrinsic or microenvironment? Q9)
+#
+# Does the target's per-sample tumor expression correlate with tumor PURITY (ABSOLUTE)? Answers the
+# yardstick's Q9 "purity/processing confound flag":
+#   - POSITIVE r  → expression rises with tumor-cell content → TUMOR-CELL-INTRINSIC (reassuring).
+#   - NEGATIVE r  → expression higher in LOW-purity tumors → STROMAL / IMMUNE-derived (a CONFOUND;
+#                   the "tumor expression" is really microenvironment).
+#   - ~zero       → purity-independent (no confound signal either way).
+#
+# WHY IT MATTERS: bulk tumor RNA cannot tell tumor-cell from microenvironment expression. A target
+# that looks "tumor-expressed" but is really stroma/immune-derived is a FALSE presence signal — and
+# for ADC/TCE it gates antigen REALITY (is the antigen on the cancer cell or the microenvironment?).
+#
+# ZERO new ingestion — reuses the per-sample tumor TPM long product (case-bridged) + PanCanAtlas
+# ABSOLUTE purity (the same substrate M6's patient arm uses), joined on TCGA case barcode.
+#
+# ROUTES INTO GATES (master-sequencing Part 3): Presence (A) — a purity-confound CAVEAT on the tumor
+# presence call. ALSO (P4, DEFERRED) the ADC/TCE surface-modality gate ("is the antigen tumor-
+# intrinsic?"). This card wires the biology-axis PRESENCE facet only; the modality-gate facet is P4.
+
+card_id: expression-purity-confound
+version: 0.1.0
+question: "Is {target.symbol}'s tumor expression in {indication.label} tumor-cell-intrinsic, or driven by stromal/immune microenvironment (purity confound)?"
+
+tier: indication
+
+applies_when:
+  # needs a per-sample tumor TPM (indication mapped in the recount3 studies map); ABSOLUTE purity is pan-TCGA.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'GC', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1   # per-sample tumor expression (case-bridged)
+  - product_id: gdc-pancanatlas-cnv-2018          # ABSOLUTE abs_tables per-sample tumor purity
+
+methods:
+  - call: expression-purity-confound
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - purity_confound_class               # PRIMARY categorical (drives Tier-2 rules)
+    - expression_purity_pearson_r         # POSITIVE = tumor-intrinsic; NEGATIVE = microenvironment
+    - expression_purity_pearson_p
+    - expression_purity_spearman_r
+    - n_paired_samples                    # tumors with BOTH expression + purity
+    - n_expr_samples
+    - median_purity
+    - cellular_source                     # unresolved_from_bulk (honest limit)
+    - purity_source
+  summary_fields_vocabulary:
+    purity_confound_class: [tumor_intrinsic, purity_independent, microenvironment_confounded, insufficient_paired_samples, data_unavailable]
+  figure: expression_purity_confound_card
+
+thresholds:
+  intrinsic_r: 0.3            # r >= (significant) → tumor_intrinsic
+  confound_r: -0.3            # r <= (significant) → microenvironment_confounded
+  min_paired_samples: 30      # below → insufficient_paired_samples
+  significance_alpha: 0.05
+
+caveats:
+  - "A FLAG for interpretation, NOT proof: bulk RNA cannot resolve cell-of-origin (cellular_source = unresolved_from_bulk). A negative (confound) or intrinsic call guides how to read the tumor presence signal; CIBERSORT immune-cell-type attribution (immune-2018) is a later enrichment for cell-type resolution."
+  - "Purity is ABSOLUTE-estimated per sample; in high-purity cohorts (e.g. COADREAD median ~0.66) the purity range may be too narrow to resolve a confound, yielding purity_independent even for a microenvironment-biased target. Read median_purity alongside the class."
+  - "microenvironment_confounded is NOT a target killer — it means the BULK tumor presence read is inflated by non-tumor cells; the target may still be validly expressed by tumor cells at a lower level (needs single-cell / IHC to confirm). For ADC/TCE it is a stronger caution (antigen reality)."
+  - "A case with multiple tumor samples is collapsed to its mean target expression before the purity join (one row per case)."
+
+# The card's evidence is derived from TCGA per-sample TUMOR bulk RNA (correlated against ABSOLUTE
+# purity), so it carries the (measurement, sample_context) tags of its expression substrate — this
+# also keeps it consistent with tumor-presence's CARD_CONTEXT taxonomy (drift-guarded on both axes).
+# It is a render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
+measurement: bulk_rna
+sample_context: tumor
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `expression_purity_confound` claim,
+# derived_from [tumor_expression_distribution, tumor_purity_absolute].
+measurement_type: expression_purity_confound
+entity_grains: [target_indication]
+schema_version: 1

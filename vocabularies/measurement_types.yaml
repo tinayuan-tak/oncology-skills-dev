@@ -454,6 +454,29 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [cell_line_protein_abundance, crispr_lof_dependency], method: correlation, evidence_tier: measured}
 
+  expression_purity_confound:
+    claim: "Is target's tumor expression tumor-cell-intrinsic or driven by microenvironment (purity confound)?"
+    # Q9 — correlate per-sample tumor expression vs tumor PURITY (ABSOLUTE). POSITIVE → tumor-intrinsic;
+    # NEGATIVE → stromal/immune-derived confound. A derived comparison (expression × purity). Routes:
+    # Presence (A) — a purity-confound caveat on the tumor presence call; ALSO (P4, deferred) the
+    # ADC/TCE surface-modality gate (is the antigen tumor-intrinsic vs microenvironmental?). Biology-
+    # axis Presence facet wired now; the modality-gate facet is deferred to P4.
+    entity_grains: [target_indication]
+    cards: [expression-purity-confound]
+    providers:
+      - {kind: derived_from, inputs: [tumor_expression_distribution, tumor_purity_absolute], method: correlation, evidence_tier: measured}
+
+  tumor_purity_absolute:
+    claim: "What is a tumor sample's ABSOLUTE-estimated tumor purity (the microenvironment-dilution denominator)?"
+    # A per-sample tumor property (not a per-target claim in itself) — registered because it is a
+    # derived_from INPUT to expression_purity_confound (Q9) and is the same ABSOLUTE substrate M6
+    # (functional_gene_state patient arm) already consumes. No standalone card: it is an input-only
+    # type (a sample covariate), surfaced through the cards that correlate against it.
+    entity_grains: [target_indication]   # carried per (target, indication) query, though purity is sample-level
+    cards: []
+    providers:
+      - {kind: dataset, source: gdc-pancanatlas-cnv-2018, evidence_tier: measured}   # ABSOLUTE abs_tables purity
+
   mutation_stratified_dependency:
     claim: "Is target dependency stratified by target's own mutation status (oncogene-addiction biomarker)?"
     entity_grains: [target]
