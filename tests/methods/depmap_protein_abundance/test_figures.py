@@ -92,3 +92,37 @@ def test_empty_abundance_degrades_gracefully():
         p = cli.emit_density_protein({}, "GHOST", {"n_cell_lines_evaluated": 0}, out, CONTRACTS)
         assert p.exists()                                   # placeholder written, no exception
         assert cli.emit_plotly_specs({}, {}, "GHOST", {}, out, CONTRACTS) == []
+
+
+def test_substrate_reads_are_cached(tmp_path):
+    """Retrieval-opt #3: the large target-independent substrates (Gygi matrix, Model.csv, sidecar)
+    are read ONCE per process. A second _read_csv/_read_parquet for the same path is a cache HIT,
+    so the summary pass + figure pass don't each do a full read."""
+    import pandas as pd
+    cli._cached_csv.cache_clear()
+    cli._read_parquet.cache_clear()
+
+    csv_p = tmp_path / "matrix.csv"
+    pd.DataFrame({"ModelID": ["ACH-1", "ACH-2"], "Q1": [1.0, 2.0]}).to_csv(csv_p, index=False)
+    a = cli._read_csv(str(csv_p), cli.S3_BUCKET, cli.MATRIX_KEY)   # no kwargs → cached path
+    b = cli._read_csv(str(csv_p), cli.S3_BUCKET, cli.MATRIX_KEY)
+    ci = cli._cached_csv.cache_info()
+    assert ci.hits >= 1, f"second identical CSV read should be a cache hit; got {ci}"
+    assert a is b, "cached read must return the SAME object (read-only contract)"
+
+    pq_p = tmp_path / "sidecar.parquet"
+    pd.DataFrame({"hgnc_primary_symbol_at_resolution": ["EGFR"],
+                  "native_row_key": ["P00533"]}).to_parquet(pq_p, index=False)
+    cli._read_parquet(str(pq_p), cli.S3_BUCKET, cli.SIDECAR_KEY)
+    cli._read_parquet(str(pq_p), cli.S3_BUCKET, cli.SIDECAR_KEY)
+    assert cli._read_parquet.cache_info().hits >= 1
+
+
+def test_read_csv_with_kwargs_bypasses_cache(tmp_path):
+    """The kwargs path (usecols/dtype) must NOT route through the no-arg cache (unhashable kwargs
+    + column-projected reads are a different result)."""
+    import pandas as pd
+    p = tmp_path / "m.csv"
+    pd.DataFrame({"a": [1], "b": [2]}).to_csv(p, index=False)
+    df = cli._read_csv(str(p), cli.S3_BUCKET, cli.MODEL_KEY, usecols=["a"])
+    assert list(df.columns) == ["a"]

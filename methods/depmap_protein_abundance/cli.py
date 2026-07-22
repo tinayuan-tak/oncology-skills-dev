@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import io
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -56,17 +57,44 @@ def _ensure_aws_profile():
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
-def _read_csv(path_or_none, bucket, key, **kw):
+@lru_cache(maxsize=8)
+def _cached_csv(path_or_none, bucket, key):
+    """Read a CSV substrate (whole file) ONCE per (path/key) per process (retrieval-opt #3).
+
+    The Gygi MS matrix + Model.csv are large and target-INDEPENDENT — the summary pass and the
+    figure pass both read them in full, so without caching one card did ≥2 full reads (the review
+    measured the Gygi CSV read twice + Model.csv twice, uncached). Keyed on the identity args only
+    (no **kw), so callers must not pass read_csv kwargs through this path — the two large substrates
+    here need none. Returns the SHARED DataFrame; callers treat it read-only (they select columns /
+    filter, never mutate in place)."""
     import pandas as pd
     if path_or_none is not None:
-        return pd.read_csv(path_or_none, **kw)
+        return pd.read_csv(path_or_none)
     _ensure_aws_profile()
     import boto3
     body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
-    return pd.read_csv(io.BytesIO(body), **kw)
+    return pd.read_csv(io.BytesIO(body))
 
 
+def _read_csv(path_or_none, bucket, key, **kw):
+    import pandas as pd
+    # Uncached path preserved for callers that pass read_csv kwargs (e.g. usecols/dtype); the two
+    # large target-independent substrates (matrix, Model.csv) go through _cached_csv instead.
+    if kw:
+        if path_or_none is not None:
+            return pd.read_csv(path_or_none, **kw)
+        _ensure_aws_profile()
+        import boto3
+        body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+        return pd.read_csv(io.BytesIO(body), **kw)
+    return _cached_csv(path_or_none, bucket, key)
+
+
+@lru_cache(maxsize=8)
 def _read_parquet(path_or_none, bucket, key):
+    """Read a parquet substrate (whole file) ONCE per (path/key) per process (retrieval-opt #3).
+    The Gygi target_resolution sidecar is read by resolve_accession on both the summary + figure
+    pass; caching removes the duplicate read. Returned frame is treated read-only by callers."""
     import pandas as pd
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
