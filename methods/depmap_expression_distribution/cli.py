@@ -169,6 +169,52 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
     return tpm_by_model, model_metadata, load_errors
 
 
+def _coefficient_of_variation(log2tpm_scores) -> float:
+    """CoV (sd/mean) on LINEAR TPM. Inputs are log2(TPM+1); CoV on log values is not meaningful, so
+    undo the log first (2**x - 1, clamped at 0). Returns 0.0 when the mean is ~0 (all-unexpressed)
+    to avoid a divide-by-zero blowup. High CoV = highly variable expression across cell lines (the
+    spec's "is expression consistent or highly variable")."""
+    import numpy as np
+    lin = np.clip(np.power(2.0, np.asarray(log2tpm_scores, dtype=float)) - 1.0, 0.0, None)
+    mean = float(np.mean(lin))
+    if mean <= 1e-9:
+        return 0.0
+    return float(np.std(lin) / mean)
+
+
+def _distribution_pattern(log2tpm_scores, expressed_threshold: float,
+                          highly_expressed_threshold: float) -> str:
+    """Classify the expression distribution shape (Audit-B D1) → {continuous | bimodal | long_tail}.
+
+    Dependency-light gap heuristic (mirrors depmap_chronos_distribution's _classify_shape approach —
+    NOT a KDE/dip test, which is noise on small panels):
+      - bimodal:    a clear target-HIGH subset AND a clear target-LOW/off subset coexist — i.e. a
+                    meaningful fraction is not-expressed AND a meaningful fraction is highly-expressed,
+                    with few cell lines in the middle band (the antimode gap). This is the
+                    target-high/target-low population split the spec wants for patient selection.
+      - long_tail:  mostly low/off with a rare high-expressing tail (few highly, most not-expressed,
+                    but not a balanced two-mode split).
+      - continuous: a unimodal spread — neither a balanced two-mode split nor a rare-tail shape.
+    n<8 returns 'continuous' (too few points to call a shape)."""
+    import numpy as np
+    s = np.asarray(log2tpm_scores, dtype=float)
+    n = s.size
+    if n < 8:
+        return "continuous"
+    frac_off = float(np.mean(s < expressed_threshold))
+    frac_high = float(np.mean(s >= highly_expressed_threshold))
+    # middle band = between expressed_threshold and highly_expressed_threshold (the antimode region)
+    frac_mid = float(np.mean((s >= expressed_threshold) & (s < highly_expressed_threshold)))
+    # bimodal: both tails substantial (>=20% off AND >=20% high) and the middle is the minority
+    # (sparse antimode = separation between a low mode and a high mode).
+    if frac_off >= 0.20 and frac_high >= 0.20 and frac_mid < max(frac_off, frac_high):
+        return "bimodal"
+    # long_tail: a rare high-expressing minority sitting on a mostly-off panel.
+    if frac_high < 0.20 and frac_off >= 0.50 and frac_high > 0.0:
+        return "long_tail"
+    return "continuous"
+
+
 def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
                            expressed_threshold: float = 1.0,
                            highly_expressed_threshold: float = 5.0,
@@ -202,6 +248,16 @@ def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
     summary["fraction_expressed"] = frac_expressed
     summary["fraction_highly_expressed"] = frac_highly
     summary["fraction_not_expressed"] = float(np.mean(scores < expressed_threshold))
+
+    # Distribution-shape metrics (Audit-B D1: "is the distribution continuous or bimodal? are there
+    # target-high and target-low populations?"). Computed here from the in-memory `scores` array — no
+    # new data. coefficient_of_variation on linear TPM (scores are log2(TPM+1), so undo the log first;
+    # CoV on log values is not meaningful). distribution_pattern uses the SAME dependency-light gap
+    # heuristic the dependency side uses (depmap_chronos_distribution _classify_shape) rather than a
+    # KDE/dip test — robust on small panels + auditable.
+    summary["coefficient_of_variation"] = _coefficient_of_variation(scores)
+    summary["distribution_pattern"] = _distribution_pattern(
+        scores, expressed_threshold, highly_expressed_threshold)
 
     # Per-lineage stats
     lineage_records = []
