@@ -443,6 +443,17 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [cell_line_rna_expression, crispr_lof_dependency], method: correlation, evidence_tier: measured}
 
+  abundance_dependency_correlation:
+    claim: "Does target's PROTEIN abundance correlate with its own dependency (protein-as-biomarker-of-dependency)?"
+    # Q7 PROTEIN arm — the sibling of expression_dependency_correlation (RNA arm). Same comparison-is-
+    # the-claim derived shape, on Gygi-MS protein instead of mRNA. Reported ALONGSIDE the RNA arm; the
+    # DISAGREEMENT (protein→dep strong while RNA→dep weak, or vice versa) picks preferred_assay in the
+    # biomarker facet. Routes: Required (C, abundance→dependency chain) + biomarker synthesis.
+    entity_grains: [target, target_lineage]
+    cards: [abundance-dependency]
+    providers:
+      - {kind: derived_from, inputs: [cell_line_protein_abundance, crispr_lof_dependency], method: correlation, evidence_tier: measured}
+
   mutation_stratified_dependency:
     claim: "Is target dependency stratified by target's own mutation status (oncogene-addiction biomarker)?"
     entity_grains: [target]

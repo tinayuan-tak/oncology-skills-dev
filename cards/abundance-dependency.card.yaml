@@ -1,0 +1,78 @@
+# Card — ABUNDANCE DEPENDENCY (protein abundance → dependency; Q7, protein arm)
+#
+# The "expression-as-biomarker-of-dependency" question, PROTEIN arm. Does the target's PROTEIN
+# abundance (DepMap Gygi-MS) correlate with its own CRISPR dependency (Chronos) across cell lines —
+# i.e. is protein abundance a biomarker of dependency? The sibling of expression-dependency-
+# correlation (the RNA arm); reported ALONGSIDE it, and the DISAGREEMENT between the two arms is the
+# decision-relevant signal (protein→dep strong while RNA→dep weak ⇒ protein is the stratifier to use).
+#
+# WHY IT MATTERS: dependency is a protein-level phenomenon, so protein abundance is often a sharper
+# dependency biomarker than mRNA. But for oncogene-addiction targets (KRAS) dependency is driven by
+# MUTATION STATUS, not abundance — so a WEAK abundance→dep link correctly redirects the biomarker
+# synthesis to the genomic stratifier (mutation-stratified-dependency). The method telling the truth.
+#
+# ZERO new ingestion — reuses depmap_protein_abundance (Gygi MS) + depmap_expression_dependency
+# (Chronos). Sign convention: NEGATIVE Pearson r = higher abundance → more dependent (lower Chronos).
+#
+# ROUTES INTO GATES (master-sequencing Part 3): Required (C) — the abundance→dependency chain
+# corroborates the dependency call; and the BIOMARKER FACET (synthesis) — feeds preferred_assay
+# (RNA vs protein) alongside Q5 rna_as_biomarker + the RNA-arm card. Biology axis; no modality facet.
+
+card_id: abundance-dependency
+version: 0.1.0
+question: "Does {target.symbol} PROTEIN abundance predict its own dependency across cell lines — is protein abundance a biomarker of dependency (and does it beat the RNA arm)?"
+
+tier: target   # protein abundance + Chronos are per-ModelID; pan-lineage with lineage context
+
+applies_when:
+  - "true"   # any target; data_unavailable-safe when absent from the Gygi panel or Chronos
+
+required_inputs:
+  - product_id: depmap-consortium-26q1-proteomics   # Gygi TMT MS protein abundance
+  - product_id: depmap-consortium-26q1              # CRISPRGeneEffect (Chronos) + Model.csv lineage
+
+methods:
+  - call: abundance-dependency
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - abundance_dependency_class          # PRIMARY categorical (drives Tier-2 rules)
+    - protein_dependency_pearson_r        # negative = high abundance → dependent
+    - protein_dependency_pearson_p
+    - protein_dependency_spearman_r
+    - n_paired_models                     # models with BOTH protein + Chronos
+    - n_dependent_models                  # Chronos <= -0.5
+    - n_protein_detected_models
+    - protein_panel_size
+    - abundance_layer                     # protein_gygi_ms
+    - rna_arm_card                        # pointer to the RNA sibling for the comparison
+    - release_pin
+  summary_fields_vocabulary:
+    abundance_dependency_class: [protein_predicts_dependency, weak_protein_dependency_link, no_protein_dependency_link, insufficient_paired_models, data_unavailable]
+  figure: abundance_dependency_card       # class + correlation stats panel
+
+thresholds:
+  strong_r: -0.4              # <= → protein_predicts_dependency (with significance)
+  weak_r: -0.2                # strong_r < r <= weak_r → weak link; r > weak_r → no link
+  min_paired_models: 20       # below → insufficient_paired_models
+  significance_alpha: 0.05    # Pearson p at/below → the strong call is confident
+
+caveats:
+  - "PROTEIN arm of the expression-as-biomarker-of-dependency question; the RNA arm is the sibling card expression-dependency-correlation. Report side-by-side, NEVER averaged — their disagreement picks the preferred dependency-biomarker assay (RNA vs protein) in synthesis."
+  - "A WEAK abundance→dependency link is NOT a target negative: for oncogene-addiction targets (e.g. KRAS) dependency is driven by MUTATION status, not protein abundance, so the abundance biomarker is correctly weak and synthesis should prefer the genomic stratifier (mutation-stratified-dependency). Interpret alongside that card."
+  - "Gygi MS quantifies ~12.5k proteins; a target absent from the panel yields data_unavailable (protein_panel_size / n_protein_detected_models reflect panel coverage, not biology)."
+  - "Correlation reflects cell-line behavior; abundance-stratification in vivo may differ (microenvironment, heterogeneity). A strong negative r is necessary but not sufficient for a clinical biomarker."
+  - "Sign convention: NEGATIVE Pearson r = higher protein → lower Chronos = more dependent (matches the RNA card's convention)."
+
+# (no `measurement:`/`sample_context:` single value — this is a derived cell-line correlation, like
+#  expression-dependency-correlation, which also omits them.)
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `abundance_dependency_correlation` claim,
+# derived_from [cell_line_protein_abundance, crispr_lof_dependency]. Protein-arm sibling of
+# expression_dependency_correlation.
+measurement_type: abundance_dependency_correlation
+entity_grains: [target, target_lineage]
+schema_version: 1
