@@ -948,6 +948,59 @@ rules:
       Target absent from the GTEx normal atlas, or matrix unreachable. Coverage gap.
 
   # ============================================================================
+  # RECOMMENDED MODELS (Q4, patient↔model expression correspondence) — Gate-C corroboration
+  # ============================================================================
+  # Q4 routes to Required (Gate C) as MODEL-BACKED-DEPENDENCY corroboration (its master-plan
+  # primary consumer Patient-pop/Q10 was deleted in the #62 skill restructure; Required is the
+  # live secondary home). ADDITIVE signal only — does NOT enter the dependency RESOLVER ladder
+  # (that stays keyed to the actual dependency cards → verdict byte-stable). A well-modeled target
+  # has cell-line models that both express it in the patient range AND depend on it: a real,
+  # screenable dependency basis. NOT a killer on the downside — Q4 is expression-similarity, not
+  # the dependency measurement, so absence of a good model ≠ absence of dependency.
+  - rule_id: recommended-models-well-modeled-supportive
+    when:
+      card_id: recommended-models
+      field: correspondence_class
+      in: [well_modeled_in_lineage, well_modeled_off_lineage]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      DepMap has cell-line model(s) that express the target within the patient tumor range AND
+      depend on it (Chronos ≤ −0.5) — a model-backed, screenable dependency basis. Supportive for
+      SM/degrader (there is a system to run the screen in). well_modeled_in_lineage is stronger
+      (the model is of the indication's lineage); off_lineage still corroborates the dependency
+      exists in a representative model, just not lineage-matched. Corroboration, not the dependency
+      verdict itself (that is the functional-requirement gate's job).
+
+  - rule_id: recommended-models-poorly-modeled-neutral
+    when:
+      card_id: recommended-models
+      field: correspondence_class
+      equals: poorly_modeled
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      No cell-line model both expresses the target in the patient range and depends on it. NEUTRAL,
+      NOT opposing: Q4 is an expression-similarity correspondence, not the dependency measurement —
+      lack of a representative dependent model is a screening-tractability gap (harder to model),
+      not evidence the target is non-essential. The dependency verdict is set by the
+      functional-requirement gate; this only notes the model panel is thin.
+
+  - rule_id: recommended-models-data-unavailable-insufficient
+    when:
+      card_id: recommended-models
+      field: correspondence_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No patient tumor TPM for this (target, indication), or the DepMap model panel was unreachable.
+      Coverage gap.
+
+  # ============================================================================
   # expression-dependency-correlation — biomarker hypothesis
   # (v2 refactor 2026-06-30: card now pure-data; 5 vocab values, 5 rules)
   # ============================================================================
