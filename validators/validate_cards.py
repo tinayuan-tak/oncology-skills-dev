@@ -147,10 +147,10 @@ KNOWN_FIGURE_DEBT = {
     # expression-extraction plan (Q1): tumor-expression-distribution CLEARED 2026-07-22 —
     # _emit_tumor_expression_distribution is registered in compose-dashboard
     # CARD_FIGURE_EMITTERS (SK #144), so the pooled card now passes the check (not waived).
-    # subtyping revisit (2026-07-22): the target_subtype sibling. Its per-stratum panel
-    # (faceted distribution) needs a _emit_tumor_expression_distribution_subtype in the
-    # skills repo — tracked debt until that sibling skills PR lands, then remove this entry.
-    'tumor-expression-distribution-subtype',
+    # subtyping revisit: tumor-expression-distribution-subtype CLEARED 2026-07-22 —
+    # _emit_tumor_expression_distribution_subtype is registered in compose-dashboard
+    # CARD_FIGURE_EMITTERS (SK #145, backed by AM #84's emit_subtype_svg/plotly), so the
+    # subtype card now passes the check (not waived).
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
