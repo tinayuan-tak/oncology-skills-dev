@@ -56,6 +56,13 @@ CARDS = [
                                                 # rules feed NO resolver — verdict-inert), grouped with the
                                                 # dependency stratification facets. Also added to
                                                 # target-profile SUB_SKILL_CARDS[functional-requirement].
+    "recommended-models",                       # Q4 patient↔model correspondence (2026-07-22). Routes to
+                                                # Gate C as MODEL-BACKED-DEPENDENCY corroboration (its
+                                                # master-plan Patient-pop/Q10 home was deleted in #62). Its
+                                                # recommended-models-* rules emit SM/degrader supportive on
+                                                # well_modeled (a screenable, model-backed dependency basis);
+                                                # ADDITIVE — feed NO resolver ladder → dependency verdict
+                                                # byte-stable. Also in target-profile SUB_SKILL_CARDS.
 ]
 
 # The verdicts that ARE a real dependency call (positive or veto) — the ones a predictability
@@ -154,6 +161,9 @@ def _headline(cards, fired, verdict_pair):
                                             "pred_dominant_feature_class"),
         "dependency_confidence":    confidence["confidence"],
         "dependency_confidence_note": confidence["note"],
+        # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
+        "model_correspondence_class": _get("recommended-models", "correspondence_class"),
+        "n_positive_models_in_lineage": _get("recommended-models", "n_positive_models_in_lineage"),
     }
 
 

@@ -128,6 +128,9 @@ SUB_SKILL_CARDS = {
                                                  # correlation_class never computed → rendered empty.
                                                  # Render-only facet (verdict-inert: its rules feed no
                                                  # resolver). Also in functional-requirement/run.py CARDS.
+        "recommended-models",                    # Q4 patient↔model correspondence (2026-07-22) — model-
+                                                 # backed-dependency corroboration; paired with
+                                                 # functional-requirement CARDS (composer-consistency).
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",
