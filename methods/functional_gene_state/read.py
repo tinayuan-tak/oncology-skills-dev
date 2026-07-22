@@ -314,28 +314,44 @@ def _depmap_cn_class(rel_cn: Optional[float]) -> Optional[str]:
     return "neutral"
 
 
-def _read_model_arm(target: str) -> dict:
-    """Model (DepMap 26q1) functional-gene-state distribution across all cell lines (pan-lineage).
-    Model-side LOH is genome-wide only (not per-gene) → loh_at_locus=None → copy-neutral mutations
-    resolve `uncertain` rather than a false biallelic (documented caveat)."""
+def read_model_states_per_model(target: str) -> dict:
+    """PUBLIC per-model accessor (added for M11 genomic_event_model_match): the DepMap 26q1
+    functional gene state of `target` in EACH cell line, keyed by ModelID.
+
+    Returns {ModelID: {state, cn_class, has_mutation, mutation_is_lof}} — the per-model rows the
+    aggregate model arm rolls up. Empty dict when the target is absent from all model substrate.
+    Model-side LOH is genome-wide only (loh_at_locus=None) → copy-neutral mutations resolve
+    `uncertain` (the documented model caveat). Downstream consumers (M11) join this against Chronos
+    + lineage; the aggregate _read_model_arm below is a pure roll-up of these same rows."""
     damaging = _read_depmap_mut_matrix("OmicsSomaticMutationsMatrixDamaging.csv", target)
     hotspot = _read_depmap_mut_matrix("OmicsSomaticMutationsMatrixHotspot.csv", target)
     cn = _read_depmap_cn(target)
     if not damaging and not hotspot and not cn:
-        return {"_arm": "model", "state": "data_unavailable",
-                "_note": "target absent from DepMap mutation matrices + CN"}
+        return {}
 
-    models = set(damaging) | set(hotspot) | set(cn)
-    states: list[str] = []
-    for m in sorted(models):
+    out: dict = {}
+    for m in sorted(set(damaging) | set(hotspot) | set(cn)):
         has_mut = bool(damaging.get(m) or hotspot.get(m))
         # a damaging call is LoF-class; a hotspot-only call is treated as non-LoF (activating-ish).
         mut_is_lof = bool(damaging.get(m)) if has_mut else None
         cn_class = _depmap_cn_class(cn.get(m))
         ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class,
                             loh_at_locus=None, mutation_is_lof=mut_is_lof)
-        states.append(classify_functional_state(ev))
+        out[m] = {"state": classify_functional_state(ev), "cn_class": cn_class,
+                  "has_mutation": has_mut, "mutation_is_lof": mut_is_lof}
+    return out
 
+
+def _read_model_arm(target: str) -> dict:
+    """Model (DepMap 26q1) functional-gene-state DISTRIBUTION across all cell lines (pan-lineage) —
+    a pure roll-up of read_model_states_per_model. Model-side LOH is genome-wide only (not per-gene)
+    → copy-neutral mutations resolve `uncertain` rather than a false biallelic (documented caveat)."""
+    per_model = read_model_states_per_model(target)
+    if not per_model:
+        return {"_arm": "model", "state": "data_unavailable",
+                "_note": "target absent from DepMap mutation matrices + CN"}
+    # sorted() preserves the former iteration order → byte-identical summary to the pre-refactor arm.
+    states = [per_model[m]["state"] for m in sorted(per_model)]
     summ = summarize_states(states)
     summ.update({"_arm": "model", "cn_source": "depmap_omicscngenewgs_relative",
                  "loh_note": "genome_wide_only_not_per_gene"})

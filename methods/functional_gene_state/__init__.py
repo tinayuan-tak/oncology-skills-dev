@@ -53,16 +53,17 @@ Modules:
 """
 from __future__ import annotations
 
-from .read import read_functional_gene_state
+from .read import read_functional_gene_state, read_model_states_per_model
 from .classify import (
     classify_functional_state,
     FUNCTIONAL_STATES,
 )
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"      # +read_model_states_per_model public accessor (for M11); arm output byte-stable
 
 __all__ = [
     "read_functional_gene_state",
+    "read_model_states_per_model",
     "classify_functional_state",
     "FUNCTIONAL_STATES",
     "METHOD_VERSION",
