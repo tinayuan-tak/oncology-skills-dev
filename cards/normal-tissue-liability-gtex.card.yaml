@@ -1,0 +1,66 @@
+# Card — NORMAL-TISSUE LIABILITY (GTEx per-sample atlas)
+#
+# Q3 of the 12-question expression spec: WHERE is the target expressed in normal tissue, and does
+# any CRITICAL organ carry high expression (an on-target-off-tumor red flag regardless of tumor
+# abundance)? The therapeutic-window / safety floor from the GTEx normal atlas.
+#
+# SAME measurement_type as lineage-restriction-evidence (normal_tissue_rna_breadth) — this is a
+# SECOND PROVIDER, not a competing card: lineage-restriction-evidence binds HPA (dormant, product
+# unlanded); this binds the LANDED GTEx recount3 atlas (per-sample, same axis as the tumor TPM, so
+# tumor-to-normal ratios are directly comparable). multi_provider_policy: tier_dominant (GTEx live +
+# comparable = dominant; HPA a future adjunct). NOT a duplicate — one breadth question, two providers.
+#
+# ROUTES INTO GATES (master-sequencing plan Part 3/3b): Safety (off-tumor floor) AND the
+# surface-modality-fit gate (E2: on-target-off-tumor for ADC/TCE — a critical-organ liability is a
+# surface no-go). modality_relevance metadata is a follow-up (schema field not yet added).
+
+card_id: normal-tissue-liability-gtex
+version: 0.1.0
+question: "Across normal tissues (GTEx), where is {target.symbol} expressed, and does any critical organ carry high expression (on-target-off-tumor liability)?"
+
+tier: target   # target-grain property (normal expression is a property of the gene, not an indication)
+
+applies_when:
+  - "true"   # target-grain; always applicable (GTEx atlas is pan-tissue, indication-independent)
+
+required_inputs:
+  - product_id: gtex-tpm-recount3-long-v1              # per-sample GTEx normal atlas (all tissues)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - liability_class                            # PRIMARY categorical (drives Tier-2 rules)
+    - highest_tissue
+    - highest_tissue_median
+    - critical_organ_max                         # max median among CRITICAL (vital/dose-limiting) organs
+    - critical_organ_argmax                      # which critical organ
+    - n_tissues_high                             # # tissues >= HIGH cutoff
+    - n_tissues_detectable
+    - n_tissues_tested
+    - tissue_breadth_fraction                    # n_detectable / n_tested (breadth of normal expression)
+  summary_fields_vocabulary:
+    liability_class: [critical_organ_liability, broadly_expressed_normal, restricted_normal, moderate_normal_breadth, data_unavailable]
+  figure: normal_tissue_liability_atlas          # per-tissue median bar, critical organs highlighted
+
+thresholds:
+  # the HIGH cutoff + breadth bands are declared here (mirror the method's stats constants).
+  high_log2tpm: 5.6724           # TPM ~50 — a critical organ at/above this = liability
+  broad_breadth_fraction: 0.7    # detectable in >= 70% of tissues → broadly_expressed_normal (narrow window)
+  restricted_breadth_fraction: 0.3  # detectable in < 30% → restricted_normal (favorable window)
+
+caveats:
+  - "SECOND PROVIDER of normal_tissue_rna_breadth (GTEx), alongside the dormant HPA lineage-restriction-evidence. multi_provider_policy: tier_dominant — GTEx (landed, comparable axis) dominant; HPA a future adjunct. Do NOT collapse or average the two."
+  - "The critical-organ set is a curated vital/dose-limiting-organ list (HEART/BRAIN/LIVER/LUNG/KIDNEY/NERVE/MUSCLE/BLOOD/BONE_MARROW/ARTERY/PANCREAS); it is a screening flag, not a substitute for formal tox."
+  - "RNA-level normal expression does not perfectly predict protein-level (some genes RNA-broad but protein-restricted). GTEx RNA is a selection/safety SCREEN; protein-IHC (HPA / normal-tissue-liability protein card) is the confirmatory layer."
+  - "GTEx is bulk normal tissue; cell-type-specific expression within a tissue is not resolved (single-cell required for that claim)."
+
+measurement: bulk_rna
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — GTEx provider of the normal_tissue_rna_breadth claim (2nd provider).
+measurement_type: normal_tissue_rna_breadth
+entity_grains: [target]
+schema_version: 1

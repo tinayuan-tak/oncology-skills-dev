@@ -1,0 +1,79 @@
+# Card — TUMOR-VS-NORMAL PERCENTILE-CROSSING SELECTIVITY (per-sample RNA; TCGA vs GTEx)
+#
+# Q2 of the 12-question expression spec: the HEADLINE enrichment metric — the fraction of TUMOR
+# samples whose expression exceeds the Nth percentile of MATCHED-NORMAL expression. More actionable
+# than a fold change: it answers "how much of the tumor population separates from normal" directly.
+#
+# SELECTIVITY-side card (Gate B / tumor-selectivity). DISTINCT from:
+#   - tumor-expression-distribution (Q1, PRESENCE / Gate A — abundance, not a normal contrast),
+#   - tumor-vs-normal-selectivity (same Gate B, but an AGGREGATE log2FC from dge-deseq2; this card is
+#     the PER-SAMPLE percentile-crossing on the directly-comparable recount3 matrices).
+# Presence and selectivity stay SEPARATE (standing decision).
+#
+# ROUTES INTO GATES (master-sequencing plan Part 3): primary = Selectivity (B); also cross-cuts to
+# the therapeutic-window synthesis (Q12) and the ADC/surface-antigen framing (a per-sample clean
+# separation is the surface-antigen selectivity argument). modality_relevance metadata is a follow-up
+# (schema field not yet added); gate routing is via measurement_type today.
+
+card_id: tumor-vs-normal-percentile-crossing
+version: 0.1.0
+question: "What fraction of {indication.label} tumors express {target.symbol} above the 95th/99th percentile of matched normal tissue, and do the tumor and normal distributions separate?"
+
+tier: indication
+
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # the per-sample reader supports target_subtype (proven on Q1), but this
+                         # slice ships the pooled indication grain first; the subtype panorama for
+                         # selectivity is a fast-follow (same fan-out pattern as the Q1 subtype card).
+  axes: [molecular_subtype]
+  rationale: "Percentile-crossing selectivity can vary by subtype (a target may separate from normal only in one subtype); the per-sample reader supports the fan-out, deferred to a fast-follow to ship the pooled grain first."
+
+applies_when:
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM
+  - product_id: gtex-tpm-recount3-long-v1              # matched-normal per-sample TPM (same axis)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - selectivity_class                          # PRIMARY categorical (drives Tier-2 rules)
+    - fraction_tumor_above_normal_p95            # the headline enrichment metric
+    - fraction_tumor_above_normal_p99
+    - normal_p95_log2tpm
+    - normal_p99_log2tpm
+    - distribution_overlap_tumor_normal          # OVL ∈ [0,1]; 0 = clean separation (wide window)
+    - matched_normal_tissue
+    - n_tumor_samples
+    - n_normal_samples
+    - studies
+  summary_fields_vocabulary:
+    selectivity_class: [strongly_tumor_enriched, enriched_subset, minimally_enriched, not_enriched, data_unavailable]
+  figure: expression_distribution_per_sample    # reuses the Q1 tumor-vs-normal box+strip w/ the p95 line
+
+thresholds:
+  # per-sample percentile-crossing cutoffs (declared, not hardcoded in rules — reviewable).
+  strong_frac_p95: 0.5           # >= half the tumors clear normal p95 ...
+  strong_max_overlap: 0.4        # ... AND distributions separate → strongly_tumor_enriched
+  enriched_subset_frac_p95: 0.25 # a real tumor-high subset above normal
+  not_enriched_frac_p95: 0.05    # essentially no separation
+
+caveats:
+  - "Percentile-crossing is a normal-RELATIVE selectivity metric (Gate B), NOT presence — a target can be broadly present (Q1) yet not tumor-enriched (this card), e.g. a housekeeping gene."
+  - "Matched normal is the GTEx tissue-of-origin; a target elevated vs the WRONG normal would mislead — the matched-tissue map mirrors the DGE pipeline's INDICATION_TO_GTEX_TISSUE."
+  - "Bulk tumor purity dilutes the tumor arm; a low fraction-above-normal in a low-purity cohort may understate tumor-cell-intrinsic selectivity (see Q9 purity attribution)."
+
+measurement: bulk_rna
+sample_context: tumor          # tumor per-sample, contrasted against matched normal
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: per-sample percentile-crossing selectivity.
+measurement_type: tumor_vs_normal_percentile_crossing
+entity_grains: [target_indication]
+schema_version: 1

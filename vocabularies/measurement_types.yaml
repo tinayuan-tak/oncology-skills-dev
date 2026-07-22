@@ -270,9 +270,33 @@ measurement_types:
     # Distinct from normal_tissue_protein_breadth: RNA-breadth for selection vs protein-IHC for
     # safety — different layer AND different gate (Rule 1 discriminators (a) and (b) both fire).
     entity_grains: [target]
-    cards: [lineage-restriction-evidence]
+    cards: [lineage-restriction-evidence, normal-tissue-liability-gtex]
+    # TWO providers, one breadth question: the dormant HPA card + the LANDED GTEx per-sample atlas
+    # (Q3, recount3 — same axis as the tumor TPM, so tumor-to-normal ratios are directly comparable).
+    # tier_dominant: GTEx (landed + comparable) is the dominant provider; HPA a future adjunct once
+    # its product lands. NOT surface_discordance — these aren't independent measurements to reconcile;
+    # GTEx is the primary read and HPA corroborates when available.
+    multi_provider_policy: tier_dominant
     providers:
+      - {kind: dataset, source: gtex-tpm-recount3-long-v1, evidence_tier: measured}          # LANDED (Q3, dominant)
       - {kind: dataset, source: hpa-normal-tissue-expression, evidence_tier: measured}   # product not yet landed; card dormant-by-design (applies_when)
+
+  tumor_vs_normal_percentile_crossing:
+    claim: "What fraction of an indication's tumors express target above the Nth percentile of matched normal (per-sample selectivity)?"
+    # Q2 of the expression spec. Rule 1 discriminator: SELECTIVITY (Gate B), like tumor_vs_normal_selectivity,
+    # but the PER-SAMPLE percentile-crossing on directly-comparable recount3 matrices — NOT the aggregate
+    # log2FC (dge-deseq2) and NOT presence (tumor_expression_distribution, Gate A). The headline enrichment
+    # metric of the therapeutic-window framing; cross-cuts to ADC/surface-antigen selectivity.
+    entity_grains: [target_indication]
+    cards: [tumor-vs-normal-percentile-crossing]
+    # tier_dominant (mirrors Q1 tumor_expression_distribution): TCGA is the dominant provider (the
+    # tumor arm — the fraction-above metric is a property of the tumor population); GTEx is auxiliary,
+    # supplying ONLY the matched-normal percentile cutoff. Not surface_discordance — GTEx isn't a
+    # competing view of the same quantity, it's the normal reference the crossing is measured against.
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}          # tumor arm (dominant)
+      - {kind: dataset, source: gtex-tpm-recount3-long-v1, evidence_tier: measured}   # matched-normal percentile cutoff (auxiliary)
 
   normal_tissue_protein_breadth:
     claim: "How broad is target's normal-tissue protein-IHC footprint, and does it hit essential tissue (safety)?"
