@@ -302,8 +302,14 @@ def read_per_sample(target: str):
                                      "sample_type", "condition", "log2_ratio"])
 
 
+@lru_cache(maxsize=64)
 def per_cohort_distribution_stats(target: str) -> list[dict]:
     """Per-cohort tumor-vs-normal distribution + honest statistics recomputed from the SAMPLES.
+
+    Memoized (retrieval-opt #5): the three figure emitters (emit_per_cohort_panel / emit_plot_data /
+    emit_plotly_specs) each call this independently, so a single card render recomputed the stats
+    3x — including re-reading the per-sample product + re-running Welch/MWU. Cached on `target`;
+    emitters treat the returned list read-only (they iterate to draw). cache_clear() in tests.
 
     For each cohort the target was quantified in, split the per-aliquot log-ratios into Tumor vs
     Normal and compute, FROM THE SAMPLES (not the summary product's precomputed q):

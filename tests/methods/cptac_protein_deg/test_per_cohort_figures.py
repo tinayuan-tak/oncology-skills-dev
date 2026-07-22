@@ -54,6 +54,9 @@ def _patch(monkeypatch, spec):
     df = _per_sample_df(spec)
     monkeypatch.setattr(r, "read_per_sample",
                         lambda target: df[df["gene_symbol"] == target.upper()].copy())
+    # per_cohort_distribution_stats is @lru_cache'd (retrieval-opt #5) — clear it between tests so a
+    # prior test's patched data doesn't return a stale cached result for the same target.
+    r.per_cohort_distribution_stats.cache_clear()
 
 
 def test_distribution_stats_sorted_by_delta_desc(monkeypatch):

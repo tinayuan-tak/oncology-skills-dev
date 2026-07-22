@@ -11,6 +11,7 @@ predicate-pushdown by gene. Definitive-vs-transient S3 latch so a blip doesn't p
 """
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -63,8 +64,15 @@ def _ensure_cached() -> Optional[Path]:
     return None
 
 
+@lru_cache(maxsize=64)
 def read_pan_cancer_by_tissue(target: str):
     """Per-(source, group) log2(TPM+1) five-number summaries for one gene, both sources.
+
+    Memoized (retrieval-opt #5): the three figure emitters (emit_by_tissue_distribution /
+    emit_plot_data / emit_plotly_specs) each call this independently, so a single card render
+    re-read + re-filtered the 69 MB quantile product 3x. Cached on `target`; the returned DataFrame
+    is treated read-only downstream (filtered/copied by _ordered_rows, never mutated in place).
+    Note: pandas DataFrames are mutable — do NOT mutate the returned frame in place.
 
     Predicate-pushdown read (filter gene_symbol == target) on the (ensembl_gene_id, source,
     group)-sorted quantile product. Returns a DataFrame with columns (gene_symbol,
