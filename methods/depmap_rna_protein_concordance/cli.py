@@ -19,6 +19,14 @@ def build_summary(target: str, indication: str = None, release_pin: str = "26q1"
     return summary
 
 
+def build_tumor_summary(target: str, indication: str) -> dict:
+    """Q5 TUMOR arm — CPTAC matched tumor RNA↔protein concordance for target in the indication's
+    CPTAC cohort. Indication-scoped (cohort-specific). Distinct from the cell-line arm."""
+    summary = _read.read_tumor_rna_protein_concordance(target, indication)
+    summary["method_version"] = METHOD_VERSION
+    return summary
+
+
 def _load_style(contracts_dir):
     try:
         import matplotlib.pyplot as plt

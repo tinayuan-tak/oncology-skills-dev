@@ -109,6 +109,80 @@ def _classify_rna_biomarker(pearson_r, n_paired) -> str:
     return "poor_proxy"
 
 
+# ---- TUMOR arm (CPTAC matched RNA+protein, cptac-rna-protein-matched-per-sample-v1) ------------
+# The tumor analogue of the cell-line concordance above. Reads the matched product (one row per
+# (cohort, patient_id, gene, rna_log2tpm, protein_log2abundance)) and computes the SAME correlation
+# + rna_as_biomarker classification per the indication's CPTAC cohort. Tumor concordance is a
+# DISTINCT signal from cell-line (purity/stroma noise; strongly gene-specific).
+S3_BUCKET = "onc-compbio"
+CPTAC_MATCHED_KEY = ("data-catalog/derived/cptac-rna-protein-matched-per-sample-v1/"
+                     "cptac_rna_protein_matched.parquet")
+MIN_PAIRED_TUMORS = 20
+
+# indication → CPTAC cohort code (the 10 cohorts in the matched product).
+INDICATION_TO_CPTAC_COHORT = {
+    "BRCA": "brca", "KIRC": "ccrcc", "CCRCC": "ccrcc", "COADREAD": "coad", "COAD": "coad",
+    "READ": "coad", "GBM": "gbm", "HNSC": "hnscc", "HNSCC": "hnscc", "LUSC": "lscc", "LSCC": "lscc",
+    "LUAD": "luad", "OV": "ov", "PAAD": "pdac", "PDAC": "pdac", "UCEC": "ucec",
+}
+
+
+def _read_matched_cohort(cohort: str):
+    """Read the matched CPTAC product for one cohort → DataFrame[patient_id, gene, rna_log2tpm,
+    protein_log2abundance]. Empty on any read failure (data_unavailable-safe)."""
+    import pandas as pd
+    try:
+        import pyarrow.parquet as pq
+        import s3fs
+        fs = s3fs.S3FileSystem()
+        tbl = pq.read_table(f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs,
+                            filters=[("cohort", "==", cohort)])
+        return tbl.to_pandas()
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"])
+
+
+def read_tumor_rna_protein_concordance(target: str, indication: str) -> dict:
+    """Q5 TUMOR arm — CPTAC matched tumor RNA↔protein concordance for target in the indication's
+    CPTAC cohort. Same correlation + rna_as_biomarker vocab as the cell-line arm. data_unavailable-safe."""
+    cohort = INDICATION_TO_CPTAC_COHORT.get(indication.upper().strip())
+    base = {"target": target, "indication": indication, "cptac_cohort": cohort,
+            "substrate": "cptac_tumor"}
+    if cohort is None:
+        base.update({"rna_as_biomarker": "data_unavailable", "rna_protein_r": None,
+                     "n_paired_tumors": 0, "_data_note": "no CPTAC cohort for this indication"})
+        return base
+    df = _read_matched_cohort(cohort)
+    sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
+    sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
+    n = len(sub)
+    if n < MIN_PAIRED_TUMORS:
+        base.update({"rna_as_biomarker": ("data_unavailable" if n == 0 else "insufficient_paired_tumors"),
+                     "rna_protein_r": None, "n_paired_tumors": n,
+                     "_data_note": (f"{cohort}: {n} tumors with matched RNA+protein for {target} "
+                                    f"(floor {MIN_PAIRED_TUMORS})")})
+        return base
+    import numpy as np
+    rna = sub["rna_log2tpm"].to_numpy(dtype=float)
+    prot = sub["protein_log2abundance"].to_numpy(dtype=float)
+    if np.ptp(rna) == 0 or np.ptp(prot) == 0:
+        base.update({"rna_as_biomarker": "insufficient_paired_tumors", "rna_protein_r": None,
+                     "n_paired_tumors": n, "_data_note": "RNA or protein constant across tumors"})
+        return base
+    try:
+        from scipy.stats import pearsonr, spearmanr
+        pear = float(pearsonr(rna, prot)[0]); spear = float(spearmanr(rna, prot)[0])
+    except Exception:  # noqa: BLE001
+        pear = float(np.corrcoef(rna, prot)[0, 1]); spear = None
+    base.update({
+        "rna_protein_r": round(pear, 4),
+        "rna_protein_spearman": (round(spear, 4) if spear is not None else None),
+        "n_paired_tumors": n,
+        "rna_as_biomarker": _classify_rna_biomarker(pear, n),
+    })
+    return base
+
+
 def read_rna_protein_scatter(target: str, release_pin: str = "26q1") -> dict:
     """Per-model paired points for the Q5 scatter figure (RNA x, protein y). data-gap-safe."""
     rna_by_model, prot_by_model, note = _paired_rna_protein(target, release_pin=release_pin)

@@ -89,6 +89,34 @@ def test_zero_variance_guard(monkeypatch):
     assert out["rna_protein_r"] is None
 
 
+def test_tumor_arm_concordance(monkeypatch):
+    import pandas as pd
+    # a COAD cohort matched frame with a clean linear KRAS relationship
+    n = 40
+    rows = [{"patient_id": f"01CO{i:03d}", "gene": "KRAS",
+             "rna_log2tpm": 3.0 + (i % 8) * 0.3, "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1}
+            for i in range(n)]
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    out = R.read_tumor_rna_protein_concordance("KRAS", "COADREAD")
+    assert out["cptac_cohort"] == "coad" and out["substrate"] == "cptac_tumor"
+    assert out["rna_as_biomarker"] == "adequate_proxy" and out["n_paired_tumors"] == n
+    # unmapped indication → data_unavailable (no CPTAC cohort)
+    assert R.read_tumor_rna_protein_concordance("KRAS", "SKCM")["rna_as_biomarker"] == "data_unavailable"
+
+
+def test_tumor_arm_underpowered_and_gap(monkeypatch):
+    import pandas as pd
+    # fewer than the floor → insufficient_paired_tumors
+    rows = [{"patient_id": f"p{i}", "gene": "X", "rna_log2tpm": float(i), "protein_log2abundance": float(i)}
+            for i in range(5)]
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    assert R.read_tumor_rna_protein_concordance("X", "COADREAD")["rna_as_biomarker"] == "insufficient_paired_tumors"
+    # target absent from the cohort → data_unavailable (n==0)
+    monkeypatch.setattr(R, "_read_matched_cohort",
+                        lambda cohort: pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]))
+    assert R.read_tumor_rna_protein_concordance("GHOST", "COADREAD")["rna_as_biomarker"] == "data_unavailable"
+
+
 def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
     pytest.importorskip("matplotlib")
