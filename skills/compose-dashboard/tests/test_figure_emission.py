@@ -315,6 +315,32 @@ def test_q4_recommended_models_figure_emission(tmp_path, monkeypatch):
         out_root=tmp_path / "o4", target="X", indication="BRCA") == []
 
 
+def test_q5_rna_protein_concordance_figure_emission(tmp_path, monkeypatch):
+    """Q5 concordance scatter; gated on rna_as_biomarker. Monkeypatch the two per-model readers."""
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    rna = {m: float(i % 8) for i, m in enumerate(ids)}
+    import methods.depmap_expression_dependency.cli as rna_cli
+    monkeypatch.setattr(rna_cli, "load_depmap_files_for_card4",
+                        lambda release_pin, target_symbol: ({}, rna, {}, []))
+    import methods.depmap_protein_abundance.cli as prot_cli
+    monkeypatch.setattr(prot_cli, "resolve_accession", lambda t, sidecar_path=None: "P00000")
+    monkeypatch.setattr(prot_cli, "load_abundance_column",
+                        lambda acc, matrix_path=None: ({m: rna[m] + 0.1 for m in ids}, len(ids)))
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="rna-protein-concordance",
+        summary={"rna_as_biomarker": "adequate_proxy", "rna_protein_r": 0.99, "n_paired_models": 40},
+        out_root=out_root, target="EGFR", indication="COADREAD")
+    assert any(f["id"] == "rna_protein_concordance_scatter" for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/rna-protein-concordance/")
+    assert emit_figures_for_card(
+        card_id="rna-protein-concordance", summary={"rna_as_biomarker": "data_unavailable"},
+        out_root=tmp_path / "o5", target="X", indication="COADREAD") == []
+
+
 def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
     """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
     from _figure_emitters import emit_figures_for_card

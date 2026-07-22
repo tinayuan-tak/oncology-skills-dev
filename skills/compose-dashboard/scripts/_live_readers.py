@@ -338,6 +338,16 @@ def _dispatch_recommended_models(target: str, indication: str) -> Optional[dict]
     return mod.build_summary(target, indication)
 
 
+def _dispatch_rna_protein_concordance(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route rna-protein-concordance card (Q5) to
+    methods/depmap_rna_protein_concordance/cli.py::build_summary.
+
+    Per-ModelID DepMap RNA vs Gygi MS protein correlation → rna_as_biomarker. Target-grain
+    (concordance is a per-ModelID target property); indication accepted for the contract, NOT consumed."""
+    mod = _import_method("depmap_rna_protein_concordance.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -750,6 +760,7 @@ CARD_DISPATCHERS = {
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "recommended-models": _dispatch_recommended_models,
+    "rna-protein-concordance": _dispatch_rna_protein_concordance,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,
