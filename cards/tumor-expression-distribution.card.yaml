@@ -1,0 +1,117 @@
+# Card — TUMOR EXPRESSION DISTRIBUTION (per-sample RNA; TCGA)
+#
+# The PER-SAMPLE tumor RNA distribution the existing expression cards can't produce.
+# expression-distribution is CELL-LINE (DepMap); expression-tumor-vs-adjacent emits a
+# whole-cohort AGGREGATE (median + one log2FC). This card answers the 12-question spec's
+# Q1 ("is the target expressed in human tumors, and how does expression DISTRIBUTE across
+# patients?") from the per-sample TCGA long product — the fraction of patients above a
+# threshold (more actionable than the median), the shape (continuous | bimodal | long_tail
+# → target-high/-low populations for patient selection), and variability.
+#
+# PRESENCE-side card (Gate A / tumor-presence skill) — a distribution/abundance signal,
+# NOT a tumor-vs-normal contrast (that is tumor-vs-normal-selectivity, Gate B). Presence and
+# selectivity stay SEPARATE. The matched-normal fraction-above-p95 fields here are an overlay
+# for context; the selectivity CONTRAST lives on the selectivity card.
+
+card_id: tumor-expression-distribution
+version: 0.1.0
+question: "How does {target.symbol} RNA expression DISTRIBUTE across {indication.label} tumors — median, fraction of patients detectable/high, and shape (continuous, bimodal, long-tail)?"
+
+tier: indication   # the POOLED per-indication tumor distribution; the target_subtype grain lives on the
+                   # sibling tumor-expression-distribution-subtype card (the framework's grain-split convention)
+
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # this POOLED card does not stratify — the target_subtype grain is served by the
+                         # separate live sibling tumor-expression-distribution-subtype (per the grain-split
+                         # convention: pooled target_indication card BESIDE a tier:subtype panorama card).
+  axes: [molecular_subtype]
+  rationale: "Subtype stratification for this measurement_type is served by the sibling card tumor-expression-distribution-subtype (tier:subtype, LIVE — binds the per-sample stratified reader read_tumor_expression_subtype_landscape via the TCGA UUID↔barcode bridge). This pooled card stays at target_indication grain; splitting the panorama onto a separate card is the framework convention (cf. crispr_lof_dependency: pooled distribution cards beside subgroup-stratified-dependency)."
+
+applies_when:
+  # the indications the TCGA long product + INDICATION_TO_TCGA_STUDIES map cover
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the distribution substrate)
+  - product_id: gtex-tpm-recount3-long-v1              # matched-normal overlay for the p95 context fields
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - tumor_expression_class                    # PRIMARY categorical (drives Tier-2 rules)
+    - n_tumor_samples
+    - median_log2tpm                            # per-sample median (not a cohort aggregate)
+    - p95_log2tpm
+    - p99_log2tpm
+    - detectable_fraction                       # fraction of tumors >= detectable (log2TPM>=1 / TPM~1)
+    - moderate_fraction                         # >= moderate (log2TPM>=3.46 / TPM~10)
+    - high_fraction                             # >= high (log2TPM>=5.67 / TPM~50)
+    - coefficient_of_variation                  # on LINEAR TPM — expression consistency vs variability
+    - distribution_pattern                      # continuous | bimodal | long_tail (patient-population shape)
+    - studies                                   # TCGA study code(s) backing the indication
+    # matched-normal OVERLAY (context, not the selectivity verdict — that's the selectivity card):
+    - matched_normal_tissue
+    - n_normal_samples
+    - fraction_tumor_above_normal_p95           # Q2 headline enrichment metric (normal-relative)
+    - fraction_tumor_above_normal_p99
+    - distribution_overlap_tumor_normal         # OVL ∈ [0,1]; 0 = clean separation
+
+  summary_fields_vocabulary:
+    tumor_expression_class:
+      - broadly_high                            # high_fraction >= 0.5 — most tumors highly express
+      - broadly_detected                        # detectable_fraction >= 0.7 (not high) — present in most tumors
+      - subset_high                             # bimodal/long_tail with a real high minority (high_fraction >= 0.1) — target-high/-low populations
+      - broadly_moderate                        # detectable in a middling fraction
+      - broadly_low                             # detectable_fraction < 0.3 — present in a minority
+      - data_unavailable                        # target absent from TCGA long product for this indication (coverage gap, NOT a measured negative)
+    distribution_pattern:
+      - continuous                              # unimodal spread
+      - bimodal                                 # a separable target-high + target-low subset (patient-selection shape)
+      - long_tail                               # mostly-off with a rare high-expressing tail
+
+  figures:
+    - id: expression_distribution_per_sample
+      type: per_sample_tumor_normal_distribution
+      description: "Per-sample tumor (TCGA) vs matched-normal (GTEx) log2(TPM+1) distribution (box + strip), with the normal-p95 line and the fraction-of-tumors-above-p95 annotation. Shows the distribution SHAPE + the target-high subset the median hides."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_sample_tumor_normal_long_format
+
+thresholds:
+  # ABSOLUTE cutoffs (log2(TPM+1)) — anchored to DepMap's expressed/highly-expressed convention
+  # for cross-target/cross-indication consistency (mirrors expression-distribution).
+  detectable_log2tpm: 1.0                       # TPM ~1
+  moderate_log2tpm: 3.46                        # TPM ~10
+  high_log2tpm: 5.67                            # TPM ~50
+  broadly_high_min_high_fraction: 0.5
+  broadly_detected_min_fraction: 0.7
+  broadly_low_max_fraction: 0.3
+  # ENRICHMENT cutoff (normal-relative) — the Q2 headline metric percentile.
+  normal_enrichment_percentile: 95
+
+warning_predicates:
+  - warning_id: low_tumor_sample_count
+    if: "n_tumor_samples < 30"
+    message: "Fewer than 30 tumor samples for this indication — distribution shape (bimodality, tail) is weakly powered. Interpret distribution_pattern cautiously."
+  - warning_id: no_matched_normal
+    if: "n_normal_samples == 0"
+    message: "No matched GTEx normal for this indication — the fraction-above-normal-p95 overlay is unavailable; distribution stats are tumor-only."
+
+caveats:
+  - "Per-sample log2(TPM+1) from recount3/GENCODE-v26 (same pipeline as GTEx normal → directly comparable)."
+  - "distribution_pattern uses a dependency-light gap heuristic (not a KDE/dip test), robust on small panels; a `bimodal` call is a patient-selection hypothesis, not a statistical guarantee."
+  - "RNA distribution does not imply protein; pair with the CPTAC protein cards for ADC/TCE decisions."
+  - "The fraction_tumor_above_normal_p95 fields are a matched-normal OVERLAY for context; the tumor-vs-normal selectivity VERDICT lives on tumor-vs-normal-selectivity (Gate B), kept separate from this presence/distribution card."
+
+measurement: bulk_rna
+sample_context: tumor         # patient tumor per-sample (TCGA) — orthogonal to measurement
+
+measurement_type: tumor_expression_distribution
+entity_grains: [target_indication]
+schema_version: 1

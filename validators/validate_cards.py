@@ -58,6 +58,9 @@ RECOGNIZED_CONTEXT_ROOTS = {'target', 'indication', 'subgroup_spec', 'release_pi
 PER_SAMPLE_STRATIFIABLE_CALLS = {
     'gdc-somatic-hotspot',   # methods/gdc_somatic_hotspot: read_stratified_mutation_frequency + build_mutation_frequency_panorama
     'depmap-chronos',        # methods/depmap_chronos: read_stratified_dependency + build_dependency_panorama
+    'tcga-gtex-expression-distribution',  # methods/tcga_gtex_expression_distribution: read_tumor_expression_subtype_landscape
+                                          # recomputes the per-sample distribution WITHIN each stratum member-set
+                                          # (UUID→barcode→stratum bridge), NOT an emit-time aggregate — AM #82.
 }
 
 # The list-typed summary field names that signal a card emits a per-subgroup
@@ -141,6 +144,13 @@ KNOWN_FIGURE_DEBT = {
     #     from the median dumbbell — the per-sample product cptac-protein-tumor-vs-normal-per-sample-v1
     #     now persists the per-aliquot log-ratios, so read.py's per_cohort_distribution_stats backs a
     #     true boxplot + recomputed Welch/MWU significance; emitter registered, not waived).
+    # expression-extraction plan (Q1): tumor-expression-distribution CLEARED 2026-07-22 —
+    # _emit_tumor_expression_distribution is registered in compose-dashboard
+    # CARD_FIGURE_EMITTERS (SK #144), so the pooled card now passes the check (not waived).
+    # subtyping revisit (2026-07-22): the target_subtype sibling. Its per-stratum panel
+    # (faceted distribution) needs a _emit_tumor_expression_distribution_subtype in the
+    # skills repo — tracked debt until that sibling skills PR lands, then remove this entry.
+    'tumor-expression-distribution-subtype',
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',

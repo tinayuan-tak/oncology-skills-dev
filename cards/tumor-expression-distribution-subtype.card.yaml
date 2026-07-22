@@ -1,0 +1,91 @@
+# Card — TUMOR EXPRESSION DISTRIBUTION BY MOLECULAR SUBTYPE (per-sample RNA; TCGA)
+#
+# The target_subtype-grain SIBLING of tumor-expression-distribution. Same measurement_type
+# (tumor_expression_distribution), same per-sample substrate — but recomputes the distribution
+# WITHIN each molecular-subtype member-set of the indication, emitting a per-stratum panorama.
+#
+# This is the framework's standard grain-split convention: a POOLED target_indication card
+# (tumor-expression-distribution) beside a SEPARATE tier:subtype card (this one) — exactly as
+# crispr_lof_dependency splits into the pooled distribution cards + subgroup-stratified-dependency.
+# The GRAIN-CHECK validator (_grain_and_tier_check) enforces that a card declaring
+# per_subgroup_metrics binds a per-sample stratified reader; tcga-gtex-expression-distribution
+# (AM #82, read_tumor_expression_subtype_landscape) IS one — it recomputes per stratum via the
+# TCGA UUID→barcode→stratum bridge, verified live (0 null bridge, ~92% stratum coverage, KRAS/CRC).
+#
+# PRESENCE-side (Gate A / tumor-presence). Subtype is CONTEXT/CONFIDENCE, never a veto — the
+# one-directional nomination gate is preserved. COMPUTE-ALL-SPOTLIGHT-ONE: the reader computes
+# EVERY stratum; a queried subtype spotlights + scopes the verdict downstream, not the computation.
+
+card_id: tumor-expression-distribution-subtype
+version: 0.1.0
+question: "How does {target.symbol} RNA expression DISTRIBUTE across the molecular subtypes of {indication.label} tumors — which subtypes are enriched, depleted, or restricted vs the pooled distribution?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype]
+  rationale: "Expression distribution varies by molecular subtype (e.g. MLH1 depleted in CIMP-High/CMS1/MSI-H via mismatch-repair silencing; ZEB1 enriched in mesenchymal CMS4). Backed by tcga-gtex-expression-distribution, which recomputes the per-sample distribution within each stratum's member-set via the TCGA UUID↔barcode bridge — not an emit-time aggregate."
+
+applies_when:
+  # a landed tumor assignment shard is required; only COADREAD is materialized today (the other
+  # catalogued indications unblock as the subgroup-assignment-shards workstream emits their shards).
+  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the distribution substrate)
+  - product_id: tcga-tumor-tpm-per-sample-v1           # the UUID↔barcode sidecar (the bridge)
+  - product_id: tcga-subgroup-assignments-coadread-v1  # the molecular-subtype assignment shard (barcode-keyed)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
+    - subtype_axis_available                    # is a shard landed for this indication?
+    - n_subtypes_measured                       # strata clearing the n-floor
+    - n_subtypes_enriched                       # strata flagged subtype_enriched
+    - spotlight_subtype                          # the queried stratum (or null — compute-all)
+    - assignment_manifest                        # provenance: the shard consumed
+  summary_fields_record_schemas:
+    # record-schema value specs declare the EXPECTED scalar type; a runtime null (e.g. an
+    # underpowered stratum's subtype_signal / median) is permitted — the schema types the
+    # non-null case, matching the subgroup-stratified-dependency exemplar convention.
+    per_subgroup_metrics:
+      stratum_id: string
+      subtype_signal: {enum: [subtype_enriched, subtype_restricted, subtype_depleted, subtype_uniform], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      subgroup_n_floor_met: boolean
+      n_tumor_samples: integer
+      median_log2tpm: number
+      detectable_fraction: number
+      high_fraction: number
+      distribution_pattern: string
+      tumor_expression_class: string
+      match_rate: number                        # stratum join coverage (id-convention guard)
+  figure: expression_distribution_subtype_panel  # per-stratum distribution panel (faceted)
+
+thresholds:
+  # per-stratum enrichment cutoff vs the indication's pooled median, in log2TPM units. Declared
+  # here (not hardcoded in rules) so it is reviewable. ~0.585 = log2(1.5) ≈ a 1.5x linear-TPM
+  # shift — mirrors SUBTYPE_ENRICH_LOG2_DELTA in the method.
+  subtype_enrich_log2_delta: 0.585
+  subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+
+caveats:
+  - "Only COADREAD has a landed tumor assignment shard today; other indications return subtype_axis_available:false (honest) until their shards land (the subgroup-assignment-shards workstream)."
+  - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
+  - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
+  - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
+  - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-expression-distribution card carries the presence verdict; this card enriches it."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of tumor_expression_distribution at target_subtype grain (LIVE per-sample slice).
+measurement_type: tumor_expression_distribution
+entity_grains: [target_subtype]
+schema_version: 1

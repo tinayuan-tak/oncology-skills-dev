@@ -84,6 +84,22 @@ measurement_types:
     providers:
       - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}
 
+  tumor_expression_distribution:
+    claim: "How does target RNA DISTRIBUTE across an indication's tumors (per-sample: median, fraction detectable/high, shape continuous|bimodal|long_tail)?"
+    # Presence/abundance DISTRIBUTION framing — the per-sample tumor distribution the aggregate
+    # cards (cohort median) can't produce. Distinct from tumor_vs_adjacent_expression (a contrast)
+    # and from cell_line_rna_expression (DepMap cell lines). Q1 of the expression profiling spec.
+    entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (needs TCGA UUID↔barcode bridge)
+    cards: [tumor-expression-distribution]
+    # tier_dominant, NOT surface_discordance: the claim is the TUMOR distribution; TCGA is the
+    # dominant provider of it. GTEx is auxiliary — it supplies ONLY the matched-normal p95 OVERLAY
+    # context fields (fraction_tumor_above_normal_p95), never a competing view of the distribution.
+    # The tumor-vs-normal CONTRAST verdict lives on tumor_vs_normal_selectivity, not here.
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}
+      - {kind: dataset, source: gtex-tpm-recount3-long-v1, evidence_tier: measured}   # matched-normal p95 overlay (auxiliary)
+
   tumor_vs_normal_selectivity:
     claim: "How robustly tumor-selective is target across four tumor-vs-normal comparators (efficacy-window framing)?"
     # Rule 1 discriminator (b): distinct from normal_tissue_*_breadth — same tumor-vs-normal biology,
