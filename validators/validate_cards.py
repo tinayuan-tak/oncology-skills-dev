@@ -154,10 +154,8 @@ KNOWN_FIGURE_DEBT = {
     # expression Q2/Q3 CLEARED 2026-07-22 — _emit_tumor_vs_normal_percentile_crossing +
     # _emit_normal_tissue_liability_gtex are registered in compose-dashboard CARD_FIGURE_EMITTERS
     # (SK #146, backed by AM #85), so both cards now pass the figure check (not waived).
-    # expression Q4 (2026-07-22): recommended-models scatter emitted by the method (AM #86
-    # emit_svg/emit_plotly_specs), compose-dashboard wiring is the sibling skills PR — tracked debt
-    # until it lands, then remove.
-    'recommended-models',
+    # expression Q4 CLEARED 2026-07-22 — _emit_recommended_models is registered in compose-dashboard
+    # CARD_FIGURE_EMITTERS (SK #148, backed by AM #86), so the card passes the figure check (not waived).
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
