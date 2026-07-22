@@ -1951,6 +1951,91 @@ rules:
       efficacy basis. Subtype-scoped (→ hold, not veto): the target may remain a
       valid dependency in other subtypes of the same indication.
 
+  # ----------------------------------------------------------------------------
+  # SUBTYPE TIER — EXPRESSION (presence) context, 2026-07-22
+  # ----------------------------------------------------------------------------
+  # The expression analogue of subtype-non-dependence, but with a CRUCIAL semantic
+  # difference: expression is PRESENCE, not efficacy. A subtype-specific expression
+  # signal is CONTEXT for patient-selection — it must NEVER veto or hold. So these
+  # rules emit `subtype_fit_expression: neutral` ("informational, no fit-level
+  # effect", per the signal_vocabulary) on a channel the nomination gate has NO
+  # mapping for → they surface in the panorama render + reach the LLM as context,
+  # but cannot ratchet the verdict. This preserves the one-directional gate exactly:
+  #   - dependency subtype signal CAN hold (a measured efficacy gap forecloses a subtype)
+  #   - expression subtype signal CANNOT — lower/higher presence in a subtype is a
+  #     patient-selection nuance, not an efficacy verdict.
+  # All three fire only on a MEASURED + floor-cleared stratum (in_record admissibility
+  # guard: an underpowered row fails the match → INADMISSIBLE by construction, the
+  # same discipline as subtype-non-dependence). subtype_uniform deliberately gets NO
+  # rule — "no stratum-specific signal" is the descriptive default, nothing to surface.
+  - rule_id: subtype-expression-enriched-context
+    when:
+      card_id: tumor-expression-distribution-subtype
+      field: per_subgroup_metrics
+      in_record:
+        subtype_signal: subtype_enriched
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_expression: neutral
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: expression
+      subgroup_n_source: tcga-subgroup-assignments (per-sample TCGA tumor TPM within stratum member-set, UUID↔barcode bridge)
+      min_n_required: 30
+    rationale: |
+      The target's RNA is ENRICHED in this molecular subtype vs the indication's
+      pooled distribution (stratum median ≥ pooled + the enrichment delta, on a
+      cohort that clears the subgroup-n floor of 30). Context for PATIENT SELECTION —
+      the subtype is a candidate enriched-expression population. NOT verdict-affecting:
+      expression is presence, not efficacy, so a subtype-specific abundance signal
+      raises where-to-look, never the nomination itself (one-directional gate).
+
+  - rule_id: subtype-expression-restricted-context
+    when:
+      card_id: tumor-expression-distribution-subtype
+      field: per_subgroup_metrics
+      in_record:
+        subtype_signal: subtype_restricted
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_expression: neutral
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: expression
+      subgroup_n_source: tcga-subgroup-assignments (per-sample TCGA tumor TPM within stratum member-set, UUID↔barcode bridge)
+      min_n_required: 30
+    rationale: |
+      The target is DETECTABLE in this subtype while broadly absent in the pooled
+      indication (present in the stratum, off pooled). The strongest patient-selection
+      context this card produces — a subtype-restricted presence population. Still
+      CONTEXT only (subtype_fit_expression: neutral): it sharpens who to treat, it
+      does not mint or oppose a nomination. Efficacy remains the dependency gate's job.
+
+  - rule_id: subtype-expression-depleted-context
+    when:
+      card_id: tumor-expression-distribution-subtype
+      field: per_subgroup_metrics
+      in_record:
+        subtype_signal: subtype_depleted
+        evidence_state: measured
+        subgroup_n_floor_met: true
+    signals:
+      subtype_fit_expression: neutral
+    tier: subtype
+    subgroup_metadata_declared:
+      subtype_defining_data: expression
+      subgroup_n_source: tcga-subgroup-assignments (per-sample TCGA tumor TPM within stratum member-set, UUID↔barcode bridge)
+      min_n_required: 30
+    rationale: |
+      The target's RNA is DEPLETED in this subtype vs pooled (stratum median ≤ pooled −
+      the delta, floor-cleared). Context that this subtype is a POORER expression
+      population — relevant to patient selection / de-selection. Deliberately NOT
+      opposing: unlike a measured dependency gap (which forecloses a subtype → hold),
+      lower presence is not an efficacy verdict — a low-but-present target can still be
+      a valid modality substrate. subtype_fit_expression: neutral (context, no gate effect).
+
   # ============================================================================
   # SYNTHETIC-LETHAL PARTNERS (SynLethDB v3, Gate-C step 2, 2026-07-20)
   # ============================================================================
