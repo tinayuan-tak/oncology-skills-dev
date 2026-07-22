@@ -56,6 +56,13 @@ CARDS = [
                                                 # rules feed NO resolver — verdict-inert), grouped with the
                                                 # dependency stratification facets. Also added to
                                                 # target-profile SUB_SKILL_CARDS[functional-requirement].
+    "abundance-dependency",                     # Q7 PROTEIN arm of expression-as-biomarker-of-dependency
+                                                # (2026-07-22): "protein abundance predicts dependency".
+                                                # Sibling of expression-dependency-correlation (RNA arm) —
+                                                # composed alongside it so the biomarker facet can compare
+                                                # RNA vs protein (preferred_assay). ADDITIVE render-only facet
+                                                # (abundance-dependency-* rules feed NO resolver → dependency
+                                                # verdict byte-stable). Biology axis; no modality facet.
     "recommended-models",                       # Q4 patient↔model correspondence (2026-07-22). Routes to
                                                 # Gate C as MODEL-BACKED-DEPENDENCY corroboration (its
                                                 # master-plan Patient-pop/Q10 home was deleted in #62). Its
@@ -164,6 +171,9 @@ def _headline(cards, fired, verdict_pair):
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
         "model_correspondence_class": _get("recommended-models", "correspondence_class"),
         "n_positive_models_in_lineage": _get("recommended-models", "n_positive_models_in_lineage"),
+        # Q7 protein abundance → dependency (render facet, biomarker-assay comparison vs the RNA arm):
+        "abundance_dependency_class": _get("abundance-dependency", "abundance_dependency_class"),
+        "protein_dependency_pearson_r": _get("abundance-dependency", "protein_dependency_pearson_r"),
     }
 
 

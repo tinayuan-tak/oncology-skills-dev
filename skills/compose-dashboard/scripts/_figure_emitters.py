@@ -1040,11 +1040,39 @@ def _emit_genomic_event_model_match(
     ]
 
 
+def _emit_abundance_dependency(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the abundance-dependency figure (Q7): protein-abundance→dependency class + correlation
+    stats. Gated on a computed correlation (data_unavailable / insufficient / no-r → []). On
+    _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary:
+        return []
+    cls = summary.get("abundance_dependency_class")
+    if cls in (None, "data_unavailable", "insufficient_paired_models") \
+            or summary.get("protein_dependency_pearson_r") is None:
+        return []
+    _ensure_methods_path()
+    from methods.abundance_dependency import cli as ad
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = ad.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    return [
+        {"id": "abundance_dependency_card",
+         "path": "figure_abundance_dependency.svg",
+         "type": "abundance_dependency_card", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "alteration-role": _emit_alteration_role,
     "functional-gene-state": _emit_functional_gene_state,
     "genomic-event-model-match": _emit_genomic_event_model_match,
+    "abundance-dependency": _emit_abundance_dependency,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,

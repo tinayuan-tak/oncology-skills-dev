@@ -33,10 +33,16 @@ composition:
     - paralog-buffering                  # Layer 6d addition: dependency-hardening signal
     - prism-crispr-concordance           # E-PRISM re-home 2026-07-20: chemical-genetic confirmation arm (was in run.py CARDS, missing here)
     - dependency-predictability          # Gate-C gap 1 (Option A): META-evidence → CONFIDENCE annotation only, NOT the verdict
+    # Biomarker-facet render cards (ADDITIVE, verdict-inert — feed NO resolver ladder). Grouped:
+    - expression-dependency-correlation  # RNA arm: mRNA predicts dependency (was in run.py CARDS, missing here)
+    - recommended-models                 # Q4 patient↔model correspondence: model-backed-dependency (was in run.py CARDS, missing here)
+    - abundance-dependency               # Q7 PROTEIN arm: protein abundance predicts dependency (2026-07-22)
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type CLAIMS this gate PULLs (resolves against
   # target-contracts/vocabularies/measurement_types.yaml; the 2 CRISPR cards fold into one type).
   # chemical_genetic_concordance = the prism-crispr CONFIRMATION arm; dependency_predictability is
-  # pulled as confidence META-evidence (feeds dependency_confidence_note, not the verdict).
+  # pulled as confidence META-evidence (feeds dependency_confidence_note, not the verdict). The three
+  # biomarker-facet types (expression/abundance dependency correlation + patient_model_correspondence)
+  # are ADDITIVE render facets — pulled for the biomarker/preferred-assay synthesis, verdict-inert.
   measurement_types_pulled:
     - crispr_lof_dependency
     - rnai_lof_dependency
@@ -44,6 +50,9 @@ composition:
     - paralog_buffering
     - chemical_genetic_concordance
     - dependency_predictability
+    - expression_dependency_correlation
+    - abundance_dependency_correlation
+    - patient_model_correspondence
   rules_scope:
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution

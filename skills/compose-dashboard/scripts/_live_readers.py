@@ -276,6 +276,17 @@ def _dispatch_expression_dependency_correlation(target: str, indication: str) ->
     return expr_module.read_expression_dependency(target=target, indication=indication)
 
 
+def _dispatch_abundance_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route abundance-dependency card (Q7, protein arm) to
+    methods/abundance_dependency/cli.py::build_summary.
+
+    Does target PROTEIN abundance (Gygi MS) predict its own Chronos dependency? The protein sibling
+    of expression-dependency-correlation (RNA arm); reused Gygi + Chronos loaders. Indication carried
+    for contract symmetry (the correlation is pan-lineage per-model)."""
+    mod = _import_method("abundance_dependency.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route pan-cancer-crispr-dependency-distribution card to
     methods/depmap_chronos_distribution/read.py.
@@ -807,6 +818,7 @@ CARD_DISPATCHERS = {
     "rna-protein-concordance": _dispatch_rna_protein_concordance,
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
+    "abundance-dependency": _dispatch_abundance_dependency,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
