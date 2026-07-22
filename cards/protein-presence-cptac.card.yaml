@@ -26,8 +26,15 @@ subgroup_stratification:
   axes: [msi_status]
   rationale: "Protein presence varies by subgroup but cptac-protein-deg is a whole-cohort aggregate; needs a per-sample protein reader to recompute per stratum."
 
+# applies_when lists every indication code the CPTAC reader can resolve — the FULL key set of
+# methods/cptac_protein_deg/read.py::INDICATION_TO_CPTAC, which maps both OncoTree canonical codes
+# (COADREAD, PAAD, LUSC, HNSC) AND CPTAC-internal aliases (COAD, PDAC, LSCC, HNSCC, CCRCC) to the 10
+# CPTAC cohorts. The pipeline passes OncoTree codes as context.indication; the earlier list carried
+# ONLY the CPTAC-internal spellings, so this card would exclude the flagship COADREAD (and PAAD /
+# LUSC / HNSC) once real indication-gating is enforced (today it's a phase-1 admit-by-default stub —
+# latent, not yet firing). Listing both spellings makes the gate correct under either code system.
 applies_when:
-  - "context.indication in ['BRCA', 'CCRCC', 'COAD', 'GBM', 'HNSCC', 'LSCC', 'LUAD', 'OV', 'PDAC', 'UCEC']"
+  - "context.indication in ['BRCA', 'CCRCC', 'COAD', 'COADREAD', 'GBM', 'HNSC', 'HNSCC', 'LSCC', 'LUAD', 'LUSC', 'OV', 'PAAD', 'PDAC', 'UCEC']"
 
 required_inputs:
   - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1

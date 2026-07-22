@@ -78,7 +78,8 @@ outputs:
       - not_tumor_elevated                        # RNA-tested in >=1 indication, elevated in none (measured negative)
       - data_unavailable                          # target absent from the pancan RNA product (coverage gap, NOT a negative)
     breadth_layer_concordance:
-      - concordant                                # both layers elevated (broadly/multi) — strongest breadth call
+      - concordant                                # both layers ELEVATED (broadly/multi/single) — strongest breadth call
+      - concordant_not_elevated                   # both layers MEASURED and both not_tumor_elevated — they AGREE the target is NOT elevated (a measured negative agreement; distinct from `concordant`, which asserts elevation — kept separate so a non-elevated target is never read as the strongest breadth call)
       - protein_only                              # protein-elevated, RNA not (post-transcriptional, or RNA coverage gap)
       - rna_only                                  # RNA-elevated, protein not (protein coverage gap — CPTAC is 10 cohorts vs RNA's 27)
       - discordant                                # one layer elevated, the other a MEASURED not_tumor_elevated — surface, do not average

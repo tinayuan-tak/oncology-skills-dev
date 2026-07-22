@@ -1999,6 +1999,25 @@ rules:
       down-regulation or antibody/MS artifact. Governance readers should
       resolve the RNA/protein discordance before program commit.
 
+  - rule_id: protein-modestly-down-opposing
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: modest_down
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      Protein is MODESTLY down in tumor vs normal in the CPTAC cohort
+      (q<0.05, -1.5<effect<=-0.5) — a measured mild-negative presence signal.
+      Mirrors the RNA card's expression-modest-downregulation-opposing rule and
+      the protein card's own strong_down rule: a significant down-differential
+      is opposing (weaker than strong_down but not neutral). Previously
+      modest_down was declared-but-UN-ruled, so a measured mild protein
+      down-regulation collapsed to `insufficient` (a coverage-gap verdict for
+      what is actually a measured negative) — the direction-semantics fix
+      applied to the RNA card, now mirrored here.
+
   - rule_id: protein-not-detected-degrader-killer
     when:
       card_id: protein-presence-cptac
