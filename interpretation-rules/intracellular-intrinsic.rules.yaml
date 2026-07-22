@@ -2754,3 +2754,83 @@ rules:
     rationale: |
       Target absent from the Gygi MS panel (~12.5k proteins) or DepMap RNA — no paired data to assess
       RNA-as-proxy. Coverage gap (panel coverage, not biology); not used as opposing evidence.
+
+  # ============================================================================
+  # EXPRESSION PURITY CONFOUND (Q9 — is the tumor presence signal tumor-intrinsic?) — 2026-07-23
+  # ============================================================================
+  # Does target tumor expression correlate with tumor PURITY (ABSOLUTE)? A CAVEAT on the tumor
+  # presence read, on the biology axis. Signals are MODEST (mildly supportive / neutral / mild caution)
+  # — a purity-confound flag is a confidence qualifier on presence, never a primary driver and never a
+  # killer (bulk cannot resolve cell-of-origin; the flag guides interpretation).
+  #
+  # SCOPE (deliberate, P4 boundary): the sharp consequence of microenvironment_confounded is on the
+  # ADC/TCE MODALITY axis (antigen reality — is the antigen on the cancer cell?). That routes through
+  # the surface-modality gate (P4), NOT a direct rule here. This wires the intracellular biology-axis
+  # presence caveat only.
+  - rule_id: purity-tumor-intrinsic-supportive
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: tumor_intrinsic
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target expression rises with tumor PURITY (significant positive correlation) — the tumor
+      presence signal is TUMOR-CELL-INTRINSIC, not microenvironment-derived. Mildly SUPPORTIVE: it
+      confirms the presence read reflects the cancer cells (a confidence qualifier on Presence), not
+      a primary driver. Reassuring for any modality that needs the target ON the tumor cell.
+
+  - rule_id: purity-independent-neutral
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: purity_independent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target expression is not significantly correlated with tumor purity (either direction). No
+      confound signal — the presence read is neither confirmed tumor-intrinsic nor flagged as
+      microenvironment-derived. Neutral; in high-purity cohorts the purity range may simply be too
+      narrow to resolve a confound (read median_purity alongside).
+
+  - rule_id: purity-microenvironment-confounded-neutral
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: microenvironment_confounded
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target expression is HIGHER in LOW-purity tumors (significant negative correlation) — the bulk
+      tumor presence signal is likely STROMAL / IMMUNE-derived, not tumor-cell-intrinsic. A CAUTION on
+      the presence read (the "tumor expression" may be inflated by microenvironment), NOT a killer:
+      the target may still be validly tumor-expressed at a lower level (needs single-cell / IHC to
+      confirm). Neutral on the biology axis; the sharper consequence is on the ADC/TCE modality axis
+      (antigen reality), which routes through the surface-modality gate (P4), not a direct rule here.
+
+  - rule_id: purity-confound-insufficient
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: insufficient_paired_samples
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Fewer than the minimum tumors have BOTH per-sample expression and ABSOLUTE purity — the
+      confound correlation is underpowered. Coverage gap, not opposing evidence.
+
+  - rule_id: purity-confound-data-unavailable-insufficient
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No per-sample tumor expression or no ABSOLUTE purity for this (target, indication). Coverage
+      gap; not used as opposing evidence.
