@@ -35,17 +35,24 @@ composition:
     - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
     - protein-abundance-celline      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
     - tumor-elevation-breadth        # Slice B3: pan-cancer K-of-N tumor-elevation (target-grain); the one tumor-context card that fires in a target-ONLY query
+    - tumor-expression-distribution         # Q1 per-sample tumor RNA distribution (was run.py-present, doc-stale)
+    - tumor-expression-distribution-subtype # Q1 subtype-grain panorama (was run.py-present, doc-stale)
+    - expression-purity-confound            # Q9 (2026-07-23): purity-confound caveat — tumor-intrinsic vs microenvironment (render facet)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
   # pattern is surfaced, not averaged. tumor_elevation_breadth is the DERIVED target-grain roll-up
   # over tumor_protein_abundance (breadth over indications for one target — NOT a ranking over targets).
+  # expression_purity_confound (Q9) is an ADDITIVE render facet — a purity-confound caveat on the
+  # tumor presence call, verdict-inert.
   measurement_types_pulled:
     - cell_line_rna_expression
     - tumor_vs_adjacent_expression
     - tumor_protein_abundance
     - cell_line_protein_abundance
     - tumor_elevation_breadth
+    - tumor_expression_distribution
+    - expression_purity_confound
   rules_scope:
     - expression-distribution
     - expression-tumor-vs-adjacent

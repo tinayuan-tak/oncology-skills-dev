@@ -40,6 +40,13 @@ CARDS = [
                                         # subtype landscape + faceted panel; subtype_signal is
                                         # confidence/context (NOT a veto — one-directional gate). Same
                                         # (bulk_rna, tumor) bucket as the pooled card.
+    "expression-purity-confound",       # Q9 (2026-07-23) — is the TUMOR presence signal tumor-cell-
+                                        # intrinsic or microenvironment (stromal/immune)-driven? A
+                                        # purity-confound CAVEAT on the tumor presence call (correlates
+                                        # per-sample tumor expression vs ABSOLUTE purity). ADDITIVE
+                                        # render facet — its purity_confound_class + rules feed NO
+                                        # resolver ladder (presence verdict byte-stable). The ADC/TCE
+                                        # antigen-reality (modality-gate) facet is DEFERRED to P4.
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -70,6 +77,7 @@ CARD_CONTEXT = {
     "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
     "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
+    "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
 }
 
 
@@ -294,6 +302,10 @@ def _headline(cards, fired, verdict_pair):
                                                    "n_cohorts_elevated"),
         "tumor_elevation_n_cohorts_tested": _get("tumor-elevation-breadth",
                                                  "n_cohorts_tested"),
+        # Q9 purity confound — is the tumor presence signal tumor-intrinsic or microenvironment?
+        # (render facet; does NOT feed the presence verdict — additive, spine byte-stable)
+        "purity_confound_class":    _get("expression-purity-confound", "purity_confound_class"),
+        "expression_purity_pearson_r": _get("expression-purity-confound", "expression_purity_pearson_r"),
     }
 
 

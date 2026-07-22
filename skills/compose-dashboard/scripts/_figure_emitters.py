@@ -1067,12 +1067,40 @@ def _emit_abundance_dependency(
     ]
 
 
+def _emit_expression_purity_confound(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the expression-purity-confound figure (Q9): confound class + expression↔purity
+    correlation. Gated on a computed correlation (data_unavailable / insufficient / no-r → []). On
+    _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary:
+        return []
+    cls = summary.get("purity_confound_class")
+    if cls in (None, "data_unavailable", "insufficient_paired_samples") \
+            or summary.get("expression_purity_pearson_r") is None:
+        return []
+    _ensure_methods_path()
+    from methods.expression_purity_confound import cli as epc
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = epc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    return [
+        {"id": "expression_purity_confound_card",
+         "path": "figure_expression_purity_confound.svg",
+         "type": "expression_purity_confound_card", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "alteration-role": _emit_alteration_role,
     "functional-gene-state": _emit_functional_gene_state,
     "genomic-event-model-match": _emit_genomic_event_model_match,
     "abundance-dependency": _emit_abundance_dependency,
+    "expression-purity-confound": _emit_expression_purity_confound,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,

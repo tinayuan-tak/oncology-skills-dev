@@ -287,6 +287,16 @@ def _dispatch_abundance_dependency(target: str, indication: str) -> Optional[dic
     return mod.build_summary(target, indication)
 
 
+def _dispatch_expression_purity_confound(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route expression-purity-confound card (Q9) to
+    methods/expression_purity_confound/cli.py::build_summary.
+
+    Is the target's tumor expression tumor-cell-intrinsic or microenvironment-driven? Correlates
+    per-sample tumor expression vs ABSOLUTE purity. Indication-scoped (per-sample tumor cohort)."""
+    mod = _import_method("expression_purity_confound.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route pan-cancer-crispr-dependency-distribution card to
     methods/depmap_chronos_distribution/read.py.
@@ -819,6 +829,7 @@ CARD_DISPATCHERS = {
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "abundance-dependency": _dispatch_abundance_dependency,
+    "expression-purity-confound": _dispatch_expression_purity_confound,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
