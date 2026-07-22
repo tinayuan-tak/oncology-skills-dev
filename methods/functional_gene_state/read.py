@@ -244,7 +244,15 @@ def _read_patient_arm(target: str, indication: str) -> dict:
         states.append(classify_functional_state(ev))
 
     summ = summarize_states(states)
+    # mutation-presence fraction (ADDITIVE — independent of the allele-count state_counts). Needed by
+    # M11 for the ACTIVATING-oncogene case: an activating hotspot's characterizing event is "mutation
+    # present", which the allele-count vocabulary scatters across monoallelic + uncertain. This exposes
+    # the raw mutation prevalence so a consumer can match on mutation presence for GoF targets.
+    n_ind = len(ind_patients)
+    n_mutated = len(mutated_patients & ind_patients)
     summ.update({"_arm": "patient", "indication": indication,
+                 "n_mutated": n_mutated,
+                 "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
                  "tcga_projects": list(cancer_types),
                  "loh_source": "pancanatlas_absolute_point_in_interval",
                  "cn_source": "gistic_thresholded_per_gene"})

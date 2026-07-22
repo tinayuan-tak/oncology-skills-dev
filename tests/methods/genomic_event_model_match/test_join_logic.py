@@ -15,42 +15,74 @@ from methods.genomic_event_model_match.read import (  # noqa: E402
 )
 
 
-# ── patient dominant event ───────────────────────────────────────────────────
+# ── patient dominant event — allele-count mode (LoF / default) ───────────────
 def test_recurrent_biallelic_is_the_event():
     arm = {"n_samples": 100, "state_counts": {"biallelic-genetic": 45, "monoallelic": 20,
                                               "wt": 30, "uncertain": 5}}
-    ev, frac = _patient_dominant_event(arm)
+    ev, frac, mode = _patient_dominant_event(arm, functional_direction="loss_of_function")
     assert ev == "biallelic-genetic"
     assert frac == pytest.approx(0.45)
+    assert mode == "allele_count"
 
 
 def test_biallelic_precedence_over_monoallelic():
     # both clear the 10% floor → biallelic wins (stronger, more specific two-hit event)
     arm = {"n_samples": 100, "state_counts": {"biallelic-genetic": 12, "monoallelic": 50,
                                               "wt": 38, "uncertain": 0}}
-    ev, _ = _patient_dominant_event(arm)
+    ev, _, mode = _patient_dominant_event(arm)
     assert ev == "biallelic-genetic"
+    assert mode == "allele_count"
 
 
 def test_monoallelic_when_biallelic_below_floor():
-    # activating-oncogene shape: monoallelic recurrent, biallelic negligible
+    # LoF target, monoallelic recurrent, biallelic negligible → allele-count monoallelic
     arm = {"n_samples": 100, "state_counts": {"biallelic-genetic": 2, "monoallelic": 40,
                                               "wt": 58, "uncertain": 0}}
-    ev, frac = _patient_dominant_event(arm)
+    ev, frac, mode = _patient_dominant_event(arm, functional_direction="loss_of_function")
     assert ev == "monoallelic"
     assert frac == pytest.approx(0.40)
+    assert mode == "allele_count"
 
 
 def test_no_recurrent_event_when_mostly_wt():
     arm = {"n_samples": 100, "state_counts": {"biallelic-genetic": 3, "monoallelic": 4,
                                               "wt": 90, "uncertain": 3}}
-    ev, frac = _patient_dominant_event(arm)
-    assert ev is None and frac is None
+    ev, frac, mode = _patient_dominant_event(arm)
+    assert ev is None and frac is None and mode == "none"
 
 
 def test_empty_patient_arm():
-    assert _patient_dominant_event({}) == (None, None)
-    assert _patient_dominant_event({"n_samples": 0, "state_counts": {}}) == (None, None)
+    assert _patient_dominant_event({}) == (None, None, "none")
+    assert _patient_dominant_event({"n_samples": 0, "state_counts": {}}) == (None, None, "none")
+
+
+# ── patient dominant event — mutation-presence mode (activating oncogene) ─────
+def test_activating_driver_matches_on_mutation_presence():
+    # the KRAS-shape gap: activating hotspot scattered across monoallelic (7%) + uncertain (33%),
+    # neither clearing the allele-count floor — but fraction_mutated is high → mutation_presence mode.
+    arm = {"n_samples": 631, "fraction_mutated": 0.40,
+           "state_counts": {"biallelic-genetic": 23, "monoallelic": 45, "wt": 352, "uncertain": 211}}
+    ev, frac, mode = _patient_dominant_event(arm, functional_direction="activating")
+    assert ev == "activating_mutation"
+    assert frac == pytest.approx(0.40)
+    assert mode == "mutation_presence"
+
+
+def test_activating_driver_falls_back_to_allele_count_when_not_recurrently_mutated():
+    # activating direction but low mutation prevalence → fall through to allele-count (rarely fires)
+    arm = {"n_samples": 100, "fraction_mutated": 0.03,
+           "state_counts": {"biallelic-genetic": 15, "monoallelic": 5, "wt": 80, "uncertain": 0}}
+    ev, frac, mode = _patient_dominant_event(arm, functional_direction="activating")
+    assert ev == "biallelic-genetic"
+    assert mode == "allele_count"
+
+
+def test_lof_direction_ignores_mutation_presence_shortcut():
+    # a LoF target with high mutation prevalence still uses allele-count (does NOT hijack to presence)
+    arm = {"n_samples": 100, "fraction_mutated": 0.50,
+           "state_counts": {"biallelic-genetic": 40, "monoallelic": 10, "wt": 50, "uncertain": 0}}
+    ev, _, mode = _patient_dominant_event(arm, functional_direction="loss_of_function")
+    assert ev == "biallelic-genetic" and mode == "allele_count"
 
 
 # ── screen role from Chronos ─────────────────────────────────────────────────

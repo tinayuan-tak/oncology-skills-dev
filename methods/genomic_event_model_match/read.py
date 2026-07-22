@@ -1,11 +1,19 @@
 """read_genomic_event_model_match — the canonical P3 patient↔model join on functional genomic event.
 
-Joins THREE reused sources (no new substrate):
-  1. functional_gene_state PATIENT arm → the indication's tumor cohort dominant functional event
-     (the genotype to match: biallelic-genetic for a two-hit TSG, monoallelic for a single-hit
-     activating oncogene, wt when tumors are rarely altered).
-  2. functional_gene_state MODEL per-model accessor → each DepMap cell line's functional state.
-  3. depmap_expression_dependency Chronos + lineage metadata → screen role + lineage match.
+Joins FOUR reused sources (no new substrate, no new ingestion):
+  1. alteration_role (OncoKB × IntOGen) → the driver DIRECTION, which selects the MATCH MODE.
+  2. functional_gene_state PATIENT arm → the indication's tumor cohort characterizing event.
+  3. functional_gene_state MODEL per-model accessor → each DepMap cell line's functional state
+     (+ has_mutation).
+  4. depmap_expression_dependency Chronos + lineage metadata → screen role + lineage match.
+
+DIRECTION-AWARE matching (two modes, so both driver classes are served):
+  - LoF / ambiguous / unknown → ALLELE-COUNT mode: match models on M6 state identity
+    (biallelic-genetic two-hit TSG, or monoallelic). The tumor-suppressor path (TP53 works cleanly).
+  - ACTIVATING driver → MUTATION-PRESENCE mode: the characterizing event is "activating mutation
+    present" (M6's allele-count vocabulary scatters an activating hotspot across monoallelic +
+    uncertain, so no allele-count state is recurrent); match models on has_mutation, recurrence from
+    the patient arm's fraction_mutated. Resolves the KRAS-class gap (KRAS/COADREAD ~40% mutated).
 
 Emits a ranked table of GENOTYPE-MATCHED models (event_match + screen_role + lineage_match) + an
 event_correspondence_class rollup. Mirrors patient_model_expression_correspondence (expression-Q4)
@@ -33,34 +41,44 @@ NOT_DEPENDENT_CHRONOS = -0.2
 _DOMINANT_EVENT_MIN_FRACTION = 0.10
 
 
-def _patient_dominant_event(patient_arm: dict) -> tuple[Optional[str], Optional[float]]:
-    """The tumor cohort's characterizing functional event + its fraction, from the M6 patient arm.
+def _patient_dominant_event(patient_arm: dict,
+                            functional_direction: Optional[str] = None
+                            ) -> tuple[Optional[str], Optional[float], str]:
+    """The tumor cohort's characterizing genomic event to match + its fraction + the MATCH MODE.
 
-    The event to match is the dominant ALTERED state: biallelic-genetic if it is recurrent (≥ the
-    min fraction), else monoallelic if recurrent, else None (tumors rarely altered → no genotype to
-    match, an honest 'no target event' rather than forcing a match to wild-type). Returns
-    (event_state, fraction) or (None, None).
+    Returns (event_key, fraction, match_mode) where match_mode is:
+      - "allele_count" : event_key is an M6 state (biallelic-genetic / monoallelic); match models on
+                         state identity. The BIALLELIC-LOSS / tumor-suppressor path (TP53 works cleanly).
+      - "mutation_presence" : event_key == "activating_mutation"; match models on has_mutation. The
+                         ACTIVATING-ONCOGENE path — resolves the scope gap where a recurrent activating
+                         hotspot (e.g. KRAS ~40% mutated) scatters across M6 monoallelic + uncertain and
+                         clears no single allele-count floor. Selected when alteration_role's
+                         functional_direction == "activating".
+      - "none" : no recurrent event to match.
 
-    SCOPE BOUNDARY (documented, Phase-1): M11 matches on M6's ALLELE-COUNT states, so it is tuned to
-    the BIALLELIC-LOSS / tumor-suppressor case (TP53/COADREAD works cleanly). It UNDER-CALLS
-    activating-HOTSPOT oncogenes: e.g. KRAS/COADREAD is ~40% mutated (all G12/G13 activating), but M6
-    scatters that across monoallelic (~7%) + uncertain (~33%, copy-neutral-no-confirmable-LOH), so
-    neither allele-count state clears the recurrence floor → no_target_event. That is HONEST ('no
-    recurrent allele-count event'), NOT a claim the target is unaltered — the activating-oncogene
-    story is told by the sibling genomic cards (mutation-hotspot-frequency + alteration-role, which
-    calls KRAS direct_driver_gof), not by this allele-count join. A future refinement could let a
-    recurrent activating hotspot define a monoallelic-activating event even when LOH is uncertain."""
+    DIRECTION-AWARE (the fix): M6 is intentionally an ALLELE-COUNT primitive (biallelic loss), so for
+    an ACTIVATING driver we match on the biologically-correct event (mutation present) using M6's
+    additive fraction_mutated, rather than forcing the activation into an allele-count state. LoF /
+    ambiguous / unknown-direction targets keep the allele-count matching (unchanged → TP53 byte-stable)."""
     counts = (patient_arm or {}).get("state_counts")
     n = (patient_arm or {}).get("n_samples")
     if not counts or not n:
-        return None, None
-    # biallelic takes precedence (a completed two-hit is the stronger, more specific event); then
-    # monoallelic (single-hit activating). fraction over ALL samples (matches the headline framing).
+        return None, None, "none"
+
+    # ACTIVATING driver → match on mutation presence (the oncogene event), not allele count.
+    if functional_direction == "activating":
+        frac_mut = (patient_arm or {}).get("fraction_mutated")
+        if frac_mut is not None and frac_mut >= _DOMINANT_EVENT_MIN_FRACTION:
+            return "activating_mutation", round(frac_mut, 4), "mutation_presence"
+        # activating driver but not recurrently mutated here → fall through to allele-count (rarely fires)
+
+    # DEFAULT (LoF / ambiguous / unknown) → allele-count matching. biallelic takes precedence (a
+    # completed two-hit is the stronger, more specific event); then monoallelic. Fraction over ALL samples.
     for state in ("biallelic-genetic", "monoallelic"):
         frac = counts.get(state, 0) / n
         if frac >= _DOMINANT_EVENT_MIN_FRACTION:
-            return state, round(frac, 4)
-    return None, None
+            return state, round(frac, 4), "allele_count"
+    return None, None, "none"
 
 
 def _screen_role(chronos: Optional[float]) -> str:
@@ -92,13 +110,24 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
     base = {"target": target, "indication": indication, "depmap_lineage": target_lineage,
             "release_pin": release_pin}
 
-    # 1) patient event to match (M6 patient arm)
+    # 0) driver DIRECTION (cheap OncoKB × IntOGen join — no big files) selects the match MODE:
+    #    activating driver → match on mutation presence; else → allele-count matching. data-safe.
+    functional_direction = None
+    try:
+        from methods.driver_role_overlay.read import read_alteration_role
+        functional_direction = (read_alteration_role(sym, indication) or {}).get("functional_direction")
+    except Exception:  # noqa: BLE001
+        functional_direction = None
+
+    # 1) patient event to match (M6 patient arm), direction-aware
     fgs = read_functional_gene_state(sym, indication)
     patient_arm = fgs.get("patient") or {}
-    event, event_frac = _patient_dominant_event(patient_arm)
+    event, event_frac, match_mode = _patient_dominant_event(patient_arm, functional_direction)
     base.update({
         "patient_event_state": event,
         "patient_event_fraction": event_frac,
+        "match_mode": match_mode,                       # allele_count | mutation_presence | none
+        "functional_direction": functional_direction,
         "patient_functional_state_class": fgs.get("functional_state_class"),
         "n_patient_samples": patient_arm.get("n_samples"),
     })
@@ -136,13 +165,19 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
         lineage = str(mm.get("OncotreeLineage") or mm.get("lineage") or "unknown")
         chronos = chronos_by_model.get(model_id)
         state = mstate["state"]
+        # event_match depends on the match MODE: mutation_presence (activating oncogene) matches any
+        # mutated model; allele_count (LoF/default) matches strict state identity on the dominant event.
+        if match_mode == "mutation_presence":
+            event_match = bool(mstate.get("has_mutation"))
+        else:
+            event_match = (state == event)
         rows.append({
             "model_id": model_id,
             "cell_line": mm.get("StrippedCellLineName") or mm.get("CellLineName") or model_id,
             "lineage": lineage,
             "lineage_match": bool(target_lineage) and (lineage == target_lineage),
             "model_state": state,
-            "event_match": state == event,             # strict genotype identity on the dominant event
+            "event_match": event_match,
             "cn_class": mstate.get("cn_class"),
             "chronos": (round(float(chronos), 4) if chronos is not None else None),
             "screen_role": _screen_role(chronos),
