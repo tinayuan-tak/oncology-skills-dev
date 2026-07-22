@@ -314,18 +314,22 @@ measurement_types:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}            # model TPM + Chronos + lineage
 
   rna_protein_concordance:
-    claim: "Does target RNA predict its protein across cell lines (is RNA an adequate proxy, or must protein be measured directly)?"
-    # Q5 of the expression spec. The rna_as_biomarker question — per-ModelID DepMap RNA vs Gygi MS
-    # protein correlation. CELL-LINE only (tumor CPTAC concordance deferred — no matched per-sample RNA
-    # landed). Routes: Presence (A, is RNA an adequate proxy) + ADC/biologic modality lens (RNA-inadequate
-    # → protein must be confirmed) + dependency M5 (protein-vs-RNA preferred biomarker). tier_dominant:
-    # RNA is the anchored layer (the proxy question); Gygi MS protein is the comparator.
-    entity_grains: [target]
-    cards: [rna-protein-concordance]
+    claim: "Does target RNA predict its protein (is RNA an adequate proxy, or must protein be measured directly)?"
+    # Q5 of the expression spec. The rna_as_biomarker question — RNA vs protein correlation. TWO grains,
+    # TWO cards (grain-split): rna-protein-concordance (target grain, CELL-LINE: DepMap RNA vs Gygi MS)
+    # + rna-protein-concordance-tumor (target_indication grain, TUMOR: CPTAC matched RNA vs protein per
+    # cohort). Reported SIDE-BY-SIDE, never averaged — their disagreement (KRAS cell-line r≈0.55 vs COAD
+    # tumor r≈0.01) is the signal. Routes: Presence (A) + ADC/biologic modality lens (RNA-inadequate →
+    # protein must be confirmed) + dependency M5. tier_dominant: RNA is the anchored layer; protein is
+    # the comparator. NOTE: providers list = the CELL-LINE arm's substrates (tier_dominant needs a
+    # single dominant provider per the validator); the tumor arm's substrate is the matched CPTAC product.
+    entity_grains: [target, target_indication]
+    cards: [rna-protein-concordance, rna-protein-concordance-tumor]
     multi_provider_policy: tier_dominant
     providers:
-      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}              # RNA (anchor)
-      - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}   # protein comparator
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}              # RNA (anchor, cell-line)
+      - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}   # protein comparator (cell-line)
+      - {kind: dataset, source: cptac-rna-protein-matched-per-sample-v1, evidence_tier: measured}  # tumor arm (matched RNA+protein)
 
   normal_tissue_protein_breadth:
     claim: "How broad is target's normal-tissue protein-IHC footprint, and does it hit essential tissue (safety)?"

@@ -56,7 +56,7 @@ thresholds:
   min_paired_models: 20            # below → insufficient_paired_models
 
 caveats:
-  - "CELL-LINE concordance, NOT tumor: DepMap RNA vs Gygi MS across cell lines. Tumor (CPTAC) RNA↔protein concordance is deferred (no matched per-sample RNA product landed). Cell-line concordance may differ from tumor (different proteostasis, no microenvironment)."
+  - "CELL-LINE concordance (DepMap RNA vs Gygi MS). The TUMOR arm is the sibling card rna-protein-concordance-tumor (CPTAC matched RNA+protein, target_indication grain). Report the two SIDE-BY-SIDE, never averaged — cell-line and tumor concordance genuinely differ (KRAS cell-line r≈0.55 partial vs COAD tumor r≈0.01 poor; the disagreement is decision-relevant), because tumor purity/stroma + proteostasis differ."
   - "Gygi MS quantifies ~12.5k proteins; a target absent from the MS panel yields data_unavailable (protein_detection_fraction reflects panel coverage, not biology)."
   - "A poor_proxy verdict is a MODALITY caution (protein must be measured for ADC/TCE; RNA biomarker inadequate), NOT a target killer — the target may still be a valid protein-confirmed target."
   - "Pearson (linear) + Spearman (rank) are both reported; a high Spearman with low Pearson indicates a monotone-but-nonlinear RNA→protein relationship."
