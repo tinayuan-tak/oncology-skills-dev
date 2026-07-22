@@ -69,16 +69,18 @@ outputs:
       - msstatstmt_limma_ebayes_moderated
       - skipped_low_n
 
-  # Figure is a PER-COHORT tumor-vs-normal panel, NOT a per-sample boxplot: the derived product
-  # (cptac-protein-tumor-vs-normal-per-cohort-v1) is per-cohort SUMMARY statistics (median log2
-  # tumor/normal + effect + q + n per cohort), with no per-sample abundances. A sample-level boxplot
-  # would require re-reading the 15 GB raw CPTAC-PDC matrix on every render — rejected (heavy +
-  # bypasses the derived-product discipline). The panel shows the target's tumor-vs-normal protein
-  # signal across ALL CPTAC cohorts it was tested in (Slice 7, 2026-07-21).
+  # Figure is a PER-COHORT tumor-vs-normal DISTRIBUTION BOXPLOT (upgraded 2026-07-22). Originally a
+  # median-only dumbbell, because the only product was per-cohort SUMMARY
+  # (cptac-protein-tumor-vs-normal-per-cohort-v1). A dedicated per-SAMPLE product
+  # (cptac-protein-tumor-vs-normal-per-sample-v1, 129 MB, sorted by gene so a per-gene read prunes to
+  # a few row-groups) now persists the per-aliquot log-ratios — so the honest per-sample boxplot is
+  # cheap, NOT a 15 GB raw-matrix re-read. The panel shows the target's true tumor + normal
+  # distributions across ALL CPTAC cohorts it was quantified in, with per-cohort Welch/Mann-Whitney
+  # significance recomputed from the plotted samples (so stars match the boxes).
   figures:
     - id: protein_per_cohort_tumor_vs_normal
-      type: per_cohort_dumbbell_tumor_vs_normal
-      description: "Per-CPTAC-cohort dumbbell: tumor vs normal median log2 protein abundance for each of the K cohorts the target was quantified in, ordered by effect size, with q-value stars. The cross-cohort breadth of the tumor-elevated protein signal (summary-level; not per-sample)."
+      type: per_cohort_distribution_tumor_vs_normal
+      description: "Per-CPTAC-cohort grouped boxplot: the tumor and normal per-aliquot log2 protein-ratio DISTRIBUTIONS for each of the K cohorts the target was quantified in, ordered by tumor-vs-normal median delta, with per-cohort Mann-Whitney/Welch significance (recomputed from the plotted samples). The true cross-cohort tumor-elevation signal at per-sample resolution."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
   plot_data: per_cohort_protein_tumor_vs_normal

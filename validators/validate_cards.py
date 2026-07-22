@@ -137,10 +137,10 @@ KNOWN_FIGURE_DEBT = {
     # expression / protein: BOTH CLEARED 2026-07-21 (Slice 7) — emitters registered in
     # CARD_FIGURE_EMITTERS, now pass the check (not waived).
     #   protein-abundance-celline: Gygi density + lineage-strip + plotly.
-    #   protein-presence-cptac: per-cohort tumor-vs-normal dumbbell panel (the earlier "0-row scaffold"
-    #     read was wrong — cli.py is an ingestion scaffold; read.py + the live derived product
-    #     cptac-protein-tumor-vs-normal-per-cohort-v1 are real; the figure is per-cohort summary, drawn
-    #     via read_all_cohorts, so no compute un-stub was needed).
+    #   protein-presence-cptac: per-cohort tumor-vs-normal DISTRIBUTION boxplot (upgraded 2026-07-22
+    #     from the median dumbbell — the per-sample product cptac-protein-tumor-vs-normal-per-sample-v1
+    #     now persists the per-aliquot log-ratios, so read.py's per_cohort_distribution_stats backs a
+    #     true boxplot + recomputed Welch/MWU significance; emitter registered, not waived).
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
