@@ -95,6 +95,62 @@ def emit_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFA
              "path": "figure_rna_protein_concordance.plotly.json", "type": "plotly"}]
 
 
+def emit_tumor_svg(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
+    """Tier-3 SVG for the TUMOR arm: per-tumor RNA (x) vs protein (y) scatter + fitted trend + r.
+    None if data_unavailable / underpowered / no CPTAC cohort."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    _load_style(contracts_dir)
+    out_path = Path(out_dir) / "figure_rna_protein_concordance_tumor.svg"
+    scatter = _read.read_tumor_rna_protein_scatter(target, indication)
+    pts = scatter.get("points") or []
+    if not scatter.get("available") or len(pts) < _read.MIN_PAIRED_TUMORS:
+        return None
+    x = np.array([p["rna"] for p in pts]); y = np.array([p["protein"] for p in pts])
+    summary = _read.read_tumor_rna_protein_concordance(target, indication)
+    fig, ax = plt.subplots(figsize=(5.6, 4.8))
+    ax.scatter(x, y, s=16, color="#7b4a8f", edgecolor="#553f7a", linewidth=0.4, alpha=0.6, zorder=3)
+    if len(pts) >= 2 and np.ptp(x) > 0:
+        m, b = np.polyfit(x, y, 1)
+        xs = np.linspace(float(x.min()), float(x.max()), 50)
+        ax.plot(xs, m * xs + b, color="#cf2828", linewidth=1.2, zorder=4)
+    ax.set_xlabel(f"{target} RNA — log2(TPM+1), CPTAC")
+    ax.set_ylabel(f"{target} protein — log2-abundance, CPTAC")
+    ax.set_title(f"{target} in {indication} — TUMOR RNA↔protein concordance\n"
+                 f"Pearson r={summary.get('rna_protein_r')} ({summary.get('rna_as_biomarker','')}); "
+                 f"n={summary.get('n_paired_tumors')} ({scatter.get('cptac_cohort')})")
+    ax.grid(alpha=0.25, linewidth=0.4)
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
+def emit_tumor_plotly_specs(target: str, indication, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS):
+    """Interactive twin of the tumor scatter (hover = Patient_ID). Best-effort."""
+    try:
+        import plotly.graph_objects as go
+    except Exception:  # noqa: BLE001
+        return []
+    scatter = _read.read_tumor_rna_protein_scatter(target, indication)
+    pts = scatter.get("points") or []
+    if not scatter.get("available") or len(pts) < _read.MIN_PAIRED_TUMORS:
+        return []
+    summary = _read.read_tumor_rna_protein_concordance(target, indication)
+    fig = go.Figure(go.Scatter(
+        x=[p["rna"] for p in pts], y=[p["protein"] for p in pts], mode="markers",
+        marker=dict(color="#7b4a8f", size=7, opacity=0.65),
+        text=[p["patient_id"] for p in pts]))
+    fig.update_layout(
+        title=f"{target} in {indication} — TUMOR RNA↔protein concordance "
+              f"(r={summary.get('rna_protein_r')}, {summary.get('rna_as_biomarker')})",
+        xaxis_title=f"{target} RNA log2(TPM+1)", yaxis_title=f"{target} protein log2-abundance",
+        template="plotly_white", margin=dict(l=60, r=40, t=50, b=50))
+    (Path(out_dir) / "figure_rna_protein_concordance_tumor.plotly.json").write_text(fig.to_json())
+    return [{"id": "rna_protein_concordance_tumor_scatter",
+             "path": "figure_rna_protein_concordance_tumor.plotly.json", "type": "plotly"}]
+
+
 def main() -> int:
     import argparse
     ap = argparse.ArgumentParser()

@@ -104,6 +104,23 @@ def test_tumor_arm_concordance(monkeypatch):
     assert R.read_tumor_rna_protein_concordance("KRAS", "SKCM")["rna_as_biomarker"] == "data_unavailable"
 
 
+def test_tumor_emitter(tmp_path, monkeypatch):
+    import importlib, pandas as pd
+    pytest.importorskip("matplotlib")
+    cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")
+    n = 40
+    rows = [{"patient_id": f"01CO{i:03d}", "gene": "CDX2",
+             "rna_log2tpm": 3.0 + (i % 8) * 0.3, "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1}
+            for i in range(n)]
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    svg = cli.emit_tumor_svg("CDX2", "COADREAD", tmp_path)
+    assert svg is not None and svg.exists()
+    specs = cli.emit_tumor_plotly_specs("CDX2", "COADREAD", tmp_path)
+    assert [s["id"] for s in specs] == ["rna_protein_concordance_tumor_scatter"]
+    # no CPTAC cohort → no figure
+    assert cli.emit_tumor_svg("CDX2", "SKCM", tmp_path) is None
+
+
 def test_tumor_arm_underpowered_and_gap(monkeypatch):
     import pandas as pd
     # fewer than the floor → insufficient_paired_tumors

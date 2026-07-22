@@ -183,6 +183,20 @@ def read_tumor_rna_protein_concordance(target: str, indication: str) -> dict:
     return base
 
 
+def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
+    """Per-tumor paired points for the Q5 TUMOR scatter figure. data-gap-safe."""
+    cohort = INDICATION_TO_CPTAC_COHORT.get(indication.upper().strip())
+    if cohort is None:
+        return {"available": False, "points": [], "cptac_cohort": None}
+    df = _read_matched_cohort(cohort)
+    sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
+    sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
+    return {"available": bool(len(sub)), "cptac_cohort": cohort,
+            "points": [{"patient_id": r.patient_id, "rna": round(float(r.rna_log2tpm), 4),
+                        "protein": round(float(r.protein_log2abundance), 4)}
+                       for r in sub.itertuples()]}
+
+
 def read_rna_protein_scatter(target: str, release_pin: str = "26q1") -> dict:
     """Per-model paired points for the Q5 scatter figure (RNA x, protein y). data-gap-safe."""
     rna_by_model, prot_by_model, note = _paired_rna_protein(target, release_pin=release_pin)
