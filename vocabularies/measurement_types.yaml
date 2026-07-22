@@ -232,6 +232,29 @@ measurement_types:
       - {kind: dataset, source: oncokb-gene-roles-public-snapshot-2026-07-01, evidence_tier: measured}   # curated gene-role backbone (dominant)
       - {kind: dataset, source: intogen-v2024-09-20, evidence_tier: measured}   # per-(gene,cohort) mode-of-action (indication scope)
 
+  functional_gene_state:
+    claim: "Is target BIALLELICALLY inactivated (completed two-hit) or only monoallelically hit, harmonized across mutation + allele-specific copy number, per sample?"
+    # M6 of the genomic-alteration plan — the harmonized two-hit / biallelic-inactivation primitive.
+    # DISTINCT from the descriptive alteration cards (mutation-hotspot-frequency = how OFTEN; copy-
+    # number-distribution = amp/del recurrence) AND from alteration_role (functional GoF/LoF ROLE): this
+    # is the ALLELE-COUNT call — how many alleles are inactivated + by what mechanism — the substrate
+    # for loss-of-function / synthetic-lethality reasoning (a het passenger ≠ a completed two-hit).
+    # PHASE 1 = GENETIC-ONLY vocab {wt, monoallelic, biallelic-genetic, uncertain}, ZERO new ingestion.
+    # Phase 2 (queued) adds {epigenetic, biallelic+epigenetic} once patient DNA-methylation lands
+    # (PanCanAtlas HM450 → promoter methylation; DepMap RRBS already covers the model side) — a strict
+    # superset, additive (a 3rd provider + 2 states), NOT a rework.
+    # TWO grains / TWO arms (grain-split, like rna_protein_concordance): patient (target_indication —
+    # ABSOLUTE per-locus allele-specific LOH, the SHARP arm) + model (target — DepMap relative CN +
+    # genome-wide LoH, so copy-neutral per-gene LOH resolves `uncertain`, not a false biallelic).
+    # tier_dominant: patient TCGA is the dominant arm (allele-specific); DepMap corroborates cross-system.
+    entity_grains: [target, target_indication]
+    cards: [functional-gene-state]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: tcga-mc3-public-v0-2-8,   evidence_tier: measured}   # patient mutation (hg19)
+      - {kind: dataset, source: gdc-pancanatlas-cnv-2018, evidence_tier: measured}   # patient ABSOLUTE allele-specific LOH + GISTIC homdel (dominant arm)
+      - {kind: dataset, source: depmap-consortium-26q1,   evidence_tier: measured}   # model mutation matrices + relative CN (corroborating arm)
+
   mutation_cooccurrence:
     claim: "Which genes co-occur with or are mutually exclusive to target mutations?"
     entity_grains: [target, target_subtype]   # target_subtype eligible-but-blocked; pan-cohort

@@ -1,0 +1,84 @@
+# Card — FUNCTIONAL GENE STATE  (harmonized two-hit / biallelic-inactivation; M6)
+#
+# The ALLELE-COUNT call: is the target BIALLELICALLY inactivated (a completed two-hit event → true
+# loss of function) or only MONOALLELICALLY hit (one allele still intact)? Harmonized across the
+# SNV/indel + copy-number axes into ONE per-(sample, gene) state, on BOTH patient (TCGA) and model
+# (DepMap) sides. This is the distinction the descriptive alteration cards cannot make — a gene can
+# be "frequently mutated" (mutation-hotspot-frequency) yet mostly heterozygous passengers, or a
+# genuine recurrent two-hit driver. The substrate for loss-of-function / synthetic-lethality / TSG
+# reasoning.
+#
+# DISTINCT from the sibling genomic cards:
+#   - mutation-hotspot-frequency  — how OFTEN mutated (frequency, not zygosity)
+#   - copy-number-distribution    — amp/del recurrence (CN axis alone)
+#   - alteration-role             — functional GoF/LoF ROLE (direction, not allele count)
+#   THIS card = how many alleles are inactivated + by what mechanism (mutation / copy-loss / LOH).
+#
+# PHASE 1 (this card) = GENETIC-ONLY vocabulary, ZERO new ingestion:
+#     {wt, monoallelic, biallelic-genetic, uncertain}
+# PHASE 2 (queued fast-follow) extends the vocabulary with the EPIGENETIC second hit
+#     {epigenetic, biallelic+epigenetic}
+#   once patient DNA-methylation (PanCanAtlas HM450 → promoter methylation) is ingested (DepMap RRBS
+#   already covers the model side). Phase-1 states are a strict SUBSET — additive, no rework.
+#
+# ROUTES INTO GATES: primary = Genomic-alteration gate (the biallelic-inactivation signal corroborates
+# an LoF driver call + informs synthetic-lethality/TSG framing). ADDITIVE signal-only in this slice —
+# the card's signals + headline reach the LLM + matrix, but the card does NOT enter the genomic
+# resolver ladder (the verdict spine stays byte-stable). Wiring INTO a verdict is a later, riskier step.
+
+card_id: functional-gene-state
+version: 0.1.0
+question: "Is {target.symbol} biallelically inactivated (completed two-hit) or only monoallelically hit in {indication.label} — and by what mechanism (mutation, copy loss, LOH, homozygous deletion)?"
+
+# TWO grains (grain-split like rna-protein-concordance): the patient arm is target_indication
+# (indication-scoped tumor cohort), the model arm is target (pan-lineage cell-line panel). The reader
+# returns both arms in one call; the primary grain is target_indication (the sharp, allele-specific arm).
+tier: indication
+
+applies_when:
+  - "true"   # any target with landed mutation + CN substrate; data_unavailable-safe when absent
+
+required_inputs:
+  - product_id: tcga-mc3-public-v0-2-8       # patient somatic mutations (hg19 MAF)
+  - product_id: gdc-pancanatlas-cnv-2018     # patient ABSOLUTE allele-specific LOH + GISTIC per-gene CN
+  - product_id: depmap-consortium-26q1       # model mutation matrices + relative per-gene CN
+
+methods:
+  - call: functional-gene-state
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - functional_state_class        # PRIMARY target-level headline (recurrent/sporadic/monoallelic/rare)
+    - patient                       # patient (TCGA) arm: state_counts + fraction_biallelic + fraction_any_alteration
+    - model                         # model (DepMap) arm: same shape (pan-lineage)
+    - vocabulary_phase              # genetic_only_phase1 (Phase 2 adds epigenetic states)
+  summary_fields_vocabulary:
+    functional_state_class: [recurrent_biallelic_inactivation, sporadic_biallelic_inactivation, predominantly_monoallelic, rarely_altered, data_unavailable]
+    # per-sample states inside each arm's state_counts (Phase 1):
+    sample_state: [wt, monoallelic, biallelic-genetic, uncertain]
+  figure: functional_gene_state_stacked_bar   # per-arm stacked state composition (patient vs model)
+
+thresholds:
+  recurrent_biallelic_fraction: 0.10   # fraction_biallelic ≥ this → recurrent_biallelic_inactivation
+  depmap_homdel_relative_cn_max: 0.20  # relative CN ≤ this → homozygous deletion (model arm)
+  depmap_loss_relative_cn_max: 0.75    # 0.20 < CN ≤ this → single-copy loss (model arm)
+
+caveats:
+  - "PHASE 1 is GENETIC-ONLY: an epigenetically silenced allele (promoter hypermethylation, e.g. MLH1/BRCA1/VHL/CDKN2A) is NOT yet detected → such a second hit reads as monoallelic or uncertain, understating true biallelic loss for methylation-silenced TSGs. Phase 2 adds the epigenetic states."
+  - "PATIENT arm is the SHARP arm: PanCanAtlas ABSOLUTE gives PER-LOCUS allele-specific LOH (point-in-interval at the mutation locus), so copy-neutral LOH biallelic events are resolved cleanly. MODEL arm has only DepMap RELATIVE per-gene CN + GENOME-WIDE LoH, so copy-neutral per-gene LOH is undeterminable → those cell lines resolve `uncertain` rather than a false biallelic. The arms agree on mechanism but the patient arm is more sensitive to copy-neutral two-hit events."
+  - "`uncertain` means a mutation is present but the second-hit background could not be confirmed (CN/LOH not measured) — it is NOT `wt`. It is EXCLUDED from the fraction_biallelic denominator (undeterminable, not not-biallelic) but COUNTED in fraction_any_alteration (the sample does carry a hit)."
+  - "gene-level, not variant-resolved: a passenger mutation co-occurring with LOH is scored as a two-hit event even if the specific variant is functionally neutral. Interpret alongside alteration-role (is the gene an LoF driver at all?)."
+  - "patient CN homdel uses GISTIC discrete −2 (per-gene); patient LOH uses ABSOLUTE segments (point-in-interval). Both hg19, build-consistent with the hg19 MC3 MAF — no cross-build gene-coordinate lookup."
+
+# (no `measurement:` — expression-family-only; genomic/alteration cards omit it, matching
+#  alteration-role / mutation-hotspot-frequency / copy-number-distribution.)
+# (no `sample_context:` single value — this card spans patient tumor + cell-line model in two arms;
+#  the arm split is explicit in the summary_fields, not a single card-level sample_context tag.)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: harmonized allele-count / biallelic state.
+measurement_type: functional_gene_state
+entity_grains: [target, target_indication]
+schema_version: 1
