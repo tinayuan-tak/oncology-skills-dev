@@ -217,6 +217,34 @@ def test_cli_pooled_carries_rollup_not_full_landscape(monkeypatch):
     assert summary["median_log2tpm"] is not None and summary["matched_normal_tissue"] == "COLON"
 
 
+def test_cli_subtype_svg_and_plotly_emit(tmp_path, monkeypatch):
+    """The subtype panel (SVG + plotly) emits one row per stratum from the shared value reader,
+    and is data_unavailable-safe (no shard → None / [])."""
+    import importlib
+    pytest.importorskip("matplotlib")
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    # wire read_tumor_subtype_values directly (the emitters' substrate)
+    monkeypatch.setattr(R, "read_tumor_subtype_values", lambda t, i: {
+        "available": True, "pooled_median": 2.0, "assignment_manifest": "m",
+        "pooled_values": [4.0] * 40 + [1.0] * 40,
+        "strata": [
+            {"stratum_id": "HI", "values": [4.0] * 40, "subtype_signal": "subtype_enriched",
+             "evidence_state": "measured", "subgroup_n_floor_met": True, "n": 40, "median": 4.0},
+            {"stratum_id": "LO", "values": [1.0] * 40, "subtype_signal": "subtype_depleted",
+             "evidence_state": "measured", "subgroup_n_floor_met": True, "n": 40, "median": 1.0},
+        ]})
+    svg = cli.emit_subtype_svg("X", "COADREAD", tmp_path)
+    assert svg is not None and svg.exists()
+    specs = cli.emit_subtype_plotly_specs("X", "COADREAD", tmp_path)
+    assert [s["id"] for s in specs] == ["expression_distribution_subtype_panel"]
+    assert (tmp_path / "figure_expression_distribution_subtype.plotly.json").exists()
+    # no-shard safety
+    monkeypatch.setattr(R, "read_tumor_subtype_values",
+                        lambda t, i: {"available": False, "strata": [], "pooled_median": None})
+    assert cli.emit_subtype_svg("X", "BRCA", tmp_path) is None
+    assert cli.emit_subtype_plotly_specs("X", "BRCA", tmp_path) == []
+
+
 def test_cli_subtype_panorama_carries_full_per_subgroup_metrics(monkeypatch):
     """build_subtype_panorama returns the FULL per-stratum table as per_subgroup_metrics — the
     shape the tumor-expression-distribution-subtype card declares."""

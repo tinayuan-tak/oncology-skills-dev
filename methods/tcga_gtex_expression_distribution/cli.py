@@ -27,6 +27,16 @@ DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncol
 _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
+# Per-stratum subtype_signal → (fill, line). Diverging: enriched warm, depleted cool,
+# uniform neutral, restricted a distinct accent; underpowered/None = muted grey.
+_SIGNAL_COLORS = {
+    "subtype_enriched":   ("#c0603a", "#8f3f22"),   # warm — elevated vs pooled
+    "subtype_restricted": ("#7b5ea7", "#553f7a"),   # accent — present here, absent pooled
+    "subtype_depleted":   ("#4a7fa5", "#2f5670"),   # cool — reduced vs pooled
+    "subtype_uniform":    ("#b8bcc0", "#7d8288"),   # neutral — no stratum signal
+    None:                 ("#d9dbdd", "#a9adb1"),   # muted — underpowered (no call)
+}
+
 
 def _log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
@@ -187,6 +197,82 @@ def emit_plotly_specs(target: str, indication: str, out_dir: Path,
     (Path(out_dir) / "figure_expression_distribution.plotly.json").write_text(fig.to_json())
     return [{"id": "expression_distribution_per_sample",
              "path": "figure_expression_distribution.plotly.json", "type": "plotly"}]
+
+
+def emit_subtype_svg(target: str, indication: str, out_dir: Path,
+                     contracts_dir=DEFAULT_TARGET_CONTRACTS) -> Optional[Path]:
+    """Tier-3 SVG for the SUBTYPE card: one box+strip row per molecular subtype, ordered by
+    median, colored by subtype_signal (enriched/depleted/restricted/uniform), with the pooled
+    median as a dashed reference line. Returns None if the subtype axis is unavailable."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    _load_style(contracts_dir)
+    data = _read.read_tumor_subtype_values(target, indication)
+    out_path = Path(out_dir) / "figure_expression_distribution_subtype.svg"
+    if not data.get("available") or not data.get("strata"):
+        return None
+    strata = [s for s in data["strata"] if s["n"] > 0]
+    if not strata:
+        return None
+    fig, ax = plt.subplots(figsize=(7.6, max(3.0, 0.5 * len(strata) + 1.2)))
+    groups = [s["values"] for s in strata]
+    bp = ax.boxplot(groups, orientation="horizontal", widths=0.6, patch_artist=True,
+                    showfliers=False, medianprops={"color": "#222", "linewidth": 1.2})
+    rng = np.random.default_rng(seed=42)
+    labels = []
+    for i, s in enumerate(strata):
+        fill, line = _SIGNAL_COLORS.get(s["subtype_signal"], _SIGNAL_COLORS[None])
+        bp["boxes"][i].set(facecolor=fill, edgecolor=line, alpha=0.55, linewidth=1.0)
+        yy = rng.uniform(i + 1 - 0.16, i + 1 + 0.16, size=len(s["values"]))
+        ax.scatter(s["values"], yy, s=4, color=line, alpha=0.3, edgecolor="none", zorder=3)
+        sig = (s["subtype_signal"] or "underpowered").replace("subtype_", "")
+        labels.append(f"{s['stratum_id']}\n(n={s['n']}, {sig})")
+    pm = data.get("pooled_median")
+    if pm is not None:
+        ax.axvline(pm, color="#444", linewidth=1.0, linestyle="--", zorder=1)
+        ax.text(pm, len(strata) + 0.5, f"pooled median {pm:.1f}", color="#444",
+                fontsize=7, ha="center", va="bottom")
+    ax.set_yticks(range(1, len(labels) + 1)); ax.set_yticklabels(labels, fontsize=7)
+    ax.set_xlabel("log2(TPM + 1) — recount3 / GENCODE v26 (per sample)")
+    ax.set_title(f"{target} in {indication} — expression by molecular subtype")
+    ax.grid(axis="x", alpha=0.25, linewidth=0.4)
+    fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
+    return out_path
+
+
+def emit_subtype_plotly_specs(target: str, indication: str, out_dir: Path,
+                              contracts_dir=DEFAULT_TARGET_CONTRACTS) -> list:
+    """Interactive twin of the subtype panel — same per-stratum values (no drift). Best-effort."""
+    try:
+        import plotly.graph_objects as go
+    except Exception as e:  # noqa: BLE001
+        _log(f"[expr-dist-subtype] plotly skipped: {e}")
+        return []
+    data = _read.read_tumor_subtype_values(target, indication)
+    strata = [s for s in (data.get("strata") or []) if s["n"] > 0]
+    if not data.get("available") or not strata:
+        return []
+    fig = go.Figure()
+    for s in strata:
+        fill, line = _SIGNAL_COLORS.get(s["subtype_signal"], _SIGNAL_COLORS[None])
+        sig = (s["subtype_signal"] or "underpowered").replace("subtype_", "")
+        fig.add_trace(go.Box(x=s["values"], name=f"{s['stratum_id']} (n={s['n']}, {sig})",
+                             orientation="h", marker_color=line, fillcolor=fill,
+                             line=dict(width=1), boxpoints="all", jitter=0.4, pointpos=0,
+                             marker=dict(size=3, opacity=0.35)))
+    pm = data.get("pooled_median")
+    if pm is not None:
+        fig.add_vline(x=pm, line_dash="dash", line_color="#444",
+                      annotation_text=f"pooled median {pm:.1f}")
+    fig.update_layout(title=f"{target} in {indication} — expression by molecular subtype",
+                      xaxis_title="log2(TPM + 1) — recount3 / GENCODE v26",
+                      template="plotly_white", showlegend=False,
+                      margin=dict(l=150, r=40, t=50, b=50))
+    (Path(out_dir) / "figure_expression_distribution_subtype.plotly.json").write_text(fig.to_json())
+    return [{"id": "expression_distribution_subtype_panel",
+             "path": "figure_expression_distribution_subtype.plotly.json", "type": "plotly"}]
 
 
 def emit_manifest(target: str, indication: str, summary: dict, out_dir: Path,

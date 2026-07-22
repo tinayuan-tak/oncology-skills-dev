@@ -390,3 +390,55 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                  "assignment_manifest": manifest,
                  "n_subtypes_measured": n_measured, "n_subtypes_enriched": n_enriched})
     return base
+
+
+def read_tumor_subtype_values(target: str, indication: str) -> dict:
+    """Per-stratum per-sample value VECTORS for the subtype-panel figure (the landscape
+    carries summary stats; the box/strip panel needs the raw points). Shares the SAME
+    bridge + shard as read_tumor_expression_subtype_landscape (no drift).
+
+    Returns:
+      {available: bool, pooled_values: [..], pooled_median: float|None,
+       strata: [ {stratum_id, values: [..], subtype_signal, evidence_state,
+                  subgroup_n_floor_met, n} ordered by median ], _note?: str}
+    data_unavailable-safe (no shard / target absent → available False)."""
+    from methods.subgroup_common.panorama import (evidence_state as _evstate,
+                                                   SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
+    from methods.subgroup_common.loaders import load_assignments
+
+    manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
+    pooled_vals = read_tumor_samples(target, indication)
+    if manifest is None or not pooled_vals:
+        return {"available": False, "pooled_values": pooled_vals or [], "pooled_median": None,
+                "strata": [], "_note": ("no landed tumor assignment shard for this indication"
+                                        if manifest is None else "target absent")}
+    import statistics as _st
+    pooled_median = _st.median(pooled_vals)
+    bridged = read_tumor_samples_with_case(target, indication)
+    try:
+        assignments = load_assignments(manifest)
+    except Exception as e:  # noqa: BLE001
+        return {"available": False, "pooled_values": pooled_vals, "pooled_median": pooled_median,
+                "strata": [], "_note": f"assignment shard unavailable: {type(e).__name__}"}
+    pooled_detectable = _stats.expression_fractions(pooled_vals)["detectable_fraction"]
+    strata_ids = sorted(assignments.loc[assignments["is_member"] == True, "stratum_id"].unique().tolist())
+    rows = []
+    for sid in strata_ids:
+        member_cases = set(assignments.loc[
+            (assignments["stratum_id"] == sid) & (assignments["is_member"] == True), "sample_id"])
+        vals = bridged[bridged["case"].isin(member_cases)]["log2_tpm"].tolist()
+        n = len(vals)
+        floor_met = n >= _SUBGROUP_N_FLOOR
+        signal = None
+        if n > 0 and floor_met:
+            summ = _distribution_summary(vals)
+            signal = _classify_subtype_signal(summ["median_log2tpm"], pooled_median,
+                                              summ["detectable_fraction"], pooled_detectable)
+        rows.append({"stratum_id": sid, "values": vals, "subtype_signal": signal,
+                     "evidence_state": _evstate(n, floor_met),
+                     "subgroup_n_floor_met": floor_met, "n": n,
+                     "median": (_st.median(vals) if vals else None)})
+    # order by median (ascending) so the panel reads as a gradient; null medians last.
+    rows.sort(key=lambda r: (r["median"] is None, r["median"] if r["median"] is not None else 0.0))
+    return {"available": True, "pooled_values": pooled_vals, "pooled_median": pooled_median,
+            "strata": rows, "assignment_manifest": manifest}
