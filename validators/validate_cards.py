@@ -159,10 +159,9 @@ KNOWN_FIGURE_DEBT = {
     # expression Q5 CLEARED 2026-07-22 — _emit_rna_protein_concordance is registered in
     # compose-dashboard CARD_FIGURE_EMITTERS (SK #150, backed by AM #87), so the card passes the
     # figure check on its own (not waived).
-    # expression Q5 TUMOR arm (2026-07-22): rna-protein-concordance-tumor scatter emitted by the
-    # method (AM tumor-arm emitter), compose-dashboard wiring is the sibling skills PR — tracked debt
-    # until it lands, then remove.
-    'rna-protein-concordance-tumor',
+    # expression Q5 TUMOR arm CLEARED 2026-07-22 — _emit_rna_protein_concordance_tumor is registered
+    # in compose-dashboard CARD_FIGURE_EMITTERS (SK #151, backed by AM #89), so the card passes the
+    # figure check on its own (not waived).
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
