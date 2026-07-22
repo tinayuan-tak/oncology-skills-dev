@@ -831,6 +831,61 @@ def _render_matrix_slice_for_prompt(ordinal_matrix: dict) -> list[str]:
     return lines
 
 
+# Distribution-evidence field patterns that MUST survive to the LLM prompt intact (the Audit-B /
+# 12-question-spec extraction layer emits these; the old blind truncation loop collapsed lists>5 and
+# hard-capped at 1200 chars/card, destroying exactly the per-sample distribution signal the spec is
+# about). Substring-matched against summary keys. Scalars always survive; only genuinely-oversized
+# UNKNOWN lists get sampled.
+_LOAD_BEARING_SUMMARY_KEY_PARTS = (
+    "median", "percentile", "_pct", "p95", "p99", "p5", "p25", "p75",
+    "fraction", "frac_", "coefficient_of_variation", "cov", "distribution_pattern",
+    "log2fc", "log2_fc", "effect_size", "q_value", "bh_q", "class", "n_tumor", "n_normal",
+    "n_cohorts", "n_indications", "concordance", "correlation", "enrich", "above_normal",
+    "tumor_median", "normal_median", "detectable", "expressed",
+    # per-entity evidence TABLES (the rows ARE the decision evidence — keep top-N, don't drop):
+    "lineage", "per_", "stats", "models", "elevated", "tissues", "cohorts", "indications",
+    "subtype", "recommended",
+)
+_PROMPT_CARD_CHAR_CAP = 3000   # raised from 1200; only bites on pathological output
+
+
+def _format_card_summary_for_prompt(summary: dict) -> str:
+    """Render a card summary for the LLM prompt, GUARANTEEING load-bearing distribution fields
+    survive (the old loop dropped `_`-prefixed keys, sampled lists>5 to 3, and hard-capped 1200
+    chars — destroying the per-sample distribution stats the extraction layer produces). Policy:
+      - scalars (str/num/bool/None) always kept in full;
+      - a list whose key matches a load-bearing pattern (e.g. per_lineage_stats, most_elevated_*)
+        is kept as its top-8 rows (not dropped to a `_len`), since these ARE the decision evidence;
+      - other/unknown lists >8 are summarized as {_len, _sample:3} (the old behavior, for genuine
+        noise only);
+      - `_`-prefixed provenance keys are still dropped (not decision evidence);
+      - a generous per-card cap (3000) only trims pathological output."""
+    def _is_scalar(v):
+        return v is None or isinstance(v, (str, int, float, bool))
+
+    def _load_bearing(key: str) -> bool:
+        kl = key.lower()
+        return any(part in kl for part in _LOAD_BEARING_SUMMARY_KEY_PARTS)
+
+    out = {}
+    for k, v in summary.items():
+        if k.startswith("_"):
+            continue
+        if _is_scalar(v):
+            out[k] = v
+        elif isinstance(v, list):
+            if _load_bearing(k):
+                out[k] = v[:8]                      # keep the decision rows
+            elif len(v) > 8:
+                out[f"{k}_len"] = len(v)
+                out[f"{k}_sample"] = v[:3]
+            else:
+                out[k] = v
+        else:  # dict / nested
+            out[k] = v
+    return json.dumps(out, default=str)[:_PROMPT_CARD_CHAR_CAP]
+
+
 def _build_user_prompt(
     target: str,
     indication: str,
@@ -873,23 +928,28 @@ def _build_user_prompt(
                 lines.append(f"- {cid}: MISSING (no dispatcher)")
                 continue
             summary = c.get("summary") or {}
-            # Strip out oversized nested lists; keep scalars + short lists.
-            trimmed = {}
-            for k, v in summary.items():
-                if k.startswith("_"):
-                    continue
-                if isinstance(v, list) and len(v) > 5:
-                    trimmed[f"{k}_len"] = len(v)
-                    trimmed[f"{k}_sample"] = v[:3]
-                else:
-                    trimmed[k] = v
-            lines.append(f"- {cid}: {json.dumps(trimmed, default=str)[:1200]}")
+            lines.append(f"- {cid}: {_format_card_summary_for_prompt(summary)}")
     lines.append("")
     lines.append("### Fired rules (across all sub-skills, biology-first)")
+    # Pass rule COLOR (rationale / signals / killer_message) — these are already computed on every
+    # fired rule (_skills_common.fired_rules) but were previously dropped from the prompt, so the LLM
+    # saw THAT a rule fired, never WHY. Surfacing them lets the model reason about significance +
+    # modality direction, not just state. (Verdict spine unchanged — this is prompt-only enrichment.)
     for short, r in sub_results.items():
         for f in r["fired"]:
-            lines.append(f"- [{short}] {f['rule_id']} on "
-                         f"{f['card_id']}.{f['field']} = {f['value']}")
+            line = f"- [{short}] {f['rule_id']} on {f['card_id']}.{f['field']} = {f['value']}"
+            signals = f.get("signals") or {}
+            if signals:
+                line += "  | signals: " + ", ".join(f"{k}={v}" for k, v in signals.items())
+            killer = f.get("killer_message")
+            if killer:
+                line += f"  | KILLER: {killer.strip()}"
+            rationale = (f.get("rationale") or "").strip()
+            if rationale:
+                # one-line the rationale + cap so a verbose block-scalar can't blow the prompt
+                one_line = " ".join(rationale.split())
+                line += f"  | why: {one_line[:240]}"
+            lines.append(line)
     return "\n".join(lines)
 
 
