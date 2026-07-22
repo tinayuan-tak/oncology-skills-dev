@@ -1,0 +1,8 @@
+"""tcga_fusion_consensus — pan-TCGA fusion consensus product.
+
+Builds a per-(sample, gene) parquet from three ingested TCGA fusion callers
+(TumorFusions/Hu 2018 PRADA, Gao 2018 Cell Reports, cBioPortal TCGA PanCancer
+Atlas 2018), preserving each caller's per-partner + frame-prediction detail so
+downstream consumers can pick their own consensus threshold
+(caller_count >= 1 for union / >= 2 for majority / == 3 for strict).
+"""

@@ -5,6 +5,10 @@ test_real_execution_synthetic_tcga: real (non-dry) execution against a
     synthetic TCGA-marker-paper CSV to verify the rule-evaluator +
     parquet-emitter + manifest-emitter end-to-end.
 test_rule_parser_supported_forms: unit-level tests of the CEL-subset parser.
+test_fusion_evaluator_tri_value: unit test of the fusion-consensus evaluator's
+    true/false/null tri-value logic + caller_count threshold.
+test_fusion_real_execution_synthetic: real CLI run against a synthetic NSCLC
+    catalog + staged consensus/coverage parquet fixtures.
 """
 
 import os
@@ -137,3 +141,144 @@ def test_real_execution_synthetic_tcga(tmp_path):
     # content-pin (sha256) + provenance present
     assert len(manifest["subgroup_catalog_content_pin"]) == 64
     assert manifest["generated_by"].startswith("methods/subgroup_assigner_directly_tagged@")
+
+
+# ---------- Fusion-consensus path -----------------------------------------
+
+def _synthetic_consensus_df():
+    """4 lung samples: S1 has ALK (3-caller), S2 has ALK (1-caller), S3 has ROS1
+    (2-caller), S4 has no fusion (assayed, will come from coverage only)."""
+    return pd.DataFrame({
+        "sample_key":  ["TCGA-AA-0001-01", "TCGA-AA-0002-01", "TCGA-AA-0003-01"],
+        "gene_symbol": ["ALK",             "ALK",             "ROS1"],
+        "tissue":      ["LUAD",            "LUSC",            "LUAD"],
+        "caller_count":[3,                 1,                 2],
+        "callers_supporting": [["tumorfusions", "gao_2018", "cbioportal"],
+                               ["tumorfusions"],
+                               ["tumorfusions", "cbioportal"]],
+    })
+
+
+def _synthetic_coverage_df():
+    """5 assayed lung samples (S1-S4 lung + one BRCA that must be excluded by
+    the tissue filter). S4 is assayed but carries no fusion → true negative."""
+    return pd.DataFrame({
+        "sample_key": ["TCGA-AA-0001-01", "TCGA-AA-0002-01", "TCGA-AA-0003-01",
+                       "TCGA-AA-0004-01", "TCGA-BB-9999-01"],
+        "tissue":     ["LUAD", "LUSC", "LUAD", "LUAD", "BRCA"],
+        "caller":     ["tumorfusions"] * 5,
+    })
+
+
+def test_fusion_evaluator_tri_value():
+    """Unit test: _evaluate_fusion_stratum tri-value + caller_count threshold."""
+    from methods.subgroup_assigner_directly_tagged.cli import _evaluate_fusion_stratum
+
+    fusion_df = _synthetic_consensus_df()
+    coverage_df = _synthetic_coverage_df()
+    tissue_filter = ["LUAD", "LUSC"]
+
+    # ALK, min_caller_count=1 (union): S1 + S2 are members; S3 assayed-no-ALK →
+    # false; S4 assayed-no-fusion → false; BRCA excluded by tissue filter.
+    alk = {"id": "ALK_fusion", "rule": "fusion_gene == 'ALK'",
+           "derivation_source": "directly_tagged_source_provided",
+           "data_source": {"min_caller_count": 1}}
+    out = _evaluate_fusion_stratum(alk, fusion_df, coverage_df, tissue_filter)
+    members = set(out[out["is_member"] == True]["sample_id"])
+    assert members == {"TCGA-AA-0001-01", "TCGA-AA-0002-01"}
+    # False = assayed lung samples without a qualifying ALK fusion (S3, S4).
+    assert (out["is_member"] == False).sum() == 2
+    # BRCA sample excluded entirely by the tissue filter.
+    assert "TCGA-BB-9999-01" not in set(out["sample_id"])
+    # No nulls: every lung sample is in coverage.
+    assert out["is_member"].isna().sum() == 0
+    # patient_id is the participant-level barcode.
+    s1 = out[out["sample_id"] == "TCGA-AA-0001-01"].iloc[0]
+    assert s1["patient_id"] == "TCGA-AA-0001"
+    assert s1["derivation_value"] == "ALK"
+
+    # ALK, min_caller_count=2: only S1 (3-caller) qualifies; S2 (1-caller) drops
+    # to false.
+    alk2 = {**alk, "data_source": {"min_caller_count": 2}}
+    out2 = _evaluate_fusion_stratum(alk2, fusion_df, coverage_df, tissue_filter)
+    assert set(out2[out2["is_member"] == True]["sample_id"]) == {"TCGA-AA-0001-01"}
+
+
+def test_fusion_evaluator_null_without_coverage():
+    """Without coverage, non-members degrade to null (can't prove assayed-negative)."""
+    from methods.subgroup_assigner_directly_tagged.cli import _evaluate_fusion_stratum
+    fusion_df = _synthetic_consensus_df()
+    alk = {"id": "ALK_fusion", "rule": "fusion_gene == 'ALK'",
+           "derivation_source": "directly_tagged_source_provided",
+           "data_source": {"min_caller_count": 1}}
+    out = _evaluate_fusion_stratum(alk, fusion_df, coverage_df=None,
+                                   tissue_filter=["LUAD", "LUSC"])
+    # Members still resolve; the ROS1-only sample (no ALK) becomes null, not false.
+    assert set(out[out["is_member"] == True]["sample_id"]) == {"TCGA-AA-0001-01", "TCGA-AA-0002-01"}
+    assert (out["is_member"] == False).sum() == 0
+    ros1_only = out[out["sample_id"] == "TCGA-AA-0003-01"].iloc[0]
+    assert ros1_only["is_member"] is None or pd.isna(ros1_only["is_member"])
+
+
+def test_fusion_real_execution_synthetic(tmp_path):
+    """End-to-end CLI run against a synthetic NSCLC catalog with a single ALK
+    fusion stratum, backed by staged consensus + coverage parquet fixtures."""
+    cache_root = tmp_path / ".cache"
+    fusion_cache = cache_root / "framework-fusion-consensus" / "test-fusion-consensus-v1"
+    fusion_cache.mkdir(parents=True, exist_ok=True)
+    _synthetic_consensus_df().to_parquet(
+        fusion_cache / "fusion_consensus_per_sample_gene.parquet", index=False)
+    _synthetic_coverage_df().to_parquet(
+        fusion_cache / "sample_coverage.parquet", index=False)
+
+    # Minimal NSCLC catalog with one fusion stratum.
+    catalog = {
+        "id": "nsclc-fusion-test",
+        "manifest_kind": "subgroup_catalog",
+        "indication": "NSCLC",
+        "version": "test",
+        "schema_version": 1,
+        "atomic_strata": [{
+            "id": "ALK_fusion",
+            "label": "ALK fusion",
+            "rule": "fusion_gene == 'ALK'",
+            "derivation_source": "directly_tagged_source_provided",
+            "data_source": {
+                "manifest_id": "test-fusion-consensus-v1",
+                "field": "gene_symbol",
+                "method": "fusion_partner_match",
+                "min_caller_count": 1,
+            },
+            "applicable_data_sources": ["tcga", "depmap"],
+        }],
+    }
+    catalog_path = tmp_path / "nsclc-fusion-test.yaml"
+    catalog_path.write_text(yaml.safe_dump(catalog, sort_keys=False))
+
+    out_dir = tmp_path / "fusion_out"
+    result = subprocess.run(
+        [
+            "python", "-m", "methods.subgroup_assigner_directly_tagged.cli",
+            "--subgroup-catalog", str(catalog_path),
+            "--data-source", "tcga",
+            "--release-pin", "test",
+            "--catalog-repo", str(CATALOG_REPO),
+            "--out", str(out_dir),
+        ],
+        cwd=METHODS_REPO, capture_output=True, text=True,
+        env={**os.environ, "FRAMEWORK_CACHE_ROOT": str(cache_root)},
+    )
+    assert result.returncode == 0, f"CLI failed: {result.stderr}\nstdout:\n{result.stdout}"
+
+    assignments = pd.read_parquet(out_dir / "assignments.parquet")
+    alk = assignments[assignments["stratum_id"] == "ALK_fusion"]
+    # 2 members (S1 3-caller, S2 1-caller), 2 assayed-negative (S3 ROS1, S4 none).
+    assert (alk["is_member"] == True).sum() == 2
+    assert (alk["is_member"] == False).sum() == 2
+    # BRCA coverage row excluded by the NSCLC tissue filter.
+    assert "TCGA-BB-9999-01" not in set(alk["sample_id"])
+
+    manifest = yaml.safe_load((out_dir / "manifest.yaml").read_text())
+    assert manifest["indication"] == "NSCLC"
+    strata = {s["subgroup_id"]: s for s in manifest["strata_summary"]}
+    assert strata["ALK_fusion"]["n_samples"] == 2

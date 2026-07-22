@@ -41,12 +41,18 @@ from methods.subgroup_common.paths import cache_root
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.2.0"  # Phase 2a.1 — first executable version
+METHOD_VERSION = "0.3.0"  # Phase 2a.1 → 0.3.0 adds fusion-consensus source path
 
 SUPPORTED_DERIVATION_SOURCES = {
     "directly_tagged_clinical",
     "directly_tagged_source_provided",
 }
+
+# data_source.method values that route to the fusion-consensus evaluator instead
+# of the scalar-column rule evaluator. Fusion is set-membership over a per-
+# (sample, gene) table (a sample can carry several fusions), not a scalar-column
+# `==`, so it needs its own path + its own source frame.
+_FUSION_METHOD = "fusion_partner_match"
 
 
 # ---------- CEL-subset rule parser -----------------------------------------
@@ -227,6 +233,163 @@ def _load_genie_bpc_lot(catalog_repo: Path, indication: str) -> pd.DataFrame:
     )
 
 
+# ---------- Fusion-consensus source path (NSCLC ALK/ROS1/RET etc.) ----------
+#
+# Fusion strata (data_source.method == 'fusion_partner_match') read a DERIVED
+# per-(sample_key, gene_symbol) consensus product (tcga-fusion-consensus-per-
+# sample-v1), NOT the marker-paper frame. This is a separate loader + evaluator
+# because (a) the source frame is keyed differently (sample_key / gene_symbol),
+# and (b) fusion membership is set-membership — a sample can carry several
+# fusions — which the scalar-column `field == value` evaluator cannot express.
+
+
+def _fetch_derived_parquet(catalog_repo: Path, manifest_id: str, filename: str) -> Path:
+    """Resolve a derived product's parquet to a local path.
+
+    Resolution order mirrors subgroup_common.loaders.load_assignments:
+      1. session cache: {cache_root}/framework-fusion-consensus/{manifest_id}/{filename}
+      2. derived manifest's s3_uri → aws s3 cp → session cache
+
+    `filename` selects the payload (fusion_consensus_per_sample_gene.parquet) or
+    the companion (sample_coverage.parquet); both live under the same S3 prefix,
+    so the coverage URI is the payload s3_uri with the basename swapped.
+    """
+    local = cache_root() / "framework-fusion-consensus" / manifest_id / filename
+    if local.exists():
+        return local
+
+    manifest_path = catalog_repo / "manifests" / "derived" / f"{manifest_id}.yaml"
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            f"Fusion-consensus product {manifest_id} not in session cache ({local}) "
+            f"and no derived manifest at {manifest_path}. Publish the product "
+            f"(data-catalog manifests/derived/{manifest_id}.yaml) or stage the parquet "
+            f"at the session-cache path."
+        )
+    manifest = yaml.safe_load(manifest_path.read_text())
+    payload_uri = manifest.get("s3_uri")
+    if not payload_uri:
+        raise FileNotFoundError(
+            f"Derived manifest {manifest_id} declares no s3_uri to fetch from.")
+    # Companion files share the payload's prefix; swap the basename.
+    s3_uri = payload_uri.rsplit("/", 1)[0] + "/" + filename
+    local.parent.mkdir(parents=True, exist_ok=True)
+    import subprocess
+    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(local), "--no-progress"],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not local.exists():
+        raise FileNotFoundError(
+            f"S3 fetch of {manifest_id}/{filename} failed ({s3_uri}): "
+            f"{r.stderr.strip()[:200]}. Check AWS_PROFILE (needs onc-compbio GetObject).")
+    return local
+
+
+def _load_fusion_consensus(catalog_repo: Path, manifest_id: str) -> pd.DataFrame:
+    """Load the per-(sample_key, gene_symbol) fusion-consensus payload parquet."""
+    p = _fetch_derived_parquet(catalog_repo, manifest_id,
+                               "fusion_consensus_per_sample_gene.parquet")
+    return pd.read_parquet(p)
+
+
+def _load_fusion_coverage(catalog_repo: Path, manifest_id: str) -> pd.DataFrame | None:
+    """Load the sample_coverage.parquet companion (per-(sample_key, caller) roster).
+
+    Returns None if the companion is absent — the evaluator then degrades the
+    non-member class from `false` to `null` (cannot distinguish assayed-negative
+    from not-assayed without the coverage denominator)."""
+    try:
+        p = _fetch_derived_parquet(catalog_repo, manifest_id, "sample_coverage.parquet")
+    except FileNotFoundError:
+        return None
+    return pd.read_parquet(p)
+
+
+def _fusion_participant_id(sample_key: str) -> str | None:
+    """Participant-level barcode from a TCGA sample_key (TCGA-tss-part-sampleNum
+    → TCGA-tss-part). Used as patient_id so fusion assignments join to the same
+    patient axis as the marker-paper strata."""
+    if not isinstance(sample_key, str):
+        return None
+    parts = sample_key.split("-")
+    return "-".join(parts[:3]) if len(parts) >= 3 else sample_key
+
+
+def _evaluate_fusion_stratum(
+    stratum: dict,
+    fusion_df: pd.DataFrame,
+    coverage_df: pd.DataFrame | None,
+    tissue_filter: list[str] | None,
+) -> pd.DataFrame:
+    """Evaluate a fusion_partner_match stratum against the consensus product.
+
+    Tri-value semantics (the payoff of the sample_coverage companion):
+      is_member = True   sample has a (sample_key, target_gene) row with
+                         caller_count >= min_caller_count
+      is_member = False  sample was ASSAYED (in coverage_df) but has no such row
+      is_member = null   sample not in coverage_df (not assayed) — or coverage
+                         absent entirely (can't distinguish negative from unassayed)
+
+    The rule names the target gene as `fusion_gene == 'ALK'` (parsed by the
+    shared parse_rule). The caller-count threshold is a data_source knob
+    (data_source.min_caller_count, default 1 = union / "any partner").
+    """
+    lhs, op, values = parse_rule(stratum["rule"])
+    if op != "eq" or len(values) != 1:
+        raise ValueError(
+            f"Fusion stratum {stratum['id']} rule must be `fusion_gene == '<GENE>'`; "
+            f"got {stratum['rule']!r}.")
+    target_gene = values[0]
+    min_cc = int(stratum.get("data_source", {}).get("min_caller_count", 1))
+
+    fdf = fusion_df
+    if tissue_filter and "tissue" in fdf.columns:
+        fdf = fdf[fdf["tissue"].isin(tissue_filter)]
+
+    # Samples with a qualifying fusion in the target gene.
+    hits = fdf[(fdf["gene_symbol"] == target_gene) & (fdf["caller_count"] >= min_cc)]
+    member_keys = set(hits["sample_key"].dropna())
+
+    # Denominator (assayed samples). Prefer coverage; else fall back to the
+    # union of samples appearing anywhere in the consensus for this tissue set.
+    if coverage_df is not None:
+        cov = coverage_df
+        if tissue_filter and "tissue" in cov.columns:
+            cov = cov[cov["tissue"].isin(tissue_filter)]
+        assayed_keys = set(cov["sample_key"].dropna())
+        coverage_known = True
+    else:
+        assayed_keys = set(fdf["sample_key"].dropna())
+        coverage_known = False
+
+    # The row universe: every assayed sample (so non-members surface as False),
+    # unioned with member samples (defensive — a member should always be assayed).
+    all_keys = sorted(assayed_keys | member_keys)
+
+    def _member(k: str):
+        if k in member_keys:
+            return True
+        if coverage_known and k in assayed_keys:
+            return False
+        # Not assayed (or coverage unknown): insufficient evidence.
+        return None
+
+    rows = []
+    for k in all_keys:
+        is_mem = _member(k)
+        rows.append({
+            "sample_id": k,
+            "patient_id": _fusion_participant_id(k),
+            "source_native_id": k,
+            "stratum_id": stratum["id"],
+            "is_member": is_mem,
+            "derivation_source": stratum["derivation_source"],
+            "derivation_value": target_gene if is_mem is True else "",
+        })
+    return pd.DataFrame(rows, columns=[
+        "sample_id", "patient_id", "source_native_id", "stratum_id",
+        "is_member", "derivation_source", "derivation_value"])
+
+
 # Indication → DepMap OncotreeLineage. Mirrors target-contracts
 # vocabularies/indication_crosswalk.yaml `depmap_lineage`. Without this filter a
 # DepMap assignments shard is pan-cancer (MSI_H across ALL lineages), which
@@ -241,6 +404,20 @@ INDICATION_TO_DEPMAP_LINEAGE = {
     "ESCA": "Esophagus",
     "PAAD": "Pancreas",
     "AML": "Myeloid",
+}
+
+# Indication → TCGA disease codes for filtering the pan-TCGA fusion-consensus
+# product to the indication's cohorts. NSCLC = LUAD + LUSC. Without this an
+# NSCLC fusion stratum would draw its assayed-sample denominator from all 33
+# TCGA tissues, mis-scaling the false/null classes.
+INDICATION_TO_TCGA_TISSUES = {
+    "COADREAD": ["COADREAD", "COAD", "READ"],
+    "NSCLC": ["LUAD", "LUSC"],
+    "HNSC": ["HNSC"],
+    "STAD": ["STAD"],
+    "ESCA": ["ESCA"],
+    "PAAD": ["PAAD"],
+    "AML": ["LAML"],
 }
 
 
@@ -433,6 +610,9 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     catalog_id = catalog.get("id")
     atomic = catalog.get("atomic_strata", [])
 
+    def _is_fusion_stratum(s: dict) -> bool:
+        return s.get("data_source", {}).get("method") == _FUSION_METHOD
+
     applicable = []
     for s in atomic:
         if s.get("derivation_source") not in SUPPORTED_DERIVATION_SOURCES:
@@ -441,6 +621,11 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
         if data_source not in applicable_sources:
             continue
         applicable.append(s)
+
+    # Partition: fusion strata read the derived consensus product; everything
+    # else reads the per-data-source frame via the existing path.
+    fusion_strata = [s for s in applicable if _is_fusion_stratum(s)]
+    scalar_strata = [s for s in applicable if not _is_fusion_stratum(s)]
 
     click.echo(f"=== subgroup_assigner_directly_tagged v{METHOD_VERSION} ===")
     click.echo(f"  catalog:       {catalog_id} (indication={indication})")
@@ -464,37 +649,80 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
         click.echo("(--dry-run: skipping actual assignment generation)")
         return 0
 
-    # ============ Load source data ============
-    if data_source == "tcga":
-        source_df = _load_tcga_marker_paper_labels(catalog_repo, indication)
-        sample_id_col = "sample_id"      # produced by loader normalization
-        patient_id_col = "patient_id"
-        native_id_col = "source_native_id"
-    elif data_source == "genie_bpc":
-        source_df = _load_genie_bpc_lot(catalog_repo, indication)
-        sample_id_col = "sample_id"
-        patient_id_col = "patient_id"
-        native_id_col = "source_native_id"
-    else:  # depmap
-        source_df = _load_depmap_inferred_subtypes(catalog_repo, indication)
-        sample_id_col = "ModelID"
-        patient_id_col = None  # cell lines have no patient concept
-        native_id_col = "ModelID"
-
-    click.echo(f"  loaded {len(source_df):,} source rows")
-
-    # ============ Evaluate strata ============
     per_stratum_dfs = []
-    for stratum in applicable:
-        try:
-            rows = _evaluate_stratum(stratum, source_df, sample_id_col, patient_id_col, native_id_col)
-        except ValueError as e:
-            click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
-            continue
-        per_stratum_dfs.append(rows)
-        n_hit = int((rows["is_member"] == True).sum())
-        n_null = int(rows["is_member"].isna().sum())
-        click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, null (data-missing): {n_null:>5}")
+
+    # ============ Scalar strata: per-data-source frame (existing path) ========
+    # Only load the marker-paper / depmap / genie frame when a scalar stratum
+    # needs it — a fusion-only catalog must not require the marker-paper cache.
+    if scalar_strata:
+        if data_source == "tcga":
+            source_df = _load_tcga_marker_paper_labels(catalog_repo, indication)
+            sample_id_col = "sample_id"      # produced by loader normalization
+            patient_id_col = "patient_id"
+            native_id_col = "source_native_id"
+        elif data_source == "genie_bpc":
+            source_df = _load_genie_bpc_lot(catalog_repo, indication)
+            sample_id_col = "sample_id"
+            patient_id_col = "patient_id"
+            native_id_col = "source_native_id"
+        else:  # depmap
+            source_df = _load_depmap_inferred_subtypes(catalog_repo, indication)
+            sample_id_col = "ModelID"
+            patient_id_col = None  # cell lines have no patient concept
+            native_id_col = "ModelID"
+
+        click.echo(f"  loaded {len(source_df):,} source rows")
+
+        for stratum in scalar_strata:
+            try:
+                rows = _evaluate_stratum(stratum, source_df, sample_id_col, patient_id_col, native_id_col)
+            except ValueError as e:
+                click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
+                continue
+            per_stratum_dfs.append(rows)
+            n_hit = int((rows["is_member"] == True).sum())
+            n_null = int(rows["is_member"].isna().sum())
+            click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, null (data-missing): {n_null:>5}")
+
+    # ============ Fusion strata: derived consensus product (new path) =========
+    # Fusion consensus is TCGA-only; for depmap/genie the strata self-degrade to
+    # null (no fusion product for that source) — correct tri-value behavior.
+    if fusion_strata:
+        if data_source != "tcga":
+            click.echo(f"  fusion strata present but data_source={data_source} has no "
+                       f"fusion-consensus product → emitting null for "
+                       f"{[s['id'] for s in fusion_strata]}")
+        else:
+            tissue_filter = INDICATION_TO_TCGA_TISSUES.get((indication or "").upper())
+            # Group fusion strata by their manifest_id so each distinct consensus
+            # product loads once.
+            by_manifest: dict[str, list[dict]] = {}
+            for s in fusion_strata:
+                mid = s.get("data_source", {}).get("manifest_id")
+                if not mid:
+                    click.echo(f"  SKIP {s['id']}: fusion stratum has no data_source.manifest_id", err=True)
+                    continue
+                by_manifest.setdefault(mid, []).append(s)
+
+            for manifest_id, strata in by_manifest.items():
+                fusion_df = _load_fusion_consensus(catalog_repo, manifest_id)
+                coverage_df = _load_fusion_coverage(catalog_repo, manifest_id)
+                cov_note = "with coverage (true false/null split)" if coverage_df is not None \
+                    else "NO coverage (non-members → null)"
+                click.echo(f"  loaded fusion consensus {manifest_id}: {len(fusion_df):,} "
+                           f"(sample,gene) rows, {cov_note}")
+                for stratum in strata:
+                    try:
+                        rows = _evaluate_fusion_stratum(stratum, fusion_df, coverage_df, tissue_filter)
+                    except ValueError as e:
+                        click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
+                        continue
+                    per_stratum_dfs.append(rows)
+                    n_hit = int((rows["is_member"] == True).sum())
+                    n_false = int((rows["is_member"] == False).sum())
+                    n_null = int(rows["is_member"].isna().sum())
+                    click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, "
+                               f"false: {n_false:>5}, null: {n_null:>5}")
 
     if not per_stratum_dfs:
         click.echo("ERROR: no strata produced rows", err=True)
