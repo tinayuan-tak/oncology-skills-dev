@@ -95,9 +95,19 @@ def emit_tumor_vs_normal_selectivity_3panel(
     ax_txt = fig.add_subplot(gs[0, 2])
 
     # -------- Panel A: box + strip across 3 groups --------
-    tumor_vals = [s["log2_cpm"] for s in tumor]
-    adj_vals = [s["log2_cpm"] for s in adj]
-    gtex_vals = [s["log2_cpm"] for s in gtex]
+    # UNIT SELECTION (chain-review #4 fix): prefer log2_tpm (GTEx from the long product has only
+    # log2_tpm; keying on log2_cpm dropped GTEx). Also FILTER None — the prior unfiltered
+    # [s["log2_cpm"] for s in gtex] produced [None,...] and crashed np.median. (This 3-panel is not
+    # the live-wired emitter — the 4-panel is — but it carried the same two defects.)
+    def _vals3(samples, unit):
+        return [s[unit] for s in samples if s.get(unit) is not None]
+
+    _tpm_avail = bool(_vals3(tumor, "log2_tpm") or _vals3(adj, "log2_tpm") or _vals3(gtex, "log2_tpm"))
+    _uk = "log2_tpm" if _tpm_avail else "log2_cpm"
+    _unit_label3 = "log2(TPM + 1)" if _tpm_avail else "log2(CPM + 1)"
+    tumor_vals = _vals3(tumor, _uk)
+    adj_vals = _vals3(adj, _uk)
+    gtex_vals = _vals3(gtex, _uk)
 
     groups = []
     labels = []
@@ -135,7 +145,7 @@ def emit_tumor_vs_normal_selectivity_3panel(
 
     ax_box.set_yticks(range(1, len(labels) + 1))
     ax_box.set_yticklabels(labels, fontsize=8)
-    ax_box.set_xlabel("log2(CPM + 1) — recount3 per-sample RNA-seq", fontsize=8)
+    ax_box.set_xlabel(f"{_unit_label3} — recount3 per-sample RNA-seq", fontsize=8)
     ax_box.set_title(f"{target} expression: tumor vs normal groups in {indication}",
                        fontsize=9)
     ax_box.grid(axis="x", alpha=0.3, linewidth=0.5)
@@ -316,12 +326,25 @@ def emit_tumor_vs_normal_selectivity_4panel(
     ax_forest = fig.add_subplot(gs[0, 1])
     ax_txt = fig.add_subplot(gs[0, 2])
 
-    # -------- Panel A: box + strip across 3 groups (identical to v2) --------
-    # Drop None log2_cpm (a sample lacking a value) — matplotlib boxplot's np.mean chokes on None
-    # (TypeError: None+None). The plotly twin already filters these; the SVG path must too.
-    tumor_vals = [s["log2_cpm"] for s in tumor if s.get("log2_cpm") is not None]
-    adj_vals   = [s["log2_cpm"] for s in adj if s.get("log2_cpm") is not None]
-    gtex_vals  = [s["log2_cpm"] for s in gtex if s.get("log2_cpm") is not None]
+    # -------- Panel A: box + strip across 3 groups --------
+    # UNIT SELECTION (chain-review #4 fix): tumor/adjacent samples carry BOTH log2_cpm and log2_tpm
+    # (computed on-demand from recount3 counts), but the GTEx arm now comes from the long TPM product
+    # and carries ONLY log2_tpm (log2_cpm is None). The prior code keyed exclusively on log2_cpm, so
+    # EVERY GTEx sample was silently dropped from this box panel (and the 3-group figure showed only
+    # 2 groups). Plot log2_tpm when it is available for the groups that have data — it is the
+    # cross-group-comparable unit anyway (the reason the long products use TPM) — so all three land
+    # on ONE genuine TPM axis. Fall back to log2_cpm only when TPM is entirely absent (e.g. a gene
+    # with no Gencode-v26 length, where tumor/adj have CPM but GTEx cannot be co-plotted); in that
+    # fallback GTEx is legitimately absent (no CPM in the long product) and the axis is labeled CPM.
+    def _vals(samples, unit):
+        return [s[unit] for s in samples if s.get(unit) is not None]
+
+    tpm_available = bool(_vals(tumor, "log2_tpm") or _vals(adj, "log2_tpm") or _vals(gtex, "log2_tpm"))
+    unit_key = "log2_tpm" if tpm_available else "log2_cpm"
+    unit_label = "log2(TPM + 1)" if tpm_available else "log2(CPM + 1)"
+    tumor_vals = _vals(tumor, unit_key)
+    adj_vals   = _vals(adj, unit_key)
+    gtex_vals  = _vals(gtex, unit_key)
 
     groups, labels, colors = [], [], []
     if tumor_vals:
@@ -351,7 +374,7 @@ def emit_tumor_vs_normal_selectivity_4panel(
                        alpha=0.5, edgecolor="none", zorder=3)
     ax_box.set_yticks(range(1, len(labels) + 1))
     ax_box.set_yticklabels(labels, fontsize=8)
-    ax_box.set_xlabel("log2(CPM + 1) — recount3 per-sample RNA-seq", fontsize=8)
+    ax_box.set_xlabel(f"{unit_label} — recount3 per-sample RNA-seq", fontsize=8)
     ax_box.set_title(f"{target} in {indication}", fontsize=9)
     ax_box.grid(axis="x", alpha=0.3, linewidth=0.5)
     for i, vals in enumerate(groups):
@@ -670,11 +693,18 @@ def emit_plotly_specs(
     written = []
 
     # --- Box + jittered strip across the present groups (mirrors the SVG box+strip panel) ---
+    # UNIT SELECTION (chain-review #4 fix, mirrors the SVG): prefer log2_tpm — the GTEx arm from the
+    # long product carries ONLY log2_tpm, so keying on log2_cpm silently dropped every GTEx point.
+    # Fall back to log2_cpm only when TPM is entirely absent (GTEx then legitimately absent).
     try:
         fig = go.Figure()
         rng = np.random.default_rng(seed=42)   # deterministic jitter (matches the SVG's seed)
+        _tpm_avail = any(s.get("log2_tpm") is not None
+                         for key, _l, _c in present for s in per_sample_data[key])
+        unit_key = "log2_tpm" if _tpm_avail else "log2_cpm"
+        unit_txt = "log2(TPM+1)" if _tpm_avail else "log2(CPM+1)"
         for key, label, color in present:
-            vals = [s["log2_cpm"] for s in per_sample_data[key] if s.get("log2_cpm") is not None]
+            vals = [s[unit_key] for s in per_sample_data[key] if s.get(unit_key) is not None]
             if not vals:
                 continue
             name = f"{label} (n={len(vals)})"
@@ -682,12 +712,12 @@ def emit_plotly_specs(
                 y=vals, name=name, boxpoints="all", jitter=0.4, pointpos=0,
                 marker=dict(color=color, size=4, opacity=0.5),
                 line=dict(color=color), fillcolor=color, opacity=0.55,
-                hovertemplate="%{y:.2f} log2(CPM+1)<extra>" + name + "</extra>"))
+                hovertemplate="%{y:.2f} " + unit_txt + "<extra>" + name + "</extra>"))
         gtex_tissue = per_sample_data.get("gtex_tissue")
         subtitle = f" (GTEx {gtex_tissue})" if gtex_tissue else ""
         fig.update_layout(
             title=f"{target} expression — tumor vs normal groups in {indication}{subtitle}",
-            yaxis_title="log2(CPM + 1) — recount3 per-sample RNA-seq",
+            yaxis_title=f"{unit_txt.replace('+1)', ' + 1)')} — recount3 per-sample RNA-seq",
             template="plotly_white", showlegend=False, margin=dict(l=60, r=20, t=50, b=60))
         (out_dir / f"figure_{basename}_groups.plotly.json").write_text(fig.to_json())
         written.append({"id": f"{basename}_groups",

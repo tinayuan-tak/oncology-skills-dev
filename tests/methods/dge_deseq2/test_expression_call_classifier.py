@@ -84,3 +84,38 @@ def test_selectivity_4panel_tolerates_none_log2cpm(tmp_path):
         target="KRAS", indication="COADREAD", out_dir=tmp_path,
         target_contracts_dir=CONTRACTS)
     assert (tmp_path / "figure_tumor_vs_normal_selectivity_4panel.svg").exists()
+
+
+def test_selectivity_4panel_renders_gtex_from_tpm_only(tmp_path):
+    """Regression (chain review #4): the GTEx arm comes from the long TPM product carrying ONLY
+    log2_tpm (log2_cpm=None). The emitter previously keyed the box panel on log2_cpm, so EVERY GTEx
+    sample was silently dropped and the 3-group figure showed only tumor+adjacent. With the unit-
+    selection fix the panel prefers log2_tpm, so the GTEx group renders and the axis is TPM."""
+    import importlib
+    from pathlib import Path
+    import pytest
+    pytest.importorskip("matplotlib", reason="matplotlib not installed in this env")
+    CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    if not (CONTRACTS / "plot_styles" / "takeda_palette.py").exists():
+        pytest.skip("target-contracts plot_styles not available in this env")
+    E = importlib.import_module("methods.dge_deseq2.emit")
+    # the REAL failure shape: tumor/adj carry both units; GTEx (long product) has ONLY log2_tpm
+    per_sample = {
+        "tumor_samples":    [{"log2_cpm": 5.6, "log2_tpm": 4.9}, {"log2_cpm": 6.1, "log2_tpm": 5.4}],
+        "adjacent_samples": [{"log2_cpm": 6.3, "log2_tpm": 5.6}],
+        "gtex_samples":     [{"log2_cpm": None, "log2_tpm": 3.2},
+                             {"log2_cpm": None, "log2_tpm": 3.5}],
+        "gtex_tissue": "COLON",
+    }
+    summary = {"selectivity_class": "strong_tumor_selective", "log2fc_cell_a": 1.4,
+               "q_value_cell_a": 1e-8, "dominant_direction": "up", "cells_ran": 3}
+    out = tmp_path / "figure_tumor_vs_normal_selectivity_4panel.svg"
+    E.emit_tumor_vs_normal_selectivity_4panel(
+        sensitivity_summary=summary, per_sample_data=per_sample,
+        target="EPCAM", indication="COADREAD", out_dir=tmp_path,
+        target_contracts_dir=CONTRACTS)
+    svg = out.read_text()
+    # the GTEx group label must appear (it was silently absent before the fix)
+    assert "GTEx COLON" in svg, "GTEx group missing from the box panel (the #4 regression)"
+    # and the axis is TPM (all three groups on one comparable unit), not the old hardcoded CPM
+    assert "log2(TPM + 1)" in svg
