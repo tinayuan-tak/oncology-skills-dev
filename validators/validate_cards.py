@@ -151,11 +151,9 @@ KNOWN_FIGURE_DEBT = {
     # _emit_tumor_expression_distribution_subtype is registered in compose-dashboard
     # CARD_FIGURE_EMITTERS (SK #145, backed by AM #84's emit_subtype_svg/plotly), so the
     # subtype card now passes the check (not waived).
-    # expression Q2/Q3 (2026-07-22): the method emits the figures (AM #85 — Q2 reuses the
-    # tumor-vs-normal box+strip; Q3 emit_liability_svg/plotly atlas), but the compose-dashboard
-    # CARD_FIGURE_EMITTERS wiring is the sibling skills PR — tracked debt until it lands, then remove.
-    'tumor-vs-normal-percentile-crossing',
-    'normal-tissue-liability-gtex',
+    # expression Q2/Q3 CLEARED 2026-07-22 — _emit_tumor_vs_normal_percentile_crossing +
+    # _emit_normal_tissue_liability_gtex are registered in compose-dashboard CARD_FIGURE_EMITTERS
+    # (SK #146, backed by AM #85), so both cards now pass the figure check (not waived).
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
