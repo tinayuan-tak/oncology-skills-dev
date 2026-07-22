@@ -17,6 +17,7 @@ Consumers:
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -208,9 +209,15 @@ def _load_ensembl_hgnc_map():
 _ENSEMBL_HGNC_MAP_CACHE = None
 
 
+@lru_cache(maxsize=64)
 def _fetch_recount3_metadata(study: str) -> "pd.DataFrame":
     """Fetch + parse TCGA study metadata from recount3 (gdc_file_id, sample_type).
-    Returns DataFrame with columns [gdc_file_id, sample_type, submitter_id]."""
+    Returns DataFrame with columns [gdc_file_id, sample_type, submitter_id].
+
+    Memoized per study (perf, chain-review retrieval-opt #1): the metadata is a per-study
+    CONSTANT — target-independent — so it must not be re-streamed for every gene/target. Callers
+    only .merge() the result (which copies), so returning the cached object is safe. maxsize 64 >
+    the 33 TCGA studies."""
     _ensure_aws_profile()
     import boto3, gzip, io
     import pandas as pd
@@ -271,9 +278,14 @@ def _fetch_recount3_gene_row(study: str, target_ensembl_ids: set[str]) -> "pd.Da
     })
 
 
+@lru_cache(maxsize=64)
 def _fetch_recount3_library_sizes(study: str) -> "pd.Series":
     """Column-sums of the counts matrix for a study, indexed by sample UUID.
-    Needed for CPM normalization. Streams through the file summing per-column."""
+    Needed for CPM normalization. Streams through the file summing per-column.
+
+    Memoized per study (perf, chain-review retrieval-opt #1): library sizes are a per-study
+    CONSTANT (target-independent), previously re-streamed — a full ~50 MB gz download — on every
+    gene. Callers .reset_index()/.merge() the result (both copy), so caching is safe."""
     _ensure_aws_profile()
     import boto3, gzip, io
     import numpy as np
@@ -906,6 +918,7 @@ def read_per_sample_expression_all_three_groups(
     }
 
 
+@lru_cache(maxsize=32)
 def read_per_sample_expression_tumor_vs_adjacent(
     target: str, indication: str,
 ) -> Optional[dict]:
@@ -926,8 +939,18 @@ def read_per_sample_expression_tumor_vs_adjacent(
     symbol resolves to no Ensembl ID in the release-116 map.
 
     Live-fetch (no persistent derived product); the counts file is ~50MB gzipped
-    per study. First call takes ~10-20s; subsequent calls in the same process
-    reuse the streamed data via lru caches inside the helper functions.
+    per study. First call takes ~10-20s. This function is @lru_cache'd on
+    (target, indication) so a second consumer in the same process — e.g. the
+    tumor-vs-adjacent figure AND the selectivity figure (via
+    read_per_sample_expression_all_three_groups) — reuses the result instead of
+    re-running the whole per-study fan-out. The two target-INDEPENDENT per-study
+    streams (_fetch_recount3_library_sizes, _fetch_recount3_metadata) are
+    additionally @lru_cache'd on `study`, and the RPK-sums are disk-cached, so a
+    DIFFERENT target in the same indication re-streams only the gene-row counts,
+    not the library sizes / metadata / rpk-sums.
+    NOTE the returned dict + its sample lists are the CACHED objects — callers
+    must treat them as read-only (all current callers do: they shallow-copy the
+    dict and iterate the lists without mutation).
     """
     studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper())
     if not studies:
