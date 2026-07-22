@@ -72,6 +72,21 @@ def _md5_hex(path: Path) -> str:
     return h.hexdigest()
 
 
+def _dedup_replicates(tmt):
+    """Collapse technical-replicate rows that map to the SAME (Gene, aliquot_submitter_id).
+
+    canonical_aliquot strips the ".N" replicate suffix, so replicate Log-Ratio columns
+    (e.g. "<aliquot> Log Ratio" + "<aliquot>.1 Log Ratio") land on the same aliquot. Left un-deduped,
+    a (gene, aliquot) with replicates yields 2+ rows in the per-sample product — over-weighting that
+    aliquot in the per-cohort boxplot distribution + the Welch/MWU n-counts (chain-review #1;
+    confirmed firing live on BRCA _D2 aliquots, one appearing 9x). MEAN the replicate log-ratios per
+    (gene, aliquot) — the honest replicate summarization, matching how MSstatsTMT re-summarizes
+    replicate channels in the per-cohort product. Input columns: Gene, aliquot_submitter_id,
+    log2_ratio. Returns the same columns with one row per (Gene, aliquot)."""
+    return (tmt.groupby(["Gene", "aliquot_submitter_id"], as_index=False, sort=False)["log2_ratio"]
+               .mean())
+
+
 def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
     """Return the clean per-sample long DataFrame for one cohort:
     (gene_symbol, cohort, aliquot_submitter_id, sample_type, condition, log2_ratio).
@@ -107,6 +122,12 @@ def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
         "Solid Tissue Normal": "Normal", "Blood Derived Normal": "Normal",
     })
     sample_map = sample_map.dropna(subset=["condition"]).copy()
+    # An aliquot can appear on MULTIPLE TMT channels/plexes → multiple sample_map rows for one
+    # aliquot_submitter_id. The (gene, aliquot) merge below is inner-join, so duplicate sample_map
+    # rows would FAN OUT each deduped tmt row back into 2+ (chain-review #1: the residual BRCA _D2 /
+    # HNSCC / LUAD dups that survived deduping the tmt side alone). An aliquot has ONE
+    # sample_type/condition regardless of channel count, so collapse sample_map to one row/aliquot.
+    sample_map = sample_map.drop_duplicates(subset=["aliquot_submitter_id"], keep="first")
 
     tmt = pd.read_csv(tmt10_local, sep="\t", low_memory=False)
     tmt = tmt[~tmt["Gene"].isin(["Mean", "Median", "StdDev", "NumRatios"])]
@@ -121,6 +142,8 @@ def per_sample_cohort(s01, cohort: str, work_dir: Path, annotations_dir: Path):
     tmt = tmt.drop(columns=["col"])
     tmt["log2_ratio"] = pd.to_numeric(tmt["log2_ratio"], errors="coerce")
     tmt = tmt.dropna(subset=["log2_ratio"])
+
+    tmt = _dedup_replicates(tmt)
 
     long = tmt.merge(
         sample_map[["aliquot_submitter_id", "sample_type", "condition"]],
