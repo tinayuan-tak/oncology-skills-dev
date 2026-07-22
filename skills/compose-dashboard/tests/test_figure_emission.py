@@ -247,6 +247,50 @@ def test_subtype_panel_figure_emission(tmp_path, monkeypatch):
         assert f["path"].startswith("cards/tumor-expression-distribution-subtype/")
 
 
+def test_q2_percentile_crossing_figure_emission(tmp_path, monkeypatch):
+    """Q2 selectivity emitter reuses the tumor-vs-normal box; gated on selectivity_class."""
+    import methods.tcga_gtex_expression_distribution.read as exprread
+    monkeypatch.setattr(exprread, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0] * 10)
+    monkeypatch.setattr(exprread, "read_normal_samples", lambda t, i: ([1.0, 1.2] * 10, "COLON"))
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="tumor-vs-normal-percentile-crossing",
+        summary={"selectivity_class": "strongly_tumor_enriched",
+                 "normal_p95_log2tpm": 1.5, "fraction_tumor_above_normal_p95": 0.9},
+        out_root=out_root, target="CEACAM5", indication="COADREAD")
+    assert any(f.get("primary") for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/tumor-vs-normal-percentile-crossing/")
+    # data_unavailable → no-op
+    assert emit_figures_for_card(
+        card_id="tumor-vs-normal-percentile-crossing",
+        summary={"selectivity_class": "data_unavailable"},
+        out_root=tmp_path / "o2", target="X", indication="BRCA") == []
+
+
+def test_q3_normal_liability_figure_emission(tmp_path, monkeypatch):
+    """Q3 liability atlas emitter (target-grain); gated on liability_class."""
+    import methods.tcga_gtex_expression_distribution.read as exprread
+    monkeypatch.setattr(exprread, "read_all_normal_tissues",
+                        lambda t: {"BRAIN": [8.0] * 20, "SKIN": [0.2] * 20, "COLON": [0.1] * 20})
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="normal-tissue-liability-gtex",
+        summary={"liability_class": "critical_organ_liability"},
+        out_root=out_root, target="GFAP", indication="COADREAD")
+    assert any(f["id"] == "normal_tissue_liability_atlas" for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/normal-tissue-liability-gtex/")
+    assert emit_figures_for_card(
+        card_id="normal-tissue-liability-gtex",
+        summary={"liability_class": "data_unavailable"},
+        out_root=tmp_path / "o3", target="GHOST", indication="COADREAD") == []
+
+
 def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
     """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
     from _figure_emitters import emit_figures_for_card

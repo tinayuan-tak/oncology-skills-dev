@@ -834,8 +834,59 @@ def _emit_tumor_expression_distribution_subtype(
     return figures
 
 
+def _emit_tumor_vs_normal_percentile_crossing(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the Q2 selectivity figure (tumor-vs-normal-percentile-crossing card): reuses the
+    tumor-vs-matched-normal box+strip with the normal-p95 line + fraction-above annotation — the
+    same view the crossing metric summarizes. On _live_read_error / data_unavailable → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or summary.get("selectivity_class") == "data_unavailable":
+        return []
+    _ensure_methods_path()
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # emit_svg reads its own tumor/normal vectors; pass the summary through for the p95 annotation.
+    exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    figures = [
+        {"id": "expression_distribution_per_sample",
+         "path": "figure_expression_distribution.svg",
+         "type": "per_sample_tumor_normal_distribution", "primary": True},
+    ]
+    figures += _plotly_from(exprdist, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
+def _emit_normal_tissue_liability_gtex(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the Q3 normal-tissue liability atlas (normal-tissue-liability-gtex card): per-GTEx-tissue
+    median bar, critical organs red, HIGH cutoff line. target-grain (indication ignored by the
+    method). On _live_read_error / data_unavailable / target-absent → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or summary.get("liability_class") == "data_unavailable":
+        return []
+    _ensure_methods_path()
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = exprdist.emit_liability_svg(target, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    figures = [
+        {"id": "normal_tissue_liability_atlas",
+         "path": "figure_normal_tissue_liability.svg",
+         "type": "normal_tissue_atlas_bar", "primary": True},
+    ]
+    figures += _plotly_from(exprdist, "emit_liability_plotly_specs", target, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
+    "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
+    "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "tumor-expression-distribution-subtype": _emit_tumor_expression_distribution_subtype,
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,

@@ -307,6 +307,27 @@ def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str
     return mod.build_subtype_panorama(target, indication)
 
 
+def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-vs-normal-percentile-crossing card (Q2, Gate B) to
+    methods/tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_summary.
+
+    Per-sample fraction-of-tumors-above-matched-normal-p95/p99 + distribution overlap. Indication-
+    scoped (the tumor arm is per-indication; the normal arm is the matched GTEx tissue)."""
+    mod = _import_method("tcga_gtex_expression_distribution.cli")
+    return mod.build_selectivity_crossing_summary(target, indication)
+
+
+def _dispatch_normal_tissue_liability_gtex(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route normal-tissue-liability-gtex card (Q3, Safety + surface-modality-fit) to
+    methods/tcga_gtex_expression_distribution/cli.py::build_normal_liability_summary.
+
+    Target-grain GTEx normal-tissue atlas: highest tissue, critical-organ max, breadth. indication
+    is accepted for the CARD_DISPATCHERS contract but NOT consumed (normal expression is a target
+    property, indication-independent)."""
+    mod = _import_method("tcga_gtex_expression_distribution.cli")
+    return mod.build_normal_liability_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -716,6 +737,8 @@ CARD_DISPATCHERS = {
     "expression-distribution": _dispatch_expression_distribution,
     "tumor-expression-distribution": _dispatch_tumor_expression_distribution,
     "tumor-expression-distribution-subtype": _dispatch_tumor_expression_distribution_subtype,
+    "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
+    "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,
