@@ -29,6 +29,7 @@ VERDICT_COLORS = {
     "concordant_dependent":           "#0a2540",
     "pan_essential_killer":           "#5a1e1e",  # actually killer, dark red
     "biomarker_stratified_dependency": "#0a2540",
+    "confirmed_driver":               "#0a2540",  # annotation-corroborated driver (strong positive)
     "well_covered":                   "#0a2540",
     "strongly_upregulated_in_tumor":  "#0a2540",
     "broadly_high_expression":        "#0a2540",

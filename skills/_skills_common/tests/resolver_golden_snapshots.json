@@ -132139,12 +132139,3086 @@
    "mut-mixed-neutral",
    "mut-no-mutations-neutral",
    "cn-recurrently-amplified-supportive",
-   "cn-recurrently-deleted-supportive"
+   "cn-recurrently-deleted-supportive",
+   "alteration-role-gof-driver-supportive",
+   "alteration-role-lof-driver-neutral"
   ],
   "table": {
    "": [
     "insufficient",
     null
+   ],
+   "alteration-role-gof-driver-supportive": [
+    "insufficient",
+    null
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral": [
+    "insufficient",
+    null
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral": [
+    "mixed_pattern",
+    "mut-mixed-neutral"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "mixed_pattern",
+    "mut-mixed-neutral"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-no-mutations-neutral": [
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,alteration-role-lof-driver-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral": [
+    "mixed_pattern",
+    "mut-mixed-neutral"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "mixed_pattern",
+    "mut-mixed-neutral"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-no-mutations-neutral": [
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
+   ],
+   "alteration-role-gof-driver-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-gof-driver-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral": [
+    "insufficient",
+    null
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-amplified-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "cn-recurrently-deleted-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-lof-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
+    "confirmed_driver",
+    "mut-missense-dominant-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral": [
+    "mixed_pattern",
+    "mut-mixed-neutral"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral": [
+    "mixed_pattern",
+    "mut-mixed-neutral"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-no-mutations-neutral": [
+    "passenger_pattern",
+    "mut-no-mutations-neutral"
+   ],
+   "alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mutant-moderately-dependent-supportive": [
+    "moderate_biomarker_dependency",
+    "mutant-moderately-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mutant-moderately-dependent-supportive,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
+   ],
+   "alteration-role-lof-driver-neutral,mutant-strongly-dependent-supportive": [
+    "biomarker_stratified_dependency",
+    "mutant-strongly-dependent-supportive"
    ],
    "cn-recurrently-amplified-supportive": [
     "recurrent_amplification_driver",
