@@ -1,0 +1,73 @@
+# Card — ALTERATION ROLE  (typed driver classification; OncoKB × IntOGen)
+#
+# The typed functional ROLE of the target as a cancer driver — the primitive the genomic gate
+# needs and the raw frequency/CN cards can't emit. Answers: is an alteration in this target a
+# direct activating (GoF) driver, a loss-of-function (LoF) driver, a predictive biomarker
+# (ambiguous/bidirectional), or a passenger — and in what indication context?
+#
+# DISTINCT from the descriptive genomic cards: mutation-hotspot-frequency (how OFTEN mutated),
+# mutation-type-counts (what KINDS of variants), copy-number-distribution (amp/del recurrence) —
+# all statistical/descriptive. This card is the FUNCTIONAL-ROLE call layered on top, from curated
+# + statistical driver-annotation sources. ZERO new ingestion (both sources landed).
+#
+# SOURCES (both landed, license-clean): OncoKB gene-roles (curated geneType backbone) + IntOGen
+# v2024-09-20 Compendium mode-of-action (patient-scale, statistically-significant, indication-scoped
+# via CANCER_TYPE). Direction leads on IntOGen (functional, per-indication), OncoKB backs it.
+#
+# ROUTES INTO GATES (genomic-alteration plan + master Part 3): primary = Genomic-alteration gate;
+# ALSO the master-plan cross-cutting routes (an amplification's role → adc_favorable at the SURFACE
+# modality gate but conditional at SM; predictive_biomarker → biomarker facet). modality_relevance
+# metadata + those routes are follow-up (P4); this slice establishes the role primitive.
+
+card_id: alteration-role
+version: 0.1.0
+question: "Is {target.symbol} a functional cancer driver in {indication.label} — activating (GoF) driver, loss-of-function (LoF) driver, predictive biomarker, or passenger — and by what driver-annotation evidence?"
+
+tier: indication   # driver role is indication-scoped (IntOGen mode-of-action is per cancer type)
+
+applies_when:
+  - "true"   # OncoKB gene-role backbone is pan-indication; IntOGen adds indication scope when mapped
+
+required_inputs:
+  - product_id: oncokb-gene-roles-public-snapshot-2026-07-01   # curated geneType backbone
+  - product_id: intogen-v2024-09-20                            # per-(gene,cohort) mode-of-action
+
+methods:
+  - call: driver-role-overlay
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - alteration_role                       # PRIMARY categorical (drives Tier-2 rules)
+    - functional_direction                  # activating | loss_of_function | ambiguous | null
+    - oncokb_gene_type                       # ONCOGENE | TSG | ONCOGENE_AND_TSG | NEITHER | INSUFFICIENT | null
+    - intogen_role                           # Act | LoF | ambiguous | null (indication-scoped, confident-preferred)
+    - intogen_scope                          # indication | pan_cancer | null (was the driver call in THIS cancer type?)
+    - intogen_min_qvalue                     # driver-call significance (smaller = stronger)
+    - intogen_max_pct_samples                # max % of cohort samples mutated (driver prevalence proxy)
+    - intogen_cancer_types                   # the IntOGen CANCER_TYPE code(s) mapped to this indication
+    - sources                                # which annotation sources contributed {oncokb, intogen}
+  summary_fields_vocabulary:
+    alteration_role: [direct_driver_gof, direct_driver_lof, predictive_biomarker, passenger, data_unavailable]
+    functional_direction: [activating, loss_of_function, ambiguous]
+  figure: alteration_role_evidence_card      # compact role call + OncoKB/IntOGen evidence panel
+
+thresholds:
+  driver_qvalue: 0.05           # IntOGen q-value below which a per-cohort driver call is confident (indication scope)
+
+caveats:
+  - "FUNCTIONAL-ROLE call, not a frequency — a gene can be frequently mutated (mutation-hotspot-frequency) yet a passenger here, or an infrequent-but-bona-fide driver. Interpret alongside the frequency/CN cards."
+  - "OncoKB public endpoint is GENE-level (geneType); per-VARIANT oncogenicity is auth-gated and NOT used. So the role is a gene-level driver call, not a variant-specific one — a passenger mutation in a driver gene still reads as the gene's role."
+  - "IntOGen mode-of-action is statistical (dN/dS-family + clustering across cohorts); indication scope uses CANCER_TYPE mapping — an indication with no matching IntOGen cohort falls back to pan_cancer scope (still a driver call, just not indication-specific)."
+  - "predictive_biomarker = the role is ambiguous/bidirectional (OncoKB ONCOGENE_AND_TSG, or OncoKB/IntOGen direction conflict) — actionable as a marker but the GoF/LoF direction is unresolved, NOT a clean driver call."
+  - "passenger = known to a source but with no driver role (OncoKB NEITHER/INSUFFICIENT, no significant IntOGen call); data_unavailable = absent from both sources entirely."
+
+# (no `measurement:` — that field is expression-family-only; genomic/alteration cards omit it,
+#  matching mutation-type-counts / mutation-hotspot-frequency / copy-number-distribution.)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: typed driver-role classification.
+measurement_type: alteration_role
+entity_grains: [target_indication]
+schema_version: 1

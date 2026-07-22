@@ -165,6 +165,10 @@ KNOWN_FIGURE_DEBT = {
     # driver / differentiation / mechanism:
     'mutation-hotspot-frequency', 'co-mutation-and-mutual-exclusivity',
     'signaling-network-mechanism',
+    # genomic alteration-class (2026-07-22): alteration-role evidence card emitted by the method
+    # (AM #90 driver_role_overlay emit_svg), compose-dashboard wiring is the sibling skills PR —
+    # tracked debt until it lands, then remove.
+    'alteration-role',
     # dependency-hardening + subgroup panels:
     'paralog-buffering', 'subgroup-stratified-mutation-frequency',
     'synthetic-lethal-partners',   # figure backfill deferred (viz-debt queue)
