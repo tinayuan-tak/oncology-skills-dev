@@ -283,6 +283,17 @@ def _dispatch_expression_distribution(target: str, indication: str) -> Optional[
     return expr_module.read_expression_distribution(target=target, indication=indication)
 
 
+def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-expression-distribution card (Q1) to
+    methods/tcga_gtex_expression_distribution/cli.py::build_summary.
+
+    Per-SAMPLE tumor RNA distribution (percentiles, detectable/moderate/high fraction, CoV,
+    distribution_pattern) + matched-normal fraction-above-p95 overlay, from the TCGA + GTEx long
+    products. Indication-scoped (the tumor distribution is per-indication)."""
+    mod = _import_method("tcga_gtex_expression_distribution.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -683,6 +694,7 @@ CARD_DISPATCHERS = {
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
     "expression-distribution": _dispatch_expression_distribution,
+    "tumor-expression-distribution": _dispatch_tumor_expression_distribution,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,

@@ -105,6 +105,9 @@ SUB_SKILL_CARDS = {
         "tumor-elevation-breadth",       # pan-cancer K-of-N breadth (Slice B3) — same drift class:
                                          # added to tumor-presence CARDS but not this map, so it was
                                          # silently dropped from the composed profile. Restored.
+        "tumor-expression-distribution", # Q1 (expression-extraction plan) — per-sample tumor RNA
+                                         # distribution; added to tumor-presence CARDS + this composer
+                                         # map together (composer-consistency guard).
     ],
     "tumor-selectivity": ["tumor-vs-normal-selectivity"],
     "functional-requirement": [

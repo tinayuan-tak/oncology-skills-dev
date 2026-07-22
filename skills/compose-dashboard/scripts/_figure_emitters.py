@@ -782,7 +782,33 @@ def _emit_tumor_elevation_breadth(
     return figures
 
 
+def _emit_tumor_expression_distribution(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the Q1 per-sample tumor RNA distribution figure (tumor-expression-distribution card):
+    tumor (TCGA) vs matched-normal (GTEx) per-sample log2(TPM+1) box+strip with the normal-p95 line
+    + fraction-above annotation, from the two long products via tcga_gtex_expression_distribution.
+    Indication-scoped. On _live_read_error or no tumor samples → []."""
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if not summary or summary.get("tumor_expression_class") == "data_unavailable":
+        return []                                   # target absent from TCGA long product here
+    exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    exprdist.emit_plot_data(target, indication, out_dir)
+    figures = [
+        {"id": "expression_distribution_per_sample",
+         "path": "figure_expression_distribution.svg",
+         "type": "per_sample_tumor_normal_distribution", "primary": True},
+    ]
+    figures += _plotly_from(exprdist, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
+    "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,

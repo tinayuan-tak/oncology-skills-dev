@@ -29,6 +29,12 @@ CARDS = [
     "protein-presence-cptac",           # Layer 6c addition
     "protein-abundance-celline",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
     "tumor-elevation-breadth",          # Slice B3 — pan-cancer K-of-N tumor-elevation (target-grain)
+    "tumor-expression-distribution",    # Q1 (expression-extraction plan) — per-sample TUMOR RNA
+                                        # distribution (bulk_rna x tumor); the per-sample companion to
+                                        # expression-tumor-vs-adjacent's cohort aggregate. Its
+                                        # distribution summary + figure surface now; mapping its
+                                        # tumor_expression_class into the bulk_rna verdict ladder is a
+                                        # follow-up rules PR (intersects the subtyping revisit).
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -54,6 +60,7 @@ CARDS = [
 CARD_CONTEXT = {
     "expression-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
     "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
+    "tumor-expression-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
     "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
     "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
