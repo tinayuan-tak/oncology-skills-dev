@@ -37,15 +37,22 @@ composition:
     - mutation-hotspot-frequency
     - copy-number-distribution
     - fusion-rearrangement-landscape        # PLACEHOLDER — data not yet landed
+    # ADDITIVE signal-only layers (feed the LLM/matrix + headline; fire NO resolver rung, so they
+    # are NOT in rules_scope and the verdict spine is byte-stable):
+    - alteration-role                        # typed driver ROLE (OncoKB × IntOGen); 2026-07-22
+    - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
   # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);
   # fusion_rearrangement is pulled-but-data-blocked (placeholder provider) — a visible-gap state.
+  # alteration_role + functional_gene_state are the additive role/allele-count layers (signal-only).
   measurement_types_pulled:
     - mutation_variant_class_spectrum
     - mutation_stratified_dependency
     - mutation_hotspot_frequency
     - copy_number_alteration
     - fusion_rearrangement
+    - alteration_role
+    - functional_gene_state
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency

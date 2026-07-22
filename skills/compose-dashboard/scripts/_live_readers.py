@@ -128,6 +128,17 @@ def _dispatch_alteration_role(target: str, indication: str) -> Optional[dict]:
     return mod.build_summary(target, indication)
 
 
+def _dispatch_functional_gene_state(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route functional-gene-state card (M6) to
+    methods/functional_gene_state/cli.py::build_summary.
+
+    Harmonized two-hit / biallelic-inactivation call: mutation + allele-specific CN → per-sample
+    state {wt, monoallelic, biallelic-genetic, uncertain}, on both patient (TCGA) + model (DepMap)
+    arms. Indication-scoped (the patient arm is per cancer type). Phase-1 genetic-only vocab."""
+    mod = _import_method("functional_gene_state.cli")
+    return mod.build_summary(target, indication)
+
+
 # ---- Subgroup-panorama dispatchers (descriptive; 2026-07-16) ------------------
 # These route the two NEW live subgroup cards to the per-sample panorama BUILDERS
 # (not the scalar readers above). They fire only when subgroups are in scope
@@ -771,6 +782,7 @@ CARD_DISPATCHERS = {
     "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
+    "functional-gene-state": _dispatch_functional_gene_state,
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,

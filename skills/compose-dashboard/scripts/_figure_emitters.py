@@ -983,9 +983,39 @@ def _emit_alteration_role(
     ]
 
 
+def _emit_functional_gene_state(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the functional-gene-state figure (M6): per-arm STACKED composition of the two-hit
+    states (patient vs model — wt / monoallelic / biallelic-genetic / uncertain). Gated on the
+    presence of at least one arm's state distribution (both data_unavailable → []). On
+    _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary:
+        return []
+    # both arms must be structured-absent for the figure to be skipped; else there is a bar to draw.
+    patient = summary.get("patient") or {}
+    model = summary.get("model") or {}
+    if not (patient.get("state_counts") or model.get("state_counts")):
+        return []
+    _ensure_methods_path()
+    from methods.functional_gene_state import cli as fgs
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = fgs.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    return [
+        {"id": "functional_gene_state_stacked_bar",
+         "path": "figure_functional_gene_state.svg",
+         "type": "functional_gene_state_stacked_bar", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "alteration-role": _emit_alteration_role,
+    "functional-gene-state": _emit_functional_gene_state,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,

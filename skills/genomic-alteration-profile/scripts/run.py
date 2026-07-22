@@ -52,6 +52,13 @@ CARDS = [
     # ADDITIVE (rules touch no resolver rung — the skill's inline verdict stays byte-stable). Also
     # in target-profile SUB_SKILL_CARDS[genomic-alteration-profile] (composer-consistency).
     "alteration-role",
+    # Harmonized two-hit / biallelic-inactivation state (M6, functional_gene_state). The ALLELE-COUNT
+    # layer: is the gene biallelically inactivated (completed two-hit → LoF) or only monoallelically
+    # hit — mutation + allele-specific CN, patient (TCGA) + model (DepMap) arms. ADDITIVE signal-only:
+    # its state signals + headline reach the LLM/matrix but touch NO resolver rung (the genomic
+    # verdict spine stays byte-stable — wiring INTO the verdict is a later, riskier step). Phase-1
+    # genetic-only vocab {wt, monoallelic, biallelic-genetic, uncertain}.
+    "functional-gene-state",
 ]
 
 QUESTION = ("How is {target} genomically altered in {indication} — by SNV/indel "
@@ -112,6 +119,9 @@ def main() -> int:
         # Typed driver-role axis (OncoKB × IntOGen)
         "alteration_role":               _get("alteration-role", "alteration_role"),
         "functional_direction":          _get("alteration-role", "functional_direction"),
+        # Allele-count / biallelic-inactivation axis (M6, functional_gene_state) — signal-only,
+        # does NOT feed the verdict (additive; the resolver spine is byte-stable).
+        "functional_state_class":        _get("functional-gene-state", "functional_state_class"),
         "cards_available":               sum(1 for c in cards if not c.get("_missing")),
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }
