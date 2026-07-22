@@ -2596,3 +2596,87 @@ rules:
     rationale: |
       Target not quantified in any CPTAC cohort (CPTAC covers 10 cohorts). Coverage
       gap, NOT opposing evidence — distinct from not_tumor_elevated (a measured negative).
+
+  # ============================================================================
+  # RNA↔PROTEIN CONCORDANCE (Q5, rna_as_biomarker; cell-line arm) — 2026-07-22
+  # ============================================================================
+  # The rna_as_biomarker question: does RNA track PROTEIN, so an RNA-only presence/dependency read is
+  # trustworthy? These are the BIOLOGY-AXIS signals — a proxy-QUALITY qualifier on the intracellular
+  # (SM/degrader) evidence, NOT a target killer (a poor proxy means "measure protein", not "bad
+  # target"). Signals are deliberately MODEST (neutral / mildly supportive): concordance is a
+  # confidence modifier on the presence/dependency read, not a primary driver.
+  #
+  # SCOPE (deliberate, P4 boundary): the MODALITY-GATE facet of Q5 — poor_proxy → an ADC/TCE caution
+  # (biologics need PROTEIN, RNA is an inadequate surface-antigen proxy) — is NOT wired here. That is a
+  # surface-modality-gate signal routed through adc-tce-modality-fit's fit_class composition (a
+  # different axis), sequenced with P4 modality-vector emission. Here we wire ONLY the intracellular
+  # biology-axis read. Wiring the ADC caution as a direct rule now would strand it on the wrong axis.
+  - rule_id: rna-protein-adequate-proxy-supportive
+    when:
+      card_id: rna-protein-concordance
+      field: rna_as_biomarker
+      equals: adequate_proxy
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      RNA tracks protein tightly (Pearson >= strong_concordance_r) across paired cell-line models —
+      RNA is an ADEQUATE proxy for protein presence. Mildly SUPPORTIVE: it means the RNA-based
+      presence + expression→dependency reads (which the framework leans on heavily) are trustworthy
+      for this target, so the intracellular evidence stands without a protein-confirmation caveat.
+      Not a primary driver — a confidence qualifier on the other expression cards.
+
+  - rule_id: rna-protein-partial-proxy-neutral
+    when:
+      card_id: rna-protein-concordance
+      field: rna_as_biomarker
+      equals: partial_proxy
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      RNA↔protein correlation is moderate (moderate_concordance_r .. strong_concordance_r): RNA is a
+      PARTIAL proxy. Neutral — the RNA presence/dependency read is usable but carries some
+      post-transcriptional slack, so it neither strengthens nor undercuts the intracellular call.
+      Interpret RNA-based abundance with mild caution; a protein spot-check is informative but not required.
+
+  - rule_id: rna-protein-poor-proxy-neutral
+    when:
+      card_id: rna-protein-concordance
+      field: rna_as_biomarker
+      equals: poor_proxy
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      RNA does NOT predict protein (correlation below moderate_concordance_r) — RNA is a POOR proxy.
+      This is a MEASUREMENT caution, NOT a target killer: an RNA-only presence/dependency read is
+      unreliable for this target and protein should be measured directly. Neutral on the biology axis
+      (the target may be perfectly valid protein-confirmed), NOT opposing. NB: the sharper consequence
+      is on the MODALITY axis (poor_proxy → ADC/TCE need protein, not RNA) — that routes through
+      adc-tce-modality-fit at the surface-modality gate (P4), deliberately NOT a direct rule here.
+
+  - rule_id: rna-protein-insufficient-paired-models-insufficient
+    when:
+      card_id: rna-protein-concordance
+      field: rna_as_biomarker
+      equals: insufficient_paired_models
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Fewer than min_paired_models cell lines have BOTH RNA and Gygi-MS protein for this target —
+      the correlation is underpowered. Coverage gap, not opposing evidence; the concordance question
+      is simply unanswerable here (distinct from poor_proxy, a measured discordance).
+
+  - rule_id: rna-protein-concordance-data-unavailable-insufficient
+    when:
+      card_id: rna-protein-concordance
+      field: rna_as_biomarker
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the Gygi MS panel (~12.5k proteins) or DepMap RNA — no paired data to assess
+      RNA-as-proxy. Coverage gap (panel coverage, not biology); not used as opposing evidence.
