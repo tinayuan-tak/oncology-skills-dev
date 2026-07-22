@@ -1,0 +1,55 @@
+# genomic-alteration-profile (genomic gate) verdict resolver — inline→declarative conversion.
+#
+# Byte-for-byte transcription of skills/genomic-alteration-profile/scripts/run.py::_verdict (the
+# inline multi-axis if-chain), proven equivalent across all 2^8 fired-set combinations by the
+# pre-swap oracle before the inline logic is deleted (gap #5 discipline).
+#
+# The genomic verdict is MULTI-AXIS (not a flat ladder): a SNV/indel axis (mutation-priority
+# first-match) + a copy-number axis, combined so a target driven by BOTH reads multi_class_driver.
+# Expressed here as ORDERED rungs:
+#   (1) multi_class = (any mut-driver) AND (any cn-driver) — the CROSS-PRODUCT of the 4 mut-driver
+#       rules × 2 cn rules, ordered by mut-priority so the driving_rule is the highest-priority
+#       fired mut rule (matches _mutation_verdict's first-match + the inline `return ..., mut_rule`).
+#   (2) single mut-driver (mut drives, no cn) — the 4 mut-driver verdicts, mut-priority order.
+#   (3) cn-only (cn drives, mut not a driver) — amplified before deleted (matches _cn_driver_fired
+#       first-match).
+#   (4) mixed/passenger fallback (mut_verdict present but not a driver, no cn).
+# CN-only PRECEDES mixed/passenger because the inline `if cn_driver` branch runs before the
+# `if mut_verdict is not None` fallback.
+#
+# GUARDRAIL: pattern-match over fired rule IDs only — no arithmetic (labels live in the cards).
+gate: genomic_alteration
+version: 1.0.0
+description: |
+  Multi-class genomic-alteration verdict. SNV/indel axis primary (strongest therapeutic signals),
+  copy-number layered as a modifier so an amplification/deletion-driven target (few mutations) is
+  reported as a CN driver rather than collapsing to passenger. Faithful transcription of the
+  former inline _verdict; multi_class = mut-driver AND cn-driver via cross-product rungs.
+
+resolve:
+  # (1) MULTI-CLASS: any mut-driver AND any cn-driver. Cross-product, mut-priority order.
+  #     driving_rule = the mut rule (matches the inline `return "multi_class_driver", mut_rule`).
+  - {verdict: multi_class_driver, when_all_fired: [mutant-strongly-dependent-supportive, cn-recurrently-amplified-supportive], driving_rule: mutant-strongly-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mutant-strongly-dependent-supportive, cn-recurrently-deleted-supportive], driving_rule: mutant-strongly-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mutant-moderately-dependent-supportive, cn-recurrently-amplified-supportive], driving_rule: mutant-moderately-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mutant-moderately-dependent-supportive, cn-recurrently-deleted-supportive], driving_rule: mutant-moderately-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive], driving_rule: mut-lof-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive], driving_rule: mut-lof-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive], driving_rule: mut-missense-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive], driving_rule: mut-missense-dominant-supportive}
+
+  # (2) SINGLE MUT-DRIVER (mut drives, no cn-driver fired) — mut-priority order.
+  - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}
+  - {verdict: recurrent_lof_driver,            when_fired: mut-lof-dominant-supportive}
+  - {verdict: recurrent_missense_driver,       when_fired: mut-missense-dominant-supportive}
+
+  # (3) CN-ONLY (cn drives, mutation not a driver) — amplified before deleted (first-match parity).
+  - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
+  - {verdict: recurrent_deletion_driver,       when_fired: cn-recurrently-deleted-supportive}
+
+  # (4) FALLBACK: mutation axis said something non-driver (mixed / passenger), no cn.
+  - {verdict: mixed_pattern,      when_fired: mut-mixed-neutral}
+  - {verdict: passenger_pattern,  when_fired: mut-no-mutations-neutral}
+
+default: insufficient
