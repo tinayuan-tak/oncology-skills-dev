@@ -1,0 +1,212 @@
+"""Per-sample expression-distribution layer: stats primitives + the Q1 assembler.
+
+No S3: stats are pure numpy; the assembler is tested with monkeypatched readers. Pins the plan's
+Q1 outputs (percentiles, detectable/moderate/high fractions, CoV, distribution_pattern) + the Q2
+headline metric (fraction of tumors above the Nth percentile of normal) + the tumor_expression_class
+ladder + data_unavailable safety.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+np = pytest.importorskip("numpy")
+
+REPO = Path(__file__).resolve().parents[3]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from methods.tcga_gtex_expression_distribution import stats as S  # noqa: E402
+from methods.tcga_gtex_expression_distribution import read as R  # noqa: E402
+
+
+# ---- stats primitives ----
+def test_five_number_empty_is_coverage_gap():
+    fn = S.five_number([])
+    assert fn["n"] == 0 and fn["median"] is None and fn["p95"] is None
+
+
+def test_expression_fractions_absolute_cutoffs():
+    # 3 high (>=5.67), 1 moderate (>=3.46), 1 off (<1) → detectable 4/5, moderate 4/5, high 3/5
+    vals = [6.0, 6.5, 7.0, 4.0, 0.2]
+    f = S.expression_fractions(vals)
+    assert f["detectable_fraction"] == pytest.approx(0.8)
+    assert f["high_fraction"] == pytest.approx(0.6)
+
+
+def test_cov_on_linear_and_divide_by_zero():
+    assert S.coefficient_of_variation([0.0] * 10) == 0.0
+    assert S.coefficient_of_variation([0.1] * 8 + [7.0] * 8) > 0.5
+
+
+def test_distribution_pattern_three_shapes():
+    assert S.distribution_pattern([0.1] * 10 + [7.0] * 10) == "bimodal"
+    assert S.distribution_pattern([0.1] * 16 + [6.5] * 2) == "long_tail"
+    assert S.distribution_pattern(list(np.linspace(2.0, 4.0, 20))) == "continuous"
+    assert S.distribution_pattern([6.0, 0.1, 6.0]) == "continuous"     # n<8 guard
+
+
+def test_fraction_above_normal_percentile_headline_metric():
+    tumor = [6.0, 6.5, 7.0, 5.5, 6.2] * 4
+    normal = [1.0, 1.5, 0.8, 1.2, 1.1] * 4
+    r = S.fraction_above_normal_percentile(tumor, normal, 95)
+    assert r["fraction_tumor_above"] == pytest.approx(1.0)     # tumor fully above normal p95
+    assert r["n_tumor"] == 20 and r["n_normal"] == 20
+    # empty normal arm → coverage gap, not a fabricated fraction
+    assert S.fraction_above_normal_percentile(tumor, [], 95)["fraction_tumor_above"] is None
+
+
+def test_distribution_overlap_separated_vs_identical():
+    sep = S.distribution_overlap([6.0, 6.5, 7.0] * 5, [1.0, 1.2, 0.8] * 5)
+    assert sep is not None and sep < 0.1                      # cleanly separated
+    ident = S.distribution_overlap([3.0, 3.5, 4.0] * 5, [3.0, 3.5, 4.0] * 5)
+    assert ident > 0.8                                        # identical → high overlap
+
+
+# ---- Q1 assembler (monkeypatched readers, no S3) ----
+def test_assembler_broadly_high(monkeypatch):
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8, 6.1] * 4)
+    out = R.read_tumor_expression_distribution("KRAS", "COADREAD")
+    assert out["n_tumor_samples"] == 20
+    assert out["tumor_expression_class"] == "broadly_high"
+    assert out["distribution_pattern"] == "continuous"
+    assert out["high_fraction"] >= 0.5 and out["median_log2tpm"] > 5
+
+
+def test_assembler_subset_high_bimodal(monkeypatch):
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [0.1] * 12 + [6.5] * 8)
+    out = R.read_tumor_expression_distribution("X", "COADREAD")
+    assert out["distribution_pattern"] == "bimodal"
+    assert out["tumor_expression_class"] == "subset_high"     # a target-high subset → patient selection
+
+
+def test_assembler_data_unavailable(monkeypatch):
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [])
+    out = R.read_tumor_expression_distribution("GHOST", "COADREAD")
+    assert out["tumor_expression_class"] == "data_unavailable" and out["n_tumor_samples"] == 0
+
+
+# ---- subtype layer (synthetic shard + bridged reader; no S3) ----
+import pandas as pd  # noqa: E402
+
+
+def _fake_assignments(rows):
+    """rows: list of (case, stratum_id, is_member). Minimal assignment-shard shape."""
+    return pd.DataFrame(rows, columns=["sample_id", "stratum_id", "is_member"])
+
+
+def _wire_subtype(monkeypatch, *, pooled_vals, bridged_rows, assignment_rows):
+    """Wire the three substrate hops the landscape assembler calls, all offline:
+    pooled distribution, the case-bridged per-sample frame, and the assignment shard."""
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: pooled_vals)
+    monkeypatch.setattr(R, "read_tumor_samples_with_case",
+                        lambda t, i: pd.DataFrame(bridged_rows, columns=["case", "log2_tpm"]))
+    # patch load_assignments + compute_join_coverage where the assembler imports them
+    import methods.subgroup_common.loaders as _loaders
+    import methods.subgroup_common.scoping as _scoping
+    monkeypatch.setattr(_loaders, "load_assignments",
+                        lambda mid, **kw: _fake_assignments(assignment_rows))
+    monkeypatch.setattr(_scoping, "load_assignments",
+                        lambda mid, **kw: _fake_assignments(assignment_rows))
+
+
+def test_subtype_enriched_and_depleted_fire(monkeypatch):
+    # pooled median ~2.0; stratum HI (cases h*) high ~4.0 → enriched; LO (cases l*) low ~0.5 → depleted.
+    hi = [(f"h{i}", 4.0) for i in range(40)]
+    lo = [(f"l{i}", 0.5) for i in range(40)]
+    bridged = hi + lo
+    pooled = [4.0] * 40 + [0.5] * 40
+    assign = ([(f"h{i}", "SUBTYPE_HI", True) for i in range(40)]
+              + [(f"l{i}", "SUBTYPE_LO", True) for i in range(40)])
+    _wire_subtype(monkeypatch, pooled_vals=pooled, bridged_rows=bridged, assignment_rows=assign)
+    res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
+    assert res["subtype_axis_available"] is True
+    sig = {r["stratum_id"]: r["subtype_signal"] for r in res["subtype_landscape"]}
+    assert sig["SUBTYPE_HI"] == "subtype_enriched"
+    assert sig["SUBTYPE_LO"] == "subtype_depleted"
+    assert res["n_subtypes_measured"] == 2 and res["n_subtypes_enriched"] == 1
+
+
+def test_subtype_underpowered_gets_null_signal_not_scoped_call(monkeypatch):
+    # a stratum below the n=30 floor must carry stats for context but a NULL signal + underpowered.
+    small = [(f"s{i}", 6.0) for i in range(10)]      # n=10 < 30
+    big = [(f"b{i}", 2.0) for i in range(50)]
+    _wire_subtype(monkeypatch, pooled_vals=[6.0] * 10 + [2.0] * 50,
+                  bridged_rows=small + big,
+                  assignment_rows=[(f"s{i}", "RARE", True) for i in range(10)]
+                                  + [(f"b{i}", "COMMON", True) for i in range(50)])
+    res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
+    rec = {r["stratum_id"]: r for r in res["subtype_landscape"]}
+    assert rec["RARE"]["evidence_state"] == "underpowered"
+    assert rec["RARE"]["subgroup_n_floor_met"] is False
+    assert rec["RARE"]["subtype_signal"] is None          # never a scoped call when underpowered
+    assert rec["RARE"]["median_log2tpm"] is not None       # but stats survive for context
+    assert rec["COMMON"]["evidence_state"] == "measured"
+
+
+def test_subtype_no_shard_indication_axis_unavailable(monkeypatch):
+    # an indication with no landed tumor shard → honest axis-unavailable, pooled still returned.
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [5.0] * 30)
+    res = R.read_tumor_expression_subtype_landscape("X", "BRCA")
+    assert res["subtype_axis_available"] is False
+    assert res["subtype_landscape"] == []
+    assert res["tumor_expression_class"] != "data_unavailable"   # pooled distribution still computed
+    assert "no landed tumor assignment shard" in res["_subtype_note"]
+
+
+def test_subtype_compute_all_spotlight_one(monkeypatch):
+    # spotlight a subtype → it moves the spotlight, NEVER drops the other strata (compute-all).
+    a = [(f"a{i}", 4.0) for i in range(40)]
+    b = [(f"b{i}", 3.9) for i in range(40)]
+    _wire_subtype(monkeypatch, pooled_vals=[4.0] * 40 + [3.9] * 40, bridged_rows=a + b,
+                  assignment_rows=[(f"a{i}", "A", True) for i in range(40)]
+                                  + [(f"b{i}", "B", True) for i in range(40)])
+    res = R.read_tumor_expression_subtype_landscape("X", "COADREAD", subtype="A")
+    assert res["spotlight_subtype"] == "A"
+    assert {r["stratum_id"] for r in res["subtype_landscape"]} == {"A", "B"}  # both computed
+
+
+# ---- CLI emission (monkeypatched readers, no S3) ----
+def test_cli_emits_full_bar(tmp_path, monkeypatch):
+    """CLI emits Tier1 summary.json + Tier2 plot_data + Tier3 SVG + plotly + manifest w/ plotly slot."""
+    import importlib, json
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("pyarrow")
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8] * 5)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0, 1.2, 0.8] * 5, "COLON"))
+    summary = cli.build_summary("KRAS", "COADREAD")
+    assert summary["tumor_expression_class"] == "broadly_high"
+    assert summary["fraction_tumor_above_normal_p95"] == pytest.approx(1.0)  # tumor >> normal
+    assert summary["matched_normal_tissue"] == "COLON"
+    cli.emit_plot_data("KRAS", "COADREAD", tmp_path)
+    cli.emit_svg("KRAS", "COADREAD", summary, tmp_path)
+    specs = cli.emit_plotly_specs("KRAS", "COADREAD", tmp_path)
+    cli.emit_manifest("KRAS", "COADREAD", summary, tmp_path, specs)
+    assert (tmp_path / "plot_data_expression_distribution.parquet").exists()
+    assert (tmp_path / "figure_expression_distribution.svg").exists()
+    man = json.loads((tmp_path / "manifest.json").read_text())
+    assert [f["id"] for f in man["plotly_figures"]] == ["expression_distribution_per_sample"]
+
+
+def test_cli_build_summary_carries_subtype_landscape(monkeypatch):
+    """build_summary must merge the subtype landscape (additively) without disturbing the
+    pooled/normal fields — the CLI is where the reader's landscape becomes card-visible."""
+    import importlib
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [4.0] * 40 + [2.0] * 40)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0] * 10, "COLON"))
+    # inject a two-stratum landscape via the assembler's substrate hops
+    _wire_subtype(monkeypatch, pooled_vals=[4.0] * 40 + [2.0] * 40,
+                  bridged_rows=[(f"a{i}", 4.0) for i in range(40)] + [(f"b{i}", 2.0) for i in range(40)],
+                  assignment_rows=[(f"a{i}", "HI", True) for i in range(40)]
+                                  + [(f"b{i}", "LO", True) for i in range(40)])
+    summary = cli.build_summary("X", "COADREAD")
+    assert summary["subtype_axis_available"] is True
+    assert summary["n_subtypes_measured"] == 2
+    assert {r["stratum_id"] for r in summary["subtype_landscape"]} == {"HI", "LO"}
+    # pooled + normal fields untouched by the additive merge
+    assert summary["median_log2tpm"] is not None
+    assert summary["matched_normal_tissue"] == "COLON"
