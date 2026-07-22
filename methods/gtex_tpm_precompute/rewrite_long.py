@@ -160,6 +160,12 @@ def build_long(wide_path: Path, sidecar_path: Path, out_path: Path,
                 var_name="sample_id",
                 value_name="log2_tpm",
             )
+            # CRITICAL: melt emits SAMPLE-major rows, so within a batch every row-group spans the
+            # whole 512-gene range and per-gene pushdown can't prune below the batch (~500x read
+            # amplification). Re-sort the MELTED frame by ensembl_gene_id so each row-group covers a
+            # narrow contiguous gene span (single-gene filter → 1-3 row-groups). Sorting the WIDE
+            # frame above is necessary but NOT sufficient — melt destroys that order.
+            melted = melted.sort_values("ensembl_gene_id", kind="stable").reset_index(drop=True)
             # add tissue via vectorized map
             melted["tissue"] = melted["sample_id"].map(tissue_series)
             # column order + dtype

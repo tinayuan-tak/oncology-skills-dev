@@ -120,6 +120,13 @@ def build_long(wide_path: Path, sidecar_path: Path, out_path: Path,
             batch = wide.iloc[batch_start:batch_start + BATCH]
             melted = batch.melt(id_vars=key_cols, value_vars=sample_cols,
                                 var_name="sample_id", value_name="log2_tpm")
+            # CRITICAL: melt emits SAMPLE-major rows (gene0,gene1,…,gene0,gene1,…), so within a
+            # batch every row-group spans the whole 512-gene range — per-gene pushdown then can't
+            # prune below the batch (~500x read amplification; measured 7-132s/gene). Re-sort the
+            # MELTED frame by ensembl_gene_id so each row-group covers a narrow contiguous gene span
+            # and a single-gene filter touches 1-3 row-groups. (Sorting the WIDE frame earlier is
+            # necessary but NOT sufficient — melt destroys that order.)
+            melted = melted.sort_values("ensembl_gene_id", kind="stable").reset_index(drop=True)
             melted["study"] = melted["sample_id"].map(study_series)
             melted = melted[["gene_symbol", "ensembl_gene_id", "sample_id", "study", "log2_tpm"]]
             melted["log2_tpm"] = melted["log2_tpm"].astype(np.float32)
