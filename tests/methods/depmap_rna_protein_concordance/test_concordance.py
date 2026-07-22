@@ -1,0 +1,103 @@
+"""Q5 RNA↔protein concordance — correlation, rna_as_biomarker classification, gap safety.
+
+No S3: the two per-model readers (RNA card4 loader, protein Gygi loader) are monkeypatched.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+np = pytest.importorskip("numpy")
+
+REPO = Path(__file__).resolve().parents[3]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from methods.depmap_rna_protein_concordance import read as R  # noqa: E402
+
+
+def _wire(monkeypatch, rna_by_model, prot_by_model, accession="P00000", errs=None):
+    import methods.depmap_expression_dependency.cli as rna_cli
+    monkeypatch.setattr(rna_cli, "load_depmap_files_for_card4",
+                        lambda release_pin, target_symbol: ({}, rna_by_model, {}, errs or []))
+    import methods.depmap_protein_abundance.cli as prot_cli
+    monkeypatch.setattr(prot_cli, "resolve_accession", lambda t, sidecar_path=None: accession)
+    monkeypatch.setattr(prot_cli, "load_abundance_column",
+                        lambda acc, matrix_path=None: (prot_by_model, len(prot_by_model)))
+
+
+def test_adequate_proxy_high_correlation(monkeypatch):
+    # RNA ≈ protein (tight linear) → adequate_proxy
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    rna = {m: float(i % 8) for i, m in enumerate(ids)}
+    prot = {m: rna[m] + 0.1 for m in ids}          # near-perfect
+    _wire(monkeypatch, rna, prot)
+    out = R.read_rna_protein_concordance("EGFR")
+    assert out["rna_as_biomarker"] == "adequate_proxy"
+    assert out["rna_protein_r"] > 0.7 and out["n_paired_models"] == 40
+
+
+def test_poor_proxy_decoupled(monkeypatch):
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    rna = {m: float(i % 8) for i, m in enumerate(ids)}
+    prot = {m: float((i * 37) % 5) for i, m in enumerate(ids)}   # scrambled → low r
+    _wire(monkeypatch, rna, prot)
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_as_biomarker"] in ("poor_proxy", "partial_proxy")
+    assert out["rna_protein_r"] < 0.7
+
+
+def test_underpowered_paired_models(monkeypatch):
+    # fewer than MIN_PAIRED_MODELS with BOTH → insufficient, not a fabricated r
+    ids = [f"ACH-{i:04d}" for i in range(10)]
+    _wire(monkeypatch, {m: 4.0 for m in ids}, {m: 4.0 for m in ids})
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_as_biomarker"] == "insufficient_paired_models"
+    assert out["rna_protein_r"] is None and out["n_paired_models"] == 10
+
+
+def test_data_unavailable_paths(monkeypatch):
+    # no RNA
+    _wire(monkeypatch, {}, {"ACH-0001": 4.0})
+    assert R.read_rna_protein_concordance("X")["rna_as_biomarker"] == "data_unavailable"
+    # RNA present but no protein accession
+    _wire(monkeypatch, {"ACH-0001": 4.0}, {}, accession=None)
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_as_biomarker"] == "data_unavailable"
+
+
+def test_rna_high_protein_low_population(monkeypatch):
+    # all RNA-expressed (but VARIED, so correlation is defined); a subset protein-bottom-decile
+    # → nonzero rna_high_protein_low_fraction
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    rna = {m: 3.0 + (i % 5) * 0.5 for i, m in enumerate(ids)}        # all >= detectable, varied
+    prot = {m: (0.0 if i < 5 else 5.0) for i, m in enumerate(ids)}   # 5 protein-low
+    _wire(monkeypatch, rna, prot)
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_high_protein_low_fraction"] is not None
+    assert out["rna_high_protein_low_fraction"] > 0.0
+
+
+def test_zero_variance_guard(monkeypatch):
+    # a constant arm → undefined correlation → honest gap, not a NaN r
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    _wire(monkeypatch, {m: 5.0 for m in ids}, {m: float(i % 7) for i, m in enumerate(ids)})
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_as_biomarker"] == "insufficient_paired_models"
+    assert out["rna_protein_r"] is None
+
+
+def test_cli_build_and_figure(tmp_path, monkeypatch):
+    import importlib
+    pytest.importorskip("matplotlib")
+    cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")
+    ids = [f"ACH-{i:04d}" for i in range(40)]
+    rna = {m: float(i % 8) for i, m in enumerate(ids)}
+    _wire(monkeypatch, rna, {m: rna[m] + 0.1 for m in ids})
+    s = cli.build_summary("EGFR")
+    assert s["rna_as_biomarker"] == "adequate_proxy" and "method_version" in s
+    svg = cli.emit_svg("EGFR", None, s, tmp_path)
+    assert svg is not None and svg.exists()
+    assert [x["id"] for x in cli.emit_plotly_specs("EGFR", None, tmp_path)] == ["rna_protein_concordance_scatter"]
