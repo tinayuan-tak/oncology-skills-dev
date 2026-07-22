@@ -731,23 +731,24 @@ def _emit_protein_abundance_celline(
 def _emit_protein_presence_cptac(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit the CPTAC per-cohort tumor-vs-normal protein panel (dumbbell) + plot_data + plotly.
-    The derived product is per-cohort SUMMARY (not per-sample), so the figure is the cross-cohort
-    tumor-vs-normal comparison, drawn via read_all_cohorts (indication-agnostic — the panel shows
-    ALL cohorts the target was tested in). On _live_read_error or no cohort hit → []."""
+    """Emit the CPTAC per-cohort tumor-vs-normal protein DISTRIBUTION boxplot + plot_data + plotly.
+    Reads the per-SAMPLE product (cptac-protein-tumor-vs-normal-per-sample-v1) so the figure shows
+    the true tumor + normal per-aliquot distributions per cohort, with per-cohort Welch/Mann-Whitney
+    significance recomputed from those samples (indication-agnostic — the panel shows ALL cohorts the
+    target was quantified in). On _live_read_error or no cohort hit → []."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
     from methods.cptac_protein_deg import read as cptac
     out_dir.mkdir(parents=True, exist_ok=True)
-    if not cptac.read_all_cohorts(target):
+    if not cptac.per_cohort_distribution_stats(target):
         return []                                   # target absent from every CPTAC cohort
     cptac.emit_per_cohort_panel(target, out_dir, TARGET_CONTRACTS)
     cptac.emit_plot_data(target, out_dir)
     figures = [
         {"id": "protein_per_cohort_tumor_vs_normal",
          "path": "figure_protein_per_cohort_tumor_vs_normal.svg",
-         "type": "per_cohort_dumbbell_tumor_vs_normal", "primary": True},
+         "type": "per_cohort_distribution_tumor_vs_normal", "primary": True},
     ]
     figures += _plotly_from(cptac, "emit_plotly_specs", target, out_dir, TARGET_CONTRACTS)
     return figures
