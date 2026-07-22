@@ -59,6 +59,12 @@ CARDS = [
     # verdict spine stays byte-stable — wiring INTO the verdict is a later, riskier step). Phase-1
     # genetic-only vocab {wt, monoallelic, biallelic-genetic, uncertain}.
     "functional-gene-state",
+    # Patient↔model genomic-event correspondence (M11, genomic_event_model_match — the canonical P3
+    # join). Which DepMap models carry the SAME functional event as the tumors, and which are
+    # dependent? The genomic sibling of recommended-models (expression-Q4). ADDITIVE signal-only:
+    # feeds LLM/matrix + headline, touches NO resolver rung (verdict spine byte-stable). Corroborates
+    # Required (C) — genotype-matched + dependent in-lineage models = a genotype-backed dependency basis.
+    "genomic-event-model-match",
 ]
 
 QUESTION = ("How is {target} genomically altered in {indication} — by SNV/indel "
@@ -122,6 +128,8 @@ def main() -> int:
         # Allele-count / biallelic-inactivation axis (M6, functional_gene_state) — signal-only,
         # does NOT feed the verdict (additive; the resolver spine is byte-stable).
         "functional_state_class":        _get("functional-gene-state", "functional_state_class"),
+        # Patient↔model genomic-event correspondence (M11) — signal-only, does NOT feed the verdict.
+        "event_correspondence_class":    _get("genomic-event-model-match", "event_correspondence_class"),
         "cards_available":               sum(1 for c in cards if not c.get("_missing")),
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }

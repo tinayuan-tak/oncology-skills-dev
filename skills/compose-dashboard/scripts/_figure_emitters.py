@@ -1012,10 +1012,39 @@ def _emit_functional_gene_state(
     ]
 
 
+def _emit_genomic_event_model_match(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the genomic-event-model-match figure (M11): the tumor event being matched + the
+    correspondence class + top genotype-matched models. Gated on having matched models with a real
+    correspondence class (data_unavailable / no_target_event with no models → []). On
+    _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary:
+        return []
+    cls = summary.get("event_correspondence_class")
+    matched = summary.get("matched_models") or []
+    if cls in (None, "data_unavailable", "no_target_event") and not matched:
+        return []
+    _ensure_methods_path()
+    from methods.genomic_event_model_match import cli as gemm
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = gemm.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    return [
+        {"id": "genomic_event_model_match_card",
+         "path": "figure_genomic_event_model_match.svg",
+         "type": "genomic_event_model_match_card", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "alteration-role": _emit_alteration_role,
     "functional-gene-state": _emit_functional_gene_state,
+    "genomic-event-model-match": _emit_genomic_event_model_match,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,

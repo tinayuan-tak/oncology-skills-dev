@@ -41,10 +41,12 @@ composition:
     # are NOT in rules_scope and the verdict spine is byte-stable):
     - alteration-role                        # typed driver ROLE (OncoKB × IntOGen); 2026-07-22
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
+    - genomic-event-model-match              # M11 patient↔model genomic-event join (canonical P3); 2026-07-22
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
   # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);
   # fusion_rearrangement is pulled-but-data-blocked (placeholder provider) — a visible-gap state.
-  # alteration_role + functional_gene_state are the additive role/allele-count layers (signal-only).
+  # alteration_role + functional_gene_state + genomic_event_model_match are the additive
+  # role / allele-count / patient↔model-match layers (all signal-only, no resolver rung).
   measurement_types_pulled:
     - mutation_variant_class_spectrum
     - mutation_stratified_dependency
@@ -53,6 +55,7 @@ composition:
     - fusion_rearrangement
     - alteration_role
     - functional_gene_state
+    - genomic_event_model_match
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency

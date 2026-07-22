@@ -139,6 +139,17 @@ def _dispatch_functional_gene_state(target: str, indication: str) -> Optional[di
     return mod.build_summary(target, indication)
 
 
+def _dispatch_genomic_event_model_match(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route genomic-event-model-match card (M11 — canonical P3 genomic join) to
+    methods/genomic_event_model_match/cli.py::build_summary.
+
+    Which DepMap models carry the SAME functional genomic event (M6 two-hit genotype) as the
+    indication's tumors, and which genotype-matched models are dependent (Chronos)? The genomic
+    sibling of recommended-models (expression-Q4). Indication-scoped."""
+    mod = _import_method("genomic_event_model_match.cli")
+    return mod.build_summary(target, indication)
+
+
 # ---- Subgroup-panorama dispatchers (descriptive; 2026-07-16) ------------------
 # These route the two NEW live subgroup cards to the per-sample panorama BUILDERS
 # (not the scalar readers above). They fire only when subgroups are in scope
@@ -783,6 +794,7 @@ CARD_DISPATCHERS = {
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
     "functional-gene-state": _dispatch_functional_gene_state,
+    "genomic-event-model-match": _dispatch_genomic_event_model_match,
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
