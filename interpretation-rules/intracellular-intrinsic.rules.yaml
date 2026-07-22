@@ -679,6 +679,96 @@ rules:
       compendium). Coverage gap; not used as opposing evidence.
 
   # ============================================================================
+  # FUNCTIONAL GENE STATE (M6; harmonized two-hit / biallelic inactivation) — 2026-07-22
+  # ============================================================================
+  # The ALLELE-COUNT layer (orthogonal to alteration_role's DIRECTION): how COMPLETE is the
+  # inactivation? A biallelic-genetic (two-hit) call is the corroborating evidence that a
+  # LOSS-OF-FUNCTION event is real + complete — it strengthens the tumor-suppressor / synthetic-
+  # lethality hypothesis, which routes to the SL/partner axis (like alteration-role-lof: NEUTRAL for
+  # direct inhibition — you cannot drug a lost function by inhibition/degradation). A predominantly
+  # MONOALLELIC pattern on a suspected TSG is a caution (one allele intact → the two-hit LoF driver
+  # hypothesis is weaker). ADDITIVE (signal + rationale only; fires NO resolver rung → the genomic
+  # verdict spine is byte-stable). Keyed on the target-level functional_state_class headline; the
+  # per-arm state distributions (patient vs model) inform the rationale, not a separate rung.
+  - rule_id: functional-gene-state-recurrent-biallelic-neutral
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: recurrent_biallelic_inactivation
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is RECURRENTLY BIALLELICALLY INACTIVATED (completed two-hit: mutation + allele-specific
+      copy loss / LOH, or homozygous deletion) across a meaningful fraction of samples. This is the
+      strongest genomic evidence for a genuine LOSS-OF-FUNCTION / tumor-suppressor role — the gene is
+      not just mutated but functionally KNOCKED OUT. NEUTRAL for direct-inhibition modalities (you
+      cannot inhibit or degrade a lost function), NOT supportive: a biallelically-inactivated TSG is
+      the classic case that routes to the SYNTHETIC-LETHALITY / partner axis (see
+      synthetic-lethal-partners) rather than a direct SM/degrader hypothesis. Corroborates
+      alteration-role-lof-driver-neutral when both fire (role says LoF-driver, state says the loss is
+      complete) — the two-hit completion is the allele-count evidence the role call cannot give.
+
+  - rule_id: functional-gene-state-sporadic-biallelic-neutral
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: sporadic_biallelic_inactivation
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Biallelic inactivation is PRESENT but SPORADIC (below the recurrence threshold). Some samples
+      show a completed two-hit event, but it is not a dominant recurrent pattern — a weaker
+      loss-of-function signal than recurrent biallelic inactivation. Neutral for direct-inhibition
+      modalities; informative for the SL/partner axis in the biallelic-inactivated subset, but the
+      low recurrence tempers a population-wide tumor-suppressor hypothesis.
+
+  - rule_id: functional-gene-state-predominantly-monoallelic-neutral
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: predominantly_monoallelic
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is altered but PREDOMINANTLY MONOALLELIC — one allele is hit while the other remains
+      intact, with little completed biallelic inactivation. For a suspected tumor suppressor this is a
+      CAUTION: a retained wild-type allele argues against a complete loss-of-function two-hit driver
+      role (haploinsufficiency remains possible but is a weaker hypothesis). For an ACTIVATING
+      oncogene this is the EXPECTED pattern (a single activating hotspot with a retained wild-type
+      allele — e.g. KRAS), so read this state alongside alteration-role: monoallelic + GoF-driver is
+      coherent (activated by one hit), whereas monoallelic + suspected-LoF weakens the driver call.
+      Neutral for direct-modality signals; a context flag for the driver interpretation.
+
+  - rule_id: functional-gene-state-rarely-altered-neutral
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: rarely_altered
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is RARELY genomically altered in this context (mostly wild-type; little mutation or copy
+      loss). No allele-count-based loss-of-function rationale here. Neutral (informational: the
+      allele-count axis is not a differentiator for this target), NOT opposing — a target can still be
+      a dependency or a surface antigen without recurrent genomic inactivation.
+
+  - rule_id: functional-gene-state-data-unavailable-insufficient
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Neither the patient (MC3 + PanCanAtlas ABSOLUTE) nor the model (DepMap) arm produced a state
+      distribution for this target. Coverage gap; not used as opposing evidence.
+
+  # ============================================================================
   # Expression — tumor vs adjacent (Card v2.0.0, pure-data 2026-07-01)
   # ============================================================================
   # Degrader-specific: degraders require demonstrable protein presence in the indication.
