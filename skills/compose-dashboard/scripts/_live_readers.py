@@ -328,6 +328,16 @@ def _dispatch_normal_tissue_liability_gtex(target: str, indication: str) -> Opti
     return mod.build_normal_liability_summary(target, indication)
 
 
+def _dispatch_recommended_models(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route recommended-models card (Q4, patient↔model expression correspondence) to
+    methods/patient_model_expression_correspondence/cli.py::build_summary.
+
+    Ranks DepMap models by TARGET-expression fit to the patient tumor TARGET distribution + screen
+    role from Chronos. Indication-scoped (patient distribution + lineage are per-indication)."""
+    mod = _import_method("patient_model_expression_correspondence.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -739,6 +749,7 @@ CARD_DISPATCHERS = {
     "tumor-expression-distribution-subtype": _dispatch_tumor_expression_distribution_subtype,
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
+    "recommended-models": _dispatch_recommended_models,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,

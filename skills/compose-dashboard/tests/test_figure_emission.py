@@ -291,6 +291,30 @@ def test_q3_normal_liability_figure_emission(tmp_path, monkeypatch):
         out_root=tmp_path / "o3", target="GHOST", indication="COADREAD") == []
 
 
+def test_q4_recommended_models_figure_emission(tmp_path, monkeypatch):
+    """Q4 correspondence scatter; gated on correspondence_class. Monkeypatch the method readers."""
+    import methods.tcga_gtex_expression_distribution.read as pt
+    monkeypatch.setattr(pt, "read_tumor_samples", lambda t, i: [3.8, 4.0, 4.2] * 10)
+    import methods.depmap_expression_dependency.cli as c4
+    monkeypatch.setattr(c4, "load_depmap_files_for_card4", lambda release_pin, target_symbol: (
+        {"M1": -2.0, "M2": 0.2}, {"M1": 4.1, "M2": 4.0},
+        {"M1": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B1"},
+         "M2": {"OncotreeLineage": "Bowel", "StrippedCellLineName": "B2"}}, []))
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="recommended-models",
+        summary={"correspondence_class": "well_modeled_in_lineage"},
+        out_root=out_root, target="KRAS", indication="COADREAD")
+    assert any(f["id"] == "recommended_models_scatter" for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/recommended-models/")
+    assert emit_figures_for_card(
+        card_id="recommended-models", summary={"correspondence_class": "data_unavailable"},
+        out_root=tmp_path / "o4", target="X", indication="BRCA") == []
+
+
 def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
     """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
     from _figure_emitters import emit_figures_for_card

@@ -883,10 +883,36 @@ def _emit_normal_tissue_liability_gtex(
     return figures
 
 
+def _emit_recommended_models(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the Q4 patient↔model correspondence scatter (recommended-models card): DepMap models on
+    target TPM (x) vs Chronos (y), screen roles colored, patient tumor IQR shaded, lineage emphasized.
+    Gated on correspondence_class. On _live_read_error / data_unavailable → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or summary.get("correspondence_class") == "data_unavailable":
+        return []
+    _ensure_methods_path()
+    from methods.patient_model_expression_correspondence import cli as pmc
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = pmc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    figures = [
+        {"id": "recommended_models_scatter",
+         "path": "figure_recommended_models.svg",
+         "type": "patient_model_correspondence_scatter", "primary": True},
+    ]
+    figures += _plotly_from(pmc, "emit_plotly_specs", target, indication, out_dir, TARGET_CONTRACTS)
+    return figures
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
+    "recommended-models": _emit_recommended_models,
     "tumor-expression-distribution-subtype": _emit_tumor_expression_distribution_subtype,
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
