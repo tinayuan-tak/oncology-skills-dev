@@ -32,6 +32,7 @@ from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
     make_decision_json, write_package,
 )
+from _skills_common.resolver import resolve_verdict_for_gate
 
 SKILL_NAME = "genomic-alteration-profile"
 SKILL_VERSION = "2.0.0"      # major bump: reframed from mutation-profile 1.0.0
@@ -58,70 +59,21 @@ QUESTION = ("How is {target} genomically altered in {indication} — by SNV/inde
             "number (amplification/deletion), or a mix — and which class drives?")
 
 
-def _mutation_verdict(fired_by_id: dict) -> tuple[str | None, str | None]:
-    """The SNV/indel axis — unchanged from mutation-profile's rank-order."""
-    if "mutant-strongly-dependent-supportive" in fired_by_id:
-        return "biomarker_stratified_dependency", "mutant-strongly-dependent-supportive"
-    if "mutant-moderately-dependent-supportive" in fired_by_id:
-        return "moderate_biomarker_dependency", "mutant-moderately-dependent-supportive"
-    if "mut-lof-dominant-supportive" in fired_by_id:
-        return "recurrent_lof_driver", "mut-lof-dominant-supportive"
-    if "mut-missense-dominant-supportive" in fired_by_id:
-        return "recurrent_missense_driver", "mut-missense-dominant-supportive"
-    if "mut-mixed-neutral" in fired_by_id:
-        return "mixed_pattern", "mut-mixed-neutral"
-    if "mut-no-mutations-neutral" in fired_by_id:
-        return "passenger_pattern", "mut-no-mutations-neutral"
-    return None, None
-
-
-def _cn_driver_fired(fired_by_id: dict) -> tuple[bool, str | None]:
-    """The copy-number axis — is there a recurrent CN driver event?"""
-    if "cn-recurrently-amplified-supportive" in fired_by_id:
-        return True, "cn-recurrently-amplified-supportive"
-    if "cn-recurrently-deleted-supportive" in fired_by_id:
-        return True, "cn-recurrently-deleted-supportive"
-    return False, None
-
-
-# SNV/indel verdicts that represent a genuine driver signal (vs passenger/mixed)
-_MUT_DRIVER_VERDICTS = {
-    "biomarker_stratified_dependency", "moderate_biomarker_dependency",
-    "recurrent_lof_driver", "recurrent_missense_driver",
-}
-
-
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
-    """Multi-class genomic-alteration verdict.
-
-    Primary axis is SNV/indel (carries the strongest therapeutic signals);
-    copy-number is layered as a modifier so an amplification/deletion-driven
-    target (few mutations) is reported as a CN driver rather than collapsing to
-    passenger. Returns (verdict, driving_rule_id).
-    """
-    fired_by_id = {r["rule_id"]: r for r in fired}
-    mut_verdict, mut_rule = _mutation_verdict(fired_by_id)
-    cn_driver, cn_rule = _cn_driver_fired(fired_by_id)
-
-    mut_is_driver = mut_verdict in _MUT_DRIVER_VERDICTS
-
-    # Both classes drive → multi-class. Report the mutation rule as primary
-    # driver (stronger signal) but flag multi_class.
-    if mut_is_driver and cn_driver:
-        return "multi_class_driver", mut_rule
-    # Only mutation drives → the mutation verdict stands.
-    if mut_is_driver:
-        return mut_verdict, mut_rule
-    # Only CN drives (mutation passenger/mixed/absent) → CN driver.
-    if cn_driver:
-        cls = "recurrent_amplification_driver" if "amplified" in (cn_rule or "") \
-            else "recurrent_deletion_driver"
-        return cls, cn_rule
-    # Neither class drives → fall back to whatever the mutation axis said
-    # (mixed_pattern / passenger_pattern), else insufficient.
-    if mut_verdict is not None:
-        return mut_verdict, mut_rule
-    return "insufficient", None
+    """Multi-class genomic-alteration verdict — DELEGATES to the shared declarative resolver
+    (gap #5 conversion, 2026-07-22). The former inline multi-axis if-chain (SNV/indel priority ×
+    copy-number, combined into multi_class_driver) now lives in
+    resolvers/genomic_alteration.resolver.yaml (target-contracts), evaluated by the ONE interpreter
+    both engines call. Proven byte-for-byte equivalent to the former if-chain across all 256 (2^8)
+    fired-set combinations by the pre-swap oracle + frozen in the golden snapshot. A missing spec
+    raises (the resolver is the source of truth — NO silent fallback to a stale copy, which would
+    reintroduce the drift this refactor eliminates)."""
+    result = resolve_verdict_for_gate(fired, "genomic_alteration")
+    if result is None:
+        raise RuntimeError(
+            "genomic_alteration resolver spec missing (target-contracts/resolvers/"
+            "genomic_alteration.resolver.yaml) — the verdict source of truth is absent.")
+    return result
 
 
 def main() -> int:
