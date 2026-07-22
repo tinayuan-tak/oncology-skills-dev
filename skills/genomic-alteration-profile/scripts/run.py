@@ -46,6 +46,11 @@ CARDS = [
     # Fusion / rearrangement — declared placeholder card (data not yet landed);
     # resolve_cards flags it _missing until the card + method exist.
     "fusion-rearrangement-landscape",
+    # Typed driver-ROLE call (OncoKB × IntOGen) — the functional-role layer on the descriptive
+    # cards above (frequency ≠ function). Its alteration_role signals feed genomic interpretation;
+    # ADDITIVE (rules touch no resolver rung — the skill's inline verdict stays byte-stable). Also
+    # in target-profile SUB_SKILL_CARDS[genomic-alteration-profile] (composer-consistency).
+    "alteration-role",
 ]
 
 QUESTION = ("How is {target} genomically altered in {indication} — by SNV/indel "
@@ -152,6 +157,9 @@ def main() -> int:
         # Copy-number axis
         "copy_number_class":             _get("copy-number-distribution",
                                               "copy_number_class"),
+        # Typed driver-role axis (OncoKB × IntOGen)
+        "alteration_role":               _get("alteration-role", "alteration_role"),
+        "functional_direction":          _get("alteration-role", "functional_direction"),
         "cards_available":               sum(1 for c in cards if not c.get("_missing")),
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }

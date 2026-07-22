@@ -144,6 +144,8 @@ SUB_SKILL_CARDS = {
         "mutation-hotspot-frequency",
         "copy-number-distribution",          # CN axis wired 2026-07-14
         "fusion-rearrangement-landscape",    # placeholder (resolves _missing)
+        "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
+                                             # paired with genomic-alteration-profile CARDS (composer-consistency)
     ],
     "differentiation-landscape": [
         "co-mutation-and-mutual-exclusivity",

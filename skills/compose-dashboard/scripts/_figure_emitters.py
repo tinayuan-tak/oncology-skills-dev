@@ -960,8 +960,32 @@ def _emit_rna_protein_concordance_tumor(
     return figures
 
 
+def _emit_alteration_role(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the alteration-role evidence card (typed driver classification): the role call +
+    the OncoKB/IntOGen evidence it rests on. Gated on alteration_role (data_unavailable → []).
+    On _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or summary.get("alteration_role") in (None, "data_unavailable"):
+        return []
+    _ensure_methods_path()
+    from methods.driver_role_overlay import cli as dro
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = dro.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    return [
+        {"id": "alteration_role_evidence_card",
+         "path": "figure_alteration_role.svg",
+         "type": "alteration_role_evidence_card", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
+    "alteration-role": _emit_alteration_role,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,

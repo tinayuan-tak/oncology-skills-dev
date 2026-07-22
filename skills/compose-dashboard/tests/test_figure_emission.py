@@ -364,6 +364,33 @@ def test_q5_tumor_concordance_figure_emission(tmp_path, monkeypatch):
         out_root=tmp_path / "o5t", target="X", indication="SKCM") == []
 
 
+def test_alteration_role_figure_emission(tmp_path, monkeypatch):
+    """alteration-role evidence card; gated on alteration_role. Monkeypatch the overlay loaders."""
+    import methods.driver_role_overlay.read as dro
+    dro._load_oncokb_roles.cache_clear() if hasattr(dro._load_oncokb_roles, "cache_clear") else None
+    monkeypatch.setattr(dro, "_load_oncokb_roles", lambda: {"KRAS": "ONCOGENE"})
+    import pandas as pd
+    monkeypatch.setattr(dro, "_load_intogen_compendium", lambda: pd.DataFrame(
+        [{"SYMBOL": "KRAS", "CANCER_TYPE": "COAD", "ROLE": "Act",
+          "QVALUE_COMBINATION": 1e-30, "%_SAMPLES_COHORT": 0.4, "IS_DRIVER": True}],
+        columns=["SYMBOL", "CANCER_TYPE", "ROLE", "QVALUE_COMBINATION", "%_SAMPLES_COHORT", "IS_DRIVER"]))
+    from _figure_emitters import emit_figures_for_card
+    out_root = tmp_path / "compose_out"
+    figs = emit_figures_for_card(
+        card_id="alteration-role",
+        summary={"alteration_role": "direct_driver_gof", "functional_direction": "activating",
+                 "oncokb_gene_type": "ONCOGENE", "intogen_role": "Act", "intogen_scope": "indication",
+                 "sources": ["oncokb", "intogen"]},
+        out_root=out_root, target="KRAS", indication="COADREAD")
+    assert any(f["id"] == "alteration_role_evidence_card" for f in figs)
+    for f in figs:
+        assert (out_root / f["path"]).exists()
+        assert f["path"].startswith("cards/alteration-role/")
+    assert emit_figures_for_card(
+        card_id="alteration-role", summary={"alteration_role": "data_unavailable"},
+        out_root=tmp_path / "oar", target="GHOST", indication="COADREAD") == []
+
+
 def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
     """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
     from _figure_emitters import emit_figures_for_card

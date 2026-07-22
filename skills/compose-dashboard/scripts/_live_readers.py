@@ -119,6 +119,15 @@ def _dispatch_mutation_hotspot_frequency(target: str, indication: str) -> Option
     return hotspot_module.read_hotspot_summary(target=target, indication=indication)
 
 
+def _dispatch_alteration_role(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route alteration-role card to methods/driver_role_overlay/cli.py::build_summary.
+
+    Typed driver-role call (OncoKB geneType × IntOGen mode-of-action) → alteration_role +
+    functional_direction. Indication-scoped (IntOGen mode-of-action is per cancer type)."""
+    mod = _import_method("driver_role_overlay.cli")
+    return mod.build_summary(target, indication)
+
+
 # ---- Subgroup-panorama dispatchers (descriptive; 2026-07-16) ------------------
 # These route the two NEW live subgroup cards to the per-sample panorama BUILDERS
 # (not the scalar readers above). They fire only when subgroups are in scope
@@ -761,6 +770,7 @@ CARD_DISPATCHERS = {
     "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
     "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
+    "alteration-role": _dispatch_alteration_role,
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
