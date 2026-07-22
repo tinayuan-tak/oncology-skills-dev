@@ -19,7 +19,14 @@ from _skills_common.resolver import resolve_verdict_for_gate
 SKILL_NAME = "tumor-selectivity"
 SKILL_VERSION = "1.1.0"
 
-CARDS = ["tumor-vs-normal-selectivity"]
+CARDS = [
+    "tumor-vs-normal-selectivity",
+    "tumor-vs-normal-percentile-crossing",   # Q2 — per-sample fraction-above-normal-p95 (corroborates
+                                             # the aggregate log2FC at per-sample resolution). Its
+                                             # tumor-vs-normal-crossing-* rules emit SM/degrader signals;
+                                             # the selectivity RESOLVER stays keyed to the aggregate card
+                                             # (verdict byte-stable — Q2 is additive signal/rationale).
+]
 
 QUESTION = ("How selectively is {target} expressed in {indication} tumor "
             "tissue, and how robust is that call across independent tumor-vs-"
@@ -44,7 +51,15 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 
 def _headline(cards, fired, verdict_pair):
-    tvn = (cards[0]["summary"] or {}) if cards else {}
+    # id-lookup (NOT cards[0]) — robust to card order now that a 2nd card (Q2 percentile-crossing)
+    # composes into this skill. Each card's summary is fetched by its card_id.
+    def _summary(cid):
+        for c in cards:
+            if c.get("card_id") == cid:
+                return c.get("summary") or {}
+        return {}
+    tvn = _summary("tumor-vs-normal-selectivity")
+    pcx = _summary("tumor-vs-normal-percentile-crossing")   # Q2 per-sample corroboration
     return {
         "selectivity_class":  tvn.get("selectivity_class"),
         "cells_supporting":   tvn.get("cells_supporting"),
@@ -54,6 +69,10 @@ def _headline(cards, fired, verdict_pair):
         "sig_all_cells":      tvn.get("sig_all_cells"),
         "max_abs_log2fc":     tvn.get("max_abs_log2fc"),
         "data_schema":        tvn.get("_schema"),
+        # Q2 per-sample percentile-crossing (namespaced to avoid the selectivity_class collision):
+        "percentile_crossing_class":       pcx.get("selectivity_class"),
+        "fraction_tumor_above_normal_p95": pcx.get("fraction_tumor_above_normal_p95"),
+        "distribution_overlap_tumor_normal": pcx.get("distribution_overlap_tumor_normal"),
     }
 
 

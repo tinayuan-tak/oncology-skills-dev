@@ -21,7 +21,14 @@ from _skills_common.resolver import resolve_verdict_for_gate
 SKILL_NAME = "on-target-safety-liability"
 SKILL_VERSION = "1.2.0"
 
-CARDS = ["gnomad-lof-constraint"]
+CARDS = [
+    "gnomad-lof-constraint",
+    "normal-tissue-liability-gtex",   # Q3 — GTEx normal-tissue atlas (critical-organ liability +
+                                      # breadth). Its normal-liability-* rules emit SM/degrader
+                                      # opposing on critical_organ_liability (on-target-off-tumor for
+                                      # full-KO modalities); supportive on restricted_normal. Additive
+                                      # signal — the safety RESOLVER stays keyed to gnomAD (byte-stable).
+]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
             "variants in the gnomAD population, and what does this imply "

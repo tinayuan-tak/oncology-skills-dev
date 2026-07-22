@@ -112,7 +112,10 @@ SUB_SKILL_CARDS = {
                                          # panorama (per_subgroup_metrics). Same pairing rule: wired into
                                          # tumor-presence CARDS + this composer map together.
     ],
-    "tumor-selectivity": ["tumor-vs-normal-selectivity"],
+    "tumor-selectivity": [
+        "tumor-vs-normal-selectivity",
+        "tumor-vs-normal-percentile-crossing",   # Q2 — paired with tumor-selectivity CARDS (composer-consistency)
+    ],
     "functional-requirement": [
         "pan-cancer-crispr-dependency-distribution",
         "pan-cancer-rnai-dependency-distribution",
@@ -156,6 +159,7 @@ SUB_SKILL_CARDS = {
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",
+        "normal-tissue-liability-gtex",   # Q3 — paired with on-target-safety-liability CARDS (composer-consistency)
     ],
 }
 
