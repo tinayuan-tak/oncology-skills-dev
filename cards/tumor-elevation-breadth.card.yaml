@@ -84,8 +84,20 @@ outputs:
       - discordant                                # one layer elevated, the other a MEASURED not_tumor_elevated — surface, do not average
       - single_layer                              # only one layer had data (the other data_unavailable) — concordance UNTESTED
 
-  figure: tumor_elevation_breadth_bar
-  plot_data: per_cohort_elevation_long_format
+  # The live figure is the pan-cancer by-tissue TPM DISTRIBUTION (added 2026-07-22): TCGA tumor
+  # (per study) + GTEx normal (per tissue) co-plotted on ONE log2(TPM+1) axis, read from the
+  # precomputed quantile product tcga-gtex-tpm-tissue-quantiles-v1. This is the RNA-DISTRIBUTION
+  # companion to the K-of-N breadth roll-up (summary_fields above): the roll-up answers "in how
+  # many cancers", this figure shows the per-tissue tumor-vs-normal distributions that underlie it.
+  # Indication-agnostic (pan-cancer); fires for a target-only query even when CPTAC protein breadth
+  # is data_unavailable — the degenerate target-only case this card exists to rescue.
+  figures:
+    - id: pan_cancer_by_tissue_distribution
+      type: pan_cancer_by_tissue_tumor_vs_normal_distribution
+      description: "Pan-cancer by-tissue expression: a log2(TPM+1) boxplot per TCGA study (tumor) and per GTEx tissue (normal), co-plotted on ONE recount3/GENCODE-v26 axis, each block sorted by median. The per-tissue tumor-vs-normal distributions underlying the K-of-N breadth roll-up."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: pan_cancer_by_tissue_quantiles_long_format
 
 thresholds:
   broadly_elevated_fraction: 0.5                  # fraction of tested cohorts elevated for "broadly"
