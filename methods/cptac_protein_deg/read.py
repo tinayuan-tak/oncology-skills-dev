@@ -36,7 +36,20 @@ DERIVED_S3_KEY = (
 CACHE_DIR = Path.home() / ".cache" / "framework-cptac"
 CACHE_PARQUET = CACHE_DIR / "cptac_protein_deg.parquet"
 
+# Per-SAMPLE product (cptac-protein-tumor-vs-normal-per-sample-v1): the per-aliquot
+# log-ratios the per-cohort summary threw away. Backs the true tumor-vs-normal
+# distribution boxplot + honest per-cohort statistics (Welch + Mann-Whitney). 129 MB,
+# sorted by (gene_symbol, cohort) so a per-gene predicate-pushdown read prunes to a few
+# row-groups. See data-catalog manifest cptac-protein-tumor-vs-normal-per-sample-v1.
+PER_SAMPLE_MANIFEST_ID = "cptac-protein-tumor-vs-normal-per-sample-v1"
+PER_SAMPLE_S3_KEY = (
+    "data-catalog/derived/cptac-protein-tumor-vs-normal-per-sample-v1/"
+    "cptac_protein_per_sample.parquet"
+)
+CACHE_PER_SAMPLE = CACHE_DIR / "cptac_protein_per_sample.parquet"
+
 _DERIVED_STATUS: Optional[bool] = None
+_PER_SAMPLE_STATUS: Optional[bool] = None
 
 # Indication → CPTAC cohort code mapping (some indications share codes)
 INDICATION_TO_CPTAC = {
@@ -227,6 +240,132 @@ def read_all_cohorts(target: str) -> list[dict]:
     return rows
 
 
+# --- per-sample distribution (per-sample product; backs the true boxplot) --------------------
+# The per-cohort product above keeps only medians/effect/q; it CANNOT back a distribution plot.
+# cptac-protein-tumor-vs-normal-per-sample-v1 persists the per-aliquot log-ratios so we can draw a
+# real tumor-vs-normal boxplot AND recompute honest per-cohort statistics from the samples
+# themselves (Welch's t on the log-ratios + a nonparametric Mann-Whitney U), rather than trusting a
+# median dumbbell.
+
+def _ensure_per_sample_cached() -> Optional[Path]:
+    """Download + cache the per-sample product. Same definitive-vs-transient latch as the
+    per-cohort loader: only latch False on a real 404/403 so a transient blip retries."""
+    global _PER_SAMPLE_STATUS
+    if _PER_SAMPLE_STATUS is False:
+        return None
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if CACHE_PER_SAMPLE.exists() and CACHE_PER_SAMPLE.stat().st_size > 0:
+        _PER_SAMPLE_STATUS = True
+        return CACHE_PER_SAMPLE
+    if _PER_SAMPLE_STATUS is None:
+        try:
+            s3 = _boto3_client()
+            s3.download_file(S3_BUCKET, PER_SAMPLE_S3_KEY, str(CACHE_PER_SAMPLE))
+            _PER_SAMPLE_STATUS = True
+            return CACHE_PER_SAMPLE
+        except Exception as e:
+            resp = getattr(e, "response", None)
+            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
+            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
+                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            if definitive:
+                _PER_SAMPLE_STATUS = False
+            return None
+    return None
+
+
+def read_per_sample(target: str):
+    """Per-aliquot CPTAC protein log-ratios for one target, all cohorts.
+
+    Predicate-pushdown read (filter gene_symbol == target) on the (gene_symbol, cohort)-sorted
+    per-sample parquet — prunes to a few row-groups instead of scanning 15M rows. Returns a
+    DataFrame with columns (gene_symbol, cohort, aliquot_submitter_id, sample_type, condition,
+    log2_ratio); empty DataFrame when the target is absent / product unavailable."""
+    path = _ensure_per_sample_cached()
+    if path is None:
+        import pandas as pd
+        return pd.DataFrame(columns=["gene_symbol", "cohort", "aliquot_submitter_id",
+                                     "sample_type", "condition", "log2_ratio"])
+    try:
+        import pyarrow.parquet as pq
+        sym = target.upper().strip()
+        tbl = pq.read_table(str(path), filters=[("gene_symbol", "==", sym)])
+        return tbl.to_pandas()
+    except Exception:
+        import pandas as pd
+        return pd.DataFrame(columns=["gene_symbol", "cohort", "aliquot_submitter_id",
+                                     "sample_type", "condition", "log2_ratio"])
+
+
+def per_cohort_distribution_stats(target: str) -> list[dict]:
+    """Per-cohort tumor-vs-normal distribution + honest statistics recomputed from the SAMPLES.
+
+    For each cohort the target was quantified in, split the per-aliquot log-ratios into Tumor vs
+    Normal and compute, FROM THE SAMPLES (not the summary product's precomputed q):
+        - n_tumor / n_normal, tumor/normal median + quartiles (the boxplot geometry)
+        - welch_p     Welch's t-test (unequal-variance), tumor vs normal log-ratios
+        - mwu_p       Mann-Whitney U (nonparametric; robust to the log-ratio tails)
+        - delta_median = tumor_median - normal_median
+    Cohorts with <3 samples on either side are kept but their p-values are None (n too low to test)
+    so the boxplot still shows the distribution honestly. Sorted by delta_median descending
+    (most tumor-elevated first). Empty list when absent / unavailable.
+
+    NOTE these p-values are per-cohort two-group tests on the SAMPLES — they will differ from the
+    per-cohort product's MSstatsTMT limma-moderated q (different estimator); that is expected and
+    the plot labels which test it used. This function is the plot's source of truth, self-consistent
+    with the boxes it draws."""
+    import numpy as np
+
+    df = read_per_sample(target)
+    if df is None or df.empty:
+        return []
+
+    def _quartiles(vals):
+        a = np.asarray(vals, dtype=float)
+        a = a[~np.isnan(a)]
+        if a.size == 0:
+            return (None, None, None, None, None)
+        return (float(np.min(a)), float(np.percentile(a, 25)), float(np.median(a)),
+                float(np.percentile(a, 75)), float(np.max(a)))
+
+    out = []
+    for cohort, sub in df.groupby("cohort"):
+        tvals = sub.loc[sub["condition"] == "Tumor", "log2_ratio"].to_numpy(dtype=float)
+        nvals = sub.loc[sub["condition"] == "Normal", "log2_ratio"].to_numpy(dtype=float)
+        tvals = tvals[~np.isnan(tvals)]
+        nvals = nvals[~np.isnan(nvals)]
+        n_t, n_n = int(tvals.size), int(nvals.size)
+        t_lo, t_q1, t_med, t_q3, t_hi = _quartiles(tvals)
+        n_lo, n_q1, n_med, n_q3, n_hi = _quartiles(nvals)
+
+        welch_p = mwu_p = None
+        if n_t >= 3 and n_n >= 3:
+            try:
+                from scipy import stats as _st
+                welch_p = float(_st.ttest_ind(tvals, nvals, equal_var=False).pvalue)
+                mwu_p = float(_st.mannwhitneyu(tvals, nvals, alternative="two-sided").pvalue)
+            except Exception:
+                welch_p = mwu_p = None
+
+        delta = (t_med - n_med) if (t_med is not None and n_med is not None) else None
+        out.append({
+            "cohort": str(cohort).upper(),
+            "n_tumor": n_t, "n_normal": n_n,
+            "tumor_min": t_lo, "tumor_q1": t_q1, "tumor_median": t_med,
+            "tumor_q3": t_q3, "tumor_max": t_hi,
+            "normal_min": n_lo, "normal_q1": n_q1, "normal_median": n_med,
+            "normal_q3": n_q3, "normal_max": n_hi,
+            "delta_median": delta,
+            "welch_p": welch_p, "mwu_p": mwu_p,
+            # raw arrays for the boxplot (kept out of any parquet emit; used only in-memory)
+            "_tumor_values": tvals.tolist(), "_normal_values": nvals.tolist(),
+        })
+
+    out.sort(key=lambda r: (r["delta_median"] if r["delta_median"] is not None else -1e9),
+             reverse=True)
+    return out
+
+
 # --- tumor_elevation_breadth (Slice B1, 2026-07-21) ------------------------------------------
 # A TARGET-GRAIN roll-up: "elevated in K of the N CPTAC cohorts this target was quantified in."
 # CONTRACT NOTE: this is breadth over INDICATIONS for ONE target (allowed — precedent
@@ -319,12 +458,15 @@ def read_tumor_elevation_breadth(target: str) -> dict:
     }
 
 
-# --- figure emitters (Slice 7 CPTAC protein viz) ---------------------------------------------
-# The card declared `protein_boxplot_tumor_vs_normal` but the derived product is per-cohort SUMMARY,
-# not per-sample — a true sample boxplot would require re-reading the 15 GB raw CPTAC-PDC matrix on
-# every render. The honest, architecturally-correct figure from the summary product is a PER-COHORT
-# tumor-vs-normal panel (dumbbell of tumor vs normal median per cohort + effect + q + n). Card figure
-# declaration corrected to match (doc-truth, sibling target-contracts PR).
+# --- figure emitters (upgraded 2026-07-22: true distribution boxplots) -----------------------
+# ORIGINALLY (Slice 7) this figure was a per-cohort DUMBBELL of tumor/normal MEDIANS, because the
+# only product available was per-cohort SUMMARY (cptac-protein-tumor-vs-normal-per-cohort-v1). The
+# per-SAMPLE product (cptac-protein-tumor-vs-normal-per-sample-v1) now persists the per-aliquot
+# log-ratios, so we draw the honest figure the card originally wanted: a grouped tumor-vs-normal
+# BOXPLOT per cohort, with per-cohort statistics (Welch's t + Mann-Whitney U) recomputed FROM THE
+# SAMPLES the boxes are drawn from — no median-only dumbbell, no drift between the stat and the box.
+# The figure id + path + emitter function names are unchanged so the card decl + skill dispatcher
+# stay wired; only the content changed (dumbbell -> distribution).
 
 def _load_takeda_style(target_contracts_dir):
     import sys as _sys
@@ -340,23 +482,31 @@ def _load_takeda_style(target_contracts_dir):
         return None
 
 
-def _sig_stars(q):
-    if q is None or q != q:
+def _sig_stars(p):
+    """Significance stars from a p-value (Welch/MWU on the samples — NOT the summary q)."""
+    if p is None or p != p:
         return ""
-    if q < 1e-10:
+    if p < 1e-10:
         return "***"
-    if q < 1e-4:
+    if p < 1e-4:
         return "**"
-    if q < 0.05:
+    if p < 0.05:
         return "*"
     return "ns"
 
 
+# Tumor = deep navy, Normal = muted blue (matches the dumbbell's palette so the color identity of
+# "tumor" vs "normal" is stable across the protein cards).
+_TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
+_NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
+
+
 def emit_per_cohort_panel(target: str, out_dir: Path,
                           target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> Path:
-    """Dumbbell panel: per CPTAC cohort, tumor vs normal median log2 protein abundance, ordered by
-    effect size; q-value stars annotate significance. The cross-cohort breadth of the target's
-    tumor-elevated protein signal — the honest summary-level figure."""
+    """Grouped tumor-vs-normal BOXPLOT per CPTAC cohort, drawn from the per-aliquot log-ratios
+    (per-sample product), ordered by tumor-vs-normal median delta. Each cohort shows the true
+    tumor + normal distributions side by side; the per-cohort Welch/Mann-Whitney significance
+    (recomputed from the same samples) + n annotate each pair. Replaces the median-only dumbbell."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -364,45 +514,83 @@ def emit_per_cohort_panel(target: str, out_dir: Path,
     _load_takeda_style(target_contracts_dir)
     out_dir = Path(out_dir)
     out_path = out_dir / "figure_protein_per_cohort_tumor_vs_normal.svg"
-    rows = read_all_cohorts(target)
-    if not rows:
+    stats = per_cohort_distribution_stats(target)
+    if not stats:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"{target} — not quantified in any CPTAC cohort", ha="center",
                 va="center", fontsize=10, color="#777"); ax.set_axis_off()
         fig.savefig(out_path); plt.close(fig); return out_path
 
-    # order by effect ascending so most-elevated is at top after invert
-    rows = sorted(rows, key=lambda r: (r.get("protein_effect_size") or 0))
-    labels = [r["cohort"] for r in rows]
-    tum = [r.get("protein_median_log2_tumor") for r in rows]
-    nor = [r.get("protein_median_log2_normal") for r in rows]
-    fig_h = min(max(3.0, len(rows) * 0.4), 6.0)
-    fig, ax = plt.subplots(figsize=(7, fig_h))
-    for i, (t, n) in enumerate(zip(tum, nor)):
-        if t is None or n is None:
+    # most tumor-elevated (largest delta_median) at TOP → reverse for bottom-up y axis
+    stats = list(reversed(stats))
+    n_cohorts = len(stats)
+    fig_h = min(max(3.2, n_cohorts * 0.62), 8.0)
+    fig, ax = plt.subplots(figsize=(7.6, fig_h))
+
+    # single shared annotation column (right of the widest whisker across ALL cohorts) so the
+    # significance labels line up in a column instead of laddering per-row.
+    ann_x = max([v for s in stats for v in (s["tumor_max"], s["normal_max"]) if v is not None]
+                or [0]) + 0.15
+
+    yticks, ylabels = [], []
+    for i, s in enumerate(stats):
+        y_t = i + 0.18   # tumor box (upper of the pair)
+        y_n = i - 0.18   # normal box (lower)
+        drew = False
+        if s["_tumor_values"]:
+            bp = ax.boxplot([s["_tumor_values"]], positions=[y_t], orientation="horizontal", widths=0.30,
+                            patch_artist=True, showfliers=False, manage_ticks=False)
+            bp["boxes"][0].set(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, linewidth=1.1)
+            for w in bp["whiskers"] + bp["caps"]:
+                w.set(color=_TUMOR_LINE, linewidth=1.0)
+            for m in bp["medians"]:
+                m.set(color="white", linewidth=1.4)
+            drew = True
+        if s["_normal_values"]:
+            bp = ax.boxplot([s["_normal_values"]], positions=[y_n], orientation="horizontal", widths=0.30,
+                            patch_artist=True, showfliers=False, manage_ticks=False)
+            bp["boxes"][0].set(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, linewidth=1.1)
+            for w in bp["whiskers"] + bp["caps"]:
+                w.set(color=_NORMAL_LINE, linewidth=1.0)
+            for m in bp["medians"]:
+                m.set(color=_NORMAL_LINE, linewidth=1.4)
+            drew = True
+        if not drew:
             continue
-        up = t >= n
-        ax.plot([n, t], [i, i], color="#c9d1d9", linewidth=2, zorder=1)
-        ax.scatter([n], [i], color="#7fa7c0", s=45, zorder=2, label="normal" if i == 0 else None)
-        ax.scatter([t], [i], color="#0a2540" if up else "#cf2828", s=55, zorder=3,
-                   label="tumor" if i == 0 else None)
-        stars = _sig_stars(rows[i].get("protein_bh_q_value"))
-        eff = rows[i].get("protein_effect_size")
-        ax.text(max(t, n) + 0.1, i, f"{eff:+.2f} {stars}" if eff is not None else stars,
-                va="center", fontsize=7, color="#222")
-    ax.set_yticks(range(len(labels))); ax.set_yticklabels(labels, fontsize=8)
-    ax.set_xlabel("median log2 protein abundance (CPTAC TMT MS)")
-    ax.set_title(f"{target} — tumor vs normal protein, per CPTAC cohort (n={len(rows)} cohorts)")
-    ax.legend(loc="lower right", fontsize=8)
+        yticks.append(i)
+        ylabels.append(f"{s['cohort']}\n(T={s['n_tumor']} N={s['n_normal']})")
+        # significance annotation at the right margin — MWU preferred (nonparametric), Welch fallback
+        p = s["mwu_p"] if s["mwu_p"] is not None else s["welch_p"]
+        stars = _sig_stars(p)
+        d = s["delta_median"]
+        label = (f"Δ{d:+.2f} {stars}" if d is not None else stars)
+        ax.text(ann_x, i, label, va="center", fontsize=7, color="#222")
+
+    # legend proxies (two boxes)
+    from matplotlib.patches import Patch
+    ax.legend(handles=[Patch(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, label="tumor"),
+                       Patch(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, label="normal")],
+              loc="lower right", fontsize=8, frameon=True)
+    ax.axvline(0.0, color="#bbb", linewidth=0.8, linestyle="--", zorder=0)
+    # extend the right limit so the shared annotation column is inside the axes (tight_layout
+    # only accounts for artists inside the data limits; text beyond them would otherwise clip).
+    ax.set_xlim(right=ann_x + 0.9)
+    ax.set_yticks(yticks); ax.set_yticklabels(ylabels, fontsize=7)
+    ax.set_xlabel("log2 tumor-vs-reference protein ratio (CPTAC TMT MS, per aliquot)")
+    ax.set_title(f"{target} — tumor vs normal protein distribution, per CPTAC cohort "
+                 f"(n={n_cohorts}; * MWU p<.05)")
     fig.tight_layout(); fig.savefig(out_path); plt.close(fig)
     return out_path
 
 
 def emit_plot_data(target: str, out_dir: Path) -> Path:
-    """Per-cohort long-format parquet (the honest plot_data: one row per cohort tested)."""
+    """Per-cohort distribution-statistics parquet (one row per cohort tested): n_tumor/n_normal,
+    tumor/normal quartiles, delta_median, welch_p, mwu_p. The recomputed-from-samples stats behind
+    the boxplot (raw per-aliquot arrays are NOT persisted here — the source-of-record for those is
+    the per-sample product itself)."""
     import pandas as pd
-    rows = read_all_cohorts(target)
-    df = pd.DataFrame(rows)
+    stats = per_cohort_distribution_stats(target)
+    df = pd.DataFrame([{k: v for k, v in s.items() if not k.startswith("_")} for s in stats])
     out_file = Path(out_dir) / "plot_data_protein_per_cohort.parquet"
     df.to_parquet(out_file, index=False)
     return out_file
@@ -410,38 +598,53 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 
 def emit_plotly_specs(target: str, out_dir: Path,
                       target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> list:
-    """Interactive per-cohort dumbbell (tumor vs normal median per cohort) built from the SAME
-    read_all_cohorts rows the SVG uses — no drift. Best-effort (plotly optional)."""
+    """Interactive grouped tumor-vs-normal boxplot per cohort, built from the SAME
+    per_cohort_distribution_stats (and their raw per-aliquot arrays) the SVG uses — no drift.
+    Best-effort (plotly optional)."""
     try:
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
         print(f"[cptac_protein_deg] plotly spec emission skipped: {e}", file=__import__("sys").stderr)
         return []
-    rows = read_all_cohorts(target)
-    if not rows:
+    stats = per_cohort_distribution_stats(target)
+    if not stats:
         return []
-    rows = sorted(rows, key=lambda r: (r.get("protein_effect_size") or 0))
-    cohorts = [r["cohort"] for r in rows]
-    tum = [r.get("protein_median_log2_tumor") for r in rows]
-    nor = [r.get("protein_median_log2_normal") for r in rows]
-    q = [r.get("protein_bh_q_value") for r in rows]
+    # most tumor-elevated first (top of the plot); plotly categorical y stacks bottom-up so reverse
+    stats = list(reversed(stats))
+    cohorts, hovertext = [], []
+    for s in stats:
+        p = s["mwu_p"] if s["mwu_p"] is not None else s["welch_p"]
+        label = (f"{s['cohort']} (T={s['n_tumor']} N={s['n_normal']})")
+        cohorts.append(label)
+        d = s["delta_median"]
+        hovertext.append(f"Δmedian {d:+.2f}<br>MWU p {p:.2e}" if (d is not None and p is not None)
+                         else label)
+
     fig = go.Figure()
-    # connector lines
-    for i, (t, n) in enumerate(zip(tum, nor)):
-        if t is None or n is None:
+    # tumor + normal as two box traces; y = cohort label, x = per-aliquot log-ratio
+    t_y, t_x, n_y, n_x = [], [], [], []
+    for label, s in zip(cohorts, stats):
+        t_x.extend(s["_tumor_values"]);  t_y.extend([label] * len(s["_tumor_values"]))
+        n_x.extend(s["_normal_values"]); n_y.extend([label] * len(s["_normal_values"]))
+    fig.add_trace(go.Box(x=n_x, y=n_y, name="normal", orientation="h",
+                         marker_color=_NORMAL_LINE, fillcolor=_NORMAL_FILL,
+                         line=dict(width=1), boxpoints=False))
+    fig.add_trace(go.Box(x=t_x, y=t_y, name="tumor", orientation="h",
+                         marker_color=_TUMOR_LINE, fillcolor=_TUMOR_FILL,
+                         line=dict(width=1), boxpoints=False))
+    # significance annotations at the right
+    xr = max([v for s in stats for v in (s["tumor_max"], s["normal_max"]) if v is not None] or [0])
+    for label, s in zip(cohorts, stats):
+        p = s["mwu_p"] if s["mwu_p"] is not None else s["welch_p"]
+        d = s["delta_median"]
+        if d is None:
             continue
-        fig.add_shape(type="line", x0=n, x1=t, y0=cohorts[i], y1=cohorts[i],
-                      line=dict(color="#c9d1d9", width=2))
-    fig.add_trace(go.Scatter(x=nor, y=cohorts, mode="markers", name="normal",
-                             marker=dict(color="#7fa7c0", size=10),
-                             hovertemplate="%{y} normal median %{x:.2f}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=tum, y=cohorts, mode="markers", name="tumor",
-                             marker=dict(color="#0a2540", size=11),
-                             customdata=[[qq if qq is not None else float('nan')] for qq in q],
-                             hovertemplate="%{y} tumor median %{x:.2f}<br>q %{customdata[0]:.2e}<extra></extra>"))
-    fig.update_layout(title=f"{target} — tumor vs normal protein, per CPTAC cohort",
-                      xaxis_title="median log2 protein abundance (CPTAC TMT MS)",
-                      template="plotly_white", margin=dict(l=90, r=40, t=50, b=50))
+        fig.add_annotation(x=xr + 0.2, y=label, text=f"Δ{d:+.2f} {_sig_stars(p)}",
+                           showarrow=False, font=dict(size=9), xanchor="left")
+    fig.update_layout(title=f"{target} — tumor vs normal protein distribution, per CPTAC cohort",
+                      xaxis_title="log2 tumor-vs-reference protein ratio (CPTAC TMT MS, per aliquot)",
+                      boxmode="group", template="plotly_white",
+                      margin=dict(l=140, r=70, t=50, b=50))
     (Path(out_dir) / "figure_protein_per_cohort_tumor_vs_normal.plotly.json").write_text(fig.to_json())
     return [{"id": "protein_per_cohort_tumor_vs_normal",
              "path": "figure_protein_per_cohort_tumor_vs_normal.plotly.json", "type": "plotly"}]
