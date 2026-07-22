@@ -1241,6 +1241,80 @@ rules:
       target signals an alternative pathway is active) or measurement artifact.
       Treated as opposing evidence; pair with paralog analysis before discounting.
 
+  # ============================================================================
+  # ABUNDANCE-DEPENDENCY (Q7, PROTEIN arm of expression-as-biomarker-of-dependency) — 2026-07-22
+  # ============================================================================
+  # The PROTEIN sibling of the expression-dependency-correlation (RNA arm) rules above. Same
+  # biomarker-hypothesis framing on Gygi-MS protein instead of mRNA. Signals are deliberately MODEST
+  # (NOT dominant, unlike the RNA arm) — the protein arm CORROBORATES the biomarker hypothesis; the
+  # two arms' comparison (RNA vs protein) is resolved in the biomarker-facet synthesis (preferred_assay),
+  # not by two cards both claiming dominance. ADDITIVE render facet — feeds NO resolver ladder (verdict
+  # byte-stable). Biology axis only (no modality-gate facet).
+  - rule_id: abundance-dependency-supportive
+    when:
+      card_id: abundance-dependency
+      field: abundance_dependency_class
+      equals: protein_predicts_dependency
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Protein abundance predicts dependency (strong negative Pearson r, significant): high-protein
+      cell lines are strongly dependent. A PROTEIN-level biomarker-stratification candidate — often
+      the sharper arm since dependency is a protein-level phenomenon. Supportive (not dominant): it
+      corroborates the biomarker hypothesis and, when it BEATS the RNA arm, points preferred_assay to
+      protein in synthesis.
+
+  - rule_id: abundance-dependency-weak-neutral
+    when:
+      card_id: abundance-dependency
+      field: abundance_dependency_class
+      equals: weak_protein_dependency_link
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Weak/moderate protein-abundance→dependency link (directional but not conclusive, or
+      insignificant). Neutral — for oncogene-addiction targets (e.g. KRAS) dependency is driven by
+      MUTATION status not abundance, so a weak abundance link is EXPECTED and correctly redirects the
+      biomarker to the genomic stratifier (mutation-stratified-dependency), not opposing evidence.
+
+  - rule_id: abundance-dependency-none-neutral
+    when:
+      card_id: abundance-dependency
+      field: abundance_dependency_class
+      equals: no_protein_dependency_link
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Protein abundance and dependency are uncorrelated. Not a killer (the target can still be a
+      dependency via other threads) — just no protein-abundance biomarker hypothesis from this axis.
+
+  - rule_id: abundance-dependency-insufficient
+    when:
+      card_id: abundance-dependency
+      field: abundance_dependency_class
+      equals: insufficient_paired_models
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Fewer than the minimum cell lines have BOTH Gygi-MS protein and Chronos for this target — the
+      protein-arm correlation is underpowered. Coverage gap, not opposing evidence.
+
+  - rule_id: abundance-dependency-data-unavailable-insufficient
+    when:
+      card_id: abundance-dependency
+      field: abundance_dependency_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the Gygi MS panel or no Chronos — no protein-arm data. Coverage gap (panel
+      coverage, not biology); not used as opposing evidence.
+
   - rule_id: expression-correlation-data-unavailable-insufficient
     when:
       card_id: expression-dependency-correlation
