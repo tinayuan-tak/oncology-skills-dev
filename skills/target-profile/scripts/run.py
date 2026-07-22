@@ -116,6 +116,12 @@ SUB_SKILL_CARDS = {
         "crispr-rnai-dependency-concordance",
         "dependency-lineage-selectivity",
         "paralog-buffering",
+        "expression-dependency-correlation",     # Gate-C biomarker facet (2026-07-22). Was ORPHANED:
+                                                 # in the render maps (CARD_TITLE/CARD_ROLE/reports_into)
+                                                 # + a live dispatcher, but composed by NO sub-skill, so
+                                                 # correlation_class never computed → rendered empty.
+                                                 # Render-only facet (verdict-inert: its rules feed no
+                                                 # resolver). Also in functional-requirement/run.py CARDS.
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",
@@ -2083,7 +2089,8 @@ _CARD_KEYFACTS = {
     "expression-tumor-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
                                      ("q-value", "q_value")],
     "protein-presence-cptac": [("Class", "protein_expression_class"), ("Effect size", "protein_effect_size"),
-                               ("Cohorts", "n_cohorts")],
+                               ("Cohort", "cohort"), ("n tumor", "n_tumor_samples"),
+                               ("n normal", "n_normal_samples")],
     "protein-abundance-celline": [("Class", "protein_expression_class")],
     "tumor-elevation-breadth": [("Breadth", "tumor_elevation_breadth_class"),
                                 ("Protein K/N", "n_cohorts_elevated"), ("RNA K/N", "rna_n_indications_elevated")],

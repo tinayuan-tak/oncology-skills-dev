@@ -47,6 +47,15 @@ CARDS = [
                                                 # Composed so it RUNS; it feeds a CONFIDENCE ANNOTATION only
                                                 # (dependency_confidence_note), NEVER the verdict/resolver.
                                                 # predictability is about a dependency call, not a call itself.
+    "expression-dependency-correlation",        # Gate-C biomarker facet (2026-07-22): "expression
+                                                # predicts dependency" (patient-selection). Was ORPHANED —
+                                                # present in target-profile's render maps (title/role/
+                                                # reports_into) + has a live dispatcher, but was in NO
+                                                # sub-skill CARDS, so correlation_class never computed +
+                                                # rendered empty. Render-only facet (its expression-biomarker-*
+                                                # rules feed NO resolver — verdict-inert), grouped with the
+                                                # dependency stratification facets. Also added to
+                                                # target-profile SUB_SKILL_CARDS[functional-requirement].
 ]
 
 # The verdicts that ARE a real dependency call (positive or veto) — the ones a predictability
