@@ -2834,3 +2834,77 @@ rules:
     rationale: |
       No per-sample tumor expression or no ABSOLUTE purity for this (target, indication). Coverage
       gap; not used as opposing evidence.
+
+  # ============================================================================
+  # EXPRESSION CLINICAL ASSOCIATION (Q11 — does expression stratify survival?) — 2026-07-23
+  # ============================================================================
+  # Median-split OS log-rank by target expression. A PROGNOSTIC-context signal on the biology axis.
+  # HYPOTHESIS-GENERATING (univariate/unadjusted), so signals are MODEST — a prognostic association is
+  # a confidence/context qualifier + biomarker-facet input, NEVER a primary driver and never a killer
+  # (survival is stage-dominated; a single-gene split needs multivariable + orthogonal validation).
+  - rule_id: clinical-high-worse-survival-supportive
+    when:
+      card_id: expression-clinical-association
+      field: survival_association_class
+      equals: expression_high_worse_survival
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      High target expression associates with WORSE overall survival (significant median-split
+      log-rank). A candidate POOR-PROGNOSIS / more-aggressive-disease marker — mildly SUPPORTIVE: it
+      strengthens the disease-relevance + patient-selection rationale (target-high patients have worse
+      outcomes, the population that most needs a therapy). Univariate/exploratory (see caveats), a
+      confidence qualifier + biomarker-facet input, not a primary driver.
+
+  - rule_id: clinical-high-better-survival-neutral
+    when:
+      card_id: expression-clinical-association
+      field: survival_association_class
+      equals: expression_high_better_survival
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      High target expression associates with BETTER overall survival (significant). A CAUTION for the
+      prognostic rationale — the target may mark INDOLENT disease, so a target-high population is not
+      obviously the highest-unmet-need group. Neutral (NOT opposing — expression-survival direction
+      does not determine druggability); a context flag for patient-selection framing, read alongside
+      dependency + genomic evidence.
+
+  - rule_id: clinical-no-survival-association-neutral
+    when:
+      card_id: expression-clinical-association
+      field: survival_association_class
+      equals: no_survival_association
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target expression does not significantly stratify overall survival in this indication. No
+      prognostic signal from this axis — neutral (a target can be a valid dependency / antigen without
+      a prognostic expression association; survival is stage-dominated).
+
+  - rule_id: clinical-insufficient-survival-data-insufficient
+    when:
+      card_id: expression-clinical-association
+      field: survival_association_class
+      equals: insufficient_survival_data
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Too few deaths (events) or too small per-expression arms for a meaningful log-rank. Coverage /
+      power gap, not opposing evidence.
+
+  - rule_id: clinical-survival-data-unavailable-insufficient
+    when:
+      card_id: expression-clinical-association
+      field: survival_association_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No per-sample tumor expression or no TCGA-CDR survival for this (target, indication). Coverage
+      gap; not used as opposing evidence.
