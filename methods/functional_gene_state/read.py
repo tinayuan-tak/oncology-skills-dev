@@ -40,6 +40,11 @@ DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
 # Standard PanCanAtlas threshold: beta > 0.3 = promoter hypermethylated (silenced).
 _RRBS_METH_THRESHOLD = 0.30
 
+# HM450 derived product (Phase-2b patient-side methylation).
+# Pre-aggregated gene × 3-field-patient parquet; gated on source pull + aggregate_hm450_promoter.py.
+HM450_PROMOTER_KEY = ("data-catalog/derived/pancanatlas-hm450-promoter-methylation/v1/"
+                      "promoter_methylation.parquet")
+
 # framework indication → TCGA project code(s) used in merged_sample_quality_annotations `cancer type`
 # (mirrors gdc_somatic_hotspot's INDICATION_TO_PROJECTS, minus the "TCGA-" prefix which this table omits).
 INDICATION_TO_TCGA = {
@@ -199,6 +204,8 @@ def _read_patient_arm(target: str, indication: str) -> dict:
         return {"_arm": "patient", "state": "data_unavailable", "_note": "MC3 read failed"}
     segs = _absolute_segments_cached()
     gistic = _read_gistic_gene(target)
+    # Phase-2b: HM450 promoter methylation per patient (empty dict = parquet not yet available).
+    methylation = _read_patient_methylation(target, indication)
 
     # mutation set for this gene, restricted to the indication's patients.
     mc3 = mc3.copy()
@@ -250,7 +257,21 @@ def _read_patient_arm(target: str, indication: str) -> dict:
 
         ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class,
                             loh_at_locus=loh, mutation_is_lof=mut_is_lof)
-        states.append(classify_functional_state(ev))
+        genetic_state = classify_functional_state(ev)
+
+        # Phase-2b methylation upgrade: same rules as model side.
+        is_methylated: Optional[bool] = methylation.get(patient)  # None = not in HM450 parquet
+        if is_methylated is True:
+            if genetic_state == "wt":
+                state = "epigenetic"
+            elif genetic_state == "monoallelic":
+                state = "biallelic+epigenetic"
+            else:
+                state = genetic_state  # biallelic-genetic / uncertain: genetic wins
+        else:
+            state = genetic_state
+
+        states.append(state)
 
     summ = summarize_states(states)
     # mutation-presence fraction (ADDITIVE — independent of the allele-count state_counts). Needed by
@@ -264,7 +285,8 @@ def _read_patient_arm(target: str, indication: str) -> dict:
                  "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
                  "tcga_projects": list(cancer_types),
                  "loh_source": "pancanatlas_absolute_point_in_interval",
-                 "cn_source": "gistic_thresholded_per_gene"})
+                 "cn_source": "gistic_thresholded_per_gene",
+                 "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None})
     return summ
 
 
@@ -357,6 +379,31 @@ def _read_model_methylation(target: str) -> dict:
         if model_id:
             out[model_id] = bool(val > _RRBS_METH_THRESHOLD)
     return out
+
+
+@lru_cache(maxsize=32)
+def _read_patient_methylation(target: str, indication: str) -> dict:
+    """{patient_barcode: is_methylated (bool)} for `target` from the HM450 derived parquet.
+
+    Returns {} if the derived parquet is not yet available (Phase-2b gated on pull + aggregation).
+    Graceful degradation: when the parquet is absent, _read_patient_arm behaves as Phase-2a
+    (genetic states only), with no silent failure or exception propagation.
+
+    The `indication` parameter is NOT used for filtering here — the derived parquet spans all
+    TCGA cancer types. Filtering to indication-specific patients is done at join time in
+    _read_patient_arm via `ind_patients`. The parameter is included in the cache key for
+    clarity and to reserve future per-indication scoping without cache invalidation.
+    """
+    import pandas as pd
+    try:
+        raw = _s3_read_bytes(HM450_PROMOTER_KEY)
+        df = pd.read_parquet(io.BytesIO(raw))
+        sub = df[(df["gene_symbol"] == target.upper()) &
+                 (df["is_promoter_methylated"].notna())]
+        return {str(row.patient_barcode): bool(row.is_promoter_methylated)
+                for row in sub.itertuples(index=False)}
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
@@ -489,7 +536,7 @@ def read_functional_gene_state(target: str, indication: str) -> dict:
         "patient": patient,
         "model": model,
         "functional_state_class": headline,
-        "vocabulary_phase": "genetic_epigenetic_model_phase2a",
+        "vocabulary_phase": "genetic_epigenetic_full_phase2b",
     }
 
 

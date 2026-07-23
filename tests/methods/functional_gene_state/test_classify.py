@@ -149,3 +149,138 @@ def test_methylation_state_upgrade_logic():
     assert result["ACH-C"]["state"] == "biallelic+epigenetic"  # monoallelic + methylated → biallelic
     assert result["ACH-B"]["is_methylated"] is True
     assert result["ACH-A"]["is_methylated"] is True
+
+
+def test_patient_methylation_upgrade_logic():
+    """Phase-2b: patient-arm methylation upgrade via _read_patient_arm — no S3, fixture patches."""
+    import pandas as pd
+    from methods.functional_gene_state import read as fgs_read
+
+    # Fixture patients: P-A, P-B, P-C, P-D (one per upgrade scenario)
+    # P-A: wt genetic + methylated → epigenetic
+    # P-B: monoallelic (GISTIC loss, no mutation) + methylated → biallelic+epigenetic
+    # P-C: biallelic-genetic (homdel) + methylated → biallelic-genetic (genetic wins)
+    # P-D: wt genetic + NOT methylated → wt (no regression)
+
+    def _mc3(_t):
+        # No mutations — all patients classified by CN only
+        return pd.DataFrame(columns=["Hugo_Symbol", "Variant_Classification",
+                                     "Tumor_Sample_Barcode", "Chromosome", "Start_Position"])
+
+    def _gistic(_t):
+        # P-A: neutral (GISTIC 0), P-B: loss (GISTIC -1), P-C: homdel (GISTIC -2), P-D: neutral
+        # Keys are aliquot barcodes (truncated to patient in the arm)
+        return {
+            "TCGA-01-AAAA-01": 0,   # P-A: neutral
+            "TCGA-02-BBBB-01": -1,  # P-B: single-copy loss
+            "TCGA-03-CCCC-01": -2,  # P-C: homozygous deletion
+            "TCGA-04-DDDD-01": 0,   # P-D: neutral
+        }
+
+    def _sample_ct():
+        # map patient barcodes → cancer type matching the indication
+        return {
+            "TCGA-01-AAAA": "KIRC",
+            "TCGA-02-BBBB": "KIRC",
+            "TCGA-03-CCCC": "KIRC",
+            "TCGA-04-DDDD": "KIRC",
+        }
+
+    def _segs_cached():
+        return None  # no ABSOLUTE segments; LOH will be None for all patients
+
+    def _meth(_t, _ind):
+        return {
+            "TCGA-01-AAAA": True,   # P-A: methylated
+            "TCGA-02-BBBB": True,   # P-B: methylated
+            "TCGA-03-CCCC": True,   # P-C: methylated (but genetic already biallelic)
+            # P-D deliberately absent → is_methylated = None → no upgrade
+        }
+
+    orig_mc3 = fgs_read._read_mc3_gene
+    orig_gistic = fgs_read._read_gistic_gene
+    orig_sct = fgs_read._load_sample_cancer_types
+    orig_segs = fgs_read._absolute_segments_cached
+    orig_meth = fgs_read._read_patient_methylation
+    # clear lru_cache on the functions we're replacing
+    fgs_read._load_sample_cancer_types.cache_clear()
+    fgs_read._absolute_segments_cached.cache_clear()
+
+    try:
+        fgs_read._read_mc3_gene = _mc3
+        fgs_read._read_gistic_gene = _gistic
+        fgs_read._load_sample_cancer_types = _sample_ct
+        fgs_read._absolute_segments_cached = _segs_cached
+        fgs_read._read_patient_methylation = _meth
+
+        result = fgs_read._read_patient_arm("TESTGENE", "KIRC")
+    finally:
+        fgs_read._read_mc3_gene = orig_mc3
+        fgs_read._read_gistic_gene = orig_gistic
+        fgs_read._load_sample_cancer_types = orig_sct
+        fgs_read._absolute_segments_cached = orig_segs
+        fgs_read._read_patient_methylation = orig_meth
+        fgs_read._load_sample_cancer_types.cache_clear()
+        fgs_read._absolute_segments_cached.cache_clear()
+
+    counts = result["state_counts"]
+    assert counts["epigenetic"] == 1,          "P-A: wt + meth → epigenetic"
+    assert counts["biallelic+epigenetic"] == 1, "P-B: monoallelic + meth → biallelic+epigenetic"
+    assert counts["biallelic-genetic"] == 1,    "P-C: homdel + meth → biallelic-genetic (genetic wins)"
+    assert counts["wt"] == 1,                   "P-D: neutral + no meth → wt"
+    assert result["methylation_source"] == "pancanatlas_hm450_promoter_v1"
+
+
+def test_patient_methylation_graceful_degradation():
+    """When HM450 parquet is unavailable (_read_patient_methylation returns {}), states are unchanged."""
+    import pandas as pd
+    from methods.functional_gene_state import read as fgs_read
+
+    def _mc3(_t):
+        return pd.DataFrame(columns=["Hugo_Symbol", "Variant_Classification",
+                                     "Tumor_Sample_Barcode", "Chromosome", "Start_Position"])
+
+    def _gistic(_t):
+        return {"TCGA-01-AAAA-01": 0, "TCGA-02-BBBB-01": -1}
+
+    def _sample_ct():
+        return {"TCGA-01-AAAA": "KIRC", "TCGA-02-BBBB": "KIRC"}
+
+    def _segs_cached():
+        return None
+
+    def _no_meth(_t, _ind):
+        return {}  # parquet not available
+
+    orig_mc3 = fgs_read._read_mc3_gene
+    orig_gistic = fgs_read._read_gistic_gene
+    orig_sct = fgs_read._load_sample_cancer_types
+    orig_segs = fgs_read._absolute_segments_cached
+    orig_meth = fgs_read._read_patient_methylation
+    fgs_read._load_sample_cancer_types.cache_clear()
+    fgs_read._absolute_segments_cached.cache_clear()
+
+    try:
+        fgs_read._read_mc3_gene = _mc3
+        fgs_read._read_gistic_gene = _gistic
+        fgs_read._load_sample_cancer_types = _sample_ct
+        fgs_read._absolute_segments_cached = _segs_cached
+        fgs_read._read_patient_methylation = _no_meth
+
+        result = fgs_read._read_patient_arm("TESTGENE", "KIRC")
+    finally:
+        fgs_read._read_mc3_gene = orig_mc3
+        fgs_read._read_gistic_gene = orig_gistic
+        fgs_read._load_sample_cancer_types = orig_sct
+        fgs_read._absolute_segments_cached = orig_segs
+        fgs_read._read_patient_methylation = orig_meth
+        fgs_read._load_sample_cancer_types.cache_clear()
+        fgs_read._absolute_segments_cached.cache_clear()
+
+    counts = result["state_counts"]
+    # No methylation data → pure genetic states, no epigenetic upgrades
+    assert counts.get("epigenetic", 0) == 0
+    assert counts.get("biallelic+epigenetic", 0) == 0
+    assert counts["wt"] == 1      # P-A: neutral, no mutation → wt
+    assert counts["monoallelic"] == 1  # P-B: single-copy loss, no mutation → monoallelic
+    assert result["methylation_source"] is None
