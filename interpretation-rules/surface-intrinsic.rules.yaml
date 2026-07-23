@@ -760,6 +760,70 @@ rules:
       Copy-number-neutral across the panel — no dosage argument either way for surface antigen
       density. Neutral; the antigen-presence call rests on the protein/expression cards, not CN.
 
+  # ============================================================================
+  # CROSS-MODALITY INTERPRETATION MATRIX — surface reads of the genomic driver ROLE — 2026-07-23
+  # ============================================================================
+  # (modality-specific-interpretation plan, Bucket A.) The SAME alteration-role fact reads DIFFERENTLY
+  # per modality. The intracellular axis already carries its SM/degrader read (alteration-role-gof-
+  # driver-supportive / -lof-driver-neutral, resolver-wired). These add the SURFACE-axis reads that
+  # were MISSING — so an activating/LoF driver isn't silently mute on the biologics lenses. NEW
+  # rule_ids (modality-matrix-*) DISTINCT from the resolver-wired alteration-role-*/cn-* ids → NO
+  # resolver rung references them → verdict spine byte-stable (signal-only, feeds the modality gate).
+  # modality_importance encodes the spec's Critical/Important/Secondary weights per channel.
+  #
+  # SCOPE (3 LIVE alteration-classes only): activating-mutation + loss-of-function keyed here on
+  # alteration-role.functional_direction; AMPLIFICATION's surface read already exists
+  # (cn-amplified-surface-antigen-supportive, P4). The other matrix rows are BLOCKED on absent
+  # substrate and deliberately NOT encoded (a rule would only ever fire data_unavailable):
+  #   - FUSION: fusion-rearrangement-landscape is a placeholder (data_unavailable only) — unblocks
+  #     when the cBioPortal SV ingestion lands (genomic plan).
+  #   - PROMOTER METHYLATION: functional-gene-state is genetic-only (Phase 1); epigenetic states are
+  #     Phase 2, gated on patient TCGA/GDC methylation (not landed).
+  #   - RESISTANCE MUTATION: no card emits a resistance-substitution class yet.
+  #   - PARALOG del/silencing: paralog-buffering carries buffering, not a del/silencing class.
+  - rule_id: modality-matrix-activating-role-surface-neutral
+    when:
+      card_id: alteration-role
+      field: functional_direction
+      equals: activating
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Target is an ACTIVATING driver (GoF). This is the classic SM-inhibitor / degrader story (carried
+      on the intracellular axis) — but activation ALONE says nothing about SURFACE accessibility, which
+      is what the biologics lenses need. NEUTRAL for adc/bite_tce/antibody: an activating mutation in an
+      INTRACELLULAR driver is not a surface antigen (you cannot ADC/TCE-engage a cytoplasmic kinase's
+      activation). Secondary importance — the surface-viability call rests on topology/abundance, not
+      the driver direction; this rule prevents the GoF signal from being mistaken as a biologics plus.
+
+  - rule_id: modality-matrix-lof-role-surface-antigen-loss-opposing
+    when:
+      card_id: alteration-role
+      field: functional_direction
+      equals: loss_of_function
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Target is a LOSS-OF-FUNCTION driver (tumor suppressor). For antibody-based modalities this is a
+      CAUTION toward OPPOSING: LoF alterations frequently ELIMINATE the protein (nonsense/frameshift/
+      deletion) → antigen LOSS → the biologic has no target to bind (an antigen-loss resistance mode).
+      NOT a hard killer (some LoF is missense-retaining protein, and residual/wild-type-allele antigen
+      may persist), but the default surface read of an LoF driver is unfavorable. Important importance —
+      antigen presence is a Critical prerequisite for a biologic, and LoF directly threatens it.
+      Contrast the intracellular axis, where LoF routes to the synthetic-lethality / SM story.
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
