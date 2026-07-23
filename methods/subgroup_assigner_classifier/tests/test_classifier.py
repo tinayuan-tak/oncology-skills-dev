@@ -5,6 +5,7 @@ test_single_gene_threshold: unit test — DLL3-high threshold correctly classifi
 test_e2e_napy_synthetic_depmap: E2E with synthetic DepMap expression + SCLC catalog.
 """
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -72,26 +73,28 @@ def test_single_gene_threshold():
 
 def test_e2e_napy_synthetic_depmap(tmp_path):
     """End-to-end: synthetic DepMap expression + SCLC catalog + NAPY config."""
-    # Fabricate a DepMap-shaped expression matrix
-    cache = Path.home() / ".cache" / "framework-depmap-26q1"
+    # Stage fixture under tmp_path/.cache (not the real ~/.cache) via FRAMEWORK_CACHE_ROOT.
+    cache = tmp_path / ".cache" / "framework-depmap-26q1"
     cache.mkdir(parents=True, exist_ok=True)
     exp_path = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
 
-    # 8 cell lines: 2 each dominant in A/N/P/Y
-    rng = np.random.default_rng(42)
+    # 8 cell lines: 2 each dominant in A/N/P/Y.
+    # Column format mirrors the real DepMap 26Q1 file: 'SYMBOL (EntrezID)', plus
+    # ModelID + IsDefaultEntryForModel metadata columns.
     n = 8
+    model_ids = [f"ACH-{i:06d}" for i in range(n)]
     exp_df = pd.DataFrame(
         {
-            "ASCL1":   [10, 10, 1, 1, 1, 1, 1, 1],
-            "NEUROD1": [1, 1, 10, 10, 1, 1, 1, 1],
-            "POU2F3":  [1, 1, 1, 1, 10, 10, 1, 1],
-            "YAP1":    [1, 1, 1, 1, 1, 1, 10, 10],
-            "DLL3":    [8, 8, 8, 8, 1, 1, 1, 1],  # NE-high (A/N) have high DLL3
+            "ModelID":               model_ids,
+            "IsDefaultEntryForModel": ["Yes"] * n,
+            "ASCL1 (429)":           [10, 10, 1, 1, 1, 1, 1, 1],
+            "NEUROD1 (4760)":        [1, 1, 10, 10, 1, 1, 1, 1],
+            "POU2F3 (25833)":        [1, 1, 1, 1, 10, 10, 1, 1],
+            "YAP1 (10413)":          [1, 1, 1, 1, 1, 1, 10, 10],
+            "DLL3 (10683)":          [8, 8, 8, 8, 1, 1, 1, 1],
         },
-        index=[f"ACH-{i:06d}" for i in range(n)],
     )
-    exp_df.index.name = "ModelID"
-    exp_df.to_csv(exp_path)
+    exp_df.to_csv(exp_path, index=False)
 
     catalog_path = CATALOG_REPO / "subgroup-catalogs" / "SCLC" / "2026-Q3.yaml"
     if not catalog_path.exists():
@@ -111,6 +114,7 @@ def test_e2e_napy_synthetic_depmap(tmp_path):
             "--out", str(out_dir),
         ],
         cwd=METHODS_REPO, capture_output=True, text=True,
+        env={**os.environ, "FRAMEWORK_CACHE_ROOT": str(tmp_path / ".cache")},
     )
     assert result.returncode == 0, f"CLI failed: {result.stderr}\nstdout:\n{result.stdout}"
 
@@ -145,5 +149,8 @@ def test_e2e_napy_synthetic_depmap(tmp_path):
     # NB: classifier_config_ref is intentionally NOT on the manifest (schema has
     # unevaluatedProperties:false + no such field). Config lineage → input_manifest_ids.
     assert "classifier_config_ref" not in manifest
+    # NAPY config covers SCLC_A/N/P/Y only (DLL3_high is single_gene_zscore_threshold,
+    # skipped by method filter — requires a separate dll3-high config invocation)
     strata = {s["subgroup_id"] for s in manifest["strata_summary"]}
     assert strata >= {"SCLC_A", "SCLC_N", "SCLC_P", "SCLC_Y"}
+    assert "DLL3_high" not in strata
