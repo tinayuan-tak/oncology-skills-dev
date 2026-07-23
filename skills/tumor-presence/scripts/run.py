@@ -47,6 +47,12 @@ CARDS = [
                                         # render facet — its purity_confound_class + rules feed NO
                                         # resolver ladder (presence verdict byte-stable). The ADC/TCE
                                         # antigen-reality (modality-gate) facet is DEFERRED to P4.
+    "phospho-pathway-activity",         # Q8 (2026-07-23) — target biology at the PHOSPHO level (CPTAC
+                                        # phosphoproteomics): is it phosphorylated (pathway-activity
+                                        # proxy) beyond total abundance? The sharpest presence signal
+                                        # for kinases/signaling. ADDITIVE render facet — phospho_activity_class
+                                        # + rules feed NO resolver (presence verdict byte-stable). Same
+                                        # (bulk_protein_ms, tumor) bucket as protein-presence-cptac.
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -78,6 +84,7 @@ CARD_CONTEXT = {
     "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
+    "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as protein-presence-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
 }
 
 
@@ -306,6 +313,9 @@ def _headline(cards, fired, verdict_pair):
         # (render facet; does NOT feed the presence verdict — additive, spine byte-stable)
         "purity_confound_class":    _get("expression-purity-confound", "purity_confound_class"),
         "expression_purity_pearson_r": _get("expression-purity-confound", "expression_purity_pearson_r"),
+        # Q8 phospho pathway activity — protein/pathway-level presence (render facet, byte-stable)
+        "phospho_activity_class":   _get("phospho-pathway-activity", "phospho_activity_class"),
+        "n_phosphosites":           _get("phospho-pathway-activity", "n_phosphosites"),
     }
 
 

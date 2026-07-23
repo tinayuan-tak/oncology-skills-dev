@@ -38,6 +38,7 @@ composition:
     - tumor-expression-distribution         # Q1 per-sample tumor RNA distribution (was run.py-present, doc-stale)
     - tumor-expression-distribution-subtype # Q1 subtype-grain panorama (was run.py-present, doc-stale)
     - expression-purity-confound            # Q9 (2026-07-23): purity-confound caveat — tumor-intrinsic vs microenvironment (render facet)
+    - phospho-pathway-activity              # Q8 (2026-07-23): CPTAC phospho pathway-activity — phospho-level presence for kinases/signaling (render facet)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
@@ -53,6 +54,7 @@ composition:
     - tumor_elevation_breadth
     - tumor_expression_distribution
     - expression_purity_confound
+    - phospho_pathway_activity
   rules_scope:
     - expression-distribution
     - expression-tumor-vs-adjacent

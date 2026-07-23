@@ -1121,6 +1121,32 @@ def _emit_expression_clinical_association(
     ]
 
 
+def _emit_phospho_pathway_activity(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the phospho-pathway-activity figure (Q8): activity class + top phosphosites. Gated on the
+    target being a phosphoprotein with data (not_phosphoprotein / data_unavailable → []). On
+    _live_read_error → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary:
+        return []
+    cls = summary.get("phospho_activity_class")
+    if cls in (None, "data_unavailable", "not_phosphoprotein"):
+        return []
+    _ensure_methods_path()
+    from methods.phospho_pathway_activity import cli as ppa
+    out_dir.mkdir(parents=True, exist_ok=True)
+    svg = ppa.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
+    if svg is None:
+        return []
+    return [
+        {"id": "phospho_pathway_activity_card",
+         "path": "figure_phospho_pathway_activity.svg",
+         "type": "phospho_pathway_activity_card", "primary": True},
+    ]
+
+
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-expression-distribution": _emit_tumor_expression_distribution,
     "alteration-role": _emit_alteration_role,
@@ -1129,6 +1155,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "abundance-dependency": _emit_abundance_dependency,
     "expression-purity-confound": _emit_expression_purity_confound,
     "expression-clinical-association": _emit_expression_clinical_association,
+    "phospho-pathway-activity": _emit_phospho_pathway_activity,
     "tumor-vs-normal-percentile-crossing": _emit_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,
