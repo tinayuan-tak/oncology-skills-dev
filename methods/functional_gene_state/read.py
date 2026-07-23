@@ -31,6 +31,15 @@ GISTIC_KEY = f"{PANCAN_PREFIX}/all_thresholded.by_genes_whitelisted.tsv"
 SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
 DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
 
+# CCLE 2019 RRBS methylation (model side, Phase-2 epigenetic arm).
+# Rows = TSS-1kb windows; locus_id = GENESYMBOL_CHR_START_END.
+# Columns 0-2 are meta (locus_id, CpG_sites_hg19, avg_coverage); rest are CELLLINENAME_TISSUE.
+# Values are fractional methylation beta ∈ [0,1]; NaN = not measured in that cell line.
+CCLE_RRBS_KEY = "data-catalog/sources/depmap-consortium/dmc-ccle-2019/CCLE_RRBS_TSS1kb_20181022.txt.gz"
+DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
+# Standard PanCanAtlas threshold: beta > 0.3 = promoter hypermethylated (silenced).
+_RRBS_METH_THRESHOLD = 0.30
+
 # framework indication → TCGA project code(s) used in merged_sample_quality_annotations `cancer type`
 # (mirrors gdc_somatic_hotspot's INDICATION_TO_PROJECTS, minus the "TCGA-" prefix which this table omits).
 INDICATION_TO_TCGA = {
@@ -277,6 +286,79 @@ def _abs_sample_key(mc3_barcode: str, segs) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Model arm (DepMap 26q1)
 # ─────────────────────────────────────────────────────────────────────────────
+@lru_cache(maxsize=1)
+def _load_ccle_colname_to_model_id() -> dict:
+    """{CCLE_column_name_upper: ModelID} from DepMap Model.csv.
+
+    RRBS columns are CELLLINENAME_TISSUE (e.g. 'DMS53_LUNG'). Model.csv has
+    CellLineName (e.g. 'DMS53') and ModelID (e.g. 'ACH-000001'). We build
+    CELLLINENAME_upper → ModelID so RRBS columns can be resolved to ModelIDs.
+    Returns empty dict on failure (data_unavailable-safe).
+    """
+    import pandas as pd
+    try:
+        raw = _s3_read_bytes(DEPMAP_MODEL_KEY)
+        df = pd.read_csv(io.BytesIO(raw), usecols=["ModelID", "CellLineName"])
+        return {str(row.CellLineName).upper(): str(row.ModelID)
+                for row in df.itertuples(index=False)
+                if pd.notna(row.CellLineName) and pd.notna(row.ModelID)}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _read_model_methylation(target: str) -> dict:
+    """{ModelID: is_methylated (bool)} for `target` from CCLE RRBS TSS-1kb file.
+
+    Algorithm:
+      1. Stream the gzipped TSS-1kb matrix, filter rows where locus_id starts
+         with 'TARGET_' (gene prefix match — one gene may have multiple windows).
+      2. For each matching row, read all cell-line columns as floats.
+      3. Per cell line, take min beta across all matching windows (most-methylated
+         wins — conservative: if ANY promoter window is hypermethylated, the gene
+         is silenced). NaN-only → no data for that cell line.
+      4. Threshold: beta > _RRBS_METH_THRESHOLD (0.30) → methylated = True.
+      5. Map CELLLINENAME_TISSUE column names → ModelID via Model.csv CellLineName.
+
+    Returns {ModelID: bool}. Empty dict when target has no RRBS loci or S3 fails.
+    """
+    import gzip
+    import pandas as pd
+
+    gene_prefix = target.upper() + "_"
+    col_to_model = _load_ccle_colname_to_model_id()
+    if not col_to_model:
+        return {}
+
+    try:
+        raw_bytes = _s3_read_bytes(CCLE_RRBS_KEY)
+        with gzip.GzipFile(fileobj=io.BytesIO(raw_bytes)) as gz:
+            df = pd.read_csv(gz, sep="\t", dtype=str)
+    except Exception:  # noqa: BLE001
+        return {}
+
+    gene_rows = df[df["locus_id"].str.startswith(gene_prefix, na=False)]
+    if gene_rows.empty:
+        return {}
+
+    meta_cols = {"locus_id", "CpG_sites_hg19", "avg_coverage"}
+    sample_cols = [c for c in gene_rows.columns if c not in meta_cols]
+    beta = gene_rows[sample_cols].apply(pd.to_numeric, errors="coerce")
+
+    # min across windows per cell line (NaN if all windows are NaN for that line)
+    min_beta = beta.min(axis=0)
+
+    out: dict = {}
+    for col, val in min_beta.items():
+        if pd.isna(val):
+            continue
+        # col = 'CELLLINENAME_TISSUE'; strip tissue suffix to get cell-line name
+        cell_line = col.split("_")[0].upper()
+        model_id = col_to_model.get(cell_line)
+        if model_id:
+            out[model_id] = bool(val > _RRBS_METH_THRESHOLD)
+    return out
+
+
 def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
     """{ModelID: bool} for `target` from a DepMap model×gene boolean matrix. Empty on failure.
     Columns are 'SYMBOL (entrez)'; the first 5 cols are ID metadata."""
@@ -323,30 +405,49 @@ def _depmap_cn_class(rel_cn: Optional[float]) -> Optional[str]:
 
 
 def read_model_states_per_model(target: str) -> dict:
-    """PUBLIC per-model accessor (added for M11 genomic_event_model_match): the DepMap 26q1
-    functional gene state of `target` in EACH cell line, keyed by ModelID.
+    """PUBLIC per-model accessor: the DepMap 26q1 functional gene state of `target` per cell line.
 
-    Returns {ModelID: {state, cn_class, has_mutation, mutation_is_lof}} — the per-model rows the
-    aggregate model arm rolls up. Empty dict when the target is absent from all model substrate.
+    Returns {ModelID: {state, cn_class, has_mutation, mutation_is_lof, is_methylated}} — the
+    per-model rows the aggregate model arm rolls up. Empty dict when absent from all substrate.
+
+    Phase-2 methylation (CCLE RRBS TSS-1kb): when a cell line has no genetic hit (wt by genetic
+    evidence alone) but is_methylated=True, state is upgraded to 'epigenetic'. When a cell line
+    has a genetic hit AND is methylated, state is upgraded to 'biallelic+epigenetic'. Models not
+    covered by RRBS receive is_methylated=None (data_unavailable for that modality).
+
     Model-side LOH is genome-wide only (loh_at_locus=None) → copy-neutral mutations resolve
-    `uncertain` (the documented model caveat). Downstream consumers (M11) join this against Chronos
-    + lineage; the aggregate _read_model_arm below is a pure roll-up of these same rows."""
+    `uncertain` (documented model caveat). Downstream consumers (M11) join against Chronos + lineage.
+    """
     damaging = _read_depmap_mut_matrix("OmicsSomaticMutationsMatrixDamaging.csv", target)
     hotspot = _read_depmap_mut_matrix("OmicsSomaticMutationsMatrixHotspot.csv", target)
     cn = _read_depmap_cn(target)
+    methylation = _read_model_methylation(target)  # {} if RRBS unavailable — safe
     if not damaging and not hotspot and not cn:
         return {}
 
     out: dict = {}
     for m in sorted(set(damaging) | set(hotspot) | set(cn)):
         has_mut = bool(damaging.get(m) or hotspot.get(m))
-        # a damaging call is LoF-class; a hotspot-only call is treated as non-LoF (activating-ish).
         mut_is_lof = bool(damaging.get(m)) if has_mut else None
         cn_class = _depmap_cn_class(cn.get(m))
+        is_methylated: Optional[bool] = methylation.get(m)  # None if not in RRBS
+
         ev = SampleEvidence(has_mutation=has_mut, cn_class=cn_class,
                             loh_at_locus=None, mutation_is_lof=mut_is_lof)
-        out[m] = {"state": classify_functional_state(ev), "cn_class": cn_class,
-                  "has_mutation": has_mut, "mutation_is_lof": mut_is_lof}
+        genetic_state = classify_functional_state(ev)
+
+        # Phase-2 methylation upgrade: epigenetic silencing as a second-hit modality.
+        if is_methylated is True:
+            if genetic_state in ("wt", "monoallelic"):
+                state = "epigenetic" if genetic_state == "wt" else "biallelic+epigenetic"
+            else:
+                state = genetic_state  # already biallelic-genetic or uncertain; methylation redundant
+        else:
+            state = genetic_state
+
+        out[m] = {"state": state, "cn_class": cn_class,
+                  "has_mutation": has_mut, "mutation_is_lof": mut_is_lof,
+                  "is_methylated": is_methylated}
     return out
 
 
@@ -388,7 +489,7 @@ def read_functional_gene_state(target: str, indication: str) -> dict:
         "patient": patient,
         "model": model,
         "functional_state_class": headline,
-        "vocabulary_phase": "genetic_only_phase1",
+        "vocabulary_phase": "genetic_epigenetic_model_phase2a",
     }
 
 

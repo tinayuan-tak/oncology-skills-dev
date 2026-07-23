@@ -86,3 +86,66 @@ def test_summarize_empty():
     assert summ["n_samples"] == 0
     assert summ["fraction_biallelic"] is None
     assert summ["fraction_any_alteration"] is None
+
+
+# ── Phase-2 epigenetic states ────────────────────────────────────────────────
+def test_summarize_biallelic_epigenetic_counts_toward_biallelic_fraction():
+    # biallelic+epigenetic and biallelic-genetic both count as completed two-hit events
+    states = ["biallelic-genetic", "biallelic+epigenetic", "epigenetic", "wt"]
+    summ = summarize_states(states)
+    assert summ["state_counts"]["biallelic-genetic"] == 1
+    assert summ["state_counts"]["biallelic+epigenetic"] == 1
+    assert summ["state_counts"]["epigenetic"] == 1
+    assert summ["n_determinable"] == 4  # no uncertain
+    assert summ["fraction_biallelic"] == pytest.approx(2 / 4)
+
+
+def test_summarize_epigenetic_only_not_biallelic():
+    # pure epigenetic silencing (no genetic hit) is a hit but not biallelic inactivation
+    states = ["epigenetic", "wt", "wt"]
+    summ = summarize_states(states)
+    assert summ["fraction_biallelic"] == pytest.approx(0.0)
+    assert summ["fraction_any_alteration"] == pytest.approx(1 / 3)
+
+
+def test_methylation_state_upgrade_logic():
+    """Verify the Phase-2 upgrade rules directly (no S3) via read_model_states_per_model
+    monkey-patched to return fixture data."""
+    from methods.functional_gene_state import read as fgs_read
+
+    # Patch all four data-fetching functions with fixtures
+    def _damaging(_fn, _t):
+        return {"ACH-A": True, "ACH-B": False, "ACH-C": False}
+
+    def _cn(_t):
+        # ACH-A: has mutation + CN loss → biallelic-genetic (methylation is redundant)
+        # ACH-B: wt genetic, but methylated → epigenetic
+        # ACH-C: monoallelic (loss, no mutation) + methylated → biallelic+epigenetic
+        return {"ACH-A": 0.5,   # cn loss (between HOMDEL_MAX and LOSS_MAX)
+                "ACH-B": 0.9,   # neutral
+                "ACH-C": 0.5}   # cn loss
+
+    def _meth(_t):
+        return {"ACH-A": True, "ACH-B": True, "ACH-C": True}
+
+    orig_dam = fgs_read._read_depmap_mut_matrix
+    orig_hot = fgs_read._read_depmap_mut_matrix
+    orig_cn = fgs_read._read_depmap_cn
+    orig_meth = fgs_read._read_model_methylation
+
+    try:
+        fgs_read._read_depmap_mut_matrix = _damaging
+        fgs_read._read_depmap_cn = _cn
+        fgs_read._read_model_methylation = _meth
+
+        result = fgs_read.read_model_states_per_model("TESTGENE")
+    finally:
+        fgs_read._read_depmap_mut_matrix = orig_dam
+        fgs_read._read_depmap_cn = orig_cn
+        fgs_read._read_model_methylation = orig_meth
+
+    assert result["ACH-A"]["state"] == "biallelic-genetic"    # genetic already biallelic; meth redundant
+    assert result["ACH-B"]["state"] == "epigenetic"            # wt genetic + methylated → epigenetic
+    assert result["ACH-C"]["state"] == "biallelic+epigenetic"  # monoallelic + methylated → biallelic
+    assert result["ACH-B"]["is_methylated"] is True
+    assert result["ACH-A"]["is_methylated"] is True

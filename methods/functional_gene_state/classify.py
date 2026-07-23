@@ -14,12 +14,14 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-# The Phase-1 genetic-only vocabulary. Phase 2 adds {"epigenetic", "biallelic+epigenetic"} once
-# patient methylation lands; consumers should treat this as an OPEN set (match known + pass through).
+# Phase-1 + Phase-2 vocabulary. Phase 2 adds epigenetic states (model-side RRBS landed;
+# patient-side HM450 pending). Consumers should treat this as an OPEN set.
 FUNCTIONAL_STATES = (
     "wt",
     "monoallelic",
     "biallelic-genetic",
+    "biallelic+epigenetic",
+    "epigenetic",
     "uncertain",
 )
 
@@ -95,10 +97,10 @@ def summarize_states(states: list[str]) -> dict:
     counts = {s: states.count(s) for s in FUNCTIONAL_STATES}
     # denominator for the biallelic fraction excludes `uncertain` (undeterminable, not "not biallelic")
     n_determinable = n - counts.get("uncertain", 0)
-    n_biallelic = counts.get("biallelic-genetic", 0)
-    # ANY alteration = everything that is not wild-type. `uncertain` samples DO carry a hit (uncertain
-    # only arises when a mutation is present but the 2nd-hit background can't be confirmed), so they
-    # count as altered — excluding them would undercount the gene's overall alteration frequency.
+    # biallelic = genetic OR epigenetic second-hit (both represent completed two-hit inactivation)
+    n_biallelic = counts.get("biallelic-genetic", 0) + counts.get("biallelic+epigenetic", 0)
+    # ANY alteration = everything that is not wild-type. `uncertain` + `epigenetic` + `monoallelic`
+    # all carry at least one hit, so they count as altered.
     n_any_hit = n - counts.get("wt", 0)
     return {
         "n_samples": n,
