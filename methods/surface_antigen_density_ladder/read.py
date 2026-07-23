@@ -37,7 +37,53 @@ from typing import Optional
 
 METHOD_VERSION = "0.3.0"
 
-CORPUS_PATH = Path(__file__).resolve().parent / "absolute_density_corpus.tsv"
+# The governed corpus is the SOURCE-OF-TRUTH object on S3 (data-catalog manifest
+# surface-antigen-absolute-density-curated-v1), NOT an in-repo copy — single source, no dual-home
+# drift. Read from S3 with a local cache + the definitive-vs-transient latch pattern (mirrors
+# cptac_protein_deg). Tests pass an explicit corpus_path to bypass S3.
+DEFAULT_AWS_PROFILE = "cbg"
+S3_BUCKET = "onc-compbio"
+SOURCE_MANIFEST_ID = "surface-antigen-absolute-density-curated-v1"
+CORPUS_S3_KEY = (
+    "data-catalog/sources/surface-antigen-absolute-density-curated-v1/"
+    "absolute_density_corpus.tsv"
+)
+CACHE_DIR = Path.home() / ".cache" / "framework-surface-density-ladder"
+CACHE_CORPUS = CACHE_DIR / "absolute_density_corpus.tsv"
+
+_CORPUS_STATUS: Optional[bool] = None
+
+
+def _boto3_client():
+    import boto3
+    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+
+
+def _ensure_corpus_cached() -> Optional[Path]:
+    """Download + cache the governed corpus from S3. Definitive-vs-transient latch: only a real
+    404/NoSuchKey latches _CORPUS_STATUS=False (product genuinely absent); a transient error
+    (403/expired creds/network) leaves it None so a later call retries. Returns the cache path or None."""
+    global _CORPUS_STATUS
+    if _CORPUS_STATUS is False:
+        return None
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if CACHE_CORPUS.exists() and CACHE_CORPUS.stat().st_size > 0:
+        _CORPUS_STATUS = True
+        return CACHE_CORPUS
+    if _CORPUS_STATUS is None:
+        try:
+            _boto3_client().download_file(S3_BUCKET, CORPUS_S3_KEY, str(CACHE_CORPUS))
+            _CORPUS_STATUS = True
+            return CACHE_CORPUS
+        except Exception as e:
+            resp = getattr(e, "response", None)
+            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
+            definitive = (code in ("404", "NoSuchKey")
+                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            if definitive:
+                _CORPUS_STATUS = False
+            return None
+    return None
 
 # --- schema v3 columns (superset; = the governed FINAL header) -------------------------------
 SCHEMA_V3_COLUMNS = (
@@ -191,9 +237,16 @@ def validate_row(row: dict) -> tuple[bool, Optional[str]]:
 
 
 def _load_corpus(corpus_path: Optional[Path] = None) -> list[dict]:
-    """Read the committed TSV → row dicts. Skips `#` comment lines. Empty if absent/header-only."""
-    path = Path(corpus_path) if corpus_path is not None else CORPUS_PATH
-    if not path.exists():
+    """Read the governed corpus TSV → row dicts. Skips `#` comment lines. Empty if absent.
+
+    Source of truth is the S3 object (cached locally); an explicit `corpus_path` overrides for tests.
+    Graceful-empty on S3-unavailable (data_unavailable, never a fabricated row) — matches every other
+    derived reader in the module family."""
+    if corpus_path is not None:
+        path: Optional[Path] = Path(corpus_path)
+    else:
+        path = _ensure_corpus_cached()
+    if path is None or not path.exists():
         return []
     with path.open(newline="", encoding="utf-8") as fh:
         lines = [ln for ln in fh if not ln.startswith("#")]

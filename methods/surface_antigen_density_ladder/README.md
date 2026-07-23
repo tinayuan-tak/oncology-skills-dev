@@ -8,6 +8,12 @@ surface-confirmation / relative-ranking / abundance **priors** (grades C/D), nev
 
 ## Status: POPULATED (schema v3, 2026-07-23). Governed dataset, 181 records.
 
+**Source of truth is on S3** (data-catalog manifest `surface-antigen-absolute-density-curated-v1`,
+`s3://onc-compbio/data-catalog/sources/surface-antigen-absolute-density-curated-v1/absolute_density_corpus.tsv`,
+md5 `12ef885f1d24068c2e41eda2b11de901`). The reader pulls + caches it (definitive-vs-transient latch,
+like the other derived readers) — **no in-repo copy**, single source, no dual-home drift. Tests use a
+committed fixture slice (`tests/.../fixture_corpus_slice.tsv`) via `corpus_path` for determinism.
+
 Every value is quoted from a primary table/supplement with a **resolvable DOI** (no bar-graph
 digitization). Domain-expert curated. 171 admissible numeric anchors + 8 explicit-negative status
 records + 2 fixed-cell method controls.
@@ -50,5 +56,6 @@ CAR-T-active. Absolute density is target-, model-, and format-dependent — the 
 spread instead of collapsing it.
 
 ## Governance
-No value is authored in code; the committed TSV is the governed artifact. To extend: add rows that
-pass `validate_row` (run `cli.py audit`), each a real measured datum with a DOI — or omit it.
+No value is authored in code; the S3 object (data-catalog `surface-antigen-absolute-density-curated-v1`)
+is the governed artifact. To extend: add rows that pass `validate_row` (run `cli.py audit`), each a real
+measured datum with a DOI — or omit it; re-upload to S3 + bump the manifest md5.

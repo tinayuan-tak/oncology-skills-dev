@@ -172,28 +172,35 @@ def test_empty_target_grade_e(tmp_path):
     assert d["value_best"] is None
 
 
-# --- integration against the REAL committed governed corpus --------------------------------------
-def test_committed_corpus_admissible_counts():
-    rows = r._load_corpus()
-    assert len(rows) >= 180, "governed corpus should be populated"
+# --- integration against a bundled slice of the GOVERNED corpus ----------------------------------
+# The governed corpus is the S3 source-of-truth (data-catalog surface-antigen-absolute-density-
+# curated-v1) — the reader pulls it from S3. To keep CI deterministic + offline, these integration
+# assertions run against a committed FIXTURE SLICE (70 real rows extracted from the corpus), passed
+# via corpus_path. The fixture is real data (not synthetic), so it exercises the true schema.
+FIXTURE = Path(__file__).resolve().parent / "fixture_corpus_slice.tsv"
+
+
+def test_fixture_slice_admissible_counts():
+    rows = r._load_corpus(corpus_path=FIXTURE)
+    assert len(rows) >= 60, "fixture slice should be populated"
     held = [(row["record_id"], r.validate_row(row)[1]) for row in rows if not r.validate_row(row)[0]]
-    # only the explicit negatives + fixed method-controls are held; everything else is a numeric anchor
+    # only explicit negatives (+ any method-controls) are held; everything else is a numeric anchor
     for _rid, reason in held:
         assert reason in ("explicit_negative_not_a_numeric_anchor",
                           "not_admissible_for_absolute_scale:no"), (_rid, reason)
 
 
-def test_committed_corpus_known_targets():
+def test_fixture_known_targets():
     # patient-grade hematologic anchors + cell-line solid-tumor anchors both resolve
-    cll = r.read_absolute_density("MS4A1", "CLL")           # CD20
+    cll = r.read_absolute_density("MS4A1", "CLL", corpus_path=FIXTURE)           # CD20
     assert cll["density_evidence_level"] == "A" and cll["n_patient"] == 28
-    egfr = r.read_absolute_density("EGFR", "NSCLC")
+    egfr = r.read_absolute_density("EGFR", "NSCLC", corpus_path=FIXTURE)
     assert egfr["density_evidence_level"] in ("B", "B-") and egfr["n_admissible_measurements"] >= 18
     # CD19 myeloma is the ultra-low patient anchor (grade A, low class)
-    cd19 = r.read_absolute_density("CD19", "MM")
+    cd19 = r.read_absolute_density("CD19", "MM", corpus_path=FIXTURE)
     assert cd19["density_evidence_level"] == "A" and cd19["absolute_density_class"] in ("low", "very_low")
 
 
-def test_committed_explicit_negatives():
-    assert len(r.read_explicit_negatives("CD19")) == 4
-    assert len(r.read_explicit_negatives("IL2RA")) == 4
+def test_fixture_explicit_negatives():
+    assert len(r.read_explicit_negatives("CD19", corpus_path=FIXTURE)) == 4
+    assert len(r.read_explicit_negatives("IL2RA", corpus_path=FIXTURE)) == 4
