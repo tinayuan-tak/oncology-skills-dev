@@ -331,10 +331,20 @@ def _evaluate_stratum_maf(
     samples with no MAF hits + no missing fields. `is_member=null` for
     samples missing from the MAF entirely (not evaluated in cohort). Rows
     with mixed False/None on required fields → False (any-hit wins).
-    """
-    predicate = compile_rule(stratum["rule"])
 
-    # Apply per-MAF-row predicate; collect samples with ≥1 True hit
+    SAMPLE-LEVEL NEGATION (`!(...)`): a wild-type stratum like KRAS-WT means the
+    SAMPLE carries no matching mutation — NOT that some row fails to match. A
+    row-level `!(...)` predicate is True for every non-KRAS row (a TP53 row is
+    "not a KRAS hotspot"), so any-hit aggregation would mark every mutated sample
+    a member. We instead detect the top-level negation, evaluate the INNER
+    predicate, and take the sample-level complement: member iff the sample has
+    ZERO inner-hit rows (across the assayed cohort).
+    """
+    rule = stratum["rule"].strip()
+    is_sample_negation = rule.startswith("!(") and rule.endswith(")")
+    predicate = compile_rule(rule[2:-1]) if is_sample_negation else compile_rule(rule)
+
+    # Apply the (possibly inner) per-MAF-row predicate; collect ≥1-True samples.
     maf_df = maf_df.copy()
     maf_df["_hit"] = maf_df.apply(predicate, axis=1)
 
@@ -353,8 +363,12 @@ def _evaluate_stratum_maf(
         sid = sample_row[sample_id_col]
         pid = sample_row.get(patient_id_col) if patient_id_col else None
         native = sample_row[native_id_col]
-        is_member = sid in hit_set
-        deriv_value = hit_lookup.get(sid, {}).get("_first_hit", "") if is_member else ""
+        has_inner_hit = sid in hit_set
+        # Sample-level negation inverts membership: WT = no inner-hit.
+        is_member = (not has_inner_hit) if is_sample_negation else has_inner_hit
+        # derivation_value only carries the matched variant for positive (hit)
+        # strata; a WT member has no matching variant to report.
+        deriv_value = hit_lookup.get(sid, {}).get("_first_hit", "") if (is_member and not is_sample_negation) else ""
         out_rows.append({
             "sample_id": sid,
             "patient_id": pid,

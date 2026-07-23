@@ -120,6 +120,24 @@ def test_cn_gistic_amp_threshold():
     assert AMP_THRESHOLD == 2
 
 
+def test_marker_paper_stad_esca_paad_subtype_sources():
+    """STAD subtype from pancan-curated (GI. strip); PAAD Moffitt from a per-cohort
+    numeric column; ESCA is pancan-only with histology-from-subtype."""
+    from scripts.prefetch_marker_paper import (
+        INDICATION_SUBTYPE_ENRICH, INDICATION_PERCOHORT_SUBTYPE, INDICATION_PANCAN_ONLY,
+    )
+    # STAD: 'GI.CIN' -> 'CIN' via prefix strip.
+    assert INDICATION_SUBTYPE_ENRICH["STAD"] == ("stad_subtype", "STAD", "GI.")
+    # PAAD Moffitt: numeric-coded per-cohort column → basal-like/classical.
+    paad = INDICATION_PERCOHORT_SUBTYPE["PAAD"]
+    assert paad["out_col"] == "paad_moffitt_subtype"
+    assert paad["value_map"][1] == "basal-like" and paad["value_map"][2] == "classical"
+    # ESCA: pancan-only base frame; ESCC = squamous, adeno subtypes = adenocarcinoma.
+    esca = INDICATION_PANCAN_ONLY["ESCA"]
+    assert esca["histology_from_subtype"]["GI.ESCC"] == "squamous_cell_carcinoma"
+    assert esca["histology_from_subtype"]["GI.CIN"] == "adenocarcinoma"
+
+
 def test_dry_run_genie_bpc_lot():
     """LOT dry-run prints the regimen + cancer-panel-test plan without deriving.
 

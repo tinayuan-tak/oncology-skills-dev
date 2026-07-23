@@ -56,6 +56,25 @@ INDICATION_COHORTS: dict[str, list[tuple[str, str | None]]] = {
     "PAAD": [("tcga_subtype_PAAD.csv", None)],
 }
 
+# Indications with NO per-cohort marker-paper CSV — their base frame is built
+# directly from the pancan-curated table (patient list + subtype). ESCA is the
+# case (169 patients, only in pancan-curated). `histology_from_subtype` maps
+# Subtype_Selected → the catalog histology vocabulary (GI.ESCC = squamous;
+# the CIN/GS/MSI/HM adeno subtypes = adenocarcinoma).
+INDICATION_PANCAN_ONLY: dict[str, dict] = {
+    "ESCA": {
+        "cancer_type": "ESCA",
+        "histology_from_subtype": {
+            "GI.ESCC": "squamous_cell_carcinoma",
+            "GI.CIN": "adenocarcinoma",
+            "GI.GS": "adenocarcinoma",
+            "GI.MSI": "adenocarcinoma",
+            "GI.HM-SNV": "adenocarcinoma",
+            "GI.HM-indel": "adenocarcinoma",
+        },
+    },
+}
+
 # The per-cohort marker-paper CSVs carry only data-availability flags for some
 # indications (HNSC/STAD/PAAD), NOT the published molecular subtype. Those live
 # in the PanCanAtlas curated subtype table (pancan_curated.csv, Subtype_Selected,
@@ -64,9 +83,27 @@ INDICATION_COHORTS: dict[str, list[tuple[str, str | None]]] = {
 # value matches the catalog rule (clinical.hnsc_bass_subtype == 'Basal').
 _PANCAN_CURATED_FILE = "pancan_atlas_subtypes_curated.csv"
 
-# indication → (output column name, cancer.type filter, strip_prefix)
+# indication → (output column name, cancer.type filter, strip_prefix). Sources
+# the published molecular subtype from pancan-curated Subtype_Selected. The
+# strip_prefix removes the cancer-type qualifier so the value matches the catalog
+# rule (HNSC 'HNSC.Basal'->'Basal'; STAD 'GI.CIN'->'CIN').
 INDICATION_SUBTYPE_ENRICH: dict[str, tuple[str, str, str]] = {
     "HNSC": ("hnsc_bass_subtype", "HNSC", "HNSC."),
+    "STAD": ("stad_subtype", "STAD", "GI."),
+}
+
+# Some indications' subtypes are NOT in pancan-curated (PAAD is absent). Their
+# subtype lives in a per-cohort marker-paper column, sometimes numeric-coded with
+# the legend in the column NAME. Map that column → catalog vocabulary here.
+# indication → {out_col, src_col, value_map}. Applied to the composed frame after
+# the cohort concat; join key is the shared `patient` column already present.
+INDICATION_PERCOHORT_SUBTYPE: dict[str, dict] = {
+    "PAAD": {
+        "out_col": "paad_moffitt_subtype",
+        # numeric-coded column; legend '1basal 2classical' is in the name itself.
+        "src_col": "mRNA Moffitt clusters (All 150 Samples) 1basal  2classical",
+        "value_map": {1: "basal-like", 2: "classical", "1": "basal-like", "2": "classical"},
+    },
 }
 
 # Clinical fields (HPV status, anatomic site) are NOT in the marker-paper CSVs;
@@ -158,41 +195,67 @@ def main(indication: str) -> int:
     dry_run = os.environ.get("DRY_RUN") == "1"
     ind = indication.upper()
     cohorts = INDICATION_COHORTS.get(ind)
+    pancan_only = INDICATION_PANCAN_ONLY.get(ind)
     _log(f"=== prefetch marker-paper × {ind} ===")
-    if cohorts is None:
-        _log(f"No marker-paper cohort mapping for {ind}; add it to INDICATION_COHORTS. "
-             f"(AML has no marker-paper LAML file — see the D7 audit.)")
+    if cohorts is None and pancan_only is None:
+        _log(f"No marker-paper cohort mapping for {ind}; add it to INDICATION_COHORTS "
+             f"or INDICATION_PANCAN_ONLY. (AML has no marker-paper LAML file — see the D7 audit.)")
         sys.exit(1)
 
     out_dir = Path.home() / ".cache" / "framework-tcga-marker-paper" / ind.lower()
     out_path = out_dir / "subtypes.csv"
     raw_dir = Path.home() / ".cache" / "framework-tcga-marker-paper" / "_raw"
-
-    _log(f"  cohorts:  {[c[0] for c in cohorts]}")
     _log(f"  output:   {out_path}")
     if dry_run:
-        for fn, _ in cohorts:
-            _s3_download(fn, raw_dir / fn, dry_run=True)
+        if cohorts:
+            for fn, _ in cohorts:
+                _s3_download(fn, raw_dir / fn, dry_run=True)
+        else:
+            _s3_download(_PANCAN_CURATED_FILE, raw_dir / _PANCAN_CURATED_FILE, dry_run=True)
         _log("DRY_RUN: skipping compose + write")
         return 0
 
     import pandas as pd
 
-    frames = []
-    for filename, histology in cohorts:
-        local = raw_dir / filename
-        _s3_download(filename, local, dry_run=False)
-        df = pd.read_csv(local)
-        if "patient" not in df.columns:
-            _log(f"WARNING: {filename} has no `patient` column — the directly_tagged "
-                 f"loader joins on it. Columns: {list(df.columns)[:6]}")
-        if histology is not None:
-            df["histology"] = histology
-        frames.append(df)
-        _log(f"  {filename}: {len(df)} rows"
-             + (f" (histology={histology})" if histology else ""))
+    if pancan_only is not None:
+        # Base frame built directly from pancan-curated (no per-cohort file).
+        curated_local = raw_dir / _PANCAN_CURATED_FILE
+        _s3_download(_PANCAN_CURATED_FILE, curated_local, dry_run=False)
+        cur = pd.read_csv(curated_local)
+        cur = cur[cur["cancer.type"] == pancan_only["cancer_type"]].copy()
+        cur["patient"] = cur["pan.samplesID"].str[:12]
+        composed = cur[["patient", "Subtype_Selected"]].drop_duplicates("patient").copy()
+        h_map = pancan_only.get("histology_from_subtype")
+        if h_map:
+            composed["histology"] = composed["Subtype_Selected"].map(h_map)
+            _log(f"  {pancan_only['cancer_type']} pancan-only: {len(composed)} patients | "
+                 f"histology: {composed['histology'].value_counts(dropna=False).to_dict()}")
+    else:
+        frames = []
+        for filename, histology in cohorts:
+            local = raw_dir / filename
+            _s3_download(filename, local, dry_run=False)
+            df = pd.read_csv(local)
+            if "patient" not in df.columns:
+                _log(f"WARNING: {filename} has no `patient` column — the directly_tagged "
+                     f"loader joins on it. Columns: {list(df.columns)[:6]}")
+            if histology is not None:
+                df["histology"] = histology
+            frames.append(df)
+            _log(f"  {filename}: {len(df)} rows"
+                 + (f" (histology={histology})" if histology else ""))
+        composed = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
 
-    composed = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
+    # Per-cohort subtype mapping (PAAD Moffitt: numeric-coded column → vocab).
+    pcs = INDICATION_PERCOHORT_SUBTYPE.get(ind)
+    if pcs is not None:
+        src = pcs["src_col"]
+        if src in composed.columns:
+            composed[pcs["out_col"]] = composed[src].map(pcs["value_map"])
+            _log(f"  mapped {pcs['out_col']}: {composed[pcs['out_col']].value_counts(dropna=False).to_dict()}")
+        else:
+            _log(f"WARNING: per-cohort subtype src column {src!r} not found; "
+                 f"columns: {list(composed.columns)[:8]}")
 
     # Enrich with the published molecular subtype from the PanCanAtlas curated
     # table when the per-cohort file lacks it (HNSC Bass subtypes etc.). Joins on

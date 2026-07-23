@@ -98,6 +98,49 @@ def test_rule_compiler_supported_forms():
     assert p({"gene_symbol": np.nan, "protein_change": "p.G12C"}) is None
 
 
+def test_sample_level_negation_wildtype():
+    """SAMPLE-level negation (KRAS-WT): a sample is WT iff it has ZERO KRAS-hotspot
+    rows — NOT if some non-KRAS row fails to match. This is the regression test
+    for the all-members bug: row-level `!(...)` any-hit marks every mutated sample
+    a member (a TP53 row is 'not a KRAS hotspot')."""
+    import pandas as pd
+    from methods.subgroup_assigner_maf_filter.cli import _evaluate_stratum_maf
+
+    # 3 samples: S1 has KRAS G12D (mutant), S2 has only TP53 (KRAS-WT),
+    # S3 has KRAS G12D + a TP53 row (mutant). Correct WT set = {S2}.
+    maf = pd.DataFrame({
+        "sample_id":      ["S1", "S2", "S3", "S3"],
+        "patient_id":     ["S1", "S2", "S3", "S3"],
+        "source_native_id":["S1", "S2", "S3", "S3"],
+        "gene_symbol":    ["KRAS", "TP53", "KRAS", "TP53"],
+        "protein_change": ["p.G12D", "p.R175H", "p.G12D", "p.R248Q"],
+    })
+    all_samples = pd.DataFrame({
+        "sample_id": ["S1", "S2", "S3"],
+        "patient_id": ["S1", "S2", "S3"],
+        "source_native_id": ["S1", "S2", "S3"],
+    })
+    stratum = {
+        "id": "KRAS_WT",
+        "rule": "!(gene_symbol == 'KRAS' && protein_change in ['p.G12C','p.G12D','p.G12V'])",
+        "derivation_source": "maf_filter_per_rule",
+    }
+    out = _evaluate_stratum_maf(stratum, maf, "sample_id", "patient_id",
+                                "source_native_id", all_samples)
+    members = set(out[out["is_member"] == True]["sample_id"])
+    # Only S2 (no KRAS hotspot) is WT. NOT S1/S3 (they carry KRAS G12D).
+    assert members == {"S2"}, f"expected {{S2}}, got {members}"
+    # A WT member reports no matched variant.
+    assert out[out["sample_id"] == "S2"].iloc[0]["derivation_value"] == ""
+
+    # Sanity: the POSITIVE (non-negated) form gives the complement {S1, S3}.
+    pos = {**stratum, "id": "KRAS_mut",
+           "rule": "gene_symbol == 'KRAS' && protein_change in ['p.G12C','p.G12D','p.G12V']"}
+    out_pos = _evaluate_stratum_maf(pos, maf, "sample_id", "patient_id",
+                                    "source_native_id", all_samples)
+    assert set(out_pos[out_pos["is_member"] == True]["sample_id"]) == {"S1", "S3"}
+
+
 def test_real_execution_synthetic_tcga_maf(tmp_path):
     """End-to-end test with synthetic TCGA MAF placed at the loader's fallback location."""
     # Stage the fixture under a TMP cache root (FRAMEWORK_CACHE_ROOT), never the
