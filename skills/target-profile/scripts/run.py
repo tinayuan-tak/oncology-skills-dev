@@ -172,6 +172,12 @@ SUB_SKILL_CARDS = {
         "structure-features-static",
         "surface-abundance-density",
         "adc-tce-modality-fit",
+        "normal-tissue-liability",           # HPA IHC off-tumor safety — in surface-modality-fit CARDS
+                                             # (composer-consistency; was run.py-present but here-absent)
+        "copy-number-distribution",          # P4 (2026-07-23): genomic amplification → surface antigen-
+                                             # density (adc/bite_tce/antibody). Cross-cutting — ALSO in
+                                             # genomic-alteration-profile (SM/degrader). Example B: one
+                                             # card, two modality gates, divergent modality reads.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",

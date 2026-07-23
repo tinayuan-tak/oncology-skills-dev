@@ -38,6 +38,13 @@ CARDS = [
     "surface-abundance-density",
     "adc-tce-modality-fit",
     "normal-tissue-liability",          # HPA IHC on-target-off-tumor safety (wired 2026-07-20)
+    "copy-number-distribution",         # P4 (2026-07-23) — genomic AMPLIFICATION → surface antigen-
+                                        # density argument. The SAME card is in genomic-alteration-profile
+                                        # (SM/degrader read); here it fires cn-amplified-surface-antigen-
+                                        # supportive (adc/bite_tce/antibody) — Example B: one card, two
+                                        # modality gates, divergent reads. ADDITIVE signal-only: its
+                                        # surface rule feeds NO resolver rung (surface_modality resolves
+                                        # off adc-tce-modality-fit.fit_class) → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "

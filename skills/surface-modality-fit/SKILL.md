@@ -36,6 +36,10 @@ composition:
     - structure-features-static
     - surface-abundance-density
     - adc-tce-modality-fit
+    - normal-tissue-liability          # HPA IHC off-tumor safety (in run.py CARDS; was doc-stale)
+    - copy-number-distribution         # P4 (2026-07-23): genomic amplification → surface antigen-density
+                                       # signal (adc/bite_tce/antibody). Same card reads SM/degrader at
+                                       # genomic-alteration-profile — Example B. Render/signal facet.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -51,6 +55,8 @@ composition:
     - surfaceome_family
     - surface_density
     - adc_tce_modality_fit
+    - normal_tissue_protein_breadth    # HPA IHC off-tumor safety (normal-tissue-liability)
+    - copy_number_alteration           # P4 (2026-07-23): genomic amplification → surface antigen-density lens
   rules_scope:
     - all
   synthesis:

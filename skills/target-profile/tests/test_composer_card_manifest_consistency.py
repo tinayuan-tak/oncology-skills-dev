@@ -28,12 +28,10 @@ COMPOSER = SKILLS / "target-profile" / "scripts" / "run.py"
 # exception" list, and a new undocumented drop must fail rather than silently join it.
 #   key = (sub_skill_dir, card_id) ; value = reason
 WAIVED_COMPOSER_OMISSIONS: dict[tuple[str, str], str] = {
-    # normal-tissue-liability is fundamentally a SAFETY card (primary home: on-target-safety-liability);
-    # surface-modality-fit consumes it as a secondary input. Its composed attribution is a pending
-    # ruling (2026-07-21) — waived here so this guard lands with the Gygi fix without pre-empting that
-    # decision. REMOVE this waiver once the attribution is settled.
-    ("surface-modality-fit", "normal-tissue-liability"):
-        "safety card; composed attribution pending ruling (2026-07-21)",
+    # (2026-07-23, P4 slice 3) The ("surface-modality-fit", "normal-tissue-liability") waiver was
+    # RESOLVED: normal-tissue-liability is now composed in SUB_SKILL_CARDS["surface-modality-fit"]
+    # (alongside the P4 copy-number-distribution wiring), so it is no longer a real omission and the
+    # waiver was removed (the stale-waiver guard would otherwise fail). No waivers currently needed.
 }
 
 
