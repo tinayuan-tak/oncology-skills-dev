@@ -700,6 +700,66 @@ rules:
       liability is UNKNOWN, NOT low. Must NOT be read as a favorable window (measured-
       vs-null discipline: absence of a safety read is not a safety pass).
 
+  # ============================================================================
+  # GENOMIC → SURFACE MODALITY (P4 modality-vector emission; copy-number amplification) — 2026-07-23
+  # ============================================================================
+  # THE P4 fix: a genomic card (copy-number-distribution) previously had rules ONLY in the
+  # intracellular-intrinsic axis (small_molecule/degrader) → it was structurally INVISIBLE to the
+  # surface modality gate. These surface-axis rules give it its adc/bite_tce/antibody channel: a
+  # recurrent AMPLIFICATION is the antigen-density argument for biologics (more gene copies → more
+  # surface antigen → favorable ADC/TCE delivery). This is the "one card, two modality gates, divergent
+  # reads" of master-sequencing Example B: the SAME copy-number-distribution card reads adc-favorable
+  # here while its intracellular rules read the SM/degrader story.
+  #
+  # SIGNAL-ONLY (byte-stable): supportive/neutral only — NEVER killer (no killer_message, and a killer
+  # would be the signal most likely to be load-bearing). These rule_ids are NOT referenced by any
+  # resolver rung (surface_modality.resolver.yaml resolves solely off adc-tce-modality-fit.fit_class),
+  # so the modality-gate verdict spine is unchanged — verified via validate_resolvers + the SK golden.
+  - rule_id: cn-amplified-surface-antigen-supportive
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: recurrently_amplified
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Recurrent focal+high amplification (>=20% of the panel) — copy-number gain typically elevates
+      surface antigen density, the delivery-address argument for antibody-based modalities (ADC payload
+      delivery, TCE/antibody engagement scale with antigen copies-per-cell). SUPPORTIVE for all three
+      surface lenses. NOT a standalone sufficiency call — surface LOCALIZATION (topology) + abundance
+      still gate viability; this is the genomic dosage input to that composite. Complements the SM/
+      degrader read the same card emits on the intracellular axis (P4 Example B divergence).
+
+  - rule_id: cn-deleted-surface-neutral
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: recurrently_deleted
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Recurrent deletion is NOT a surface-antigen-density argument (fewer copies ≠ more surface
+      protein), and is not itself a contra-indication for a biologic (a deleted gene may still be a
+      valid antigen in the retained-allele population). Neutral on the surface axis — deletion's
+      therapeutic story is intracellular / synthetic-lethality, not antigen delivery.
+
+  - rule_id: cn-neutral-surface-neutral
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: broadly_neutral
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Copy-number-neutral across the panel — no dosage argument either way for surface antigen
+      density. Neutral; the antigen-presence call rests on the protein/expression cards, not CN.
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
