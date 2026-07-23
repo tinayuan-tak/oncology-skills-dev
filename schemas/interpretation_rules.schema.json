@@ -178,6 +178,14 @@
           "description": "If true AND signal == supportive for a given channel, treated as a DOMINANT positive signal in Tier-3 scoring.",
           "default": false
         },
+        "modality_importance": {
+          "type": "object",
+          "description": "OPTIONAL (2026-07-23, modality-specific-interpretation / axis-2). Per-modality-channel IMPORTANCE weight for the question this rule answers (the spec's Critical/Important/Secondary/Irrelevant matrix). Keys are modality channels (the same enum as `signals`: small_molecule/degrader/adc/bite_tce/antibody); values are the weight. Lets a modality-fit gate (a) weight this rule's evidence and (b) flag when a CRITICAL question is UNANSWERABLE from the data (the rule fired `insufficient` on a channel it marks `critical`) → honest `insufficient`, not a silent pass. Additive metadata — inert to resolvers (which pattern-match rule_ids only), so it changes no verdict.",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["critical", "important", "secondary", "irrelevant"]
+          }
+        },
         "killer_message": {
           "type": "string",
           "description": "Required when this rule fires a 'killer' signal.",
