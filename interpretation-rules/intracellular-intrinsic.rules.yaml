@@ -2908,3 +2908,77 @@ rules:
     rationale: |
       No per-sample tumor expression or no TCGA-CDR survival for this (target, indication). Coverage
       gap; not used as opposing evidence.
+
+  # ============================================================================
+  # PHOSPHO PATHWAY ACTIVITY (Q8 — target biology at the phospho level) — 2026-07-23
+  # ============================================================================
+  # From CPTAC phospho: is the target phosphorylated (pathway-activity proxy), beyond total abundance?
+  # A PROTEIN/PATHWAY-level presence signal on the biology axis — for kinases/signaling proteins the
+  # sharpest presence read (phospho-activity > total abundance). Signals modest; not a killer.
+  - rule_id: phospho-active-supportive
+    when:
+      card_id: phospho-pathway-activity
+      field: phospho_activity_class
+      equals: phospho_active
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Target is PHOSPHORYLATED beyond its total abundance across a substantial fraction of tumors —
+      evidence of ACTIVE signaling / pathway activation, not mere presence. For a kinase / signaling
+      protein this is the strongest protein-level presence + mechanism signal (the pathway is ON, the
+      target is engaged). Dominant-supportive: an active, engaged signaling target is a strong
+      small-molecule / degrader rationale.
+
+  - rule_id: phospho-present-supportive
+    when:
+      card_id: phospho-pathway-activity
+      field: phospho_activity_class
+      equals: phospho_present
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target is phosphorylated + detected at the protein level (phosphosites present in a substantial
+      fraction of tumors), but tracking its abundance rather than exceeding it — PRESENT and
+      protein-confirmed, not clearly hyper-activated. Mildly supportive: confirms protein-level
+      presence (a degrader/SM needs the protein to exist), a notch below phospho_active.
+
+  - rule_id: phospho-low-neutral
+    when:
+      card_id: phospho-pathway-activity
+      field: phospho_activity_class
+      equals: phospho_low
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Phosphosites exist in the panel but are detected in few tumors — weak phospho-level signal.
+      Neutral (MS detection-limit may undercount; low detection is not proof of no phosphorylation),
+      not opposing.
+
+  - rule_id: phospho-not-phosphoprotein-neutral
+    when:
+      card_id: phospho-pathway-activity
+      field: phospho_activity_class
+      equals: not_phosphoprotein
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      The target has NO phosphosites in the CPTAC panel — it is not a phosphoprotein (e.g. a GTPase
+      like KRAS, regulated by nucleotide exchange). The phospho axis genuinely DOES NOT APPLY; neutral
+      (informational — read presence from the total-protein + RNA cards instead), NEVER opposing. A
+      real biological fact, distinct from data_unavailable.
+
+  - rule_id: phospho-data-unavailable-insufficient
+    when:
+      card_id: phospho-pathway-activity
+      field: phospho_activity_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No CPTAC cohort for the indication, or a phospho read failure. Coverage gap; not opposing evidence.
