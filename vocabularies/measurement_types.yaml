@@ -477,6 +477,27 @@ measurement_types:
     providers:
       - {kind: dataset, source: gdc-pancanatlas-cnv-2018, evidence_tier: measured}   # ABSOLUTE abs_tables purity
 
+  patient_survival_cdr:
+    claim: "What is a patient's curated survival outcome (OS/PFI/DSS/DFI + time) from the TCGA-CDR?"
+    # A per-patient clinical outcome (not a per-target claim in itself) — an INPUT-ONLY type
+    # (cards: []) registered because it is a derived_from INPUT to expression_clinical_association
+    # (Q11). Curated Liu 2018 endpoints; joined on bcr_patient_barcode. Surfaced through the cards
+    # that associate against it, never standalone.
+    entity_grains: [target_indication]   # carried per (target, indication) query, though survival is patient-level
+    cards: []
+    providers:
+      - {kind: dataset, source: gdc-pancanatlas-clinical-2018, evidence_tier: measured}   # TCGA-CDR (Liu 2018)
+
+  expression_clinical_association:
+    claim: "Does target expression stratify patient survival in the indication (prognostic association)?"
+    # Q11 — median-split OS log-rank by target expression. A derived comparison (expression × survival).
+    # HYPOTHESIS-GENERATING (univariate/unadjusted), NOT a clinical claim. Routes: Patient-population /
+    # clinical context + biomarker facet (prognostic stratification). Biology axis; no modality facet.
+    entity_grains: [target_indication]
+    cards: [expression-clinical-association]
+    providers:
+      - {kind: derived_from, inputs: [tumor_expression_distribution, patient_survival_cdr], method: median_split_logrank, evidence_tier: measured}
+
   mutation_stratified_dependency:
     claim: "Is target dependency stratified by target's own mutation status (oncogene-addiction biomarker)?"
     entity_grains: [target]

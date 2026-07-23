@@ -1,0 +1,76 @@
+# Card — EXPRESSION CLINICAL ASSOCIATION (does target expression stratify survival? Q11)
+#
+# Median-split the indication's TCGA tumors by target expression and log-rank test overall survival
+# (OS). Answers the yardstick's Q11 clinical/survival context — a HYPOTHESIS-GENERATING prognostic
+# association, NOT a clinical claim:
+#   - expression_high_worse_survival  → high expression associates with WORSE OS (candidate
+#       poor-prognosis / more-aggressive-disease marker; supports targeting + patient selection).
+#   - expression_high_better_survival → high expression associates with BETTER OS (a caution: the
+#       target may mark indolent disease; the targeting rationale is weaker).
+#   - no_survival_association          → expression does not stratify OS in this indication.
+#
+# ZERO new ingestion — reuses the per-sample tumor TPM long product (case-bridged) + PanCanAtlas
+# TCGA-CDR (Liu 2018) curated OS/OS.time, joined on bcr_patient_barcode.
+#
+# ROUTES INTO GATES (master-sequencing Part 3): Patient-population / clinical-precedent context + the
+# BIOMARKER FACET (prognostic stratification). Biology axis; no modality-gate facet.
+
+card_id: expression-clinical-association
+version: 0.1.0
+question: "Does {target.symbol} expression stratify overall survival in {indication.label} — is it a candidate prognostic marker (high-expression worse or better OS)?"
+
+tier: indication
+
+applies_when:
+  # needs a per-sample tumor TPM (indication mapped in the recount3 studies map); CDR is pan-TCGA.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'GC', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1   # per-sample tumor expression (case-bridged)
+  - product_id: gdc-pancanatlas-clinical-2018     # TCGA-CDR (Liu 2018) curated survival endpoints
+
+methods:
+  - call: expression-clinical-association
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - survival_association_class          # PRIMARY categorical (drives Tier-2 rules)
+    - logrank_p
+    - logrank_chi2
+    - n_patients                          # patients with BOTH expression + OS
+    - n_events                            # deaths
+    - n_high_expr
+    - n_low_expr
+    - median_split_log2tpm
+    - high_expr_hazard_direction          # +1 worse, -1 better, 0 none
+    - median_ostime_high_days
+    - median_ostime_low_days
+    - endpoint                            # OS
+    - survival_source
+  summary_fields_vocabulary:
+    survival_association_class: [expression_high_worse_survival, expression_high_better_survival, no_survival_association, insufficient_survival_data, data_unavailable]
+  figure: expression_clinical_association_card
+
+thresholds:
+  min_events: 10             # below → insufficient_survival_data
+  min_per_arm: 15            # below → insufficient_survival_data
+  significance_alpha: 0.05   # log-rank p at/below → a significant association
+
+caveats:
+  - "HYPOTHESIS-GENERATING, NOT a clinical claim: a univariate median-split log-rank UNADJUSTED for stage/age/grade. Survival in most indications is stage-dominated; a single-gene expression split rarely reaches significance and, when it does, may be confounded. Necessary-but-not-sufficient for a prognostic biomarker — needs a multivariable Cox model + orthogonal validation."
+  - "OS only in this slice (the CDR also carries PFI/DSS/DFI). OS is the most complete endpoint but the least disease-specific; a PFI/DSS extension is a follow-up."
+  - "Median-split is a coarse dichotomization (loses dose-response); a target with a monotone but non-threshold effect may read no_survival_association. The continuous effect is a follow-up (Cox on continuous expression)."
+  - "A case with multiple tumor samples is collapsed to its mean target expression before the survival join (one row per patient). median_ostime_*_days are raw medians for context, NOT Kaplan-Meier median-survival estimates."
+  - "expression_high_better_survival is NOT a target killer — it is a flag that the targeting/prognostic rationale differs; interpret alongside the dependency + genomic evidence."
+
+measurement: bulk_rna
+sample_context: tumor          # patient tumor expression vs patient survival
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `expression_clinical_association` claim,
+# derived_from [tumor_expression_distribution, patient_survival_cdr].
+measurement_type: expression_clinical_association
+entity_grains: [target_indication]
+schema_version: 1
