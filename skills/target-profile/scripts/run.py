@@ -111,6 +111,9 @@ SUB_SKILL_CARDS = {
         "tumor-expression-distribution-subtype",  # target_subtype-grain sibling — per-molecular-subtype
                                          # panorama (per_subgroup_metrics). Same pairing rule: wired into
                                          # tumor-presence CARDS + this composer map together.
+        "expression-purity-confound",    # Q9 (2026-07-23) — purity-confound caveat; render facet.
+        "phospho-pathway-activity",      # Q8 (2026-07-23) — CPTAC phospho pathway-activity; render facet.
+        "rna-protein-concordance",       # Q5 (2026-07-23) — rna_as_biomarker; biomarker preferred_assay input.
     ],
     "tumor-selectivity": [
         "tumor-vs-normal-selectivity",
@@ -131,6 +134,8 @@ SUB_SKILL_CARDS = {
         "recommended-models",                    # Q4 patient↔model correspondence (2026-07-22) — model-
                                                  # backed-dependency corroboration; paired with
                                                  # functional-requirement CARDS (composer-consistency).
+        "abundance-dependency",                  # Q7 (2026-07-23) — protein abundance→dependency (protein
+                                                 # arm of expression-as-biomarker-of-dependency); render facet.
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",
@@ -146,9 +151,15 @@ SUB_SKILL_CARDS = {
         "fusion-rearrangement-landscape",    # placeholder (resolves _missing)
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)
+        "functional-gene-state",             # M6 allele-count / biallelic two-hit state (2026-07-22) —
+                                             # composer-consistency with genomic-alteration-profile CARDS.
+        "genomic-event-model-match",         # M11 canonical P3 patient↔model genomic-event join
+                                             # (2026-07-22) — composer-consistency.
     ],
     "differentiation-landscape": [
         "co-mutation-and-mutual-exclusivity",
+        "expression-clinical-association",   # Q11 (2026-07-23) — expression→survival prognostic context;
+                                             # render facet, paired with differentiation-landscape CARDS.
     ],
     "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",
@@ -645,6 +656,97 @@ def _ordinal_matrix(sub_results: dict) -> dict:
     }
 
 
+# --- Biomarker convergence facet (Q12; master-sequencing Part 3c) -----------
+#
+# A FACET, not a gate: biomarker is always "a biomarker OF something" — it has no standalone verdict
+# about the target, it MODIFIES other gates' verdicts. This assembles the scattered biomarker-relevant
+# byproducts each extraction plan produces into ONE structured object with two jobs (Part 3c):
+#   - corroboration_role  → raises CONFIDENCE in a biology-gate verdict
+#   - stratification_role → defines the patient-selection population + preferred assay
+# DETERMINISTIC + ADDITIVE + ONE-DIRECTIONAL (mirrors _ordinal_matrix): computed pre-prompt from the
+# sub-verdicts, surfaced to the LLM + emitted in nomination.json, and it can raise confidence via the
+# LLM's reasoning but NEVER mints a nominate (no verdict input; the deterministic gate is untouched).
+# Pure convergence — no new extraction, no new card. Reads ONLY what the sub-skills already surface.
+_BIOMARKER_INPUTS = {
+    # short (sub-skill) : list of (summary_field, role) it contributes
+    "genomic_alteration": [("alteration_role", "corroboration"),          # predictive_biomarker value
+                           ("mutation_stratification_class", "stratification")],  # mutant-stratified dependency
+    "dependency":        [("abundance_dependency_class", "corroboration"),   # Q7 protein abundance→dep
+                          ("correlation_class", "corroboration"),            # RNA arm expression→dep
+                          ("model_correspondence_class", "corroboration")],  # Q4 model-backed dependency
+    "expression":        [("rna_as_biomarker", "stratification"),            # Q5 preferred-assay input
+                          ("phospho_activity_class", "corroboration"),       # Q8 pathway-active
+                          ("purity_confound_class", "corroboration")],       # Q9 signal-is-tumor-intrinsic
+    "differentiation":   [("survival_association_class", "stratification")], # Q11 prognostic stratifier
+}
+
+
+def _biomarker_facet(sub_results: dict) -> dict:
+    """Assemble the biomarker-convergence facet (Q12). Deterministic; additive; verdict-inert.
+
+    Pulls the biomarker-relevant fields each sub-skill surfaces into corroboration_role +
+    stratification_role blocks, derives a preferred_assay (RNA | protein | genomic | neither) and a
+    facet verdict. Fields not reachable (sub-skill absent, card not composed) are recorded as null —
+    an HONEST coverage signal, never fabricated."""
+    corroboration: dict = {}
+    stratification: dict = {}
+    for short, fields in _BIOMARKER_INPUTS.items():
+        r = sub_results.get(short)
+        if not r:
+            continue
+        for field, role in fields:
+            val = _first_card_summary_field(r, field)
+            target_block = corroboration if role == "corroboration" else stratification
+            target_block[field] = val
+
+    # preferred_assay: which layer is the trustworthy biomarker readout?
+    #   genomic  — a mutant-stratified dependency or predictive_biomarker alteration_role (the
+    #              strongest, most actionable stratifier; also the live veto-suppressor)
+    #   protein  — RNA is a POOR proxy (Q5), so protein must be measured
+    #   RNA      — RNA is an adequate proxy (Q5)
+    #   neither  — no adequate stratifier surfaced
+    rna_as_biomarker = stratification.get("rna_as_biomarker")
+    mut_strat = stratification.get("mutation_stratification_class")
+    alt_role = corroboration.get("alteration_role")
+    genomic_stratifier = (mut_strat in ("mutant_strongly_dependent", "mutant_moderately_dependent")
+                          or alt_role == "predictive_biomarker")
+    if genomic_stratifier:
+        preferred_assay = "genomic"
+    elif rna_as_biomarker == "adequate_proxy":
+        preferred_assay = "RNA"
+    elif rna_as_biomarker in ("poor_proxy", "partial_proxy"):
+        preferred_assay = "protein"
+    else:
+        preferred_assay = "neither"
+
+    # facet verdict — a FACET summary (confidence/patient-selection role), never a target verdict.
+    #   strong_selection_biomarker — a genomic stratifier (mutant-stratified dependency / predictive)
+    #   corroborating_only          — corroboration signals present but no patient-selection stratifier
+    #   inadequate                  — signals present but RNA is a poor proxy + no genomic stratifier
+    #   none                        — nothing biomarker-relevant surfaced
+    has_corroboration = any(v not in (None, "data_unavailable", "not_informative")
+                            for v in corroboration.values())
+    if genomic_stratifier:
+        verdict = "strong_selection_biomarker"
+    elif preferred_assay == "protein" and not has_corroboration:
+        verdict = "inadequate"
+    elif has_corroboration or preferred_assay in ("RNA", "protein"):
+        verdict = "corroborating_only"
+    else:
+        verdict = "none"
+
+    return {
+        "corroboration_role": corroboration,
+        "stratification_role": stratification,
+        "preferred_assay": preferred_assay,
+        "verdict": verdict,
+        "_disclaimer": ("Biomarker is a FACET, not a gate: it corroborates other gates' verdicts "
+                        "(→ confidence) and defines patient-selection (→ stratification); it never "
+                        "mints a nomination. null fields = the input sub-skill/card was not reachable "
+                        "this run (honest coverage), not a measured negative."),
+    }
+
+
 # --- Positive tier (deterministic confidence FLOOR; F1-safe) ----------------
 #
 # Graded positives (dependency/selectivity/small-molecule tractability) raise an
@@ -914,9 +1016,10 @@ def _build_user_prompt(
     modality: Optional[str] = None,
     therapeutic_hypothesis: Optional[str] = None,
     ordinal_matrix: Optional[dict] = None,
+    biomarker_facet: Optional[dict] = None,
 ) -> str:
-    """Compose the user-message text: sub-verdicts + modality-scoped matrix slice + card
-    summaries + optional lens context."""
+    """Compose the user-message text: sub-verdicts + modality-scoped matrix slice + biomarker
+    convergence facet + card summaries + optional lens context."""
     lines = [
         f"Target: {target}",
         f"Indication: {indication}",
@@ -940,6 +1043,20 @@ def _build_user_prompt(
     lines.append("")
     if ordinal_matrix is not None:
         lines.extend(_render_matrix_slice_for_prompt(ordinal_matrix))
+    if biomarker_facet is not None:
+        bf = biomarker_facet
+        lines.append("")
+        lines.append("### Biomarker convergence facet (deterministic; a FACET, not a gate)")
+        lines.append(f"- facet verdict: `{bf.get('verdict')}`  |  preferred assay: "
+                     f"`{bf.get('preferred_assay')}`")
+        corr = {k: v for k, v in (bf.get("corroboration_role") or {}).items() if v is not None}
+        strat = {k: v for k, v in (bf.get("stratification_role") or {}).items() if v is not None}
+        lines.append(f"- corroboration (→ confidence in biology verdicts): "
+                     f"{corr if corr else 'none reachable'}")
+        lines.append(f"- stratification (→ patient selection): {strat if strat else 'none reachable'}")
+        lines.append("  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
+                     "patient-selection population (stratification); it must NEVER by itself justify "
+                     "a `nominate` — the deterministic gate owns the recommendation.")
     lines.append("### Card summaries (raw, per-card)")
     for short, r in sub_results.items():
         lines.append(f"\n#### {short} ({r['skill_dir']})")
@@ -3087,6 +3204,12 @@ def main() -> int:
     # list; also emitted in nomination.json for downstream consumers.
     ordinal_matrix = _ordinal_matrix(sub_results)
 
+    # Biomarker convergence facet (Q12, Part 3c): a deterministic, additive, verdict-inert assembly of
+    # the scattered biomarker byproducts (corroboration + stratification + preferred_assay). Like the
+    # ordinal matrix, computed BEFORE the prompt so synthesis can reason over it, and emitted in
+    # nomination.json. One-directional: informs confidence, never mints a nominate.
+    biomarker_facet = _biomarker_facet(sub_results)
+
     # 2. LLM synthesis via Bedrock (structured tool_use).
     print(f"[target-profile] Invoking Bedrock synthesis...", file=sys.stderr)
     tool_schema = _build_synthesis_tool()
@@ -3095,6 +3218,7 @@ def main() -> int:
         modality=args.modality,
         therapeutic_hypothesis=args.therapeutic_hypothesis,
         ordinal_matrix=ordinal_matrix,
+        biomarker_facet=biomarker_facet,
     )
     llm_output = synthesize_structured(
         system_prompt=_SYSTEM_PROMPT,
@@ -3250,6 +3374,9 @@ def main() -> int:
         "deciding_axis": deciding_axis,
         "gate_scorecard": scorecard,
         "ordinal_matrix_view": ordinal_matrix,
+        # Biomarker convergence facet (Q12, Part 3c): corroboration + stratification + preferred_assay.
+        # A FACET (not a gate) — informs confidence + patient-selection; never mints a nominate.
+        "biomarker_facet": biomarker_facet,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
