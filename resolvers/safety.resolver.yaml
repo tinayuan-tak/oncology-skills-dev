@@ -2,9 +2,20 @@
 # Declarative transcription of skills/on-target-safety-liability/scripts/run.py::_verdict.
 # Germline gnomAD LoF-constraint signal (highly_constrained → hold in the nomination gate).
 gate: safety
-version: 1.0.0
-description: Germline LoF-constraint safety precedence.
+version: 1.1.0   # 1.1.0 (2026-07-23): + mutant-selective mechanism-mismatch downgrade (when_all_fired)
+description: Germline LoF-constraint safety precedence, mechanism-conditioned for GoF drivers.
 resolve:
+  # MUTANT-SELECTIVE DOWNGRADE (2026-07-23) — MUST precede highly_constrained_safety_concern.
+  # gnomAD constraint measures WILD-TYPE LoF-intolerance; but a GoF driver is drugged mutant-
+  # selectively (KRAS-G12C spares WT KRAS in normal tissue), so the WT-essentiality concern largely
+  # does NOT apply. When BOTH the highly-constrained warning AND the activating-driver-role context
+  # fire, resolve to the mechanism-mismatch verdict instead of the raw concern. driving_rule pins the
+  # attributed rule to the constraint warning (the signal being conditioned). Conditional on an
+  # allele-selective modality — a pan-target degrader / WT-hitting inhibitor re-exposes the concern
+  # (stated in the card caveat). See memory feedback_wt_essentiality_mechanism_conditioning.
+  - verdict: wt_constraint_mechanism_mismatch
+    when_all_fired: [highly-constrained-safety-warning, activating-driver-role-safety-context]
+    driving_rule: highly-constrained-safety-warning
   - verdict: highly_constrained_safety_concern
     when_fired: highly-constrained-safety-warning
   - verdict: tolerant_reduced_safety_risk
