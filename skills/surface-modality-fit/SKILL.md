@@ -10,10 +10,12 @@ description: |
   (chemical-genetic) verdict. This skill makes the surface-modality call,
   resolving from the composed `adc-tce-modality-fit` card's `fit_class`.
 
-  status: partial — most surface derived products (structure-features,
-  surfaceome-family, cohort-ranking) are not yet on S3, so the verdict is an
-  honest `insufficient` until they land. The sibling small-molecule
-  tractability call is `tractability-small-molecule`.
+  status: partial — SOME surface derived products are landed (surfaceome-family +
+  topology-predictions on S3; surface_confirmation LIVE via the merged CSPA reader),
+  but the density + structural products (surface-abundance-density, structure-features)
+  are not yet materialized, so the composed fit_class verdict is often an honest
+  `insufficient` until they land (see the Status section for the current per-product
+  state). The sibling small-molecule tractability call is `tractability-small-molecule`.
 
   Use for questions like "does EGFR look ADC-favorable in COADREAD?", "is this
   target TCE-viable topologically?"
@@ -45,9 +47,9 @@ composition:
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
   # measurement_types.yaml. During migration cards_used (above) is the live wiring; this list is
   # the machine-checkable pull-intent a resolver will match on (migration step 5 — resolver matches
-  # on type, falling back to card_id/product_id). surface_confirmation is pulled but not yet in
-  # cards_used because its card (protein-surface-evidence) is data-blocked until the CSPA/HPA reader
-  # lands — the pull makes that gap explicit (a registered type with a puller but no live provider),
+  # on type, falling back to card_id/product_id). surface_confirmation is now LIVE (2026-07-21): the
+  # protein-surface-evidence card resolves via the merged CSPA reader (cspa-surface-confirmation-per-
+  # uniprot-v1 on S3, dispatcher wired) — CSPA is the `measured` tier; HPA-IHC remains a future adjunct.
   # exactly the first-class visible state Rule 3 describes.
   measurement_types_pulled:
     - surface_confirmation
@@ -93,14 +95,18 @@ composition:
 
 ## Status: partial
 
-Most surface derived products are not yet on S3:
-- `structure-features-static` (PDB/AlphaFold manifests not re-landed)
-- `surfaceome-family-classification` (derived product pending)
-- `surface-abundance-density`, cohort-ranking (pending)
+Per-product state (verified 2026-07-23):
+- LANDED: `surfaceome-family-classification` (on S3), `topology-predictions` (surface-topology-and-ptm,
+  on S3), `surface_confirmation` (LIVE via the merged CSPA reader — `protein-surface-evidence`).
+- NOT yet materialized (the current backfill — see gap-backfill-plan.md):
+  - `surface-abundance-density` — method not yet built (the ADC/TCE antigen-DENSITY verdict input).
+  - `structure-features-static` — method exists, but its PDB + AlphaFold source snapshots are absent
+    from S3 (ingest-first). Feeds the SM-pocket + surface-epitope reads.
 
-Until they land, `fit_class` is typically `data_unavailable` and the verdict is
-`insufficient`. This is honest, not a bug — the skill does not fabricate a
-modality call from missing surface data.
+Until the density + structural products land, the composed `adc-tce-modality-fit.fit_class` is often
+`data_unavailable` and the verdict `insufficient`. This is honest, not a bug — the skill does not
+fabricate a modality call from missing surface data. (P4's copy-number-amplification → antigen-density
+signal + CSPA surface_confirmation DO resolve today; the density/structure verdict is what's pending.)
 
 ## Known design gap (flagged, not owned by this skill)
 
