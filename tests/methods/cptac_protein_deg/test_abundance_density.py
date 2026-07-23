@@ -43,6 +43,14 @@ def _patch_cptac(monkeypatch, *, cls, effect, cohort="COAD"):
                         })
 
 
+@pytest.fixture(autouse=True)
+def _no_ladder(monkeypatch):
+    """Default: force the ladder to return None so the grade-D estimate tests are isolated from the
+    committed governed corpus (a target like ERBB2 IS in the corpus and would otherwise override).
+    The ladder-override tests below opt OUT of this by re-patching _ladder_measurement explicitly."""
+    monkeypatch.setattr(r, "_ladder_measurement", lambda target, indication=None: None)
+
+
 def test_tissue_specific_anchor_high_and_tce_viable(monkeypatch):
     # intestine enriched intensity 5e7 (> p66 7.43e6) → IHC 'high' (center 3e5); CPTAC modest_up.
     _patch_hpa(monkeypatch, breadth="broad_normal_expression",
@@ -131,3 +139,139 @@ def test_not_detected_maps_very_low(monkeypatch):
     # center 3e2, shift 1 → 300/cell → very_low? no: 100 <= 300 < 1000 → low
     assert d["surface_density_class"] == "low"
     assert d["is_tce_viable"] is False
+
+
+# --- LADDER OVERRIDE (2026-07-23): governed measured anchor is PRIMARY over the grade-D estimate ---
+def _patch_ladder(monkeypatch, payload):
+    """Stub the ladder read_absolute_density (imported inside _ladder_measurement)."""
+    import methods.surface_antigen_density_ladder as _ladder
+    monkeypatch.setattr(_ladder, "read_absolute_density",
+                        lambda target, indication=None: payload)
+
+
+def test_ladder_measurement_overrides_estimate(monkeypatch):
+    # ladder has a grade-A patient measurement → it is PRIMARY; grade-D estimate retained as context.
+    monkeypatch.undo()  # drop the autouse _no_ladder patch for this test
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression",
+               specific=[{"tissue": "intestine", "intensity": 5.0e7}])  # would be grade-D 'high'
+    _patch_cptac(monkeypatch, cls="modest_up", effect=1.05)
+    _patch_ladder(monkeypatch, {
+        "absolute_density_class": "low", "density_evidence_level": "A", "value_best": 110.0,
+        "reported_unit": "molecules/cell", "value_qualifier_best": "mean_with_reported_range",
+        "measurement_semantics_best": "direct_molecule_count", "record_partition_best": "native_patient",
+        "n_admissible_measurements": 10, "n_patient": 10, "n_cell_line": 0,
+    })
+    d = r.read_abundance_density_summary("CD19", "MM")
+    # measured anchor wins: class from the measurement (low), grade A, source flagged
+    assert d["surface_density_class"] == "low"
+    assert d["density_evidence_level"] == "A"
+    assert d["_density_source"] == "governed_ladder"
+    assert d["absolute_value_best"] == 110.0
+    assert d["absolute_reported_unit"] == "molecules/cell"
+    assert d["absolute_record_partition"] == "native_patient"
+    # viability flags follow the MEASURED class, not the grade-D estimate (which would have said 'high')
+    assert d["is_tce_viable"] is False and d["is_adc_high_payload_viable"] is False
+    # grade-D estimate is retained alongside as context (would have been 'high')
+    assert d["_estimate_grade_d_class"] == "high"
+
+
+def test_ladder_empty_falls_through_to_estimate(monkeypatch):
+    # ladder grade E (no measurement) → fall through to the grade-D estimate.
+    monkeypatch.undo()
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression",
+               specific=[{"tissue": "intestine", "intensity": 5.0e7}])
+    _patch_cptac(monkeypatch, cls="modest_up", effect=1.05)
+    _patch_ladder(monkeypatch, {"absolute_density_class": "no_absolute_measurement",
+                                "density_evidence_level": "E", "value_best": None})
+    d = r.read_abundance_density_summary("CEACAM5", "COADREAD")
+    assert d["density_evidence_level"] == "D"
+    assert d.get("_density_source", "estimate") != "governed_ladder"
+    assert d["surface_density_class"] == "high"
+
+
+def test_committed_corpus_target_reads_grade_ab_live(monkeypatch):
+    # integration: a real corpus target reads from the governed ladder, not the estimate.
+    monkeypatch.undo()  # drop the autouse _no_ladder patch → use the real committed corpus
+    d = r.read_abundance_density_summary("MET", "COADREAD")
+    assert d["_density_source"] == "governed_ladder"
+    assert d["density_evidence_level"] in ("A", "A-", "B", "B-")
+    assert d["absolute_value_best"] is not None
+
+
+# --- SURFACE-ACCESSIBILITY SOFT GATE (2026-07-23 v2): labels admissibility, NEVER suppresses -------
+# Design principle (multiagent-verified): the surfaceome classifier is unreliable BOTH ways, so it must
+# not hard-veto. Separate TARGET VISIBILITY (whole-cell estimate always retained) from SURFACE-DENSITY
+# ADMISSIBILITY {admissible|unsupported|provisional}. Absence is NEVER negative evidence.
+def _patch_surfaceome(monkeypatch, *, surfy, hpa_pm, data_note="", family="Receptors"):
+    import methods.surfaceome_family_fusion as _surf
+    payload = {"is_surface_protein": bool(surfy or hpa_pm), "surface_protein_family": family,
+               "surfaceome_confidence_score": 1.0,
+               "source_surfy_positive": surfy, "source_hpa_plasma_membrane": hpa_pm}
+    if data_note:
+        payload["_data_note"] = data_note
+    monkeypatch.setattr(_surf, "read_target_summary", lambda target, indication=None: dict(payload))
+
+
+def test_unsupported_retains_estimate_but_flags_not_surface(monkeypatch):
+    # IN table, NO positive surface evidence (SURFY-neg AND HPA-neg) -> unsupported. The whole-cell
+    # estimate is RETAINED (visibility), but the surface class is relabeled + viability flags False.
+    _patch_surfaceome(monkeypatch, surfy=False, hpa_pm=False, family="Not_surface")
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression",
+               specific=[{"tissue": "intestine", "intensity": 5.0e7}])
+    _patch_cptac(monkeypatch, cls="strong_up", effect=2.0)
+    d = r.read_abundance_density_summary("KRAS", "COADREAD")
+    assert d["surface_density_admissibility"] == "unsupported"
+    assert d["surface_density_class"] == "not_surface_density_whole_cell_estimate"
+    assert d["density_evidence_level"] == "D"
+    assert d["estimated_copies_per_cell_median"] is not None    # RETAINED, not nulled
+    assert d["_whole_cell_class"] == "high"                     # raw class preserved for audit
+    assert d["is_tce_viable"] is False and d["is_adc_high_payload_viable"] is False
+
+
+def test_admissible_when_positive_surface_evidence(monkeypatch):
+    # SURFY-positive (even with HPA negative — the CD19/BCMA case) -> admissible, normal surface call
+    _patch_surfaceome(monkeypatch, surfy=True, hpa_pm=False)
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression",
+               specific=[{"tissue": "intestine", "intensity": 5.0e7}])
+    _patch_cptac(monkeypatch, cls="modest_up", effect=1.05)
+    d = r.read_abundance_density_summary("CD19", "MM")
+    assert d["surface_density_admissibility"] == "admissible"
+    assert d["surface_density_class"] == "high"
+    assert d["is_tce_viable"] is True
+
+
+def test_coverage_gap_is_provisional_not_unsupported(monkeypatch):
+    # absent from the table (_data_note) -> provisional (absence is NOT negative evidence). Estimate
+    # retained + surface call kept (weaker confidence), NOT relabeled unsupported.
+    _patch_surfaceome(monkeypatch, surfy=False, hpa_pm=False,
+                      data_note="target_not_in_surfaceome_family")
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression",
+               specific=[{"tissue": "intestine", "intensity": 5.0e7}])
+    _patch_cptac(monkeypatch, cls="modest_up", effect=1.05)
+    d = r.read_abundance_density_summary("NOVELSURF", "COADREAD")
+    assert d["surface_density_admissibility"] == "provisional"
+    assert d["surface_density_class"] == "high"      # kept, not relabeled
+    assert d["estimated_copies_per_cell_median"] is not None
+
+
+def test_ladder_measurement_ignores_accessibility_gate(monkeypatch):
+    # a ladder measurement is direct surface evidence -- the soft gate never touches it.
+    monkeypatch.undo()
+    _patch_surfaceome(monkeypatch, surfy=False, hpa_pm=False, family="Not_surface")  # adversarial
+    d = r.read_abundance_density_summary("MET", "COADREAD")
+    assert d["_density_source"] == "governed_ladder"
+    assert d["absolute_value_best"] is not None
+    assert "surface_density_admissibility" not in d   # ladder path has no soft-gate label
+
+
+def test_nonfinite_cptac_log2fc_does_not_produce_inf(monkeypatch):
+    # a degenerate CPTAC effect (inf: tumor-detected/normal-absent) must NOT yield an inf estimate;
+    # it falls back to anchor-only (shift=1). Regression for the STEAP1 effect=inf bug.
+    import math
+    _patch_surfaceome(monkeypatch, surfy=True, hpa_pm=True)
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression", specific=[])   # medium anchor, center 3e4
+    _patch_cptac(monkeypatch, cls="ns", effect=float("inf"))
+    d = r.read_abundance_density_summary("STEAP1", "PRAD")
+    assert d["estimated_copies_per_cell_median"] is not None
+    assert math.isfinite(d["estimated_copies_per_cell_median"])
+    assert d["_cptac_covered"] is False              # inf treated as CPTAC-not-usable

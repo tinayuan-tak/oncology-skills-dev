@@ -639,6 +639,54 @@ def _empty_density(note: str) -> dict:
     }
 
 
+def _ladder_measurement(target: str, indication: Optional[str]) -> Optional[dict]:
+    """If the governed absolute-density corpus has a MEASURED anchor for target, build the card summary
+    from it (measured PRIMARY + the grade-D estimate retained as fallback context). Else None.
+
+    Never raises — a missing ladder module / empty corpus / grade-E read all return None so the caller
+    falls through to the HPA×CPTAC estimate. No fabrication: only a real admissible measurement wins."""
+    try:
+        from methods.surface_antigen_density_ladder import read_absolute_density
+    except Exception:
+        return None
+    try:
+        m = read_absolute_density(target, indication)
+    except Exception:
+        return None
+    if not m or m.get("density_evidence_level") in (None, "E") or m.get("value_best") is None:
+        return None
+
+    density_class = m["absolute_density_class"]        # {high|moderate|low|very_low}
+    grade = m["density_evidence_level"]                 # A | A- | B | B-
+    # The grade-D HPA×CPTAC estimate is still computed + reported alongside (context, not the verdict).
+    est = _hpa_cptac_estimate(target, indication)
+    return {
+        "surface_density_class": density_class,         # PRIMARY — now from a MEASURED anchor
+        "density_evidence_level": grade,
+        # measured absolute anchor (the promotion): value + unit + semantics + provenance
+        "absolute_value_best": m["value_best"],
+        "absolute_reported_unit": m["reported_unit"],
+        "absolute_value_qualifier": m.get("value_qualifier_best"),
+        "absolute_measurement_semantics": m.get("measurement_semantics_best"),
+        "absolute_record_partition": m.get("record_partition_best"),
+        "absolute_n_measurements": m.get("n_admissible_measurements"),
+        "absolute_n_patient": m.get("n_patient"),
+        "absolute_n_cell_line": m.get("n_cell_line"),
+        # card viability flags — now backed by a measured value, not a working-prior
+        "is_tce_viable": density_class in ("high", "moderate"),
+        "is_adc_high_payload_viable": density_class == "high",
+        # grade-D estimate retained as FALLBACK context (so both are visible; grade says which to trust)
+        "estimated_copies_per_cell_median": est.get("estimated_copies_per_cell_median"),
+        "estimated_copies_per_cell_lower": est.get("estimated_copies_per_cell_lower"),
+        "estimated_copies_per_cell_upper": est.get("estimated_copies_per_cell_upper"),
+        "hpa_ihc_anchor_used": est.get("hpa_ihc_anchor_used"),
+        "hpa_ihc_intensity_class": est.get("hpa_ihc_intensity_class"),
+        "method_version": _DENSITY_METHOD_VERSION,
+        "_density_source": "governed_ladder",
+        "_estimate_grade_d_class": est.get("surface_density_class"),
+    }
+
+
 def read_abundance_density_summary(target: str, indication: str = None) -> dict:
     """surface-abundance-density card: estimated surface copies-per-cell + TCE/ADC viability.
 
@@ -656,11 +704,86 @@ def read_abundance_density_summary(target: str, indication: str = None) -> dict:
         hpa_ihc_anchor_used, hpa_ihc_intensity_class
         is_tce_viable (class in {high, moderate}),  is_adc_high_payload_viable (class == high)
         method_version
+
+    LADDER OVERRIDE (2026-07-23): if the governed absolute-density corpus
+    (surface_antigen_density_ladder) has a MEASURED value for this target (evidence grade A patient /
+    B cell-line, directly-calibrated flow / single-molecule counting), that measurement is PRIMARY —
+    surface_density_class is set from it, density_evidence_level reflects the measured grade, and the
+    absolute_* field group carries the measured value + unit + semantics + provenance. The HPA×CPTAC
+    grade-D estimate is retained as the FALLBACK (and still reported alongside a measurement, so a
+    consumer sees both). This is the tiered-evidence promotion: a real calibrated anchor overrides an
+    inferred prior. No fabrication — an empty/held corpus simply falls through to the grade-D estimate.
     """
+    ladder = _ladder_measurement(target, indication)
+    if ladder is not None:
+        return ladder
+
+    return _hpa_cptac_estimate(target, indication)
+
+
+def _surface_accessibility(target: str) -> dict:
+    """SURFACE-ACCESSIBILITY tier for the grade-D estimate — a SOFT, NON-SUPPRESSING gate.
+
+    The grade-D estimate derives from HPA×CPTAC WHOLE-CELL proteomics, which cannot distinguish an
+    antibody-ACCESSIBLE surface antigen from an intracellular / inner-leaflet / secreted protein. A
+    multiagent verification (2026-07-23) showed the surfaceome classifier's `is_surface_protein`
+    boolean is unreliable BOTH ways — intracellular false-positives (NRAS/GAPDH/APC via HPA-substring)
+    AND surface false-negatives at full confidence (STEAP1/TFRC/DR5/ENPP3 missed by SURFY+HPA). So it
+    must NOT be a hard veto.
+
+    Per the design principle (user, 2026-07-23): separate TARGET VISIBILITY from SURFACE-DENSITY
+    ADMISSIBILITY. The whole-cell abundance estimate is ALWAYS retained; this function only labels
+    whether that number may be called "surface density":
+        admissible   — positive surface evidence (SURFY-positive OR HPA-plasma-membrane in the table)
+        unsupported  — IN the table, but NO positive surface evidence (SURFY-neg AND HPA-neg): the
+                       estimate is RETAINED but flagged not-a-surface-density (the NRAS case)
+        provisional  — absent from the classifier table (coverage gap) OR any read error: absence is
+                       NEVER negative evidence — the estimate stands, flagged provisional
+    ⚠ INTERIM (schema v2): this uses only the CURRENT SURFY|HPA signals. The full spec (UniProt/
+    Swiss-Prot topology + extracellular-domain requirement + CSPA + QuickGO, A–U tiers) is a separate
+    ingestion program — until it lands, `unsupported` here is a WEAK signal (it will miss STEAP1-like
+    topology-only surface antigens), so it DOWNGRADES, never suppresses. Never raises."""
+    try:
+        from methods.surfaceome_family_fusion import read_target_summary as _surf
+        s = _surf(target)
+    except Exception:
+        return {"surface_density_admissibility": "provisional",
+                "surface_accessibility_note": "surfaceome_read_error_absence_not_negative_evidence",
+                "_surfaceome_family": None}
+    if s.get("_data_note"):
+        return {"surface_density_admissibility": "provisional",
+                "surface_accessibility_note": "absent_from_surfaceome_table_coverage_gap_not_negative",
+                "_surfaceome_family": None}
+    positive = bool(s.get("source_surfy_positive")) or bool(s.get("source_hpa_plasma_membrane"))
+    if positive:
+        return {"surface_density_admissibility": "admissible",
+                "surface_accessibility_note": "positive_surface_evidence_surfy_or_hpa_pm",
+                "_surfaceome_family": s.get("surface_protein_family")}
+    return {"surface_density_admissibility": "unsupported",
+            "surface_accessibility_note": ("no_positive_surface_evidence_in_table_"
+                                           "whole_cell_estimate_retained_not_a_surface_density"),
+            "_surfaceome_family": s.get("surface_protein_family")}
+
+
+def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
+    """The grade-D HPA-IHC × CPTAC-log2FC estimate (the fallback when the ladder has no measurement).
+
+    Extracted so both the fallback path AND the ladder's alongside-context reuse one implementation.
+    Order-of-magnitude prior, NOT a calibrated anchor — see read_abundance_density_summary docstring.
+
+    SOFT surface-accessibility gate (NOT a veto): the estimate is always computed + returned, but
+    tagged with `surface_density_admissibility` {admissible|unsupported|provisional} so a consumer
+    knows whether a WHOLE-CELL-derived number may be treated as an antibody-accessible surface density.
+    A non-surface target (KRAS) still gets its abundance estimate, but flagged `unsupported` — never
+    silently zeroed (which would have discarded the observation AND risked suppressing a real
+    STEAP1-like antigen the classifier under-calls). See _surface_accessibility."""
+    access = _surface_accessibility(target)
     anchor = _hpa_ihc_anchor(target, indication)
     ihc_class = anchor["hpa_ihc_intensity_class"]
     if ihc_class == "unmeasured":
-        return _empty_density("no_hpa_ihc_anchor")
+        out = _empty_density("no_hpa_ihc_anchor")
+        out.update(access)
+        return out
 
     center, base_factor = _IHC_CLASS_CALIBRATION[ihc_class]
 
@@ -670,8 +793,14 @@ def read_abundance_density_summary(target: str, indication: str = None) -> dict:
     # audit-defensible first-pass, just less certain.
     cptac = read_target_summary(target, indication)
     log2fc = cptac.get("protein_effect_size")
+    # A non-FINITE log2FC (inf/-inf/NaN) is a degenerate CPTAC value — inf arises when the normal-tissue
+    # reference median is 0 (tumor-detected, normal-absent): meaningful biology, but nonsense as a 2**x
+    # shift multiplier. Treat it as CPTAC-not-usable → anchor-only (shift=1) with the widened band, same
+    # as the CPTAC-absent path. Guards STEAP1 (effect=inf → previously produced median=inf).
+    import math
+    _log2fc_finite = (log2fc is not None and math.isfinite(float(log2fc)))
     cptac_covered = (cptac.get("protein_expression_class") not in (None, "data_unavailable")
-                     and log2fc is not None)
+                     and _log2fc_finite)
     shift = (2.0 ** float(log2fc)) if cptac_covered else 1.0
 
     median = center * shift
@@ -689,21 +818,38 @@ def read_abundance_density_summary(target: str, indication: str = None) -> dict:
     upper = median * factor
 
     density_class = _density_class(median)
+    # Surface-density ADMISSIBILITY gates the VIABILITY calls + the surface class LABEL, but NEVER the
+    # abundance numbers (which are always retained). `unsupported` = a whole-cell estimate that is not
+    # a valid surface density → surface_density_class is relabeled and the TCE/ADC flags are False
+    # (you cannot be surface-modality-viable on a number that isn't a surface density). `admissible` /
+    # `provisional` keep the whole-cell class as the surface estimate (provisional = weaker confidence).
+    admissibility = access["surface_density_admissibility"]
+    if admissibility == "unsupported":
+        surface_class = "not_surface_density_whole_cell_estimate"
+        tce_viable = adc_viable = False
+    else:
+        surface_class = density_class
+        tce_viable = density_class in ("high", "moderate")
+        adc_viable = density_class == "high"
     return {
-        "surface_density_class": density_class,
+        "surface_density_class": surface_class,
         # Evidence grade D: INFERRED from whole-cell/tissue PRIORS (IHC + CPTAC), no direct surface
         # calibration. NOT a calibrated absolute anchor (that is level A/B/C — calibrated flow). The
         # copies numbers are an order-of-magnitude prior; is_tce/adc flags are WORKING-PRIOR calls.
         "density_evidence_level": "D",
+        # whole-cell abundance estimate — ALWAYS retained (visibility != admissibility)
         "estimated_copies_per_cell_median": round(median, 1),
         "estimated_copies_per_cell_lower": round(lower, 1),
         "estimated_copies_per_cell_upper": round(upper, 1),
         "hpa_ihc_anchor_used": anchor["hpa_ihc_anchor_used"],
         "hpa_ihc_intensity_class": ihc_class,
-        "is_tce_viable": density_class in ("high", "moderate"),
-        "is_adc_high_payload_viable": density_class == "high",
+        "is_tce_viable": tce_viable,
+        "is_adc_high_payload_viable": adc_viable,
+        # surface-accessibility soft gate (admissible | unsupported | provisional) + note + family
+        **access,
         "method_version": _DENSITY_METHOD_VERSION,
         # provenance (leading underscore = not a card summary_field; for audit/debug only)
+        "_whole_cell_class": density_class,   # the raw class before the admissibility relabel
         "_cptac_covered": cptac_covered,
         "_cptac_log2fc": log2fc if cptac_covered else None,
         "_cptac_cohort": cptac.get("cohort") if cptac_covered else None,
