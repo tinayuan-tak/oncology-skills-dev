@@ -235,7 +235,10 @@ measurement_types:
     # genomic gate needs (frequency ≠ function). Genomic-alteration plan step 1. ZERO new ingestion.
     # tier_dominant: OncoKB (curated gene-role) is the dominant backbone; IntOGen adds patient-scale,
     # indication-scoped, statistically-significant mode-of-action (Act/LoF). Routes: genomic gate +
-    # (later, P4) surface/SM modality lens (amp role → adc_favorable) + the biomarker facet.
+    # (P4, 2026-07-23) ALL modality-fit gates via modality_relevance — a driver role bears on SM/degrader
+    # (drug the gained function) AND on the biologics lenses (an activating/amplified role feeds the
+    # surface antigen-density argument) + the biomarker facet.
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     entity_grains: [target_indication]
     cards: [alteration-role]
     multi_provider_policy: tier_dominant

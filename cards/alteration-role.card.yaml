@@ -69,5 +69,11 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: typed driver-role classification.
 measurement_type: alteration_role
+# P4 (2026-07-23): a driver ROLE routes to ALL modality-fit gates — SM/degrader (drug the gained
+# function; the alteration-role-* intracellular rules already emit these) AND the biologics lenses
+# (an activating/amplified role feeds the surface antigen-density argument; the amplification signal
+# itself is carried by copy-number-distribution's surface-axis rule — see P4 slice 2). Mirrors the
+# modality_relevance the alteration_role TYPE declares in measurement_types.yaml.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
