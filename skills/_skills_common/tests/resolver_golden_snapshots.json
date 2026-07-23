@@ -136386,56 +136386,21 @@
    "highly-constrained-safety-warning",
    "tolerant-safety-supportive",
    "moderately-constrained-safety-neutral",
-   "constraint-data-unavailable-insufficient"
+   "constraint-data-unavailable-insufficient",
+   "activating-driver-role-safety-context"
   ],
   "table": {
    "": [
     "insufficient",
     null
    ],
-   "constraint-data-unavailable-insufficient": [
-    "data_unavailable",
-    "constraint-data-unavailable-insufficient"
-   ],
-   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
-    "highly_constrained_safety_concern",
-    "highly-constrained-safety-warning"
-   ],
-   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning,moderately-constrained-safety-neutral": [
-    "highly_constrained_safety_concern",
-    "highly-constrained-safety-warning"
-   ],
-   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-    "highly_constrained_safety_concern",
-    "highly-constrained-safety-warning"
-   ],
-   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning,tolerant-safety-supportive": [
-    "highly_constrained_safety_concern",
-    "highly-constrained-safety-warning"
-   ],
-   "constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral": [
-    "moderately_constrained_safety",
-    "moderately-constrained-safety-neutral"
-   ],
-   "constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-    "tolerant_reduced_safety_risk",
-    "tolerant-safety-supportive"
-   ],
-   "constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
-    "tolerant_reduced_safety_risk",
-    "tolerant-safety-supportive"
-   ],
    "highly-constrained-safety-warning": [
     "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
-   "highly-constrained-safety-warning,moderately-constrained-safety-neutral": [
-    "highly_constrained_safety_concern",
-    "highly-constrained-safety-warning"
-   ],
-   "highly-constrained-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-    "highly_constrained_safety_concern",
-    "highly-constrained-safety-warning"
+   "tolerant-safety-supportive": [
+    "tolerant_reduced_safety_risk",
+    "tolerant-safety-supportive"
    ],
    "highly-constrained-safety-warning,tolerant-safety-supportive": [
     "highly_constrained_safety_concern",
@@ -136445,13 +136410,113 @@
     "moderately_constrained_safety",
     "moderately-constrained-safety-neutral"
    ],
+   "highly-constrained-safety-warning,moderately-constrained-safety-neutral": [
+    "highly_constrained_safety_concern",
+    "highly-constrained-safety-warning"
+   ],
    "moderately-constrained-safety-neutral,tolerant-safety-supportive": [
     "tolerant_reduced_safety_risk",
     "tolerant-safety-supportive"
    ],
-   "tolerant-safety-supportive": [
+   "highly-constrained-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "highly_constrained_safety_concern",
+    "highly-constrained-safety-warning"
+   ],
+   "constraint-data-unavailable-insufficient": [
+    "data_unavailable",
+    "constraint-data-unavailable-insufficient"
+   ],
+   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
+    "highly_constrained_safety_concern",
+    "highly-constrained-safety-warning"
+   ],
+   "constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
     "tolerant_reduced_safety_risk",
     "tolerant-safety-supportive"
+   ],
+   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning,tolerant-safety-supportive": [
+    "highly_constrained_safety_concern",
+    "highly-constrained-safety-warning"
+   ],
+   "constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral": [
+    "moderately_constrained_safety",
+    "moderately-constrained-safety-neutral"
+   ],
+   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning,moderately-constrained-safety-neutral": [
+    "highly_constrained_safety_concern",
+    "highly-constrained-safety-warning"
+   ],
+   "constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "tolerant_reduced_safety_risk",
+    "tolerant-safety-supportive"
+   ],
+   "constraint-data-unavailable-insufficient,highly-constrained-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "highly_constrained_safety_concern",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context": [
+    "insufficient",
+    null
+   ],
+   "activating-driver-role-safety-context,highly-constrained-safety-warning": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,tolerant-safety-supportive": [
+    "tolerant_reduced_safety_risk",
+    "tolerant-safety-supportive"
+   ],
+   "activating-driver-role-safety-context,highly-constrained-safety-warning,tolerant-safety-supportive": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,moderately-constrained-safety-neutral": [
+    "moderately_constrained_safety",
+    "moderately-constrained-safety-neutral"
+   ],
+   "activating-driver-role-safety-context,highly-constrained-safety-warning,moderately-constrained-safety-neutral": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "tolerant_reduced_safety_risk",
+    "tolerant-safety-supportive"
+   ],
+   "activating-driver-role-safety-context,highly-constrained-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient": [
+    "data_unavailable",
+    "constraint-data-unavailable-insufficient"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
+    "tolerant_reduced_safety_risk",
+    "tolerant-safety-supportive"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,highly-constrained-safety-warning,tolerant-safety-supportive": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral": [
+    "moderately_constrained_safety",
+    "moderately-constrained-safety-neutral"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,highly-constrained-safety-warning,moderately-constrained-safety-neutral": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "tolerant_reduced_safety_risk",
+    "tolerant-safety-supportive"
+   ],
+   "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,highly-constrained-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
+    "wt_constraint_mechanism_mismatch",
+    "highly-constrained-safety-warning"
    ]
   }
  },

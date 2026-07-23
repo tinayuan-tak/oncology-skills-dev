@@ -19,7 +19,8 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.2.0"
+SKILL_VERSION = "1.3.0"   # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
+                          # the WT gnomAD-constraint concern (activating-driver-role-safety-context)
 
 CARDS = [
     "gnomad-lof-constraint",
@@ -28,6 +29,13 @@ CARDS = [
                                       # opposing on critical_organ_liability (on-target-off-tumor for
                                       # full-KO modalities); supportive on restricted_normal. Additive
                                       # signal — the safety RESOLVER stays keyed to gnomAD (byte-stable).
+    "alteration-role",                # 2026-07-23 — mechanism CONTEXT for mutant-selective conditioning.
+                                      # Its activating-driver-role-safety-context rule (intracellular axis)
+                                      # fires on functional_direction==activating; the safety RESOLVER
+                                      # combines it with highly-constrained-safety-warning (when_all_fired)
+                                      # to DOWNGRADE the WT-constraint concern → wt_constraint_mechanism_
+                                      # mismatch (a GoF driver is drugged mutant-selectively; gnomAD
+                                      # constraint is about the WILD-TYPE protein the drug spares).
 ]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
@@ -66,6 +74,10 @@ def _headline(cards, fired, verdict_pair):
         return None
 
     v, drv = verdict_pair or ("insufficient", None)
+    # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
+    # (the activating driver role) + the conditionality caveat so a consumer isn't left guessing.
+    functional_direction = _get("alteration-role", "functional_direction")
+    is_mismatch = (v == "wt_constraint_mechanism_mismatch")
     return {
         "safety_verdict":   v,
         "driving_rule_id":  drv,
@@ -76,6 +88,14 @@ def _headline(cards, fired, verdict_pair):
         "syn_z_score":      _get("gnomad-lof-constraint", "syn_z_score"),
         "obs_lof_count":    _get("gnomad-lof-constraint", "obs_lof_count"),
         "exp_lof_count":    _get("gnomad-lof-constraint", "exp_lof_count"),
+        # mutant-selective conditioning (2026-07-23)
+        "alteration_functional_direction": functional_direction,
+        "mechanism_conditioning_note": (
+            "gnomAD constraint reflects WILD-TYPE LoF-intolerance; this target is an ACTIVATING (GoF) "
+            "driver typically drugged MUTANT-SELECTIVELY, so the WT-constraint safety concern is "
+            "largely nullified (the therapy spares WT protein in normal tissue). CONDITIONAL on an "
+            "allele-selective modality — a pan-target degrader / WT-hitting inhibitor re-exposes it."
+        ) if is_mismatch else None,
     }
 
 

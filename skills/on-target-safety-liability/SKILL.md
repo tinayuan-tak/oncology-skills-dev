@@ -33,6 +33,10 @@ composition:
     - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
     - normal-tissue-liability          # Placeholder (HPA dispatcher pending)
     - protein-surface-evidence         # Placeholder (HPA IHC dispatcher pending)
+    - alteration-role                  # 2026-07-23 — mechanism CONTEXT for mutant-selective
+                                       # conditioning of the WT gnomAD-constraint concern (its
+                                       # activating-driver-role-safety-context rule combines with the
+                                       # highly-constrained warning in the resolver → downgrade).
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. normal_tissue_protein_breadth is
   # the safety-framed normal-tissue type (distinct from selectivity's tumor_vs_normal). surface_
   # confirmation is pulled-but-data-blocked (its card needs the CSPA/HPA reader) — a visible-gap state.
@@ -40,8 +44,10 @@ composition:
     - gnomad_lof_constraint
     - normal_tissue_protein_breadth
     - surface_confirmation
+    - alteration_role                  # mechanism-conditioning input (mutant-selective downgrade)
   rules_scope:
     - gnomad-lof-constraint
+    - activating-driver-role-safety-context   # mutant-selective conditioning (2026-07-23)
   synthesis:
     - rule_engine
   output_shape:
