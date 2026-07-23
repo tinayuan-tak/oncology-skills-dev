@@ -44,8 +44,11 @@ CARDS = [
     "mutation-hotspot-frequency",
     # Copy number (amplification / deletion) — card + rules already existed
     "copy-number-distribution",
-    # Fusion / rearrangement — declared placeholder card (data not yet landed);
-    # resolve_cards flags it _missing until the card + method exist.
+    # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
+    # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
+    # data_unavailable}. ADDITIVE signal-only: reaches the LLM/matrix + headline, touches NO
+    # resolver rung (the genomic verdict spine stays byte-stable). Recurrent-fusion driver
+    # corroborates the genomic alteration call; graceful data_unavailable for TCGA-absent targets.
     "fusion-rearrangement-landscape",
     # Typed driver-ROLE call (OncoKB × IntOGen) — the functional-role layer on the descriptive
     # cards above (frequency ≠ function). Its alteration_role signals feed genomic interpretation;

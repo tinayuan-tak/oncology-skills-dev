@@ -150,6 +150,17 @@ def _dispatch_genomic_event_model_match(target: str, indication: str) -> Optiona
     return mod.build_summary(target, indication)
 
 
+def _dispatch_fusion_rearrangement_landscape(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: fusion-rearrangement-landscape card -> tcga_fusion_consensus.read_target_summary.
+
+    Per-(target, indication) fusion recurrence over the tcga-fusion-consensus-v1 derived product
+    (pan-TCGA 3-caller consensus: TumorFusions/Gao/cBioPortal SV). fusion_class in
+    {recurrent_fusion_driver | sporadic_fusion | no_recurrent_fusion | data_unavailable}; graceful
+    data_unavailable when product/target absent. Indication-scoped (TCGA tissue filter)."""
+    mod = _import_method("tcga_fusion_consensus")
+    return mod.read_target_summary(target, indication)
+
+
 # ---- Subgroup-panorama dispatchers (descriptive; 2026-07-16) ------------------
 # These route the two NEW live subgroup cards to the per-sample panorama BUILDERS
 # (not the scalar readers above). They fire only when subgroups are in scope
@@ -836,6 +847,7 @@ CARD_DISPATCHERS = {
     "alteration-role": _dispatch_alteration_role,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
+    "fusion-rearrangement-landscape": _dispatch_fusion_rearrangement_landscape,
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
