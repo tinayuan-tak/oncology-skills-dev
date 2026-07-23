@@ -227,7 +227,7 @@ measurement_types:
     entity_grains: [target_indication]
     cards: [fusion-rearrangement-landscape]
     providers:
-      - {kind: dataset, source: placeholder, evidence_tier: measured}   # genie-structural-variants not yet catalogued (card is a placeholder)
+      - {kind: derived_from, inputs: [tcga-fusion-consensus-v1], method: tcga_fusion_consensus, evidence_tier: measured}   # LIVE 2026-07-23: pan-TCGA 3-caller consensus (TumorFusions/Gao/cBioPortal SV)
 
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"

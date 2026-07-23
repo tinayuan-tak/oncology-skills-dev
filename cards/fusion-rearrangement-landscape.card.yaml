@@ -1,46 +1,43 @@
-# Card (PLACEHOLDER) — FUSION / REARRANGEMENT LANDSCAPE
+# Card — FUSION / REARRANGEMENT LANDSCAPE (LIVE 2026-07-23)
 #
-# Declared 2026-07-14 as the fusion/structural-variant axis of the reframed
-# genomic-alteration-profile skill (SNV + CN wired; fusion pending data).
-# NOT yet backed by a method or a derived product — resolve_cards flags it
-# `_missing` until the fusion data lands, and the skill degrades honestly
-# (the fusion axis simply doesn't contribute to the verdict yet). This mirrors
-# the clinical-precedent / combo-crispr-screen declared-placeholder pattern.
+# The fusion/structural-variant axis of the genomic-alteration-profile skill (SNV + CN + fusion).
+# GRADUATED placeholder -> live 2026-07-23: backed by the tcga-fusion-consensus-v1 derived product
+# (pan-TCGA 3-caller consensus — TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas
+# 2018 SV) via methods/tcga_fusion_consensus.read_target_summary.
 #
-# When wired, candidate data sources: GENIE structural-variant calls
-# (data_sv.txt), Mitelman, ChimerDB. Target categorical below is the intended
-# contract, not a live output.
+# SOURCE-SUBSTITUTION NOTE: the v0.1.0 placeholder pointed at genie-structural-variants (DNA SV,
+# never catalogued). The live source is instead the 3 LANDED open TCGA callers — predominantly RNA
+# transcript-fusions (TumorFusions/Gao, PRADA/STAR-family) unioned with cBioPortal DNA SV. This is
+# the better fit for the card's actual question ("recurrently involved in gene fusions") and is
+# license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 0.1.0
+version: 1.0.0
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
-applies_when:
-  - "context.data_sources.fusion_calls_available == true"   # false everywhere today → card skipped/missing
+applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
 
 required_inputs:
-  - product_id: genie-structural-variants          # NOT yet catalogued — placeholder
-    release_pin: "{release_pin}"
+  - product_id: tcga-fusion-consensus-v1
 
 methods:
-  - call: fusion-rearrangement-landscape            # NOT yet implemented — placeholder dispatcher
+  - call: tcga-fusion-consensus
     args:
       target: "{target.symbol}"
       indication: "{indication}"
-      release_pin: "{release_pin}"
 
 outputs:
   summary_fields:
     - n_samples_with_fusion
     - fusion_frequency
     - recurrent_partners
-    - fusion_class                                  # categorical driving future rules
+    - fusion_class                                  # PRIMARY categorical driving rules
   summary_fields_vocabulary:
     fusion_class:
-      - recurrent_fusion_driver                     # >=threshold samples with a recurrent partner
-      - sporadic_fusion                             # fusions present but non-recurrent
-      - no_recurrent_fusion                         # no recurrent fusion signal
-      - data_unavailable                            # DEFAULT today — no fusion product landed
+      - recurrent_fusion_driver                     # a recurrent partner (>=3 samples) OR the target recurs >=3 samples
+      - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
+      - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
+      - data_unavailable                            # product/target absent — NOT a measured negative
   figures:
     - id: fusion_partner_bar
       type: ranked_bar
@@ -49,10 +46,14 @@ outputs:
   plot_data: per_sample_fusion_calls
 
 caveats:
-  - "PLACEHOLDER card (v0.1.0): no method or derived product exists yet; the card resolves to data_unavailable / _missing. Declared to document the fusion axis of genomic-alteration-profile so the skill's scope is honest about what is not yet wired."
-  - "Fusion detection methodology differs materially from SNV/CN; when wired, this axis may warrant its own skill if it grows heavy (per the 2026-07-14 scope review)."
+  - "Consensus of 3 TCGA callers (TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas 2018 SV), UNIONED not intersected — caller_count in the product encodes agreement; the reader's min_callers arg (1=union default / 2=majority) lets a consumer require consensus."
+  - "RNA transcript-fusion (TumorFusions/Gao) + DNA SV (cBioPortal) are combined; a consumer needing one modality should filter by caller. Gao 2018 publishes no frame predictions."
+  - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is currently None (the assayed-sample denominator, sample_coverage, is a deferred fast-follow — the card reports absolute sample counts, not a rate, rather than divide by an unknown denominator)."
+  - "TCGA-only cohort. A target with fusions predominantly outside the 33 TCGA tissue types will under-report here; GENIE-SV breadth is a future additive source."
+  - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence."
 
-# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim.
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
+# [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
 measurement_type: fusion_rearrangement
 entity_grains: [target_indication]
 schema_version: 1
