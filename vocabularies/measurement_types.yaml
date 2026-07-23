@@ -123,6 +123,17 @@ measurement_types:
     providers:
       - {kind: dataset, source: cptac-protein-tumor-vs-normal-per-cohort-v1, evidence_tier: measured}
 
+  phospho_pathway_activity:
+    claim: "Is target phosphorylated (a pathway-activity proxy) in the indication's tumors, beyond its total abundance (CPTAC phospho)?"
+    # Q8 — CPTAC phosphoproteomics. DISTINCT from tumor_protein_abundance (total protein presence):
+    # this is the PHOSPHO-level activity readout (activated phosphosites, phospho-vs-total), the
+    # sharpest presence signal for kinases/signaling proteins where phosphorylation ≠ abundance.
+    # Routes: Presence (A, protein/pathway support) + Mechanism (D). Biology axis; no modality facet.
+    entity_grains: [target_indication]
+    cards: [phospho-pathway-activity]
+    providers:
+      - {kind: dataset, source: cptac-pdc-snapshot-2026-07-01, evidence_tier: measured}   # cptac pkg harmonized phosphoproteomics [bcm]
+
   cell_line_protein_abundance:
     claim: "What is target's Gygi-TMT-MS protein abundance across DepMap cell lines?"
     # Distinct from cell_line_rna_expression: RNA vs MS protein are orthogonal layers whose
