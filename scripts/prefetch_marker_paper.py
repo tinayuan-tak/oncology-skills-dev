@@ -56,9 +56,81 @@ INDICATION_COHORTS: dict[str, list[tuple[str, str | None]]] = {
     "PAAD": [("tcga_subtype_PAAD.csv", None)],
 }
 
+# The per-cohort marker-paper CSVs carry only data-availability flags for some
+# indications (HNSC/STAD/PAAD), NOT the published molecular subtype. Those live
+# in the PanCanAtlas curated subtype table (pancan_curated.csv, Subtype_Selected,
+# e.g. 'HNSC.Basal'). For indications listed here, join Subtype_Selected onto the
+# marker-paper frame as a named column, stripping the '{CANCER}.' prefix so the
+# value matches the catalog rule (clinical.hnsc_bass_subtype == 'Basal').
+_PANCAN_CURATED_FILE = "pancan_atlas_subtypes_curated.csv"
+
+# indication → (output column name, cancer.type filter, strip_prefix)
+INDICATION_SUBTYPE_ENRICH: dict[str, tuple[str, str, str]] = {
+    "HNSC": ("hnsc_bass_subtype", "HNSC", "HNSC."),
+}
+
+# Clinical fields (HPV status, anatomic site) are NOT in the marker-paper CSVs;
+# they live in the PanCanAtlas clinical table (clinical_PANCAN_patient_with_
+# followup.tsv, keyed on bcr_patient_barcode). For indications listed here, join
+# normalized clinical columns onto the marker-paper frame so directly-tagged
+# clinical rules (clinical.hpv_status == 'positive', clinical.anatomic_site ==
+# 'oropharyngeal') fire without a separate emitter path.
+_CLINICAL_S3 = ("data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
+                "clinical_PANCAN_patient_with_followup.tsv")
+
+# TCGA-HNSC anatomic_neoplasm_subdivision (fine-grained) → catalog site buckets.
+# Oropharyngeal = HPV-enriched (tonsil, base of tongue, oropharynx); oral cavity
+# = the rest of the mouth; larynx separate. Values not mapped → NaN (null).
+_HNSC_SITE_GROUPING = {
+    "Tonsil": "oropharyngeal",
+    "Base of tongue": "oropharyngeal",
+    "Oropharynx": "oropharyngeal",
+    "Oral Tongue": "oral_cavity",
+    "Floor of mouth": "oral_cavity",
+    "Buccal Mucosa": "oral_cavity",
+    "Alveolar Ridge": "oral_cavity",
+    "Hard Palate": "oral_cavity",
+    "Lip": "oral_cavity",
+    "Larynx": "larynx",
+    # Hypopharynx is neither oropharyngeal nor oral-cavity nor larynx in the
+    # catalog's 3-bucket scheme → left unmapped (null for those strata).
+}
+
+# indication → clinical-enrichment spec. Each entry produces normalized columns
+# on the marker-paper frame. `site_grouping` maps a raw site column to buckets;
+# `hpv_col` is the raw p16 column normalized to positive/negative/null.
+INDICATION_CLINICAL_ENRICH: dict[str, dict] = {
+    "HNSC": {
+        "hpv_col": "hpv_status_by_p16_testing",   # Positive/Negative/[Not Available]/...
+        "site_col": "anatomic_neoplasm_subdivision",
+        "site_grouping": _HNSC_SITE_GROUPING,
+    },
+}
+
 
 def _log(msg: str) -> None:
     click.echo(f"[prefetch-marker-paper] {msg}", err=True)
+
+
+def _s3_download_key(key: str, dest: Path, dry_run: bool) -> None:
+    """Download an ARBITRARY S3 key (full path under the bucket), unlike
+    _s3_download which prepends the marker-papers prefix. Used for the clinical
+    table which lives under a different PanCanAtlas prefix."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        _log(f"cache hit: {dest} (skip download)")
+        return
+    if dry_run:
+        _log(f"DRY_RUN: would download s3://{S3_BUCKET}/{key} → {dest}")
+        return
+    _log(f"downloading s3://{S3_BUCKET}/{key} → {dest}")
+    r = subprocess.run(
+        ["aws", "s3", "cp", f"s3://{S3_BUCKET}/{key}", str(dest), "--no-progress"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        _log(f"download FAILED: {r.stderr}")
+        sys.exit(r.returncode)
 
 
 def _s3_download(filename: str, dest: Path, dry_run: bool) -> None:
@@ -121,6 +193,46 @@ def main(indication: str) -> int:
              + (f" (histology={histology})" if histology else ""))
 
     composed = pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
+
+    # Enrich with the published molecular subtype from the PanCanAtlas curated
+    # table when the per-cohort file lacks it (HNSC Bass subtypes etc.). Joins on
+    # patient barcode; strips the '{CANCER}.' prefix so the value matches the
+    # catalog rule (e.g. 'HNSC.Basal' -> 'Basal').
+    enrich = INDICATION_SUBTYPE_ENRICH.get(ind)
+    if enrich is not None:
+        out_col, cancer_type, strip_prefix = enrich
+        curated_local = raw_dir / _PANCAN_CURATED_FILE
+        _s3_download(_PANCAN_CURATED_FILE, curated_local, dry_run=False)
+        cur = pd.read_csv(curated_local)
+        cur = cur[cur["cancer.type"] == cancer_type][["pan.samplesID", "Subtype_Selected"]].copy()
+        cur["patient"] = cur["pan.samplesID"].str[:12]
+        cur[out_col] = cur["Subtype_Selected"].astype(str).str.replace(
+            strip_prefix, "", regex=False)
+        cur = cur[["patient", out_col]].drop_duplicates("patient")
+        composed = composed.merge(cur, on="patient", how="left")
+        _log(f"  enriched {out_col}: {composed[out_col].value_counts(dropna=False).to_dict()}")
+
+    # Clinical enrichment (HPV status, anatomic site) from the PanCanAtlas
+    # clinical table. Normalizes to the catalog rule vocabulary; unmapped/absent
+    # → NaN so the directly-tagged evaluator emits tri-value null (not false).
+    clin_spec = INDICATION_CLINICAL_ENRICH.get(ind)
+    if clin_spec is not None:
+        clin_local = raw_dir / "clinical_PANCAN_patient_with_followup.tsv"
+        _s3_download_key(_CLINICAL_S3, clin_local, dry_run=False)
+        clin = pd.read_csv(clin_local, sep="\t", low_memory=False, encoding="latin-1")
+        csub = pd.DataFrame({"patient": clin["bcr_patient_barcode"]})
+        if clin_spec.get("hpv_col"):
+            raw_hpv = clin[clin_spec["hpv_col"]].astype(str).str.strip().str.lower()
+            csub["hpv_status"] = raw_hpv.map({"positive": "positive", "negative": "negative"})
+        if clin_spec.get("site_col"):
+            csub["anatomic_site"] = clin[clin_spec["site_col"]].map(clin_spec["site_grouping"])
+        csub = csub.drop_duplicates("patient")
+        composed = composed.merge(csub, on="patient", how="left")
+        if "hpv_status" in composed:
+            _log(f"  enriched hpv_status: {composed['hpv_status'].value_counts(dropna=False).to_dict()}")
+        if "anatomic_site" in composed:
+            _log(f"  enriched anatomic_site: {composed['anatomic_site'].value_counts(dropna=False).to_dict()}")
+
     out_dir.mkdir(parents=True, exist_ok=True)
     composed.to_csv(out_path, index=False)
     hist_note = ""

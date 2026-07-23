@@ -60,6 +60,12 @@ _FUSION_METHOD = "fusion_partner_match"
 # per-sample-gene) so a plain scalar `field == 'value'` rule applies directly.
 _SAMPLE_LABEL_METHOD = "sample_label_match"
 
+# data_source.method for gene-level copy-number amplification calls. Reads a
+# per-(patient, gene) GISTIC product (framework-cn-gistic/{ind}-cn.parquet);
+# the rule `copy_number.CCND1 == 'amplified'` names the gene in the lhs suffix
+# and the amp_call value on the rhs. Per-(patient, gene) → own evaluator.
+_CN_AMP_METHOD = "gene_amp_call"
+
 
 # ---------- CEL-subset rule parser -----------------------------------------
 
@@ -457,6 +463,65 @@ def _evaluate_sample_label_stratum(
         "is_member", "derivation_source", "derivation_value"])
 
 
+# ---------- Copy-number amplification path (CCND1 etc.) ----------
+#
+# Per-(patient, gene) GISTIC amp calls from framework-cn-gistic/{ind}-cn.parquet
+# (produced by scripts/prefetch_cn_gistic.py). The rule
+# `copy_number.CCND1 == 'amplified'` names the gene in the lhs suffix (CCND1) and
+# the amp_call on the rhs. Membership = the sample's row for that gene has
+# amp_call == 'amplified'; false = present but not amplified; null = gene/sample
+# absent from the CN product (unassayed).
+
+
+def _load_cn_gistic(indication: str) -> pd.DataFrame | None:
+    """Load the per-(patient, gene) GISTIC amp product for an indication.
+
+    Cached at {cache_root}/framework-cn-gistic/{ind}-cn.parquet. Returns None if
+    absent (the CN strata then emit null — cannot call amp without the product)."""
+    p = cache_root() / "framework-cn-gistic" / f"{indication.lower()}-cn.parquet"
+    if not p.exists():
+        return None
+    return pd.read_parquet(p)
+
+
+def _evaluate_cn_amp_stratum(stratum: dict, cn_df: pd.DataFrame | None) -> pd.DataFrame:
+    """Evaluate a `copy_number.<GENE> == '<amp_call>'` rule against the CN product.
+
+    Tri-value: member = (patient, gene) row has the matching amp_call; false =
+    present with a different amp_call; null = gene/patient absent (unassayed) or
+    the CN product is missing entirely.
+    """
+    lhs, op, values = parse_rule(stratum["rule"])
+    _, gene = lhs.split(".", 1) if "." in lhs else (None, lhs)
+    if op != "eq" or len(values) != 1:
+        raise ValueError(
+            f"CN-amp stratum {stratum['id']} rule must be "
+            f"`copy_number.<GENE> == '<amp_call>'`; got {stratum['rule']!r}.")
+    target_call = values[0]
+
+    if cn_df is None:
+        return pd.DataFrame(columns=[
+            "sample_id", "patient_id", "source_native_id", "stratum_id",
+            "is_member", "derivation_source", "derivation_value"])
+
+    sub = cn_df[cn_df["gene_symbol"] == gene]
+    rows = []
+    for _, r in sub.iterrows():
+        is_mem = (r["amp_call"] == target_call)
+        rows.append({
+            "sample_id": r["patient_key"],
+            "patient_id": r["patient_key"],
+            "source_native_id": r["patient_key"],
+            "stratum_id": stratum["id"],
+            "is_member": bool(is_mem),
+            "derivation_source": stratum["derivation_source"],
+            "derivation_value": str(r["amp_call"]) if is_mem else "",
+        })
+    return pd.DataFrame(rows, columns=[
+        "sample_id", "patient_id", "source_native_id", "stratum_id",
+        "is_member", "derivation_source", "derivation_value"])
+
+
 # Indication → DepMap OncotreeLineage. Mirrors target-contracts
 # vocabularies/indication_crosswalk.yaml `depmap_lineage`. Without this filter a
 # DepMap assignments shard is pan-cancer (MSI_H across ALL lineages), which
@@ -689,14 +754,16 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
             continue
         applicable.append(s)
 
-    # Partition by data_source.method into three evaluation paths:
+    # Partition by data_source.method into evaluation paths:
     #   fusion       — per-(sample, gene) consensus product (set-membership)
     #   sample_label — per-sample derived label product (scalar rule, e.g. TMB)
+    #   cn_amp       — per-(patient, gene) GISTIC amp product (CCND1 etc.)
     #   scalar       — the per-data-source marker-paper/depmap frame (existing path)
+    _routed = (_FUSION_METHOD, _SAMPLE_LABEL_METHOD, _CN_AMP_METHOD)
     fusion_strata = [s for s in applicable if _stratum_method(s) == _FUSION_METHOD]
     label_strata = [s for s in applicable if _stratum_method(s) == _SAMPLE_LABEL_METHOD]
-    scalar_strata = [s for s in applicable
-                     if _stratum_method(s) not in (_FUSION_METHOD, _SAMPLE_LABEL_METHOD)]
+    cn_amp_strata = [s for s in applicable if _stratum_method(s) == _CN_AMP_METHOD]
+    scalar_strata = [s for s in applicable if _stratum_method(s) not in _routed]
 
     click.echo(f"=== subgroup_assigner_directly_tagged v{METHOD_VERSION} ===")
     click.echo(f"  catalog:       {catalog_id} (indication={indication})")
@@ -833,6 +900,34 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
                     n_null = int(rows["is_member"].isna().sum())
                     click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, "
                                f"false: {n_false:>5}, null: {n_null:>5}")
+
+    # ============ CN-amp strata: per-(patient, gene) GISTIC product ==========
+    # TCGA-only (GISTIC is a TCGA product); depmap/genie self-degrade.
+    if cn_amp_strata:
+        if data_source != "tcga":
+            click.echo(f"  CN-amp strata present but data_source={data_source} has no "
+                       f"GISTIC product → skipping {[s['id'] for s in cn_amp_strata]}")
+        else:
+            cn_df = _load_cn_gistic(indication)
+            if cn_df is None:
+                click.echo(f"  CN-amp product not cached for {indication} "
+                           f"(run scripts/prefetch_cn_gistic.py) → strata emit null: "
+                           f"{[s['id'] for s in cn_amp_strata]}")
+            else:
+                click.echo(f"  loaded CN GISTIC product: {len(cn_df):,} (patient, gene) rows")
+            for stratum in cn_amp_strata:
+                try:
+                    rows = _evaluate_cn_amp_stratum(stratum, cn_df)
+                except ValueError as e:
+                    click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
+                    continue
+                if rows.empty:
+                    click.echo(f"    {stratum['id']:<20} (no rows — CN product absent, null)")
+                    continue
+                per_stratum_dfs.append(rows)
+                n_hit = int((rows["is_member"] == True).sum())
+                n_false = int((rows["is_member"] == False).sum())
+                click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, false: {n_false:>5}")
 
     if not per_stratum_dfs:
         click.echo("ERROR: no strata produced rows", err=True)

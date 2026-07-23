@@ -323,3 +323,32 @@ def test_sample_label_null_on_missing_value():
     out = _evaluate_sample_label_stratum(stratum, label_df, tissue_filter_keys=None)
     n2 = out[out["sample_id"] == "TCGA-AA-0002"].iloc[0]
     assert n2["is_member"] is None or pd.isna(n2["is_member"])
+
+
+# ---------- CN-amp (GISTIC) path -------------------------------------------
+
+def test_cn_amp_evaluator():
+    """_evaluate_cn_amp_stratum: gene-scoped amp membership + false, only the
+    named gene's rows, absent product → empty (caller emits null)."""
+    from methods.subgroup_assigner_directly_tagged.cli import _evaluate_cn_amp_stratum
+
+    cn_df = pd.DataFrame({
+        "patient_key": ["TCGA-AA-0001", "TCGA-AA-0002", "TCGA-AA-0003", "TCGA-AA-0001"],
+        "gene_symbol": ["CCND1",        "CCND1",        "CCND1",        "ERBB2"],
+        "gistic_value":[2,              1,              -1,             2],
+        "amp_call":    ["amplified",    "not_amplified","not_amplified","amplified"],
+    })
+    stratum = {"id": "CCND1_amp", "rule": "copy_number.CCND1 == 'amplified'",
+               "derivation_source": "directly_tagged_source_provided",
+               "data_source": {"method": "gene_amp_call"}}
+    out = _evaluate_cn_amp_stratum(stratum, cn_df)
+    # Only CCND1 rows evaluated (ERBB2 row ignored); 1 amplified, 2 not.
+    assert len(out) == 3
+    assert (out["is_member"] == True).sum() == 1
+    assert (out["is_member"] == False).sum() == 2
+    assert out[out["sample_id"] == "TCGA-AA-0001"].iloc[0]["is_member"] == True
+    assert out[out["sample_id"] == "TCGA-AA-0001"].iloc[0]["derivation_value"] == "amplified"
+
+    # Absent product → empty frame (main() then emits null for the stratum).
+    empty = _evaluate_cn_amp_stratum(stratum, None)
+    assert empty.empty

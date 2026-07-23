@@ -90,6 +90,36 @@ def test_variant_classification_effect_map_covers_catalog_vocab():
     assert M["Frame_Shift_Ins"] == "frameshift"
 
 
+# ---------- marker-paper + CN prefetch configs (HNSC enrichment) -----------
+
+def test_marker_paper_hnsc_subtype_and_clinical_enrich():
+    """HNSC marker-paper prefetch enriches Bass subtype (from pancan-curated) +
+    HPV/site (from clinical). NSCLC composes histology from two cohort files."""
+    from scripts.prefetch_marker_paper import (
+        INDICATION_COHORTS, INDICATION_SUBTYPE_ENRICH, INDICATION_CLINICAL_ENRICH,
+        _HNSC_SITE_GROUPING,
+    )
+    # NSCLC = two cohort files with histology labels (multi-histology composition).
+    assert [c[1] for c in INDICATION_COHORTS["NSCLC"]] == ["adenocarcinoma", "squamous_cell_carcinoma"]
+    # HNSC Bass subtype comes from pancan-curated, prefix-stripped to bare labels.
+    assert INDICATION_SUBTYPE_ENRICH["HNSC"] == ("hnsc_bass_subtype", "HNSC", "HNSC.")
+    # HNSC clinical enrichment supplies hpv + site with a site-grouping map.
+    ce = INDICATION_CLINICAL_ENRICH["HNSC"]
+    assert ce["hpv_col"] == "hpv_status_by_p16_testing"
+    assert ce["site_grouping"] is _HNSC_SITE_GROUPING
+    # Oropharyngeal bucket = HPV-enriched sites; larynx separate.
+    assert _HNSC_SITE_GROUPING["Tonsil"] == "oropharyngeal"
+    assert _HNSC_SITE_GROUPING["Base of tongue"] == "oropharyngeal"
+    assert _HNSC_SITE_GROUPING["Larynx"] == "larynx"
+    assert _HNSC_SITE_GROUPING["Oral Tongue"] == "oral_cavity"
+
+
+def test_cn_gistic_amp_threshold():
+    """CN GISTIC prefetch calls amp at GISTIC +2 (high-level); +1 gain is NOT amp."""
+    from scripts.prefetch_cn_gistic import AMP_THRESHOLD
+    assert AMP_THRESHOLD == 2
+
+
 def test_dry_run_genie_bpc_lot():
     """LOT dry-run prints the regimen + cancer-panel-test plan without deriving.
 
