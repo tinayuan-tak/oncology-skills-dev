@@ -33,10 +33,181 @@ from __future__ import annotations
 import gzip
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
-from typing import Iterator, Iterable
+from typing import Iterator, Iterable, Optional
 
 import pandas as pd
+
+METHOD_VERSION = "0.2.0"   # 0.2.0: + per-target read_target_summary over the derived S3 product
+
+# ---------- per-target read over the derived consensus product (2026-07-23) ----------
+# The builders above (load_*/build_consensus in cli.py) EMIT the derived product; this reader
+# CONSUMES it per-(target, indication) for the fusion-rearrangement-landscape card. Reads the S3
+# object with the definitive-vs-transient cache latch used by every other derived reader.
+DEFAULT_AWS_PROFILE = "cbg"
+S3_BUCKET = "onc-compbio"
+DERIVED_MANIFEST_ID = "tcga-fusion-consensus-v1"
+DERIVED_S3_KEY = ("data-catalog/derived/tcga-fusion-consensus-v1/"
+                  "fusion_consensus_per_sample_gene.parquet")
+CACHE_DIR = Path.home() / ".cache" / "framework-fusion-consensus"
+CACHE_PARQUET = CACHE_DIR / "fusion_consensus_per_sample_gene.parquet"
+_DERIVED_STATUS: Optional[bool] = None
+
+# Recurrence threshold: a fusion is a RECURRENT driver in an indication when it recurs across samples.
+# Fusion counts are small (spec: ~5 ALK in LUAD), so the bar is low but > sporadic-singleton.
+_RECURRENT_MIN_SAMPLES = 3
+# Consensus floor: only count a (sample, gene) fusion supported by >= this many callers, to avoid
+# single-caller false positives inflating recurrence. 1 = union (default); a consumer wanting majority
+# passes min_callers=2.
+_DEFAULT_MIN_CALLERS = 1
+
+
+def _boto3_client():
+    import boto3
+    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+
+
+def _ensure_derived_cached() -> Optional[Path]:
+    global _DERIVED_STATUS
+    if _DERIVED_STATUS is False:
+        return None
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if CACHE_PARQUET.exists() and CACHE_PARQUET.stat().st_size > 0:
+        _DERIVED_STATUS = True
+        return CACHE_PARQUET
+    if _DERIVED_STATUS is None:
+        try:
+            _boto3_client().download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
+            _DERIVED_STATUS = True
+            return CACHE_PARQUET
+        except Exception as e:  # noqa: BLE001
+            resp = getattr(e, "response", None)
+            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
+            definitive = (code in ("404", "NoSuchKey")
+                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            if definitive:
+                _DERIVED_STATUS = False
+            return None
+    return None
+
+
+@lru_cache(maxsize=1)
+def _load_consensus():
+    path = _ensure_derived_cached()
+    if path is None:
+        return pd.DataFrame()
+    try:
+        return pd.read_parquet(path)
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def _empty_summary(note: str) -> dict:
+    return {
+        "n_samples_with_fusion": 0,
+        "fusion_frequency": None,
+        "recurrent_partners": [],
+        "fusion_class": "data_unavailable",
+        "method_version": METHOD_VERSION,
+        "_data_note": note,
+        "_data_source": DERIVED_MANIFEST_ID,
+    }
+
+
+def read_target_summary(target: str, indication: str = None,
+                        min_callers: int = _DEFAULT_MIN_CALLERS) -> dict:
+    """Per-(target, indication) fusion-recurrence summary for the fusion-rearrangement-landscape card.
+
+    Reads the tcga-fusion-consensus-v1 derived product (S3, cached), filters to the target gene and —
+    when given — the indication's TCGA tissue code, keeps only (sample, gene) rows with >= min_callers
+    caller support, and computes the card contract:
+        n_samples_with_fusion  — distinct samples with the target fused (>= min_callers)
+        fusion_frequency       — n_samples_with_fusion / n_samples_assayed_in_tissue (None if unknown)
+        recurrent_partners     — partner genes seen in >= _RECURRENT_MIN_SAMPLES samples, count-desc
+        fusion_class           — recurrent_fusion_driver | sporadic_fusion | no_recurrent_fusion |
+                                 data_unavailable
+    data_unavailable (never a fabricated call) when the product is absent or the target has no rows."""
+    df = _load_consensus()
+    if df is None or df.empty:
+        return _empty_summary("fusion_consensus_product_unavailable")
+
+    sym = str(target or "").upper().strip()
+    sub = df[df["gene_symbol"].astype(str).str.upper() == sym]
+    if min_callers > 1:
+        sub = sub[sub["caller_count"] >= min_callers]
+    # indication → TCGA tissue filter (the product's tissue col is the TCGA disease code)
+    ind = str(indication or "").upper().strip()
+    if ind:
+        # accept COADREAD↔COAD/READ style: match tissue prefix membership loosely
+        sub = sub[sub["tissue"].astype(str).str.upper().isin(_indication_tissue_codes(ind))]
+
+    if sub.empty:
+        # target present in the product but not in this indication (or filtered out) → no recurrent call
+        # (distinct from product-absent: this is a real measured-negative for the indication)
+        note = "target_not_fused_in_indication" if ind else "target_not_in_fusion_product"
+        out = _empty_summary(note)
+        out["fusion_class"] = "no_recurrent_fusion" if _target_in_product(df, sym) else "data_unavailable"
+        return out
+
+    n_samples = sub["sample_key"].nunique()
+
+    # recurrent partners: aggregate partner lists across all callers, count distinct samples per partner
+    partner_samples: dict = {}
+    for _, row in sub.iterrows():
+        parts = set()
+        for col in ("partners_tumorfusions", "partners_gao_2018", "partners_cbioportal"):
+            v = row.get(col)
+            if v is not None and hasattr(v, "__len__") and not isinstance(v, str):
+                parts.update(str(p) for p in v if p)
+        for p in parts:
+            partner_samples.setdefault(p, set()).add(row["sample_key"])
+    recurrent = sorted(((p, len(s)) for p, s in partner_samples.items() if len(s) >= _RECURRENT_MIN_SAMPLES),
+                       key=lambda x: (-x[1], x[0]))
+    recurrent_partners = [{"partner": p, "n_samples": n} for p, n in recurrent]
+
+    if recurrent_partners:
+        fclass = "recurrent_fusion_driver"
+    elif n_samples >= _RECURRENT_MIN_SAMPLES:
+        # target recurs but no single partner does (promiscuous 5'/3' — still a recurrent-fusion signal)
+        fclass = "recurrent_fusion_driver"
+    else:
+        fclass = "sporadic_fusion"
+
+    return {
+        "n_samples_with_fusion": int(n_samples),
+        # frequency needs an assayed denominator (sample_coverage) — deferred; None keeps it honest
+        # rather than dividing by an unknown/whole-cohort denominator.
+        "fusion_frequency": None,
+        "recurrent_partners": recurrent_partners,
+        "fusion_class": fclass,
+        "method_version": METHOD_VERSION,
+        "_data_source": DERIVED_MANIFEST_ID,
+        "_min_callers": min_callers,
+        "_n_events_total": int(sub[["n_events_tumorfusions", "n_events_gao_2018",
+                                    "n_events_cbioportal"]].sum().sum()),
+    }
+
+
+def _target_in_product(df: pd.DataFrame, sym: str) -> bool:
+    return bool((df["gene_symbol"].astype(str).str.upper() == sym).any())
+
+
+# indication (OncoTree-ish) → set of TCGA disease codes present in the product's `tissue` column.
+_INDICATION_TISSUE = {
+    "COADREAD": {"COAD", "READ", "COADREAD"}, "COAD": {"COAD", "COADREAD"}, "READ": {"READ", "COADREAD"},
+    "NSCLC": {"LUAD", "LUSC"}, "LUAD": {"LUAD"}, "LUSC": {"LUSC"},
+    "HNSC": {"HNSC"}, "HNSCC": {"HNSC"}, "BRCA": {"BRCA"}, "PRAD": {"PRAD"}, "PAAD": {"PAAD"},
+    "STAD": {"STAD"}, "OV": {"OV"}, "GBM": {"GBM"}, "LGG": {"LGG"}, "BLCA": {"BLCA"},
+    "KIRC": {"KIRC"}, "KIRP": {"KIRP"}, "KICH": {"KICH"}, "LIHC": {"LIHC"}, "SKCM": {"SKCM"},
+    "THCA": {"THCA"}, "UCEC": {"UCEC"}, "CESC": {"CESC"}, "ESCA": {"ESCA"}, "SARC": {"SARC"},
+}
+
+
+def _indication_tissue_codes(ind: str) -> set:
+    """Map an indication code to the TCGA disease codes it covers; fall back to the code itself."""
+    return _INDICATION_TISSUE.get(ind, {ind})
+
 
 # ---------- barcode normalization ----------
 
