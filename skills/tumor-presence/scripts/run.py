@@ -53,6 +53,12 @@ CARDS = [
                                         # for kinases/signaling. ADDITIVE render facet — phospho_activity_class
                                         # + rules feed NO resolver (presence verdict byte-stable). Same
                                         # (bulk_protein_ms, tumor) bucket as protein-presence-cptac.
+    "rna-protein-concordance",          # Q5 (2026-07-23 composition) — rna_as_biomarker: is RNA an
+                                        # adequate PROXY for protein presence (cell-line arm)? A
+                                        # presence-proxy QUALITY qualifier on the RNA presence read +
+                                        # the biomarker facet's preferred_assay input. ADDITIVE render
+                                        # facet — its rna-protein-* rules feed NO resolver (presence
+                                        # verdict byte-stable). (bulk_rna, cell_line) bucket.
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -85,6 +91,7 @@ CARD_CONTEXT = {
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
     "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as protein-presence-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
+    "rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as expression-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
 }
 
 
@@ -316,6 +323,9 @@ def _headline(cards, fired, verdict_pair):
         # Q8 phospho pathway activity — protein/pathway-level presence (render facet, byte-stable)
         "phospho_activity_class":   _get("phospho-pathway-activity", "phospho_activity_class"),
         "n_phosphosites":           _get("phospho-pathway-activity", "n_phosphosites"),
+        # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
+        "rna_as_biomarker":         _get("rna-protein-concordance", "rna_as_biomarker"),
+        "rna_protein_r":            _get("rna-protein-concordance", "rna_protein_r"),
     }
 
 

@@ -23,7 +23,16 @@ from _skills_common.resolver import resolve_verdict_for_gate
 SKILL_NAME = "differentiation-landscape"
 SKILL_VERSION = "1.2.0"
 
-CARDS = ["co-mutation-and-mutual-exclusivity"]
+CARDS = [
+    "co-mutation-and-mutual-exclusivity",
+    "expression-clinical-association",   # Q11 (2026-07-23 composition) — does target expression
+                                         # stratify SURVIVAL (prognostic context)? A patient-selection /
+                                         # clinical-context render facet + biomarker-facet stratification
+                                         # input. ADDITIVE — its clinical-* rules feed NO resolver ladder
+                                         # (differentiation verdict byte-stable; resolver reads only the
+                                         # co-mutation rule_ids). Fills part of the clinical-precedent gap
+                                         # this skill's status-partial note flags.
+]
 
 QUESTION = ("What genes co-occur with or are mutually exclusive to "
             "{target} mutations across TCGA MC3 + GENIE 19.0-public, "
@@ -79,6 +88,11 @@ def _headline(cards, fired, verdict_pair):
                                                  "top_cooccurring"),
         "top_mutually_exclusive":           _get("co-mutation-and-mutual-exclusivity",
                                                  "top_mutually_exclusive"),
+        # Q11 expression→survival prognostic context (render facet; feeds NO resolver — the
+        # differentiation verdict reads only the co-mutation rule_ids, so this is verdict-inert):
+        "survival_association_class":       _get("expression-clinical-association",
+                                                 "survival_association_class"),
+        "logrank_p":                        _get("expression-clinical-association", "logrank_p"),
     }
 
 
