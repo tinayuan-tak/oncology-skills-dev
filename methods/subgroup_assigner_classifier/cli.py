@@ -99,26 +99,74 @@ def _load_classifier_config(config_path: Path) -> dict:
 
 # ---------- Source-data loaders --------------------------------------------
 
-def _load_depmap_expression(gene_symbols: list[str]) -> pd.DataFrame:
+_REFERENCE_COHORT_ONCOTREE = {
+    "depmap_lung_sclc": "SCLC",
+    "depmap_all": None,
+}
+
+
+def _load_depmap_expression(gene_symbols: list[str], reference_cohort: str | None = None) -> pd.DataFrame:
     """Load DepMap OmicsExpressionProteinCodingGenesTPMLogp1 for the given genes.
 
     Returns wide DataFrame indexed by ModelID with one column per gene
     (values are log2(TPM+1)).
 
-    Iter-1 cache-fallback protocol; Phase 2a.4 provides canonical S3 fetch.
+    The real DepMap 26Q1 file has columns as 'SYMBOL (EntrezID)' and extra
+    metadata columns. We resolve gene symbols to the first matching column,
+    filter to IsDefaultEntryForModel='Yes', and optionally restrict to an
+    OncotreeCode cohort via Model.csv (for reference_cohort filtering).
     """
-    fallback = cache_root() / "framework-depmap-26q1" / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
+    cache = cache_root() / "framework-depmap-26q1"
+    fallback = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     if not fallback.exists():
         raise FileNotFoundError(
             f"DepMap expression matrix not found at {fallback}. "
-            f"Phase 2a.4 provides the canonical loader. For immediate execution: "
-            f"pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/"
-            f"OmicsExpressionProteinCodingGenesTPMLogp1.csv into the fallback path."
+            f"Pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/"
+            f"OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv into that path."
         )
-    df = pd.read_csv(fallback, index_col=0)
-    missing = [g for g in gene_symbols if g not in df.columns]
+    # Read header to map gene symbols to actual column names ('GENE (ID)' format)
+    header_df = pd.read_csv(fallback, nrows=0)
+    all_cols = list(header_df.columns)
+    sym_to_col: dict[str, str] = {}
+    for col in all_cols:
+        sym = col.split(" (")[0]
+        if sym not in sym_to_col:
+            sym_to_col[sym] = col
+
+    missing = [g for g in gene_symbols if g not in sym_to_col]
     if missing:
         raise KeyError(f"Marker genes not in expression matrix: {missing}")
+
+    gene_cols = [sym_to_col[g] for g in gene_symbols]
+    needed = ["ModelID", "IsDefaultEntryForModel"] + gene_cols
+
+    # Read only the columns we need + ModelID/filter cols
+    df = pd.read_csv(fallback, usecols=lambda c: c in set(needed))
+    df = df[df["IsDefaultEntryForModel"] == "Yes"].set_index("ModelID")
+    df = df.drop(columns=["IsDefaultEntryForModel"], errors="ignore")
+    # Rename 'SYMBOL (ID)' columns → bare symbol
+    df = df.rename(columns={sym_to_col[g]: g for g in gene_symbols})
+
+    # Optional cohort filter via Model.csv
+    oncotree_code = _REFERENCE_COHORT_ONCOTREE.get(reference_cohort) if reference_cohort else None
+    if oncotree_code:
+        model_path = cache / "Model.csv"
+        if model_path.exists():
+            model = pd.read_csv(model_path, usecols=["ModelID", "OncotreeCode"])
+            cohort_ids = set(model[model["OncotreeCode"] == oncotree_code]["ModelID"])
+            df = df[df.index.isin(cohort_ids)]
+            if df.empty:
+                raise ValueError(
+                    f"No models found for OncotreeCode={oncotree_code!r} "
+                    f"after cohort filtering. Check Model.csv."
+                )
+        else:
+            click.echo(
+                f"  WARNING: Model.csv not found at {model_path}; "
+                f"reference_cohort filter ({reference_cohort!r}) skipped",
+                err=True,
+            )
+
     return df[gene_symbols]
 
 
@@ -253,12 +301,21 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
     catalog_id = catalog.get("id")
     atomic = catalog.get("atomic_strata", [])
 
+    config_method = config["classifier_method"]
     applicable = []
+    skipped = []
     for s in atomic:
         if s.get("derivation_source") not in SUPPORTED_DERIVATION_SOURCES:
+            skipped.append((s["id"], "derivation_source not classifier_run"))
             continue
         applicable_sources = s.get("applicable_data_sources", [])
         if data_source not in applicable_sources:
+            skipped.append((s["id"], f"data_source {data_source!r} not applicable"))
+            continue
+        # Filter to strata whose catalog method matches this classifier config's method
+        stratum_method = s.get("data_source", {}).get("method", "")
+        if stratum_method and stratum_method != config_method:
+            skipped.append((s["id"], f"method {stratum_method!r} != config {config_method!r}"))
             continue
         applicable.append(s)
 
@@ -271,9 +328,13 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
     click.echo(f"  applicable classifier-run strata ({len(applicable)} of {len(atomic)}):")
     for s in applicable:
         click.echo(f"    - {s['id']:<20} rule={s['rule']!r}")
+    if skipped:
+        click.echo(f"  skipped strata ({len(skipped)}):")
+        for sid, reason in skipped:
+            click.echo(f"    - {sid:<20} ({reason})")
 
     if not applicable:
-        click.echo(f"WARNING: no applicable classifier-run strata for data_source={data_source}", err=True)
+        click.echo(f"WARNING: no applicable classifier-run strata for data_source={data_source} / method={config_method}", err=True)
         return 0
 
     if dry_run:
@@ -287,7 +348,7 @@ def main(subgroup_catalog: Path, classifier_config: Path, data_source: str,
         gene_symbols = [config["marker_gene"]]
 
     if data_source == "depmap":
-        expression = _load_depmap_expression(gene_symbols)
+        expression = _load_depmap_expression(gene_symbols, reference_cohort=config.get("reference_cohort"))
     else:
         expression = _load_tcga_expression(gene_symbols, indication)
     click.echo(f"  loaded expression matrix: {expression.shape}")
