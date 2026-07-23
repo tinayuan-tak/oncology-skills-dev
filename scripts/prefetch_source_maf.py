@@ -58,10 +58,18 @@ class SourceConfig:
     out_tag: str                        # output parquet: {indication}-{out_tag}.parquet
     gene_col: str                       # source column → gene_symbol
     protein_col: str                    # source column → protein_change
-    effect_col: str                     # source column → effect
+    effect_col: str                     # source column → effect (raw Variant_Classification)
     sample_col: str                     # source column → sample_id
     filter_strategy: str                # 'tcga_patient_list' | 'genie_cancer_type' | 'depmap_lineage' | 'none'
     comment_char: str = ""              # '#' for cBioPortal-style headers, '' otherwise
+    # Optional columns for effect/exon rule support (catalogs use a normalized
+    # lowercase `effect` vocabulary + an `exon` int; raw MAFs carry MAF v2.4
+    # Variant_Classification + `Exon_Number` like '19/28'). Empty string = the
+    # source lacks the column → the corresponding output column is omitted and
+    # effect stays raw-passthrough (backward-compatible for GENIE/DepMap).
+    exon_col: str = ""                  # source column → exon (parsed to leading int)
+    polyphen_col: str = ""              # source column → PolyPhen (for missense_damaging)
+    normalize_effect: bool = False      # map Variant_Classification → catalog effect vocab
 
 
 SOURCE_CONFIGS = {
@@ -74,6 +82,10 @@ SOURCE_CONFIGS = {
         gene_col="Hugo_Symbol", protein_col="HGVSp_Short",
         effect_col="Variant_Classification", sample_col="Tumor_Sample_Barcode",
         filter_strategy="tcga_patient_list",
+        # MC3 carries Exon_Number ('19/28') + PolyPhen ('benign(0.335)') so the
+        # catalogs' effect/exon rules (EGFR ex19del, MET ex14, HER2 missense, TP53
+        # missense_damaging across NSCLC/HNSC/ESCA/PAAD/AML) can evaluate.
+        exon_col="Exon_Number", polyphen_col="PolyPhen", normalize_effect=True,
     ),
     "genie_public_v19": SourceConfig(
         cache_dir="genie-public-v19",
@@ -105,6 +117,31 @@ SOURCE_CONFIGS = {
 }
 
 S3_BUCKET = "onc-compbio"
+
+# MAF v2.4 Variant_Classification → catalog `effect` vocabulary. The subgroup
+# catalogs (NSCLC/HNSC/ESCA/PAAD/AML) author rules against this normalized
+# lowercase vocabulary; raw MC3/GENIE MAFs carry title-case MAF classes. Map
+# both frameshift dels/ins to a single `frameshift` token (catalogs don't
+# distinguish direction). `missense_damaging` is NOT a raw class — it's derived
+# below from Missense_Mutation ∧ PolyPhen∈{probably,possibly}_damaging.
+VARIANT_CLASSIFICATION_TO_EFFECT = {
+    "In_Frame_Del": "in_frame_deletion",
+    "In_Frame_Ins": "in_frame_insertion",
+    "Splice_Site": "splice_site",
+    "Missense_Mutation": "missense",
+    "Nonsense_Mutation": "nonsense",
+    "Nonstop_Mutation": "nonstop",
+    "Frame_Shift_Del": "frameshift",
+    "Frame_Shift_Ins": "frameshift",
+    "Translation_Start_Site": "translation_start_site",
+    "Silent": "silent",
+    "Intron": "intron",
+    "RNA": "rna",
+    "3'UTR": "three_prime_utr",
+    "5'UTR": "five_prime_utr",
+    "3'Flank": "three_prime_flank",
+    "5'Flank": "five_prime_flank",
+}
 
 # Indication → filter parameters per strategy.
 GENIE_CANCER_TYPE = {"COADREAD": "Colorectal Cancer"}
@@ -300,6 +337,9 @@ def main(source: str, indication: str) -> int:
 
     # 3. Load MAF (only the columns we need)
     usecols = [cfg.gene_col, cfg.protein_col, cfg.effect_col, cfg.sample_col]
+    for opt in (cfg.exon_col, cfg.polyphen_col):
+        if opt:
+            usecols.append(opt)
     read_kwargs = {"sep": "\t", "usecols": usecols, "low_memory": False}
     if cfg.comment_char:
         read_kwargs["comment"] = cfg.comment_char
@@ -328,6 +368,34 @@ def main(source: str, indication: str) -> int:
         cfg.sample_col: "sample_id",
     })
     out["source_native_id"] = out["sample_id"]
+
+    # 5b. effect/exon normalization for catalogs that author rules against the
+    # normalized vocabulary (effect/exon rules across NSCLC/HNSC/ESCA/PAAD/AML).
+    # Only runs when the source opts in; leaves raw effect untouched otherwise.
+    # NOTE: `exon` is derived BEFORE the missense_damaging concat so the appended
+    # damaging rows (sliced from `out`) carry the exon value along — computing it
+    # after the concat would length-mismatch against the shorter `maf`.
+    if cfg.exon_col:
+        # Exon_Number is '19/28' (exon-of-total); parse leading int. '.' → NaN.
+        exon_raw = maf[cfg.exon_col].astype(str).str.split("/", n=1).str[0]
+        out["exon"] = pd.to_numeric(exon_raw, errors="coerce").astype("Int64")
+    if cfg.normalize_effect:
+        raw_effect = out["effect"].copy()
+        out["effect"] = raw_effect.map(VARIANT_CLASSIFICATION_TO_EFFECT).fillna(
+            raw_effect.astype(str).str.lower())
+        # `missense_damaging` = Missense_Mutation ∧ PolyPhen probably/possibly_damaging.
+        # Additive: appended as a SECOND row per damaging-missense variant so a rule
+        # `effect in ['missense_damaging']` fires without breaking `effect == 'missense'`.
+        if cfg.polyphen_col and cfg.polyphen_col in maf.columns:
+            pph = maf[cfg.polyphen_col].astype(str)
+            dmg_mask = (raw_effect == "Missense_Mutation") & \
+                pph.str.startswith(("probably_damaging", "possibly_damaging"))
+            n_dmg = int(dmg_mask.sum())
+            if n_dmg:
+                dmg_rows = out[dmg_mask.values].copy()
+                dmg_rows["effect"] = "missense_damaging"
+                out = pd.concat([out, dmg_rows], ignore_index=True)
+                _log(f"  derived {n_dmg:,} missense_damaging rows (PolyPhen probably/possibly_damaging)")
     # patient_id: TCGA truncates to barcode; others null
     if cfg.filter_strategy == "tcga_patient_list":
         out["patient_id"] = out["sample_id"].str[:12]

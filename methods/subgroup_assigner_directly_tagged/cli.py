@@ -54,6 +54,12 @@ SUPPORTED_DERIVATION_SOURCES = {
 # `==`, so it needs its own path + its own source frame.
 _FUSION_METHOD = "fusion_partner_match"
 
+# data_source.method that routes to a per-sample DERIVED-product label frame
+# (e.g. tcga-tmb-per-sample-v1's tmb_bucket). Like the fusion path it reads a
+# derived product rather than the marker-paper frame, but it's per-SAMPLE (not
+# per-sample-gene) so a plain scalar `field == 'value'` rule applies directly.
+_SAMPLE_LABEL_METHOD = "sample_label_match"
+
 
 # ---------- CEL-subset rule parser -----------------------------------------
 
@@ -390,6 +396,67 @@ def _evaluate_fusion_stratum(
         "is_member", "derivation_source", "derivation_value"])
 
 
+# ---------- Per-sample label product path (TMB etc.) ----------
+#
+# A per-sample derived product carrying a categorical label column (e.g.
+# tcga-tmb-per-sample-v1 with tmb_bucket ∈ {high, low}). The stratum's scalar
+# rule (`tmb_bucket == 'high'`) evaluates directly against the label frame; the
+# frame is keyed on patient_key (TCGA participant barcode), aligned to the
+# marker-paper join axis so the assignment product co-joins with other strata.
+
+
+def _load_sample_label_product(catalog_repo: Path, manifest_id: str) -> pd.DataFrame:
+    """Load a per-sample label derived product's parquet (single-file payload)."""
+    p = _fetch_derived_parquet(catalog_repo, manifest_id, "tmb_per_sample.parquet")
+    return pd.read_parquet(p)
+
+
+def _evaluate_sample_label_stratum(
+    stratum: dict,
+    label_df: pd.DataFrame,
+    tissue_filter_keys: set | None,
+) -> pd.DataFrame:
+    """Evaluate a scalar `field == 'value'` / `field in [...]` rule against a
+    per-sample label frame (patient_key + label columns).
+
+    Tri-value: member = label matches; false = sample present with a non-matching
+    label; null = sample absent from the product (unassayed). tissue_filter_keys,
+    when given, restricts the row universe to the indication's samples (the label
+    product is pan-TCGA; a downstream NSCLC shard wants only LUAD+LUSC patients).
+    """
+    lhs, op, values = parse_rule(stratum["rule"])
+    _, field = lhs.split(".", 1) if "." in lhs else (None, lhs)
+    if field not in label_df.columns:
+        raise ValueError(
+            f"Sample-label stratum {stratum['id']} references field {field!r} "
+            f"not in the product columns {list(label_df.columns)}.")
+
+    df = label_df
+    if tissue_filter_keys is not None:
+        df = df[df["patient_key"].isin(tissue_filter_keys)]
+
+    def _member(v):
+        if pd.isna(v):
+            return None
+        return (v == values[0]) if op == "eq" else (v in values)
+
+    rows = []
+    for _, r in df.iterrows():
+        is_mem = _member(r[field])
+        rows.append({
+            "sample_id": r["patient_key"],
+            "patient_id": r["patient_key"],
+            "source_native_id": r["patient_key"],
+            "stratum_id": stratum["id"],
+            "is_member": is_mem,
+            "derivation_source": stratum["derivation_source"],
+            "derivation_value": str(r[field]) if is_mem is True else "",
+        })
+    return pd.DataFrame(rows, columns=[
+        "sample_id", "patient_id", "source_native_id", "stratum_id",
+        "is_member", "derivation_source", "derivation_value"])
+
+
 # Indication → DepMap OncotreeLineage. Mirrors target-contracts
 # vocabularies/indication_crosswalk.yaml `depmap_lineage`. Without this filter a
 # DepMap assignments shard is pan-cancer (MSI_H across ALL lineages), which
@@ -610,8 +677,8 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
     catalog_id = catalog.get("id")
     atomic = catalog.get("atomic_strata", [])
 
-    def _is_fusion_stratum(s: dict) -> bool:
-        return s.get("data_source", {}).get("method") == _FUSION_METHOD
+    def _stratum_method(s: dict) -> str | None:
+        return s.get("data_source", {}).get("method")
 
     applicable = []
     for s in atomic:
@@ -622,10 +689,14 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
             continue
         applicable.append(s)
 
-    # Partition: fusion strata read the derived consensus product; everything
-    # else reads the per-data-source frame via the existing path.
-    fusion_strata = [s for s in applicable if _is_fusion_stratum(s)]
-    scalar_strata = [s for s in applicable if not _is_fusion_stratum(s)]
+    # Partition by data_source.method into three evaluation paths:
+    #   fusion       — per-(sample, gene) consensus product (set-membership)
+    #   sample_label — per-sample derived label product (scalar rule, e.g. TMB)
+    #   scalar       — the per-data-source marker-paper/depmap frame (existing path)
+    fusion_strata = [s for s in applicable if _stratum_method(s) == _FUSION_METHOD]
+    label_strata = [s for s in applicable if _stratum_method(s) == _SAMPLE_LABEL_METHOD]
+    scalar_strata = [s for s in applicable
+                     if _stratum_method(s) not in (_FUSION_METHOD, _SAMPLE_LABEL_METHOD)]
 
     click.echo(f"=== subgroup_assigner_directly_tagged v{METHOD_VERSION} ===")
     click.echo(f"  catalog:       {catalog_id} (indication={indication})")
@@ -714,6 +785,45 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
                 for stratum in strata:
                     try:
                         rows = _evaluate_fusion_stratum(stratum, fusion_df, coverage_df, tissue_filter)
+                    except ValueError as e:
+                        click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
+                        continue
+                    per_stratum_dfs.append(rows)
+                    n_hit = int((rows["is_member"] == True).sum())
+                    n_false = int((rows["is_member"] == False).sum())
+                    n_null = int(rows["is_member"].isna().sum())
+                    click.echo(f"    {stratum['id']:<20} is_member=true: {n_hit:>5}, "
+                               f"false: {n_false:>5}, null: {n_null:>5}")
+
+    # ============ Sample-label strata: per-sample derived product (TMB etc.) ==
+    # Also TCGA-keyed; depmap/genie self-degrade (no product for that source).
+    if label_strata:
+        if data_source != "tcga":
+            click.echo(f"  sample-label strata present but data_source={data_source} has "
+                       f"no per-sample label product → skipping {[s['id'] for s in label_strata]}")
+        else:
+            # Restrict the pan-TCGA label product to the indication's patients via
+            # the marker-paper cohort (patient_key = participant barcode).
+            tissue_keys = None
+            mp = cache_root() / "framework-tcga-marker-paper" / (indication or "").lower() / "subtypes.csv"
+            if mp.exists():
+                mp_df = pd.read_csv(mp)
+                if "patient" in mp_df.columns:
+                    tissue_keys = set(mp_df["patient"])
+            by_manifest_lbl: dict[str, list[dict]] = {}
+            for s in label_strata:
+                mid = s.get("data_source", {}).get("manifest_id")
+                if not mid:
+                    click.echo(f"  SKIP {s['id']}: sample-label stratum has no data_source.manifest_id", err=True)
+                    continue
+                by_manifest_lbl.setdefault(mid, []).append(s)
+            for manifest_id, strata in by_manifest_lbl.items():
+                label_df = _load_sample_label_product(catalog_repo, manifest_id)
+                click.echo(f"  loaded sample-label product {manifest_id}: {len(label_df):,} samples"
+                           + (f", filtered to {len(tissue_keys)} {indication} patients" if tissue_keys else ""))
+                for stratum in strata:
+                    try:
+                        rows = _evaluate_sample_label_stratum(stratum, label_df, tissue_keys)
                     except ValueError as e:
                         click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
                         continue

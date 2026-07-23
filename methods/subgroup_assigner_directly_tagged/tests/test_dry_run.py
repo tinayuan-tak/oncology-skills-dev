@@ -282,3 +282,44 @@ def test_fusion_real_execution_synthetic(tmp_path):
     assert manifest["indication"] == "NSCLC"
     strata = {s["subgroup_id"]: s for s in manifest["strata_summary"]}
     assert strata["ALK_fusion"]["n_samples"] == 2
+
+
+# ---------- Sample-label (TMB) path ----------------------------------------
+
+def test_sample_label_evaluator_tri_value():
+    """_evaluate_sample_label_stratum: member/false/null + tissue restriction."""
+    from methods.subgroup_assigner_directly_tagged.cli import _evaluate_sample_label_stratum
+
+    label_df = pd.DataFrame({
+        "patient_key": ["TCGA-AA-0001", "TCGA-AA-0002", "TCGA-AA-0003", "TCGA-BB-9999"],
+        "tmb_bucket":  ["high",         "low",          "high",         "high"],
+    })
+    stratum = {"id": "TMB_high", "rule": "tmb_bucket == 'high'",
+               "derivation_source": "directly_tagged_source_provided",
+               "data_source": {"method": "sample_label_match"}}
+    # No tissue filter: 3 high members, 1 low false.
+    out = _evaluate_sample_label_stratum(stratum, label_df, tissue_filter_keys=None)
+    assert (out["is_member"] == True).sum() == 3
+    assert (out["is_member"] == False).sum() == 1
+    assert out[out["sample_id"] == "TCGA-AA-0001"].iloc[0]["derivation_value"] == "high"
+
+    # Tissue filter to the AA cohort: BB-9999 drops out entirely (not null — absent).
+    out2 = _evaluate_sample_label_stratum(
+        stratum, label_df, tissue_filter_keys={"TCGA-AA-0001", "TCGA-AA-0002", "TCGA-AA-0003"})
+    assert "TCGA-BB-9999" not in set(out2["sample_id"])
+    assert (out2["is_member"] == True).sum() == 2  # AA-0001, AA-0003
+
+
+def test_sample_label_null_on_missing_value():
+    """A NaN label → null (assayed-but-unlabeled), not false."""
+    from methods.subgroup_assigner_directly_tagged.cli import _evaluate_sample_label_stratum
+    label_df = pd.DataFrame({
+        "patient_key": ["TCGA-AA-0001", "TCGA-AA-0002"],
+        "tmb_bucket":  ["high",         None],
+    })
+    stratum = {"id": "TMB_high", "rule": "tmb_bucket == 'high'",
+               "derivation_source": "directly_tagged_source_provided",
+               "data_source": {"method": "sample_label_match"}}
+    out = _evaluate_sample_label_stratum(stratum, label_df, tissue_filter_keys=None)
+    n2 = out[out["sample_id"] == "TCGA-AA-0002"].iloc[0]
+    assert n2["is_member"] is None or pd.isna(n2["is_member"])

@@ -58,6 +58,38 @@ def test_genie_bpc_lot_prefix_present():
     assert "CRC_2.0-public_clinical_data" in GENIE_BPC_S3_PREFIX["COADREAD"]
 
 
+# ---------- effect/exon normalization (Tier-B: enables effect/exon rules) ----
+
+def test_tcga_mc3_opts_into_effect_exon_normalization():
+    """MC3 config carries Exon_Number + PolyPhen + normalize_effect so the
+    catalogs' effect/exon rules can evaluate; GENIE/DepMap stay opt-out."""
+    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+    mc3 = SOURCE_CONFIGS["tcga_mc3"]
+    assert mc3.exon_col == "Exon_Number"
+    assert mc3.polyphen_col == "PolyPhen"
+    assert mc3.normalize_effect is True
+    # Other sources leave the new knobs at their backward-compatible defaults.
+    for other in ("genie_public_v19", "genie_bpc_crc", "depmap_somatic"):
+        cfg = SOURCE_CONFIGS[other]
+        assert cfg.normalize_effect is False
+        assert cfg.exon_col == "" and cfg.polyphen_col == ""
+
+
+def test_variant_classification_effect_map_covers_catalog_vocab():
+    """The MAF v2.4 → catalog effect map must cover every token the catalogs
+    author rules against (the effect/exon rules across NSCLC/HNSC/ESCA/PAAD/AML)."""
+    from scripts.prefetch_source_maf import VARIANT_CLASSIFICATION_TO_EFFECT as M
+    # Catalog effect tokens that come from a raw Variant_Classification value.
+    assert M["In_Frame_Del"] == "in_frame_deletion"
+    assert M["In_Frame_Ins"] == "in_frame_insertion"
+    assert M["Splice_Site"] == "splice_site"
+    assert M["Missense_Mutation"] == "missense"
+    assert M["Nonsense_Mutation"] == "nonsense"
+    # Both frameshift directions collapse (catalogs don't distinguish del/ins).
+    assert M["Frame_Shift_Del"] == "frameshift"
+    assert M["Frame_Shift_Ins"] == "frameshift"
+
+
 def test_dry_run_genie_bpc_lot():
     """LOT dry-run prints the regimen + cancer-panel-test plan without deriving.
 
