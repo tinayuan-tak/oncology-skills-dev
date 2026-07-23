@@ -62,6 +62,7 @@ caveats:
   - "Pearson (linear) + Spearman (rank) are both reported; a high Spearman with low Pearson indicates a monotone-but-nonlinear RNA→protein relationship."
 
 measurement: bulk_rna   # the concordance is anchored on the RNA layer (RNA-as-proxy question); protein is the comparator
+sample_context: cell_line   # DepMap cell-line arm (RNA vs Gygi MS). The tumor arm is the sibling card rna-protein-concordance-tumor (sample_context: tumor). Added 2026-07-23 when the card joined tumor-presence's CARD_CONTEXT taxonomy (drift-guarded on both axes).
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: RNA↔protein concordance (rna_as_biomarker).
 measurement_type: rna_protein_concordance
