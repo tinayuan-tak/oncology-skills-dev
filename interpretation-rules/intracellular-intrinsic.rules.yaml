@@ -2190,6 +2190,35 @@ rules:
       Target not in gnomAD constraint table. Coverage gap; not opposing
       evidence.
 
+  # MUTANT-SELECTIVE SAFETY CONDITIONING (2026-07-23). A mechanism-CONTEXT detector, NOT itself a
+  # safety judgment: it fires when the target is an ACTIVATING (GoF) driver. The safety RESOLVER
+  # (safety.resolver.yaml) combines this with highly-constrained-safety-warning via when_all_fired to
+  # DOWNGRADE the gnomAD-constraint concern — because gnomAD constraint measures intolerance of the
+  # WILD-TYPE protein, but a GoF driver's therapeutic is typically MUTANT-SELECTIVE (KRAS-G12C spares
+  # WT KRAS in normal tissue), so the WT-essentiality safety signal largely does not apply. The rule
+  # itself emits NEUTRAL signals on the intracellular axis (it adds no per-modality biology of its
+  # own — the driver-direction's SM/degrader story is carried by the alteration-role rules elsewhere);
+  # its ONLY job here is to be a fired-rule the safety resolver can pattern-match. See memory
+  # feedback_wt_essentiality_mechanism_conditioning. NOTE the nullification assumes an allele-SELECTIVE
+  # modality; a pan-target degrader / WT-hitting inhibitor would re-expose the concern (the resolver
+  # verdict + card caveat state this conditionality).
+  - rule_id: activating-driver-role-safety-context
+    when:
+      card_id: alteration-role
+      field: functional_direction
+      equals: activating
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is an ACTIVATING (GoF) driver. Mechanism-context signal for the safety gate: a GoF
+      driver is typically drugged mutant-selectively, so a WILD-TYPE-essentiality safety signal
+      (gnomAD germline constraint; DepMap somatic pan-essentiality) OVERSTATES on-target risk — the
+      therapy spares the WT protein in normal tissue. Combined with highly-constrained-safety-warning
+      in the safety resolver (when_all_fired) to downgrade the constraint concern to a
+      mechanism-mismatch note. Neutral signals: this rule contributes mechanism CONTEXT, not a
+      per-modality biology call. Conditional on an allele-selective modality.
+
 # ============================================================================
 # Phase A (protein layer) — protein-presence-cptac (measurement: bulk_protein_ms)
 # Added 2026-07-14 (Pass 1 of legacy-cleanup): CPTAC bulk-protein categorical
