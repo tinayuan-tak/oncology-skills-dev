@@ -58,5 +58,9 @@ caveats:
 # SURFY (inferred), tier_dominant — see vocabularies/measurement_types.yaml. Residency is a target
 # property; the question is indication-framed but the claim is not.
 measurement_type: surface_confirmation
+# P4 (2026-07-23): surface_confirmation is a SURFACE-modality claim — it routes ONLY to the biologics
+# modality gates (surface accessibility is meaningless for an intracellular SM/degrader). Mirrors the
+# modality_relevance the surface_confirmation TYPE already declares in measurement_types.yaml.
+modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1

@@ -107,6 +107,10 @@ def test_missing_measurement_type_is_warning_not_error(tmp_path):
 def test_registered_measurement_type_is_clean(tmp_path, monkeypatch):
     monkeypatch.setattr(VC, "_registered_measurement_types",
                         lambda: {"crispr_lof_dependency", "surface_confirmation"})
+    # isolate the modality-relevance check (P4, 2026-07-23): this test exercises ONLY the
+    # measurement-type-registered check, so hold the modality-relevant set empty — otherwise the real
+    # vocab (where surface_confirmation IS modality-relevant) would leak in and require the field.
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: set())
     report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation"))
     assert report.ok, _errs(report)
     assert "MEASUREMENT_TYPE_MISSING" not in _warns(report)
@@ -143,3 +147,40 @@ def test_real_vocab_registered_types_are_loadable():
     import re
     for t in reg:
         assert re.fullmatch(r"[a-z][a-z0-9_]*[a-z0-9]", t), f"bad measurement_type key: {t!r}"
+
+
+# ---------- modality_relevance check (P4, 2026-07-23) ----------
+# A card whose measurement_type is MODALITY-RELEVANT (its vocab entry declares modality_relevance)
+# must carry a top-level modality_relevance array. Anchored to the vocab, not a hardcoded list.
+
+def test_modality_relevant_type_without_field_is_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"surface_confirmation"})
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: {"surface_confirmation"})
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation"))
+    assert not report.ok
+    assert "MODALITY_RELEVANCE_MISSING" in _errs(report)
+
+
+def test_modality_relevant_type_with_field_is_clean(tmp_path, monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"surface_confirmation"})
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: {"surface_confirmation"})
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
+                                            modality_relevance=["adc", "bite_tce", "antibody"]))
+    assert report.ok, _errs(report)
+    assert "MODALITY_RELEVANCE_MISSING" not in _errs(report)
+
+
+def test_non_modality_relevant_type_without_field_is_clean(tmp_path, monkeypatch):
+    # a type NOT in the modality-relevant set → the field is not required
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"crispr_lof_dependency"})
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: set())
+    report = _validate(tmp_path, _base_card(measurement_type="crispr_lof_dependency"))
+    assert report.ok, _errs(report)
+    assert "MODALITY_RELEVANCE_MISSING" not in _errs(report)
+
+
+def test_modality_relevance_enum_enforced_by_schema(tmp_path):
+    # a bogus modality value is a structural (schema enum) rejection
+    report = _validate(tmp_path, _base_card(modality_relevance=["not_a_modality"]))
+    assert not report.ok
+    assert "STRUCTURAL" in _errs(report)

@@ -114,6 +114,26 @@ def _registered_measurement_types() -> Optional[set[str]]:
     return set(types.keys())
 
 
+def _modality_relevant_types() -> Optional[set[str]]:
+    """The set of measurement_type keys whose vocab entry declares a `modality_relevance:` key —
+    i.e. the types that ROUTE to a modality-fit gate (P4). Returns None if the vocab is absent
+    (graceful-skip). Anchoring the 'modality-relevant' definition to the vocab (not a hardcoded list)
+    makes the check self-maintaining: stamping modality_relevance on a type in the vocab automatically
+    begins requiring the field on that type's cards."""
+    if not _MEASUREMENT_TYPES_PATH.exists():
+        return None
+    try:
+        with _MEASUREMENT_TYPES_PATH.open() as f:
+            doc = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return None
+    types = doc.get('measurement_types')
+    if not isinstance(types, dict):
+        return None
+    return {name for name, entry in types.items()
+            if isinstance(entry, dict) and entry.get('modality_relevance')}
+
+
 def _registered_figure_emitters() -> Optional[set[str]]:
     """Parse the card_id keys registered in CARD_FIGURE_EMITTERS. Returns None if the
     skills repo / registry file is unreachable (→ the check graceful-skips, never a
@@ -543,6 +563,51 @@ def _sample_context_check(spec: dict, report: ValidationReport) -> None:
             return
 
 
+def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
+    """P4 (2026-07-23) — a card whose measurement_type is MODALITY-RELEVANT must declare
+    `modality_relevance` so its evidence routes to the right modality-fit gate (axis-2) rather than
+    being stranded on the biology axis.
+
+    'Modality-relevant' is defined by the VOCAB, not a hardcoded list: a measurement_type is
+    modality-relevant iff its entry in vocabularies/measurement_types.yaml declares `modality_relevance`.
+      - card's type is modality-relevant AND card omits top-level modality_relevance → ERROR.
+      - card declares modality_relevance but its VALUES aren't a subset of the type's declared set →
+        WARNING (the card claims a lens the type's routing doesn't list — likely drift).
+    Migration-safe: no measurement_type on the card, or vocab absent → graceful skip (the
+    measurement_type check already warns on the missing-type case)."""
+    card_id = spec.get('card_id', '<unknown>')
+    mtype = spec.get('measurement_type')
+    if not mtype:
+        return
+    relevant = _modality_relevant_types()
+    if relevant is None:
+        return  # vocab absent — graceful skip
+    card_mr = spec.get('modality_relevance')
+    if mtype in relevant and not card_mr:
+        report.add_error(
+            f'MODALITY_RELEVANCE_MISSING: card `{card_id}` has measurement_type `{mtype}`, which is '
+            f'declared MODALITY-RELEVANT in vocabularies/measurement_types.yaml (it carries a '
+            f'`modality_relevance` key), but the card does not declare top-level `modality_relevance`. '
+            f'A modality-relevant card must name the modality-fit gates it routes to, or its evidence '
+            f'is stranded on the biology axis (P4). Add `modality_relevance: [...]` to the card.')
+        return
+    # optional consistency: card's declared lenses should be within the type's routing set
+    if mtype in relevant and card_mr:
+        try:
+            with _MEASUREMENT_TYPES_PATH.open() as f:
+                type_mr = set((yaml.safe_load(f) or {}).get('measurement_types', {})
+                              .get(mtype, {}).get('modality_relevance') or [])
+        except (OSError, yaml.YAMLError):
+            type_mr = set()
+        extra = set(card_mr) - type_mr if type_mr else set()
+        if extra:
+            report.add_warning(
+                f'MODALITY_RELEVANCE_DRIFT: card `{card_id}` declares modality_relevance lens(es) '
+                f'{sorted(extra)} not in its measurement_type `{mtype}` routing set {sorted(type_mr)}. '
+                f'The card claims a modality gate the type does not route to — align the card + the '
+                f'vocab entry.')
+
+
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:
     """Validate a single card_spec YAML file. Returns a ValidationReport."""
     path = Path(path)
@@ -571,6 +636,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _figure_emission_check(spec, report)
         _measurement_type_check(spec, report)
         _sample_context_check(spec, report)
+        _modality_relevance_check(spec, report)
     return report
 
 

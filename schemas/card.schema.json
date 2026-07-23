@@ -370,6 +370,23 @@
         "normal"
       ]
     },
+    "modality_relevance": {
+      "type": "array",
+      "description": "OPTIONAL (2026-07-23, P4 modality-vector emission). ROUTING METADATA (per DATA_TO_SKILL_CONTRACT.md): declares WHICH modality-fit gates (axis-2) should PULL this card, so a card's evidence lands in the right modality gate rather than being stranded on the biology axis (axis-1). NOT a modality-specific value and NOT a signal — the per-modality SIGNAL is carried by the interpretation rules' `signals:` map (small_molecule/degrader on the intracellular axis; adc/bite_tce/antibody on the surface axis). A card declaring `modality_relevance: [adc,...]` but with no surface-axis rule is 'declared-relevant-but-mute' — the stranded state P4 exists to prevent. DISAMBIGUATION: distinct from the per-edge `modality_relevance` tuple that appears INSIDE signaling-network-mechanism's upstream_regulators struct records (that is struct-internal, this is the card-level routing key). Mirrors the `modality_relevance` key already used on measurement_types in vocabularies/measurement_types.yaml (e.g. surface_confirmation).",
+      "items": {
+        "type": "string",
+        "enum": [
+          "small_molecule",
+          "degrader",
+          "adc",
+          "bite_tce",
+          "antibody"
+        ]
+      },
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 5
+    },
     "measurement_type": {
       "type": "string",
       "description": "DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) — the card's IDENTITY: the single per-target-entity CLAIM it measures (e.g. crispr_lof_dependency, surface_confirmation, normal_tissue_breadth). Must be a key registered in vocabularies/measurement_types.yaml. A card owns exactly one measurement_type; distinct claims (per the concordance test, Rule 2) are distinct cards. OPTIONAL during migration (existing cards are un-migrated; a validator warns, does not error) — REQUIRED for all NEW cards per the frozen identity rule. The type registry declares the value_vocabulary, providers, evidence tiers, grains, and multi_provider_policy; the card names which type it is a view of.",
