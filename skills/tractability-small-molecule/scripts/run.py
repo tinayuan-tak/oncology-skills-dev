@@ -95,6 +95,35 @@ def _snapshot(fired: list[dict]) -> tuple[str, str | None]:
     return "insufficient", None
 
 
+def _degrader_snapshot(fired: list[dict]) -> tuple[str, str | None]:
+    """DEGRADER lens projection (modality-specific-interpretation, slice 2) — reads the DEGRADER
+    channel of the same fired rules the SM snapshot reads the small_molecule channel of. Additive:
+    surfaces a degrader-specific read alongside druggability_snapshot; touches NO resolver (the SM
+    gate's verdict spine is unchanged — this is a headline lens, one-directional).
+
+    A degrader lens is NOT the SM lens: degradation models COMPLETE removal (KO-like) rather than
+    catalytic inhibition, so a target with a dependency but no druggable pocket can still be a degrader
+    prospect. This first pass reads the degrader signal channel; the FULL degrader question ("is the
+    degradation MACHINERY intact?" — CRBN/VHL/proteasome) needs the E3-machinery card (slice 3, not yet
+    built), so `degradability_machinery` is reported as not_yet_assessed until that card lands.
+
+    Rank (first match): a degrader-killer (e.g. broadly-low expression — nothing to degrade) →
+    degrader_unviable; a dominant degrader-supportive → strong_degrader_rationale; any degrader-
+    supportive → degrader_rationale; a degrader-opposing → degrader_opposed; else insufficient."""
+    from _skills_common import modality_lens
+    tally = modality_lens(fired, "degrader")
+    if tally["killer"]:
+        return "degrader_unviable", tally["killer"][0]["rule_id"]
+    dominant_support = [r for r in tally["supportive"] if r.get("dominant")]
+    if dominant_support:
+        return "strong_degrader_rationale", dominant_support[0]["rule_id"]
+    if tally["supportive"]:
+        return "degrader_rationale", tally["supportive"][0]["rule_id"]
+    if tally["opposing"]:
+        return "degrader_opposed", tally["opposing"][0]["rule_id"]
+    return "insufficient", None
+
+
 def _headline(cards, fired, verdict_pair):
     def _get(cid: str, key: str):
         for c in cards:
@@ -103,9 +132,16 @@ def _headline(cards, fired, verdict_pair):
         return None
 
     v, drv = verdict_pair or ("insufficient", None)
+    degrader_class, degrader_drv = _degrader_snapshot(fired)
     return {
         "druggability_snapshot":     v,
         "driving_rule_id":           drv,
+        # DEGRADER lens (slice 2) — additive, verdict-inert. The degrader modality read alongside the
+        # SM read; degradation ≠ inhibition (KO-like complete removal). Full machinery check pending
+        # the E3-machinery card (slice 3).
+        "degrader_snapshot":         degrader_class,
+        "degrader_driving_rule_id":  degrader_drv,
+        "degradability_machinery":   "not_yet_assessed",   # slice 3: E3-machinery card (CRBN/VHL/proteasome)
         "prism_activity_class":      _get("prism-compound-activity", "activity_class"),
         "prism_crispr_concord":      _get("prism-crispr-concordance", "concordance_class"),
         "predictability_class":      _get("dependency-predictability", "predictability_class"),

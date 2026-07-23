@@ -83,6 +83,19 @@ compound required) ranks below a real chemical hit but above `chemically_unhit`.
   10. `prism-no-compounds-found-neutral` → `chemically_unhit`
   11. else → `insufficient`
 
+## Degrader lens (2026-07-23, modality-specific-interpretation slice 2)
+
+The headline ALSO carries a `degrader_snapshot` — a SECOND-PASS projection over the DEGRADER channel
+of the same fired rules (this skill loads the intracellular axis, which scores small_molecule AND
+degrader in parallel). Degradation ≠ inhibition: it models COMPLETE removal (KO-like), so a target
+with a dependency but no druggable pocket can still be a degrader prospect. Rank: a degrader-killer →
+`degrader_unviable`; a dominant degrader-supportive → `strong_degrader_rationale`; any degrader-
+supportive → `degrader_rationale`; a degrader-opposing → `degrader_opposed`; else `insufficient`.
+ADDITIVE + verdict-inert (the SM snapshot resolution above is unchanged). The FULL degrader question
+("is the degradation MACHINERY intact?" — CRBN/VHL/proteasome) needs the E3-machinery card
+(modality-specific-interpretation slice 3, not yet built); until then `degradability_machinery` reads
+`not_yet_assessed`.
+
 ## What this skill does NOT do
 
 - Does NOT assess biologics-modality fit (ADC / TCE / degrader surface
