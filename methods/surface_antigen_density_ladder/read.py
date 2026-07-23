@@ -1,19 +1,33 @@
 """surface_antigen_density_ladder.read — reader + admissibility validator for the ABSOLUTE
-surface-density calibration corpus.
+surface-density calibration corpus (schema v3, superset).
 
-The corpus is a committed TSV (absolute_density_corpus.tsv) of MEASURED copies-per-cell values —
-the only evidence-grade A/B anchor in the tiered density model. This module:
-  - defines the `absolute_density_measurement` row schema (REQUIRED_FIELDS + vocabularies);
-  - `validate_row(row)` — admissibility gate that REJECTS fabrication-prone rows (any row missing a
-    numeric value, a recognized unit, a calibration_method, a source DOI, or an evidence_grade is
-    NOT admissible → it never contributes to a calibration);
-  - `read_absolute_density(target, indication=None)` — returns the admissible measurements for a
-    target as a grade-resolved summary. An empty / all-rejected corpus reads as grade 'E' (no absolute
-    measurement) — NEVER a fabricated number.
+The corpus is a committed, GOVERNED TSV of MEASURED surface-antigen density values — the only
+evidence-grade A/B anchor in the tiered density model (feedback_surface_density_evidence_model).
+Only directly-calibrated flow / single-molecule counting sets the absolute scale; CSPA, CCLE/CPTAC
+whole-cell proteomics, and HPA IHC are priors (grades C/D), never absolute anchors.
 
-Governance: no value is authored in code. The corpus ships header-only until a governance step
-populates it (team-curated / web-sourced-then-approved). validate_row is the machine guard that keeps
-an un-governed or malformed row out of the calibration.
+SCHEMA v3 (2026-07-23) is the SUPERSET of the domain-expert's 32-column governed schema and this
+module's validator guarantees. Every value is quoted from a primary table/supplement with a
+resolvable DOI (no bar-graph digitization). Design invariants the reader/validator enforce:
+
+  1. PARTITIONS are load-bearing (record_partition): native_patient / native_cell_line feed a tumor
+     density anchor; normal_reference / calibration_reference (engineered) / method_control (fixed) /
+     explicit_negative do NOT. read_absolute_density defaults to the two native partitions.
+  2. DUAL ADMISSIBILITY booleans travel per row: admissible_for_absolute_scale (may set the copies
+     scale) and admissible_for_native_biology (represents native tumor). BOTH the partition filter
+     AND the row boolean must pass — belt and suspenders against a mis-tagged row.
+  3. QUALIFIERS survive as data (value_qualifier): exact_reported / mean / median / patient_median /
+     mean_with_reported_range / approximate / lower_bound / upper_bound / explicit_negative. A bound
+     is never coerced to an exact count; a patient_median is ranked on the median, never on its SD.
+  4. SEMANTICS are distinguished (measurement_semantics + reported_unit): ABC ≠ molecule count;
+     monovalent-epitope ≈ epitopes; dSTORM = direct molecule count; PE-equivalent is a proxy. Never
+     silently averaged; recorded so a consumer can choose comparable rows.
+  5. GRADE sub-tiers (evidence_grade): A (patient direct) / A- (patient, proxy or median) / A-N
+     (normal-reference patient-adjacent) / B (cell-line direct) / B- (cell-line, rounded/bounded) /
+     CAL (engineered calibration) / QC (method control). Only A/A- and B/B- feed a native anchor.
+
+No value is authored in code; the committed corpus is the governed artifact. validate_row is the
+machine guard that keeps a malformed/quarantined row out of any calibration.
 """
 from __future__ import annotations
 
@@ -21,57 +35,79 @@ import csv
 from pathlib import Path
 from typing import Optional
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.3.0"
 
 CORPUS_PATH = Path(__file__).resolve().parent / "absolute_density_corpus.tsv"
 
-# --- absolute_density_measurement schema (the review's Phase-2 schema) -----------------------
-# A row is ADMISSIBLE only if every REQUIRED_FIELD is present + non-empty + passes its type/vocab
-# check. This is deliberately strict: the corpus is a calibration GROUND-TRUTH, so a row that cannot
-# prove what it measured, in what unit, by what calibration, from what source, at what grade, is
-# rejected rather than trusted. (Fabrication guard: no DOI / no unit / no value → not calibration.)
+# --- schema v3 columns (superset; = the governed FINAL header) -------------------------------
+SCHEMA_V3_COLUMNS = (
+    "record_id", "target_gene", "target_symbol_reported", "sample_id", "model_or_sample",
+    "sample_type", "disease_or_context", "species", "native_or_engineered",
+    "measurement_method", "measurement_semantics", "reported_unit",
+    "value_qualifier", "value_central", "value_lower", "value_upper",
+    "uncertainty_type", "uncertainty_value", "replicate_count", "positive_cell_fraction",
+    "cells_measured", "preanalytical_condition", "record_partition", "evidence_grade",
+    "admissible_for_absolute_scale", "admissible_for_native_biology",
+    "source_title", "source_year", "source_doi", "source_url", "source_locator", "extraction_note",
+)
+
+# For admission as a NUMERIC absolute-scale datum. A record missing any of these (or that is an
+# explicit_negative / method_control) is not a numeric anchor — but may still be a valid status/QC row.
+# NOTE `value_central` is NOT here: a bound-only row (lower_bound/upper_bound puts the value in
+# value_lower/value_upper) is a legitimate anchor — the numeric-value check below requires an anchor
+# value from central OR the matching bound, per the qualifier.
 REQUIRED_FIELDS = (
-    "target",
-    "value",              # numeric copies-per-cell (or ABC/sites/MESF per `unit`)
-    "unit",               # must be in ADMISSIBLE_UNITS
-    "calibration_method",  # must be in ADMISSIBLE_CALIBRATION_METHODS
-    "source_doi",         # per-row provenance — must look like a DOI
-    "evidence_grade",     # must be in ADMISSIBLE_GRADES (A or B for a direct flow measurement)
+    "target_gene",
+    "value_qualifier",
+    "reported_unit",
+    "measurement_method",
+    "record_partition",
+    "evidence_grade",
+    "source_doi",
 )
 
-# Optional-but-recorded provenance fields (absence widens uncertainty, does not reject the row).
-OPTIONAL_FIELDS = (
-    "uniprot_ac", "cell_model", "disease", "specimen_type",
-    "lower_bound", "upper_bound", "antibody_clone", "valency", "fluorophore",
-    "saturation_confirmed", "viable_cell_gating", "replicate_count", "notes",
-)
-
-# Absolute-scale units the corpus admits (calibrated surface-count units). A relative/normalized unit
-# (log2, ppm, NPX, TPM) is NOT admissible here — those belong to the PRIOR tiers, not the anchor.
+# Absolute-scale reported units. A relative/normalized unit (log2/ppm/NPX/TPM) is NOT admissible.
 ADMISSIBLE_UNITS = frozenset({
-    "ABC",                # antibodies bound per cell (QIFIKIT / calibrated bead)
-    "sites_per_cell",
-    "molecules_per_cell",
-    "MESF",               # molecules of equivalent soluble fluorochrome
+    "ABC/cell", "sites_per_cell", "molecules/cell", "ABS/cell", "MESF",
+    "PE-equivalent molecules/cell", "epitopes/cell",
 })
 
-# Direct-calibration methods the corpus admits. Anything not calibrated (e.g. "estimated", "inferred")
-# is rejected — that is the whole point of the absolute anchor.
-ADMISSIBLE_CALIBRATION_METHODS = frozenset({
-    "QIFIKIT",
-    "QuantiBRITE",
-    "calibrated_bead",
-    "MESF_calibration",
-    "quantitative_ihc",   # absolute (calibrated) quantitative IHC, not qualitative scoring
+# Direct-measurement methods (calibrated flow / single-molecule). Non-calibrated → rejected.
+ADMISSIBLE_METHODS = frozenset({
+    "QIFIKIT calibrated flow cytometry",
+    "Quantibrite PE calibrated flow cytometry",
+    "monovalent Quantibrite PE calibrated flow cytometry",
+    "PE-calibrated quantitative flow cytometry",
+    "calibrated bead flow cytometry",
+    "dSTORM single-molecule localization microscopy",
+    "quantitative IHC calibrated",
+    # engineered calibration-ladder rows report study-characterized density; readable ONLY in the
+    # calibration_reference partition (grade CAL) — never a native anchor (partition gate handles that).
+    "quantitative antigen-density characterization reported by study",
 })
 
-# Only A/B are DIRECT calibrated flow (A = patient cells, B = cell-line/model). C/D/E are NOT direct
-# measurements and must not appear in the absolute corpus (they are computed elsewhere from priors).
-ADMISSIBLE_GRADES = frozenset({"A", "B"})
+# record_partition vocabulary. NATIVE_PARTITIONS are the tumor-density default read.
+NATIVE_PARTITIONS = frozenset({"native_patient", "native_cell_line"})
+NONNATIVE_PARTITIONS = frozenset({"normal_reference", "calibration_reference", "method_control",
+                                  "explicit_negative"})
+ADMISSIBLE_PARTITIONS = NATIVE_PARTITIONS | NONNATIVE_PARTITIONS
+
+# value_qualifier vocabulary. explicit_negative carries no numeric value (a status record).
+NUMERIC_QUALIFIERS = frozenset({"exact_reported", "mean", "median", "patient_median",
+                                "mean_with_reported_range", "approximate", "lower_bound",
+                                "upper_bound"})
+VALUE_QUALIFIERS = NUMERIC_QUALIFIERS | frozenset({"explicit_negative"})
+
+# evidence_grade sub-tiers. NATIVE_ANCHOR_GRADES may set a native tumor density; CAL/QC/A-N never do.
+NATIVE_ANCHOR_GRADES = frozenset({"A", "A-", "B", "B-"})
+ALL_GRADES = NATIVE_ANCHOR_GRADES | frozenset({"A-N", "CAL", "QC"})
+
+# grade rank for "best measurement" selection (lower = preferred): patient direct > patient proxy >
+# cell-line direct > cell-line rounded.
+_GRADE_RANK = {"A": 0, "A-": 1, "B": 2, "B-": 3}
 
 
 def _looks_like_doi(v: str) -> bool:
-    """Minimal DOI shape check (10.<registrant>/<suffix>). Guards against a blank/placeholder source."""
     s = str(v).strip().lower()
     if s.startswith("https://doi.org/"):
         s = s[len("https://doi.org/"):]
@@ -81,69 +117,115 @@ def _looks_like_doi(v: str) -> bool:
 
 
 def validate_row(row: dict) -> tuple[bool, Optional[str]]:
-    """Admissibility gate for one corpus row → (is_admissible, reason_if_not).
+    """Admissibility gate for one v3 corpus row as a NUMERIC absolute-scale datum → (ok, reason).
 
-    A row is admissible ONLY if all REQUIRED_FIELDS are present + non-empty AND value is a positive
-    number AND unit/calibration_method/evidence_grade are in their vocabularies AND source_doi looks
-    like a DOI. The first failing check's reason is returned (so a populated corpus can be audited)."""
+    A row is admissible ONLY if: required fields present; value_qualifier + reported_unit +
+    measurement_method + record_partition + evidence_grade in their vocabularies; the row's
+    `admissible_for_absolute_scale` is truthy ('yes'/'qualified'); a positive numeric value OR a
+    numeric bound consistent with the qualifier; and a DOI-shaped source. explicit_negative /
+    method_control rows are (correctly) NOT admissible numeric anchors — they return a specific reason
+    so an audit can distinguish them from malformed rows."""
     for f in REQUIRED_FIELDS:
         if not str(row.get(f, "") or "").strip():
             return False, f"missing_required:{f}"
 
+    qual = str(row["value_qualifier"]).strip()
+    if qual not in VALUE_QUALIFIERS:
+        return False, f"value_qualifier_not_admissible:{qual}"
+    if qual == "explicit_negative":
+        return False, "explicit_negative_not_a_numeric_anchor"
+
+    unit = str(row["reported_unit"]).strip()
+    if unit not in ADMISSIBLE_UNITS:
+        return False, f"reported_unit_not_admissible:{unit}"
+
+    method = str(row["measurement_method"]).strip()
+    if method not in ADMISSIBLE_METHODS:
+        return False, f"measurement_method_not_admissible:{method}"
+
+    partition = str(row["record_partition"]).strip()
+    if partition not in ADMISSIBLE_PARTITIONS:
+        return False, f"record_partition_not_admissible:{partition}"
+
+    grade = str(row["evidence_grade"]).strip()
+    if grade not in ALL_GRADES:
+        return False, f"evidence_grade_not_admissible:{grade}"
+
+    # dual-admissibility per-row veto: a row the curator marked not-for-absolute-scale is held even if
+    # otherwise well-formed (belt & suspenders with the partition filter).
+    abs_ok = str(row.get("admissible_for_absolute_scale", "") or "").strip().lower()
+    if abs_ok not in ("yes", "qualified"):
+        return False, f"not_admissible_for_absolute_scale:{abs_ok or 'empty'}"
+
+    # numeric value / bound consistent with the qualifier
+    vc = str(row.get("value_central", "") or "").strip()
+    lo = str(row.get("value_lower", "") or "").strip()
+    hi = str(row.get("value_upper", "") or "").strip()
+    if qual == "lower_bound":
+        anchor = vc or lo
+    elif qual == "upper_bound":
+        anchor = vc or hi
+    else:
+        anchor = vc
+    if not anchor:
+        return False, "no_numeric_value_for_qualifier"
     try:
-        val = float(row["value"])
+        val = float(anchor)
     except (TypeError, ValueError):
         return False, "value_not_numeric"
     if not (val > 0):
         return False, "value_not_positive"
 
-    unit = str(row["unit"]).strip()
-    if unit not in ADMISSIBLE_UNITS:
-        return False, f"unit_not_admissible:{unit}"
-
-    method = str(row["calibration_method"]).strip()
-    if method not in ADMISSIBLE_CALIBRATION_METHODS:
-        return False, f"calibration_method_not_admissible:{method}"
-
-    grade = str(row["evidence_grade"]).strip().upper()
-    if grade not in ADMISSIBLE_GRADES:
-        return False, f"evidence_grade_not_admissible:{grade}"
+    # if an explicit range is given, it must bracket the central value
+    if vc and lo and hi:
+        try:
+            if not (float(lo) <= float(vc) <= float(hi)):
+                return False, "bounds_do_not_bracket_value"
+        except (TypeError, ValueError):
+            return False, "bounds_not_numeric"
 
     if not _looks_like_doi(row["source_doi"]):
         return False, "source_doi_not_doi_shaped"
-
-    # optional bounds sanity: if both present, lower <= value <= upper
-    lo, hi = row.get("lower_bound"), row.get("upper_bound")
-    try:
-        if str(lo or "").strip() and str(hi or "").strip():
-            lo_f, hi_f = float(lo), float(hi)
-            if not (lo_f <= val <= hi_f):
-                return False, "bounds_do_not_bracket_value"
-    except (TypeError, ValueError):
-        return False, "bounds_not_numeric"
 
     return True, None
 
 
 def _load_corpus(corpus_path: Optional[Path] = None) -> list[dict]:
-    """Read the committed TSV → list of raw row dicts (no validation). Empty list if absent/header-only."""
+    """Read the committed TSV → row dicts. Skips `#` comment lines. Empty if absent/header-only."""
     path = Path(corpus_path) if corpus_path is not None else CORPUS_PATH
     if not path.exists():
         return []
     with path.open(newline="", encoding="utf-8") as fh:
-        return list(csv.DictReader(fh, delimiter="\t"))
+        lines = [ln for ln in fh if not ln.startswith("#")]
+    return list(csv.DictReader(lines, delimiter="\t"))
+
+
+def _anchor_value(row: dict) -> Optional[float]:
+    """The numeric value a row anchors on (central, or the stated bound). None if unparseable."""
+    qual = str(row.get("value_qualifier", "")).strip()
+    vc = str(row.get("value_central", "") or "").strip()
+    lo = str(row.get("value_lower", "") or "").strip()
+    hi = str(row.get("value_upper", "") or "").strip()
+    anchor = (vc or lo) if qual == "lower_bound" else (vc or hi) if qual == "upper_bound" else vc
+    try:
+        return float(anchor) if anchor else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _empty(note: str) -> dict:
-    """Grade-E: no admissible absolute measurement (never a fabricated number)."""
+    """Grade-E: no admissible absolute measurement in the requested partition(s)."""
     return {
         "absolute_density_class": "no_absolute_measurement",
         "density_evidence_level": "E",
-        "copies_per_cell_best": None,
-        "copies_per_cell_lower": None,
-        "copies_per_cell_upper": None,
-        "unit": None,
+        "value_best": None,
+        "value_qualifier_best": None,
+        "reported_unit": None,
+        "measurement_semantics_best": None,
+        "record_partition_best": None,
         "n_admissible_measurements": 0,
+        "n_patient": 0,
+        "n_cell_line": 0,
         "measurements": [],
         "method_version": METHOD_VERSION,
         "_data_note": note,
@@ -151,19 +233,16 @@ def _empty(note: str) -> dict:
 
 
 def read_absolute_density(target: str, indication: str = None,
+                          partitions: tuple = ("native_patient", "native_cell_line"),
                           corpus_path: Optional[Path] = None) -> dict:
-    """Absolute surface-density measurements for a target from the governed calibration corpus.
+    """Absolute surface-density for a target from the governed calibration corpus (schema v3).
 
-    Returns the admissible (validate_row-passing) measurements for `target`, resolved to a summary:
-        absolute_density_class  — surface_density vocab {high|moderate|low|very_low} from best value,
-                                  or 'no_absolute_measurement' when none admissible;
-        density_evidence_level  — 'A' if any admissible row is grade A (patient cells), else 'B' if any
-                                  grade B, else 'E' (none) — the corpus is direct-flow only, so never C/D;
-        copies_per_cell_best/lower/upper — best (grade-A-preferred, else B) measurement + its bounds;
-        n_admissible_measurements, measurements[] (the passing rows, provenance-tagged).
-
-    An empty / header-only / all-rejected corpus → grade E. No value is ever fabricated. `indication`,
-    when given, prefers same-disease measurements for `best` but does not exclude others (small corpus).
+    Defaults to the two NATIVE partitions (a tumor-density anchor). `best` prefers patient-direct (A)
+    > patient-proxy (A-) > cell-line-direct (B) > cell-line-rounded (B-); within a grade, same-
+    indication and higher replicate/positive-fraction win. Non-native partitions (normal_reference,
+    calibration_reference, method_control, explicit_negative) are excluded by default — pass
+    `partitions` to read them (e.g. ('normal_reference',) for the safety comparator). Empty /
+    all-held / no-row-in-partition → grade E. NO value is fabricated.
     """
     sym = str(target or "").upper().strip()
     if not sym:
@@ -173,48 +252,56 @@ def read_absolute_density(target: str, indication: str = None,
     if not rows:
         return _empty("corpus_empty_or_absent")
 
+    want = frozenset(partitions)
     admissible = []
     for row in rows:
-        if str(row.get("target", "")).upper().strip() != sym:
+        if str(row.get("target_gene", "")).upper().strip() != sym:
+            continue
+        if str(row.get("record_partition", "")).strip() not in want:
             continue
         ok, _reason = validate_row(row)
         if ok:
             admissible.append(row)
 
     if not admissible:
-        return _empty("no_admissible_measurement_for_target")
+        return _empty("no_admissible_measurement_for_target_in_partition")
 
-    # Prefer grade A (patient) over B (model); within grade, prefer same-indication when given.
     ind = str(indication or "").upper().strip()
 
     def _rank(r: dict) -> tuple:
-        grade = str(r["evidence_grade"]).strip().upper()
-        same_ind = 1 if (ind and str(r.get("disease", "")).upper().strip() == ind) else 0
-        return (0 if grade == "A" else 1, -same_ind, -float(r.get("replicate_count") or 0))
+        grade = str(r["evidence_grade"]).strip()
+        same_ind = 1 if (ind and ind in str(r.get("disease_or_context", "")).upper()) else 0
+        try:
+            reps = float(r.get("replicate_count") or 0)
+        except (TypeError, ValueError):
+            reps = 0.0
+        return (_GRADE_RANK.get(grade, 9), -same_ind, -reps)
 
     best = sorted(admissible, key=_rank)[0]
-    best_grade = str(best["evidence_grade"]).strip().upper()
-    val = float(best["value"])
-    lo = float(best["lower_bound"]) if str(best.get("lower_bound") or "").strip() else None
-    hi = float(best["upper_bound"]) if str(best.get("upper_bound") or "").strip() else None
+    n_patient = sum(1 for m in admissible if m.get("record_partition") == "native_patient")
 
     return {
-        "absolute_density_class": _classify_copies(val),
-        "density_evidence_level": best_grade,          # A or B (direct flow); corpus is anchor-only
-        "copies_per_cell_best": val,
-        "copies_per_cell_lower": lo,
-        "copies_per_cell_upper": hi,
-        "unit": str(best["unit"]).strip(),
+        "absolute_density_class": _classify(_anchor_value(best)),
+        "density_evidence_level": str(best["evidence_grade"]).strip(),
+        "value_best": _anchor_value(best),
+        "value_qualifier_best": str(best["value_qualifier"]).strip(),
+        "reported_unit": str(best["reported_unit"]).strip(),
+        "measurement_semantics_best": str(best.get("measurement_semantics") or "").strip(),
+        "record_partition_best": str(best.get("record_partition") or "").strip(),
         "n_admissible_measurements": len(admissible),
+        "n_patient": n_patient,
+        "n_cell_line": len(admissible) - n_patient,
         "measurements": [
             {
-                "value": float(m["value"]),
-                "unit": str(m["unit"]).strip(),
-                "cell_model": m.get("cell_model"),
-                "disease": m.get("disease"),
-                "specimen_type": m.get("specimen_type"),
-                "calibration_method": m.get("calibration_method"),
-                "evidence_grade": str(m["evidence_grade"]).strip().upper(),
+                "record_id": m.get("record_id"),
+                "value": _anchor_value(m),
+                "value_qualifier": str(m["value_qualifier"]).strip(),
+                "reported_unit": str(m["reported_unit"]).strip(),
+                "measurement_semantics": m.get("measurement_semantics"),
+                "model_or_sample": m.get("model_or_sample"),
+                "disease_or_context": m.get("disease_or_context"),
+                "record_partition": m.get("record_partition"),
+                "evidence_grade": str(m["evidence_grade"]).strip(),
                 "source_doi": m.get("source_doi"),
             }
             for m in admissible
@@ -223,14 +310,31 @@ def read_absolute_density(target: str, indication: str = None,
     }
 
 
-# surface_density vocabulary boundaries (target-contracts surface-abundance-density card). These are
-# the CARD's class boundaries applied to a MEASURED value — NOT the modality-viability thresholds
-# (those are configurable format parameters, per the tiered model, not encoded as biological gates).
-def _classify_copies(copies: float) -> str:
-    if copies > 10000:
+def read_explicit_negatives(target: str, corpus_path: Optional[Path] = None) -> list[dict]:
+    """The explicit antigen-NEGATIVE status records for a target (stored, never numeric zeros).
+
+    A separate accessor because negatives are not numeric anchors but ARE real biology (e.g. CD25-
+    negative CLL patients, CD19-negative myeloma samples) — a consumer wants them as evidence of
+    absence, not as value=0."""
+    sym = str(target or "").upper().strip()
+    return [
+        {"record_id": r.get("record_id"), "model_or_sample": r.get("model_or_sample"),
+         "disease_or_context": r.get("disease_or_context"), "source_doi": r.get("source_doi")}
+        for r in _load_corpus(corpus_path)
+        if str(r.get("target_gene", "")).upper().strip() == sym
+        and str(r.get("record_partition", "")).strip() == "explicit_negative"
+    ]
+
+
+# surface_density card class boundaries applied to a MEASURED value (NOT the modality-viability
+# thresholds — those are configurable format parameters, per the tiered model, not biological gates).
+def _classify(value: Optional[float]) -> str:
+    if value is None:
+        return "unmeasured"
+    if value > 10000:
         return "high"
-    if copies >= 1000:
+    if value >= 1000:
         return "moderate"
-    if copies >= 100:
+    if value >= 100:
         return "low"
     return "very_low"

@@ -28,15 +28,27 @@ def _cmd_read(args) -> int:
 
 def _cmd_audit(args) -> int:
     rows = _read._load_corpus(args.corpus)
-    admissible, rejected = [], []
+    # A v3 corpus legitimately contains NON-anchor rows (explicit_negative status records +
+    # method_control) — those are held by validate_row but are NOT malformations. Only a MALFORMED
+    # row (bad vocab / non-DOI / un-bracketed bounds) is a governance failure → nonzero exit.
+    EXPECTED_HELD = {"explicit_negative_not_a_numeric_anchor",
+                     "not_admissible_for_absolute_scale:no"}
+    admissible, expected_held, malformed = [], [], []
     for i, row in enumerate(rows):
         ok, reason = _read.validate_row(row)
-        (admissible if ok else rejected).append((i, row.get("target", "?"), reason))
-    print(f"[audit] corpus rows: {len(rows)}  admissible: {len(admissible)}  rejected: {len(rejected)}")
-    for i, tgt, reason in rejected:
-        print(f"  REJECT row {i} ({tgt}): {reason}")
-    # a populated corpus with ANY rejected row is a governance failure → nonzero exit for CI use
-    return 1 if rejected else 0
+        rid = row.get("record_id") or row.get("target_gene", "?")
+        if ok:
+            admissible.append((i, rid, reason))
+        elif reason in EXPECTED_HELD:
+            expected_held.append((i, rid, reason))
+        else:
+            malformed.append((i, rid, reason))
+    print(f"[audit] rows: {len(rows)}  admissible: {len(admissible)}  "
+          f"expected-held (negatives/controls): {len(expected_held)}  malformed: {len(malformed)}")
+    for i, rid, reason in malformed:
+        print(f"  MALFORMED row {i} ({rid}): {reason}")
+    # only genuine malformations fail the audit
+    return 1 if malformed else 0
 
 
 def main(argv=None) -> int:
