@@ -469,6 +469,249 @@ def read_tumor_elevation_breadth(target: str) -> dict:
     }
 
 
+# --- surface-abundance-density (Tier 1.2, 2026-07-23) ----------------------------------------
+# The surface-abundance-density card asks: "estimated surface copies-per-cell of {target} in
+# {indication} tumors, above the TCE-viability threshold (>1,000/cell, Slaga 2018 Sci Transl Med)?"
+#
+# ⚠ EVIDENCE GRADE D — INFERRED, order-of-magnitude PRIOR. NOT a calibrated absolute anchor.
+# (Domain-expert review 2026-07-23; see .claude/plans/surface-density-multi-anchor.md.) This function
+# is the INTERIM v0.1: it unblocks the surface-modality-fit gate (its dispatcher errored with no method
+# behind it) with an HONEST Level-D inference, pending the tiered-evidence rebuild (HPA graded IHC →
+# CCLE/949 whole-cell priors → CSPA enrichment → a governed calibrated-flow ladder that alone sets the
+# absolute scale). It DELIBERATELY does NOT claim the three things a real density model must earn:
+#   (1) it is NOT a universal calibration — IHC intensity ≠ copies/cell (antibody affinity, epitope
+#       accessibility, prep, dynamic range, scoring all confound); the copies numbers below are an
+#       ORDER-OF-MAGNITUDE prior, reported with wide bands, never a cross-antibody quantitative claim;
+#   (2) the CPTAC log2FC is applied as a coarse relative shift on a Level-D prior — NOT a calibrated
+#       mapping of whole-proteome tumor abundance onto an absolute surface-copy scale;
+#   (3) is_tce_viable / is_adc_high_payload_viable are WORKING-PRIOR calls against literature threshold
+#       priors (Slaga 1,000 / 10,000), NOT biological GATES — real thresholds depend on affinity,
+#       epitope, internalization, payload potency, DAR, linker, bystander, TCE geometry, CD3 affinity,
+#       E:T ratio, heterogeneity (→ future modality_density_requirements format parameters).
+# Every emitted estimate carries density_evidence_level='D'; a target with no anchor is level 'E'
+# (expression evidence only, NO density estimate → surface_density_class 'unmeasured', never fabricated).
+#
+# WHY ONLY INFERRED. Neither substrate measures absolute surface copies/cell:
+#   - CPTAC mass-spec (read_target_summary) = RELATIVE whole-proteome tumor-vs-normal log2 (a SHIFT).
+#   - HPA IHC (hpa_normal_tissue_liability) = pathologist-scored intensity/breadth in NORMAL tissue.
+# Both are Tier-4 PRIORS in the evidence model, not absolute anchors. The Level-D inference is:
+#       copies_tumor  ~=  order_of_magnitude_prior(HPA IHC class)  x  2 ** (CPTAC log2FC)
+# RANGED (lower/median/upper); when the prior weakens (no tissue-of-origin IHC, CPTAC-only) the BAND
+# WIDENS so the card's `wide_uncertainty_band` warning fires — the estimate fails toward "confirm with
+# calibrated flow", never toward a confident call.
+#
+# HPA does NOT ship per-tissue High/Med/Low IHC levels in the ingested master (that's the Phase-1A
+# ingest); it ships (a) `Protein tissue distribution` (all/many/some/single) — breadth, and (b) a
+# tissue-enriched NUMERIC intensity list over a closed 16-name vocabulary (~51% coverage). We map:
+#   - the tumor tissue-of-origin's ENRICHED numeric intensity (when present) → an ordinal IHC class
+#     via fixed percentiles (verified live 2026-07-23: p33 ~= 8e5, p66 ~= 7.4e6 → low/med/high);
+#   - else the breadth class (all/many → medium; some/single → low; not detected → not_detected) — a
+#     weaker prior → wider band.
+# Each ordinal class maps to an ORDER-OF-MAGNITUDE copies/cell prior center + a multiplicative
+# uncertainty factor (loosely from HER2/EGFR-family flow ranges; NOT a per-antibody calibration):
+#   high ~= 3e5 (/12..x12), medium ~= 3e4 (/12..x12), low ~= 3e3 (/16..x16), not_detected ~= 3e2.
+# The governed calibrated-flow ladder (Phase 2) will REPLACE these priors as the real absolute anchor.
+
+# Indication (OncoTree-ish code) → HPA normal tissue-of-origin name (closed 16-name enriched vocab
+# where possible; None when the tissue-of-origin is not in HPA's enriched list → breadth-only anchor).
+_INDICATION_TO_HPA_TISSUE = {
+    "COAD": "intestine", "COADREAD": "intestine", "READ": "intestine",
+    "STAD": "stomach", "ESCA": "stomach",
+    "PAAD": "pancreas", "PDAC": "pancreas",
+    "LIHC": "liver", "CHOL": "liver",
+    "LUAD": "lung", "LUSC": "lung", "LSCC": "lung", "NSCLC": "lung", "MESO": "lung",
+    "KIRC": "kidney", "CCRCC": "kidney", "KIRP": "kidney", "KICH": "kidney",
+    "OV": "ovary",
+    "GBM": "cerebral cortex", "LGG": "cerebral cortex",
+    "DLBCL": "lymphoid tissue", "AML": "bone marrow",
+    "SKCM": "skin",
+    # tissue-of-origin NOT in HPA's enriched vocabulary → breadth-only anchor (wider band):
+    "BRCA": None, "UCEC": None, "HNSC": None, "HNSCC": None, "PRAD": None, "BLCA": None,
+}
+
+# IHC intensity class → (copies_per_cell CENTER, multiplicative uncertainty factor).
+# CENTERs calibrated to HER2/EGFR-family surface-antigen flow-cytometry ranges (Nathanson 2018;
+# Slaga 2018 Sci Transl Med >1,000/cell TCE threshold). The factor sets lower=center/f, upper=center*f.
+_IHC_CLASS_CALIBRATION = {
+    "high":         (3.0e5, 12.0),
+    "medium":       (3.0e4, 12.0),
+    "low":          (3.0e3, 16.0),   # straddles the 1,000/cell TCE threshold (wide by design)
+    "not_detected": (3.0e2, 10.0),
+}
+
+# HPA enriched-intensity tertile cutoffs (verified live 2026-07-23: p33 8.05e5, p66 7.43e6 over
+# n=14,311 enriched (tissue,intensity) pairs). A tissue-of-origin numeric intensity below p33 → low,
+# below p66 → medium, else → high. Baked in (NOT recomputed at read time) so the class is stable.
+_HPA_ENRICHED_P33 = 8.05e5
+_HPA_ENRICHED_P66 = 7.43e6
+
+# HPA breadth class → IHC anchor class (the weaker fallback when tissue-of-origin has no enriched
+# numeric intensity). Broad presence ~= medium abundance; restricted ~= low; absent ~= not_detected.
+_BREADTH_TO_IHC_CLASS = {
+    "broad_normal_expression":      "medium",
+    "moderate_normal_expression":   "low",
+    "restricted_normal_expression": "low",
+    "not_detected_in_normal":       "not_detected",
+}
+
+_TCE_VIABILITY_COPIES = 1000.0        # Slaga 2018 Sci Transl Med
+_ADC_HIGH_PAYLOAD_COPIES = 10000.0
+
+_DENSITY_METHOD_VERSION = "0.1.0"
+
+
+def _density_class(copies: Optional[float]) -> str:
+    """copies-per-cell → surface_density_class (card vocabulary), MEDIAN-driven.
+
+    high     > 10,000/cell   moderate 1,000-10,000   low 100-1,000   very_low < 100
+    """
+    if copies is None:
+        return "unmeasured"
+    if copies > _ADC_HIGH_PAYLOAD_COPIES:
+        return "high"
+    if copies >= _TCE_VIABILITY_COPIES:
+        return "moderate"
+    if copies >= 100.0:
+        return "low"
+    return "very_low"
+
+
+def _hpa_ihc_anchor(target: str, indication: Optional[str]) -> dict:
+    """Resolve the HPA IHC calibration anchor for a target in the tumor tissue-of-origin.
+
+    Returns {hpa_ihc_intensity_class, hpa_ihc_anchor_used, anchor_strength} where anchor_strength
+    is 'tissue_specific' (strong — numeric enriched intensity in the tissue-of-origin),
+    'breadth_only' (weak — no tissue-of-origin enriched value, fell back to distribution breadth),
+    or 'unmeasured' (HPA has no call at all). Never raises — HPA read failure degrades to unmeasured.
+    """
+    try:
+        from methods.hpa_normal_tissue_liability import cli as _hpa
+        summary = _hpa.load_and_classify(target)
+    except Exception:
+        return {"hpa_ihc_intensity_class": "unmeasured",
+                "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
+
+    breadth = summary.get("normal_tissue_breadth_class")
+    if breadth in (None, "data_unavailable"):
+        return {"hpa_ihc_intensity_class": "unmeasured",
+                "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
+
+    # Strong anchor: the tumor tissue-of-origin appears in HPA's enriched (numeric-intensity) list.
+    tissue = _INDICATION_TO_HPA_TISSUE.get((indication or "").upper().strip())
+    if tissue:
+        for t in (summary.get("specific_tissues") or []):
+            if t.get("tissue") == tissue and t.get("intensity") is not None:
+                v = float(t["intensity"])
+                cls = ("low" if v < _HPA_ENRICHED_P33
+                       else "medium" if v < _HPA_ENRICHED_P66 else "high")
+                return {"hpa_ihc_intensity_class": cls,
+                        "hpa_ihc_anchor_used": f"HPA enriched intensity in {tissue}",
+                        "anchor_strength": "tissue_specific"}
+
+    # Weak anchor: no tissue-of-origin enriched value → fall back to the distribution breadth class.
+    cls = _BREADTH_TO_IHC_CLASS.get(breadth, "unmeasured")
+    if cls == "unmeasured":
+        return {"hpa_ihc_intensity_class": "unmeasured",
+                "hpa_ihc_anchor_used": None, "anchor_strength": "unmeasured"}
+    label = tissue or "distribution breadth (no tissue-of-origin map)"
+    return {"hpa_ihc_intensity_class": cls,
+            "hpa_ihc_anchor_used": f"HPA {breadth} ({label})",
+            "anchor_strength": "breadth_only"}
+
+
+def _empty_density(note: str) -> dict:
+    """Honest unmeasured density card (no CPTAC coverage OR no HPA anchor).
+
+    density_evidence_level='E' — expression evidence only, NO density estimate emitted (the honest
+    floor of the evidence model; never a fabricated copies/cell number)."""
+    return {
+        "surface_density_class": "unmeasured",
+        "density_evidence_level": "E",   # expression only; no density estimate
+        "estimated_copies_per_cell_median": None,
+        "estimated_copies_per_cell_lower": None,
+        "estimated_copies_per_cell_upper": None,
+        "hpa_ihc_anchor_used": None,
+        "hpa_ihc_intensity_class": "unmeasured",
+        "is_tce_viable": False,
+        "is_adc_high_payload_viable": False,
+        "method_version": _DENSITY_METHOD_VERSION,
+        "_data_note": note,
+    }
+
+
+def read_abundance_density_summary(target: str, indication: str = None) -> dict:
+    """surface-abundance-density card: estimated surface copies-per-cell + TCE/ADC viability.
+
+    Anchors an absolute copies-per-cell scale on the HPA IHC intensity for the tumor tissue-of-
+    origin, then shifts it by the CPTAC tumor-vs-normal protein log2FC:
+        median = anchor_center x 2 ** log2FC
+    and widens the band when the anchor is weak (breadth-only) or CPTAC is absent (anchor-only),
+    so the card's `wide_uncertainty_band` warning fires honestly rather than emitting false
+    precision. `unmeasured` (never a fabricated number) when EITHER substrate is missing:
+    no HPA anchor OR no CPTAC coverage in the tissue-matched cohort.
+
+    Returns the surface-abundance-density card summary_fields contract:
+        surface_density_class in {high, moderate, low, very_low, unmeasured}   (PRIMARY)
+        estimated_copies_per_cell_{median, lower, upper}
+        hpa_ihc_anchor_used, hpa_ihc_intensity_class
+        is_tce_viable (class in {high, moderate}),  is_adc_high_payload_viable (class == high)
+        method_version
+    """
+    anchor = _hpa_ihc_anchor(target, indication)
+    ihc_class = anchor["hpa_ihc_intensity_class"]
+    if ihc_class == "unmeasured":
+        return _empty_density("no_hpa_ihc_anchor")
+
+    center, base_factor = _IHC_CLASS_CALIBRATION[ihc_class]
+
+    # CPTAC tumor shift (relative). read_target_summary returns the tissue-matched cohort row when an
+    # indication maps to a cohort; else best-effect across cohorts. Missing coverage → anchor-only
+    # (log2FC = 0) with a widened band, NOT unmeasured — the normal-tissue anchor alone is still an
+    # audit-defensible first-pass, just less certain.
+    cptac = read_target_summary(target, indication)
+    log2fc = cptac.get("protein_effect_size")
+    cptac_covered = (cptac.get("protein_expression_class") not in (None, "data_unavailable")
+                     and log2fc is not None)
+    shift = (2.0 ** float(log2fc)) if cptac_covered else 1.0
+
+    median = center * shift
+
+    # Band width: base multiplicative factor, WIDENED when the evidence is thinner. A tissue-specific
+    # HPA anchor + CPTAC coverage is the tightest; breadth-only or CPTAC-absent each widen it (they
+    # compound), so a doubly-weak estimate has the widest, most-honest band.
+    factor = base_factor
+    if anchor["anchor_strength"] == "breadth_only":
+        factor *= 1.6
+    if not cptac_covered:
+        factor *= 1.6
+
+    lower = median / factor
+    upper = median * factor
+
+    density_class = _density_class(median)
+    return {
+        "surface_density_class": density_class,
+        # Evidence grade D: INFERRED from whole-cell/tissue PRIORS (IHC + CPTAC), no direct surface
+        # calibration. NOT a calibrated absolute anchor (that is level A/B/C — calibrated flow). The
+        # copies numbers are an order-of-magnitude prior; is_tce/adc flags are WORKING-PRIOR calls.
+        "density_evidence_level": "D",
+        "estimated_copies_per_cell_median": round(median, 1),
+        "estimated_copies_per_cell_lower": round(lower, 1),
+        "estimated_copies_per_cell_upper": round(upper, 1),
+        "hpa_ihc_anchor_used": anchor["hpa_ihc_anchor_used"],
+        "hpa_ihc_intensity_class": ihc_class,
+        "is_tce_viable": density_class in ("high", "moderate"),
+        "is_adc_high_payload_viable": density_class == "high",
+        "method_version": _DENSITY_METHOD_VERSION,
+        # provenance (leading underscore = not a card summary_field; for audit/debug only)
+        "_cptac_covered": cptac_covered,
+        "_cptac_log2fc": log2fc if cptac_covered else None,
+        "_cptac_cohort": cptac.get("cohort") if cptac_covered else None,
+        "_anchor_strength": anchor["anchor_strength"],
+        "_band_factor": round(factor, 2),
+    }
+
+
 # --- figure emitters (upgraded 2026-07-22: true distribution boxplots) -----------------------
 # ORIGINALLY (Slice 7) this figure was a per-cohort DUMBBELL of tumor/normal MEDIANS, because the
 # only product available was per-cohort SUMMARY (cptac-protein-tumor-vs-normal-per-cohort-v1). The
