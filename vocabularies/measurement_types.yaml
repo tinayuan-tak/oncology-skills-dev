@@ -455,6 +455,18 @@ measurement_types:
     providers:
       - {kind: dataset, source: opentargets-26-06, evidence_tier: measured}
 
+  dosage_sensitivity_safety:
+    # P5 Slice 3 (2026-07-24) — ClinGen dosage sensitivity (Open Targets 26.06 evidence_clingen).
+    # Is single-copy loss pathogenic (autosomal-dominant / haploinsufficiency = highest degrader/full-
+    # inhibition concern) or does disease need both copies (recessive)? MEASURED (curated genetics).
+    # Verdict-moving warning fires on the SM/degrader axis via safety.resolver.yaml (Slice 5); NO
+    # modality_relevance (safety is axis-1). Composes with the mutant-selective downgrade.
+    claim: "Is single-copy loss of target pathogenic (ClinGen autosomal-dominant / haploinsufficiency safety)?"
+    entity_grains: [target]
+    cards: [clingen-dosage]
+    providers:
+      - {kind: dataset, source: opentargets-26-06, evidence_tier: measured}
+
   shed_ectodomain_liability:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
