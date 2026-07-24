@@ -481,6 +481,22 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [crispr_lof_dependency, rnai_lof_dependency], method: concordance, evidence_tier: measured}
 
+  target_safety_prioritisation:
+    # P5 Slice 1 (2026-07-24) — Open Targets 26.06 engineered target-prioritisation scores as
+    # safety-ORIENTING CONTEXT. Verdict-inert (no resolver reference, no warning); NOT modality-
+    # relevant (safety is axis-1, not a modality-fit gate — so NO modality_relevance key, which
+    # would otherwise trip the P4 Tier-3 enforcement for a card that has no modality-axis rule).
+    # The authoritative per-fact safety reads are the dedicated cards (gnomad_lof_constraint, and
+    # the P5 verdict-moving human_genetic_safety / dosage_sensitivity_safety / mouse_ko_phenotype_
+    # safety types in Slices 2-4). This type is the OT prioritisation orientation layer.
+    claim: "How does Open Targets prioritise target on its engineered safety-relevant scores (safety-event, genetic constraint, mouse-KO), as orienting context?"
+    entity_grains: [target]
+    cards: [target-safety-prioritisation]
+    providers:
+      # inferred, not measured: OT prioritisation scores are engineered/derived from underlying
+      # data (constraint, KO, expression), not a direct measurement of a single fact.
+      - {kind: dataset, source: opentargets-26-06, evidence_tier: inferred}
+
   genomic_event_model_match:
     claim: "Which DepMap models carry the SAME functional genomic event (biallelic/monoallelic state) as the indication's tumors for target, and which of those genotype-matched models are dependent (positive screen lines)?"
     # M11 — the CANONICAL P3 patient↔model join, on GENOMIC EVENT (functional_gene_state), unblocked by
