@@ -824,6 +824,238 @@ rules:
       antigen presence is a Critical prerequisite for a biologic, and LoF directly threatens it.
       Contrast the intracellular axis, where LoF routes to the synthetic-lethality / SM story.
 
+  # ============================================================================
+  # G — Protein-surface-evidence card (P4, 2026-07-24)
+  # Fixes the "declared-relevant-but-mute" state: the card declares
+  # modality_relevance [adc, bite_tce, antibody] but had NO surface-axis rule,
+  # so its surface_accessibility_call never reached the biologics gates. These
+  # two rules key off the biology-agnostic categorical (A2 discipline — NOT the
+  # lens-conditional grade/score fields).
+  # ============================================================================
+
+  - rule_id: protein-surface-confirmed-supportive
+    when:
+      card_id: protein-surface-evidence
+      field: surface_accessibility_call
+      equals: cell_surface_confirmed
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Protein-level surface residency is CONFIRMED (UniProt subcellular localization + HPA-IHC /
+      CSPA agree the target is accessible on the extracellular surface). Surface accessibility is the
+      Critical prerequisite for every antibody-based modality, so a positive protein-level confirmation
+      is directly supportive across adc/bite_tce/antibody. Important importance — this is measured
+      protein evidence (not an RNA proxy), the strongest presence signal the surface gate can receive.
+
+  - rule_id: protein-intracellular-only-adc-killer
+    when:
+      card_id: protein-surface-evidence
+      field: surface_accessibility_call
+      equals: intracellular_only
+    signals:
+      adc: killer
+      bite_tce: killer
+      antibody: killer
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    killer_message: |
+      Protein localizes INTRACELLULARLY only (UniProt subcellular localization has no cell-surface /
+      plasma-membrane term and IHC gives no surface-positivity). Antibody-based modalities require an
+      extracellular epitope; there is nothing on the surface to bind. Routes to the intracellular
+      SM/degrader axis instead.
+    rationale: |
+      The measured protein-localization counterpart to surfaceome-family-classification's
+      `not_surface` killer. Where the family classifier is a predicted/annotation call, this is the
+      protein-evidence confirmation of intracellular-only residency — a hard surface-modality killer.
+
+  # ============================================================================
+  # H — Protein-presence-cptac card (P4 Tier-2, 2026-07-24)
+  # The SM/degrader axis already reads protein_expression_class (intracellular
+  # rules). For biologics, tumor protein ABUNDANCE is the antigen-presence
+  # prerequisite: an ADC/TCE needs the protein physically present on tumor cells.
+  # ============================================================================
+
+  - rule_id: protein-abundance-strong-up-surface-supportive
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: strong_up
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Strong tumor-vs-normal protein differential (CPTAC, q<0.05, effect>=1.5). Measured protein
+      ABUNDANCE is the antigen-presence prerequisite for every biologic — a strong up-call is direct
+      supportive evidence the antigen is physically present on tumor cells to be bound. Important
+      importance: protein presence is Critical for ADC/TCE and this is the measured-protein arm.
+
+  - rule_id: protein-absent-surface-killer
+    when:
+      card_id: protein-presence-cptac
+      field: protein_expression_class
+      equals: not_detected
+    signals:
+      adc: killer
+      bite_tce: killer
+      antibody: killer
+    killer_message: |
+      Protein NOT DETECTED in tumor or normal by CPTAC mass-spec. A biologic has no antigen to bind —
+      an RNA-elevated call is not sufficient when the protein is absent at the MS level.
+    rationale: |
+      Antigen presence is the Critical prerequisite for antibody-based modalities; a measured protein
+      absence is a hard surface-modality killer (the ADC/TCE analogue of the intracellular
+      degrader-killer — a degrader also needs the protein present).
+
+  # ============================================================================
+  # I — RNA-protein-concordance-tumor card (P4 Tier-2, 2026-07-24)
+  # rna_as_biomarker says whether tumor RNA is a trustworthy proxy for protein.
+  # For biologics this is a proxy-CAUTION: an ADC/TCE targets the PROTEIN antigen,
+  # so a poor RNA-protein proxy means RNA-based abundance cannot stand in for the
+  # antigen-presence argument — protein must be measured.
+  # ============================================================================
+
+  - rule_id: rna-poor-proxy-surface-warning
+    when:
+      card_id: rna-protein-concordance-tumor
+      field: rna_as_biomarker
+      equals: poor_proxy
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Tumor RNA is a POOR proxy for protein for this target. Biologics target the protein antigen, so
+      an RNA-based presence/abundance argument cannot be trusted — protein must be measured directly
+      (CPTAC/IHC) before an ADC/TCE antigen-presence claim. Warning (governance), not a killer: it flags
+      that the RNA evidence is inadequate for the surface decision, not that the target is unviable.
+
+  - rule_id: rna-adequate-proxy-surface-supportive
+    when:
+      card_id: rna-protein-concordance-tumor
+      field: rna_as_biomarker
+      equals: adequate_proxy
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Tumor RNA tracks protein well for this target — RNA-based abundance/prevalence evidence is a
+      trustworthy surrogate for the antigen-presence argument. Secondary importance: it licenses the
+      RNA evidence to support the surface call, but measured protein remains the preferred anchor.
+
+  # ============================================================================
+  # J — Tumor-vs-normal-selectivity card (P4 Tier-2, 2026-07-24)
+  # selectivity_class is the tumor-vs-normal expression WINDOW. For biologics the
+  # window is doubly critical: an ADC/TCE that binds normal tissue at the same
+  # level as tumor has no therapeutic index (on-target-off-tumor tox).
+  # ============================================================================
+
+  - rule_id: strong-tumor-selective-surface-supportive
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: strong_tumor_selective
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Strong, comparator-robust tumor-vs-normal selectivity (all cells support, up, max|log2FC|>=1.5).
+      A wide tumor-vs-normal window is the therapeutic-index basis for a biologic — supportive across
+      adc/bite_tce/antibody. Important: for TCE especially, the normal-tissue floor governs on-target-
+      off-tumor tox, so a strong window is a first-order surface-viability signal.
+
+  - rule_id: not-selective-surface-warning
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: not_selective
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      No tumor-vs-normal selectivity (dominant DOWN or no window). Without a tumor-vs-normal window a
+      biologic binds normal tissue as readily as tumor — an on-target-off-tumor liability. Warning
+      (governance review) rather than a hard killer: a masking/avidity or local-delivery strategy can
+      sometimes rescue a low-window antigen, but the default surface read is unfavorable.
+
+  # ============================================================================
+  # K — Expression-purity-confound card (P4 Tier-2, 2026-07-24)
+  # purity_confound_class asks whether a bulk tumor-expression signal is TUMOR-
+  # intrinsic or a stromal/microenvironment artifact. For biologics this is
+  # decisive: an antigen that is microenvironment-sourced (stroma/immune, not the
+  # malignant cell) means an ADC/TCE would bind the wrong compartment.
+  # ============================================================================
+
+  - rule_id: microenvironment-confounded-surface-warning
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: microenvironment_confounded
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      The bulk tumor-expression signal is driven by the MICROENVIRONMENT (stroma/immune), not the
+      malignant cell. A biologic engages wherever the antigen physically sits — a stroma-sourced antigen
+      means an ADC/TCE binds the wrong compartment (off-tumor engagement, poor tumor-cell kill). Warning:
+      single-cell / IHC compartment attribution should confirm tumor-cell-intrinsic antigen before an
+      ADC/TCE program (the exact ADC-critical question single-cell attribution answers).
+
+  - rule_id: tumor-intrinsic-surface-supportive
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: tumor_intrinsic
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The tumor-expression signal is TUMOR-INTRINSIC (survives purity adjustment) — the antigen is on
+      the malignant cell, not stromal contamination. Supportive for biologics: confirms an ADC/TCE would
+      engage the tumor compartment. Secondary importance: it removes a confound rather than adding a
+      first-order presence signal (abundance/selectivity carry that).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
