@@ -19,7 +19,7 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.6.0"   # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
+SKILL_VERSION = "1.7.0"   # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
                           # OT context) + gene-burden-safety (Slice 2, OT rare-variant burden LoF-
                           # tolerance; verdict-moving rule resolver-wired in Slice 5).
                           # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
@@ -46,6 +46,10 @@ CARDS = [
                                       # to DOWNGRADE the WT-constraint concern → wt_constraint_mechanism_
                                       # mismatch (a GoF driver is drugged mutant-selectively; gnomAD
                                       # constraint is about the WILD-TYPE protein the drug spares).
+    "clinvar-pathogenicity-safety",   # P5 follow-on (2026-07-24) — ClinVar germline-pathogenic
+                                      # variants. germline_pathogenic -> clinvar-germline-pathogenic-
+                                      # safety-warning (SM/degrader opposing, 4th corroborating germline
+                                      # leg). SOMATIC guardrailed out. Resolver-wired (safety 1.3.0).
     "mouse-ko-phenotype",             # P5 Slice 4 (2026-07-24) — mouse-KO normal-physiology safety.
                                       # lethal_ko (adult/postnatal) -> mouse-ko-lethal-safety-warning
                                       # (SM/degrader opposing, INFERRED-tier caution); developmental_
@@ -123,6 +127,9 @@ def _headline(cards, fired, verdict_pair):
         # P5 Slice 4 — mouse-KO normal-physiology (verdict-moving in Slice 5)
         "mouse_ko_phenotype_class": _get("mouse-ko-phenotype", "ko_phenotype_class"),
         "mouse_ko_top_lethal":      _get("mouse-ko-phenotype", "top_lethal_label"),
+        # P5 follow-on — ClinVar germline-pathogenicity
+        "clinvar_pathogenic_class": _get("clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
+        "clinvar_top_disease":      _get("clinvar-pathogenicity-safety", "top_disease"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (

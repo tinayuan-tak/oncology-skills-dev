@@ -225,6 +225,7 @@ SUB_SKILL_CARDS = {
         "gene-burden-safety",             # P5 Slice 2 — OT rare-variant burden LoF-tolerance (verdict-moving @ Slice 5)
         "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving @ Slice 5)
         "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving @ Slice 5)
+        "clinvar-pathogenicity-safety",   # P5 follow-on — ClinVar germline-pathogenic (4th corroborating leg; verdict-moving)
     ],
 }
 

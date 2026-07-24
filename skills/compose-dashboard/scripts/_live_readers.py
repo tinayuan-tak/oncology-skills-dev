@@ -798,6 +798,14 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_clinvar_pathogenicity(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: clinvar-pathogenicity-safety card (P5 follow-on) -> methods/opentargets_clinvar/
+    read.py::read_clinvar_pathogenic. ClinVar germline-pathogenic safety (somatic guardrailed out).
+    A 4th corroborating germline leg. Per-target (indication not consumed)."""
+    mod = _import_method("opentargets_clinvar.read")
+    return mod.read_clinvar_pathogenic(target, indication)
+
+
 def _dispatch_mouse_ko_phenotype(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: mouse-ko-phenotype card (P5 Slice 4) -> methods/opentargets_mouse_phenotype/read.py
     ::read_mouse_ko_phenotype. Mouse-KO normal-physiology safety (developmental-guardrailed): adult
@@ -930,6 +938,7 @@ CARD_DISPATCHERS = {
     "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
     "clingen-dosage": _dispatch_clingen_dosage,                                # P5 Slice 3 (ClinGen dosage sensitivity, verdict-moving)
     "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
+    "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # P5 follow-on (ClinVar germline-pathogenic, verdict-moving)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
     "protein-abundance-celline": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
