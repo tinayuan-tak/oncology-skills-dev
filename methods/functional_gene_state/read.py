@@ -40,9 +40,11 @@ DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
 # Standard PanCanAtlas threshold: beta > 0.3 = promoter hypermethylated (silenced).
 _RRBS_METH_THRESHOLD = 0.30
 
-# HM450 derived product (Phase-2b patient-side methylation).
-# Pre-aggregated gene × 3-field-patient parquet; gated on source pull + aggregate_hm450_promoter.py.
-HM450_PROMOTER_KEY = ("data-catalog/derived/pancanatlas-hm450-promoter-methylation/v1/"
+# SeSAMe HM450 derived product (Phase-2b patient-side methylation).
+# tcga-sesame-promoter-methylation-v1: 2,730 GDC per-sample SeSAMe TSVs → per-(gene,patient)
+# island-anchored promoter methylation call. 31.8M rows, 13,844 genes, 2,422 patients, 373 MB,
+# sorted by gene_symbol for pyarrow row-group predicate pushdown (reads ~14 kB per gene).
+HM450_PROMOTER_KEY = ("data-catalog/derived/sesame-methylation/tcga/v1/"
                       "promoter_methylation.parquet")
 
 # framework indication → TCGA project code(s) used in merged_sample_quality_annotations `cancer type`
@@ -397,9 +399,12 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
     import pandas as pd
     try:
         raw = _s3_read_bytes(HM450_PROMOTER_KEY)
-        df = pd.read_parquet(io.BytesIO(raw))
-        sub = df[(df["gene_symbol"] == target.upper()) &
-                 (df["is_promoter_methylated"].notna())]
+        # filters= pushes the predicate into pyarrow row-group statistics, reading only the
+        # matching row group (~14 kB) rather than the full 373 MB parquet.
+        # Requires the parquet to be sorted by gene_symbol (aggregate_sesame_promoter.py does this).
+        df = pd.read_parquet(io.BytesIO(raw),
+                             filters=[("gene_symbol", "==", target.upper())])
+        sub = df[df["is_promoter_methylated"].notna()]
         return {str(row.patient_barcode): bool(row.is_promoter_methylated)
                 for row in sub.itertuples(index=False)}
     except Exception:  # noqa: BLE001
