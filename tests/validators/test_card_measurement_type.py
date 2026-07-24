@@ -75,6 +75,12 @@ def test_card_without_measurement_type_is_schema_valid(tmp_path):
 def test_card_with_measurement_type_and_grains_is_schema_valid(tmp_path, monkeypatch):
     monkeypatch.setattr(VC, "_registered_measurement_types",
                         lambda: {"crispr_lof_dependency"})
+    # This test asserts grain-SCHEMA validity, not modality routing. Isolate it from the P4 Tier-3
+    # modality_relevance enforcement (2026-07-24) — which reads the REAL vocab, where
+    # crispr_lof_dependency is now stamped modality-relevant — by stubbing the modality-relevant set
+    # empty, exactly as it already stubs the registered-type set. (The enforcement itself is covered
+    # by test_modality_relevance_*.)
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: set())
     card = _base_card(measurement_type="crispr_lof_dependency",
                       entity_grains=["target", "target_lineage"])
     report = _validate(tmp_path, card)
