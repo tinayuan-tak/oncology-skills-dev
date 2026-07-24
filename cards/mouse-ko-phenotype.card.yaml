@@ -1,0 +1,86 @@
+# Card Phase-G — mouse-KO normal-physiology safety (P5 Slice 4)
+#
+# A verdict-moving P5 card (INFERRED tier — mouse is a MODEL of human physiology, so it never fires a
+# measured-strength killer). MGI knockout phenotypes via Open Targets 26.06: does knocking out
+# {target.symbol} cause death or severe organ dysfunction, implying an essential function a full-KO
+# therapy might recapitulate?
+#
+# THE DEVELOPMENTAL GUARDRAIL — the reason this card exists as a distinct signal:
+#   lethal_ko            → ADULT/postnatal lethality. Death after weaning ⇒ adult-essential ⇒ the
+#                          real full-KO safety signal (opposing, but inferred-tier — a caution, not a
+#                          measured killer).
+#   developmental_only   → embryonic/prenatal/perinatal/neonatal/preweaning lethality ONLY. Reflects a
+#                          DEVELOPMENTAL role; adult tissue may tolerate loss (hedgehog/dev-TF pattern).
+#                          A CAVEAT, NOT a safety hold — this is the guardrail that stops every
+#                          embryonic-lethal gene (KRAS, MYC, BRCA1 …) from false-flagging adult tox.
+#   severe_organ_phenotype → survives to adulthood but with major organ-system dysfunction (MGI
+#                          cardiovascular/nervous/hematopoietic/… class). A softer adult concern.
+#   mild_phenotype       → KO viable, only minor phenotypes. no_phenotype → KO tolerated / not modeled.
+#   insufficient         → unresolvable symbol.
+
+card_id: mouse-ko-phenotype
+version: 1.0.0
+question: "Does mouse knockout of {target.symbol} cause ADULT lethality or severe organ dysfunction (a normal-physiology safety signal), as distinct from purely developmental lethality?"
+
+tier: target   # scope-invariant: mouse-KO phenotype is a property of the gene. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: opentargets-26-06
+
+methods:
+  - call: opentargets-mouse-ko-phenotype
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - ko_phenotype_class                  # PRIMARY categorical
+    - n_rows                              # int; total MGI phenotype rows for the gene
+    - n_lethal                            # int; lethal-labelled rows
+    - n_adult_lethal                      # int; adult/postnatal lethal rows (drive lethal_ko)
+    - n_developmental_lethal              # int; embryonic/preweaning lethal rows
+    - lethal_stages                       # list; distinct stages {adult, developmental, unspecified}
+    - top_lethal_label                    # the label driving the class
+    - organ_classes                       # list; severe adult-organ MGI classes present
+    - evidence_tier                       # 'inferred' (mouse is a model — never a measured killer)
+    - method_version
+
+  summary_fields_vocabulary:
+    ko_phenotype_class:
+      - lethal_ko
+      - severe_organ_phenotype
+      - developmental_only
+      - mild_phenotype
+      - no_phenotype
+      - insufficient
+
+  # NO figure: tables-only (deferred with the other P5 figures).
+
+warning_predicates:
+  - warning_id: mouse_ko_lethal_safety_concern
+    if: "ko_phenotype_class == 'lethal_ko'"
+    message: "{target.symbol}: mouse ADULT/postnatal knockout is lethal ({top_lethal_label}) — an adult-essential-function signal (inferred, mouse model), an on-target safety caution for full-KO modalities. Mouse KO is a MODEL not a human measurement; mutant-selective tx vs an activating driver spares WT."
+  - warning_id: mouse_ko_developmental_only_caveat
+    if: "ko_phenotype_class == 'developmental_only'"
+    message: "{target.symbol}: mouse knockout is lethal only at developmental stages ({top_lethal_label}), NOT postnatally. This reflects an EMBRYONIC role and does NOT establish adult on-target toxicity — many developmentally-essential genes are dispensable in adult tissue. Context, not a safety hold."
+
+caveats:
+  - |
+    Mouse KO is a MODEL of human physiology (evidence_tier: inferred) — it informs but never fires a
+    measured-strength safety killer. The developmental-vs-adult distinction is load-bearing: a gene
+    essential for embryogenesis (embryonic/preweaning lethal) may be fully dispensable in adult
+    tissue, so developmental_only is a caveat, not a hold. Only adult/postnatal lethality
+    (lethal_ko) is treated as an adult-essentiality safety signal, and even then as an inferred-tier
+    caution.
+  - |
+    Bare "lethality" with no developmental stage is conservatively classed developmental_only (not an
+    adult killer). A mutant-selective therapy against an activating driver spares the WT copy, further
+    nullifying an adult-essentiality concern (resolver mechanism-conditioning downgrade, Slice 5).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mouse_ko_phenotype_safety` claim (mouse-KO normal-
+# physiology, developmental-guardrailed). Provider: opentargets-26-06 mouse_phenotype (INFERRED — model).
+measurement_type: mouse_ko_phenotype_safety
+entity_grains: [target]
+schema_version: 1
