@@ -14,6 +14,7 @@ import importlib.util
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -220,7 +221,8 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
 
 
 def _run_sub_skills(target: str, indication: str,
-                    subtypes: Optional[list[str]] = None) -> dict:
+                    subtypes: Optional[list[str]] = None,
+                    profile_timers: bool = False) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
       - `skill_dir`
@@ -241,7 +243,13 @@ def _run_sub_skills(target: str, indication: str,
     axes = ("intracellular_intrinsic", "surface_intrinsic")
     results: dict = {}
     for skill_dir, short in SUB_SKILLS:
+        _t0 = time.perf_counter() if profile_timers else 0.0
         cards = resolve_cards(SUB_SKILL_CARDS[skill_dir], target, indication)
+        if profile_timers:
+            # Stage-0 instrumentation: per-sub-skill card-READ wall (the fan-out cost).
+            # stderr-only; does not touch results/artifacts.
+            print(f"[perf] read  {short:26s} {time.perf_counter() - _t0:6.1f}s "
+                  f"({len(SUB_SKILL_CARDS[skill_dir])} cards)", file=sys.stderr)
         fired: list[dict] = []
         for axis in axes:
             fired.extend(fired_rules(cards, axis=axis,
@@ -3184,6 +3192,16 @@ def main() -> int:
                     help="OPTIONAL therapeutic hypothesis (line-of-therapy, "
                          "patient state, clinical goal). Reshapes LLM "
                          "narrative; sub-verdicts unchanged.")
+    ap.add_argument("--no-figures", action="store_true",
+                    help="VERDICT-ONLY mode: skip per-card figure emission + the interactive HTML "
+                         "(the 4.6MB inlined plotly.js + the figure double-read). Emits "
+                         "nomination.json + target_profile.md + provenance + a STATIC (no-JS) HTML. "
+                         "The deterministic verdict spine is byte-identical to a full run — figures "
+                         "never feed the verdict. Use for fast iteration / re-runs; render later via "
+                         "the deferred-render path. (Perf Stage 1, 2026-07-23.)")
+    ap.add_argument("--profile-timers", action="store_true",
+                    help="Emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr "
+                         "(instrumentation only; zero effect on artifacts). (Perf Stage 0.)")
     args = ap.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -3198,7 +3216,12 @@ def main() -> int:
     print(f"[target-profile] Running {len(SUB_SKILLS)} sub-skills for "
           f"{args.target} in {args.indication}...", file=sys.stderr)
     subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else None
-    sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes)
+    _fanout_t0 = time.perf_counter() if args.profile_timers else 0.0
+    sub_results = _run_sub_skills(args.target, args.indication, subtypes=subtypes,
+                                  profile_timers=args.profile_timers)
+    if args.profile_timers:
+        print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===",
+              file=sys.stderr)
     for short, r in sub_results.items():
         v = r["verdict"]
         verdict_str = v[0] if v else "(no verdict)"
@@ -3331,7 +3354,19 @@ def main() -> int:
     # 3a-bis. Produce per-card distribution figures (SVG + interactive .plotly.json) via the shared
     # figure registry. This is the dynamic-dashboard Phase B change: a run now PRODUCES the per-card
     # charts (previously rules/summary-only). Best-effort — never blocks artefact emission.
-    card_figures = _emit_card_figures(sub_results, figures_dir, args.target, args.indication)
+    # PERF Stage 1: --no-figures skips this (the figure double-read + the 4.6MB plotly inline). The
+    # HTML then degrades to the tested static no-JS fallback; the verdict spine is byte-identical
+    # (card_figures never feeds nomination.json / sub_verdicts — it's a separate presentation slot).
+    if args.no_figures:
+        card_figures = {}
+        print("[target-profile] --no-figures: skipped per-card figure emission (verdict-only mode)",
+              file=sys.stderr)
+    else:
+        _fig_t0 = time.perf_counter() if args.profile_timers else 0.0
+        card_figures = _emit_card_figures(sub_results, figures_dir, args.target, args.indication)
+        if args.profile_timers:
+            print(f"[perf] === figure-emit total {time.perf_counter() - _fig_t0:6.1f}s ===",
+                  file=sys.stderr)
 
     # 3b. Render + emit markdown artefact (Shape A — enriched).
     md = _render_target_profile_md(
