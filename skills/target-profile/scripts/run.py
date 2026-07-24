@@ -10,14 +10,21 @@ a forced structured tool_use to produce executive_summary + tension_analysis
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import importlib.util
 import json
+import os
 import re
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+# PERF Stage 2: fan-out thread-pool worker cap. min(#sub-skills, cores-2) — headroom-aware; env
+# override for tuning/CI. Threads (not processes) so the process-global method caches are shared.
+_FANOUT_MAX_WORKERS = int(os.environ.get("TARGET_PROFILE_FANOUT_WORKERS",
+                                          max(2, (os.cpu_count() or 4) - 2)))
 
 import yaml
 
@@ -51,19 +58,50 @@ def _framework_model_version() -> str | None:
 
 # --- Sub-skill orchestration ------------------------------------------------
 
+_SUBSKILL_FN_CACHE: dict = {}
+
+
 def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
     """Load a sub-skill's run.py module and return its `_verdict()` or
     `_snapshot()` function (whichever exists). Sub-skills follow the
     convention of exposing one such function; we grab it via importlib
     so target-profile doesn't hard-code each sub-skill's Python path.
+
+    MEMOIZED (perf Stage 2): each sub-skill module is exec'd ONCE. This both avoids
+    re-executing modules per call AND makes the concurrent fan-out safe — the pool
+    workers hit the cache (populated by _prewarm_sub_skill_imports before the pool),
+    so no two threads run importlib.exec_module / sys.path.insert concurrently.
     """
+    fn = _SUBSKILL_FN_CACHE.get(skill_dir_name, "__miss__")
+    if fn != "__miss__":
+        return fn
     run_py = SKILLS_DIR / skill_dir_name / "scripts" / "run.py"
     spec = importlib.util.spec_from_file_location(
         f"_subskill_{skill_dir_name.replace('-', '_')}", run_py,
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return getattr(module, "_verdict", None) or getattr(module, "_snapshot", None)
+    fn = getattr(module, "_verdict", None) or getattr(module, "_snapshot", None)
+    _SUBSKILL_FN_CACHE[skill_dir_name] = fn
+    return fn
+
+
+def _prewarm_sub_skill_imports() -> None:
+    """Perf Stage 2 byte-stability guard: single-threaded, BEFORE the thread pool, trigger every
+    import the concurrent workers would otherwise race on — the compose-dashboard dispatcher (via
+    resolve_cards' _import_dispatcher) and each sub-skill's verdict module (which does sys.path.insert
+    + importlib.exec_module). After this, the workers hit warm module caches; no concurrent
+    sys.path mutation / module exec. Idempotent + best-effort (a load failure surfaces later on the
+    real call, exactly as serial)."""
+    try:
+        from _skills_common import resolve_cards as _rc  # noqa: F401 — triggers _import_dispatcher
+    except Exception:  # noqa: BLE001
+        pass
+    for skill_dir, _short in SUB_SKILLS:
+        try:
+            _load_sub_skill_verdict_fn(skill_dir)   # populates _SUBSKILL_FN_CACHE
+        except Exception:  # noqa: BLE001
+            pass
 
 
 # The wired question-answering skills to compose. Order matches phase A→K.
@@ -241,13 +279,14 @@ def _run_sub_skills(target: str, indication: str,
     # card's rules live in. (Fixed 2026-07-14 when the tractability split first
     # made a surface-only sub-skill a peer in the composer.)
     axes = ("intracellular_intrinsic", "surface_intrinsic")
-    results: dict = {}
-    for skill_dir, short in SUB_SKILLS:
+
+    def _one_sub_skill(skill_dir: str, short: str) -> tuple[str, dict]:
+        """Compute one sub-skill's (cards, fired, verdict). Pure over (target, indication) +
+        that sub-skill's own cards — no cross-sub-skill state (verified collect-then-synthesize),
+        so this is safe to run concurrently. Returns (short, result-dict)."""
         _t0 = time.perf_counter() if profile_timers else 0.0
         cards = resolve_cards(SUB_SKILL_CARDS[skill_dir], target, indication)
         if profile_timers:
-            # Stage-0 instrumentation: per-sub-skill card-READ wall (the fan-out cost).
-            # stderr-only; does not touch results/artifacts.
             print(f"[perf] read  {short:26s} {time.perf_counter() - _t0:6.1f}s "
                   f"({len(SUB_SKILL_CARDS[skill_dir])} cards)", file=sys.stderr)
         fired: list[dict] = []
@@ -256,12 +295,35 @@ def _run_sub_skills(target: str, indication: str,
                                      card_id_filter=SUB_SKILL_CARDS[skill_dir]))
         verdict_fn = _load_sub_skill_verdict_fn(skill_dir)
         verdict_pair = verdict_fn(fired) if verdict_fn else None
-        results[short] = {
+        return short, {
             "skill_dir": skill_dir,
             "cards": cards,
             "fired": fired,
             "verdict": verdict_pair,  # (str, driving_rule_id) or None
         }
+
+    # PERF Stage 2 (2026-07-23): the 10 sub-skills are GENUINELY INDEPENDENT (collect-then-synthesize;
+    # no sub-skill reads another's result), so fan them out CONCURRENTLY. THREADS not processes: the
+    # method-layer caches (depmap_common.parquet lru + disk cache; framework-tpm-long/hpa disk latches)
+    # are process-global, so threads SHARE a target's reads across sub-skills (processes would
+    # duplicate + re-download). pandas/pyarrow release the GIL during parquet/CSV I/O, so the IO-bound
+    # reads overlap. Wall is bounded by the longest single sub-skill (measured: `expression` ~106s).
+    #
+    # BYTE-STABILITY: concurrency must NOT change the deterministic verdict spine. Two guards:
+    #   1. Pre-warm all imports ONCE before the pool (below) — neutralizes the sys.path.insert(0,...)
+    #      global-list race in the dispatcher/method imports.
+    #   2. Re-assemble `results` in SUB_SKILLS order (NOT completion order) — every downstream
+    #      reduction (_ordinal_matrix / _gate_recommendation / _deciding_axis / scorecard) + the
+    #      nomination.json sub_verdicts iterate this dict; insertion order must match the serial run.
+    _prewarm_sub_skill_imports()
+    completed: dict = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(SUB_SKILLS), _FANOUT_MAX_WORKERS)) as ex:
+        futures = {ex.submit(_one_sub_skill, sd, sh): sh for sd, sh in SUB_SKILLS}
+        for fut in concurrent.futures.as_completed(futures):
+            short, res = fut.result()   # a sub-skill exception propagates here (fail-loud, as serial did)
+            completed[short] = res
+    # deterministic re-order: rebuild in SUB_SKILLS order (byte-stability guard #2)
+    results: dict = {short: completed[short] for _, short in SUB_SKILLS}
 
     # Subtype tier — ONLY when a subtype scope was requested. Panorama cards need
     # the resolved strata + assignments shard threaded via subgroup_context; the
