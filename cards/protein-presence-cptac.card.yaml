@@ -137,5 +137,7 @@ sample_context: tumor         # patient tumor vs normal (CPTAC per-cohort) — o
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_protein_abundance` claim.
 measurement_type: tumor_protein_abundance
+# P4 Tier-2 (2026-07-24): cross-axis — protein abundance is the SM/degrader presence read (intracellular rules) AND the antigen-presence prerequisite for biologics (surface rules H). Rules exist on BOTH axes. Declaration lands WITH the matching surface rules (PR feat/p4-surface-rules-tier2) — never declare without a rule.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1

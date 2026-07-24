@@ -144,5 +144,7 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `shed_ectodomain_liability` claim.
 measurement_type: shed_ectodomain_liability
+# P4 (2026-07-24): declaration-only routing key — shed ectodomain = antigen-sink liability; opposing across all biologics (not an SM concern). Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1

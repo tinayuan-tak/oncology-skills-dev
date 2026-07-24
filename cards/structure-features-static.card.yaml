@@ -106,5 +106,7 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `structure_druggability` claim.
 measurement_type: structure_druggability
+# P4 (2026-07-24): declaration-only routing key — pocket/druggability → SM tractability; disordered/interface → degrader/glue hooks. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

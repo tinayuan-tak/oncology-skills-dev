@@ -112,5 +112,7 @@ caveats:
 # lineage-selectivity slice of the same Chronos-LOF claim; concordance test folds it in, not a new
 # type). tier: target above marks the card scope-invariant across patient subgroups.
 measurement_type: crispr_lof_dependency
+# P4 Tier-2/3 (2026-07-24): lineage-restricted CRISPR dependency → SM/degrader efficacy selectivity (intracellular rule pre-exists). Completes the crispr_lof_dependency type so Tier-3 can enforce it. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage]
 schema_version: 1

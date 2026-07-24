@@ -131,5 +131,7 @@ caveats:
 # no standalone card — the latent-unowned input the survey surfaced), distinct from the variant-class
 # spectrum. Both inputs co-resident in DepMap but still a type→type edge (appendix case 7).
 measurement_type: mutation_stratified_dependency
+# P4 (2026-07-24): declaration-only routing key — oncogene-addiction biomarker → SM/degrader efficacy stratifier. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

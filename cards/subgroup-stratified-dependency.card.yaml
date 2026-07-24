@@ -97,5 +97,7 @@ caveats:
 # subtype slice; binds a per-sample stratified reader, satisfying the Rule 4 partition dependency).
 # Same claim as the pan-cancer + lineage cards, a finer grain — not a new type.
 measurement_type: crispr_lof_dependency
+# P4 (2026-07-24): declaration-only routing key — subtype-grain dependency → SM/degrader efficacy; opposing on a non-dependent subtype. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target_subtype]
 schema_version: 1

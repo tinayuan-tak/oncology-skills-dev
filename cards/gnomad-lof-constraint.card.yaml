@@ -100,5 +100,7 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gnomad_lof_constraint` claim.
 measurement_type: gnomad_lof_constraint
+# P4 (2026-07-24): declaration-only routing key — high LoF-constraint = full-KO safety concern → discriminating on SM/degrader (a degrader/full-inhibition risk the SM active-site story may partly spare). Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

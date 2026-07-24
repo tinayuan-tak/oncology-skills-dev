@@ -114,5 +114,7 @@ measurement: bulk_protein_ms
 # surfaceome_family, surface_topology]. The card's derived_from block above declares the card-level
 # upstream reads; the measurement_type names the type→type DAG node.
 measurement_type: surface_density
+# P4 (2026-07-24): declaration-only routing key — copies-per-cell vs TCE-viability threshold → density killer/supportive on ADC/TCE. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce]
 entity_grains: [target_indication]
 schema_version: 1

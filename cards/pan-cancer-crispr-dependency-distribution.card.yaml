@@ -128,5 +128,7 @@ caveats:
 # dependency — same claim, different grain slice (concordance test, Rule 2). target_subtype is LIVE
 # via the subgroup card's per-sample reader.
 measurement_type: crispr_lof_dependency
+# P4 (2026-07-24): declaration-only routing key — pan-essential killer / dependency efficacy basis for SM+degrader. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage, target_subtype]
 schema_version: 1

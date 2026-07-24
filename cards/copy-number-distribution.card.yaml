@@ -146,5 +146,14 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `copy_number_alteration` claim.
 measurement_type: copy_number_alteration
+# P4 (2026-07-24): copy-number is a CROSS-AXIS card — it already fires interpretation rules on BOTH
+# modality axes (homozygous deletion → degrader/SM dependency context on the intracellular axis;
+# amplification → surface antigen-DOSAGE on the ADC/TCE/antibody axis). Those rules exist and fire,
+# but without this routing key the modality-fit gates (axis-2) never PULL the card and its evidence
+# strands on the biology axis. Declaring all five lands the amplification signal in the surface gate
+# (the ADC antigen-density argument alteration-role's comment references) AND the homdel signal in the
+# SM/degrader gate. Declaration-only slice: matching rules pre-exist in
+# interpretation-rules/{intracellular-intrinsic,surface-intrinsic}.rules.yaml.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target, target_lineage]
 schema_version: 1

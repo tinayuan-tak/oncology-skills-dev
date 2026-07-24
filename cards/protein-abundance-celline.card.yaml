@@ -123,5 +123,7 @@ sample_context: cell_line     # DepMap cell lines (Gygi TMT MS) — orthogonal t
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `cell_line_protein_abundance` claim.
 measurement_type: cell_line_protein_abundance
+# P4 (2026-07-24): declaration-only routing key — protein-absent → degrader-killer (a degrader needs the protein present); discriminating presence read. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage]
 schema_version: 1

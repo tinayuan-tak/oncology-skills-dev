@@ -75,5 +75,7 @@ sample_context: tumor
 # DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `expression_purity_confound` claim,
 # derived_from [tumor_expression_distribution, tumor_purity_absolute].
 measurement_type: expression_purity_confound
+# P4 Tier-2 (2026-07-24): cross-axis — purity confound qualifies the SM presence read AND flags stroma-sourced antigen for biologics (surface rules K). Rules on BOTH axes. Declaration lands WITH the matching surface rules (PR feat/p4-surface-rules-tier2) — never declare without a rule.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1

@@ -124,5 +124,7 @@ measurement: protein_ihc
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_protein_breadth` claim.
 measurement_type: normal_tissue_protein_breadth
+# P4 (2026-07-24): declaration-only routing key — on-target-off-tumor breadth → BiTE/TCE-killer on essential tissue; discriminating surface-fit. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1

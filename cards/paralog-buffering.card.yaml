@@ -104,5 +104,7 @@ caveats:
 # buffer the dependency / create escape risk?). A distinct dependency-hardening axis, not a slice of
 # crispr_lof_dependency (shown alongside it — concordance test → separate type).
 measurement_type: paralog_buffering
+# P4 (2026-07-24): declaration-only routing key — buffering opposes SM active-site but is neutral for a degrader (which can clear both paralogs) — discriminating. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1

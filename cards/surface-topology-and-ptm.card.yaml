@@ -124,5 +124,7 @@ caveats:
 # + PTM/endocytosis-motif profile). Distinct atom from surface_confirmation (predicted TM domain is
 # complementary to measured residency, not interchangeable — the concordance test, Rule 2).
 measurement_type: surface_topology
+# P4 (2026-07-24): declaration-only routing key — membrane topology = epitope accessibility; no-TM killer, single-pass supportive. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1
