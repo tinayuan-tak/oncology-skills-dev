@@ -798,6 +798,18 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_gene_burden_safety(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: gene-burden-safety card (P5 Slice 2, first verdict-moving) →
+    methods/opentargets_gene_burden/read.py::read_gene_burden.
+
+    Population rare-variant burden LoF-tolerance: does losing this gene's function increase
+    disease risk (a WT-loss full-KO safety signal) or protect (drug-positive)? Direction from
+    directionOnTrait (directionOnTarget is uniformly LoF). Per-target (indication accepted, not
+    consumed — burden is across many diseases; top_disease surfaces the driving trait)."""
+    mod = _import_method("opentargets_gene_burden.read")
+    return mod.read_gene_burden(target, indication)
+
+
 def _dispatch_target_safety_prioritisation(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: target-safety-prioritisation card (P5 Slice 1) →
     methods/opentargets_target_prioritisation/read.py::read_target_prioritisation.
@@ -899,6 +911,7 @@ CARD_DISPATCHERS = {
     "paralog-buffering": _dispatch_paralog_buffering,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
+    "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
     "protein-abundance-celline": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,

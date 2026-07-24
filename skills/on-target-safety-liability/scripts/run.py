@@ -19,7 +19,10 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.3.0"   # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
+SKILL_VERSION = "1.4.0"   # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
+                          # OT context) + gene-burden-safety (Slice 2, OT rare-variant burden LoF-
+                          # tolerance; verdict-moving rule resolver-wired in Slice 5).
+                          # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
                           # the WT gnomAD-constraint concern (activating-driver-role-safety-context)
 
 CARDS = [
@@ -43,6 +46,13 @@ CARDS = [
                                       # to DOWNGRADE the WT-constraint concern → wt_constraint_mechanism_
                                       # mismatch (a GoF driver is drugged mutant-selectively; gnomAD
                                       # constraint is about the WILD-TYPE protein the drug spares).
+    "gene-burden-safety",             # P5 Slice 2 (2026-07-24) — population rare-variant BURDEN LoF-
+                                      # tolerance (OT 26.06). burden_safety_class=lof_risk_phenotype ->
+                                      # gene-burden-lof-safety-warning (SM/degrader opposing, the full-KO
+                                      # WT-loss safety signal); protective -> drug-positive. The
+                                      # verdict-moving rule is NOT yet resolver-referenced (byte-stable);
+                                      # safety.resolver.yaml wires it in P5 Slice 5, composed with the
+                                      # same mutant-selective downgrade as the gnomAD path.
 ]
 
 QUESTION = ("Is {target} highly constrained against loss-of-function "
@@ -95,6 +105,10 @@ def _headline(cards, fired, verdict_pair):
         "syn_z_score":      _get("gnomad-lof-constraint", "syn_z_score"),
         "obs_lof_count":    _get("gnomad-lof-constraint", "obs_lof_count"),
         "exp_lof_count":    _get("gnomad-lof-constraint", "exp_lof_count"),
+        # P5 Slice 2 — human-genetics rare-variant burden (verdict-moving in Slice 5)
+        "burden_safety_class": _get("gene-burden-safety", "burden_safety_class"),
+        "burden_min_pvalue":   _get("gene-burden-safety", "min_pvalue"),
+        "burden_top_disease":  _get("gene-burden-safety", "top_disease"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (
