@@ -224,6 +224,7 @@ SUB_SKILL_CARDS = {
         "target-safety-prioritisation",   # P5 Slice 1 — OT engineered-score safety CONTEXT (verdict-inert)
         "gene-burden-safety",             # P5 Slice 2 — OT rare-variant burden LoF-tolerance (verdict-moving @ Slice 5)
         "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving @ Slice 5)
+        "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving @ Slice 5)
     ],
 }
 

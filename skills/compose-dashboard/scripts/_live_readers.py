@@ -798,6 +798,14 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_mouse_ko_phenotype(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: mouse-ko-phenotype card (P5 Slice 4) -> methods/opentargets_mouse_phenotype/read.py
+    ::read_mouse_ko_phenotype. Mouse-KO normal-physiology safety (developmental-guardrailed): adult
+    lethality = adult-essential signal; embryonic/preweaning = caveat. INFERRED (model). Per-target."""
+    mod = _import_method("opentargets_mouse_phenotype.read")
+    return mod.read_mouse_ko_phenotype(target, indication)
+
+
 def _dispatch_clingen_dosage(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: clingen-dosage card (P5 Slice 3) -> methods/opentargets_clingen/read.py::
     read_clingen_dosage. ClinGen dosage sensitivity: is single-copy loss pathogenic (autosomal-
@@ -921,6 +929,7 @@ CARD_DISPATCHERS = {
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
     "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
     "clingen-dosage": _dispatch_clingen_dosage,                                # P5 Slice 3 (ClinGen dosage sensitivity, verdict-moving)
+    "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
     "protein-abundance-celline": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
