@@ -3051,3 +3051,42 @@ rules:
       (directionOnTrait=protect). Loss of function is beneficial at population scale — a drug-POSITIVE
       human-genetics signal (the strongest kind of target-validation: nature's own knockout is
       protective). Supportive for the full-inhibition modalities. Contrast lof_risk_phenotype.
+
+  # ============================================================================
+  # P5 Slice 3 — clingen-dosage card (haploinsufficiency dosage-sensitivity)
+  # Intracellular axis (SM/degrader = the full-inhibition modalities the single-copy-loss concern
+  # bears on). NOT yet resolver-referenced (byte-stable); Slice 5 wires clingen-dominant-loss-safety-
+  # warning composed with the mutant-selective downgrade.
+  # ============================================================================
+
+  - rule_id: clingen-dominant-loss-safety-warning
+    when:
+      card_id: clingen-dosage
+      field: dosage_sensitivity_class
+      equals: autosomal_dominant_loss
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      ClinGen shows single-copy loss is pathogenic (a high-confidence autosomal-dominant gene-disease
+      association = haploinsufficiency). Losing one allele suffices for disease, so a full-KO modality
+      (degrader, RNA therapeutic, full-inhibition SM) risks recapitulating a haploinsufficiency
+      phenotype systemically. Opposing + dominant, mirroring the gnomAD + gene-burden safety rungs.
+      NOTE: a MUTANT-SELECTIVE therapy against an activating driver spares the WT copy this concern is
+      about — the resolver's mechanism-conditioning downgrade (Slice 5) nullifies it via when_all_fired
+      with activating-driver-role-safety-context (parallel to wt_constraint_mechanism_mismatch).
+
+  - rule_id: clingen-dosage-sufficient-neutral
+    when:
+      card_id: clingen-dosage
+      field: dosage_sensitivity_class
+      equals: dosage_sufficient
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      ClinGen high-confidence associations are exclusively RECESSIVE — disease requires loss of BOTH
+      copies, so single-allele reduction (or a partial-inhibition therapy) is better tolerated. Neutral,
+      not supportive: recessive gene-disease validity is a lower single-allele safety concern, but not
+      positive evidence of safety on its own. Contrast autosomal_dominant_loss.
