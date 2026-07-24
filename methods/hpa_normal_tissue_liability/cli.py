@@ -22,7 +22,10 @@ from __future__ import annotations
 
 import io
 import os
+import sys
 import zipfile
+from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 METHOD_VERSION = "0.1.0"
@@ -30,6 +33,13 @@ METHOD_VERSION = "0.1.0"
 S3_BUCKET = "onc-compbio"
 HPA_KEY = "data-catalog/sources/hpa/v25-1/proteinatlas.tsv.zip"
 DEFAULT_AWS_PROFILE = "cbg"
+
+# Perf Stage 3 (2026-07-23): the HPA master zip was previously re-downloaded from S3 on EVERY call
+# (no lru, no disk cache) — paid multiple times per target-profile run (verdict pass + figure pass)
+# and every process start. Add a disk cache (download once per machine) + an lru_cache on the parsed
+# DataFrame (reuse across calls in a process). Mirrors the depmap_common/parquet.py disk-latch pattern.
+HPA_CACHE_DIR = Path.home() / ".cache" / "framework-hpa-v25-1"
+HPA_CACHE_ZIP = HPA_CACHE_DIR / "proteinatlas.tsv.zip"
 
 HPA_GENE_COL = "Gene"
 HPA_DIST_COL = "Protein tissue distribution"
@@ -66,22 +76,46 @@ def _ensure_aws_profile():
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
+def _ensure_hpa_cached() -> Path:
+    """Download the HPA master zip to the local disk cache ONCE per machine; return the local path.
+    Second-session / second-call runs are a no-op cache hit (mirrors depmap_common/parquet.py)."""
+    HPA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if HPA_CACHE_ZIP.exists() and HPA_CACHE_ZIP.stat().st_size > 0:
+        return HPA_CACHE_ZIP
+    _ensure_aws_profile()
+    import boto3
+    print(f"[hpa] downloading s3://{S3_BUCKET}/{HPA_KEY} -> {HPA_CACHE_ZIP}", file=sys.stderr)
+    boto3.client("s3").download_file(S3_BUCKET, HPA_KEY, str(HPA_CACHE_ZIP))
+    return HPA_CACHE_ZIP
+
+
+def _read_zip_cols(zip_path, cols):
+    import pandas as pd
+    z = zipfile.ZipFile(zip_path)
+    with z.open(z.namelist()[0]) as f:
+        return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
+
+
+@lru_cache(maxsize=1)
+def _read_hpa_cached_default():
+    """The default (S3-backed) HPA read — parsed ONCE per process (lru) off the disk cache.
+    Only used when no explicit hpa_path override is passed (the live path)."""
+    cols = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
+    return _read_zip_cols(_ensure_hpa_cached(), cols)
+
+
 def _read_hpa(hpa_path=None):
     import pandas as pd
     cols = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
     if hpa_path is not None:
+        # explicit override (tests / local file) — NOT cached (callers may vary the path)
         p = str(hpa_path)
         if p.endswith(".zip"):
-            z = zipfile.ZipFile(p)
-            with z.open(z.namelist()[0]) as f:
-                return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
+            return _read_zip_cols(p, cols)
         return pd.read_csv(p, sep="\t", usecols=cols, dtype=str)
-    _ensure_aws_profile()
-    import boto3
-    body = boto3.client("s3").get_object(Bucket=S3_BUCKET, Key=HPA_KEY)["Body"].read()
-    z = zipfile.ZipFile(io.BytesIO(body))
-    with z.open(z.namelist()[0]) as f:
-        return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
+    # live path: disk-cache the zip + lru-cache the parse (return a copy so callers can't mutate
+    # the shared cached frame).
+    return _read_hpa_cached_default().copy()
 
 
 def parse_specific_tissues(intensity_value: Optional[str]) -> list:
