@@ -3090,3 +3090,41 @@ rules:
       copies, so single-allele reduction (or a partial-inhibition therapy) is better tolerated. Neutral,
       not supportive: recessive gene-disease validity is a lower single-allele safety concern, but not
       positive evidence of safety on its own. Contrast autosomal_dominant_loss.
+
+  # ============================================================================
+  # P5 Slice 4 — mouse-ko-phenotype card (developmental-guardrailed KO safety)
+  # Intracellular axis (SM/degrader). INFERRED tier: lethal_ko fires OPPOSING (a caution), NOT a
+  # killer — mouse is a model. developmental_only is explicitly NEUTRAL (the guardrail: embryonic
+  # lethality is not adult tox). NOT yet resolver-referenced (byte-stable); Slice 5 wires lethal_ko.
+  # ============================================================================
+
+  - rule_id: mouse-ko-lethal-safety-warning
+    when:
+      card_id: mouse-ko-phenotype
+      field: ko_phenotype_class
+      equals: lethal_ko
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      Mouse ADULT/postnatal knockout is lethal — an adult-essential-function signal (death after
+      weaning, not merely developmental). On-target safety caution for a full-KO modality (degrader,
+      RNA, full-inhibition SM). OPPOSING but NOT dominant and NOT a killer: mouse KO is INFERRED
+      evidence (a model of human physiology), so it cautions rather than vetoes — contrast the
+      measured gnomAD / gene-burden / ClinGen rungs which may be dominant. Composes with the
+      mutant-selective downgrade (Slice 5): an activating driver drugged mutant-selectively spares WT.
+
+  - rule_id: mouse-ko-developmental-only-neutral
+    when:
+      card_id: mouse-ko-phenotype
+      field: ko_phenotype_class
+      equals: developmental_only
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Mouse knockout is lethal ONLY at developmental stages (embryonic/prenatal/perinatal/neonatal/
+      preweaning), NOT postnatally. This is the DEVELOPMENTAL GUARDRAIL: an embryonic-essential role
+      does NOT establish adult on-target toxicity (many developmentally-essential genes — KRAS, MYC,
+      BRCA1 — are dispensable in adult tissue). NEUTRAL, never opposing: context, explicitly not a
+      safety hold. Distinguishes a genuine adult-tox signal (lethal_ko) from a developmental artifact.
