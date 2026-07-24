@@ -442,6 +442,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: gnomad-constraint-snapshot-2026-07-02, evidence_tier: measured}
 
+  human_genetic_safety:
+    # P5 Slice 2 (2026-07-24) — population rare-variant BURDEN LoF-tolerance (Open Targets 26.06
+    # evidence_gene_burden). The highest-weight human-genetics safety leg: does losing this gene's
+    # function harm (risk) or protect at population scale? MEASURED tier (real human genetics). Its
+    # verdict-moving warning fires on the SM/degrader (full-KO) axis via safety.resolver.yaml (Slice
+    # 5), NOT a modality-fit gate — so NO modality_relevance key (safety is axis-1). Composes with the
+    # mutant-selective mechanism-conditioning downgrade (WT-loss ≠ mutant-selective-tx risk).
+    claim: "Does population rare-variant burden show loss of target function is harmful (WT-loss safety signal) or protective?"
+    entity_grains: [target]
+    cards: [gene-burden-safety]
+    providers:
+      - {kind: dataset, source: opentargets-26-06, evidence_tier: measured}
+
   shed_ectodomain_liability:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
