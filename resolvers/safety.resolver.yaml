@@ -2,20 +2,39 @@
 # Declarative transcription of skills/on-target-safety-liability/scripts/run.py::_verdict.
 # Germline gnomAD LoF-constraint signal (highly_constrained → hold in the nomination gate).
 gate: safety
-version: 1.1.0   # 1.1.0 (2026-07-23): + mutant-selective mechanism-mismatch downgrade (when_all_fired)
-description: Germline LoF-constraint safety precedence, mechanism-conditioned for GoF drivers.
+version: 1.2.0   # 1.2.0 (2026-07-24): + P5 human-genetics leg (gene-burden / ClinGen-dosage / mouse-KO)
+                 #   as a combined concern rung BELOW the gnomAD chain (gnomAD path byte-identical),
+                 #   each mechanism-conditioned for GoF drivers like the gnomAD path.
+                 # 1.1.0 (2026-07-23): + mutant-selective mechanism-mismatch downgrade (when_all_fired)
+description: >
+  Germline/population + model safety precedence, mechanism-conditioned for GoF drivers. The gnomAD
+  LoF-constraint chain is the dominant leg (unchanged); the P5 human-genetics leg (rare-variant
+  burden, ClinGen dosage, mouse-KO) adds a combined concern that fires only when gnomAD is SILENT —
+  so the gnomAD resolution is byte-identical, and the new leg extends coverage rather than competing.
 resolve:
-  # MUTANT-SELECTIVE DOWNGRADE (2026-07-23) — MUST precede highly_constrained_safety_concern.
-  # gnomAD constraint measures WILD-TYPE LoF-intolerance; but a GoF driver is drugged mutant-
-  # selectively (KRAS-G12C spares WT KRAS in normal tissue), so the WT-essentiality concern largely
-  # does NOT apply. When BOTH the highly-constrained warning AND the activating-driver-role context
-  # fire, resolve to the mechanism-mismatch verdict instead of the raw concern. driving_rule pins the
-  # attributed rule to the constraint warning (the signal being conditioned). Conditional on an
-  # allele-selective modality — a pan-target degrader / WT-hitting inhibitor re-exposes the concern
-  # (stated in the card caveat). See memory feedback_wt_essentiality_mechanism_conditioning.
+  # ── GROUP 1: mutant-selective DOWNGRADES (when_all_fired — most specific, must precede the raw
+  #    concerns). A GoF driver drugged mutant-selectively spares the WT protein that EVERY WT-loss
+  #    safety signal (gnomAD constraint, rare-variant burden, ClinGen dominant-loss, mouse adult-KO)
+  #    concerns. Same mechanism-conditioning as the gnomAD path, one rung per WT-loss warning.
+  #    Conditional on an allele-selective modality (a pan-target degrader / WT-hitting inhibitor
+  #    re-exposes the concern — stated in each card caveat).
+
+  # gnomAD (2026-07-23) — UNCHANGED, must remain the first downgrade rung (golden byte-stability).
   - verdict: wt_constraint_mechanism_mismatch
     when_all_fired: [highly-constrained-safety-warning, activating-driver-role-safety-context]
     driving_rule: highly-constrained-safety-warning
+  # P5 (2026-07-24) — parallel downgrades for the human-genetics warnings.
+  - verdict: wt_human_genetics_mechanism_mismatch
+    when_all_fired: [gene-burden-lof-safety-warning, activating-driver-role-safety-context]
+    driving_rule: gene-burden-lof-safety-warning
+  - verdict: wt_human_genetics_mechanism_mismatch
+    when_all_fired: [clingen-dominant-loss-safety-warning, activating-driver-role-safety-context]
+    driving_rule: clingen-dominant-loss-safety-warning
+  - verdict: wt_human_genetics_mechanism_mismatch
+    when_all_fired: [mouse-ko-lethal-safety-warning, activating-driver-role-safety-context]
+    driving_rule: mouse-ko-lethal-safety-warning
+
+  # ── GROUP 2: the gnomAD chain — UNCHANGED (byte-identical resolution for every gnomAD-firing case).
   - verdict: highly_constrained_safety_concern
     when_fired: highly-constrained-safety-warning
   - verdict: tolerant_reduced_safety_risk
@@ -24,4 +43,13 @@ resolve:
     when_fired: moderately-constrained-safety-neutral
   - verdict: data_unavailable
     when_fired: constraint-data-unavailable-insufficient
+
+  # ── GROUP 3: the P5 human-genetics COMBINED concern — fires only when the gnomAD chain is SILENT
+  #    (placed below it, so gnomAD always resolves first → gnomAD golden rows unchanged). Any of the
+  #    three WT-loss human-genetics warnings that survived the GROUP-1 downgrade lands here. This is
+  #    the common real case: a gene not in the gnomAD constraint table, or gnomAD-tolerant, but with a
+  #    population-burden / ClinGen-dominant-loss / mouse-adult-KO signal. driving_rule attributes the
+  #    strongest-tier warning present (gene_burden = measured population, then ClinGen, then mouse=inferred).
+  - verdict: human_genetics_safety_concern
+    when_any_fired: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, mouse-ko-lethal-safety-warning]
 default: insufficient

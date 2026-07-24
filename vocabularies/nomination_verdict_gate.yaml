@@ -70,6 +70,22 @@ gates:
       default.
     driving_rule_ids: [highly-constrained-safety-warning]
 
+  - sub_skill: safety                   # on-target-safety-liability sub-skill (P5 human-genetics leg, 2026-07-24)
+    verdict: human_genetics_safety_concern
+    action: hold
+    rationale: |
+      A human-genetics WT-loss safety signal from the P5 leg — population
+      rare-variant burden (LoF raises disease risk), ClinGen autosomal-dominant
+      dosage sensitivity (haploinsufficiency), or an adult mouse-KO lethal
+      phenotype. Fires only when the gnomAD constraint chain is SILENT (the
+      resolver places it below the gnomAD rungs), so it EXTENDS safety coverage
+      rather than competing. HOLD, not veto — same precedent as
+      highly_constrained_safety_concern: a WT-loss window may still be
+      addressable with a mutant-selective modality (indeed the resolver
+      DOWNGRADES this to wt_human_genetics_mechanism_mismatch, ungated, when an
+      activating-driver context co-fires — exactly like the gnomAD path).
+    driving_rule_ids: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, mouse-ko-lethal-safety-warning]
+
   - sub_skill: subtype_fit              # subtype-panorama sub-verdict (2026-07-17)
     verdict: subtype_specific_non_dependence
     action: hold

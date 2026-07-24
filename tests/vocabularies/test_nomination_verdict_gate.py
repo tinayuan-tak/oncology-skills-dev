@@ -46,8 +46,13 @@ def test_conservative_veto_set():
 def test_safety_is_hold_not_veto():
     v = _load()
     safety = [g for g in v["gates"] if g["sub_skill"] == "safety"]
-    assert len(safety) == 1
-    assert safety[0]["action"] == "hold"
+    # >= 1: the gnomAD highly_constrained concern + (2026-07-24) the P5 human-genetics concern.
+    # The invariant under test is that EVERY safety verdict is HOLD, never veto (a safety liability
+    # is a product decision to escalate, never a default target-foreclosing veto) — assert the
+    # PROPERTY across all safety entries, not a brittle count.
+    assert len(safety) >= 1
+    assert all(g["action"] == "hold" for g in safety), \
+        f"every safety gate must be hold, not veto: {[(g['verdict'], g['action']) for g in safety]}"
 
 
 def test_excluded_modality_scoped_not_in_gates():
