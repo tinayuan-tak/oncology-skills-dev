@@ -19,7 +19,7 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.4.0"   # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
+SKILL_VERSION = "1.5.0"   # 1.4.0: + P5 human-genetics leg — target-safety-prioritisation (Slice 1,
                           # OT context) + gene-burden-safety (Slice 2, OT rare-variant burden LoF-
                           # tolerance; verdict-moving rule resolver-wired in Slice 5).
                           # 1.3.0: + alteration-role for mutant-selective mechanism-conditioning of
@@ -46,6 +46,10 @@ CARDS = [
                                       # to DOWNGRADE the WT-constraint concern → wt_constraint_mechanism_
                                       # mismatch (a GoF driver is drugged mutant-selectively; gnomAD
                                       # constraint is about the WILD-TYPE protein the drug spares).
+    "clingen-dosage",                 # P5 Slice 3 (2026-07-24) — ClinGen dosage sensitivity. dosage_
+                                      # sensitivity_class=autosomal_dominant_loss -> clingen-dominant-
+                                      # loss-safety-warning (SM/degrader opposing, haploinsufficiency
+                                      # full-KO concern). Verdict-moving rule resolver-wired in Slice 5.
     "gene-burden-safety",             # P5 Slice 2 (2026-07-24) — population rare-variant BURDEN LoF-
                                       # tolerance (OT 26.06). burden_safety_class=lof_risk_phenotype ->
                                       # gene-burden-lof-safety-warning (SM/degrader opposing, the full-KO
@@ -109,6 +113,9 @@ def _headline(cards, fired, verdict_pair):
         "burden_safety_class": _get("gene-burden-safety", "burden_safety_class"),
         "burden_min_pvalue":   _get("gene-burden-safety", "min_pvalue"),
         "burden_top_disease":  _get("gene-burden-safety", "top_disease"),
+        # P5 Slice 3 — ClinGen dosage sensitivity (verdict-moving in Slice 5)
+        "dosage_sensitivity_class": _get("clingen-dosage", "dosage_sensitivity_class"),
+        "dosage_top_disease":       _get("clingen-dosage", "top_disease"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (
