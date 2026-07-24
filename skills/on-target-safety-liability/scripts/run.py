@@ -24,6 +24,13 @@ SKILL_VERSION = "1.3.0"   # 1.3.0: + alteration-role for mutant-selective mechan
 
 CARDS = [
     "gnomad-lof-constraint",
+    "target-safety-prioritisation",   # P5 Slice 1 (2026-07-24) — OT 26.06 engineered target-priority
+                                      # scores as safety-orienting CONTEXT (safety-event / genetic-
+                                      # constraint / mouse-KO bands). VERDICT-INERT: no warning, no
+                                      # resolver reference — it orients the reader alongside the
+                                      # authoritative gnomAD constraint call; the verdict-moving human-
+                                      # genetics signals arrive in P5 Slices 2-4 (gene_burden/clingen/
+                                      # mouse_phenotype). Spine byte-stable.
     "normal-tissue-liability-gtex",   # Q3 — GTEx normal-tissue atlas (critical-organ liability +
                                       # breadth). Its normal-liability-* rules emit SM/degrader
                                       # opposing on critical_organ_liability (on-target-off-tumor for

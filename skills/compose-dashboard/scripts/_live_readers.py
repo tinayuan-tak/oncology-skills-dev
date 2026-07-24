@@ -798,6 +798,19 @@ def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_target_safety_prioritisation(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: target-safety-prioritisation card (P5 Slice 1) →
+    methods/opentargets_target_prioritisation/read.py::read_target_prioritisation.
+
+    A CONTEXT view of Open Targets 26.06 engineered target-prioritisation scores (safety-event,
+    genetic-constraint, mouse-KO) — verdict-inert orientation for the safety skill, NOT a per-fact
+    read. Per-target (indication accepted for the contract, not consumed — OT prioritisation is one
+    row per gene). The authoritative per-fact reads are gnomad-lof-constraint + the P5 Slices 2-4
+    measured cards."""
+    mod = _import_method("opentargets_target_prioritisation.read")
+    return mod.read_target_prioritisation(target, indication)
+
+
 def _dispatch_synthetic_lethal_partners(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: synthetic-lethal-partners card → curated SynLethDB SL-partner
     annotation via methods/synleth_partner_lookup/read.py. Gate-C context-conditional
@@ -885,6 +898,7 @@ CARD_DISPATCHERS = {
     "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
     "paralog-buffering": _dispatch_paralog_buffering,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
+    "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
     "protein-abundance-celline": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
