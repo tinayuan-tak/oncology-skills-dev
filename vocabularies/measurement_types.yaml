@@ -467,6 +467,18 @@ measurement_types:
     providers:
       - {kind: dataset, source: opentargets-26-06, evidence_tier: measured}
 
+  clinvar_germline_pathogenicity_safety:
+    # P5 follow-on (2026-07-24) — ClinVar curated germline variant pathogenicity (OT 26.06 evidence_eva).
+    # A 4th corroborating germline safety leg. Fires the same human_genetics_safety_concern hold as
+    # gene_burden/clingen/mouse (resolver when_any_fired). MEASURED (curated variant pathogenicity).
+    # SOMATIC pathogenic entries are guardrailed OUT (cancer-driver axis, not germline safety). NO
+    # modality_relevance (safety axis-1). Composes with the mutant-selective downgrade.
+    claim: "Does target carry curated GERMLINE pathogenic ClinVar variants (heritable-disease WT-loss safety signal)?"
+    entity_grains: [target]
+    cards: [clinvar-pathogenicity-safety]
+    providers:
+      - {kind: dataset, source: opentargets-26-06, evidence_tier: measured}
+
   mouse_ko_phenotype_safety:
     # P5 Slice 4 (2026-07-24) — mouse-KO normal-physiology safety (Open Targets 26.06 mouse_phenotype,
     # MGI). Adult/postnatal lethality = adult-essentiality safety signal; developmental (embryonic/

@@ -1,0 +1,78 @@
+# Card Phase-G — ClinVar germline-pathogenicity safety (P5 follow-on, 4th human-genetics leg)
+#
+# A verdict-moving P5 card (MEASURED tier — curated variant pathogenicity). ClinVar via Open Targets
+# 26.06 evidence_eva: does {target.symbol} carry curated GERMLINE PATHOGENIC variants — evidence that
+# altering/losing its function causes heritable disease, a WT-loss safety signal for a full-KO modality?
+#
+# THREE GATES (see the method): (1) pathogenicity — only pathogenic/likely_pathogenic; (2) GERMLINE
+# guardrail — a SOMATIC pathogenic entry is a cancer-driver signal (opposite axis), excluded; (3)
+# review-status — no-assertion/conflicting → low_review caveat, not the confident signal.
+#
+# CORROBORATING, not competing: fires the SAME human_genetics_safety_concern hold as gene-burden /
+# clingen-dosage / mouse-ko (the resolver's when_any_fired set) — a fourth germline leg. Mechanism-
+# conditioned by the mutant-selective downgrade like the others.
+#   germline_pathogenic            → confident germline pathogenic/likely-pathogenic variants. The signal.
+#   germline_pathogenic_low_review → germline-pathogenic but only weak ClinVar review status. Caveat.
+#   somatic_only                   → pathogenic but SOMATIC-origin only — a driver signal, NOT safety.
+#   no_pathogenic_signal           → in ClinVar, no pathogenic variants. no_clinvar_entry → absent.
+
+card_id: clinvar-pathogenicity-safety
+version: 1.0.0
+question: "Does {target.symbol} carry curated GERMLINE pathogenic variants in ClinVar (a heritable-disease WT-loss safety signal), as distinct from somatic driver variants?"
+
+tier: target   # scope-invariant: ClinVar germline variant pathogenicity is a property of the gene. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: opentargets-26-06
+
+methods:
+  - call: opentargets-clinvar-pathogenic
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - clinvar_pathogenic_class            # PRIMARY categorical
+    - n_rows                              # int; total ClinVar variant rows for the gene
+    - n_pathogenic_germline               # int; pathogenic/likely-pathogenic germline variants
+    - n_pathogenic_germline_confident     # int; of those, non-weak ClinVar review status
+    - n_pathogenic_somatic                # int; pathogenic but somatic-origin (guardrailed OUT of the signal)
+    - top_disease                         # the heritable disease driving the call
+    - method_version
+
+  summary_fields_vocabulary:
+    clinvar_pathogenic_class:
+      - germline_pathogenic
+      - germline_pathogenic_low_review
+      - somatic_only
+      - no_pathogenic_signal
+      - no_clinvar_entry
+      - insufficient
+
+  # NO figure: tables-only (deferred with the other P5 figures).
+
+warning_predicates:
+  - warning_id: clinvar_germline_pathogenic_safety_concern
+    if: "clinvar_pathogenic_class == 'germline_pathogenic'"
+    message: "{target.symbol}: confident GERMLINE pathogenic ClinVar variants ({n_pathogenic_germline_confident}; {top_disease}) — loss/alteration causes heritable disease, a WT-loss safety signal for full-KO modalities (degrader/RNA/full SM). Mutant-selective tx vs an activating driver spares WT."
+
+caveats:
+  - |
+    Only pathogenic/likely-pathogenic GERMLINE variants count. ClinVar is dominated by uncertain-
+    significance + benign entries (noise, excluded). The germline guardrail is load-bearing: a SOMATIC
+    pathogenic ClinVar entry is a CANCER-DRIVER signal (the genomic-alteration axis), NOT a germline
+    safety signal — somatic_only is reported separately and never fires the safety warning.
+  - |
+    This is a germline heritable-disease signal about the WILD-TYPE gene. It corroborates (does not
+    replace) the gene-burden, ClinGen-dosage, and mouse-KO legs — a haploinsufficient tumor suppressor
+    typically fires several. A mutant-selective therapy against an activating driver spares WT and
+    largely nullifies the concern (resolver mechanism-conditioning downgrade). Low ClinVar review
+    status (no-assertion / conflicting) is reported as germline_pathogenic_low_review, a softer caveat.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `clinvar_germline_pathogenicity_safety` claim (curated
+# germline variant pathogenicity). Provider: opentargets-26-06 evidence_eva / ClinVar (measured).
+measurement_type: clinvar_germline_pathogenicity_safety
+entity_grains: [target]
+schema_version: 1
