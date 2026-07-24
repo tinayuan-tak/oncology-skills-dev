@@ -3011,3 +3011,43 @@ rules:
       degrader: insufficient
     rationale: |
       No CPTAC cohort for the indication, or a phospho read failure. Coverage gap; not opposing evidence.
+
+  # ============================================================================
+  # P5 Slice 2 — gene-burden-safety card (human-genetics LoF-tolerance)
+  # The full-KO safety signal from population rare-variant burden. Fires on the intracellular
+  # axis (SM/degrader = the full-inhibition modalities the WT-loss concern bears on). NOT YET
+  # resolver-referenced (byte-stable this slice); safety.resolver.yaml wires it in Slice 5,
+  # composed with the mutant-selective mechanism-conditioning downgrade.
+  # ============================================================================
+
+  - rule_id: gene-burden-lof-safety-warning
+    when:
+      card_id: gene-burden-safety
+      field: burden_safety_class
+      equals: lof_risk_phenotype
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      Population rare-variant burden shows LoF variants INCREASE disease risk (directionOnTrait=risk
+      on a uniformly LoF-on-target association). Losing this gene's function is harmful at population
+      scale — an on-target safety concern for a full-KO modality (degrader, RNA therapeutic, full-
+      inhibition SM). Opposing + dominant, mirroring the gnomAD highly-constrained rung. NOTE: for a
+      MUTANT-SELECTIVE therapy against an activating driver, the WT protein this concerns is spared —
+      the resolver's mechanism-conditioning downgrade (Slice 5) nullifies this via when_all_fired with
+      the activating-driver-role-safety-context rule (parallel to wt_constraint_mechanism_mismatch).
+
+  - rule_id: gene-burden-protective-favorable
+    when:
+      card_id: gene-burden-safety
+      field: burden_safety_class
+      equals: protective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Population rare-variant burden shows LoF variants are PROTECTIVE against disease
+      (directionOnTrait=protect). Loss of function is beneficial at population scale — a drug-POSITIVE
+      human-genetics signal (the strongest kind of target-validation: nature's own knockout is
+      protective). Supportive for the full-inhibition modalities. Contrast lof_risk_phenotype.
