@@ -207,6 +207,22 @@ def _load_ensembl_hgnc_map():
 
 
 _ENSEMBL_HGNC_MAP_CACHE = None
+_SYMBOL_TO_ENSEMBL_CACHE: "Optional[dict]" = None
+
+
+def _ensembl_ids_for_symbol(symbol: str) -> "Optional[list]":
+    """Return list of Ensembl IDs for a gene symbol using the reverse of the HGNC map.
+    Populates lazily from the same Ensembl-116 map as _load_ensembl_hgnc_map.
+    Returns None if the map is unavailable (S3 down / no creds)."""
+    global _SYMBOL_TO_ENSEMBL_CACHE
+    if _SYMBOL_TO_ENSEMBL_CACHE is None:
+        fwd = _load_ensembl_hgnc_map()
+        rev: dict = {}
+        for eid, sym in fwd.items():
+            rev.setdefault(sym, []).append(eid)
+        _SYMBOL_TO_ENSEMBL_CACHE = rev
+    ids = _SYMBOL_TO_ENSEMBL_CACHE.get(symbol)
+    return ids or None
 
 
 @lru_cache(maxsize=64)
@@ -830,13 +846,18 @@ def _fetch_gtex_samples_from_long_product(
     # S3FileSystem so predicate pushdown short-circuits before full download.
     bucket, key = GTEX_TPM_LONG_S3_URI.replace("s3://", "").split("/", 1)
     s3fs = fs.S3FileSystem()
+    # Primary filter on ensembl_gene_id (the sort key — enables row-group pruning).
+    # The GTEx long product is globally sorted by ensembl_gene_id so an IN-list filter
+    # against the Ensembl map prunes to 2–3 row-groups out of ~12k.
+    ensembl_ids = _ensembl_ids_for_symbol(target)
+    if ensembl_ids:
+        gene_filter = [("ensembl_gene_id", "in", ensembl_ids), ("tissue", "=", gtex_tissue)]
+    else:
+        gene_filter = [("gene_symbol", "=", target), ("tissue", "=", gtex_tissue)]
     table = pq.read_table(
         f"{bucket}/{key}",
         filesystem=s3fs,
-        filters=[
-            ("gene_symbol", "=", target),
-            ("tissue", "=", gtex_tissue),
-        ],
+        filters=gene_filter,
         columns=["ensembl_gene_id", "sample_id", "log2_tpm"],
     )
     if table.num_rows == 0:

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oncology-analysis-methods"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Deterministic analytical methods for the Takeda v2 oncology target-evaluation framework."
+
+# Runtime dependencies are managed by pixi.toml for the canonical environment.
+# This pyproject.toml exists solely to make the package pip-installable in editable
+# mode (pip install -e .) so downstream consumers (skills, notebooks) can import
+# from `methods.*` without sys.path manipulation.
+dependencies = [
+    "pyarrow",
+    "boto3",
+    "pyyaml",
+    "s3fs",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["methods*"]

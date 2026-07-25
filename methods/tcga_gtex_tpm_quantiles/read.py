@@ -18,6 +18,33 @@ from typing import Optional
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 MANIFEST_ID = "tcga-gtex-tpm-tissue-quantiles-v1"
+ENSEMBL_ID_MAP_S3_KEY = ("data-catalog/sources/ensembl-id-mapping/"
+                         "release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv")
+
+_SYMBOL_TO_ENSEMBL_MAP: Optional[dict] = None
+
+
+def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
+    """Return list of unversioned Ensembl IDs for a gene symbol, or None if unavailable."""
+    global _SYMBOL_TO_ENSEMBL_MAP
+    if _SYMBOL_TO_ENSEMBL_MAP is None:
+        try:
+            import boto3
+            import io
+            import pandas as pd
+            s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+            body = s3.get_object(Bucket=S3_BUCKET, Key=ENSEMBL_ID_MAP_S3_KEY)["Body"].read()
+            df = pd.read_csv(io.BytesIO(body), sep="\t").dropna(
+                subset=["Gene stable ID", "HGNC symbol"]
+            )
+            rev: dict = {}
+            for eid, sym in zip(df["Gene stable ID"], df["HGNC symbol"]):
+                rev.setdefault(sym, []).append(eid)
+            _SYMBOL_TO_ENSEMBL_MAP = rev
+        except Exception:  # noqa: BLE001
+            _SYMBOL_TO_ENSEMBL_MAP = {}
+    ids = _SYMBOL_TO_ENSEMBL_MAP.get(symbol.upper().strip())
+    return ids or None
 S3_KEY = (
     "data-catalog/derived/tcga-gtex-tpm-tissue-quantiles-v1/"
     "tcga_gtex_tpm_tissue_quantiles.parquet"
@@ -86,7 +113,12 @@ def read_pan_cancer_by_tissue(target: str):
         return pd.DataFrame(columns=cols)
     try:
         import pyarrow.parquet as pq
-        tbl = pq.read_table(str(path), filters=[("gene_symbol", "==", target.upper().strip())])
+        ensembl_ids = _symbol_to_ensembl_ids(target)
+        if ensembl_ids:
+            filters = [("ensembl_gene_id", "in", ensembl_ids)]
+        else:
+            filters = [("gene_symbol", "==", target.upper().strip())]
+        tbl = pq.read_table(str(path), filters=filters)
         return tbl.to_pandas()
     except Exception:  # noqa: BLE001
         import pandas as pd

@@ -2,8 +2,9 @@
 
 Reads tcga-tumor-tpm-recount3-long-v1 (tumor, per TCGA study) + gtex-tpm-recount3-long-v1 (normal,
 per GTEx tissue) — both log2(TPM+1) on the SAME recount3/GENCODE-v26 axis, so tumor and normal are
-directly comparable. Local-cache-then-predicate-pushdown (mirrors tcga_gtex_tpm_quantiles.read); the
-gtex-long product was re-sorted (rg=65536) so per-gene reads prune row-groups.
+directly comparable. Both long products are globally sorted by ensembl_gene_id, so per-gene reads
+use pyarrow S3FileSystem + HTTP range requests to fetch only 2-3 row-groups rather than downloading
+the full multi-GB file.
 
 INDICATION_TO_TCGA_STUDIES / INDICATION_TO_GTEX_TISSUE mirror the dge_deseq2 maps — the matched
 normal-tissue-of-origin per indication is the D2/D3 comparator.
@@ -17,6 +18,38 @@ from . import stats as _stats
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
+
+# Ensembl-116 gene ID map: HGNC symbol → frozenset of unversioned Ensembl IDs.
+# Populated lazily on first call to _symbol_to_ensembl_ids(). Multiple Ensembl IDs
+# per symbol arise from ~14 known collisions (e.g. PAR-region genes) — the filter
+# uses an IN-list so all valid IDs are included and no true gene rows are dropped.
+_SYMBOL_TO_ENSEMBL_MAP: Optional[dict] = None
+ENSEMBL_ID_MAP_S3_KEY = ("data-catalog/sources/ensembl-id-mapping/"
+                         "release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv")
+
+
+def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
+    """Return list of unversioned Ensembl IDs for a gene symbol, or None if unavailable.
+    Builds the reverse of the HGNC map on first call and caches it in-process."""
+    global _SYMBOL_TO_ENSEMBL_MAP
+    if _SYMBOL_TO_ENSEMBL_MAP is None:
+        try:
+            import boto3
+            import io
+            import pandas as pd
+            s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+            body = s3.get_object(Bucket=S3_BUCKET, Key=ENSEMBL_ID_MAP_S3_KEY)["Body"].read()
+            df = pd.read_csv(io.BytesIO(body), sep="\t").dropna(
+                subset=["Gene stable ID", "HGNC symbol"]
+            )
+            rev: dict = {}
+            for eid, sym in zip(df["Gene stable ID"], df["HGNC symbol"]):
+                rev.setdefault(sym, []).append(eid)
+            _SYMBOL_TO_ENSEMBL_MAP = rev
+        except Exception:  # noqa: BLE001
+            _SYMBOL_TO_ENSEMBL_MAP = {}  # empty sentinel so we don't retry on every call
+    ids = _SYMBOL_TO_ENSEMBL_MAP.get(symbol.upper().strip())
+    return ids or None
 TCGA_LONG_KEY = ("data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_long.parquet")
 GTEX_LONG_KEY = ("data-catalog/derived/gtex-tpm-recount3-long-v1/gtex_tpm_long.parquet")
 # The per-sample TPM product's companion sidecar: one row per tumor sample_id
@@ -26,12 +59,8 @@ GTEX_LONG_KEY = ("data-catalog/derived/gtex-tpm-recount3-long-v1/gtex_tpm_long.p
 # subtype join needs this hop. Verified 2026-07-22: 0 null lookups for KRAS/COADREAD.
 TCGA_SIDECAR_KEY = ("data-catalog/derived/tcga-tumor-tpm-per-sample-v1/tcga_sample_study.parquet")
 CACHE_DIR = Path.home() / ".cache" / "framework-tpm-long"
-_TCGA_CACHE = CACHE_DIR / "tcga_tpm_long.parquet"
-_GTEX_CACHE = CACHE_DIR / "gtex_tpm_long.parquet"
 _SIDECAR_CACHE = CACHE_DIR / "tcga_sample_study.parquet"
 
-_TCGA_STATUS: Optional[bool] = None
-_GTEX_STATUS: Optional[bool] = None
 _SIDECAR_STATUS: Optional[bool] = None
 
 # indication → the landed subgroup-assignment shard (tumor / case-barcode family).
@@ -67,63 +96,62 @@ def _boto3_client():
     return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
 
 
-def _set_status(which: str, value: bool) -> None:
-    """Latch the download status for one product (True=present, False=definitively
-    absent). Keyed by `which` so the sidecar never mis-latches onto the gtex flag."""
-    global _TCGA_STATUS, _GTEX_STATUS, _SIDECAR_STATUS
-    if which == "tcga":
-        _TCGA_STATUS = value
-    elif which == "sidecar":
-        _SIDECAR_STATUS = value
-    else:
-        _GTEX_STATUS = value
-
-
-def _ensure_cached(which: str) -> Optional[Path]:
-    """Download+cache one product; definitive(404/NoSuchKey)-vs-transient latch (403 is
-    transient, mirrors the chain-review fix). which ∈ {'tcga','gtex','sidecar'}."""
-    if which == "tcga":
-        status, cache, key = _TCGA_STATUS, _TCGA_CACHE, TCGA_LONG_KEY
-    elif which == "sidecar":
-        status, cache, key = _SIDECAR_STATUS, _SIDECAR_CACHE, TCGA_SIDECAR_KEY
-    else:
-        status, cache, key = _GTEX_STATUS, _GTEX_CACHE, GTEX_LONG_KEY
-    if status is False:
+def _ensure_sidecar_cached() -> Optional[Path]:
+    """Download+cache the sidecar (small: ~1 row per tumor sample). Definitive-vs-transient
+    latch: 404/NoSuchKey marks absent permanently; 403 is transient (retried next call)."""
+    global _SIDECAR_STATUS
+    if _SIDECAR_STATUS is False:
         return None
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    if cache.exists() and cache.stat().st_size > 0:
-        return cache
-    if status is None:
+    if _SIDECAR_CACHE.exists() and _SIDECAR_CACHE.stat().st_size > 0:
+        return _SIDECAR_CACHE
+    if _SIDECAR_STATUS is None:
         try:
-            _boto3_client().download_file(S3_BUCKET, key, str(cache))
-            _set_status(which, True)
-            return cache
+            _boto3_client().download_file(S3_BUCKET, TCGA_SIDECAR_KEY, str(_SIDECAR_CACHE))
+            _SIDECAR_STATUS = True
+            return _SIDECAR_CACHE
         except Exception as e:  # noqa: BLE001
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
             definitive = (code in ("404", "NoSuchKey")
                           or e.__class__.__name__ in ("NoSuchKey", "404"))
             if definitive:
-                _set_status(which, False)
+                _SIDECAR_STATUS = False
             return None
     return None
 
 
 def _read_gene(which: str, target: str):
-    """Predicate-pushdown read of one long product for one gene → DataFrame (or empty)."""
-    path = _ensure_cached(which)
+    """Stream one gene from a long product directly from S3 via HTTP range requests.
+
+    Both long products are globally sorted by ensembl_gene_id (rg=65536), so an
+    IN-list filter prunes to 2-3 row-groups via pyarrow predicate pushdown — no
+    full-file download needed. Falls back to gene_symbol if the Ensembl map is
+    unavailable (still correct, but scans the full file).
+    """
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+    import pandas as pd
+
+    key = TCGA_LONG_KEY if which == "tcga" else GTEX_LONG_KEY
     group_col = "study" if which == "tcga" else "tissue"
     cols = ["gene_symbol", "ensembl_gene_id", "sample_id", group_col, "log2_tpm"]
-    if path is None:
-        import pandas as pd
-        return pd.DataFrame(columns=cols)
     try:
-        import pyarrow.parquet as pq
-        tbl = pq.read_table(str(path), filters=[("gene_symbol", "==", target.upper().strip())],
-                            columns=cols)
+        s3fs = fs.S3FileSystem(region="us-east-1")
+        ensembl_ids = _symbol_to_ensembl_ids(target)
+        if ensembl_ids:
+            filters = [("ensembl_gene_id", "in", ensembl_ids)]
+        else:
+            # fallback: gene_symbol (no row-group pruning on this sort key, but correct)
+            filters = [("gene_symbol", "==", target.upper().strip())]
+        tbl = pq.read_table(
+            f"{S3_BUCKET}/{key}",
+            filesystem=s3fs,
+            filters=filters,
+            columns=cols,
+        )
         return tbl.to_pandas()
     except Exception:  # noqa: BLE001
-        import pandas as pd
         return pd.DataFrame(columns=cols)
 
 
@@ -150,7 +178,7 @@ def _load_sidecar():
     """The UUID→barcode sidecar as a DataFrame (sample_id[UUID], submitter_id[barcode]),
     with a derived `case` column. Empty DataFrame if the sidecar is unavailable."""
     import pandas as pd
-    path = _ensure_cached("sidecar")
+    path = _ensure_sidecar_cached()
     if path is None:
         return pd.DataFrame(columns=["sample_id", "submitter_id", "case"])
     try:
