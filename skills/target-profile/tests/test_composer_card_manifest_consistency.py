@@ -105,3 +105,88 @@ def test_waiver_entries_are_still_real_omissions():
         if card not in own or card in all_composed:
             stale.append((skill_dir, card))
     assert not stale, f"stale WAIVED_COMPOSER_OMISSIONS entries (no longer a real omission): {stale}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STRONGER GUARD (2026-07-24): resolver-DEPENDENCY completeness.
+#
+# The test above only checks a card is composed SOMEWHERE. That is blind to a real bug found this
+# session: `alteration-role` was composed under genomic-alteration-profile but NOT under
+# on-target-safety-liability — yet the SAFETY resolver's mutant-selective downgrade rungs
+# (`when_all_fired: [<constraint/burden warning>, activating-driver-role-safety-context]`) need
+# alteration-role's rule to fire WITHIN the safety sub-skill's fired set. The fan-out scopes each
+# sub-skill to ITS OWN SUB_SKILL_CARDS entry (`card_id_filter=SUB_SKILL_CARDS[skill_dir]`), so
+# "composed under another gate" does NOT make the rule available where the resolver consumes it.
+# Result: the downgrade was silently DEAD in composition (KRAS wrongly held on WT-constraint).
+#
+# INVARIANT: for each resolver-backed sub-skill, EVERY card whose rule_id the gate's resolver
+# references MUST be in that sub-skill's SUB_SKILL_CARDS entry. This is the "available where its
+# rules are needed" invariant, stronger than "composed somewhere".
+#
+# Cross-repo (reads target-contracts resolvers + interpretation-rules) — graceful-skip if absent,
+# matching the golden-snapshot test's cross-repo posture.
+# ─────────────────────────────────────────────────────────────────────────────
+import yaml  # noqa: E402
+
+CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+
+# sub-skill dir -> the resolver gate it calls (resolve_verdict_for_gate(fired, "<gate>")).
+# Sub-skills with inline verdicts (tumor-presence, tractability-small-molecule) have no resolver
+# and are intentionally absent — this guard only covers resolver-backed gates.
+_GATE_BY_SUBSKILL = {
+    "tumor-selectivity": "selectivity",
+    "functional-requirement": "dependency",
+    "mechanism-and-pharmacology": "mechanism",
+    "genomic-alteration-profile": "genomic_alteration",
+    "differentiation-landscape": "differentiation",
+    "surface-modality-fit": "surface_modality",
+    "on-target-safety-liability": "safety",
+    "synthetic-lethal-partners": "synthetic_lethal_partners",
+}
+
+
+def _rule_id_to_card() -> dict[str, str]:
+    """{rule_id: card_id} across both interpretation-rules files (a rule's `when.card_id`)."""
+    out: dict[str, str] = {}
+    for f in (CONTRACTS / "interpretation-rules").glob("*.rules.yaml"):
+        doc = yaml.safe_load(f.read_text()) or {}
+        for r in doc.get("rules", []):
+            when = r.get("when") or {}
+            if r.get("rule_id") and isinstance(when, dict) and when.get("card_id"):
+                out[r["rule_id"]] = when["card_id"]
+    return out
+
+
+def _resolver_rule_ids(gate: str) -> set[str]:
+    """Every rule_id a gate's resolver references (across when_fired / when_any_fired / when_all_fired)."""
+    spec = yaml.safe_load((CONTRACTS / "resolvers" / f"{gate}.resolver.yaml").read_text())
+    rids: set[str] = set()
+    for rung in spec.get("resolve", []):
+        if "when_fired" in rung:
+            rids.add(rung["when_fired"])
+        for key in ("when_any_fired", "when_all_fired"):
+            rids.update(rung.get(key, []) or [])
+    return rids
+
+
+@pytest.mark.skipif(not CONTRACTS.exists(), reason="target-contracts repo not checked out (cross-repo guard)")
+def test_resolver_dependency_cards_are_in_the_composer_entry():
+    """Every card whose rule a gate's resolver references MUST be in that sub-skill's SUB_SKILL_CARDS
+    entry — else the resolver rung can never fire in the COMPOSED profile (the alteration-role bug)."""
+    _sub_skills, ssc = _composer_maps()
+    rid2card = _rule_id_to_card()
+    violations = []
+    for skill_dir, gate in _GATE_BY_SUBSKILL.items():
+        resolver_path = CONTRACTS / "resolvers" / f"{gate}.resolver.yaml"
+        if not resolver_path.exists():
+            continue
+        composed = set(ssc.get(skill_dir, []))
+        for rid in _resolver_rule_ids(gate):
+            card = rid2card.get(rid)
+            if card is None:
+                continue  # rule not found in the rules files (may be a pseudo/lens rule) — skip
+            if card not in composed:
+                violations.append((skill_dir, gate, rid, card))
+    assert not violations, (
+        "resolver-referenced cards MISSING from the sub-skill's composer entry — the rung can never "
+        f"fire in the composed profile: {violations}. Add each card to SUB_SKILL_CARDS[<sub-skill>].")

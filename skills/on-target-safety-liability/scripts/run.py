@@ -73,12 +73,17 @@ QUESTION = ("Is {target} highly constrained against loss-of-function "
             "therapeutic, full-inhibition SM) in {indication}?")
 
 PARTIAL_STATUS_NOTE = (
-    "on-target-safety-liability is status: partial; this skill reflects only the "
-    "gnomAD GERMLINE constraint signal (modality-agnostic / SM-relevant). The "
-    "normal-tissue-liability HPA-IHC signal (biologics on-target-off-tumor safety) "
-    "is now WIRED, but on the surface_intrinsic axis — it is consumed by the "
-    "surface-modality-fit skill (adc/bite_tce/antibody channels), not here. "
-    "protein-surface-evidence card remains unwired."
+    "on-target-safety-liability now integrates a FIVE-leg human-genetics safety axis, all "
+    "verdict-moving via safety.resolver 1.3.0: gnomAD germline LoF-constraint + rare-variant "
+    "BURDEN (gene-burden-safety) + ClinGen dosage-sensitivity (clingen-dosage) + mouse-KO "
+    "normal-physiology (mouse-ko-phenotype) + ClinVar germline pathogenicity (clinvar-"
+    "pathogenicity-safety) — each mechanism-conditioned by the mutant-selective downgrade "
+    "(wt_constraint_mechanism_mismatch / wt_human_genetics_mechanism_mismatch) when an activating "
+    "driver is present (requires alteration-role in-scope; wired 2026-07-24). target-safety-"
+    "prioritisation is verdict-inert OT context. REMAINING GAPS: the biologics on-target-off-tumor "
+    "signal (normal-tissue-liability HPA-IHC) is consumed by the surface-modality-fit skill on the "
+    "surface_intrinsic axis, not here; protein-surface-evidence remains unwired; P5 drug_warning + "
+    "colocalisation legs deferred (asset-level / study-locus-keyed)."
 )
 
 

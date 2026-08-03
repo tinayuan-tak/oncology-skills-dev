@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 """target-profile — composed target profile with Tier-3 LLM narrative synthesis.
 
-Fans out to the 6 wired question-answering skills, collects their sub-
-verdicts + fired rules, then invokes Bedrock (via _skills_common.llm) with
-a forced structured tool_use to produce executive_summary + tension_analysis
-+ recommendation. Emits target_profile.md + nomination.json + provenance.
+Fans out to the 10 question-answering sub-skills in SUB_SKILLS (tumor-presence,
+tumor-selectivity, functional-requirement, synthetic-lethal-partners, mechanism-
+and-pharmacology, genomic-alteration-profile, differentiation-landscape,
+tractability-small-molecule, surface-modality-fit, on-target-safety-liability)
++ an opt-in subtype_fit tier (--subtypes), collects their sub-verdicts + fired
+rules, then invokes Bedrock (via _skills_common.llm) with a forced structured
+tool_use to produce executive_summary + tension_analysis + recommendation. The
+LLM's overall_recommendation is CLAMPED by the deterministic one-directional
+nomination gate. Emits target_profile.md + nomination.json + provenance.
+
+Each sub-skill is scoped to its OWN SUB_SKILL_CARDS entry (card_id_filter), so a
+card must be in a sub-skill's entry to be seen by THAT sub-skill's verdict — a
+card composed only under another sub-skill is invisible here (the resolver-
+dependency completeness guard in tests/ enforces this).
 """
 
 from __future__ import annotations
@@ -162,6 +172,16 @@ SUB_SKILL_CARDS = {
         "pan-cancer-crispr-dependency-distribution",
         "pan-cancer-rnai-dependency-distribution",
         "crispr-rnai-dependency-concordance",
+        "prism-crispr-concordance",              # 2026-07-24 BUGFIX (found by the resolver-dependency
+                                                 # guard) — the dependency resolver's
+                                                 # `chemical_genetic_confirmed_dependent` rung fires on
+                                                 # e7-triangulated-target-engaged-supportive, which keys
+                                                 # on prism-crispr-concordance. It was composed ONLY under
+                                                 # tractability-small-molecule, so the Gate-C chemical-
+                                                 # genetic dependency CONFIRMATION could never fire in the
+                                                 # composed profile. Cross-gate card (C confirm + E1
+                                                 # compound-found), like prism-crispr-concordance's dual
+                                                 # role in the resolver comment. (Also in tractability-sm.)
         "dependency-lineage-selectivity",
         "paralog-buffering",
         "expression-dependency-correlation",     # Gate-C biomarker facet (2026-07-22). Was ORPHANED:
@@ -204,6 +224,12 @@ SUB_SKILL_CARDS = {
         "prism-compound-activity",
         "prism-crispr-concordance",
         "dependency-predictability",
+        "structure-features-static",         # 2026-07-24 — E8 forward-ligandability (pocket/druggability).
+                                             # In tractability-small-molecule/run.py CARDS but was dropped
+                                             # from this composer entry (composed only under surface-
+                                             # modality-fit, a DIFFERENT sub-skill), so the SM ligandability
+                                             # signal never reached the composed tractability sub-verdict.
+                                             # Cross-gate card (SM pocket + surface epitope), needed in BOTH.
     ],
     "surface-modality-fit": [                # split: biologics-modality half
         "surface-topology-and-ptm",
@@ -220,11 +246,23 @@ SUB_SKILL_CARDS = {
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",
+        "alteration-role",                # 2026-07-24 BUGFIX — REQUIRED for the mutant-selective safety
+                                          # downgrade to fire IN COMPOSITION. The fan-out scopes each
+                                          # sub-skill to ITS OWN SUB_SKILL_CARDS entry (card_id_filter),
+                                          # so alteration-role being composed under genomic-alteration-
+                                          # profile did NOT make it available to the safety sub-skill.
+                                          # safety.resolver 1.3.0's downgrade rungs are when_all_fired:
+                                          # [<constraint/burden warning>, activating-driver-role-safety-
+                                          # context]; that context rule keys on alteration-role. Without
+                                          # this line, wt_constraint_mechanism_mismatch / wt_human_
+                                          # genetics_mechanism_mismatch could NEVER fire in the composed
+                                          # profile — a KRAS/COADREAD run wrongly HELD on WT-constraint.
+                                          # (Also in on-target-safety-liability/run.py CARDS.)
         "normal-tissue-liability-gtex",   # Q3 — paired with on-target-safety-liability CARDS (composer-consistency)
         "target-safety-prioritisation",   # P5 Slice 1 — OT engineered-score safety CONTEXT (verdict-inert)
-        "gene-burden-safety",             # P5 Slice 2 — OT rare-variant burden LoF-tolerance (verdict-moving @ Slice 5)
-        "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving @ Slice 5)
-        "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving @ Slice 5)
+        "gene-burden-safety",             # P5 Slice 2 — OT rare-variant burden LoF-tolerance (verdict-moving; safety.resolver 1.3.0)
+        "clingen-dosage",                 # P5 Slice 3 — ClinGen haploinsufficiency dosage-sensitivity (verdict-moving; safety.resolver 1.3.0)
+        "mouse-ko-phenotype",             # P5 Slice 4 — mouse-KO normal-physiology (developmental-guardrailed; verdict-moving; safety.resolver 1.3.0)
         "clinvar-pathogenicity-safety",   # P5 follow-on — ClinVar germline-pathogenic (4th corroborating leg; verdict-moving)
     ],
 }
