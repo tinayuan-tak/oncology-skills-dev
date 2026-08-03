@@ -117,6 +117,9 @@ def build_stack(indications: list[str] | None = None):
         df["cell_b_semantics"] = _INDICATION_CELL_B_SEMANTICS.get(ind, _COMBAT_TSS)
         frames.append(df)
     stacked = pd.concat(frames, ignore_index=True)
+    # Sort by (gene_symbol, indication) so pyarrow predicate pushdown on gene_symbol
+    # prunes to ~1 row-group per gene (27 rows/gene × default row_group_size=64).
+    stacked = stacked.sort_values(["gene_symbol", "indication"], kind="mergesort").reset_index(drop=True)
     return stacked
 
 
@@ -127,7 +130,10 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
     stacked = build_stack(indications)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    stacked.to_parquet(out_path, index=False)
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    tbl = pa.Table.from_pandas(stacked, preserve_index=False)
+    pq.write_table(tbl, out_path, compression="snappy", row_group_size=64)
     raw = out_path.read_bytes()
     per_ind = stacked.groupby("indication").size().to_dict()
     vintages = stacked.groupby("cell_b_semantics")["indication"].nunique().to_dict()

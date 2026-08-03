@@ -119,7 +119,8 @@ def main() -> int:
         raise RuntimeError("No cohort results found. Run stage 02 first.")
 
     merged = pd.concat(frames, ignore_index=True)
-    merged = merged.sort_values(["cohort", "gene_symbol"], kind="mergesort").reset_index(drop=True)
+    # Sort gene_symbol-leading so pyarrow predicate pushdown on gene_symbol fires efficiently.
+    merged = merged.sort_values(["gene_symbol", "cohort"], kind="mergesort").reset_index(drop=True)
 
     # Pin count columns to int32 to match the derived-manifest schema contract
     # (pandas defaults these to int64, which trips strict schema validation).
@@ -128,7 +129,7 @@ def main() -> int:
 
     args.out_parquet.parent.mkdir(parents=True, exist_ok=True)
     tbl = pa.Table.from_pandas(merged, preserve_index=False)
-    pq.write_table(tbl, args.out_parquet, compression="snappy")
+    pq.write_table(tbl, args.out_parquet, compression="snappy", row_group_size=64)
     print(f"[03_pool] wrote {args.out_parquet} — {len(merged):,} rows, "
           f"{merged['cohort'].nunique()} cohorts, "
           f"{merged['gene_symbol'].nunique()} unique proteins",
