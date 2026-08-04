@@ -238,6 +238,37 @@ def build_health(roots: dict[str, Path]) -> dict:
 
     reg = probe.registry_drift(roots["skills"], skill_names)
 
+    # -----------------------------------------------------------------------
+    # CARD-CENTRIC view: every card ONCE, deduped, joined to consuming skills.
+    # Universe = cards on disk ∪ every card any skill consumes. A card on disk
+    # that no skill consumes is an ORPHAN (invisible in the skill matrix — the
+    # card-side dual of an unregistered skill / the pull-model's "unclaimed
+    # measurement" signal). A consumed id with no card on disk is a broken ref.
+    # -----------------------------------------------------------------------
+    consumers: dict[str, list[str]] = {}
+    for n in skill_nodes:
+        for c in n["cards"]:
+            consumers.setdefault(c["card_id"], []).append(n["name"])
+
+    disk_ids = set(probe.list_all_card_ids(roots["contracts"]))
+    universe = sorted(disk_ids | set(consumers))
+
+    card_nodes: list[dict] = []
+    for cid in universe:
+        cn = roll_up_card(
+            probe.probe_card(cid, roots["contracts"], roots["methods"],
+                             live_ids, fired_ids, dispatch_modules),
+            rules,
+        )
+        cn["consumers"] = sorted(consumers.get(cid, []))
+        cn["n_consumers"] = len(cn["consumers"])
+        cn["is_orphan"] = (cn["n_consumers"] == 0)  # on disk but pulled by no skill
+        card_nodes.append(cn)
+
+    card_tally: dict[str, int] = {}
+    for c in card_nodes:
+        card_tally[c["card_health"]] = card_tally.get(c["card_health"], 0) + 1
+
     # Verdict tallies + drift roll-up for the summary header.
     tally: dict[str, int] = {}
     for n in skill_nodes:
@@ -256,8 +287,12 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_unregistered_skills": len(reg["unregistered"]),
             "n_live_reader_cards": len(live_ids),
             "n_cards_firing_in_real_packages": len(fired_ids),
+            "n_cards": len(card_nodes),
+            "card_health_tally": card_tally,
+            "n_orphan_cards": sum(1 for c in card_nodes if c["is_orphan"]),
         },
         "registry_drift": reg,
         "skills": skill_nodes,
+        "cards": card_nodes,
         "drift_index": all_drift,
     }

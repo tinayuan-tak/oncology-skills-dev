@@ -125,6 +125,25 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
         errs.append(f"summary.verdict_tally {rep['summary'].get('verdict_tally')} "
                     f"disagrees with per-skill count {tally} — regenerate")
 
+    # 4. Card-centric section (if present): enum conformance + re-derivation +
+    #    orphan-flag consistency + tally agreement.
+    cards = rep.get("cards")
+    if cards is not None:
+        ctally: dict[str, int] = {}
+        for c in cards:
+            ch = c.get("card_health")
+            ctally[ch] = ctally.get(ch, 0) + 1
+            if ch not in _CARD_HEALTHS:
+                errs.append(f"[card {c.get('card_id')}] invalid card_health '{ch}'")
+            got, _ = rollup._resolve(rules["card_health"], c)
+            if got != ch:
+                errs.append(f"[card {c.get('card_id')}] card_health '{ch}' does not "
+                            f"re-derive (got '{got}') — regenerate")
+            if c.get("is_orphan") != (c.get("n_consumers", 0) == 0):
+                errs.append(f"[card {c.get('card_id')}] is_orphan disagrees with n_consumers")
+        if rep["summary"].get("card_health_tally") != ctally:
+            errs.append("summary.card_health_tally disagrees with per-card count — regenerate")
+
     return (not errs), errs
 
 

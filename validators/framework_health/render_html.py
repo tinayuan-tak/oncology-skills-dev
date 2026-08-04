@@ -184,12 +184,91 @@ main{max-width:1200px;margin:0 auto;padding:20px 28px}
 .panel h3{margin:0 0 8px}ul.cols{columns:3;margin:0;padding-left:18px}
 footer{color:var(--muted);font-size:12px;padding:10px 28px 30px;max-width:1200px;margin:0 auto}
 code{background:#e1e0d9;padding:1px 5px;border-radius:3px}
+.tabs{display:flex;gap:4px;margin:16px 0 0;border-bottom:2px solid var(--line)}
+.tab{padding:9px 20px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);
+ border:2px solid transparent;border-bottom:none;border-radius:6px 6px 0 0}
+.tab.active{background:var(--card);color:var(--ink);border-color:var(--line);
+ box-shadow:0 -1px 2px rgba(0,0,0,.04);margin-bottom:-2px}
+.tabpane{display:none}.tabpane.active{display:block}
+.orphan td{background:#faf3f3}
+.consumers{color:var(--muted);font-size:11px}
 """
 
 _JS = """
 function tog(row){var d=row.nextElementSibling;
  if(d&&d.classList.contains('detail')){d.style.display=d.style.display==='none'?'table-row':'none';}}
+function tab(id){
+ document.querySelectorAll('.tabpane').forEach(function(p){p.classList.remove('active')});
+ document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+ document.getElementById('pane-'+id).classList.add('active');
+ document.getElementById('tab-'+id).classList.add('active');
+}
 """
+
+
+def _cards_table(report: dict) -> str:
+    """Card-centric inventory: every card once, deduped, grouped by health, with
+    consuming skills + orphan flag + method backing."""
+    cards = report.get("cards", [])
+    # Group by card_health; order worst→best so problems surface at the top,
+    # but float orphans (any health) into their own leading group.
+    health_order = ["broken", "placeholder", "blocked", "partial", "live"]
+    orphans = [c for c in cards if c.get("is_orphan")]
+    groups: dict[str, list] = {}
+    for c in cards:
+        if c.get("is_orphan"):
+            continue
+        groups.setdefault(c["card_health"], []).append(c)
+
+    def _row(c: dict, orphan: bool = False) -> str:
+        ch = c["card_health"]
+        consumers = c.get("consumers") or []
+        cons_txt = ("<span class='consumers'>— orphan: no skill consumes</span>"
+                    if not consumers else
+                    f"<span class='consumers'>{_esc(', '.join(consumers))}</span>")
+        method = c.get("dispatch_module") or c.get("method_call") or "—"
+        cls = " class='orphan'" if orphan else ""
+        return (
+            f"<tr{cls}><td class='nm'>{_esc(c['card_id'])}</td>"
+            f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY))}</td>"
+            f"<td>{'✓' if c.get('has_live_reader') else '—'}</td>"
+            f"<td>{'✓' if c.get('fires_in_real_package') else '—'}</td>"
+            f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
+            f"<td>{_esc(method)}</td>"
+            f"<td>{len(consumers)} {cons_txt}</td></tr>"
+        )
+
+    body = ""
+    if orphans:
+        body += (f"<tr class='grp'><td colspan='7'>⚠ ORPHAN CARDS — defined on disk, "
+                 f"consumed by no skill ({len(orphans)}) — the pull-model's unclaimed-measurement signal</td></tr>")
+        for c in sorted(orphans, key=lambda c: c["card_id"]):
+            body += _row(c, orphan=True)
+    for h in health_order:
+        if h not in groups:
+            continue
+        body += f"<tr class='grp'><td colspan='7'>{h} ({len(groups[h])})</td></tr>"
+        for c in sorted(groups[h], key=lambda c: c["card_id"]):
+            body += _row(c)
+
+    return (
+        "<table class='matrix'><thead><tr>"
+        "<th>card</th><th>health</th><th>live reader</th><th>fires in real pkg</th>"
+        "<th>measurement_type</th><th>method (dispatcher)</th><th>consumed by</th>"
+        "</tr></thead><tbody>" + body + "</tbody></table>"
+    )
+
+
+def _card_summary_cards(report: dict) -> str:
+    s = report["summary"]
+    t = s.get("card_health_tally", {})
+    tiles = ""
+    for h in ("live", "partial", "blocked", "placeholder", "broken"):
+        tiles += (f'<div class="tile" style="border-color:{CARD_COLORS[h]}">'
+                  f'<div class="num">{t.get(h, 0)}</div><div class="lbl">{_esc(h)}</div></div>')
+    tiles += (f'<div class="tile" style="border-color:{_RED}">'
+              f'<div class="num">{s.get("n_orphan_cards", 0)}</div><div class="lbl">orphan cards</div></div>')
+    return f'<div class="tiles">{tiles}</div>'
 
 
 def render(report: dict) -> str:
@@ -210,16 +289,31 @@ def render(report: dict) -> str:
 <header><h1>Framework Health Dashboard</h1><div class="sub">{subtitle}</div>
 <div class="sub">Health is DERIVED from ground truth (files, tests, live readers, real packages) and reconciled against declared status. Click a row to expand.</div></header>
 <main>
+<div class="tabs">
+  <div class="tab active" id="tab-skills" onclick="tab('skills')">Skills ({s["n_skills"]})</div>
+  <div class="tab" id="tab-cards" onclick="tab('cards')">Cards ({s.get("n_cards", 0)})</div>
+</div>
+
+<div class="tabpane active" id="pane-skills">
 {_summary_cards(report)}
 {_alerts(report)}
-<h2>Component matrix</h2>
+<h2>Skill matrix — grouped by risk category</h2>
 {_matrix(report)}
 {_registry_panel(report)}
+</div>
+
+<div class="tabpane" id="pane-cards">
+{_card_summary_cards(report)}
+<h2>Card inventory — every card once, deduped, joined to consuming skills</h2>
+{_cards_table(report)}
+</div>
+
 <div class="panel"><h3>Legend</h3>
 <p><b>Skill health:</b> {' '.join(_chip(k, v) for k, v in SKILL_COLORS.items())}</p>
 <p><b>Card health:</b> {' '.join(_chip(k, v) for k, v in CARD_COLORS.items())}</p>
-<p><b>broken</b> = a consumed card is registered but its backing method is unbuilt/never fires (silent drift);
-<b>blocked</b> = no live reader (honest gap); <b>partial</b> = reader exists but hasn't fired in a real package yet.</p>
+<p><b>broken</b> = no path to data (no reader + no backing method, never fires);
+<b>blocked</b> = no live reader (honest gap); <b>partial</b> = reader exists but hasn't fired in a real package yet;
+<b>orphan</b> = card defined on disk but consumed by no skill (unclaimed measurement).</p>
 </div>
 </main>
 <footer>Generated by validators/framework_health — a derived artifact. Regenerate; do not hand-edit. Run with --check to guard staleness in CI.</footer>

@@ -310,6 +310,16 @@ def probe_skill(skill_dir: Path) -> dict:
 # ===========================================================================
 # CARD_DISPATCHERS (live-reader registry) — AST dict keys, NOT grep
 # ===========================================================================
+def list_all_card_ids(contracts_root: Path) -> list[str]:
+    """Every card defined on disk (cards/*.card.yaml). The card-universe for the
+    card-centric view — a superset of what any skill statically consumes, so it
+    surfaces ORPHAN cards (defined but pulled by no skill)."""
+    cdir = contracts_root / "cards"
+    if not cdir.is_dir():
+        return []
+    return sorted(p.name[: -len(".card.yaml")] for p in cdir.glob("*.card.yaml"))
+
+
 def live_reader_card_ids(skills_root: Path) -> list[str]:
     """The set of card_ids that have a live-reader dispatcher.
 

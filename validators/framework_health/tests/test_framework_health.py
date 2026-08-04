@@ -227,6 +227,52 @@ def test_self_check_on_committed_artifact():
 
 
 # ---------------------------------------------------------------------------
+# 8. Cards tab — all-cards universe, dedupe, orphan detection
+# ---------------------------------------------------------------------------
+def test_list_all_card_ids(tmp_path):
+    (tmp_path / "cards").mkdir()
+    for cid in ("a-card", "b-card"):
+        (tmp_path / "cards" / f"{cid}.card.yaml").write_text("card_id: x\n")
+    (tmp_path / "cards" / "not-a-card.txt").write_text("ignore")
+    assert probe.list_all_card_ids(tmp_path) == ["a-card", "b-card"]
+
+
+def test_self_check_validates_cards_section(tmp_path):
+    """A cards[] section with a non-rederivable card or bad orphan flag must fail."""
+    rep = _minimal_report()
+    rep["cards"] = [{
+        "card_id": "orphan-x", "card_yaml_exists": True, "fires_in_real_package": True,
+        "card_health": "live", "n_consumers": 0, "is_orphan": True,
+    }]
+    rep["summary"]["card_health_tally"] = {"live": 1}
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert ok, errs
+
+    # break the orphan flag (says orphan but has consumers)
+    rep["cards"][0]["n_consumers"] = 2
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok and any("is_orphan" in e for e in errs)
+
+
+def test_committed_artifact_has_cards_section_with_orphans():
+    """The real artifact must carry a card-centric section that surfaces orphans."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    rep = json.loads(committed.read_text())
+    assert "cards" in rep and rep["cards"], "cards section missing"
+    # every card appears exactly once (deduped)
+    ids = [c["card_id"] for c in rep["cards"]]
+    assert len(ids) == len(set(ids)), "cards not deduped"
+    # orphan flag is internally consistent
+    for c in rep["cards"]:
+        assert c["is_orphan"] == (c["n_consumers"] == 0)
+
+
+# ---------------------------------------------------------------------------
 # 7. Frontmatter / prose / drift
 # ---------------------------------------------------------------------------
 def _write_skill(tmp_path, name, skill_md, run_py=None):
