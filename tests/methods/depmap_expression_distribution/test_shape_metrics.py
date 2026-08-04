@@ -1,4 +1,4 @@
-"""Distribution-shape metrics for expression-distribution (Audit-B D1: bimodality + CoV).
+"""Distribution-shape metrics for cellline-rna-distribution (Audit-B D1: bimodality + CoV).
 
 The spec asks "is the distribution continuous or bimodal? are there target-high and target-low
 populations? is expression consistent or highly variable?" These were computable from the in-memory

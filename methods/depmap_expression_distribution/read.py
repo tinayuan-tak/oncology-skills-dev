@@ -10,7 +10,7 @@ from . import cli as _cli
 def read_expression_distribution(target: str, indication: Optional[str] = None,
                                   expressed_threshold: float = 1.0) -> Optional[dict]:
     """Compute pan-cancer expression distribution for target. Returns summary dict
-    matching the expression-distribution card's outputs.summary_fields."""
+    matching the cellline-rna-distribution card's outputs.summary_fields."""
     tpm_by_model, model_metadata, load_errors = _cli.load_expression_files(
         release_pin="26q1", target_symbol=target
     )

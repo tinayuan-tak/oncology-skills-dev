@@ -223,7 +223,7 @@ def compute_summary_stats(tpm_by_model: dict, model_metadata: dict,
                            lineage_restricted_min_fraction: float = 0.10,
                            lineage_restricted_max_fraction: float = 0.70,
                            min_lineage_size: int = 5) -> dict:
-    """Compute decision-grade summary scalars for the expression-distribution card."""
+    """Compute decision-grade summary scalars for the cellline-rna-distribution card."""
     import numpy as np
     import pandas as pd
 
@@ -495,7 +495,7 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         sys.path.insert(0, str(target_contracts_dir / "plot_styles"))
         from takeda_palette import get_lineage_color  # type: ignore  # noqa: F401
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
-        print(f"[expression-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
+        print(f"[cellline-rna-distribution] plotly spec emission skipped: {e}", file=sys.stderr)
         return []
 
     # log2(TPM+1) reflines mirror the SVGs (expressed ≥1.0 amber, highly ≥5.0 red).
@@ -532,7 +532,7 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         (out_dir / "figure_density_expression.plotly.json").write_text(fig.to_json())
         written.append({"id": "density_expression", "path": "figure_density_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
-        print(f"[expression-distribution] density plotly skipped: {e}", file=sys.stderr)
+        print(f"[cellline-rna-distribution] density plotly skipped: {e}", file=sys.stderr)
 
     # --- Ranked waterfall (mirrors emit_waterfall_plot; sorted per-cell-line bars, lineage hover) ---
     try:
@@ -557,7 +557,7 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         (out_dir / "figure_waterfall_expression.plotly.json").write_text(fig.to_json())
         written.append({"id": "waterfall_expression", "path": "figure_waterfall_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
-        print(f"[expression-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
+        print(f"[cellline-rna-distribution] waterfall plotly skipped: {e}", file=sys.stderr)
 
     # --- Per-lineage box (mirrors emit_lineage_strip; n>=5, ordered by median desc). The
     #     indication's DepMap lineage is highlighted (red) — the indication-specific cell-line view. ---
@@ -593,7 +593,7 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         (out_dir / "figure_lineage_expression.plotly.json").write_text(fig.to_json())
         written.append({"id": "lineage_expression", "path": "figure_lineage_expression.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
-        print(f"[expression-distribution] lineage plotly skipped: {e}", file=sys.stderr)
+        print(f"[cellline-rna-distribution] lineage plotly skipped: {e}", file=sys.stderr)
 
     return written
 
@@ -623,7 +623,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict,
     manifest = {
         "method_id": "depmap-expression-distribution",
         "method_version": METHOD_VERSION,
-        "card_id": "expression-distribution",
+        "card_id": "cellline-rna-distribution",
         "target": target_symbol,
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).isoformat(),

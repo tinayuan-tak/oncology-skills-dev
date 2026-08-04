@@ -8,7 +8,7 @@ the per-target abundance distribution across cell lines + a per-lineage breakdow
 Emits the `protein-abundance-celline` card contract fields, primary categorical
 `protein_expression_class` ∈ {broadly_high | broadly_moderate | lineage_restricted
 | broadly_low | data_unavailable} — the SAME distribution vocab as
-expression-distribution (NOT the tumor-vs-normal contrast vocab of
+cellline-rna-distribution (NOT the tumor-vs-normal contrast vocab of
 protein-presence-cptac).
 
 Two resolution jobs (both via already-landed catalog artifacts):
@@ -167,7 +167,7 @@ def classify_protein_abundance(fraction_detected: float,
                                median_abundance: Optional[float],
                                per_lineage: list,
                                high_cutoff: Optional[float]) -> str:
-    """Distribution vocab (mirrors expression-distribution's expression_class).
+    """Distribution vocab (mirrors cellline-rna-distribution's expression_class).
 
     - broadly_low:        detected in < LOW_DETECTION_FRACTION of the panel (MS-absent)
     - broadly_high:       detected in > BROADLY_DETECTED_FRACTION AND median >= panel high cutoff

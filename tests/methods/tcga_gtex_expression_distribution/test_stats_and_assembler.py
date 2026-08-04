@@ -1,4 +1,4 @@
-"""Per-sample expression-distribution layer: stats primitives + the Q1 assembler.
+"""Per-sample cellline-rna-distribution layer: stats primitives + the Q1 assembler.
 
 No S3: stats are pure numpy; the assembler is tested with monkeypatched readers. Pins the plan's
 Q1 outputs (percentiles, detectable/moderate/high fractions, CoV, distribution_pattern) + the Q2
