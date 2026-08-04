@@ -250,7 +250,17 @@ class ScoringEngine:
         rules = self.rules["literature_scoring"]["druggability"]
         weights = rules["evidence_weights"]
 
-        # Calculate total weight
+        # Calculate total weight.
+        #
+        # DESIGN NOTE (intentional mixed model — do NOT "fix" to pure-additive):
+        # The compound tier is a SUBSUMPTION ladder (elif): an approved drug
+        # strictly dominates a clinical compound, which dominates a tool
+        # compound — they are levels of the same evidence, so we credit only the
+        # highest and never sum across tiers. Structure and binding-pocket are
+        # INDEPENDENT structural signals, so they add (if/if). This deliberately
+        # differs from score_biological_validation, which is fully additive
+        # because CRISPR/RNAi/animal/genetic are independent corroborating lines
+        # of evidence, not tiers of one thing.
         total_weight = 0
         if has_approved_drug:
             total_weight += weights["approved_drug_exists"]

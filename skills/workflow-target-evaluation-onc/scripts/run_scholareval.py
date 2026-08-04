@@ -323,12 +323,28 @@ def parse_risk_assessment(risk_file: Path) -> Dict[str, Any]:
 
 
 def _capped_count(text: str, pattern: str, cap: int = 5) -> int:
-    """Count regex matches in text, capped at `cap`. Used to translate prose
-    mentions into evidence weights without runaway over-counting from
-    repeated references to the same study.
+    """Count DISTINCT keyword mentions per line, capped at `cap`.
+
+    This is a lower-fidelity PROXY for "number of studies" — the markdown risk
+    assessment is free-form prose with no structured PMIDs, so true per-study
+    dedup is impossible here. We approximate it by collapsing repeated identical
+    matches on the SAME line: "CRISPR CRISPR CRISPR" in one clause counts once,
+    not three (C12). Two *different* matched tokens on one line (e.g. "CRISPR
+    knockout") still count as two distinct mentions.
+
+    The high-fidelity path is parse_facts_yaml's `_count_unique_pmids`, which
+    dedupes by PMID; once the markdown extraction path is retired this proxy
+    goes away. Until then, this bounds the runaway over-counting that plain
+    re.findall produced (one hit per token occurrence).
     """
-    matches = re.findall(pattern, text, re.IGNORECASE)
-    return min(len(matches), cap)
+    seen: set = set()
+    for line_idx, line in enumerate(text.splitlines()):
+        for m in re.findall(pattern, line, re.IGNORECASE):
+            # re.findall returns a tuple when the pattern has multiple groups;
+            # normalize to the full matched substring's lowercase form.
+            token = (m if isinstance(m, str) else next((g for g in m if g), "")).lower()
+            seen.add((line_idx, token))
+    return min(len(seen), cap)
 
 
 _ROMAN_TO_INT = {"I": 1, "II": 2, "III": 3, "IV": 4}
@@ -693,7 +709,12 @@ def parse_idas_yaml(idas_file: Path) -> Dict[str, Any]:
 
     evidence = {
         "rna_expression": {
-            "tumor_vs_adjacent_fc": 1.0,
+            # None = "iDAS did not supply a fold-change" (distinct from a genuine
+            # log2fc=0, which computes to linear FC 1.0 below). The merge in
+            # run_scholareval keys on `is None` so a real log2fc=0 is NOT
+            # overwritten by the markdown report value (C11). A still-None value
+            # is coerced to the numeric 1.0 default there, after the merge.
+            "tumor_vs_adjacent_fc": None,
             "tumor_median_log2tpm": 4.0,  # Default if not found
             "normal_median_log2tpm": 3.5  # Default if not found
         },
@@ -781,6 +802,27 @@ def _select_normal_median(medians: Dict[str, float], disease: str) -> Optional[f
     return None
 
 
+def _merge_report_fc(omics_evidence: Dict[str, Any],
+                    report_evidence: Dict[str, Any]) -> None:
+    """Merge the markdown-report fold-change into omics evidence, in place (C11).
+
+    parse_idas_yaml seeds tumor_vs_adjacent_fc = None ("iDAS supplied no FC").
+    A genuine iDAS log2fc=0 computes to linear FC 1.0 — which is NOT None, so it
+    is treated as supplied and preserved. Only a None (truly absent) value is
+    filled from the report. Guarding on `is None` instead of the old `== 1.0`
+    is the fix: `== 1.0` could not distinguish "absent" from "real log2fc=0",
+    silently overwriting a genuine no-change value with the markdown-parsed one.
+
+    After the merge, a still-None value is coerced to the numeric 1.0 default so
+    the scorer's `tumor_vs_adjacent_fc >= threshold` comparison never sees None.
+    """
+    rna = omics_evidence["rna_expression"]
+    if "tumor_vs_adjacent_fc" in report_evidence and rna.get("tumor_vs_adjacent_fc") is None:
+        rna["tumor_vs_adjacent_fc"] = report_evidence["tumor_vs_adjacent_fc"]
+    if rna.get("tumor_vs_adjacent_fc") is None:
+        rna["tumor_vs_adjacent_fc"] = 1.0
+
+
 def run_scholareval(
     gene: str,
     disease: str,
@@ -840,10 +882,8 @@ def run_scholareval(
     omics_evidence = parse_idas_yaml(idas_file)
     report_evidence = parse_comprehensive_report(report_file)
 
-    # Merge report-derived log2FC only if the iDAS YAML did not already supply it.
-    if "tumor_vs_adjacent_fc" in report_evidence and \
-            omics_evidence["rna_expression"].get("tumor_vs_adjacent_fc", 1.0) == 1.0:
-        omics_evidence["rna_expression"]["tumor_vs_adjacent_fc"] = report_evidence["tumor_vs_adjacent_fc"]
+    # Merge report-derived log2FC into the omics evidence, then default (C11).
+    _merge_report_fc(omics_evidence, report_evidence)
 
     # Pull tumor and normal medians from the structured stats CSV. This
     # replaces the previous markdown-regex extraction which mistakenly
