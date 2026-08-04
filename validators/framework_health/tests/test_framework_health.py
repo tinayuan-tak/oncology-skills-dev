@@ -16,13 +16,14 @@ Run: pytest validators/framework_health/tests/ -q
 from __future__ import annotations
 
 import ast
+import json
 import textwrap
 from pathlib import Path
 
 import pytest
 
 from validators.framework_health import probe, rollup
-from validators.framework_health.build_framework_health import stable_projection
+from validators.framework_health.build_framework_health import stable_projection, self_check
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +172,58 @@ def test_stable_projection_detects_real_change():
     a = {**base, "summary": {"n_skills": 3}}
     b = {**base, "summary": {"n_skills": 4}}
     assert stable_projection(a) != stable_projection(b)
+
+
+# ---------------------------------------------------------------------------
+# 6b. --self-check: CI-safe integrity check that needs NO sibling repos
+# ---------------------------------------------------------------------------
+def _minimal_report(card_health="live", verdict="production_ready"):
+    card = {"card_id": "c", "card_yaml_exists": True, "fires_in_real_package": True,
+            "card_health": card_health}
+    skill = {"name": "s", "cards": [card], "health_verdict": verdict}
+    return {"schema_version": "1.0.0",
+            "summary": {"verdict_tally": {verdict: 1}},
+            "skills": [skill], "registry_drift": {}, "drift_index": []}
+
+
+def test_self_check_passes_on_consistent_artifact(tmp_path):
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(_minimal_report()))
+    ok, errs = self_check(p)
+    assert ok, errs
+
+
+def test_self_check_catches_non_rederivable_card(tmp_path):
+    # card claims 'broken' but its signals (fires_in_real_package) re-derive to 'live'
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(_minimal_report(card_health="broken")))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("does not re-derive" in e for e in errs)
+
+
+def test_self_check_catches_tally_mismatch(tmp_path):
+    rep = _minimal_report()
+    rep["summary"]["verdict_tally"] = {"production_ready": 99}  # wrong count
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("verdict_tally" in e for e in errs)
+
+
+def test_self_check_missing_file(tmp_path):
+    ok, errs = self_check(tmp_path / "nope.json")
+    assert not ok and errs
+
+
+def test_self_check_on_committed_artifact():
+    """The real committed artifact must pass self-check (this is what CI runs)."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    ok, errs = self_check(committed)
+    assert ok, errs
 
 
 # ---------------------------------------------------------------------------

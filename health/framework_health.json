@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T14:27:25.799427+00:00",
+  "generated_at": "2026-08-04T14:49:38.864520+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,8 +9,8 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "592dbb1",
-    "skills": "ab20a16",
+    "contracts": "e500ff5",
+    "skills": "6976e71",
     "methods": "496bc6e",
     "products": "1f73e51",
     "catalog": "fd8858f"
@@ -1054,11 +1054,11 @@
           "placeholder_reason": null,
           "measurement_type": "surface_confirmation",
           "has_live_reader": true,
-          "method_call": "protein-surface-aggregator",
+          "method_call": "cspa-surface-confirmation",
           "dispatch_module": "cspa_surface_confirmation",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
@@ -1099,7 +1099,7 @@
         {
           "code": "stale_method_label",
           "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+          "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
         }
       ],
       "health_verdict": "partial",
@@ -2712,7 +2712,7 @@
       "skill": "on-target-safety-liability",
       "code": "stale_method_label",
       "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+      "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
     },
     {
       "skill": "query-target-evidence",

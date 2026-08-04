@@ -72,6 +72,62 @@ def stable_projection(report: dict) -> str:
     return json.dumps(projected, indent=2, sort_keys=True, default=str)
 
 
+# Enums the committed artifact must conform to (kept in sync with health_rules.yaml).
+_SKILL_VERDICTS = {"production_ready", "partial", "placeholder", "broken_or_drift"}
+_CARD_HEALTHS = {"live", "partial", "blocked", "placeholder", "broken"}
+
+
+def self_check(report_path: Path) -> tuple[bool, list[str]]:
+    """Validate the COMMITTED artifact's internal integrity WITHOUT probing siblings.
+
+    This is the CI-safe check: a checkout-only runner cannot reach the four sibling
+    repos, so a full recompute would degrade and falsely report STALE. Instead we
+    assert the committed JSON is well-formed, self-consistent, and re-rolls-up
+    deterministically to the verdicts it records — the invariants that CAN be
+    verified from this repo alone. Full cross-repo staleness stays a local/manual
+    guard (plain --check with siblings present).
+    """
+    errs: list[str] = []
+    if not report_path.exists():
+        return False, [f"{report_path.name} missing — generate it first"]
+    try:
+        rep = json.loads(report_path.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        return False, [f"{report_path.name} unreadable: {e}"]
+
+    # 1. Envelope shape.
+    for key in ("schema_version", "summary", "skills", "registry_drift", "drift_index"):
+        if key not in rep:
+            errs.append(f"envelope missing required key '{key}'")
+    if errs:
+        return False, errs
+
+    # 2. Per-skill enum conformance + verdict re-derivation from the recorded cards.
+    rules = rollup.load_rules()
+    tally: dict[str, int] = {}
+    for n in rep["skills"]:
+        v = n.get("health_verdict")
+        tally[v] = tally.get(v, 0) + 1
+        if v not in _SKILL_VERDICTS:
+            errs.append(f"[{n.get('name')}] invalid health_verdict '{v}'")
+        for c in n.get("cards", []):
+            if c.get("card_health") not in _CARD_HEALTHS:
+                errs.append(f"[{n.get('name')}/{c.get('card_id')}] invalid card_health "
+                            f"'{c.get('card_health')}'")
+            # Re-roll each card from its own recorded signals — determinism guard.
+            got, _ = rollup._resolve(rules["card_health"], c)
+            if got != c.get("card_health"):
+                errs.append(f"[{n.get('name')}/{c.get('card_id')}] card_health '{c.get('card_health')}' "
+                            f"does not re-derive from its signals (got '{got}') — regenerate")
+
+    # 3. Summary tally must match the skills list it summarizes.
+    if rep["summary"].get("verdict_tally") != tally:
+        errs.append(f"summary.verdict_tally {rep['summary'].get('verdict_tally')} "
+                    f"disagrees with per-skill count {tally} — regenerate")
+
+    return (not errs), errs
+
+
 def _resolve_roots(args) -> dict[str, Path]:
     roots = probe.default_roots()
     for key, val in (
@@ -87,7 +143,11 @@ def _resolve_roots(args) -> dict[str, Path]:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Build/check the framework-health dashboard.")
     p.add_argument("--check", action="store_true",
-                   help="fail (exit 1) if the committed dashboard is stale vs freshly computed")
+                   help="fail (exit 1) if the committed dashboard is stale vs freshly computed "
+                        "(needs sibling repos present — local/manual guard)")
+    p.add_argument("--self-check", action="store_true",
+                   help="CI-safe: validate the committed artifact's internal integrity only "
+                        "(no sibling-repo probes); use in checkout-only CI")
     p.add_argument("--skills-repo", type=Path)
     p.add_argument("--methods-repo", type=Path)
     p.add_argument("--products-root", type=Path)
@@ -95,6 +155,16 @@ def main(argv=None) -> int:
     p.add_argument("--contracts-repo", type=Path)
     p.add_argument("--json-only", action="store_true", help="skip HTML emission")
     args = p.parse_args(argv)
+
+    # --self-check does NOT probe siblings — it validates the committed artifact alone.
+    if args.self_check:
+        ok, errs = self_check(JSON_PATH)
+        if ok:
+            print(f"  OK {JSON_PATH.name} (self-consistent)")
+            return 0
+        for e in errs:
+            print(f"  FAIL {e}", file=sys.stderr)
+        return 1
 
     roots = _resolve_roots(args)
     missing = [k for k, v in roots.items() if not v.exists()]

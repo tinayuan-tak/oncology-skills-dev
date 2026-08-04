@@ -1,0 +1,50 @@
+name: framework-health
+
+# The repo's first repo-local CI workflow. Scoped deliberately to the
+# framework_health subpackage: runs its unit tests and the CI-safe --self-check
+# on the committed dashboard artifact.
+#
+# WHY --self-check (not --check): the full dashboard probes FOUR sibling repos
+# (skills / analysis-methods / data-products / data-catalog). A checkout-only
+# runner cannot reach them, so a full recompute would degrade and falsely report
+# STALE. --self-check validates the committed artifact's internal integrity alone
+# (schema, enum conformance, per-card verdict re-derivation, tally consistency) —
+# the invariants verifiable from this repo. Full cross-repo staleness stays a
+# local/manual guard (`--check` with siblings present).
+#
+# SCOPE NOTE / follow-up: this intentionally does NOT yet run the whole repo test
+# suite. As of this workflow's addition, tests/validators/test_measurement_types_vocab.py
+# ::test_real_vocabulary_is_clean fails on main (pre-existing fusion measurement_type
+# DAG gap, unrelated to framework_health). Broadening this job to `pytest` repo-wide
+# should happen once that is resolved, so CI starts — and stays — green.
+
+on:
+  pull_request:
+    paths:
+      - "validators/framework_health/**"
+      - "health/**"
+      - ".github/workflows/framework-health.yml"
+  push:
+    branches: [main]
+    paths:
+      - "validators/framework_health/**"
+      - "health/**"
+
+jobs:
+  framework-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pytest pyyaml jsonschema
+
+      - name: Unit tests (framework_health)
+        run: python -m pytest validators/framework_health/tests/ -q
+
+      - name: Self-check committed dashboard
+        run: python validators/framework_health/build_framework_health.py --self-check
