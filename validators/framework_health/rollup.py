@@ -31,6 +31,7 @@ DRIFT_SEVERITY = {
     "card_registered_never_fires": "info",
     "stale_method_label": "info",
     "dataset_ref_not_in_catalog": "warn",
+    "card_consumed_but_no_spec": "warn",
 }
 
 
@@ -97,10 +98,11 @@ def roll_up_card(card_signals: dict, rules: dict) -> dict:
     return {**card_signals, "card_health": verdict, "health_reason": reason_id, "reason_text": reason_text}
 
 
-def compute_drift(skill: dict, cards: list[dict]) -> list[dict]:
+def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None) -> list[dict]:
     """Declared-vs-derived mismatches. Each flag: {code, severity, detail}."""
     flags: list[dict] = []
     dec, der = skill["declared"], skill["derived"]
+    spec_cards = spec_cards or {}
 
     def add(code: str, detail: str) -> None:
         flags.append({"code": code, "severity": DRIFT_SEVERITY.get(code, "info"), "detail": detail})
@@ -153,6 +155,18 @@ def compute_drift(skill: dict, cards: list[dict]) -> list[dict]:
     if missing_ds:
         add("dataset_ref_not_in_catalog",
             f"consumed card(s) reference dataset product_id(s) not in the data-catalog: {', '.join(missing_ds)}")
+
+    # Spec-coverage gap: cards this skill consumes that are in NO dashboard_spec, so
+    # they can never fire in an emitted package (the emission path pulls from a spec).
+    # Only flag cards that actually EXIST (a missing/placeholder card is a different
+    # problem already surfaced). This is the skill/spec divergence.
+    no_spec = sorted({c["card_id"] for c in cards
+                      if c.get("card_yaml_exists") and not c.get("is_placeholder")
+                      and c["card_id"] not in spec_cards})
+    if no_spec:
+        add("card_consumed_but_no_spec",
+            f"consumed card(s) are in NO dashboard_spec — cannot fire in an emitted "
+            f"package until added to a spec: {', '.join(no_spec)}")
 
     return flags
 
@@ -220,6 +234,7 @@ def build_health(roots: dict[str, Path]) -> dict:
     gcov = probe.gate_coverage_by_short(roots["contracts"])  # short -> coverage entry
     catalog = probe.catalog_manifests(roots["catalog"])      # product_id -> manifest meta
     catalog_ids = set(catalog)
+    spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])  # card_id -> [spec names]
 
     skill_names = probe.list_skill_names(roots["skills"])
 
@@ -237,7 +252,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             )
             for cid in card_ids
         ]
-        drift = compute_drift(sig, cards)
+        drift = compute_drift(sig, cards, spec_cards)
         node = roll_up_skill(sig, cards, drift, rules)
         # Attach risk_category / coverage via the short mapping (for matrix grouping).
         short = ss_map.get(name)
@@ -273,6 +288,12 @@ def build_health(roots: dict[str, Path]) -> dict:
         cn["consumers"] = sorted(consumers.get(cid, []))
         cn["n_consumers"] = len(cn["consumers"])
         cn["is_orphan"] = (cn["n_consumers"] == 0)  # on disk but pulled by no skill
+        cn["dashboard_specs"] = sorted(spec_cards.get(cid, []))
+        cn["in_dashboard_spec"] = bool(cn["dashboard_specs"])
+        # Coverage gap: a card consumed by ≥1 skill but in NO dashboard_spec can
+        # never fire in an emitted package (emission pulls from a spec). Distinct
+        # from "unfired-but-in-spec" — this is a spec/skill divergence, not a run gap.
+        cn["consumed_but_no_spec"] = (cn["n_consumers"] > 0 and not cn["in_dashboard_spec"])
         card_nodes.append(cn)
 
     card_tally: dict[str, int] = {}
@@ -339,6 +360,7 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_cards": len(card_nodes),
             "card_health_tally": card_tally,
             "n_orphan_cards": sum(1 for c in card_nodes if c["is_orphan"]),
+            "n_cards_consumed_but_no_spec": sum(1 for c in card_nodes if c.get("consumed_but_no_spec")),
             "n_datasets": len(dataset_nodes),
             "n_datasets_in_catalog": sum(1 for d in dataset_nodes if d["in_catalog"]),
             "n_orphan_datasets": sum(1 for d in dataset_nodes if d["is_orphan"]),

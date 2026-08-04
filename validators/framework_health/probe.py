@@ -310,6 +310,29 @@ def probe_skill(skill_dir: Path) -> dict:
 # ===========================================================================
 # CARD_DISPATCHERS (live-reader registry) — AST dict keys, NOT grep
 # ===========================================================================
+def dashboard_spec_card_ids(contracts_root: Path) -> dict[str, list[str]]:
+    """card_id -> [spec names that list it]. Scans dashboards/*.dashboard_spec.yaml
+    required_cards + optional_cards. A card consumed by a skill but absent from
+    EVERY spec can never fire in an emitted package (the emission path pulls from a
+    spec, not from a skill's cards_used) — the skill/spec coverage gap."""
+    out: dict[str, list[str]] = {}
+    ddir = contracts_root / "dashboards"
+    if not ddir.is_dir():
+        return out
+    for p in sorted(ddir.glob("*.dashboard_spec.yaml")):
+        try:
+            spec = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        name = spec.get("dashboard_id") or p.name[: -len(".dashboard_spec.yaml")]
+        for key in ("required_cards", "optional_cards"):
+            for entry in spec.get(key) or []:
+                cid = entry.get("card_id") if isinstance(entry, dict) else None
+                if cid:
+                    out.setdefault(cid, []).append(name)
+    return out
+
+
 def list_all_card_ids(contracts_root: Path) -> list[str]:
     """Every card defined on disk (cards/*.card.yaml). The card-universe for the
     card-centric view — a superset of what any skill statically consumes, so it

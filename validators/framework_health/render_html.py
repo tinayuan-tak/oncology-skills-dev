@@ -317,11 +317,20 @@ def _cards_table(report: dict) -> str:
                     f"<span class='consumers'>{_esc(', '.join(consumers))}</span>")
         method = c.get("dispatch_module") or c.get("method_call") or "—"
         cls = " class='orphan'" if orphan else ""
+        # spec-coverage cell: which dashboard_spec(s) list it, or a red "no spec" flag
+        # for a consumed card that no spec pulls (can never fire in a package).
+        if c.get("consumed_but_no_spec"):
+            spec_cell = _chip("no spec", _RED, "consumed by a skill but in no dashboard_spec — can't fire in a package")
+        elif c.get("in_dashboard_spec"):
+            spec_cell = f"<span class='consumers'>{_esc(', '.join(c.get('dashboard_specs') or []))}</span>"
+        else:
+            spec_cell = "<span class='consumers'>—</span>"
         return (
             f"<tr{cls}><td class='nm'>{_esc(c['card_id'])}</td>"
             f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>"
             f"<td>{'✓' if c.get('has_live_reader') else '—'}</td>"
             f"<td>{'✓' if c.get('fires_in_real_package') else '—'}</td>"
+            f"<td>{spec_cell}</td>"
             f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
             f"<td>{_esc(method)}</td>"
             f"<td>{len(consumers)} {cons_txt}</td></tr>"
@@ -329,21 +338,21 @@ def _cards_table(report: dict) -> str:
 
     body = ""
     if orphans:
-        body += (f"<tr class='grp'><td colspan='7'>⚠ ORPHAN CARDS — defined on disk, "
+        body += (f"<tr class='grp'><td colspan='8'>⚠ ORPHAN CARDS — defined on disk, "
                  f"consumed by no skill ({len(orphans)}) — the pull-model's unclaimed-measurement signal</td></tr>")
         for c in sorted(orphans, key=lambda c: c["card_id"]):
             body += _row(c, orphan=True)
     for h in health_order:
         if h not in groups:
             continue
-        body += f"<tr class='grp'><td colspan='7'>{h} ({len(groups[h])})</td></tr>"
+        body += f"<tr class='grp'><td colspan='8'>{h} ({len(groups[h])})</td></tr>"
         for c in sorted(groups[h], key=lambda c: c["card_id"]):
             body += _row(c)
 
     return (
         "<table class='matrix'><thead><tr>"
         "<th>card</th><th>health</th><th>live reader</th><th>fires in real pkg</th>"
-        "<th>measurement_type</th><th>method (dispatcher)</th><th>consumed by</th>"
+        "<th>in spec</th><th>measurement_type</th><th>method (dispatcher)</th><th>consumed by</th>"
         "</tr></thead><tbody>" + body + "</tbody></table>"
     )
 
@@ -418,7 +427,8 @@ def _card_summary_cards(report: dict) -> str:
     t = s.get("card_health_tally", {})
     return _stat_strip(
         [(h, t.get(h, 0), CARD_COLORS[h]) for h in ("live", "partial", "blocked", "placeholder", "broken")]
-        + [("orphan cards", s.get("n_orphan_cards", 0), _RED)]
+        + [("orphan cards", s.get("n_orphan_cards", 0), _RED),
+           ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _RED)]
     )
 
 

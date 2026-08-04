@@ -153,6 +153,15 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
             if d.get("is_broken_ref") != ((not d.get("in_catalog")) and d.get("n_consumers", 0) > 0):
                 errs.append(f"[dataset {d.get('product_id')}] is_broken_ref inconsistent")
 
+    # 4c. Card spec-coverage flag consistency (consumed_but_no_spec) — only for
+    # cards that actually carry the field (skip minimal/older artifacts).
+    for c in rep.get("cards", []):
+        if "consumed_but_no_spec" not in c:
+            continue
+        expect = (c.get("n_consumers", 0) > 0 and not c.get("in_dashboard_spec"))
+        if c.get("consumed_but_no_spec") != expect:
+            errs.append(f"[card {c.get('card_id')}] consumed_but_no_spec inconsistent")
+
     # 5. Graph section (if present): every edge endpoint must resolve to a node
     #    (a dangling edge is drift), and counts must agree.
     graph = rep.get("graph")

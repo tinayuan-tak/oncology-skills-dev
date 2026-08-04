@@ -438,6 +438,45 @@ def test_drilldown_table_present_and_closed_in_render():
     assert "d1" in detail and "d2" in detail                     # both datasets rendered
 
 
+def test_dashboard_spec_card_ids_scan(tmp_path):
+    d = tmp_path / "dashboards"; d.mkdir()
+    (d / "a.dashboard_spec.yaml").write_text(
+        "dashboard_id: spec-a\nrequired_cards:\n  - card_id: c1\noptional_cards:\n  - card_id: c2\n")
+    got = probe.dashboard_spec_card_ids(tmp_path)
+    assert got == {"c1": ["spec-a"], "c2": ["spec-a"]}
+
+
+def test_consumed_but_no_spec_drift(tmp_path):
+    # a real card, consumed by a skill, in no spec -> flagged; placeholder/missing not flagged
+    skill = {"declared": {"status": "wired", "prose_markers": []},
+             "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []}}
+    cards = [
+        {"card_id": "in-spec", "card_yaml_exists": True, "is_placeholder": False},
+        {"card_id": "no-spec", "card_yaml_exists": True, "is_placeholder": False},
+        {"card_id": "placeholder-card", "card_yaml_exists": True, "is_placeholder": True},
+    ]
+    spec_cards = {"in-spec": ["spec-a"]}
+    flags = rollup.compute_drift(skill, cards, spec_cards)
+    codes = {f["code"]: f for f in flags}
+    assert "card_consumed_but_no_spec" in codes
+    detail = codes["card_consumed_but_no_spec"]["detail"]
+    assert "no-spec" in detail
+    assert "in-spec" not in detail            # it IS in a spec
+    assert "placeholder-card" not in detail   # placeholder excluded
+
+
+def test_self_check_catches_bad_spec_flag(tmp_path):
+    rep = _minimal_report()
+    rep["cards"] = [{"card_id": "x", "card_yaml_exists": True, "fires_in_real_package": True,
+                     "card_health": "live", "n_consumers": 1, "is_orphan": False,
+                     "in_dashboard_spec": True, "consumed_but_no_spec": True}]  # inconsistent
+    rep["summary"]["verdict_tally"] = {"production_ready": 1}
+    rep["skills"] = [{"name": "s", "cards": rep["cards"], "health_verdict": "production_ready"}]
+    p = tmp_path / "framework_health.json"; p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok and any("consumed_but_no_spec" in e for e in errs)
+
+
 def test_committed_artifact_datasets_section():
     committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
     if not committed.exists():
