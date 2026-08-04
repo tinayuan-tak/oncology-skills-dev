@@ -174,6 +174,7 @@ products:
       callers: [mutect2, muse, varscan2, pindel]
       consequence_filter: ["missense_variant", "stop_gained", "frameshift_variant", "splice_donor_variant", "splice_acceptor_variant"]
     result_schema_ref: products/mutation-profile-frequency.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/mutation-profile/mutation-profile-frequency.evidence.json"
     requires_subgroup: false                  # but optional subgroup stratification supported
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -191,6 +192,7 @@ products:
       family: hotspot_caller
       reference: cancerhotspots_v2_or_recurrence_threshold
     result_schema_ref: products/mutation-profile-hotspot.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/mutation-profile/mutation-profile-hotspot.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -207,6 +209,7 @@ products:
       family: fisher_exact_pairwise
       multiple_testing: BH
     result_schema_ref: products/mutation-profile-cooccurrence.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/mutation-profile/mutation-profile-cooccurrence.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -227,6 +230,7 @@ products:
       family: chronos
       stratification: ["lineage", "primary_disease", "mutation_context"]
     result_schema_ref: products/dependency-depmap-chronos.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/dependency/dependency-depmap-chronos.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -244,6 +248,7 @@ products:
       family: demeter2
       stratification: ["lineage"]
     result_schema_ref: products/dependency-depmap-rnai.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/dependency/dependency-depmap-rnai.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -270,6 +275,7 @@ products:
       detection: dual_track_lum_seq
       stratification: ["lineage", "mutation_context"]
     result_schema_ref: products/perturbation-prism-viability.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/perturbation-response/perturbation-prism-viability.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true   # compound→target mapping happens via target-of-record
     status: compute-ready
@@ -284,6 +290,7 @@ products:
     method:
       family: prism_drc_4parameter_logistic
     result_schema_ref: products/perturbation-prism-doseresponse.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/perturbation-response/perturbation-prism-doseresponse.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -298,6 +305,7 @@ products:
     method:
       family: bliss_loewe_synergy
     result_schema_ref: products/perturbation-sanger-combinations.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/perturbation-response/perturbation-sanger-combinations.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -322,6 +330,7 @@ products:
       test: log_rank
       cox_covariates: ["age", "sex", "stage"]
     result_schema_ref: products/survival-km-by-expression.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/survival/survival-km-by-expression.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -342,6 +351,7 @@ products:
       stratification: mutation_status_binary
       test: log_rank
     result_schema_ref: products/survival-km-by-mutation.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/survival/survival-km-by-mutation.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
@@ -362,6 +372,7 @@ products:
       family: uniprot_xml_extract
       fields: [sequence, function, subcellular_location, ptm, domain, family]
     result_schema_ref: products/target-biology-uniprot.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/TARGET_LEVEL/all/{gene}/target-biology/target-biology-uniprot.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false  # target-level; not row-keyed
     status: compute-ready
@@ -377,6 +388,7 @@ products:
     method:
       family: ensembl_coord_lookup
     result_schema_ref: products/target-biology-coordinates.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/TARGET_LEVEL/all/{gene}/target-biology/target-biology-coordinates.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false
     status: compute-ready
@@ -392,6 +404,7 @@ products:
     method:
       family: paralog_pair_essentiality
     result_schema_ref: products/target-biology-paralog-landscape.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/TARGET_LEVEL/all/{gene}/target-biology/target-biology-paralog-landscape.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false  # paralog-pair indexed, not single gene
     status: compute-ready
@@ -414,6 +427,7 @@ products:
     method:
       family: hpa_ihc_extract
     result_schema_ref: products/safety-hpa-normal-tissue.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/TARGET_LEVEL/all/{gene}/safety/safety-hpa-normal-tissue.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false
     status: data-blocked
@@ -430,6 +444,7 @@ products:
     method:
       family: gnomad_lookup
     result_schema_ref: products/safety-gnomad-constraint.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/TARGET_LEVEL/all/{gene}/safety/safety-gnomad-constraint.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false
     status: data-blocked
@@ -450,6 +465,7 @@ products:
       family: llm_pubmed_extraction
       framework_version: "v1.1.0 evidence_extraction_schema"
     result_schema_ref: products/literature-pubmed-extracted-facts.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/literature/literature-pubmed-extracted-facts.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false
     status: compute-ready
@@ -473,6 +489,7 @@ products:
     method:
       family: progeny_lm
     result_schema_ref: products/pathway-activity-progeny.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/pathway-activity/pathway-activity-progeny.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false  # pathway-level, not gene-level
     status: data-blocked
@@ -489,6 +506,7 @@ products:
       family: ssgsea
       collection: H
     result_schema_ref: products/pathway-activity-msigdb-h.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/pathway-activity/pathway-activity-msigdb-h.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false
     status: data-blocked
@@ -513,6 +531,7 @@ products:
       family: derivation
       logic: "Combine literature-reported resistance mechanisms with somatic co-occurrence patterns to surface predicted bypass paths."
     result_schema_ref: products/resistance-coalteration-map.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/resistance-coalteration/resistance-coalteration-map.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready                     # all inputs available
@@ -534,6 +553,7 @@ products:
     method:
       family: chembl_clinicaltrials_join
     result_schema_ref: products/competitive-landscape-chembl-trials.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/{INDICATION}/{subtype}/{gene}/competitive-landscape/competitive-landscape-chembl-trials.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false
     status: data-blocked
@@ -560,6 +580,7 @@ products:
       whitespace_filter_source: "configs/whitespace/{version}.yaml"
       stratification: per_oncotree_code
     result_schema_ref: products/indication-discovery-composite.result.schema.json
+    core_artifact_path_template: "s3://onc-compbio/core-artifacts/PAN_CANCER/all/{gene}/indication-discovery/indication-discovery-composite.evidence.json"
     requires_subgroup: false
     requires_target_resolution_sidecar: false  # output is indication-ranked, gene already canonicalized
     status: compute-ready                     # all inputs are compute-ready or shipped
