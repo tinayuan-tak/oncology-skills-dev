@@ -1,0 +1,20 @@
+# card_id_aliases — historical card_id → current card_id.
+#
+# A card_id is a data CONTRACT. When a card is renamed for clarity (the naming-convention cleanup:
+# names encode <sample_context>-<measurement>[-by-grain]), stored data-products evidence packages keep
+# the OLD id baked into their directory paths (cards/<old_id>/...) as immutable approved history. This
+# map lets any tool that reads a historical package resolve its old card_id to the current one WITHOUT
+# rewriting the past. Forward-rename + alias, never mass-rewrite history.
+#
+# Invariant (guarded by tests): every `from` key is ABSENT from live cards/ (it was renamed away) and
+# every `to` value is a live card. Aliases are append-only; never delete one (a stored package may
+# still reference it).
+
+aliases:
+  # 2026-08-04 — naming-convention cleanup pilot. expression-distribution was cell-line-RNA-ONLY
+  # (pan-cancer DepMap TPM distribution); the bare name implied all expression. Renamed to name the
+  # sample_context + measurement it actually carries.
+  - from: expression-distribution
+    to: cellline-rna-distribution
+    renamed_date: '2026-08-04'
+    reason: "cell-line RNA distribution — the bare 'expression-distribution' hid that it is cell-line + RNA only"

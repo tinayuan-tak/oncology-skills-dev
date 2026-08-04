@@ -19,7 +19,7 @@ consistency — run it after edits.
 
 | Phase | Sub-skill (short) | Data source | Card(s) → class field | Gate? | Risk-table? |
 |---|---|---|---|---|---|
-| A | tumor-presence (`expression`) | recount3 bulk RNA + DepMap expr | expression-distribution, expression-tumor-vs-adjacent, protein-presence-cptac → `expression_class` | ✗ | biological (hi/lo only) |
+| A | tumor-presence (`expression`) | recount3 bulk RNA + DepMap expr | cellline-rna-distribution, expression-tumor-vs-adjacent, protein-presence-cptac → `expression_class` | ✗ | biological (hi/lo only) |
 | B | tumor-selectivity (`selectivity`) | recount3 4-cell DESeq2 (TCGA-adj ±ComBat, GTEx ±ComBat) | tumor-vs-normal-selectivity → `selectivity_class` | ✗ | biological |
 | C | functional-requirement (`dependency`) | DepMap CRISPR (Chronos) + RNAi (DEMETER2) | pan-cancer-crispr/rnai-dependency-distribution, crispr-rnai-dependency-concordance, dependency-lineage-selectivity, paralog-buffering → `dependency_class` | **✓ veto** | biological |
 | D | mechanism-and-pharmacology (`mechanism`) | SIGNOR + CollecTri + Reactome + kinome-atlas (composed) | signaling-network-mechanism → `network_class` | ✗ | ✗ |

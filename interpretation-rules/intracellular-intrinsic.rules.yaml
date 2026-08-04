@@ -869,7 +869,7 @@ rules:
       modalities; other cards carry the therapeutic-window story.
 
   # ============================================================================
-  # E3a — Expression distribution (Card E3a: expression-distribution)
+  # E3a — Expression distribution (Card E3a: cellline-rna-distribution)
   # ============================================================================
   # Pan-cancer cell-line TPM distribution. NOT a primary fit_level driver — the
   # rationale-for-modality questions live in tumor-vs-normal / lineage-restriction.
@@ -877,7 +877,7 @@ rules:
 
   - rule_id: expression-broadly-low-degrader-killer
     when:
-      card_id: expression-distribution
+      card_id: cellline-rna-distribution
       field: expression_class
       equals: broadly_low
     signals:
@@ -894,7 +894,7 @@ rules:
 
   - rule_id: expression-broadly-high-supportive
     when:
-      card_id: expression-distribution
+      card_id: cellline-rna-distribution
       field: expression_class
       equals: broadly_high
     signals:
@@ -907,7 +907,7 @@ rules:
 
   - rule_id: expression-lineage-restricted-supportive
     when:
-      card_id: expression-distribution
+      card_id: cellline-rna-distribution
       field: expression_class
       equals: lineage_restricted
     signals:
@@ -921,7 +921,7 @@ rules:
 
   - rule_id: expression-broadly-moderate-neutral
     when:
-      card_id: expression-distribution
+      card_id: cellline-rna-distribution
       field: expression_class
       equals: broadly_moderate
     signals:
@@ -936,7 +936,7 @@ rules:
 
   - rule_id: expression-data-unavailable-insufficient
     when:
-      card_id: expression-distribution
+      card_id: cellline-rna-distribution
       field: expression_class
       equals: data_unavailable
     signals:
@@ -995,7 +995,7 @@ rules:
       killer: this is a PER-INDICATION tumor read — the target may be highly expressed in other
       indications, so indication-scoped low presence cannot kill a target-wide nomination. A
       degrader/SM concern only becomes decisive if presence is broadly low ACROSS indications
-      (the cell-line expression-distribution card's job), not from one indication's tumors.
+      (the cell-line cellline-rna-distribution card's job), not from one indication's tumors.
 
   - rule_id: tumor-expression-data-unavailable-insufficient
     when:
@@ -2332,11 +2332,11 @@ rules:
   # ============================================================================
   # E3b — Protein abundance distribution (Card E3b: protein-abundance-celline)
   # ============================================================================
-  # The PROTEIN twin of expression-distribution (E3a). Cell-line whole-proteome
+  # The PROTEIN twin of cellline-rna-distribution (E3a). Cell-line whole-proteome
   # TMT MS (Gygi/Nusinow) DISTRIBUTION — distinct from protein-presence-cptac,
   # which is a tumor-vs-normal CONTRAST (strong_up/down vocab). This card uses the
   # DISTRIBUTION vocab (broadly_high/broadly_low/lineage_restricted), so it gets
-  # its OWN rules — exactly parallel to how expression-distribution and
+  # its OWN rules — exactly parallel to how cellline-rna-distribution and
   # expression-tumor-vs-adjacent each have their own rule sets. Signal mappings
   # mirror the E3a RNA-distribution rules: broadly_low → degrader killer (no
   # protein to degrade), broadly_high/lineage_restricted → supportive, moderate/

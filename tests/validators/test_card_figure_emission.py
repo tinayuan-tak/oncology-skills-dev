@@ -62,7 +62,7 @@ def _has(report, needle: str) -> bool:
 
 
 # A fixed fake registry so tests don't depend on the live skills repo contents.
-_FAKE_EMITTERS = {"expression-distribution", "some-registered-card"}
+_FAKE_EMITTERS = {"cellline-rna-distribution", "some-registered-card"}
 
 
 def _patch_registry(monkeypatch, value):
@@ -74,7 +74,7 @@ def _patch_registry(monkeypatch, value):
 def test_registered_card_passes(tmp_path, monkeypatch):
     _patch_registry(monkeypatch, _FAKE_EMITTERS)
     card = _base_card(
-        card_id="expression-distribution",
+        card_id="cellline-rna-distribution",
         outputs={"summary_fields": ["x"], "figure": "density_expression"},
     )
     report = _validate(tmp_path, card)

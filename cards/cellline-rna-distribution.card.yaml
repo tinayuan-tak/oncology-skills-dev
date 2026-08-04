@@ -13,7 +13,7 @@
 #   log2(TPM+1) >= 5.0   = highly expressed (TPM >= 31)
 #   log2(TPM+1) <  1.0   = not expressed   (TPM <  1.0)
 
-card_id: expression-distribution
+card_id: cellline-rna-distribution
 version: 1.0.0
 question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
 

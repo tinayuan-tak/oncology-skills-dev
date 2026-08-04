@@ -73,7 +73,7 @@ measurement_types:
   cell_line_rna_expression:
     claim: "How is target mRNA distributed across DepMap cell lines, and is it lineage-stratified?"
     entity_grains: [target, target_lineage]
-    cards: [expression-distribution]
+    cards: [cellline-rna-distribution]
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
 

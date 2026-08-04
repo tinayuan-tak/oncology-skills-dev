@@ -19,13 +19,13 @@ Cards outside the expression family (dependency, mutation, mechanism, tractabili
 
 ## The orthogonal second axis: `sample_context` (added 2026-07-21)
 
-`measurement` names the measurement LAYER (how it was measured). It does NOT say WHAT was measured — and that omission caused a real conflation: BOTH `expression-distribution` (DepMap **cell-line** RNA) and `expression-tumor-vs-adjacent` (TCGA **tumor** RNA) carry `measurement: bulk_rna`, so the skill's per-modality view bucketed them together. A target-only query (only the cell-line card fires) then read identically to a target-indication query — the tumor-contrast axis was invisibly absent, not represented.
+`measurement` names the measurement LAYER (how it was measured). It does NOT say WHAT was measured — and that omission caused a real conflation: BOTH `cellline-rna-distribution` (DepMap **cell-line** RNA) and `expression-tumor-vs-adjacent` (TCGA **tumor** RNA) carry `measurement: bulk_rna`, so the skill's per-modality view bucketed them together. A target-only query (only the cell-line card fires) then read identically to a target-indication query — the tumor-contrast axis was invisibly absent, not represented.
 
 The fix is a second, ORTHOGONAL tag: **`sample_context` ∈ {cell_line | tumor | normal}** (the biological sample). The two axes are genuinely independent — every combination is real:
 
 | | cell_line | tumor | normal |
 |---|---|---|---|
-| **bulk_rna** | DepMap expression-distribution | TCGA expression-tumor-vs-adjacent / tumor-vs-normal-selectivity | (GTEx, via selectivity's comparators) |
+| **bulk_rna** | DepMap cellline-rna-distribution | TCGA expression-tumor-vs-adjacent / tumor-vs-normal-selectivity | (GTEx, via selectivity's comparators) |
 | **bulk_protein_ms** | Gygi protein-abundance-celline | CPTAC protein-presence-cptac | — |
 | **protein_ihc** | — | — | HPA normal-tissue-liability |
 
@@ -44,7 +44,7 @@ The skill emits one verdict per modality — e.g. `{bulk_rna_verdict, bulk_prote
 
 | Card | Modality | Data source | Rules keying off it |
 |---|---|---|---|
-| expression-distribution | bulk_rna | DepMap 26Q1 cell-line RNA | 5 |
+| cellline-rna-distribution | bulk_rna | DepMap 26Q1 cell-line RNA | 5 |
 | expression-tumor-vs-adjacent | bulk_rna | TCGA DGE tumor-vs-adjacent (RNA-seq) | 4 |
 | tumor-vs-normal-selectivity | bulk_rna | recount3 TCGA + GTEx (RNA) | 6 |
 | protein-presence-cptac | bulk_protein_ms | CPTAC tumor-vs-normal (mass-spec) | 0 |

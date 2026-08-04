@@ -1,5 +1,5 @@
-# Card: expression-distribution
-**card_id:** `expression-distribution` · **version:** 1.0.0 · **generation:** modern (rules externalized) · **schema_version:** 1
+# Card: cellline-rna-distribution
+**card_id:** `cellline-rna-distribution` · **version:** 1.0.0 · **generation:** modern (rules externalized) · **schema_version:** 1
 
 > Across ~1500 DepMap cell lines, what is the expression distribution of the target, and is it lineage-stratified?
 

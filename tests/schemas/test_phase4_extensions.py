@@ -138,7 +138,7 @@ def test_in_record_predicate():
     rule = {
         "rule_id": "test-in-record",
         "when": {
-            "card_id": "expression-distribution",
+            "card_id": "cellline-rna-distribution",
             "field": "per_scope_expression",
             "in_record": {
                 "scope_type": "subtype",
@@ -157,7 +157,7 @@ def test_in_record_with_list_value():
     rule = {
         "rule_id": "test-in-record-list",
         "when": {
-            "card_id": "expression-distribution",
+            "card_id": "cellline-rna-distribution",
             "field": "per_scope_expression",
             "in_record": {
                 "scope_type": "subtype",

@@ -1,6 +1,6 @@
 # Card E3b — PROTEIN ABUNDANCE across DepMap cell-line panel  (pure-data)
 #
-# The PROTEIN twin of expression-distribution (E3a, bulk_rna x cell_line). Reports
+# The PROTEIN twin of cellline-rna-distribution (E3a, bulk_rna x cell_line). Reports
 # mass-spec protein abundance distribution across DepMap cell lines + per-lineage
 # breakdown. Answers "is this gene's PROTEIN measurably present across cancer cell
 # lines, and is it lineage-stratified?" — the substrate that catches the
@@ -9,7 +9,7 @@
 # Substrate: DepMap Consortium 26Q1 proteomics, Gygi Lab CCLE TMT MS (Nusinow 2020),
 # harmonized_MS_CCLE_Gygi.csv — a (ModelID x UniProt-accession) whole-proteome
 # TMT mass-spec matrix (~12,558 proteins). Distinct from:
-#   - expression-distribution:   bulk_rna x cell_line (DepMap RNA)
+#   - cellline-rna-distribution:   bulk_rna x cell_line (DepMap RNA)
 #   - protein-presence-cptac:    bulk_protein_ms x TUMOR (CPTAC patient cohort)
 # This card is bulk_protein_ms x CELL-LINE — the cell-line protein-presence axis.
 #
@@ -88,7 +88,7 @@ thresholds:
 warning_predicates:
   - warning_id: sparse_ms_detection
     if: "fraction_detected < 0.30"
-    message: "{target.symbol} protein is quantified in <30% of DepMap cell lines. Low MS detection may reflect genuine low abundance OR TMT sensitivity limits (membrane/low-abundance proteins under-sampled). Interpret protein absence cautiously; cross-reference RNA (expression-distribution)."
+    message: "{target.symbol} protein is quantified in <30% of DepMap cell lines. Low MS detection may reflect genuine low abundance OR TMT sensitivity limits (membrane/low-abundance proteins under-sampled). Interpret protein absence cautiously; cross-reference RNA (cellline-rna-distribution)."
   - warning_id: protein_absent_data_unavailable
     if: "protein_expression_class == 'data_unavailable'"
     message: "{target.symbol} is not present in the Gygi TMT MS matrix (not quantified in any line, or absent from the accession set). No cell-line protein-abundance signal — a COVERAGE GAP, not evidence of protein absence."
@@ -100,7 +100,7 @@ caveats:
     panel-relative. Detection sparsity is intrinsic to shotgun MS — a protein
     absent from the matrix is often below MS sensitivity, NOT biologically absent.
   - |
-    This is the PROTEIN twin of expression-distribution (RNA). Their disagreement
+    This is the PROTEIN twin of cellline-rna-distribution (RNA). Their disagreement
     is diagnostic, not noise: RNA-high + protein-low is the canonical
     post-transcriptional / MS-sensitivity signal the measurement-modality taxonomy
     (docs/design/MODALITY_TAXONOMY.md) exists to surface — the tumor-presence skill

@@ -17,7 +17,7 @@ Concise-but-detailed technical design docs for the target-evaluation framework, 
 ## Status: hand-mocked format (2 exemplars)
 
 These are **hand-authored mocks** to validate the format on real content:
-- `cards/expression-distribution.md`
+- `cards/cellline-rna-distribution.md`
 - `skills/tumor-presence.md`
 
 Every field traces to the live contracts (`cards/*.card.yaml`, the two `interpretation-rules/*.yaml`, and each skill's `SKILL.md` + `run.py`) — nothing invented.

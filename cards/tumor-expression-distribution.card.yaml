@@ -1,7 +1,7 @@
 # Card — TUMOR EXPRESSION DISTRIBUTION (per-sample RNA; TCGA)
 #
 # The PER-SAMPLE tumor RNA distribution the existing expression cards can't produce.
-# expression-distribution is CELL-LINE (DepMap); expression-tumor-vs-adjacent emits a
+# cellline-rna-distribution is CELL-LINE (DepMap); expression-tumor-vs-adjacent emits a
 # whole-cohort AGGREGATE (median + one log2FC). This card answers the 12-question spec's
 # Q1 ("is the target expressed in human tumors, and how does expression DISTRIBUTE across
 # patients?") from the per-sample TCGA long product — the fraction of patients above a
@@ -85,7 +85,7 @@ outputs:
 
 thresholds:
   # ABSOLUTE cutoffs (log2(TPM+1)) — anchored to DepMap's expressed/highly-expressed convention
-  # for cross-target/cross-indication consistency (mirrors expression-distribution).
+  # for cross-target/cross-indication consistency (mirrors cellline-rna-distribution).
   detectable_log2tpm: 1.0                       # TPM ~1
   moderate_log2tpm: 3.46                        # TPM ~10
   high_log2tpm: 5.67                            # TPM ~50

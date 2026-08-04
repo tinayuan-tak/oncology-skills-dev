@@ -285,7 +285,7 @@ Rule shape (with new `in_record` predicate):
 ```yaml
 - rule_id: any-subtype-broadly-high
   when:
-    card_id: expression-distribution
+    card_id: cellline-rna-distribution
     field: per_scope_expression
     in_record: {scope_type: subtype, expression_class: broadly_high, subgroup_n_floor_met: true}
   signals: {target_essentiality: supportive}
