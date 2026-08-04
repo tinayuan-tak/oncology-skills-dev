@@ -1,57 +1,64 @@
 # Card iter-1b/6 — PROTEIN SURFACE EVIDENCE
-# Data-blocked iter-1b card: requires HPA protein/IHC mirror OR external proteomics catalog.
-# Until then this card emits excluded_by_applies_when with structured 'data_blocked' reason.
-# Required by ADC, BiTE/TCE, and antibody modality modules (surface accessibility is the
-# gating biology for all three).
+# LIVE via CSPA (Cell Surface Protein Atlas, Bausch-Fluck 2015): wet-lab-measured surface
+# confirmation is the `measured` tier of the surface_confirmation claim. Required by ADC,
+# BiTE/TCE, and antibody modality modules (surface accessibility is the gating biology for all three).
+#
+# CONTRACT UPDATED 2026-08-04: this card originally declared a `protein-surface-aggregator` method +
+# HPA-IHC inputs that were never built ("data-blocked iter-1b"). That gap was RESOLVED by a different
+# provider — the dispatcher (compose-dashboard _live_readers.py::_dispatch_protein_surface_evidence)
+# routes to methods/cspa_surface_confirmation/read.py::read_surface_confirmation, reading the landed
+# cspa-surface-confirmation-per-uniprot-v1 derived product. This block now names that live reality;
+# `protein-surface-aggregator` was a phantom (superseded, never a real build gap). HPA-IHC remains a
+# FUTURE second `measured` provider (would corroborate CSPA), not a blocker.
 
 card_id: protein-surface-evidence
-version: 1.0.0
+version: 1.1.0
 question: "Is {target.symbol} confirmed at the protein level and accessible on the tumor cell surface in {indication.label}?"
 
 applies_when:
-  - "context.data_sources.hpa_protein_available == true || context.data_sources.proteomics_panel_available == true"
-  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+  # CSPA is a target-intrinsic surface residency measurement (indication-independent); the card fires
+  # whenever the target resolves to a UniProt AC. An absent target is an honest measured-negative
+  # (not_surface), not data_blocked — so the applies_when no longer gates on HPA/proteomics presence.
+  - "target.uniprot_canonical != null"
 
 required_inputs:
-  - product_id: hpa-protein-ihc
-    release_pin: "{release_pin}"
-  - product_id: subcellular-localization-uniprot
+  - product_id: cspa-surface-confirmation-per-uniprot-v1
     release_pin: "{release_pin}"
 
 methods:
-  - call: protein-surface-aggregator
+  - call: cspa-surface-confirmation
     args:
-      target: "{target.symbol}"
+      target_uniprot_ac: "{target.uniprot_canonical}"
       indication: "{indication}"
       release_pin: "{release_pin}"
 
 outputs:
   summary_fields:
-    - subcellular_localization_uniprot
-    - hpa_ihc_positivity_fraction
-    - hpa_ihc_intensity
-    - surface_accessibility_call
-    - protein_evidence_strength
+    - surface_confirmation_class               # cell_surface_confirmed / not_surface / data_unavailable
+    - cspa_category                            # CSPA high-confidence category
+    - n_celllines_detected                     # # cell lines with wet-lab CSPA detection
+    - measured_in_cspa                         # True / False (honest measured-negative) / None
+    - evidence_tier                            # 'measured' (CSPA is the measured tier)
   figure: protein_evidence_summary_panel
   plot_data: per_subcellular_location_evidence
 
 interpretation_hints:
-  - if: "surface_accessibility_call == 'cell_surface_confirmed' && hpa_ihc_positivity_fraction >= THRESHOLD.strong_positivity"
-    call: "strong protein surface evidence"
-  - if: "surface_accessibility_call == 'cell_surface_confirmed' && hpa_ihc_positivity_fraction >= THRESHOLD.modest_positivity"
-    call: "modest protein surface evidence"
-  - if: "surface_accessibility_call == 'intracellular_only' || hpa_ihc_positivity_fraction < THRESHOLD.modest_positivity"
-    call: "not informative for surface-modality programs"
+  - if: "surface_confirmation_class == 'cell_surface_confirmed' && n_celllines_detected >= THRESHOLD.strong_detection"
+    call: "strong protein surface evidence (CSPA-measured across multiple cell lines)"
+  - if: "surface_confirmation_class == 'cell_surface_confirmed'"
+    call: "protein surface evidence (CSPA-measured)"
+  - if: "measured_in_cspa == false"
+    call: "not detected on the surface in CSPA (measured-negative)"
+  - if: "surface_confirmation_class == 'data_unavailable'"
+    call: "surface confirmation unavailable (target not resolvable to a CSPA UniProt AC)"
 
 thresholds:
-  expression_p95_min: 1.0
-  strong_positivity: 0.60                      # 60% of tumor cells IHC-positive
-  modest_positivity: 0.20
+  strong_detection: 3                          # CSPA wet-lab detection across >= 3 cell lines
 
 caveats:
-  - "HPA protein-IHC mirror is iter-2 catalog work; iter-1b this card emits excluded_by_applies_when until data lands."
-  - "IHC positivity fraction is technology-dependent — antibody clone, fixation, scoring system all matter."
-  - "Surface localization confirmed at one tissue context does not guarantee surface accessibility at another (different glycosylation, masking, internalization rates)."
+  - "CSPA (Bausch-Fluck 2015) is the `measured` surface-confirmation tier: a mass-spec cell-surface-capture surfaceome across cell lines. HPA protein-IHC would be a SECOND measured provider (future corroboration), not a blocker."
+  - "A target absent from the CSPA high-confidence surfaceome is an honest measured-NEGATIVE (not_surface), distinct from data_unavailable (target not resolvable to a UniProt AC)."
+  - "Surface confirmation in one context does not guarantee accessibility in another (glycosylation, masking, internalization rates differ) — CSPA reflects the cell lines assayed, not the specific tumor context."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — this card is a view of the `surface_confirmation` claim (is the
 # target detected/accessible on the extracellular surface). Providers: HPA-IHC + CSPA (measured) and

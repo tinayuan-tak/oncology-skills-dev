@@ -833,10 +833,16 @@ rules:
   # lens-conditional grade/score fields).
   # ============================================================================
 
+  # FIELD RECONCILED 2026-08-04: these rules keyed on `surface_accessibility_call`, which the LIVE
+  # CSPA provider (cspa_surface_confirmation) NEVER emits — it emits `surface_confirmation_class`
+  # {cell_surface_confirmed | not_surface | data_unavailable}. So both rules were silently INERT on
+  # live data since CSPA went live (the card↔reader↔rule field name diverged). Now keyed on the real
+  # field. The negative case is `not_surface` (CSPA measured-absence), NOT the old `intracellular_only`
+  # (a UniProt positive-intracellular assertion CSPA does not produce) — see the downgrade note below.
   - rule_id: protein-surface-confirmed-supportive
     when:
       card_id: protein-surface-evidence
-      field: surface_accessibility_call
+      field: surface_confirmation_class
       equals: cell_surface_confirmed
     signals:
       adc: supportive
@@ -847,34 +853,33 @@ rules:
       bite_tce: important
       antibody: important
     rationale: |
-      Protein-level surface residency is CONFIRMED (UniProt subcellular localization + HPA-IHC /
-      CSPA agree the target is accessible on the extracellular surface). Surface accessibility is the
-      Critical prerequisite for every antibody-based modality, so a positive protein-level confirmation
-      is directly supportive across adc/bite_tce/antibody. Important importance — this is measured
-      protein evidence (not an RNA proxy), the strongest presence signal the surface gate can receive.
+      Protein-level surface residency is CONFIRMED — CSPA (Cell Surface Protein Atlas, mass-spec
+      cell-surface capture) measured the target on the extracellular surface. Surface accessibility is
+      the critical prerequisite for every antibody-based modality, so a positive protein-level
+      confirmation is directly supportive across adc/bite_tce/antibody. Important importance — this is
+      measured protein evidence (not an RNA proxy), the strongest presence signal the surface gate can
+      receive.
 
-  - rule_id: protein-intracellular-only-adc-killer
+  - rule_id: protein-not-surface-opposing
     when:
       card_id: protein-surface-evidence
-      field: surface_accessibility_call
-      equals: intracellular_only
+      field: surface_confirmation_class
+      equals: not_surface
     signals:
-      adc: killer
-      bite_tce: killer
-      antibody: killer
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
     modality_importance:
-      adc: important
-      bite_tce: important
-      antibody: important
-    killer_message: |
-      Protein localizes INTRACELLULARLY only (UniProt subcellular localization has no cell-surface /
-      plasma-membrane term and IHC gives no surface-positivity). Antibody-based modalities require an
-      extracellular epitope; there is nothing on the surface to bind. Routes to the intracellular
-      SM/degrader axis instead.
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
     rationale: |
-      The measured protein-localization counterpart to surfaceome-family-classification's
-      `not_surface` killer. Where the family classifier is a predicted/annotation call, this is the
-      protein-evidence confirmation of intracellular-only residency — a hard surface-modality killer.
+      The target was NOT detected on the surface in CSPA (a measured-negative from one atlas). Unlike
+      a UniProt-confirmed intracellular-only localization (a hard killer), a CSPA measured-absence is
+      weaker evidence — the atlas covers the cell lines assayed, not every context, and masking /
+      low-abundance surface pools can evade capture. So this is OPPOSING (a real negative that argues
+      against surface modalities) rather than a KILLER veto, at moderate (not important) importance.
+      A corroborating intracellular-only localization call would strengthen it to a killer.
 
   # ============================================================================
   # H — Protein-presence-cptac card (P4 Tier-2, 2026-07-24)
