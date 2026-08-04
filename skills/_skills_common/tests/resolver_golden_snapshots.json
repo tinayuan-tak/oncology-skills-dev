@@ -136403,16 +136403,16 @@
         null
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
         "wt_human_genetics_mechanism_mismatch",
@@ -136511,32 +136511,32 @@
         "highly-constrained-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning": [
         "wt_human_genetics_mechanism_mismatch",
@@ -136635,36 +136635,36 @@
         "highly-constrained-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
         "wt_human_genetics_mechanism_mismatch",
@@ -136763,32 +136763,32 @@
         "highly-constrained-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning": [
         "wt_human_genetics_mechanism_mismatch",
@@ -136887,40 +136887,40 @@
         "highly-constrained-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,moderately-constrained-safety-neutral": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clingen-dominant-loss-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
         "wt_human_genetics_mechanism_mismatch",
@@ -137019,32 +137019,32 @@
         "highly-constrained-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning": [
         "wt_human_genetics_mechanism_mismatch",
@@ -137143,32 +137143,32 @@
         "highly-constrained-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient": [
         "data_unavailable",
@@ -137275,24 +137275,24 @@
         "moderately-constrained-safety-neutral"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
         "tolerant-safety-supportive"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-        "data_unavailable",
-        "constraint-data-unavailable-insufficient"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
@@ -137399,44 +137399,44 @@
         "moderately-constrained-safety-neutral"
       ],
       "activating-driver-role-safety-context,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "moderately_constrained_safety",
-        "moderately-constrained-safety-neutral"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
         "tolerant-safety-supportive"
       ],
       "activating-driver-role-safety-context,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "tolerant_reduced_safety_risk",
-        "tolerant-safety-supportive"
+        "wt_human_genetics_mechanism_mismatch",
+        "mouse-ko-lethal-safety-warning"
       ],
       "activating-driver-role-safety-context,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
         "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "clingen-dominant-loss-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "clingen-dominant-loss-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient": [
         "data_unavailable",
         "constraint-data-unavailable-insufficient"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137471,32 +137471,32 @@
         "highly-constrained-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137595,32 +137595,32 @@
         "highly-constrained-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
         "human_genetics_safety_concern",
         "gene-burden-lof-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137671,8 +137671,8 @@
         "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "clingen-dominant-loss-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
@@ -137687,8 +137687,8 @@
         "constraint-data-unavailable-insufficient"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137723,32 +137723,32 @@
         "highly-constrained-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137847,32 +137847,32 @@
         "highly-constrained-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
         "human_genetics_safety_concern",
         "gene-burden-lof-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137923,8 +137923,8 @@
         "tolerant-safety-supportive"
       ],
       "clingen-dominant-loss-safety-warning,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "clingen-dominant-loss-safety-warning"
       ],
       "clingen-dominant-loss-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
@@ -137935,16 +137935,16 @@
         "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient": [
         "data_unavailable",
         "constraint-data-unavailable-insufficient"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -137979,32 +137979,32 @@
         "highly-constrained-safety-warning"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -138103,32 +138103,32 @@
         "highly-constrained-safety-warning"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
         "human_genetics_safety_concern",
         "gene-burden-lof-safety-warning"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -138179,8 +138179,8 @@
         "tolerant-safety-supportive"
       ],
       "clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "clinvar-germline-pathogenic-safety-warning"
       ],
       "clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
@@ -138195,8 +138195,8 @@
         "constraint-data-unavailable-insufficient"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -138231,32 +138231,32 @@
         "highly-constrained-safety-warning"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "data_unavailable",
+        "constraint-data-unavailable-insufficient"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "constraint-data-unavailable-insufficient,highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -138355,32 +138355,32 @@
         "highly-constrained-safety-warning"
       ],
       "gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "moderately_constrained_safety",
+        "moderately-constrained-safety-neutral"
       ],
       "gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
         "human_genetics_safety_concern",
         "gene-burden-lof-safety-warning"
       ],
       "gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-        "human_genetics_safety_concern",
-        "gene-burden-lof-safety-warning"
+        "tolerant_reduced_safety_risk",
+        "tolerant-safety-supportive"
       ],
       "highly-constrained-safety-warning": [
         "highly_constrained_safety_concern",
@@ -138431,8 +138431,8 @@
         "tolerant-safety-supportive"
       ],
       "mouse-ko-lethal-safety-warning": [
-        "insufficient",
-        null
+        "human_genetics_safety_concern",
+        "mouse-ko-lethal-safety-warning"
       ],
       "mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
         "tolerant_reduced_safety_risk",
