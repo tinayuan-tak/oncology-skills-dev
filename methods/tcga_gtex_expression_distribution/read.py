@@ -110,6 +110,22 @@ INDICATION_TO_GTEX_TISSUE = {
     "BLCA": "BLADDER", "LIHC": "LIVER", "CESC": "CERVIX_UTERI", "ESCA": "ESOPHAGUS",
 }
 
+# PROXY normal tissues — for indications with NO true GTEx tissue-of-origin (e.g. HNSC: GTEx has no
+# head-and-neck track). A proxy is NOT a matched normal: the window computed against it is
+# HISTOLOGICALLY-ANALOGOUS, weaker evidence, and MUST be reported on a labeled proxy channel — never
+# in matched_normal_tissue. Only populated where INDICATION_TO_GTEX_TISSUE has no entry (a true normal
+# always wins). Ordered by histological closeness. HNSC = squamous epithelium → esophageal mucosa
+# (non-keratinized stratified squamous, the closest architectural match) + skin (epidermal squamous)
+# + salivary gland (sub-site-specific). Each carries a rationale surfaced in the output.
+INDICATION_TO_PROXY_NORMAL_TISSUES = {
+    "HNSC":  [("ESOPHAGUS", "non-keratinized stratified squamous mucosa — closest architectural match to oral/pharyngeal epithelium"),
+              ("SKIN", "epidermal squamous epithelium — shared keratinocyte transcriptomic profile"),
+              ("SALIVARY_GLAND", "sub-site proxy for salivary-gland-origin H&N tumors")],
+    "HNSCC": [("ESOPHAGUS", "non-keratinized stratified squamous mucosa — closest architectural match to oral/pharyngeal epithelium"),
+              ("SKIN", "epidermal squamous epithelium — shared keratinocyte transcriptomic profile"),
+              ("SALIVARY_GLAND", "sub-site proxy for salivary-gland-origin H&N tumors")],
+}
+
 
 def _boto3_client():
     import boto3
@@ -485,6 +501,26 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     pooled_median = pooled.get("median_log2tpm")
     pooled_detectable = pooled.get("detectable_fraction")
 
+    # Matched-normal vector for the per-subtype therapeutic-WINDOW enrichment (Option 2, 2026-08-04).
+    # Fetched ONCE and reused for every stratum: GTEx normal tissue has no tumor molecular subtype, so
+    # the SAME normal p95/p99 threshold applies to each tumor stratum (a subtype's tumors are compared
+    # against the indication's whole matched-normal). This is the per-subtype analogue of the pooled
+    # read_tumor_vs_normal_percentile_crossing — same _stats primitive, subtype tumor vector as input.
+    normal_vals, normal_tissue = read_normal_samples(target, indication)
+
+    # PROXY-normal panel (2026-08-04) — ONLY when there is no true matched normal (e.g. HNSC). Reads
+    # each configured proxy tissue's vector once; the per-stratum loop computes the window against EACH
+    # so the reader sees window-SENSITIVITY to proxy choice. Kept strictly OFF the matched-normal
+    # channel: a proxy window is histologically-analogous, weaker evidence, explicitly labeled.
+    proxy_specs = INDICATION_TO_PROXY_NORMAL_TISSUES.get(indication.upper().strip(), [])
+    proxy_normals = {}   # {tissue: (values, rationale)}
+    if not normal_vals and proxy_specs:
+        _all_tissues = read_all_normal_tissues(target)   # {tissue: [values]} one read, all tissues
+        for tissue, rationale in proxy_specs:
+            vals_t = _all_tissues.get(tissue) or []
+            if vals_t:
+                proxy_normals[tissue] = (vals_t, rationale)
+
     landscape = []
     for stratum_id in strata:
         member_cases = set(assignments.loc[
@@ -502,9 +538,42 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                "match_rate": cov.match_rate}
         if n > 0:
             summary = _distribution_summary(vals)
+            # Option 1 (2026-08-04): project the FULL distribution block per stratum (was 5 fields) so
+            # a per-subtype record has the same absolute-level depth as the pooled record — percentiles
+            # + spread. _distribution_summary already computes these; this just stops dropping them.
             rec.update({k: summary[k] for k in
-                        ("median_log2tpm", "detectable_fraction", "high_fraction",
-                         "distribution_pattern", "tumor_expression_class")})
+                        ("median_log2tpm", "p95_log2tpm", "p99_log2tpm", "min_log2tpm",
+                         "max_log2tpm", "coefficient_of_variation", "detectable_fraction",
+                         "high_fraction", "moderate_fraction", "distribution_pattern",
+                         "tumor_expression_class")})
+            # Option 2 (2026-08-04): per-subtype matched-normal WINDOW — fraction of this subtype's
+            # tumors clearing the (indication-wide) matched-normal Nth percentile. The decision-relevant
+            # patient-selection signal, now answerable per subtype (was pooled-only). Null when the
+            # indication has no matched GTEx normal (honest gap), NOT zero.
+            if normal_vals:
+                for pct in (95, 99):
+                    fa = _stats.fraction_above_normal_percentile(vals, normal_vals, pct)
+                    rec[f"fraction_tumor_above_normal_p{pct}"] = fa["fraction_tumor_above"]
+                    rec[f"normal_p{pct}_log2tpm"] = fa["normal_pN"]
+                rec["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(vals, normal_vals)
+            else:
+                rec.update({"fraction_tumor_above_normal_p95": None,
+                            "fraction_tumor_above_normal_p99": None,
+                            "normal_p95_log2tpm": None, "normal_p99_log2tpm": None,
+                            "distribution_overlap_tumor_normal": None})
+            # PROXY window panel (labeled, never the matched channel). One entry per proxy tissue:
+            # this subtype's tumors vs that proxy's p95/p99 + overlap. Empty list when a true normal
+            # exists (proxies not needed) or none configured — the caller reads this as "proxy-only".
+            proxy_windows = []
+            for tissue, (pvals, rationale) in proxy_normals.items():
+                pw = {"proxy_tissue": tissue, "rationale": rationale}
+                for pct in (95, 99):
+                    fa = _stats.fraction_above_normal_percentile(vals, pvals, pct)
+                    pw[f"fraction_tumor_above_proxy_p{pct}"] = fa["fraction_tumor_above"]
+                    pw[f"proxy_p{pct}_log2tpm"] = fa["normal_pN"]
+                pw["distribution_overlap_tumor_proxy"] = _stats.distribution_overlap(vals, pvals)
+                proxy_windows.append(pw)
+            rec["proxy_normal_windows"] = proxy_windows
             # subtype signal is only trustworthy when the stratum clears the floor;
             # underpowered strata carry stats for context but a null signal.
             rec["subtype_signal"] = (_classify_subtype_signal(
@@ -512,16 +581,36 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                 summary["detectable_fraction"], pooled_detectable)
                 if floor_met else None)
         else:
-            rec.update({"median_log2tpm": None, "detectable_fraction": None,
-                        "high_fraction": None, "distribution_pattern": None,
-                        "tumor_expression_class": "data_unavailable", "subtype_signal": None})
+            rec.update({"median_log2tpm": None, "p95_log2tpm": None, "p99_log2tpm": None,
+                        "min_log2tpm": None, "max_log2tpm": None, "coefficient_of_variation": None,
+                        "detectable_fraction": None, "high_fraction": None, "moderate_fraction": None,
+                        "distribution_pattern": None, "tumor_expression_class": "data_unavailable",
+                        "fraction_tumor_above_normal_p95": None, "fraction_tumor_above_normal_p99": None,
+                        "normal_p95_log2tpm": None, "normal_p99_log2tpm": None,
+                        "distribution_overlap_tumor_normal": None, "proxy_normal_windows": [],
+                        "subtype_signal": None})
         landscape.append(rec)
 
     n_measured = sum(1 for r in landscape if r["evidence_state"] == "measured")
     n_enriched = sum(1 for r in landscape if r.get("subtype_signal") == "subtype_enriched")
+    # Rollup of the per-subtype WINDOW signal (Option 2): how many measured subtypes clear the
+    # matched-normal p95 in a majority of their tumors (fraction_above >= 0.5) — the count of subtypes
+    # with a real therapeutic window. None when there is no matched normal (window not computable).
+    n_window = (sum(1 for r in landscape
+                    if r["evidence_state"] == "measured"
+                    and (r.get("fraction_tumor_above_normal_p95") or 0) >= 0.5)
+                if normal_vals else None)
+    # Comparator provenance: matched (true tissue-of-origin), proxy (histological analogue, weaker),
+    # or none (neither available). Kept explicit so a consumer NEVER mistakes a proxy for a matched
+    # normal — the window numbers mean different things and must be weighted differently.
+    comparator_type = ("matched" if normal_vals else
+                       "proxy" if proxy_normals else "none")
     base.update({"subtype_axis_available": True, "subtype_landscape": landscape,
-                 "assignment_manifest": manifest,
-                 "n_subtypes_measured": n_measured, "n_subtypes_enriched": n_enriched})
+                 "assignment_manifest": manifest, "matched_normal_tissue": normal_tissue,
+                 "normal_comparator_type": comparator_type,
+                 "proxy_normal_tissues": sorted(proxy_normals.keys()) if proxy_normals else [],
+                 "n_subtypes_measured": n_measured, "n_subtypes_enriched": n_enriched,
+                 "n_subtypes_clearing_normal_window": n_window})
     return base
 
 

@@ -93,6 +93,13 @@ def build_subtype_panorama(target: str, indication: str) -> dict:
         "assignment_manifest": land.get("assignment_manifest"),
         "n_subtypes_measured": land.get("n_subtypes_measured", 0),
         "n_subtypes_enriched": land.get("n_subtypes_enriched", 0),
+        # normal-window rollup + comparator provenance (2026-08-04 enrichment) — project the card-level
+        # fields the landscape now emits so the summary carries them (the per-stratum window fields ride
+        # inside per_subgroup_metrics; these are the cross-stratum rollup + the matched/proxy label).
+        "n_subtypes_clearing_normal_window": land.get("n_subtypes_clearing_normal_window"),
+        "matched_normal_tissue": land.get("matched_normal_tissue"),
+        "normal_comparator_type": land.get("normal_comparator_type"),
+        "proxy_normal_tissues": land.get("proxy_normal_tissues") or [],
         "per_subgroup_metrics": land.get("subtype_landscape") or [],
         **({"_subtype_note": land["_subtype_note"]} if "_subtype_note" in land else {}),
         "method_version": METHOD_VERSION,
