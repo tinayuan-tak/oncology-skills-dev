@@ -145,24 +145,24 @@ SUB_SKILLS = [
 SUB_SKILL_CARDS = {
     "tumor-presence": [
         "cellline-rna-distribution",
-        "expression-tumor-vs-adjacent",
+        "tumor-rna-vs-adjacent",
         "tumor-protein-abundance-cptac",
-        "protein-abundance-celline",     # Gygi cell-line MS — cell_line_protein_abundance axis.
+        "cellline-protein-abundance",     # Gygi cell-line MS — cell_line_protein_abundance axis.
                                          # Added to tumor-presence/run.py CARDS in PR #80 but never
                                          # to this composer map → dropped from the composed profile.
                                          # Restored so the dual RNA+protein presence reaches the LLM.
         "tumor-elevation-breadth",       # pan-cancer K-of-N breadth (Slice B3) — same drift class:
                                          # added to tumor-presence CARDS but not this map, so it was
                                          # silently dropped from the composed profile. Restored.
-        "tumor-expression-distribution", # Q1 (expression-extraction plan) — per-sample tumor RNA
+        "tumor-rna-distribution", # Q1 (expression-extraction plan) — per-sample tumor RNA
                                          # distribution; added to tumor-presence CARDS + this composer
                                          # map together (composer-consistency guard).
-        "tumor-expression-distribution-subtype",  # target_subtype-grain sibling — per-molecular-subtype
+        "tumor-rna-distribution-by-subtype",  # target_subtype-grain sibling — per-molecular-subtype
                                          # panorama (per_subgroup_metrics). Same pairing rule: wired into
                                          # tumor-presence CARDS + this composer map together.
         "expression-purity-confound",    # Q9 (2026-07-23) — purity-confound caveat; render facet.
         "phospho-pathway-activity",      # Q8 (2026-07-23) — CPTAC phospho pathway-activity; render facet.
-        "rna-protein-concordance",       # Q5 (2026-07-23) — rna_as_biomarker; biomarker preferred_assay input.
+        "cellline-rna-protein-concordance",       # Q5 (2026-07-23) — rna_as_biomarker; biomarker preferred_assay input.
     ],
     "tumor-selectivity": [
         "tumor-vs-normal-selectivity",
@@ -2217,9 +2217,9 @@ _CARD_TITLE = {
     "signaling-network-mechanism":  ("Signaling network", "SIGNOR/CollecTri/Reactome MoA context"),
     # Presence (A)
     "cellline-rna-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
-    "expression-tumor-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
+    "tumor-rna-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
     "tumor-protein-abundance-cptac":       ("Tumor protein (CPTAC)", "per-cohort tumor-vs-normal protein"),
-    "protein-abundance-celline":    ("Cell-line protein", "Gygi TMT MS abundance distribution"),
+    "cellline-protein-abundance":    ("Cell-line protein", "Gygi TMT MS abundance distribution"),
     "tumor-elevation-breadth":      ("Pan-cancer breadth", "elevated in K of N cancers"),
     # Required (C) — primary dependency evidence
     "pan-cancer-crispr-dependency-distribution": ("CRISPR dependency", "DepMap Chronos pan-cancer distribution"),
@@ -2335,12 +2335,12 @@ _SHORT_TO_GATE_ANCHOR = {
 _CARD_KEYFACTS = {
     "cellline-rna-distribution": [("Call", "expression_call_class"), ("Median log2TPM", "median_log2tpm_panel"),
                                 ("Cell lines", "n_cell_lines")],
-    "expression-tumor-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
+    "tumor-rna-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
                                      ("q-value", "q_value")],
     "tumor-protein-abundance-cptac": [("Class", "protein_expression_class"), ("Effect size", "protein_effect_size"),
                                ("Cohort", "cohort"), ("n tumor", "n_tumor_samples"),
                                ("n normal", "n_normal_samples")],
-    "protein-abundance-celline": [("Class", "protein_expression_class")],
+    "cellline-protein-abundance": [("Class", "protein_expression_class")],
     "tumor-elevation-breadth": [("Breadth", "tumor_elevation_breadth_class"),
                                 ("Protein K/N", "n_cohorts_elevated"), ("RNA K/N", "rna_n_indications_elevated")],
     # Required (C)
@@ -2395,7 +2395,7 @@ _CARD_FIGURE_ORDER = {
     "cellline-rna-distribution": ["density_expression", "lineage_expression"],
     # cell-line protein (item #2): density (bucket-shaded) + per-lineage box, mirroring RNA;
     # the ranked waterfall is emitted but not surfaced in the subtab (matches the RNA card).
-    "protein-abundance-celline": ["density_protein_abundance", "lineage_protein_abundance"],
+    "cellline-protein-abundance": ["density_protein_abundance", "lineage_protein_abundance"],
 }
 
 

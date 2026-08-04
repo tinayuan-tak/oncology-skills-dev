@@ -236,7 +236,7 @@ def test_subtype_panel_figure_emission(tmp_path, monkeypatch):
     from _figure_emitters import emit_figures_for_card
     out_root = tmp_path / "compose_out"
     figs = emit_figures_for_card(
-        card_id="tumor-expression-distribution-subtype",
+        card_id="tumor-rna-distribution-by-subtype",
         summary={"subtype_axis_available": True, "n_subtypes_measured": 2},
         out_root=out_root, target="MLH1", indication="COADREAD",
     )
@@ -244,7 +244,7 @@ def test_subtype_panel_figure_emission(tmp_path, monkeypatch):
     assert any(f["id"] == "expression_distribution_subtype_panel" for f in figs)
     for f in figs:
         assert (out_root / f["path"]).exists()
-        assert f["path"].startswith("cards/tumor-expression-distribution-subtype/")
+        assert f["path"].startswith("cards/tumor-rna-distribution-by-subtype/")
 
 
 def test_q2_percentile_crossing_figure_emission(tmp_path, monkeypatch):
@@ -329,15 +329,15 @@ def test_q5_rna_protein_concordance_figure_emission(tmp_path, monkeypatch):
     from _figure_emitters import emit_figures_for_card
     out_root = tmp_path / "compose_out"
     figs = emit_figures_for_card(
-        card_id="rna-protein-concordance",
+        card_id="cellline-rna-protein-concordance",
         summary={"rna_as_biomarker": "adequate_proxy", "rna_protein_r": 0.99, "n_paired_models": 40},
         out_root=out_root, target="EGFR", indication="COADREAD")
     assert any(f["id"] == "rna_protein_concordance_scatter" for f in figs)
     for f in figs:
         assert (out_root / f["path"]).exists()
-        assert f["path"].startswith("cards/rna-protein-concordance/")
+        assert f["path"].startswith("cards/cellline-rna-protein-concordance/")
     assert emit_figures_for_card(
-        card_id="rna-protein-concordance", summary={"rna_as_biomarker": "data_unavailable"},
+        card_id="cellline-rna-protein-concordance", summary={"rna_as_biomarker": "data_unavailable"},
         out_root=tmp_path / "o5", target="X", indication="COADREAD") == []
 
 
@@ -395,7 +395,7 @@ def test_subtype_panel_no_op_when_axis_unavailable(tmp_path):
     """No landed shard for the indication → subtype_axis_available:false → emitter no-ops []."""
     from _figure_emitters import emit_figures_for_card
     figs = emit_figures_for_card(
-        card_id="tumor-expression-distribution-subtype",
+        card_id="tumor-rna-distribution-by-subtype",
         summary={"subtype_axis_available": False},
         out_root=tmp_path / "compose_out", target="MLH1", indication="BRCA",
     )

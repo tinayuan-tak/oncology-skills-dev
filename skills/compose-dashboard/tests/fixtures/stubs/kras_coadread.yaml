@@ -32,7 +32,7 @@ target-identity-summary:
 # encodes the biological reality that KRAS's value as a target is NOT expression-driven.
 # Interpretation hint thresholds (strong: log2FC≥1.5; modest: 0.5≤log2FC<1.5) will
 # yield "modest upregulation" call — which is the correct call for KRAS in COADREAD.
-expression-tumor-vs-adjacent:
+tumor-rna-vs-adjacent:
   log2_fc: 0.72                    # published-range value; was incorrectly 2.1
   q_value: 0.0028
   tumor_mean_tpm: 14.6
@@ -390,7 +390,7 @@ lineage-restriction-evidence:
 
 subgroup-stratified-expression:
   # L5: counts and log2_fc values re-derived. MSI_H + MSS sum to 625 (matches expression card).
-  # KRAS log2_fc values consistent with the parent expression-tumor-vs-adjacent card (~0.7 overall);
+  # KRAS log2_fc values consistent with the parent tumor-rna-vs-adjacent card (~0.7 overall);
   # MSS slightly higher than MSI_H (modest cross-stratum delta).
   per_subgroup_metrics:
     - subgroup_id: MSI_H

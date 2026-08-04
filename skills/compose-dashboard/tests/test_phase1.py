@@ -60,7 +60,7 @@ def test_kras_coadread_no_modality_enumerates_plausible():
     # Cards from intracellular-intrinsic-base required_cards must all be in to_run
     cards = _card_ids_to_run(plan)
     expected_base_required = {
-        "target-identity-summary", "expression-tumor-vs-adjacent",
+        "target-identity-summary", "tumor-rna-vs-adjacent",
         "dependency-lineage-selectivity", "mutation-hotspot-frequency",
         "normal-tissue-liability", "clinical-precedent",
     }
@@ -116,7 +116,7 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
     # Surface-intrinsic-base required_cards must all be in to_run
     cards = _card_ids_to_run(plan)
     expected_base_required = {
-        "target-identity-summary", "expression-tumor-vs-adjacent",
+        "target-identity-summary", "tumor-rna-vs-adjacent",
         "tumor-vs-normal-selectivity", "protein-surface-evidence",
         "normal-tissue-liability", "antigen-prevalence", "clinical-precedent",
     }

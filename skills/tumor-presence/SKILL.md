@@ -7,21 +7,21 @@ description: |
 
   VERDICT-BEARING (5 cards — feed the rank-ordered presence ladder):
     - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
-    - expression-tumor-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
+    - tumor-rna-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
                                          adjacent, else tumor-vs-GTEx fallback)
     - tumor-protein-abundance-cptac            (tumor protein abundance, CPTAC per-cohort)
-    - protein-abundance-celline         (cell-line protein, DepMap/Gygi TMT-MS)
+    - cellline-protein-abundance         (cell-line protein, DepMap/Gygi TMT-MS)
     - tumor-elevation-breadth           (pan-cancer K-of-N tumor-elevation, target-grain)
 
   DISPLAY-ONLY facets (5 cards — additive context, feed NO resolver, verdict
   byte-stable; one-directional gate):
-    - tumor-expression-distribution         (per-sample tumor RNA distribution; rules
+    - tumor-rna-distribution         (per-sample tumor RNA distribution; rules
                                              not yet in the verdict ladder — follow-up)
-    - tumor-expression-distribution-subtype (per-molecular-subtype panorama; COADREAD
+    - tumor-rna-distribution-by-subtype (per-molecular-subtype panorama; COADREAD
                                              shard only, else subtype_axis_available:false)
     - expression-purity-confound            (is the tumor signal tumor-intrinsic or stromal?)
     - phospho-pathway-activity              (CPTAC phospho pathway-activity proxy)
-    - rna-protein-concordance               (is RNA an adequate protein proxy?)
+    - cellline-rna-protein-concordance               (is RNA an adequate protein proxy?)
 
   Runs the expression-* + protein-* rule subset over two measurement ladders
   (bulk_rna, bulk_protein_ms). Emits a data-package output tree with a
@@ -49,15 +49,15 @@ composition:
   phase: [A]
   cards_used:
     - cellline-rna-distribution
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
     - tumor-protein-abundance-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
-    - protein-abundance-celline      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
+    - cellline-protein-abundance      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
     - tumor-elevation-breadth        # Slice B3: pan-cancer K-of-N tumor-elevation (target-grain); the one tumor-context card that fires in a target-ONLY query
-    - tumor-expression-distribution         # Q1 per-sample tumor RNA distribution (was run.py-present, doc-stale)
-    - tumor-expression-distribution-subtype # Q1 subtype-grain panorama (was run.py-present, doc-stale)
+    - tumor-rna-distribution         # Q1 per-sample tumor RNA distribution (was run.py-present, doc-stale)
+    - tumor-rna-distribution-by-subtype # Q1 subtype-grain panorama (was run.py-present, doc-stale)
     - expression-purity-confound            # Q9 (2026-07-23): purity-confound caveat — tumor-intrinsic vs microenvironment (render facet)
     - phospho-pathway-activity              # Q8 (2026-07-23): CPTAC phospho pathway-activity — phospho-level presence for kinases/signaling (render facet)
-    - rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality; biomarker preferred_assay input (render facet)
+    - cellline-rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality; biomarker preferred_assay input (render facet)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
@@ -77,9 +77,9 @@ composition:
     - rna_protein_concordance
   rules_scope:
     - cellline-rna-distribution
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
     - tumor-protein-abundance-cptac
-    - protein-abundance-celline
+    - cellline-protein-abundance
     - tumor-elevation-breadth
   synthesis:
     - rule_engine

@@ -785,7 +785,7 @@ def _emit_tumor_elevation_breadth(
 def _emit_tumor_expression_distribution(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit the Q1 per-sample tumor RNA distribution figure (tumor-expression-distribution card):
+    """Emit the Q1 per-sample tumor RNA distribution figure (tumor-rna-distribution card):
     tumor (TCGA) vs matched-normal (GTEx) per-sample log2(TPM+1) box+strip with the normal-p95 line
     + fraction-above annotation, from the two long products via tcga_gtex_expression_distribution.
     Indication-scoped. On _live_read_error or no tumor samples → []."""
@@ -810,7 +810,7 @@ def _emit_tumor_expression_distribution(
 def _emit_tumor_expression_distribution_subtype(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit the subtype panel (tumor-expression-distribution-subtype card): one box+strip row per
+    """Emit the subtype panel (tumor-rna-distribution-by-subtype card): one box+strip row per
     molecular subtype, ordered by median, colored by subtype_signal, pooled-median reference line.
     Gated on subtype_axis_available (no landed shard for the indication → []). The method emitters
     re-read the shared value substrate (no drift). On _live_read_error → []."""
@@ -911,7 +911,7 @@ def _emit_recommended_models(
 def _emit_rna_protein_concordance(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
-    """Emit the Q5 RNA↔protein concordance scatter (rna-protein-concordance card): per-model target
+    """Emit the Q5 RNA↔protein concordance scatter (cellline-rna-protein-concordance card): per-model target
     RNA (x) vs protein (y) with fitted trend + r. Gated on rna_as_biomarker (data_unavailable /
     insufficient → no figure). On _live_read_error → []."""
     if _has_live_read_error(summary):
@@ -1148,7 +1148,7 @@ def _emit_phospho_pathway_activity(
 
 
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
-    "tumor-expression-distribution": _emit_tumor_expression_distribution,
+    "tumor-rna-distribution": _emit_tumor_expression_distribution,
     "alteration-role": _emit_alteration_role,
     "functional-gene-state": _emit_functional_gene_state,
     "genomic-event-model-match": _emit_genomic_event_model_match,
@@ -1160,8 +1160,8 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "normal-tissue-liability-gtex": _emit_normal_tissue_liability_gtex,
     "rna-protein-concordance-tumor": _emit_rna_protein_concordance_tumor,
     "recommended-models": _emit_recommended_models,
-    "rna-protein-concordance": _emit_rna_protein_concordance,
-    "tumor-expression-distribution-subtype": _emit_tumor_expression_distribution_subtype,
+    "cellline-rna-protein-concordance": _emit_rna_protein_concordance,
+    "tumor-rna-distribution-by-subtype": _emit_tumor_expression_distribution_subtype,
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,
@@ -1174,13 +1174,13 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "dependency-predictability": _emit_dependency_predictability,
     "prism-compound-activity": _emit_prism_compound_activity,
     "prism-crispr-concordance": _emit_prism_crispr_concordance,
-    "expression-tumor-vs-adjacent": _emit_expression_tumor_vs_adjacent,
+    "tumor-rna-vs-adjacent": _emit_expression_tumor_vs_adjacent,
     "tumor-vs-normal-selectivity": _emit_tumor_vs_normal_selectivity,
     # SAFETY tier (viz-debt backfill 2026-07-20):
     "gnomad-lof-constraint": _emit_gnomad_lof_constraint,
     "normal-tissue-liability": _emit_normal_tissue_liability,
     # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi + CPTAC):
-    "protein-abundance-celline": _emit_protein_abundance_celline,
+    "cellline-protein-abundance": _emit_protein_abundance_celline,
     "tumor-protein-abundance-cptac": _emit_protein_presence_cptac,
     # TARGET-GRAIN breadth (2026-07-22): pan-cancer by-tissue TPM distribution (TCGA tumor + GTEx
     # normal, one axis) from the quantile product — the RNA companion to the breadth K-of-N roll-up.

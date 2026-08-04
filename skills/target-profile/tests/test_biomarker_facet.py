@@ -28,7 +28,7 @@ def test_kras_like_strong_selection_biomarker_genomic():
     sr = _sr(
         genomic_alteration={"mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"},
                             "alteration-role": {"alteration_role": "direct_driver_gof"}},
-        expression={"rna-protein-concordance": {"rna_as_biomarker": "partial_proxy"}},
+        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "partial_proxy"}},
     )
     f = run._biomarker_facet(sr)
     assert f["verdict"] == "strong_selection_biomarker"
@@ -46,7 +46,7 @@ def test_predictive_biomarker_alteration_role_is_genomic_stratifier():
 def test_rna_adequate_proxy_prefers_rna():
     # no genomic stratifier; RNA is an adequate proxy → preferred RNA, corroborating_only
     sr = _sr(
-        expression={"rna-protein-concordance": {"rna_as_biomarker": "adequate_proxy"},
+        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "adequate_proxy"},
                     "phospho-pathway-activity": {"phospho_activity_class": "phospho_active"}},
     )
     f = run._biomarker_facet(sr)
@@ -55,7 +55,7 @@ def test_rna_adequate_proxy_prefers_rna():
 
 
 def test_poor_proxy_prefers_protein():
-    sr = _sr(expression={"rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"},
+    sr = _sr(expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"},
                          "phospho-pathway-activity": {"phospho_activity_class": "phospho_present"}})
     f = run._biomarker_facet(sr)
     assert f["preferred_assay"] == "protein"
@@ -64,7 +64,7 @@ def test_poor_proxy_prefers_protein():
 
 
 def test_poor_proxy_no_corroboration_is_inadequate():
-    sr = _sr(expression={"rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"}})
+    sr = _sr(expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"}})
     f = run._biomarker_facet(sr)
     assert f["preferred_assay"] == "protein"
     assert f["verdict"] == "inadequate"
@@ -74,7 +74,7 @@ def test_housekeeping_like_none():
     # the plan's other golden: nothing biomarker-relevant → none. All corroboration signals must be
     # in the excluded set (None / data_unavailable / not_informative) and no stratifier present.
     sr = _sr(
-        expression={"rna-protein-concordance": {"rna_as_biomarker": "data_unavailable"},
+        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "data_unavailable"},
                     "phospho-pathway-activity": {"phospho_activity_class": "data_unavailable"},
                     "expression-purity-confound": {"purity_confound_class": "data_unavailable"}},
         genomic_alteration={"alteration-role": {"alteration_role": "data_unavailable"},

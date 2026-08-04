@@ -48,7 +48,7 @@ composition:
   cards_used:
     # Phase A + B (presence + selectivity)
     - cellline-rna-distribution
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
     - tumor-vs-normal-selectivity
     - tumor-protein-abundance-cptac                   # Layer 6h addition (Phase A)
     # Phase C (requirement)

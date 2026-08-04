@@ -34,7 +34,7 @@ target-identity-summary:
 # TG expression in CRC is essentially zero baseline with scattered detection;
 # log2_fc vs adjacent normal is near-zero or slightly NEGATIVE (normal colon
 # also doesn't express TG, so the contrast is uninformative).
-expression-tumor-vs-adjacent:
+tumor-rna-vs-adjacent:
   log2_fc: 0.1
   q_value: 0.72                                   # not significant
   tumor_mean_tpm: 0.08                            # near-zero

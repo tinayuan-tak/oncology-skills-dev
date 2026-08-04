@@ -1,6 +1,6 @@
 """Guard test: the composer's SUB_SKILL_CARDS must not silently DROP a sub-skill's cards.
 
-The bug this catches (found 2026-07-21): `protein-abundance-celline` (Gygi) was added to
+The bug this catches (found 2026-07-21): `cellline-protein-abundance` (Gygi) was added to
 tumor-presence/run.py CARDS in PR #80 but never to target-profile's SUB_SKILL_CARDS — so the card
 reached the standalone skill but was silently dropped from the COMPOSED profile (never seen by the
 LLM or scorecard). This is a whole class of drift: a card wired into a sub-skill but not into the
@@ -88,9 +88,9 @@ def test_no_sub_skill_card_is_silently_dropped_from_the_composer():
 
 
 def test_gygi_card_is_composed_for_tumor_presence():
-    """Regression for the specific #80 bug: protein-abundance-celline reaches the composed profile."""
+    """Regression for the specific #80 bug: cellline-protein-abundance reaches the composed profile."""
     _sub_skills, ssc = _composer_maps()
-    assert "protein-abundance-celline" in ssc["tumor-presence"]
+    assert "cellline-protein-abundance" in ssc["tumor-presence"]
 
 
 def test_waiver_entries_are_still_real_omissions():

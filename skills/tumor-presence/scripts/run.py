@@ -3,11 +3,11 @@
 
 Consumes 10 wired cards in two tiers (see CARDS below + SKILL.md):
   VERDICT-BEARING (5, feed the presence ladder): cellline-rna-distribution (cell-line RNA),
-    expression-tumor-vs-adjacent (tumor RNA), tumor-protein-abundance-cptac (tumor protein),
-    protein-abundance-celline (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
-  DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-expression-distribution,
-    tumor-expression-distribution-subtype, expression-purity-confound, phospho-pathway-activity,
-    rna-protein-concordance.
+    tumor-rna-vs-adjacent (tumor RNA), tumor-protein-abundance-cptac (tumor protein),
+    cellline-protein-abundance (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
+  DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-rna-distribution,
+    tumor-rna-distribution-by-subtype, expression-purity-confound, phospho-pathway-activity,
+    cellline-rna-protein-concordance.
 Emits a data-package output tree with a rank-ordered presence verdict + per-(measurement,
 sample_context) sub-verdicts.
 
@@ -33,17 +33,17 @@ SKILL_VERSION = "1.1.0"
 
 CARDS = [
     "cellline-rna-distribution",
-    "expression-tumor-vs-adjacent",
+    "tumor-rna-vs-adjacent",
     "tumor-protein-abundance-cptac",           # Layer 6c addition
-    "protein-abundance-celline",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
+    "cellline-protein-abundance",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
     "tumor-elevation-breadth",          # Slice B3 — pan-cancer K-of-N tumor-elevation (target-grain)
-    "tumor-expression-distribution",    # Q1 (expression-extraction plan) — per-sample TUMOR RNA
+    "tumor-rna-distribution",    # Q1 (expression-extraction plan) — per-sample TUMOR RNA
                                         # distribution (bulk_rna x tumor); the per-sample companion to
-                                        # expression-tumor-vs-adjacent's cohort aggregate. Its
+                                        # tumor-rna-vs-adjacent's cohort aggregate. Its
                                         # distribution summary + figure surface now; mapping its
                                         # tumor_expression_class into the bulk_rna verdict ladder is a
                                         # follow-up rules PR (intersects the subtyping revisit).
-    "tumor-expression-distribution-subtype",  # target_subtype-grain sibling — the per-molecular-subtype
+    "tumor-rna-distribution-by-subtype",  # target_subtype-grain sibling — the per-molecular-subtype
                                         # panorama (per_subgroup_metrics, compute-all). Surfaces the
                                         # subtype landscape + faceted panel; subtype_signal is
                                         # confidence/context (NOT a veto — one-directional gate). Same
@@ -61,7 +61,7 @@ CARDS = [
                                         # for kinases/signaling. ADDITIVE render facet — phospho_activity_class
                                         # + rules feed NO resolver (presence verdict byte-stable). Same
                                         # (bulk_protein_ms, tumor) bucket as tumor-protein-abundance-cptac.
-    "rna-protein-concordance",          # Q5 (2026-07-23 composition) — rna_as_biomarker: is RNA an
+    "cellline-rna-protein-concordance",          # Q5 (2026-07-23 composition) — rna_as_biomarker: is RNA an
                                         # adequate PROXY for protein presence (cell-line arm)? A
                                         # presence-proxy QUALITY qualifier on the RNA presence read +
                                         # the biomarker facet's preferred_assay input. ADDITIVE render
@@ -78,7 +78,7 @@ CARDS = [
 #
 # WHY BOTH AXES (Slice A2): keying the per-modality view off `measurement:` ALONE
 # conflated the cell-line-RNA card (cellline-rna-distribution) with the tumor-RNA card
-# (expression-tumor-vs-adjacent) — both are `bulk_rna` — so a target-only query
+# (tumor-rna-vs-adjacent) — both are `bulk_rna` — so a target-only query
 # (only cell-line cards fire) read IDENTICALLY to a target-indication query, hiding
 # that the tumor axis was never touched. Bucketing by the PAIR makes the degenerate
 # case honest: `bulk_rna/cell_line: measured` alongside `bulk_rna/tumor:
@@ -91,15 +91,15 @@ CARDS = [
 # + small, and a drift guard test asserts this map matches the specs on BOTH axes.
 CARD_CONTEXT = {
     "cellline-rna-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
-    "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
-    "tumor-expression-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
-    "tumor-expression-distribution-subtype": ("bulk_rna", "tumor"),   # per-subtype panorama of the same — same (bulk_rna, tumor) bucket
+    "tumor-rna-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
+    "tumor-rna-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
+    "tumor-rna-distribution-by-subtype": ("bulk_rna", "tumor"),   # per-subtype panorama of the same — same (bulk_rna, tumor) bucket
     "tumor-protein-abundance-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
-    "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
+    "cellline-protein-abundance":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
     "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as tumor-protein-abundance-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
-    "rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
+    "cellline-rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
 }
 
 
@@ -146,7 +146,7 @@ _EXPRESSION_RANK: list[tuple[str, str]] = [
     ("expression-broadly-moderate-neutral",             "broadly_moderate_expression"),
     ("expression-broadly-low-degrader-killer",          "broadly_low_expression"),
     ("expression-call-not-informative-degrader-killer", "not_informative"),
-    # ── Per-sample TUMOR RNA (tumor-expression-distribution) + the tumor-vs-adjacent DOWN reads ──
+    # ── Per-sample TUMOR RNA (tumor-rna-distribution) + the tumor-vs-adjacent DOWN reads ──
     # APPENDED 2026-08-04 (Finding B): these tumor-context rules were emitted by live cards but were
     # NOT in the ladder, so the bulk_rna/tumor bucket resolved `insufficient` even with real tumor-RNA
     # data (verified: EGFR/COADREAD, tumor median log2TPM 3.28 on 669 samples → insufficient). Placed
@@ -321,9 +321,9 @@ def _headline(cards, fired, verdict_pair):
                                           "median_log2tpm_panel"),
         "expression_call_class":    get_card_field(cards, "cellline-rna-distribution",
                                           "expression_call_class"),
-        "tva_log2_fc":              get_card_field(cards, "expression-tumor-vs-adjacent", "log2_fc"),
-        "tva_q_value":              get_card_field(cards, "expression-tumor-vs-adjacent", "q_value"),
-        "tva_expression_call":      get_card_field(cards, "expression-tumor-vs-adjacent",
+        "tva_log2_fc":              get_card_field(cards, "tumor-rna-vs-adjacent", "log2_fc"),
+        "tva_q_value":              get_card_field(cards, "tumor-rna-vs-adjacent", "q_value"),
+        "tva_expression_call":      get_card_field(cards, "tumor-rna-vs-adjacent",
                                           "expression_call_class"),
         "protein_expression_class": get_card_field(cards, "tumor-protein-abundance-cptac",
                                           "protein_expression_class"),
@@ -345,18 +345,18 @@ def _headline(cards, fired, verdict_pair):
         "phospho_activity_class":   get_card_field(cards, "phospho-pathway-activity", "phospho_activity_class"),
         "n_phosphosites":           get_card_field(cards, "phospho-pathway-activity", "n_phosphosites"),
         # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
-        "rna_as_biomarker":         get_card_field(cards, "rna-protein-concordance", "rna_as_biomarker"),
-        "rna_protein_r":            get_card_field(cards, "rna-protein-concordance", "rna_protein_r"),
+        "rna_as_biomarker":         get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker"),
+        "rna_protein_r":            get_card_field(cards, "cellline-rna-protein-concordance", "rna_protein_r"),
         # SUBTYPE SCOPE (Finding A, 2026-08-04) — the per-molecular-subtype presence landscape from
-        # tumor-expression-distribution-subtype, ELEVATED into the audit spine so the subtype scope is
+        # tumor-rna-distribution-by-subtype, ELEVATED into the audit spine so the subtype scope is
         # visible here, not just in a side table (_per_subgroup_metrics.csv). One-directional / non-veto
         # (like the other facets — feeds NO resolver ladder; presence_verdict byte-stable). Degrades
         # honestly: subtype_scope_available=False for indications with no landed assignment shard
         # (only COADREAD today) — a NAMED gap, not silence.
-        "subtype_scope_available":  get_card_field(cards, "tumor-expression-distribution-subtype", "subtype_axis_available"),
-        "n_subtypes_measured":      get_card_field(cards, "tumor-expression-distribution-subtype", "n_subtypes_measured"),
-        "n_subtypes_enriched":      get_card_field(cards, "tumor-expression-distribution-subtype", "n_subtypes_enriched"),
-        "spotlight_subtype":        get_card_field(cards, "tumor-expression-distribution-subtype", "spotlight_subtype"),
+        "subtype_scope_available":  get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_axis_available"),
+        "n_subtypes_measured":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_measured"),
+        "n_subtypes_enriched":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_enriched"),
+        "spotlight_subtype":        get_card_field(cards, "tumor-rna-distribution-by-subtype", "spotlight_subtype"),
     }
 
 

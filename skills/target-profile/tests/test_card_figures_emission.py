@@ -34,7 +34,7 @@ def _sub_results():
         "expression": {"skill_dir": "tumor-presence", "cards": [
             {"card_id": "cellline-rna-distribution", "summary": {"x": 3}},
             # a data-blocked card must be SKIPPED (nothing to plot)
-            {"card_id": "expression-tumor-vs-adjacent", "summary": {}, "_missing": True},
+            {"card_id": "tumor-rna-vs-adjacent", "summary": {}, "_missing": True},
         ]},
         # a second sub-skill re-listing the same card_id must NOT double-emit
         "selectivity": {"skill_dir": "tumor-selectivity", "cards": [
@@ -69,7 +69,7 @@ def test_emit_card_figures_one_call_per_distinct_nonmissing_card(monkeypatch, tm
         "dependency-lineage-selectivity",
         "pan-cancer-crispr-dependency-distribution",
     ]
-    assert "expression-tumor-vs-adjacent" not in stub.calls   # data-blocked → skipped
+    assert "tumor-rna-vs-adjacent" not in stub.calls   # data-blocked → skipped
     assert set(by_card) == set(stub.calls)
 
 

@@ -60,7 +60,7 @@ def _minimal_kras_coadread_ep() -> dict:
         "dashboard_spec_ref": "intracellular-intrinsic-base",
         "cards": [
             {
-                "card_id": "expression-tumor-vs-adjacent",
+                "card_id": "tumor-rna-vs-adjacent",
                 "card_version": "1.0.0",
                 "validation_state": "pass",
                 "summary": {"log2_fc": 2.1, "q_value": 0.0003, "n_tumor": 412},
@@ -182,7 +182,7 @@ def test_render_kras_coadread_full_dashboard():
 
     # Card evidence
     assert "## Card Evidence" in md
-    assert "expression-tumor-vs-adjacent" in md
+    assert "tumor-rna-vs-adjacent" in md
     assert "dependency-lineage-selectivity" in md
     assert "normal-tissue-liability" in md  # excluded but still listed
 
@@ -251,7 +251,7 @@ def test_renderer_decoupled_works_after_json_roundtrip(tmp_path):
 
 def test_render_card_state_icons():
     md = render_evidence_package(_minimal_kras_coadread_ep())
-    assert "✓ `expression-tumor-vs-adjacent`" in md, "passed card should have ✓ icon"
+    assert "✓ `tumor-rna-vs-adjacent`" in md, "passed card should have ✓ icon"
     assert "⚠ `dependency-lineage-selectivity`" in md, "warned card should have ⚠ icon"
     assert "⏸️ `normal-tissue-liability`" in md, "excluded card should have ⏸️ icon"
 

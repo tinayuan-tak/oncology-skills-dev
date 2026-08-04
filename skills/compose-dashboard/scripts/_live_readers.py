@@ -57,7 +57,7 @@ def _import_data_catalog_lib(lib_name: str):
 
 
 def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route expression-tumor-vs-adjacent card to methods/dge_deseq2/read.py.
+    """Dispatcher: route tumor-rna-vs-adjacent card to methods/dge_deseq2/read.py.
 
     For iter-1b, indication=COADREAD maps to manifest coadread-dge-df06320.
     Iter-2 expands the mapping to other indications as DGE products land.
@@ -367,7 +367,7 @@ def _dispatch_expression_distribution(target: str, indication: str) -> Optional[
 
 
 def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route tumor-expression-distribution card (Q1) to
+    """Dispatcher: route tumor-rna-distribution card (Q1) to
     methods/tcga_gtex_expression_distribution/cli.py::build_summary.
 
     Per-SAMPLE tumor RNA distribution (percentiles, detectable/moderate/high fraction, CoV,
@@ -378,7 +378,7 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Opt
 
 
 def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route tumor-expression-distribution-subtype card (target_subtype grain) to
+    """Dispatcher: route tumor-rna-distribution-by-subtype card (target_subtype grain) to
     methods/tcga_gtex_expression_distribution/cli.py::build_subtype_panorama.
 
     Returns the FULL per-stratum landscape as `per_subgroup_metrics` + rollup scalars. Unlike the
@@ -422,7 +422,7 @@ def _dispatch_recommended_models(target: str, indication: str) -> Optional[dict]
 
 
 def _dispatch_rna_protein_concordance(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route rna-protein-concordance card (Q5) to
+    """Dispatcher: route cellline-rna-protein-concordance card (Q5) to
     methods/depmap_rna_protein_concordance/cli.py::build_summary.
 
     Per-ModelID DepMap RNA vs Gygi MS protein correlation → rna_as_biomarker. Target-grain
@@ -896,7 +896,7 @@ def _dispatch_normal_tissue_liability(target: str, indication: str) -> Optional[
 
 
 def _dispatch_protein_abundance_celline(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: protein-abundance-celline card → DepMap 26Q1 proteomics Gygi TMT MS
+    """Dispatcher: cellline-protein-abundance card → DepMap 26Q1 proteomics Gygi TMT MS
     cell-line protein-abundance distribution via methods/depmap_protein_abundance/read.py.
     The bulk_protein_ms x cell_line presence axis (protein twin of cellline-rna-distribution).
     Protein-intrinsic — indication accepted for contract, not consumed.
@@ -918,7 +918,7 @@ def _dispatch_shed_ectodomain_liability(target: str, indication: str) -> Optiona
 
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
-    "expression-tumor-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
+    "tumor-rna-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
     "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
@@ -929,12 +929,12 @@ CARD_DISPATCHERS = {
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
     "cellline-rna-distribution": _dispatch_expression_distribution,
-    "tumor-expression-distribution": _dispatch_tumor_expression_distribution,
-    "tumor-expression-distribution-subtype": _dispatch_tumor_expression_distribution_subtype,
+    "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
+    "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "recommended-models": _dispatch_recommended_models,
-    "rna-protein-concordance": _dispatch_rna_protein_concordance,
+    "cellline-rna-protein-concordance": _dispatch_rna_protein_concordance,
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "abundance-dependency": _dispatch_abundance_dependency,
@@ -968,7 +968,7 @@ CARD_DISPATCHERS = {
     "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
     "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # P5 follow-on (ClinVar germline-pathogenic, verdict-moving)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
-    "protein-abundance-celline": _dispatch_protein_abundance_celline,
+    "cellline-protein-abundance": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
     "synthetic-lethal-partners": _dispatch_synthetic_lethal_partners,
     # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):

@@ -47,7 +47,7 @@ def _fr(rule_id, card_id):
 
 def test_collapsed_verdict_ranks_across_all_cards():
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("expression-strong-upregulation-supportive", "expression-tumor-vs-adjacent")]
+             _fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent")]
     assert tp._verdict(fired) == ("broadly_high_expression",
                                   "expression-broadly-high-supportive")
 
@@ -61,7 +61,7 @@ def test_collapsed_verdict_no_rules_is_insufficient():
 def test_bulk_rna_buckets_are_split_by_sample_context():
     """Two bulk_rna cards with DIFFERENT sample_context land in SEPARATE buckets —
     the whole point of Slice A2. Previously both collapsed into one `bulk_rna` key."""
-    fired = [_fr("expression-strong-upregulation-supportive", "expression-tumor-vs-adjacent"),
+    fired = [_fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent"),
              _fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
     # cell-line RNA: broadly-high (the distribution card)
@@ -100,7 +100,7 @@ def test_protein_only_signal_not_swallowed_C1_regression():
     silent `insufficient` collapse the expression-only ladder caused."""
     # measured cell-line protein presence, no RNA
     pm = tp._per_modality_verdicts([_fr("protein-abundance-broadly-high-supportive",
-                                        "protein-abundance-celline")])
+                                        "cellline-protein-abundance")])
     assert pm["bulk_protein_ms/cell_line"]["verdict"] == "protein_broadly_high"
     assert pm["bulk_protein_ms/cell_line"]["verdict"] != "insufficient"
     # protein-not-detected killer (tumor CPTAC) must surface, not vanish
@@ -109,7 +109,7 @@ def test_protein_only_signal_not_swallowed_C1_regression():
     assert pm2["bulk_protein_ms/tumor"]["verdict"] == "protein_not_detected"
     # collapsed verdict: a protein-only target resolves instead of collapsing
     v, drv = tp._verdict([_fr("protein-abundance-broadly-high-supportive",
-                              "protein-abundance-celline")])
+                              "cellline-protein-abundance")])
     assert v == "protein_broadly_high" and drv is not None
 
 
@@ -120,8 +120,8 @@ def test_measured_protein_outranks_expression_data_unavailable_in_collapsed_spin
     _EXPRESSION_RANK + _PROTEIN_RANK concatenation ranked expression's data_unavailable ABOVE
     every protein rule, silently discarding the protein signal."""
     # strong protein up + expression data_unavailable (the common target-only-CPTAC case:
-    # expression-tumor-vs-adjacent returns data_unavailable for non-COADREAD indications)
-    fired = [_fr("expression-call-data-unavailable-insufficient", "expression-tumor-vs-adjacent"),
+    # tumor-rna-vs-adjacent returns data_unavailable for non-COADREAD indications)
+    fired = [_fr("expression-call-data-unavailable-insufficient", "tumor-rna-vs-adjacent"),
              _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
     v, drv = tp._verdict(fired)
     assert v == "protein_strongly_upregulated"
@@ -168,7 +168,7 @@ def test_breadth_gives_target_only_query_a_tumor_signal():
     presence signal a target-only query gets."""
     # target-only: cell-line RNA + cell-line protein + breadth fire; no per-indication tumor card
     fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
-             _fr("protein-abundance-broadly-high-supportive", "protein-abundance-celline"),
+             _fr("protein-abundance-broadly-high-supportive", "cellline-protein-abundance"),
              _fr("tumor-breadth-multi-supportive", "tumor-elevation-breadth")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_protein_ms/tumor"]["evidence_state"] == "measured"
@@ -197,11 +197,11 @@ def test_breadth_not_elevated_is_neutral_not_killer():
 
 
 def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
-    """The protein-abundance-celline card (E3b) is bulk_protein_ms × cell_line — its
+    """The cellline-protein-abundance card (E3b) is bulk_protein_ms × cell_line — its
     fired rule lands in the bulk_protein_ms/cell_line bucket, DISTINCT from CPTAC's
     bulk_protein_ms/tumor bucket."""
-    assert tp.CARD_CONTEXT["protein-abundance-celline"] == ("bulk_protein_ms", "cell_line")
-    fired = [_fr("protein-abundance-broadly-high-supportive", "protein-abundance-celline")]
+    assert tp.CARD_CONTEXT["cellline-protein-abundance"] == ("bulk_protein_ms", "cell_line")
+    fired = [_fr("protein-abundance-broadly-high-supportive", "cellline-protein-abundance")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_protein_ms/cell_line"]["evidence_state"] == "measured"
     # CPTAC tumor protein bucket stays data_unavailable (no CPTAC card fired)
@@ -289,10 +289,10 @@ def test_verdict_fn_discoverable_by_composer():
 # --- Finding B (2026-08-04): tumor-RNA now moves the verdict -----------------
 
 def test_tumor_rna_distribution_now_resolves_bucket_not_insufficient():
-    """FINDING B: tumor-expression-distribution's rule was emitted by a live card but was
+    """FINDING B: tumor-rna-distribution's rule was emitted by a live card but was
     NOT in the ladder, so bulk_rna/tumor resolved `insufficient` on real tumor-RNA data.
     Now it produces a real presence verdict in its bucket."""
-    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution")]
+    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna/tumor"]["verdict"] == "tumor_broadly_expressed"
     assert pm["bulk_rna/tumor"]["evidence_state"] == "measured"
@@ -307,7 +307,7 @@ def test_tumor_rna_is_appended_below_the_cellline_backbone_byte_stable():
     target firing BOTH a cell-line backbone rule and a tumor-RNA rule keeps its OLD verdict
     (byte-stability): the cell-line broadly-high still wins the collapsed spine."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution")]
+             _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
     v, drv = tp._verdict(fired)
     assert v == "broadly_high_expression"                     # unchanged — backbone wins
     assert drv == "expression-broadly-high-supportive"
@@ -317,8 +317,8 @@ def test_tumor_presence_outranks_differential_down_read():
     """Absolute tumor PRESENCE (broadly_expressed) outranks the differential tumor-vs-adjacent
     DOWN read: a target present in tumors but modestly lower than adjacent normal is still
     PRESENT — the down signal is a selectivity concern for the modality lens, not an absence."""
-    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution"),
-             _fr("expression-modest-downregulation-opposing", "expression-tumor-vs-adjacent")]
+    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+             _fr("expression-modest-downregulation-opposing", "tumor-rna-vs-adjacent")]
     v, _ = tp._verdict(fired)
     assert v == "tumor_broadly_expressed"
 
@@ -328,10 +328,10 @@ def test_tumor_vs_adjacent_down_reads_now_in_ladder():
     through to insufficient. Strong-down is the lowest measured tumor-RNA tier (ranks above
     the data_unavailable sink)."""
     v_strong, drv_s = tp._verdict([_fr("expression-strong-downregulation-degrader-killer",
-                                        "expression-tumor-vs-adjacent")])
+                                        "tumor-rna-vs-adjacent")])
     assert v_strong == "strongly_downregulated_in_tumor" and drv_s is not None
     v_modest, _ = tp._verdict([_fr("expression-modest-downregulation-opposing",
-                                   "expression-tumor-vs-adjacent")])
+                                   "tumor-rna-vs-adjacent")])
     assert v_modest == "modestly_downregulated_in_tumor"
 
 
@@ -341,12 +341,12 @@ def _all_cards_with(subtype_summary):
     """_headline calls get_card_field for EVERY card in CARDS (raises KeyError on a missing id), so a
     headline test must supply the full roster. All empty except the subtype card under test."""
     return [{"card_id": cid, "summary": (subtype_summary
-             if cid == "tumor-expression-distribution-subtype" else {})}
+             if cid == "tumor-rna-distribution-by-subtype" else {})}
             for cid in tp.CARDS]
 
 
 def test_subtype_scope_surfaces_in_headline():
-    """FINDING A: the subtype presence landscape (tumor-expression-distribution-subtype) is now in
+    """FINDING A: the subtype presence landscape (tumor-rna-distribution-by-subtype) is now in
     the headline/audit spine, not just a side table. One-directional facet — it does NOT touch the
     presence_verdict (byte-stable), only adds subtype_* context fields."""
     cards = _all_cards_with({"subtype_axis_available": True, "n_subtypes_measured": 7,

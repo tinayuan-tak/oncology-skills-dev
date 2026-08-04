@@ -30,7 +30,7 @@ methods/<method_name>/read.py
 
 ## Two readers already migrated (this session)
 
-### 1. `expression-tumor-vs-adjacent` — DGE Parquet
+### 1. `tumor-rna-vs-adjacent` — DGE Parquet
 - **Method module**: `methods/dge_deseq2/read.py::read_dge_gene_row(target, manifest_id)`
 - **Skill dispatcher**: `_dispatch_expression_tumor_vs_adjacent(target, indication)` — maps indication → manifest_id, calls the method
 - **Data**: `s3://onc-compbio/data-catalog/derived/COADREAD-dge/df06320/tumor_vs_adjacent.parquet`

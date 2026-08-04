@@ -42,7 +42,7 @@ def _sr(per_lineage=None):
     return {
         "expression": {"skill_dir": "tumor-presence", "cards": [
             {"card_id": "cellline-rna-distribution", "summary": expr},
-            {"card_id": "protein-abundance-celline", "summary": {"protein_expression_class": "broadly_moderate"}},
+            {"card_id": "cellline-protein-abundance", "summary": {"protein_expression_class": "broadly_moderate"}},
             {"card_id": "tumor-elevation-breadth",
              "summary": {"tumor_elevation_breadth_class": "multi_tumor_elevated",
                          "n_cohorts_elevated": 2, "rna_n_indications_elevated": 4}}],
@@ -414,7 +414,7 @@ def test_rail_key_metrics_humanize_enum_values():
     (modest_upregulation, ...) must NOT leak into visible <b> text. Numbers pass through unformatted.
     Uses a REAL classifier label (modest_upregulation with a matching +log2FC) — not a fabricated
     class/value combo."""
-    card = {"card_id": "expression-tumor-vs-adjacent",
+    card = {"card_id": "tumor-rna-vs-adjacent",
             "summary": {"expression_call_class": "modest_upregulation", "log2_fc": 0.8, "q_value": 3e-6}}
     facts = dict(tp._card_key_facts(card))
     assert facts["Call"] == "Modest upregulation"   # humanized, not "modest_upregulation"
