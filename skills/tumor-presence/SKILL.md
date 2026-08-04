@@ -1,13 +1,31 @@
 ---
 name: tumor-presence
 description: |
-  Focused question skill: "Is target X expressed in indication Y's tumor
-  tissue, and how does its expression distribute across cancer cell lines
-  vs. tumor samples?" Consumes 2 wired expression cards:
-    - expression-distribution           (E3a: pan-cancer cell-line TPM distribution)
-    - expression-tumor-vs-adjacent      (bulk tumor RNA-seq DEG vs. paired adjacent)
-  Runs the expression-* rule subset. Emits a data-package output tree with
-  a rank-ordered expression-status verdict.
+  Focused question skill: "Is target X present in indication Y's tumor
+  tissue, and how does it distribute across cancer cell lines vs. tumor
+  samples, at RNA and protein level?" Consumes 10 wired cards in two tiers.
+
+  VERDICT-BEARING (5 cards — feed the rank-ordered presence ladder):
+    - expression-distribution           (cell-line RNA, pan-cancer TPM distribution)
+    - expression-tumor-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
+                                         adjacent, else tumor-vs-GTEx fallback)
+    - protein-presence-cptac            (tumor protein abundance, CPTAC per-cohort)
+    - protein-abundance-celline         (cell-line protein, DepMap/Gygi TMT-MS)
+    - tumor-elevation-breadth           (pan-cancer K-of-N tumor-elevation, target-grain)
+
+  DISPLAY-ONLY facets (5 cards — additive context, feed NO resolver, verdict
+  byte-stable; one-directional gate):
+    - tumor-expression-distribution         (per-sample tumor RNA distribution; rules
+                                             not yet in the verdict ladder — follow-up)
+    - tumor-expression-distribution-subtype (per-molecular-subtype panorama; COADREAD
+                                             shard only, else subtype_axis_available:false)
+    - expression-purity-confound            (is the tumor signal tumor-intrinsic or stromal?)
+    - phospho-pathway-activity              (CPTAC phospho pathway-activity proxy)
+    - rna-protein-concordance               (is RNA an adequate protein proxy?)
+
+  Runs the expression-* + protein-* rule subset over two measurement ladders
+  (bulk_rna, bulk_protein_ms). Emits a data-package output tree with a
+  rank-ordered presence verdict + per-(measurement, sample_context) sub-verdicts.
 
   Use for questions like "is EPCAM expressed in CRC?", "how does MET
   distribute across colon cell lines?", "is CDX2 tumor-elevated relative

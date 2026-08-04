@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """tumor-presence — expression/protein presence for a (target, indication).
 
-Consumes 5 wired presence cards (RNA cell-line + tumor, protein cell-line + tumor
-per-indication + pan-cancer breadth) + their rule subsets. Emits a data-package output
-tree with a rank-ordered presence verdict + per-(measurement, sample_context) sub-verdicts.
+Consumes 10 wired cards in two tiers (see CARDS below + SKILL.md):
+  VERDICT-BEARING (5, feed the presence ladder): expression-distribution (cell-line RNA),
+    expression-tumor-vs-adjacent (tumor RNA), protein-presence-cptac (tumor protein),
+    protein-abundance-celline (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
+  DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-expression-distribution,
+    tumor-expression-distribution-subtype, expression-purity-confound, phospho-pathway-activity,
+    rna-protein-concordance.
+Emits a data-package output tree with a rank-ordered presence verdict + per-(measurement,
+sample_context) sub-verdicts.
 
 W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
 Slice B3 (2026-07-21): + tumor-elevation-breadth (the target-grain tumor signal).
+Card roster grew 2->10 across the expression-extraction plan (Q1/Q5/Q8/Q9 + protein + breadth + subtype).
 """
 
 from __future__ import annotations
