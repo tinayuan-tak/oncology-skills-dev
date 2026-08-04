@@ -34,6 +34,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -180,13 +181,18 @@ def _parse_existing_index(index_path: Path) -> list[dict]:
             if ":" in tok:
                 cid, cc = tok.split(":", 1)
                 class_calls[cid.strip()] = cc.strip()
+        # Path cell is written as [`rel/path`](rel/path/) — extract the content
+        # between the first pair of backticks. The old strip("`").split("`")[0]
+        # returned the literal "[" because strip only removes leading/trailing chars.
+        m = re.search(r'`([^`]+)`', path)
+        parsed_path = m.group(1) if m else path
         rows.append({
             "package_id": pkg,
             "indication": ind,
             "generated_at": gen_at,
             "headline": headline.replace("\\|", "|"),
             "class_calls": class_calls,
-            "path": path.strip("`").split("`")[0] if "`" in path else path,
+            "path": parsed_path,
         })
     return rows
 

@@ -647,10 +647,19 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     if not is_surface or tm_count == 0:
         fit_class = "neither_viable"
     else:
-        adc_favorable = (tm_count == 1 and ec_length >= 200 and
-                         endo_high_conf >= 3 and n_ubiq >= 5)
-        tce_favorable = (tm_count >= 1 and ec_length >= 100 and
-                         endo_high_conf <= 2 and n_ubiq <= 3)
+        # ADC: single-pass TM, large ectodomain for antibody engagement, high endocytosis
+        # for payload delivery. n_ubiq is a POSITIVE signal for ADC (promotes recycling)
+        # but not a minimum requirement — a target with moderate ubiquitination can still
+        # be ADC-viable if endo is high. Removed n_ubiq >= 5 requirement so ADC/TCE can
+        # overlap (both_viable) when a target has good surface architecture + high endo
+        # + moderate ubiquitination.
+        adc_favorable = (tm_count == 1 and ec_length >= 200 and endo_high_conf >= 3)
+        # TCE: bridges T-cell to tumor surface — endocytosis is irrelevant (TCE doesn't
+        # require internalization). Low ubiquitination preferred (high ubiq → fast
+        # internalization → target disappears before T-cell engagement). Removed the old
+        # endo_high_conf <= 2 requirement which made ADC and TCE mutually exclusive
+        # (ADC requires endo >= 3; TCE previously required endo <= 2).
+        tce_favorable = (tm_count >= 1 and ec_length >= 100 and n_ubiq <= 3)
         if adc_favorable and tce_favorable:
             fit_class = "both_viable"
         elif adc_favorable:

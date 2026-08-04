@@ -1,0 +1,201 @@
+"""Regression tests for compose-dashboard batch-3 correctness fixes.
+
+C3 — _live_readers ADC/TCE both_viable branch permanently unreachable:
+     adc_favorable requires endo_high_conf >= 3; tce_favorable requires
+     endo_high_conf <= 2 — mutually exclusive, so both_viable never fires.
+
+C4 — _synthesis fit_level="strong" assigned before primary_total_in_scope==0
+     check — dominant-signal path can produce "strong" with zero cards in scope.
+
+C5 — _parse_existing_index path cell format is [`path`](path/) — the parser
+     strips backticks incorrectly, returning the literal string '[' on 2nd run.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+import textwrap
+
+import pytest
+
+SKILL_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SKILL_DIR / "scripts"))
+
+from _live_readers import _dispatch_adc_tce_modality_fit  # noqa: E402
+from compose_dashboard import _parse_existing_index  # noqa: E402
+from _synthesis import synthesize  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# C3 — both_viable reachability
+# ---------------------------------------------------------------------------
+
+def _topo(tm=1, ec=200, endo_hc=3, n_ubiq=5) -> dict:
+    return {
+        "tm_pass_count": tm,
+        "extracellular_residue_count": ec,
+        "endocytosis_motif_count_high_confidence": endo_hc,
+        "n_ubiquitination_sites": n_ubiq,
+    }
+
+def _family(is_surface=True) -> dict:
+    return {"is_surface_protein": is_surface, "family_class": "RTK"}
+
+
+def _fit_class(topology: dict, family: dict | None = None) -> str:
+    """Extract fit_class by patching _dispatch_surface_topology_and_ptm etc."""
+    import unittest.mock as mock
+    with mock.patch("_live_readers._dispatch_surface_topology_and_ptm",
+                    return_value=topology), \
+         mock.patch("_live_readers._dispatch_surfaceome_family_classification",
+                    return_value=(family or _family())), \
+         mock.patch("_live_readers._dispatch_structure_features_static",
+                    return_value={}):
+        return _dispatch_adc_tce_modality_fit("GENE", "NSCLC")["fit_class"]
+
+
+def test_both_viable_is_reachable():
+    """A target with ADC topology AND low n_ubiq should be both_viable (C3 regression).
+
+    ADC (fixed): tm=1, ec>=200, endo_hc>=3  (n_ubiq >= 5 requirement removed)
+    TCE (fixed): tm>=1, ec>=100, n_ubiq<=3  (endo_hc <= 2 requirement removed)
+    Overlap is now possible: high endo + low n_ubiq satisfies both.
+    """
+    result = _fit_class(_topo(tm=1, ec=250, endo_hc=3, n_ubiq=3))
+    assert result == "both_viable", (
+        f"Expected both_viable for high-endo + low-ubiq topology, got {result!r}"
+    )
+
+
+def test_adc_preferred_when_high_n_ubiq():
+    """High n_ubiq blocks TCE → ADC_preferred when endo high."""
+    result = _fit_class(_topo(tm=1, ec=250, endo_hc=4, n_ubiq=6))
+    assert result == "ADC_preferred", (
+        f"High n_ubiq: expected ADC_preferred, got {result!r}"
+    )
+
+
+def test_tce_preferred_low_endo():
+    """Low endo_hc, low n_ubiq → TCE_preferred."""
+    result = _fit_class(_topo(tm=1, ec=150, endo_hc=1, n_ubiq=2))
+    assert result == "TCE_preferred", f"Got {result!r}"
+
+
+def test_neither_viable_when_not_surface():
+    """Non-surface protein → neither_viable regardless of endo."""
+    result = _fit_class(_topo(), _family(is_surface=False))
+    assert result == "neither_viable"
+
+
+# ---------------------------------------------------------------------------
+# C4 — fit_level "strong" with zero cards in scope
+# ---------------------------------------------------------------------------
+
+def _run_plan_for(modality: str, primary_cards: list[str],
+                  dominant_calls_by_card: dict | None = None) -> dict:
+    """Minimal run_plan with one modality module."""
+    return {
+        "axis_resolution": {"status": "resolved", "resolved_axis": "target-profile"},
+        "input_context": {"target_symbol": "GENE", "indication": "NSCLC"},
+        "loaded_modality_modules": [{
+            "modality": modality,
+            "synthesis_emphasis": {
+                "primary_cards": primary_cards,
+                "secondary_cards": [],
+                "modality_killer_conditions": [],
+            },
+        }],
+    }
+
+
+def _card_out(card_id: str, call: str, excluded: bool = False) -> dict:
+    return {
+        "card_id": card_id,
+        "interpretation_call": call,
+        "excluded_by_applies_when": excluded,
+        "summary": {},
+    }
+
+
+def test_zero_in_scope_dominant_does_not_produce_strong():
+    """When the sole primary card is excluded, fit_level must not be 'strong' (C4)."""
+    run_plan = _run_plan_for("small_molecule", ["card-a"])
+    cards = [_card_out("card-a", "dominant_call", excluded=True)]
+    # Patch _build_dominant_calls_map to surface the dominant call
+    import unittest.mock as mock
+    with mock.patch("_synthesis._build_dominant_calls_map",
+                    return_value={"card-a": {"dominant_call"}}):
+        result = synthesize(run_plan, cards, contracts_root=None)
+    fit = result["modality_fit_assessment"][0]
+    assert fit["fit_level"] != "strong", (
+        f"Expected fit_level != strong when all primaries excluded, got {fit['fit_level']!r}"
+    )
+    assert fit["fit_level"] == "insufficient_evidence", (
+        f"Expected insufficient_evidence, got {fit['fit_level']!r}"
+    )
+
+
+def test_dominant_with_cards_in_scope_still_strong():
+    """Dominant signal + 2 cards in scope should still produce strong (sanity)."""
+    run_plan = _run_plan_for("small_molecule", ["card-a", "card-b"])
+    cards = [
+        _card_out("card-a", "dominant_call"),
+        _card_out("card-b", "positive_call"),
+    ]
+    import unittest.mock as mock
+    with mock.patch("_synthesis._build_dominant_calls_map",
+                    return_value={"card-a": {"dominant_call"}}):
+        result = synthesize(run_plan, cards, contracts_root=None)
+    fit = result["modality_fit_assessment"][0]
+    assert fit["fit_level"] == "strong", f"Got {fit['fit_level']!r}"
+
+
+# ---------------------------------------------------------------------------
+# C5 — _parse_existing_index path round-trip
+# ---------------------------------------------------------------------------
+
+def _make_index_md(paths: list[str]) -> str:
+    """Minimal INDEX.md with the format compose_dashboard writes."""
+    lines = [
+        "# GENE — evidence-package index",
+        "",
+        "| Generated | Indication | Package | Path | Class calls | Headline |",
+        "|---|---|---|---|---|---|",
+    ]
+    for i, p in enumerate(paths):
+        lines.append(
+            f"| 2026-08-01T00:00:00 | NSCLC | `pkg-{i}` | "
+            f"[`{p}`]({p}/) | dep: high | A headline |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def test_path_round_trips_correctly(tmp_path):
+    """Path cell [`rel/path`](rel/path/) must parse back to 'rel/path', not '[' (C5)."""
+    idx = tmp_path / "INDEX.md"
+    idx.write_text(_make_index_md(["GENE/NSCLC/pkg-0/20260801"]))
+    rows = _parse_existing_index(idx)
+    assert len(rows) == 1
+    assert rows[0]["path"] == "GENE/NSCLC/pkg-0/20260801", (
+        f"Path round-trip failed: got {rows[0]['path']!r}"
+    )
+
+
+def test_path_not_literal_bracket(tmp_path):
+    """Specifically verify the '[' bug is gone."""
+    idx = tmp_path / "INDEX.md"
+    idx.write_text(_make_index_md(["some/deep/rel/path"]))
+    rows = _parse_existing_index(idx)
+    assert rows[0]["path"] != "[", "C5 regression: path still parsing to '['"
+
+
+def test_multiple_rows_parse_correctly(tmp_path):
+    """Multiple rows with different paths all round-trip."""
+    paths = ["A/NSCLC/pkg1/2026", "B/CRC/pkg2/2026", "C/HNSC/pkg3/2026"]
+    idx = tmp_path / "INDEX.md"
+    idx.write_text(_make_index_md(paths))
+    rows = _parse_existing_index(idx)
+    assert len(rows) == 3
+    parsed = {r["path"] for r in rows}
+    assert parsed == set(paths), f"Path mismatch: {parsed} vs {set(paths)}"
