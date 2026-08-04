@@ -146,8 +146,27 @@ _EXPRESSION_RANK: list[tuple[str, str]] = [
     ("expression-broadly-moderate-neutral",             "broadly_moderate_expression"),
     ("expression-broadly-low-degrader-killer",          "broadly_low_expression"),
     ("expression-call-not-informative-degrader-killer", "not_informative"),
+    # ── Per-sample TUMOR RNA (tumor-expression-distribution) + the tumor-vs-adjacent DOWN reads ──
+    # APPENDED 2026-08-04 (Finding B): these tumor-context rules were emitted by live cards but were
+    # NOT in the ladder, so the bulk_rna/tumor bucket resolved `insufficient` even with real tumor-RNA
+    # data (verified: EGFR/COADREAD, tumor median log2TPM 3.28 on 669 samples → insufficient). Placed
+    # BELOW every pre-existing measured rule so NO currently-resolving verdict changes (the higher
+    # existing rule always wins the collapsed spine) — purely additive: targets that previously fired
+    # ONLY these (→ insufficient) now resolve, and the per-modality bulk_rna/tumor bucket (which sees
+    # only tumor-context rules) now produces a real presence verdict. Presence semantics: absolute
+    # tumor presence (broadly_expressed) outranks the differential DOWN reads — a target modestly lower
+    # than adjacent normal is still PRESENT (the down signal is a selectivity concern for the modality
+    # lens, not an absence). tumor-expression-broadly-low is NEUTRAL not a killer (per-INDICATION low
+    # cannot kill a target-wide nomination — the card's own rationale).
+    ("tumor-expression-broadly-high-supportive",        "tumor_broadly_expressed"),
+    ("tumor-expression-broadly-moderate-neutral",       "tumor_moderately_expressed"),
+    ("tumor-expression-broadly-low-neutral",            "tumor_sparsely_expressed"),
+    ("expression-modest-downregulation-opposing",       "modestly_downregulated_in_tumor"),
+    ("expression-strong-downregulation-degrader-killer", "strongly_downregulated_in_tumor"),
+    # ── coverage gaps sink to the bottom (measured-first invariant) ──
     ("expression-data-unavailable-insufficient",        "data_unavailable"),
     ("expression-call-data-unavailable-insufficient",   "data_unavailable"),
+    ("tumor-expression-data-unavailable-insufficient",  "data_unavailable"),
 ]
 
 # bulk_protein_ms ladder. Presence-positive tiers first; measured-absence (the
@@ -328,6 +347,16 @@ def _headline(cards, fired, verdict_pair):
         # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
         "rna_as_biomarker":         get_card_field(cards, "rna-protein-concordance", "rna_as_biomarker"),
         "rna_protein_r":            get_card_field(cards, "rna-protein-concordance", "rna_protein_r"),
+        # SUBTYPE SCOPE (Finding A, 2026-08-04) — the per-molecular-subtype presence landscape from
+        # tumor-expression-distribution-subtype, ELEVATED into the audit spine so the subtype scope is
+        # visible here, not just in a side table (_per_subgroup_metrics.csv). One-directional / non-veto
+        # (like the other facets — feeds NO resolver ladder; presence_verdict byte-stable). Degrades
+        # honestly: subtype_scope_available=False for indications with no landed assignment shard
+        # (only COADREAD today) — a NAMED gap, not silence.
+        "subtype_scope_available":  get_card_field(cards, "tumor-expression-distribution-subtype", "subtype_axis_available"),
+        "n_subtypes_measured":      get_card_field(cards, "tumor-expression-distribution-subtype", "n_subtypes_measured"),
+        "n_subtypes_enriched":      get_card_field(cards, "tumor-expression-distribution-subtype", "n_subtypes_enriched"),
+        "spotlight_subtype":        get_card_field(cards, "tumor-expression-distribution-subtype", "spotlight_subtype"),
     }
 
 

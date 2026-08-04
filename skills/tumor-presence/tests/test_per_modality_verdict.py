@@ -284,3 +284,88 @@ def test_card_context_matches_target_contracts_specs():
 
 def test_verdict_fn_discoverable_by_composer():
     assert hasattr(tp, "_verdict") or hasattr(tp, "_snapshot")
+
+
+# --- Finding B (2026-08-04): tumor-RNA now moves the verdict -----------------
+
+def test_tumor_rna_distribution_now_resolves_bucket_not_insufficient():
+    """FINDING B: tumor-expression-distribution's rule was emitted by a live card but was
+    NOT in the ladder, so bulk_rna/tumor resolved `insufficient` on real tumor-RNA data.
+    Now it produces a real presence verdict in its bucket."""
+    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["bulk_rna/tumor"]["verdict"] == "tumor_broadly_expressed"
+    assert pm["bulk_rna/tumor"]["evidence_state"] == "measured"
+    # and it resolves the collapsed verdict (was insufficient pre-fix)
+    v, drv = tp._verdict(fired)
+    assert v == "tumor_broadly_expressed"
+    assert drv == "tumor-expression-broadly-high-supportive"
+
+
+def test_tumor_rna_is_appended_below_the_cellline_backbone_byte_stable():
+    """The new tumor-RNA rules rank BELOW every pre-existing measured expression rule, so a
+    target firing BOTH a cell-line backbone rule and a tumor-RNA rule keeps its OLD verdict
+    (byte-stability): the cell-line broadly-high still wins the collapsed spine."""
+    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+             _fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution")]
+    v, drv = tp._verdict(fired)
+    assert v == "broadly_high_expression"                     # unchanged — backbone wins
+    assert drv == "expression-broadly-high-supportive"
+
+
+def test_tumor_presence_outranks_differential_down_read():
+    """Absolute tumor PRESENCE (broadly_expressed) outranks the differential tumor-vs-adjacent
+    DOWN read: a target present in tumors but modestly lower than adjacent normal is still
+    PRESENT — the down signal is a selectivity concern for the modality lens, not an absence."""
+    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution"),
+             _fr("expression-modest-downregulation-opposing", "expression-tumor-vs-adjacent")]
+    v, _ = tp._verdict(fired)
+    assert v == "tumor_broadly_expressed"
+
+
+def test_tumor_vs_adjacent_down_reads_now_in_ladder():
+    """The tumor-vs-adjacent DOWN rules (previously excluded) now resolve rather than falling
+    through to insufficient. Strong-down is the lowest measured tumor-RNA tier (ranks above
+    the data_unavailable sink)."""
+    v_strong, drv_s = tp._verdict([_fr("expression-strong-downregulation-degrader-killer",
+                                        "expression-tumor-vs-adjacent")])
+    assert v_strong == "strongly_downregulated_in_tumor" and drv_s is not None
+    v_modest, _ = tp._verdict([_fr("expression-modest-downregulation-opposing",
+                                   "expression-tumor-vs-adjacent")])
+    assert v_modest == "modestly_downregulated_in_tumor"
+
+
+# --- Finding A (2026-08-04): subtype scope elevated to the headline ----------
+
+def _all_cards_with(subtype_summary):
+    """_headline calls get_card_field for EVERY card in CARDS (raises KeyError on a missing id), so a
+    headline test must supply the full roster. All empty except the subtype card under test."""
+    return [{"card_id": cid, "summary": (subtype_summary
+             if cid == "tumor-expression-distribution-subtype" else {})}
+            for cid in tp.CARDS]
+
+
+def test_subtype_scope_surfaces_in_headline():
+    """FINDING A: the subtype presence landscape (tumor-expression-distribution-subtype) is now in
+    the headline/audit spine, not just a side table. One-directional facet — it does NOT touch the
+    presence_verdict (byte-stable), only adds subtype_* context fields."""
+    cards = _all_cards_with({"subtype_axis_available": True, "n_subtypes_measured": 7,
+                             "n_subtypes_enriched": 2, "spotlight_subtype": None})
+    h = tp._headline(cards, [], ("insufficient", None))
+    assert h["subtype_scope_available"] is True
+    assert h["n_subtypes_measured"] == 7
+    assert h["n_subtypes_enriched"] == 2
+    # verdict is untouched by the subtype facet
+    assert h["presence_verdict"] == "insufficient"
+
+
+def test_subtype_scope_degrades_honestly_when_no_shard():
+    """No assignment shard (non-COADREAD indication) → subtype_scope_available False, a NAMED gap
+    surfaced in the spine rather than a silent omission."""
+    cards = _all_cards_with({"subtype_axis_available": False, "n_subtypes_measured": 0,
+                             "n_subtypes_enriched": 0, "spotlight_subtype": None})
+    h = tp._headline(cards, [], ("broadly_moderate_expression", "expression-broadly-moderate-neutral"))
+    assert h["subtype_scope_available"] is False
+    assert h["n_subtypes_measured"] == 0
+    # presence_verdict still resolves from its own signal, unaffected
+    assert h["presence_verdict"] == "broadly_moderate_expression"
