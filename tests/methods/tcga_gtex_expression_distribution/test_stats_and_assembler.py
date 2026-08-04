@@ -319,7 +319,7 @@ def test_cli_subtype_svg_and_plotly_emit(tmp_path, monkeypatch):
 
 def test_cli_subtype_panorama_carries_full_per_subgroup_metrics(monkeypatch):
     """build_subtype_panorama returns the FULL per-stratum table as per_subgroup_metrics — the
-    shape the tumor-expression-distribution-subtype card declares."""
+    shape the tumor-rna-distribution-by-subtype card declares."""
     import importlib
     cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
     _wire_subtype(monkeypatch, pooled_vals=[4.0] * 40 + [2.0] * 40,

@@ -57,7 +57,7 @@ def build_summary(target: str, indication: str) -> dict:
     summary["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(tumor, normal)
     # Subtype ROLLUP only (COMPUTE-ALL happens in the assembler; the POOLED card carries only the
     # scalars + the FEW decision-relevant non-uniform strata). The full per-stratum panorama belongs
-    # on the sibling tumor-expression-distribution-subtype card via build_subtype_panorama — cramming
+    # on the sibling tumor-rna-distribution-by-subtype card via build_subtype_panorama — cramming
     # all 11 strata into the pooled card overflows the synthesis prompt's per-card char cap and the
     # tail strata get truncated (measured end-to-end). Grain-split: pooled = rollup, subtype = panorama.
     land = _read.read_tumor_expression_subtype_landscape(target, indication)
@@ -79,7 +79,7 @@ def build_summary(target: str, indication: str) -> dict:
 
 
 def build_subtype_panorama(target: str, indication: str) -> dict:
-    """The target_subtype-grain panorama for the tumor-expression-distribution-subtype card.
+    """The target_subtype-grain panorama for the tumor-rna-distribution-by-subtype card.
 
     Returns the FULL per-stratum landscape as `per_subgroup_metrics` (the framework's panorama
     record field) plus the cross-stratum rollup scalars — the shape the subtype card declares.

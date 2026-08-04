@@ -47,7 +47,7 @@ def test_card_applies_when_matches_the_reader_allowlist():
     """Layer 4 (reader map) and layer 5 (card applies_when) must list the SAME indications — a
     cross-repo lockstep guard. Skips gracefully if target-contracts isn't checked out alongside."""
     card = REPO.parent / "rnd-computational-biology-oncology-target-contracts" / "cards" / \
-        "tumor-expression-distribution-subtype.card.yaml"
+        "tumor-rna-distribution-by-subtype.card.yaml"
     if not card.exists():
         pytest.skip("target-contracts not checked out alongside")
     text = card.read_text()
