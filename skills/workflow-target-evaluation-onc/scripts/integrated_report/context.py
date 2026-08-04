@@ -26,6 +26,29 @@ from .parsers import (
 REGISTRY_PATH = (
     Path(__file__).resolve().parents[2] / "configs" / "modality_classes.yaml"
 )
+SCORING_RULES_PATH = (
+    Path(__file__).resolve().parents[2] / "configs" / "scoring_rules.yaml"
+)
+
+def _load_scholar_weights() -> dict[str, float]:
+    """Read ScholarEval dimension weights from scoring_rules.yaml (authoritative source).
+    Falls back to hardcoded values so the renderer stays functional if the config
+    file is temporarily absent (e.g. in isolated unit tests)."""
+    try:
+        with open(SCORING_RULES_PATH) as f:
+            rules = yaml.safe_load(f)
+        dims = rules.get("scholareval", {}).get("dimensions", {})
+        weights = {k: float(v["weight"]) for k, v in dims.items() if "weight" in v}
+        if weights:
+            return weights
+    except (OSError, KeyError, TypeError):
+        pass
+    return {
+        'differential_expression': 0.15, 'pathway_relevance': 0.15,
+        'druggability': 0.15, 'genetic_validation': 0.10,
+        'disease_association': 0.10, 'safety_profile': 0.15,
+        'clinical_validation': 0.10, 'biomarker_potential': 0.10,
+    }
 
 
 def _load_rule_descriptions() -> dict[str, str]:
@@ -226,9 +249,9 @@ def _build_recommendation_context(
     """
     full = risk.recommendation or scholar.recommendation or 'TBD'
     rec_upper = full.upper()
-    is_go = 'GO' in rec_upper and 'NO-GO' not in rec_upper
-    is_conditional = 'CONDITIONAL' in rec_upper and not is_go
     is_no_go = 'NO-GO' in rec_upper
+    is_conditional = 'CONDITIONAL' in rec_upper and not is_no_go
+    is_go = 'GO' in rec_upper and not is_no_go and not is_conditional
 
     if is_no_go:
         badge_color = 'RED'
@@ -346,7 +369,7 @@ def _build_idas_context(
     else:
         alignment_summary = f'Limited alignment in {n_total} priority whitespaces'
 
-    linear_fc = 2 ** abs(idas.on_target_tox_log2fc)
+    linear_fc = 2 ** idas.on_target_tox_log2fc
     direction = '↑' if idas.on_target_tox_log2fc > 0 else '↓' if idas.on_target_tox_log2fc < 0 else '='
     tox_summary = (
         f'{idas.on_target_tox_risk} risk '
@@ -372,7 +395,7 @@ def _build_comparisons_context(
     """Tumor vs Adjacent / GTEx pairwise rows for §3.2."""
     rows = []
     for c in comparisons:
-        linear_fc = 2 ** abs(c.log2fc)
+        linear_fc = 2 ** c.log2fc
         direction = '↑' if c.log2fc > 0 else '↓' if c.log2fc < 0 else '='
         # Risk-level convention from §3.2 narrative:
         # LOW: >2× vs adjacent, MEDIUM: 1.5-2×, HIGH: <1.5×.
@@ -401,12 +424,7 @@ def _build_comparisons_context(
 
 def _build_scholar_context(scholar: ScholarEvalResult) -> dict[str, Any]:
     """8-dimension table + total + audit metadata."""
-    weights = {
-        'differential_expression': 0.15, 'pathway_relevance': 0.15,
-        'druggability': 0.15, 'genetic_validation': 0.10,
-        'disease_association': 0.10, 'safety_profile': 0.15,
-        'clinical_validation': 0.10, 'biomarker_potential': 0.10,
-    }
+    weights = _load_scholar_weights()
     display_names = {
         'differential_expression': 'Differential Expression',
         'pathway_relevance': 'Pathway Relevance',

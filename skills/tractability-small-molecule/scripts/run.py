@@ -79,6 +79,11 @@ def _snapshot(fired: list[dict]) -> tuple[str, str | None]:
         return "tool_compound_only", "prism-tool-compound-only-weak-supportive-sm"
     if "prism-weakly-active-weak-supportive-sm" in fired_by_id:
         return "weakly_active", "prism-weakly-active-weak-supportive-sm"
+    # --- Opposing / negative reads (must precede structural positives) ---
+    # e7-discordant signals that chemical activity is off-target — a druggable pocket
+    # does not redeem a target where the compound's effect is mechanistically unlinked.
+    if "e7-discordant-off-target-warning" in fired_by_id:
+        return "discordant", "e7-discordant-off-target-warning"
     # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
     # Ranked below any real chemical hit, above chemically_unhit — a druggable pocket
     # is a positive SM prospect even before a compound exists (the KRAS-G12C fix).
@@ -86,9 +91,6 @@ def _snapshot(fired: list[dict]) -> tuple[str, str | None]:
         return "structurally_ligandable", "hotspot-in-druggable-pocket-sm-supportive-e8"
     if "structure-pocket-adjacent-sm-supportive" in fired_by_id:
         return "structurally_ligandable", "structure-pocket-adjacent-sm-supportive"
-    # --- Opposing / negative reads ---
-    if "e7-discordant-off-target-warning" in fired_by_id:
-        return "discordant", "e7-discordant-off-target-warning"
     if "structure-low-confidence-sm-opposing" in fired_by_id:
         return "structurally_intractable", "structure-low-confidence-sm-opposing"
     if "prism-no-compounds-found-neutral" in fired_by_id:

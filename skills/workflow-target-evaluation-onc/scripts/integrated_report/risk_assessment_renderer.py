@@ -516,12 +516,15 @@ def _derive_overall_risk(categories: dict[str, dict[str, Any]]) -> str:
         return 'HIGH'
     if any(lev == 'MEDIUM-HIGH' for lev in levels):
         return 'MEDIUM-HIGH'
-    has_med = any('MEDIUM' in lev for lev in levels)
+    has_medium = any(lev == 'MEDIUM' for lev in levels)
+    has_low_medium = any(lev == 'LOW-MEDIUM' for lev in levels)
     has_low = any(lev == 'LOW' for lev in levels)
-    if has_med and has_low:
+    if has_medium and (has_low or has_low_medium):
         return 'LOW-MEDIUM'
-    if has_med:
+    if has_medium:
         return 'MEDIUM'
+    if has_low_medium:
+        return 'LOW-MEDIUM'
     return 'LOW'
 
 

@@ -360,8 +360,9 @@ class ScoringEngine:
         """Score safety profile based on expression patterns."""
         rules = self.rules["omics_scoring"]["safety_profile"]
 
-        # Evaluate conditions
-        score = 2.0
+        # Evaluate conditions — floor values (YAML's lowest tier) so a
+        # parse-miss doesn't silently return a mid-range score.
+        score = 1
         risk = "HIGH"
         rule = "default"
 
@@ -522,13 +523,11 @@ class ScoringEngine:
                 weighted = dimension_scores[dim_name].score * weight_info["weight"]
                 total_score += weighted
 
-        # Determine assessment
+        # Determine assessment label from score thresholds
         assessment = "Poor"
-        recommendation = "NO-GO"
         for threshold in thresholds:
             if total_score >= threshold["min_score"]:
                 assessment = threshold["label"]
-                recommendation = threshold["recommendation"]
                 break
 
         # Count high-risk categories
@@ -537,7 +536,9 @@ class ScoringEngine:
             if s.risk_level == "HIGH"
         )
 
-        # Apply recommendation rules
+        # Recommendation comes solely from _apply_recommendation_rules, which
+        # supersedes the threshold table's recommendation field. The threshold
+        # table is authoritative only for the assessment label.
         recommendation = self._apply_recommendation_rules(
             total_score,
             high_risk_count,
