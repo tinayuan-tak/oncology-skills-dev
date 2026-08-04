@@ -212,6 +212,10 @@ def test_patient_methylation_upgrade_logic():
         fgs_read._load_sample_cancer_types = _sample_ct
         fgs_read._absolute_segments_cached = _segs_cached
         fgs_read._read_patient_methylation = _meth
+        # force the LIVE full-object path (this test patches live-path internals; the
+        # product path would shadow them). Mirrors test_two_hit_product_readpath's fallback.
+        orig_two_hit = fgs_read._read_two_hit_evidence
+        fgs_read._read_two_hit_evidence = lambda _t: None
 
         result = fgs_read._read_patient_arm("TESTGENE", "KIRC")
     finally:
@@ -220,6 +224,7 @@ def test_patient_methylation_upgrade_logic():
         fgs_read._load_sample_cancer_types = orig_sct
         fgs_read._absolute_segments_cached = orig_segs
         fgs_read._read_patient_methylation = orig_meth
+        fgs_read._read_two_hit_evidence = orig_two_hit
         fgs_read._load_sample_cancer_types.cache_clear()
         fgs_read._absolute_segments_cached.cache_clear()
 
@@ -266,6 +271,8 @@ def test_patient_methylation_graceful_degradation():
         fgs_read._load_sample_cancer_types = _sample_ct
         fgs_read._absolute_segments_cached = _segs_cached
         fgs_read._read_patient_methylation = _no_meth
+        orig_two_hit = fgs_read._read_two_hit_evidence
+        fgs_read._read_two_hit_evidence = lambda _t: None
 
         result = fgs_read._read_patient_arm("TESTGENE", "KIRC")
     finally:
@@ -274,6 +281,7 @@ def test_patient_methylation_graceful_degradation():
         fgs_read._load_sample_cancer_types = orig_sct
         fgs_read._absolute_segments_cached = orig_segs
         fgs_read._read_patient_methylation = orig_meth
+        fgs_read._read_two_hit_evidence = orig_two_hit
         fgs_read._load_sample_cancer_types.cache_clear()
         fgs_read._absolute_segments_cached.cache_clear()
 

@@ -187,20 +187,109 @@ def _loh_homdel_at_locus(segs, sample: str, chrom: float, pos: float):
     return (loh, homdel)
 
 
+# ── Phase-2 accelerator: the precomputed gene-SORTED two-hit evidence product ──────────────────────
+# Replaces the ~1.6 GB per-query full-object read (MC3 + ABSOLUTE + GISTIC) with a per-gene pushdown
+# scan. The product stores only ALTERED (gene, patient) rows (has_mutation OR cn_class∈{homdel,loss});
+# an absent row is provably wt (classify rule 6), reconstructed from the indication's patient set. The
+# classifier + roll-up below are UNCHANGED, so the summary is byte-identical to the live path (verified:
+# KRAS/TP53/APC/PTEN in COADREAD). Methylation stays a separate gene-pushdown read, applied identically.
+TWO_HIT_PRODUCT_S3_URI = ("s3://onc-compbio/data-catalog/derived/"
+                          "pancan-genomic-two-hit-per-gene/v1/functional_gene_state_evidence.parquet")
+
+
+@lru_cache(maxsize=64)
+def _read_two_hit_evidence(target: str):
+    """Pushdown-read ONE gene's altered-patient evidence rows from the precomputed product (DGE-shape
+    true remote pruning: pyarrow.fs.S3FileSystem reads only matching row-groups over the wire).
+    Returns a tuple of row dicts (possibly empty = gene present but no altered patients) or None if the
+    product is unreachable → caller falls back to the live MC3+ABSOLUTE+GISTIC read."""
+    try:
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+        path = TWO_HIT_PRODUCT_S3_URI.replace("s3://", "", 1)
+        s3 = fs.S3FileSystem()
+        table = pq.read_table(path, filesystem=s3,
+                              filters=[("gene_symbol", "=", target.upper())])
+        return tuple(table.to_pylist())
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _reconstruct_patient_arm(target: str, indication: str, cancer_types, ind_patients: set,
+                             rows) -> dict:
+    """Reconstruct the patient-arm summary from the product's altered rows + the indication's patient
+    set (absent row → wt), applying the SAME classifier + methylation upgrade + roll-up as the live
+    path. Byte-identical to _read_patient_arm_live for the genetic-state fields."""
+    by_patient = {}
+    for r in rows:
+        if r.get("patient_barcode") in ind_patients:
+            by_patient[r["patient_barcode"]] = r
+    methylation = _read_patient_methylation(target, indication)
+
+    states: list[str] = []
+    for patient in sorted(ind_patients):
+        row = by_patient.get(patient)
+        if row is None:
+            ev = SampleEvidence(has_mutation=False, cn_class=None, loh_at_locus=None,
+                                mutation_is_lof=None)
+        else:
+            ev = SampleEvidence(
+                has_mutation=bool(row["has_mutation"]),
+                cn_class=row.get("cn_class"),                 # None or homdel/loss/neutral/gain
+                loh_at_locus=row.get("loh_at_locus"),         # None / True / False
+                mutation_is_lof=row.get("mutation_is_lof"))   # None / True / False
+        genetic_state = classify_functional_state(ev)
+
+        is_methylated: Optional[bool] = methylation.get(patient)
+        if is_methylated is True:
+            if genetic_state == "wt":
+                state = "epigenetic"
+            elif genetic_state == "monoallelic":
+                state = "biallelic+epigenetic"
+            else:
+                state = genetic_state
+        else:
+            state = genetic_state
+        states.append(state)
+
+    summ = summarize_states(states)
+    n_ind = len(ind_patients)
+    n_mutated = sum(1 for r in by_patient.values() if r.get("has_mutation"))
+    summ.update({"_arm": "patient", "indication": indication,
+                 "n_mutated": n_mutated,
+                 "fraction_mutated": (n_mutated / n_ind) if n_ind else None,
+                 "tcga_projects": list(cancer_types),
+                 "loh_source": "pancanatlas_absolute_point_in_interval",
+                 "cn_source": "gistic_thresholded_per_gene",
+                 "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None,
+                 "_read_path": "two_hit_product_v1"})
+    return summ
+
+
 def _read_patient_arm(target: str, indication: str) -> dict:
-    """Patient (TCGA) functional-gene-state distribution for (target, indication)."""
+    """Patient (TCGA) functional-gene-state distribution. Prefers the precomputed two-hit product
+    (per-gene pushdown); falls back to the live full-object read when the product is unreachable."""
     cancer_types = INDICATION_TO_TCGA.get(indication.upper().strip())
     sample_ct = _load_sample_cancer_types()
     if not sample_ct or not cancer_types:
         return {"_arm": "patient", "state": "data_unavailable",
                 "_note": "no sample→cancer-type map or unmapped indication"}
-
-    # the indication's patient barcodes
     ind_patients = {pb for pb, ct in sample_ct.items() if ct in cancer_types}
     if not ind_patients:
         return {"_arm": "patient", "state": "data_unavailable",
                 "_note": f"no TCGA samples for indication {indication}"}
 
+    rows = _read_two_hit_evidence(target)
+    if rows is not None:
+        return _reconstruct_patient_arm(target, indication, cancer_types, ind_patients, rows)
+    # product unreachable → live read.
+    return _read_patient_arm_live(target, indication, cancer_types, sample_ct, ind_patients)
+
+
+def _read_patient_arm_live(target: str, indication: str, cancer_types, sample_ct,
+                           ind_patients: set) -> dict:
+    """The original live full-object read (fallback). Reads one gene's MC3 rows, the cached ABSOLUTE
+    segments, and one gene's GISTIC row, then classifies + rolls up."""
     mc3 = _read_mc3_gene(target)
     if mc3 is None:
         return {"_arm": "patient", "state": "data_unavailable", "_note": "MC3 read failed"}
@@ -288,7 +377,8 @@ def _read_patient_arm(target: str, indication: str) -> dict:
                  "tcga_projects": list(cancer_types),
                  "loh_source": "pancanatlas_absolute_point_in_interval",
                  "cn_source": "gistic_thresholded_per_gene",
-                 "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None})
+                 "methylation_source": "pancanatlas_hm450_promoter_v1" if methylation else None,
+                 "_read_path": "live_full_object"})
     return summ
 
 
