@@ -624,6 +624,17 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     topology = _dispatch_surface_topology_and_ptm(target, indication) or {}
     family = _dispatch_surfaceome_family_classification(target, indication) or {}
     structure = _dispatch_structure_features_static(target, indication) or {}
+    # NOTE (2026-08-04): the card's derived_from declares structure-features-static, and this
+    # dispatcher fetches `structure` — but the fit_class rubric below keys ONLY on topology + family
+    # (TM count / ECD length / endocytosis / ubiquitination), because structure-features-static is an
+    # SM/degrader pocket-druggability signal (hotspot_pocket_adjacency / pLDDT / disorder), NOT an
+    # extracellular-epitope-quality signal. The prior code fetched `structure` and then dropped it on
+    # the floor — a wasted read AND an unhonored derived_from. Rather than force an unrelated SM signal
+    # into the biologics fit_class (wrong biology) OR delete the fetch (contradicts the card contract),
+    # we SURFACE it as an explicit `structure_epitope_context` passthrough so the composed card carries
+    # the structure signal it declares, WITHOUT changing fit_class. Scoring an ECD-disorder epitope-
+    # quality rule off pLDDT/disordered_fraction is a deliberate follow-on (verdict-affecting, needs a
+    # rule + golden regen) — tracked in the surface build plan, not this verdict-neutral wiring fix.
     # Compose fit_class biology-agnostic categorical from the three biology
     # inputs. Letter grades are lens-conditional — emitted only if modality
     # lens is invoked at target-profile time; dispatcher only emits biology.
@@ -661,6 +672,14 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         "is_tce_topology_favorable": tm_count >= 1 and ec_length >= 100,
         "surface_family_class": family.get("family_class"),
         "isoform_selective_suppressed": bool(topology.get("isoform_selective_warning")),
+        # structure-features-static passthrough (honors the card's derived_from) — carried for
+        # display + a future ECD-epitope-quality rule; does NOT feed fit_class today. Empty/None
+        # when the structure product is unavailable (the reader returns 'no_structure').
+        "structure_epitope_context": {
+            "hotspot_pocket_adjacency_call": structure.get("hotspot_pocket_adjacency_call"),
+            "alphafold_confidence_class": structure.get("alphafold_confidence_class"),
+            "disordered_fraction": structure.get("disordered_fraction"),
+        },
         "_data_source": "adc-tce-modality-fit (composed card; no direct S3 product)",
     }
 
