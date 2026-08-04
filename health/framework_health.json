@@ -1,15 +1,15 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T19:49:02.547807+00:00",
+  "generated_at": "2026-08-04T20:19:16.351484+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "contracts": "/tmp/fh-unproven",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "f4dda2b",
+    "contracts": "a56651f",
     "skills": "ce203f3",
     "methods": "977e148",
     "products": "1f73e51",
@@ -19,10 +19,11 @@
     "n_skills": 18,
     "verdict_tally": {
       "placeholder": 2,
-      "production_ready": 7,
-      "partial": 9
+      "production_ready": 5,
+      "partial": 9,
+      "ready_unproven": 2
     },
-    "n_drift_flags": 43,
+    "n_drift_flags": 42,
     "n_error_drift": 0,
     "n_unregistered_skills": 14,
     "n_live_reader_cards": 53,
@@ -35,7 +36,7 @@
       "blocked": 4
     },
     "n_orphan_cards": 9,
-    "n_cards_consumed_but_no_spec": 39,
+    "n_cards_consumed_but_no_spec": 31,
     "n_datasets": 221,
     "n_datasets_in_catalog": 211,
     "n_orphan_datasets": 181,
@@ -727,7 +728,7 @@
       ],
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
-      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "dependency",
       "risk_category": "biological",
       "framework_can_evidence": "partial"
@@ -1037,7 +1038,7 @@
       ],
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
-      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "genomic_alteration",
       "risk_category": "biological",
       "framework_can_evidence": "captured"
@@ -2685,7 +2686,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "warn",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-protein-abundance-cptac"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
         }
       ],
       "health_verdict": "partial",
@@ -3312,16 +3313,11 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: cellline-protein-abundance, cellline-rna-distribution, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype, tumor-rna-vs-adjacent"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "warn",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype"
         }
       ],
-      "health_verdict": "production_ready",
-      "health_reason": "skill-production-ready",
-      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "health_verdict": "ready_unproven",
+      "health_reason": "skill-ready-unproven",
+      "reason_text": "wired + tested and core-card readers work, but no core card has fired in a real package yet (ready, unproven)",
       "gate_short": "expression",
       "risk_category": "biological",
       "framework_can_evidence": "captured"
@@ -3442,9 +3438,9 @@
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-vs-normal-percentile-crossing"
         }
       ],
-      "health_verdict": "production_ready",
-      "health_reason": "skill-production-ready",
-      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "health_verdict": "ready_unproven",
+      "health_reason": "skill-ready-unproven",
+      "reason_text": "wired + tested and core-card readers work, but no core card has fired in a real package yet (ready, unproven)",
       "gate_short": "selectivity",
       "risk_category": "biological",
       "framework_can_evidence": "captured"
@@ -3659,9 +3655,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "cellline-rna-distribution",
@@ -3734,9 +3732,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "clingen-dosage",
@@ -4162,9 +4162,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "functional-gene-state",
@@ -4841,9 +4843,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "prism-compound-activity",
@@ -5575,9 +5579,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "tumor-protein-abundance-cptac",
@@ -5609,9 +5615,11 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "tumor-rna-distribution",
@@ -5648,9 +5656,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "tumor-rna-distribution-by-subtype",
@@ -5693,9 +5703,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "tumor-rna-vs-adjacent",
@@ -9373,7 +9385,7 @@
         "id": "skill:tumor-presence",
         "layer": "skill",
         "label": "tumor-presence",
-        "health": "production_ready",
+        "health": "ready_unproven",
         "kind": "FOCUSED",
         "risk_category": "biological"
       },
@@ -9381,7 +9393,7 @@
         "id": "skill:tumor-selectivity",
         "layer": "skill",
         "label": "tumor-selectivity",
-        "health": "production_ready",
+        "health": "ready_unproven",
         "kind": "FOCUSED",
         "risk_category": "biological"
       },
@@ -11177,7 +11189,7 @@
       "skill": "target-profile",
       "code": "card_consumed_but_no_spec",
       "severity": "warn",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-protein-abundance-cptac"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
     },
     {
       "skill": "tractability-small-molecule",
@@ -11202,12 +11214,6 @@
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: cellline-protein-abundance, cellline-rna-distribution, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype, tumor-rna-vs-adjacent"
-    },
-    {
-      "skill": "tumor-presence",
-      "code": "card_consumed_but_no_spec",
-      "severity": "warn",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype"
     },
     {
       "skill": "tumor-selectivity",

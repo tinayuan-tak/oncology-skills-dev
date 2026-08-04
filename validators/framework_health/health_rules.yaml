@@ -153,6 +153,8 @@ skill_health:
     when: {declared.status: partial}
     reason: "declared partial and no stronger signal overrides it"
 
+  # PROVEN: wired + tested AND at least one verdict-driving card has actually FIRED
+  # in a real evidence package (end-to-end demonstrated).
   - id: skill-production-ready
     verdict: production_ready
     when:
@@ -161,7 +163,20 @@ skill_health:
         - {derived.kind__in: [FOCUSED, COMPOSED]}
         - {has_tests: true}
         - {core_cards_healthy: true}
-    reason: "wired, has entrypoint + tests, and all verdict-driving (core) cards are live"
+        - {core_cards_fired: true}
+    reason: "wired + tested, and ≥1 core card has fired in a real package (proven end-to-end)"
+
+  # UNPROVEN: wired + tested, core-card readers all work (live-or-partial), but NONE
+  # has fired in a real package yet — should work, not yet demonstrated end-to-end.
+  - id: skill-ready-unproven
+    verdict: ready_unproven
+    when:
+      all:
+        - {derived.has_entrypoint: true}
+        - {derived.kind__in: [FOCUSED, COMPOSED]}
+        - {has_tests: true}
+        - {core_cards_healthy: true}
+    reason: "wired + tested and core-card readers work, but no core card has fired in a real package yet (ready, unproven)"
 
   - id: skill-default
     verdict: partial

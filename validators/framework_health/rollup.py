@@ -188,12 +188,17 @@ def roll_up_skill(skill: dict, cards: list[dict], drift: list[dict], rules: dict
     core_cards_healthy = bool(core) and all(
         c.get("card_health") in ("live", "partial") for c in core
     )
+    # PROVEN vs UNPROVEN: has at least one core card actually FIRED in a real
+    # package (card_health == live)? If cores are all "partial" (readers work but
+    # nothing has fired end-to-end yet), the skill is ready-but-unproven, not proven.
+    core_cards_fired = any(c.get("card_health") == "live" for c in core)
 
     ctx = {
         **skill,
         "has_error_drift": any(d["severity"] == "error" for d in drift),
         "has_unhealthy_cards": len(unhealthy) > 0,
         "core_cards_healthy": core_cards_healthy,
+        "core_cards_fired": core_cards_fired,
         "consumes_cards": len(cards) > 0,
         "has_tests": der.get("test_count", 0) > 0,
     }

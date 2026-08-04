@@ -179,6 +179,35 @@ def test_fires_dominates_missing_method():
     assert verdict == "live" and reason == "card-live-fired"
 
 
+def _skill_for_rollup(cards):
+    return {
+        "name": "s", "declared": {"status": None, "prose_markers": [], "rules_scope": []},
+        "derived": {"kind": "FOCUSED", "has_entrypoint": True, "test_count": 1},
+    }
+
+
+def test_ready_unproven_vs_production_ready():
+    """The proven/unproven split + TRUTHFUL reason text (the reported bug: a skill
+    read production_ready 'all core cards live' while 0/N were live)."""
+    rules = rollup.load_rules()
+
+    # all core cards partial (readers work, nothing fired) -> ready_unproven, and the
+    # reason must NOT claim cards are live.
+    partial_cards = [{"card_id": "c1", "card_health": "partial"},
+                     {"card_id": "c2", "card_health": "partial"}]
+    node = rollup.roll_up_skill(_skill_for_rollup(partial_cards), partial_cards, [], rules)
+    assert node["health_verdict"] == "ready_unproven"
+    assert "live" not in node["reason_text"].lower() or "readers work" in node["reason_text"].lower()
+    assert "no core card has fired" in node["reason_text"]
+
+    # ≥1 core card fired -> production_ready (proven)
+    fired_cards = [{"card_id": "c1", "card_health": "live"},
+                   {"card_id": "c2", "card_health": "partial"}]
+    node2 = rollup.roll_up_skill(_skill_for_rollup(fired_cards), fired_cards, [], rules)
+    assert node2["health_verdict"] == "production_ready"
+    assert "fired in a real package" in node2["reason_text"]
+
+
 def test_match_operators():
     ctx = {"a": 1, "b": {"c": "x"}, "k": "partial"}
     assert rollup._match({}, ctx) is True                       # empty always matches

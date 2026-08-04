@@ -73,7 +73,7 @@ def stable_projection(report: dict) -> str:
 
 
 # Enums the committed artifact must conform to (kept in sync with health_rules.yaml).
-_SKILL_VERDICTS = {"production_ready", "partial", "placeholder", "broken_or_drift"}
+_SKILL_VERDICTS = {"production_ready", "ready_unproven", "partial", "placeholder", "broken_or_drift"}
 _CARD_HEALTHS = {"live", "partial", "blocked", "placeholder", "broken"}
 
 

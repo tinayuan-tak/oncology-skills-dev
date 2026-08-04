@@ -16,9 +16,11 @@ import json
 
 # Status color ramp (from the coverage-matrix slide palette).
 _GREEN, _AMBER, _RED, _GREY, _PURPLE = "#0ca30c", "#fab219", "#c0392b", "#898781", "#6c5aa8"
+_TEAL = "#199e70"   # ready_unproven: works-but-not-yet-fired (distinct from proven green)
 
 SKILL_COLORS = {
     "production_ready": _GREEN,
+    "ready_unproven": _TEAL,
     "partial": _AMBER,
     "placeholder": _GREY,
     "broken_or_drift": _RED,
@@ -34,7 +36,8 @@ SEVERITY_COLORS = {"error": _RED, "warn": _AMBER, "info": _PURPLE}
 
 # Plain-language glosses shown on hover (title=) so outsiders needn't learn the vocab.
 SKILL_GLOSS = {
-    "production_ready": "wired + tested, and its verdict-driving data is flowing",
+    "production_ready": "wired + tested, and ≥1 core card has fired in a real package (proven)",
+    "ready_unproven": "wired + tested, readers work, but no core card has fired in a real package yet",
     "partial": "works, but some consumed data hasn't landed / fired yet",
     "placeholder": "question declared, not yet wired to any data",
     "broken_or_drift": "declared status contradicts what's actually on disk",
@@ -182,6 +185,7 @@ def _summary_cards(report: dict) -> str:
     t = s["verdict_tally"]
     return _stat_strip([
         ("ready", t.get("production_ready", 0), _GREEN),
+        ("ready (unproven)", t.get("ready_unproven", 0), _TEAL),
         ("partial", t.get("partial", 0), _AMBER),
         ("placeholder", t.get("placeholder", 0), _GREY),
         ("drift", t.get("broken_or_drift", 0), _RED),
@@ -523,9 +527,12 @@ def _headline(report: dict) -> str:
     g = report.get("graph") or {}
     n_res = (g.get("layer_counts") or {}).get("resolver", 0)
     ready, partial = t.get("production_ready", 0), t.get("partial", 0)
+    unproven = t.get("ready_unproven", 0)
     placeholder = t.get("placeholder", 0)
     broken = t.get("broken_or_drift", 0)
-    bits = [f"<b>{ready}</b> skills production-ready"]
+    bits = [f"<b>{ready}</b> skills proven production-ready"]
+    if unproven:
+        bits.append(f"<b>{unproven}</b> ready but unproven (wired, not yet fired end-to-end)")
     if partial:
         bits.append(f"<b>{partial}</b> partial — data-wiring is the active frontier")
     if placeholder:
