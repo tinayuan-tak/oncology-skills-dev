@@ -54,6 +54,11 @@ outputs:
     - subtype_axis_available                    # is a shard landed for this indication?
     - n_subtypes_measured                       # strata clearing the n-floor
     - n_subtypes_enriched                       # strata flagged subtype_enriched
+    - n_subtypes_restricted                     # strata flagged subtype_restricted (present here, absent pooled)
+    - subtype_stratification_class              # graded patient-selection signal → biomarker facet stratification_role
+                                                # (subtype_restricted_with_window > subtype_restricted > subtype_enriched
+                                                #  > pan_subtype_uniform > subtype_axis_unavailable). One-directional:
+                                                #  raises CONFIDENCE / defines patient population, NEVER moves presence_verdict.
     - n_subtypes_clearing_normal_window         # strata where >=50% of tumors clear the (matched) normal p95
     - n_subtypes_clearing_proxy_window_by_tissue # {proxy_tissue: count} — the PROXY analogue (multi-valued);
                                                  # null on matched/none comparators (mutually exclusive w/ the above)
