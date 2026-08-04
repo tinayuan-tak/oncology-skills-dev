@@ -1,0 +1,2808 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-08-04T14:27:25.799427+00:00",
+  "roots": {
+    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
+    "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
+    "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
+    "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
+  },
+  "root_shas": {
+    "contracts": "592dbb1",
+    "skills": "ab20a16",
+    "methods": "496bc6e",
+    "products": "1f73e51",
+    "catalog": "fd8858f"
+  },
+  "summary": {
+    "n_skills": 18,
+    "verdict_tally": {
+      "placeholder": 2,
+      "production_ready": 7,
+      "partial": 9
+    },
+    "n_drift_flags": 27,
+    "n_error_drift": 0,
+    "n_unregistered_skills": 14,
+    "n_live_reader_cards": 53,
+    "n_cards_firing_in_real_packages": 15
+  },
+  "registry_drift": {
+    "marketplace_exists": true,
+    "registered": [
+      "analysis-bulk-rna-crc",
+      "analysis-bulk-rna-nsclc",
+      "analysis-protein-crc",
+      "analysis-protein-nsclc",
+      "analysis-sc-rna-crc",
+      "analysis-sc-rna-nsclc",
+      "compose-dashboard",
+      "query-target-evidence",
+      "render-evidence-package",
+      "workflow-target-evaluation-onc"
+    ],
+    "on_disk": [
+      "combo-and-resistance",
+      "compose-dashboard",
+      "differentiation-landscape",
+      "functional-requirement",
+      "genomic-alteration-profile",
+      "mechanism-and-pharmacology",
+      "on-target-safety-liability",
+      "query-target-evidence",
+      "render-evidence-package",
+      "surface-modality-fit",
+      "surfaceome-cohort-ranking",
+      "synthetic-lethal-partners",
+      "target-profile",
+      "tractability-small-molecule",
+      "translational-readiness",
+      "tumor-presence",
+      "tumor-selectivity",
+      "workflow-target-evaluation-onc"
+    ],
+    "unregistered": [
+      "combo-and-resistance",
+      "differentiation-landscape",
+      "functional-requirement",
+      "genomic-alteration-profile",
+      "mechanism-and-pharmacology",
+      "on-target-safety-liability",
+      "surface-modality-fit",
+      "surfaceome-cohort-ranking",
+      "synthetic-lethal-partners",
+      "target-profile",
+      "tractability-small-molecule",
+      "translational-readiness",
+      "tumor-presence",
+      "tumor-selectivity"
+    ]
+  },
+  "skills": [
+    {
+      "name": "combo-and-resistance",
+      "declared": {
+        "status": "not_wired",
+        "phase": [
+          "I"
+        ],
+        "cards_used": [
+          "combo-crispr-screen",
+          "resistance-emergence-signature"
+        ],
+        "rules_scope": [
+          "none"
+        ],
+        "prose_markers": [
+          "not_wired",
+          "placeholder"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "PLACEHOLDER",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": true,
+        "cards_in_runpy": [],
+        "test_count": 0
+      },
+      "cards": [
+        {
+          "card_id": "combo-crispr-screen",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        },
+        {
+          "card_id": "resistance-emergence-signature",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 2,
+      "n_cards_live": 0,
+      "drift_flags": [],
+      "health_verdict": "placeholder",
+      "health_reason": "skill-placeholder",
+      "reason_text": "run.py emits a structured placeholder (emit_placeholder) \u2014 question declared, not wired",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "compose-dashboard",
+      "declared": {
+        "status": "phase1_operational",
+        "phase": null,
+        "cards_used": [],
+        "rules_scope": [],
+        "prose_markers": [],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "_composition.py",
+        "kind": "ORCHESTRATION",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 8
+      },
+      "cards": [],
+      "n_core_cards": 0,
+      "n_cards": 0,
+      "n_cards_live": 0,
+      "drift_flags": [],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-support-ready",
+      "reason_text": "support skill: has entrypoint + tests, no card dependencies, no drift",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "differentiation-landscape",
+      "declared": {
+        "status": "partial",
+        "phase": [
+          "E"
+        ],
+        "cards_used": [
+          "co-mutation-and-mutual-exclusivity",
+          "expression-clinical-association",
+          "clinical-precedent",
+          "patent-landscape"
+        ],
+        "rules_scope": [
+          "co-mutation-and-mutual-exclusivity"
+        ],
+        "prose_markers": [
+          "graduated",
+          "partial",
+          "placeholder"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "differentiation",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "co-mutation-and-mutual-exclusivity",
+          "expression-clinical-association"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "clinical-precedent",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "clinical_precedent",
+          "has_live_reader": false,
+          "method_call": "query-target-evidence",
+          "dispatch_module": null,
+          "method_dir_exists": false,
+          "method_has_read": false,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-no-path",
+          "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data"
+        },
+        {
+          "card_id": "co-mutation-and-mutual-exclusivity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_cooccurrence",
+          "has_live_reader": true,
+          "method_call": "cooccurrence-fisher-pancohort",
+          "dispatch_module": "cooccurrence_fisher_pancohort",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "expression-clinical-association",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "expression_clinical_association",
+          "has_live_reader": true,
+          "method_call": "expression-clinical-association",
+          "dispatch_module": "expression_clinical_association.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "patent-landscape",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        }
+      ],
+      "n_core_cards": 1,
+      "n_cards": 4,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['clinical-precedent', 'patent-landscape']; only in run.py: [])"
+        },
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: co-mutation-and-mutual-exclusivity, expression-clinical-association"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: expression-clinical-association"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-declared",
+      "reason_text": "declared partial and no stronger signal overrides it",
+      "gate_short": "differentiation",
+      "risk_category": "commercial",
+      "framework_can_evidence": "partial"
+    },
+    {
+      "name": "functional-requirement",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "C"
+        ],
+        "cards_used": [
+          "pan-cancer-crispr-dependency-distribution",
+          "pan-cancer-rnai-dependency-distribution",
+          "crispr-rnai-dependency-concordance",
+          "dependency-lineage-selectivity",
+          "paralog-buffering",
+          "prism-crispr-concordance",
+          "dependency-predictability",
+          "expression-dependency-correlation",
+          "recommended-models",
+          "abundance-dependency"
+        ],
+        "rules_scope": [
+          "pan-cancer-crispr-dependency-distribution",
+          "pan-cancer-rnai-dependency-distribution",
+          "crispr-rnai-dependency-concordance",
+          "dependency-lineage-selectivity",
+          "paralog-buffering",
+          "prism-crispr-concordance",
+          "dependency-predictability"
+        ],
+        "prose_markers": [
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "dependency",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "pan-cancer-crispr-dependency-distribution",
+          "pan-cancer-rnai-dependency-distribution",
+          "crispr-rnai-dependency-concordance",
+          "dependency-lineage-selectivity",
+          "paralog-buffering",
+          "prism-crispr-concordance",
+          "dependency-predictability",
+          "expression-dependency-correlation",
+          "abundance-dependency",
+          "recommended-models"
+        ],
+        "test_count": 5
+      },
+      "cards": [
+        {
+          "card_id": "abundance-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "abundance_dependency_correlation",
+          "has_live_reader": true,
+          "method_call": "abundance-dependency",
+          "dispatch_module": "abundance_dependency.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "crispr-rnai-dependency-concordance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_rnai_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-crispr-rnai-concordance",
+          "dispatch_module": "depmap_crispr_rnai_concordance",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "dependency-lineage-selectivity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_lof_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-chronos",
+          "dispatch_module": "depmap_chronos",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "dependency-predictability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "dependency_predictability",
+          "has_live_reader": true,
+          "method_call": "depmap-predictability",
+          "dispatch_module": "depmap_predictability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "expression-dependency-correlation",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "expression_dependency_correlation",
+          "has_live_reader": true,
+          "method_call": "depmap-expression-dependency",
+          "dispatch_module": "depmap_expression_dependency",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_lof_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-chronos-distribution",
+          "dispatch_module": "depmap_chronos_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "pan-cancer-rnai-dependency-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "rnai_lof_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-demeter-distribution",
+          "dispatch_module": "depmap_demeter_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "paralog-buffering",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "paralog_buffering",
+          "has_live_reader": true,
+          "method_call": "depmap-paralog-aggregator",
+          "dispatch_module": "depmap_paralog_aggregator",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "prism-crispr-concordance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "chemical_genetic_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-prism-crispr-concordance",
+          "dispatch_module": "depmap_prism_crispr_concordance",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "recommended-models",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "patient_model_correspondence",
+          "has_live_reader": true,
+          "method_call": "patient-model-expression-correspondence",
+          "dispatch_module": "patient_model_expression_correspondence.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 7,
+      "n_cards": 10,
+      "n_cards_live": 7,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: abundance-dependency, paralog-buffering, recommended-models"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: abundance-dependency, recommended-models"
+        }
+      ],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "gate_short": "dependency",
+      "risk_category": "biological",
+      "framework_can_evidence": "partial"
+    },
+    {
+      "name": "genomic-alteration-profile",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "A",
+          "E"
+        ],
+        "cards_used": [
+          "mutation-type-counts",
+          "mutation-stratified-dependency",
+          "mutation-hotspot-frequency",
+          "copy-number-distribution",
+          "fusion-rearrangement-landscape",
+          "alteration-role",
+          "functional-gene-state",
+          "genomic-event-model-match"
+        ],
+        "rules_scope": [
+          "mutation-type-counts",
+          "mutation-stratified-dependency",
+          "mutation-hotspot-frequency",
+          "copy-number-distribution"
+        ],
+        "prose_markers": [
+          "placeholder",
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "genomic_alteration",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "mutation-type-counts",
+          "mutation-stratified-dependency",
+          "mutation-hotspot-frequency",
+          "copy-number-distribution",
+          "fusion-rearrangement-landscape",
+          "alteration-role",
+          "functional-gene-state",
+          "genomic-event-model-match"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "alteration-role",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "alteration_role",
+          "has_live_reader": true,
+          "method_call": "driver-role-overlay",
+          "dispatch_module": "driver_role_overlay.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "copy-number-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "copy_number_alteration",
+          "has_live_reader": true,
+          "method_call": "depmap-cn-distribution",
+          "dispatch_module": "depmap_cn_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "functional-gene-state",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "functional_gene_state",
+          "has_live_reader": true,
+          "method_call": "functional-gene-state",
+          "dispatch_module": "functional_gene_state.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "fusion-rearrangement-landscape",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "fusion_rearrangement",
+          "has_live_reader": true,
+          "method_call": "tcga-fusion-consensus",
+          "dispatch_module": "tcga_fusion_consensus",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "genomic-event-model-match",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "genomic_event_model_match",
+          "has_live_reader": true,
+          "method_call": "genomic-event-model-match",
+          "dispatch_module": "genomic_event_model_match.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "mutation-hotspot-frequency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_hotspot_frequency",
+          "has_live_reader": true,
+          "method_call": "gdc-somatic-hotspot",
+          "dispatch_module": "gdc_somatic_hotspot",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "mutation-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_stratified_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-mutation-stratified",
+          "dispatch_module": "depmap_mutation_dependency",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "mutation-type-counts",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_variant_class_spectrum",
+          "has_live_reader": true,
+          "method_call": "depmap-mutation-type-counts",
+          "dispatch_module": "depmap_mutation_type_counts",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        }
+      ],
+      "n_core_cards": 4,
+      "n_cards": 8,
+      "n_cards_live": 4,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, functional-gene-state, genomic-event-model-match, mutation-stratified-dependency"
+        }
+      ],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "gate_short": "genomic_alteration",
+      "risk_category": "biological",
+      "framework_can_evidence": "captured"
+    },
+    {
+      "name": "mechanism-and-pharmacology",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "D"
+        ],
+        "cards_used": [
+          "signaling-network-mechanism"
+        ],
+        "rules_scope": [
+          "all"
+        ],
+        "prose_markers": [
+          "graduated",
+          "placeholder",
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "mechanism",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "signaling-network-mechanism"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "signaling-network-mechanism",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "signaling_network_mechanism",
+          "has_live_reader": true,
+          "method_call": "signor-mechanism-network",
+          "dispatch_module": "mechanism_composed",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 1,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: signaling-network-mechanism"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: signaling-network-mechanism"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": "mechanism",
+      "risk_category": "biological",
+      "framework_can_evidence": "partial"
+    },
+    {
+      "name": "on-target-safety-liability",
+      "declared": {
+        "status": "partial",
+        "phase": [
+          "G"
+        ],
+        "cards_used": [
+          "gnomad-lof-constraint",
+          "normal-tissue-liability",
+          "protein-surface-evidence",
+          "alteration-role"
+        ],
+        "rules_scope": [
+          "gnomad-lof-constraint",
+          "activating-driver-role-safety-context"
+        ],
+        "prose_markers": [
+          "graduated",
+          "not_wired",
+          "partial",
+          "placeholder"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "safety",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "gnomad-lof-constraint",
+          "target-safety-prioritisation",
+          "normal-tissue-liability-gtex",
+          "alteration-role",
+          "clinvar-pathogenicity-safety",
+          "mouse-ko-phenotype",
+          "clingen-dosage",
+          "gene-burden-safety"
+        ],
+        "test_count": 2
+      },
+      "cards": [
+        {
+          "card_id": "alteration-role",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "alteration_role",
+          "has_live_reader": true,
+          "method_call": "driver-role-overlay",
+          "dispatch_module": "driver_role_overlay.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "clingen-dosage",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "dosage_sensitivity_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-clingen-dosage",
+          "dispatch_module": "opentargets_clingen.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "clinvar-pathogenicity-safety",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "clinvar_germline_pathogenicity_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-clinvar-pathogenic",
+          "dispatch_module": "opentargets_clinvar.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "gene-burden-safety",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "human_genetic_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-gene-burden",
+          "dispatch_module": "opentargets_gene_burden.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "gnomad-lof-constraint",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "gnomad_lof_constraint",
+          "has_live_reader": true,
+          "method_call": "gnomad-constraint-lookup",
+          "dispatch_module": "gnomad_constraint",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "mouse-ko-phenotype",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mouse_ko_phenotype_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-mouse-ko-phenotype",
+          "dispatch_module": "opentargets_mouse_phenotype.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "normal_tissue_protein_breadth",
+          "has_live_reader": true,
+          "method_call": "hpa-normal-tissue-liability",
+          "dispatch_module": "hpa_normal_tissue_liability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "normal-tissue-liability-gtex",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "normal_tissue_rna_breadth",
+          "has_live_reader": true,
+          "method_call": "tcga-gtex-expression-distribution",
+          "dispatch_module": "tcga_gtex_expression_distribution.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "protein-surface-evidence",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surface_confirmation",
+          "has_live_reader": true,
+          "method_call": "protein-surface-aggregator",
+          "dispatch_module": "cspa_surface_confirmation",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "target-safety-prioritisation",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "target_safety_prioritisation",
+          "has_live_reader": true,
+          "method_call": "opentargets-target-prioritisation",
+          "dispatch_module": "opentargets_target_prioritisation.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 1,
+      "n_cards": 10,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['normal-tissue-liability', 'protein-surface-evidence']; only in run.py: ['clingen-dosage', 'clinvar-pathogenicity-safety', 'gene-burden-safety', 'mouse-ko-phenotype', 'normal-tissue-liability-gtex', 'target-safety-prioritisation'])"
+        },
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-declared",
+      "reason_text": "declared partial and no stronger signal overrides it",
+      "gate_short": "safety",
+      "risk_category": "safety",
+      "framework_can_evidence": "partial"
+    },
+    {
+      "name": "query-target-evidence",
+      "declared": {
+        "status": null,
+        "phase": null,
+        "cards_used": [],
+        "rules_scope": [],
+        "prose_markers": [],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "query_evidence.py",
+        "kind": "RETRIEVAL",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 0
+      },
+      "cards": [],
+      "n_core_cards": 0,
+      "n_cards": 0,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "missing_status_field",
+          "severity": "warn",
+          "detail": "no machine-readable status: field in SKILL.md frontmatter"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-support-untested",
+      "reason_text": "support skill with no tests (or other soft gap) \u2014 not yet production-ready",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "render-evidence-package",
+      "declared": {
+        "status": "operational",
+        "phase": null,
+        "cards_used": [],
+        "rules_scope": [],
+        "prose_markers": [],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "render_markdown.py",
+        "kind": "ORCHESTRATION",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 1
+      },
+      "cards": [],
+      "n_core_cards": 0,
+      "n_cards": 0,
+      "n_cards_live": 0,
+      "drift_flags": [],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-support-ready",
+      "reason_text": "support skill: has entrypoint + tests, no card dependencies, no drift",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "surface-modality-fit",
+      "declared": {
+        "status": "partial",
+        "phase": [
+          "F"
+        ],
+        "cards_used": [
+          "surface-topology-and-ptm",
+          "surfaceome-family-classification",
+          "structure-features-static",
+          "surface-abundance-density",
+          "adc-tce-modality-fit",
+          "normal-tissue-liability",
+          "copy-number-distribution"
+        ],
+        "rules_scope": [
+          "all"
+        ],
+        "prose_markers": [
+          "partial"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "surface_modality",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "surface-topology-and-ptm",
+          "surfaceome-family-classification",
+          "structure-features-static",
+          "surface-abundance-density",
+          "adc-tce-modality-fit",
+          "normal-tissue-liability",
+          "copy-number-distribution"
+        ],
+        "test_count": 3
+      },
+      "cards": [
+        {
+          "card_id": "adc-tce-modality-fit",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "adc_tce_modality_fit",
+          "has_live_reader": true,
+          "method_call": "adc-tce-modality-fit",
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "copy-number-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "copy_number_alteration",
+          "has_live_reader": true,
+          "method_call": "depmap-cn-distribution",
+          "dispatch_module": "depmap_cn_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "normal_tissue_protein_breadth",
+          "has_live_reader": true,
+          "method_call": "hpa-normal-tissue-liability",
+          "dispatch_module": "hpa_normal_tissue_liability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "structure-features-static",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "structure_druggability",
+          "has_live_reader": true,
+          "method_call": "structure-features-static",
+          "dispatch_module": "structure_features_static",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surface-abundance-density",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surface_density",
+          "has_live_reader": true,
+          "method_call": "surface-abundance-density",
+          "dispatch_module": "cptac_protein_deg",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surface-topology-and-ptm",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surface_topology",
+          "has_live_reader": true,
+          "method_call": "topology-predictions-tmbed",
+          "dispatch_module": "topology_predictions_tmbed",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surfaceome-family-classification",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surfaceome_family",
+          "has_live_reader": true,
+          "method_call": "surfaceome-family-fusion",
+          "dispatch_module": "surfaceome_family_fusion",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 7,
+      "n_cards_live": 1,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, normal-tissue-liability, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: surface-abundance-density"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": "surface_modality",
+      "risk_category": "druggability",
+      "framework_can_evidence": "blind"
+    },
+    {
+      "name": "surfaceome-cohort-ranking",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "F"
+        ],
+        "cards_used": [
+          "surfaceome-cohort-ranking"
+        ],
+        "rules_scope": [
+          "surfaceome-cohort-ranking"
+        ],
+        "prose_markers": [
+          "partial",
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "OTHER",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 0
+      },
+      "cards": [
+        {
+          "card_id": "surfaceome-cohort-ranking",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": true,
+          "method_call": "surfaceome-cohort-ranking",
+          "dispatch_module": "surfaceome_cohort_ranking",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 1,
+      "n_cards": 1,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: surfaceome-cohort-ranking"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-default",
+      "reason_text": "no skill rule matched (fallback)",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "synthetic-lethal-partners",
+      "declared": {
+        "status": null,
+        "phase": null,
+        "cards_used": [
+          "synthetic-lethal-partners"
+        ],
+        "rules_scope": [
+          "sl-experimental-partner-context-conditional",
+          "sl-computational-partner-informational",
+          "sl-no-partner-neutral",
+          "sl-data-unavailable-insufficient"
+        ],
+        "prose_markers": [],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "synthetic_lethal_partners",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "synthetic-lethal-partners"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "synthetic-lethal-partners",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "synthetic_lethal_partner",
+          "has_live_reader": true,
+          "method_call": "synleth-partner-lookup",
+          "dispatch_module": "synleth_partner_lookup",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 1,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "missing_status_field",
+          "severity": "warn",
+          "detail": "no machine-readable status: field in SKILL.md frontmatter"
+        },
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: synthetic-lethal-partners"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": "synthetic_lethal_partners",
+      "risk_category": "biomarker",
+      "framework_can_evidence": "partial"
+    },
+    {
+      "name": "target-profile",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "K"
+        ],
+        "cards_used": [
+          "expression-distribution",
+          "expression-tumor-vs-adjacent",
+          "tumor-vs-normal-selectivity",
+          "protein-presence-cptac",
+          "pan-cancer-crispr-dependency-distribution",
+          "pan-cancer-rnai-dependency-distribution",
+          "crispr-rnai-dependency-concordance",
+          "dependency-lineage-selectivity",
+          "paralog-buffering",
+          "mutation-type-counts",
+          "mutation-stratified-dependency",
+          "mutation-hotspot-frequency",
+          "copy-number-distribution",
+          "fusion-rearrangement-landscape",
+          "co-mutation-and-mutual-exclusivity",
+          "signaling-network-mechanism",
+          "prism-compound-activity",
+          "prism-crispr-concordance",
+          "dependency-predictability",
+          "surface-topology-and-ptm",
+          "surfaceome-family-classification",
+          "structure-features-static",
+          "surface-abundance-density",
+          "adc-tce-modality-fit",
+          "gnomad-lof-constraint"
+        ],
+        "rules_scope": [
+          "all"
+        ],
+        "prose_markers": [
+          "placeholder",
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "COMPOSED",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": true,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 15,
+        "fanout_count": 10,
+        "fanout_members": [
+          "tumor-presence",
+          "tumor-selectivity",
+          "functional-requirement",
+          "synthetic-lethal-partners",
+          "mechanism-and-pharmacology",
+          "genomic-alteration-profile",
+          "differentiation-landscape",
+          "tractability-small-molecule",
+          "surface-modality-fit",
+          "on-target-safety-liability"
+        ]
+      },
+      "cards": [
+        {
+          "card_id": "adc-tce-modality-fit",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "adc_tce_modality_fit",
+          "has_live_reader": true,
+          "method_call": "adc-tce-modality-fit",
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "co-mutation-and-mutual-exclusivity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_cooccurrence",
+          "has_live_reader": true,
+          "method_call": "cooccurrence-fisher-pancohort",
+          "dispatch_module": "cooccurrence_fisher_pancohort",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "copy-number-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "copy_number_alteration",
+          "has_live_reader": true,
+          "method_call": "depmap-cn-distribution",
+          "dispatch_module": "depmap_cn_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "crispr-rnai-dependency-concordance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_rnai_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-crispr-rnai-concordance",
+          "dispatch_module": "depmap_crispr_rnai_concordance",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "dependency-lineage-selectivity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_lof_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-chronos",
+          "dispatch_module": "depmap_chronos",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "dependency-predictability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "dependency_predictability",
+          "has_live_reader": true,
+          "method_call": "depmap-predictability",
+          "dispatch_module": "depmap_predictability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "expression-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "cell_line_rna_expression",
+          "has_live_reader": true,
+          "method_call": "depmap-expression-distribution",
+          "dispatch_module": "depmap_expression_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "expression-tumor-vs-adjacent",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_vs_adjacent_expression",
+          "has_live_reader": true,
+          "method_call": "dge-deseq2",
+          "dispatch_module": "dge_deseq2",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "fusion-rearrangement-landscape",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "fusion_rearrangement",
+          "has_live_reader": true,
+          "method_call": "tcga-fusion-consensus",
+          "dispatch_module": "tcga_fusion_consensus",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "gnomad-lof-constraint",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "gnomad_lof_constraint",
+          "has_live_reader": true,
+          "method_call": "gnomad-constraint-lookup",
+          "dispatch_module": "gnomad_constraint",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "mutation-hotspot-frequency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_hotspot_frequency",
+          "has_live_reader": true,
+          "method_call": "gdc-somatic-hotspot",
+          "dispatch_module": "gdc_somatic_hotspot",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "mutation-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_stratified_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-mutation-stratified",
+          "dispatch_module": "depmap_mutation_dependency",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "mutation-type-counts",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_variant_class_spectrum",
+          "has_live_reader": true,
+          "method_call": "depmap-mutation-type-counts",
+          "dispatch_module": "depmap_mutation_type_counts",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "pan-cancer-crispr-dependency-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_lof_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-chronos-distribution",
+          "dispatch_module": "depmap_chronos_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "pan-cancer-rnai-dependency-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "rnai_lof_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-demeter-distribution",
+          "dispatch_module": "depmap_demeter_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "paralog-buffering",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "paralog_buffering",
+          "has_live_reader": true,
+          "method_call": "depmap-paralog-aggregator",
+          "dispatch_module": "depmap_paralog_aggregator",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "prism-compound-activity",
+          "card_yaml_exists": true,
+          "is_placeholder": true,
+          "placeholder_reason": "placeholder marker in card body",
+          "measurement_type": "prism_compound_activity",
+          "has_live_reader": true,
+          "method_call": "depmap-prism-activity",
+          "dispatch_module": "depmap_prism_activity",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "prism-crispr-concordance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "chemical_genetic_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-prism-crispr-concordance",
+          "dispatch_module": "depmap_prism_crispr_concordance",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "protein-presence-cptac",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_protein_abundance",
+          "has_live_reader": true,
+          "method_call": "cptac-protein-deg",
+          "dispatch_module": "cptac_protein_deg",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "signaling-network-mechanism",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "signaling_network_mechanism",
+          "has_live_reader": true,
+          "method_call": "signor-mechanism-network",
+          "dispatch_module": "mechanism_composed",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "structure-features-static",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "structure_druggability",
+          "has_live_reader": true,
+          "method_call": "structure-features-static",
+          "dispatch_module": "structure_features_static",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surface-abundance-density",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surface_density",
+          "has_live_reader": true,
+          "method_call": "surface-abundance-density",
+          "dispatch_module": "cptac_protein_deg",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surface-topology-and-ptm",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surface_topology",
+          "has_live_reader": true,
+          "method_call": "topology-predictions-tmbed",
+          "dispatch_module": "topology_predictions_tmbed",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surfaceome-family-classification",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surfaceome_family",
+          "has_live_reader": true,
+          "method_call": "surfaceome-family-fusion",
+          "dispatch_module": "surfaceome_family_fusion",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "tumor-vs-normal-selectivity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_vs_normal_selectivity",
+          "has_live_reader": true,
+          "method_call": "dge-tumor-vs-normal-selectivity",
+          "dispatch_module": "dge_deseq2",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 25,
+      "n_cards_live": 13,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, protein-presence-cptac, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-vs-normal-selectivity"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: gnomad-lof-constraint, mutation-stratified-dependency, signaling-network-mechanism, surface-abundance-density, tumor-vs-normal-selectivity"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "tractability-small-molecule",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "F"
+        ],
+        "cards_used": [
+          "prism-compound-activity",
+          "prism-crispr-concordance",
+          "dependency-predictability",
+          "structure-features-static"
+        ],
+        "rules_scope": [
+          "all"
+        ],
+        "prose_markers": [
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "prism-compound-activity",
+          "prism-crispr-concordance",
+          "dependency-predictability",
+          "structure-features-static"
+        ],
+        "test_count": 2
+      },
+      "cards": [
+        {
+          "card_id": "dependency-predictability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "dependency_predictability",
+          "has_live_reader": true,
+          "method_call": "depmap-predictability",
+          "dispatch_module": "depmap_predictability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "prism-compound-activity",
+          "card_yaml_exists": true,
+          "is_placeholder": true,
+          "placeholder_reason": "placeholder marker in card body",
+          "measurement_type": "prism_compound_activity",
+          "has_live_reader": true,
+          "method_call": "depmap-prism-activity",
+          "dispatch_module": "depmap_prism_activity",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "prism-crispr-concordance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "chemical_genetic_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-prism-crispr-concordance",
+          "dispatch_module": "depmap_prism_crispr_concordance",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "structure-features-static",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "structure_druggability",
+          "has_live_reader": true,
+          "method_call": "structure-features-static",
+          "dispatch_module": "structure_features_static",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 4,
+      "n_cards_live": 3,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: structure-features-static"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": "tractability_sm",
+      "risk_category": "druggability",
+      "framework_can_evidence": "partial"
+    },
+    {
+      "name": "translational-readiness",
+      "declared": {
+        "status": "not_wired",
+        "phase": [
+          "J"
+        ],
+        "cards_used": [
+          "models-registry",
+          "pd-assay-catalog",
+          "imaging-tracer-catalog"
+        ],
+        "rules_scope": [
+          "none"
+        ],
+        "prose_markers": [
+          "not_wired",
+          "placeholder"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "PLACEHOLDER",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": true,
+        "cards_in_runpy": [],
+        "test_count": 0
+      },
+      "cards": [
+        {
+          "card_id": "imaging-tracer-catalog",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        },
+        {
+          "card_id": "models-registry",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        },
+        {
+          "card_id": "pd-assay-catalog",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 3,
+      "n_cards_live": 0,
+      "drift_flags": [],
+      "health_verdict": "placeholder",
+      "health_reason": "skill-placeholder",
+      "reason_text": "run.py emits a structured placeholder (emit_placeholder) \u2014 question declared, not wired",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
+    {
+      "name": "tumor-presence",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "A"
+        ],
+        "cards_used": [
+          "expression-distribution",
+          "expression-tumor-vs-adjacent",
+          "protein-presence-cptac",
+          "protein-abundance-celline",
+          "tumor-elevation-breadth",
+          "tumor-expression-distribution",
+          "tumor-expression-distribution-subtype",
+          "expression-purity-confound",
+          "phospho-pathway-activity",
+          "rna-protein-concordance"
+        ],
+        "rules_scope": [
+          "expression-distribution",
+          "expression-tumor-vs-adjacent",
+          "protein-presence-cptac",
+          "protein-abundance-celline",
+          "tumor-elevation-breadth"
+        ],
+        "prose_markers": [
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "expression-distribution",
+          "expression-tumor-vs-adjacent",
+          "protein-presence-cptac",
+          "protein-abundance-celline",
+          "tumor-elevation-breadth",
+          "tumor-expression-distribution",
+          "tumor-expression-distribution-subtype",
+          "expression-purity-confound",
+          "phospho-pathway-activity",
+          "rna-protein-concordance"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "expression-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "cell_line_rna_expression",
+          "has_live_reader": true,
+          "method_call": "depmap-expression-distribution",
+          "dispatch_module": "depmap_expression_distribution",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "expression-purity-confound",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "expression_purity_confound",
+          "has_live_reader": true,
+          "method_call": "expression-purity-confound",
+          "dispatch_module": "expression_purity_confound.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "expression-tumor-vs-adjacent",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_vs_adjacent_expression",
+          "has_live_reader": true,
+          "method_call": "dge-deseq2",
+          "dispatch_module": "dge_deseq2",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "phospho-pathway-activity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "phospho_pathway_activity",
+          "has_live_reader": true,
+          "method_call": "phospho-pathway-activity",
+          "dispatch_module": "phospho_pathway_activity.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "protein-abundance-celline",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "cell_line_protein_abundance",
+          "has_live_reader": true,
+          "method_call": "depmap-protein-abundance-distribution",
+          "dispatch_module": "depmap_protein_abundance",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "protein-presence-cptac",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_protein_abundance",
+          "has_live_reader": true,
+          "method_call": "cptac-protein-deg",
+          "dispatch_module": "cptac_protein_deg",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "rna-protein-concordance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "rna_protein_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-rna-protein-concordance",
+          "dispatch_module": "depmap_rna_protein_concordance.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "tumor-elevation-breadth",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_elevation_breadth",
+          "has_live_reader": true,
+          "method_call": "cptac-tumor-elevation-breadth",
+          "dispatch_module": "cptac_protein_deg",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "tumor-expression-distribution",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_expression_distribution",
+          "has_live_reader": true,
+          "method_call": "tcga-gtex-expression-distribution",
+          "dispatch_module": "tcga_gtex_expression_distribution.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "tumor-expression-distribution-subtype",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_expression_distribution",
+          "has_live_reader": true,
+          "method_call": "tcga-gtex-expression-distribution",
+          "dispatch_module": "tcga_gtex_expression_distribution.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 5,
+      "n_cards": 10,
+      "n_cards_live": 2,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: expression-purity-confound, phospho-pathway-activity, protein-abundance-celline, protein-presence-cptac, rna-protein-concordance, tumor-elevation-breadth, tumor-expression-distribution, tumor-expression-distribution-subtype"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: expression-purity-confound, phospho-pathway-activity, protein-abundance-celline, rna-protein-concordance, tumor-elevation-breadth, tumor-expression-distribution, tumor-expression-distribution-subtype"
+        }
+      ],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "gate_short": "expression",
+      "risk_category": "biological",
+      "framework_can_evidence": "captured"
+    },
+    {
+      "name": "tumor-selectivity",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "B"
+        ],
+        "cards_used": [
+          "tumor-vs-normal-selectivity"
+        ],
+        "rules_scope": [
+          "tumor-vs-normal-selectivity"
+        ],
+        "prose_markers": [
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": "selectivity",
+        "resolver_bound": true,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "tumor-vs-normal-selectivity",
+          "tumor-vs-normal-percentile-crossing"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "tumor-vs-normal-percentile-crossing",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_vs_normal_percentile_crossing",
+          "has_live_reader": true,
+          "method_call": "tcga-gtex-expression-distribution",
+          "dispatch_module": "tcga_gtex_expression_distribution.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "tumor-vs-normal-selectivity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "tumor_vs_normal_selectivity",
+          "has_live_reader": true,
+          "method_call": "dge-tumor-vs-normal-selectivity",
+          "dispatch_module": "dge_deseq2",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 1,
+      "n_cards": 2,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['tumor-vs-normal-percentile-crossing'])"
+        },
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+        }
+      ],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired, has entrypoint + tests, and all verdict-driving (core) cards are live",
+      "gate_short": "selectivity",
+      "risk_category": "biological",
+      "framework_can_evidence": "captured"
+    },
+    {
+      "name": "workflow-target-evaluation-onc",
+      "declared": {
+        "status": null,
+        "phase": null,
+        "cards_used": [],
+        "rules_scope": [],
+        "prose_markers": [],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "generate_facts_from_pubmed.py",
+        "kind": "WORKFLOW",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 15
+      },
+      "cards": [],
+      "n_core_cards": 0,
+      "n_cards": 0,
+      "n_cards_live": 0,
+      "drift_flags": [
+        {
+          "code": "missing_status_field",
+          "severity": "warn",
+          "detail": "no machine-readable status: field in SKILL.md frontmatter"
+        }
+      ],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-support-ready",
+      "reason_text": "support skill: has entrypoint + tests, no card dependencies, no drift",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    }
+  ],
+  "drift_index": [
+    {
+      "skill": "differentiation-landscape",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['clinical-precedent', 'patent-landscape']; only in run.py: [])"
+    },
+    {
+      "skill": "differentiation-landscape",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: co-mutation-and-mutual-exclusivity, expression-clinical-association"
+    },
+    {
+      "skill": "differentiation-landscape",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: expression-clinical-association"
+    },
+    {
+      "skill": "functional-requirement",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: abundance-dependency, paralog-buffering, recommended-models"
+    },
+    {
+      "skill": "functional-requirement",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: abundance-dependency, recommended-models"
+    },
+    {
+      "skill": "genomic-alteration-profile",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
+    },
+    {
+      "skill": "genomic-alteration-profile",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, functional-gene-state, genomic-event-model-match, mutation-stratified-dependency"
+    },
+    {
+      "skill": "mechanism-and-pharmacology",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: signaling-network-mechanism"
+    },
+    {
+      "skill": "mechanism-and-pharmacology",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: signaling-network-mechanism"
+    },
+    {
+      "skill": "on-target-safety-liability",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['normal-tissue-liability', 'protein-surface-evidence']; only in run.py: ['clingen-dosage', 'clinvar-pathogenicity-safety', 'gene-burden-safety', 'mouse-ko-phenotype', 'normal-tissue-liability-gtex', 'target-safety-prioritisation'])"
+    },
+    {
+      "skill": "on-target-safety-liability",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+    },
+    {
+      "skill": "on-target-safety-liability",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+    },
+    {
+      "skill": "query-target-evidence",
+      "code": "missing_status_field",
+      "severity": "warn",
+      "detail": "no machine-readable status: field in SKILL.md frontmatter"
+    },
+    {
+      "skill": "surface-modality-fit",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, normal-tissue-liability, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+    },
+    {
+      "skill": "surface-modality-fit",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: surface-abundance-density"
+    },
+    {
+      "skill": "surfaceome-cohort-ranking",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: surfaceome-cohort-ranking"
+    },
+    {
+      "skill": "synthetic-lethal-partners",
+      "code": "missing_status_field",
+      "severity": "warn",
+      "detail": "no machine-readable status: field in SKILL.md frontmatter"
+    },
+    {
+      "skill": "synthetic-lethal-partners",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: synthetic-lethal-partners"
+    },
+    {
+      "skill": "target-profile",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, protein-presence-cptac, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-vs-normal-selectivity"
+    },
+    {
+      "skill": "target-profile",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: gnomad-lof-constraint, mutation-stratified-dependency, signaling-network-mechanism, surface-abundance-density, tumor-vs-normal-selectivity"
+    },
+    {
+      "skill": "tractability-small-molecule",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: structure-features-static"
+    },
+    {
+      "skill": "tumor-presence",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: expression-purity-confound, phospho-pathway-activity, protein-abundance-celline, protein-presence-cptac, rna-protein-concordance, tumor-elevation-breadth, tumor-expression-distribution, tumor-expression-distribution-subtype"
+    },
+    {
+      "skill": "tumor-presence",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: expression-purity-confound, phospho-pathway-activity, protein-abundance-celline, rna-protein-concordance, tumor-elevation-breadth, tumor-expression-distribution, tumor-expression-distribution-subtype"
+    },
+    {
+      "skill": "tumor-selectivity",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['tumor-vs-normal-percentile-crossing'])"
+    },
+    {
+      "skill": "tumor-selectivity",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+    },
+    {
+      "skill": "tumor-selectivity",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+    },
+    {
+      "skill": "workflow-target-evaluation-onc",
+      "code": "missing_status_field",
+      "severity": "warn",
+      "detail": "no machine-readable status: field in SKILL.md frontmatter"
+    }
+  ]
+}
