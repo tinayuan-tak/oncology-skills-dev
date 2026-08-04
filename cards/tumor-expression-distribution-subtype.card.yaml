@@ -55,6 +55,8 @@ outputs:
     - n_subtypes_measured                       # strata clearing the n-floor
     - n_subtypes_enriched                       # strata flagged subtype_enriched
     - n_subtypes_clearing_normal_window         # strata where >=50% of tumors clear the (matched) normal p95
+    - n_subtypes_clearing_proxy_window_by_tissue # {proxy_tissue: count} — the PROXY analogue (multi-valued);
+                                                 # null on matched/none comparators (mutually exclusive w/ the above)
     - spotlight_subtype                          # the queried stratum (or null — compute-all)
     - assignment_manifest                        # provenance: the shard consumed
     - matched_normal_tissue                      # true GTEx tissue-of-origin (null when none exists)
