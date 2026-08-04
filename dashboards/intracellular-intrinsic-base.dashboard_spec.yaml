@@ -65,8 +65,31 @@ required_cards:
     version: ">=1.0.0,<2"
   - card_id: clinical-precedent
     version: ">=1.0.0,<2"
+  # tumor-presence expansion cards (2026-08-04): the skill grew 2->10 cards across the
+  # expression-extraction plan but they were never added to this composition spec, so they never
+  # fired in an emitted package (framework-health card_consumed_but_no_spec). Added here as required —
+  # each degrades gracefully to data_unavailable when its substrate is absent (same posture as
+  # normal-tissue-liability above), so they never error a package. All target/indication-grain
+  # (subgroup-independent); the subtype-grain sibling is optional below (needs a subgroup scope).
+  - card_id: tumor-protein-abundance-cptac
+    version: ">=1.0.0,<2"        # tumor protein abundance (CPTAC per-cohort)
+  - card_id: cellline-protein-abundance
+    version: ">=1.0.0,<2"        # cell-line protein (Gygi TMT MS) — RNA/protein discordance partner
+  - card_id: tumor-elevation-breadth
+    version: ">=1.0.0,<2"        # pan-cancer K-of-N tumor-elevation (target-grain; rescues target-only queries)
+  - card_id: tumor-rna-distribution
+    version: ">=1.0.0,<2"        # per-sample tumor RNA distribution + matched-normal window
+  - card_id: cellline-rna-protein-concordance
+    version: ">=1.0.0,<2"        # is RNA an adequate protein proxy (cell-line arm)
+  - card_id: expression-purity-confound
+    version: ">=1.0.0,<2"        # is the tumor signal tumor-intrinsic or stromal (facet; verdict-inert)
+  - card_id: phospho-pathway-activity
+    version: ">=1.0.0,<2"        # CPTAC phospho pathway-activity (facet; verdict-inert)
 
 optional_cards:
+  - card_id: tumor-rna-distribution-by-subtype
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"   # per-molecular-subtype presence panorama; needs a subgroup scope + a landed shard
   - card_id: subgroup-stratified-expression
     version: ">=1.0.0,<2"
     when: "subgroup_spec != null"
