@@ -794,6 +794,7 @@ _BIOMARKER_INPUTS = {
                           ("correlation_class", "corroboration"),            # RNA arm expression→dep
                           ("model_correspondence_class", "corroboration")],  # Q4 model-backed dependency
     "expression":        [("rna_as_biomarker", "stratification"),            # Q5 preferred-assay input
+                          ("subtype_stratification_class", "stratification"), # subtype patient-selection (2026-08-04)
                           ("phospho_activity_class", "corroboration"),       # Q8 pathway-active
                           ("purity_confound_class", "corroboration")],       # Q9 signal-is-tumor-intrinsic
     "differentiation":   [("survival_association_class", "stratification")], # Q11 prognostic stratifier

@@ -357,6 +357,10 @@ def _headline(cards, fired, verdict_pair):
         "n_subtypes_measured":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_measured"),
         "n_subtypes_enriched":      get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_enriched"),
         "spotlight_subtype":        get_card_field(cards, "tumor-rna-distribution-by-subtype", "spotlight_subtype"),
+        # Graded patient-selection signal (2026-08-04) — the biomarker facet's stratification input.
+        # One-directional: raises CONFIDENCE / defines patient population, NEVER moves presence_verdict.
+        "subtype_stratification_class": get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_stratification_class"),
+        "n_subtypes_restricted":    get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_restricted"),
     }
 
 

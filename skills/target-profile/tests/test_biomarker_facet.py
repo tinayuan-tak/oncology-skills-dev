@@ -97,3 +97,17 @@ def test_facet_is_verdict_inert_shape():
     f = run._biomarker_facet(_sr(genomic_alteration={"alteration-role": {"alteration_role": "predictive_biomarker"}}))
     assert "overall_recommendation" not in f and "nominate" not in f
     assert "_disclaimer" in f  # states the facet-not-gate contract
+
+
+def test_subtype_stratification_class_is_a_stratification_input_not_a_verdict_promoter():
+    """subtype_stratification_class (2026-08-04) feeds the facet's stratification_role — it defines a
+    patient-selection population (raises confidence) but must NOT promote the facet verdict to
+    strong_selection_biomarker (reserved for GENOMIC stratifiers). One-directional."""
+    sr = _sr(expression={"tumor-rna-distribution-by-subtype":
+                         {"subtype_stratification_class": "subtype_restricted_with_window"}})
+    f = run._biomarker_facet(sr)
+    # captured in the stratification block (visible patient-selection context)
+    assert f["stratification_role"]["subtype_stratification_class"] == "subtype_restricted_with_window"
+    # but NOT a genomic stratifier → verdict is NOT strong_selection_biomarker, assay NOT genomic
+    assert f["verdict"] != "strong_selection_biomarker"
+    assert f["preferred_assay"] != "genomic"
