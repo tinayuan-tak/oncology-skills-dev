@@ -40,3 +40,17 @@ def test_hnsc_and_paad_are_subtype_enabled_but_differ_in_comparator():
     assert "PAAD" in R.INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST
     assert "HNSC" not in R.INDICATION_TO_GTEX_TISSUE and "HNSC" in R.INDICATION_TO_PROXY_NORMAL_TISSUES
     assert "PAAD" in R.INDICATION_TO_GTEX_TISSUE and "PAAD" not in R.INDICATION_TO_PROXY_NORMAL_TISSUES
+
+
+def test_proxy_rollup_is_per_tissue_and_matched_rollup_is_scalar():
+    """The matched window rollup is a single scalar (n_subtypes_clearing_normal_window); the proxy
+    rollup is a PER-TISSUE map (n_subtypes_clearing_proxy_window_by_tissue) because proxy windows are
+    multi-valued. The two are mutually exclusive: matched → scalar set + proxy None; proxy → map set +
+    matched None. This structural contract is what a consumer relies on to not conflate them."""
+    import inspect
+    src = inspect.getsource(R.read_tumor_expression_subtype_landscape)
+    # matched rollup keyed on the matched fraction; proxy rollup keyed per proxy tissue
+    assert "n_subtypes_clearing_normal_window" in src
+    assert "n_subtypes_clearing_proxy_window_by_tissue" in src
+    # proxy rollup is built as a {tissue: count} dict only under proxy_normals (never with a true normal)
+    assert "for tissue in proxy_normals" in src

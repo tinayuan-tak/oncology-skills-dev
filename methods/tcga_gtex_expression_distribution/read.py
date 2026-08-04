@@ -600,6 +600,20 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                     if r["evidence_state"] == "measured"
                     and (r.get("fraction_tumor_above_normal_p95") or 0) >= 0.5)
                 if normal_vals else None)
+    # Per-PROXY rollup (2026-08-04): the matched rollup above is a single count, but proxy windows are
+    # MULTI-VALUED (one per proxy tissue) — a squamous-TF target can clear the salivary window in most
+    # subtypes yet the skin window in few (the TP63/HNSC case). A single proxy count would over-simplify
+    # that, so this is a {proxy_tissue: n_measured_subtypes_clearing_its_p95_in_>=50%} map, mirroring the
+    # matched threshold. None when there is no proxy channel (a matched or absent comparator).
+    n_window_by_proxy = None
+    if proxy_normals:
+        n_window_by_proxy = {}
+        for tissue in proxy_normals:
+            n_window_by_proxy[tissue] = sum(
+                1 for r in landscape if r["evidence_state"] == "measured"
+                and any((pw.get("proxy_tissue") == tissue
+                         and (pw.get("fraction_tumor_above_proxy_p95") or 0) >= 0.5)
+                        for pw in (r.get("proxy_normal_windows") or [])))
     # Comparator provenance: matched (true tissue-of-origin), proxy (histological analogue, weaker),
     # or none (neither available). Kept explicit so a consumer NEVER mistakes a proxy for a matched
     # normal — the window numbers mean different things and must be weighted differently.
@@ -610,7 +624,8 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                  "normal_comparator_type": comparator_type,
                  "proxy_normal_tissues": sorted(proxy_normals.keys()) if proxy_normals else [],
                  "n_subtypes_measured": n_measured, "n_subtypes_enriched": n_enriched,
-                 "n_subtypes_clearing_normal_window": n_window})
+                 "n_subtypes_clearing_normal_window": n_window,
+                 "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy})
     return base
 
 
