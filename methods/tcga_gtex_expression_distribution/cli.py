@@ -98,6 +98,8 @@ def build_subtype_panorama(target: str, indication: str) -> dict:
         # inside per_subgroup_metrics; these are the cross-stratum rollup + the matched/proxy label).
         "n_subtypes_clearing_normal_window": land.get("n_subtypes_clearing_normal_window"),
         "n_subtypes_clearing_proxy_window_by_tissue": land.get("n_subtypes_clearing_proxy_window_by_tissue"),
+        "n_subtypes_restricted": land.get("n_subtypes_restricted"),
+        "subtype_stratification_class": land.get("subtype_stratification_class"),
         "matched_normal_tissue": land.get("matched_normal_tissue"),
         "normal_comparator_type": land.get("normal_comparator_type"),
         "proxy_normal_tissues": land.get("proxy_normal_tissues") or [],

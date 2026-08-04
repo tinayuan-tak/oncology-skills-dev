@@ -451,6 +451,36 @@ def _classify_subtype_signal(stratum_median, pooled_median, detectable_fraction,
     return "subtype_uniform"
 
 
+def _stratum_clears_window(rec: dict) -> bool:
+    """Does this stratum clear its matched-normal OR any proxy p95 in >=50% of its tumors?"""
+    if (rec.get("fraction_tumor_above_normal_p95") or 0) >= 0.5:
+        return True
+    return any((pw.get("fraction_tumor_above_proxy_p95") or 0) >= 0.5
+               for pw in (rec.get("proxy_normal_windows") or []))
+
+
+def classify_subtype_stratification(landscape: list) -> str:
+    """Graded patient-selection class from a subtype landscape — the biomarker facet's stratification
+    input (NOT the presence verdict; one-directional). A subtype_restricted target (present in ONE
+    subtype, absent pooled) is the selection signal; graded by whether a restricted subtype ALSO clears
+    its normal/proxy window (present + therapeutic window in a defined subpopulation = strongest):
+      subtype_restricted_with_window > subtype_restricted > subtype_enriched > pan_subtype_uniform
+      > subtype_axis_unavailable (no measured strata). A subtype_DEPLETED stratum is NOT a positive
+      selection opportunity (it does not raise the class). Pure fn — read.py + tests share it (no drift)."""
+    measured = [r for r in landscape if r.get("evidence_state") == "measured"]
+    restricted = [r for r in measured if r.get("subtype_signal") == "subtype_restricted"]
+    enriched = [r for r in measured if r.get("subtype_signal") == "subtype_enriched"]
+    if restricted and any(_stratum_clears_window(r) for r in restricted):
+        return "subtype_restricted_with_window"
+    if restricted:
+        return "subtype_restricted"
+    if enriched:
+        return "subtype_enriched"
+    if measured:
+        return "pan_subtype_uniform"
+    return "subtype_axis_unavailable"
+
+
 def read_tumor_expression_subtype_landscape(target: str, indication: str,
                                             subtype: Optional[str] = None) -> dict:
     """Subtype-stratified tumor expression for a (target, indication).
@@ -482,7 +512,8 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     base["spotlight_subtype"] = subtype
     if manifest is None or pooled.get("tumor_expression_class") == "data_unavailable":
         base.update({"subtype_axis_available": False, "subtype_landscape": [],
-                     "n_subtypes_measured": 0, "n_subtypes_enriched": 0,
+                     "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
+                     "subtype_stratification_class": "subtype_axis_unavailable",
                      "_subtype_note": ("no landed tumor assignment shard for this indication"
                                        if manifest is None
                                        else "target absent — no per-subtype distribution")})
@@ -493,7 +524,8 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         assignments = load_assignments(manifest)
     except Exception as e:  # noqa: BLE001
         base.update({"subtype_axis_available": False, "subtype_landscape": [],
-                     "n_subtypes_measured": 0, "n_subtypes_enriched": 0,
+                     "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
+                     "subtype_stratification_class": "subtype_axis_unavailable",
                      "_subtype_note": f"assignment shard unavailable: {type(e).__name__}"})
         return base
 
@@ -619,11 +651,19 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     # normal — the window numbers mean different things and must be weighted differently.
     comparator_type = ("matched" if normal_vals else
                        "proxy" if proxy_normals else "none")
+
+    # STRATIFICATION signal (2026-08-04) — graded patient-selection class for the biomarker facet.
+    n_restricted = sum(1 for r in landscape
+                       if r["evidence_state"] == "measured" and r.get("subtype_signal") == "subtype_restricted")
+    subtype_stratification_class = classify_subtype_stratification(landscape)
+
     base.update({"subtype_axis_available": True, "subtype_landscape": landscape,
                  "assignment_manifest": manifest, "matched_normal_tissue": normal_tissue,
                  "normal_comparator_type": comparator_type,
                  "proxy_normal_tissues": sorted(proxy_normals.keys()) if proxy_normals else [],
                  "n_subtypes_measured": n_measured, "n_subtypes_enriched": n_enriched,
+                 "n_subtypes_restricted": n_restricted,
+                 "subtype_stratification_class": subtype_stratification_class,
                  "n_subtypes_clearing_normal_window": n_window,
                  "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy})
     return base
