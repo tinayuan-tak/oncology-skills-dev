@@ -9,7 +9,7 @@ description: |
     - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
     - expression-tumor-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
                                          adjacent, else tumor-vs-GTEx fallback)
-    - protein-presence-cptac            (tumor protein abundance, CPTAC per-cohort)
+    - tumor-protein-abundance-cptac            (tumor protein abundance, CPTAC per-cohort)
     - protein-abundance-celline         (cell-line protein, DepMap/Gygi TMT-MS)
     - tumor-elevation-breadth           (pan-cancer K-of-N tumor-elevation, target-grain)
 
@@ -50,7 +50,7 @@ composition:
   cards_used:
     - cellline-rna-distribution
     - expression-tumor-vs-adjacent
-    - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
+    - tumor-protein-abundance-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
     - protein-abundance-celline      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
     - tumor-elevation-breadth        # Slice B3: pan-cancer K-of-N tumor-elevation (target-grain); the one tumor-context card that fires in a target-ONLY query
     - tumor-expression-distribution         # Q1 per-sample tumor RNA distribution (was run.py-present, doc-stale)
@@ -78,7 +78,7 @@ composition:
   rules_scope:
     - cellline-rna-distribution
     - expression-tumor-vs-adjacent
-    - protein-presence-cptac
+    - tumor-protein-abundance-cptac
     - protein-abundance-celline
     - tumor-elevation-breadth
   synthesis:

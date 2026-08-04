@@ -87,7 +87,7 @@ def test_degenerate_target_only_case_is_honest():
 def test_protein_bucket_is_separate_from_rna():
     # bulk_protein_ms/tumor fires a REAL protein rule_id ranked against _PROTEIN_RANK.
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("protein-strongly-down-opposing", "protein-presence-cptac")]
+             _fr("protein-strongly-down-opposing", "tumor-protein-abundance-cptac")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna/cell_line"]["verdict"] == "broadly_high_expression"
     assert pm["bulk_protein_ms/tumor"]["verdict"] == "protein_strongly_downregulated"
@@ -105,7 +105,7 @@ def test_protein_only_signal_not_swallowed_C1_regression():
     assert pm["bulk_protein_ms/cell_line"]["verdict"] != "insufficient"
     # protein-not-detected killer (tumor CPTAC) must surface, not vanish
     pm2 = tp._per_modality_verdicts([_fr("protein-not-detected-degrader-killer",
-                                         "protein-presence-cptac")])
+                                         "tumor-protein-abundance-cptac")])
     assert pm2["bulk_protein_ms/tumor"]["verdict"] == "protein_not_detected"
     # collapsed verdict: a protein-only target resolves instead of collapsing
     v, drv = tp._verdict([_fr("protein-abundance-broadly-high-supportive",
@@ -122,20 +122,20 @@ def test_measured_protein_outranks_expression_data_unavailable_in_collapsed_spin
     # strong protein up + expression data_unavailable (the common target-only-CPTAC case:
     # expression-tumor-vs-adjacent returns data_unavailable for non-COADREAD indications)
     fired = [_fr("expression-call-data-unavailable-insufficient", "expression-tumor-vs-adjacent"),
-             _fr("protein-strongly-up-supportive", "protein-presence-cptac")]
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
     v, drv = tp._verdict(fired)
     assert v == "protein_strongly_upregulated"
     assert drv == "protein-strongly-up-supportive"
 
     # a measured protein-not-detected KILLER must likewise survive an expression gap
     fired_killer = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
-                    _fr("protein-not-detected-degrader-killer", "protein-presence-cptac")]
+                    _fr("protein-not-detected-degrader-killer", "tumor-protein-abundance-cptac")]
     vk, _ = tp._verdict(fired_killer)
     assert vk == "protein_not_detected"
 
     # only when BOTH layers are data_unavailable does the verdict stay data_unavailable
     both_gap = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
-                _fr("protein-data-unavailable-insufficient", "protein-presence-cptac")]
+                _fr("protein-data-unavailable-insufficient", "tumor-protein-abundance-cptac")]
     vg, _ = tp._verdict(both_gap)
     assert vg == "data_unavailable"
 
@@ -144,7 +144,7 @@ def test_measured_expression_still_wins_over_measured_protein_byte_stable():
     """RNA stays the presence backbone: when BOTH a measured expression rule and a measured
     protein rule fire, expression wins first (existing RNA-target verdicts are byte-stable)."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("protein-strongly-up-supportive", "protein-presence-cptac")]
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
     v, drv = tp._verdict(fired)
     assert v == "broadly_high_expression"
     assert drv == "expression-broadly-high-supportive"
@@ -181,7 +181,7 @@ def test_specific_cptac_call_outranks_breadth_in_shared_bucket():
     """When BOTH the per-indication CPTAC strong_up AND pan-cancer breadth fire (a
     target-INDICATION query), the specific per-indication call wins the shared
     bulk_protein_ms/tumor bucket — it is more decision-relevant than breadth."""
-    fired = [_fr("protein-strongly-up-supportive", "protein-presence-cptac"),
+    fired = [_fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac"),
              _fr("tumor-breadth-broadly-supportive", "tumor-elevation-breadth")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_protein_ms/tumor"]["verdict"] == "protein_strongly_upregulated"
@@ -215,7 +215,7 @@ def test_rna_high_protein_low_disagreement_is_legible():
     """The taxonomy's core payoff: collapsed verdict unchanged, but the per-bucket
     breakdown EXPOSES that tumor protein contradicts cell-line RNA."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
-             _fr("protein-strongly-down-opposing", "protein-presence-cptac")]
+             _fr("protein-strongly-down-opposing", "tumor-protein-abundance-cptac")]
     assert tp._verdict(fired)[0] == "broadly_high_expression"   # collapsed unchanged (RNA wins)
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna/cell_line"]["verdict"] != pm["bulk_protein_ms/tumor"]["verdict"]

@@ -146,7 +146,7 @@ SUB_SKILL_CARDS = {
     "tumor-presence": [
         "cellline-rna-distribution",
         "expression-tumor-vs-adjacent",
-        "protein-presence-cptac",
+        "tumor-protein-abundance-cptac",
         "protein-abundance-celline",     # Gygi cell-line MS — cell_line_protein_abundance axis.
                                          # Added to tumor-presence/run.py CARDS in PR #80 but never
                                          # to this composer map → dropped from the composed profile.
@@ -2218,7 +2218,7 @@ _CARD_TITLE = {
     # Presence (A)
     "cellline-rna-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
     "expression-tumor-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
-    "protein-presence-cptac":       ("Tumor protein (CPTAC)", "per-cohort tumor-vs-normal protein"),
+    "tumor-protein-abundance-cptac":       ("Tumor protein (CPTAC)", "per-cohort tumor-vs-normal protein"),
     "protein-abundance-celline":    ("Cell-line protein", "Gygi TMT MS abundance distribution"),
     "tumor-elevation-breadth":      ("Pan-cancer breadth", "elevated in K of N cancers"),
     # Required (C) — primary dependency evidence
@@ -2337,7 +2337,7 @@ _CARD_KEYFACTS = {
                                 ("Cell lines", "n_cell_lines")],
     "expression-tumor-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
                                      ("q-value", "q_value")],
-    "protein-presence-cptac": [("Class", "protein_expression_class"), ("Effect size", "protein_effect_size"),
+    "tumor-protein-abundance-cptac": [("Class", "protein_expression_class"), ("Effect size", "protein_effect_size"),
                                ("Cohort", "cohort"), ("n tumor", "n_tumor_samples"),
                                ("n normal", "n_normal_samples")],
     "protein-abundance-celline": [("Class", "protein_expression_class")],

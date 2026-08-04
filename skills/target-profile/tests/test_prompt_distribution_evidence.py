@@ -81,9 +81,9 @@ def test_prompt_surfaces_killer_message():
     sub_results = {
         "expression": {
             "skill_dir": "tumor-presence", "verdict": ("data_unavailable", None),
-            "cards": [{"card_id": "protein-presence-cptac", "summary": {"protein_expression_class": "not_detected"}}],
+            "cards": [{"card_id": "tumor-protein-abundance-cptac", "summary": {"protein_expression_class": "not_detected"}}],
             "fired": [{"rule_id": "protein-not-detected-degrader-killer",
-                       "card_id": "protein-presence-cptac", "field": "protein_expression_class",
+                       "card_id": "tumor-protein-abundance-cptac", "field": "protein_expression_class",
                        "value": "not_detected", "signals": {"degrader": "killer"},
                        "killer_message": "Protein not detected — hard killer for a degrader.",
                        "rationale": ""}],

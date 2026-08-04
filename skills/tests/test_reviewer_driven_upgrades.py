@@ -260,7 +260,7 @@ NEW_CARDS = [
     "structure-features-static",
     "adc-tce-modality-fit",
     "surfaceome-cohort-ranking",
-    "protein-presence-cptac",
+    "tumor-protein-abundance-cptac",
     "surface-abundance-density",
     "paralog-buffering",
     "gnomad-lof-constraint",

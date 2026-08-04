@@ -3,7 +3,7 @@
 
 Consumes 10 wired cards in two tiers (see CARDS below + SKILL.md):
   VERDICT-BEARING (5, feed the presence ladder): cellline-rna-distribution (cell-line RNA),
-    expression-tumor-vs-adjacent (tumor RNA), protein-presence-cptac (tumor protein),
+    expression-tumor-vs-adjacent (tumor RNA), tumor-protein-abundance-cptac (tumor protein),
     protein-abundance-celline (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
   DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-expression-distribution,
     tumor-expression-distribution-subtype, expression-purity-confound, phospho-pathway-activity,
@@ -34,7 +34,7 @@ SKILL_VERSION = "1.1.0"
 CARDS = [
     "cellline-rna-distribution",
     "expression-tumor-vs-adjacent",
-    "protein-presence-cptac",           # Layer 6c addition
+    "tumor-protein-abundance-cptac",           # Layer 6c addition
     "protein-abundance-celline",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
     "tumor-elevation-breadth",          # Slice B3 — pan-cancer K-of-N tumor-elevation (target-grain)
     "tumor-expression-distribution",    # Q1 (expression-extraction plan) — per-sample TUMOR RNA
@@ -60,7 +60,7 @@ CARDS = [
                                         # proxy) beyond total abundance? The sharpest presence signal
                                         # for kinases/signaling. ADDITIVE render facet — phospho_activity_class
                                         # + rules feed NO resolver (presence verdict byte-stable). Same
-                                        # (bulk_protein_ms, tumor) bucket as protein-presence-cptac.
+                                        # (bulk_protein_ms, tumor) bucket as tumor-protein-abundance-cptac.
     "rna-protein-concordance",          # Q5 (2026-07-23 composition) — rna_as_biomarker: is RNA an
                                         # adequate PROXY for protein presence (cell-line arm)? A
                                         # presence-proxy QUALITY qualifier on the RNA presence read +
@@ -94,11 +94,11 @@ CARD_CONTEXT = {
     "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
     "tumor-expression-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
     "tumor-expression-distribution-subtype": ("bulk_rna", "tumor"),   # per-subtype panorama of the same — same (bulk_rna, tumor) bucket
-    "protein-presence-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
+    "tumor-protein-abundance-cptac":       ("bulk_protein_ms", "tumor"),     # CPTAC tumor MS (per-indication)
     "protein-abundance-celline":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
-    "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as protein-presence-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
+    "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as tumor-protein-abundance-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
     "rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
 }
 
@@ -325,9 +325,9 @@ def _headline(cards, fired, verdict_pair):
         "tva_q_value":              get_card_field(cards, "expression-tumor-vs-adjacent", "q_value"),
         "tva_expression_call":      get_card_field(cards, "expression-tumor-vs-adjacent",
                                           "expression_call_class"),
-        "protein_expression_class": get_card_field(cards, "protein-presence-cptac",
+        "protein_expression_class": get_card_field(cards, "tumor-protein-abundance-cptac",
                                           "protein_expression_class"),
-        "protein_effect_size":      get_card_field(cards, "protein-presence-cptac",
+        "protein_effect_size":      get_card_field(cards, "tumor-protein-abundance-cptac",
                                           "protein_effect_size"),
         # Slice B3: the pan-cancer tumor-elevation breadth (target-grain) — the one
         # tumor-context presence signal available to a target-ONLY query.

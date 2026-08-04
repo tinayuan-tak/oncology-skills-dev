@@ -702,7 +702,7 @@ def _dispatch_surfaceome_cohort_ranking(target: str, indication: str) -> Optiona
 
 
 def _dispatch_protein_presence_cptac(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: protein-presence-cptac card → CPTAC protein tumor-vs-normal
+    """Dispatcher: tumor-protein-abundance-cptac card → CPTAC protein tumor-vs-normal
     DEG via methods/cptac_protein_deg/read.py.
     """
     mod = _import_method("cptac_protein_deg")
@@ -958,7 +958,7 @@ CARD_DISPATCHERS = {
     "surface-abundance-density": _dispatch_surface_abundance_density,
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,
-    "protein-presence-cptac": _dispatch_protein_presence_cptac,
+    "tumor-protein-abundance-cptac": _dispatch_protein_presence_cptac,
     "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
     "paralog-buffering": _dispatch_paralog_buffering,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,

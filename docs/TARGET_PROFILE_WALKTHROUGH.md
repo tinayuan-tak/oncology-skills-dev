@@ -44,7 +44,7 @@ Each sub-skill reads one or more evidence cards. A card names a data source, the
 |---|---|---|---|
 | tumor-presence | cellline-rna-distribution | DepMap 26Q1 (cell-line RNA) | `expression_class` — broadly high / moderate / lineage-restricted / low |
 | tumor-presence | expression-tumor-vs-adjacent | TCGA tumor-vs-adjacent (RNA-seq) | tumor-vs-normal fold-change + q |
-| tumor-presence | protein-presence-cptac | CPTAC (protein, mass-spec) | `protein_expression_class` — protein-level tumor elevation |
+| tumor-presence | tumor-protein-abundance-cptac | CPTAC (protein, mass-spec) | `protein_expression_class` — protein-level tumor elevation |
 | tumor-selectivity | tumor-vs-normal-selectivity | TCGA + GTEx (recount3) | `selectivity_class` — selective / discordant / not-selective |
 | functional-requirement | pan-cancer CRISPR + RNAi dependency | DepMap 26Q1 (Chronos + DEMETER) | dependency distribution + CRISPR/RNAi concordance |
 | functional-requirement | dependency-lineage-selectivity | DepMap 26Q1 | `enrichment_class` — pan-essential / lineage-selective / non-dependent |
@@ -83,7 +83,7 @@ One block per sub-skill: the wired card(s), the data source, the method that com
 ### tumor-presence (wired; RNA + protein)
 - **cellline-rna-distribution** — DepMap 26Q1 cell-line RNA → `depmap-expression-distribution` → `expression_class` · plots: density, per-lineage strip, ranked waterfall · 5 rules.
 - **expression-tumor-vs-adjacent** — TCGA tumor-vs-adjacent RNA-seq → `dge-deseq2` → fold-change + q · plots: volcano / MA.
-- **protein-presence-cptac** — CPTAC protein mass-spec → `cptac-protein-deg` → `protein_expression_class` · wired (parquet + manifest + method + dispatcher all on main; returns real per-cohort protein tumor-vs-normal). Unstratified bulk dilutes amplicon-restricted markers (e.g. ERBB2 reads `ns` in BRCA) — documented in the CPTAC manifest.
+- **tumor-protein-abundance-cptac** — CPTAC protein mass-spec → `cptac-protein-deg` → `protein_expression_class` · wired (parquet + manifest + method + dispatcher all on main; returns real per-cohort protein tumor-vs-normal). Unstratified bulk dilutes amplicon-restricted markers (e.g. ERBB2 reads `ns` in BRCA) — documented in the CPTAC manifest.
 
 ### tumor-selectivity (wired)
 - **tumor-vs-normal-selectivity** — TCGA + GTEx (recount3) → `dge-tumor-vs-normal-selectivity` → `selectivity_class` · plots: selectivity + pan-tissue landscape · 6 rules.

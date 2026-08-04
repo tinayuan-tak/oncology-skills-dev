@@ -50,7 +50,7 @@ composition:
     - cellline-rna-distribution
     - expression-tumor-vs-adjacent
     - tumor-vs-normal-selectivity
-    - protein-presence-cptac                   # Layer 6h addition (Phase A)
+    - tumor-protein-abundance-cptac                   # Layer 6h addition (Phase A)
     # Phase C (requirement)
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution

@@ -1181,7 +1181,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "normal-tissue-liability": _emit_normal_tissue_liability,
     # PROTEIN tier (viz-debt backfill 2026-07-21, Slice 7 — Gygi + CPTAC):
     "protein-abundance-celline": _emit_protein_abundance_celline,
-    "protein-presence-cptac": _emit_protein_presence_cptac,
+    "tumor-protein-abundance-cptac": _emit_protein_presence_cptac,
     # TARGET-GRAIN breadth (2026-07-22): pan-cancer by-tissue TPM distribution (TCGA tumor + GTEx
     # normal, one axis) from the quantile product — the RNA companion to the breadth K-of-N roll-up.
     "tumor-elevation-breadth": _emit_tumor_elevation_breadth,
