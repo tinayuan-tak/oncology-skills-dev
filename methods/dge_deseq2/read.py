@@ -114,7 +114,7 @@ def read_dge_gene_row(
 def _classify_expression_call(log2_fc, q_value) -> str:
     """Map (log2_fc, q_value) → expression_call_class categorical.
 
-    Vocabulary matches target-contracts/cards/expression-tumor-vs-adjacent.card.yaml
+    Vocabulary matches target-contracts/cards/tumor-rna-vs-adjacent.card.yaml
     summary_fields_vocabulary.expression_call_class. Tier-2 rules in
     interpretation-rules/intracellular-intrinsic.rules.yaml consume these labels.
 

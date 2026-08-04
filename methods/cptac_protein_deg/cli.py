@@ -90,7 +90,7 @@ def main(cohort: str, out: Path):
         "treat those rows as data_unavailable for statistical claims.",
         "The 10 CPTAC cohorts do NOT cover all TCGA indications — CPTAC lacks BLCA, "
         "SKCM, KIRC, STAD, ESCA, LIHC, CESC, PRAD, CHOL, ACC. For those indications, "
-        "the RNA-based expression-tumor-vs-adjacent card remains the primary presence "
+        "the RNA-based tumor-rna-vs-adjacent card remains the primary presence "
         "signal.",
     ]
 

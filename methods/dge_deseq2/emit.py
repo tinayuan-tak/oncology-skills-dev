@@ -511,7 +511,7 @@ def emit_tumor_vs_adjacent_compound(
     out_dir: Path,
     target_contracts_dir: Path,
 ) -> Path:
-    """Compound figure for expression-tumor-vs-adjacent card.
+    """Compound figure for tumor-rna-vs-adjacent card.
 
     Layout: 2-panel side-by-side.
       Panel A (left, 2/3 width): horizontal box + strip of log2(CPM+1) for
