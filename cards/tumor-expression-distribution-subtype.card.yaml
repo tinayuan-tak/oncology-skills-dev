@@ -54,8 +54,12 @@ outputs:
     - subtype_axis_available                    # is a shard landed for this indication?
     - n_subtypes_measured                       # strata clearing the n-floor
     - n_subtypes_enriched                       # strata flagged subtype_enriched
+    - n_subtypes_clearing_normal_window         # strata where >=50% of tumors clear the (matched) normal p95
     - spotlight_subtype                          # the queried stratum (or null — compute-all)
     - assignment_manifest                        # provenance: the shard consumed
+    - matched_normal_tissue                      # true GTEx tissue-of-origin (null when none exists)
+    - normal_comparator_type                     # matched | proxy | none — HOW the window was computed
+    - proxy_normal_tissues                        # proxy tissues used when no true normal (HNSC etc.)
   summary_fields_record_schemas:
     # record-schema value specs declare the EXPECTED scalar type; a runtime null (e.g. an
     # underpowered stratum's subtype_signal / median) is permitted — the schema types the
@@ -66,12 +70,37 @@ outputs:
       evidence_state: {enum: [measured, underpowered, absent], type: string}
       subgroup_n_floor_met: boolean
       n_tumor_samples: integer
+      # absolute distribution depth (parity with the pooled card — Option 1, 2026-08-04)
       median_log2tpm: number
+      p95_log2tpm: number
+      p99_log2tpm: number
+      min_log2tpm: number
+      max_log2tpm: number
+      coefficient_of_variation: number
       detectable_fraction: number
       high_fraction: number
+      moderate_fraction: number
       distribution_pattern: string
       tumor_expression_class: string
       match_rate: number                        # stratum join coverage (id-convention guard)
+      # per-subtype matched-normal WINDOW (therapeutic-window / patient-selection — Option 2). Null
+      # when the indication has no true matched normal (then see proxy_normal_windows).
+      fraction_tumor_above_normal_p95: number
+      fraction_tumor_above_normal_p99: number
+      normal_p95_log2tpm: number
+      normal_p99_log2tpm: number
+      distribution_overlap_tumor_normal: number
+      # per-subtype PROXY-normal window panel (labeled analogue, weaker evidence — Option 3). One
+      # entry per configured proxy tissue; EMPTY list when a true matched normal exists.
+      proxy_normal_windows:
+        record_schema:
+          proxy_tissue: string
+          rationale: string
+          fraction_tumor_above_proxy_p95: number
+          fraction_tumor_above_proxy_p99: number
+          proxy_p95_log2tpm: number
+          proxy_p99_log2tpm: number
+          distribution_overlap_tumor_proxy: number
   figure: expression_distribution_subtype_panel  # per-stratum distribution panel (faceted)
 
 thresholds:
@@ -82,7 +111,8 @@ thresholds:
   subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
 
 caveats:
-  - "Only COADREAD has a landed tumor assignment shard today; other indications return subtype_axis_available:false (honest) until their shards land (the subgroup-assignment-shards workstream)."
+  - "Landed tumor assignment shards (2026-08-04): COADREAD, HNSC, STAD, NSCLC, ESCA, PAAD. Other indications return subtype_axis_available:false (honest) until their shards land (the subgroup-assignment-shards workstream)."
+  - "normal_comparator_type distinguishes matched (true GTEx tissue-of-origin) from proxy (histological analogue, e.g. HNSC→esophagus/skin/salivary — GTEx has no head-and-neck track). A PROXY window is WEAKER evidence and must be weighted accordingly: proxy fields live in proxy_normal_windows, NEVER in the matched fraction_tumor_above_normal_* fields. EGFR/HNSC illustrates why the panel is multi-proxy — the window is strong vs esophagus/salivary (~86%) but weak vs skin (~33%, EGFR is a keratinocyte gene)."
   - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
   - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
   - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
