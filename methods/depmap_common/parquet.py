@@ -161,6 +161,30 @@ def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
+def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q1"):
+    """Column-projection read of a wide DepMap matrix parquet, keyed on ModelID.
+
+    Unlike get_cn_column_wgs / get_*_mutation_column (which project ModelConditionID or
+    IsDefaultEntryForModel for the cell-line-distribution consumers), this projects exactly
+    ['ModelID', <target_col>] — the shape functional_gene_state's MODEL arm needs to reproduce
+    its raw-CSV read (which pulled usecols=['ModelID', gene_col] from the source CSV, no
+    default-entry filter, last-value-wins). Returns a DataFrame with {ModelID, <target_col>} or
+    None if the target gene is absent from the matrix. `filename` is the parquet product name
+    (e.g. 'OmicsSomaticMutationsMatrixDamaging.parquet').
+    """
+    import pyarrow.parquet as pq
+    local_path = _fetch_parquet(filename)
+    schema_names = pq.read_schema(local_path).names
+    target_col = _find_gene_column(schema_names, target_symbol)
+    if target_col is None:
+        return None
+    if "ModelID" not in schema_names:
+        return None
+    table = pq.read_table(local_path, columns=["ModelID", target_col])
+    return table.to_pandas()
+
+
+@lru_cache(maxsize=128)
 def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
     """DEMETER2 RNAi row for target_symbol. Returns {ccle_id: score} dict or None.
 
@@ -254,3 +278,4 @@ def clear_all_parquet_caches() -> None:
     get_maf_n_cell_lines_total.cache_clear()
     get_hotspot_mutation_column.cache_clear()
     get_damaging_mutation_column.cache_clear()
+    get_matrix_column_by_model_id.cache_clear()

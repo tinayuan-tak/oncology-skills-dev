@@ -501,10 +501,44 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
         return {}
 
 
+# DepMap matrix CSV → parquet product name (depmap-26q1-parquet-v1, column-projection reads).
+_DEPMAP_MATRIX_PARQUET = {
+    "OmicsSomaticMutationsMatrixDamaging.csv": "OmicsSomaticMutationsMatrixDamaging.parquet",
+    "OmicsSomaticMutationsMatrixHotspot.csv": "OmicsSomaticMutationsMatrixHotspot.parquet",
+    "OmicsCNGeneWGS.csv": "OmicsCNGeneWGS.parquet",
+}
+
+
+def _read_depmap_matrix_column(matrix_filename: str, target: str):
+    """Prefer the gene-sorted parquet product (column projection, ~1-2 MB) over the raw ~500 MB
+    CSV. Returns a {ModelID: value} DataFrame-derived dict source: a pandas DataFrame with
+    ['ModelID', <gene_col>], or None if the product is unreachable → caller falls back to the raw
+    CSV read. Byte-identical projection: the same two columns the CSV path read (['ModelID',
+    gene_col], no default-entry filter)."""
+    parquet_name = _DEPMAP_MATRIX_PARQUET.get(matrix_filename)
+    if parquet_name is None:
+        return None
+    try:
+        from methods.depmap_common import parquet as _dp
+        df = _dp.get_matrix_column_by_model_id(parquet_name, target)
+        return df  # None if the gene is absent from the matrix (a real "no data" answer)
+    except Exception:  # noqa: BLE001
+        return None  # product unreachable → live CSV fallback
+
+
 def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
     """{ModelID: bool} for `target` from a DepMap model×gene boolean matrix. Empty on failure.
-    Columns are 'SYMBOL (entrez)'; the first 5 cols are ID metadata."""
+    Prefers the parquet product (column projection); falls back to the raw CSV full-object read.
+    Columns are 'SYMBOL (entrez)'; the raw CSV's first 5 cols are ID metadata."""
     import pandas as pd
+    # fast path: parquet column projection
+    pq_df = _read_depmap_matrix_column(matrix_filename, target)
+    if pq_df is not None:
+        gene_col = next((c for c in pq_df.columns if c != "ModelID"), None)
+        if gene_col is None:
+            return {}
+        return {str(m): bool(v) for m, v in zip(pq_df["ModelID"], pq_df[gene_col]) if pd.notna(v)}
+    # fallback: raw CSV full-object read (product unreachable)
     key = f"{DEPMAP_PREFIX}/{matrix_filename}"
     try:
         raw = _s3_read_bytes(key)
@@ -520,8 +554,15 @@ def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
 
 
 def _read_depmap_cn(target: str) -> dict:
-    """{ModelID: relative_cn} for `target` from OmicsCNGeneWGS.csv. Empty on failure."""
+    """{ModelID: relative_cn} for `target` from OmicsCNGeneWGS. Empty on failure.
+    Prefers the parquet product (column projection); falls back to the raw CSV full-object read."""
     import pandas as pd
+    pq_df = _read_depmap_matrix_column("OmicsCNGeneWGS.csv", target)
+    if pq_df is not None:
+        gene_col = next((c for c in pq_df.columns if c != "ModelID"), None)
+        if gene_col is None:
+            return {}
+        return {str(m): float(v) for m, v in zip(pq_df["ModelID"], pq_df[gene_col]) if pd.notna(v)}
     key = f"{DEPMAP_PREFIX}/OmicsCNGeneWGS.csv"
     try:
         raw = _s3_read_bytes(key)
