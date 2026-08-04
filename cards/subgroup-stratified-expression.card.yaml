@@ -29,7 +29,7 @@ applies_when:
   - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
 
 required_inputs:
-  - product_id: dge-tumor-vs-adjacent
+  - product_id: expression-rna-tumor-vs-adjacent   # products.yaml registry id; catalog carries it per-indication via each manifest's product_id: field
     indication: "{indication}"
     release_pin: "{release_pin}"
   - product_id: subgroup-catalog

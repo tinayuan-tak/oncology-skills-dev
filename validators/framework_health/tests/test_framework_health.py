@@ -108,6 +108,40 @@ def test_probe_card_uses_dispatcher_not_stale_label(tmp_path):
     assert out["method_call"] == "totally-stale-label"
 
 
+def test_catalog_manifests_registers_product_id_alias(tmp_path):
+    """A manifest's product_id: field becomes an alias key so an indication-
+    parameterized card (naming the logical registry product) resolves without
+    hard-coding one indication's per-manifest id (dataset_ref_not_in_catalog fix)."""
+    derived = tmp_path / "manifests" / "derived"
+    derived.mkdir(parents=True)
+    (tmp_path / "manifests" / "sources").mkdir(parents=True)
+    # Per-indication manifest whose id != its logical product_id
+    (derived / "coadread-dge-df06320.yaml").write_text(textwrap.dedent('''
+        id: coadread-dge-df06320
+        product_id: expression-rna-tumor-vs-adjacent
+        provider: takeda
+    '''))
+    cat = probe.catalog_manifests(tmp_path)
+    # Both the real id AND the product_id alias resolve
+    assert "coadread-dge-df06320" in cat                       # real manifest id
+    assert "expression-rna-tumor-vs-adjacent" in cat           # product_id alias
+    assert cat["coadread-dge-df06320"].get("is_product_alias") is None   # real id, not an alias
+    assert cat["expression-rna-tumor-vs-adjacent"]["is_product_alias"] is True
+
+
+def test_catalog_real_id_wins_over_product_alias_collision(tmp_path):
+    """If a manifest's real id equals another manifest's product_id, the real id wins."""
+    derived = tmp_path / "manifests" / "derived"
+    derived.mkdir(parents=True)
+    (tmp_path / "manifests" / "sources").mkdir(parents=True)
+    (derived / "a.yaml").write_text("id: shared-name\nprovider: real\n")
+    (derived / "b.yaml").write_text("id: b-real\nproduct_id: shared-name\nprovider: aliased\n")
+    cat = probe.catalog_manifests(tmp_path)
+    # 'shared-name' is a real id (manifest a) — must NOT be overwritten by b's alias
+    assert cat["shared-name"].get("is_product_alias") is None
+    assert cat["shared-name"]["provider"] == "real"
+
+
 # ---------------------------------------------------------------------------
 # 4 + 5. Golden rollup oracle: signal fixtures -> (verdict, reason_id)
 # ---------------------------------------------------------------------------

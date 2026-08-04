@@ -400,8 +400,17 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
     file_count, system_of_record}, scanned from the data-catalog manifests.
 
     The dataset universe. A card's required_inputs.product_id is verified against
-    this; a manifest here that no card references is an ORPHAN dataset."""
+    this; a manifest here that no card references is an ORPHAN dataset.
+
+    Keys are the manifest `id:` fields AND, additionally, each manifest's internal
+    `product_id:` field when present. Indication-parameterized cards name the
+    logical registry product (e.g. `expression-rna-tumor-vs-adjacent`), which is
+    carried in the manifest's `product_id:` field rather than its per-indication
+    `id:` (e.g. `coadread-dge-df06320`). Registering the product_id as an alias
+    lets such a card resolve without falsely hard-coding one indication's id.
+    A real manifest `id:` always wins over a product_id alias on key collision."""
     out: dict[str, dict] = {}
+    aliases: dict[str, dict] = {}
     for kind in ("sources", "derived"):
         d = catalog_root / "manifests" / kind
         if not d.is_dir():
@@ -412,7 +421,7 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
             except yaml.YAMLError:
                 continue
             mid = m.get("id") or p.name[:-5]
-            out[mid] = {
+            meta = {
                 "kind": "source" if kind == "sources" else "derived",
                 "provider": m.get("provider"),
                 "version": m.get("version"),
@@ -422,6 +431,17 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
                 "system_of_record": m.get("system_of_record"),
                 "derived_from": m.get("derived_from") or [],
             }
+            out[mid] = meta
+            # Register the logical registry product as an alias key. Multiple
+            # per-indication manifests can share one product_id (e.g. the
+            # tumor-vs-adjacent family); first one wins — the alias only needs to
+            # prove the logical product exists in the catalog.
+            prod = m.get("product_id")
+            if prod and prod != mid and prod not in aliases:
+                aliases[prod] = {**meta, "is_product_alias": True}
+    # Real manifest ids take precedence over product_id aliases on collision.
+    for k, v in aliases.items():
+        out.setdefault(k, v)
     return out
 
 

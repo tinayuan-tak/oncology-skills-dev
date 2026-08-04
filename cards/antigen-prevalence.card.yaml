@@ -26,7 +26,7 @@ applies_when:
   - "indication.tumor_sample_count >= THRESHOLD.min_samples_for_prevalence"
 
 required_inputs:
-  - product_id: dge-tumor-vs-adjacent
+  - product_id: expression-rna-tumor-vs-adjacent   # products.yaml registry id; catalog carries it per-indication via each manifest's product_id: field
     indication: "{indication}"
     release_pin: "{release_pin}"
 

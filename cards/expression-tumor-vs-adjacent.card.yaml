@@ -25,7 +25,7 @@ applies_when:
   - "indication.paired_normals.count >= THRESHOLD.paired_normals_min"
 
 required_inputs:
-  - product_id: dge-tumor-vs-adjacent
+  - product_id: expression-rna-tumor-vs-adjacent   # products.yaml registry id; catalog carries it per-indication (e.g. coadread-dge-df06320) via each manifest's product_id: field
     indication: "{indication}"
     release_pin: "{release_pin}"
 
