@@ -68,10 +68,30 @@ _SIDECAR_STATUS: Optional[bool] = None
 # CIMP×3). The other 7 catalogued indications are defined-but-unbuilt — emitting
 # their shards is the extracted `subgroup-assignment-shards.md` workstream, NOT this
 # reader. An indication absent here → subtype layer returns data_unavailable (honest).
+# indication → landed TCGA tumor subtype-assignment shard. The subtype panorama engine below is
+# INDICATION-AGNOSTIC (it fans over whatever strata the shard contains); this map is the explicit
+# allowlist of indications whose shard has been VERIFIED to emit real, powered strata. Extended
+# 2026-08-04 (COADREAD → +5) after confirming each shard's EMITTED contents (not just the declared-
+# source audit — the emitter had already applied the audit's repoints, so several strata the audit
+# scored "needs-repoint" resolve cleanly in the shipped parquet). Verified usable (>=SUBGROUP_N_FLOOR)
+# strata per indication: COADREAD 7 (MSI/sidedness/stage) · HNSC 9 (Bass subtypes/site/HPV/CCND1_amp) ·
+# STAD 4 (CIN/GS/HER2_amp/MSI_H) · NSCLC 3 (histology Adeno/SCC + TMB_high) · ESCA 2 (EAC/ESCC) ·
+# PAAD 2 (Moffitt basal/classical). An indication absent here → subtype_axis_available:False (honest
+# named gap). Add a new indication ONLY after inspecting its shard's per-stratum member counts.
 INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST = {
     "COADREAD": "tcga-subgroup-assignments-coadread-v1",
     "COAD": "tcga-subgroup-assignments-coadread-v1",
     "READ": "tcga-subgroup-assignments-coadread-v1",
+    "HNSC": "tcga-subgroup-assignments-hnsc-v1",
+    "HNSCC": "tcga-subgroup-assignments-hnsc-v1",
+    "STAD": "tcga-subgroup-assignments-stad-v1",
+    "GC": "tcga-subgroup-assignments-stad-v1",
+    "NSCLC": "tcga-subgroup-assignments-nsclc-v1",
+    "LUAD": "tcga-subgroup-assignments-nsclc-v1",   # NSCLC shard carries the histology split (Adeno/SCC)
+    "LUSC": "tcga-subgroup-assignments-nsclc-v1",
+    "ESCA": "tcga-subgroup-assignments-esca-v1",
+    "PAAD": "tcga-subgroup-assignments-paad-v1",
+    "PDAC": "tcga-subgroup-assignments-paad-v1",
 }
 
 # indication → recount3 TCGA study codes (mirrors dge_deseq2.read.INDICATION_TO_TCGA_STUDIES).
