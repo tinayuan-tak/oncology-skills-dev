@@ -144,6 +144,21 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
         if rep["summary"].get("card_health_tally") != ctally:
             errs.append("summary.card_health_tally disagrees with per-card count — regenerate")
 
+    # 5. Graph section (if present): every edge endpoint must resolve to a node
+    #    (a dangling edge is drift), and counts must agree.
+    graph = rep.get("graph")
+    if graph is not None:
+        node_ids = {n["id"] for n in graph.get("nodes", [])}
+        for e in graph.get("edges", []):
+            if e["src"] not in node_ids:
+                errs.append(f"[graph] edge src '{e['src']}' has no node")
+            if e["dst"] not in node_ids:
+                errs.append(f"[graph] edge dst '{e['dst']}' has no node")
+        if graph.get("n_nodes") != len(node_ids):
+            errs.append("[graph] n_nodes disagrees with node list — regenerate")
+        if graph.get("n_edges") != len(graph.get("edges", [])):
+            errs.append("[graph] n_edges disagrees with edge list — regenerate")
+
     return (not errs), errs
 
 

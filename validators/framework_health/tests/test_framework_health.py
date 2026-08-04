@@ -273,6 +273,56 @@ def test_committed_artifact_has_cards_section_with_orphans():
 
 
 # ---------------------------------------------------------------------------
+# 9. Graph section — nodes/edges, layering, no dangling edges
+# ---------------------------------------------------------------------------
+def _mk_skill(name, verdict="production_ready", gate=None, bound=True, cards=None):
+    return {
+        "name": name, "health_verdict": verdict,
+        "derived": {"kind": "FOCUSED", "resolver_gate": gate, "resolver_bound": bound},
+        "risk_category": None, "cards": cards or [],
+    }
+
+
+def test_build_graph_layers_and_edges():
+    skills = [_mk_skill("skill-a", gate="dependency")]
+    cards = [{"card_id": "card-a", "card_health": "live", "consumers": ["skill-a"],
+              "dispatch_module": "meth_a.read", "method_dir_exists": True, "is_orphan": False,
+              "measurement_type": "mt"}]
+    g = rollup.build_graph(skills, cards)
+    ids = {n["id"] for n in g["nodes"]}
+    assert ids == {"skill:skill-a", "resolver:dependency", "card:card-a", "method:meth_a"}
+    rels = {(e["src"], e["dst"], e["rel"]) for e in g["edges"]}
+    assert ("skill:skill-a", "resolver:dependency", "resolves_via") in rels
+    assert ("skill:skill-a", "card:card-a", "consumes") in rels
+    assert ("card:card-a", "method:meth_a", "backed_by") in rels   # .read suffix stripped
+    assert g["layer_counts"] == {"skill": 1, "resolver": 1, "card": 1, "method": 1}
+
+
+def test_build_graph_no_dangling_edges():
+    """Every edge endpoint must be a real node (the invariant self_check enforces)."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    g = json.loads(committed.read_text()).get("graph")
+    assert g, "graph section missing"
+    node_ids = {n["id"] for n in g["nodes"]}
+    for e in g["edges"]:
+        assert e["src"] in node_ids and e["dst"] in node_ids, f"dangling edge {e}"
+    assert g["n_nodes"] == len(node_ids) and g["n_edges"] == len(g["edges"])
+
+
+def test_self_check_catches_dangling_edge(tmp_path):
+    rep = _minimal_report()
+    rep["graph"] = {"nodes": [{"id": "skill:x", "layer": "skill"}],
+                    "edges": [{"src": "skill:x", "dst": "card:ghost", "rel": "consumes"}],
+                    "n_nodes": 1, "n_edges": 1}
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok and any("card:ghost" in e for e in errs)
+
+
+# ---------------------------------------------------------------------------
 # 7. Frontmatter / prose / drift
 # ---------------------------------------------------------------------------
 def _write_skill(tmp_path, name, skill_md, run_py=None):

@@ -269,6 +269,8 @@ def build_health(roots: dict[str, Path]) -> dict:
     for c in card_nodes:
         card_tally[c["card_health"]] = card_tally.get(c["card_health"], 0) + 1
 
+    graph = build_graph(skill_nodes, card_nodes)
+
     # Verdict tallies + drift roll-up for the summary header.
     tally: dict[str, int] = {}
     for n in skill_nodes:
@@ -294,5 +296,68 @@ def build_health(roots: dict[str, Path]) -> dict:
         "registry_drift": reg,
         "skills": skill_nodes,
         "cards": card_nodes,
+        "graph": graph,
         "drift_index": all_drift,
     }
+
+
+# ---------------------------------------------------------------------------
+# Graph section (Option A: layered flow Skills | Resolvers | Cards | Methods).
+# A pure transform of the skill+card nodes — NO new probing. Emitted as plain
+# nodes+edges data so self_check can verify every edge endpoint resolves to a
+# node (a dangling edge is drift), and the SVG layout stays a pure render.
+# ---------------------------------------------------------------------------
+# Layer index fixes left→right column order (data flows verdict←…←data).
+_LAYERS = {"skill": 0, "resolver": 1, "card": 2, "method": 3}
+
+
+def build_graph(skill_nodes: list[dict], card_nodes: list[dict]) -> dict:
+    nodes: dict[str, dict] = {}   # id -> node (dedup)
+    edges: list[dict] = []
+
+    def add_node(nid: str, layer: str, label: str, health: str | None = None, meta: dict | None = None):
+        if nid not in nodes:
+            nodes[nid] = {"id": nid, "layer": layer, "label": label,
+                          "health": health, **(meta or {})}
+
+    # Skills + their resolver edge.
+    for n in skill_nodes:
+        sid = f"skill:{n['name']}"
+        add_node(sid, "skill", n["name"], n["health_verdict"],
+                 {"kind": n["derived"].get("kind"), "risk_category": n.get("risk_category")})
+        gate = n["derived"].get("resolver_gate")
+        if gate:
+            rid = f"resolver:{gate}"
+            add_node(rid, "resolver", gate,
+                     "live" if n["derived"].get("resolver_bound") else "broken")
+            edges.append({"src": sid, "dst": rid, "rel": "resolves_via"})
+
+    # Cards + method backing + card→consuming-skill edges.
+    for c in card_nodes:
+        cid = f"card:{c['card_id']}"
+        add_node(cid, "card", c["card_id"], c["card_health"],
+                 {"is_orphan": c.get("is_orphan", False),
+                  "measurement_type": c.get("measurement_type")})
+        for sk in c.get("consumers", []):
+            edges.append({"src": f"skill:{sk}", "dst": cid, "rel": "consumes"})
+        mod = c.get("dispatch_module")
+        if mod:
+            top = mod.split(".")[0]                # strip .read/.cli suffix
+            mid = f"method:{top}"
+            add_node(mid, "method", top,
+                     "live" if c.get("method_dir_exists") else "broken")
+            edges.append({"src": cid, "dst": mid, "rel": "backed_by"})
+
+    # Deterministic ordering: by (layer, id) for nodes, by tuple for edges.
+    node_list = sorted(nodes.values(), key=lambda n: (_LAYERS.get(n["layer"], 9), n["id"]))
+    edge_list = sorted(edges, key=lambda e: (e["src"], e["dst"], e["rel"]))
+    # De-dupe edges (a method backing many cards can repeat skill→card→method chains).
+    seen = set(); deduped = []
+    for e in edge_list:
+        k = (e["src"], e["dst"], e["rel"])
+        if k not in seen:
+            seen.add(k); deduped.append(e)
+
+    counts = {layer: sum(1 for n in node_list if n["layer"] == layer) for layer in _LAYERS}
+    return {"nodes": node_list, "edges": deduped,
+            "layer_counts": counts, "n_nodes": len(node_list), "n_edges": len(deduped)}

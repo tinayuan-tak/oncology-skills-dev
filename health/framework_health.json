@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T15:04:35.450723+00:00",
+  "generated_at": "2026-08-04T15:20:01.296940+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,8 +9,8 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "5ca733c",
-    "skills": "6976e71",
+    "contracts": "3c8cd1e",
+    "skills": "a468f1e",
     "methods": "496bc6e",
     "products": "1f73e51",
     "catalog": "fd8858f"
@@ -4116,6 +4116,1739 @@
       "is_orphan": false
     }
   ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "skill:combo-and-resistance",
+        "layer": "skill",
+        "label": "combo-and-resistance",
+        "health": "placeholder",
+        "kind": "PLACEHOLDER",
+        "risk_category": null
+      },
+      {
+        "id": "skill:compose-dashboard",
+        "layer": "skill",
+        "label": "compose-dashboard",
+        "health": "production_ready",
+        "kind": "ORCHESTRATION",
+        "risk_category": null
+      },
+      {
+        "id": "skill:differentiation-landscape",
+        "layer": "skill",
+        "label": "differentiation-landscape",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": "commercial"
+      },
+      {
+        "id": "skill:functional-requirement",
+        "layer": "skill",
+        "label": "functional-requirement",
+        "health": "production_ready",
+        "kind": "FOCUSED",
+        "risk_category": "biological"
+      },
+      {
+        "id": "skill:genomic-alteration-profile",
+        "layer": "skill",
+        "label": "genomic-alteration-profile",
+        "health": "production_ready",
+        "kind": "FOCUSED",
+        "risk_category": "biological"
+      },
+      {
+        "id": "skill:mechanism-and-pharmacology",
+        "layer": "skill",
+        "label": "mechanism-and-pharmacology",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": "biological"
+      },
+      {
+        "id": "skill:on-target-safety-liability",
+        "layer": "skill",
+        "label": "on-target-safety-liability",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": "safety"
+      },
+      {
+        "id": "skill:query-target-evidence",
+        "layer": "skill",
+        "label": "query-target-evidence",
+        "health": "partial",
+        "kind": "RETRIEVAL",
+        "risk_category": null
+      },
+      {
+        "id": "skill:render-evidence-package",
+        "layer": "skill",
+        "label": "render-evidence-package",
+        "health": "production_ready",
+        "kind": "ORCHESTRATION",
+        "risk_category": null
+      },
+      {
+        "id": "skill:surface-modality-fit",
+        "layer": "skill",
+        "label": "surface-modality-fit",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": "druggability"
+      },
+      {
+        "id": "skill:surfaceome-cohort-ranking",
+        "layer": "skill",
+        "label": "surfaceome-cohort-ranking",
+        "health": "partial",
+        "kind": "OTHER",
+        "risk_category": null
+      },
+      {
+        "id": "skill:synthetic-lethal-partners",
+        "layer": "skill",
+        "label": "synthetic-lethal-partners",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": "biomarker"
+      },
+      {
+        "id": "skill:target-profile",
+        "layer": "skill",
+        "label": "target-profile",
+        "health": "partial",
+        "kind": "COMPOSED",
+        "risk_category": null
+      },
+      {
+        "id": "skill:tractability-small-molecule",
+        "layer": "skill",
+        "label": "tractability-small-molecule",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": "druggability"
+      },
+      {
+        "id": "skill:translational-readiness",
+        "layer": "skill",
+        "label": "translational-readiness",
+        "health": "placeholder",
+        "kind": "PLACEHOLDER",
+        "risk_category": null
+      },
+      {
+        "id": "skill:tumor-presence",
+        "layer": "skill",
+        "label": "tumor-presence",
+        "health": "production_ready",
+        "kind": "FOCUSED",
+        "risk_category": "biological"
+      },
+      {
+        "id": "skill:tumor-selectivity",
+        "layer": "skill",
+        "label": "tumor-selectivity",
+        "health": "production_ready",
+        "kind": "FOCUSED",
+        "risk_category": "biological"
+      },
+      {
+        "id": "skill:workflow-target-evaluation-onc",
+        "layer": "skill",
+        "label": "workflow-target-evaluation-onc",
+        "health": "production_ready",
+        "kind": "WORKFLOW",
+        "risk_category": null
+      },
+      {
+        "id": "resolver:dependency",
+        "layer": "resolver",
+        "label": "dependency",
+        "health": "live"
+      },
+      {
+        "id": "resolver:differentiation",
+        "layer": "resolver",
+        "label": "differentiation",
+        "health": "live"
+      },
+      {
+        "id": "resolver:genomic_alteration",
+        "layer": "resolver",
+        "label": "genomic_alteration",
+        "health": "live"
+      },
+      {
+        "id": "resolver:mechanism",
+        "layer": "resolver",
+        "label": "mechanism",
+        "health": "live"
+      },
+      {
+        "id": "resolver:safety",
+        "layer": "resolver",
+        "label": "safety",
+        "health": "live"
+      },
+      {
+        "id": "resolver:selectivity",
+        "layer": "resolver",
+        "label": "selectivity",
+        "health": "live"
+      },
+      {
+        "id": "resolver:surface_modality",
+        "layer": "resolver",
+        "label": "surface_modality",
+        "health": "live"
+      },
+      {
+        "id": "resolver:synthetic_lethal_partners",
+        "layer": "resolver",
+        "label": "synthetic_lethal_partners",
+        "health": "live"
+      },
+      {
+        "id": "card:abundance-dependency",
+        "layer": "card",
+        "label": "abundance-dependency",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "abundance_dependency_correlation"
+      },
+      {
+        "id": "card:adc-tce-modality-fit",
+        "layer": "card",
+        "label": "adc-tce-modality-fit",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "adc_tce_modality_fit"
+      },
+      {
+        "id": "card:alteration-role",
+        "layer": "card",
+        "label": "alteration-role",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "alteration_role"
+      },
+      {
+        "id": "card:antigen-prevalence",
+        "layer": "card",
+        "label": "antigen-prevalence",
+        "health": "broken",
+        "is_orphan": true,
+        "measurement_type": "antigen_expressing_prevalence"
+      },
+      {
+        "id": "card:clingen-dosage",
+        "layer": "card",
+        "label": "clingen-dosage",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "dosage_sensitivity_safety"
+      },
+      {
+        "id": "card:clinical-precedent",
+        "layer": "card",
+        "label": "clinical-precedent",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": "clinical_precedent"
+      },
+      {
+        "id": "card:clinvar-pathogenicity-safety",
+        "layer": "card",
+        "label": "clinvar-pathogenicity-safety",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "clinvar_germline_pathogenicity_safety"
+      },
+      {
+        "id": "card:co-mutation-and-mutual-exclusivity",
+        "layer": "card",
+        "label": "co-mutation-and-mutual-exclusivity",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "mutation_cooccurrence"
+      },
+      {
+        "id": "card:combo-crispr-screen",
+        "layer": "card",
+        "label": "combo-crispr-screen",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:copy-number-distribution",
+        "layer": "card",
+        "label": "copy-number-distribution",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "copy_number_alteration"
+      },
+      {
+        "id": "card:crispr-rnai-dependency-concordance",
+        "layer": "card",
+        "label": "crispr-rnai-dependency-concordance",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "crispr_rnai_concordance"
+      },
+      {
+        "id": "card:dependency-lineage-selectivity",
+        "layer": "card",
+        "label": "dependency-lineage-selectivity",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "crispr_lof_dependency"
+      },
+      {
+        "id": "card:dependency-predictability",
+        "layer": "card",
+        "label": "dependency-predictability",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "dependency_predictability"
+      },
+      {
+        "id": "card:expression-clinical-association",
+        "layer": "card",
+        "label": "expression-clinical-association",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "expression_clinical_association"
+      },
+      {
+        "id": "card:expression-dependency-correlation",
+        "layer": "card",
+        "label": "expression-dependency-correlation",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "expression_dependency_correlation"
+      },
+      {
+        "id": "card:expression-distribution",
+        "layer": "card",
+        "label": "expression-distribution",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "cell_line_rna_expression"
+      },
+      {
+        "id": "card:expression-purity-confound",
+        "layer": "card",
+        "label": "expression-purity-confound",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "expression_purity_confound"
+      },
+      {
+        "id": "card:expression-tumor-vs-adjacent",
+        "layer": "card",
+        "label": "expression-tumor-vs-adjacent",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "tumor_vs_adjacent_expression"
+      },
+      {
+        "id": "card:functional-gene-state",
+        "layer": "card",
+        "label": "functional-gene-state",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "functional_gene_state"
+      },
+      {
+        "id": "card:fusion-rearrangement-landscape",
+        "layer": "card",
+        "label": "fusion-rearrangement-landscape",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "fusion_rearrangement"
+      },
+      {
+        "id": "card:gene-burden-safety",
+        "layer": "card",
+        "label": "gene-burden-safety",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "human_genetic_safety"
+      },
+      {
+        "id": "card:genomic-event-model-match",
+        "layer": "card",
+        "label": "genomic-event-model-match",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "genomic_event_model_match"
+      },
+      {
+        "id": "card:gnomad-lof-constraint",
+        "layer": "card",
+        "label": "gnomad-lof-constraint",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "gnomad_lof_constraint"
+      },
+      {
+        "id": "card:imaging-tracer-catalog",
+        "layer": "card",
+        "label": "imaging-tracer-catalog",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:lineage-restriction-evidence",
+        "layer": "card",
+        "label": "lineage-restriction-evidence",
+        "health": "broken",
+        "is_orphan": true,
+        "measurement_type": "normal_tissue_rna_breadth"
+      },
+      {
+        "id": "card:models-registry",
+        "layer": "card",
+        "label": "models-registry",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:mouse-ko-phenotype",
+        "layer": "card",
+        "label": "mouse-ko-phenotype",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "mouse_ko_phenotype_safety"
+      },
+      {
+        "id": "card:mutation-hotspot-frequency",
+        "layer": "card",
+        "label": "mutation-hotspot-frequency",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "mutation_hotspot_frequency"
+      },
+      {
+        "id": "card:mutation-stratified-dependency",
+        "layer": "card",
+        "label": "mutation-stratified-dependency",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "mutation_stratified_dependency"
+      },
+      {
+        "id": "card:mutation-type-counts",
+        "layer": "card",
+        "label": "mutation-type-counts",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "mutation_variant_class_spectrum"
+      },
+      {
+        "id": "card:normal-tissue-liability",
+        "layer": "card",
+        "label": "normal-tissue-liability",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "normal_tissue_protein_breadth"
+      },
+      {
+        "id": "card:normal-tissue-liability-gtex",
+        "layer": "card",
+        "label": "normal-tissue-liability-gtex",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "normal_tissue_rna_breadth"
+      },
+      {
+        "id": "card:pan-cancer-crispr-dependency-distribution",
+        "layer": "card",
+        "label": "pan-cancer-crispr-dependency-distribution",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "crispr_lof_dependency"
+      },
+      {
+        "id": "card:pan-cancer-rnai-dependency-distribution",
+        "layer": "card",
+        "label": "pan-cancer-rnai-dependency-distribution",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "rnai_lof_dependency"
+      },
+      {
+        "id": "card:paralog-buffering",
+        "layer": "card",
+        "label": "paralog-buffering",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "paralog_buffering"
+      },
+      {
+        "id": "card:patent-landscape",
+        "layer": "card",
+        "label": "patent-landscape",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:pd-assay-catalog",
+        "layer": "card",
+        "label": "pd-assay-catalog",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:phospho-pathway-activity",
+        "layer": "card",
+        "label": "phospho-pathway-activity",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "phospho_pathway_activity"
+      },
+      {
+        "id": "card:prism-compound-activity",
+        "layer": "card",
+        "label": "prism-compound-activity",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "prism_compound_activity"
+      },
+      {
+        "id": "card:prism-crispr-concordance",
+        "layer": "card",
+        "label": "prism-crispr-concordance",
+        "health": "live",
+        "is_orphan": false,
+        "measurement_type": "chemical_genetic_concordance"
+      },
+      {
+        "id": "card:protein-abundance-celline",
+        "layer": "card",
+        "label": "protein-abundance-celline",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "cell_line_protein_abundance"
+      },
+      {
+        "id": "card:protein-presence-cptac",
+        "layer": "card",
+        "label": "protein-presence-cptac",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "tumor_protein_abundance"
+      },
+      {
+        "id": "card:protein-surface-evidence",
+        "layer": "card",
+        "label": "protein-surface-evidence",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "surface_confirmation"
+      },
+      {
+        "id": "card:recommended-models",
+        "layer": "card",
+        "label": "recommended-models",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "patient_model_correspondence"
+      },
+      {
+        "id": "card:resistance-emergence-signature",
+        "layer": "card",
+        "label": "resistance-emergence-signature",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:rna-protein-concordance",
+        "layer": "card",
+        "label": "rna-protein-concordance",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "rna_protein_concordance"
+      },
+      {
+        "id": "card:rna-protein-concordance-tumor",
+        "layer": "card",
+        "label": "rna-protein-concordance-tumor",
+        "health": "partial",
+        "is_orphan": true,
+        "measurement_type": "rna_protein_concordance"
+      },
+      {
+        "id": "card:rwd-stratified-expression",
+        "layer": "card",
+        "label": "rwd-stratified-expression",
+        "health": "blocked",
+        "is_orphan": true,
+        "measurement_type": "rwd_stratified_expression"
+      },
+      {
+        "id": "card:shed-ectodomain-liability",
+        "layer": "card",
+        "label": "shed-ectodomain-liability",
+        "health": "partial",
+        "is_orphan": true,
+        "measurement_type": "shed_ectodomain_liability"
+      },
+      {
+        "id": "card:signaling-network-mechanism",
+        "layer": "card",
+        "label": "signaling-network-mechanism",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "signaling_network_mechanism"
+      },
+      {
+        "id": "card:structure-features-static",
+        "layer": "card",
+        "label": "structure-features-static",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "structure_druggability"
+      },
+      {
+        "id": "card:subgroup-stratified-dependency",
+        "layer": "card",
+        "label": "subgroup-stratified-dependency",
+        "health": "blocked",
+        "is_orphan": true,
+        "measurement_type": "crispr_lof_dependency"
+      },
+      {
+        "id": "card:subgroup-stratified-expression",
+        "layer": "card",
+        "label": "subgroup-stratified-expression",
+        "health": "blocked",
+        "is_orphan": true,
+        "measurement_type": "tumor_vs_adjacent_expression"
+      },
+      {
+        "id": "card:subgroup-stratified-mutation-frequency",
+        "layer": "card",
+        "label": "subgroup-stratified-mutation-frequency",
+        "health": "blocked",
+        "is_orphan": true,
+        "measurement_type": "mutation_hotspot_frequency"
+      },
+      {
+        "id": "card:surface-abundance-density",
+        "layer": "card",
+        "label": "surface-abundance-density",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "surface_density"
+      },
+      {
+        "id": "card:surface-topology-and-ptm",
+        "layer": "card",
+        "label": "surface-topology-and-ptm",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "surface_topology"
+      },
+      {
+        "id": "card:surfaceome-cohort-ranking",
+        "layer": "card",
+        "label": "surfaceome-cohort-ranking",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": null
+      },
+      {
+        "id": "card:surfaceome-family-classification",
+        "layer": "card",
+        "label": "surfaceome-family-classification",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "surfaceome_family"
+      },
+      {
+        "id": "card:synthetic-lethal-partners",
+        "layer": "card",
+        "label": "synthetic-lethal-partners",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "synthetic_lethal_partner"
+      },
+      {
+        "id": "card:target-identity-summary",
+        "layer": "card",
+        "label": "target-identity-summary",
+        "health": "live",
+        "is_orphan": true,
+        "measurement_type": "target_identity"
+      },
+      {
+        "id": "card:target-safety-prioritisation",
+        "layer": "card",
+        "label": "target-safety-prioritisation",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "target_safety_prioritisation"
+      },
+      {
+        "id": "card:tumor-elevation-breadth",
+        "layer": "card",
+        "label": "tumor-elevation-breadth",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "tumor_elevation_breadth"
+      },
+      {
+        "id": "card:tumor-expression-distribution",
+        "layer": "card",
+        "label": "tumor-expression-distribution",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "tumor_expression_distribution"
+      },
+      {
+        "id": "card:tumor-expression-distribution-subtype",
+        "layer": "card",
+        "label": "tumor-expression-distribution-subtype",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "tumor_expression_distribution"
+      },
+      {
+        "id": "card:tumor-vs-normal-percentile-crossing",
+        "layer": "card",
+        "label": "tumor-vs-normal-percentile-crossing",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "tumor_vs_normal_percentile_crossing"
+      },
+      {
+        "id": "card:tumor-vs-normal-selectivity",
+        "layer": "card",
+        "label": "tumor-vs-normal-selectivity",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "tumor_vs_normal_selectivity"
+      },
+      {
+        "id": "method:abundance_dependency",
+        "layer": "method",
+        "label": "abundance_dependency",
+        "health": "live"
+      },
+      {
+        "id": "method:cooccurrence_fisher_pancohort",
+        "layer": "method",
+        "label": "cooccurrence_fisher_pancohort",
+        "health": "live"
+      },
+      {
+        "id": "method:cptac_protein_deg",
+        "layer": "method",
+        "label": "cptac_protein_deg",
+        "health": "live"
+      },
+      {
+        "id": "method:cspa_surface_confirmation",
+        "layer": "method",
+        "label": "cspa_surface_confirmation",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_chronos",
+        "layer": "method",
+        "label": "depmap_chronos",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_chronos_distribution",
+        "layer": "method",
+        "label": "depmap_chronos_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_cn_distribution",
+        "layer": "method",
+        "label": "depmap_cn_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_crispr_rnai_concordance",
+        "layer": "method",
+        "label": "depmap_crispr_rnai_concordance",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_demeter_distribution",
+        "layer": "method",
+        "label": "depmap_demeter_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_expression_dependency",
+        "layer": "method",
+        "label": "depmap_expression_dependency",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_expression_distribution",
+        "layer": "method",
+        "label": "depmap_expression_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_mutation_dependency",
+        "layer": "method",
+        "label": "depmap_mutation_dependency",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_mutation_type_counts",
+        "layer": "method",
+        "label": "depmap_mutation_type_counts",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_paralog_aggregator",
+        "layer": "method",
+        "label": "depmap_paralog_aggregator",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_predictability",
+        "layer": "method",
+        "label": "depmap_predictability",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_prism_activity",
+        "layer": "method",
+        "label": "depmap_prism_activity",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_prism_crispr_concordance",
+        "layer": "method",
+        "label": "depmap_prism_crispr_concordance",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_protein_abundance",
+        "layer": "method",
+        "label": "depmap_protein_abundance",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_rna_protein_concordance",
+        "layer": "method",
+        "label": "depmap_rna_protein_concordance",
+        "health": "live"
+      },
+      {
+        "id": "method:dge_deseq2",
+        "layer": "method",
+        "label": "dge_deseq2",
+        "health": "live"
+      },
+      {
+        "id": "method:driver_role_overlay",
+        "layer": "method",
+        "label": "driver_role_overlay",
+        "health": "live"
+      },
+      {
+        "id": "method:expression_clinical_association",
+        "layer": "method",
+        "label": "expression_clinical_association",
+        "health": "live"
+      },
+      {
+        "id": "method:expression_purity_confound",
+        "layer": "method",
+        "label": "expression_purity_confound",
+        "health": "live"
+      },
+      {
+        "id": "method:functional_gene_state",
+        "layer": "method",
+        "label": "functional_gene_state",
+        "health": "live"
+      },
+      {
+        "id": "method:gdc_somatic_hotspot",
+        "layer": "method",
+        "label": "gdc_somatic_hotspot",
+        "health": "live"
+      },
+      {
+        "id": "method:genomic_event_model_match",
+        "layer": "method",
+        "label": "genomic_event_model_match",
+        "health": "live"
+      },
+      {
+        "id": "method:gnomad_constraint",
+        "layer": "method",
+        "label": "gnomad_constraint",
+        "health": "live"
+      },
+      {
+        "id": "method:hpa_normal_tissue_liability",
+        "layer": "method",
+        "label": "hpa_normal_tissue_liability",
+        "health": "live"
+      },
+      {
+        "id": "method:mechanism_composed",
+        "layer": "method",
+        "label": "mechanism_composed",
+        "health": "live"
+      },
+      {
+        "id": "method:opentargets_clingen",
+        "layer": "method",
+        "label": "opentargets_clingen",
+        "health": "live"
+      },
+      {
+        "id": "method:opentargets_clinvar",
+        "layer": "method",
+        "label": "opentargets_clinvar",
+        "health": "live"
+      },
+      {
+        "id": "method:opentargets_gene_burden",
+        "layer": "method",
+        "label": "opentargets_gene_burden",
+        "health": "live"
+      },
+      {
+        "id": "method:opentargets_mouse_phenotype",
+        "layer": "method",
+        "label": "opentargets_mouse_phenotype",
+        "health": "live"
+      },
+      {
+        "id": "method:opentargets_target_prioritisation",
+        "layer": "method",
+        "label": "opentargets_target_prioritisation",
+        "health": "live"
+      },
+      {
+        "id": "method:patient_model_expression_correspondence",
+        "layer": "method",
+        "label": "patient_model_expression_correspondence",
+        "health": "live"
+      },
+      {
+        "id": "method:phospho_pathway_activity",
+        "layer": "method",
+        "label": "phospho_pathway_activity",
+        "health": "live"
+      },
+      {
+        "id": "method:shed_ectodomain_liability",
+        "layer": "method",
+        "label": "shed_ectodomain_liability",
+        "health": "live"
+      },
+      {
+        "id": "method:structure_features_static",
+        "layer": "method",
+        "label": "structure_features_static",
+        "health": "live"
+      },
+      {
+        "id": "method:surfaceome_cohort_ranking",
+        "layer": "method",
+        "label": "surfaceome_cohort_ranking",
+        "health": "live"
+      },
+      {
+        "id": "method:surfaceome_family_fusion",
+        "layer": "method",
+        "label": "surfaceome_family_fusion",
+        "health": "live"
+      },
+      {
+        "id": "method:synleth_partner_lookup",
+        "layer": "method",
+        "label": "synleth_partner_lookup",
+        "health": "live"
+      },
+      {
+        "id": "method:tcga_fusion_consensus",
+        "layer": "method",
+        "label": "tcga_fusion_consensus",
+        "health": "live"
+      },
+      {
+        "id": "method:tcga_gtex_expression_distribution",
+        "layer": "method",
+        "label": "tcga_gtex_expression_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:topology_predictions_tmbed",
+        "layer": "method",
+        "label": "topology_predictions_tmbed",
+        "health": "live"
+      }
+    ],
+    "edges": [
+      {
+        "src": "card:abundance-dependency",
+        "dst": "method:abundance_dependency",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:alteration-role",
+        "dst": "method:driver_role_overlay",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:clingen-dosage",
+        "dst": "method:opentargets_clingen",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:clinvar-pathogenicity-safety",
+        "dst": "method:opentargets_clinvar",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:co-mutation-and-mutual-exclusivity",
+        "dst": "method:cooccurrence_fisher_pancohort",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:copy-number-distribution",
+        "dst": "method:depmap_cn_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:crispr-rnai-dependency-concordance",
+        "dst": "method:depmap_crispr_rnai_concordance",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:dependency-lineage-selectivity",
+        "dst": "method:depmap_chronos",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:dependency-predictability",
+        "dst": "method:depmap_predictability",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:expression-clinical-association",
+        "dst": "method:expression_clinical_association",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:expression-dependency-correlation",
+        "dst": "method:depmap_expression_dependency",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:expression-distribution",
+        "dst": "method:depmap_expression_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:expression-purity-confound",
+        "dst": "method:expression_purity_confound",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:expression-tumor-vs-adjacent",
+        "dst": "method:dge_deseq2",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:functional-gene-state",
+        "dst": "method:functional_gene_state",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:fusion-rearrangement-landscape",
+        "dst": "method:tcga_fusion_consensus",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:gene-burden-safety",
+        "dst": "method:opentargets_gene_burden",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:genomic-event-model-match",
+        "dst": "method:genomic_event_model_match",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:gnomad-lof-constraint",
+        "dst": "method:gnomad_constraint",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:mouse-ko-phenotype",
+        "dst": "method:opentargets_mouse_phenotype",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:mutation-hotspot-frequency",
+        "dst": "method:gdc_somatic_hotspot",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:mutation-stratified-dependency",
+        "dst": "method:depmap_mutation_dependency",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:mutation-type-counts",
+        "dst": "method:depmap_mutation_type_counts",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:normal-tissue-liability",
+        "dst": "method:hpa_normal_tissue_liability",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:normal-tissue-liability-gtex",
+        "dst": "method:tcga_gtex_expression_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:pan-cancer-crispr-dependency-distribution",
+        "dst": "method:depmap_chronos_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:pan-cancer-rnai-dependency-distribution",
+        "dst": "method:depmap_demeter_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:paralog-buffering",
+        "dst": "method:depmap_paralog_aggregator",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:phospho-pathway-activity",
+        "dst": "method:phospho_pathway_activity",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:prism-compound-activity",
+        "dst": "method:depmap_prism_activity",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:prism-crispr-concordance",
+        "dst": "method:depmap_prism_crispr_concordance",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:protein-abundance-celline",
+        "dst": "method:depmap_protein_abundance",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:protein-presence-cptac",
+        "dst": "method:cptac_protein_deg",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:protein-surface-evidence",
+        "dst": "method:cspa_surface_confirmation",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:recommended-models",
+        "dst": "method:patient_model_expression_correspondence",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:rna-protein-concordance",
+        "dst": "method:depmap_rna_protein_concordance",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:rna-protein-concordance-tumor",
+        "dst": "method:depmap_rna_protein_concordance",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:shed-ectodomain-liability",
+        "dst": "method:shed_ectodomain_liability",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:signaling-network-mechanism",
+        "dst": "method:mechanism_composed",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:structure-features-static",
+        "dst": "method:structure_features_static",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:surface-abundance-density",
+        "dst": "method:cptac_protein_deg",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:surface-topology-and-ptm",
+        "dst": "method:topology_predictions_tmbed",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:surfaceome-cohort-ranking",
+        "dst": "method:surfaceome_cohort_ranking",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:surfaceome-family-classification",
+        "dst": "method:surfaceome_family_fusion",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:synthetic-lethal-partners",
+        "dst": "method:synleth_partner_lookup",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:target-safety-prioritisation",
+        "dst": "method:opentargets_target_prioritisation",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:tumor-elevation-breadth",
+        "dst": "method:cptac_protein_deg",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:tumor-expression-distribution",
+        "dst": "method:tcga_gtex_expression_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:tumor-expression-distribution-subtype",
+        "dst": "method:tcga_gtex_expression_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:tumor-vs-normal-percentile-crossing",
+        "dst": "method:tcga_gtex_expression_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:tumor-vs-normal-selectivity",
+        "dst": "method:dge_deseq2",
+        "rel": "backed_by"
+      },
+      {
+        "src": "skill:combo-and-resistance",
+        "dst": "card:combo-crispr-screen",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:combo-and-resistance",
+        "dst": "card:resistance-emergence-signature",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:differentiation-landscape",
+        "dst": "card:clinical-precedent",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:differentiation-landscape",
+        "dst": "card:co-mutation-and-mutual-exclusivity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:differentiation-landscape",
+        "dst": "card:expression-clinical-association",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:differentiation-landscape",
+        "dst": "card:patent-landscape",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:differentiation-landscape",
+        "dst": "resolver:differentiation",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:abundance-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:crispr-rnai-dependency-concordance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:dependency-lineage-selectivity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:dependency-predictability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:expression-dependency-correlation",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:pan-cancer-crispr-dependency-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:pan-cancer-rnai-dependency-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:paralog-buffering",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:prism-crispr-concordance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "card:recommended-models",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
+        "dst": "resolver:dependency",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:alteration-role",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:copy-number-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:functional-gene-state",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:fusion-rearrangement-landscape",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:genomic-event-model-match",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:mutation-hotspot-frequency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:mutation-stratified-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:mutation-type-counts",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "resolver:genomic_alteration",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:mechanism-and-pharmacology",
+        "dst": "card:signaling-network-mechanism",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:mechanism-and-pharmacology",
+        "dst": "resolver:mechanism",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:alteration-role",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:clingen-dosage",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:clinvar-pathogenicity-safety",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:gene-burden-safety",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:gnomad-lof-constraint",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:mouse-ko-phenotype",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:normal-tissue-liability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:normal-tissue-liability-gtex",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:protein-surface-evidence",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "card:target-safety-prioritisation",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:on-target-safety-liability",
+        "dst": "resolver:safety",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:adc-tce-modality-fit",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:copy-number-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:normal-tissue-liability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:structure-features-static",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:surface-abundance-density",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:surface-topology-and-ptm",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:surfaceome-family-classification",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "resolver:surface_modality",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:surfaceome-cohort-ranking",
+        "dst": "card:surfaceome-cohort-ranking",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:synthetic-lethal-partners",
+        "dst": "card:synthetic-lethal-partners",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:synthetic-lethal-partners",
+        "dst": "resolver:synthetic_lethal_partners",
+        "rel": "resolves_via"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:adc-tce-modality-fit",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:co-mutation-and-mutual-exclusivity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:copy-number-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:crispr-rnai-dependency-concordance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:dependency-lineage-selectivity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:dependency-predictability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:expression-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:expression-tumor-vs-adjacent",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:fusion-rearrangement-landscape",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:gnomad-lof-constraint",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:mutation-hotspot-frequency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:mutation-stratified-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:mutation-type-counts",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:pan-cancer-crispr-dependency-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:pan-cancer-rnai-dependency-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:paralog-buffering",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:prism-compound-activity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:prism-crispr-concordance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:protein-presence-cptac",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:signaling-network-mechanism",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:structure-features-static",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:surface-abundance-density",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:surface-topology-and-ptm",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:surfaceome-family-classification",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:tumor-vs-normal-selectivity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tractability-small-molecule",
+        "dst": "card:dependency-predictability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tractability-small-molecule",
+        "dst": "card:prism-compound-activity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tractability-small-molecule",
+        "dst": "card:prism-crispr-concordance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tractability-small-molecule",
+        "dst": "card:structure-features-static",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:translational-readiness",
+        "dst": "card:imaging-tracer-catalog",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:translational-readiness",
+        "dst": "card:models-registry",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:translational-readiness",
+        "dst": "card:pd-assay-catalog",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:expression-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:expression-purity-confound",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:expression-tumor-vs-adjacent",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:phospho-pathway-activity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:protein-abundance-celline",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:protein-presence-cptac",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:rna-protein-concordance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:tumor-elevation-breadth",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:tumor-expression-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-presence",
+        "dst": "card:tumor-expression-distribution-subtype",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-selectivity",
+        "dst": "card:tumor-vs-normal-percentile-crossing",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-selectivity",
+        "dst": "card:tumor-vs-normal-selectivity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:tumor-selectivity",
+        "dst": "resolver:selectivity",
+        "rel": "resolves_via"
+      }
+    ],
+    "layer_counts": {
+      "skill": 18,
+      "resolver": 8,
+      "card": 66,
+      "method": 44
+    },
+    "n_nodes": 136,
+    "n_edges": 147
+  },
   "drift_index": [
     {
       "skill": "differentiation-landscape",

@@ -203,6 +203,25 @@ function tab(id){
  document.getElementById('pane-'+id).classList.add('active');
  document.getElementById('tab-'+id).classList.add('active');
 }
+// Graph: hover a node -> highlight its incident edges, dim the rest.
+document.addEventListener('DOMContentLoaded',function(){
+ var svg=document.getElementById('fh-graph'); if(!svg)return;
+ var edges=svg.querySelectorAll('.fh-edge');
+ svg.querySelectorAll('.fh-node').forEach(function(node){
+  node.addEventListener('mouseenter',function(){
+   var id=node.getAttribute('data-id');
+   edges.forEach(function(e){
+    var on=(e.getAttribute('data-s')===id||e.getAttribute('data-d')===id);
+    e.style.stroke=on?'#6c5aa8':'#c9c8c1';
+    e.style.strokeWidth=on?'1.6':'0.7';
+    e.style.opacity=on?'0.95':'0.12';
+   });
+  });
+  node.addEventListener('mouseleave',function(){
+   edges.forEach(function(e){e.style.stroke='#c9c8c1';e.style.strokeWidth='0.7';e.style.opacity='0.55';});
+  });
+ });
+});
 """
 
 
@@ -271,6 +290,90 @@ def _card_summary_cards(report: dict) -> str:
     return f'<div class="tiles">{tiles}</div>'
 
 
+# Any node health value -> a color (skills + cards share the ramp; resolver/method
+# use live/broken).
+_NODE_COLOR = {**SKILL_COLORS, **CARD_COLORS, "live": _GREEN, "broken": _RED, None: _GREY}
+
+
+def _graph_svg(report: dict) -> str:
+    """Option-A layered flow: Skills | Resolvers | Cards | Methods, left→right,
+    hand-rolled inline SVG (no CDN, deterministic). Nodes colored by health;
+    orphan cards ringed. Edges drawn as faint cubic curves; hovering a node
+    highlights its incident edges (vanilla JS, no lib)."""
+    g = report.get("graph")
+    if not g or not g["nodes"]:
+        return "<p><i>no graph data</i></p>"
+
+    layers = ["skill", "resolver", "card", "method"]
+    titles = {"skill": "Skills", "resolver": "Resolvers", "card": "Cards", "method": "Methods"}
+    by_layer = {ly: [n for n in g["nodes"] if n["layer"] == ly] for ly in layers}
+
+    # Geometry
+    col_x = {"skill": 90, "resolver": 340, "card": 620, "method": 900}
+    node_w, node_h, v_gap, top = 150, 20, 6, 70
+    max_rows = max(len(v) for v in by_layer.values())
+    height = top + max_rows * (node_h + v_gap) + 30
+    width = 1060
+
+    # Assign each node a y (center) by its order within the column.
+    pos: dict[str, tuple[float, float]] = {}
+    for ly in layers:
+        for i, n in enumerate(by_layer[ly]):
+            y = top + i * (node_h + v_gap) + node_h / 2
+            pos[n["id"]] = (col_x[ly], y)
+
+    parts = [f'<svg viewBox="0 0 {width} {height}" width="100%" '
+             f'style="max-width:{width}px" font-family="inherit" id="fh-graph">']
+
+    # Column headers.
+    for ly in layers:
+        parts.append(f'<text x="{col_x[ly] + node_w/2}" y="40" text-anchor="middle" '
+                     f'font-size="13" font-weight="700" fill="#0b0b0b">{titles[ly]} '
+                     f'<tspan fill="#898781" font-weight="400">({len(by_layer[ly])})</tspan></text>')
+
+    # Edges first (under nodes). Cubic curve from right edge of src to left edge of dst.
+    for e in g["edges"]:
+        if e["src"] not in pos or e["dst"] not in pos:
+            continue
+        x1, y1 = pos[e["src"]]; x2, y2 = pos[e["dst"]]
+        x1 += node_w  # exit right side of source box
+        mx = (x1 + x2) / 2
+        parts.append(
+            f'<path d="M{x1:.0f},{y1:.0f} C{mx:.0f},{y1:.0f} {mx:.0f},{y2:.0f} {x2:.0f},{y2:.0f}" '
+            f'fill="none" stroke="#c9c8c1" stroke-width="0.7" opacity="0.55" '
+            f'data-s="{_esc(e["src"])}" data-d="{_esc(e["dst"])}" class="fh-edge"/>')
+
+    # Nodes.
+    for n in g["nodes"]:
+        x, yc = pos[n["id"]]
+        y = yc - node_h / 2
+        col = _NODE_COLOR.get(n.get("health"), _GREY)
+        ring = ' stroke="#c0392b" stroke-width="2" stroke-dasharray="3,2"' if n.get("is_orphan") else ' stroke="#00000022" stroke-width="0.5"'
+        label = n["label"]
+        disp = label if len(label) <= 22 else label[:21] + "…"
+        parts.append(
+            f'<g class="fh-node" data-id="{_esc(n["id"])}">'
+            f'<rect x="{x:.0f}" y="{y:.0f}" width="{node_w}" height="{node_h}" rx="4" '
+            f'fill="{col}"{ring}><title>{_esc(label)} · {_esc(n.get("health") or "—")}'
+            f'{" · ORPHAN" if n.get("is_orphan") else ""}</title></rect>'
+            f'<text x="{x+6:.0f}" y="{yc+3.5:.0f}" font-size="9.5" fill="#fff" '
+            f'style="pointer-events:none">{_esc(disp)}</text></g>')
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _graph_legend() -> str:
+    return (
+        '<div class="panel"><h3>Reading the graph</h3>'
+        '<p>Data flows <b>right → left</b>: a skill (left) resolves a verdict via its '
+        '<b>resolver</b>, pulling <b>cards</b>, each backed by a <b>method</b> (right). '
+        'Edges: skill—consumes→card, card—backed_by→method, skill—resolves_via→resolver. '
+        'Nodes are colored by health; <b style="color:#c0392b">red-dashed cards</b> are orphans '
+        '(no skill consumes). Hover any node to highlight its connections.</p></div>'
+    )
+
+
 def render(report: dict) -> str:
     s = report["summary"]
     gen = report.get("generated_at", "")
@@ -292,6 +395,7 @@ def render(report: dict) -> str:
 <div class="tabs">
   <div class="tab active" id="tab-skills" onclick="tab('skills')">Skills ({s["n_skills"]})</div>
   <div class="tab" id="tab-cards" onclick="tab('cards')">Cards ({s.get("n_cards", 0)})</div>
+  <div class="tab" id="tab-graph" onclick="tab('graph')">Graph</div>
 </div>
 
 <div class="tabpane active" id="pane-skills">
@@ -306,6 +410,14 @@ def render(report: dict) -> str:
 {_card_summary_cards(report)}
 <h2>Card inventory — every card once, deduped, joined to consuming skills</h2>
 {_cards_table(report)}
+</div>
+
+<div class="tabpane" id="pane-graph">
+<h2>Component graph — layered flow (Skills → Resolvers → Cards → Methods)</h2>
+{_graph_legend()}
+<div style="overflow-x:auto;background:#fff;border:1px solid #e1e0d9;border-radius:6px;padding:8px">
+{_graph_svg(report)}
+</div>
 </div>
 
 <div class="panel"><h3>Legend</h3>
