@@ -29,9 +29,12 @@ subgroup_stratification:
   rationale: "Expression distribution varies by molecular subtype (e.g. MLH1 depleted in CIMP-High/CMS1/MSI-H via mismatch-repair silencing; ZEB1 enriched in mesenchymal CMS4). Backed by tcga-gtex-expression-distribution, which recomputes the per-sample distribution within each stratum's member-set via the TCGA UUID↔barcode bridge — not an emit-time aggregate."
 
 applies_when:
-  # a landed tumor assignment shard is required; only COADREAD is materialized today (the other
-  # catalogued indications unblock as the subgroup-assignment-shards workstream emits their shards).
-  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  # a landed tumor assignment shard is required. Extended 2026-08-04 from COADREAD-only to the 6
+  # indications whose shards have landed AND been VERIFIED to emit real, powered strata (>=30
+  # members): COADREAD (7 strata), HNSC (9), STAD (4), NSCLC/LUAD/LUSC (3), ESCA (2), PAAD/PDAC (2).
+  # Must stay in lockstep with INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST in the tcga_gtex_expression_
+  # distribution reader (analysis-methods). An indication not listed → subtype_axis_available:False.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC']"
   - "indication.subgroup_catalog_available == true"
 
 required_inputs:
