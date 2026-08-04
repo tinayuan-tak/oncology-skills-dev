@@ -18,7 +18,12 @@ main{max-width:1200px;margin:0 auto;padding:20px 28px}
 .banner.ok{background:#eaf6ea;border:1px solid #0ca30c}
 .banner.alert{background:#fdf3e7;border:1px solid #fab219}
 .banner h3{margin:0 0 8px}.banner ul{margin:0;padding-left:18px}
-.matrix{width:100%;border-collapse:collapse;background:var(--card);border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* NOTE: no overflow:hidden here — it clipped expanded drill-down content (the
+   nested cards table) that grows a detail row past the table's box. Round the
+   header-row corners instead so we keep the look without clipping descendants. */
+.matrix{width:100%;border-collapse:collapse;background:var(--card);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.matrix thead th:first-child{border-top-left-radius:6px}
+.matrix thead th:last-child{border-top-right-radius:6px}
 .matrix th{background:#52514e;color:#fff;text-align:left;padding:8px 10px;font-size:12px;font-weight:600}
 .matrix td{padding:7px 10px;border-top:1px solid var(--line);font-size:13px}
 .matrix tr.grp td{background:#e1e0d9;font-weight:700;text-transform:capitalize;font-size:12px}
@@ -42,7 +47,7 @@ code{background:#e1e0d9;padding:1px 5px;border-radius:3px}
 .orphan td{background:#faf3f3}
 .consumers{color:var(--muted);font-size:11px}
 </style></head><body>
-<header><h1>Framework Health Dashboard</h1><div class="sub">18 skills · 53 live-reader cards · 15 firing in real packages · generated 2026-08-04T15:47:25.026336+00:00</div>
+<header><h1>Framework Health Dashboard</h1><div class="sub">18 skills · 53 live-reader cards · 15 firing in real packages · generated 2026-08-04T16:06:35.903341+00:00</div>
 <div class="sub">Health is DERIVED from ground truth (files, tests, live readers, real packages) and reconciled against declared status. Click a row to expand.</div></header>
 <main>
 <div class="tabs">

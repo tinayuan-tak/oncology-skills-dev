@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T15:47:25.026336+00:00",
+  "generated_at": "2026-08-04T16:06:35.903341+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,8 +9,8 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "03604ae",
-    "skills": "7241e0e",
+    "contracts": "8362bb7",
+    "skills": "a685b8c",
     "methods": "496bc6e",
     "products": "1f73e51",
     "catalog": "fd8858f"

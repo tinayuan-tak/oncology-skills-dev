@@ -368,6 +368,42 @@ def test_self_check_catches_inconsistent_dataset_flags(tmp_path):
     assert not ok and any("is_orphan" in e for e in errs)
 
 
+def test_matrix_css_has_no_overflow_hidden_clip():
+    """Regression guard: .matrix must NOT carry overflow:hidden — it clipped the
+    expanded drill-down (the nested cards table grows a detail row past the table
+    box and gets cut off). See the drill-down-clip fix."""
+    from validators.framework_health import render_html
+    css = render_html._CSS
+    import re
+    m = re.search(r'\.matrix\{([^}]*)\}', css)
+    assert m, ".matrix rule not found"
+    assert "overflow:hidden" not in m.group(1), \
+        ".matrix must not clip — overflow:hidden hides expanded drill-down content"
+
+
+def test_drilldown_table_present_and_closed_in_render():
+    """The skill drill-down must emit a fully-closed cards table for a card-consuming
+    skill (structural guard that the detail renders end to end)."""
+    from validators.framework_health import render_html
+    n = {
+        "name": "s", "health_verdict": "partial", "health_reason": "x", "reason_text": "r",
+        "declared": {"status": "wired", "prose_markers": []},
+        "derived": {"kind": "FOCUSED", "resolver_gate": "g", "resolver_bound": True,
+                    "test_count": 1, "cards_in_runpy": ["c1"]},
+        "drift_flags": [],
+        "cards": [{"card_id": "c1", "card_health": "live", "has_live_reader": True,
+                   "fires_in_real_package": True, "measurement_type": "mt",
+                   "dispatch_module": "m.read", "reason_text": "r",
+                   "datasets": [{"product_id": "d1", "in_catalog": True, "matched_by": "exact"},
+                                {"product_id": "d2", "in_catalog": False, "matched_by": None}]}],
+        "risk_category": None,
+    }
+    detail = render_html._skill_detail(n)
+    assert detail.count("<table") == detail.count("</table>")   # balanced
+    assert 'class="dscell"' in detail                            # datasets cell present
+    assert "d1" in detail and "d2" in detail                     # both datasets rendered
+
+
 def test_committed_artifact_datasets_section():
     committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
     if not committed.exists():
