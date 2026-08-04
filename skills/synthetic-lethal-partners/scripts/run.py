@@ -22,6 +22,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 
 
@@ -49,21 +50,15 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     return {
         "sl_partner_verdict":       v,
         "driving_rule_id":          drv,
-        "sl_partner_class":         _get("synthetic-lethal-partners", "sl_partner_class"),
-        "sl_partner_count":         _get("synthetic-lethal-partners", "sl_partner_count"),
-        "n_experimental_partners":  _get("synthetic-lethal-partners", "n_experimental_partners"),
-        "has_experimental_partner": _get("synthetic-lethal-partners", "has_experimental_partner"),
-        "best_evidence_tier":       _get("synthetic-lethal-partners", "best_evidence_tier"),
+        "sl_partner_class":         get_card_field(cards, "synthetic-lethal-partners", "sl_partner_class"),
+        "sl_partner_count":         get_card_field(cards, "synthetic-lethal-partners", "sl_partner_count"),
+        "n_experimental_partners":  get_card_field(cards, "synthetic-lethal-partners", "n_experimental_partners"),
+        "has_experimental_partner": get_card_field(cards, "synthetic-lethal-partners", "has_experimental_partner"),
+        "best_evidence_tier":       get_card_field(cards, "synthetic-lethal-partners", "best_evidence_tier"),
     }
 
 

@@ -106,33 +106,27 @@ def main() -> int:
                         card_id_filter=CARDS)
     verdict, driving_rule = _verdict(fired)
 
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     headline = {
         "genomic_alteration_profile":    verdict,
         "driving_rule_id":               driving_rule,
         # SNV / indel axis
-        "mutation_landscape_class":      _get("mutation-type-counts",
+        "mutation_landscape_class":      get_card_field(cards, "mutation-type-counts",
                                               "mutation_landscape_class"),
-        "mutation_stratification_class": _get("mutation-stratified-dependency",
+        "mutation_stratification_class": get_card_field(cards, "mutation-stratified-dependency",
                                               "mutation_stratification_class"),
-        "overall_mutation_frequency":    _get("mutation-hotspot-frequency",
+        "overall_mutation_frequency":    get_card_field(cards, "mutation-hotspot-frequency",
                                               "overall_mutation_frequency"),
         # Copy-number axis
-        "copy_number_class":             _get("copy-number-distribution",
+        "copy_number_class":             get_card_field(cards, "copy-number-distribution",
                                               "copy_number_class"),
         # Typed driver-role axis (OncoKB × IntOGen)
-        "alteration_role":               _get("alteration-role", "alteration_role"),
-        "functional_direction":          _get("alteration-role", "functional_direction"),
+        "alteration_role":               get_card_field(cards, "alteration-role", "alteration_role"),
+        "functional_direction":          get_card_field(cards, "alteration-role", "functional_direction"),
         # Allele-count / biallelic-inactivation axis (M6, functional_gene_state) — signal-only,
         # does NOT feed the verdict (additive; the resolver spine is byte-stable).
-        "functional_state_class":        _get("functional-gene-state", "functional_state_class"),
+        "functional_state_class":        get_card_field(cards, "functional-gene-state", "functional_state_class"),
         # Patient↔model genomic-event correspondence (M11) — signal-only, does NOT feed the verdict.
-        "event_correspondence_class":    _get("genomic-event-model-match", "event_correspondence_class"),
+        "event_correspondence_class":    get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
         "cards_available":               sum(1 for c in cards if not c.get("_missing")),
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }

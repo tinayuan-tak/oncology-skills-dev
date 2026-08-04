@@ -18,6 +18,7 @@ byte-for-byte before any if-chain is deleted.
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +28,7 @@ _CONTRACTS_REPO = Path(
 _RESOLVERS_DIR = _CONTRACTS_REPO / "resolvers"
 
 
+@functools.lru_cache(maxsize=None)
 def load_resolver(gate: str, contracts_repo: Path | None = None) -> Optional[dict]:
     """Load a gate's resolver spec, or None if absent (caller falls back to its own
     _verdict during the golden-oracle migration — never a hard failure)."""
@@ -35,7 +37,7 @@ def load_resolver(gate: str, contracts_repo: Path | None = None) -> Optional[dic
     path = repo / "resolvers" / f"{gate}.resolver.yaml"
     try:
         return yaml.safe_load(path.read_text())
-    except OSError:
+    except (OSError, yaml.YAMLError):
         return None
 
 

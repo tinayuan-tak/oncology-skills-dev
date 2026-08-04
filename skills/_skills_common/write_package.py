@@ -125,7 +125,7 @@ def write_package(
                 continue
             if isinstance(val, list) and val and isinstance(val[0], dict):
                 csv_path = tables_dir / f"{cid}_{field_name}.csv"
-                keys = list(val[0].keys())
+                keys = list(dict.fromkeys(k for row in val for k in row))
                 with csv_path.open("w", newline="") as f:
                     w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
                     w.writeheader()

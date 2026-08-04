@@ -21,6 +21,7 @@ Locked decisions (Phase-0d + subsequent user checkpoints):
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -49,6 +50,7 @@ class ScopeError(ValueError):
     exclusive fields, etc.)."""
 
 
+@functools.lru_cache(maxsize=None)
 def _load_idas_indications(contracts_repo: Path | None = None) -> set[str]:
     """Load the enumerated iDAS indication ids from indication_crosswalk.yaml."""
     if contracts_repo is None:
@@ -59,10 +61,14 @@ def _load_idas_indications(contracts_repo: Path | None = None) -> set[str]:
             f"indication_crosswalk.yaml not found at {path}. "
             f"Ensure target-contracts is checked out and merged with Phase 1a."
         )
-    data = yaml.safe_load(path.read_text())
+    try:
+        data = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as exc:
+        raise ValueError(f"indication_crosswalk.yaml is malformed: {exc}") from exc
     return {entry["canonical_code"] for entry in data["indications"]}
 
 
+@functools.lru_cache(maxsize=None)
 def _load_strategic_buckets(contracts_repo: Path | None = None) -> dict[str, list[str]]:
     """Load the strategic-bucket → indication-list map from idas_strategic_buckets.yaml."""
     if contracts_repo is None:
@@ -72,7 +78,10 @@ def _load_strategic_buckets(contracts_repo: Path | None = None) -> dict[str, lis
         raise FileNotFoundError(
             f"idas_strategic_buckets.yaml not found at {path}."
         )
-    data = yaml.safe_load(path.read_text())
+    try:
+        data = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as exc:
+        raise ValueError(f"idas_strategic_buckets.yaml is malformed: {exc}") from exc
     return {entry["bucket_id"]: list(entry["indications"]) for entry in data["buckets"]}
 
 

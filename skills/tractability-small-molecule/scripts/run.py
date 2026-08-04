@@ -36,6 +36,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 
 
 SKILL_NAME = "tractability-small-molecule"
@@ -125,12 +126,6 @@ def _degrader_snapshot(fired: list[dict]) -> tuple[str, str | None]:
 
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     degrader_class, degrader_drv = _degrader_snapshot(fired)
     return {
@@ -142,14 +137,14 @@ def _headline(cards, fired, verdict_pair):
         "degrader_snapshot":         degrader_class,
         "degrader_driving_rule_id":  degrader_drv,
         "degradability_machinery":   "not_yet_assessed",   # slice 3: E3-machinery card (CRBN/VHL/proteasome)
-        "prism_activity_class":      _get("prism-compound-activity", "activity_class"),
-        "prism_crispr_concord":      _get("prism-crispr-concordance", "concordance_class"),
-        "predictability_class":      _get("dependency-predictability", "predictability_class"),
+        "prism_activity_class":      get_card_field(cards, "prism-compound-activity", "activity_class"),
+        "prism_crispr_concord":      get_card_field(cards, "prism-crispr-concordance", "concordance_class"),
+        "predictability_class":      get_card_field(cards, "dependency-predictability", "predictability_class"),
         # E8 structural / forward ligandability (2026-07-17)
-        "hotspot_pocket_adjacency":  _get("structure-features-static", "hotspot_pocket_adjacency_call"),
-        "hotspot_in_druggable_pocket": _get("structure-features-static", "mutation_hotspot_in_druggable_pocket"),
-        "pdb_coverage_class":        _get("structure-features-static", "pdb_coverage_class"),
-        "alphafold_confidence_class": _get("structure-features-static", "alphafold_confidence_class"),
+        "hotspot_pocket_adjacency":  get_card_field(cards, "structure-features-static", "hotspot_pocket_adjacency_call"),
+        "hotspot_in_druggable_pocket": get_card_field(cards, "structure-features-static", "mutation_hotspot_in_druggable_pocket"),
+        "pdb_coverage_class":        get_card_field(cards, "structure-features-static", "pdb_coverage_class"),
+        "alphafold_confidence_class": get_card_field(cards, "structure-features-static", "alphafold_confidence_class"),
     }
 
 

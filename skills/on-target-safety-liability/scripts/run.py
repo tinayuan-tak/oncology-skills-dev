@@ -15,6 +15,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 
 
@@ -101,40 +102,34 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
     # (the activating driver role) + the conditionality caveat so a consumer isn't left guessing.
-    functional_direction = _get("alteration-role", "functional_direction")
+    functional_direction = get_card_field(cards, "alteration-role", "functional_direction")
     is_mismatch = (v == "wt_constraint_mechanism_mismatch")
     return {
         "safety_verdict":   v,
         "driving_rule_id":  drv,
-        "constraint_class": _get("gnomad-lof-constraint", "constraint_class"),
-        "pli_score":        _get("gnomad-lof-constraint", "pli_score"),
-        "loeuf_score":      _get("gnomad-lof-constraint", "loeuf_score"),
-        "mis_z_score":      _get("gnomad-lof-constraint", "mis_z_score"),
-        "syn_z_score":      _get("gnomad-lof-constraint", "syn_z_score"),
-        "obs_lof_count":    _get("gnomad-lof-constraint", "obs_lof_count"),
-        "exp_lof_count":    _get("gnomad-lof-constraint", "exp_lof_count"),
+        "constraint_class": get_card_field(cards, "gnomad-lof-constraint", "constraint_class"),
+        "pli_score":        get_card_field(cards, "gnomad-lof-constraint", "pli_score"),
+        "loeuf_score":      get_card_field(cards, "gnomad-lof-constraint", "loeuf_score"),
+        "mis_z_score":      get_card_field(cards, "gnomad-lof-constraint", "mis_z_score"),
+        "syn_z_score":      get_card_field(cards, "gnomad-lof-constraint", "syn_z_score"),
+        "obs_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "obs_lof_count"),
+        "exp_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "exp_lof_count"),
         # P5 Slice 2 — human-genetics rare-variant burden (verdict-moving in Slice 5)
-        "burden_safety_class": _get("gene-burden-safety", "burden_safety_class"),
-        "burden_min_pvalue":   _get("gene-burden-safety", "min_pvalue"),
-        "burden_top_disease":  _get("gene-burden-safety", "top_disease"),
+        "burden_safety_class": get_card_field(cards, "gene-burden-safety", "burden_safety_class"),
+        "burden_min_pvalue":   get_card_field(cards, "gene-burden-safety", "min_pvalue"),
+        "burden_top_disease":  get_card_field(cards, "gene-burden-safety", "top_disease"),
         # P5 Slice 3 — ClinGen dosage sensitivity (verdict-moving in Slice 5)
-        "dosage_sensitivity_class": _get("clingen-dosage", "dosage_sensitivity_class"),
-        "dosage_top_disease":       _get("clingen-dosage", "top_disease"),
+        "dosage_sensitivity_class": get_card_field(cards, "clingen-dosage", "dosage_sensitivity_class"),
+        "dosage_top_disease":       get_card_field(cards, "clingen-dosage", "top_disease"),
         # P5 Slice 4 — mouse-KO normal-physiology (verdict-moving in Slice 5)
-        "mouse_ko_phenotype_class": _get("mouse-ko-phenotype", "ko_phenotype_class"),
-        "mouse_ko_top_lethal":      _get("mouse-ko-phenotype", "top_lethal_label"),
+        "mouse_ko_phenotype_class": get_card_field(cards, "mouse-ko-phenotype", "ko_phenotype_class"),
+        "mouse_ko_top_lethal":      get_card_field(cards, "mouse-ko-phenotype", "top_lethal_label"),
         # P5 follow-on — ClinVar germline-pathogenicity
-        "clinvar_pathogenic_class": _get("clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
-        "clinvar_top_disease":      _get("clinvar-pathogenicity-safety", "top_disease"),
+        "clinvar_pathogenic_class": get_card_field(cards, "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
+        "clinvar_top_disease":      get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),
         # mutant-selective conditioning (2026-07-23)
         "alteration_functional_direction": functional_direction,
         "mechanism_conditioning_note": (

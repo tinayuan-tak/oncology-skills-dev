@@ -23,6 +23,7 @@ reference shape.
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Optional
 
@@ -37,6 +38,7 @@ TARGET_CONTRACTS = Path(
 )
 
 
+@functools.lru_cache(maxsize=None)
 def load_interpretation_rules(
     axis: str,
     contracts_root: Optional[Path] = None,

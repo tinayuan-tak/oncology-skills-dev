@@ -23,6 +23,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 
 
@@ -54,31 +55,25 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _headline(cards, fired, verdict_pair):
     """Skill-specific headline: SIGNOR-network descriptive fields."""
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     return {
         "mechanism_verdict":         v,
         "driving_rule_id":           drv,
-        "network_class":             _get("signaling-network-mechanism",
+        "network_class":             get_card_field(cards, "signaling-network-mechanism",
                                           "network_class"),
-        "n_upstream_regulators":     _get("signaling-network-mechanism",
+        "n_upstream_regulators":     get_card_field(cards, "signaling-network-mechanism",
                                           "n_upstream_regulators"),
-        "n_downstream_effectors":    _get("signaling-network-mechanism",
+        "n_downstream_effectors":    get_card_field(cards, "signaling-network-mechanism",
                                           "n_downstream_effectors"),
-        "moa_classes_present":       _get("signaling-network-mechanism",
+        "moa_classes_present":       get_card_field(cards, "signaling-network-mechanism",
                                           "moa_classes_present"),
-        "pd_marker_classes_present": _get("signaling-network-mechanism",
+        "pd_marker_classes_present": get_card_field(cards, "signaling-network-mechanism",
                                           "pd_marker_classes_present"),
-        "has_actionable_moa":        _get("signaling-network-mechanism",
+        "has_actionable_moa":        get_card_field(cards, "signaling-network-mechanism",
                                           "has_actionable_moa"),
-        "has_pd_marker":             _get("signaling-network-mechanism",
+        "has_pd_marker":             get_card_field(cards, "signaling-network-mechanism",
                                           "has_pd_marker"),
-        "moa_ontology_version":      _get("signaling-network-mechanism",
+        "moa_ontology_version":      get_card_field(cards, "signaling-network-mechanism",
                                           "moa_ontology_version"),
     }
 

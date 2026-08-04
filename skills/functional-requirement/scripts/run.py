@@ -21,6 +21,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 
 
@@ -137,43 +138,37 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
-    predictability_class = _get("dependency-predictability", "predictability_class")
+    predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
     confidence = _dependency_confidence_note(v, predictability_class)
     return {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
-        "crispr_call":              _get("pan-cancer-crispr-dependency-distribution",
+        "crispr_call":              get_card_field(cards, "pan-cancer-crispr-dependency-distribution",
                                           "dependency_class"),
-        "rnai_call":                _get("pan-cancer-rnai-dependency-distribution",
+        "rnai_call":                get_card_field(cards, "pan-cancer-rnai-dependency-distribution",
                                           "dependency_class"),
-        "concordance_call":         _get("crispr-rnai-dependency-concordance",
+        "concordance_call":         get_card_field(cards, "crispr-rnai-dependency-concordance",
                                           "concordance_class"),
-        "lineage_selectivity":      _get("dependency-lineage-selectivity",
+        "lineage_selectivity":      get_card_field(cards, "dependency-lineage-selectivity",
                                           "lineage_selectivity_class"),
-        "paralog_buffering_class":  _get("paralog-buffering",
+        "paralog_buffering_class":  get_card_field(cards, "paralog-buffering",
                                           "paralog_buffering_class"),
-        "strongest_paralog_symbol": _get("paralog-buffering",
+        "strongest_paralog_symbol": get_card_field(cards, "paralog-buffering",
                                           "strongest_paralog_symbol"),
         # Gate-C gap 1 (Option A): predictability CONFIDENCE annotation over the verdict —
         # additive; the verdict + driving_rule_id above are untouched.
         "predictability_class":     predictability_class,
-        "pred_dominant_feature_class": _get("dependency-predictability",
+        "pred_dominant_feature_class": get_card_field(cards, "dependency-predictability",
                                             "pred_dominant_feature_class"),
         "dependency_confidence":    confidence["confidence"],
         "dependency_confidence_note": confidence["note"],
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):
-        "model_correspondence_class": _get("recommended-models", "correspondence_class"),
-        "n_positive_models_in_lineage": _get("recommended-models", "n_positive_models_in_lineage"),
+        "model_correspondence_class": get_card_field(cards, "recommended-models", "correspondence_class"),
+        "n_positive_models_in_lineage": get_card_field(cards, "recommended-models", "n_positive_models_in_lineage"),
         # Q7 protein abundance → dependency (render facet, biomarker-assay comparison vs the RNA arm):
-        "abundance_dependency_class": _get("abundance-dependency", "abundance_dependency_class"),
-        "protein_dependency_pearson_r": _get("abundance-dependency", "protein_dependency_pearson_r"),
+        "abundance_dependency_class": get_card_field(cards, "abundance-dependency", "abundance_dependency_class"),
+        "protein_dependency_pearson_r": get_card_field(cards, "abundance-dependency", "protein_dependency_pearson_r"),
     }
 
 

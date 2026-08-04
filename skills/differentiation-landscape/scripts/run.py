@@ -17,6 +17,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 
 
@@ -60,39 +61,33 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     return {
         "differentiation_verdict":          v,
         "driving_rule_id":                  drv,
-        "cooccurrence_class":               _get("co-mutation-and-mutual-exclusivity",
+        "cooccurrence_class":               get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "cooccurrence_class"),
-        "n_significant_cooccurring":        _get("co-mutation-and-mutual-exclusivity",
+        "n_significant_cooccurring":        get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "n_significant_cooccurring"),
-        "n_significant_mutually_exclusive": _get("co-mutation-and-mutual-exclusivity",
+        "n_significant_mutually_exclusive": get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "n_significant_mutually_exclusive"),
-        "n_pairs_panel_intersect_eligible": _get("co-mutation-and-mutual-exclusivity",
+        "n_pairs_panel_intersect_eligible": get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "n_pairs_panel_intersect_eligible"),
-        "n_pairs_per_source_only":          _get("co-mutation-and-mutual-exclusivity",
+        "n_pairs_per_source_only":          get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "n_pairs_per_source_only"),
-        "has_cooccurring_driver":           _get("co-mutation-and-mutual-exclusivity",
+        "has_cooccurring_driver":           get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "has_cooccurring_driver"),
-        "has_mutually_exclusive_driver":    _get("co-mutation-and-mutual-exclusivity",
+        "has_mutually_exclusive_driver":    get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "has_mutually_exclusive_driver"),
-        "top_cooccurring":                  _get("co-mutation-and-mutual-exclusivity",
+        "top_cooccurring":                  get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "top_cooccurring"),
-        "top_mutually_exclusive":           _get("co-mutation-and-mutual-exclusivity",
+        "top_mutually_exclusive":           get_card_field(cards, "co-mutation-and-mutual-exclusivity",
                                                  "top_mutually_exclusive"),
         # Q11 expression→survival prognostic context (render facet; feeds NO resolver — the
         # differentiation verdict reads only the co-mutation rule_ids, so this is verdict-inert):
-        "survival_association_class":       _get("expression-clinical-association",
+        "survival_association_class":       get_card_field(cards, "expression-clinical-association",
                                                  "survival_association_class"),
-        "logrank_p":                        _get("expression-clinical-association", "logrank_p"),
+        "logrank_p":                        get_card_field(cards, "expression-clinical-association", "logrank_p"),
     }
 
 

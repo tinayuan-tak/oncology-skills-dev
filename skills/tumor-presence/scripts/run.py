@@ -18,6 +18,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
@@ -276,12 +277,6 @@ def _per_modality_verdicts(fired: list[dict]) -> dict[str, dict]:
 
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired)
     return {
@@ -296,36 +291,36 @@ def _headline(cards, fired, verdict_pair):
         # data_unavailable`. sc_rna/tumor + protein_ihc/normal are explicit
         # data_unavailable — named gaps, not silence.
         "presence_verdict_by_modality": per_modality,
-        "median_log2tpm_panel":     _get("expression-distribution",
+        "median_log2tpm_panel":     get_card_field(cards, "expression-distribution",
                                           "median_log2tpm_panel"),
-        "expression_call_class":    _get("expression-distribution",
+        "expression_call_class":    get_card_field(cards, "expression-distribution",
                                           "expression_call_class"),
-        "tva_log2_fc":              _get("expression-tumor-vs-adjacent", "log2_fc"),
-        "tva_q_value":              _get("expression-tumor-vs-adjacent", "q_value"),
-        "tva_expression_call":      _get("expression-tumor-vs-adjacent",
+        "tva_log2_fc":              get_card_field(cards, "expression-tumor-vs-adjacent", "log2_fc"),
+        "tva_q_value":              get_card_field(cards, "expression-tumor-vs-adjacent", "q_value"),
+        "tva_expression_call":      get_card_field(cards, "expression-tumor-vs-adjacent",
                                           "expression_call_class"),
-        "protein_expression_class": _get("protein-presence-cptac",
+        "protein_expression_class": get_card_field(cards, "protein-presence-cptac",
                                           "protein_expression_class"),
-        "protein_effect_size":      _get("protein-presence-cptac",
+        "protein_effect_size":      get_card_field(cards, "protein-presence-cptac",
                                           "protein_effect_size"),
         # Slice B3: the pan-cancer tumor-elevation breadth (target-grain) — the one
         # tumor-context presence signal available to a target-ONLY query.
-        "tumor_elevation_breadth_class": _get("tumor-elevation-breadth",
+        "tumor_elevation_breadth_class": get_card_field(cards, "tumor-elevation-breadth",
                                               "tumor_elevation_breadth_class"),
-        "tumor_elevation_n_cohorts_elevated": _get("tumor-elevation-breadth",
+        "tumor_elevation_n_cohorts_elevated": get_card_field(cards, "tumor-elevation-breadth",
                                                    "n_cohorts_elevated"),
-        "tumor_elevation_n_cohorts_tested": _get("tumor-elevation-breadth",
+        "tumor_elevation_n_cohorts_tested": get_card_field(cards, "tumor-elevation-breadth",
                                                  "n_cohorts_tested"),
         # Q9 purity confound — is the tumor presence signal tumor-intrinsic or microenvironment?
         # (render facet; does NOT feed the presence verdict — additive, spine byte-stable)
-        "purity_confound_class":    _get("expression-purity-confound", "purity_confound_class"),
-        "expression_purity_pearson_r": _get("expression-purity-confound", "expression_purity_pearson_r"),
+        "purity_confound_class":    get_card_field(cards, "expression-purity-confound", "purity_confound_class"),
+        "expression_purity_pearson_r": get_card_field(cards, "expression-purity-confound", "expression_purity_pearson_r"),
         # Q8 phospho pathway activity — protein/pathway-level presence (render facet, byte-stable)
-        "phospho_activity_class":   _get("phospho-pathway-activity", "phospho_activity_class"),
-        "n_phosphosites":           _get("phospho-pathway-activity", "n_phosphosites"),
+        "phospho_activity_class":   get_card_field(cards, "phospho-pathway-activity", "phospho_activity_class"),
+        "n_phosphosites":           get_card_field(cards, "phospho-pathway-activity", "n_phosphosites"),
         # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
-        "rna_as_biomarker":         _get("rna-protein-concordance", "rna_as_biomarker"),
-        "rna_protein_r":            _get("rna-protein-concordance", "rna_protein_r"),
+        "rna_as_biomarker":         get_card_field(cards, "rna-protein-concordance", "rna_as_biomarker"),
+        "rna_protein_r":            get_card_field(cards, "rna-protein-concordance", "rna_protein_r"),
     }
 
 

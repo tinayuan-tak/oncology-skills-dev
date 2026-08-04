@@ -25,6 +25,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 
 
@@ -66,29 +67,23 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 def _headline(cards, fired, verdict_pair):
-    def _get(cid: str, key: str):
-        for c in cards:
-            if c["card_id"] == cid:
-                return (c["summary"] or {}).get(key)
-        return None
-
     v, drv = verdict_pair or ("insufficient", None)
     return {
         "surface_modality_verdict":       v,
         "driving_rule_id":                drv,
-        "fit_class":                      _get("adc-tce-modality-fit", "fit_class"),
-        "topology_class":                 _get("surface-topology-and-ptm", "topology_class"),
-        "family_class":                   _get("surfaceome-family-classification", "family_class"),
-        "hotspot_pocket_adjacency_call":  _get("structure-features-static",
+        "fit_class":                      get_card_field(cards, "adc-tce-modality-fit", "fit_class"),
+        "topology_class":                 get_card_field(cards, "surface-topology-and-ptm", "topology_class"),
+        "family_class":                   get_card_field(cards, "surfaceome-family-classification", "family_class"),
+        "hotspot_pocket_adjacency_call":  get_card_field(cards, "structure-features-static",
                                                "hotspot_pocket_adjacency_call"),
-        "surface_density_class":          _get("surface-abundance-density", "surface_density_class"),
+        "surface_density_class":          get_card_field(cards, "surface-abundance-density", "surface_density_class"),
         # Normal-tissue on-target-off-tumor safety (HPA IHC). Its rules fire on the
         # surface_intrinsic axis (adc/bite_tce/antibody): essential-tissue → BiTE killer
         # + adc/antibody opposing; broad footprint → opposing; restricted/not-detected →
         # supportive. Surfaced here so the biologics-fit call reflects the safety window.
-        "normal_tissue_breadth_class":    _get("normal-tissue-liability", "normal_tissue_breadth_class"),
-        "essential_tissue_flag":          _get("normal-tissue-liability", "essential_tissue_flag"),
-        "normal_tissue_safety_flags":     _get("normal-tissue-liability", "safety_tissue_flags"),
+        "normal_tissue_breadth_class":    get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
+        "essential_tissue_flag":          get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
+        "normal_tissue_safety_flags":     get_card_field(cards, "normal-tissue-liability", "safety_tissue_flags"),
     }
 
 

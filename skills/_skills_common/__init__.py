@@ -359,6 +359,23 @@ def make_decision_json(
     }
 
 
+def get_card_field(cards: list[dict], card_id: str, key: str):
+    """Look up a summary field on a specific card by id.
+
+    Raises KeyError if card_id is not in the cards list — a missing card_id
+    is almost always a typo in the caller (previously silently returned None,
+    making typos invisible). Returns None when the card exists but the key is
+    absent from its summary.
+    """
+    card_by_id = {c["card_id"]: c for c in cards}
+    if card_id not in card_by_id:
+        raise KeyError(
+            f"get_card_field: card_id {card_id!r} not found in cards list "
+            f"(available: {sorted(card_by_id)}). Check for a typo in the caller."
+        )
+    return (card_by_id[card_id].get("summary") or {}).get(key)
+
+
 def write_decision(decision: dict, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     p = out_dir / "decision.json"
