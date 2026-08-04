@@ -9,6 +9,17 @@
     "median_log_viability_across_compounds"
   ],
   "additionalProperties": false,
+  "if": {
+    "$comment": "Finding B: median_log_viability_across_compounds aggregates over (compound × cell-line) pairs. When n_compounds_for_target=0 there are no pairs, so no numeric median exists — it must be null. When >0 a real number is required.",
+    "properties": { "n_compounds_for_target": { "const": 0 } },
+    "required": ["n_compounds_for_target"]
+  },
+  "then": {
+    "properties": { "median_log_viability_across_compounds": { "type": "null" } }
+  },
+  "else": {
+    "properties": { "median_log_viability_across_compounds": { "type": "number" } }
+  },
   "properties": {
     "n_compounds_for_target": {
       "type": "integer",
@@ -30,8 +41,8 @@
       }
     },
     "median_log_viability_across_compounds": {
-      "type": "number",
-      "description": "Median log2(viability) across (compound × cell-line) pairs in the indication-mapped lineage subset. Negative values indicate sensitivity."
+      "type": ["number", "null"],
+      "description": "Median log2(viability) across (compound × cell-line) pairs in the indication-mapped lineage subset. Negative values indicate sensitivity. Null when n_compounds_for_target=0 (no compound×cell-line pairs to aggregate) — enforced by the top-level if/then/else."
     },
     "lineage_selective_sensitivity_zscore": {
       "type": "number",

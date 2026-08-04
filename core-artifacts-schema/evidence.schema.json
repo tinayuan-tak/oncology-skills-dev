@@ -13,9 +13,20 @@
       "pattern": "^[A-Za-z0-9_.-]+$"
     },
     "indication": {
-      "type": "string",
-      "description": "Canonical AACR OncoTree code (uppercase). Examples: COADREAD (combined CRC), LUAD (lung adenocarcinoma), LUSC (lung squamous cell carcinoma), NSCLC (parent: non-small-cell lung cancer), PAAD (pancreatic adenocarcinoma), STAD (stomach adenocarcinoma). Use the most specific OncoTree code that matches the analysis scope. See https://oncotree.mskcc.org/ for the full ontology. Decision: literal codes, no slug layer (runbook 2026-06-15) — every artifact directly cross-referenceable to GENIE / cBioPortal / TCGA project IDs without translation.",
-      "pattern": "^[A-Z][A-Z0-9_]*$"
+      "description": "Canonical AACR OncoTree code (uppercase), OR the reserved sentinel TARGET_LEVEL for products with indication_scope=target_level (target-biology-*, safety-hpa-normal-tissue, safety-gnomad-constraint). OncoTree examples: COADREAD, LUAD, LUSC, NSCLC, PAAD, STAD. See https://oncotree.mskcc.org/. Decision: literal codes, no slug layer (runbook 2026-06-15). TARGET_LEVEL is the single canonical sentinel — use of any other placeholder (TARGET, ALL, GENE) is a schema violation.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "AACR OncoTree code for indication-scoped products.",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "not": { "const": "TARGET_LEVEL" }
+        },
+        {
+          "type": "string",
+          "description": "Reserved sentinel for target-level (indication-independent) products.",
+          "const": "TARGET_LEVEL"
+        }
+      ]
     },
     "subtype": {
       "type": "string",
