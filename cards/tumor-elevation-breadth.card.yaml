@@ -10,8 +10,8 @@
 #     an ALLOWED per-target claim (precedent: normal_tissue_protein_breadth).
 #   - It is NOT a ranking OVER TARGETS (the surfaceome-cohort-ranking non-goal) — the
 #     roll-up axis is indications, never other genes.
-#   - It is NOT the per-indication tumor_vs_adjacent contrast (protein-presence-cptac):
-#     breadth ≠ selectivity IN THIS cancer. protein-presence-cptac answers "is it up in
+#   - It is NOT the per-indication tumor_vs_adjacent contrast (tumor-protein-abundance-cptac):
+#     breadth ≠ selectivity IN THIS cancer. tumor-protein-abundance-cptac answers "is it up in
 #     THIS tumor"; this card answers "in how many tumors at all".
 #
 # TWO SUBSTRATES (surface_discordance — reported ALONGSIDE, never averaged):
@@ -123,7 +123,7 @@ caveats:
   - |
     Breadth is over INDICATIONS for ONE target ("in how many cancers"), NOT a ranking
     over targets and NOT selectivity within a single cancer. For "is it up in THIS
-    tumor" use protein-presence-cptac (the per-indication tumor-vs-normal contrast);
+    tumor" use tumor-protein-abundance-cptac (the per-indication tumor-vs-normal contrast);
     for "how many cancers at all" use this card.
   - |
     "Elevated" = the per-cohort protein_expression_class is strong_up or modest_up,

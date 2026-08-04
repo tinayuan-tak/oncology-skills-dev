@@ -18,3 +18,7 @@ aliases:
     to: cellline-rna-distribution
     renamed_date: '2026-08-04'
     reason: "cell-line RNA distribution — the bare 'expression-distribution' hid that it is cell-line + RNA only"
+  - from: protein-presence-cptac
+    to: tumor-protein-abundance-cptac
+    renamed_date: '2026-08-04'
+    reason: "tumor protein abundance (CPTAC per-cohort) — 'presence' was vague; it's an abundance contrast"

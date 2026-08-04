@@ -28,7 +28,7 @@ required_inputs:
 
 derived_from:
   - card_id: surfaceome-family-classification
-  - card_id: protein-presence-cptac
+  - card_id: tumor-protein-abundance-cptac
   - card_id: surface-topology-and-ptm
 
 methods:

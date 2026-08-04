@@ -2220,7 +2220,7 @@ rules:
       per-modality biology call. Conditional on an allele-selective modality.
 
 # ============================================================================
-# Phase A (protein layer) — protein-presence-cptac (measurement: bulk_protein_ms)
+# Phase A (protein layer) — tumor-protein-abundance-cptac (measurement: bulk_protein_ms)
 # Added 2026-07-14 (Pass 1 of legacy-cleanup): CPTAC bulk-protein categorical
 # was emitted after the tumor-presence protein wiring but no rule consumed it,
 # so the protein signal was decision-inert. These rules complete the
@@ -2229,7 +2229,7 @@ rules:
 
   - rule_id: protein-strongly-up-supportive
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: strong_up
     signals:
@@ -2246,7 +2246,7 @@ rules:
 
   - rule_id: protein-modestly-up-neutral
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: modest_up
     signals:
@@ -2260,7 +2260,7 @@ rules:
 
   - rule_id: protein-strongly-down-opposing
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: strong_down
     signals:
@@ -2274,7 +2274,7 @@ rules:
 
   - rule_id: protein-modestly-down-opposing
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: modest_down
     signals:
@@ -2293,7 +2293,7 @@ rules:
 
   - rule_id: protein-not-detected-degrader-killer
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: not_detected
     signals:
@@ -2313,7 +2313,7 @@ rules:
 
   - rule_id: protein-data-unavailable-insufficient
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: data_unavailable
     signals:
@@ -2333,7 +2333,7 @@ rules:
   # E3b — Protein abundance distribution (Card E3b: protein-abundance-celline)
   # ============================================================================
   # The PROTEIN twin of cellline-rna-distribution (E3a). Cell-line whole-proteome
-  # TMT MS (Gygi/Nusinow) DISTRIBUTION — distinct from protein-presence-cptac,
+  # TMT MS (Gygi/Nusinow) DISTRIBUTION — distinct from tumor-protein-abundance-cptac,
   # which is a tumor-vs-normal CONTRAST (strong_up/down vocab). This card uses the
   # DISTRIBUTION vocab (broadly_high/broadly_low/lineage_restricted), so it gets
   # its OWN rules — exactly parallel to how cellline-rna-distribution and
@@ -2646,7 +2646,7 @@ rules:
       cohorts it was tested in — pan-cancer tumor-presence breadth. Confirms measurable,
       tumor-elevated PROTEIN across multiple cancers; supportive for both modalities.
       Not dominant: breadth is a presence signal, not selectivity-in-this-indication
-      (that lives in protein-presence-cptac + tumor-vs-normal-selectivity).
+      (that lives in tumor-protein-abundance-cptac + tumor-vs-normal-selectivity).
 
   - rule_id: tumor-breadth-multi-supportive
     when:
@@ -2671,7 +2671,7 @@ rules:
     rationale: |
       Target protein is elevated in exactly ONE CPTAC cohort — an indication-specific
       signal, not pan-cancer breadth. Neutral for a breadth claim (the per-indication
-      protein-presence-cptac card carries the single-cancer signal); the card's own
+      tumor-protein-abundance-cptac card carries the single-cancer signal); the card's own
       single_cohort_breadth warning flags not to over-generalize.
 
   - rule_id: tumor-breadth-not-elevated-neutral

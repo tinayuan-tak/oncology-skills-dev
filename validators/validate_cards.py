@@ -160,7 +160,7 @@ KNOWN_FIGURE_DEBT = {
     # expression / protein: BOTH CLEARED 2026-07-21 (Slice 7) — emitters registered in
     # CARD_FIGURE_EMITTERS, now pass the check (not waived).
     #   protein-abundance-celline: Gygi density + lineage-strip + plotly.
-    #   protein-presence-cptac: per-cohort tumor-vs-normal DISTRIBUTION boxplot (upgraded 2026-07-22
+    #   tumor-protein-abundance-cptac: per-cohort tumor-vs-normal DISTRIBUTION boxplot (upgraded 2026-07-22
     #     from the median dumbbell — the per-sample product cptac-protein-tumor-vs-normal-per-sample-v1
     #     now persists the per-aliquot log-ratios, so read.py's per_cohort_distribution_stats backs a
     #     true boxplot + recomputed Welch/MWU significance; emitter registered, not waived).

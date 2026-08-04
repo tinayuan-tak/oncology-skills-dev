@@ -10,7 +10,7 @@
 # harmonized_MS_CCLE_Gygi.csv — a (ModelID x UniProt-accession) whole-proteome
 # TMT mass-spec matrix (~12,558 proteins). Distinct from:
 #   - cellline-rna-distribution:   bulk_rna x cell_line (DepMap RNA)
-#   - protein-presence-cptac:    bulk_protein_ms x TUMOR (CPTAC patient cohort)
+#   - tumor-protein-abundance-cptac:    bulk_protein_ms x TUMOR (CPTAC patient cohort)
 # This card is bulk_protein_ms x CELL-LINE — the cell-line protein-presence axis.
 #
 # TMT MS abundance is a normalized relative log2-ratio (protein-level, batch-
@@ -47,7 +47,7 @@ outputs:
     - p95_log2_abundance_panel
     - log2_abundance_iqr
     - protein_expression_class                    # CATEGORICAL — same vocab the Slice-Y protein rules consume
-    - protein_effect_size                         # panel median (relative abundance) — parity with protein-presence-cptac field name
+    - protein_effect_size                         # panel median (relative abundance) — parity with tumor-protein-abundance-cptac field name
     - n_lineages_evaluated
     - per_lineage_stats                           # list of {lineage, n, median_log2_abundance, fraction_detected}
     - n_lineage_restricted_lineages               # lineages with >50% detected but panel <30%
@@ -108,7 +108,7 @@ caveats:
   - |
     Cell-line protein abundance does not equal tumor protein abundance; DepMap
     lines are immortalized cultures biased toward proliferation programs. The
-    tumor protein-presence comparator is protein-presence-cptac (CPTAC patient MS).
+    tumor protein-presence comparator is tumor-protein-abundance-cptac (CPTAC patient MS).
   - |
     Lineage stratification here is the DepMap OncotreeLineage axis (a read-side
     groupby over per-ModelID rows), NOT patient molecular subtype (MSI/CMS) — those
@@ -116,7 +116,7 @@ caveats:
   - |
     protein_expression_class is descriptive; therapeutic interpretation lives in
     target-contracts/interpretation-rules/ (the intracellular-intrinsic
-    protein_expression_class rules, shared with protein-presence-cptac).
+    protein_expression_class rules, shared with tumor-protein-abundance-cptac).
 
 measurement: bulk_protein_ms
 sample_context: cell_line     # DepMap cell lines (Gygi TMT MS) — orthogonal to measurement (2026-07-21)

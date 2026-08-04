@@ -890,7 +890,7 @@ rules:
 
   - rule_id: protein-abundance-strong-up-surface-supportive
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: strong_up
     signals:
@@ -909,7 +909,7 @@ rules:
 
   - rule_id: protein-absent-surface-killer
     when:
-      card_id: protein-presence-cptac
+      card_id: tumor-protein-abundance-cptac
       field: protein_expression_class
       equals: not_detected
     signals:

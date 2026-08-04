@@ -26,7 +26,7 @@ The fix is a second, ORTHOGONAL tag: **`sample_context` ∈ {cell_line | tumor |
 | | cell_line | tumor | normal |
 |---|---|---|---|
 | **bulk_rna** | DepMap cellline-rna-distribution | TCGA expression-tumor-vs-adjacent / tumor-vs-normal-selectivity | (GTEx, via selectivity's comparators) |
-| **bulk_protein_ms** | Gygi protein-abundance-celline | CPTAC protein-presence-cptac | — |
+| **bulk_protein_ms** | Gygi protein-abundance-celline | CPTAC tumor-protein-abundance-cptac | — |
 | **protein_ihc** | — | — | HPA normal-tissue-liability |
 
 The per-modality sub-verdict view buckets by the PAIR `(measurement, sample_context)`, so a cell-line-RNA signal is never conflated with a tumor-RNA signal. A target-only query now honestly reads `bulk_rna/cell_line: broadly_moderate (measured)` alongside `bulk_rna/tumor: data_unavailable` — the collapsed headline is unchanged (still additive), but the breakdown no longer over-reads.
@@ -47,7 +47,7 @@ The skill emits one verdict per modality — e.g. `{bulk_rna_verdict, bulk_prote
 | cellline-rna-distribution | bulk_rna | DepMap 26Q1 cell-line RNA | 5 |
 | expression-tumor-vs-adjacent | bulk_rna | TCGA DGE tumor-vs-adjacent (RNA-seq) | 4 |
 | tumor-vs-normal-selectivity | bulk_rna | recount3 TCGA + GTEx (RNA) | 6 |
-| protein-presence-cptac | bulk_protein_ms | CPTAC tumor-vs-normal (mass-spec) | 0 |
+| tumor-protein-abundance-cptac | bulk_protein_ms | CPTAC tumor-vs-normal (mass-spec) | 0 |
 | surface-abundance-density | bulk_protein_ms | same CPTAC parquet | 0 |
 | lineage-restriction-evidence | bulk_rna | HPA normal-tissue (RNA half) | 0 (legacy inline hints) |
 

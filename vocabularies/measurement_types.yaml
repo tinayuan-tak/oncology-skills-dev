@@ -125,7 +125,7 @@ measurement_types:
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "Is target present at protein level in tumor vs matched normal (CPTAC MS)?"
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
-    cards: [protein-presence-cptac]
+    cards: [tumor-protein-abundance-cptac]
     providers:
       - {kind: dataset, source: cptac-protein-tumor-vs-normal-per-cohort-v1, evidence_tier: measured}
 

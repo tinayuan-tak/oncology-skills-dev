@@ -11,7 +11,7 @@
 # 'data_unavailable' — the RNA-based expression-tumor-vs-adjacent card
 # remains authoritative for those tissues.
 
-card_id: protein-presence-cptac
+card_id: tumor-protein-abundance-cptac
 version: 1.0.0
 question: "Is {target.symbol} present at the protein level in {indication.label} tumors vs matched normals per CPTAC?"
 
