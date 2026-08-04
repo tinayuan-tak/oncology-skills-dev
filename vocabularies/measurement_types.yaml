@@ -254,7 +254,11 @@ measurement_types:
     entity_grains: [target_indication]
     cards: [fusion-rearrangement-landscape]
     providers:
-      - {kind: derived_from, inputs: [tcga-fusion-consensus-v1], method: tcga_fusion_consensus, evidence_tier: measured}   # LIVE 2026-07-23: pan-TCGA 3-caller consensus (TumorFusions/Gao/cBioPortal SV)
+      # kind: dataset (not derived_from) — tcga-fusion-consensus-v1 is a RAW data-catalog product, not a
+      # composition of upstream measurement_types. derived_from's `inputs:` must be registered
+      # measurement_type keys (DAG edges); a manifest ID there is a dangling edge (Rule 4). Fixed
+      # 2026-08-04: was mis-declared as derived_from at #108, failing the vocab validator on main since.
+      - {kind: dataset, source: tcga-fusion-consensus-v1, method: tcga_fusion_consensus, evidence_tier: measured}   # LIVE 2026-07-23: pan-TCGA 3-caller consensus (TumorFusions/Gao/cBioPortal SV)
 
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
