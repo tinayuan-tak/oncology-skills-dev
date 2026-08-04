@@ -191,6 +191,7 @@ products:
       family: hotspot_caller
       reference: cancerhotspots_v2_or_recurrence_threshold
     result_schema_ref: products/mutation-profile-hotspot.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
 
@@ -206,6 +207,7 @@ products:
       family: fisher_exact_pairwise
       multiple_testing: BH
     result_schema_ref: products/mutation-profile-cooccurrence.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
 
@@ -225,6 +227,7 @@ products:
       family: chronos
       stratification: ["lineage", "primary_disease", "mutation_context"]
     result_schema_ref: products/dependency-depmap-chronos.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
     backfill_status:
@@ -241,6 +244,7 @@ products:
       family: demeter2
       stratification: ["lineage"]
     result_schema_ref: products/dependency-depmap-rnai.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
     notes: |
@@ -266,6 +270,7 @@ products:
       detection: dual_track_lum_seq
       stratification: ["lineage", "mutation_context"]
     result_schema_ref: products/perturbation-prism-viability.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true   # compound→target mapping happens via target-of-record
     status: compute-ready
 
@@ -279,6 +284,7 @@ products:
     method:
       family: prism_drc_4parameter_logistic
     result_schema_ref: products/perturbation-prism-doseresponse.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
 
@@ -292,6 +298,7 @@ products:
     method:
       family: bliss_loewe_synergy
     result_schema_ref: products/perturbation-sanger-combinations.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
     notes: |
@@ -315,6 +322,7 @@ products:
       test: log_rank
       cox_covariates: ["age", "sex", "stage"]
     result_schema_ref: products/survival-km-by-expression.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
     notes: |
@@ -334,6 +342,7 @@ products:
       stratification: mutation_status_binary
       test: log_rank
     result_schema_ref: products/survival-km-by-mutation.result.schema.json
+    requires_subgroup: false
     requires_target_resolution_sidecar: true
     status: compute-ready
 
@@ -346,6 +355,7 @@ products:
     title: "UniProt-derived target-level biology — sequence, PTMs, function"
     comparison_type: target_level_annotation
     indication_scope: target_level
+    indication_sentinel: TARGET_LEVEL
     sources:
       - uniprot-sprot-human-2026-02-snapshot-2026-06-18
     method:
@@ -361,6 +371,7 @@ products:
     title: "Genomic coordinates and gene structure (Ensembl 116)"
     comparison_type: gene_coordinates
     indication_scope: target_level
+    indication_sentinel: TARGET_LEVEL
     sources:
       - ensembl-coords-release-116-snapshot-2026-06-22
     method:
@@ -375,6 +386,7 @@ products:
     title: "Paralog landscape — co-essentiality and redundancy from DepMap"
     comparison_type: paralog_landscape
     indication_scope: target_level
+    indication_sentinel: TARGET_LEVEL
     sources:
       - depmap-consortium-26q1-paralogs
     method:
@@ -397,6 +409,7 @@ products:
     title: "Human Protein Atlas — normal-tissue expression and IHC profile"
     comparison_type: normal_tissue_expression
     indication_scope: target_level
+    indication_sentinel: TARGET_LEVEL
     sources: []                               # HPA mirror not yet ingested
     method:
       family: hpa_ihc_extract
@@ -412,6 +425,7 @@ products:
     title: "gnomAD population genetic constraint (pLI, LOEUF, missense Z)"
     comparison_type: population_genetic_constraint
     indication_scope: target_level
+    indication_sentinel: TARGET_LEVEL
     sources: []                               # gnomAD mirror not yet ingested
     method:
       family: gnomad_lookup

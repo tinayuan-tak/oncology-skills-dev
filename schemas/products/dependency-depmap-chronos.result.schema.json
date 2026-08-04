@@ -11,6 +11,14 @@
     "is_lineage_selective_dependency"
   ],
   "additionalProperties": false,
+  "not": {
+    "$comment": "Mutual exclusion (Finding A): a gene cannot be both pan-cancer-essential (broadly essential across >80% of lineages) AND lineage-selective (selectively essential in THIS lineage). This 'not' matches only when both keys are present and both true, so it rejects that contradiction while leaving all other combinations — including is_pan_cancer_essential absent, the common case — valid.",
+    "properties": {
+      "is_pan_cancer_essential": { "const": true },
+      "is_lineage_selective_dependency": { "const": true }
+    },
+    "required": ["is_pan_cancer_essential", "is_lineage_selective_dependency"]
+  },
   "properties": {
     "chronos_score_median": {
       "type": "number",
@@ -37,7 +45,7 @@
     },
     "is_pan_cancer_essential": {
       "type": "boolean",
-      "description": "Convenience: gene is essential across most lineages (chronos_score_median < -1 in >80% of lineages). Suggests broad toxicity risk."
+      "description": "Convenience: gene is essential across most lineages (chronos_score_median < -1 in >80% of lineages). Suggests broad toxicity risk. NOTE: this is a GENE-LEVEL rollup (>80% of ALL lineages) surfaced in a per-(gene,indication,subtype) payload — it cannot be recomputed from the fields present here. Follow-up: move to a gene-level sidecar product. Until then it is mutually exclusive with is_lineage_selective_dependency (see top-level 'not' constraint): a gene cannot be both broadly essential everywhere AND selectively essential in this lineage."
     },
     "top_codependencies": {
       "type": "array",
@@ -48,7 +56,11 @@
         "required": ["partner_gene_symbol", "partner_hgnc_id", "pearson_r"],
         "properties": {
           "partner_gene_symbol": { "type": "string" },
-          "partner_hgnc_id": { "type": "string", "pattern": "^HGNC:[0-9]+$" },
+          "partner_hgnc_id": {
+            "type": ["string", "null"],
+            "pattern": "^HGNC:[0-9]+$",
+            "description": "HGNC ID of the co-dependency partner, or null. DepMap's co-essentiality universe includes pseudogenes and readthrough loci that lack a registered HGNC ID; those partners set this to null rather than failing validation. When present it must match ^HGNC:[0-9]+$."
+          },
           "pearson_r": { "type": "number", "minimum": -1, "maximum": 1 },
           "is_paralog": { "type": "boolean" }
         }
