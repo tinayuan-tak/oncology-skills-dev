@@ -32,13 +32,29 @@ CARD_COLORS = {
 }
 SEVERITY_COLORS = {"error": _RED, "warn": _AMBER, "info": _PURPLE}
 
+# Plain-language glosses shown on hover (title=) so outsiders needn't learn the vocab.
+SKILL_GLOSS = {
+    "production_ready": "wired + tested, and its verdict-driving data is flowing",
+    "partial": "works, but some consumed data hasn't landed / fired yet",
+    "placeholder": "question declared, not yet wired to any data",
+    "broken_or_drift": "declared status contradicts what's actually on disk",
+}
+CARD_GLOSS = {
+    "live": "fires (passed/warned) in a real evidence package",
+    "partial": "has a live reader but hasn't fired in a real package yet",
+    "blocked": "no live reader — cannot pull data (honest gap)",
+    "placeholder": "declared placeholder / blocked-status card",
+    "broken": "no path to data: no reader + no backing method, never fires",
+}
+
 
 def _esc(x) -> str:
     return html.escape(str(x if x is not None else ""))
 
 
-def _chip(text: str, color: str) -> str:
-    return f'<span class="chip" style="background:{color}">{_esc(text)}</span>'
+def _chip(text: str, color: str, gloss: str | None = None) -> str:
+    t = f' title="{_esc(gloss)}"' if gloss else ""
+    return f'<span class="chip" style="background:{color}"{t}>{_esc(text)}</span>'
 
 
 def _skill_row(n: dict) -> str:
@@ -57,7 +73,7 @@ def _skill_row(n: dict) -> str:
         f'<tr class="skrow" onclick="tog(this)">'
         f'<td class="nm">{_esc(n["name"])}</td>'
         f'<td>{_esc(n.get("risk_category") or "—")}</td>'
-        f'<td>{_chip(v, SKILL_COLORS.get(v, _GREY))}</td>'
+        f'<td>{_chip(v, SKILL_COLORS.get(v, _GREY), SKILL_GLOSS.get(v))}</td>'
         f'<td class="declared">{_esc(dec_status)}</td>'
         f'<td>{_esc(der["kind"])}</td>'
         f'<td>{"✓" if der["resolver_bound"] else "—"}</td>'
@@ -89,7 +105,7 @@ def _skill_detail(n: dict) -> str:
         ch = c["card_health"]
         cards_html += (
             f'<tr><td>{_esc(c["card_id"])}</td>'
-            f'<td>{_chip(ch, CARD_COLORS.get(ch, _GREY))}</td>'
+            f'<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>'
             f'<td>{"✓" if c["has_live_reader"] else "—"}</td>'
             f'<td>{"✓" if c["fires_in_real_package"] else "—"}</td>'
             f'<td>{_esc(c.get("measurement_type") or "—")}</td>'
@@ -104,7 +120,7 @@ def _skill_detail(n: dict) -> str:
         )
     return (
         f'<tr class="detail" style="display:none"><td colspan="9"><div class="det">'
-        f'<p class="why"><b>Verdict:</b> {_chip(n["health_verdict"], SKILL_COLORS.get(n["health_verdict"], _GREY))} '
+        f'<p class="why"><b>Verdict:</b> {_chip(n["health_verdict"], SKILL_COLORS.get(n["health_verdict"], _GREY), SKILL_GLOSS.get(n["health_verdict"]))} '
         f'— {_esc(n["reason_text"])} <span class="rid">({_esc(n["health_reason"])})</span></p>'
         + (f'<p><b>Drift flags:</b></p><ul class="drift">{drift_html}</ul>' if drift_html else "")
         + (f'<p class="why"><b>Cards → method → datasets</b> (the full dependency chain this skill pulls):</p>'
@@ -148,16 +164,15 @@ def _alerts(report: dict) -> str:
 
 def _summary_cards(report: dict) -> str:
     s = report["summary"]
-    tally = s["verdict_tally"]
-    tiles = ""
-    for v in ("production_ready", "partial", "placeholder", "broken_or_drift"):
-        tiles += (f'<div class="tile" style="border-color:{SKILL_COLORS[v]}">'
-                  f'<div class="num">{tally.get(v, 0)}</div><div class="lbl">{_esc(v)}</div></div>')
-    tiles += (f'<div class="tile" style="border-color:{_PURPLE}">'
-              f'<div class="num">{s["n_error_drift"]}</div><div class="lbl">error drift</div></div>')
-    tiles += (f'<div class="tile" style="border-color:{_GREY}">'
-              f'<div class="num">{s["n_unregistered_skills"]}</div><div class="lbl">unregistered skills</div></div>')
-    return f'<div class="tiles">{tiles}</div>'
+    t = s["verdict_tally"]
+    return _stat_strip([
+        ("ready", t.get("production_ready", 0), _GREEN),
+        ("partial", t.get("partial", 0), _AMBER),
+        ("placeholder", t.get("placeholder", 0), _GREY),
+        ("drift", t.get("broken_or_drift", 0), _RED),
+        ("error drift", s["n_error_drift"], _PURPLE),
+        ("unregistered", s["n_unregistered_skills"], _GREY),
+    ])
 
 
 def _registry_panel(report: dict) -> str:
@@ -172,30 +187,39 @@ def _registry_panel(report: dict) -> str:
 
 
 _CSS = """
-:root{--bg:#f7f6f1;--card:#fff;--ink:#0b0b0b;--muted:#52514e;--line:#e1e0d9}
+:root{--bg:#f7f6f1;--card:#fff;--ink:#0b0b0b;--muted:#52514e;--line:#e1e0d9;--zebra:#faf9f5}
 *{box-sizing:border-box}
-body{margin:0;font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-header{background:#0b0b0b;color:#fff;padding:20px 28px}
-header h1{margin:0;font-size:20px}header .sub{color:#c9c8c1;font-size:13px;margin-top:4px}
-main{max-width:1200px;margin:0 auto;padding:20px 28px}
-.chip{display:inline-block;padding:2px 8px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;white-space:nowrap}
-.tiles{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}
-.tile{background:var(--card);border-left:5px solid;border-radius:6px;padding:12px 16px;min-width:120px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
-.tile .num{font-size:26px;font-weight:700}.tile .lbl{color:var(--muted);font-size:12px}
-.banner{border-radius:6px;padding:14px 18px;margin:16px 0}
+body{margin:0;font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#0b0b0b;color:#fff;padding:12px 24px}
+header h1{margin:0;font-size:16px;display:inline}
+header .meta{color:#898781;font-size:11px;margin-left:10px}
+header .headline{color:#fff;font-size:13px;margin-top:5px}
+header .orient{color:#9b9a93;font-size:11px;margin-top:3px}
+main{max-width:1180px;margin:0 auto;padding:14px 24px}
+h2{font-size:14px;margin:14px 0 8px}
+.chip{display:inline-block;padding:1px 7px;border-radius:9px;color:#fff;font-size:10.5px;font-weight:600;white-space:nowrap}
+/* compact inline stat strip replaces the big tile row */
+.strip{display:flex;flex-wrap:wrap;gap:16px;align-items:center;background:var(--card);
+ border:1px solid var(--line);border-radius:6px;padding:7px 14px;margin:10px 0;font-size:13px}
+.strip .stat{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
+.strip .stat b{color:var(--ink);font-size:14px}
+.strip .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.banner{border-radius:6px;padding:9px 14px;margin:10px 0;font-size:12px}
 .banner.ok{background:#eaf6ea;border:1px solid #0ca30c}
 .banner.alert{background:#fdf3e7;border:1px solid #fab219}
-.banner h3{margin:0 0 8px}.banner ul{margin:0;padding-left:18px}
+.banner h3{margin:0 0 5px;font-size:13px}.banner ul{margin:0;padding-left:16px}
 /* NOTE: no overflow:hidden here — it clipped expanded drill-down content (the
    nested cards table) that grows a detail row past the table's box. Round the
    header-row corners instead so we keep the look without clipping descendants. */
 .matrix{width:100%;border-collapse:collapse;background:var(--card);border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .matrix thead th:first-child{border-top-left-radius:6px}
 .matrix thead th:last-child{border-top-right-radius:6px}
-.matrix th{background:#52514e;color:#fff;text-align:left;padding:8px 10px;font-size:12px;font-weight:600}
-.matrix td{padding:7px 10px;border-top:1px solid var(--line);font-size:13px}
-.matrix tr.grp td{background:#e1e0d9;font-weight:700;text-transform:capitalize;font-size:12px}
-.skrow{cursor:pointer}.skrow:hover{background:#f2f1ea}.skrow .nm{font-weight:600}
+.matrix th{background:#52514e;color:#fff;text-align:left;padding:5px 9px;font-size:11px;font-weight:600;position:sticky;top:0}
+.matrix td{padding:3px 9px;border-top:1px solid var(--line);font-size:12px}
+.matrix tbody tr:nth-child(even of :not(.detail)){background:var(--zebra)}
+.matrix tr.grp td{background:#e1e0d9;font-weight:700;text-transform:capitalize;font-size:11px;padding:3px 9px}
+.skrow{cursor:pointer}.skrow:hover{background:#eef0f5}.skrow .nm{font-weight:600}
+.skrow td:first-child::before{content:"▸ ";color:#b0afa8}
 .declared{color:var(--muted)}
 .det{padding:6px 4px 12px}.det .why{margin:6px 0}.det .rid{color:var(--muted);font-size:12px}
 .det ul.drift{margin:6px 0}.det .cards{width:100%;border-collapse:collapse;margin-top:8px}
@@ -206,9 +230,10 @@ main{max-width:1200px;margin:0 auto;padding:20px 28px}
 .panel h3{margin:0 0 8px}ul.cols{columns:3;margin:0;padding-left:18px}
 footer{color:var(--muted);font-size:12px;padding:10px 28px 30px;max-width:1200px;margin:0 auto}
 code{background:#e1e0d9;padding:1px 5px;border-radius:3px}
-.tabs{display:flex;gap:4px;margin:16px 0 0;border-bottom:2px solid var(--line)}
-.tab{padding:9px 20px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);
- border:2px solid transparent;border-bottom:none;border-radius:6px 6px 0 0}
+.tabs{display:flex;gap:3px;margin:12px 0 0;border-bottom:2px solid var(--line);
+ position:sticky;top:0;background:var(--bg);z-index:5;padding-top:2px}
+.tab{padding:6px 15px;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted);
+ border:2px solid transparent;border-bottom:none;border-radius:5px 5px 0 0}
 .tab.active{background:var(--card);color:var(--ink);border-color:var(--line);
  box-shadow:0 -1px 2px rgba(0,0,0,.04);margin-bottom:-2px}
 .tabpane{display:none}.tabpane.active{display:block}
@@ -271,7 +296,7 @@ def _cards_table(report: dict) -> str:
         cls = " class='orphan'" if orphan else ""
         return (
             f"<tr{cls}><td class='nm'>{_esc(c['card_id'])}</td>"
-            f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY))}</td>"
+            f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>"
             f"<td>{'✓' if c.get('has_live_reader') else '—'}</td>"
             f"<td>{'✓' if c.get('fires_in_real_package') else '—'}</td>"
             f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
@@ -357,29 +382,21 @@ def _datasets_table(report: dict) -> str:
 
 def _dataset_summary_cards(report: dict) -> str:
     s = report["summary"]
-    tiles = [
+    return _stat_strip([
         ("in catalog", s.get("n_datasets_in_catalog", 0), _GREEN),
         ("consumed by cards", sum(1 for d in report.get("datasets", []) if d["n_consumers"] > 0 and d["in_catalog"]), _PURPLE),
         ("broken refs", s.get("n_broken_dataset_refs", 0), _RED),
         ("catalog, unused", s.get("n_orphan_datasets", 0), _GREY),
-    ]
-    html_ = ""
-    for lbl, num, col in tiles:
-        html_ += (f'<div class="tile" style="border-color:{col}">'
-                  f'<div class="num">{num}</div><div class="lbl">{_esc(lbl)}</div></div>')
-    return f'<div class="tiles">{html_}</div>'
+    ])
 
 
 def _card_summary_cards(report: dict) -> str:
     s = report["summary"]
     t = s.get("card_health_tally", {})
-    tiles = ""
-    for h in ("live", "partial", "blocked", "placeholder", "broken"):
-        tiles += (f'<div class="tile" style="border-color:{CARD_COLORS[h]}">'
-                  f'<div class="num">{t.get(h, 0)}</div><div class="lbl">{_esc(h)}</div></div>')
-    tiles += (f'<div class="tile" style="border-color:{_RED}">'
-              f'<div class="num">{s.get("n_orphan_cards", 0)}</div><div class="lbl">orphan cards</div></div>')
-    return f'<div class="tiles">{tiles}</div>'
+    return _stat_strip(
+        [(h, t.get(h, 0), CARD_COLORS[h]) for h in ("live", "partial", "blocked", "placeholder", "broken")]
+        + [("orphan cards", s.get("n_orphan_cards", 0), _RED)]
+    )
 
 
 # Any node health value -> a color (skills + cards share the ramp; resolver/method
@@ -466,11 +483,41 @@ def _graph_legend() -> str:
     )
 
 
+def _headline(report: dict) -> str:
+    """Auto-generated gestalt sentence — the whole picture in one line."""
+    s = report["summary"]
+    t = s.get("verdict_tally", {})
+    g = report.get("graph") or {}
+    n_res = (g.get("layer_counts") or {}).get("resolver", 0)
+    ready, partial = t.get("production_ready", 0), t.get("partial", 0)
+    placeholder = t.get("placeholder", 0)
+    broken = t.get("broken_or_drift", 0)
+    bits = [f"<b>{ready}</b> skills production-ready"]
+    if partial:
+        bits.append(f"<b>{partial}</b> partial — data-wiring is the active frontier")
+    if placeholder:
+        bits.append(f"<b>{placeholder}</b> placeholder")
+    if broken:
+        bits.append(f"<b style='color:#ffb3a7'>{broken}</b> drift")
+    res_txt = (f"Reasoning engine fully wired ({n_res}/{n_res} resolvers); " if n_res else "")
+    return f"{res_txt}{'; '.join(bits)}."
+
+
+def _stat_strip(items: list[tuple]) -> str:
+    """Thin inline stat strip: ● N label · ● N label … — replaces the big tile row.
+    items = [(label, count, color), ...]"""
+    parts = []
+    for lbl, num, col in items:
+        parts.append(f'<span class="stat"><span class="dot" style="background:{col}"></span>'
+                     f'<b>{num}</b> {_esc(lbl)}</span>')
+    return f'<div class="strip">{"".join(parts)}</div>'
+
+
 def render(report: dict) -> str:
     s = report["summary"]
     gen = report.get("generated_at", "")
-    subtitle = (f'{s["n_skills"]} skills · {s["n_live_reader_cards"]} live-reader cards · '
-                f'{s["n_cards_firing_in_real_packages"]} firing in real packages · generated {_esc(gen)}')
+    subtitle = (f'{s["n_skills"]} skills · {s.get("n_cards", 0)} cards · '
+                f'{s.get("n_datasets_in_catalog", 0)} datasets · {_esc(gen[:10])}')
     # A stable hash of the projection is embedded for HTML-staleness detection.
     from .build_framework_health import stable_projection  # local import avoids cycle at module load
     import hashlib
@@ -481,8 +528,9 @@ def render(report: dict) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Framework Health Dashboard</title>
 <style>{_CSS}</style></head><body>
-<header><h1>Framework Health Dashboard</h1><div class="sub">{subtitle}</div>
-<div class="sub">Health is DERIVED from ground truth (files, tests, live readers, real packages) and reconciled against declared status. Click a row to expand.</div></header>
+<header><h1>Framework Health Dashboard</h1><span class="meta">{subtitle}</span>
+<div class="headline">{_headline(report)}</div>
+<div class="orient">Health is DERIVED from real files/tests/data (not self-reported status); hover a health chip for its meaning · click a skill row to expand its wiring.</div></header>
 <main>
 <div class="tabs">
   <div class="tab active" id="tab-skills" onclick="tab('skills')">Skills ({s["n_skills"]})</div>
