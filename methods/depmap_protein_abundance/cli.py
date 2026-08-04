@@ -5,7 +5,7 @@ proteomics Gygi Lab CCLE TMT MS matrix (harmonized_MS_CCLE_Gygi.csv — a
 ModelID x UniProt-accession whole-proteome matrix, ~12,558 proteins) and reports
 the per-target abundance distribution across cell lines + a per-lineage breakdown.
 
-Emits the `protein-abundance-celline` card contract fields, primary categorical
+Emits the `cellline-protein-abundance` card contract fields, primary categorical
 `protein_expression_class` ∈ {broadly_high | broadly_moderate | lineage_restricted
 | broadly_low | data_unavailable} — the SAME distribution vocab as
 cellline-rna-distribution (NOT the tumor-vs-normal contrast vocab of
@@ -43,7 +43,7 @@ SIDECAR_KEY = f"{_PROT_PREFIX}/harmonized_MS_CCLE_Gygi.csv.target_resolution.par
 MODEL_KEY = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
 DEFAULT_AWS_PROFILE = "cbg"
 
-# --- card thresholds (mirror protein-abundance-celline.card.yaml) ---
+# --- card thresholds (mirror cellline-protein-abundance.card.yaml) ---
 BROADLY_DETECTED_FRACTION = 0.70   # detected in >70% of panel
 LOW_DETECTION_FRACTION = 0.30      # detected in <30% → broadly_low
 LINEAGE_RESTRICTED_MIN = 0.10
@@ -210,7 +210,7 @@ def _percentiles(values: list) -> dict:
 
 def compute_summary(target: str, abundance_by_model: Optional[dict],
                     lineage_by_model: dict, n_panel: Optional[int] = None) -> dict:
-    """Build the protein-abundance-celline card summary."""
+    """Build the cellline-protein-abundance card summary."""
     if abundance_by_model is None:
         return {
             "protein_expression_class": "data_unavailable",
@@ -441,7 +441,7 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
         import numpy as np
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001
-        print(f"[protein-abundance-celline] plotly spec emission skipped: {e}", file=__import__("sys").stderr)
+        print(f"[cellline-protein-abundance] plotly spec emission skipped: {e}", file=__import__("sys").stderr)
         return []
     if not abundance_by_model:
         return []
@@ -482,7 +482,7 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
         written.append({"id": "density_protein_abundance",
                         "path": "figure_density_protein_abundance.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
-        print(f"[protein-abundance-celline] density plotly skipped: {e}", file=__import__("sys").stderr)
+        print(f"[cellline-protein-abundance] density plotly skipped: {e}", file=__import__("sys").stderr)
     # ranked waterfall
     try:
         rows = sorted(((mid, v, (lineage_by_model.get(mid) or "unknown"))
@@ -504,7 +504,7 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
         written.append({"id": "waterfall_protein_abundance",
                         "path": "figure_waterfall_protein_abundance.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
-        print(f"[protein-abundance-celline] waterfall plotly skipped: {e}", file=__import__("sys").stderr)
+        print(f"[cellline-protein-abundance] waterfall plotly skipped: {e}", file=__import__("sys").stderr)
     # per-lineage box (item #2 — mirrors the RNA lineage plot; n>=5, ordered by median, indication
     # lineage highlighted red). The indication-relevant cell-line protein view IS its DepMap lineage.
     try:
@@ -537,7 +537,7 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
         written.append({"id": "lineage_protein_abundance",
                         "path": "figure_lineage_protein_abundance.plotly.json", "type": "plotly"})
     except Exception as e:  # noqa: BLE001
-        print(f"[protein-abundance-celline] lineage plotly skipped: {e}", file=__import__("sys").stderr)
+        print(f"[cellline-protein-abundance] lineage plotly skipped: {e}", file=__import__("sys").stderr)
     return written
 
 

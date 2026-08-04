@@ -1,7 +1,7 @@
 """depmap_protein_abundance.read — live-mode dispatcher entry.
 
 The compose-dashboard dispatcher calls read_target_summary(target=..., indication=...).
-Returns the protein-abundance-celline card summary (cell-line TMT MS protein
+Returns the cellline-protein-abundance card summary (cell-line TMT MS protein
 distribution). Protein abundance is a per-ModelID property — `indication` is
 accepted for the dispatcher contract but NOT consumed (lineage stratification is a
 separate read-side axis, not indication-scoped).

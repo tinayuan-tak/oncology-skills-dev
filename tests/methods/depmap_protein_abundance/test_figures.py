@@ -1,4 +1,4 @@
-"""Figure emitters for protein-abundance-celline (Gygi TMT MS) — Slice 7 (protein viz).
+"""Figure emitters for cellline-protein-abundance (Gygi TMT MS) — Slice 7 (protein viz).
 
 The card declared density + lineage-strip figures + a per_cell_line_protein_abundance_with_lineage_tags
 plot_data but the method emitted none (FIGURE_DEBT). This adds them, mirroring
