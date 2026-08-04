@@ -1,11 +1,11 @@
 # Card — TUMOR EXPRESSION DISTRIBUTION BY MOLECULAR SUBTYPE (per-sample RNA; TCGA)
 #
-# The target_subtype-grain SIBLING of tumor-expression-distribution. Same measurement_type
+# The target_subtype-grain SIBLING of tumor-rna-distribution. Same measurement_type
 # (tumor_expression_distribution), same per-sample substrate — but recomputes the distribution
 # WITHIN each molecular-subtype member-set of the indication, emitting a per-stratum panorama.
 #
 # This is the framework's standard grain-split convention: a POOLED target_indication card
-# (tumor-expression-distribution) beside a SEPARATE tier:subtype card (this one) — exactly as
+# (tumor-rna-distribution) beside a SEPARATE tier:subtype card (this one) — exactly as
 # crispr_lof_dependency splits into the pooled distribution cards + subgroup-stratified-dependency.
 # The GRAIN-CHECK validator (_grain_and_tier_check) enforces that a card declaring
 # per_subgroup_metrics binds a per-sample stratified reader; tcga-gtex-expression-distribution
@@ -16,7 +16,7 @@
 # one-directional nomination gate is preserved. COMPUTE-ALL-SPOTLIGHT-ONE: the reader computes
 # EVERY stratum; a queried subtype spotlights + scopes the verdict downstream, not the computation.
 
-card_id: tumor-expression-distribution-subtype
+card_id: tumor-rna-distribution-by-subtype
 version: 0.1.0
 question: "How does {target.symbol} RNA expression DISTRIBUTE across the molecular subtypes of {indication.label} tumors — which subtypes are enriched, depleted, or restricted vs the pooled distribution?"
 
@@ -118,7 +118,7 @@ caveats:
   - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
   - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
   - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
-  - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-expression-distribution card carries the presence verdict; this card enriches it."
+  - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-rna-distribution card carries the presence verdict; this card enriches it."
 
 # Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled
 # sibling — this card differs only in GRAIN (target_subtype), not measurement/sample_context.

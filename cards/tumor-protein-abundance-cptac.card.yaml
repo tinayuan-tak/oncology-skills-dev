@@ -8,7 +8,7 @@
 #
 # Coverage: 10 CPTAC cohorts (BRCA, CCRCC, COAD, GBM, HNSCC, LSCC, LUAD, OV,
 # PDAC, UCEC). Indications without CPTAC coverage return
-# 'data_unavailable' — the RNA-based expression-tumor-vs-adjacent card
+# 'data_unavailable' — the RNA-based tumor-rna-vs-adjacent card
 # remains authoritative for those tissues.
 
 card_id: tumor-protein-abundance-cptac
@@ -103,7 +103,7 @@ warning_predicates:
     message: "Normal arm has < 10 samples in this CPTAC cohort — protein tumor-vs-normal calls are underpowered. Interpret protein_expression_class cautiously."
   - warning_id: rna_protein_discordance
     if: "protein_expression_class == 'strong_up' && context.rna_expression_class == 'ns'"
-    message: "Protein is strongly upregulated but RNA (expression-tumor-vs-adjacent card) is not significant. Post-transcriptional regulation elevates protein beyond RNA — this pattern is ADC/TCE-favorable but should be verified with additional evidence."
+    message: "Protein is strongly upregulated but RNA (tumor-rna-vs-adjacent card) is not significant. Post-transcriptional regulation elevates protein beyond RNA — this pattern is ADC/TCE-favorable but should be verified with additional evidence."
 
 caveats:
   - |
@@ -119,7 +119,7 @@ caveats:
   - |
     10 CPTAC cohorts do NOT cover all TCGA indications. Missing: BLCA,
     SKCM, KIRC, STAD, ESCA, LIHC, CESC, PRAD, CHOL, ACC. For those
-    indications, expression-tumor-vs-adjacent (RNA) remains the primary
+    indications, tumor-rna-vs-adjacent (RNA) remains the primary
     presence signal.
   - |
     Small normal arms (GBM, OV, PDAC): stat_test_used='skipped_low_n' when

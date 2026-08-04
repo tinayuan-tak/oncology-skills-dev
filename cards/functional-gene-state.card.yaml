@@ -30,7 +30,7 @@ card_id: functional-gene-state
 version: 0.1.0
 question: "Is {target.symbol} biallelically inactivated (completed two-hit) or only monoallelically hit in {indication.label} — and by what mechanism (mutation, copy loss, LOH, homozygous deletion)?"
 
-# TWO grains (grain-split like rna-protein-concordance): the patient arm is target_indication
+# TWO grains (grain-split like cellline-rna-protein-concordance): the patient arm is target_indication
 # (indication-scoped tumor cohort), the model arm is target (pan-lineage cell-line panel). The reader
 # returns both arms in one call; the primary grain is target_indication (the sharp, allele-specific arm).
 tier: indication

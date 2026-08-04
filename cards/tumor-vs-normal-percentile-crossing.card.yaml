@@ -5,7 +5,7 @@
 # than a fold change: it answers "how much of the tumor population separates from normal" directly.
 #
 # SELECTIVITY-side card (Gate B / tumor-selectivity). DISTINCT from:
-#   - tumor-expression-distribution (Q1, PRESENCE / Gate A — abundance, not a normal contrast),
+#   - tumor-rna-distribution (Q1, PRESENCE / Gate A — abundance, not a normal contrast),
 #   - tumor-vs-normal-selectivity (same Gate B, but an AGGREGATE log2FC from dge-deseq2; this card is
 #     the PER-SAMPLE percentile-crossing on the directly-comparable recount3 matrices).
 # Presence and selectivity stay SEPARATE (standing decision).

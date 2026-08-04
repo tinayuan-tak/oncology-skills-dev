@@ -18,7 +18,7 @@
 # = a non-null quantified value in the matrix; abundance percentiles are relative
 # within the panel. Thresholds below are on the harmonized log2 abundance scale.
 
-card_id: protein-abundance-celline
+card_id: cellline-protein-abundance
 version: 1.0.0
 question: "Across DepMap cell lines (Gygi TMT MS), what is the protein-abundance distribution of {target.symbol}, and is it lineage-stratified?"
 

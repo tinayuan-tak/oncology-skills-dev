@@ -18,7 +18,7 @@
 # ALSO the ADC/biologic modality lens (RNA-inadequate-proxy → protein must be confirmed) + dependency
 # M5 (protein-vs-RNA as the preferred dependency biomarker). modality_relevance metadata is a follow-up.
 
-card_id: rna-protein-concordance
+card_id: cellline-rna-protein-concordance
 version: 0.1.0
 question: "Does {target.symbol} RNA predict its PROTEIN across cell lines — is RNA an adequate proxy, or must protein be measured directly?"
 

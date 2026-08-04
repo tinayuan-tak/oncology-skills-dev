@@ -43,7 +43,7 @@ synthesis_emphasis:
     - prism-compound-activity             # Card E6 — drug existence + activity IS a small-molecule differentiator (activated 2026-07-01)
     - prism-crispr-concordance            # Card E7 — chemical-genetic target-engagement validation (activated 2026-07-02)
   secondary_cards:
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
     - expression-dependency-correlation   # Card 4 — biomarker stratification (supports, doesn't define fit)
     - dependency-predictability           # Card E5 — multi-omics predictability model (activated 2026-07-01)
     - normal-tissue-liability

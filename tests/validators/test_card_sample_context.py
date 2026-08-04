@@ -98,7 +98,7 @@ def test_bad_sample_context_value_rejected_by_schema(tmp_path):
 
 def test_real_stamped_cards_are_consistent():
     """The 5 cards stamped this slice validate clean on the sample_context check."""
-    for cid in ["cellline-rna-distribution", "protein-abundance-celline", "expression-tumor-vs-adjacent",
+    for cid in ["cellline-rna-distribution", "cellline-protein-abundance", "tumor-rna-vs-adjacent",
                 "tumor-protein-abundance-cptac", "tumor-vs-normal-selectivity"]:
         r = VC.validate_card_file(REPO / "cards" / f"{cid}.card.yaml")
         assert "SAMPLE_CONTEXT_MISMATCH" not in _errs(r), f"{cid}: {_errs(r)}"

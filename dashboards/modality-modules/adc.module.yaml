@@ -46,7 +46,7 @@ synthesis_emphasis:
     - normal-tissue-liability
     - antigen-prevalence
   secondary_cards:
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
     - antigen-density-evidence
   modality_killer_conditions:
     - card_id: normal-tissue-liability

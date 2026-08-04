@@ -80,7 +80,7 @@ measurement_types:
   tumor_vs_adjacent_expression:
     claim: "Is target RNA upregulated in tumor vs matched adjacent normal (presence framing)?"
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (needs per-sample reader)
-    cards: [expression-tumor-vs-adjacent, subgroup-stratified-expression]
+    cards: [tumor-rna-vs-adjacent, subgroup-stratified-expression]
     providers:
       - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}
 
@@ -90,7 +90,7 @@ measurement_types:
     # cards (cohort median) can't produce. Distinct from tumor_vs_adjacent_expression (a contrast)
     # and from cell_line_rna_expression (DepMap cell lines). Q1 of the expression profiling spec.
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (needs TCGA UUID↔barcode bridge)
-    cards: [tumor-expression-distribution]
+    cards: [tumor-rna-distribution]
     # tier_dominant, NOT surface_discordance: the claim is the TUMOR distribution; TCGA is the
     # dominant provider of it. GTEx is auxiliary — it supplies ONLY the matched-normal p95 OVERLAY
     # context fields (fraction_tumor_above_normal_p95), never a competing view of the distribution.
@@ -148,7 +148,7 @@ measurement_types:
     # Distinct from cell_line_rna_expression: RNA vs MS protein are orthogonal layers whose
     # disagreement is diagnostic (never averaged) — the concordance-test signal for two types.
     entity_grains: [target, target_lineage]
-    cards: [protein-abundance-celline]
+    cards: [cellline-protein-abundance]
     providers:
       - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}
 
@@ -411,7 +411,7 @@ measurement_types:
     modality_relevance: [small_molecule, degrader]
     claim: "Does target RNA predict its protein (is RNA an adequate proxy, or must protein be measured directly)?"
     # Q5 of the expression spec. The rna_as_biomarker question — RNA vs protein correlation. TWO grains,
-    # TWO cards (grain-split): rna-protein-concordance (target grain, CELL-LINE: DepMap RNA vs Gygi MS)
+    # TWO cards (grain-split): cellline-rna-protein-concordance (target grain, CELL-LINE: DepMap RNA vs Gygi MS)
     # + rna-protein-concordance-tumor (target_indication grain, TUMOR: CPTAC matched RNA vs protein per
     # cohort). Reported SIDE-BY-SIDE, never averaged — their disagreement (KRAS cell-line r≈0.55 vs COAD
     # tumor r≈0.01) is the signal. Routes: Presence (A) + ADC/biologic modality lens (RNA-inadequate →
@@ -419,7 +419,7 @@ measurement_types:
     # the comparator. NOTE: providers list = the CELL-LINE arm's substrates (tier_dominant needs a
     # single dominant provider per the validator); the tumor arm's substrate is the matched CPTAC product.
     entity_grains: [target, target_indication]
-    cards: [rna-protein-concordance, rna-protein-concordance-tumor]
+    cards: [cellline-rna-protein-concordance, rna-protein-concordance-tumor]
     multi_provider_policy: tier_dominant
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}              # RNA (anchor, cell-line)

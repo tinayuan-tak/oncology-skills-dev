@@ -52,7 +52,7 @@ synthesis_emphasis:
     - protein-surface-evidence
   secondary_cards:
     - antigen-prevalence
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
   modality_killer_conditions:
     - card_id: normal-tissue-liability
       predicate_type: warning_id_fires

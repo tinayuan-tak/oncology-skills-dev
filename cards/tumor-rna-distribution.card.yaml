@@ -1,7 +1,7 @@
 # Card — TUMOR EXPRESSION DISTRIBUTION (per-sample RNA; TCGA)
 #
 # The PER-SAMPLE tumor RNA distribution the existing expression cards can't produce.
-# cellline-rna-distribution is CELL-LINE (DepMap); expression-tumor-vs-adjacent emits a
+# cellline-rna-distribution is CELL-LINE (DepMap); tumor-rna-vs-adjacent emits a
 # whole-cohort AGGREGATE (median + one log2FC). This card answers the 12-question spec's
 # Q1 ("is the target expressed in human tumors, and how does expression DISTRIBUTE across
 # patients?") from the per-sample TCGA long product — the fraction of patients above a
@@ -13,20 +13,20 @@
 # selectivity stay SEPARATE. The matched-normal fraction-above-p95 fields here are an overlay
 # for context; the selectivity CONTRAST lives on the selectivity card.
 
-card_id: tumor-expression-distribution
+card_id: tumor-rna-distribution
 version: 0.1.0
 question: "How does {target.symbol} RNA expression DISTRIBUTE across {indication.label} tumors — median, fraction of patients detectable/high, and shape (continuous, bimodal, long-tail)?"
 
 tier: indication   # the POOLED per-indication tumor distribution; the target_subtype grain lives on the
-                   # sibling tumor-expression-distribution-subtype card (the framework's grain-split convention)
+                   # sibling tumor-rna-distribution-by-subtype card (the framework's grain-split convention)
 
 subgroup_stratification:
   eligible: true
   status: out_of_scope   # this POOLED card does not stratify — the target_subtype grain is served by the
-                         # separate live sibling tumor-expression-distribution-subtype (per the grain-split
+                         # separate live sibling tumor-rna-distribution-by-subtype (per the grain-split
                          # convention: pooled target_indication card BESIDE a tier:subtype panorama card).
   axes: [molecular_subtype]
-  rationale: "Subtype stratification for this measurement_type is served by the sibling card tumor-expression-distribution-subtype (tier:subtype, LIVE — binds the per-sample stratified reader read_tumor_expression_subtype_landscape via the TCGA UUID↔barcode bridge). This pooled card stays at target_indication grain; splitting the panorama onto a separate card is the framework convention (cf. crispr_lof_dependency: pooled distribution cards beside subgroup-stratified-dependency)."
+  rationale: "Subtype stratification for this measurement_type is served by the sibling card tumor-rna-distribution-by-subtype (tier:subtype, LIVE — binds the per-sample stratified reader read_tumor_expression_subtype_landscape via the TCGA UUID↔barcode bridge). This pooled card stays at target_indication grain; splitting the panorama onto a separate card is the framework convention (cf. crispr_lof_dependency: pooled distribution cards beside subgroup-stratified-dependency)."
 
 applies_when:
   # the indications the TCGA long product + INDICATION_TO_TCGA_STUDIES map cover

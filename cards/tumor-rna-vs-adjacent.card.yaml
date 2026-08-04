@@ -4,7 +4,7 @@
 #   - reuse of an already-shipped product (coadread-dge-*)
 #   - the baseline DGE pattern (tumor vs paired adjacent normal)
 
-card_id: expression-tumor-vs-adjacent
+card_id: tumor-rna-vs-adjacent
 version: 2.1.0                                  # bumped 2026-07-08: TPM fields now backed by real data (Gencode v26 gene-length norm)
 question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
 

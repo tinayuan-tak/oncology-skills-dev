@@ -1,6 +1,6 @@
 # Card — RNA↔PROTEIN CONCORDANCE, TUMOR (CPTAC; Q5 tumor arm)
 #
-# The TUMOR-grain sibling of rna-protein-concordance (cell-line). Same question — does RNA predict
+# The TUMOR-grain sibling of cellline-rna-protein-concordance (cell-line). Same question — does RNA predict
 # PROTEIN for this target? — but IN PATIENT TUMORS, per the indication's CPTAC cohort, from the
 # matched cptac-rna-protein-matched-per-sample-v1 product (per-(cohort, patient, gene) RNA+protein).
 #
@@ -55,7 +55,7 @@ thresholds:
   min_paired_tumors: 20            # below → insufficient_paired_tumors
 
 caveats:
-  - "TUMOR-grain sibling of rna-protein-concordance (cell-line). Same measurement_type, different grain (target_indication vs target). Report the two SIDE-BY-SIDE, never averaged — their disagreement (e.g. KRAS partial in cell lines, poor in COAD tumors) is the decision-relevant signal."
+  - "TUMOR-grain sibling of cellline-rna-protein-concordance (cell-line). Same measurement_type, different grain (target_indication vs target). Report the two SIDE-BY-SIDE, never averaged — their disagreement (e.g. KRAS partial in cell lines, poor in COAD tumors) is the decision-relevant signal."
   - "CPTAC cohort maps to the indication (COADREAD→coad, KIRC→ccrcc, LUSC→lscc, PAAD→pdac, etc.); indications without a CPTAC cohort return data_unavailable."
   - "bcm protein abundance is NOT zero-centered (per the matched product manifest) — used for CORRELATION only (scale-invariant), never cross-gene comparison."
   - "A poor_proxy verdict is a MODALITY caution (protein must be measured for ADC/TCE; RNA biomarker inadequate in THIS tumor type), NOT a target killer."

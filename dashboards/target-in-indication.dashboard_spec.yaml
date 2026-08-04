@@ -25,7 +25,7 @@ required_context:
   release_pin: "Catalog manifest_id for pinned mode; null for latest_approved"
 
 required_cards:
-  - card_id: expression-tumor-vs-adjacent
+  - card_id: tumor-rna-vs-adjacent
     version: ">=1.0.0,<2"
   - card_id: dependency-lineage-selectivity
     version: ">=1.0.0,<2"

@@ -14,7 +14,7 @@ extends_axes: [intracellular_intrinsic]
 additional_cards: []
 
 threshold_overlays:
-  expression-tumor-vs-adjacent:
+  tumor-rna-vs-adjacent:
     severity_threshold: protein_required        # degrader needs PROTEIN present, RNA insufficient — flag in synthesis
     note: "Degrader requires confirmed intracellular protein expression. RNA evidence alone is insufficient; iter-2 protein cards will close this gap."
 
@@ -37,14 +37,14 @@ synthesis_emphasis:
     - pan-cancer-crispr-dependency-distribution
     - dependency-lineage-selectivity
     - mutation-stratified-dependency      # Reactivated 2026-06-30 — oncogene-addiction biomarker
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
   secondary_cards:
     - mutation-hotspot-frequency
     - expression-dependency-correlation   # Card 4 — biomarker stratification supports degrader case
     - dependency-predictability           # Card E5 — multi-omics predictability (activated 2026-07-01)
     - normal-tissue-liability
   modality_killer_conditions:
-    - card_id: expression-tumor-vs-adjacent
+    - card_id: tumor-rna-vs-adjacent
       predicate_type: interpretation_call_equals
       predicate_value: "not informative"
       message: "Degrader not viable — no demonstrable expression. Degrader requires confirmed intracellular protein presence; RNA-level evidence is the iter-1b proxy."

@@ -19,7 +19,7 @@ A skill is a thin projection over evidence cards: it resolves each card's catego
 | Card | Question | Data source | Layer | Detail |
 |---|---|---|---|---|
 | cellline-rna-distribution | expression distribution across ~1500 DepMap cell lines | DepMap 26Q1 (cell-line **RNA**) | RNA | [card doc](../cards/cellline-rna-distribution.md) |
-| expression-tumor-vs-adjacent | upregulated in tumor vs matched adjacent normal? | TCGA tumor-vs-adjacent (**RNA-seq**) | RNA | *(doc pending)* |
+| tumor-rna-vs-adjacent | upregulated in tumor vs matched adjacent normal? | TCGA tumor-vs-adjacent (**RNA-seq**) | RNA | *(doc pending)* |
 | tumor-protein-abundance-cptac | present at the **protein** level vs matched normals per CPTAC? | CPTAC (**protein**, mass-spec) | protein | *(doc pending)* |
 
 ## Verdict ladder

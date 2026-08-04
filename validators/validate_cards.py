@@ -15,7 +15,7 @@ Usage:
   python validate_cards.py target-contracts/cards/
 
   # CLI: validate a single card_spec
-  python validate_cards.py target-contracts/cards/expression-tumor-vs-adjacent.card.yaml
+  python validate_cards.py target-contracts/cards/tumor-rna-vs-adjacent.card.yaml
 
   # As a library (compose-dashboard's pre-invocation lint):
   from validate_cards import validate_card_file, ValidationReport
@@ -159,15 +159,15 @@ KNOWN_FIGURE_DEBT = {
     # emitters registered in CARD_FIGURE_EMITTERS (they now pass the check, not waived).
     # expression / protein: BOTH CLEARED 2026-07-21 (Slice 7) — emitters registered in
     # CARD_FIGURE_EMITTERS, now pass the check (not waived).
-    #   protein-abundance-celline: Gygi density + lineage-strip + plotly.
+    #   cellline-protein-abundance: Gygi density + lineage-strip + plotly.
     #   tumor-protein-abundance-cptac: per-cohort tumor-vs-normal DISTRIBUTION boxplot (upgraded 2026-07-22
     #     from the median dumbbell — the per-sample product cptac-protein-tumor-vs-normal-per-sample-v1
     #     now persists the per-aliquot log-ratios, so read.py's per_cohort_distribution_stats backs a
     #     true boxplot + recomputed Welch/MWU significance; emitter registered, not waived).
-    # expression-extraction plan (Q1): tumor-expression-distribution CLEARED 2026-07-22 —
+    # expression-extraction plan (Q1): tumor-rna-distribution CLEARED 2026-07-22 —
     # _emit_tumor_expression_distribution is registered in compose-dashboard
     # CARD_FIGURE_EMITTERS (SK #144), so the pooled card now passes the check (not waived).
-    # subtyping revisit: tumor-expression-distribution-subtype CLEARED 2026-07-22 —
+    # subtyping revisit: tumor-rna-distribution-by-subtype CLEARED 2026-07-22 —
     # _emit_tumor_expression_distribution_subtype is registered in compose-dashboard
     # CARD_FIGURE_EMITTERS (SK #145, backed by AM #84's emit_subtype_svg/plotly), so the
     # subtype card now passes the check (not waived).

@@ -22,3 +22,23 @@ aliases:
     to: tumor-protein-abundance-cptac
     renamed_date: '2026-08-04'
     reason: "tumor protein abundance (CPTAC per-cohort) — 'presence' was vague; it's an abundance contrast"
+  - from: protein-abundance-celline
+    to: cellline-protein-abundance
+    renamed_date: '2026-08-04'
+    reason: "cell-line protein abundance (DepMap/Gygi MS) — word-order align (sample_context first)"
+  - from: expression-tumor-vs-adjacent
+    to: tumor-rna-vs-adjacent
+    renamed_date: '2026-08-04'
+    reason: "tumor RNA vs paired-adjacent DEG — name the RNA layer explicitly"
+  - from: tumor-expression-distribution-subtype
+    to: tumor-rna-distribution-by-subtype
+    renamed_date: '2026-08-04'
+    reason: "per-subtype tumor RNA distribution — grain explicit via by-<grain> suffix"
+  - from: tumor-expression-distribution
+    to: tumor-rna-distribution
+    renamed_date: '2026-08-04'
+    reason: "per-sample tumor RNA distribution — align with cellline-rna-distribution"
+  - from: rna-protein-concordance
+    to: cellline-rna-protein-concordance
+    renamed_date: '2026-08-04'
+    reason: "cell-line RNA-vs-protein concordance (the -tumor sibling is the tumor arm)"

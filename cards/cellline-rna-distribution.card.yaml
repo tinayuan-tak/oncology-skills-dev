@@ -2,7 +2,7 @@
 #
 # Mirrors DepMap portal's per-gene expression panel. Reports TPM distribution across
 # ~1500 cell lines + per-lineage breakdown. Distinct from sibling expression cards:
-#   - expression-tumor-vs-adjacent: TCGA patient cohort vs adjacent normal
+#   - tumor-rna-vs-adjacent: TCGA patient cohort vs adjacent normal
 #   - lineage-restriction-evidence: GTEx NORMAL tissue breadth
 #   - subgroup-stratified-expression: TCGA subgroup analysis
 # This card is CELL-LINE cohort only — "is this gene measurably expressed across

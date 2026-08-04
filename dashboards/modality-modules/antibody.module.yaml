@@ -48,7 +48,7 @@ synthesis_emphasis:
     - clinical-precedent
   secondary_cards:
     - normal-tissue-liability
-    - expression-tumor-vs-adjacent
+    - tumor-rna-vs-adjacent
   modality_killer_conditions:
     - card_id: protein-surface-evidence
       predicate_type: excluded_by_applies_when
@@ -58,7 +58,7 @@ synthesis_emphasis:
       predicate_type: interpretation_call_equals
       predicate_value: "not informative for surface-modality programs"
       message: "Antibody not viable — protein evidence is intracellular-only or weak. Surface accessibility is the gating biology for antibody binding."
-    - card_id: expression-tumor-vs-adjacent
+    - card_id: tumor-rna-vs-adjacent
       predicate_type: interpretation_call_equals
       predicate_value: "not informative"
       message: "Antibody program weak — tumor expression insufficient. Antibody without payload requires intrinsic expression-driven biology."

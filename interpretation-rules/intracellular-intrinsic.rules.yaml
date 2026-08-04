@@ -777,7 +777,7 @@ rules:
 
   - rule_id: expression-strong-upregulation-supportive
     when:
-      card_id: expression-tumor-vs-adjacent
+      card_id: tumor-rna-vs-adjacent
       field: expression_call_class
       equals: strong_upregulation
     signals:
@@ -792,7 +792,7 @@ rules:
 
   - rule_id: expression-modest-upregulation-neutral
     when:
-      card_id: expression-tumor-vs-adjacent
+      card_id: tumor-rna-vs-adjacent
       field: expression_call_class
       equals: modest_upregulation
     signals:
@@ -805,7 +805,7 @@ rules:
 
   - rule_id: expression-call-not-informative-degrader-killer
     when:
-      card_id: expression-tumor-vs-adjacent
+      card_id: tumor-rna-vs-adjacent
       field: expression_call_class
       equals: not_informative
     signals:
@@ -822,7 +822,7 @@ rules:
 
   - rule_id: expression-call-data-unavailable-insufficient
     when:
-      card_id: expression-tumor-vs-adjacent
+      card_id: tumor-rna-vs-adjacent
       field: expression_call_class
       equals: data_unavailable
     signals:
@@ -840,7 +840,7 @@ rules:
   # SM can still engage a present-but-not-elevated target, but tumor-depletion is a genuine negative).
   - rule_id: expression-strong-downregulation-degrader-killer
     when:
-      card_id: expression-tumor-vs-adjacent
+      card_id: tumor-rna-vs-adjacent
       field: expression_call_class
       equals: strong_downregulation
     signals:
@@ -857,7 +857,7 @@ rules:
 
   - rule_id: expression-modest-downregulation-opposing
     when:
-      card_id: expression-tumor-vs-adjacent
+      card_id: tumor-rna-vs-adjacent
       field: expression_call_class
       equals: modest_downregulation
     signals:
@@ -957,7 +957,7 @@ rules:
   # do NOT enter the tumor-presence rank ladder (that stays byte-stable — additive signal only).
   - rule_id: tumor-expression-broadly-high-supportive
     when:
-      card_id: tumor-expression-distribution
+      card_id: tumor-rna-distribution
       field: tumor_expression_class
       in: [broadly_high, broadly_detected, subset_high]
     signals:
@@ -972,7 +972,7 @@ rules:
 
   - rule_id: tumor-expression-broadly-moderate-neutral
     when:
-      card_id: tumor-expression-distribution
+      card_id: tumor-rna-distribution
       field: tumor_expression_class
       equals: broadly_moderate
     signals:
@@ -984,7 +984,7 @@ rules:
 
   - rule_id: tumor-expression-broadly-low-neutral
     when:
-      card_id: tumor-expression-distribution
+      card_id: tumor-rna-distribution
       field: tumor_expression_class
       equals: broadly_low
     signals:
@@ -999,7 +999,7 @@ rules:
 
   - rule_id: tumor-expression-data-unavailable-insufficient
     when:
-      card_id: tumor-expression-distribution
+      card_id: tumor-rna-distribution
       field: tumor_expression_class
       equals: data_unavailable
     signals:
@@ -2330,14 +2330,14 @@ rules:
   # Same discipline as expression_class = 'broadly_moderate' (see above).
 
   # ============================================================================
-  # E3b — Protein abundance distribution (Card E3b: protein-abundance-celline)
+  # E3b — Protein abundance distribution (Card E3b: cellline-protein-abundance)
   # ============================================================================
   # The PROTEIN twin of cellline-rna-distribution (E3a). Cell-line whole-proteome
   # TMT MS (Gygi/Nusinow) DISTRIBUTION — distinct from tumor-protein-abundance-cptac,
   # which is a tumor-vs-normal CONTRAST (strong_up/down vocab). This card uses the
   # DISTRIBUTION vocab (broadly_high/broadly_low/lineage_restricted), so it gets
   # its OWN rules — exactly parallel to how cellline-rna-distribution and
-  # expression-tumor-vs-adjacent each have their own rule sets. Signal mappings
+  # tumor-rna-vs-adjacent each have their own rule sets. Signal mappings
   # mirror the E3a RNA-distribution rules: broadly_low → degrader killer (no
   # protein to degrade), broadly_high/lineage_restricted → supportive, moderate/
   # data_unavailable → neutral/insufficient. This is the substrate that catches
@@ -2345,7 +2345,7 @@ rules:
 
   - rule_id: protein-abundance-broadly-low-degrader-killer
     when:
-      card_id: protein-abundance-celline
+      card_id: cellline-protein-abundance
       field: protein_expression_class
       equals: broadly_low
     signals:
@@ -2364,7 +2364,7 @@ rules:
 
   - rule_id: protein-abundance-broadly-high-supportive
     when:
-      card_id: protein-abundance-celline
+      card_id: cellline-protein-abundance
       field: protein_expression_class
       equals: broadly_high
     signals:
@@ -2378,7 +2378,7 @@ rules:
 
   - rule_id: protein-abundance-lineage-restricted-supportive
     when:
-      card_id: protein-abundance-celline
+      card_id: cellline-protein-abundance
       field: protein_expression_class
       equals: lineage_restricted
     signals:
@@ -2392,7 +2392,7 @@ rules:
 
   - rule_id: protein-abundance-broadly-moderate-neutral
     when:
-      card_id: protein-abundance-celline
+      card_id: cellline-protein-abundance
       field: protein_expression_class
       equals: broadly_moderate
     signals:
@@ -2405,7 +2405,7 @@ rules:
 
   - rule_id: protein-abundance-data-unavailable-insufficient
     when:
-      card_id: protein-abundance-celline
+      card_id: cellline-protein-abundance
       field: protein_expression_class
       equals: data_unavailable
     signals:
@@ -2487,7 +2487,7 @@ rules:
   # rule — "no stratum-specific signal" is the descriptive default, nothing to surface.
   - rule_id: subtype-expression-enriched-context
     when:
-      card_id: tumor-expression-distribution-subtype
+      card_id: tumor-rna-distribution-by-subtype
       field: per_subgroup_metrics
       in_record:
         subtype_signal: subtype_enriched
@@ -2510,7 +2510,7 @@ rules:
 
   - rule_id: subtype-expression-restricted-context
     when:
-      card_id: tumor-expression-distribution-subtype
+      card_id: tumor-rna-distribution-by-subtype
       field: per_subgroup_metrics
       in_record:
         subtype_signal: subtype_restricted
@@ -2532,7 +2532,7 @@ rules:
 
   - rule_id: subtype-expression-depleted-context
     when:
-      card_id: tumor-expression-distribution-subtype
+      card_id: tumor-rna-distribution-by-subtype
       field: per_subgroup_metrics
       in_record:
         subtype_signal: subtype_depleted
@@ -2716,7 +2716,7 @@ rules:
   # biology-axis read. Wiring the ADC caution as a direct rule now would strand it on the wrong axis.
   - rule_id: rna-protein-adequate-proxy-supportive
     when:
-      card_id: rna-protein-concordance
+      card_id: cellline-rna-protein-concordance
       field: rna_as_biomarker
       equals: adequate_proxy
     signals:
@@ -2731,7 +2731,7 @@ rules:
 
   - rule_id: rna-protein-partial-proxy-neutral
     when:
-      card_id: rna-protein-concordance
+      card_id: cellline-rna-protein-concordance
       field: rna_as_biomarker
       equals: partial_proxy
     signals:
@@ -2745,7 +2745,7 @@ rules:
 
   - rule_id: rna-protein-poor-proxy-neutral
     when:
-      card_id: rna-protein-concordance
+      card_id: cellline-rna-protein-concordance
       field: rna_as_biomarker
       equals: poor_proxy
     signals:
@@ -2761,7 +2761,7 @@ rules:
 
   - rule_id: rna-protein-insufficient-paired-models-insufficient
     when:
-      card_id: rna-protein-concordance
+      card_id: cellline-rna-protein-concordance
       field: rna_as_biomarker
       equals: insufficient_paired_models
     signals:
@@ -2774,7 +2774,7 @@ rules:
 
   - rule_id: rna-protein-concordance-data-unavailable-insufficient
     when:
-      card_id: rna-protein-concordance
+      card_id: cellline-rna-protein-concordance
       field: rna_as_biomarker
       equals: data_unavailable
     signals:
