@@ -346,7 +346,7 @@ def make_decision_json(
         "headline": headline,
         "cards": [{"card_id": c["card_id"],
                    "summary": c["summary"],
-                   "missing": c.get("_missing", False)}
+                   "_missing": c.get("_missing", False)}
                   for c in card_outputs],
         "fired_rules": [{"rule_id": r["rule_id"],
                          "card_id": r["card_id"],

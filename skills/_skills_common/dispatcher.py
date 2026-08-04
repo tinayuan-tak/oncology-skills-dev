@@ -84,7 +84,7 @@ def _apply_on_dependency_status(
 
     for c in cards:
         cid = c.get("card_id")
-        if not c.get("_missing") and not c.get("missing"):
+        if not c.get("_missing"):
             surviving.append(c)
             continue
 
@@ -207,9 +207,9 @@ def run_wired_skill(
 
     # Attach arch A4 provenance + isoform-selective flags uniformly
     headline["cards_available"] = sum(1 for c in card_outputs
-                                       if not (c.get("_missing") or c.get("missing")))
+                                       if not c.get("_missing"))
     headline["cards_missing"] = [c["card_id"] for c in card_outputs
-                                  if (c.get("_missing") or c.get("missing"))]
+                                  if c.get("_missing")]
     if skipped_card_ids:
         headline["_a4_skipped_sections"] = skipped_card_ids
     if a4_caveats:

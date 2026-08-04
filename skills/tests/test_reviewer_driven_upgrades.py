@@ -327,9 +327,9 @@ def test_a4_dispatcher_runtime_consumer():
 
     # Synthetic card outputs — mix of present + missing
     cards = [
-        {"card_id": "card-a", "summary": {"x": 1}, "missing": False},
-        {"card_id": "card-b", "summary": {}, "missing": True},
-        {"card_id": "card-c", "summary": {}, "missing": True},
+        {"card_id": "card-a", "summary": {"x": 1}, "_missing": False},
+        {"card_id": "card-b", "summary": {}, "_missing": True},
+        {"card_id": "card-c", "summary": {}, "_missing": True},
     ]
 
     # A4 behavior: skip missing card-b, emit-with-caveat for missing card-c
