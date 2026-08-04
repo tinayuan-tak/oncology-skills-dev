@@ -1,17 +1,17 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T16:35:15.366988+00:00",
+  "generated_at": "2026-08-04T16:59:00.563412+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "contracts": "/tmp/fh-alerts-collapse",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "e8fcfba",
+    "contracts": "ae0006b",
     "skills": "a685b8c",
-    "methods": "b65b462",
+    "methods": "f65697b",
     "products": "1f73e51",
     "catalog": "fd8858f"
   },

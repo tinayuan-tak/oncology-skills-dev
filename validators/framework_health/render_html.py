@@ -154,12 +154,27 @@ def _alerts(report: dict) -> str:
     warns = [d for d in report["drift_index"] if d["severity"] == "warn"]
     if not errs and not warns:
         return '<div class="banner ok">No error- or warn-severity drift detected.</div>'
-    items = ""
-    for d in errs + warns:
-        items += (f'<li>{_chip(d["severity"], SEVERITY_COLORS[d["severity"]])} '
-                  f'<b>{_esc(d["skill"])}</b> · {_esc(d["code"])} — {_esc(d["detail"])}</li>')
+
+    def _li(d: dict) -> str:
+        return (f'<li>{_chip(d["severity"], SEVERITY_COLORS[d["severity"]])} '
+                f'<b>{_esc(d["skill"])}</b> · {_esc(d["code"])} — {_esc(d["detail"])}</li>')
+
+    # Errors are actionable → always visible. Warns fold into a <details> (native,
+    # no JS), with a per-code breakdown in the summary so the gist reads collapsed.
+    err_html = f'<ul>{"".join(_li(d) for d in errs)}</ul>' if errs else ""
+    warns_block = ""
+    if warns:
+        by_code: dict[str, int] = {}
+        for d in warns:
+            by_code[d["code"]] = by_code.get(d["code"], 0) + 1
+        breakdown = " · ".join(f"{n} {code}" for code, n in sorted(by_code.items()))
+        warns_block = (
+            f'<details class="warns"><summary>{len(warns)} warnings '
+            f'<span class="brk">({breakdown})</span></summary>'
+            f'<ul>{"".join(_li(d) for d in warns)}</ul></details>'
+        )
     return (f'<div class="banner alert"><h3>⚠ Drift &amp; alerts '
-            f'({len(errs)} error, {len(warns)} warn)</h3><ul>{items}</ul></div>')
+            f'({len(errs)} error, {len(warns)} warn)</h3>{err_html}{warns_block}</div>')
 
 
 def _summary_cards(report: dict) -> str:
@@ -208,6 +223,14 @@ h2{font-size:14px;margin:14px 0 8px}
 .banner.ok{background:#eaf6ea;border:1px solid #0ca30c}
 .banner.alert{background:#fdf3e7;border:1px solid #fab219}
 .banner h3{margin:0 0 5px;font-size:13px}.banner ul{margin:0;padding-left:16px}
+.banner li{margin:1px 0}
+details.warns{margin-top:4px}
+details.warns>summary{cursor:pointer;font-weight:600;color:#7a5b12;list-style:none;user-select:none}
+details.warns>summary::-webkit-details-marker{display:none}
+details.warns[open]>summary{margin-bottom:4px}
+details.warns .brk{font-weight:400;color:#a08a5a;font-size:11px}
+details.warns>summary::before{content:"▸ ";color:#a08a5a}
+details.warns[open]>summary::before{content:"▾ "}
 /* NOTE: no overflow:hidden here — it clipped expanded drill-down content (the
    nested cards table) that grows a detail row past the table's box. Round the
    header-row corners instead so we keep the look without clipping descendants. */
