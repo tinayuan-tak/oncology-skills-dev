@@ -69,6 +69,21 @@ def _skill_row(n: dict) -> str:
 
 
 def _skill_detail(n: dict) -> str:
+    def _datasets_cell(c: dict) -> str:
+        ds = c.get("datasets") or []
+        if not ds:
+            return "<span class='consumers'>—</span>"
+        bits = []
+        for d in ds:
+            ok = d.get("in_catalog")
+            mark = "✓" if ok else "✗"
+            col = _GREEN if ok else _RED
+            tip = ("in catalog" if d.get("matched_by") == "exact"
+                   else f"resolved by prefix → {d.get('resolved_id')}" if d.get("matched_by") == "prefix"
+                   else "NOT in data-catalog")
+            bits.append(f"<span style='color:{col}' title='{_esc(tip)}'>{mark}</span> {_esc(d['product_id'])}")
+        return "<br>".join(bits)
+
     cards_html = ""
     for c in sorted(n["cards"], key=lambda c: c["card_id"]):
         ch = c["card_health"]
@@ -77,8 +92,9 @@ def _skill_detail(n: dict) -> str:
             f'<td>{_chip(ch, CARD_COLORS.get(ch, _GREY))}</td>'
             f'<td>{"✓" if c["has_live_reader"] else "—"}</td>'
             f'<td>{"✓" if c["fires_in_real_package"] else "—"}</td>'
-            f'<td>{_esc(c.get("method_call") or "—")}</td>'
-            f'<td class="rsn">{_esc(c["reason_text"])}</td></tr>'
+            f'<td>{_esc(c.get("measurement_type") or "—")}</td>'
+            f'<td>{_esc((c.get("dispatch_module") or c.get("method_call") or "—").split(".")[0])}</td>'
+            f'<td class="dscell">{_datasets_cell(c)}</td></tr>'
         )
     drift_html = ""
     for d in n["drift_flags"]:
@@ -91,8 +107,9 @@ def _skill_detail(n: dict) -> str:
         f'<p class="why"><b>Verdict:</b> {_chip(n["health_verdict"], SKILL_COLORS.get(n["health_verdict"], _GREY))} '
         f'— {_esc(n["reason_text"])} <span class="rid">({_esc(n["health_reason"])})</span></p>'
         + (f'<p><b>Drift flags:</b></p><ul class="drift">{drift_html}</ul>' if drift_html else "")
-        + (f'<table class="cards"><thead><tr><th>card</th><th>health</th><th>live reader</th>'
-           f'<th>fires in real pkg</th><th>method</th><th>reason</th></tr></thead>'
+        + (f'<p class="why"><b>Cards → method → datasets</b> (the full dependency chain this skill pulls):</p>'
+           f'<table class="cards"><thead><tr><th>card</th><th>health</th><th>live reader</th>'
+           f'<th>fires in real pkg</th><th>measurement_type</th><th>method</th><th>datasets (product_id · ✓ in catalog)</th></tr></thead>'
            f'<tbody>{cards_html}</tbody></table>' if cards_html else "<p><i>consumes no cards</i></p>")
         + '</div></td></tr>'
     )
@@ -278,6 +295,76 @@ def _cards_table(report: dict) -> str:
     )
 
 
+def _fmt_bytes(n) -> str:
+    if not n:
+        return "—"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.0f} {unit}"
+        n /= 1024
+    return f"{n:.0f} PB"
+
+
+def _datasets_table(report: dict) -> str:
+    """Dataset-centric inventory: every data product (catalog ∪ card-referenced),
+    joined to consuming cards. Framework-consumed datasets first (the relevant set),
+    then broken refs, then the wider catalog (collapsed by default via grouping)."""
+    ds = report.get("datasets", [])
+    consumed = [d for d in ds if d["n_consumers"] > 0 and not d["is_broken_ref"]]
+    broken = [d for d in ds if d["is_broken_ref"]]
+    catalog_only = [d for d in ds if d["n_consumers"] == 0 and d["in_catalog"]]
+
+    def _row(d: dict) -> str:
+        badge = (_chip("in catalog", _GREEN) if d["in_catalog"] else _chip("NOT in catalog", _RED))
+        kind = d.get("kind") or "—"
+        cons = d.get("consumed_by_cards") or []
+        cons_txt = (f"<span class='consumers'>{_esc(', '.join(cons))}</span>" if cons
+                    else "<span class='consumers'>— used by no card</span>")
+        return (
+            f"<tr><td class='nm'>{_esc(d['product_id'])}</td>"
+            f"<td>{badge}</td><td>{_esc(kind)}</td>"
+            f"<td>{_esc(d.get('provider') or '—')}</td>"
+            f"<td>{_esc(_fmt_bytes(d.get('size_bytes')))}</td>"
+            f"<td>{d.get('n_consumers', 0)} {cons_txt}</td></tr>"
+        )
+
+    body = ""
+    if broken:
+        body += (f"<tr class='grp'><td colspan='6'>⚠ REFERENCED BUT NOT IN CATALOG — a card names a "
+                 f"product_id with no manifest ({len(broken)}): not-yet-landed data, or a resource "
+                 f"tracked outside manifests/ (resolver-releases, subgroup-catalogs)</td></tr>")
+        for d in sorted(broken, key=lambda d: d["product_id"]):
+            body += _row(d)
+    body += f"<tr class='grp'><td colspan='6'>CONSUMED BY CARDS — the framework's active data footprint ({len(consumed)})</td></tr>"
+    for d in sorted(consumed, key=lambda d: d["product_id"]):
+        body += _row(d)
+    body += (f"<tr class='grp'><td colspan='6'>CATALOG AT LARGE — cataloged, not consumed by any card "
+             f"({len(catalog_only)}); org-wide inventory, not a framework gap</td></tr>")
+    for d in sorted(catalog_only, key=lambda d: d["product_id"]):
+        body += _row(d)
+
+    return (
+        "<table class='matrix'><thead><tr>"
+        "<th>dataset (product_id)</th><th>catalog</th><th>kind</th><th>provider</th>"
+        "<th>size</th><th>consumed by cards</th></tr></thead><tbody>" + body + "</tbody></table>"
+    )
+
+
+def _dataset_summary_cards(report: dict) -> str:
+    s = report["summary"]
+    tiles = [
+        ("in catalog", s.get("n_datasets_in_catalog", 0), _GREEN),
+        ("consumed by cards", sum(1 for d in report.get("datasets", []) if d["n_consumers"] > 0 and d["in_catalog"]), _PURPLE),
+        ("broken refs", s.get("n_broken_dataset_refs", 0), _RED),
+        ("catalog, unused", s.get("n_orphan_datasets", 0), _GREY),
+    ]
+    html_ = ""
+    for lbl, num, col in tiles:
+        html_ += (f'<div class="tile" style="border-color:{col}">'
+                  f'<div class="num">{num}</div><div class="lbl">{_esc(lbl)}</div></div>')
+    return f'<div class="tiles">{html_}</div>'
+
+
 def _card_summary_cards(report: dict) -> str:
     s = report["summary"]
     t = s.get("card_health_tally", {})
@@ -395,6 +482,7 @@ def render(report: dict) -> str:
 <div class="tabs">
   <div class="tab active" id="tab-skills" onclick="tab('skills')">Skills ({s["n_skills"]})</div>
   <div class="tab" id="tab-cards" onclick="tab('cards')">Cards ({s.get("n_cards", 0)})</div>
+  <div class="tab" id="tab-datasets" onclick="tab('datasets')">Datasets ({s.get("n_datasets_in_catalog", 0)})</div>
   <div class="tab" id="tab-graph" onclick="tab('graph')">Graph</div>
 </div>
 
@@ -410,6 +498,12 @@ def render(report: dict) -> str:
 {_card_summary_cards(report)}
 <h2>Card inventory — every card once, deduped, joined to consuming skills</h2>
 {_cards_table(report)}
+</div>
+
+<div class="tabpane" id="pane-datasets">
+{_dataset_summary_cards(report)}
+<h2>Data catalog — every product a card pulls, joined to consuming cards</h2>
+{_datasets_table(report)}
 </div>
 
 <div class="tabpane" id="pane-graph">

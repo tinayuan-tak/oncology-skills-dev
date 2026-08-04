@@ -395,6 +395,36 @@ _PLACEHOLDER_STATUS = {"blocked_needs_per_sample_reader", "out_of_scope"}
 _PLACEHOLDER_TEXT = re.compile(r"placeholder|not yet landed|data not yet|not_wired", re.IGNORECASE)
 
 
+def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
+    """product_id -> {kind (source|derived), provider, version, license, size_bytes,
+    file_count, system_of_record}, scanned from the data-catalog manifests.
+
+    The dataset universe. A card's required_inputs.product_id is verified against
+    this; a manifest here that no card references is an ORPHAN dataset."""
+    out: dict[str, dict] = {}
+    for kind in ("sources", "derived"):
+        d = catalog_root / "manifests" / kind
+        if not d.is_dir():
+            continue
+        for p in sorted(d.glob("*.yaml")):
+            try:
+                m = yaml.safe_load(p.read_text()) or {}
+            except yaml.YAMLError:
+                continue
+            mid = m.get("id") or p.name[:-5]
+            out[mid] = {
+                "kind": "source" if kind == "sources" else "derived",
+                "provider": m.get("provider"),
+                "version": m.get("version"),
+                "license": m.get("license"),
+                "size_bytes": m.get("total_size_bytes"),
+                "file_count": m.get("file_count"),
+                "system_of_record": m.get("system_of_record"),
+                "derived_from": m.get("derived_from") or [],
+            }
+    return out
+
+
 def probe_card(
     card_id: str,
     contracts_root: Path,
@@ -402,14 +432,20 @@ def probe_card(
     live_ids: set[str],
     fired_ids: set[str],
     dispatch_modules: dict[str, str] | None = None,
+    catalog_ids: set[str] | None = None,
 ) -> dict:
     """Ground-truth signals for one card that a skill consumes.
 
     Method backing is resolved via the DISPATCHER's actual _import_method target
     (authoritative), NOT the card's methods.call label (which can be stale). The
     label is still recorded, and a mismatch surfaces as `stale_method_label`.
+
+    Datasets: required_inputs.product_id are captured and (if catalog_ids given)
+    verified against the data-catalog — a referenced id absent from the catalog
+    is a broken data reference.
     """
     dispatch_modules = dispatch_modules or {}
+    catalog_ids = catalog_ids if catalog_ids is not None else set()
     out: dict[str, Any] = {
         "card_id": card_id,
         "card_yaml_exists": False,
@@ -423,12 +459,31 @@ def probe_card(
         "method_has_read": None,
         "stale_method_label": False,
         "fires_in_real_package": card_id in fired_ids,
+        "datasets": [],                # required_inputs product_ids + catalog status
     }
     card = _load_card_yaml(card_id, contracts_root)
     if card is None:
         return out
     out["card_yaml_exists"] = True
     out["measurement_type"] = card.get("measurement_type")
+
+    # Datasets: required_inputs[].product_id, each verified against the catalog.
+    # Cards often name a LOGICAL id (e.g. "depmap-predictability") while the catalog
+    # carries a version-suffixed id ("depmap-predictability-26q1-v2"). So match exact
+    # first, then a prefix fallback — recording HOW it matched so a bare id-convention
+    # mismatch (matched_by=prefix) isn't conflated with a genuinely absent dataset.
+    ds = []
+    for ri in (card.get("required_inputs") or []):
+        if isinstance(ri, dict) and ri.get("product_id"):
+            pid = str(ri["product_id"]).split("#")[0].strip()  # strip trailing inline comment
+            if pid in catalog_ids:
+                matched_by, resolved = "exact", pid
+            else:
+                pref = sorted(c for c in catalog_ids if c.startswith(pid + "-"))
+                matched_by, resolved = ("prefix", pref[0]) if pref else (None, None)
+            ds.append({"product_id": pid, "in_catalog": matched_by is not None,
+                       "matched_by": matched_by, "resolved_id": resolved})
+    out["datasets"] = ds
 
     status = card.get("status")
     if status in _PLACEHOLDER_STATUS:

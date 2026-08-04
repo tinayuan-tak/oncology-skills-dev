@@ -144,6 +144,15 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
         if rep["summary"].get("card_health_tally") != ctally:
             errs.append("summary.card_health_tally disagrees with per-card count — regenerate")
 
+    # 4b. Datasets section (if present): orphan/broken-ref flags internally consistent.
+    datasets = rep.get("datasets")
+    if datasets is not None:
+        for d in datasets:
+            if d.get("is_orphan") != (d.get("in_catalog") and d.get("n_consumers", 0) == 0):
+                errs.append(f"[dataset {d.get('product_id')}] is_orphan inconsistent")
+            if d.get("is_broken_ref") != ((not d.get("in_catalog")) and d.get("n_consumers", 0) > 0):
+                errs.append(f"[dataset {d.get('product_id')}] is_broken_ref inconsistent")
+
     # 5. Graph section (if present): every edge endpoint must resolve to a node
     #    (a dangling edge is drift), and counts must agree.
     graph = rep.get("graph")

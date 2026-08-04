@@ -30,6 +30,7 @@ DRIFT_SEVERITY = {
     "missing_status_field": "warn",
     "card_registered_never_fires": "info",
     "stale_method_label": "info",
+    "dataset_ref_not_in_catalog": "warn",
 }
 
 
@@ -146,6 +147,13 @@ def compute_drift(skill: dict, cards: list[dict]) -> list[dict]:
         add("stale_method_label",
             f"card methods.call label differs from the dispatcher's actual import: {', '.join(sorted(stale))}")
 
+    # Broken data reference: a consumed card names a product_id absent from the catalog.
+    missing_ds = sorted({d["product_id"] for c in cards for d in c.get("datasets", [])
+                         if not d.get("in_catalog")})
+    if missing_ds:
+        add("dataset_ref_not_in_catalog",
+            f"consumed card(s) reference dataset product_id(s) not in the data-catalog: {', '.join(missing_ds)}")
+
     return flags
 
 
@@ -210,6 +218,8 @@ def build_health(roots: dict[str, Path]) -> dict:
     fired_ids = probe.fired_card_ids(roots["products"])
     ss_map = probe.sub_skill_map(roots["skills"])           # skill_dir -> short
     gcov = probe.gate_coverage_by_short(roots["contracts"])  # short -> coverage entry
+    catalog = probe.catalog_manifests(roots["catalog"])      # product_id -> manifest meta
+    catalog_ids = set(catalog)
 
     skill_names = probe.list_skill_names(roots["skills"])
 
@@ -222,7 +232,7 @@ def build_health(roots: dict[str, Path]) -> dict:
         cards = [
             roll_up_card(
                 probe.probe_card(cid, roots["contracts"], roots["methods"],
-                                 live_ids, fired_ids, dispatch_modules),
+                                 live_ids, fired_ids, dispatch_modules, catalog_ids),
                 rules,
             )
             for cid in card_ids
@@ -257,7 +267,7 @@ def build_health(roots: dict[str, Path]) -> dict:
     for cid in universe:
         cn = roll_up_card(
             probe.probe_card(cid, roots["contracts"], roots["methods"],
-                             live_ids, fired_ids, dispatch_modules),
+                             live_ids, fired_ids, dispatch_modules, catalog_ids),
             rules,
         )
         cn["consumers"] = sorted(consumers.get(cid, []))
@@ -268,6 +278,43 @@ def build_health(roots: dict[str, Path]) -> dict:
     card_tally: dict[str, int] = {}
     for c in card_nodes:
         card_tally[c["card_health"]] = card_tally.get(c["card_health"], 0) + 1
+
+    # -----------------------------------------------------------------------
+    # DATASET-CENTRIC view: every data product (catalog manifest ∪ every
+    # product_id a card references), joined to the cards that pull it.
+    #   - referenced + in catalog                → ok
+    #   - referenced but NOT in catalog          → broken data reference (drift)
+    #   - in catalog but referenced by no card   → ORPHAN dataset (unused ingest)
+    # -----------------------------------------------------------------------
+    # Key each reference by its RESOLVED catalog id (prefix matches collapse onto
+    # their real manifest) so a version-suffix convention isn't miscounted as broken.
+    ds_consumers: dict[str, list[str]] = {}
+    for c in card_nodes:
+        for d in c.get("datasets", []):
+            key = d.get("resolved_id") or d["product_id"]
+            ds_consumers.setdefault(key, []).append(c["card_id"])
+
+    ds_universe = sorted(set(catalog) | set(ds_consumers))
+    dataset_nodes: list[dict] = []
+    for pid in ds_universe:
+        meta = catalog.get(pid) or {}
+        consumers = sorted(set(ds_consumers.get(pid, [])))
+        in_cat = pid in catalog
+        dataset_nodes.append({
+            "product_id": pid,
+            "in_catalog": in_cat,
+            "kind": meta.get("kind"),
+            "provider": meta.get("provider"),
+            "version": meta.get("version"),
+            "size_bytes": meta.get("size_bytes"),
+            "file_count": meta.get("file_count"),
+            "system_of_record": meta.get("system_of_record"),
+            "n_derived_from": len(meta.get("derived_from") or []),
+            "consumed_by_cards": consumers,
+            "n_consumers": len(consumers),
+            "is_orphan": in_cat and not consumers,       # cataloged, no card pulls it
+            "is_broken_ref": (not in_cat) and bool(consumers),  # a card names a missing dataset
+        })
 
     graph = build_graph(skill_nodes, card_nodes)
 
@@ -292,10 +339,15 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_cards": len(card_nodes),
             "card_health_tally": card_tally,
             "n_orphan_cards": sum(1 for c in card_nodes if c["is_orphan"]),
+            "n_datasets": len(dataset_nodes),
+            "n_datasets_in_catalog": sum(1 for d in dataset_nodes if d["in_catalog"]),
+            "n_orphan_datasets": sum(1 for d in dataset_nodes if d["is_orphan"]),
+            "n_broken_dataset_refs": sum(1 for d in dataset_nodes if d["is_broken_ref"]),
         },
         "registry_drift": reg,
         "skills": skill_nodes,
         "cards": card_nodes,
+        "datasets": dataset_nodes,
         "graph": graph,
         "drift_index": all_drift,
     }

@@ -323,6 +323,63 @@ def test_self_check_catches_dangling_edge(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# 10. Datasets — required_inputs capture, catalog verify, prefix-match, orphan/broken
+# ---------------------------------------------------------------------------
+def test_catalog_manifests_scan(tmp_path):
+    for kind in ("sources", "derived"):
+        (tmp_path / "manifests" / kind).mkdir(parents=True)
+    (tmp_path / "manifests" / "sources" / "ds-a.yaml").write_text(
+        "id: ds-a\nprovider: acme\nversion: v1\ntotal_size_bytes: 1024\n")
+    cat = probe.catalog_manifests(tmp_path)
+    assert "ds-a" in cat and cat["ds-a"]["kind"] == "source" and cat["ds-a"]["provider"] == "acme"
+
+
+def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
+    (tmp_path / "cards").mkdir()
+    (tmp_path / "cards" / "c.card.yaml").write_text(
+        "card_id: c\nrequired_inputs:\n  - product_id: depmap-predictability\n"
+        "  - product_id: exact-ds\nmethods:\n  - call: m\n")
+    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True)
+    out = probe.probe_card("c", tmp_path, methods, set(), set(), {},
+                           catalog_ids={"exact-ds", "depmap-predictability-26q1-v2"})
+    ds = {d["product_id"]: d for d in out["datasets"]}
+    assert ds["exact-ds"]["matched_by"] == "exact" and ds["exact-ds"]["in_catalog"]
+    assert ds["depmap-predictability"]["matched_by"] == "prefix"
+    assert ds["depmap-predictability"]["resolved_id"] == "depmap-predictability-26q1-v2"
+
+
+def test_probe_card_dataset_broken_ref(tmp_path):
+    (tmp_path / "cards").mkdir()
+    (tmp_path / "cards" / "c.card.yaml").write_text(
+        "card_id: c\nrequired_inputs:\n  - product_id: ghost-ds\n")
+    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True)
+    out = probe.probe_card("c", tmp_path, methods, set(), set(), {}, catalog_ids={"real-ds"})
+    d = out["datasets"][0]
+    assert d["product_id"] == "ghost-ds" and not d["in_catalog"] and d["matched_by"] is None
+
+
+def test_self_check_catches_inconsistent_dataset_flags(tmp_path):
+    rep = _minimal_report()
+    rep["datasets"] = [{"product_id": "x", "in_catalog": True, "n_consumers": 0,
+                        "is_orphan": False, "is_broken_ref": False}]  # should be orphan=True
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok and any("is_orphan" in e for e in errs)
+
+
+def test_committed_artifact_datasets_section():
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    rep = json.loads(committed.read_text())
+    assert "datasets" in rep and rep["datasets"], "datasets section missing"
+    for d in rep["datasets"]:
+        assert d["is_orphan"] == (d["in_catalog"] and d["n_consumers"] == 0)
+        assert d["is_broken_ref"] == ((not d["in_catalog"]) and d["n_consumers"] > 0)
+
+
+# ---------------------------------------------------------------------------
 # 7. Frontmatter / prose / drift
 # ---------------------------------------------------------------------------
 def _write_skill(tmp_path, name, skill_md, run_py=None):
