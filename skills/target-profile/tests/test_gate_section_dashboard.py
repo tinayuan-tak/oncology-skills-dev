@@ -41,13 +41,13 @@ def _sr(per_lineage=None):
         expr["n_lineages_evaluated"] = len(per_lineage)
     return {
         "expression": {"skill_dir": "tumor-presence", "cards": [
-            {"card_id": "expression-distribution", "summary": expr},
+            {"card_id": "cellline-rna-distribution", "summary": expr},
             {"card_id": "protein-abundance-celline", "summary": {"protein_expression_class": "broadly_moderate"}},
             {"card_id": "tumor-elevation-breadth",
              "summary": {"tumor_elevation_breadth_class": "multi_tumor_elevated",
                          "n_cohorts_elevated": 2, "rna_n_indications_elevated": 4}}],
             "verdict": ("broadly_high_expression", "expression-broadly-high-supportive"),
-            "fired": [_fired("expression-broadly-high-supportive", "expression-distribution",
+            "fired": [_fired("expression-broadly-high-supportive", "cellline-rna-distribution",
                              {"small_molecule": "supportive", "degrader": "supportive"}),
                       _fired("tumor-breadth-multi-supportive", "tumor-elevation-breadth",
                              {"small_molecule": "supportive"})]},
@@ -436,7 +436,7 @@ def test_provenance_trace_section_renders_run():
     assert "<details>" in seg                       # collapsed by default
     # names the sub-skills + their cards
     assert "expression" in seg and "dependency" in seg
-    assert "expression-distribution" in seg          # a resolved card_id appears
+    assert "cellline-rna-distribution" in seg          # a resolved card_id appears
     assert "trace-cards" in seg                       # the per-card table
 
 

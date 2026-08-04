@@ -42,7 +42,7 @@ Each sub-skill reads one or more evidence cards. A card names a data source, the
 
 | Sub-skill | Card | Data source | Evidence it produces |
 |---|---|---|---|
-| tumor-presence | expression-distribution | DepMap 26Q1 (cell-line RNA) | `expression_class` — broadly high / moderate / lineage-restricted / low |
+| tumor-presence | cellline-rna-distribution | DepMap 26Q1 (cell-line RNA) | `expression_class` — broadly high / moderate / lineage-restricted / low |
 | tumor-presence | expression-tumor-vs-adjacent | TCGA tumor-vs-adjacent (RNA-seq) | tumor-vs-normal fold-change + q |
 | tumor-presence | protein-presence-cptac | CPTAC (protein, mass-spec) | `protein_expression_class` — protein-level tumor elevation |
 | tumor-selectivity | tumor-vs-normal-selectivity | TCGA + GTEx (recount3) | `selectivity_class` — selective / discordant / not-selective |
@@ -81,7 +81,7 @@ Point 5 matters most: it decides whether the nomination is LLM judgment we choos
 One block per sub-skill: the wired card(s), the data source, the method that computes it, the categorical emitted, the plots, and the number of interpretation rules that read it. The chain is always: manifest → method → card categorical + plots → rules → sub-verdict. The method only computes the categorical; therapeutic judgment lives entirely in the rules (version-controlled YAML with a written rationale per rule, `killer` / `supportive` / `neutral` / `insufficient` signals per modality).
 
 ### tumor-presence (wired; RNA + protein)
-- **expression-distribution** — DepMap 26Q1 cell-line RNA → `depmap-expression-distribution` → `expression_class` · plots: density, per-lineage strip, ranked waterfall · 5 rules.
+- **cellline-rna-distribution** — DepMap 26Q1 cell-line RNA → `depmap-expression-distribution` → `expression_class` · plots: density, per-lineage strip, ranked waterfall · 5 rules.
 - **expression-tumor-vs-adjacent** — TCGA tumor-vs-adjacent RNA-seq → `dge-deseq2` → fold-change + q · plots: volcano / MA.
 - **protein-presence-cptac** — CPTAC protein mass-spec → `cptac-protein-deg` → `protein_expression_class` · wired (parquet + manifest + method + dispatcher all on main; returns real per-cohort protein tumor-vs-normal). Unstratified bulk dilutes amplicon-restricted markers (e.g. ERBB2 reads `ns` in BRCA) — documented in the CPTAC manifest.
 

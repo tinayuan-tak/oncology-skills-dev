@@ -41,7 +41,7 @@ CARDS_WITH_DISPATCHERS = [
     ("pan-cancer-crispr-dependency-distribution", "KRAS", "COADREAD"),
     ("pan-cancer-rnai-dependency-distribution", "KRAS", "COADREAD"),
     ("crispr-rnai-dependency-concordance", "KRAS", "COADREAD"),
-    ("expression-distribution", "KRAS", "COADREAD"),
+    ("cellline-rna-distribution", "KRAS", "COADREAD"),
     ("expression-dependency-correlation", "KRAS", "COADREAD"),
     ("dependency-predictability", "KRAS", "COADREAD"),
     ("prism-compound-activity", "KRAS", "COADREAD"),

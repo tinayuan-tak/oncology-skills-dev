@@ -32,13 +32,13 @@ def _sub_results():
             {"card_id": "dependency-lineage-selectivity", "summary": {"x": 2}},
         ]},
         "expression": {"skill_dir": "tumor-presence", "cards": [
-            {"card_id": "expression-distribution", "summary": {"x": 3}},
+            {"card_id": "cellline-rna-distribution", "summary": {"x": 3}},
             # a data-blocked card must be SKIPPED (nothing to plot)
             {"card_id": "expression-tumor-vs-adjacent", "summary": {}, "_missing": True},
         ]},
         # a second sub-skill re-listing the same card_id must NOT double-emit
         "selectivity": {"skill_dir": "tumor-selectivity", "cards": [
-            {"card_id": "expression-distribution", "summary": {"x": 3}},
+            {"card_id": "cellline-rna-distribution", "summary": {"x": 3}},
         ]},
     }
 
@@ -65,8 +65,8 @@ def test_emit_card_figures_one_call_per_distinct_nonmissing_card(monkeypatch, tm
     by_card = tp._emit_card_figures(_sub_results(), tmp_path, "KRAS", "COADREAD")
     # 3 distinct non-missing cards; the _missing one skipped, the duplicate not re-called
     assert sorted(stub.calls) == [
+        "cellline-rna-distribution",
         "dependency-lineage-selectivity",
-        "expression-distribution",
         "pan-cancer-crispr-dependency-distribution",
     ]
     assert "expression-tumor-vs-adjacent" not in stub.calls   # data-blocked → skipped
@@ -77,7 +77,7 @@ def test_emit_card_figures_map_carries_plotly_and_svg_descriptors(monkeypatch, t
     stub = _StubRegistry()
     monkeypatch.setattr(tp, "_load_figure_registry", lambda: stub)
     by_card = tp._emit_card_figures(_sub_results(), tmp_path, "KRAS", "COADREAD")
-    figs = by_card["expression-distribution"]
+    figs = by_card["cellline-rna-distribution"]
     assert any(f.get("dynamic") for f in figs)                # a Plotly spec is present
     assert any(f["path"].endswith(".svg") for f in figs)      # the SVG fallback is present
 

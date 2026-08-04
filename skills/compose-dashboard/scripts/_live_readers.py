@@ -356,7 +356,7 @@ def _dispatch_pan_cancer_rnai_dependency_distribution(target: str, indication: s
 
 
 def _dispatch_expression_distribution(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route expression-distribution card (E3.a) to
+    """Dispatcher: route cellline-rna-distribution card (E3.a) to
     methods/depmap_expression_distribution/read.py.
 
     Pan-cancer cell-line expression panel; indication accepted for dispatcher
@@ -898,7 +898,7 @@ def _dispatch_normal_tissue_liability(target: str, indication: str) -> Optional[
 def _dispatch_protein_abundance_celline(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: protein-abundance-celline card → DepMap 26Q1 proteomics Gygi TMT MS
     cell-line protein-abundance distribution via methods/depmap_protein_abundance/read.py.
-    The bulk_protein_ms x cell_line presence axis (protein twin of expression-distribution).
+    The bulk_protein_ms x cell_line presence axis (protein twin of cellline-rna-distribution).
     Protein-intrinsic — indication accepted for contract, not consumed.
     """
     mod = _import_method("depmap_protein_abundance")
@@ -928,7 +928,7 @@ CARD_DISPATCHERS = {
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
-    "expression-distribution": _dispatch_expression_distribution,
+    "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-expression-distribution": _dispatch_tumor_expression_distribution,
     "tumor-expression-distribution-subtype": _dispatch_tumor_expression_distribution_subtype,
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,

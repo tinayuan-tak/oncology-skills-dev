@@ -2,7 +2,7 @@
 """tumor-presence — expression/protein presence for a (target, indication).
 
 Consumes 10 wired cards in two tiers (see CARDS below + SKILL.md):
-  VERDICT-BEARING (5, feed the presence ladder): expression-distribution (cell-line RNA),
+  VERDICT-BEARING (5, feed the presence ladder): cellline-rna-distribution (cell-line RNA),
     expression-tumor-vs-adjacent (tumor RNA), protein-presence-cptac (tumor protein),
     protein-abundance-celline (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
   DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-expression-distribution,
@@ -32,7 +32,7 @@ SKILL_NAME = "tumor-presence"
 SKILL_VERSION = "1.1.0"
 
 CARDS = [
-    "expression-distribution",
+    "cellline-rna-distribution",
     "expression-tumor-vs-adjacent",
     "protein-presence-cptac",           # Layer 6c addition
     "protein-abundance-celline",        # E3b — bulk_protein_ms x cell_line (Gygi TMT MS)
@@ -77,7 +77,7 @@ CARDS = [
 # sample_context) bucket rather than collapsing them.
 #
 # WHY BOTH AXES (Slice A2): keying the per-modality view off `measurement:` ALONE
-# conflated the cell-line-RNA card (expression-distribution) with the tumor-RNA card
+# conflated the cell-line-RNA card (cellline-rna-distribution) with the tumor-RNA card
 # (expression-tumor-vs-adjacent) — both are `bulk_rna` — so a target-only query
 # (only cell-line cards fire) read IDENTICALLY to a target-indication query, hiding
 # that the tumor axis was never touched. Bucketing by the PAIR makes the degenerate
@@ -90,7 +90,7 @@ CARDS = [
 # Kept local + explicit rather than parsed at runtime: the skill's card set is fixed
 # + small, and a drift guard test asserts this map matches the specs on BOTH axes.
 CARD_CONTEXT = {
-    "expression-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
+    "cellline-rna-distribution":      ("bulk_rna", "cell_line"),        # DepMap cell-line RNA
     "expression-tumor-vs-adjacent": ("bulk_rna", "tumor"),            # TCGA tumor-vs-adjacent RNA
     "tumor-expression-distribution": ("bulk_rna", "tumor"),           # TCGA per-sample tumor RNA distribution (Q1) — same bucket as tumor-vs-adjacent
     "tumor-expression-distribution-subtype": ("bulk_rna", "tumor"),   # per-subtype panorama of the same — same (bulk_rna, tumor) bucket
@@ -99,7 +99,7 @@ CARD_CONTEXT = {
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
     "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as protein-presence-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
-    "rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as expression-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
+    "rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
 }
 
 
@@ -317,9 +317,9 @@ def _headline(cards, fired, verdict_pair):
         # data_unavailable`. sc_rna/tumor + protein_ihc/normal are explicit
         # data_unavailable — named gaps, not silence.
         "presence_verdict_by_modality": per_modality,
-        "median_log2tpm_panel":     get_card_field(cards, "expression-distribution",
+        "median_log2tpm_panel":     get_card_field(cards, "cellline-rna-distribution",
                                           "median_log2tpm_panel"),
-        "expression_call_class":    get_card_field(cards, "expression-distribution",
+        "expression_call_class":    get_card_field(cards, "cellline-rna-distribution",
                                           "expression_call_class"),
         "tva_log2_fc":              get_card_field(cards, "expression-tumor-vs-adjacent", "log2_fc"),
         "tva_q_value":              get_card_field(cards, "expression-tumor-vs-adjacent", "q_value"),

@@ -47,7 +47,7 @@ composition:
   phase: [A, B, C, D, E, F, G, H, K]           # EXTENDED 2026-07-08: added D, E, G
   cards_used:
     # Phase A + B (presence + selectivity)
-    - expression-distribution
+    - cellline-rna-distribution
     - expression-tumor-vs-adjacent
     - tumor-vs-normal-selectivity
     - protein-presence-cptac                   # Layer 6h addition (Phase A)

@@ -59,10 +59,10 @@ def test_prompt_passes_rule_color():
         "expression": {
             "skill_dir": "tumor-presence",
             "verdict": ("broadly_high_expression", "expression-broadly-high-supportive"),
-            "cards": [{"card_id": "expression-distribution",
+            "cards": [{"card_id": "cellline-rna-distribution",
                        "summary": {"distribution_pattern": "bimodal", "median_log2tpm_panel": 6.1}}],
             "fired": [{"rule_id": "expression-broadly-high-supportive",
-                       "card_id": "expression-distribution", "field": "expression_class",
+                       "card_id": "cellline-rna-distribution", "field": "expression_class",
                        "value": "broadly_high_expression",
                        "signals": {"small_molecule": "supportive", "degrader": "supportive"},
                        "killer_message": None,

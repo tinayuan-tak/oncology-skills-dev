@@ -46,7 +46,7 @@ def _fr(rule_id, card_id):
 # --- collapsed verdict unchanged (F1-safe / consumer contract) --------------
 
 def test_collapsed_verdict_ranks_across_all_cards():
-    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("expression-strong-upregulation-supportive", "expression-tumor-vs-adjacent")]
     assert tp._verdict(fired) == ("broadly_high_expression",
                                   "expression-broadly-high-supportive")
@@ -62,7 +62,7 @@ def test_bulk_rna_buckets_are_split_by_sample_context():
     """Two bulk_rna cards with DIFFERENT sample_context land in SEPARATE buckets —
     the whole point of Slice A2. Previously both collapsed into one `bulk_rna` key."""
     fired = [_fr("expression-strong-upregulation-supportive", "expression-tumor-vs-adjacent"),
-             _fr("expression-broadly-high-supportive", "expression-distribution")]
+             _fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
     # cell-line RNA: broadly-high (the distribution card)
     assert pm["bulk_rna/cell_line"]["verdict"] == "broadly_high_expression"
@@ -76,7 +76,7 @@ def test_degenerate_target_only_case_is_honest():
     """THE degenerate-case fix: a target-only query fires ONLY the cell-line card, so
     bulk_rna/cell_line is measured while bulk_rna/tumor is data_unavailable — no longer
     collapsed into a single bulk_rna bucket that masqueraded as tumor evidence."""
-    fired = [_fr("expression-broadly-moderate-neutral", "expression-distribution")]
+    fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna/cell_line"]["evidence_state"] == "measured"
     assert pm["bulk_rna/cell_line"]["verdict"] == "broadly_moderate_expression"
@@ -86,7 +86,7 @@ def test_degenerate_target_only_case_is_honest():
 
 def test_protein_bucket_is_separate_from_rna():
     # bulk_protein_ms/tumor fires a REAL protein rule_id ranked against _PROTEIN_RANK.
-    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("protein-strongly-down-opposing", "protein-presence-cptac")]
     pm = tp._per_modality_verdicts(fired)
     assert pm["bulk_rna/cell_line"]["verdict"] == "broadly_high_expression"
@@ -128,13 +128,13 @@ def test_measured_protein_outranks_expression_data_unavailable_in_collapsed_spin
     assert drv == "protein-strongly-up-supportive"
 
     # a measured protein-not-detected KILLER must likewise survive an expression gap
-    fired_killer = [_fr("expression-data-unavailable-insufficient", "expression-distribution"),
+    fired_killer = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
                     _fr("protein-not-detected-degrader-killer", "protein-presence-cptac")]
     vk, _ = tp._verdict(fired_killer)
     assert vk == "protein_not_detected"
 
     # only when BOTH layers are data_unavailable does the verdict stay data_unavailable
-    both_gap = [_fr("expression-data-unavailable-insufficient", "expression-distribution"),
+    both_gap = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
                 _fr("protein-data-unavailable-insufficient", "protein-presence-cptac")]
     vg, _ = tp._verdict(both_gap)
     assert vg == "data_unavailable"
@@ -143,7 +143,7 @@ def test_measured_protein_outranks_expression_data_unavailable_in_collapsed_spin
 def test_measured_expression_still_wins_over_measured_protein_byte_stable():
     """RNA stays the presence backbone: when BOTH a measured expression rule and a measured
     protein rule fire, expression wins first (existing RNA-target verdicts are byte-stable)."""
-    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("protein-strongly-up-supportive", "protein-presence-cptac")]
     v, drv = tp._verdict(fired)
     assert v == "broadly_high_expression"
@@ -167,7 +167,7 @@ def test_breadth_gives_target_only_query_a_tumor_signal():
     though bulk_rna/tumor stays data_unavailable. Breadth is the one tumor-context
     presence signal a target-only query gets."""
     # target-only: cell-line RNA + cell-line protein + breadth fire; no per-indication tumor card
-    fired = [_fr("expression-broadly-moderate-neutral", "expression-distribution"),
+    fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
              _fr("protein-abundance-broadly-high-supportive", "protein-abundance-celline"),
              _fr("tumor-breadth-multi-supportive", "tumor-elevation-breadth")]
     pm = tp._per_modality_verdicts(fired)
@@ -214,7 +214,7 @@ def test_celline_proteomics_card_feeds_bulk_protein_ms_cell_line():
 def test_rna_high_protein_low_disagreement_is_legible():
     """The taxonomy's core payoff: collapsed verdict unchanged, but the per-bucket
     breakdown EXPOSES that tumor protein contradicts cell-line RNA."""
-    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("protein-strongly-down-opposing", "protein-presence-cptac")]
     assert tp._verdict(fired)[0] == "broadly_high_expression"   # collapsed unchanged (RNA wins)
     pm = tp._per_modality_verdicts(fired)
@@ -224,7 +224,7 @@ def test_rna_high_protein_low_disagreement_is_legible():
 # --- honest gaps: unbuilt substrates are data_unavailable, never negative ---
 
 def test_unbuilt_substrates_are_data_unavailable():
-    fired = [_fr("expression-broadly-high-supportive", "expression-distribution")]
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
     for key in ("sc_rna/tumor", "protein_ihc/normal"):
         assert pm[key]["verdict"] == "data_unavailable"
@@ -306,7 +306,7 @@ def test_tumor_rna_is_appended_below_the_cellline_backbone_byte_stable():
     """The new tumor-RNA rules rank BELOW every pre-existing measured expression rule, so a
     target firing BOTH a cell-line backbone rule and a tumor-RNA rule keeps its OLD verdict
     (byte-stability): the cell-line broadly-high still wins the collapsed spine."""
-    fired = [_fr("expression-broadly-high-supportive", "expression-distribution"),
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
              _fr("tumor-expression-broadly-high-supportive", "tumor-expression-distribution")]
     v, drv = tp._verdict(fired)
     assert v == "broadly_high_expression"                     # unchanged — backbone wins

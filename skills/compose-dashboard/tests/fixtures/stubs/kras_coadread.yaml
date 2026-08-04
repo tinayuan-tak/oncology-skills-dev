@@ -145,7 +145,7 @@ crispr-rnai-dependency-concordance:
 # Card E3a — pan-cancer expression distribution (DepMap cell-line TPM)
 # KRAS is a housekeeping-like gene broadly expressed across cancer cell lines.
 # Highly expressed in most lineages with moderate variation.
-expression-distribution:
+cellline-rna-distribution:
   n_cell_lines_evaluated: 1450
   median_log2tpm_panel: 5.4
   p25_log2tpm_panel: 4.8

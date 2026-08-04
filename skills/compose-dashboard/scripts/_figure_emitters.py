@@ -1165,7 +1165,7 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "pan-cancer-crispr-dependency-distribution": _emit_card1_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _emit_card1b_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _emit_card1c_crispr_rnai_concordance,
-    "expression-distribution": _emit_expression_distribution,
+    "cellline-rna-distribution": _emit_expression_distribution,
     "copy-number-distribution": _emit_cn_distribution,
     "mutation-type-counts": _emit_mutation_type_counts,
     "dependency-lineage-selectivity": _emit_card2_dependency_lineage_selectivity,

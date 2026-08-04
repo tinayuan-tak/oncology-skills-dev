@@ -144,7 +144,7 @@ SUB_SKILLS = [
 # RESTRUCTURED 2026-07-14 — keys track the SUB_SKILLS renames above.
 SUB_SKILL_CARDS = {
     "tumor-presence": [
-        "expression-distribution",
+        "cellline-rna-distribution",
         "expression-tumor-vs-adjacent",
         "protein-presence-cptac",
         "protein-abundance-celline",     # Gygi cell-line MS — cell_line_protein_abundance axis.
@@ -2216,7 +2216,7 @@ _CARD_TITLE = {
     # Mechanism (D)
     "signaling-network-mechanism":  ("Signaling network", "SIGNOR/CollecTri/Reactome MoA context"),
     # Presence (A)
-    "expression-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
+    "cellline-rna-distribution":      ("Cell-line RNA", "DepMap pan-cancer expression distribution"),
     "expression-tumor-vs-adjacent": ("Tumor vs adjacent RNA", "TCGA tumor-vs-paired-normal DEG"),
     "protein-presence-cptac":       ("Tumor protein (CPTAC)", "per-cohort tumor-vs-normal protein"),
     "protein-abundance-celline":    ("Cell-line protein", "Gygi TMT MS abundance distribution"),
@@ -2333,7 +2333,7 @@ _SHORT_TO_GATE_ANCHOR = {
 # Which summary fields to surface as the card's "key facts" (label, field). First hit wins per card;
 # unknown cards fall back to their first ~4 scalar summary fields.
 _CARD_KEYFACTS = {
-    "expression-distribution": [("Call", "expression_call_class"), ("Median log2TPM", "median_log2tpm_panel"),
+    "cellline-rna-distribution": [("Call", "expression_call_class"), ("Median log2TPM", "median_log2tpm_panel"),
                                 ("Cell lines", "n_cell_lines")],
     "expression-tumor-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
                                      ("q-value", "q_value")],
@@ -2392,7 +2392,7 @@ _CARD_KEYFACTS = {
 # pan-cancer DENSITY then the per-LINEAGE box (the indication-relevant view); the ranked waterfall
 # is available in the package but not surfaced here (redundant with the density for this section).
 _CARD_FIGURE_ORDER = {
-    "expression-distribution": ["density_expression", "lineage_expression"],
+    "cellline-rna-distribution": ["density_expression", "lineage_expression"],
     # cell-line protein (item #2): density (bucket-shaded) + per-lineage box, mirroring RNA;
     # the ranked waterfall is emitted but not surfaced in the subtab (matches the RNA card).
     "protein-abundance-celline": ["density_protein_abundance", "lineage_protein_abundance"],
@@ -2638,7 +2638,7 @@ def _render_gate_section_html(gate: str, gate_name: str, shorts: list[str], sub_
                 pan.append(f"<div class=kf><span>{_esc(label)}</span><b>{_esc(val)}</b></div>")
             pan.append("</div>")
         # indication-lineage focus (cell-line RNA): metric + human-readable interpretation
-        focus = _expression_indication_focus(c, indication) if cid == "expression-distribution" else None
+        focus = _expression_indication_focus(c, indication) if cid == "cellline-rna-distribution" else None
         if focus:
             pan.append(f"<div class=rail-sec><p class=rail-h>{_esc(indication)} focus "
                        f"({_esc(focus['lineage'])})</p>")

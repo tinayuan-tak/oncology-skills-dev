@@ -6,7 +6,7 @@ description: |
   samples, at RNA and protein level?" Consumes 10 wired cards in two tiers.
 
   VERDICT-BEARING (5 cards — feed the rank-ordered presence ladder):
-    - expression-distribution           (cell-line RNA, pan-cancer TPM distribution)
+    - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
     - expression-tumor-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
                                          adjacent, else tumor-vs-GTEx fallback)
     - protein-presence-cptac            (tumor protein abundance, CPTAC per-cohort)
@@ -48,7 +48,7 @@ composition:
   data_mode: derived_read
   phase: [A]
   cards_used:
-    - expression-distribution
+    - cellline-rna-distribution
     - expression-tumor-vs-adjacent
     - protein-presence-cptac         # Layer 6c addition: dual RNA + protein presence (patient CPTAC)
     - protein-abundance-celline      # Gygi cell-line MS (bulk_protein_ms x cell_line) — see run.py CARDS
@@ -76,7 +76,7 @@ composition:
     - phospho_pathway_activity
     - rna_protein_concordance
   rules_scope:
-    - expression-distribution
+    - cellline-rna-distribution
     - expression-tumor-vs-adjacent
     - protein-presence-cptac
     - protein-abundance-celline
