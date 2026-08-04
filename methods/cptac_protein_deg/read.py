@@ -1,6 +1,6 @@
 """cptac_protein_deg.read — CPTAC protein tumor-vs-normal DEG reader.
 
-Consumer: protein-presence-cptac + surface-abundance-density evidence cards
+Consumer: tumor-protein-abundance-cptac + surface-abundance-density evidence cards
 (Phase A + F). Emits per-(target, cohort) protein-level tumor-vs-normal
 differential expression stats from CPTAC-PDC mass-spec data (10 cohorts).
 

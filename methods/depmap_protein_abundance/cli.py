@@ -9,7 +9,7 @@ Emits the `protein-abundance-celline` card contract fields, primary categorical
 `protein_expression_class` ∈ {broadly_high | broadly_moderate | lineage_restricted
 | broadly_low | data_unavailable} — the SAME distribution vocab as
 cellline-rna-distribution (NOT the tumor-vs-normal contrast vocab of
-protein-presence-cptac).
+tumor-protein-abundance-cptac).
 
 Two resolution jobs (both via already-landed catalog artifacts):
   1. target symbol → UniProt accession (the matrix COLUMN) via the source's
@@ -278,7 +278,7 @@ def compute_summary(target: str, abundance_by_model: Optional[dict],
         "p95_log2_abundance_panel": pcts.get("p95"),
         "log2_abundance_iqr": (pcts.get("p75") - pcts.get("p25"))
                               if (pcts.get("p75") is not None and pcts.get("p25") is not None) else None,
-        "protein_effect_size": median_abund,     # parity w/ protein-presence-cptac field
+        "protein_effect_size": median_abund,     # parity w/ tumor-protein-abundance-cptac field
         "n_lineages_evaluated": len(per_lineage),
         "per_lineage_stats": per_lineage,
         "n_lineage_restricted_lineages": n_lineage_restricted,

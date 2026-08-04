@@ -7,7 +7,7 @@ per-(cohort, gene) tumor-vs-normal effect size + q-value + median-log2-abundance
 Companion:
     data-catalog:manifests/derived/cptac-protein-tumor-vs-normal-per-cohort-v1.yaml
 
-Consumer: protein-presence-cptac + surface-abundance-density cards (Phase A, F)
+Consumer: tumor-protein-abundance-cptac + surface-abundance-density cards (Phase A, F)
 via tumor-presence + tractability-and-modality skills.
 """
 METHOD_VERSION = "0.1.0"

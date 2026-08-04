@@ -7,7 +7,7 @@ ModelID x UniProt-accession, ~12,558 proteins) and emits the
 cell lines + per-lineage breakdown, primary categorical protein_expression_class
 ∈ {broadly_high | broadly_moderate | lineage_restricted | broadly_low |
 data_unavailable} (the distribution vocab, same as cellline-rna-distribution — NOT
-the tumor-vs-normal contrast vocab of protein-presence-cptac).
+the tumor-vs-normal contrast vocab of tumor-protein-abundance-cptac).
 
 The substrate that catches the RNA-high / protein-absent false-positive the
 measurement-modality taxonomy names. Resolves target→UniProt accession via the
