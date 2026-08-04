@@ -41,7 +41,11 @@ required_inputs:
   - product_id: pancan-dge-tumor-vs-normal-v1                   # RNA breadth (27 indications, Slice C)
 
 methods:
-  - call: cptac-tumor-elevation-breadth
+  # call = the PRIMARY backing module (methods/cptac_protein_deg::read_tumor_elevation_breadth, which
+  # drives tumor_elevation_breadth_class). The dispatcher FUSES a second layer (dge_deseq2 RNA breadth)
+  # surfaced alongside — a two-layer reader — but the label names the primary package to match the live
+  # import (was the logical id 'cptac-tumor-elevation-breadth' → a non-existent module; fixed 2026-08-04).
+  - call: cptac-protein-deg
     args:
       target: "{target.symbol}"
 

@@ -31,7 +31,10 @@ required_inputs:
   - product_id: depmap-consortium-26q1-proteomics
 
 methods:
-  - call: depmap-protein-abundance-distribution
+  # call = the method-ID matching the backing module methods/depmap_protein_abundance (the live
+  # dispatcher import). Was 'depmap-protein-abundance-distribution' (→ a non-existent module) — a
+  # stale label the framework-health probe correctly flagged (2026-08-04).
+  - call: depmap-protein-abundance
     args:
       target: "{target.symbol}"
 

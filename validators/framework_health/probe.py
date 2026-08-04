@@ -555,9 +555,16 @@ def probe_card(
         mdir = methods_root / "methods" / top_pkg
         out["method_dir_exists"] = mdir.is_dir()
         out["method_has_read"] = (mdir / "read.py").exists() if mdir.is_dir() else False
-    # Stale-label hygiene flag: dispatcher routes to a different module than the card claims.
-    if out["dispatch_module"] and label_module and out["dispatch_module"] != label_module:
-        out["stale_method_label"] = True
+    # Stale-label hygiene flag: dispatcher routes to a different METHOD PACKAGE than the card claims.
+    # Compare TOP-LEVEL packages — the dispatcher's _import_method arg routinely carries an
+    # entry-point submodule suffix (e.g. "tcga_gtex_expression_distribution.cli",
+    # "expression_purity_confound.cli") that is NOT a stale label; only a different top-level package
+    # is a real drift (e.g. card says depmap-protein-abundance-distribution but dispatcher imports
+    # depmap_protein_abundance). Stripping the suffix removes the false-positive on the .cli/.read
+    # convention while still catching a genuine module mismatch. (Fixed 2026-08-04.)
+    if out["dispatch_module"] and label_module:
+        if out["dispatch_module"].split(".")[0] != label_module.split(".")[0]:
+            out["stale_method_label"] = True
     return out
 
 

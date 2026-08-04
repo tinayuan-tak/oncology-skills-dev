@@ -1,17 +1,17 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T19:40:51.738000+00:00",
+  "generated_at": "2026-08-04T19:49:02.547807+00:00",
   "roots": {
-    "contracts": "/tmp/fh-specgap",
+    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "25ef843",
-    "skills": "052d808",
-    "methods": "16f8ce3",
+    "contracts": "f4dda2b",
+    "skills": "ce203f3",
+    "methods": "977e148",
     "products": "1f73e51",
     "catalog": "fd8858f"
   },
@@ -22,7 +22,7 @@
       "production_ready": 7,
       "partial": 9
     },
-    "n_drift_flags": 46,
+    "n_drift_flags": 43,
     "n_error_drift": 0,
     "n_unregistered_skills": 14,
     "n_live_reader_cards": 53,
@@ -308,7 +308,7 @@
           "dispatch_module": "expression_clinical_association.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -360,11 +360,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: co-mutation-and-mutual-exclusivity, expression-clinical-association"
-        },
-        {
-          "code": "stale_method_label",
-          "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: expression-clinical-association"
         },
         {
           "code": "dataset_ref_not_in_catalog",
@@ -452,7 +447,7 @@
           "dispatch_module": "abundance_dependency.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -689,7 +684,7 @@
           "dispatch_module": "patient_model_expression_correspondence.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -718,11 +713,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: abundance-dependency, paralog-buffering, recommended-models"
-        },
-        {
-          "code": "stale_method_label",
-          "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: abundance-dependency, recommended-models"
         },
         {
           "code": "dataset_ref_not_in_catalog",
@@ -805,7 +795,7 @@
           "dispatch_module": "driver_role_overlay.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -861,7 +851,7 @@
           "dispatch_module": "functional_gene_state.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -923,7 +913,7 @@
           "dispatch_module": "genomic_event_model_match.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -1037,7 +1027,7 @@
         {
           "code": "stale_method_label",
           "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, functional-gene-state, genomic-event-model-match, mutation-stratified-dependency"
+          "detail": "card methods.call label differs from the dispatcher's actual import: mutation-stratified-dependency"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -1203,7 +1193,7 @@
           "dispatch_module": "driver_role_overlay.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -1284,7 +1274,7 @@
           "dispatch_module": "opentargets_gene_burden.read",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -1384,7 +1374,7 @@
           "dispatch_module": "tcga_gtex_expression_distribution.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -1434,7 +1424,7 @@
           "dispatch_module": "opentargets_target_prioritisation.read",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -1466,7 +1456,7 @@
         {
           "code": "stale_method_label",
           "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
+          "detail": "card methods.call label differs from the dispatcher's actual import: clingen-dosage, clinvar-pathogenicity-safety, gnomad-lof-constraint, mouse-ko-phenotype"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -3034,11 +3024,11 @@
           "placeholder_reason": null,
           "measurement_type": "cell_line_protein_abundance",
           "has_live_reader": true,
-          "method_call": "depmap-protein-abundance-distribution",
+          "method_call": "depmap-protein-abundance",
           "dispatch_module": "depmap_protein_abundance",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3088,7 +3078,7 @@
           "dispatch_module": "depmap_rna_protein_concordance.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3119,7 +3109,7 @@
           "dispatch_module": "expression_purity_confound.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3150,7 +3140,7 @@
           "dispatch_module": "phospho_pathway_activity.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3171,11 +3161,11 @@
           "placeholder_reason": null,
           "measurement_type": "tumor_elevation_breadth",
           "has_live_reader": true,
-          "method_call": "cptac-tumor-elevation-breadth",
+          "method_call": "cptac-protein-deg",
           "dispatch_module": "cptac_protein_deg",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3231,7 +3221,7 @@
           "dispatch_module": "tcga_gtex_expression_distribution.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3262,7 +3252,7 @@
           "dispatch_module": "tcga_gtex_expression_distribution.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3324,11 +3314,6 @@
           "detail": "consumed card(s) have a live reader but never fired in a real package: cellline-protein-abundance, cellline-rna-distribution, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype, tumor-rna-vs-adjacent"
         },
         {
-          "code": "stale_method_label",
-          "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: cellline-protein-abundance, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-rna-distribution, tumor-rna-distribution-by-subtype"
-        },
-        {
           "code": "card_consumed_but_no_spec",
           "severity": "warn",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype"
@@ -3386,7 +3371,7 @@
           "dispatch_module": "tcga_gtex_expression_distribution.cli",
           "method_dir_exists": true,
           "method_has_read": true,
-          "stale_method_label": true,
+          "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
             {
@@ -3449,7 +3434,7 @@
         {
           "code": "stale_method_label",
           "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+          "detail": "card methods.call label differs from the dispatcher's actual import: tumor-vs-normal-selectivity"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -3517,7 +3502,7 @@
       "dispatch_module": "abundance_dependency.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -3583,7 +3568,7 @@
       "dispatch_module": "driver_role_overlay.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -3652,11 +3637,11 @@
       "placeholder_reason": null,
       "measurement_type": "cell_line_protein_abundance",
       "has_live_reader": true,
-      "method_call": "depmap-protein-abundance-distribution",
+      "method_call": "depmap-protein-abundance",
       "dispatch_module": "depmap_protein_abundance",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -3725,7 +3710,7 @@
       "dispatch_module": "depmap_rna_protein_concordance.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4079,7 +4064,7 @@
       "dispatch_module": "expression_clinical_association.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4153,7 +4138,7 @@
       "dispatch_module": "expression_purity_confound.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4192,7 +4177,7 @@
       "dispatch_module": "functional_gene_state.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4271,7 +4256,7 @@
       "dispatch_module": "opentargets_gene_burden.read",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4304,7 +4289,7 @@
       "dispatch_module": "genomic_event_model_match.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4647,7 +4632,7 @@
       "dispatch_module": "tcga_gtex_expression_distribution.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4838,7 +4823,7 @@
       "dispatch_module": "phospho_pathway_activity.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -4979,7 +4964,7 @@
       "dispatch_module": "patient_model_expression_correspondence.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -5044,7 +5029,7 @@
       "dispatch_module": "depmap_rna_protein_concordance.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -5533,7 +5518,7 @@
       "dispatch_module": "opentargets_target_prioritisation.read",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -5562,11 +5547,11 @@
       "placeholder_reason": null,
       "measurement_type": "tumor_elevation_breadth",
       "has_live_reader": true,
-      "method_call": "cptac-tumor-elevation-breadth",
+      "method_call": "cptac-protein-deg",
       "dispatch_module": "cptac_protein_deg",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -5639,7 +5624,7 @@
       "dispatch_module": "tcga_gtex_expression_distribution.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -5678,7 +5663,7 @@
       "dispatch_module": "tcga_gtex_expression_distribution.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -5761,7 +5746,7 @@
       "dispatch_module": "tcga_gtex_expression_distribution.cli",
       "method_dir_exists": true,
       "method_has_read": true,
-      "stale_method_label": true,
+      "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
         {
@@ -11010,12 +10995,6 @@
     },
     {
       "skill": "differentiation-landscape",
-      "code": "stale_method_label",
-      "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: expression-clinical-association"
-    },
-    {
-      "skill": "differentiation-landscape",
       "code": "dataset_ref_not_in_catalog",
       "severity": "warn",
       "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: literature-snapshot"
@@ -11031,12 +11010,6 @@
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: abundance-dependency, paralog-buffering, recommended-models"
-    },
-    {
-      "skill": "functional-requirement",
-      "code": "stale_method_label",
-      "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: abundance-dependency, recommended-models"
     },
     {
       "skill": "functional-requirement",
@@ -11060,7 +11033,7 @@
       "skill": "genomic-alteration-profile",
       "code": "stale_method_label",
       "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, functional-gene-state, genomic-event-model-match, mutation-stratified-dependency"
+      "detail": "card methods.call label differs from the dispatcher's actual import: mutation-stratified-dependency"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -11108,7 +11081,7 @@
       "skill": "on-target-safety-liability",
       "code": "stale_method_label",
       "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
+      "detail": "card methods.call label differs from the dispatcher's actual import: clingen-dosage, clinvar-pathogenicity-safety, gnomad-lof-constraint, mouse-ko-phenotype"
     },
     {
       "skill": "on-target-safety-liability",
@@ -11232,12 +11205,6 @@
     },
     {
       "skill": "tumor-presence",
-      "code": "stale_method_label",
-      "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: cellline-protein-abundance, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-rna-distribution, tumor-rna-distribution-by-subtype"
-    },
-    {
-      "skill": "tumor-presence",
       "code": "card_consumed_but_no_spec",
       "severity": "warn",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: cellline-protein-abundance, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype"
@@ -11258,7 +11225,7 @@
       "skill": "tumor-selectivity",
       "code": "stale_method_label",
       "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+      "detail": "card methods.call label differs from the dispatcher's actual import: tumor-vs-normal-selectivity"
     },
     {
       "skill": "tumor-selectivity",
