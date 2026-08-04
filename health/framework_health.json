@@ -1,38 +1,37 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T20:19:16.351484+00:00",
+  "generated_at": "2026-08-04T20:44:35.473843+00:00",
   "roots": {
-    "contracts": "/tmp/fh-unproven",
+    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "a56651f",
+    "contracts": "c92ff4d",
     "skills": "ce203f3",
-    "methods": "977e148",
-    "products": "1f73e51",
+    "methods": "dab7bdc",
+    "products": "c2101ca",
     "catalog": "fd8858f"
   },
   "summary": {
     "n_skills": 18,
     "verdict_tally": {
       "placeholder": 2,
-      "production_ready": 5,
-      "partial": 9,
-      "ready_unproven": 2
+      "production_ready": 7,
+      "partial": 9
     },
     "n_drift_flags": 42,
     "n_error_drift": 0,
     "n_unregistered_skills": 14,
     "n_live_reader_cards": 53,
-    "n_cards_firing_in_real_packages": 15,
+    "n_cards_firing_in_real_packages": 26,
     "n_cards": 66,
     "card_health_tally": {
-      "partial": 40,
+      "partial": 29,
       "broken": 9,
-      "live": 13,
+      "live": 24,
       "blocked": 4
     },
     "n_orphan_cards": 9,
@@ -1351,7 +1350,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "hpa-v25-1",
@@ -1360,9 +1359,9 @@
               "resolved_id": "hpa-v25-1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "normal-tissue-liability-gtex",
@@ -1442,7 +1441,7 @@
       ],
       "n_core_cards": 1,
       "n_cards": 10,
-      "n_cards_live": 0,
+      "n_cards_live": 1,
       "drift_flags": [
         {
           "code": "declared_cards_mismatch_runpy",
@@ -1452,7 +1451,7 @@
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
         },
         {
           "code": "stale_method_label",
@@ -1646,7 +1645,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "hpa-v25-1",
@@ -1655,9 +1654,9 @@
               "resolved_id": "hpa-v25-1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "structure-features-static",
@@ -1762,12 +1761,12 @@
       ],
       "n_core_cards": 0,
       "n_cards": 7,
-      "n_cards_live": 1,
+      "n_cards_live": 2,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, normal-tissue-liability, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
         },
         {
           "code": "stale_method_label",
@@ -2069,7 +2068,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1",
@@ -2078,9 +2077,9 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "co-mutation-and-mutual-exclusivity",
@@ -2600,7 +2599,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
@@ -2609,9 +2608,9 @@
               "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "tumor-rna-vs-adjacent",
@@ -2625,7 +2624,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "expression-rna-tumor-vs-adjacent",
@@ -2634,9 +2633,9 @@
               "resolved_id": "expression-rna-tumor-vs-adjacent"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "tumor-vs-normal-selectivity",
@@ -2650,7 +2649,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": true,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
@@ -2659,19 +2658,19 @@
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         }
       ],
       "n_core_cards": 0,
       "n_cards": 25,
-      "n_cards_live": 11,
+      "n_cards_live": 15,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, cellline-rna-distribution, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-protein-abundance-cptac, tumor-rna-vs-adjacent, tumor-vs-normal-selectivity"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
         },
         {
           "code": "stale_method_label",
@@ -3030,7 +3029,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1-proteomics",
@@ -3039,9 +3038,9 @@
               "resolved_id": "depmap-consortium-26q1-proteomics"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "cellline-rna-distribution",
@@ -3055,7 +3054,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1",
@@ -3064,9 +3063,9 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "cellline-rna-protein-concordance",
@@ -3080,7 +3079,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "depmap-consortium-26q1",
@@ -3095,9 +3094,9 @@
               "resolved_id": "depmap-consortium-26q1-proteomics"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "expression-purity-confound",
@@ -3111,7 +3110,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "tcga-tumor-tpm-recount3-long-v1",
@@ -3126,9 +3125,9 @@
               "resolved_id": "gdc-pancanatlas-cnv-2018"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "phospho-pathway-activity",
@@ -3142,7 +3141,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "cptac-pdc-snapshot-2026-07-01",
@@ -3151,9 +3150,9 @@
               "resolved_id": "cptac-pdc-snapshot-2026-07-01"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "tumor-elevation-breadth",
@@ -3167,7 +3166,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
@@ -3182,9 +3181,9 @@
               "resolved_id": "pancan-dge-tumor-vs-normal-v1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "tumor-protein-abundance-cptac",
@@ -3198,7 +3197,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
@@ -3207,9 +3206,9 @@
               "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "tumor-rna-distribution",
@@ -3223,7 +3222,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "tcga-tumor-tpm-recount3-long-v1",
@@ -3238,9 +3237,9 @@
               "resolved_id": "gtex-tpm-recount3-long-v1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
           "card_id": "tumor-rna-distribution-by-subtype",
@@ -3291,7 +3290,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "expression-rna-tumor-vs-adjacent",
@@ -3300,24 +3299,24 @@
               "resolved_id": "expression-rna-tumor-vs-adjacent"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         }
       ],
       "n_core_cards": 5,
       "n_cards": 10,
-      "n_cards_live": 0,
+      "n_cards_live": 9,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: cellline-protein-abundance, cellline-rna-distribution, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype, tumor-rna-vs-adjacent"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype"
         }
       ],
-      "health_verdict": "ready_unproven",
-      "health_reason": "skill-ready-unproven",
-      "reason_text": "wired + tested and core-card readers work, but no core card has fired in a real package yet (ready, unproven)",
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "expression",
       "risk_category": "biological",
       "framework_can_evidence": "captured"
@@ -3399,7 +3398,7 @@
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": true,
-          "fires_in_real_package": false,
+          "fires_in_real_package": true,
           "datasets": [
             {
               "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
@@ -3408,14 +3407,14 @@
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
             }
           ],
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         }
       ],
       "n_core_cards": 1,
       "n_cards": 2,
-      "n_cards_live": 0,
+      "n_cards_live": 1,
       "drift_flags": [
         {
           "code": "declared_cards_mismatch_runpy",
@@ -3425,7 +3424,7 @@
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-vs-normal-percentile-crossing"
         },
         {
           "code": "stale_method_label",
@@ -3438,9 +3437,9 @@
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-vs-normal-percentile-crossing"
         }
       ],
-      "health_verdict": "ready_unproven",
-      "health_reason": "skill-ready-unproven",
-      "reason_text": "wired + tested and core-card readers work, but no core card has fired in a real package yet (ready, unproven)",
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "selectivity",
       "risk_category": "biological",
       "framework_can_evidence": "captured"
@@ -3638,7 +3637,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "depmap-consortium-26q1-proteomics",
@@ -3647,9 +3646,9 @@
           "resolved_id": "depmap-consortium-26q1-proteomics"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-presence"
       ],
@@ -3673,7 +3672,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "depmap-consortium-26q1",
@@ -3682,9 +3681,9 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "target-profile",
         "tumor-presence"
@@ -3709,7 +3708,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "depmap-consortium-26q1",
@@ -3724,9 +3723,9 @@
           "resolved_id": "depmap-consortium-26q1-proteomics"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-presence"
       ],
@@ -4139,7 +4138,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "tcga-tumor-tpm-recount3-long-v1",
@@ -4154,9 +4153,9 @@
           "resolved_id": "gdc-pancanatlas-cnv-2018"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-presence"
       ],
@@ -4598,7 +4597,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "hpa-v25-1",
@@ -4607,9 +4606,9 @@
           "resolved_id": "hpa-v25-1"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "on-target-safety-liability",
         "surface-modality-fit"
@@ -4826,7 +4825,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "cptac-pdc-snapshot-2026-07-01",
@@ -4835,9 +4834,9 @@
           "resolved_id": "cptac-pdc-snapshot-2026-07-01"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-presence"
       ],
@@ -5556,7 +5555,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
@@ -5571,9 +5570,9 @@
           "resolved_id": "pancan-dge-tumor-vs-normal-v1"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-presence"
       ],
@@ -5597,7 +5596,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
@@ -5606,9 +5605,9 @@
           "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "target-profile",
         "tumor-presence"
@@ -5633,7 +5632,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "tcga-tumor-tpm-recount3-long-v1",
@@ -5648,9 +5647,9 @@
           "resolved_id": "gtex-tpm-recount3-long-v1"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "tumor-presence"
       ],
@@ -5721,7 +5720,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": false,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "expression-rna-tumor-vs-adjacent",
@@ -5730,9 +5729,9 @@
           "resolved_id": "expression-rna-tumor-vs-adjacent"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "target-profile",
         "tumor-presence"
@@ -5798,7 +5797,7 @@
       "method_dir_exists": true,
       "method_has_read": true,
       "stale_method_label": true,
-      "fires_in_real_package": false,
+      "fires_in_real_package": true,
       "datasets": [
         {
           "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
@@ -5807,9 +5806,9 @@
           "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
         }
       ],
-      "card_health": "partial",
-      "health_reason": "card-reader-never-fires",
-      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "card_health": "live",
+      "health_reason": "card-live-fired",
+      "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "target-profile",
         "tumor-selectivity"
@@ -9385,7 +9384,7 @@
         "id": "skill:tumor-presence",
         "layer": "skill",
         "label": "tumor-presence",
-        "health": "ready_unproven",
+        "health": "production_ready",
         "kind": "FOCUSED",
         "risk_category": "biological"
       },
@@ -9393,7 +9392,7 @@
         "id": "skill:tumor-selectivity",
         "layer": "skill",
         "label": "tumor-selectivity",
-        "health": "ready_unproven",
+        "health": "production_ready",
         "kind": "FOCUSED",
         "risk_category": "biological"
       },
@@ -9489,7 +9488,7 @@
         "id": "card:cellline-protein-abundance",
         "layer": "card",
         "label": "cellline-protein-abundance",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "cell_line_protein_abundance"
       },
@@ -9497,7 +9496,7 @@
         "id": "card:cellline-rna-distribution",
         "layer": "card",
         "label": "cellline-rna-distribution",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "cell_line_rna_expression"
       },
@@ -9505,7 +9504,7 @@
         "id": "card:cellline-rna-protein-concordance",
         "layer": "card",
         "label": "cellline-rna-protein-concordance",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "rna_protein_concordance"
       },
@@ -9601,7 +9600,7 @@
         "id": "card:expression-purity-confound",
         "layer": "card",
         "label": "expression-purity-confound",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "expression_purity_confound"
       },
@@ -9705,7 +9704,7 @@
         "id": "card:normal-tissue-liability",
         "layer": "card",
         "label": "normal-tissue-liability",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "normal_tissue_protein_breadth"
       },
@@ -9761,7 +9760,7 @@
         "id": "card:phospho-pathway-activity",
         "layer": "card",
         "label": "phospho-pathway-activity",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "phospho_pathway_activity"
       },
@@ -9929,7 +9928,7 @@
         "id": "card:tumor-elevation-breadth",
         "layer": "card",
         "label": "tumor-elevation-breadth",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "tumor_elevation_breadth"
       },
@@ -9937,7 +9936,7 @@
         "id": "card:tumor-protein-abundance-cptac",
         "layer": "card",
         "label": "tumor-protein-abundance-cptac",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "tumor_protein_abundance"
       },
@@ -9945,7 +9944,7 @@
         "id": "card:tumor-rna-distribution",
         "layer": "card",
         "label": "tumor-rna-distribution",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "tumor_expression_distribution"
       },
@@ -9961,7 +9960,7 @@
         "id": "card:tumor-rna-vs-adjacent",
         "layer": "card",
         "label": "tumor-rna-vs-adjacent",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "tumor_vs_adjacent_expression"
       },
@@ -9977,7 +9976,7 @@
         "id": "card:tumor-vs-normal-selectivity",
         "layer": "card",
         "label": "tumor-vs-normal-selectivity",
-        "health": "partial",
+        "health": "live",
         "is_orphan": false,
         "measurement_type": "tumor_vs_normal_selectivity"
       },
@@ -11087,7 +11086,7 @@
       "skill": "on-target-safety-liability",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
     },
     {
       "skill": "on-target-safety-liability",
@@ -11111,7 +11110,7 @@
       "skill": "surface-modality-fit",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, normal-tissue-liability, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
     },
     {
       "skill": "surface-modality-fit",
@@ -11171,7 +11170,7 @@
       "skill": "target-profile",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, cellline-rna-distribution, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-protein-abundance-cptac, tumor-rna-vs-adjacent, tumor-vs-normal-selectivity"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
     },
     {
       "skill": "target-profile",
@@ -11213,7 +11212,7 @@
       "skill": "tumor-presence",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: cellline-protein-abundance, cellline-rna-distribution, cellline-rna-protein-concordance, expression-purity-confound, phospho-pathway-activity, tumor-elevation-breadth, tumor-protein-abundance-cptac, tumor-rna-distribution, tumor-rna-distribution-by-subtype, tumor-rna-vs-adjacent"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype"
     },
     {
       "skill": "tumor-selectivity",
@@ -11225,7 +11224,7 @@
       "skill": "tumor-selectivity",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-vs-normal-percentile-crossing, tumor-vs-normal-selectivity"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-vs-normal-percentile-crossing"
     },
     {
       "skill": "tumor-selectivity",
