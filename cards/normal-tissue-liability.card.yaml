@@ -121,6 +121,12 @@ caveats:
     layer, question → keep both; do not collapse.
 
 measurement: protein_ihc
+# sample_context added 2026-08-05 (P8.3): the HPA IHC footprint is measured on NORMAL tissue — the
+# on-target-off-tumor safety comparator. Declaring it lets tumor-presence bucket this card into its
+# (protein_ihc, normal) ALL_CONTEXTS slot (the last hardcoded data_unavailable) as a labeled
+# comparator. Orthogonal to tier:target (the gene-grain of the property) — measurement's biological
+# sample is normal, mirroring sample_context on the expression cards (2026-07-21 taxonomy).
+sample_context: normal
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_protein_breadth` claim.
 measurement_type: normal_tissue_protein_breadth
