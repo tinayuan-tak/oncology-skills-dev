@@ -43,7 +43,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.2.0
+version: 3.3.0    # 2026-08-05: + selectivity all-gene percentile (Axis-1 contextualization; SEL-1 orphaned-signal surface)
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 tier: indication   # indication-scoped tumor-vs-normal selectivity; subtype-eligible once a per-sample expression reader ships
@@ -90,6 +90,17 @@ outputs:
     - n_gtex_normal
     - selectivity_class                     # DESCRIPTIVE (drives Tier-2 rules)
     - comparator_concordance                # DERIVED: do the TCGA-adjacent (A/B) + GTEx (C) comparator FAMILIES agree? (cells_supporting is a count; this is the cross-comparator agreement it collapses)
+    # SELECTIVITY all-gene percentile (SEL-1, 2026-08-05) — the Axis-1 CONTEXTUALIZATION of the
+    # tumor-vs-normal contrast: where does this gene's log2FC sit among ALL genes in this indication's
+    # sensitivity product? The method ALREADY computed cell-A's rank but never declared it here (orphaned
+    # signal). Namespaced `selectivity_*` (NOT the presence card's abundance `allgene_percentile`) to
+    # avoid a same-name/different-meaning collision in the composed target-profile. DISPLAY facet — feeds
+    # render/LLM; no rule wired against the class yet (selectivity_class verdict spine byte-stable).
+    - selectivity_allgene_percentile          # float 0-100 (or null) — cell-A (TCGA tumor-vs-adjacent, PRIMARY) log2FC rank among all genes
+    - selectivity_allgene_percentile_class    # categorical (drives rules if wired later)
+    - selectivity_allgene_percentile_context  # string — product + comparator column the null was drawn from (anti-pooling audit)
+    - selectivity_allgene_percentile_cell_b    # float — cell-B (TCGA-adjacent ComBat) corroborating rank
+    - selectivity_allgene_percentile_cell_c    # float — cell-C (GTEx population) corroborating rank
 
   summary_fields_vocabulary:
     dominant_direction:
@@ -106,6 +117,12 @@ outputs:
       - discordant_across_comparators       # sig cells disagree in direction
       - not_selective                       # supporting_frac>=2/3, dominant DOWN
       - not_informative                     # supporting_frac low
+      - data_unavailable
+    selectivity_allgene_percentile_class:
+      - top_1pct                            # >= selectivity_allgene_top_1pct cutoff — among the most tumor-selective genes in-indication
+      - top_decile                          # >= selectivity_allgene_top_decile cutoff
+      - mid
+      - bottom_decile                       # <= selectivity_allgene_bottom_decile cutoff — tumor-DEPLETED relative to other genes
       - data_unavailable
 
   figures:
@@ -128,6 +145,11 @@ thresholds:
   min_supporting_frac_strong: 1.0
   min_supporting_frac_modest: 0.667
   min_expressed_log2cpm: 1.0     # log2(CPM+1) baseline for "detected in tumor"
+  # selectivity all-gene percentile-class cutoffs (method bins selectivity_allgene_percentile →
+  # selectivity_allgene_percentile_class). Same cutoff shape as the presence allgene cutoffs.
+  selectivity_allgene_top_1pct: 99.0
+  selectivity_allgene_top_decile: 90.0
+  selectivity_allgene_bottom_decile: 10.0
 
 warning_predicates:
   - warning_id: tvn_field_effect_discordant
