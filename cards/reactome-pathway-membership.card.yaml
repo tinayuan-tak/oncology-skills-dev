@@ -1,0 +1,87 @@
+# Card — REACTOME PATHWAY MEMBERSHIP (v1; target-intrinsic)
+#
+# The INDICATION-INDEPENDENT pathway/geneset-membership view of a target: which curated Reactome
+# pathways contain this gene, rolled up to canonical top-level parents (Signal Transduction, Cell
+# Cycle, Immune System, Metabolism, ...). Complements signaling-network-mechanism: that card gives
+# DIRECTED interaction edges (SIGNOR upstream/downstream + MoA); THIS card gives PATHWAY/GENESET
+# MEMBERSHIP (is the target a member of pathway X). Both are target-grain, cancer-independent.
+#
+# Consumed by the target-intrinsic subskill (the molecular dossier). Purely descriptive — no verdict.
+#
+# pathway_class (PRIMARY categorical):
+#   well_annotated    -> >= 20 pathways at all hierarchy levels
+#   partial           -> 5-19 pathways
+#   sparse            -> 1-4 pathways
+#   data_unavailable  -> target not in Reactome human / not resolvable to a UniProt AC
+
+card_id: reactome-pathway-membership
+version: 1.0.0
+question: "Which curated Reactome pathways is {target.symbol} a member of, and under which top-level pathway parents?"
+
+tier: target   # pathway membership is a property of the gene, independent of indication
+
+applies_when:
+  - "context.data_sources.reactome_available == true"
+
+required_inputs:
+  - product_id: reactome-v96   # source manifest; the method reads UniProt2Reactome + the pathway hierarchy directly, resolver-sidecar-backed
+
+derived_from:
+  - card_id: target-identity-summary   # HGNC symbol -> UniProt-AC resolution (via the Reactome resolver sidecar)
+
+methods:
+  - call: reactome-pathway-context
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - pathway_class                # PRIMARY categorical (well_annotated | partial | sparse | data_unavailable)
+    - pathway_count                # total Reactome pathways containing the target (all hierarchy levels)
+    - top_level_pathways           # list<string> — canonical top-level parents the target rolls up to
+    - specific_pathways            # list<{pathway_id, pathway_name, evidence_code}> — leaf-level (top 20)
+    - is_signaling                 # bool — target sits under a 'Signal Transduction'/'Signaling' top-level parent
+    - uniprot_ac_resolved          # the UniProt AC the membership was looked up by (provenance)
+
+  summary_fields_vocabulary:
+    pathway_class:
+      - well_annotated
+      - partial
+      - sparse
+      - data_unavailable
+
+  # No figure block in v1 — the card is summary-field-driven (pathway_class + top-level rollup +
+  # specific-pathway list). A pathway_membership_table emitter is separable follow-on work; declaring
+  # a figure with no registered emitter is a hard validator error (FIGURE_DECLARED_NOT_EMITTED).
+
+warning_predicates:
+  - warning_id: not_in_reactome
+    if: "pathway_class == 'data_unavailable'"
+    message: "{target.symbol} is not in Reactome human (or not resolvable to a UniProt accession). Pathway membership is UNKNOWN, not empty — Reactome's coverage is curated + incomplete (esp. for poorly-studied genes). Absence is a coverage gap, never 'not in any pathway'."
+  - warning_id: sparse_pathway_annotation
+    if: "pathway_class == 'sparse'"
+    message: "{target.symbol} has <5 Reactome pathway annotations — a sparsely-curated gene. The top-level rollup is weakly powered; do not over-interpret pathway context."
+
+caveats:
+  - |
+    Reactome pathway MEMBERSHIP (is the gene a member of pathway X) is distinct from the DIRECTED
+    signaling edges of signaling-network-mechanism (who regulates/is-regulated-by the target). This
+    card answers geneset membership + top-level rollup; that card answers mechanism/MoA. Read together.
+  - |
+    Membership is target-intrinsic (cancer-independent): a gene's Reactome pathways are the same
+    regardless of indication. This card takes no indication and emits no verdict — it is descriptive
+    molecular context consumed by the target-intrinsic dossier.
+  - |
+    HGNC symbol -> UniProt-AC resolution uses the target_id_resolver sidecar shipped with the Reactome
+    source (never a hardcoded map). A target that resolves to no AC, or whose AC is absent from the
+    human UniProt2Reactome table, reads data_unavailable.
+  - |
+    Reactome is CC0-1.0 (public domain). Pinned to reactome-v96. A version bump surfaces as a new
+    dated source manifest.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `reactome_pathway_membership` claim (target-grain).
+# No `measurement`/`sample_context` — those are expression-family-only (bulk_rna/protein_ms/sc_rna/ihc);
+# this is a reference-annotation card (like signaling-network-mechanism), so both are omitted.
+measurement_type: reactome_pathway_membership
+entity_grains: [target]
+schema_version: 1

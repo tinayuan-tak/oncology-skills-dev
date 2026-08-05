@@ -314,6 +314,16 @@ measurement_types:
     providers:
       - {kind: dataset, source: signor-mechanism-network-per-gene-v1, evidence_tier: measured}
 
+  reactome_pathway_membership:
+    # Target-intrinsic pathway/geneset MEMBERSHIP (distinct from signaling_network_mechanism's
+    # directed edges). No modality_relevance — this is descriptive molecular context, not a
+    # modality-routing signal. Consumed by the target-intrinsic dossier subskill.
+    claim: "Which curated Reactome pathways is target a member of, under which top-level parents?"
+    entity_grains: [target]
+    cards: [reactome-pathway-membership]
+    providers:
+      - {kind: dataset, source: reactome-v96, evidence_tier: measured}
+
   structure_druggability:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
