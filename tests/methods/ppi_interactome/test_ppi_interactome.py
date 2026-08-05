@@ -66,3 +66,27 @@ def test_live_egfr_is_hub():
         pytest.skip("PPI source unreachable (no S3)")
     assert s["n_high_confidence_interactors"] > 50
     assert s["in_protein_complex"] is True
+
+
+def test_string_edges_from_product_pushdown(tmp_path):
+    """The FAST path: _string_edges_from_product reads the gene-sorted product with a gene_symbol
+    pushdown filter, returning symbol-resolved HC edges (no info-map, no stream). S3-free fixture."""
+    import pandas as pd
+    from methods.ppi_interactome import read as _ppi
+    prod = tmp_path / "string_hc.parquet"
+    pd.DataFrame([
+        {"gene_symbol": "TGT", "partner_symbol": "PARTNERA", "combined_score": 900},
+        {"gene_symbol": "TGT", "partner_symbol": "PARTNERB", "combined_score": 800},
+        {"gene_symbol": "OTHER", "partner_symbol": "ZZZ", "combined_score": 950},
+    ]).to_parquet(prod)
+    edges = _ppi._string_edges_from_product("TGT", product_path=str(prod))
+    assert edges is not None
+    partners = {e["partner"] for e in edges}
+    assert partners == {"PARTNERA", "PARTNERB"}   # only TGT's edges, not OTHER's
+    assert all(e["combined_score"] >= 700 for e in edges)
+
+
+def test_string_product_missing_returns_none(tmp_path):
+    """Product unreadable → None (signals the reader to fall back to the legacy stream)."""
+    from methods.ppi_interactome import read as _ppi
+    assert _ppi._string_edges_from_product("TGT", product_path=str(tmp_path / "nope.parquet")) is None

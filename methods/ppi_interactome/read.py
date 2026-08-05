@@ -45,6 +45,12 @@ UNIPROT_SIDECAR_KEY = "data-catalog/sources/reactome/v96/UniProt2Reactome_All_Le
 
 STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_score cutoff (0-999)
 
+# Gene-sorted derived product (perf, 2026-08-05): pre-resolved symbol-keyed high-confidence edges,
+# physically sorted by gene_symbol so a pushdown read fetches one gene's row-group(s) instead of
+# streaming the 83MB links gz (~6.6s → sub-second, measured). Byte-identical output. See derive.py.
+STRING_HC_PRODUCT_KEY = ("data-catalog/derived/uniprot-string-hc-edges-per-gene-v1/"
+                         "string_hc_edges_per_gene_v1.parquet")
+
 
 def _ensure_aws_profile():
     if "AWS_PROFILE" not in os.environ:
@@ -81,9 +87,36 @@ def _load_string_info(info_path: Optional[str] = None) -> tuple:
     return sym_to_id, id_to_sym
 
 
+def _string_edges_from_product(symbol: str, product_path: Optional[str] = None) -> Optional[list]:
+    """FAST path (default): predicate-pushdown read of the gene-sorted high-confidence edge product
+    for one source symbol. Returns [{"partner", "combined_score"}] already symbol-resolved + HC-filtered
+    (the derive did the work), or None if the product is unavailable (caller falls back to the stream).
+
+    The product is physically sorted by gene_symbol (== filter key), so this fetches the target's
+    row-group(s) — dropping the ~6.6s full-links stream to sub-second. Output is byte-identical to the
+    stream path's (same partners, same scores)."""
+    import pyarrow.parquet as pq
+    try:
+        if product_path is not None:
+            tbl = pq.read_table(product_path, filters=[("gene_symbol", "==", symbol)],
+                                columns=["partner_symbol", "combined_score"])
+        else:
+            import pyarrow.fs as fs
+            tbl = pq.read_table(f"{S3_BUCKET}/{STRING_HC_PRODUCT_KEY}",
+                                filesystem=fs.S3FileSystem(region="us-east-1"),
+                                filters=[("gene_symbol", "==", symbol)],
+                                columns=["partner_symbol", "combined_score"])
+    except Exception:  # noqa: BLE001 — product missing/unreadable → signal fallback to the stream path
+        return None
+    d = tbl.to_pandas()
+    return [{"partner": p, "combined_score": int(s)}
+            for p, s in zip(d["partner_symbol"].values, d["combined_score"].values)]
+
+
 def _string_edges_for(string_id: str, links_path: Optional[str] = None) -> list:
-    """Stream-filter the STRING links gz for edges incident to string_id (not a full load — the file is
-    ~83MB gz / ~12M edges). Returns [(partner_string_id, combined_score)] with score >= threshold."""
+    """LEGACY stream path (fallback + test fixtures): stream-filter the STRING links gz for edges
+    incident to string_id (not a full load — the file is ~83MB gz / ~12M edges). Returns
+    [(partner_string_id, combined_score)] with score >= threshold."""
     if links_path is not None:
         fh_bytes = open(links_path, "rb").read()
     else:
@@ -169,23 +202,33 @@ def read_target_summary(target: str, indication: str = None,
     """Per-target PPI summary (STRING functional network + CORUM complex membership). `indication`
     unused (interactome is target-intrinsic)."""
     sym = target.strip().upper()
-    try:
-        sym_to_id, id_to_sym = _load_string_info(info_path)
-    except Exception:  # noqa: BLE001
-        return _empty("string_info_unavailable")
-    string_id = sym_to_id.get(sym)
 
     # --- STRING functional network (high-confidence interactors) ---
+    # FAST default: pushdown-read the gene-sorted product (symbol-keyed, pre-resolved, HC-filtered) —
+    # no info-map load, no 83MB stream. Falls back to the legacy info-map + links-stream path ONLY when
+    # the product is unavailable OR a links_path override is passed (test fixtures). Output identical.
     n_hc, top_interactors = 0, []
-    if string_id:
+    string_id = None   # provenance (ENSP) only set on the legacy stream path; None on the product path
+    product_edges = None if links_path is not None else _string_edges_from_product(sym)
+    string_resolved = product_edges is not None  # product covers the STRING side even if this gene has 0 edges
+    if product_edges is not None:
+        product_edges.sort(key=lambda e: -e["combined_score"])
+        n_hc = len(product_edges)
+        top_interactors = product_edges[:15]
+    else:
+        # legacy stream fallback (product missing, or test fixture links_path/info_path given)
         try:
-            edges = _string_edges_for(string_id, links_path)
-            edges.sort(key=lambda e: -e[1])
-            n_hc = len(edges)
-            top_interactors = [{"partner": id_to_sym.get(pid, pid), "combined_score": s}
-                               for pid, s in edges[:15]]
+            sym_to_id, id_to_sym = _load_string_info(info_path)
+            string_id = sym_to_id.get(sym)
+            string_resolved = string_id is not None
+            if string_id:
+                edges = _string_edges_for(string_id, links_path)
+                edges.sort(key=lambda e: -e[1])
+                n_hc = len(edges)
+                top_interactors = [{"partner": id_to_sym.get(pid, pid), "combined_score": s}
+                                   for pid, s in edges[:15]]
         except Exception:  # noqa: BLE001
-            pass
+            string_resolved = False
 
     # --- CORUM complex membership ---
     complexes = []
@@ -198,7 +241,7 @@ def read_target_summary(target: str, indication: str = None,
     except Exception:  # noqa: BLE001
         pass
 
-    if string_id is None and not complexes:
+    if not string_resolved and not complexes:
         return _empty("target_not_in_string_or_corum")
 
     # interactome_class from the STRING high-confidence degree
