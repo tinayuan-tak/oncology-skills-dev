@@ -137,6 +137,24 @@ def _barcode_to_sample(barcode: str) -> str:
     return f"{parts[0]}-{parts[1]}-{parts[2]}-{sample_type}"
 
 
+def _barcode_to_patient(barcode: str) -> str:
+    """Reduce a TCGA aliquot barcode to the PATIENT (case) identifier.
+    TCGA-AA-3678-01A-01D-... → TCGA-AA-3678 (3-segment case barcode).
+
+    This is the join key for the subgroup-assignments shards
+    (tcga-subgroup-assignments-*), which key on the 3-segment case barcode
+    (e.g. TCGA-A6-2672), NOT the 4-segment sample id `_barcode_to_sample`
+    emits. The subgroup-panorama reader does `sample_id.isin(member_ids)`
+    against the shard's case barcodes, so the per-sample MAF this producer
+    writes MUST use the case barcode as `sample_id` or the join silently
+    matches nothing (the subgroup_n=0 failure). See subgroup-stratification
+    sample-id-mismatch trap."""
+    parts = barcode.split("-")
+    if len(parts) < 3:
+        return barcode
+    return f"{parts[0]}-{parts[1]}-{parts[2]}"
+
+
 def aggregate_indication(indication: str) -> "pa.Table":
     """Aggregate MC3 mutations for an indication's TCGA project(s). Returns a pyarrow
     Table sorted by (gene_symbol, -hotspot_n_samples) for efficient predicate pushdown
@@ -273,15 +291,127 @@ def _output_schema() -> "pa.Schema":
     ])
 
 
+def _per_sample_schema() -> "pa.Schema":
+    import pyarrow as pa
+    return pa.schema([
+        pa.field("sample_id", pa.string()),       # 3-segment PATIENT barcode (joins the assignments shard)
+        pa.field("gene_symbol", pa.string()),
+        pa.field("protein_change", pa.string()),  # HGVSp_Short (or "unknown")
+        pa.field("project", pa.string()),          # TCGA-COAD / TCGA-READ / ...
+    ])
+
+
+def per_sample_maf(indication: str) -> "pa.Table":
+    """Stream MC3 and emit the PER-SAMPLE non-synonymous MAF for an indication —
+    the raw substrate the subgroup-stratified-mutation-frequency panorama recomputes
+    frequency WITHIN each stratum member-set from (compute-rerun, not read-side filter).
+
+    Distinct from `aggregate_indication`, which COLLAPSES these rows into per-gene
+    frequency summaries. Same stream, same non-synonymous filter, same TSS→project
+    map; the difference is (a) rows are kept per (sample, gene, protein_change)
+    instead of aggregated, and (b) `sample_id` is the 3-segment PATIENT barcode
+    (`_barcode_to_patient`) so it JOINS the tcga-subgroup-assignments-* shards, which
+    key on the case barcode. Emitting the 4-segment sample id (as the aggregate's
+    internal dedup does) would make the panorama's `.isin(member_ids)` match nothing.
+
+    Deduplicated on (sample_id, gene_symbol, protein_change): multiple aliquots of the
+    same case collapse to one row, so a per-stratum `nunique(sample_id)` counts patients.
+
+    Output schema: sample_id, gene_symbol, protein_change, project (see _per_sample_schema).
+    """
+    import boto3
+    import pyarrow as pa
+
+    _ensure_aws_profile()
+
+    projects = set(INDICATION_TO_TCGA_PROJECTS.get(indication, []))
+    if not projects:
+        return pa.Table.from_pylist([], schema=_per_sample_schema())
+
+    s3 = boto3.client("s3")
+    click.echo(f"Streaming MC3 (per-sample) from s3://{MC3_S3_BUCKET}/{MC3_S3_KEY}...", err=True)
+    obj = s3.get_object(Bucket=MC3_S3_BUCKET, Key=MC3_S3_KEY)
+    gz = gzip.GzipFile(fileobj=obj["Body"])
+
+    # Dedup key: (patient, gene, protein_change) → project. A set of tuples keeps memory
+    # bounded (one entry per distinct call, not per aliquot line).
+    seen: dict = {}
+    patients: set = set()
+    n_lines = 0
+    hdr_col_idx = None
+
+    for raw_line in gz:
+        n_lines += 1
+        if n_lines % 500000 == 0:
+            click.echo(f"  Processed {n_lines:,} MAF lines, {len(patients)} patients in scope so far...", err=True)
+        line = raw_line.decode("utf-8", errors="replace").rstrip("\n")
+        if not line or line.startswith("#"):
+            continue
+        if hdr_col_idx is None:
+            cols = line.split("\t")
+            try:
+                hdr_col_idx = {
+                    "Hugo_Symbol": cols.index("Hugo_Symbol"),
+                    "Variant_Classification": cols.index("Variant_Classification"),
+                    "HGVSp_Short": cols.index("HGVSp_Short"),
+                    "Tumor_Sample_Barcode": cols.index("Tumor_Sample_Barcode"),
+                }
+            except ValueError as e:
+                raise RuntimeError(f"MC3 header missing required column: {e}")
+            continue
+
+        parts = line.split("\t")
+        if len(parts) < max(hdr_col_idx.values()) + 1:
+            continue
+
+        barcode = parts[hdr_col_idx["Tumor_Sample_Barcode"]]
+        project = _barcode_to_project(barcode)
+        if project is None or project not in projects:
+            continue
+
+        patient = _barcode_to_patient(barcode)
+        patients.add(patient)
+
+        vc = parts[hdr_col_idx["Variant_Classification"]]
+        if vc not in NON_SYNONYMOUS_CLASSES:
+            continue
+        gene = parts[hdr_col_idx["Hugo_Symbol"]]
+        if not gene or gene in (".", ""):
+            continue
+        hgvs = parts[hdr_col_idx["HGVSp_Short"]] or "unknown"
+        seen[(patient, gene, hgvs)] = project
+
+    click.echo(f"\nMC3 streamed: {n_lines:,} lines total", err=True)
+    click.echo(f"  Patients in {indication} ({projects}): {len(patients)}", err=True)
+    click.echo(f"  Distinct (patient, gene, protein_change) calls: {len(seen):,}", err=True)
+
+    rows = [
+        {"sample_id": p, "gene_symbol": g, "protein_change": hs, "project": proj}
+        for (p, g, hs), proj in seen.items()
+    ]
+    rows.sort(key=lambda r: (r["gene_symbol"], r["sample_id"]))
+    return pa.Table.from_pylist(rows, schema=_per_sample_schema())
+
+
 @click.command()
 @click.option("--indication", required=True, help="Indication code (COADREAD, PDAC, NSCLC, GC).")
 @click.option("--out", required=True, type=click.Path(dir_okay=False, path_type=Path),
               help="Output Parquet path (local).")
-def main(indication: str, out: Path) -> int:
+@click.option("--per-sample", is_flag=True, default=False,
+              help="Emit the PER-SAMPLE non-synonymous MAF (sample_id/gene_symbol/protein_change/"
+                   "project) instead of the per-gene hotspot aggregate. This is the substrate the "
+                   "subgroup-stratified-mutation-frequency panorama recomputes per-stratum from; "
+                   "sample_id is the 3-segment PATIENT barcode so it joins the assignments shards.")
+def main(indication: str, out: Path, per_sample: bool) -> int:
     import pyarrow.parquet as pq
-    table = aggregate_indication(indication)
+    if per_sample:
+        table = per_sample_maf(indication)
+        row_group = 8192   # narrow 4-col rows; larger groups are fine
+    else:
+        table = aggregate_indication(indication)
+        row_group = 1024
     out.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, out, compression="snappy", row_group_size=1024)
+    pq.write_table(table, out, compression="snappy", row_group_size=row_group)
     click.echo(f"\nWrote {table.num_rows:,} rows → {out} ({out.stat().st_size:,} bytes)")
     return 0
 
