@@ -1,0 +1,131 @@
+"""Single-cell per-compartment presence primitives (numpy/pandas-only, no S3).
+
+The scRNA analogue of tcga_gtex_expression_distribution/stats.py, but the substrate is the
+DONOR × COMPARTMENT pseudobulk (sc-pseudobulk-donor-celltype-{indication}-v1), not per-sample bulk
+TPM. Two statistics per (donor, compartment) come from the product and are NEVER averaged into one
+number: DETECTION_FRACTION (fraction of a donor's compartment cells with UMI>0 — the single-cell-
+native "is it there at all" signal bulk cannot produce) and ABUNDANCE_LOG1P_CP10K (mean expression
+level).
+
+THE LOAD-BEARING RULE (mirrors the emit's Tier-2→Tier-1 discipline): the DONOR is the biological
+replicate. Compartment-level statistics are the CROSS-DONOR MEDIAN of the per-donor values — never
+a cell-weighted mean, which would let one large dataset dominate (CRC/NSCLC cell counts are wildly
+uneven across contributing atlases). Kept dependency-light + pure so it is unit-testable with a
+synthetic donor×compartment DataFrame and no data read.
+"""
+from __future__ import annotations
+
+# Detection-fraction cutoffs (fraction of a compartment's cells expressing the target, cross-donor
+# median). Anchored to the single-cell convention where ~0.5 detection = "expressed in most cells of
+# the compartment" and ~0.1 = "a real expressing subset" (dropout-aware; scRNA under-detects, so
+# these sit below bulk TPM-fraction cutoffs by design).
+MALIGNANT_BROADLY_DETECTED_MIN = 0.5     # detected in >=50% of malignant cells (cross-donor median)
+MALIGNANT_SUBSET_DETECTED_MIN = 0.10     # a real expressing malignant subset (target-high cells)
+MICROENV_DETECTED_MIN = 0.25             # a compartment counts as "expressing" at >=25% detection
+BROADLY_LOW_MAX = 0.05                   # below this everywhere == effectively undetected
+
+# Compartments that constitute the tumor MICROENVIRONMENT (non-malignant, non-normal-epithelial).
+# A target detected here but NOT in malignant cells is a microenvironment-dominant signal — present
+# in the tumor SAMPLE but not tumor-cell-intrinsic (the sc-unique attribution the bulk cards can't make).
+MICROENVIRONMENT_COMPARTMENTS = ("immune", "stromal", "endothelial")
+
+
+def compartment_summary(rows) -> dict:
+    """Roll the per-(donor, compartment) pseudobulk rows up to ONE stat block per compartment,
+    using the cross-donor MEDIAN (donor-is-replicate). `rows` is a list of dicts (or a DataFrame)
+    with keys compartment, donor_id, dataset_id, n_cells, detection_fraction, abundance_log1p_cp10k.
+
+    Returns {compartment: {n_donors, n_cells_total, median_detection_fraction,
+    median_abundance_log1p_cp10k}}. Empty input → {} (honest gap, never fabricated zeros)."""
+    import numpy as np
+    import pandas as pd
+    df = rows if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
+    if df.empty:
+        return {}
+    out: dict = {}
+    for comp, g in df.groupby("compartment"):
+        # donor is the replicate: one value per (dataset_id, donor_id), then median ACROSS donors.
+        per_donor = g.groupby(["dataset_id", "donor_id"]).agg(
+            detection_fraction=("detection_fraction", "mean"),
+            abundance_log1p_cp10k=("abundance_log1p_cp10k", "mean"),
+        )
+        out[str(comp)] = {
+            "n_donors": int(per_donor.shape[0]),
+            "n_cells_total": int(g["n_cells"].sum()),
+            "median_detection_fraction": float(np.median(per_donor["detection_fraction"])),
+            "median_abundance_log1p_cp10k": float(np.median(per_donor["abundance_log1p_cp10k"])),
+        }
+    return out
+
+
+def classify_sc_expression(comp_summary: dict,
+                           malignant_broadly=MALIGNANT_BROADLY_DETECTED_MIN,
+                           malignant_subset=MALIGNANT_SUBSET_DETECTED_MIN,
+                           microenv_min=MICROENV_DETECTED_MIN,
+                           broadly_low_max=BROADLY_LOW_MAX) -> dict:
+    """Malignant-compartment-anchored presence class from a compartment_summary dict.
+
+    Ladder (primary categorical `sc_expression_class`):
+      malignant_broadly_detected  — malignant median detection >= malignant_broadly (0.5)
+      malignant_subset_detected   — malignant median detection in [malignant_subset, malignant_broadly)
+      microenvironment_dominant   — malignant detection is low BUT a microenvironment compartment
+                                     (immune/stromal/endothelial) is detecting >= microenv_min. The
+                                     sc-unique "present in the tumor but NOT tumor-cell-intrinsic" call.
+      broadly_low                 — detected below broadly_low_max in every compartment (present in a
+                                     minority of cells everywhere). NEUTRAL per-indication read.
+      data_unavailable            — no compartments measured (target/indication absent from product),
+                                     OR the malignant compartment is absent (can't anchor). Honest gap.
+
+    Returns {sc_expression_class, malignant_detection_fraction, malignant_abundance_log1p_cp10k,
+             malignant_compartment_available, top_microenvironment_compartment,
+             top_microenvironment_detection_fraction, n_compartments_measured}.
+    """
+    if not comp_summary:
+        return {
+            "sc_expression_class": "data_unavailable",
+            "malignant_detection_fraction": None,
+            "malignant_abundance_log1p_cp10k": None,
+            "malignant_compartment_available": False,
+            "top_microenvironment_compartment": None,
+            "top_microenvironment_detection_fraction": None,
+            "n_compartments_measured": 0,
+        }
+
+    mal = comp_summary.get("malignant")
+    # top microenvironment compartment by detection (for the attribution readout + the microenv call)
+    micro = [(c, comp_summary[c]["median_detection_fraction"])
+             for c in MICROENVIRONMENT_COMPARTMENTS if c in comp_summary]
+    micro.sort(key=lambda x: (x[1] if x[1] is not None else -1.0), reverse=True)
+    top_micro_comp = micro[0][0] if micro else None
+    top_micro_det = micro[0][1] if micro else None
+
+    base = {
+        "malignant_detection_fraction": (mal["median_detection_fraction"] if mal else None),
+        "malignant_abundance_log1p_cp10k": (mal["median_abundance_log1p_cp10k"] if mal else None),
+        "malignant_compartment_available": mal is not None,
+        "top_microenvironment_compartment": top_micro_comp,
+        "top_microenvironment_detection_fraction": top_micro_det,
+        "n_compartments_measured": len(comp_summary),
+    }
+
+    # Malignant compartment absent → can't make a malignant-anchored call. v1 indications (COADREAD,
+    # NSCLC) both carry it; this branch is the honest guard for any future indication that doesn't.
+    if mal is None:
+        base["sc_expression_class"] = "data_unavailable"
+        return base
+
+    mdet = mal["median_detection_fraction"]
+    if mdet >= malignant_broadly:
+        cls = "malignant_broadly_detected"
+    elif mdet >= malignant_subset:
+        cls = "malignant_subset_detected"
+    elif top_micro_det is not None and top_micro_det >= microenv_min:
+        # malignant detection is sub-subset, but the microenvironment is expressing — attribution flag
+        cls = "microenvironment_dominant"
+    elif mdet <= broadly_low_max and (top_micro_det is None or top_micro_det <= broadly_low_max):
+        cls = "broadly_low"
+    else:
+        # low-but-nonzero malignant detection with no strong microenvironment signal
+        cls = "broadly_low"
+    base["sc_expression_class"] = cls
+    return base

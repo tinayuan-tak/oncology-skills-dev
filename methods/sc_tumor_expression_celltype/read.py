@@ -1,0 +1,126 @@
+"""Per-gene reader over the single-cell donor×compartment pseudobulk products + the presence assembler.
+
+Reads sc-pseudobulk-donor-celltype-{indication}-v1 (one row per dataset_id × donor_id × compartment ×
+gene, from a filtered CELLxGENE Census query — see data-catalog scripts/aggregate_sc_pseudobulk.py).
+The products are gene-SORTED (sort key + read filter key == gene_symbol), so a per-gene read uses
+pyarrow S3FileSystem + predicate-pushdown to touch a few row-groups rather than the full file — the
+same gene-keyed-product invariant the bulk tcga_gtex readers rely on.
+
+Dependencies are pyarrow/pandas/numpy/boto3 ONLY — NO scanpy/anndata/cellxgene-census at read time.
+The single-cell machinery (Census fetch, per-cell aggregation, numpy-2.x env) lives entirely in the
+data-catalog emit step; this method reads the already-pseudobulked parquet.
+
+Credential discipline: boto3 Session(profile_name="cbg") — the default SSO role (Developer-Dev) lacks
+GetObject on onc-compbio (see methods/collectri_tf_regulon/read.py); cbg is the read-capable profile.
+"""
+from __future__ import annotations
+
+from typing import Optional
+
+from . import stats as _stats
+
+DEFAULT_AWS_PROFILE = "cbg"
+S3_BUCKET = "onc-compbio"
+
+# indication code → landed sc-pseudobulk product key. ONLY the indications whose CELLxGENE Census
+# atlases carry a per-cell MALIGNANT annotation AND enough donors for the donor-replicate roll-up are
+# materialized (v1: COADREAD + NSCLC). Others → data_unavailable (honest capability ceiling, never a
+# silent fall-back). PAAD excluded (n=1 donor); STAD excluded (0 malignant-cell annotation in the
+# Census gastric atlases). Adding an indication = emit its product (data-catalog) + one line here.
+INDICATION_TO_PRODUCT = {
+    "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v1",
+    "COAD": "sc-pseudobulk-donor-celltype-coadread-v1",
+    "READ": "sc-pseudobulk-donor-celltype-coadread-v1",
+    "NSCLC": "sc-pseudobulk-donor-celltype-nsclc-v1",
+    "LUAD": "sc-pseudobulk-donor-celltype-nsclc-v1",
+    "LUSC": "sc-pseudobulk-donor-celltype-nsclc-v1",
+}
+
+_PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",
+                 "n_cells", "detection_fraction", "abundance_log1p_cp10k"]
+
+
+def _product_key(indication: str) -> Optional[str]:
+    prod = INDICATION_TO_PRODUCT.get(str(indication).upper().strip())
+    if not prod:
+        return None
+    return f"data-catalog/derived/{prod}/sc_pseudobulk.parquet"
+
+
+def read_gene_compartment_rows(target: str, indication: str):
+    """Per-(dataset, donor, compartment) rows for one gene in one indication's pseudobulk product.
+
+    Returns a pandas DataFrame (possibly empty) with _PARQUET_COLS. Empty (0 rows) when the gene is
+    absent from the product, or None when the indication has no landed product — the caller maps
+    both to data_unavailable, distinguishing "no product" (None) from "gene not in product" (empty)."""
+    key = _product_key(indication)
+    if key is None:
+        return None
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+    s3fs = fs.S3FileSystem(region="us-east-1")   # default cred chain honors AWS_PROFILE=cbg
+    # predicate-pushdown on the physical sort key (gene_symbol) — touches few row-groups.
+    filters = [("gene_symbol", "==", str(target).upper().strip())]
+    try:
+        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs,
+                            filters=filters, columns=_PARQUET_COLS)
+    except FileNotFoundError:
+        return None
+    return tbl.to_pandas()
+
+
+def read_sc_expression_presence(target: str, indication: str) -> dict:
+    """Assemble the single-cell per-compartment presence summary for a (target, indication).
+
+    Rolls the per-donor pseudobulk up to per-compartment cross-donor medians (donor-is-replicate),
+    then classifies into the malignant-anchored `sc_expression_class`. data_unavailable-safe on both
+    "no landed product for this indication" and "gene absent from the product"."""
+    rows = read_gene_compartment_rows(target, indication)
+    if rows is None:
+        return _data_unavailable(target, indication,
+                                 note=f"No single-cell pseudobulk product landed for indication "
+                                      f"{indication}; sc_rna presence is a named capability gap here.")
+    if rows.empty:
+        return _data_unavailable(target, indication,
+                                 note=f"{target} absent from the single-cell pseudobulk product for "
+                                      f"{indication} (not measured in the contributing atlases).")
+
+    comp_summary = _stats.compartment_summary(rows)
+    classed = _stats.classify_sc_expression(comp_summary)
+    n_donor_groups = rows[["dataset_id", "donor_id"]].drop_duplicates().shape[0]
+    out = {
+        "sc_expression_class": classed["sc_expression_class"],
+        "malignant_detection_fraction": classed["malignant_detection_fraction"],
+        "malignant_abundance_log1p_cp10k": classed["malignant_abundance_log1p_cp10k"],
+        "malignant_compartment_available": classed["malignant_compartment_available"],
+        "top_microenvironment_compartment": classed["top_microenvironment_compartment"],
+        "top_microenvironment_detection_fraction": classed["top_microenvironment_detection_fraction"],
+        "n_compartments_measured": classed["n_compartments_measured"],
+        "n_donor_groups": int(n_donor_groups),
+        "n_datasets": int(rows["dataset_id"].nunique()),
+        "compartment_detection": {c: comp_summary[c]["median_detection_fraction"]
+                                  for c in comp_summary},
+        "indication": str(indication).upper().strip(),
+        "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
+    }
+    return out
+
+
+def _data_unavailable(target: str, indication: str, note: str) -> dict:
+    """The honest coverage-gap payload — a primary `sc_expression_class: data_unavailable` (which the
+    skills resolver's _summary_is_unavailable honors) plus a human-readable `_data_note`."""
+    return {
+        "sc_expression_class": "data_unavailable",
+        "malignant_detection_fraction": None,
+        "malignant_abundance_log1p_cp10k": None,
+        "malignant_compartment_available": False,
+        "top_microenvironment_compartment": None,
+        "top_microenvironment_detection_fraction": None,
+        "n_compartments_measured": 0,
+        "n_donor_groups": 0,
+        "n_datasets": 0,
+        "compartment_detection": {},
+        "indication": str(indication).upper().strip(),
+        "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
+        "_data_note": note,
+    }
