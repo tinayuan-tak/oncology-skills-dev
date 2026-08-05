@@ -486,6 +486,18 @@ def _tumor_allgene_percentile(target: str, studies: list) -> dict:
                 "allgene_percentile_context": None, "allgene_percentile_by_study": {}}
 
 
+def _tumor_control_position(target: str, indication: str) -> dict:
+    """Control-benchmark position (Phase 2): where the target's tumor all-gene percentile sits
+    relative to curated positive/negative controls, on the same per-study tumor scale, with
+    indication-matched negatives (a lineage-marker negative is dropped in its own lineage).
+    Additive/display — never flips tumor_expression_class. data_unavailable-safe."""
+    try:
+        from methods.tumor_presence_controls.read import control_position_tumor
+        return control_position_tumor(target, indication)
+    except Exception:  # noqa: BLE001 — enrichment best-effort
+        return {"control_position_class": "data_unavailable"}
+
+
 def read_tumor_expression_distribution(target: str, indication: str) -> dict:
     """Q1 assembler: the tumor per-sample distribution summary for a (target, indication).
     Composes the stats primitives into the spec's `tumor_expression` block. data_unavailable-safe."""
@@ -498,10 +510,11 @@ def read_tumor_expression_distribution(target: str, indication: str) -> dict:
                 "detectable_fraction": None, "moderate_fraction": None, "high_fraction": None,
                 "allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
                 "allgene_percentile_context": None,
+                "control_position_class": "data_unavailable",
                 "_data_note": "target absent from TCGA long product for this indication",
                 "studies": studies}
     return {**_distribution_summary(tumor), **_tumor_allgene_percentile(target, studies),
-            "studies": studies}
+            **_tumor_control_position(target, indication), "studies": studies}
 
 
 def _classify_tumor_expression(detectable_fraction, high_fraction, pattern) -> str:

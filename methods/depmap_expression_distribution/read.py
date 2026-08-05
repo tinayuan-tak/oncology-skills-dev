@@ -39,4 +39,12 @@ def read_expression_distribution(target: str, indication: Optional[str] = None,
         summary.setdefault("allgene_percentile", None)
         summary.setdefault("allgene_percentile_class", "data_unavailable")
         summary.setdefault("allgene_percentile_context", None)
+    # Control-benchmark position (Phase 2): where the panel-median percentile sits relative
+    # to curated positive/negative control genes on the SAME pan-cancer panel scale. Additive/
+    # display — never flips expression_class. Best-effort (vocab load / S3 failure → null).
+    try:
+        from methods.tumor_presence_controls.read import control_position_cellline
+        summary.update(control_position_cellline(target))
+    except Exception:  # noqa: BLE001
+        summary.setdefault("control_position_class", "data_unavailable")
     return summary
