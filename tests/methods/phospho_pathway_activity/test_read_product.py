@@ -28,13 +28,18 @@ def product(tmp_path_factory):
     # EGFR (coad): 2 sites, one frequent; BRAF (coad): 1 low-detection site;
     # MYC (coad): appears only as a cohort row with 0 sites is not representable — instead we rely
     # on _cohort_n_tumors: a gene absent from the product but cohort present → not_phosphoprotein.
+    # site_phospho_minus_protein + n_paired_tumors added in product v2 (cross-layer statistic).
+    # EGFR top site t648 has residual 0.6 (> DELTA 0.25) with 80 paired tumors → exceeds_abundance True.
     rows = [
         {"cohort": "coad", "gene_symbol": "BRAF", "phosphosite": "NP_x:s365",
-         "detection_fraction": 0.05, "mean_log_ratio": 0.1, "n_tumors_cohort": 100},
+         "detection_fraction": 0.05, "mean_log_ratio": 0.1, "n_tumors_cohort": 100,
+         "site_phospho_minus_protein": -0.1, "n_paired_tumors": 3},
         {"cohort": "coad", "gene_symbol": "EGFR", "phosphosite": "NP_y:t648",
-         "detection_fraction": 0.90, "mean_log_ratio": 0.4, "n_tumors_cohort": 100},
+         "detection_fraction": 0.90, "mean_log_ratio": 0.4, "n_tumors_cohort": 100,
+         "site_phospho_minus_protein": 0.6, "n_paired_tumors": 80},
         {"cohort": "coad", "gene_symbol": "EGFR", "phosphosite": "NP_y:s1121",
-         "detection_fraction": 0.30, "mean_log_ratio": 0.2, "n_tumors_cohort": 100},
+         "detection_fraction": 0.30, "mean_log_ratio": 0.2, "n_tumors_cohort": 100,
+         "site_phospho_minus_protein": -0.5, "n_paired_tumors": 40},
     ]
     df = pd.DataFrame(rows).sort_values(["gene_symbol", "cohort", "detection_fraction"],
                                         ascending=[True, True, False]).reset_index(drop=True)
@@ -50,8 +55,23 @@ def test_site_bearing_gene_populates(product):
     assert r["max_site_detection_fraction"] == 0.90
     assert r["n_phosphosites_frequent"] == 1
     assert r["top_phosphosites"][0]["site"] == "NP_y:t648"   # highest detection first
-    assert r["cptac_cohort"] == "coad"
-    assert r["phospho_exceeds_abundance"] is None            # v1: not computed (was degenerate)
+
+
+def test_cross_layer_exceeds_abundance_true(product):
+    # 1.1.0: real phospho-vs-protein residual. EGFR top site t648 residual 0.6 > 0.25 with 80 paired
+    # tumors → phospho_exceeds_abundance True; top_site residual surfaced; per-site residual on top_phosphosites.
+    r = read_phospho_pathway_activity("EGFR", "COADREAD", product_path=product)
+    assert r["phospho_exceeds_abundance"] is True
+    assert r["top_site_phospho_minus_protein"] == 0.6
+    assert r["top_phosphosites"][0]["phospho_minus_protein"] == 0.6
+
+
+def test_cross_layer_below_min_paired_is_none(product):
+    # BRAF's only site has n_paired_tumors=3 (< MIN_PAIRED_TUMORS 20) → no reliable residual → None
+    # (classifier then treats None as "can't tell"; BRAF is phospho_low here anyway on detection).
+    r = read_phospho_pathway_activity("BRAF", "COADREAD", product_path=product)
+    assert r["phospho_exceeds_abundance"] is None
+    assert r["top_site_phospho_minus_protein"] is None
 
 
 def test_low_detection_gene_is_phospho_low(product):

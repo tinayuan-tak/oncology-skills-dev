@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-METHOD_VERSION = "1.0.0"
+METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): real phospho-vs-protein cross-layer statistic
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 PHOSPHO_PRODUCT_MANIFEST = "cptac-phospho-per-site-per-cohort-v1"
@@ -34,6 +34,11 @@ INDICATION_TO_CPTAC = {
 
 DETECTED_FRACTION_ACTIVE = 0.50    # phosphosite detected in >= this fraction of tumors → substantial
 MIN_TUMORS = 20
+# phospho-vs-protein: mean(site phospho log-ratio − gene total-protein log-ratio) across paired
+# tumors > this → the site is phosphorylated BEYOND its abundance expectation (real stoichiometry
+# signal, from the product's site_phospho_minus_protein column). Needs >= this many paired tumors.
+PHOSPHO_OVER_PROTEIN_DELTA = 0.25
+MIN_PAIRED_TUMORS = 20
 
 
 def classify_phospho_activity(n_sites: int, max_site_detection_fraction: Optional[float],
@@ -68,7 +73,8 @@ def _read_gene_sites(gene: str, cohort: str, product_path: Optional[str] = None)
     phosphosite, detection_fraction, mean_log_ratio, n_tumors_cohort — or None if unreadable."""
     import pyarrow.parquet as pq
     flt = [("gene_symbol", "==", gene), ("cohort", "==", cohort)]
-    cols = ["phosphosite", "detection_fraction", "mean_log_ratio", "n_tumors_cohort"]
+    cols = ["phosphosite", "detection_fraction", "mean_log_ratio", "n_tumors_cohort",
+            "site_phospho_minus_protein", "n_paired_tumors"]
     try:
         if product_path is not None:
             tbl = pq.read_table(product_path, filters=flt, columns=cols)
@@ -145,23 +151,36 @@ def read_phospho_pathway_activity(target: str, indication: str,
     max_det = float(det.max())
     n_sites_frequent = int((det >= DETECTED_FRACTION_ACTIVE).sum())
 
-    # phospho-vs-total-protein: the prior implementation compared per-tumor z-means, but that
-    # statistic was degenerate (the mean of a z-scored vector is 0 by construction, so it never
-    # fired — phospho_exceeds_abundance was effectively always False/None). v1 of the product
-    # carries per-site detection + mean_log_ratio, not per-tumor vectors, so we report
-    # phospho_exceeds_abundance = None pending a corrected cross-layer statistic (a real
-    # phospho-vs-protein comparison belongs in a future join with the cptac-protein product).
+    # phospho-vs-total-protein (REAL cross-layer statistic, 1.1.0). The product now carries, per site,
+    # site_phospho_minus_protein = mean(site phospho log-ratio − gene total-protein log-ratio) across
+    # paired tumors (positive => phosphorylated BEYOND abundance). We read the MOST-DETECTED site's
+    # residual (that site drives the activity call) when it has enough paired tumors; a residual above
+    # PHOSPHO_OVER_PROTEIN_DELTA means phospho exceeds the abundance expectation. None when no site has
+    # a paired-tumor residual (protein unavailable for those aliquots) — classifier treats None as
+    # "can't tell → active if detection is high" (unchanged behavior).
+    df_by_det = df.sort_values("detection_fraction", ascending=False)
     phospho_over_protein = None
+    top_site_resid = None
+    for _, r in df_by_det.iterrows():
+        resid = r.get("site_phospho_minus_protein")
+        n_paired = int(r.get("n_paired_tumors") or 0)
+        if resid is not None and resid == resid and n_paired >= MIN_PAIRED_TUMORS:
+            top_site_resid = float(resid)
+            phospho_over_protein = bool(top_site_resid > PHOSPHO_OVER_PROTEIN_DELTA)
+            break
 
     cls = classify_phospho_activity(n_sites, max_det, phospho_over_protein, n_tumors)
-    top = df.sort_values("detection_fraction", ascending=False).head(5)
-    top_sites = [{"site": str(s), "detection_fraction": round(float(v), 3)}
-                 for s, v in zip(top["phosphosite"].values, top["detection_fraction"].values)]
+    top = df_by_det.head(5)
+    top_sites = [{"site": str(s), "detection_fraction": round(float(v), 3),
+                  "phospho_minus_protein": (None if (pr is None or pr != pr) else round(float(pr), 3))}
+                 for s, v, pr in zip(top["phosphosite"].values, top["detection_fraction"].values,
+                                     top["site_phospho_minus_protein"].values)]
     base.update({
         "phospho_activity_class": cls,
         "n_phosphosites_frequent": n_sites_frequent,
         "max_site_detection_fraction": round(max_det, 4),
-        "phospho_exceeds_abundance": phospho_over_protein,
+        "phospho_exceeds_abundance": phospho_over_protein,      # now a REAL call (or None if unpaired)
+        "top_site_phospho_minus_protein": (None if top_site_resid is None else round(top_site_resid, 4)),
         "top_phosphosites": top_sites,
         "_data_source": PHOSPHO_PRODUCT_MANIFEST,
     })
