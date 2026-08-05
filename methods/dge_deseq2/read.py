@@ -511,6 +511,15 @@ def read_tumor_vs_normal_selectivity(
             "n_tumor":       None,  # cohort-level n lives in provenance.yaml, not per-gene
             "n_adjacent":    None,
             "n_gtex_normal": None,
+            # Forward the SEL-1 selectivity all-gene percentile the gene_row reader computes.
+            # The card dispatcher calls THIS composite (not the gene_row reader directly), so an
+            # explicit field-map here silently dropped the percentile — the orphaned-signal pattern
+            # one layer up. Forward all cells (A primary + B/C corroboration) + class + context.
+            "selectivity_allgene_percentile":         row.get("selectivity_allgene_percentile"),
+            "selectivity_allgene_percentile_class":   row.get("selectivity_allgene_percentile_class"),
+            "selectivity_allgene_percentile_context": row.get("selectivity_allgene_percentile_context"),
+            "selectivity_allgene_percentile_cell_b":  row.get("selectivity_allgene_percentile_cell_b"),
+            "selectivity_allgene_percentile_cell_c":  row.get("selectivity_allgene_percentile_cell_c"),
             "selectivity_class": _classify_selectivity_from_sensitivity(row),
             # DERIVED: do the TCGA-adjacent (A/B) and GTEx (C) comparator families agree? Exposes the
             # cross-comparator robustness cells_supporting collapses to a count (slice-4 finding #3).
@@ -584,6 +593,14 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "n_tumor":       (gtex or {}).get("n_tumor") or (adj or {}).get("n_tumor"),
         "n_adjacent":    (adj or {}).get("n_adjacent"),
         "n_gtex_normal": (gtex or {}).get("n_gtex_normal"),
+        # The v2 fallback reads legacy per-product rows that lack the sensitivity product's
+        # all-gene columns, so the SEL-1 selectivity percentile is genuinely uncomputable here —
+        # emit data_unavailable/None honestly (the field always exists, distinct from a real value).
+        "selectivity_allgene_percentile":         None,
+        "selectivity_allgene_percentile_class":   "data_unavailable",
+        "selectivity_allgene_percentile_context": "v2_fallback: sensitivity product not landed; percentile uncomputable",
+        "selectivity_allgene_percentile_cell_b":  None,
+        "selectivity_allgene_percentile_cell_c":  None,
         "selectivity_class": _classify_selectivity_from_sensitivity(row),
         # v2 fallback carries cell A (TCGA-adjacent) + cell C (GTEx) — the two families — so
         # comparator_concordance is still meaningful (single_comparator when only one product landed).
