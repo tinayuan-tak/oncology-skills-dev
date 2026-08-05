@@ -153,3 +153,28 @@ def test_card1_pan_cancer_distribution_chain_specifically():
         f"real summary (n_cell_lines_evaluated key) or structured s3_read_failed error. "
         f"Got: {list(result.keys())}"
     )
+
+
+# Regression: tumor-rna-vs-adjacent must work for indications BEYOND COADREAD.
+# Prior bug: the dispatcher hardcoded {COADREAD: coadread-dge-df06320} and returned
+# only a _data_note for every other indication (26 of 27) — despite the catalog
+# having {ind}-dge-tumor-vs-normal-sensitivity-v1 products the reader can read.
+from _live_readers import _dispatch_expression_tumor_vs_adjacent  # noqa: E402
+
+
+@pytest.mark.parametrize("target,indication", [("EGFR", "LUAD"), ("ERBB2", "BRCA")])
+def test_tumor_vs_adjacent_covers_non_coadread(target, indication):
+    r = _dispatch_expression_tumor_vs_adjacent(target, indication)
+    assert r is not None
+    # a real, non-None log2_fc from the sensitivity product's cell A (tumor-vs-adjacent)
+    assert r.get("log2_fc") is not None, f"{target}/{indication} still returns n/a (dispatcher gate?)"
+    assert "sensitivity-v1" in (r.get("_data_source") or "")
+
+
+def test_tumor_vs_adjacent_coadread_uses_legacy_manifest():
+    """COADREAD must stay on the legacy manifest (byte-stable verdict value)."""
+    r = _dispatch_expression_tumor_vs_adjacent("KRAS", "COADREAD")
+    # legacy path carries no _data_source key (read_dge_gene_row); the sensitivity
+    # path would set _data_source=...sensitivity-v1. Assert we did NOT take that path.
+    assert "sensitivity-v1" not in (r.get("_data_source") or "")
+    assert r.get("log2_fc") is not None

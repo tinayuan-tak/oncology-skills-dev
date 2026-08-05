@@ -59,28 +59,54 @@ def _import_data_catalog_lib(lib_name: str):
 def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route tumor-rna-vs-adjacent card to methods/dge_deseq2/read.py.
 
-    For iter-1b, indication=COADREAD maps to manifest coadread-dge-df06320.
-    Iter-2 expands the mapping to other indications as DGE products land.
+    Coverage fix (2026-08-05): the card was silently COADREAD-only for 26 of 27
+    indications. The catalog has `{ind}-dge-tumor-vs-normal-sensitivity-v1` products
+    for all TCGA indications and the reader (read_tumor_vs_normal_sensitivity_gene_row)
+    reads them fine — but this dispatcher short-circuited on a hardcoded
+    {COADREAD: coadread-dge-df06320} map, never reaching the reader for other
+    indications (returned only a _data_note → the card read n/a everywhere else).
+
+    Resolution:
+      - COADREAD keeps its legacy manifest (coadread-dge-df06320) → emitted value
+        byte-identical (log2_fc=-0.72), no verdict-spine perturbation.
+      - Every other indication falls through to the four-cell sensitivity product,
+        projecting cell A (the TCGA tumor-vs-adjacent contrast) onto the card's
+        two-group fields (log2_fc / q_value). Reader returns None honestly if a
+        product is genuinely absent.
     """
-    indication_to_dge_manifest = {
-        "COADREAD": "coadread-dge-df06320",
-        # Iter-2: PDAC, NSCLC, SCLC, GC DGE products land as derived manifests
-    }
-    manifest_id = indication_to_dge_manifest.get(indication)
-    if manifest_id is None:
-        return {
-            "_data_note": f"no DGE derived manifest for indication={indication!r} (iter-1b ships COADREAD only)",
-        }
     dge_module = _import_method("dge_deseq2")
-    summary = dge_module.read_dge_gene_row(target=target, manifest_id=manifest_id)
-    if summary is None:
+
+    # COADREAD: preserve the byte-stable legacy path.
+    if indication.upper() == "COADREAD":
+        summary = dge_module.read_dge_gene_row(target=target, manifest_id="coadread-dge-df06320")
+        if summary is None:
+            return {
+                "log2_fc": None, "q_value": None,
+                "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
+                "n_tumor": None, "n_adjacent": None,
+                "_data_note": f"target {target!r} not present in coadread-dge-df06320 DGE table",
+            }
+        return summary
+
+    # All other indications: the four-cell sensitivity product, cell A = tumor-vs-adjacent.
+    sen = dge_module.read_tumor_vs_normal_sensitivity_gene_row(target, indication)
+    if sen is None:
         return {
             "log2_fc": None, "q_value": None,
             "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
             "n_tumor": None, "n_adjacent": None,
-            "_data_note": f"target {target!r} not present in {manifest_id} DGE table",
+            "_data_note": (f"no tumor-vs-adjacent product for {target!r} in "
+                           f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"),
         }
-    return summary
+    return {
+        "log2_fc": sen.get("log2fc_cell_a"),      # cell A = TCGA tumor vs adjacent-normal
+        "q_value": sen.get("q_value_cell_a"),
+        "tumor_mean_tpm": None, "adjacent_mean_tpm": None,   # not carried by sensitivity product
+        "n_tumor": None, "n_adjacent": None,
+        "cells_ran": sen.get("cells_ran"),
+        "dominant_direction": sen.get("dominant_direction"),
+        "_data_source": sen.get("_data_source"),
+    }
 
 
 def _dispatch_tumor_vs_normal_selectivity(target: str, indication: str) -> Optional[dict]:
