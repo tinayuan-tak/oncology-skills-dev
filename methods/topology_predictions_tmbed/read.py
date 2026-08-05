@@ -25,11 +25,13 @@ import os
 from typing import Optional
 
 from . import classify as _classify
+from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
 
-S3_BUCKET = "onc-compbio"
-_DERIVED_PREFIX = "data-catalog/derived/topology-predictions-tmbed-v1"
-PARQUET_KEY = f"{_DERIVED_PREFIX}/topology_predictions_tmbed_v1.parquet"
-SIDECAR_KEY = f"{_DERIVED_PREFIX}/topology_predictions_tmbed_v1.target_resolution.parquet"
+DERIVED_MANIFEST_ID = "topology-predictions-tmbed-v1"
+# payload + resolver-sidecar keys resolved from the data-catalog manifest (single
+# source of truth): s3_uri is the payload; target_resolution.sidecar_s3_uri the sidecar.
+S3_BUCKET, PARQUET_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
+_, SIDECAR_KEY = sidecar_bucket_key_for(DERIVED_MANIFEST_ID)
 DEFAULT_AWS_PROFILE = "cbg"
 METHOD_VERSION = "read-0.1.0"
 

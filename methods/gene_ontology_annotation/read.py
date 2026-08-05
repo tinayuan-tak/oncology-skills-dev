@@ -26,11 +26,15 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from methods.catalog_query.read import bucket_prefix_for
+
 METHOD_VERSION = "1.0.0"
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 GO_SOURCE_MANIFEST_ID = "gene-ontology-release-2026-05-19"
-_PREFIX = "data-catalog/sources/gene-ontology/release-2026-05-19"
+# bucket + source-dir prefix resolved from the manifest (single source of truth);
+# every key below (GAF, OBO, resolver sidecar) rides off this one prefix.
+S3_BUCKET, _PREFIX = bucket_prefix_for(GO_SOURCE_MANIFEST_ID)
+_PREFIX = _PREFIX.rstrip("/")   # keep the existing f"{_PREFIX}/file" idiom byte-identical
 GAF_S3_KEY = f"{_PREFIX}/goa_human.gaf.gz"
 OBO_S3_KEY = f"{_PREFIX}/go-basic.obo"
 SIDECAR_S3_KEY = f"{_PREFIX}/goa_human.gaf.gz.target_resolution.parquet"

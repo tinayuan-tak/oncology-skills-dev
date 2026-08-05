@@ -25,6 +25,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import sidecar_bucket_key_for
+
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -191,9 +193,8 @@ def _hgnc_to_uniprot_ac(target: str) -> Optional[str]:
 # ingest time): maps every UniProt2Reactome native accession → canonical HGNC symbol. Replaces the
 # former hardcoded ~30-target inline crosswalk (a v0.1 shortcut that failed the standing resolver-
 # sidecar rule for any target outside the inline set). 12,136 rows, lru-cached per process.
-REACTOME_RESOLVER_SIDECAR_S3_KEY = (
-    "data-catalog/sources/reactome/v96/UniProt2Reactome_All_Levels.txt.target_resolution.parquet"
-)
+# resolver sidecar resolved from the manifest's target_resolution.sidecar_s3_uri.
+_, REACTOME_RESOLVER_SIDECAR_S3_KEY = sidecar_bucket_key_for(REACTOME_SOURCE_MANIFEST_ID)
 
 
 @lru_cache(maxsize=1)

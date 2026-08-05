@@ -19,9 +19,13 @@ from methods.reactome_pathway_context import read as _r  # noqa: E402
 
 
 def test_crosswalk_is_sidecar_backed_not_hardcoded():
-    # The source must reference the resolver sidecar, and the inline 30-target dict must be gone.
+    # The crosswalk must resolve to the resolver sidecar, and the inline 30-target dict must be gone.
+    # (The sidecar KEY is now resolved from the data-catalog manifest via
+    # catalog_query.sidecar_bucket_key_for, so we assert on the resolved constant's VALUE — not a
+    # source-text grep for the literal, which the resolver-adoption migration removed.)
+    assert _r.REACTOME_RESOLVER_SIDECAR_S3_KEY.endswith("target_resolution.parquet"), \
+        "crosswalk must read the resolver sidecar"
     src = (REPO / "methods" / "reactome_pathway_context" / "read.py").read_text()
-    assert "target_resolution.parquet" in src, "crosswalk must read the resolver sidecar"
     assert '"KRAS": "P01116"' not in src, "the hardcoded inline crosswalk must be removed"
 
 

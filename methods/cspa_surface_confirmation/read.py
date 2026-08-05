@@ -24,12 +24,14 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for, sidecar_bucket_key_for
+
 METHOD_VERSION = "0.1.0"
-S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "cspa-surface-confirmation-per-uniprot-v1"
-_PREFIX = f"data-catalog/derived/{DERIVED_MANIFEST_ID}"
-PAYLOAD_KEY = f"{_PREFIX}/cspa_surface_confirmation_per_uniprot_v1.parquet"
-SIDECAR_KEY = f"{_PREFIX}/cspa_surface_confirmation_per_uniprot_v1.target_resolution.parquet"
+# payload + resolver-sidecar keys resolved from the data-catalog manifest (single
+# source of truth): s3_uri is the payload; target_resolution.sidecar_s3_uri the sidecar.
+S3_BUCKET, PAYLOAD_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
+_, SIDECAR_KEY = sidecar_bucket_key_for(DERIVED_MANIFEST_ID)
 DEFAULT_AWS_PROFILE = "cbg"
 
 

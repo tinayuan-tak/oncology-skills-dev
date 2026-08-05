@@ -30,6 +30,7 @@ from methods.catalog_query.read import (
     load_catalog,
     load_manifest,
     s3_uri_for,
+    sidecar_bucket_key_for,
 )
 
 
@@ -94,6 +95,10 @@ def catalog(tmp_path: Path) -> tuple[Path, Path]:
         ],
         "query_optimization": {"sort_columns": ["gene_symbol"], "primary_filter_column": "gene_symbol"},
         "parameters": {"sort_key": "gene_symbol"},
+        "target_resolution": {
+            "sidecar_s3_uri": "s3://onc-compbio/data-catalog/derived/derived-product/out.target_resolution.parquet",
+            "sidecar_md5": "0" * 32,
+        },
     })
     _write(dc / "manifests" / "derived" / "old-product.yaml", {
         "id": "old-product", "type": "derived",
@@ -178,6 +183,21 @@ def test_bucket_prefix_for_preserves_trailing_slash(catalog):
     assert f"{prefix}Model.csv" == "data-catalog/sources/acme/1/Model.csv"
     # reassembles to the authoritative s3_uri + filename
     assert f"s3://{bucket}/{prefix}Model.csv" == s3_uri_for("raw-source", root=dc) + "Model.csv"
+
+
+def test_sidecar_bucket_key_for_reads_target_resolution(catalog):
+    dc, _ = catalog
+    bucket, key = sidecar_bucket_key_for("derived-product", root=dc)
+    assert bucket == "onc-compbio"
+    # the sidecar path, NOT the payload s3_uri (which ends out.parquet)
+    assert key == "data-catalog/derived/derived-product/out.target_resolution.parquet"
+
+
+def test_sidecar_bucket_key_for_raises_without_sidecar(catalog):
+    dc, _ = catalog
+    # raw-source has no target_resolution block at all → fail loud, don't guess.
+    with pytest.raises(ValueError):
+        sidecar_bucket_key_for("raw-source", root=dc)
 
 
 # ---------------------------------------------------------------------------

@@ -124,6 +124,31 @@ def bucket_prefix_for(manifest_id: str, root: Path = DATA_CATALOG) -> tuple[str,
     return bucket, key
 
 
+def sidecar_bucket_key_for(manifest_id: str, root: Path = DATA_CATALOG) -> tuple[str, str]:
+    """Resolve a manifest_id to (bucket, key) for its target-resolution SIDECAR.
+
+    The sidecar path lives in `target_resolution.sidecar_s3_uri` — NOT the
+    manifest's top-level s3_uri (which is the payload). Use this for the
+    `*.target_resolution.parquet` resolver sidecars, where `bucket_key_for`
+    (payload) is the wrong answer. Lets a reader replace a hand-typed
+    `SIDECAR_KEY = "data-catalog/.../x.target_resolution.parquet"` with
+    `_, SIDECAR_KEY = sidecar_bucket_key_for(MANIFEST_ID)`.
+
+    Raises FileNotFoundError if the id is unknown, or ValueError if the manifest
+    has no resolver sidecar (no target_resolution block, or
+    target_resolution.not_applicable) — fail loud rather than resolve a wrong path.
+    """
+    tr = load_manifest(manifest_id, root=root).get("target_resolution") or {}
+    if tr.get("not_applicable") or "sidecar_s3_uri" not in tr:
+        raise ValueError(
+            f"Manifest {manifest_id!r} declares no target-resolution sidecar "
+            f"(not_applicable or absent); sidecar_bucket_key_for is inapplicable."
+        )
+    path = _s3_uri_to_path(tr["sidecar_s3_uri"])
+    bucket, _, key = path.partition("/")
+    return bucket, key
+
+
 # ---------------------------------------------------------------------------
 # Index construction
 # ---------------------------------------------------------------------------

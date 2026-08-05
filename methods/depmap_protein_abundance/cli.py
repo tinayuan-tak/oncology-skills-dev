@@ -33,14 +33,20 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
+
 METHOD_VERSION = "0.1.0"
 
-S3_BUCKET = "onc-compbio"
-_PROT_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1-proteomics"
+# bucket + source-dir prefixes resolved from the data-catalog manifests (single
+# source of truth); MATRIX_KEY + resolver SIDECAR ride off the proteomics prefix.
+PROT_SOURCE_MANIFEST_ID = "depmap-consortium-26q1-proteomics"
+S3_BUCKET, _PROT_PREFIX = bucket_prefix_for(PROT_SOURCE_MANIFEST_ID)
+_PROT_PREFIX = _PROT_PREFIX.rstrip("/")
 MATRIX_KEY = f"{_PROT_PREFIX}/harmonized_MS_CCLE_Gygi.csv"
 SIDECAR_KEY = f"{_PROT_PREFIX}/harmonized_MS_CCLE_Gygi.csv.target_resolution.parquet"
 # Model.csv (ModelID -> OncotreeLineage) lives in the sister RNA/omics source.
-MODEL_KEY = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
+_MODEL_PREFIX = bucket_prefix_for("depmap-consortium-26q1")[1].rstrip("/")
+MODEL_KEY = f"{_MODEL_PREFIX}/Model.csv"
 DEFAULT_AWS_PROFILE = "cbg"
 
 # --- card thresholds (mirror cellline-protein-abundance.card.yaml) ---

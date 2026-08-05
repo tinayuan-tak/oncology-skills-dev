@@ -29,6 +29,8 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from methods.catalog_query.read import sidecar_bucket_key_for
+
 METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + BioGRID experimental-physical leg
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -41,8 +43,11 @@ STRING_INFO_KEY = f"{_STRING_PREFIX}/9606.protein.info.v12.0.txt.gz"
 _CORUM_PREFIX = "data-catalog/sources/corum/release-5.3-snapshot-2026-07-14"
 CORUM_UNIPROT_KEY = f"{_CORUM_PREFIX}/corum_uniprot.txt"
 CORUM_COMPLETE_KEY = f"{_CORUM_PREFIX}/corum_complete.txt"
-# Reuse an existing UniProt symbol->AC resolver sidecar (CORUM's own resolution was deferred at ingest).
-UNIPROT_SIDECAR_KEY = "data-catalog/sources/reactome/v96/UniProt2Reactome_All_Levels.txt.target_resolution.parquet"
+# Reuse an existing UniProt symbol->AC resolver sidecar (CORUM's own resolution was deferred at
+# ingest). CROSS-MANIFEST BORROW: this is reactome-v96's target_resolution sidecar, resolved from
+# that manifest (not CORUM/STRING) — the borrow is intentional and now explicit via the manifest_id.
+_UNIPROT_SIDECAR_SOURCE_MANIFEST_ID = "reactome-v96"
+_, UNIPROT_SIDECAR_KEY = sidecar_bucket_key_for(_UNIPROT_SIDECAR_SOURCE_MANIFEST_ID)
 
 STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_score cutoff (0-999)
 

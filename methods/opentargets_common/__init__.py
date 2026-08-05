@@ -22,8 +22,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-S3_BUCKET = "onc-compbio"
-OT_PREFIX = "data-catalog/sources/opentargets/26.06"
+from methods.catalog_query.read import bucket_prefix_for
+
+# bucket + source-dir prefix resolved from the manifest (single source of truth);
+# every OT entity key + the resolver sidecar ride off this one prefix.
+OT_SOURCE_MANIFEST_ID = "opentargets-26-06"
+S3_BUCKET, OT_PREFIX = bucket_prefix_for(OT_SOURCE_MANIFEST_ID)
+OT_PREFIX = OT_PREFIX.rstrip("/")   # keep the existing f"{OT_PREFIX}/..." idiom byte-identical
 DEFAULT_AWS_PROFILE = "cbg"
 
 CACHE_DIR = Path.home() / ".cache" / "framework-opentargets-26-06"

@@ -15,6 +15,8 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from methods.catalog_query.read import sidecar_bucket_key_for
+
 METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + additive InterPro domain layer (coverage-broadening)
 S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "uniprot-protein-features-v1"
@@ -30,8 +32,8 @@ DEFAULT_AWS_PROFILE = "cbg"
 INTERPRO_MANIFEST_ID = "interpro-109-0-snapshot-2026-08-05"
 INTERPRO_KEY = ("data-catalog/sources/interpro/109.0-snapshot-2026-08-05/"
                 "interpro_human_domain_hits.parquet")
-INTERPRO_SIDECAR_KEY = ("data-catalog/sources/interpro/109.0-snapshot-2026-08-05/"
-                        "interpro_human_domain_hits.parquet.target_resolution.parquet")
+# InterPro resolver sidecar resolved from the manifest's target_resolution.sidecar_s3_uri.
+_, INTERPRO_SIDECAR_KEY = sidecar_bucket_key_for(INTERPRO_MANIFEST_ID)
 
 
 def _ensure_aws_profile():

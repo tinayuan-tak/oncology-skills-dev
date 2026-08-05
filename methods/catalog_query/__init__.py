@@ -35,4 +35,5 @@ from .read import (  # noqa: F401,E402
     load_catalog,
     load_manifest,
     s3_uri_for,
+    sidecar_bucket_key_for,
 )
