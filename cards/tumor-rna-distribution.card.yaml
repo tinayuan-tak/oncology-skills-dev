@@ -72,6 +72,18 @@ outputs:
     - allgene_percentile_class                   # categorical (drives rules if wired)
     - allgene_percentile_context                 # string — source + studies the null was drawn from (audit)
     - allgene_percentile_by_study               # {study: pct} — per-TCGA-study breakdown (multi-study transparency)
+    # Control-benchmark position (additive, Phase 2 2026-08-05): where the tumor-median
+    # percentile sits relative to CURATED positive/negative control genes on the SAME
+    # per-study tumor scale (tumor_presence_controls.yaml), with INDICATION-MATCHED negatives
+    # (a lineage-marker negative like SFTPC is dropped in its own lineage — negative in colon,
+    # excluded in lung). Turns a bare percentile into "above N/M positives; above N/M negatives".
+    # One-directional: display + companion categorical; NEVER moves tumor_expression_class.
+    - control_position_class                     # categorical (drives rules if wired)
+    - control_position                           # string — "above N/M positive(s); above N/M negative(s)"
+    - control_positives                          # {symbol: percentile} — positive anchors on this indication's scale
+    - control_negatives                          # {symbol: percentile} — applicable negative anchors
+    - control_negatives_excluded_lineage_conflict # [symbol] — lineage-marker negatives dropped (marker in THIS tissue)
+    - control_position_context                   # string — controls vocab + indication normal tissue + scale (audit)
 
   summary_fields_vocabulary:
     tumor_expression_class:
@@ -90,6 +102,12 @@ outputs:
       - top_decile                              # >= top_decile cutoff
       - mid
       - bottom_decile                           # <= bottom_decile cutoff
+      - data_unavailable
+    control_position_class:
+      - above_all_positives                     # target >= every applicable positive control
+      - within_positives                        # target among the positives (>= at least one, below the max)
+      - above_negatives_below_positives         # clears every (floor) negative but below all positives
+      - below_negatives                         # below the highest non-housekeeping (silent/lineage) floor
       - data_unavailable
 
   figures:

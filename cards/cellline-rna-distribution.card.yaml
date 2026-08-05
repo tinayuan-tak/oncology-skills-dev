@@ -57,6 +57,17 @@ outputs:
     - allgene_percentile                           # float 0-100 (or null) — panel-median rank among all genes
     - allgene_percentile_class                     # categorical (drives rules if wired)
     - allgene_percentile_context                   # string — the panel/metric the null was drawn from (audit)
+    # Control-benchmark position (additive, Phase 2 2026-08-05): where the panel-median
+    # percentile sits relative to CURATED positive/negative control genes on the SAME
+    # pan-cancer panel scale (tumor_presence_controls.yaml). Turns a bare percentile into
+    # "above N/M positives; above N/M negatives" — a real antigen reads at/above the
+    # positives; housekeeping is a ceiling, silent/lineage genes a floor. One-directional:
+    # display + companion categorical; NEVER moves expression_class.
+    - control_position_class                       # categorical (drives rules if wired)
+    - control_position                             # string — "above N/M positive(s); above N/M negative(s)"
+    - control_positives                            # {symbol: percentile} — the positive anchors on this scale
+    - control_negatives                            # {symbol: percentile} — the applicable negative anchors
+    - control_position_context                     # string — controls vocab + scale the position was read on (audit)
 
   summary_fields_vocabulary:
     expression_class:
@@ -70,6 +81,12 @@ outputs:
       - top_decile                                 # >= top_decile cutoff
       - mid
       - bottom_decile                              # <= bottom_decile cutoff
+      - data_unavailable
+    control_position_class:
+      - above_all_positives                        # target >= every applicable positive control
+      - within_positives                           # target among the positives (>= at least one, below the max)
+      - above_negatives_below_positives            # clears every (floor) negative but below all positives
+      - below_negatives                            # below the highest non-housekeeping (silent/lineage) floor
       - data_unavailable
 
   figures:
