@@ -295,7 +295,7 @@ def _catalog_id_from_shard(shard: ShardSpec) -> str:
               help="iDAS canonical indication code.")
 @click.option("--release-pin", required=True, help="Catalog release-pin (e.g. 2026-Q2 or 2026-Q3).")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"),
+              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
               help="Path to data-catalog repo.")
 @click.option("--run-dir", type=click.Path(file_okay=False, path_type=Path),
               default=Path.home() / "dev" / "framework-runs" / "subgroup-emit",

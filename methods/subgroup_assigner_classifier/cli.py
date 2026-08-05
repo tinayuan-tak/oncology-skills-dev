@@ -35,6 +35,7 @@ Phase 2a.3 of iDAS Subtype Pipeline. NEW method — no prior version.
 """
 
 from __future__ import annotations
+import os
 
 import hashlib
 import sys
@@ -284,7 +285,7 @@ def _run_single_gene_threshold(expression_df: pd.DataFrame, config: dict) -> pd.
               help="Which data source's expression matrix to classify against.")
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier.")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"),
+              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
               help="Path to the data-catalog repo.")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
               help="Output directory.")

@@ -4,6 +4,7 @@ Emits the harmonized two-hit / biallelic-inactivation summary for a (target, ind
 patient (TCGA) + model (DepMap) state distributions + a target-level headline class.
 """
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -23,7 +24,7 @@ _STATE_COLORS = {
 }
 
 
-DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 # per-sample-state → fill for the stacked composition bar (biallelic = deepest / strongest LoF).
 _STATE_FILL = {

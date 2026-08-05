@@ -26,6 +26,7 @@ target-contracts docs/design/SAMPLE_ANNOTATION_PLAN.md for Modality B design.
 """
 
 from __future__ import annotations
+import os
 
 import hashlib
 import re
@@ -398,7 +399,7 @@ def _evaluate_stratum_maf(
               help="Which data source's MAF to assign against.")
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier (e.g., 2026-Q2).")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"),
+              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
               help="Path to the data-catalog repo for input-manifest resolution.")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
               help="Output directory; assignments.parquet + manifest.yaml land here.")

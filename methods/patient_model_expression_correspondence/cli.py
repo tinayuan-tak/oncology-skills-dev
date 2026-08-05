@@ -1,5 +1,6 @@
 """CLI + emitters for Q4 recommended_models (patient↔model expression correspondence)."""
 from __future__ import annotations
+import os
 
 import json
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Optional
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 # screen-role → (fill, line) for the scatter.
 _ROLE_COLORS = {

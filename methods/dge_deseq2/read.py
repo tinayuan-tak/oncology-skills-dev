@@ -23,7 +23,7 @@ from typing import Optional
 
 import yaml
 
-DATA_CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 DEFAULT_AWS_PROFILE = "cbg"
 
 

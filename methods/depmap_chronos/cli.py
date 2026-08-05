@@ -40,8 +40,8 @@ import click
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "2.0.0"
 
-DEFAULT_CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
-DEFAULT_TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+DEFAULT_CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+DEFAULT_TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 DEPMAP_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
 DEPMAP_LOCAL_FALLBACK_DIRS = [
     Path("/home/sagemaker-user/depmap-26q1"),

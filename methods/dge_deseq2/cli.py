@@ -94,7 +94,7 @@ def compute_git_sha(repo_path: Path) -> str:
               help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
 @click.option("--release-pin", required=True, help="Catalog release_pin (e.g., 2026-Q2).")
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
-              default=Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"),
+              default=Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")),
               help="Path to the data-catalog repo for config resolution.")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path),
               help="Output directory for intermediate .rds + final parquet + provenance.")

@@ -12,6 +12,7 @@ Usage:
         --target KRAS --indication COADREAD --out ~/dev/framework-runs/kras-coadread-exprdist
 """
 from __future__ import annotations
+import os
 
 import json
 import sys
@@ -22,7 +23,7 @@ from . import read as _read
 from . import stats as _stats
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"

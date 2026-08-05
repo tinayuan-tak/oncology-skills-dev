@@ -43,7 +43,7 @@ METHOD_VERSION = "0.1.0"
 
 # --- reliable tier: curated vocab in target-contracts ---
 DEFAULT_TARGET_CONTRACTS = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 SHED_VOCAB_RELPATH = "vocabularies/shed_antigen_targets.yaml"
 
 # --- proxy tier: HPA v25-1 secretome (landed source hpa-v25-1) ---

@@ -1,5 +1,6 @@
 """CLI + emitters for Q5 RNA↔protein concordance (cell-line)."""
 from __future__ import annotations
+import os
 
 import json
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 _FILL, _LINE = "#1f4e79", "#0a2540"
 
 

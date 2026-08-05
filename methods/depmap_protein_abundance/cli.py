@@ -287,7 +287,7 @@ def compute_summary(target: str, abundance_by_model: Optional[dict],
 
 
 DEFAULT_TARGET_CONTRACTS = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
 
 def _load_takeda_style(target_contracts_dir: Path):

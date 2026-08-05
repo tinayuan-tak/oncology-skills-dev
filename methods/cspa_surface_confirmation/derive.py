@@ -29,7 +29,7 @@ S3_BUCKET = "onc-compbio"
 SOURCE_S3_KEY = "data-catalog/sources/cspa-bausch-fluck-2015/pone.0121314.s002.xlsx"
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
-DATA_CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 
 # CSPA confidence category (verbatim in Table_B) → surface_confirmation card vocab.
 _CATEGORY_TO_CLASS = {

@@ -15,6 +15,7 @@ in 26Q1, NOT boolean — see [feedback_compose_dashboard_execution_modes]).
 """
 
 from __future__ import annotations
+import os
 
 import json
 import sys
@@ -30,7 +31,7 @@ METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
 DEFAULT_TARGET_CONTRACTS = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
 DEPMAP_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
 DEPMAP_LOCAL_FALLBACK_DIRS = [

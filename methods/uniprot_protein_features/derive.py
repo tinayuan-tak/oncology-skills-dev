@@ -34,7 +34,7 @@ SOURCE_S3_KEY = ("data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026
                  "uniprot_sprot_human.dat.gz")
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
-DATA_CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 
 # UniProt KEYWORD → compact protein_class taxonomy. A keyword is a controlled-vocab term; several map
 # to one class. Only class-BEARING keywords (molecular function/type) are mapped — generic keywords

@@ -18,6 +18,7 @@ data_unavailable-safe: vocab/crosswalk load failure or absent percentiles → a
 control_position_class of data_unavailable, never a raise into the render path.
 """
 from __future__ import annotations
+import os
 
 from functools import lru_cache
 from pathlib import Path
@@ -27,7 +28,7 @@ import yaml
 
 METHOD_VERSION = "0.1.0"
 DEFAULT_TARGET_CONTRACTS = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 CONTROLS_VOCAB_RELPATH = "vocabularies/tumor_presence_controls.yaml"
 CROSSWALK_RELPATH = "vocabularies/indication_crosswalk.yaml"
 

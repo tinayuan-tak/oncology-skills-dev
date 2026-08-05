@@ -10,6 +10,7 @@ Read discipline mirrors the CPTAC reader: cache the (small, 68 MB) product local
 predicate-pushdown by gene. Definitive-vs-transient S3 latch so a blip doesn't poison the process.
 """
 from __future__ import annotations
+import os
 
 from functools import lru_cache
 from pathlib import Path
@@ -157,7 +158,7 @@ def _ordered_rows(df):
 
 
 def emit_by_tissue_distribution(target: str, out_dir: Path,
-                                target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> Path:
+                                target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> Path:
     """Pan-cancer by-tissue tumor-vs-normal distribution boxplot for `target`, drawn from the
     precomputed quantile product. TCGA tumor (per study) + GTEx normal (per tissue) share ONE
     log2(TPM+1) axis. Tumor boxes (navy) on top, normal boxes (blue) below, each block sorted by
@@ -232,7 +233,7 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 
 
 def emit_plotly_specs(target: str, out_dir: Path,
-                      target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> list:
+                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> list:
     """Interactive by-tissue distribution built from the SAME quantile rows the SVG uses (no drift).
     Uses plotly's precomputed-box fields (q1/median/q3/lowerfence/upperfence) — no per-sample data.
     Best-effort (plotly optional)."""

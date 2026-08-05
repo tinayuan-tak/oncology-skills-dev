@@ -1,5 +1,6 @@
 """CLI + emitter for the alteration_role overlay (genomic-alteration plan step 1)."""
 from __future__ import annotations
+import os
 
 import json
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 _ROLE_COLORS = {
     "direct_driver_gof":    ("#c0603a", "#8f3f22"),   # activating driver — warm

@@ -19,6 +19,7 @@ Reads: derived parquet at
 Falls back to `data_unavailable` gracefully when derived product not on S3.
 """
 from __future__ import annotations
+import os
 
 from functools import lru_cache
 from pathlib import Path
@@ -968,7 +969,7 @@ _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
 def emit_per_cohort_panel(target: str, out_dir: Path,
-                          target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> Path:
+                          target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> Path:
     """Grouped tumor-vs-normal BOXPLOT per CPTAC cohort, drawn from the per-aliquot log-ratios
     (per-sample product), ordered by tumor-vs-normal median delta. Each cohort shows the true
     tumor + normal distributions side by side; the per-cohort Welch/Mann-Whitney significance
@@ -1063,7 +1064,7 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 
 
 def emit_plotly_specs(target: str, out_dir: Path,
-                      target_contracts_dir="/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts") -> list:
+                      target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")) -> list:
     """Interactive grouped tumor-vs-normal boxplot per cohort, built from the SAME
     per_cohort_distribution_stats (and their raw per-aliquot arrays) the SVG uses — no drift.
     Best-effort (plotly optional)."""

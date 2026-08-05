@@ -1,5 +1,6 @@
 """CLI + emitter for expression_clinical_association (Q11 — expression-survival association)."""
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -9,7 +10,7 @@ from pathlib import Path
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
-DEFAULT_TARGET_CONTRACTS = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 _CLASS_COLORS = {
     "expression_high_worse_survival":  ("#a63d2e", "#7a2c20"),   # poor-prognosis marker

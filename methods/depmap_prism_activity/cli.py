@@ -29,6 +29,7 @@ v3 (2026-07-01, PRISM metric-switch to Log2AUC):
 """
 
 from __future__ import annotations
+import os
 
 import json
 import sys
@@ -44,7 +45,7 @@ METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.3.0"
 
 DEFAULT_TARGET_CONTRACTS = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
 
 # Release-pin → parquet S3 URI. `prism-activity-v4` is the canonical framework pin
