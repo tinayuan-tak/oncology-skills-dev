@@ -181,16 +181,23 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"  subtype queried: {subtype_query or 'none'}",
         "",
         "INDICATION-ANCHOR EVIDENCE (the full gathered presence read — cite the measured values):",
+        # Field names are the ACTUAL keys each card emits (verified against live decision.json,
+        # 2026-08-05). An earlier version guessed names that did not match, so real cards rendered
+        # as "no fields present" — a silent version of the drops-nulls failure this module fixes.
         _card_line(cards, missing, present_ids, "tumor-rna-vs-adjacent",
-                   ["expression_class", "log2fc", "direction", "adjusted_pvalue"]),
+                   ["expression_call_class", "log2_fc", "q_value",
+                    "is_upregulated_provider_call", "tumor_mean_tpm", "adjacent_mean_tpm"]),
         _card_line(cards, missing, present_ids, "tumor-protein-abundance-cptac",
-                   ["protein_abundance_class", "median_abundance", "n_cohorts"]),
+                   ["protein_expression_class", "protein_effect_size", "protein_bh_q_value",
+                    "cohort", "n_tumor_samples", "n_normal_samples"]),
         _card_line(cards, missing, present_ids, "cellline-protein-abundance",
-                   ["protein_abundance_class", "median_abundance"]),
+                   ["protein_expression_class", "protein_effect_size", "median_log2_abundance_panel",
+                    "fraction_detected", "n_cell_lines_evaluated"]),
         _card_line(cards, missing, present_ids, "cellline-rna-distribution",
-                   ["expression_class", "median_log2tpm"]),
+                   ["expression_class", "median_log2tpm_panel", "distribution_pattern",
+                    "fraction_expressed"]),
         _card_line(cards, missing, present_ids, "cellline-rna-protein-concordance",
-                   ["rna_as_biomarker", "concordance_class"]),
+                   ["rna_as_biomarker", "rna_protein_r", "n_paired_models"]),
         "",
         "AXIS 1 — ALL-GENE PERCENTILE (where the target sits among ALL genes IN THIS INDICATION):",
         f"  tumor all-gene percentile: {_fmt(tumor_rna.get('allgene_percentile'))} "
@@ -199,8 +206,9 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "",
         "PAN-CANCER FRAME (tumor-elevation breadth ACROSS indications — the true pan-cancer grain):",
         (f"  tumor_elevation_breadth_class: {breadth.get('tumor_elevation_breadth_class')}  "
-         f"n_indications_elevated: {breadth.get('n_indications_elevated')} / "
-         f"{breadth.get('n_indications_measured')}"
+         f"n_cohorts_elevated: {breadth.get('n_cohorts_elevated')} / "
+         f"{breadth.get('n_cohorts_tested')}  "
+         f"most_elevated: {breadth.get('most_elevated_cohorts')}"
          if breadth else "  (pan-cancer breadth card not available this run — do NOT assert a pan-cancer pattern)"),
         "",
         "AXIS 2 — CONTROL-BENCHMARK POSITION (vs known positive/negative antigens, same scale):",

@@ -45,13 +45,15 @@ def _decision_fixture():
                 "n_subtypes_measured": 4,
                 "per_subtype": {"MSI_H": "18.0 (log2tpm 8.1)", "MSS": "22.0 (log2tpm 9.4)"},
                 "subtype_stratification_class": "pan_subtype_uniform"}},
-            # a verdict-bearing DEG card + protein card that the OLD prompt dropped entirely
+            # a verdict-bearing DEG card + protein card that the OLD prompt dropped entirely.
+            # Field names MIRROR the real card schemas (verified against live decision.json) so this
+            # fixture cannot silently agree with a reader that reads the wrong keys.
             {"card_id": "tumor-rna-vs-adjacent", "summary": {
-                "expression_class": "strongly_upregulated", "log2fc": 3.1,
-                "direction": "up", "adjusted_pvalue": 1e-12}},
+                "expression_call_class": "strongly_upregulated", "log2_fc": 3.1,
+                "q_value": 1e-12, "is_upregulated_provider_call": True}},
             {"card_id": "tumor-elevation-breadth", "summary": {
-                "tumor_elevation_breadth_class": "broad", "n_indications_elevated": 7,
-                "n_indications_measured": 12}},
+                "tumor_elevation_breadth_class": "broad", "n_cohorts_elevated": 7,
+                "n_cohorts_tested": 12, "most_elevated_cohorts": ["COAD", "STAD"]}},
         ],
         "fired_rules": [],
     }
@@ -72,8 +74,34 @@ def test_prompt_forwards_the_full_gathered_evidence():
     """Regression for the '2 of 10 cards' drop: the verdict-bearing DEG card + the pan-cancer
     breadth frame must reach the prompt (they were previously never referenced)."""
     p = SYN.build_user_prompt(_decision_fixture())
-    assert "tumor-rna-vs-adjacent" in p and "strongly_upregulated" in p   # DEG card now forwarded
+    # DEG card forwarded with its ACTUAL fields (real values, not "no listed fields present")
+    assert "tumor-rna-vs-adjacent" in p and "strongly_upregulated" in p
+    assert "log2_fc=3.1" in p
     assert "PAN-CANCER FRAME" in p and "broad" in p                       # true pan-cancer grain
+    assert "n_cohorts_elevated: 7 / 12" in p
+
+
+def test_real_decision_fixture_surfaces_present_cards_not_data_unavailable():
+    """THE anti-regression for the field-name-mismatch bug (2026-08-05): a captured REAL
+    decision.json (CEACAM5/COADREAD) — where tumor-rna-vs-adjacent, tumor-protein-abundance-cptac,
+    and cellline-protein-abundance are all _missing=False with real data — must have those cards
+    surfaced with their measured values, NOT rendered 'no listed fields present' or DATA_UNAVAILABLE.
+    The bug was invisible to hand-authored fixtures because they shared the reader's wrong field
+    names; only a real card payload catches it."""
+    import json
+    fx = Path(__file__).resolve().parent / "fixtures" / "real_decision_ceacam5_coadread.json"
+    decision = json.loads(fx.read_text())
+    p = SYN.build_user_prompt(decision)
+    # locate each present data card by id in the INDICATION-ANCHOR block and assert it has a value
+    present = {c["card_id"] for c in decision["cards"] if not c.get("_missing")}
+    for cid in ("tumor-rna-vs-adjacent", "tumor-protein-abundance-cptac", "cellline-protein-abundance"):
+        assert cid in present, f"fixture precondition: {cid} should be present with data"
+        # the line for this card must NOT be the empty/unavailable renderings
+        line = next((ln for ln in p.splitlines() if ln.strip().startswith(cid)), "")
+        assert line, f"{cid} missing from prompt entirely"
+        assert "no listed fields present" not in line, f"{cid} rendered empty despite having data: {line}"
+        assert "DATA_UNAVAILABLE" not in line, f"{cid} mislabeled unavailable despite _missing=False: {line}"
+        assert "=" in line, f"{cid} surfaced no field=value pairs: {line}"
 
 
 def test_grain_governance_gates_subtype_axis_when_unavailable():
