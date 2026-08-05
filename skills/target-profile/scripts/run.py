@@ -429,7 +429,7 @@ _FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
 _GATE_ACTION_RANK = {"veto": 2, "hold": 1}
 
 _CONTRACTS_REPO = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
 
 

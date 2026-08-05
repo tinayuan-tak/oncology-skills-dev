@@ -24,13 +24,14 @@ Why this separation matters:
 """
 
 from __future__ import annotations
+import os
 
 import sys
 from pathlib import Path
 from typing import Optional
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-DATA_CATALOG_LIBS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog/libs")
+METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"))
+DATA_CATALOG_LIBS = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")) / "libs"
 
 
 def _import_method(method_name: str):

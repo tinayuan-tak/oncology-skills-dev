@@ -22,6 +22,7 @@ reference shape.
 """
 
 from __future__ import annotations
+import os
 
 import functools
 from pathlib import Path
@@ -34,7 +35,7 @@ import yaml
 # than import so this module has no compose-dashboard dependency — that's the
 # point of the extraction.
 TARGET_CONTRACTS = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
 
 

@@ -27,13 +27,14 @@ Design choice — why not call dispatchers' methods directly:
 """
 
 from __future__ import annotations
+import os
 
 import sys
 from pathlib import Path
 from typing import Callable
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"))
+TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
 
 def _ensure_methods_path() -> None:

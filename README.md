@@ -61,6 +61,50 @@ that changes the measured biology.
 
 ---
 
+## Prerequisites — these skills are not self-contained
+
+A compute/compose skill run (`compose-dashboard`, `target-profile`, and the question skills like
+`tumor-presence`) reaches into the **three sibling repos on the filesystem** and reads data from
+**S3**. Installing this repo alone is not enough. To run them you need:
+
+1. **All four repos cloned** — this repo plus
+   [`target-contracts`](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts)
+   (cards/rules/schemas), [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods)
+   (the `methods.*` modules skills import), and
+   [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog)
+   (manifests + the `target_id_resolver` lib).
+2. **AWS access** — the `cbg` profile for S3 data reads, and `cmp-dev` for the Bedrock LLM synthesis
+   (see [AWS configuration](#aws-configuration)). No amount of cloning substitutes for S3 access.
+3. **Repo locations known to the skills** — see below.
+
+### Locating the sibling repos (env vars)
+
+By **default** the skills expect the sibling repos at `/home/sagemaker-user/rnd-computational-biology-oncology-*`
+(the shared SageMaker layout that `bootstrap.sh` produces). If you clone them **anywhere else**, point
+the skills at your paths with these environment variables — each falls back to the default when unset,
+so an on-the-standard-layout setup needs nothing:
+
+| Env var | Repo it locates | Default |
+|---|---|---|
+| `TARGET_CONTRACTS_ROOT` | target-contracts | `/home/sagemaker-user/…-target-contracts` |
+| `ANALYSIS_METHODS_ROOT` | analysis-methods | `/home/sagemaker-user/…-analysis-methods` |
+| `DATA_CATALOG_ROOT` | data-catalog | `/home/sagemaker-user/…-data-catalog` |
+| `CLAUDE_ONCOLOGY_SKILLS_ROOT` | this repo (used by target-contracts' validators) | `/home/sagemaker-user/…-claude-oncology-skills` |
+
+```bash
+# Example: repos cloned under ~/work instead of the default location
+export TARGET_CONTRACTS_ROOT=~/work/rnd-computational-biology-oncology-target-contracts
+export ANALYSIS_METHODS_ROOT=~/work/rnd-computational-biology-oncology-analysis-methods
+export DATA_CATALOG_ROOT=~/work/rnd-computational-biology-oncology-data-catalog
+```
+
+> **Lighter footprint:** the retrieval-only [`query-target-evidence`](skills/query-target-evidence/)
+> skill reads a finished `evidence.json` from S3 and needs **only S3 access** — no sibling repos.
+> `render-evidence-package` needs only `target-contracts` (for schemas). The full dependency set
+> above applies to the compute/compose skills.
+
+---
+
 ## The biology-first phase model
 
 Skills are organized by **phase** — the gate of the nomination argument each one answers.

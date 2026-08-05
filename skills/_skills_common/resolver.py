@@ -17,6 +17,7 @@ byte-for-byte before any if-chain is deleted.
 """
 
 from __future__ import annotations
+import os
 
 import functools
 from pathlib import Path
@@ -24,7 +25,7 @@ from typing import Optional
 
 # Resolver specs live in target-contracts (they are CONTRACTS, like interpretation-rules).
 _CONTRACTS_REPO = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 _RESOLVERS_DIR = _CONTRACTS_REPO / "resolvers"
 
 

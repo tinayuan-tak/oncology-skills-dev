@@ -5,6 +5,7 @@ a structured dataclass. Side-effect-free; deterministic given the input filesyst
 """
 
 from __future__ import annotations
+import os
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,8 +15,8 @@ import yaml
 
 
 # Default repo paths — overridable for tests
-TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-DATA_CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 
 
 @dataclass

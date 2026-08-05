@@ -20,6 +20,7 @@ Locked decisions (Phase-0d + subsequent user checkpoints):
 """
 
 from __future__ import annotations
+import os
 
 import functools
 from dataclasses import dataclass, field
@@ -32,7 +33,7 @@ import yaml
 # Canonical vocabulary paths (loaded once per session). Fallback allows tests
 # to override by monkeypatching these module-level constants.
 DEFAULT_CONTRACTS_REPO = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
 
 
