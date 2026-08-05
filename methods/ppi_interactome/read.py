@@ -29,11 +29,12 @@ import os
 from functools import lru_cache
 from typing import Optional
 
-METHOD_VERSION = "1.0.0"
+METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + BioGRID experimental-physical leg
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 STRING_MANIFEST_ID = "string-v12-human-snapshot-2026-06-30"
 CORUM_MANIFEST_ID = "corum-5-3"
+BIOGRID_MANIFEST_ID = "biogrid-physical-interactions-per-gene-v1"
 _STRING_PREFIX = "data-catalog/sources/string/v12-human-snapshot-2026-06-30"
 STRING_LINKS_KEY = f"{_STRING_PREFIX}/9606.protein.links.v12.0.txt.gz"
 STRING_INFO_KEY = f"{_STRING_PREFIX}/9606.protein.info.v12.0.txt.gz"
@@ -50,6 +51,13 @@ STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_s
 # streaming the 83MB links gz (~6.6s → sub-second, measured). Byte-identical output. See derive.py.
 STRING_HC_PRODUCT_KEY = ("data-catalog/derived/uniprot-string-hc-edges-per-gene-v1/"
                          "string_hc_edges_per_gene_v1.parquet")
+
+# BioGRID experimental-PHYSICAL edges product (2026-08-05): gene-sorted human physical interactions
+# with per-pair distinct-publication counts. The complement to STRING's functional score — direct
+# experimental physical evidence, ranked by literature depth. Symbol-keyed pushdown on gene_symbol.
+BIOGRID_PHYSICAL_PRODUCT_KEY = ("data-catalog/derived/biogrid-physical-interactions-per-gene-v1/"
+                                "biogrid_physical_edges_per_gene.parquet")
+BIOGRID_HUB_DEGREE = 50   # >= this many physical partners → physical hub (mirrors STRING's hub cut)
 
 
 def _ensure_aws_profile():
@@ -111,6 +119,31 @@ def _string_edges_from_product(symbol: str, product_path: Optional[str] = None) 
     d = tbl.to_pandas()
     return [{"partner": p, "combined_score": int(s)}
             for p, s in zip(d["partner_symbol"].values, d["combined_score"].values)]
+
+
+def _biogrid_physical_for(symbol: str, product_path: Optional[str] = None) -> Optional[list]:
+    """Predicate-pushdown read of the BioGRID physical-edge product for one source symbol. Returns
+    [{"partner", "n_publications", "n_experiments"}] ranked by publication evidence, or None if the
+    product is unavailable (the BioGRID leg is then simply absent — the other legs still report)."""
+    import pyarrow.parquet as pq
+    try:
+        if product_path is not None:
+            tbl = pq.read_table(product_path, filters=[("gene_symbol", "==", symbol)],
+                                columns=["partner_symbol", "n_publications", "n_experiments"])
+        else:
+            import pyarrow.fs as fs
+            tbl = pq.read_table(f"{S3_BUCKET}/{BIOGRID_PHYSICAL_PRODUCT_KEY}",
+                                filesystem=fs.S3FileSystem(region="us-east-1"),
+                                filters=[("gene_symbol", "==", symbol)],
+                                columns=["partner_symbol", "n_publications", "n_experiments"])
+    except Exception:  # noqa: BLE001 — product missing/unreadable → BioGRID leg absent
+        return None
+    d = tbl.to_pandas()
+    out = [{"partner": p, "n_publications": int(npub), "n_experiments": int(nexp)}
+           for p, npub, nexp in zip(d["partner_symbol"].values, d["n_publications"].values,
+                                    d["n_experiments"].values)]
+    out.sort(key=lambda e: (-e["n_publications"], -e["n_experiments"]))
+    return out
 
 
 def _string_edges_for(string_id: str, links_path: Optional[str] = None) -> list:
@@ -198,9 +231,10 @@ def _load_uniprot_sidecar(sidecar_path: Optional[str] = None) -> dict:
 def read_target_summary(target: str, indication: str = None,
                         info_path: Optional[str] = None, links_path: Optional[str] = None,
                         corum_uniprot_path: Optional[str] = None, corum_complete_path: Optional[str] = None,
-                        sidecar_path: Optional[str] = None) -> dict:
-    """Per-target PPI summary (STRING functional network + CORUM complex membership). `indication`
-    unused (interactome is target-intrinsic)."""
+                        sidecar_path: Optional[str] = None, biogrid_path: Optional[str] = None) -> dict:
+    """Per-target PPI summary — THREE distinct signals (multi_provider_policy surface_discordance:
+    reported alongside, never merged): STRING functional network + CORUM complex membership +
+    BioGRID experimental-PHYSICAL interactions. `indication` unused (interactome is target-intrinsic)."""
     sym = target.strip().upper()
 
     # --- STRING functional network (high-confidence interactors) ---
@@ -241,8 +275,20 @@ def read_target_summary(target: str, indication: str = None,
     except Exception:  # noqa: BLE001
         pass
 
-    if not string_resolved and not complexes:
-        return _empty("target_not_in_string_or_corum")
+    # --- BioGRID experimental-physical interactions (a THIRD, distinct signal) ---
+    n_physical, top_physical = 0, []
+    biogrid_edges = _biogrid_physical_for(sym, biogrid_path)
+    biogrid_product_readable = biogrid_edges is not None   # product reachable this run
+    biogrid_has_edges = bool(biogrid_edges)                # gene actually has >=1 physical partner
+    if biogrid_edges:
+        n_physical = len(biogrid_edges)
+        top_physical = biogrid_edges[:15]
+
+    # data_unavailable only when the gene is absent from ALL three sources (no STRING edges, no CORUM
+    # complex, no BioGRID physical edge). An empty-but-readable BioGRID product does NOT count as
+    # resolved — a gene with zero physical partners is still "unknown to BioGRID", not "measured".
+    if not string_resolved and not complexes and not biogrid_has_edges:
+        return _empty("target_not_in_string_or_corum_or_biogrid")
 
     # interactome_class from the STRING high-confidence degree
     if n_hc >= 50:
@@ -254,16 +300,33 @@ def read_target_summary(target: str, indication: str = None,
     else:
         interactome_class = "no_high_confidence_interactors"
 
+    # physical_interactome_class from the BioGRID physical degree (distinct from the STRING-derived
+    # interactome_class — reported alongside per surface_discordance, never merged).
+    if n_physical >= BIOGRID_HUB_DEGREE:
+        physical_interactome_class = "physical_hub"
+    elif n_physical >= 10:
+        physical_interactome_class = "physically_connected"
+    elif n_physical >= 1:
+        physical_interactome_class = "physically_sparse"
+    elif biogrid_product_readable:
+        physical_interactome_class = "no_physical_interactors"   # product read, gene has 0 physical edges
+    else:
+        physical_interactome_class = "data_unavailable"          # product unreachable this run
+
     return {
-        "interactome_class": interactome_class,            # PRIMARY
-        "n_high_confidence_interactors": n_hc,              # STRING combined_score >= 700
+        "interactome_class": interactome_class,            # PRIMARY (STRING functional degree)
+        "n_high_confidence_interactors": n_hc,             # STRING combined_score >= 700
         "top_interactors": top_interactors,                # [{partner, combined_score}]
         "n_corum_complexes": len(complexes),
         "corum_complexes": complexes[:15],                 # [{corum_id, complex_name}]
         "in_protein_complex": len(complexes) > 0,
+        # BioGRID experimental-PHYSICAL leg (distinct signal; direct evidence + literature depth)
+        "physical_interactome_class": physical_interactome_class,
+        "n_physical_interactors": n_physical,              # BioGRID distinct physical partners
+        "top_physical_partners": top_physical,             # [{partner, n_publications, n_experiments}]
         "string_protein_id": string_id,
         "method_version": METHOD_VERSION,
-        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}",
+        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}+{BIOGRID_MANIFEST_ID}",
     }
 
 
@@ -272,6 +335,8 @@ def _empty(note: str) -> dict:
         "interactome_class": "data_unavailable",
         "n_high_confidence_interactors": 0, "top_interactors": [],
         "n_corum_complexes": 0, "corum_complexes": [], "in_protein_complex": False,
+        "physical_interactome_class": "data_unavailable",
+        "n_physical_interactors": 0, "top_physical_partners": [],
         "string_protein_id": None, "method_version": METHOD_VERSION,
-        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}", "_data_note": note,
+        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}+{BIOGRID_MANIFEST_ID}", "_data_note": note,
     }

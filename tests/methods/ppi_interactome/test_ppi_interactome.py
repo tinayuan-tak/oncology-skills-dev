@@ -33,10 +33,16 @@ def _fixtures(tmp_path):
     corum_c.write_text("complex_id\tcomplex_name\n42\tTest Complex\n")
     sc = tmp_path / "sidecar.parquet"
     pd.DataFrame([{"hgnc_primary_symbol_at_resolution": "TGT", "uniprot_canonical": "P99999"}]).to_parquet(sc)
+    # BioGRID physical-edge product fixture: TGT physically binds PARTNERA (7 papers) + PARTNERC (2).
+    bg = tmp_path / "biogrid.parquet"
+    pd.DataFrame([
+        {"gene_symbol": "TGT", "partner_symbol": "PARTNERA", "n_publications": 7, "n_experiments": 12},
+        {"gene_symbol": "TGT", "partner_symbol": "PARTNERC", "n_publications": 2, "n_experiments": 2},
+    ]).to_parquet(bg)
     for fn in (_ppi._load_string_info, _ppi._load_corum, _ppi._load_uniprot_sidecar):
         fn.cache_clear()
     return dict(info_path=str(info), links_path=str(links), corum_uniprot_path=str(corum_u),
-                corum_complete_path=str(corum_c), sidecar_path=str(sc))
+                corum_complete_path=str(corum_c), sidecar_path=str(sc), biogrid_path=str(bg))
 
 
 def test_string_threshold_and_corum_membership(tmp_path):
@@ -50,9 +56,35 @@ def test_string_threshold_and_corum_membership(tmp_path):
     assert s["corum_complexes"][0]["complex_name"] == "Test Complex"
 
 
+def test_biogrid_physical_leg(tmp_path):
+    # BioGRID leg: distinct signal, partners ranked by publication evidence, reported ALONGSIDE STRING.
+    s = _ppi.read_target_summary("TGT", **_fixtures(tmp_path))
+    assert s["n_physical_interactors"] == 2
+    assert s["physical_interactome_class"] == "physically_sparse"   # 2 physical partners (1..9)
+    assert s["top_physical_partners"][0] == {"partner": "PARTNERA", "n_publications": 7, "n_experiments": 12}
+    # STRING + BioGRID are DISTINCT (not merged): STRING sees 1 HC edge, BioGRID sees 2 physical.
+    assert s["n_high_confidence_interactors"] == 1
+    assert s["n_physical_interactors"] == 2
+
+
+def test_biogrid_only_target_still_resolves(tmp_path):
+    # a target absent from STRING+CORUM but present in BioGRID must NOT be data_unavailable.
+    fx = _fixtures(tmp_path)
+    import pandas as pd
+    bg = Path(fx["biogrid_path"]).with_name("biogrid_only.parquet")
+    pd.DataFrame([{"gene_symbol": "ORPHAN", "partner_symbol": "X", "n_publications": 3, "n_experiments": 4}]).to_parquet(bg)
+    fx["biogrid_path"] = str(bg)
+    s = _ppi.read_target_summary("ORPHAN", **fx)
+    # STRING/CORUM don't know ORPHAN, but BioGRID does → NOT the data_unavailable empty path.
+    assert s["n_physical_interactors"] == 1
+    assert s["physical_interactome_class"] == "physically_sparse"
+    assert s.get("_data_note") is None   # resolved via BioGRID, not _empty()
+
+
 def test_unknown_target_data_unavailable(tmp_path):
     s = _ppi.read_target_summary("NOTAPROTEIN", **_fixtures(tmp_path))
     assert s["interactome_class"] == "data_unavailable"
+    assert s["physical_interactome_class"] == "data_unavailable"
 
 
 def test_live_egfr_is_hub():
