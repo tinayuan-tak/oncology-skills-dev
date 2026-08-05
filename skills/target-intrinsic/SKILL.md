@@ -42,6 +42,7 @@ composition:
     - surfaceome-family-classification
     - structure-features-static
     - shed-ectodomain-liability
+    - gene-ontology-annotation
     - signaling-network-mechanism
     - reactome-pathway-membership
     - paralog-buffering
@@ -61,6 +62,7 @@ composition:
     - surfaceome_family
     - structure_druggability
     - shed_ectodomain_liability
+    - gene_ontology_annotation
     - signaling_network_mechanism
     - reactome_pathway_membership
     - paralog_buffering

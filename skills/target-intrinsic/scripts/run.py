@@ -55,6 +55,8 @@ CARDS = [
     "surfaceome-family-classification",  # surface protein family + membership (protein-class proxy)
     "structure-features-static",         # fold / pockets / ligandability (structure-intrinsic)
     "shed-ectodomain-liability",         # circulating soluble ectodomain (biophysical property)
+    # --- FUNCTIONAL ANNOTATION (Gene Ontology: what it does / where it is / what processes) -----
+    "gene-ontology-annotation",          # GO BP/MF/CC term membership (experimental-evidence-flagged)
     # --- MECHANISM / PATHWAY ROLE (the molecule's place in signaling) ---------------------------
     "signaling-network-mechanism",       # SIGNOR/OmniPath upstream regulators + downstream effectors, MoA class
     "reactome-pathway-membership",       # Reactome pathway/geneset MEMBERSHIP + top-level rollup (distinct from directed edges above)
@@ -90,6 +92,12 @@ def _headline(cards, fired, verdict_pair):
         "is_surface_protein":            g("surfaceome-family-classification", "is_surface_protein"),
         "structure_pocket_call":         g("structure-features-static", "hotspot_pocket_adjacency_call"),
         "shed_liability_class":          g("shed-ectodomain-liability", "shed_liability_class"),
+        # functional annotation (Gene Ontology)
+        "go_annotation_class":           g("gene-ontology-annotation", "annotation_class"),
+        "go_n_terms_total":              g("gene-ontology-annotation", "n_go_terms_total"),
+        "go_n_biological_process":       g("gene-ontology-annotation", "n_biological_process"),
+        "go_n_molecular_function":       g("gene-ontology-annotation", "n_molecular_function"),
+        "go_n_cellular_component":       g("gene-ontology-annotation", "n_cellular_component"),
         # mechanism / pathway role
         "network_class":                 g("signaling-network-mechanism", "network_class"),
         "n_upstream_regulators":         g("signaling-network-mechanism", "n_upstream_regulators"),

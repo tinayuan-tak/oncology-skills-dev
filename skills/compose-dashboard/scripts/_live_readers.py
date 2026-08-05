@@ -599,6 +599,15 @@ def _dispatch_reactome_pathway_membership(target: str, indication: str) -> Optio
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_gene_ontology_annotation(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: gene-ontology-annotation card → per-target GO term membership (BP/MF/CC)
+    via methods/gene_ontology_annotation/read.py. Target-intrinsic (indication ignored); HGNC→AC
+    via the GOA resolver sidecar.
+    """
+    mod = _import_method("gene_ontology_annotation")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 def _dispatch_signaling_network_mechanism_composed(target: str, indication: str) -> Optional[dict]:
     """Alias for the ADC/TCE composed card's derived_from resolution.
     (Unused as a card-registered dispatcher; kept for symmetry.)"""
@@ -988,6 +997,7 @@ CARD_DISPATCHERS = {
     # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
     "reactome-pathway-membership": _dispatch_reactome_pathway_membership,  # target-intrinsic pathway/geneset membership
+    "gene-ontology-annotation": _dispatch_gene_ontology_annotation,  # target-intrinsic GO BP/MF/CC membership
     "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,
