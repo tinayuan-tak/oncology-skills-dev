@@ -55,6 +55,14 @@ outputs:
     - per_lineage_stats                           # list of {lineage, n, median_log2_abundance, fraction_detected}
     - n_lineage_restricted_lineages               # lineages with >50% detected but panel <30%
     - method_version
+    # All-gene percentile null (additive, 2026-08-05): where median_log2_abundance_panel
+    # falls among ALL proteins' panel medians in the DepMap MS matrix. NOTE this is a
+    # PAN-PANEL abundance percentile — a lineage-restricted antigen scores LOW here even
+    # if tumor-elevated (orthogonal to CPTAC's tumor-vs-normal effect percentile). One-
+    # directional display facet; never moves protein_expression_class / presence_verdict.
+    - allgene_percentile                          # float 0-100 (or null)
+    - allgene_percentile_class                    # categorical (drives rules if wired)
+    - allgene_percentile_context                  # string — panel/metric the null was drawn from (audit)
 
   summary_fields_vocabulary:
     protein_expression_class:
@@ -63,6 +71,12 @@ outputs:
       - lineage_restricted                        # detected in 10-70%; lineage-stratified
       - broadly_low                               # detected in <30% of panel (MS-absent across most lines)
       - data_unavailable                          # protein not in the MS matrix / couldn't read
+    allgene_percentile_class:
+      - top_1pct
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable
 
   figures:
     - id: density_protein_abundance
@@ -87,6 +101,10 @@ thresholds:
   # computes the panel-relative high cutoff — see method).
   high_abundance_percentile: 0.70
   min_lineage_size: 5
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
 
 warning_predicates:
   - warning_id: sparse_ms_detection

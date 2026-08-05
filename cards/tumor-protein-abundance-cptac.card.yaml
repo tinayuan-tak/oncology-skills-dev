@@ -59,6 +59,13 @@ outputs:
     - n_normal_samples
     - stat_test_used                               # 'msstatstmt_limma_ebayes_moderated' | 'skipped_low_n'
     - method_version
+    # All-gene percentile null (additive, 2026-08-05): where protein_effect_size falls
+    # among ALL genes tested in the target's OWN cohort. Contextualizes the absolute
+    # effect size ("is +1.05 unusual?"). One-directional — display + companion categorical;
+    # never moves protein_expression_class / presence_verdict.
+    - allgene_percentile                           # float 0-100 (or null)
+    - allgene_percentile_class                     # categorical (drives rules if wired)
+    - allgene_percentile_context                   # string — the cohort/metric the null was drawn from (audit)
 
   summary_fields_vocabulary:
     protein_expression_class:
@@ -75,6 +82,12 @@ outputs:
       # welch_t/wilcoxon the v2 draft assumed.
       - msstatstmt_limma_ebayes_moderated
       - skipped_low_n
+    allgene_percentile_class:
+      - top_1pct                                   # >= top_1_percentile cutoff
+      - top_decile                                 # >= top_decile cutoff
+      - mid
+      - bottom_decile                              # <= bottom_decile cutoff
+      - data_unavailable
 
   # Figure is a PER-COHORT tumor-vs-normal DISTRIBUTION BOXPLOT (upgraded 2026-07-22). Originally a
   # median-only dumbbell, because the only product was per-cohort SUMMARY
@@ -96,6 +109,10 @@ thresholds:
   strong_up_effect: 1.5
   modest_up_effect: 0.5
   significance_q: 0.05
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
 
 warning_predicates:
   - warning_id: low_normal_arm_count
