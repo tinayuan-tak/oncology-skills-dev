@@ -184,16 +184,27 @@ def _load_subtype_assignments(indication: str):
 # indication → recount3 TCGA study codes (mirrors dge_deseq2.read.INDICATION_TO_TCGA_STUDIES).
 INDICATION_TO_TCGA_STUDIES = {
     "COADREAD": ["COAD", "READ"], "COAD": ["COAD"], "READ": ["READ"],
+    # NSCLC is the canonical (crosswalk) code for the lung-adeno+squamous union — its
+    # subtype shard (INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST) already accepts it, but the
+    # base study/tissue maps only had LUAD/LUSC, so an NSCLC query silently lost the tumor
+    # axis (data_unavailable) while cell-line resolved. Map NSCLC → both lung studies
+    # (crosswalk: NSCLC.tcga_studies = [TCGA-LUAD, TCGA-LUSC]).
+    "NSCLC": ["LUAD", "LUSC"],
     "LUAD": ["LUAD"], "LUSC": ["LUSC"], "BRCA": ["BRCA"], "PAAD": ["PAAD"], "PDAC": ["PAAD"],
-    "SKCM": ["SKCM"], "STAD": ["STAD"], "PRAD": ["PRAD"], "OV": ["OV"], "KIRC": ["KIRC"],
-    "GBM": ["GBM"], "LGG": ["LGG"], "HNSC": ["HNSC"], "BLCA": ["BLCA"], "LIHC": ["LIHC"],
-    "CESC": ["CESC"], "ESCA": ["ESCA"],
+    "SKCM": ["SKCM"], "STAD": ["STAD"], "GC": ["STAD"], "PRAD": ["PRAD"], "OV": ["OV"],
+    "KIRC": ["KIRC"], "GBM": ["GBM"], "LGG": ["LGG"], "HNSC": ["HNSC"], "HNSCC": ["HNSC"],
+    "BLCA": ["BLCA"], "LIHC": ["LIHC"], "CESC": ["CESC"], "ESCA": ["ESCA"],
 }
+# NOTE: NSCLC/GC/HNSCC are canonical/alias codes the subtype-assignment map already accepts;
+# they are mirrored here (+ in INDICATION_TO_GTEX_TISSUE) so all three interpretation axes
+# resolve together. The map-consistency regression test enforces this invariant.
 # indication → matched GTEx normal tissue-of-origin (mirrors dge_deseq2.read.INDICATION_TO_GTEX_TISSUE).
 INDICATION_TO_GTEX_TISSUE = {
-    "COADREAD": "COLON", "COAD": "COLON", "READ": "COLON", "LUAD": "LUNG", "LUSC": "LUNG",
-    "BRCA": "BREAST", "PAAD": "PANCREAS", "PDAC": "PANCREAS", "SKCM": "SKIN", "STAD": "STOMACH",
-    "PRAD": "PROSTATE", "OV": "OVARY", "KIRC": "KIDNEY", "GBM": "BRAIN", "LGG": "BRAIN",
+    "COADREAD": "COLON", "COAD": "COLON", "READ": "COLON",
+    "NSCLC": "LUNG", "LUAD": "LUNG", "LUSC": "LUNG",
+    "BRCA": "BREAST", "PAAD": "PANCREAS", "PDAC": "PANCREAS", "SKCM": "SKIN",
+    "STAD": "STOMACH", "GC": "STOMACH", "PRAD": "PROSTATE", "OV": "OVARY", "KIRC": "KIDNEY",
+    "GBM": "BRAIN", "LGG": "BRAIN", "HNSC": None, "HNSCC": None,
     "BLCA": "BLADDER", "LIHC": "LIVER", "CESC": "CERVIX_UTERI", "ESCA": "ESOPHAGUS",
 }
 
