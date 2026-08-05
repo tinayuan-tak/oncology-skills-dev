@@ -93,12 +93,12 @@ coverage gaps are visible in the catalog. See the per-skill status table below.
 
 | Skill | Ver | Phase | Data mode | Status |
 |---|---|---|---|---|
-| [`tumor-presence`](skills/tumor-presence/) | 1.1.0 | A | `derived_read` | wired — 10 cards, 5 verdict-bearing + 5 display facets |
+| [`tumor-presence`](skills/tumor-presence/) | 1.1.0 | A | `derived_read` | wired — 9 cards, 5 verdict-bearing + 4 display facets |
 | [`tumor-selectivity`](skills/tumor-selectivity/) | 1.1.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
 | [`functional-requirement`](skills/functional-requirement/) | 1.1.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog |
 | [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | — | C | `derived_read` | wired — SynLethDB v3 veto-suppressor (annotation, not measurement) |
 | [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.0.0 | A, E | `derived_read` | wired — SNV/indel + copy-number (+ fusion placeholder) |
-| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.2.0 | D | `derived_read` | wired — SIGNOR/OmniPath MoA network |
+| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.2.0 | D | `derived_read` | wired — SIGNOR/OmniPath MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
 | [`differentiation-landscape`](skills/differentiation-landscape/) | 1.2.0 | E | `derived_read` | partial — co-mutation wired; clinical-precedent / patent placeholder |
 | [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.1.0 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
 | [`surface-modality-fit`](skills/surface-modality-fit/) | 1.0.0 | F | `derived_read` | partial — surfaceome/topology landed; density + structure pending |
