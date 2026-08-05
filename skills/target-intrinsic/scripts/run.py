@@ -62,6 +62,8 @@ CARDS = [
     "reactome-pathway-membership",       # Reactome pathway/geneset MEMBERSHIP + top-level rollup (distinct from directed edges above)
     # --- INTERACTOME (physical/functional interactions + complex membership) --------------------
     "ppi-interactome",                   # STRING high-confidence functional network + CORUM complex membership
+    # --- DOMAIN ARCHITECTURE / PROTEIN CLASS (curated UniProt features) --------------------------
+    "protein-domains-class",             # FT DOMAIN architecture + UniProt-keyword protein class
     # --- PARALOGS (gene-family redundancy — a genomic-intrinsic property) -----------------------
     "paralog-buffering",                 # sequence paralogs + buffering (dependency-hardening context)
     # --- NORMAL (non-disease) EXPRESSION --------------------------------------------------------
@@ -108,6 +110,11 @@ def _headline(cards, fired, verdict_pair):
         "pathway_class":                 g("reactome-pathway-membership", "pathway_class"),
         "pathway_count":                 g("reactome-pathway-membership", "pathway_count"),
         "top_level_pathways":            g("reactome-pathway-membership", "top_level_pathways"),
+        # domain architecture / protein class (UniProt curated)
+        "protein_features_class":        g("protein-domains-class", "protein_features_class"),
+        "n_domains":                     g("protein-domains-class", "n_domains"),
+        "domain_architecture":           g("protein-domains-class", "domain_architecture"),
+        "protein_class":                 g("protein-domains-class", "protein_class"),
         # interactome (STRING network + CORUM complexes)
         "interactome_class":             g("ppi-interactome", "interactome_class"),
         "n_high_confidence_interactors": g("ppi-interactome", "n_high_confidence_interactors"),
