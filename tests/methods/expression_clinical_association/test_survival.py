@@ -13,8 +13,43 @@ if str(REPO) not in sys.path:
 from methods.expression_clinical_association.read import (  # noqa: E402
     classify_survival_association, _logrank, MIN_EVENTS, MIN_PER_ARM,
 )
+from methods.expression_clinical_association import read as _R  # noqa: E402
 
 np = pytest.importorskip("numpy")
+
+
+# ── broken-env regression (2026-08-05): a MISSING DEPENDENCY (openpyxl) must NOT read as a
+#    data gap. Before the fix, `except: return {}` in _load_cdr masked ImportError → every
+#    target read survival_association_class=data_unavailable framework-wide, silently. ──────
+def test_load_cdr_raises_on_missing_dependency_not_silent(monkeypatch):
+    # _load_cdr must RAISE ImportError (broken env) rather than swallow it into an empty {}
+    # that reads as a data gap. S3 fetch succeeds; the .xlsx parse hits a missing openpyxl.
+    _R._load_cdr.cache_clear()
+    monkeypatch.setattr(_R, "_boto3", lambda: type("S", (), {
+        "get_object": lambda self, Bucket, Key: {"Body": type("B", (), {"read": lambda self: b"x"})()}
+    })())
+    import pandas as pd
+    def _raise_import(*a, **k):
+        raise ImportError("Missing optional dependency 'openpyxl'.")
+    monkeypatch.setattr(pd, "read_excel", _raise_import)
+    with pytest.raises(ImportError):
+        _R._load_cdr()
+    # and the reason is recorded for the caller to surface (dependency, not "table unavailable")
+    assert _R._CDR_LOAD_ERROR and "dependency" in _R._CDR_LOAD_ERROR.lower()
+    _R._load_cdr.cache_clear()
+
+
+def test_load_cdr_genuine_s3_absence_is_graceful_empty(monkeypatch):
+    # a genuine data-unreachable (S3 error) stays a graceful {} with a distinct note (NOT raised)
+    _R._load_cdr.cache_clear()
+    def _boom_s3():
+        raise RuntimeError("NoSuchKey")
+    monkeypatch.setattr(_R, "_boto3", lambda: type("S", (), {
+        "get_object": lambda self, Bucket, Key: (_ for _ in ()).throw(RuntimeError("NoSuchKey"))
+    })())
+    assert _R._load_cdr() == {}
+    assert _R._CDR_LOAD_ERROR and "unreachable" in _R._CDR_LOAD_ERROR.lower()
+    _R._load_cdr.cache_clear()
 
 
 # ── classifier ───────────────────────────────────────────────────────────────

@@ -15,6 +15,10 @@ S3_BUCKET = "onc-compbio"
 PANCAN_PREFIX = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"
 CDR_KEY = f"{PANCAN_PREFIX}/TCGA-CDR-SupplementalTableS1.xlsx"
 
+# Reason the last _load_cdr() failed (or None on success) — lets the caller distinguish a
+# broken-environment failure (missing openpyxl) from a genuine data gap in _data_note.
+_CDR_LOAD_ERROR = None
+
 DEFAULT_AWS_PROFILE = "cbg"
 
 MIN_EVENTS = 10          # minimum deaths (events) for a meaningful log-rank
@@ -39,20 +43,37 @@ def _tcga_case(barcode: str) -> str:
 
 @lru_cache(maxsize=1)
 def _load_cdr():
-    """TCGA-CDR as {case_barcode: (OS_event, OS_time)}. OS ∈ {0,1}, OS.time in days. Empty on failure."""
+    """TCGA-CDR as {case_barcode: (OS_event, OS_time)}. OS ∈ {0,1}, OS.time in days.
+
+    Returns {} ONLY when the survival data is genuinely unreachable (S3/parse). A missing
+    ENV DEPENDENCY (openpyxl, needed to read the .xlsx) is NOT a data gap — it silently made
+    EVERY target read `data_unavailable` framework-wide (found 2026-08-05, masked by a bare
+    `except: return {}`). Such a broken-environment condition is RAISED, not swallowed, so it
+    surfaces as a loud failure instead of a fake honest-negative. See _cdr_load_error() for the
+    reason the caller reports.
+    """
     import pandas as pd
+    global _CDR_LOAD_ERROR
     try:
         raw = _boto3().get_object(Bucket=S3_BUCKET, Key=CDR_KEY)["Body"].read()
+    except Exception as e:  # noqa: BLE001 — genuine data-unreachable (S3/network/absent): honest {}
+        _CDR_LOAD_ERROR = f"TCGA-CDR table unreachable ({type(e).__name__})"
+        return {}
+    try:
         df = pd.read_excel(io.BytesIO(raw), sheet_name=0,
                            usecols=["bcr_patient_barcode", "OS", "OS.time"])
-        df = df.dropna(subset=["bcr_patient_barcode", "OS", "OS.time"])
-        df["OS"] = pd.to_numeric(df["OS"], errors="coerce")
-        df["OS.time"] = pd.to_numeric(df["OS.time"], errors="coerce")
-        df = df.dropna(subset=["OS", "OS.time"])
-        return {_tcga_case(b): (int(o), float(t))
-                for b, o, t in zip(df["bcr_patient_barcode"], df["OS"], df["OS.time"])}
-    except Exception:  # noqa: BLE001
-        return {}
+    except ImportError as e:
+        # broken ENV (e.g. openpyxl not installed in the run runtime) — NOT a data gap.
+        # Record + re-raise so this never again masquerades as data_unavailable.
+        _CDR_LOAD_ERROR = f"survival read requires a missing dependency: {e}"
+        raise
+    df = df.dropna(subset=["bcr_patient_barcode", "OS", "OS.time"])
+    df["OS"] = pd.to_numeric(df["OS"], errors="coerce")
+    df["OS.time"] = pd.to_numeric(df["OS.time"], errors="coerce")
+    df = df.dropna(subset=["OS", "OS.time"])
+    _CDR_LOAD_ERROR = None
+    return {_tcga_case(b): (int(o), float(t))
+            for b, o, t in zip(df["bcr_patient_barcode"], df["OS"], df["OS.time"])}
 
 
 def _logrank(times_a, events_a, times_b, events_b):
@@ -132,11 +153,19 @@ def read_expression_clinical_association(target: str, indication: str) -> dict:
                      "_data_note": f"no per-sample tumor expression for {sym} in {indication}"})
         return base
 
-    # 2) CDR survival
-    cdr = _load_cdr()
+    # 2) CDR survival. A missing dependency (openpyxl) is a BROKEN ENV, not a data gap —
+    # _load_cdr raises ImportError; catch it + report a DISTINCT note so it never again reads
+    # as a fake honest-negative (the 2026-08-05 framework-wide silent-survival bug).
+    try:
+        cdr = _load_cdr()
+    except ImportError:
+        base.update({"survival_association_class": "data_unavailable",
+                     "_data_note": (_CDR_LOAD_ERROR or "survival read dependency missing "
+                                    "(install openpyxl in the run runtime) — NOT a data gap")})
+        return base
     if not cdr:
         base.update({"survival_association_class": "data_unavailable",
-                     "_data_note": "TCGA-CDR survival table unavailable"})
+                     "_data_note": _CDR_LOAD_ERROR or "TCGA-CDR survival table unavailable"})
         return base
 
     # 3) join on case (mean expression per case), median-split, log-rank
