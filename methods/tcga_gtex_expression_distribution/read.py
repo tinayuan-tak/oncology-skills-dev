@@ -63,6 +63,47 @@ _SIDECAR_CACHE = CACHE_DIR / "tcga_sample_study.parquet"
 
 _SIDECAR_STATUS: Optional[bool] = None
 
+# The ONLY file this module legitimately caches on disk is the small sidecar (~448 KB).
+# Everything else is streamed from S3 via HTTP range requests (see _read_gene). A prior
+# version of this reader (removed 2026-07-24, PR #115) full-downloaded the multi-GB long
+# products into CACHE_DIR; a long-lived process still holding that old code in memory can
+# silently re-bloat this dir to ~16 GB. We can't edit a running process's memory, so we make
+# the CURRENT code self-healing instead: on first read per process, sweep anything in
+# CACHE_DIR that isn't the allowed sidecar. This bounds the leak — an old kernel's re-download
+# never SURVIVES the next current-code run. Future-proof: keyed on an allowlist, not the
+# stale filenames, so it also catches boto3 in-progress temps (<name>.<8-hex>) and any later
+# accidental full-download.
+_CACHE_ALLOWED_NAMES = frozenset({_SIDECAR_CACHE.name})
+_STALE_CACHE_SWEPT = False
+
+
+def _sweep_stale_cache(cache_dir: Path, keep: frozenset[str]) -> list[str]:
+    """Remove any file in cache_dir whose name is not in `keep`; return the removed names.
+
+    Pure + S3-free (operates on the filesystem only) so it is unit-testable against a tmp dir.
+    Silent on a missing dir (nothing cached yet) and best-effort per file (a concurrent reader
+    holding a handle must never break a read — the invariant is 'don't accumulate', not 'atomic')."""
+    removed: list[str] = []
+    if not cache_dir.is_dir():
+        return removed
+    for entry in cache_dir.iterdir():
+        if entry.is_file() and entry.name not in keep:
+            try:
+                entry.unlink()
+                removed.append(entry.name)
+            except OSError:  # noqa: PERF203 - best-effort; a held handle just defers cleanup one run
+                pass
+    return removed
+
+
+def _sweep_stale_cache_once() -> None:
+    """Run the stale-cache sweep at most once per process (idempotent, cheap after the first)."""
+    global _STALE_CACHE_SWEPT
+    if _STALE_CACHE_SWEPT:
+        return
+    _STALE_CACHE_SWEPT = True
+    _sweep_stale_cache(CACHE_DIR, _CACHE_ALLOWED_NAMES)
+
 # indication → the landed subgroup-assignment shard (tumor / case-barcode family).
 # ONLY COADREAD is materialized today (11 strata: MSI/MSS, sidedness, CMS1-4,
 # CIMP×3). The other 7 catalogued indications are defined-but-unbuilt — emitting
@@ -168,6 +209,10 @@ def _read_gene(which: str, target: str):
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
     import pandas as pd
+
+    # Self-heal any stale full-download residue before we stream (see _sweep_stale_cache).
+    # Once per process; a no-op on the common case (only the sidecar present).
+    _sweep_stale_cache_once()
 
     key = TCGA_LONG_KEY if which == "tcga" else GTEX_LONG_KEY
     group_col = "study" if which == "tcga" else "tissue"
