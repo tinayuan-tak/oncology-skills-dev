@@ -108,6 +108,22 @@ def bucket_key_for(manifest_id: str, root: Path = DATA_CATALOG) -> tuple[str, st
     return bucket, key
 
 
+def bucket_prefix_for(manifest_id: str, root: Path = DATA_CATALOG) -> tuple[str, str]:
+    """Resolve a source manifest_id to (bucket, key_prefix) for sub-file reads.
+
+    For a source-release whose s3_uri is a DIRECTORY (ends in '/'), returns the
+    bucket-relative prefix WITH its trailing slash preserved — faithful to the
+    manifest — so a reader builds a per-file key as `f"{PREFIX}{filename}"`
+    (no manual separator). Lets a reader replace a hand-typed
+    `PREFIX = "data-catalog/sources/.../dmc-26q1"` + `f"{PREFIX}/Model.csv"` with
+    `_, PREFIX = bucket_prefix_for(ID)` + `f"{PREFIX}Model.csv"`, deriving the
+    prefix from the manifest (single source of truth). Raises FileNotFoundError
+    if the id is unknown.
+    """
+    bucket, key = bucket_key_for(manifest_id, root=root)
+    return bucket, key
+
+
 # ---------------------------------------------------------------------------
 # Index construction
 # ---------------------------------------------------------------------------

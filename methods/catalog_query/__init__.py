@@ -31,6 +31,7 @@ from .read import (  # noqa: F401,E402
     CatalogIndex,
     ManifestRecord,
     bucket_key_for,
+    bucket_prefix_for,
     load_catalog,
     load_manifest,
     s3_uri_for,

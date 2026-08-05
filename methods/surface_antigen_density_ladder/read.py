@@ -35,6 +35,8 @@ import csv
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_prefix_for
+
 METHOD_VERSION = "0.3.0"
 
 # The governed corpus is the SOURCE-OF-TRUTH object on S3 (data-catalog manifest
@@ -42,12 +44,10 @@ METHOD_VERSION = "0.3.0"
 # drift. Read from S3 with a local cache + the definitive-vs-transient latch pattern (mirrors
 # cptac_protein_deg). Tests pass an explicit corpus_path to bypass S3.
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 SOURCE_MANIFEST_ID = "surface-antigen-absolute-density-curated-v1"
-CORPUS_S3_KEY = (
-    "data-catalog/sources/surface-antigen-absolute-density-curated-v1/"
-    "absolute_density_corpus.tsv"
-)
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(SOURCE_MANIFEST_ID)
+CORPUS_S3_KEY = f"{_SOURCE_PREFIX}absolute_density_corpus.tsv"
 CACHE_DIR = Path.home() / ".cache" / "framework-surface-density-ladder"
 CACHE_CORPUS = CACHE_DIR / "absolute_density_corpus.tsv"
 

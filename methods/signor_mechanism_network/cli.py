@@ -49,13 +49,13 @@ from pathlib import Path
 import click
 
 from .moa_ontology import classify_edge, ONTOLOGY_VERSION
+from methods.catalog_query.read import bucket_prefix_for
 
 DEFAULT_AWS_PROFILE = "cbg"
-OMNIPATH_S3_BUCKET = "onc-compbio"
-OMNIPATH_S3_KEY = (
-    "data-catalog/sources/omnipath/snapshot-2026-06-29/interactions.tsv"
-)
 OMNIPATH_MANIFEST_ID = "omnipath-snapshot-2026-06-29"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+OMNIPATH_S3_BUCKET, _OMNIPATH_PREFIX = bucket_prefix_for(OMNIPATH_MANIFEST_ID)
+OMNIPATH_S3_KEY = f"{_OMNIPATH_PREFIX}interactions.tsv"
 
 # SIGNOR is the target upstream source we filter to. OmniPath's `sources` column
 # is a semicolon-delimited list of upstream resource identifiers; SIGNOR-tagged

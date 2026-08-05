@@ -26,6 +26,7 @@ import yaml
 
 from methods.catalog_query.read import (
     bucket_key_for,
+    bucket_prefix_for,
     load_catalog,
     load_manifest,
     s3_uri_for,
@@ -164,6 +165,19 @@ def test_bucket_key_for_splits_uri(catalog):
     assert key == "data-catalog/derived/derived-product/out.parquet"
     # the pair reassembles to the authoritative s3_uri (the migration invariant)
     assert f"s3://{bucket}/{key}" == s3_uri_for("derived-product", root=dc)
+
+
+def test_bucket_prefix_for_preserves_trailing_slash(catalog):
+    dc, _ = catalog
+    # raw-source is a source-release whose s3_uri is a DIRECTORY (ends in '/').
+    bucket, prefix = bucket_prefix_for("raw-source", root=dc)
+    assert bucket == "onc-compbio"
+    assert prefix == "data-catalog/sources/acme/1/"
+    assert prefix.endswith("/")                       # faithful to the manifest dir
+    # reader idiom: f"{PREFIX}{filename}" needs NO manual separator
+    assert f"{prefix}Model.csv" == "data-catalog/sources/acme/1/Model.csv"
+    # reassembles to the authoritative s3_uri + filename
+    assert f"s3://{bucket}/{prefix}Model.csv" == s3_uri_for("raw-source", root=dc) + "Model.csv"
 
 
 # ---------------------------------------------------------------------------

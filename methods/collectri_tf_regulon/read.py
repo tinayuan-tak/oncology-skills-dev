@@ -36,13 +36,13 @@ _METHODS_ROOT = Path(__file__).resolve().parent.parent
 if str(_METHODS_ROOT.parent) not in sys.path:
     sys.path.insert(0, str(_METHODS_ROOT.parent))
 from methods.signor_mechanism_network.moa_ontology import classify_edge, ONTOLOGY_VERSION
+from methods.catalog_query.read import bucket_prefix_for
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 COLLECTRI_SOURCE_MANIFEST_ID = "collectri-snapshot-2026-06-30"
-COLLECTRI_S3_KEY = (
-    "data-catalog/sources/collectri/snapshot-2026-06-30/CollecTRI.csv"
-)
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(COLLECTRI_SOURCE_MANIFEST_ID)
+COLLECTRI_S3_KEY = f"{_SOURCE_PREFIX}CollecTRI.csv"
 
 CACHE_DIR = Path.home() / ".cache" / "framework-collectri"
 CACHE_CSV = CACHE_DIR / "CollecTRI.csv"

@@ -15,11 +15,16 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+from methods.catalog_query.read import bucket_prefix_for
+
 METHOD_VERSION = "0.1.0"
 
 # --- source location (landed manifest gnomad-constraint-snapshot-2026-07-02) ---
-S3_BUCKET = "onc-compbio"
-S3_KEY = "data-catalog/sources/gnomad/constraint-snapshot-2026-07-02/gnomad.v4.1.constraint_metrics.tsv"
+SOURCE_MANIFEST_ID = "gnomad-constraint-snapshot-2026-07-02"
+# bucket + key resolved from the data-catalog manifest (single source of truth);
+# was a hand-typed literal with no manifest_id constant to tie it back.
+S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(SOURCE_MANIFEST_ID)
+S3_KEY = f"{_SOURCE_PREFIX}gnomad.v4.1.constraint_metrics.tsv"
 DEFAULT_AWS_PROFILE = "cbg"
 
 # --- v4.1 column names (per the source manifest content-schema) ---

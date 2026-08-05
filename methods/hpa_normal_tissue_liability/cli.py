@@ -28,10 +28,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_prefix_for
+
 METHOD_VERSION = "0.1.0"
 
-S3_BUCKET = "onc-compbio"
-HPA_KEY = "data-catalog/sources/hpa/v25-1/proteinatlas.tsv.zip"
+SOURCE_MANIFEST_ID = "hpa-v25-1"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(SOURCE_MANIFEST_ID)
+HPA_KEY = f"{_SOURCE_PREFIX}proteinatlas.tsv.zip"
 DEFAULT_AWS_PROFILE = "cbg"
 
 # Perf Stage 3 (2026-07-23): the HPA master zip was previously re-downloaded from S3 on EVERY call

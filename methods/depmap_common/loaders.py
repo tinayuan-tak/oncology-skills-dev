@@ -20,9 +20,16 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
-DEPMAP_S3_BUCKET = "onc-compbio"
-DEPMAP_S3_PREFIX_CRISPR = "data-catalog/sources/depmap-consortium/dmc-26q1"
-DEPMAP_S3_PREFIX_RNAI = "data-catalog/sources/depmap-consortium/dmc-26q1-rnai"
+from methods.catalog_query.read import bucket_prefix_for
+
+# bucket + source-dir prefixes resolved from the data-catalog manifests (single
+# source of truth). rstrip('/') keeps the existing `f"{PREFIX}/File.csv"` concat
+# idiom byte-identical (bucket_prefix_for returns the dir WITH its trailing slash).
+DEPMAP_CRISPR_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_RNAI_MANIFEST_ID = "depmap-consortium-26q1-rnai"
+DEPMAP_S3_BUCKET, _CRISPR_PREFIX = bucket_prefix_for(DEPMAP_CRISPR_MANIFEST_ID)
+DEPMAP_S3_PREFIX_CRISPR = _CRISPR_PREFIX.rstrip("/")
+DEPMAP_S3_PREFIX_RNAI = bucket_prefix_for(DEPMAP_RNAI_MANIFEST_ID)[1].rstrip("/")
 
 # Local-cache fallback paths (checked in order)
 DEPMAP_LOCAL_FALLBACK_DIRS = [
