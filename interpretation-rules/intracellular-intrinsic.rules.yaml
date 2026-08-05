@@ -1009,6 +1009,76 @@ rules:
       Target absent from the TCGA long product for this indication, or matrix unreachable. Coverage gap.
 
   # ============================================================================
+  # SINGLE-CELL PER-COMPARTMENT TUMOR EXPRESSION (sc_rna/tumor) — PRESENCE signals
+  # ============================================================================
+  # The single-cell analogue of the tumor-expression-* block above, keyed on the
+  # tumor-scrna-celltype-expression card's malignant-anchored sc_expression_class. Single-cell adds
+  # what bulk cannot: detection at per-cell resolution + malignant-vs-microenvironment ATTRIBUTION.
+  # SAME per-indication-scoping discipline as the bulk tumor-RNA rules: NO killer — a per-indication
+  # single-cell read cannot kill a target-wide nomination (the target may be malignant-expressed in
+  # other indications). microenvironment_dominant is NEUTRAL (present in the tumor, just not tumor-
+  # cell-intrinsic — a presence-axis nuance, not an absence; the ADC/TCE modality-gate reading of
+  # this signal is a deferred P4 facet). Signals feed the LLM/matrix; whether they enter the
+  # tumor-presence sc_rna ladder is the skill's call (additive, verdict byte-stable for existing targets).
+  - rule_id: sc-expression-malignant-broadly-detected-supportive
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: sc_expression_class
+      in: [malignant_broadly_detected, malignant_subset_detected]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target is detected in malignant (tumor) cells at single-cell resolution — measurable tumor-cell-
+      INTRINSIC expression, the sharpest presence signal single-cell provides (bulk cannot separate
+      malignant from microenvironment). Supportive for small-molecule (context-of-action present in the
+      tumor cell) and degrader (target must be present in the tumor cell to be degraded).
+      malignant_subset_detected additionally flags a target-high tumor-cell subpopulation for selection.
+
+  - rule_id: sc-expression-microenvironment-dominant-neutral
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: sc_expression_class
+      equals: microenvironment_dominant
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is detected in the tumor SAMPLE but predominantly in the microenvironment (immune/stromal/
+      endothelial), NOT in malignant cells. NEUTRAL: the target is present (a bulk-RNA presence signal
+      is corroborated) but the single-cell view shows it is not tumor-cell-intrinsic — a caveat on the
+      presence call, not a directional signal for an intracellular SM/degrader. (For tumor-cell-targeted
+      biologics this microenvironment attribution is decision-relevant; that modality-gate reading is a
+      deferred P4 facet, not an axis-1 signal here.)
+
+  - rule_id: sc-expression-broadly-low-neutral
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: sc_expression_class
+      equals: broadly_low
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target detected in only a minority of cells across every compartment in this indication's tumors.
+      NEUTRAL, NOT a killer: this is a PER-INDICATION single-cell read — the target may be malignant-
+      expressed in other indications, so indication-scoped low single-cell detection cannot kill a
+      target-wide nomination (same discipline as the bulk tumor-RNA broadly-low rule).
+
+  - rule_id: sc-expression-data-unavailable-insufficient
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: sc_expression_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      No landed single-cell product for this indication, target absent from the product, OR the
+      indication's atlases carry no per-cell malignant annotation to anchor the call. Coverage gap
+      (a NAMED capability gap, never a measured negative).
+
+  # ============================================================================
   # TUMOR-VS-NORMAL PERCENTILE-CROSSING (Q2, per-sample selectivity) — SELECTIVITY signals
   # ============================================================================
   # Per-sample corroboration of the aggregate tumor-vs-normal-selectivity card. Emits SM/degrader
