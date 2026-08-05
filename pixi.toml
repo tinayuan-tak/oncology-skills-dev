@@ -7,6 +7,18 @@ version = "0.1.0"
 
 [tasks]
 
+# Tier-1 packaging (PR #3): declare the three sibling framework repos as editable
+# path-dependencies so the skills' `import methods.*` and (future) contracts-loader
+# imports resolve to installed packages, not a sys.path hack. Paths are relative to this
+# repo; they assume the canonical side-by-side clone layout. A consumer who clones
+# elsewhere can either preserve the relative layout OR keep using the *_ROOT env-var
+# fallbacks (the skills still carry those — this is additive). When a hosted index
+# (CodeArtifact) is chosen, these become version pins instead of path deps.
+[pypi-dependencies]
+oncology-analysis-methods = { path = "../rnd-computational-biology-oncology-analysis-methods", editable = true }
+oncology-target-contracts = { path = "../rnd-computational-biology-oncology-target-contracts", editable = true }
+target-id-resolver = { path = "../rnd-computational-biology-oncology-data-catalog/libs/target_id_resolver", editable = true }
+
 [dependencies]
 python = ">=3.14.6,<3.15"
 pandas = ">=3.0.3,<4"
