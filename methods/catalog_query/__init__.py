@@ -30,6 +30,7 @@ METHOD_VERSION = "0.1.0"
 from .read import (  # noqa: F401,E402
     CatalogIndex,
     ManifestRecord,
+    bucket_key_for,
     load_catalog,
     load_manifest,
     s3_uri_for,

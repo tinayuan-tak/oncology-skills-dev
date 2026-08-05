@@ -37,14 +37,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for
+
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
-
 DERIVED_MANIFEST_ID = "kinome-atlas-long-edges-v1"
-DERIVED_S3_KEY = (
-    "data-catalog/derived/kinome-atlas-long-edges-v1/kinome_atlas_long_edges.parquet"
-)
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 
 CACHE_DIR = Path.home() / ".cache" / "framework-kinome-atlas"
 CACHE_PARQUET = CACHE_DIR / "kinome_atlas_long_edges.parquet"

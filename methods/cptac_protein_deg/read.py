@@ -25,14 +25,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for
+
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "cptac-protein-tumor-vs-normal-per-cohort-v1"
-DERIVED_S3_KEY = (
-    "data-catalog/derived/cptac-protein-tumor-vs-normal-per-cohort-v1/"
-    "cptac_protein_deg.parquet"
-)
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 
 CACHE_DIR = Path.home() / ".cache" / "framework-cptac"
 CACHE_PARQUET = CACHE_DIR / "cptac_protein_deg.parquet"
@@ -43,10 +42,7 @@ CACHE_PARQUET = CACHE_DIR / "cptac_protein_deg.parquet"
 # sorted by (gene_symbol, cohort) so a per-gene predicate-pushdown read prunes to a few
 # row-groups. See data-catalog manifest cptac-protein-tumor-vs-normal-per-sample-v1.
 PER_SAMPLE_MANIFEST_ID = "cptac-protein-tumor-vs-normal-per-sample-v1"
-PER_SAMPLE_S3_KEY = (
-    "data-catalog/derived/cptac-protein-tumor-vs-normal-per-sample-v1/"
-    "cptac_protein_per_sample.parquet"
-)
+_, PER_SAMPLE_S3_KEY = bucket_key_for(PER_SAMPLE_MANIFEST_ID)
 CACHE_PER_SAMPLE = CACHE_DIR / "cptac_protein_per_sample.parquet"
 
 _DERIVED_STATUS: Optional[bool] = None

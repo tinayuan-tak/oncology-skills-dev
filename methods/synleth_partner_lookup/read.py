@@ -27,11 +27,14 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for
+
 METHOD_VERSION = "read-0.1.0"
 
-S3_BUCKET = "onc-compbio"
-DERIVED_KEY = ("data-catalog/derived/synlethdb-sl-partners-per-gene-v1/"
-               "synlethdb_sl_partners_per_gene.parquet")
+DERIVED_MANIFEST_ID = "synlethdb-sl-partners-per-gene-v1"
+# bucket + key resolved from the data-catalog manifest (single source of truth);
+# was a hand-typed literal with no manifest_id constant to tie it back.
+S3_BUCKET, DERIVED_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 DEFAULT_AWS_PROFILE = "cbg"
 CACHE_DIR = Path.home() / ".cache" / "synlethdb-sl-partners"
 CACHE_PARQUET = CACHE_DIR / "synlethdb_sl_partners_per_gene.parquet"

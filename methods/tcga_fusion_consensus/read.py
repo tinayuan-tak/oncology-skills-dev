@@ -39,6 +39,8 @@ from typing import Iterator, Iterable, Optional
 
 import pandas as pd
 
+from methods.catalog_query.read import bucket_key_for
+
 METHOD_VERSION = "0.2.0"   # 0.2.0: + per-target read_target_summary over the derived S3 product
 
 # ---------- per-target read over the derived consensus product (2026-07-23) ----------
@@ -46,10 +48,10 @@ METHOD_VERSION = "0.2.0"   # 0.2.0: + per-target read_target_summary over the de
 # CONSUMES it per-(target, indication) for the fusion-rearrangement-landscape card. Reads the S3
 # object with the definitive-vs-transient cache latch used by every other derived reader.
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "tcga-fusion-consensus-v1"
-DERIVED_S3_KEY = ("data-catalog/derived/tcga-fusion-consensus-v1/"
-                  "fusion_consensus_per_sample_gene.parquet")
+# bucket + key resolved from the data-catalog manifest (single source of truth) —
+# was a hand-typed literal parallel to DERIVED_MANIFEST_ID that could silently drift.
+S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 CACHE_DIR = Path.home() / ".cache" / "framework-fusion-consensus"
 CACHE_PARQUET = CACHE_DIR / "fusion_consensus_per_sample_gene.parquet"
 _DERIVED_STATUS: Optional[bool] = None

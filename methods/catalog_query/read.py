@@ -92,6 +92,22 @@ def s3_uri_for(manifest_id: str, root: Path = DATA_CATALOG) -> str:
     return load_manifest(manifest_id, root=root)["s3_uri"]
 
 
+def bucket_key_for(manifest_id: str, root: Path = DATA_CATALOG) -> tuple[str, str]:
+    """Resolve a manifest_id to (bucket, key) for a boto3 get_object/download_file.
+
+    Splits the authoritative s3_uri into its bucket and bucket-relative key — the
+    exact pair the WHOLE_FILE readers pass to `s3.download_file(bucket, key, ...)`.
+    Lets a reader replace a hand-typed `S3_KEY = "data-catalog/derived/.../x.parquet"`
+    constant with `_, S3_KEY = bucket_key_for(MANIFEST_ID)`, so the key is derived
+    from the manifest (single source of truth) rather than a parallel copy that can
+    drift. Raises FileNotFoundError if the id is unknown (fail loud at import, not
+    silently at read).
+    """
+    path = _s3_uri_to_path(s3_uri_for(manifest_id, root=root))  # bucket/key...
+    bucket, _, key = path.partition("/")
+    return bucket, key
+
+
 # ---------------------------------------------------------------------------
 # Index construction
 # ---------------------------------------------------------------------------

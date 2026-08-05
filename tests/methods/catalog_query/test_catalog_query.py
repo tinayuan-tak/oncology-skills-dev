@@ -25,6 +25,7 @@ import pytest
 import yaml
 
 from methods.catalog_query.read import (
+    bucket_key_for,
     load_catalog,
     load_manifest,
     s3_uri_for,
@@ -154,6 +155,15 @@ def test_load_manifest_unknown_raises(catalog):
 def test_s3_uri_for_resolver_seam(catalog):
     dc, _ = catalog
     assert s3_uri_for("derived-product", root=dc).endswith("out.parquet")
+
+
+def test_bucket_key_for_splits_uri(catalog):
+    dc, _ = catalog
+    bucket, key = bucket_key_for("derived-product", root=dc)
+    assert bucket == "onc-compbio"
+    assert key == "data-catalog/derived/derived-product/out.parquet"
+    # the pair reassembles to the authoritative s3_uri (the migration invariant)
+    assert f"s3://{bucket}/{key}" == s3_uri_for("derived-product", root=dc)
 
 
 # ---------------------------------------------------------------------------

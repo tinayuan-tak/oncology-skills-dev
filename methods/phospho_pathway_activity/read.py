@@ -18,12 +18,13 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for
+
 METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): real phospho-vs-protein cross-layer statistic
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 PHOSPHO_PRODUCT_MANIFEST = "cptac-phospho-per-site-per-cohort-v1"
-PHOSPHO_PRODUCT_KEY = ("data-catalog/derived/cptac-phospho-per-site-per-cohort-v1/"
-                       "cptac_phospho_per_site.parquet")
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, PHOSPHO_PRODUCT_KEY = bucket_key_for(PHOSPHO_PRODUCT_MANIFEST)
 
 # indication → cptac cohort key (lower-cased; matches the product's `cohort` column). Unchanged map.
 INDICATION_TO_CPTAC = {

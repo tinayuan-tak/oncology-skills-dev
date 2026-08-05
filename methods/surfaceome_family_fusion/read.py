@@ -22,14 +22,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for
+
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "surfaceome-family-classification-per-uniprot-v1"
-DERIVED_S3_KEY = (
-    "data-catalog/derived/surfaceome-family-classification-per-uniprot-v1/"
-    "surfaceome_family.parquet"
-)
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 
 CACHE_DIR = Path.home() / ".cache" / "framework-surfaceome-family"
 CACHE_PARQUET = CACHE_DIR / "surfaceome_family.parquet"
