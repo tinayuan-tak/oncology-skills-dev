@@ -814,6 +814,95 @@ _BIOMARKER_INPUTS = {
 }
 
 
+# ── BEST-role classification (biomarker-axis plan §1) ────────────────────────────────────────
+# The facet's corroboration/stratification blocks answer "IS there a biomarker signal?" but NOT
+# "what KIND?". A biomarker is always one of a fixed set of intended-uses, and they MUST stay
+# separate — high target expression may be PROGNOSTIC but not PREDICTIVE; a driver LoF may define a
+# diagnostic SUBTYPE but not predict inhibitor sensitivity. A single target can carry SEVERAL
+# (KRAS: predictive; MLH1: subtyping + prognostic), so this emits a LIST of typed hypotheses, never
+# one collapsed label. Pure classification over fields the facet already assembled — no new data,
+# verdict-inert (each hypothesis names its intended_use + basis + a coarse evidence_strength).
+#
+# intended_use vocabulary (BEST framework subset the current inputs can support):
+#   predictive           — a molecular state that predicts response to targeting (mutation-stratified
+#                          dependency / predictive_biomarker alteration_role). Guardrail: a CRISPR-
+#                          dependency biomarker is a DEPENDENCY-predictive hypothesis, NOT proven an
+#                          inhibitor biomarker — labelled predictive_dependency, basis flagged.
+#   prognostic           — associates with outcome irrespective of treatment (expression↔survival).
+#                          Kept STRICTLY distinct from predictive (survival is stage-dominated).
+#   diagnostic_subtyping — defines a molecular subtype/class (driver LoF/GoF or a restricted subtype).
+#   pharmacodynamic      — a downstream activity readout usable to confirm target engagement (phospho).
+# (predictive-performance PPV/NPV + deployability are the plan's NEXT layers — NOT computed here.)
+
+
+def _classify_biomarker_best_roles(corroboration: dict, stratification: dict) -> list:
+    """Type the assembled biomarker signals into a LIST of {intended_use, basis, evidence_strength}
+    hypotheses (BEST-role §1). Pure fn — deterministic, no I/O; roles are NON-exclusive. A field that
+    is null / data_unavailable / not_informative contributes nothing (honest — never fabricates a role)."""
+    def _live(v):
+        return v not in (None, "data_unavailable", "not_informative", "insufficient_survival_data",
+                         "insufficient_mutation_rate", "insufficient_paired_models")
+
+    hyps: list = []
+    mut_strat = stratification.get("mutation_stratification_class")
+    alt_role = corroboration.get("alteration_role")
+    surv = stratification.get("survival_association_class")
+    subtype = stratification.get("subtype_stratification_class")
+    phospho = corroboration.get("phospho_activity_class")
+    # the dependency-correlation corroborators (support a predictive-dependency hypothesis, not roles of their own)
+    corr_support = [corroboration.get(f) for f in
+                    ("abundance_dependency_class", "correlation_class", "correspondence_class")]
+
+    # PREDICTIVE — genomic stratifier (the strongest, most actionable). Two sub-bases:
+    if alt_role == "predictive_biomarker":
+        hyps.append({"intended_use": "predictive", "basis": "alteration_role=predictive_biomarker",
+                     "evidence_strength": "strong",
+                     "_note": "genotype→drug-response predictive hypothesis (OncoKB/IntOGen-classed)."})
+    if mut_strat in ("mutant_strongly_dependent", "mutant_moderately_dependent"):
+        strength = "strong" if mut_strat == "mutant_strongly_dependent" else "moderate"
+        hyps.append({"intended_use": "predictive", "basis": f"mutation_stratification_class={mut_strat}",
+                     "evidence_strength": strength,
+                     "_note": "mutation-stratified DEPENDENCY (CRISPR) — a dependency-predictive "
+                              "hypothesis; NOT auto an inhibitor biomarker (KO removes noncatalytic "
+                              "functions). Confirm with a pharmacologic (PRISM) arm before clinical framing."})
+    # a dependency-correlation signal WITHOUT a genotype stratifier = a weaker predictive-dependency hypothesis
+    if not any(h["intended_use"] == "predictive" for h in hyps) and any(
+            v in ("strong_negative", "moderate_negative", "protein_predicts_dependency",
+                  "well_modeled_in_lineage", "well_modeled_off_lineage") for v in corr_support):
+        hyps.append({"intended_use": "predictive", "basis": "expression/abundance↔dependency correlation",
+                     "evidence_strength": "weak",
+                     "_note": "abundance/expression correlates with dependency but no genotype stratifier "
+                              "— a continuous-biomarker HYPOTHESIS, weakest predictive tier."})
+
+    # PROGNOSTIC — expression↔survival. STRICTLY distinct from predictive.
+    if surv in ("expression_high_worse_survival", "expression_high_better_survival"):
+        hyps.append({"intended_use": "prognostic", "basis": f"survival_association_class={surv}",
+                     "evidence_strength": "weak",
+                     "_note": "univariate median-split OS association (stage-UNADJUSTED, hypothesis-"
+                              "generating) — a PROGNOSTIC hypothesis, says nothing about drug response."})
+
+    # DIAGNOSTIC_SUBTYPING — a driver alteration that defines a class, or a restricted subtype.
+    if alt_role in ("direct_driver_lof", "direct_driver_gof"):
+        hyps.append({"intended_use": "diagnostic_subtyping", "basis": f"alteration_role={alt_role}",
+                     "evidence_strength": "moderate",
+                     "_note": "driver alteration defines a molecular class/subtype; subtyping ≠ predictive "
+                              "(a class-defining event need not predict a specific drug's response)."})
+    if subtype in ("subtype_restricted", "subtype_enriched"):
+        hyps.append({"intended_use": "diagnostic_subtyping", "basis": f"subtype_stratification_class={subtype}",
+                     "evidence_strength": "moderate" if subtype == "subtype_restricted" else "weak",
+                     "_note": "expression restricted to / enriched in a molecular subtype — a subtyping/"
+                              "patient-selection axis."})
+
+    # PHARMACODYNAMIC — a pathway-activity readout usable as a PD marker (not patient-selection).
+    if _live(phospho) and phospho not in ("not_phosphoprotein",):
+        hyps.append({"intended_use": "pharmacodynamic", "basis": f"phospho_activity_class={phospho}",
+                     "evidence_strength": "weak",
+                     "_note": "phospho/pathway-activity readout — candidate PD (target-engagement) "
+                              "marker, forward-looking; NOT a patient-selection biomarker."})
+
+    return hyps
+
+
 def _biomarker_facet(sub_results: dict) -> dict:
     """Assemble the biomarker-convergence facet (Q12). Deterministic; additive; verdict-inert.
 
@@ -868,15 +957,27 @@ def _biomarker_facet(sub_results: dict) -> dict:
     else:
         verdict = "none"
 
+    # BEST-role classification (§1): type the assembled signals into a LIST of non-exclusive
+    # hypotheses, each naming its intended_use. Kept SEPARATE from the facet verdict (which is a
+    # confidence/patient-selection summary) — this answers "what KIND of biomarker(s)", the verdict
+    # answers "how strong a selector". Verdict-inert, additive.
+    biomarker_hypotheses = _classify_biomarker_best_roles(corroboration, stratification)
+    intended_uses = sorted({h["intended_use"] for h in biomarker_hypotheses})
+
     return {
         "corroboration_role": corroboration,
         "stratification_role": stratification,
         "preferred_assay": preferred_assay,
         "verdict": verdict,
+        "biomarker_hypotheses": biomarker_hypotheses,   # BEST-role §1: typed, non-exclusive
+        "intended_uses": intended_uses,                 # rollup of distinct roles present
         "_disclaimer": ("Biomarker is a FACET, not a gate: it corroborates other gates' verdicts "
                         "(→ confidence) and defines patient-selection (→ stratification); it never "
-                        "mints a nomination. null fields = the input sub-skill/card was not reachable "
-                        "this run (honest coverage), not a measured negative."),
+                        "mints a nomination. biomarker_hypotheses are BEST-role-typed (predictive / "
+                        "prognostic / diagnostic_subtyping / pharmacodynamic) + NON-exclusive — a "
+                        "target can carry several; predictive and prognostic are kept strictly "
+                        "separate. Predictive-performance (PPV/NPV) + deployability are NOT yet "
+                        "computed. null fields = input not reachable this run, not a measured negative."),
     }
 
 
