@@ -61,6 +61,17 @@ outputs:
     - fraction_tumor_above_normal_p95           # Q2 headline enrichment metric (normal-relative)
     - fraction_tumor_above_normal_p99
     - distribution_overlap_tumor_normal         # OVL ∈ [0,1]; 0 = clean separation
+    # All-gene percentile null (additive, Phase 1C 2026-08-05): where the tumor MEDIAN
+    # log2(TPM+1) falls among ALL genes measured in THIS indication's TCGA tumor cohort. A
+    # single-gene predicate-pushdown lookup of the precomputed allgene-tumor-rank-v1 (NO
+    # multi-GB long-product re-scan); the null is drawn PER-STUDY (never pooled across
+    # indications — the anti-pooling audit guard is the context string). Answers "is a median
+    # of 3.97 high?" in the disease-tissue frame (KRAS 84th mid vs CEACAM5 99.9th top_1pct in
+    # COADREAD). One-directional: display + companion categorical; NEVER moves tumor_expression_class.
+    - allgene_percentile                         # float 0-100 (or null) — tumor-median rank among all genes, mean over the indication's studies
+    - allgene_percentile_class                   # categorical (drives rules if wired)
+    - allgene_percentile_context                 # string — source + studies the null was drawn from (audit)
+    - allgene_percentile_by_study               # {study: pct} — per-TCGA-study breakdown (multi-study transparency)
 
   summary_fields_vocabulary:
     tumor_expression_class:
@@ -74,6 +85,12 @@ outputs:
       - continuous                              # unimodal spread
       - bimodal                                 # a separable target-high + target-low subset (patient-selection shape)
       - long_tail                               # mostly-off with a rare high-expressing tail
+    allgene_percentile_class:
+      - top_1pct                                # >= top_1_percentile cutoff
+      - top_decile                              # >= top_decile cutoff
+      - mid
+      - bottom_decile                           # <= bottom_decile cutoff
+      - data_unavailable
 
   figures:
     - id: expression_distribution_per_sample
@@ -94,6 +111,10 @@ thresholds:
   broadly_low_max_fraction: 0.3
   # ENRICHMENT cutoff (normal-relative) — the Q2 headline metric percentile.
   normal_enrichment_percentile: 95
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
 
 warning_predicates:
   - warning_id: low_tumor_sample_count

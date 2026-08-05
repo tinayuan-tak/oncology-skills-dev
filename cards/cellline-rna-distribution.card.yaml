@@ -47,6 +47,16 @@ outputs:
     - n_lineages_evaluated
     - per_lineage_stats                           # list of {lineage, n, median_log2tpm, fraction_expressed}
     - n_lineage_restricted_lineages               # lineages whose expressed-fraction is >=0.40 ABOVE the panel mean (relative rule; cli.py:227-230 — deliberately NOT a strict panel<30% gate)
+    # All-gene percentile null (additive, Phase 1C 2026-08-05): where the panel MEDIAN
+    # log2(TPM+1) falls among ALL ~19k protein-coding genes in the DepMap panel. A single-gene
+    # predicate-pushdown lookup of the precomputed allgene-depmap-rank-26q1-v1 (NO wide-matrix
+    # re-scan). Contextualizes the absolute panel median ("is 2.5 high?"). ORTHOGONAL to
+    # expression_class/lineage-restriction — a lineage-restricted antigen (e.g. CEACAM5) reads
+    # mid on the pan-panel median axis yet is a strong target on the lineage axis. One-directional:
+    # display + companion categorical; NEVER moves expression_class.
+    - allgene_percentile                           # float 0-100 (or null) — panel-median rank among all genes
+    - allgene_percentile_class                     # categorical (drives rules if wired)
+    - allgene_percentile_context                   # string — the panel/metric the null was drawn from (audit)
 
   summary_fields_vocabulary:
     expression_class:
@@ -54,6 +64,12 @@ outputs:
       - broadly_moderate                          # >70% expressed but <30% highly expressed
       - lineage_restricted                        # 10-70% expressed; lineage-stratified
       - broadly_low                               # <30% expressed
+      - data_unavailable
+    allgene_percentile_class:
+      - top_1pct                                   # >= top_1_percentile cutoff
+      - top_decile                                 # >= top_decile cutoff
+      - mid
+      - bottom_decile                              # <= bottom_decile cutoff
       - data_unavailable
 
   figures:
@@ -80,6 +96,10 @@ thresholds:
   lineage_restricted_min_fraction: 0.10
   lineage_restricted_max_fraction: 0.70
   min_lineage_size: 5                             # need ≥5 cell lines per lineage for stable estimate
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
 
 warning_predicates:
   - warning_id: low_panel_expression_coverage
