@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oncology-target-contracts"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "Governance-layer contracts (cards, rules, resolvers, schemas, vocabularies, dashboard specs) for the Takeda v2 oncology target-evaluation framework."
+dependencies = [
+    "pyyaml",
+]
+
+# Tier-1 packaging (ADDITIVE). This makes the `oncology_target_contracts` package —
+# a contracts_root() resolver + thin loader API + importable plot_styles palette —
+# pip-installable so consumers can locate/load cards, rules, schemas, vocabularies and
+# dashboard specs without a hardcoded sibling-repo path. Existing env-var/path readers
+# in the skills + analysis-methods repos are UNCHANGED; this is a parallel access path.
+#
+# NOTE on data: the contract artifacts (cards/, resolvers/, schemas/, vocabularies/,
+# dashboards/, plot_styles/*.mplstyle) live at the REPO ROOT, beside this package dir.
+# For an editable install (`pip install -e .`) contracts_root() resolves to that repo
+# root, so all data is reachable with zero copying. Bundling the ~1.3 MB YAML tree INTO
+# a built wheel (for a non-editable index install) is a follow-up — it requires either
+# moving the dirs under the package or a data-files/MANIFEST step. Tier-1's target is
+# editable installs, so it is deliberately out of scope here.
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["oncology_target_contracts*"]
