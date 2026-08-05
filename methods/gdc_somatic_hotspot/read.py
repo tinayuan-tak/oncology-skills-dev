@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from functools import partial
+from functools import lru_cache, partial
 
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
@@ -75,6 +75,61 @@ def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BA
     return cache_base / f"{indication.lower()}_mc3_hotspots.parquet"
 
 
+# --- Driver-recurrence percentile (Axis-1 analog, 2026-08-05) -----------------
+# The all-gene contextualization axis for genomic alteration, mirroring what
+# tumor-presence's allgene_percentile does for expression: turn the ABSOLUTE
+# overall_mutation_frequency into a RELATIVE one — "is this gene's recurrence
+# unusual among all mutated genes in THIS indication?" A raw 8% frequency is
+# uninterpretable without a reference frame; the percentile supplies it.
+#
+# NULL SEMANTICS (the correctness-critical choices):
+#   1. The MC3 aggregate has one gene-SUMMARY row per gene (hotspot_protein_change
+#      is null) PLUS one row per hotspot codon. The null MUST use ONLY the summary
+#      rows — otherwise a gene with many hotspots is over-counted in the reference.
+#   2. The aggregate lists ONLY genes with >=1 non-synonymous mutation, so the
+#      honest reference frame is "among genes mutated at all in this indication",
+#      NOT "all ~20k genes". This is stated in driver_recurrence_context for audit.
+#   3. Context-matched to the SAME indication aggregate the target row came from —
+#      never pooled across indications (the #1 percentile-null risk).
+
+@lru_cache(maxsize=16)
+def _allgene_mutation_frequency_null(aggregate_path_str: str) -> tuple:
+    """All genes' overall_mutation_frequency (gene-summary rows only) from ONE
+    indication's MC3 aggregate — the context-matched null for the driver-recurrence
+    percentile. Cached per aggregate path; one added scan of two columns. Returns a
+    tuple (hashable/cache-safe); empty on any failure → percentile is None."""
+    import pyarrow.parquet as pq
+    _ensure_aws_profile()
+    try:
+        path = Path(aggregate_path_str)
+        if not path.exists():
+            return tuple()
+        # gene-summary rows carry a null hotspot_protein_change; read both columns and
+        # keep only those, so each gene contributes its frequency exactly ONCE.
+        table = pq.read_table(
+            path, columns=["overall_mutation_frequency", "hotspot_protein_change"])
+        df = table.to_pandas()
+        summary = df[df["hotspot_protein_change"].isnull()]
+        return tuple(
+            float(v) for v in summary["overall_mutation_frequency"].tolist()
+            if v is not None)
+    except Exception:
+        return tuple()
+
+
+def _driver_recurrence_percentile(aggregate_path: Path, overall_freq, cutoffs: dict = None):
+    """Percentile + companion categorical of this gene's overall_mutation_frequency
+    among all mutated genes in the SAME indication aggregate. DISPLAY facet — the
+    class is emitted for render/LLM/rules-readiness but the skill does NOT wire a
+    rule against it yet (verdict spine stays byte-stable). Returns (pct, class)."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
+    from percentile_null import percentile_rank, classify_percentile
+    null_vec = _allgene_mutation_frequency_null(str(aggregate_path))
+    pct = percentile_rank(overall_freq, null_vec)
+    return pct, classify_percentile(pct, cutoffs)
+
+
 def read_hotspot_summary(
     target: str,
     indication: str,
@@ -104,6 +159,9 @@ def read_hotspot_summary(
             "overall_mutation_frequency": None,
             "n_samples_in_indication": None,
             "n_samples_mutated": None,
+            "driver_recurrence_percentile": None,
+            "driver_recurrence_class": "data_unavailable",
+            "driver_recurrence_context": None,
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
@@ -121,10 +179,22 @@ def read_hotspot_summary(
     )
 
     if table.num_rows == 0:
+        # Target has NO non-synonymous mutation in this indication — a real biological
+        # zero, so it sits at the very bottom of the recurrence distribution. Rank the
+        # 0.0 against the (mutated-gene) null: it lands below every mutated gene, which
+        # the percentile correctly reports as ~0th / bottom_decile (a genuine negative,
+        # distinct from data_unavailable when the aggregate itself is missing).
+        rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, 0.0)
         return {
             "overall_mutation_frequency": 0.0,
             "n_samples_in_indication": None,
             "n_samples_mutated": 0,
+            "driver_recurrence_percentile": rec_pct,
+            "driver_recurrence_class": rec_class,
+            "driver_recurrence_context": (
+                f"among genes with >=1 non-synonymous mutation in {indication} "
+                f"(TCGA-MC3 aggregate); target itself has zero mutations"
+            ),
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
@@ -140,10 +210,21 @@ def read_hotspot_summary(
         "hotspot_n_samples", ascending=False
     ).head(top_n_hotspots)
 
+    overall_freq = float(summary_row["overall_mutation_frequency"])
+    # Driver-recurrence percentile (Axis-1 analog) — where does this gene's recurrence
+    # fall among ALL mutated genes in this indication? DISPLAY facet, verdict-inert.
+    rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, overall_freq)
+
     return {
-        "overall_mutation_frequency": float(summary_row["overall_mutation_frequency"]),
+        "overall_mutation_frequency": overall_freq,
         "n_samples_in_indication": int(summary_row["n_samples_in_indication"]),
         "n_samples_mutated": int(summary_row["n_samples_mutated"]),
+        "driver_recurrence_percentile": rec_pct,
+        "driver_recurrence_class": rec_class,
+        "driver_recurrence_context": (
+            f"among genes with >=1 non-synonymous mutation in {indication} "
+            f"(TCGA-MC3 aggregate, n_genes={len(_allgene_mutation_frequency_null(str(aggregate_path)))})"
+        ),
         "hotspot_frequencies": [
             {
                 "protein_change": r["hotspot_protein_change"],
