@@ -665,6 +665,7 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                 proxy_normals[tissue] = (vals_t, rationale)
 
     landscape = []
+    powered_vectors = {}   # {stratum_id: [log2tpm]} for POWERED strata — the omnibus input
     for stratum_id in strata:
         member_cases = set(assignments.loc[
             (assignments["stratum_id"] == stratum_id) & (assignments["is_member"] == True),
@@ -673,6 +674,8 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         vals = sub["log2_tpm"].tolist()
         n = len(vals)
         floor_met = n >= _SUBGROUP_N_FLOOR
+        if floor_met:
+            powered_vectors[stratum_id] = vals
         state = _evstate(n, floor_met)
         # join-coverage guard: warns on the <5% id-convention-mismatch signature.
         cov = compute_join_coverage(bridged, "case", stratum_id, manifest, warn=True)
@@ -768,6 +771,15 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                        if r["evidence_state"] == "measured" and r.get("subtype_signal") == "subtype_restricted")
     subtype_stratification_class = classify_subtype_stratification(landscape)
 
+    # ACROSS-SUBTYPE OMNIBUS (Phase 3, 2026-08-05) — Kruskal-Wallis H + ε² variance-explained
+    # over the POWERED strata's per-sample vectors. Answers "is subtype a patient-selection axis
+    # for this target, and how much of the expression variance does it explain?" The per-stratum
+    # subtype_signal above is a PAIRWISE-vs-pooled call; this is the single OMNIBUS across all
+    # strata. Effect-size class bins on ε² ONLY (p is display-only: at TCGA n's KW p is near-always
+    # significant, so significance != actionability). One-directional context — like the rest of
+    # this card, never moves presence_verdict.
+    omnibus = _stats.kruskal_epsilon_squared(powered_vectors)
+
     base.update({"subtype_axis_available": True, "subtype_landscape": landscape,
                  "assignment_manifest": manifest, "matched_normal_tissue": normal_tissue,
                  "normal_comparator_type": comparator_type,
@@ -776,7 +788,8 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
                  "n_subtypes_restricted": n_restricted,
                  "subtype_stratification_class": subtype_stratification_class,
                  "n_subtypes_clearing_normal_window": n_window,
-                 "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy})
+                 "n_subtypes_clearing_proxy_window_by_tissue": n_window_by_proxy,
+                 **omnibus})
     return base
 
 

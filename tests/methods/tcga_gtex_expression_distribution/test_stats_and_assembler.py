@@ -234,6 +234,52 @@ def test_subtype_enriched_and_depleted_fire(monkeypatch):
     assert res["n_subtypes_measured"] == 2 and res["n_subtypes_enriched"] == 1
 
 
+def test_landscape_emits_subtype_omnibus(monkeypatch):
+    # two powered, well-separated strata → the omnibus fires with a large effect size.
+    hi = [(f"h{i}", 4.0 + (i % 5) * 0.1) for i in range(40)]
+    lo = [(f"l{i}", 0.5 + (i % 5) * 0.1) for i in range(40)]
+    _wire_subtype(monkeypatch, pooled_vals=[v for _c, v in hi + lo], bridged_rows=hi + lo,
+                  assignment_rows=[(f"h{i}", "SUBTYPE_HI", True) for i in range(40)]
+                                  + [(f"l{i}", "SUBTYPE_LO", True) for i in range(40)])
+    res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
+    assert res["subtype_effect_size_class"] == "large"
+    assert res["subtype_variance_explained"] > 0.14
+    assert res["subtype_omnibus_kruskal_h"] is not None
+    assert res["which_subtypes_separate"] == {"highest": "SUBTYPE_HI", "lowest": "SUBTYPE_LO"}
+    assert res["n_subtypes_measured"] == 2
+
+
+def test_omnibus_excludes_underpowered_strata(monkeypatch):
+    # only the POWERED strata enter the omnibus; an n<30 stratum must not be tested.
+    # A + B have real overlapping spread + near-equal centers → negligible effect (rank-based
+    # KW needs within-group spread; two CONSTANT groups would rank-separate perfectly — see
+    # test_class_tracks_effect_not_p for the spread-based effect-vs-p property).
+    _rng = np.random.default_rng(7)
+    small = [(f"s{i}", 8.0 + _rng.normal(0, 1)) for i in range(10)]   # n=10 < floor → excluded
+    big_a = [(f"a{i}", float(v)) for i, v in enumerate(_rng.normal(4.0, 1.0, 40))]
+    big_b = [(f"b{i}", float(v)) for i, v in enumerate(_rng.normal(4.05, 1.0, 40))]
+    _wire_subtype(monkeypatch, pooled_vals=[v for _c, v in small + big_a + big_b],
+                  bridged_rows=small + big_a + big_b,
+                  assignment_rows=[(f"s{i}", "RARE", True) for i in range(10)]
+                                  + [(f"a{i}", "A", True) for i in range(40)]
+                                  + [(f"b{i}", "B", True) for i in range(40)])
+    res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
+    assert res["n_subtypes_tested"] == 2                    # RARE (underpowered) excluded
+    assert res["subtype_effect_size_class"] == "negligible"
+
+
+def test_omnibus_data_unavailable_when_one_powered_stratum(monkeypatch):
+    # a single powered stratum → no across-subtype contrast possible.
+    big = [(f"b{i}", 4.0) for i in range(50)]
+    small = [(f"s{i}", 6.0) for i in range(10)]
+    _wire_subtype(monkeypatch, pooled_vals=[v for _c, v in big + small], bridged_rows=big + small,
+                  assignment_rows=[(f"b{i}", "COMMON", True) for i in range(50)]
+                                  + [(f"s{i}", "RARE", True) for i in range(10)])
+    res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
+    assert res["subtype_effect_size_class"] == "data_unavailable"
+    assert res["subtype_variance_explained"] is None
+
+
 def test_subtype_underpowered_gets_null_signal_not_scoped_call(monkeypatch):
     # a stratum below the n=30 floor must carry stats for context but a NULL signal + underpowered.
     small = [(f"s{i}", 6.0) for i in range(10)]      # n=10 < 30

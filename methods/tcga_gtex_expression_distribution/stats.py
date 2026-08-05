@@ -187,3 +187,176 @@ def distribution_overlap(tumor_log2tpm, normal_log2tpm, bins=50) -> float:
     nh, _ = np.histogram(nrm, bins=edges, density=True)
     width = edges[1] - edges[0]
     return float(np.sum(np.minimum(th, nh)) * width)
+
+
+# Effect-size cutoffs for ε² (epsilon-squared, KW variance-explained). Cohen-style bands
+# adapted to ε²: ~0.14 = large, ~0.06 = moderate, below = negligible. The CLASS bins on
+# ε² ONLY (effect size) — the p-value is display-only (at TCGA n's KW p is near-always
+# significant, so significance ≠ actionability; effect size is the decision-relevant quantity).
+EPSILON_SQUARED_LARGE = 0.14
+EPSILON_SQUARED_MODERATE = 0.06
+
+
+def kruskal_epsilon_squared(subtype_vectors: dict, min_group_n: int = 2,
+                            min_groups: int = 2) -> dict:
+    """Across-subtype omnibus test: is expression DIFFERENT across molecular subtypes, and
+    HOW MUCH of the total expression variance does subtype explain?
+
+    Kruskal-Wallis H (non-parametric one-way ANOVA on ranks — log2TPM is non-normal +
+    heteroscedastic, so KW is preferred over parametric ANOVA) + the epsilon-squared
+    variance-explained EFFECT SIZE (the decision-relevant quantity: "is subtype a
+    patient-selection axis for this target, and how strong?") + which strata sit at the
+    extremes.
+
+    `subtype_vectors`: {stratum_id: [log2tpm, ...]}. Only strata with >= min_group_n
+    finite samples are included; the test needs >= min_groups such strata.
+
+    Returns (data_unavailable-safe — every field present, None when not computable):
+      subtype_omnibus_kruskal_h   float|None  — the H statistic
+      subtype_omnibus_p           float|None  — asymptotic chi-square p (DISPLAY-ONLY)
+      subtype_variance_explained  float|None  — epsilon-squared ε² ∈ [0,1]
+      subtype_effect_size_class   str         — large / moderate / negligible / data_unavailable
+      which_subtypes_separate     {highest, lowest} stratum ids by median (or None)
+      n_subtypes_tested / n_samples_tested
+    """
+    import numpy as np
+
+    groups, medians = [], {}
+    for sid, vals in (subtype_vectors or {}).items():
+        a = np.asarray(vals, dtype=float)
+        a = a[np.isfinite(a)]
+        if a.size >= min_group_n:
+            groups.append((sid, a))
+            medians[sid] = float(np.median(a))
+
+    base = {"subtype_omnibus_kruskal_h": None, "subtype_omnibus_p": None,
+            "subtype_variance_explained": None,
+            "subtype_effect_size_class": "data_unavailable",
+            "which_subtypes_separate": None,
+            "n_subtypes_tested": len(groups),
+            "n_samples_tested": int(sum(a.size for _sid, a in groups))}
+    if len(groups) < min_groups:
+        return base
+
+    # Kruskal-Wallis H on the POOLED mid-ranks (ties → average rank), the standard formula.
+    all_vals = np.concatenate([a for _sid, a in groups])
+    N = all_vals.size
+    ranks = _average_ranks(all_vals)
+    # split ranks back per group (concatenation order preserved)
+    idx, rank_sums, tie_term = 0, [], 0.0
+    for _sid, a in groups:
+        r = ranks[idx:idx + a.size]
+        rank_sums.append((r.sum(), a.size))
+        idx += a.size
+    H = (12.0 / (N * (N + 1))) * sum((rs * rs) / n for rs, n in rank_sums) - 3.0 * (N + 1)
+    # tie correction: divide H by (1 - Σ(t³-t)/(N³-N))
+    _, counts = np.unique(all_vals, return_counts=True)
+    ties = counts[counts > 1]
+    if ties.size:
+        tie_term = float(np.sum(ties ** 3 - ties)) / (N ** 3 - N)
+    if tie_term and tie_term < 1.0:
+        H = H / (1.0 - tie_term)
+    k = len(groups)
+
+    # epsilon-squared: ε² = (H - k + 1) / (N - k). Bounded to [0,1] (H below its df floor
+    # → tiny negative from noise; clamp to 0). The variance-explained effect size.
+    denom = (N - k)
+    eps2 = (H - k + 1) / denom if denom > 0 else None
+    if eps2 is not None:
+        eps2 = float(min(1.0, max(0.0, eps2)))
+
+    # p-value from the chi-square survival function (df = k-1). DISPLAY-ONLY — see the
+    # class-binning note; scipy is used only as the test oracle, so compute p ourselves.
+    p = _chisq_sf(H, k - 1)
+
+    hi = max(medians, key=medians.get)
+    lo = min(medians, key=medians.get)
+    base.update({
+        "subtype_omnibus_kruskal_h": float(H),
+        "subtype_omnibus_p": (float(p) if p is not None else None),
+        "subtype_variance_explained": eps2,
+        "subtype_effect_size_class": _classify_effect_size(eps2),
+        "which_subtypes_separate": {"highest": hi, "lowest": lo},
+    })
+    return base
+
+
+def _average_ranks(values):
+    """1-based average (mid) ranks of `values` (ties share the mean of their rank span) —
+    the Kruskal-Wallis ranking convention. Pure numpy."""
+    import numpy as np
+    a = np.asarray(values, dtype=float)
+    order = a.argsort(kind="mergesort")
+    ranks = np.empty(a.size, dtype=float)
+    sorted_a = a[order]
+    i = 0
+    while i < a.size:
+        j = i
+        while j + 1 < a.size and sorted_a[j + 1] == sorted_a[i]:
+            j += 1
+        avg = (i + j) / 2.0 + 1.0   # 1-based average rank over the tie span [i, j]
+        ranks[order[i:j + 1]] = avg
+        i = j + 1
+    return ranks
+
+
+def _classify_effect_size(eps2) -> str:
+    """Bin ε² into the card categorical (effect size ONLY — p is display-only)."""
+    if eps2 is None:
+        return "data_unavailable"
+    if eps2 >= EPSILON_SQUARED_LARGE:
+        return "large"
+    if eps2 >= EPSILON_SQUARED_MODERATE:
+        return "moderate"
+    return "negligible"
+
+
+def _chisq_sf(x, df):
+    """Chi-square survival function P(χ²_df > x) for the display-only omnibus p. Uses the
+    regularized upper incomplete gamma via math.gamma-free series (math.lgamma) so it needs
+    no scipy at runtime (scipy is the TEST oracle only). Returns None on degenerate df."""
+    import math
+    if x is None or df is None or df < 1 or x < 0:
+        return None
+    if x == 0:
+        return 1.0
+    a = df / 2.0
+    xx = x / 2.0
+    # Lower regularized incomplete gamma P(a, xx) via series (xx < a+1) or continued
+    # fraction (else); Q = 1 - P is the survival function.
+    if xx < a + 1.0:
+        term = 1.0 / a
+        summ = term
+        n = 1
+        while n < 1000:
+            term *= xx / (a + n)
+            summ += term
+            if abs(term) < abs(summ) * 1e-12:
+                break
+            n += 1
+        p_lower = summ * math.exp(-xx + a * math.log(xx) - math.lgamma(a))
+        return float(max(0.0, min(1.0, 1.0 - p_lower)))
+    # continued fraction for Q(a, xx) (Lentz)
+    tiny = 1e-300
+    b = xx + 1.0 - a
+    c = 1.0 / tiny
+    d = 1.0 / b
+    h = d
+    i = 1
+    while i < 1000:
+        an = -i * (i - a)
+        b += 2.0
+        d = an * d + b
+        if abs(d) < tiny:
+            d = tiny
+        c = b + an / c
+        if abs(c) < tiny:
+            c = tiny
+        d = 1.0 / d
+        delta = d * c
+        h *= delta
+        if abs(delta - 1.0) < 1e-12:
+            break
+        i += 1
+    q = math.exp(-xx + a * math.log(xx) - math.lgamma(a)) * h
+    return float(max(0.0, min(1.0, q)))
