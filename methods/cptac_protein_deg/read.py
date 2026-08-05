@@ -752,44 +752,67 @@ def _surface_accessibility(target: str) -> dict:
     """SURFACE-ACCESSIBILITY tier for the grade-D estimate — a SOFT, NON-SUPPRESSING gate.
 
     The grade-D estimate derives from HPA×CPTAC WHOLE-CELL proteomics, which cannot distinguish an
-    antibody-ACCESSIBLE surface antigen from an intracellular / inner-leaflet / secreted protein. A
-    multiagent verification (2026-07-23) showed the surfaceome classifier's `is_surface_protein`
-    boolean is unreliable BOTH ways — intracellular false-positives (NRAS/GAPDH/APC via HPA-substring)
-    AND surface false-negatives at full confidence (STEAP1/TFRC/DR5/ENPP3 missed by SURFY+HPA). So it
-    must NOT be a hard veto.
+    antibody-ACCESSIBLE surface antigen from an intracellular / inner-leaflet / secreted protein. So
+    before the whole-cell number may be CALLED a "surface density", we require POSITIVE
+    extracellular-accessibility evidence — an actual membrane-spanning topology with an extracellular
+    orientation, not mere "membrane" association.
 
-    Per the design principle (user, 2026-07-23): separate TARGET VISIBILITY from SURFACE-DENSITY
-    ADMISSIBILITY. The whole-cell abundance estimate is ALWAYS retained; this function only labels
-    whether that number may be called "surface density":
-        admissible   — positive surface evidence (SURFY-positive OR HPA-plasma-membrane in the table)
-        unsupported  — IN the table, but NO positive surface evidence (SURFY-neg AND HPA-neg): the
-                       estimate is RETAINED but flagged not-a-surface-density (the NRAS case)
-        provisional  — absent from the classifier table (coverage gap) OR any read error: absence is
-                       NEVER negative evidence — the estimate stands, flagged provisional
-    ⚠ INTERIM (schema v2): this uses only the CURRENT SURFY|HPA signals. The full spec (UniProt/
-    Swiss-Prot topology + extracellular-domain requirement + CSPA + QuickGO, A–U tiers) is a separate
-    ingestion program — until it lands, `unsupported` here is a WEAK signal (it will miss STEAP1-like
-    topology-only surface antigens), so it DOWNGRADES, never suppresses. Never raises."""
+    SIGNAL SWAP (2026-08-05, P8.1 Slice 1): this now keys on the TMbed predicted-topology product
+    (`topology_predictions_tmbed.topology_class` + `ecd_orientation`) instead of the discredited
+    `surfaceome_family_fusion.is_surface_protein` OR-union (SURFY | HPA-substring | IUPHAR). A
+    2026-07-23 multiagent verification showed the OR-union was unreliable BOTH ways — intracellular
+    false-POSITIVES (NRAS/GAPDH/APC/CTNNB1 via the naive HPA "Plasma membrane" substring) AND surface
+    false-NEGATIVES at confidence 1.0 (STEAP1/TFRC/DR5/ENPP3). The topology product resolves ALL of
+    these correctly: NRAS→no_transmembrane (0 TM), STEAP1→multi_pass + ecd outside, TFRC/DR5→single_pass
+    + ecd outside (verified live against topology-predictions-tmbed-v1). Keying on an EXTRACELLULAR
+    topological orientation — not "membrane presence" — is the decisive fix the accessibility plan
+    (.claude/plans/surface-accessibility-tiered-classifier.md) specifies.
+
+    Admissibility (whole-cell estimate is ALWAYS retained regardless — this labels, never suppresses):
+        admissible   — a membrane-spanning class WITH extracellular orientation:
+                       multi_pass / single_pass_type_1 / single_pass_type_2 (ecd 'outside').
+        unsupported  — no_transmembrane: no membrane-spanning domain → NOT a surface density
+                       (the NRAS/GAPDH case; whole-cell estimate retained, flagged not-a-surface-density).
+        provisional  — membrane-spanning but orientation ambiguous (single_pass_type_other) OR
+                       beta_barrel, OR topology data_unavailable / read error / not-in-table: absence is
+                       NEVER negative evidence — the estimate stands, flagged provisional.
+
+    ⚠ KNOWN UNDER-CALL (deferred to Slice 2, UniProt curated topology): GPI-ANCHORED antigens present
+    as `no_transmembrane` here (TMbed 1D topology cannot see a GPI anchor — see
+    topology_predictions_tmbed/classify.py), so a real GPI target like MSLN (mesothelin) is currently
+    called `unsupported`. UniProt's LIPID/GPI feature is the fix — a separate ingestion slice. Until
+    then, `unsupported` remains a SOFT downgrade, never a suppression, so an under-called GPI target
+    keeps its whole-cell estimate + a provisional-grade path via any measured ladder/CSPA anchor.
+    Never raises."""
     try:
-        from methods.surfaceome_family_fusion import read_target_summary as _surf
-        s = _surf(target)
+        from methods.topology_predictions_tmbed.read import read_target_summary as _topo
+        s = _topo(target)
     except Exception:
         return {"surface_density_admissibility": "provisional",
-                "surface_accessibility_note": "surfaceome_read_error_absence_not_negative_evidence",
-                "_surfaceome_family": None}
-    if s.get("_data_note"):
+                "surface_accessibility_note": "topology_read_error_absence_not_negative_evidence",
+                "_topology_class": None}
+    tclass = s.get("topology_class")
+    if tclass in (None, "data_unavailable"):
         return {"surface_density_admissibility": "provisional",
-                "surface_accessibility_note": "absent_from_surfaceome_table_coverage_gap_not_negative",
-                "_surfaceome_family": None}
-    positive = bool(s.get("source_surfy_positive")) or bool(s.get("source_hpa_plasma_membrane"))
-    if positive:
+                "surface_accessibility_note": "topology_unavailable_coverage_gap_not_negative",
+                "_topology_class": tclass}
+    ecd_outside = str(s.get("ecd_orientation") or "").lower() == "outside"
+    # Membrane-spanning + extracellular orientation → the whole-cell number may be a surface density.
+    if tclass in ("multi_pass", "single_pass_type_1", "single_pass_type_2") and ecd_outside:
         return {"surface_density_admissibility": "admissible",
-                "surface_accessibility_note": "positive_surface_evidence_surfy_or_hpa_pm",
-                "_surfaceome_family": s.get("surface_protein_family")}
-    return {"surface_density_admissibility": "unsupported",
-            "surface_accessibility_note": ("no_positive_surface_evidence_in_table_"
-                                           "whole_cell_estimate_retained_not_a_surface_density"),
-            "_surfaceome_family": s.get("surface_protein_family")}
+                "surface_accessibility_note": f"extracellular_topology_{tclass}_ecd_outside",
+                "_topology_class": tclass}
+    # No membrane-spanning domain at all → not a surface density (NRAS/GAPDH). GPI is under-called here
+    # (Slice 2); still a soft downgrade — whole-cell estimate retained, never suppressed.
+    if tclass == "no_transmembrane":
+        return {"surface_density_admissibility": "unsupported",
+                "surface_accessibility_note": ("no_transmembrane_domain_whole_cell_estimate_retained_"
+                                               "not_a_surface_density_gpi_underdetected_slice2"),
+                "_topology_class": tclass}
+    # Membrane-spanning but orientation ambiguous (single_pass_type_other) or beta_barrel → provisional.
+    return {"surface_density_admissibility": "provisional",
+            "surface_accessibility_note": f"membrane_spanning_orientation_uncertain_{tclass}",
+            "_topology_class": tclass}
 
 
 def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
@@ -872,7 +895,7 @@ def _hpa_cptac_estimate(target: str, indication: Optional[str] = None) -> dict:
         "hpa_ihc_intensity_class": ihc_class,
         "is_tce_viable": tce_viable,
         "is_adc_high_payload_viable": adc_viable,
-        # surface-accessibility soft gate (admissible | unsupported | provisional) + note + family
+        # surface-accessibility soft gate (admissible | unsupported | provisional) + note + topology_class
         **access,
         "method_version": _DENSITY_METHOD_VERSION,
         # provenance (leading underscore = not a card summary_field; for audit/debug only)
