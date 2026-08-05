@@ -144,11 +144,19 @@ def _load_indexed():
     return df, cohort_gene_idx, gene_idx
 
 
-def _row_to_summary(row: dict, matched_cohort: str) -> dict:
+def _row_to_summary(row: dict, matched_cohort: str,
+                    allgene_percentile: float = None,
+                    allgene_percentile_class: str = "data_unavailable") -> dict:
     return {
         "cohort": matched_cohort,
         "protein_expression_class": row.get("protein_expression_class", "ns"),
         "protein_effect_size": row.get("protein_effect_size"),
+        # All-gene percentile null (additive, display + companion categorical): where the
+        # target's protein_effect_size falls among ALL genes tested in THIS cohort.
+        "allgene_percentile": allgene_percentile,
+        "allgene_percentile_class": allgene_percentile_class,
+        "allgene_percentile_context": (f"cptac-protein-tumor-vs-normal cohort={matched_cohort} "
+                                       f"metric=protein_effect_size") if matched_cohort else None,
         "protein_bh_q_value": row.get("protein_bh_q_value"),
         "protein_p_value": row.get("protein_p_value"),
         "protein_median_log2_tumor": row.get("protein_median_log2_tumor"),
@@ -207,7 +215,9 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         if idx is None:
             return _empty(f"target_not_in_cptac_cohort_{cohort}")
         row = df.iloc[idx].to_dict()
-        return _row_to_summary(row, matched_cohort=cohort)
+        pct, pct_class = _allgene_effect_percentile(df, cohort, row.get("protein_effect_size"))
+        return _row_to_summary(row, matched_cohort=cohort,
+                               allgene_percentile=pct, allgene_percentile_class=pct_class)
 
     # Fallback: no indication or non-CPTAC indication → aggregate across
     # all cohorts, return "best-effect" row (largest |effect_size|)
@@ -217,7 +227,24 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 
     rows = df.iloc[indices].to_dict(orient="records")
     best_row = max(rows, key=lambda r: abs(float(r.get("protein_effect_size", 0) or 0)))
-    return _row_to_summary(best_row, matched_cohort=str(best_row.get("cohort", "")).upper())
+    best_cohort = str(best_row.get("cohort", "")).upper()
+    pct, pct_class = _allgene_effect_percentile(df, best_cohort, best_row.get("protein_effect_size"))
+    return _row_to_summary(best_row, matched_cohort=best_cohort,
+                           allgene_percentile=pct, allgene_percentile_class=pct_class)
+
+
+def _allgene_effect_percentile(df, cohort: str, effect_size):
+    """Percentile of `effect_size` among ALL genes' protein_effect_size in this cohort.
+
+    Context-matched by construction: the null is the cohort's own slice of the resident
+    df (no pooling across cohorts). Zero new I/O — df is already in the lru_cache."""
+    from percentile_null import percentile_rank, classify_percentile
+    try:
+        null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()
+    except Exception:
+        return None, "data_unavailable"
+    pct = percentile_rank(effect_size, null_vals)
+    return pct, classify_percentile(pct)
 
 
 def read_all_cohorts(target: str) -> list[dict]:

@@ -302,6 +302,34 @@ def _load_takeda_style(target_contracts_dir: Path):
     return takeda_palette
 
 
+@lru_cache(maxsize=2)
+def _all_protein_median_null(matrix_path=None) -> tuple:
+    """Per-protein median-abundance vector across ALL proteins in the Gygi matrix —
+    the all-gene null for the cellline-protein-abundance percentile.
+
+    The matrix is WIDE (cell-lines × protein columns), so this is one column-median
+    pass (axis=0) over the already-cached matrix. lru_cached (built once). Returned as
+    a tuple so it stays hashable/cache-safe. Zero new I/O beyond the matrix read that
+    load_abundance_column already does."""
+    try:
+        df = _read_csv(matrix_path, S3_BUCKET, MATRIX_KEY)
+        id_col = df.columns[0]
+        med = df.drop(columns=[id_col]).median(axis=0, numeric_only=True)  # one median per protein col
+        return tuple(float(x) for x in med.tolist())
+    except Exception:
+        return tuple()
+
+
+def target_allgene_percentile(median_abund, matrix_path=None):
+    """Percentile + class of this target's median abundance among ALL proteins' medians."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
+    from percentile_null import percentile_rank, classify_percentile
+    null_vec = _all_protein_median_null(matrix_path)
+    pct = percentile_rank(median_abund, null_vec)
+    return pct, classify_percentile(pct)
+
+
 def _panel_high_cutoff(vals: list) -> Optional[float]:
     """Panel-relative HIGH cutoff = HIGH_ABUNDANCE_PERCENTILE quantile of detected values.
     MS abundance has no absolute expressed/highly-expressed thresholds like RNA log2(TPM+1);

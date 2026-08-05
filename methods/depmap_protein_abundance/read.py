@@ -27,7 +27,15 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     try:
         # Panel size (detection denominator) comes from the same matrix read inside
         # load_and_classify — fraction_detected = detected / total-MS-lines.
-        return _cli.load_and_classify(target)
+        summary = _cli.load_and_classify(target)
+        # All-gene percentile null: where this protein's median abundance ranks among
+        # ALL proteins' medians in the DepMap MS panel (context = pan-panel, protein-
+        # intrinsic; indication not consumed). Additive — display + companion categorical.
+        pct, pct_class = _cli.target_allgene_percentile(summary.get("median_log2_abundance_panel"))
+        summary["allgene_percentile"] = pct
+        summary["allgene_percentile_class"] = pct_class
+        summary["allgene_percentile_context"] = "depmap-proteomics-26q1 panel-wide metric=median_log2_abundance"
+        return summary
     except Exception as e:  # noqa: BLE001 — any load failure → graceful data_unavailable
         return {
             "_live_read_error": "depmap_protein_abundance_read_failed",
