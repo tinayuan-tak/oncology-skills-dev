@@ -136,7 +136,13 @@ the one tumor-context presence signal a target-only query gets.
 
 - Does NOT recompute the DGE — reads pre-computed derived products.
 - Does NOT compare tumor to GTEx-population-normal — that's `tumor-selectivity`.
-- Does NOT synthesize narrative — see `target-profile` for the composed skill.
+- By default emits NO narrative (the deterministic verdict + fields only). An OPT-IN
+  `--synthesize` flag attaches an LLM narration under `decision["llm_synthesis"]` that
+  explains the deterministic verdict in light of the contextualized axes (all-gene
+  percentile, control-benchmark position, across-subtype effect). It is a SIBLING key —
+  it never mints or flips a verdict, and the decision is byte-identical without the flag
+  (two-slot design; see `_skills_common/synthesis.py`). For the fully composed cross-skill
+  narrative, use `target-profile`.
 
 ## How Claude invokes this skill
 
@@ -153,5 +159,9 @@ When called as `/tumor-presence`, Claude should:
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
    Add `--modality <M>` if the user names a modality; otherwise omit.
+   Add `--synthesize` if the user wants an LLM narration of the read (optional; needs
+   Bedrock access — degrades to a note under `llm_synthesis` if unavailable, leaving the
+   deterministic verdict intact).
 4. Read `<OUT_DIR>/decision.json`, present the headline (presence_verdict +
-   driving_rule_id + per-card summary highlights) inline.
+   driving_rule_id + per-card summary highlights) inline. If `--synthesize` was used,
+   the `llm_synthesis` block carries the narration (tagged `_source: llm_synthesized`).

@@ -178,6 +178,12 @@ def run_wired_skill(
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--modality", default=None,
                     help="OPTIONAL post-hoc modality lens.")
+    ap.add_argument("--synthesize", action="store_true",
+                    help="OPT-IN: attach an LLM narration of the deterministic verdict + "
+                         "contextualized axes under decision['llm_synthesis']. NEVER alters the "
+                         "verdict spine (the decision is byte-identical without this flag).")
+    ap.add_argument("--synthesis-model", default=None,
+                    help="Override the Bedrock synthesis model id (default: framework Opus).")
     args = ap.parse_args(argv)
 
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
@@ -247,6 +253,21 @@ def run_wired_skill(
         card_outputs=card_outputs, fired=fired,
         headline=headline, modality_lenses=lenses,
     )
+
+    # 8b. OPT-IN LLM synthesis (two-slot design). Attaches a provenance-tagged narration
+    # as a SIBLING key decision['llm_synthesis'] AFTER the deterministic decision is composed,
+    # so it is structurally impossible for the LLM to alter the verdict spine. Never runs
+    # without --synthesize; a synthesis failure degrades to a note (the deterministic run must
+    # never break because the narration layer is unavailable — Bedrock auth, network, etc.).
+    if args.synthesize:
+        from .synthesis import synthesize_presence
+        try:
+            decision["llm_synthesis"] = synthesize_presence(decision, model_id=args.synthesis_model)
+        except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
+            decision["llm_synthesis"] = {
+                "_synthesis_error": f"{type(e).__name__}: {e}",
+                "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
+            }
 
     # 9. Emit standard data-package tree
     written = write_package(
