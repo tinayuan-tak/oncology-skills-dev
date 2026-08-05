@@ -38,6 +38,8 @@ from typing import Optional
 
 import click
 
+from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -48,8 +50,13 @@ DEFAULT_CATALOG_REPO = Path(
 DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
-RNAI_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1-rnai"
-CRISPR_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
+RNAI_SOURCE_MANIFEST_ID = "depmap-consortium-26q1-rnai"
+CRISPR_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+# Resolved from the data-catalog manifests (single source of truth). *_S3_PREFIX (s3://-form) feed
+# echo/provenance; _RNAI_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
+RNAI_S3_PREFIX = s3_uri_for(RNAI_SOURCE_MANIFEST_ID).rstrip("/")
+CRISPR_S3_PREFIX = s3_uri_for(CRISPR_SOURCE_MANIFEST_ID).rstrip("/")
+_RNAI_KEY_PREFIX = bucket_prefix_for(RNAI_SOURCE_MANIFEST_ID)[1].rstrip("/")
 RNAI_LOCAL_FALLBACK_DIRS = [
     Path("/home/sagemaker-user/depmap-26q1-rnai"),
     Path("/data/depmap/26q1-rnai"),
@@ -131,7 +138,7 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
             # Skip the rest of the CSV-parsing path; use the dict directly
             rnai_df = None
         elif rnai_path is None:
-            rnai_key = "data-catalog/sources/depmap-consortium/dmc-26q1-rnai/D2_combined_gene_dep_scores.csv"
+            rnai_key = f"{_RNAI_KEY_PREFIX}/D2_combined_gene_dep_scores.csv"
             click.echo(f"  Fetching s3://{bucket}/{rnai_key}", err=True)
             obj = s3.get_object(Bucket=bucket, Key=rnai_key)
             # Legacy CSV path: read 161 MB and filter by gene row-label
@@ -140,7 +147,7 @@ def load_rnai_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, l
             rnai_df = pd.read_csv(rnai_path, index_col=0, na_values=["NA", ""])
 
         if sample_info_path is None:
-            si_key = "data-catalog/sources/depmap-consortium/dmc-26q1-rnai/sample_info.csv"
+            si_key = f"{_RNAI_KEY_PREFIX}/sample_info.csv"
             click.echo(f"  Fetching s3://{bucket}/{si_key}", err=True)
             obj = s3.get_object(Bucket=bucket, Key=si_key)
             sample_info_df = pd.read_csv(BytesIO(obj["Body"].read()))

@@ -29,12 +29,18 @@ from typing import Optional
 
 import click
 
+from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
 DEFAULT_TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
-DEPMAP_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+# Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
+# feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
+DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
+_DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
     Path("/home/sagemaker-user/depmap-26q1"),
     Path("/data/depmap/26q1"),
@@ -122,7 +128,7 @@ def _read_mutation_matrix_for_target(release_pin: str, matrix_filename: str,
             import boto3
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
-            key = f"data-catalog/sources/depmap-consortium/dmc-26q1/{matrix_filename}"
+            key = f"{_DEPMAP_KEY_PREFIX}/{matrix_filename}"
             click.echo(f"  Fetching s3://{bucket}/{key}", err=True)
             obj = s3.get_object(Bucket=bucket, Key=key)
             header_df = pd.read_csv(BytesIO(obj["Body"].read(8192)), nrows=0)

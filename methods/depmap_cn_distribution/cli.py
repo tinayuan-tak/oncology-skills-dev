@@ -40,6 +40,8 @@ from typing import Optional
 
 import click
 
+from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -50,7 +52,11 @@ DEFAULT_CATALOG_REPO = Path(
 DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
-DEPMAP_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+# Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
+# feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
+DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
+_DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 
 # Threshold constants on raw relative-CN scale
 DEEP_DEL = 0.5
@@ -130,7 +136,7 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
             # Parquet not available → fall through to CSV path
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
-            wes_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneMC_WES.csv"
+            wes_key = f"{_DEPMAP_KEY_PREFIX}/OmicsCNGeneMC_WES.csv"
             click.echo(f"  Fetching s3://{bucket}/{wes_key}", err=True)
             wes_obj = s3.get_object(Bucket=bucket, Key=wes_key)
             wes_df = pd.read_csv(BytesIO(wes_obj["Body"].read()))
@@ -138,7 +144,7 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
             assay_used = "wes"
             chosen_df = wes_df
             if target_col is None:
-                wgs_key = "data-catalog/sources/depmap-consortium/dmc-26q1/OmicsCNGeneWGS.csv"
+                wgs_key = f"{_DEPMAP_KEY_PREFIX}/OmicsCNGeneWGS.csv"
                 click.echo(f"  Target {target_symbol!r} absent from WES; falling back to WGS", err=True)
                 wgs_obj = s3.get_object(Bucket=bucket, Key=wgs_key)
                 wgs_df = pd.read_csv(BytesIO(wgs_obj["Body"].read()))

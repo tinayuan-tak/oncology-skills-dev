@@ -29,6 +29,8 @@ from typing import Optional
 
 import click
 
+from methods.catalog_query.read import bucket_prefix_for
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -36,8 +38,11 @@ METHOD_VERSION = "0.1.0"
 DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 )
-DEPMAP_S3_BUCKET = "onc-compbio"
-DEPMAP_S3_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+# bucket + bucket-relative prefix resolved from the manifest (single source of truth);
+# rstrip('/') keeps the existing f"{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv" idiom byte-identical.
+DEPMAP_S3_BUCKET, DEPMAP_S3_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)
+DEPMAP_S3_PREFIX = DEPMAP_S3_PREFIX.rstrip("/")
 
 # VEP severity ranking — used to resolve compound entries like 'stop_gained&frameshift_variant'
 VEP_SEVERITY = {

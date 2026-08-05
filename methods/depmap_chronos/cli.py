@@ -34,6 +34,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+
 import click
 
 
@@ -42,7 +44,12 @@ METHOD_VERSION = "2.0.0"
 
 DEFAULT_CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 DEFAULT_TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
-DEPMAP_S3_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+# Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form,
+# no trailing slash) feeds echo/provenance strings; _DEPMAP_KEY_PREFIX (bucket-relative) builds the
+# actual get_object read keys below.
+DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
+_DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
     Path("/home/sagemaker-user/depmap-26q1"),
     Path("/data/depmap/26q1"),
@@ -109,7 +116,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             import boto3
             s3 = boto3.client("s3")
             bucket = "onc-compbio"
-            crispr_key = "data-catalog/sources/depmap-consortium/dmc-26q1/CRISPRGeneEffect.csv"
+            crispr_key = f"{_DEPMAP_KEY_PREFIX}/CRISPRGeneEffect.csv"
             click.echo(f"  Fetching s3://{bucket}/{crispr_key}", err=True)
             crispr_obj = s3.get_object(Bucket=bucket, Key=crispr_key)
             crispr_df = pd.read_csv(BytesIO(crispr_obj["Body"].read()))
