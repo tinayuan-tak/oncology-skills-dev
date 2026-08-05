@@ -3,8 +3,8 @@
 
 Answers "how is this gene genomically altered in indication Y, and which
 alteration class drives?" — spanning SNV/indel (mutation) + copy-number
-(amplification/deletion), with fusion/rearrangement as a declared placeholder
-until that data lands.
+(amplification/deletion) + fusion/rearrangement (LIVE, tcga-fusion-consensus-v1),
+with additive role / allele-count / patient-model / subtype panorama layers.
 
 REFRAMED 2026-07-14 from `mutation-profile` (which was SNV/indel only). The
 copy-number-distribution card + its 11 rules already existed but were never
@@ -14,8 +14,11 @@ in a lung subset; MET exon14-skip + amplification), so a mutation-only skill
 implied "not a driver" for amplification-driven targets. This skill reports the
 alteration MIX and which class drives. See docs/SKILLS_SCOPE_REVIEW_2026-07-14.md.
 
-Consumes 4 cards: 3 mutation-oriented + copy-number-distribution. Fusion card
-is a declared placeholder (fusion-rearrangement-landscape) pending data.
+Consumes 8 whole-cohort cards (3 mutation + copy-number + fusion + role +
+functional-gene-state M6 + genomic-event-model-match M11). A 9th card,
+subgroup-stratified-mutation-frequency (tier:subtype), resolves ONLY on the
+optional --subtypes panorama path — a DESCRIPTIVE per-stratum frequency landscape
+that touches no resolver rung (the verdict spine stays byte-stable regardless).
 """
 
 from __future__ import annotations
@@ -35,7 +38,7 @@ from _skills_common import (
 from _skills_common.resolver import resolve_verdict_for_gate
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.0.0"      # major bump: reframed from mutation-profile 1.0.0
+SKILL_VERSION = "2.1.0"      # 2.0.0 reframed from mutation-profile; 2.1.0 (2026-08-05): subtype panorama + driver-recurrence percentile + opt-in synthesis
 
 CARDS = [
     # SNV / indel (mutation)
@@ -70,6 +73,20 @@ CARDS = [
     "genomic-event-model-match",
 ]
 
+# SUBTYPE axis (2026-08-05 hardening) — kept OUT of the scalar CARDS list ON PURPOSE.
+# subgroup-stratified-mutation-frequency (tier:subtype) is a PANORAMA card: its dispatcher
+# needs externally-resolved strata (subgroup_context.resolved_strata_ids) or it returns only
+# a data-note. So — mirroring target-profile's SUBTYPE_CARDS — it resolves on a SEPARATE,
+# --subtypes-gated path (see _resolve_subtype_panorama below), never on the whole-cohort spine.
+# DESCRIPTIVE panorama: recomputes frequency WITHIN each stratum's denominator (MSI/MSS,
+# sidedness, GENIE line-of-therapy); emits per_subgroup_metrics + cross_subgroup_delta_frequency;
+# NO verdict signal → touches NO resolver rung (the genomic_alteration verdict spine stays
+# byte-stable whether or not a subtype scope is passed). The genomic analog of tumor-presence's
+# tumor-rna-distribution-by-subtype.
+SUBTYPE_CARDS = [
+    "subgroup-stratified-mutation-frequency",
+]
+
 QUESTION = ("How is {target} genomically altered in {indication} — by SNV/indel "
             "(driver, biomarker-stratified dependency, or passenger), by copy-"
             "number (amplification/deletion), or a mix — and which class drives?")
@@ -92,6 +109,54 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 
+def _resolve_subtype_panorama(target: str, indication: str,
+                              subtypes: list[str]) -> dict:
+    """DESCRIPTIVE subtype panorama — resolve subgroup-stratified-mutation-frequency
+    across the requested strata. Mirrors target-profile's subtype tier: the card is a
+    PANORAMA dispatcher, so it needs subgroup_context.resolved_strata_ids threaded or it
+    returns only a data-note (which is why it is NOT in the whole-cohort CARDS list).
+
+    Returns a compact projection for the headline's `subtype_axis` block — never a verdict.
+    NO resolver rung is touched here, so the genomic_alteration verdict spine is byte-stable
+    whether or not --subtypes is passed.
+    """
+    subgroup_context = {"resolved_strata_ids": list(subtypes),
+                        "catalog_status": "resolved_active"}
+    sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication,
+                              subgroup_context=subgroup_context)
+    freq = next((c for c in sub_cards
+                 if c["card_id"] == "subgroup-stratified-mutation-frequency"), None)
+    summary = (freq or {}).get("summary") or {}
+    per_subgroup = summary.get("per_subgroup_metrics") or []
+    measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"]
+    delta = summary.get("cross_subgroup_delta_frequency")
+
+    # Compact pattern label mirroring the card's own interpretation_hints (delta >= 0.10 =
+    # subgroup-specific; delta < 0.10 with >=2 measured strata = uniform; else not-informative).
+    # DISPLAY-ONLY — this is a data-note flavor string, not a verdict.
+    if len(measured) < 2 or delta is None:
+        pattern = "not_informative"
+    elif delta >= 0.10:
+        pattern = "subgroup_specific_pattern"
+    else:
+        pattern = "uniform_across_subgroups"
+
+    return {
+        "cards": sub_cards,
+        "scope_subtypes": list(subtypes),
+        "subtype_panorama": {
+            "subtype_mutation_pattern":       pattern,     # display-only flavor, NOT a verdict
+            "n_subgroups_with_data":          summary.get("n_subgroups_with_data"),
+            "max_subgroup_frequency":         summary.get("max_subgroup_frequency"),
+            "min_subgroup_frequency":         summary.get("min_subgroup_frequency"),
+            "cross_subgroup_delta_frequency": delta,
+            "measured_strata":                [r.get("stratum") for r in measured],
+            "_missing": bool(freq is None or freq.get("_missing")),
+            "_missing_reason": (freq or {}).get("_missing_reason"),
+        },
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -99,12 +164,27 @@ def main() -> int:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--modality", default=None,
                     help="OPTIONAL post-hoc modality lens.")
+    ap.add_argument("--subtypes", default=None,
+                    help="OPTIONAL comma-separated molecular subtype/stratum ids "
+                         "(e.g. 'MSI,MSS'). When set, resolves the DESCRIPTIVE "
+                         "subgroup-stratified-mutation-frequency panorama across those strata. "
+                         "Does NOT affect the whole-cohort verdict (byte-stable regardless).")
+    ap.add_argument("--synthesize", action="store_true",
+                    help="OPT-IN: attach an LLM narration of the deterministic verdict + alteration "
+                         "mix + role + recurrence under decision['llm_synthesis']. NEVER alters the "
+                         "verdict spine (the decision is byte-identical without this flag).")
+    ap.add_argument("--synthesis-model", default=None,
+                    help="Override the Bedrock synthesis model id (default: framework Opus).")
     args = ap.parse_args()
 
     cards = resolve_cards(CARDS, args.target, args.indication)
     fired = fired_rules(cards, axis="intracellular_intrinsic",
                         card_id_filter=CARDS)
     verdict, driving_rule = _verdict(fired)
+
+    # Optional subtype panorama (DESCRIPTIVE, --subtypes-gated) — separate from the verdict spine.
+    subtypes = [s.strip() for s in args.subtypes.split(",") if s.strip()] if args.subtypes else []
+    subtype_result = _resolve_subtype_panorama(args.target, args.indication, subtypes) if subtypes else None
 
     headline = {
         "genomic_alteration_profile":    verdict,
@@ -116,6 +196,12 @@ def main() -> int:
                                               "mutation_stratification_class"),
         "overall_mutation_frequency":    get_card_field(cards, "mutation-hotspot-frequency",
                                               "overall_mutation_frequency"),
+        # Driver-recurrence percentile (Axis-1 contextualization, 2026-08-05) — is this gene's
+        # recurrence unusual among all mutated genes in-indication? DISPLAY facet, verdict-inert.
+        "driver_recurrence_class":       get_card_field(cards, "mutation-hotspot-frequency",
+                                              "driver_recurrence_class"),
+        "driver_recurrence_percentile":  get_card_field(cards, "mutation-hotspot-frequency",
+                                              "driver_recurrence_percentile"),
         # Copy-number axis
         "copy_number_class":             get_card_field(cards, "copy-number-distribution",
                                               "copy_number_class"),
@@ -131,24 +217,52 @@ def main() -> int:
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }
 
+    # SUBTYPE axis (2026-08-05) — DESCRIPTIVE panorama; only present when --subtypes was passed.
+    # Surfaced in the headline for the LLM/render, but NOT a verdict input (spine byte-stable).
+    if subtype_result is not None:
+        headline["subtype_scope"] = subtype_result["scope_subtypes"]
+        headline["subtype_axis"] = subtype_result["subtype_panorama"]
+
     lenses = None
     invoked_lenses: dict = {}
     if args.modality:
         lenses = {args.modality: modality_lens(fired, args.modality)}
         invoked_lenses["modality"] = args.modality
 
+    # The whole-cohort cards drive the verdict; the subtype panorama cards (if any) are
+    # appended for the emitted package + LLM, but are NOT in `fired` — they touch no rung.
+    emitted_cards = cards + (subtype_result["cards"] if subtype_result is not None else [])
+    if subtype_result is not None:
+        invoked_lenses["subtypes"] = subtype_result["scope_subtypes"]
+
     decision = make_decision_json(
         skill_name=SKILL_NAME,
         target=args.target, indication=args.indication,
         question=QUESTION.format(target=args.target, indication=args.indication),
-        card_outputs=cards, fired=fired,
+        card_outputs=emitted_cards, fired=fired,
         headline=headline, modality_lenses=lenses,
     )
+
+    # OPT-IN LLM synthesis (two-slot). This skill hand-rolls main() (does NOT use run_wired_skill),
+    # so it copies the dispatcher's opt-in block — narrating through the GENOMIC-ALTERATION lens
+    # (its own tool schema + prompt). Attached as a SIBLING key decision['llm_synthesis'] AFTER the
+    # deterministic decision is composed → structurally cannot alter the verdict spine. A synthesis
+    # failure (Bedrock auth/network) degrades to a note; the deterministic run never breaks.
+    if args.synthesize:
+        from _skills_common.synthesis_genomic import synthesize_genomic_alteration
+        try:
+            decision["llm_synthesis"] = synthesize_genomic_alteration(
+                decision, args.synthesis_model, None)
+        except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
+            decision["llm_synthesis"] = {
+                "_synthesis_error": f"{type(e).__name__}: {e}",
+                "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
+            }
 
     written = write_package(
         out_dir=args.out,
         decision=decision,
-        card_outputs=cards,
+        card_outputs=emitted_cards,
         target=args.target,
         indication=args.indication,
         skill_name=SKILL_NAME,

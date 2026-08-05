@@ -5,8 +5,9 @@ description: |
   — by SNV/indel (recurrent driver, biomarker-stratified dependency, or
   passenger), by copy-number (amplification/deletion), or a mix — and which
   alteration class drives?" Consumes 3 mutation cards + copy-number-distribution
-  (+ a fusion-rearrangement placeholder). Emits a data-package output tree with
-  a multi-class genomic-alteration verdict.
+  + a LIVE fusion-rearrangement landscape (tcga-fusion-consensus-v1) + additive
+  role/allele-count/patient-model/subtype layers. Emits a data-package output tree
+  with a multi-class genomic-alteration verdict.
 
   REFRAMED 2026-07-14 from `mutation-profile` (SNV/indel only). The
   copy-number-distribution card + its 11 rules already existed but were never
@@ -36,17 +37,18 @@ composition:
     - mutation-stratified-dependency
     - mutation-hotspot-frequency
     - copy-number-distribution
-    - fusion-rearrangement-landscape        # PLACEHOLDER — data not yet landed
+    - fusion-rearrangement-landscape        # LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller consensus); additive signal-only
     # ADDITIVE signal-only layers (feed the LLM/matrix + headline; fire NO resolver rung, so they
     # are NOT in rules_scope and the verdict spine is byte-stable):
     - alteration-role                        # typed driver ROLE (OncoKB × IntOGen); 2026-07-22
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
     - genomic-event-model-match              # M11 patient↔model genomic-event join (canonical P3); 2026-07-22
+    - subgroup-stratified-mutation-frequency # SUBTYPE axis (2026-08-05): per-stratum mutation frequency (MSI/MSS/sidedness/LoT); tier:subtype, DESCRIPTIVE panorama (emits no verdict — display facet like tumor-presence's by-subtype card); applies only when subgroup_spec is set
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
   # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);
-  # fusion_rearrangement is pulled-but-data-blocked (placeholder provider) — a visible-gap state.
-  # alteration_role + functional_gene_state + genomic_event_model_match are the additive
-  # role / allele-count / patient↔model-match layers (all signal-only, no resolver rung).
+  # fusion_rearrangement is LIVE (tcga-fusion-consensus-v1). alteration_role + functional_gene_state
+  # + genomic_event_model_match + subgroup-stratified-mutation-frequency are the additive
+  # role / allele-count / patient↔model-match / subtype-panorama layers (all signal-only, no resolver rung).
   measurement_types_pulled:
     - mutation_variant_class_spectrum
     - mutation_stratified_dependency
@@ -56,13 +58,18 @@ composition:
     - alteration_role
     - functional_gene_state
     - genomic_event_model_match
+  # rules_scope = cards whose rules actually enter the genomic_alteration resolver. NOTE
+  # (2026-08-05): mutation-hotspot-frequency was listed here but fires ZERO rules — its
+  # overall_mutation_frequency is display-only (headline), never a verdict input. Dropped to
+  # match reality (see ALT-3: a driver-recurrence percentile is the intended way to make
+  # frequency verdict-relevant). fusion + the additive layers are correctly NOT in rules_scope.
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency
-    - mutation-hotspot-frequency
     - copy-number-distribution
   synthesis:
     - rule_engine
+    - structured_llm    # 2026-08-05: opt-in --synthesize (genomic-alteration-lens narrator, two-slot; verdict-inert)
   output_shape:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
