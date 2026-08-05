@@ -48,6 +48,67 @@ def _s3_uri_to_path(s3_uri: str) -> str:
     return s3_uri[5:] if s3_uri.startswith("s3://") else s3_uri
 
 
+@lru_cache(maxsize=8)
+def _allgene_log2fc_null(manifest_id: str, column: str = "log2FoldChange") -> tuple:
+    """All genes' log2FoldChange from a DGE product — the context-matched null for the
+    tumor-vs-adjacent percentile. Cached per manifest_id, so the null is ALWAYS the
+    target's own indication product (never pooled — the #1 correctness risk). One added
+    full-column scan of a gene-sorted parquet (~30-34k rows); amortized across targets.
+    Returns a tuple (hashable/cache-safe); empty on any failure → percentile is None."""
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+    _ensure_aws_profile()
+    try:
+        manifest = _load_manifest(manifest_id)
+        s3_uri = manifest.get("s3_uri")
+        if not s3_uri:
+            return tuple()
+        path = _s3_uri_to_path(s3_uri)
+        s3 = fs.S3FileSystem()
+        table = pq.read_table(path, filesystem=s3, columns=[column])
+        return tuple(v for v in table[column].to_pylist() if v is not None)
+    except Exception:
+        return tuple()
+
+
+def _dge_allgene_percentile(manifest_id: str, log2_fc, cutoffs: dict = None):
+    """Percentile + class of this gene's log2_fc among all genes in the SAME manifest."""
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))  # methods/ on path
+    from percentile_null import percentile_rank, classify_percentile
+    null_vec = _allgene_log2fc_null(manifest_id)
+    pct = percentile_rank(log2_fc, null_vec)
+    return pct, classify_percentile(pct, cutoffs)
+
+
+@lru_cache(maxsize=8)
+def _sensitivity_cellA_null(manifest_id: str, s3_uri: str) -> tuple:
+    """All genes' cell-A log2FC (log2fc_A = TCGA tumor-vs-adjacent) from a sensitivity
+    product — the context-matched null for the non-COADREAD tumor-vs-adjacent percentile.
+    Cached per manifest; one added full-column scan. Empty on failure."""
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+    _ensure_aws_profile()
+    try:
+        path = _s3_uri_to_path(s3_uri)
+        s3 = fs.S3FileSystem()
+        table = pq.read_table(path, filesystem=s3, columns=["log2fc_A"])
+        return tuple(v for v in table["log2fc_A"].to_pylist() if v is not None)
+    except Exception:
+        return tuple()
+
+
+def _dge_sensitivity_cellA_percentile(manifest_id: str, s3_uri: str, log2fc_a, cutoffs: dict = None):
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+    from percentile_null import percentile_rank, classify_percentile
+    null_vec = _sensitivity_cellA_null(manifest_id, s3_uri)
+    pct = percentile_rank(log2fc_a, null_vec)
+    return pct, classify_percentile(pct, cutoffs)
+
+
 def read_dge_gene_row(
     target: str,
     manifest_id: str,
@@ -106,6 +167,12 @@ def read_dge_gene_row(
         "is_upregulated_provider_call": raw.get("is_upregulated"),
         # Card v2 descriptive categorical — drives Tier-2 rules directly
         "expression_call_class": _classify_expression_call(log2_fc, q_value),
+        # All-gene percentile null (additive): where this gene's log2FC falls among ALL
+        # genes in the SAME per-indication DGE product. Context-matched by manifest_id.
+        # One-directional display facet; never moves expression_call_class / presence_verdict.
+        **dict(zip(("allgene_percentile", "allgene_percentile_class"),
+                   _dge_allgene_percentile(manifest_id, log2_fc))),
+        "allgene_percentile_context": f"{manifest_id} metric=log2FoldChange",
         "_data_source": manifest_id,
         "_data_s3_uri": s3_uri,
     }
@@ -604,8 +671,15 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     if table.num_rows == 0:
         return None
     raw = {col: table[col][0].as_py() for col in table.column_names}
+    manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
+    # All-gene percentile of cell A (TCGA tumor-vs-adjacent) among all genes in this
+    # sensitivity product. Null scanned over the log2fc_A column, cached per product.
+    pct_a, pct_a_class = _dge_sensitivity_cellA_percentile(manifest_id, s3_uri, raw.get("log2fc_A"))
     return {
         "gene_symbol":        raw.get("gene_symbol"),
+        "allgene_percentile":       pct_a,          # cell-A (tumor-vs-adjacent) percentile
+        "allgene_percentile_class": pct_a_class,
+        "allgene_percentile_context": f"{manifest_id} metric=log2fc_A(tumor-vs-adjacent)",
         "cells_ran":          raw.get("cells_ran"),
         "cells_supporting":   raw.get("cells_supporting"),
         "dominant_direction": raw.get("dominant_direction"),
