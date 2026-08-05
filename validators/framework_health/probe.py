@@ -476,6 +476,7 @@ def probe_card(
     fired_ids: set[str],
     dispatch_modules: dict[str, str] | None = None,
     catalog_ids: set[str] | None = None,
+    modality_types: dict[str, list[str]] | None = None,
 ) -> dict:
     """Ground-truth signals for one card that a skill consumes.
 
@@ -486,6 +487,11 @@ def probe_card(
     Datasets: required_inputs.product_id are captured and (if catalog_ids given)
     verified against the data-catalog — a referenced id absent from the catalog
     is a broken data reference.
+
+    P4 modality-vector lens: `modality_relevance` + a derived `modality_routing` verdict are
+    recorded when `modality_types` (the vocab's type->routing-set map) is supplied. This is a
+    PARALLEL dimension to card_health — routing metadata, NOT liveness — so it never feeds the
+    card_health ladder (a card is equally "live" whether or not it declares a modality vector).
     """
     dispatch_modules = dispatch_modules or {}
     catalog_ids = catalog_ids if catalog_ids is not None else set()
@@ -503,9 +509,16 @@ def probe_card(
         "stale_method_label": False,
         "fires_in_real_package": card_id in fired_ids,
         "datasets": [],                # required_inputs product_ids + catalog status
+        # P4 modality-vector lens (routing metadata, parallel to card_health):
+        "modality_relevance": None,    # the card's declared routing set (or None if absent)
+        "modality_routing": "unknown",  # declared|not_required|missing|drift|not_applicable|unknown — see below
     }
     card = _load_card_yaml(card_id, contracts_root)
     if card is None:
+        # No .card.yaml on disk (a broken ref / not-yet-authored id): routing is not applicable —
+        # keep it out of the P4 tally's real states (a missing card is a card-existence problem,
+        # already surfaced as card_health=broken, not a P4 non-compliance).
+        out["modality_routing"] = "not_applicable"
         return out
     out["card_yaml_exists"] = True
     out["measurement_type"] = card.get("measurement_type")
@@ -565,6 +578,30 @@ def probe_card(
     if out["dispatch_module"] and label_module:
         if out["dispatch_module"].split(".")[0] != label_module.split(".")[0]:
             out["stale_method_label"] = True
+
+    # ── P4 modality-vector lens ────────────────────────────────────────────
+    # Mirror the commit-time validator's verdict (validate_cards.py::_modality_relevance_check)
+    # as a DASHBOARD-VISIBLE signal — surfacing P4 adoption/drift in the health artifact rather
+    # than re-deriving anything the validator doesn't already own. Verdicts:
+    #   declared     — field present (and, if the type routes, subset of the type's routing set)
+    #   not_required — measurement_type is not a modality-routing type (correctly silent)
+    #   missing      — type IS modality-routing but field absent (the validator's ERROR state)
+    #   drift        — declared values not a subset of the type's routing set (validator WARNING)
+    #   unknown      — vocab unavailable (isolated checkout) → no verdict asserted
+    mr = card.get("modality_relevance")
+    out["modality_relevance"] = list(mr) if isinstance(mr, list) else ([mr] if mr else None)
+    if modality_types is None:
+        out["modality_routing"] = "unknown"
+    else:
+        routing_set = modality_types.get(out["measurement_type"]) if out["measurement_type"] else None
+        is_required = routing_set is not None  # type declares modality_relevance in the vocab
+        if out["modality_relevance"]:
+            if is_required and not set(out["modality_relevance"]).issubset(set(routing_set)):
+                out["modality_routing"] = "drift"
+            else:
+                out["modality_routing"] = "declared"
+        else:
+            out["modality_routing"] = "missing" if is_required else "not_required"
     return out
 
 
@@ -641,6 +678,34 @@ def sub_skill_map(skills_root: Path) -> dict[str, str]:
         for item in subs:
             if isinstance(item, (list, tuple)) and len(item) >= 2:
                 out[str(item[0])] = str(item[1])
+    return out
+
+
+def modality_relevant_types(contracts_root: Path) -> Optional[dict[str, list[str]]]:
+    """measurement_type -> its declared modality_relevance routing set, for every type whose
+    vocab entry declares `modality_relevance:` (the P4 modality-fit-routing types).
+
+    Mirrors validate_cards.py::_modality_relevant_types (the commit-time enforcer) but kept LOCAL
+    to the health module — the dashboard must not import the validator (different path assumptions,
+    and the probe layer never imports sibling tooling). Vocab-anchored, so a type stamped in the
+    vocab automatically becomes a P4-requiring type here too. Returns None if the vocab is absent
+    (graceful-skip → the P4 lens reports `unknown`, never a false verdict, in an isolated checkout).
+    """
+    p = contracts_root / "vocabularies" / "measurement_types.yaml"
+    if not p.exists():
+        return None
+    try:
+        data = yaml.safe_load(p.read_text()) or {}
+    except yaml.YAMLError:
+        return None
+    types = data.get("measurement_types")
+    if not isinstance(types, dict):
+        return None
+    out: dict[str, list[str]] = {}
+    for name, entry in types.items():
+        if isinstance(entry, dict) and entry.get("modality_relevance"):
+            mr = entry["modality_relevance"]
+            out[name] = list(mr) if isinstance(mr, list) else [mr]
     return out
 
 

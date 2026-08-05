@@ -32,6 +32,13 @@ DRIFT_SEVERITY = {
     "stale_method_label": "info",
     "dataset_ref_not_in_catalog": "warn",
     "card_consumed_but_no_spec": "warn",
+    # P4 modality-vector lens. WARN (not error) deliberately: validate_cards.py already ENFORCES
+    # these at commit time (missing=error, drift=warning) and blocks merge, so a healthy repo never
+    # carries them. The dashboard is a VISIBILITY layer, not a second enforcer — warn surfaces P4
+    # hygiene without flipping skill_health to broken_or_drift (which would couple skill LIVENESS to
+    # routing metadata, violating the P4-is-parallel-to-verdict-spine invariant).
+    "modality_relevance_missing": "warn",
+    "modality_relevance_drift": "warn",
 }
 
 
@@ -168,6 +175,21 @@ def compute_drift(skill: dict, cards: list[dict], spec_cards: dict | None = None
             f"consumed card(s) are in NO dashboard_spec — cannot fire in an emitted "
             f"package until added to a spec: {', '.join(no_spec)}")
 
+    # P4 modality-vector: a consumed card whose measurement_type ROUTES to a modality-fit gate
+    # but does not declare modality_relevance is stranded on the biology axis (mirrors the
+    # commit-time validator's MODALITY_RELEVANCE_MISSING error). Declared-but-out-of-subset is
+    # drift (validator warning). Skips the `unknown` verdict (vocab-absent isolated checkout).
+    mr_missing = sorted({c["card_id"] for c in cards if c.get("modality_routing") == "missing"})
+    if mr_missing:
+        add("modality_relevance_missing",
+            f"consumed card(s) route to a modality-fit gate but declare no modality_relevance "
+            f"(stranded on the biology axis; P4): {', '.join(mr_missing)}")
+    mr_drift = sorted({c["card_id"] for c in cards if c.get("modality_routing") == "drift"})
+    if mr_drift:
+        add("modality_relevance_drift",
+            f"consumed card(s) declare modality_relevance values outside their measurement_type's "
+            f"routing set: {', '.join(mr_drift)}")
+
     return flags
 
 
@@ -205,6 +227,13 @@ def roll_up_skill(skill: dict, cards: list[dict], drift: list[dict], rules: dict
     verdict, reason_id = _resolve(rules["skill_health"], ctx)
     reason_text = next((r["reason"] for r in rules["skill_health"] if r["id"] == reason_id), "")
 
+    # P4 modality-vector coverage over this skill's consumed cards (routing metadata, parallel to
+    # health_verdict — never feeds it). "required" = cards whose measurement_type routes to a
+    # modality-fit gate; "declared" = of those, how many carry the field. missing/drift are the
+    # non-compliant states (also surfaced as drift flags).
+    n_p4_required = sum(1 for c in cards if c.get("modality_routing") in ("declared", "missing", "drift"))
+    n_p4_declared = sum(1 for c in cards if c.get("modality_routing") in ("declared", "drift"))
+
     return {
         "name": skill["name"],
         "declared": skill["declared"],
@@ -213,6 +242,8 @@ def roll_up_skill(skill: dict, cards: list[dict], drift: list[dict], rules: dict
         "n_core_cards": len(core),
         "n_cards": len(cards),
         "n_cards_live": sum(1 for c in cards if c.get("card_health") == "live"),
+        "n_p4_required": n_p4_required,
+        "n_p4_declared": n_p4_declared,
         "drift_flags": drift,
         "health_verdict": verdict,
         "health_reason": reason_id,
@@ -239,6 +270,7 @@ def build_health(roots: dict[str, Path]) -> dict:
     gcov = probe.gate_coverage_by_short(roots["contracts"])  # short -> coverage entry
     catalog = probe.catalog_manifests(roots["catalog"])      # product_id -> manifest meta
     catalog_ids = set(catalog)
+    modality_types = probe.modality_relevant_types(roots["contracts"])  # P4: type -> routing set (None if vocab absent)
     spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])  # card_id -> [spec names]
 
     skill_names = probe.list_skill_names(roots["skills"])
@@ -252,7 +284,8 @@ def build_health(roots: dict[str, Path]) -> dict:
         cards = [
             roll_up_card(
                 probe.probe_card(cid, roots["contracts"], roots["methods"],
-                                 live_ids, fired_ids, dispatch_modules, catalog_ids),
+                                 live_ids, fired_ids, dispatch_modules, catalog_ids,
+                                 modality_types),
                 rules,
             )
             for cid in card_ids
@@ -287,7 +320,8 @@ def build_health(roots: dict[str, Path]) -> dict:
     for cid in universe:
         cn = roll_up_card(
             probe.probe_card(cid, roots["contracts"], roots["methods"],
-                             live_ids, fired_ids, dispatch_modules, catalog_ids),
+                             live_ids, fired_ids, dispatch_modules, catalog_ids,
+                             modality_types),
             rules,
         )
         cn["consumers"] = sorted(consumers.get(cid, []))
@@ -304,6 +338,27 @@ def build_health(roots: dict[str, Path]) -> dict:
     card_tally: dict[str, int] = {}
     for c in card_nodes:
         card_tally[c["card_health"]] = card_tally.get(c["card_health"], 0) + 1
+
+    # P4 modality-routing tally over the deduped card universe (parallel to card_health).
+    modality_tally: dict[str, int] = {}
+    for c in card_nodes:
+        modality_tally[c["modality_routing"]] = modality_tally.get(c["modality_routing"], 0) + 1
+
+    # P4 drift at the CARD-UNIVERSE level — catches non-compliant cards that per-skill
+    # compute_drift misses because they are ORPHANS (pulled by no skill → never seen in a
+    # skill's card list). Surfaced in the top-level drift_index with a null skill so the
+    # "silent gap" (an orphan card that routes but declares nothing) is never invisible.
+    card_level_p4_drift: list[dict] = []
+    for c in card_nodes:
+        if c["is_orphan"] and c["modality_routing"] in ("missing", "drift"):
+            code = ("modality_relevance_missing" if c["modality_routing"] == "missing"
+                    else "modality_relevance_drift")
+            card_level_p4_drift.append({
+                "skill": None, "card_id": c["card_id"], "code": code,
+                "severity": DRIFT_SEVERITY[code],
+                "detail": f"orphan card {c['card_id']} (pulled by no skill) has modality_routing="
+                          f"{c['modality_routing']} — P4 non-compliance invisible in the skill view",
+            })
 
     # -----------------------------------------------------------------------
     # DATASET-CENTRIC view: every data product (catalog manifest ∪ every
@@ -352,6 +407,8 @@ def build_health(roots: dict[str, Path]) -> dict:
         {"skill": n["name"], **d}
         for n in skill_nodes for d in n["drift_flags"]
     ]
+    # Append orphan-card P4 drift (skill=None) so an orphan's non-compliance is never invisible.
+    all_drift.extend(card_level_p4_drift)
 
     return {
         "summary": {
@@ -364,6 +421,14 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_cards_firing_in_real_packages": len(fired_ids),
             "n_cards": len(card_nodes),
             "card_health_tally": card_tally,
+            # P4 modality-vector lens (routing metadata, parallel to card_health):
+            "modality_routing_tally": modality_tally,
+            "n_p4_required_cards": sum(v for k, v in modality_tally.items()
+                                       if k in ("declared", "missing", "drift")),
+            "n_p4_declared_cards": sum(v for k, v in modality_tally.items()
+                                       if k in ("declared", "drift")),
+            "n_p4_missing_cards": modality_tally.get("missing", 0),
+            "n_p4_drift_cards": modality_tally.get("drift", 0),
             "n_orphan_cards": sum(1 for c in card_nodes if c["is_orphan"]),
             "n_cards_consumed_but_no_spec": sum(1 for c in card_nodes if c.get("consumed_but_no_spec")),
             "n_datasets": len(dataset_nodes),

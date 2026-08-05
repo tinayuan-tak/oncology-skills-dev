@@ -1,18 +1,18 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T20:44:35.473843+00:00",
+  "generated_at": "2026-08-04T20:58:07.210449+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "contracts": "/home/sagemaker-user/wt-p4-lens",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "c92ff4d",
+    "contracts": "fdfa211",
     "skills": "ce203f3",
     "methods": "dab7bdc",
-    "products": "c2101ca",
+    "products": "c092956",
     "catalog": "fd8858f"
   },
   "summary": {
@@ -22,7 +22,7 @@
       "production_ready": 7,
       "partial": 9
     },
-    "n_drift_flags": 42,
+    "n_drift_flags": 43,
     "n_error_drift": 0,
     "n_unregistered_skills": 14,
     "n_live_reader_cards": 53,
@@ -34,6 +34,16 @@
       "live": 24,
       "blocked": 4
     },
+    "modality_routing_tally": {
+      "not_required": 35,
+      "declared": 24,
+      "not_applicable": 6,
+      "drift": 1
+    },
+    "n_p4_required_cards": 25,
+    "n_p4_declared_cards": 25,
+    "n_p4_missing_cards": 0,
+    "n_p4_drift_cards": 1,
     "n_orphan_cards": 9,
     "n_cards_consumed_but_no_spec": 31,
     "n_datasets": 221,
@@ -140,6 +150,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
           "card_health": "broken",
           "health_reason": "card-missing-yaml",
           "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
@@ -158,6 +170,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
           "card_health": "broken",
           "health_reason": "card-missing-yaml",
           "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
@@ -166,6 +180,8 @@
       "n_core_cards": 0,
       "n_cards": 2,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [],
       "health_verdict": "placeholder",
       "health_reason": "skill-placeholder",
@@ -200,6 +216,8 @@
       "n_core_cards": 0,
       "n_cards": 0,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [],
       "health_verdict": "production_ready",
       "health_reason": "skill-support-ready",
@@ -268,6 +286,8 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "broken",
           "health_reason": "card-no-path",
           "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data"
@@ -293,6 +313,8 @@
               "resolved_id": "pancohort-cooccurrence-fisher-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -324,6 +346,8 @@
               "resolved_id": "gdc-pancanatlas-clinical-2018"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -342,6 +366,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
           "card_health": "broken",
           "health_reason": "card-missing-yaml",
           "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
@@ -350,6 +376,8 @@
       "n_core_cards": 1,
       "n_cards": 4,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [
         {
           "code": "declared_cards_mismatch_runpy",
@@ -463,6 +491,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -494,6 +524,8 @@
               "resolved_id": "depmap-consortium-26q1-rnai"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -519,6 +551,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -544,6 +581,8 @@
               "resolved_id": "depmap-predictability"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -569,6 +608,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -594,6 +635,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -619,6 +665,11 @@
               "resolved_id": "depmap-consortium-26q1-rnai"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -644,6 +695,11 @@
               "resolved_id": "depmap-paralog-buffering-per-gene-v1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -669,6 +725,11 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -700,6 +761,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -708,6 +771,8 @@
       "n_core_cards": 7,
       "n_cards": 10,
       "n_cards_live": 7,
+      "n_p4_required": 5,
+      "n_p4_declared": 5,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -811,6 +876,14 @@
               "resolved_id": "intogen-v2024-09-20"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -836,6 +909,14 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -873,6 +954,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -898,6 +981,8 @@
               "resolved_id": "tcga-fusion-consensus-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -935,6 +1020,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -960,6 +1047,8 @@
               "resolved_id": "gdc-pancohort-somatic-dr45-0"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -985,6 +1074,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -1010,6 +1104,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -1018,6 +1117,8 @@
       "n_core_cards": 4,
       "n_cards": 8,
       "n_cards_live": 4,
+      "n_p4_required": 4,
+      "n_p4_declared": 4,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -1098,6 +1199,8 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1106,6 +1209,8 @@
       "n_core_cards": 0,
       "n_cards": 1,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -1209,6 +1314,14 @@
               "resolved_id": "intogen-v2024-09-20"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1234,6 +1347,8 @@
               "resolved_id": "opentargets-26-06"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1259,6 +1374,8 @@
               "resolved_id": "opentargets-26-06"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1284,6 +1401,8 @@
               "resolved_id": "opentargets-26-06"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1309,6 +1428,11 @@
               "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1334,6 +1458,8 @@
               "resolved_id": "opentargets-26-06"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1359,6 +1485,12 @@
               "resolved_id": "hpa-v25-1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -1384,6 +1516,8 @@
               "resolved_id": "gtex-tpm-recount3-long-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1409,6 +1543,12 @@
               "resolved_id": "cspa-surface-confirmation-per-uniprot-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1434,6 +1574,8 @@
               "resolved_id": "opentargets-26-06"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1442,6 +1584,8 @@
       "n_core_cards": 1,
       "n_cards": 10,
       "n_cards_live": 1,
+      "n_p4_required": 4,
+      "n_p4_declared": 4,
       "drift_flags": [
         {
           "code": "declared_cards_mismatch_runpy",
@@ -1497,6 +1641,8 @@
       "n_core_cards": 0,
       "n_cards": 0,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [
         {
           "code": "missing_status_field",
@@ -1537,6 +1683,8 @@
       "n_core_cards": 0,
       "n_cards": 0,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [],
       "health_verdict": "production_ready",
       "health_reason": "skill-support-ready",
@@ -1604,6 +1752,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1629,6 +1779,14 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -1654,6 +1812,12 @@
               "resolved_id": "hpa-v25-1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -1679,6 +1843,11 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1704,6 +1873,11 @@
               "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1729,6 +1903,12 @@
               "resolved_id": "topology-predictions-tmbed-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1754,6 +1934,12 @@
               "resolved_id": "surfaceome-family-classification-per-uniprot-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1762,6 +1948,8 @@
       "n_core_cards": 0,
       "n_cards": 7,
       "n_cards_live": 2,
+      "n_p4_required": 6,
+      "n_p4_declared": 6,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -1844,6 +2032,8 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1852,6 +2042,8 @@
       "n_core_cards": 1,
       "n_cards": 1,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -1929,6 +2121,8 @@
               "resolved_id": "synlethdb-sl-partners-per-gene-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1937,6 +2131,8 @@
       "n_core_cards": 0,
       "n_cards": 1,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [
         {
           "code": "missing_status_field",
@@ -2052,6 +2248,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2077,6 +2275,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2102,6 +2302,8 @@
               "resolved_id": "pancohort-cooccurrence-fisher-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2127,6 +2329,14 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2158,6 +2368,8 @@
               "resolved_id": "depmap-consortium-26q1-rnai"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2183,6 +2395,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2208,6 +2425,8 @@
               "resolved_id": "depmap-predictability"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2233,6 +2452,8 @@
               "resolved_id": "tcga-fusion-consensus-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2258,6 +2479,11 @@
               "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2283,6 +2509,8 @@
               "resolved_id": "gdc-pancohort-somatic-dr45-0"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2308,6 +2536,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2333,6 +2566,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2358,6 +2596,11 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2383,6 +2626,11 @@
               "resolved_id": "depmap-consortium-26q1-rnai"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2408,6 +2656,11 @@
               "resolved_id": "depmap-paralog-buffering-per-gene-v1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2433,6 +2686,10 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2458,6 +2715,11 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2483,6 +2745,8 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2508,6 +2772,11 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2533,6 +2802,11 @@
               "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2558,6 +2832,12 @@
               "resolved_id": "topology-predictions-tmbed-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2583,6 +2863,12 @@
               "resolved_id": "surfaceome-family-classification-per-uniprot-v1"
             }
           ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2608,6 +2894,14 @@
               "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2633,6 +2927,8 @@
               "resolved_id": "expression-rna-tumor-vs-adjacent"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2658,6 +2954,14 @@
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2666,6 +2970,8 @@
       "n_core_cards": 0,
       "n_cards": 25,
       "n_cards_live": 15,
+      "n_p4_required": 16,
+      "n_p4_declared": 16,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -2755,6 +3061,8 @@
               "resolved_id": "depmap-predictability"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2780,6 +3088,10 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2805,6 +3117,11 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -2830,6 +3147,11 @@
               "resolved_id": null
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -2838,6 +3160,8 @@
       "n_core_cards": 0,
       "n_cards": 4,
       "n_cards_live": 3,
+      "n_p4_required": 3,
+      "n_p4_declared": 3,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -2910,6 +3234,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
           "card_health": "broken",
           "health_reason": "card-missing-yaml",
           "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
@@ -2928,6 +3254,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
           "card_health": "broken",
           "health_reason": "card-missing-yaml",
           "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
@@ -2946,6 +3274,8 @@
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
           "card_health": "broken",
           "health_reason": "card-missing-yaml",
           "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
@@ -2954,6 +3284,8 @@
       "n_core_cards": 0,
       "n_cards": 3,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [],
       "health_verdict": "placeholder",
       "health_reason": "skill-placeholder",
@@ -3038,6 +3370,11 @@
               "resolved_id": "depmap-consortium-26q1-proteomics"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3063,6 +3400,8 @@
               "resolved_id": "depmap-consortium-26q1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3094,6 +3433,11 @@
               "resolved_id": "depmap-consortium-26q1-proteomics"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3125,6 +3469,14 @@
               "resolved_id": "gdc-pancanatlas-cnv-2018"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3150,6 +3502,8 @@
               "resolved_id": "cptac-pdc-snapshot-2026-07-01"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3181,6 +3535,8 @@
               "resolved_id": "pancan-dge-tumor-vs-normal-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3206,6 +3562,14 @@
               "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3237,6 +3601,8 @@
               "resolved_id": "gtex-tpm-recount3-long-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3274,6 +3640,8 @@
               "resolved_id": "tcga-subgroup-assignments-coadread-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -3299,6 +3667,8 @@
               "resolved_id": "expression-rna-tumor-vs-adjacent"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3307,6 +3677,8 @@
       "n_core_cards": 5,
       "n_cards": 10,
       "n_cards_live": 9,
+      "n_p4_required": 4,
+      "n_p4_declared": 4,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -3382,6 +3754,8 @@
               "resolved_id": "gtex-tpm-recount3-long-v1"
             }
           ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -3407,6 +3781,14 @@
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
             }
           ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader",
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3415,6 +3797,8 @@
       "n_core_cards": 1,
       "n_cards": 2,
       "n_cards_live": 1,
+      "n_p4_required": 1,
+      "n_p4_declared": 1,
       "drift_flags": [
         {
           "code": "declared_cards_mismatch_runpy",
@@ -3470,6 +3854,8 @@
       "n_core_cards": 0,
       "n_cards": 0,
       "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
       "drift_flags": [
         {
           "code": "missing_status_field",
@@ -3513,6 +3899,8 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -3539,6 +3927,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -3579,6 +3969,14 @@
           "resolved_id": "intogen-v2024-09-20"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -3613,6 +4011,8 @@
           "resolved_id": "expression-rna-tumor-vs-adjacent"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "broken",
       "health_reason": "card-no-path",
       "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data",
@@ -3646,6 +4046,11 @@
           "resolved_id": "depmap-consortium-26q1-proteomics"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -3681,6 +4086,8 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -3723,6 +4130,11 @@
           "resolved_id": "depmap-consortium-26q1-proteomics"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -3758,6 +4170,8 @@
           "resolved_id": "opentargets-26-06"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -3791,6 +4205,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "broken",
       "health_reason": "card-no-path",
       "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data",
@@ -3827,6 +4243,8 @@
           "resolved_id": "opentargets-26-06"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -3860,6 +4278,8 @@
           "resolved_id": "pancohort-cooccurrence-fisher-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -3887,6 +4307,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
       "card_health": "broken",
       "health_reason": "card-missing-yaml",
       "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
@@ -3920,6 +4342,14 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -3963,6 +4393,8 @@
           "resolved_id": "depmap-consortium-26q1-rnai"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -3999,6 +4431,11 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4036,6 +4473,8 @@
           "resolved_id": "depmap-predictability"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4079,6 +4518,8 @@
           "resolved_id": "gdc-pancanatlas-clinical-2018"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4112,6 +4553,8 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4153,6 +4596,14 @@
           "resolved_id": "gdc-pancanatlas-cnv-2018"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4200,6 +4651,8 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4233,6 +4686,8 @@
           "resolved_id": "tcga-fusion-consensus-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4267,6 +4722,8 @@
           "resolved_id": "opentargets-26-06"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4312,6 +4769,8 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4345,6 +4804,11 @@
           "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4372,6 +4836,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
       "card_health": "broken",
       "health_reason": "card-missing-yaml",
       "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
@@ -4405,6 +4871,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "broken",
       "health_reason": "card-no-path",
       "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data",
@@ -4431,6 +4899,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
       "card_health": "broken",
       "health_reason": "card-missing-yaml",
       "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
@@ -4464,6 +4934,8 @@
           "resolved_id": "opentargets-26-06"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4497,6 +4969,8 @@
           "resolved_id": "gdc-pancohort-somatic-dr45-0"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4534,6 +5008,11 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4570,6 +5049,11 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4606,6 +5090,12 @@
           "resolved_id": "hpa-v25-1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4643,6 +5133,8 @@
           "resolved_id": "gtex-tpm-recount3-long-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4676,6 +5168,11 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4712,6 +5209,11 @@
           "resolved_id": "depmap-consortium-26q1-rnai"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4748,6 +5250,11 @@
           "resolved_id": "depmap-paralog-buffering-per-gene-v1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4775,6 +5282,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
       "card_health": "broken",
       "health_reason": "card-missing-yaml",
       "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
@@ -4801,6 +5310,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
       "card_health": "broken",
       "health_reason": "card-missing-yaml",
       "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
@@ -4834,6 +5345,8 @@
           "resolved_id": "cptac-pdc-snapshot-2026-07-01"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4869,6 +5382,10 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": [
+        "small_molecule"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4905,6 +5422,11 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -4942,6 +5464,12 @@
           "resolved_id": "cspa-surface-confirmation-per-uniprot-v1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -4983,6 +5511,8 @@
           "resolved_id": "depmap-consortium-26q1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5009,6 +5539,8 @@
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
       "card_health": "broken",
       "health_reason": "card-missing-yaml",
       "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
@@ -5042,6 +5574,12 @@
           "resolved_id": "cptac-rna-protein-matched-per-sample-v1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "drift",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5073,6 +5611,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "blocked",
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
@@ -5108,6 +5648,12 @@
           "resolved_id": "hpa-v25-1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5139,6 +5685,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5173,6 +5721,11 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5214,6 +5767,11 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
       "card_health": "blocked",
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
@@ -5254,6 +5812,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "blocked",
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
@@ -5295,6 +5855,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "blocked",
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
@@ -5329,6 +5891,11 @@
           "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5363,6 +5930,12 @@
           "resolved_id": "topology-predictions-tmbed-v1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5397,6 +5970,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5430,6 +6005,12 @@
           "resolved_id": "surfaceome-family-classification-per-uniprot-v1"
         }
       ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5464,6 +6045,8 @@
           "resolved_id": "synlethdb-sl-partners-per-gene-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5497,6 +6080,8 @@
           "resolved_id": null
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -5531,6 +6116,8 @@
           "resolved_id": "opentargets-26-06"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5570,6 +6157,8 @@
           "resolved_id": "pancan-dge-tumor-vs-normal-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -5605,6 +6194,14 @@
           "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -5647,6 +6244,8 @@
           "resolved_id": "gtex-tpm-recount3-long-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -5694,6 +6293,8 @@
           "resolved_id": "tcga-subgroup-assignments-coadread-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5729,6 +6330,8 @@
           "resolved_id": "expression-rna-tumor-vs-adjacent"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -5773,6 +6376,8 @@
           "resolved_id": "gtex-tpm-recount3-long-v1"
         }
       ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
@@ -5806,6 +6411,14 @@
           "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
         }
       ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader",
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
@@ -11243,6 +11856,13 @@
       "code": "missing_status_field",
       "severity": "warn",
       "detail": "no machine-readable status: field in SKILL.md frontmatter"
+    },
+    {
+      "skill": null,
+      "card_id": "rna-protein-concordance-tumor",
+      "code": "modality_relevance_drift",
+      "severity": "warn",
+      "detail": "orphan card rna-protein-concordance-tumor (pulled by no skill) has modality_routing=drift \u2014 P4 non-compliance invisible in the skill view"
     }
   ]
 }

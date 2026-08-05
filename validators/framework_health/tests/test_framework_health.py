@@ -574,3 +574,134 @@ def test_entrypoint_fallback_non_runpy(tmp_path):
     sig = probe.probe_skill(d)
     assert sig["derived"]["has_entrypoint"] is True
     assert sig["derived"]["entrypoint"] == "compose_dashboard.py"
+
+
+# ---------------------------------------------------------------------------
+# 11. P4 modality-vector lens — routing verdicts (parallel to card_health), drift, self-check
+# ---------------------------------------------------------------------------
+def _write_vocab(tmp_path, entries: dict):
+    """Write a minimal vocabularies/measurement_types.yaml. `entries` maps type -> routing list
+    (or None for a biology-axis type with no modality_relevance)."""
+    v = tmp_path / "vocabularies"
+    v.mkdir(parents=True, exist_ok=True)
+    lines = ["measurement_types:"]
+    for name, routing in entries.items():
+        lines.append(f"  {name}:")
+        lines.append("    description: x")
+        if routing is not None:
+            lines.append(f"    modality_relevance: [{', '.join(routing)}]")
+    (v / "measurement_types.yaml").write_text("\n".join(lines) + "\n")
+
+
+def _p4_card(tmp_path, card_id, measurement_type=None, modality_relevance=None):
+    (tmp_path / "cards").mkdir(exist_ok=True)
+    body = f"card_id: {card_id}\n"
+    if measurement_type is not None:
+        body += f"measurement_type: {measurement_type}\n"
+    if modality_relevance is not None:
+        body += f"modality_relevance: [{', '.join(modality_relevance)}]\n"
+    (tmp_path / "cards" / f"{card_id}.card.yaml").write_text(body)
+
+
+def test_modality_relevant_types_vocab_anchored(tmp_path):
+    _write_vocab(tmp_path, {"routes_sm": ["small_molecule", "degrader"],
+                            "routes_surface": ["adc", "bite_tce"],
+                            "biology_only": None})
+    mt = probe.modality_relevant_types(tmp_path)
+    assert mt == {"routes_sm": ["small_molecule", "degrader"], "routes_surface": ["adc", "bite_tce"]}
+    assert "biology_only" not in mt   # a type without modality_relevance is NOT a routing type
+
+
+def test_modality_relevant_types_none_when_vocab_absent(tmp_path):
+    # No vocabularies/measurement_types.yaml → graceful skip (None), NOT a crash.
+    assert probe.modality_relevant_types(tmp_path) is None
+
+
+def _routing(tmp_path, card_id, mtype, mr, vocab):
+    _p4_card(tmp_path, card_id, mtype, mr)
+    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True, exist_ok=True)
+    out = probe.probe_card(card_id, tmp_path, methods, set(), set(), {},
+                           modality_types=vocab)
+    return out["modality_routing"]
+
+
+def test_probe_card_modality_routing_verdicts(tmp_path):
+    vocab = {"routes_sm": ["small_molecule", "degrader"], "biology_only": None}
+    # declared: routing type + declares a subset of its routing set
+    assert _routing(tmp_path, "c-declared", "routes_sm", ["small_molecule"], vocab) == "declared"
+    # not_required: biology-axis type, correctly silent
+    assert _routing(tmp_path, "c-notreq", "biology_only", None, vocab) == "not_required"
+    # missing: routing type but declares nothing (the validator ERROR state)
+    assert _routing(tmp_path, "c-missing", "routes_sm", None, vocab) == "missing"
+    # drift: declares a value OUTSIDE its type's routing set
+    assert _routing(tmp_path, "c-drift", "routes_sm", ["adc"], vocab) == "drift"
+
+
+def test_probe_card_modality_routing_unknown_when_vocab_none(tmp_path):
+    # modality_types=None (vocab-absent isolated checkout) → 'unknown', never a false verdict.
+    _p4_card(tmp_path, "c", "routes_sm", None)
+    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True, exist_ok=True)
+    out = probe.probe_card("c", tmp_path, methods, set(), set(), {}, modality_types=None)
+    assert out["modality_routing"] == "unknown"
+
+
+def test_probe_card_modality_routing_not_applicable_for_missing_yaml(tmp_path):
+    # A consumed card id with NO .card.yaml on disk → not_applicable (kept out of the P4 tally's
+    # real states; it's a card-existence problem, surfaced via card_health).
+    methods = tmp_path / "methods"; (methods / "methods").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "cards").mkdir(exist_ok=True)
+    out = probe.probe_card("ghost", tmp_path, methods, set(), set(), {}, modality_types={})
+    assert out["card_yaml_exists"] is False
+    assert out["modality_routing"] == "not_applicable"
+
+
+def test_modality_relevance_drift_flag_in_compute_drift():
+    skill = {"declared": {"status": "wired", "prose_markers": []},
+             "derived": {"kind": "FOCUSED", "has_entrypoint": True, "cards_in_runpy": []}}
+    cards = [
+        {"card_id": "a", "modality_routing": "missing", "card_yaml_exists": True, "is_placeholder": False},
+        {"card_id": "b", "modality_routing": "drift", "card_yaml_exists": True, "is_placeholder": False},
+        {"card_id": "c", "modality_routing": "declared", "card_yaml_exists": True, "is_placeholder": False},
+    ]
+    flags = {f["code"]: f for f in rollup.compute_drift(skill, cards, {"a": ["s"], "b": ["s"], "c": ["s"]})}
+    assert "modality_relevance_missing" in flags and "a" in flags["modality_relevance_missing"]["detail"]
+    assert "modality_relevance_drift" in flags and "b" in flags["modality_relevance_drift"]["detail"]
+    # both are WARN (not error) — never flip skill health to broken_or_drift
+    assert flags["modality_relevance_missing"]["severity"] == "warn"
+    assert flags["modality_relevance_drift"]["severity"] == "warn"
+
+
+def test_self_check_validates_p4_tally(tmp_path):
+    rep = _minimal_report()
+    rep["cards"] = [{"card_id": "x", "card_yaml_exists": True, "fires_in_real_package": True,
+                     "card_health": "live", "n_consumers": 1, "is_orphan": False,
+                     "modality_routing": "declared"}]
+    rep["summary"]["card_health_tally"] = {"live": 1}
+    rep["summary"]["modality_routing_tally"] = {"declared": 1}
+    rep["summary"]["n_p4_required_cards"] = 1
+    rep["summary"]["n_p4_declared_cards"] = 1
+    rep["summary"]["n_p4_missing_cards"] = 0
+    rep["summary"]["n_p4_drift_cards"] = 0
+    p = tmp_path / "framework_health.json"; p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert ok, errs
+    # corrupt the tally → caught
+    rep["summary"]["modality_routing_tally"] = {"declared": 99}
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok and any("modality_routing_tally" in e for e in errs)
+
+
+def test_committed_artifact_has_p4_lens():
+    """The real artifact must carry the P4 modality-routing lens on every card + summary."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    rep = json.loads(committed.read_text())
+    assert "modality_routing_tally" in rep["summary"], "P4 summary missing"
+    valid = {"declared", "not_required", "missing", "drift", "not_applicable", "unknown"}
+    for c in rep["cards"]:
+        assert c.get("modality_routing") in valid, f"{c['card_id']} bad modality_routing"
+    # coverage identity: required == declared + missing + drift
+    mt = rep["summary"]["modality_routing_tally"]
+    assert rep["summary"]["n_p4_required_cards"] == sum(mt.get(k, 0) for k in ("declared", "missing", "drift"))

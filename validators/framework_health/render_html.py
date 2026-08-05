@@ -50,6 +50,24 @@ CARD_GLOSS = {
     "broken": "no path to data: no reader + no backing method, never fires",
 }
 
+# P4 modality-vector lens (routing metadata, PARALLEL to card_health — never affects it).
+MODALITY_COLORS = {
+    "declared": _GREEN,       # routes to a modality-fit gate AND declares its vector
+    "not_required": _GREY,    # biology-axis type, correctly silent
+    "missing": _RED,          # routes but declares nothing — stranded (validator ERROR state)
+    "drift": _AMBER,          # declares values outside its type's routing set (validator WARNING)
+    "not_applicable": _GREY,  # no card yaml on disk
+    "unknown": _GREY,         # vocab unavailable (isolated checkout)
+}
+MODALITY_GLOSS = {
+    "declared": "measurement_type routes to a modality-fit gate (SM/degrader/ADC/TCE/antibody) and the card declares modality_relevance",
+    "not_required": "biology-axis measurement_type — correctly declares no modality_relevance",
+    "missing": "routes to a modality-fit gate but declares NO modality_relevance — stranded on the biology axis (P4)",
+    "drift": "declares modality_relevance values outside its measurement_type's routing set",
+    "not_applicable": "no .card.yaml on disk — routing not applicable",
+    "unknown": "measurement_types vocab unavailable — no P4 verdict asserted",
+}
+
 
 def _esc(x) -> str:
     return html.escape(str(x if x is not None else ""))
@@ -329,6 +347,12 @@ def _cards_table(report: dict) -> str:
             spec_cell = f"<span class='consumers'>{_esc(', '.join(c.get('dashboard_specs') or []))}</span>"
         else:
             spec_cell = "<span class='consumers'>—</span>"
+        # P4 modality-routing cell (parallel to health; declared modalities shown on the chip
+        # when present so the routing vector is legible at a glance).
+        mroute = c.get("modality_routing", "unknown")
+        mr_vals = c.get("modality_relevance") or []
+        mr_label = mroute if not mr_vals else f"{mroute}: {', '.join(mr_vals)}"
+        p4_cell = _chip(mr_label, MODALITY_COLORS.get(mroute, _GREY), MODALITY_GLOSS.get(mroute))
         return (
             f"<tr{cls}><td class='nm'>{_esc(c['card_id'])}</td>"
             f"<td>{_chip(ch, CARD_COLORS.get(ch, _GREY), CARD_GLOSS.get(ch))}</td>"
@@ -336,27 +360,28 @@ def _cards_table(report: dict) -> str:
             f"<td>{'✓' if c.get('fires_in_real_package') else '—'}</td>"
             f"<td>{spec_cell}</td>"
             f"<td>{_esc(c.get('measurement_type') or '—')}</td>"
+            f"<td>{p4_cell}</td>"
             f"<td>{_esc(method)}</td>"
             f"<td>{len(consumers)} {cons_txt}</td></tr>"
         )
 
     body = ""
     if orphans:
-        body += (f"<tr class='grp'><td colspan='8'>⚠ ORPHAN CARDS — defined on disk, "
+        body += (f"<tr class='grp'><td colspan='9'>⚠ ORPHAN CARDS — defined on disk, "
                  f"consumed by no skill ({len(orphans)}) — the pull-model's unclaimed-measurement signal</td></tr>")
         for c in sorted(orphans, key=lambda c: c["card_id"]):
             body += _row(c, orphan=True)
     for h in health_order:
         if h not in groups:
             continue
-        body += f"<tr class='grp'><td colspan='8'>{h} ({len(groups[h])})</td></tr>"
+        body += f"<tr class='grp'><td colspan='9'>{h} ({len(groups[h])})</td></tr>"
         for c in sorted(groups[h], key=lambda c: c["card_id"]):
             body += _row(c)
 
     return (
         "<table class='matrix'><thead><tr>"
         "<th>card</th><th>health</th><th>live reader</th><th>fires in real pkg</th>"
-        "<th>in spec</th><th>measurement_type</th><th>method (dispatcher)</th><th>consumed by</th>"
+        "<th>in spec</th><th>measurement_type</th><th>P4 routing</th><th>method (dispatcher)</th><th>consumed by</th>"
         "</tr></thead><tbody>" + body + "</tbody></table>"
     )
 
@@ -434,6 +459,25 @@ def _card_summary_cards(report: dict) -> str:
         + [("orphan cards", s.get("n_orphan_cards", 0), _RED),
            ("consumed, no spec", s.get("n_cards_consumed_but_no_spec", 0), _RED)]
     )
+
+
+def _p4_summary_cards(report: dict) -> str:
+    """P4 modality-vector adoption strip (routing metadata, parallel to card health).
+
+    'declared / required' is the headline coverage ratio: of the cards whose measurement_type
+    routes to a modality-fit gate, how many declare their modality_relevance vector. missing/drift
+    are the non-compliant states (also enforced at commit time by validate_cards.py)."""
+    s = report["summary"]
+    req = s.get("n_p4_required_cards", 0)
+    dec = s.get("n_p4_declared_cards", 0)
+    mt = s.get("modality_routing_tally", {})
+    coverage = f"{dec}/{req} declared" if req else "0/0"
+    return _stat_strip([
+        (f"P4 coverage · {coverage}", mt.get("declared", 0), _GREEN),
+        ("missing (stranded)", s.get("n_p4_missing_cards", 0), _RED),
+        ("drift", s.get("n_p4_drift_cards", 0), _AMBER),
+        ("not required (biology-axis)", mt.get("not_required", 0), _GREY),
+    ])
 
 
 # Any node health value -> a color (skills + cards share the ramp; resolver/method
@@ -589,6 +633,7 @@ def render(report: dict) -> str:
 
 <div class="tabpane" id="pane-cards">
 {_card_summary_cards(report)}
+{_p4_summary_cards(report)}
 <h2>Card inventory — every card once, deduped, joined to consuming skills</h2>
 {_cards_table(report)}
 </div>
@@ -613,6 +658,10 @@ def render(report: dict) -> str:
 <p><b>broken</b> = no path to data (no reader + no backing method, never fires);
 <b>blocked</b> = no live reader (honest gap); <b>partial</b> = reader exists but hasn't fired in a real package yet;
 <b>orphan</b> = card defined on disk but consumed by no skill (unclaimed measurement).</p>
+<p><b>P4 routing:</b> {' '.join(_chip(k, v) for k, v in MODALITY_COLORS.items() if k not in ("not_applicable", "unknown"))}</p>
+<p><b>declared</b> = measurement_type routes to a modality-fit gate (SM/degrader/ADC/TCE/antibody) and the card declares its vector;
+<b>not required</b> = biology-axis type, correctly silent; <b>missing</b> = routes but declares nothing (stranded — validator error);
+<b>drift</b> = declares values outside its type's routing set. Routing is metadata PARALLEL to health — it never changes a card's health.</p>
 </div>
 </main>
 <footer>Generated by validators/framework_health — a derived artifact. Regenerate; do not hand-edit. Run with --check to guard staleness in CI.</footer>

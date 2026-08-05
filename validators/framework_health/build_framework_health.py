@@ -75,6 +75,8 @@ def stable_projection(report: dict) -> str:
 # Enums the committed artifact must conform to (kept in sync with health_rules.yaml).
 _SKILL_VERDICTS = {"production_ready", "ready_unproven", "partial", "placeholder", "broken_or_drift"}
 _CARD_HEALTHS = {"live", "partial", "blocked", "placeholder", "broken"}
+# P4 modality-vector lens (parallel to card_health — see probe.probe_card).
+_MODALITY_ROUTINGS = {"declared", "not_required", "missing", "drift", "not_applicable", "unknown"}
 
 
 def self_check(report_path: Path) -> tuple[bool, list[str]]:
@@ -161,6 +163,28 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
         expect = (c.get("n_consumers", 0) > 0 and not c.get("in_dashboard_spec"))
         if c.get("consumed_but_no_spec") != expect:
             errs.append(f"[card {c.get('card_id')}] consumed_but_no_spec inconsistent")
+
+    # 4d. P4 modality-routing lens (if present): enum conformance + tally + count
+    #     agreement. Parallel to card_health — never affects it — so checked separately.
+    if cards is not None and "modality_routing_tally" in rep.get("summary", {}):
+        mtally: dict[str, int] = {}
+        for c in cards:
+            mr = c.get("modality_routing")
+            mtally[mr] = mtally.get(mr, 0) + 1
+            if mr not in _MODALITY_ROUTINGS:
+                errs.append(f"[card {c.get('card_id')}] invalid modality_routing '{mr}'")
+        if rep["summary"].get("modality_routing_tally") != mtally:
+            errs.append("summary.modality_routing_tally disagrees with per-card count — regenerate")
+        req = sum(mtally.get(k, 0) for k in ("declared", "missing", "drift"))
+        dec = sum(mtally.get(k, 0) for k in ("declared", "drift"))
+        if rep["summary"].get("n_p4_required_cards") != req:
+            errs.append("summary.n_p4_required_cards disagrees with the routing tally — regenerate")
+        if rep["summary"].get("n_p4_declared_cards") != dec:
+            errs.append("summary.n_p4_declared_cards disagrees with the routing tally — regenerate")
+        if rep["summary"].get("n_p4_missing_cards") != mtally.get("missing", 0):
+            errs.append("summary.n_p4_missing_cards disagrees with the routing tally — regenerate")
+        if rep["summary"].get("n_p4_drift_cards") != mtally.get("drift", 0):
+            errs.append("summary.n_p4_drift_cards disagrees with the routing tally — regenerate")
 
     # 5. Graph section (if present): every edge endpoint must resolve to a node
     #    (a dangling edge is drift), and counts must agree.
