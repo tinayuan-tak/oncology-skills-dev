@@ -21,7 +21,8 @@ applies_when:
   - "context.data_sources.uniprot_available == true"
 
 required_inputs:
-  - product_id: uniprot-protein-features-v1   # derived from the reviewed-human SwissProt DAT (FT DOMAIN + KW)
+  - product_id: uniprot-protein-features-v1   # derived from the reviewed-human SwissProt DAT (FT DOMAIN + KW) — CURATED layer
+  - product_id: interpro-109-0-snapshot-2026-08-05   # InterPro domain-hit product — ADDITIVE coverage-broadening layer (method 1.1.0)
 
 derived_from:
   - card_id: target-identity-summary   # HGNC symbol -> UniProt-AC resolution (via the resolver sidecar)
@@ -33,13 +34,22 @@ methods:
 
 outputs:
   summary_fields:
-    - protein_features_class       # PRIMARY (multi_domain | single_domain | no_curated_domain | data_unavailable)
+    - protein_features_class       # PRIMARY (multi_domain | single_domain | no_curated_domain | data_unavailable) — CURATED FT DOMAIN, unchanged
     - n_domains                    # count of curated FT DOMAIN features
-    - domain_names                 # list<string> — ordered domain names
+    - domain_names                 # list<string> — ordered curated domain names
     - domain_architecture          # "A; B; C" ordered string (null if no curated domain)
     - protein_class                # list<string> — mapped molecular classes (a protein may have several)
     - protein_class_primary        # convenience: first class in UniProt keyword order (read the LIST, not this, when several)
     - uniprot_ac                   # provenance: the AC features were looked up by
+    # InterPro layer (method 1.1.0, 2026-08-05) — ADDITIVE coverage broadening from the InterPro
+    # domain-hit product (interpro-109-0-snapshot-2026-08-05). The CURATED fields above stay
+    # authoritative + unchanged; these surface InterPro's fuller domain architecture (type=domain
+    # hits), which reaches ~15,019 proteins vs the curated 8,768 (6,445 have an InterPro domain but
+    # no curated FT DOMAIN). domain_evidence records the provenance so curated vs InterPro-only is explicit.
+    - domain_evidence              # curated | both | interpro_only | none — provenance of the domain call
+    - interpro_n_domains           # count of InterPro type=domain hits for the target
+    - interpro_domain_names        # list<string> — InterPro domain names, N→C-terminal (start-ordered)
+    - interpro_domain_architecture # "A; B; C" ordered string of InterPro domains (null if none)
 
   summary_fields_vocabulary:
     protein_features_class:
@@ -47,6 +57,11 @@ outputs:
       - single_domain
       - no_curated_domain
       - data_unavailable
+    domain_evidence:                 # provenance of the domain architecture (curated vs InterPro-broadened)
+      - curated                      # curated FT DOMAIN present (InterPro may or may not add more)
+      - both                         # curated FT DOMAIN AND InterPro domains
+      - interpro_only                # NO curated FT DOMAIN, but InterPro has domains (the coverage gap-fill)
+      - none                         # neither curated nor InterPro domains for this target
     protein_class:                 # the mapped taxonomy (a protein may carry several)
       - kinase
       - gpcr
@@ -86,10 +101,16 @@ caveats:
     Target-intrinsic (cancer-independent): the same regardless of indication. This card takes no
     indication and emits no verdict — descriptive molecular context for the target-intrinsic dossier.
   - |
-    DOMAIN coverage is UniProt's CURATED FT DOMAIN subset (Pfam-derived), NOT full Pfam/InterPro
-    domain-hit coverage — a fuller InterPro ingest is a documented follow-on. A gene with no curated
-    FT DOMAIN reads no_curated_domain, which is distinct from data_unavailable (the latter = no domain
-    AND no class keyword / unresolvable).
+    CURATED layer: protein_features_class + n_domains + domain_architecture come from UniProt's
+    CURATED FT DOMAIN subset (Pfam-derived), authoritative, ~8,768 proteins. A gene with no curated
+    FT DOMAIN reads no_curated_domain, distinct from data_unavailable (the latter = no domain AND no
+    class keyword / unresolvable). protein_features_class stays curated-only for vocabulary stability.
+  - |
+    InterPro layer (SHIPPED 2026-08-05, method 1.1.0): interpro_* fields BROADEN domain coverage to
+    ~15,019 proteins (6,445 have an InterPro domain but NO curated FT DOMAIN — e.g. KRAS 'Small
+    GTP-binding domain', TP53 'DNA-binding domain', whose regulatory regions UniProt annotates as
+    'region' not 'domain'). type=domain hits from interpro-109-0-snapshot-2026-08-05. Read
+    domain_evidence (curated | both | interpro_only | none) to know the architecture's provenance.
   - |
     HGNC symbol -> UniProt-AC resolution uses the target_id_resolver sidecar shipped with the derived
     product (never a source symbol column). Pinned to uniprot-sprot-human-2026-02. UniProt CC-BY-4.0.
