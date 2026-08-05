@@ -1,0 +1,137 @@
+# tumor_presence_controls.yaml
+#
+# Curated POSITIVE / NEGATIVE control genes for the tumor-presence subskill's
+# control-benchmark axis (Phase 2 of the contextualized-interpretation
+# enhancement). A target's all-gene percentile (Phase 1) is uninterpretable in
+# isolation ("99th of what?"); this vocabulary anchors it against genes whose
+# tumor-abundance behavior is KNOWN, so a reader can say "the target sits above
+# 3/4 positive controls and well above every negative" on the SAME percentile
+# scale, in the SAME indication cohort.
+#
+# WHY A CURATED LIST (not a database):
+#   "Known-abundant tumor antigen" and "known-absent-in-this-tissue gene" are
+#   clinical/biological judgments, not a queryable field. This mirrors the
+#   discipline of known_target_calibration_set.yaml (approved-drug controls) and
+#   shed_antigen_targets.yaml (per-entry provenance). Each entry cites WHY it is
+#   a control.
+#
+# THE INDICATION-MATCHING RULE (the load-bearing design — Phase-2 risk #2):
+#   A negative control is only negative in the RIGHT tissue. SFTPC (surfactant
+#   protein C) is a clean negative in COLON tumor (a lung-lineage marker, ~absent)
+#   but is THE lineage marker in LUNG tumor (highly expressed) — using it as a
+#   negative in LUAD would be exactly backwards. So every negative declares a
+#   `role` + an applicability SCOPE:
+#     role: housekeeping        — negative-by-being-ubiquitous. Actually a CEILING
+#                                 reference (top of every cohort); universally
+#                                 applicable. `applies: universal`.
+#     role: lineage_marker      — a tissue-restricted gene that is a clean negative
+#                                 EVERYWHERE EXCEPT its own lineage. Declares
+#                                 `negative_except_lineage: <crosswalk gtex_normal_tissue>`;
+#                                 the reader EXCLUDES it (flags lineage_conflict) when
+#                                 the queried indication's gtex_normal_tissue matches.
+#     role: silent              — a gene essentially unexpressed across solid-tumor
+#                                 lineages (a floor reference); `applies: universal`.
+#   Applicability is resolved through vocabularies/indication_crosswalk.yaml
+#   (indication -> gtex_normal_tissue), NOT a second hardcoded map.
+#
+# WHAT `control_position` MEANS (the emitted output):
+#   For a (target, indication), the method fetches the Phase-1 all-gene percentile
+#   for the target AND for every APPLICABLE control (same cohort/product), then
+#   reports where the target sits relative to the positive + negative anchors,
+#   e.g. "above 3/4 positives; above all 3 negatives" + a categorical
+#   control_position_class. It is a CONFIDENCE / interpretability facet — like the
+#   rest of this subskill it is one-directional and NEVER flips presence_verdict.
+#
+# CURATION DISCIPLINE:
+#   - Every entry cites its rationale (approved-antigen / housekeeping-canon /
+#     lineage-marker literature).
+#   - Positives are TUMOR-ABUNDANT surface/secreted antigens with approved or
+#     late-clinical agents (the "a real winner reads high" anchors).
+#   - Extending is cheap: add an entry + bump version. The calibration harness
+#     (tests/calibration/test_tumor_presence_controls.py) locks the indication-swap
+#     behavior (SFTPC negative-in-COADREAD, excluded-in-LUAD).
+
+version: 1.0.0
+schema_version: 1
+curator: ryan.abo@takeda.com
+curation_status: iter1_authored
+# The percentile scale these controls are read on (Phase-1 products). A control's
+# position is only comparable to a target's when BOTH come from the same axis.
+percentile_source:
+  tumor: allgene-tumor-rank-v1          # tcga_tumor per-(source,group) all-gene median rank
+  cell_line: allgene-depmap-rank-26q1-v1 # DepMap pan-cancer panel all-gene median rank
+
+# ---------------------------------------------------------------------------
+# POSITIVE CONTROLS — tumor-abundant antigens with approved / late-clinical agents.
+# A genuine target should read AT or ABOVE these on the all-gene percentile axis.
+# ---------------------------------------------------------------------------
+positive_controls:
+
+  CEACAM5:
+    role: tumor_antigen
+    applies: universal          # broadly-epithelial GI/lung antigen; high in most carcinomas
+    agent: "labetuzumab govitecan / tusamitamab ravtansine (CEA ADC)"
+    rationale: "Clinically-validated CEA ADC antigen; shed serum marker (CEA). High tumor RNA abundance in GI carcinoma — the canonical 'reads top_1pct in the disease tissue' positive."
+    citation: "FDA CEA serum marker; tusamitamab ravtansine CARMEN-LC03."
+
+  EPCAM:
+    role: tumor_antigen
+    applies: universal          # pan-epithelial adhesion molecule; high across carcinomas
+    agent: "catumaxomab (EpCAM x CD3); adecatumumab"
+    rationale: "Pan-carcinoma epithelial marker, near-universally high in epithelial tumors — a strong-positive abundance anchor."
+    citation: "Catumaxomab (Removab) EMA approval (malignant ascites)."
+
+  MSLN:
+    role: tumor_antigen
+    applies: universal          # mesothelin — high in meso, ovarian, pancreatic, lung adeno
+    agent: "anetumab ravtansine; multiple MSLN CAR-T / ADC"
+    rationale: "Mesothelin: high tumor expression in mesothelioma / ovarian / pancreatic / lung; shed (SMRP serum marker). A tumor-abundant antigen positive (more indication-specific than EPCAM/CEACAM5)."
+    citation: "SMRP FDA-cleared serum marker; anetumab ravtansine trials."
+
+  ERBB2:
+    role: tumor_antigen
+    applies: universal          # HER2 — amplification-driven high abundance in a subset
+    agent: "trastuzumab / T-DXd (HER2)"
+    rationale: "HER2: the archetypal approved surface-antigen target; abundance is amplification-driven so it reads high in the HER2+ subset (a subset-high positive). Shed HER2-ECD serum marker."
+    citation: "Trastuzumab / trastuzumab deruxtecan approvals."
+
+# ---------------------------------------------------------------------------
+# NEGATIVE CONTROLS — genes whose tumor abundance is KNOWN-LOW in the applicable
+# context. A genuine target should read ABOVE these. Two negative flavors:
+#   housekeeping (a CEILING reference — top of every cohort) and lineage/silent
+#   (a FLOOR reference). Both anchor the scale from opposite ends.
+# ---------------------------------------------------------------------------
+negative_controls:
+
+  # --- housekeeping: ubiquitously high → the CEILING anchor (universal) ---
+  ACTB:
+    role: housekeeping
+    applies: universal
+    rationale: "Beta-actin: canonical housekeeping gene, top-percentile in every tissue. A CEILING reference — a real antigen need NOT exceed it, but a target below housekeeping is not abundantly expressed."
+    citation: "Standard RT-qPCR normalization control (Eisenberg & Levanon 2013)."
+
+  GAPDH:
+    role: housekeeping
+    applies: universal
+    rationale: "Glyceraldehyde-3-phosphate dehydrogenase: canonical housekeeping ceiling reference, ubiquitously high."
+    citation: "Standard normalization control (Barber et al. 2005)."
+
+  # --- lineage markers: clean negatives EXCEPT in their own lineage ---
+  SFTPC:
+    role: lineage_marker
+    negative_except_lineage: Lung        # matches indication_crosswalk gtex_normal_tissue
+    rationale: "Surfactant protein C: alveolar type-II-cell marker, essentially lung-exclusive. A CLEAN NEGATIVE in non-lung tumors; MUST be excluded (lineage_conflict) in LUAD/LUSC/NSCLC/SCLC where it is a lineage marker."
+    citation: "SFTPC lung-lineage restriction (GTEx tissue-specificity)."
+
+  GYPA:
+    role: lineage_marker
+    negative_except_lineage: "Whole Blood"   # erythroid; matches AML/CML crosswalk normal
+    rationale: "Glycophorin A: erythroid-lineage-restricted surface marker. A clean negative in solid tumors; exclude in blood/erythroid contexts (AML/CML)."
+    citation: "GYPA erythroid restriction (surface CD235a)."
+
+  # --- silent: near-unexpressed across solid-tumor lineages → FLOOR anchor ---
+  PRM1:
+    role: silent
+    applies: universal
+    rationale: "Protamine 1: testis/sperm-specific chromatin protein, essentially silent in somatic tumors — a FLOOR reference (bottom of the all-gene distribution) in any non-germ-cell indication."
+    citation: "PRM1 testis-restriction (GTEx tissue-specificity)."
