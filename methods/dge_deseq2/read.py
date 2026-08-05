@@ -82,30 +82,35 @@ def _dge_allgene_percentile(manifest_id: str, log2_fc, cutoffs: dict = None):
     return pct, classify_percentile(pct, cutoffs)
 
 
-@lru_cache(maxsize=8)
-def _sensitivity_cellA_null(manifest_id: str, s3_uri: str) -> tuple:
-    """All genes' cell-A log2FC (log2fc_A = TCGA tumor-vs-adjacent) from a sensitivity
-    product — the context-matched null for the non-COADREAD tumor-vs-adjacent percentile.
-    Cached per manifest; one added full-column scan. Empty on failure."""
+@lru_cache(maxsize=24)
+def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
+    """All genes' log2FC for ONE sensitivity cell (log2fc_A/B/C) from a sensitivity product —
+    the context-matched null for the tumor-vs-normal SELECTIVITY percentile. Each cell is a
+    DISTINCT comparator (A/B = TCGA-adjacent raw/ComBat, C = GTEx), so each gets its OWN
+    null over its OWN column — pooling A and C would mix comparator scales. Cached per
+    (manifest, column); one added full-column scan per cell. Empty on failure."""
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
     _ensure_aws_profile()
     try:
         path = _s3_uri_to_path(s3_uri)
         s3 = fs.S3FileSystem()
-        table = pq.read_table(path, filesystem=s3, columns=["log2fc_A"])
-        return tuple(v for v in table["log2fc_A"].to_pylist() if v is not None)
+        table = pq.read_table(path, filesystem=s3, columns=[column])
+        return tuple(v for v in table[column].to_pylist() if v is not None)
     except Exception:
         return tuple()
 
 
-def _dge_sensitivity_cellA_percentile(manifest_id: str, s3_uri: str, log2fc_a, cutoffs: dict = None):
+def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str,
+                                     log2fc, cutoffs: dict = None):
+    """Percentile + class of one cell's log2FC among all genes in the SAME sensitivity product,
+    keyed to the SAME comparator column (never pooled across cells)."""
     import sys as _sys
     from pathlib import Path as _Path
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
     from percentile_null import percentile_rank, classify_percentile
-    null_vec = _sensitivity_cellA_null(manifest_id, s3_uri)
-    pct = percentile_rank(log2fc_a, null_vec)
+    null_vec = _sensitivity_cell_null(manifest_id, s3_uri, column)
+    pct = percentile_rank(log2fc, null_vec)
     return pct, classify_percentile(pct, cutoffs)
 
 
@@ -672,14 +677,24 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
         return None
     raw = {col: table[col][0].as_py() for col in table.column_names}
     manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
-    # All-gene percentile of cell A (TCGA tumor-vs-adjacent) among all genes in this
-    # sensitivity product. Null scanned over the log2fc_A column, cached per product.
-    pct_a, pct_a_class = _dge_sensitivity_cellA_percentile(manifest_id, s3_uri, raw.get("log2fc_A"))
+    # SELECTIVITY all-gene percentile (SEL-1, 2026-08-05) — the Axis-1 analog for the
+    # tumor-vs-normal CONTRAST: where does this gene's log2FC sit among ALL genes in this
+    # sensitivity product? Answers "is +1.9 an unusually selective fold-change here, or middling?"
+    # Namespaced `selectivity_allgene_percentile*` (NOT the bare `allgene_percentile` the presence
+    # tumor-rna-vs-adjacent reader emits) — same name, different semantics (selectivity contrast vs
+    # abundance rank); the namespace prevents a silent collision in the composed target-profile.
+    # Cell A is the PRIMARY comparator (TCGA tumor-vs-adjacent, the same frame the class keys on);
+    # B (ComBat) + C (GTEx) are corroborating, each ranked against its OWN column (never pooled).
+    pct_a, pct_a_class = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_A", raw.get("log2fc_A"))
+    pct_b, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_B", raw.get("log2fc_B"))
+    pct_c, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_C", raw.get("log2fc_C"))
     return {
         "gene_symbol":        raw.get("gene_symbol"),
-        "allgene_percentile":       pct_a,          # cell-A (tumor-vs-adjacent) percentile
-        "allgene_percentile_class": pct_a_class,
-        "allgene_percentile_context": f"{manifest_id} metric=log2fc_A(tumor-vs-adjacent)",
+        "selectivity_allgene_percentile":       pct_a,          # cell-A (TCGA tumor-vs-adjacent) — PRIMARY
+        "selectivity_allgene_percentile_class": pct_a_class,
+        "selectivity_allgene_percentile_context": f"{manifest_id} metric=log2fc_A(tumor-vs-adjacent, primary)",
+        "selectivity_allgene_percentile_cell_b": pct_b,         # cell-B (TCGA-adjacent ComBat) corroboration
+        "selectivity_allgene_percentile_cell_c": pct_c,         # cell-C (GTEx population) corroboration
         "cells_ran":          raw.get("cells_ran"),
         "cells_supporting":   raw.get("cells_supporting"),
         "dominant_direction": raw.get("dominant_direction"),
