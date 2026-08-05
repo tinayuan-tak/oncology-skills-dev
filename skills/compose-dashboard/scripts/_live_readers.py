@@ -588,6 +588,17 @@ def _dispatch_co_mutation_and_mutual_exclusivity(target: str, indication: str) -
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_reactome_pathway_membership(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: reactome-pathway-membership card → Reactome pathway/geneset membership
+    via methods/reactome_pathway_context/read.py. Target-intrinsic (indication ignored); the
+    reader resolves HGNC→UniProt-AC via the Reactome resolver sidecar. Distinct from the
+    signaling-network-mechanism dispatcher (which uses reactome only as one enrichment input to
+    the COMPOSED mechanism output) — this exposes pathway MEMBERSHIP as its own card.
+    """
+    mod = _import_method("reactome_pathway_context")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 def _dispatch_signaling_network_mechanism_composed(target: str, indication: str) -> Optional[dict]:
     """Alias for the ADC/TCE composed card's derived_from resolution.
     (Unused as a card-registered dispatcher; kept for symmetry.)"""
@@ -976,6 +987,7 @@ CARD_DISPATCHERS = {
     "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
+    "reactome-pathway-membership": _dispatch_reactome_pathway_membership,  # target-intrinsic pathway/geneset membership
     "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,

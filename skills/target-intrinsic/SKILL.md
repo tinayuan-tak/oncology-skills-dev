@@ -43,6 +43,7 @@ composition:
     - structure-features-static
     - shed-ectodomain-liability
     - signaling-network-mechanism
+    - reactome-pathway-membership
     - paralog-buffering
     - normal-tissue-liability
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. STRICT molecular-intrinsic:
@@ -61,6 +62,7 @@ composition:
     - structure_druggability
     - shed_ectodomain_liability
     - signaling_network_mechanism
+    - reactome_pathway_membership
     - paralog_buffering
     - normal_tissue_protein_breadth
   # No rules_scope + synthesis: none — DESCRIPTIVE dossier, no verdict spine (nomination is
