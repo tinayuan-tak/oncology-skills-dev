@@ -25,6 +25,7 @@ applies_when:
 required_inputs:
   - product_id: string-v12-human-snapshot-2026-06-30   # STRING functional network (links + info)
   - product_id: corum-5-3                               # CORUM stable-complex membership
+  - product_id: biogrid-physical-interactions-per-gene-v1   # BioGRID experimental-physical interactions (method 1.1.0)
 
 derived_from:
   - card_id: target-identity-summary   # symbol resolution (STRING self-contained; CORUM via UniProt sidecar)
@@ -43,6 +44,12 @@ outputs:
     - corum_complexes                # list<{corum_id, complex_name}> — top 15
     - in_protein_complex             # bool — member of >=1 CORUM complex
     - string_protein_id              # provenance: the STRING ENSP id resolved
+    # BioGRID experimental-PHYSICAL leg (method 1.1.0) — a THIRD distinct signal, reported
+    # alongside STRING/CORUM (never merged): direct experimentally-observed physical binding,
+    # ranked by supporting-publication count. Complements STRING's functional-association score.
+    - physical_interactome_class     # physical_hub | physically_connected | physically_sparse | no_physical_interactors | data_unavailable
+    - n_physical_interactors         # distinct BioGRID physical partners
+    - top_physical_partners          # list<{partner, n_publications, n_experiments}> — top 15 by publication evidence
 
   summary_fields_vocabulary:
     interactome_class:
@@ -50,6 +57,12 @@ outputs:
       - connected
       - sparse
       - no_high_confidence_interactors
+      - data_unavailable
+    physical_interactome_class:
+      - physical_hub
+      - physically_connected
+      - physically_sparse
+      - no_physical_interactors
       - data_unavailable
 
 warning_predicates:
@@ -71,9 +84,11 @@ caveats:
     Target-intrinsic (cancer-independent): the same regardless of indication. This card takes no
     indication and emits no verdict — descriptive molecular context for the target-intrinsic dossier.
   - |
-    BioGRID physical-interaction detail (direct binary assays) is a documented v2 enrichment — the
-    ingested BioGRID 5.0.259 source is not yet wired (180MB tab3, no resolver sidecar). v1 uses STRING
-    (functional network) + CORUM (complexes).
+    THIRD signal (method 1.1.0, SHIPPED 2026-08-05): BioGRID experimental-PHYSICAL interactions
+    (physical_interactome_class + n_physical_interactors + top_physical_partners), from
+    biogrid-physical-interactions-per-gene-v1 (BioGRID 5.0.259). Unlike STRING's functional score,
+    these are experimentally-OBSERVED physical bindings, ranked by distinct supporting-publication
+    count (evidence depth + traceability, e.g. TP53-MDM2 in 504 papers). Alongside STRING/CORUM, never merged.
   - |
     Symbol resolution: STRING is self-contained (9606.protein.info maps symbol<->ENSP); CORUM
     (UniProt-AC-keyed) resolves symbol->AC via a target_id_resolver sidecar. Pinned to STRING v12 +
