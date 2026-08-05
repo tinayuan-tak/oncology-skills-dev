@@ -97,9 +97,16 @@ def test_absent_target_is_real_negative_not_unavailable(aggregate):
     assert s["driver_recurrence_percentile"] < 10.0
 
 
-def test_missing_aggregate_is_data_unavailable(tmp_path):
-    """When the aggregate file itself is absent, the recurrence axis is unknowable —
-    data_unavailable, distinct from the real-zero case above."""
+def test_missing_aggregate_is_data_unavailable(tmp_path, monkeypatch):
+    """When the aggregate is resolvable via NEITHER the local cache NOR the registered S3
+    product, the recurrence axis is unknowable — data_unavailable, distinct from the real-zero
+    case above. Post-manifest-migration: an absent LOCAL path alone is no longer enough (the
+    reader falls back to the tcga-mc3-hotspot-frequency-v1 S3 product), so this test also points
+    DATA_CATALOG at an empty dir → the manifest can't resolve → no S3 fallback → data_unavailable.
+    (This is the migration working as designed: S3 fallback is a feature; data_unavailable now
+    means genuinely-nowhere-to-read.)"""
+    monkeypatch.setattr(r, "DATA_CATALOG", tmp_path / "empty_catalog")   # manifest glob → [] → no S3
+    r._allgene_mutation_frequency_null.cache_clear()
     missing = tmp_path / "does_not_exist.parquet"
     s = r.read_hotspot_summary("DRIVER_HI", "COADREAD", aggregate_path=missing)
     assert s["driver_recurrence_class"] == "data_unavailable"

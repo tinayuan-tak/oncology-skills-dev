@@ -17,6 +17,8 @@ from typing import Optional
 
 from functools import lru_cache, partial
 
+import yaml
+
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
     SUBGROUP_N_FLOOR,
@@ -72,9 +74,63 @@ def _ensure_aws_profile():
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
+# --- Derived-manifest resolution (2026-08-05) ---------------------------------
+# The MC3 hotspot aggregate + per-sample MAF are now REGISTERED derived products
+# (tcga-mc3-hotspot-frequency-v1 / tcga-mc3-per-sample-maf-v1). Resolve them from the
+# data-catalog manifest → S3, so a fresh environment reads the durable product instead
+# of a machine-local cache file. LOCAL-CACHE-FIRST: if the legacy local file exists it
+# wins (preserves the fast path + byte-stability for already-provisioned environments),
+# else fall back to the manifest's S3 payload. Both products carry an `indication`
+# column, so a single pushdown filter on (indication[, gene_symbol]) works either way.
+DATA_CATALOG = Path(os.environ.get(
+    "DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+
+_HOTSPOT_FREQUENCY_MANIFEST = "tcga-mc3-hotspot-frequency-v1"
+_PER_SAMPLE_MAF_MANIFEST = "tcga-mc3-per-sample-maf-v1"
+
+
+def _load_manifest(manifest_id: str) -> dict:
+    """Load a derived manifest YAML from the data-catalog (returns {} if absent, so the
+    local-cache fallback still works in an environment without the catalog checked out)."""
+    candidates = list((DATA_CATALOG / "manifests" / "derived").glob(f"{manifest_id}.yaml"))
+    if not candidates:
+        return {}
+    with candidates[0].open() as f:
+        return yaml.safe_load(f) or {}
+
+
+def _manifest_s3_path(manifest_id: str) -> Optional[str]:
+    """The manifest's s3_uri as a bucket/key path (no s3:// prefix), or None if unresolvable."""
+    s3_uri = _load_manifest(manifest_id).get("s3_uri")
+    if not s3_uri or not s3_uri.startswith("s3://"):
+        return None
+    return s3_uri[len("s3://"):]
+
+
+def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, columns=None):
+    """Read a derived product as a pyarrow Table, LOCAL-CACHE-FIRST then S3-manifest.
+
+    - If `local_path` exists → read it (the legacy fast path; byte-identical to pre-migration).
+    - Else resolve the manifest's s3_uri and read from S3 with the same filters/columns.
+    Returns None if neither is available (caller renders data_unavailable)."""
+    import pyarrow.parquet as pq
+    _ensure_aws_profile()
+    if local_path.exists():
+        return pq.read_table(local_path, filters=filters, columns=columns)
+    key = _manifest_s3_path(manifest_id)
+    if key is None:
+        return None
+    import pyarrow.fs as fs
+    try:
+        return pq.read_table(key, filesystem=fs.S3FileSystem(), filters=filters, columns=columns)
+    except Exception:
+        return None
+
+
 def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BASE) -> Path:
-    """Locate the aggregated Parquet for an indication. Iter-1b uses a local cache
-    location; iter-2 expects this to resolve through a data-catalog derived manifest."""
+    """Locate the LOCAL aggregated Parquet for an indication (the cache fast path). The
+    registered product (tcga-mc3-hotspot-frequency-v1) is the S3 fallback — see
+    _read_product_table. Kept as a function for the existing aggregate_path override contract."""
     return cache_base / f"{indication.lower()}_mc3_hotspots.parquet"
 
 
@@ -96,21 +152,24 @@ def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BA
 #      never pooled across indications (the #1 percentile-null risk).
 
 @lru_cache(maxsize=16)
-def _allgene_mutation_frequency_null(aggregate_path_str: str) -> tuple:
-    """All genes' overall_mutation_frequency (gene-summary rows only) from ONE
-    indication's MC3 aggregate — the context-matched null for the driver-recurrence
-    percentile. Cached per aggregate path; one added scan of two columns. Returns a
-    tuple (hashable/cache-safe); empty on any failure → percentile is None."""
-    import pyarrow.parquet as pq
-    _ensure_aws_profile()
+def _allgene_mutation_frequency_null(aggregate_path_str: str, indication: str = "") -> tuple:
+    """All genes' overall_mutation_frequency (gene-summary rows only) for ONE indication —
+    the context-matched null for the driver-recurrence percentile. Reads LOCAL-CACHE-FIRST
+    then the registered S3 product (indication-filtered — the S3 concat holds all indications,
+    the local per-indication file holds one; a redundant indication filter is harmless on both).
+    Cached per (local path, indication); one added scan of a few columns. Returns a tuple
+    (hashable/cache-safe); empty on any failure → percentile is None."""
     try:
-        path = Path(aggregate_path_str)
-        if not path.exists():
+        local = Path(aggregate_path_str)
+        # gene-summary rows carry a null hotspot_protein_change; keep only those so each gene
+        # contributes its frequency exactly ONCE. Filter to the indication (S3 concat carries all).
+        filters = [("indication", "=", indication)] if indication else None
+        table = _read_product_table(
+            local, _HOTSPOT_FREQUENCY_MANIFEST,
+            filters=filters,
+            columns=["overall_mutation_frequency", "hotspot_protein_change"])
+        if table is None:
             return tuple()
-        # gene-summary rows carry a null hotspot_protein_change; read both columns and
-        # keep only those, so each gene contributes its frequency exactly ONCE.
-        table = pq.read_table(
-            path, columns=["overall_mutation_frequency", "hotspot_protein_change"])
         df = table.to_pandas()
         summary = df[df["hotspot_protein_change"].isnull()]
         return tuple(
@@ -120,7 +179,7 @@ def _allgene_mutation_frequency_null(aggregate_path_str: str) -> tuple:
         return tuple()
 
 
-def _driver_recurrence_percentile(aggregate_path: Path, overall_freq, cutoffs: dict = None):
+def _driver_recurrence_percentile(aggregate_path: Path, indication, overall_freq, cutoffs: dict = None):
     """Percentile + companion categorical of this gene's overall_mutation_frequency
     among all mutated genes in the SAME indication aggregate. DISPLAY facet — the
     class is emitted for render/LLM/rules-readiness but the skill does NOT wire a
@@ -128,7 +187,7 @@ def _driver_recurrence_percentile(aggregate_path: Path, overall_freq, cutoffs: d
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ on path
     from percentile_null import percentile_rank, classify_percentile
-    null_vec = _allgene_mutation_frequency_null(str(aggregate_path))
+    null_vec = _allgene_mutation_frequency_null(str(aggregate_path), indication or "")
     pct = percentile_rank(overall_freq, null_vec)
     return pct, classify_percentile(pct, cutoffs)
 
@@ -151,13 +210,18 @@ def read_hotspot_summary(
     (requires co-mutation analysis across samples; iter-1b returns empty lists
     with a structured note).
     """
-    import pyarrow.parquet as pq
-
     _ensure_aws_profile()
     if aggregate_path is None:
         aggregate_path = _resolve_aggregate_path(indication)
 
-    if not aggregate_path.exists():
+    # Predicate pushdown on (indication, gene_symbol) — LOCAL-CACHE-FIRST then the registered
+    # S3 product (tcga-mc3-hotspot-frequency-v1). None → neither local file nor S3 resolvable.
+    table = _read_product_table(
+        aggregate_path, _HOTSPOT_FREQUENCY_MANIFEST,
+        filters=[("indication", "=", indication), ("gene_symbol", "=", target)],
+    )
+
+    if table is None:
         return {
             "overall_mutation_frequency": None,
             "n_samples_in_indication": None,
@@ -169,17 +233,12 @@ def read_hotspot_summary(
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
             "_data_note": (
-                f"No MC3 aggregate Parquet found at {aggregate_path}. "
+                f"No MC3 hotspot aggregate resolvable for {indication} (neither local cache "
+                f"{aggregate_path} nor the {_HOTSPOT_FREQUENCY_MANIFEST} manifest/S3). "
                 f"Run `python -m methods.gdc_somatic_hotspot.cli --indication {indication} "
-                f"--out {aggregate_path}` to produce it."
+                f"--out {aggregate_path}` to produce it, or check the data-catalog manifest."
             ),
         }
-
-    # Predicate pushdown on (indication, gene_symbol) — both columns are present in the aggregate
-    table = pq.read_table(
-        aggregate_path,
-        filters=[("indication", "=", indication), ("gene_symbol", "=", target)],
-    )
 
     if table.num_rows == 0:
         # Target has NO non-synonymous mutation in this indication — a real biological
@@ -187,7 +246,7 @@ def read_hotspot_summary(
         # 0.0 against the (mutated-gene) null: it lands below every mutated gene, which
         # the percentile correctly reports as ~0th / bottom_decile (a genuine negative,
         # distinct from data_unavailable when the aggregate itself is missing).
-        rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, 0.0)
+        rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, indication, 0.0)
         return {
             "overall_mutation_frequency": 0.0,
             "n_samples_in_indication": None,
@@ -216,7 +275,7 @@ def read_hotspot_summary(
     overall_freq = float(summary_row["overall_mutation_frequency"])
     # Driver-recurrence percentile (Axis-1 analog) — where does this gene's recurrence
     # fall among ALL mutated genes in this indication? DISPLAY facet, verdict-inert.
-    rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, overall_freq)
+    rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, indication, overall_freq)
 
     return {
         "overall_mutation_frequency": overall_freq,
@@ -226,7 +285,7 @@ def read_hotspot_summary(
         "driver_recurrence_class": rec_class,
         "driver_recurrence_context": (
             f"among genes with >=1 non-synonymous mutation in {indication} "
-            f"(TCGA-MC3 aggregate, n_genes={len(_allgene_mutation_frequency_null(str(aggregate_path)))})"
+            f"(TCGA-MC3 aggregate, n_genes={len(_allgene_mutation_frequency_null(str(aggregate_path), indication))})"
         ),
         "hotspot_frequencies": [
             {
@@ -330,17 +389,31 @@ def read_stratified_mutation_frequency(
     import pandas as pd
 
     maf_path, cohort = _resolve_maf_source(maf_source, indication, maf_cache)
-    if not maf_path.exists():
+    # LOCAL-CACHE-FIRST then the registered S3 product. The tcga_mc3 per-sample MAF is now
+    # registered (tcga-mc3-per-sample-maf-v1, single pan-indication payload with an `indication`
+    # column) — so when the local per-indication file is absent, resolve S3 filtered on indication.
+    # The genie_registry source keeps its own path (not this manifest); an explicit maf_cache
+    # override (tests) also stays local-only. Legacy local file → read whole (one indication).
+    maf = None
+    if maf_path.exists():
+        maf = pd.read_parquet(maf_path)
+    elif maf_source == "tcga_mc3" and maf_cache is None:
+        table = _read_product_table(
+            maf_path, _PER_SAMPLE_MAF_MANIFEST,
+            filters=[("indication", "=", indication)])
+        if table is not None:
+            maf = table.to_pandas()
+    if maf is None:
         return {
             "target": target, "indication": indication,
             "subgroup_n": 0, "overall_mutation_frequency": None,
             "n_samples_mutated": None, "subgroup_n_floor_met": False,
             "evidence_state": "absent", "mutation_class": "insufficient",
             "hotspot_frequencies": [], "source_cohort": cohort,
-            "_data_note": f"No per-sample MAF at {maf_path}.",
+            "_data_note": (f"No per-sample MAF for {indication} (neither local {maf_path} nor the "
+                           f"{_PER_SAMPLE_MAF_MANIFEST} manifest/S3)."),
         }
 
-    maf = pd.read_parquet(maf_path)
     cohort_ids = set(maf["sample_id"].dropna())
 
     # Restrict to the subgroup member-set if the decorator injected one.
