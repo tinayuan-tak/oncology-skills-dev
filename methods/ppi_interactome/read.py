@@ -1,0 +1,234 @@
+"""ppi_interactome — per-target protein-protein interaction context (STRING + CORUM).
+
+The INDICATION-INDEPENDENT interactome view of a target: how connected is this protein, and is it a
+member of any stable protein complex. Two biologically-distinct signals:
+  - STRING functional interaction NETWORK: n high-confidence interactors (combined_score >= 700) +
+    top partners. "How many proteins does it functionally interact with."
+  - CORUM stable COMPLEX membership: which named complexes (proteasome, mediator, BAF, ...) the target
+    belongs to. A distinct, stronger signal — complex members carry functional identity + are often
+    harder to drug in isolation.
+
+Target-intrinsic (cancer-independent). Consumed by the target-intrinsic dossier. Descriptive, no verdict.
+
+Substrate (pre-catalogued on S3):
+  - string-v12-human-snapshot-2026-06-30: 9606.protein.links.v12.0.txt.gz (scored edges, ENSP ids) +
+    9606.protein.info.v12.0.txt.gz (string_protein_id <-> preferred_name; SELF-CONTAINED symbol map).
+  - corum-5.3: corum_uniprot.txt (UniProtKB_accession -> corum_id) + corum_complete.txt (corum_id ->
+    complex name). Target symbol -> UniProt AC via a resolver sidecar.
+
+BioGRID physical-interaction detail is a documented v2 enrichment (180MB tab3, no resolver sidecar).
+
+Runtime: STRING info map is lru-cached (small); the 83MB links file is STREAM-FILTERED for the target's
+ENSP edges only (not fully loaded); CORUM maps lru-cached. License: STRING CC-BY-4.0; CORUM CC-BY-NC-4.0.
+"""
+from __future__ import annotations
+
+import gzip
+import io
+import os
+from functools import lru_cache
+from typing import Optional
+
+METHOD_VERSION = "1.0.0"
+DEFAULT_AWS_PROFILE = "cbg"
+S3_BUCKET = "onc-compbio"
+STRING_MANIFEST_ID = "string-v12-human-snapshot-2026-06-30"
+CORUM_MANIFEST_ID = "corum-5-3"
+_STRING_PREFIX = "data-catalog/sources/string/v12-human-snapshot-2026-06-30"
+STRING_LINKS_KEY = f"{_STRING_PREFIX}/9606.protein.links.v12.0.txt.gz"
+STRING_INFO_KEY = f"{_STRING_PREFIX}/9606.protein.info.v12.0.txt.gz"
+_CORUM_PREFIX = "data-catalog/sources/corum/release-5.3-snapshot-2026-07-14"
+CORUM_UNIPROT_KEY = f"{_CORUM_PREFIX}/corum_uniprot.txt"
+CORUM_COMPLETE_KEY = f"{_CORUM_PREFIX}/corum_complete.txt"
+# Reuse an existing UniProt symbol->AC resolver sidecar (CORUM's own resolution was deferred at ingest).
+UNIPROT_SIDECAR_KEY = "data-catalog/sources/reactome/v96/UniProt2Reactome_All_Levels.txt.target_resolution.parquet"
+
+STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_score cutoff (0-999)
+
+
+def _ensure_aws_profile():
+    if "AWS_PROFILE" not in os.environ:
+        os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
+
+
+def _boto3_client():
+    import boto3
+    return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
+
+
+@lru_cache(maxsize=1)
+def _load_string_info(info_path: Optional[str] = None) -> tuple:
+    """(symbol_upper -> string_id, string_id -> symbol) from 9606.protein.info. Self-contained STRING
+    identifier map — no external resolver needed for the STRING side."""
+    if info_path is not None:
+        raw = open(info_path, "rb").read()
+    else:
+        _ensure_aws_profile()
+        raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=STRING_INFO_KEY)["Body"].read()
+    sym_to_id: dict[str, str] = {}
+    id_to_sym: dict[str, str] = {}
+    with gzip.open(io.BytesIO(raw), "rt", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if line.startswith("#"):
+                continue
+            c = line.rstrip("\n").split("\t")
+            if len(c) < 2:
+                continue
+            sid, name = c[0].strip(), c[1].strip()
+            if sid and name:
+                sym_to_id.setdefault(name.upper(), sid)
+                id_to_sym[sid] = name
+    return sym_to_id, id_to_sym
+
+
+def _string_edges_for(string_id: str, links_path: Optional[str] = None) -> list:
+    """Stream-filter the STRING links gz for edges incident to string_id (not a full load — the file is
+    ~83MB gz / ~12M edges). Returns [(partner_string_id, combined_score)] with score >= threshold."""
+    if links_path is not None:
+        fh_bytes = open(links_path, "rb").read()
+    else:
+        _ensure_aws_profile()
+        fh_bytes = _boto3_client().get_object(Bucket=S3_BUCKET, Key=STRING_LINKS_KEY)["Body"].read()
+    prefix = string_id + " "
+    out = []
+    with gzip.open(io.BytesIO(fh_bytes), "rt", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            # links are symmetric + sorted by protein1; only need lines where protein1 == target
+            if not line.startswith(prefix):
+                continue
+            p1, p2, score = line.rstrip("\n").split(" ")
+            s = int(score)
+            if s >= STRING_HIGH_CONFIDENCE:
+                out.append((p2, s))
+    return out
+
+
+@lru_cache(maxsize=1)
+def _load_corum(uniprot_path: Optional[str] = None, complete_path: Optional[str] = None) -> tuple:
+    """(uniprot_ac -> set(corum_id), corum_id -> complex_name)."""
+    if uniprot_path is not None:
+        u_raw = open(uniprot_path, "rb").read()
+    else:
+        _ensure_aws_profile()
+        u_raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=CORUM_UNIPROT_KEY)["Body"].read()
+    ac_to_complexes: dict[str, set] = {}
+    for i, line in enumerate(io.StringIO(u_raw.decode("utf-8", "replace"))):
+        if i == 0 and "corum_id" in line:
+            continue
+        c = line.rstrip("\n").split("\t")
+        if len(c) < 2:
+            continue
+        ac, cid = c[0].strip(), c[1].strip()
+        if ac and cid:
+            ac_to_complexes.setdefault(ac, set()).add(cid)
+    # complex id -> name from corum_complete.txt (find the name column)
+    if complete_path is not None:
+        comp_raw = open(complete_path, "rb").read()
+    else:
+        comp_raw = _boto3_client().get_object(Bucket=S3_BUCKET, Key=CORUM_COMPLETE_KEY)["Body"].read()
+    cid_to_name: dict[str, str] = {}
+    lines = io.StringIO(comp_raw.decode("utf-8", "replace"))
+    header = lines.readline().rstrip("\n").split("\t")
+    try:
+        id_i = header.index("complex_id") if "complex_id" in header else header.index("corum_id")
+    except ValueError:
+        id_i = 0
+    name_i = header.index("complex_name") if "complex_name" in header else (1 if len(header) > 1 else 0)
+    for line in lines:
+        c = line.rstrip("\n").split("\t")
+        if len(c) > max(id_i, name_i):
+            cid_to_name[c[id_i].strip()] = c[name_i].strip()
+    return ac_to_complexes, cid_to_name
+
+
+@lru_cache(maxsize=1)
+def _load_uniprot_sidecar(sidecar_path: Optional[str] = None) -> dict:
+    """HGNC symbol (UPPER) -> UniProt AC, from a resolver sidecar (for the CORUM UniProt-keyed lookup)."""
+    try:
+        import pandas as pd
+        if sidecar_path is not None:
+            df = pd.read_parquet(sidecar_path)
+        else:
+            _ensure_aws_profile()
+            body = _boto3_client().get_object(Bucket=S3_BUCKET, Key=UNIPROT_SIDECAR_KEY)["Body"].read()
+            df = pd.read_parquet(io.BytesIO(body))
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict[str, str] = {}
+    if "hgnc_primary_symbol_at_resolution" in df.columns and "uniprot_canonical" in df.columns:
+        for sym, ac in zip(df["hgnc_primary_symbol_at_resolution"].values, df["uniprot_canonical"].values):
+            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip() and ac != "nan":
+                out.setdefault(sym.strip().upper(), ac.strip())
+    return out
+
+
+def read_target_summary(target: str, indication: str = None,
+                        info_path: Optional[str] = None, links_path: Optional[str] = None,
+                        corum_uniprot_path: Optional[str] = None, corum_complete_path: Optional[str] = None,
+                        sidecar_path: Optional[str] = None) -> dict:
+    """Per-target PPI summary (STRING functional network + CORUM complex membership). `indication`
+    unused (interactome is target-intrinsic)."""
+    sym = target.strip().upper()
+    try:
+        sym_to_id, id_to_sym = _load_string_info(info_path)
+    except Exception:  # noqa: BLE001
+        return _empty("string_info_unavailable")
+    string_id = sym_to_id.get(sym)
+
+    # --- STRING functional network (high-confidence interactors) ---
+    n_hc, top_interactors = 0, []
+    if string_id:
+        try:
+            edges = _string_edges_for(string_id, links_path)
+            edges.sort(key=lambda e: -e[1])
+            n_hc = len(edges)
+            top_interactors = [{"partner": id_to_sym.get(pid, pid), "combined_score": s}
+                               for pid, s in edges[:15]]
+        except Exception:  # noqa: BLE001
+            pass
+
+    # --- CORUM complex membership ---
+    complexes = []
+    try:
+        ac = _load_uniprot_sidecar(sidecar_path).get(sym)
+        if ac:
+            ac_to_complexes, cid_to_name = _load_corum(corum_uniprot_path, corum_complete_path)
+            for cid in sorted(ac_to_complexes.get(ac, [])):
+                complexes.append({"corum_id": cid, "complex_name": cid_to_name.get(cid, cid)})
+    except Exception:  # noqa: BLE001
+        pass
+
+    if string_id is None and not complexes:
+        return _empty("target_not_in_string_or_corum")
+
+    # interactome_class from the STRING high-confidence degree
+    if n_hc >= 50:
+        interactome_class = "hub"
+    elif n_hc >= 10:
+        interactome_class = "connected"
+    elif n_hc >= 1:
+        interactome_class = "sparse"
+    else:
+        interactome_class = "no_high_confidence_interactors"
+
+    return {
+        "interactome_class": interactome_class,            # PRIMARY
+        "n_high_confidence_interactors": n_hc,              # STRING combined_score >= 700
+        "top_interactors": top_interactors,                # [{partner, combined_score}]
+        "n_corum_complexes": len(complexes),
+        "corum_complexes": complexes[:15],                 # [{corum_id, complex_name}]
+        "in_protein_complex": len(complexes) > 0,
+        "string_protein_id": string_id,
+        "method_version": METHOD_VERSION,
+        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}",
+    }
+
+
+def _empty(note: str) -> dict:
+    return {
+        "interactome_class": "data_unavailable",
+        "n_high_confidence_interactors": 0, "top_interactors": [],
+        "n_corum_complexes": 0, "corum_complexes": [], "in_protein_complex": False,
+        "string_protein_id": None, "method_version": METHOD_VERSION,
+        "_data_source": f"{STRING_MANIFEST_ID}+{CORUM_MANIFEST_ID}", "_data_note": note,
+    }
