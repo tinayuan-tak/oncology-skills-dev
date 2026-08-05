@@ -28,6 +28,7 @@ Usage:
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -40,7 +41,7 @@ import yaml
 from jsonschema import Draft202012Validator
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "subgroup_assignment.schema.json"
-DEFAULT_CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+DEFAULT_CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 
 # data_source → catalog expected_n_* field suffix. The COADREAD catalog carries
 # expected_n_tcga_coadread etc.; DepMap uses expected_n_depmap. Divergence beyond

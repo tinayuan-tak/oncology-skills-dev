@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -82,8 +83,9 @@ PANORAMA_RECORD_FIELDS = {'per_subgroup_metrics', 'per_stratum_metrics'}
 # the skills repo (graceful-skip if the sibling repo is absent, e.g. isolated CI).
 # This replaces an earlier method-`call:`-keyed heuristic: the live producer is the
 # registry, not the analysis-methods emit_* (which serve the batch/precompute path).
-_SKILLS_REPO = Path(
-    "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills")
+_SKILLS_REPO = Path(os.environ.get(
+    "CLAUDE_ONCOLOGY_SKILLS_ROOT",
+    "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"))
 _FIGURE_EMITTERS_PATH = (_SKILLS_REPO / "skills" / "compose-dashboard" / "scripts"
                          / "_figure_emitters.py")
 

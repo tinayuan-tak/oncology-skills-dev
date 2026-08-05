@@ -31,6 +31,7 @@ Usage:
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -41,7 +42,7 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 COVERAGE_DIR = REPO / "coverage"
-DEFAULT_CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+DEFAULT_CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 # Where locally-emitted products live (session cache). Phase-2b/c will add the
 # published-manifest path; the generator reads whichever is present.
 DEFAULT_PRODUCTS_ROOT = Path.home() / ".cache" / "framework-subgroup-pipeline" / "subgroup-assignments"
