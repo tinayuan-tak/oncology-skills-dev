@@ -47,6 +47,14 @@ outputs:
     - n_tumor
     - n_adjacent
     - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    # All-gene percentile null (additive, 2026-08-05): where log2_fc falls among ALL genes
+    # in the SAME per-indication DGE product (context named in allgene_percentile_context).
+    # Contextualizes the absolute fold-change; comparator-dependent (adjacent-margin
+    # compresses FC vs GTEx) so the context string is load-bearing. One-directional display
+    # facet — never moves expression_call_class / presence_verdict.
+    - allgene_percentile                        # float 0-100 (or null)
+    - allgene_percentile_class                  # categorical (drives rules if wired)
+    - allgene_percentile_context                # string — the DGE manifest + metric the null was drawn from
 
   summary_fields_vocabulary:
     expression_call_class:
@@ -56,6 +64,12 @@ outputs:
       - modest_downregulation                   # q < 0.05 AND -1.5 < log2_fc <= -0.5
       - strong_downregulation                   # q < 0.05 AND log2_fc <= -1.5
       - data_unavailable                        # DGE derived-product unreachable / target absent
+    allgene_percentile_class:
+      - top_1pct
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable
 
   # Field semantics (aligned to actual data v2.1.0):
   # - log2tpm fields: length-normalized (Gencode v26 union-of-exons), library-normalized.
@@ -75,6 +89,10 @@ outputs:
 thresholds:
   expression_p95_min: 1.0       # TPM; iter-1 conservative default — see A2 calibration disclosure
   paired_normals_min: 8         # DESeq2 minimum-fit heuristic
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
 
 caveats:
   - "RNA expression does not imply protein abundance; pair with proteomics card when available."
