@@ -2,7 +2,7 @@
 # Exercises: another NEW iter-1 product end-to-end (somatic-MAF mutation profile)
 
 card_id: mutation-hotspot-frequency
-version: 1.0.0
+version: 1.1.0    # 2026-08-05: + driver-recurrence percentile (Axis-1 contextualization, display facet)
 question: "What is the somatic mutation frequency and hotspot landscape of {target.symbol} in {indication.label}?"
 
 applies_when:
@@ -25,9 +25,25 @@ outputs:
     - overall_mutation_frequency
     - n_samples_in_indication
     - n_samples_mutated
+    # Driver-recurrence percentile (Axis-1 analog, 2026-08-05) — the CONTEXTUALIZATION
+    # of overall_mutation_frequency. A raw 8% frequency is uninterpretable without a
+    # reference frame; the percentile ranks this gene's recurrence among ALL genes
+    # mutated in the SAME indication (TCGA-MC3 aggregate, gene-summary rows only). This
+    # is the genomic sibling of tumor-rna-distribution's allgene_percentile. DISPLAY facet
+    # — feeds render/LLM; no rule is wired against the class yet (verdict spine byte-stable).
+    - driver_recurrence_percentile               # float 0-100 (or null) — recurrence rank among mutated genes in-indication
+    - driver_recurrence_class                    # categorical (drives rules if wired later)
+    - driver_recurrence_context                  # string — the null's reference frame + n_genes (anti-pooling audit)
     - hotspot_frequencies
     - top_cooccurring_genes
     - top_mutually_exclusive_genes
+  summary_fields_vocabulary:
+    driver_recurrence_class:
+      - top_1pct                                 # >= driver_recurrence_top_1pct cutoff — among the most recurrently mutated genes in-indication
+      - top_decile                               # >= driver_recurrence_top_decile cutoff
+      - mid
+      - bottom_decile                            # <= driver_recurrence_bottom_decile cutoff — rarely mutated relative to other mutated genes
+      - data_unavailable                         # MC3 aggregate absent (unknowable), distinct from a real recurrence-zero
   figure: lollipop_hotspot_frequency
   plot_data: per_sample_variants_with_hotspot_tags
 
@@ -43,10 +59,16 @@ thresholds:
   min_samples_with_maf: 50           # below this, frequency estimates have wide CIs
   frequent_mutation_pct: 0.10        # >= 10% of samples → frequently mutated
   occasional_mutation_pct: 0.02      # 2-10% → occasionally mutated
+  # driver-recurrence percentile-class cutoffs (method bins driver_recurrence_percentile →
+  # driver_recurrence_class). Same cutoff shape as tumor-rna-distribution's allgene cutoffs.
+  driver_recurrence_top_1pct: 99.0
+  driver_recurrence_top_decile: 90.0
+  driver_recurrence_bottom_decile: 10.0
 
 caveats:
   - "Mutation frequency is an indication-level summary; per-subgroup frequencies (e.g., MSI-H enriched) require subgroup-stratified analysis."
   - "Hotspot calls depend on the variant caller and filtering thresholds upstream; cross-validate with MC3 or GENIE for low-confidence hotspots."
+  - "driver_recurrence_percentile ranks the target among genes with >=1 non-synonymous mutation in the indication (NOT all ~20k genes) — the reference frame is stated in driver_recurrence_context. It is a relative-recurrence display facet, not a functional-driver call (a passenger gene in a hypermutated MSI-H cohort can be recurrently mutated without being a driver — see alteration-role for the functional layer)."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_hotspot_frequency` claim.
 measurement_type: mutation_hotspot_frequency
