@@ -35,10 +35,14 @@ from pathlib import Path
 
 import click
 
+from methods.catalog_query.read import bucket_prefix_for
+
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
+ENSEMBL_COMPARA_MANIFEST_ID = "ensembl-compara-release-116-snapshot-2026-07-10"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, _ENSEMBL_COMPARA_PREFIX = bucket_prefix_for(ENSEMBL_COMPARA_MANIFEST_ID)
 ENSEMBL_PARALOG_S3_KEY = (
-    "data-catalog/sources/ensembl-compara/release-116-snapshot-2026-07-10/"
+    f"{_ENSEMBL_COMPARA_PREFIX}"
     "hsapiens_paralog_subtypes_release-116.tsv"
 )
 ENSEMBL_CACHE_DIR = Path.home() / ".cache" / "framework-ensembl-compara"

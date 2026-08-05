@@ -30,6 +30,8 @@ import io
 import os
 import urllib.request
 from pathlib import Path
+
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 from typing import Optional
 
 
@@ -40,15 +42,13 @@ CACHE_FILE = CACHE_DIR / "gene_lengths_v26.parquet"
 # Manifests:
 #   sources/gencode-v26-primary-assembly.yaml (source: 35.9 MB GTF)
 #   derived/gencode-v26-gene-lengths-union-of-exons-v1.yaml (parquet)
-S3_BUCKET = "onc-compbio"
-S3_KEY_GTF = (
-    "data-catalog/sources/gencode/gencode-v26-primary-assembly/"
-    "gencode.v26.primary_assembly.annotation.gtf.gz"
-)
-S3_KEY_LENGTHS = (
-    "data-catalog/derived/gencode-v26-gene-lengths-union-of-exons-v1/"
-    "gene_lengths_v26.parquet"
-)
+GTF_SOURCE_MANIFEST_ID = "gencode-v26-primary-assembly"
+LENGTHS_MANIFEST_ID = "gencode-v26-gene-lengths-union-of-exons-v1"
+# bucket + keys resolved from the data-catalog manifests (single source of truth):
+# GTF is a source-dir file; the union-of-exons lengths parquet is a WHOLE_FILE derived product.
+S3_BUCKET, _GTF_PREFIX = bucket_prefix_for(GTF_SOURCE_MANIFEST_ID)
+S3_KEY_GTF = f"{_GTF_PREFIX}gencode.v26.primary_assembly.annotation.gtf.gz"
+_, S3_KEY_LENGTHS = bucket_key_for(LENGTHS_MANIFEST_ID)
 # md5 pins matching the data-catalog manifests. If S3 delivers a file
 # with a different md5, the manifest was updated without a version bump —
 # fail fast rather than silently use drifted data.

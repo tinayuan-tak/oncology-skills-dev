@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for
+
 # concordance thresholds (Pearson r on paired per-model RNA vs protein).
 STRONG_CONCORDANCE_R = 0.7      # RNA is an adequate protein proxy
 MODERATE_CONCORDANCE_R = 0.4    # RNA is a partial proxy; interpret with caution
@@ -114,9 +116,9 @@ def _classify_rna_biomarker(pearson_r, n_paired) -> str:
 # (cohort, patient_id, gene, rna_log2tpm, protein_log2abundance)) and computes the SAME correlation
 # + rna_as_biomarker classification per the indication's CPTAC cohort. Tumor concordance is a
 # DISTINCT signal from cell-line (purity/stroma noise; strongly gene-specific).
-S3_BUCKET = "onc-compbio"
-CPTAC_MATCHED_KEY = ("data-catalog/derived/cptac-rna-protein-matched-per-sample-v1/"
-                     "cptac_rna_protein_matched.parquet")
+CPTAC_MATCHED_MANIFEST_ID = "cptac-rna-protein-matched-per-sample-v1"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, CPTAC_MATCHED_KEY = bucket_key_for(CPTAC_MATCHED_MANIFEST_ID)
 MIN_PAIRED_TUMORS = 20
 
 # indication → CPTAC cohort code (the 10 cohorts in the matched product).

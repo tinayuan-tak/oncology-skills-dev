@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+from methods.catalog_query.read import s3_uri_for
+
 import click
 
 
@@ -38,9 +40,11 @@ DEFAULT_TARGET_CONTRACTS = Path(
 )
 
 # Release-pin → parquet S3 URI. v2 supersedes v1 as the canonical build.
+# v2 resolved from its data-catalog manifest (single source of truth); v1's manifest is NOT
+# in the catalog (BLOCKED) so its URI stays hardcoded until that manifest lands.
 RELEASE_PIN_TO_PARQUET = {
     "26q1-v1": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet",
-    "26q1-v2": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v2/predictability_per_gene.parquet",
+    "26q1-v2": s3_uri_for("depmap-predictability-26q1-v2"),
 }
 
 # Feature-class → SVG color map. Extended for v2 (arm + driver_gof/lof + cross-gene).

@@ -24,13 +24,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_prefix_for
+
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 PARALOG_SOURCE_MANIFEST_ID = "depmap-consortium-26q1-paralogs"
-PARALOG_GENE_EFFECT_S3_KEY = (
-    "data-catalog/sources/depmap-consortium/dmc-26q1-paralogs/ParalogGeneEffect.csv"
-)
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, _PARALOG_PREFIX = bucket_prefix_for(PARALOG_SOURCE_MANIFEST_ID)
+PARALOG_GENE_EFFECT_S3_KEY = f"{_PARALOG_PREFIX}ParalogGeneEffect.csv"
 
 CACHE_DIR = Path.home() / ".cache" / "framework-depmap-paralog"
 CACHE_CSV = CACHE_DIR / "ParalogGeneEffect.csv"

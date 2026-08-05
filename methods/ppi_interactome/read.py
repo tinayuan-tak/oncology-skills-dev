@@ -29,7 +29,7 @@ import os
 from functools import lru_cache
 from typing import Optional
 
-from methods.catalog_query.read import sidecar_bucket_key_for
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for, sidecar_bucket_key_for
 
 METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + BioGRID experimental-physical leg
 DEFAULT_AWS_PROFILE = "cbg"
@@ -37,10 +37,12 @@ S3_BUCKET = "onc-compbio"
 STRING_MANIFEST_ID = "string-v12-human-snapshot-2026-06-30"
 CORUM_MANIFEST_ID = "corum-5-3"
 BIOGRID_MANIFEST_ID = "biogrid-physical-interactions-per-gene-v1"
-_STRING_PREFIX = "data-catalog/sources/string/v12-human-snapshot-2026-06-30"
+# source-dir prefixes resolved from the manifests (single source of truth); rstrip('/')
+# keeps the existing f"{PREFIX}/file" idiom byte-identical.
+_STRING_PREFIX = bucket_prefix_for(STRING_MANIFEST_ID)[1].rstrip("/")
 STRING_LINKS_KEY = f"{_STRING_PREFIX}/9606.protein.links.v12.0.txt.gz"
 STRING_INFO_KEY = f"{_STRING_PREFIX}/9606.protein.info.v12.0.txt.gz"
-_CORUM_PREFIX = "data-catalog/sources/corum/release-5.3-snapshot-2026-07-14"
+_CORUM_PREFIX = bucket_prefix_for(CORUM_MANIFEST_ID)[1].rstrip("/")
 CORUM_UNIPROT_KEY = f"{_CORUM_PREFIX}/corum_uniprot.txt"
 CORUM_COMPLETE_KEY = f"{_CORUM_PREFIX}/corum_complete.txt"
 # Reuse an existing UniProt symbol->AC resolver sidecar (CORUM's own resolution was deferred at
@@ -54,14 +56,13 @@ STRING_HIGH_CONFIDENCE = 700   # STRING's canonical "high confidence" combined_s
 # Gene-sorted derived product (perf, 2026-08-05): pre-resolved symbol-keyed high-confidence edges,
 # physically sorted by gene_symbol so a pushdown read fetches one gene's row-group(s) instead of
 # streaming the 83MB links gz (~6.6s → sub-second, measured). Byte-identical output. See derive.py.
-STRING_HC_PRODUCT_KEY = ("data-catalog/derived/uniprot-string-hc-edges-per-gene-v1/"
-                         "string_hc_edges_per_gene_v1.parquet")
+STRING_HC_PRODUCT_MANIFEST_ID = "uniprot-string-hc-edges-per-gene-v1"
+_, STRING_HC_PRODUCT_KEY = bucket_key_for(STRING_HC_PRODUCT_MANIFEST_ID)
 
 # BioGRID experimental-PHYSICAL edges product (2026-08-05): gene-sorted human physical interactions
 # with per-pair distinct-publication counts. The complement to STRING's functional score — direct
 # experimental physical evidence, ranked by literature depth. Symbol-keyed pushdown on gene_symbol.
-BIOGRID_PHYSICAL_PRODUCT_KEY = ("data-catalog/derived/biogrid-physical-interactions-per-gene-v1/"
-                                "biogrid_physical_edges_per_gene.parquet")
+_, BIOGRID_PHYSICAL_PRODUCT_KEY = bucket_key_for(BIOGRID_MANIFEST_ID)
 BIOGRID_HUB_DEGREE = 50   # >= this many physical partners → physical hub (mirrors STRING's hub cut)
 
 

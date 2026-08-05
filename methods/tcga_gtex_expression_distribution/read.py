@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import stats as _stats
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -24,8 +25,8 @@ S3_BUCKET = "onc-compbio"
 # per symbol arise from ~14 known collisions (e.g. PAR-region genes) — the filter
 # uses an IN-list so all valid IDs are included and no true gene rows are dropped.
 _SYMBOL_TO_ENSEMBL_MAP: Optional[dict] = None
-ENSEMBL_ID_MAP_S3_KEY = ("data-catalog/sources/ensembl-id-mapping/"
-                         "release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv")
+ENSEMBL_ID_MAP_S3_KEY = (f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}"
+                         "hsapiens_gene_id_map_release-116.tsv")
 
 
 def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
@@ -50,8 +51,8 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
             _SYMBOL_TO_ENSEMBL_MAP = {}  # empty sentinel so we don't retry on every call
     ids = _SYMBOL_TO_ENSEMBL_MAP.get(symbol.upper().strip())
     return ids or None
-TCGA_LONG_KEY = ("data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_long.parquet")
-GTEX_LONG_KEY = ("data-catalog/derived/gtex-tpm-recount3-long-v1/gtex_tpm_long.parquet")
+_, TCGA_LONG_KEY = bucket_key_for("tcga-tumor-tpm-recount3-long-v1")
+_, GTEX_LONG_KEY = bucket_key_for("gtex-tpm-recount3-long-v1")
 # SCLC is NOT a TCGA study (no TCGA-SCLC cohort). The George et al. 2015 patient cohort was
 # ingested (data-catalog cbioportal-sclc-ucologne-2015) + harmonized FPKM→log2(TPM+1) onto the
 # recount3 gene axis (sclc-george-tpm-long-v1), with the SAME long-product schema as the TCGA
@@ -59,12 +60,15 @@ GTEX_LONG_KEY = ("data-catalog/derived/gtex-tpm-recount3-long-v1/gtex_tpm_long.p
 # it through the identical code path via a `which="sclc"` branch. UNIT-comparable to TCGA
 # (log2(TPM+1)) but hg19/FPKM-derived, so cross-TCGA ABSOLUTE reads carry a batch caveat; the
 # subtype (NAPY) + within-cohort presence use is batch-robust (each sample vs the SCLC cohort).
-SCLC_LONG_KEY = ("data-catalog/derived/sclc-george-tpm-long-v1/sclc_george_tpm_long.parquet")
+_, SCLC_LONG_KEY = bucket_key_for("sclc-george-tpm-long-v1")
 # The per-sample TPM product's companion sidecar: one row per tumor sample_id
 # (recount3 gdc_file_id UUID) → study / sample_type / submitter_id (TCGA case
 # barcode). This is the UUID↔barcode BRIDGE for tumor subtyping: the long product
 # is UUID-keyed, but the subgroup-assignment shards are case-barcode-keyed, so a
 # subtype join needs this hop. Verified 2026-07-22: 0 null lookups for KRAS/COADREAD.
+# NOT resolver-migrated: this is a COMPANION file of tcga-tumor-tpm-per-sample-v1, not that
+# manifest's s3_uri (which points at the matrix) nor a target_resolution sidecar (the manifest
+# declares target_resolution.not_applicable). No catalog_query helper reproduces it — kept hardcoded.
 TCGA_SIDECAR_KEY = ("data-catalog/derived/tcga-tumor-tpm-per-sample-v1/tcga_sample_study.parquet")
 CACHE_DIR = Path.home() / ".cache" / "framework-tpm-long"
 _SIDECAR_CACHE = CACHE_DIR / "tcga_sample_study.parquet"

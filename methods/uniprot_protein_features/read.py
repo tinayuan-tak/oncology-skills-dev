@@ -15,7 +15,7 @@ import os
 from functools import lru_cache
 from typing import Optional
 
-from methods.catalog_query.read import sidecar_bucket_key_for
+from methods.catalog_query.read import bucket_prefix_for, sidecar_bucket_key_for
 
 METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + additive InterPro domain layer (coverage-broadening)
 S3_BUCKET = "onc-compbio"
@@ -30,7 +30,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 # coverage from 8,768 (curated) to ~15,019 domain-annotated proteins (6,445 proteins have an
 # InterPro domain but NO curated FT DOMAIN). AC-keyed; pushdown on uniprot_accession.
 INTERPRO_MANIFEST_ID = "interpro-109-0-snapshot-2026-08-05"
-INTERPRO_KEY = ("data-catalog/sources/interpro/109.0-snapshot-2026-08-05/"
+INTERPRO_KEY = (f"{bucket_prefix_for(INTERPRO_MANIFEST_ID)[1]}"
                 "interpro_human_domain_hits.parquet")
 # InterPro resolver sidecar resolved from the manifest's target_resolution.sidecar_s3_uri.
 _, INTERPRO_SIDECAR_KEY = sidecar_bucket_key_for(INTERPRO_MANIFEST_ID)

@@ -25,23 +25,18 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from methods.catalog_query.read import sidecar_bucket_key_for
+from methods.catalog_query.read import bucket_prefix_for, sidecar_bucket_key_for
 
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 REACTOME_SOURCE_MANIFEST_ID = "reactome-v96"
 
-# Files this reader consumes — all pre-catalogued in reactome-v96
-UNIPROT_TO_REACTOME_S3_KEY = (
-    "data-catalog/sources/reactome/v96/UniProt2Reactome_All_Levels.txt"
-)
-PATHWAYS_S3_KEY = (
-    "data-catalog/sources/reactome/v96/ReactomePathways.txt"
-)
-PATHWAYS_RELATION_S3_KEY = (
-    "data-catalog/sources/reactome/v96/ReactomePathwaysRelation.txt"
-)
+# Files this reader consumes — all pre-catalogued in reactome-v96. bucket + source-dir
+# prefix resolved from the manifest (single source of truth); each key rides off it.
+S3_BUCKET, _REACTOME_PREFIX = bucket_prefix_for(REACTOME_SOURCE_MANIFEST_ID)
+UNIPROT_TO_REACTOME_S3_KEY = f"{_REACTOME_PREFIX}UniProt2Reactome_All_Levels.txt"
+PATHWAYS_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathways.txt"
+PATHWAYS_RELATION_S3_KEY = f"{_REACTOME_PREFIX}ReactomePathwaysRelation.txt"
 
 CACHE_DIR = Path.home() / ".cache" / "framework-reactome"
 

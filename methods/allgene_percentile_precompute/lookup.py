@@ -47,12 +47,13 @@ except Exception:  # noqa: BLE001 — keep the accessor importable even if the h
         return "mid"
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
+from methods.catalog_query.read import bucket_key_for
 
-TUMOR_RANK_KEY = ("data-catalog/derived/allgene-tumor-rank-v1/"
-                  "tumor_median_allgene_rank.parquet")
-DEPMAP_RANK_KEY = ("data-catalog/derived/allgene-depmap-rank-26q1-v1/"
-                   "depmap_panel_median_allgene_rank.parquet")
+TUMOR_RANK_MANIFEST_ID = "allgene-tumor-rank-v1"
+DEPMAP_RANK_MANIFEST_ID = "allgene-depmap-rank-26q1-v1"
+# bucket + keys resolved from the data-catalog manifests (single source of truth).
+S3_BUCKET, TUMOR_RANK_KEY = bucket_key_for(TUMOR_RANK_MANIFEST_ID)
+_, DEPMAP_RANK_KEY = bucket_key_for(DEPMAP_RANK_MANIFEST_ID)
 
 
 def _s3fs():

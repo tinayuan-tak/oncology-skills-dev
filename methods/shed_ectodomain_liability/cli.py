@@ -39,6 +39,8 @@ from typing import Optional
 
 import yaml
 
+from methods.catalog_query.read import bucket_prefix_for
+
 METHOD_VERSION = "0.1.0"
 
 # --- reliable tier: curated vocab in target-contracts ---
@@ -47,8 +49,10 @@ DEFAULT_TARGET_CONTRACTS = Path(
 SHED_VOCAB_RELPATH = "vocabularies/shed_antigen_targets.yaml"
 
 # --- proxy tier: HPA v25-1 secretome (landed source hpa-v25-1) ---
-S3_BUCKET = "onc-compbio"
-HPA_KEY = "data-catalog/sources/hpa/v25-1/proteinatlas.tsv.zip"
+HPA_SOURCE_MANIFEST_ID = "hpa-v25-1"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, _HPA_PREFIX = bucket_prefix_for(HPA_SOURCE_MANIFEST_ID)
+HPA_KEY = f"{_HPA_PREFIX}proteinatlas.tsv.zip"
 DEFAULT_AWS_PROFILE = "cbg"
 
 HPA_GENE_COL = "Gene"

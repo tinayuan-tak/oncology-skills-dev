@@ -41,13 +41,17 @@ from pathlib import Path
 from typing import Optional
 
 from .moa_ontology import classify_edge, ONTOLOGY_VERSION
+from methods.catalog_query.read import bucket_prefix_for
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 SIGNOR_SOURCE_MANIFEST_ID = "signor-jul2026"
-SIGNOR_S3_KEY = "data-catalog/sources/signor/jul2026/SIGNOR_Jul2026_release.txt"
+# source key resolved from the manifest (single source of truth).
+S3_BUCKET, _SIGNOR_PREFIX = bucket_prefix_for(SIGNOR_SOURCE_MANIFEST_ID)
+SIGNOR_S3_KEY = f"{_SIGNOR_PREFIX}SIGNOR_Jul2026_release.txt"
 
 DERIVED_MANIFEST_ID = "signor-mechanism-network-per-gene-v1"
+# NOT resolver-migrated: this derived product's manifest is NOT yet in the data-catalog
+# (BLOCKED). Migrate to bucket_key_for(DERIVED_MANIFEST_ID) once the manifest lands.
 DERIVED_S3_KEY = (
     "data-catalog/derived/signor-mechanism-network-per-gene-v1/"
     "signor_mechanism_network.parquet"

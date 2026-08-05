@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Optional
 
 from . import stats as _stats
+from methods.catalog_query.read import bucket_key_for
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
@@ -44,7 +45,8 @@ def _product_key(indication: str) -> Optional[str]:
     prod = INDICATION_TO_PRODUCT.get(str(indication).upper().strip())
     if not prod:
         return None
-    return f"data-catalog/derived/{prod}/sc_pseudobulk.parquet"
+    # key resolved from the product manifest (single source of truth).
+    return bucket_key_for(prod)[1]
 
 
 def read_gene_compartment_rows(target: str, indication: str):

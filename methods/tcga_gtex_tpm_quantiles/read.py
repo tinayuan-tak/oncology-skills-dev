@@ -16,11 +16,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
+
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
 MANIFEST_ID = "tcga-gtex-tpm-tissue-quantiles-v1"
-ENSEMBL_ID_MAP_S3_KEY = ("data-catalog/sources/ensembl-id-mapping/"
-                         "release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv")
+ENSEMBL_ID_MAP_MANIFEST_ID = "ensembl-id-mapping-release-116-snapshot-2026-06-18"
+# bucket + keys resolved from the data-catalog manifests (single source of truth).
+S3_BUCKET, S3_KEY = bucket_key_for(MANIFEST_ID)
+ENSEMBL_ID_MAP_S3_KEY = f"{bucket_prefix_for(ENSEMBL_ID_MAP_MANIFEST_ID)[1]}hsapiens_gene_id_map_release-116.tsv"
 
 _SYMBOL_TO_ENSEMBL_MAP: Optional[dict] = None
 
@@ -46,10 +49,6 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
             _SYMBOL_TO_ENSEMBL_MAP = {}
     ids = _SYMBOL_TO_ENSEMBL_MAP.get(symbol.upper().strip())
     return ids or None
-S3_KEY = (
-    "data-catalog/derived/tcga-gtex-tpm-tissue-quantiles-v1/"
-    "tcga_gtex_tpm_tissue_quantiles.parquet"
-)
 CACHE_DIR = Path.home() / ".cache" / "framework-tpm-quantiles"
 CACHE_PARQUET = CACHE_DIR / "tcga_gtex_tpm_tissue_quantiles.parquet"
 

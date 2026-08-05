@@ -17,16 +17,16 @@ import os
 from pathlib import Path
 
 from .build import parse_gtf_to_exon_index
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 
 
-S3_BUCKET = "onc-compbio"
-S3_KEY_PARQUET = (
-    "data-catalog/derived/gencode-v26-exon-index-v1/exon_index_v26.parquet"
-)
-S3_KEY_GTF = (
-    "data-catalog/sources/gencode/gencode-v26-primary-assembly/"
-    "gencode.v26.primary_assembly.annotation.gtf.gz"
-)
+DERIVED_MANIFEST_ID = "gencode-v26-exon-index-v1"
+GTF_SOURCE_MANIFEST_ID = "gencode-v26-primary-assembly"
+# bucket + keys resolved from the data-catalog manifests (single source of truth):
+# the exon-index parquet is a WHOLE_FILE derived product; the GTF is a source-dir file.
+S3_BUCKET, S3_KEY_PARQUET = bucket_key_for(DERIVED_MANIFEST_ID)
+_, _GTF_PREFIX = bucket_prefix_for(GTF_SOURCE_MANIFEST_ID)
+S3_KEY_GTF = f"{_GTF_PREFIX}gencode.v26.primary_assembly.annotation.gtf.gz"
 
 CACHE_DIR = Path(
     os.environ.get("FRAMEWORK_GENCODE_CACHE_DIR",

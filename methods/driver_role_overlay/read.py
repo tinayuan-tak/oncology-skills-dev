@@ -12,10 +12,14 @@ import zipfile
 from functools import lru_cache
 from typing import Optional
 
-S3_BUCKET = "onc-compbio"
-ONCOKB_KEY = ("data-catalog/sources/oncokb/gene-roles-public-snapshot-2026-07-01/"
-              "oncokb_cancer_gene_list.json")
-INTOGEN_ZIP_KEY = "data-catalog/sources/intogen/v2024-09-20/IntOGen-Drivers-20240920.zip"
+from methods.catalog_query.read import bucket_prefix_for
+
+ONCOKB_MANIFEST_ID = "oncokb-gene-roles-public-snapshot-2026-07-01"
+INTOGEN_MANIFEST_ID = "intogen-v2024-09-20"
+# bucket + keys resolved from the data-catalog manifests (single source of truth).
+S3_BUCKET, _ONCOKB_PREFIX = bucket_prefix_for(ONCOKB_MANIFEST_ID)
+ONCOKB_KEY = f"{_ONCOKB_PREFIX}oncokb_cancer_gene_list.json"
+INTOGEN_ZIP_KEY = f"{bucket_prefix_for(INTOGEN_MANIFEST_ID)[1]}IntOGen-Drivers-20240920.zip"
 INTOGEN_COMPENDIUM = "2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv"
 
 # framework indication → IntOGen CANCER_TYPE code(s). IntOGen uses its own cohort cancer-type

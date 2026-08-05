@@ -17,11 +17,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from methods.catalog_query.read import bucket_key_for
 
-S3_BUCKET = "onc-compbio"
-S3_KEY_PARQUET = (
-    "data-catalog/derived/kinome-atlas-pwm-lookup-v1/pwm_lookup_v1.parquet"
-)
+
+DERIVED_MANIFEST_ID = "kinome-atlas-pwm-lookup-v1"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, S3_KEY_PARQUET = bucket_key_for(DERIVED_MANIFEST_ID)
 
 CACHE_DIR = Path(
     os.environ.get("FRAMEWORK_KINOME_ATLAS_CACHE_DIR",

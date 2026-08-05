@@ -46,9 +46,15 @@ from pathlib import Path
 
 import click
 
+from methods.catalog_query.read import bucket_prefix_for
+
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
-CPTAC_S3_PREFIX = "data-catalog/sources/cptac-pdc/snapshot-2026-07-01/"
+CPTAC_SOURCE_MANIFEST_ID = "cptac-pdc-snapshot-2026-07-01"
+# bucket + prefix resolved from the manifest (single source of truth). NOTE: this CORRECTS a
+# latent path-drift bug — the prior literal "data-catalog/sources/cptac-pdc/snapshot-2026-07-01/"
+# did not match the manifest s3_uri ".../sources/pdc/cptac-snapshot-2026-07-01/" (verified absent
+# on S3). The constant was unused (dead), so this is a drift-fix with no runtime behavior change.
+S3_BUCKET, CPTAC_S3_PREFIX = bucket_prefix_for(CPTAC_SOURCE_MANIFEST_ID)
 
 CPTAC_COHORTS = [
     "BRCA", "CCRCC", "COAD", "GBM", "HNSCC",
