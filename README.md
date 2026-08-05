@@ -1,95 +1,192 @@
-# oncology-skills — v2 architecture (in development)
+# oncology-skills — v2 compositional framework (`v2-architecture` branch)
 
-> **You are on the `v2-architecture` branch.** This branch is the redesigned target-evaluation platform: compute and retrieval are physically separated, evidence is published as standardized per-target artifacts, and the data layer is anchored on a versioned catalog with full GDC release + manifest UUID + pipeline-version pinning.
+> **You are on the `v2-architecture` branch.** This is the redesigned target-evaluation
+> platform: a **compositional skill framework** where each biological question is answered
+> by an independent, retrieval-only skill that composes *evidence cards* over pre-computed
+> derived products. Skills never recompute on invocation; heavy compute happens out-of-band
+> and is published as versioned, gene-sorted artifacts.
 >
-> **For the v1 plugin** (currently installable via Claude Code's marketplace — the seven indication × modality skills that have been validating targets like SCD1, PCDH7, WEE1 in day-to-day work): see [`main` branch README](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/blob/main/README.md). v1 remains the production system until v2 reaches feature parity.
+> **For the v1 plugin** — the seven `analysis-*` / `workflow-*` indication × modality skills
+> currently installable via Claude Code's marketplace (validating targets like SCD1, PCDH7,
+> WEE1 in day-to-day work) — see the [`main` branch README](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/blob/main/README.md).
+> v1 remains the production install path until v2 reaches feature parity.
 
 ---
 
 ## What v2 is, and why it exists
 
-A target evaluation in v2 produces a **standardized `evidence.json` artifact per `(indication, subtype, gene, dimension)`** in `s3://onc-compbio/core-artifacts/`. Eight dimensions: `expression-rna`, `expression-protein` (CPTAC), `dependency` (DepMap), `mutation-profile`, `survival`, `safety`, `target-biology`, `literature`.
+v2 answers one question well: **"Should we pursue target X in indication Y — and what does
+the evidence say, gate by gate?"** It does this by decomposing target evaluation into a set
+of **focused, biology-first question-answering skills**, each owning one gate of the
+nomination argument. A skill:
 
-The single most important structural decision: **`batch/` vs `skills/` separation.** Batch jobs do scheduled compute and write artifacts; they are never invoked by Claude. Skills are retrieval-only and *can be* invoked by Claude. This makes "wire a skill to recompute on every call" physically impossible — which was the v1 failure mode (a single skill loading a 4 GB expression matrix and chunk-scanning it for one gene, on every invocation).
+1. **Consumes evidence cards** — declarative contracts (defined in the sibling
+   [`target-contracts`](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts)
+   repo) that say *which measurement, at which entity grain, read from which derived product*.
+2. **Invokes method modules** — analysis code lives in the sibling
+   [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods)
+   repo, never inline in the skill.
+3. **Reads a derived product** — gene-sorted Parquet on S3, queried by predicate pushdown
+   (one row per gene), never a full-matrix scan.
+4. **Fires a rule subset** — deterministic, versioned rules turn the numbers into a
+   rank-ordered *verdict* (e.g. presence ladder, dependency call, selectivity class).
 
-The second-most important: **compute globally, query locally.** DGE runs once per indication across all ~18K genes and is cached as a Parquet sorted by gene_symbol; per-gene queries do predicate-pushdown reads of one row, not full scans. If a query reads the whole file instead of one row, the architecture silently fails at scale.
+The single most important structural invariant: **compute globally, query locally, never
+recompute on call.** This is the fix for the v1 failure mode — a skill loading a multi-GB
+expression matrix and chunk-scanning it for one gene, on every invocation. In v2 that is
+architecturally impossible: skills are `derived_read` / `live_read` only, and the derived
+products are physically sorted on the read key so a per-gene query touches one row.
+
+The second invariant: **biology-first verdicts, modality as a post-hoc lens.** Each skill's
+primary output (`selectivity_class`, `dependency_verdict`, `fit_class`, …) is
+modality-independent. Whether the target is being considered as a small molecule, ADC, TCE,
+or degrader is an *interpretation layer* (`--modality` flag / orchestration), not something
+that changes the measured biology.
 
 ```
-LAYER 1  COMPUTATION (batch/ jobs — scheduled / cron / manual)
-   8 analysis dimensions × indication-aware pipelines, each produces evidence.json
-        │ writes to
+ pre-computed DERIVED PRODUCTS  (gene-sorted Parquet on s3://onc-compbio/…, built out-of-band)
+        │  predicate-pushdown read (one gene = one row)
         ▼
-LAYER 2  ARTIFACT STORE (the lingua franca)
-   s3://onc-compbio/core-artifacts/{indication}/{subtype}/{gene}/{dimension}/
-   per artifact: evidence.json + provenance.yaml + report.md + figure.png
-        │ consumed by                    │ loaded by ETL
-        ▼                                ▼
-LAYER 3a  Skills (retrieval-only)   LAYER 3b  Knowledge Graph (planned)
-   read evidence.json per facet        multi-hop discovery queries
+ METHOD MODULES  (analysis-methods repo — the compute; skills call, never inline)
+        │  numbers
+        ▼
+ EVIDENCE CARDS  (target-contracts repo — measurement × entity-grain contract)
+        │  rule subset fires → deterministic verdict
+        ▼
+ SKILLS  (this repo — one biological question each; retrieval-only, Claude-invocable)
+        │  compose
+        ▼
+ COMPOSITION  target-profile (narrative synthesis) · compose-dashboard (evidence package)
 ```
 
 ---
 
-## Eight dimensions, parameterized by `(indication, subtype, gene)`
+## The biology-first phase model
 
-| Dimension | What | Source(s) |
+Skills are organized by **phase** — the gate of the nomination argument each one answers.
+A full profile walks A → K; a focused question invokes a single skill.
+
+| Phase | Question | Skill(s) |
 |---|---|---|
-| `expression-rna` | DGE on RNA-seq | GDC TCGA (canonical pin) + recount3 for joint TCGA+GTEx |
-| `expression-protein` | DEG on proteomics (mass spec) | CPTAC where available (CRC, PDAC, …) |
-| `dependency` | CRISPR Chronos scores, lineage selectivity | DepMap quarterly |
-| `mutation-profile` | Somatic mutation freq, canonical variants, hotspots | GDC TCGA somatic |
-| `survival` | KM curves, hazard ratios, log-rank p | GDC TCGA clinical |
-| `safety` | HPA IHC normal-tissue map, gnomAD pLI, knockout phenotype | HPA + gnomAD |
-| `target-biology` | Subcellular localization, surface vs intracellular, structure, modality-fit | UniProt + HPA subcellular + SurfaceomeDB |
-| `literature` | Extracted facts (CRISPR/RNAi study counts, clinical phase, IC50, pLI) — facts only, no synthesized risk score | PubMed via LLM (port of v1's `literature_evidence` schema) |
+| **A** Presence | Is the target expressed in the tumor (RNA + protein, cell-line + patient)? | [`tumor-presence`](skills/tumor-presence/) |
+| **B** Selectivity | Is it tumor-selective vs normal tissue, robustly across comparators? | [`tumor-selectivity`](skills/tumor-selectivity/) |
+| **C** Requirement | Is it a genetic dependency (CRISPR + RNAi + lineage), and is a null read a context-conditional false negative? | [`functional-requirement`](skills/functional-requirement/), [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) |
+| **A/E** Genomic alteration | How is it altered — SNV/indel, copy-number, fusion — and which class drives? | [`genomic-alteration-profile`](skills/genomic-alteration-profile/) |
+| **D** Mechanism | What upstream/downstream signaling context and candidate MoA hooks exist? | [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) |
+| **E** Differentiation | What co-mutation / mutual-exclusivity landscape frames patient selection? | [`differentiation-landscape`](skills/differentiation-landscape/) |
+| **F** Tractability & modality | Is it small-molecule druggable? Does surface biology support ADC/TCE? Whole-surfaceome scan. | [`tractability-small-molecule`](skills/tractability-small-molecule/), [`surface-modality-fit`](skills/surface-modality-fit/), [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/) |
+| **G** Safety | Is it germline-constrained (gnomAD) — what does that imply for a full-KO modality? | [`on-target-safety-liability`](skills/on-target-safety-liability/) |
+| **I** Combination/resistance | On inhibition, what combinations / resistance signatures emerge? | [`combo-and-resistance`](skills/combo-and-resistance/) *(placeholder)* |
+| **J** Translational readiness | Models, PD assays, imaging tracers available? | [`translational-readiness`](skills/translational-readiness/) *(placeholder)* |
+| **—** Target-intrinsic | Indication-independent molecular dossier (localization, pathways, PPIs, domains, protein class). | [`target-intrinsic`](skills/target-intrinsic/) |
 
-**Indication is a literal AACR OncoTree code** (uppercase): `COADREAD`, `LUAD`, `LUSC`, `NSCLC`, `PAAD`, `STAD`, etc. — see https://oncotree.mskcc.org/. Direct cross-reference to GENIE / cBioPortal / TCGA project IDs / MSK literature without translation.
-
-**`subtype` is a path axis**, default `all`. Stratified analyses produce one artifact per stratum (e.g., `COADREAD/CMS4/SCD1/expression-rna/`, `COADREAD/MSS-RASmut/SCD1/expression-rna/`). Subtype is *molecular* (CMS, RAS, MSI), Takeda-internal vocabulary since OncoTree doesn't enumerate molecular subtypes. Treatment-line stratification (1L-2L, 3L+, CPI-status) lives inside the `expression-rna` result payload as a `tempus_summary:` block — see Tempus integration below.
-
-**Therapeutic modality** (small molecule vs antibody vs ADC vs PROTAC vs mRNA) is **NOT a dimension**. It lives at the workflow / skill orchestration layer, where it decides which dimensions are required for a defensible eval (an ADC needs `expression-rna` + `expression-protein` + `target-biology` + `safety`; a small-molecule intracellular target can skip surface-confirmation checks) and how to *interpret* evidence per modality class. Artifacts themselves remain modality-agnostic. Re-evaluating a target as a different modality = same artifacts, new lens.
+Some phases are **partially wired** — the skill and its rule subset exist, but not every
+card's upstream derived product is materialized yet. Placeholder skills emit a structured
+`phase-not-yet-wired` response naming the specific data gaps rather than failing silently, so
+coverage gaps are visible in the catalog. See the per-skill status table below.
 
 ---
 
-## What's on this branch today
+## Skill inventory
 
-| Path | What it is | Status |
+### Question-answering skills (one gate each)
+
+| Skill | Ver | Phase | Data mode | Status |
+|---|---|---|---|---|
+| [`tumor-presence`](skills/tumor-presence/) | 1.1.0 | A | `derived_read` | wired — 10 cards, 5 verdict-bearing + 5 display facets |
+| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.1.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
+| [`functional-requirement`](skills/functional-requirement/) | 1.1.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog |
+| [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | — | C | `derived_read` | wired — SynLethDB v3 veto-suppressor (annotation, not measurement) |
+| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.0.0 | A, E | `derived_read` | wired — SNV/indel + copy-number (+ fusion placeholder) |
+| [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.2.0 | D | `derived_read` | wired — SIGNOR/OmniPath MoA network |
+| [`differentiation-landscape`](skills/differentiation-landscape/) | 1.2.0 | E | `derived_read` | partial — co-mutation wired; clinical-precedent / patent placeholder |
+| [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.1.0 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
+| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.0.0 | F | `derived_read` | partial — surfaceome/topology landed; density + structure pending |
+| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.2.0 | G | `derived_read` | partial — gnomAD LoF-constraint wired; HPA/IMPC/ClinVar placeholder |
+| [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/) | 1.1.0 | F | `batch_compute` | target-scan hook — per-indication whole-surfaceome ranking |
+| [`target-intrinsic`](skills/target-intrinsic/) | 1.0.0 | A,C,F,G | `live_read` | wired — 13 live cards, indication-independent dossier |
+| [`combo-and-resistance`](skills/combo-and-resistance/) | 1.0.0 | I | `derived_read` | **placeholder** — cards not yet wired |
+| [`translational-readiness`](skills/translational-readiness/) | 1.0.0 | J | `derived_read` | **placeholder** — cards not yet wired |
+
+### Composition & orchestration skills
+
+| Skill | Ver | Role |
 |---|---|---|
-| [core-artifacts-schema/evidence.schema.json](core-artifacts-schema/evidence.schema.json) | The artifact contract. Required: `gene`, `indication`, `subtype` (default `all`), `dimension`, `provenance.catalog_refs` (lineage to catalog manifest IDs), `result`, `summary`, `confidence`, `label` (`pre-specified` \| `exploratory`). Tagged-union 8-dim enum, `additionalProperties: false`. JSON Schema Draft 2020-12. | ✓ schema complete + tested |
-| [skills/query-target-evidence/](skills/query-target-evidence/) | First v2 skill — RETRIEVAL-ONLY. Reads `core-artifacts/{indication}/{subtype}/{gene}/{dimension}/evidence.json`, validates, checks staleness, returns. **Has no analysis code.** If an artifact is missing, names the batch job that produces it; does NOT trigger compute. | ✓ contract complete; awaiting first artifact |
-| [batch/expression_rna_COADREAD/](batch/expression_rna_COADREAD/) | First batch compute pipeline (COADREAD = combined CRC). Pure-R Bioconductor: `00_load_counts.R` → `01_build_design.R` → `02_combat_seq.R` → `03_deseq2.R` → `04_write_parquet.R` → `05_provenance.R`. Methodology: DESeq2 + ComBat-seq + lfcShrink(apeglm) on raw integer counts. | ✓ pipeline scaffolded; `00_load_counts.R` awaits canonical-source loader |
-| [batch/loaders/](batch/loaders/) | Python `Protocol` for source-specific loaders (oncoland, gdc, xena-toil, recount3) — used by future Python-orchestrated batch jobs. R DGE pipeline reads sources directly. | ✓ interface defined |
-| [configs/COADREAD.yaml](configs/COADREAD.yaml) | COADREAD (CRC) indication parameters: TCGA cohorts (COAD + READ), CMS subtypes, MSS/MSI flags, BRAF V600E flag, BH-FDR tier 1/2/3 spec, GTEx reference, output path templates. | ✓ |
-| [notebooks/](notebooks/) | Exploration before code hardens into `batch/`. The runbook's three-notebook sequence (data inventory → global COADREAD DGE → SCD1 evidence PoC) lives here during prototyping. | scaffolded |
-
-**Sister repo (the data catalog v2 depends on):** [`oneTakeda/rnd-computational-biology-oncology-data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog). Describes `s3://onc-compbio/data-catalog/sources/` (external releases received whole) and `data-catalog/derived/` (team-produced intermediates). First real source-release manifest (`tcga-gdc-dr45-0-test5.yaml`) is committed there; the full TCGA pan-cancer mirror is in progress.
+| [`target-profile`](skills/target-profile/) | 1.0.0 | Fans out (in-process) to the 9 wired question skills, collects each sub-verdict, then runs Tier-3 structured LLM synthesis (Bedrock, tool-choice-forced) for `executive_summary` + `tension_analysis` + `recommendation`. Emits `target_profile.md` + `nomination.json` + provenance. Deterministic sub-verdicts and LLM narrative live in **distinct schema slots** — the audit spine is invariant even if narrative drifts. |
+| [`compose-dashboard`](skills/compose-dashboard/) | — | Consumes a `dashboard_spec` (from `target-contracts`) + invocation context (target, indication, subgroup, data_mode, release_pin) and produces `evidence_package.json` + `lockfile.yaml` + `validation_report.json` in the `data-products` repo. Phase-1 (compose) is operational. |
+| [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). Invoked automatically by `compose-dashboard`. |
+| [`query-target-evidence`](skills/query-target-evidence/) | 2.0.0 | **Retrieval-only.** Reads a stored `evidence.json` from `core-artifacts/`, validates + checks staleness, returns. If an artifact is missing it names the batch job that produces it — it never triggers compute. |
+| [`workflow-target-evaluation-onc`](skills/workflow-target-evaluation-onc/) | 1.0.0 | The v1-lineage end-to-end orchestrator (risk assessment → multi-omics → ScholarEval → PDF), retained on this branch for parity during the v2 transition. |
 
 ---
 
-## Decisions logged
+## Repository layout
 
-- **Compute / retrieve separation, enforced physically.** Batch jobs in `batch/{dimension}_{indication}/` write Parquet + evidence artifacts; skills in `skills/query-{dimension}-evidence/` read them. The two never share code. See the runbook on the v1.7.4 failure mode this fixes.
-- **Eight dimensions** (revised 2026-06-15 from the runbook's original 8): `expression` was split into `expression-rna` + `expression-protein` so a target eval can explicitly say "RNA up but protein flat" — these are first-class evidence types, not nested fields. `genomic-context` renamed to `mutation-profile` (scoped to somatic mutations; CN/SV deferred). `clinical-outcomes` renamed to `survival`. `patient-stratification` was dropped as a dimension; modeled instead as a **subtype path axis** parameterizing every dimension.
-- **DGE methodology = DESeq2 + ComBat-seq + lfcShrink(apeglm)** on raw integer counts, with actionability filter `padj < 0.05 AND |log2FC| ≥ 1 AND baseMean cutoff`. Wilcoxon-on-TPM (the v1 approach) was considered and rejected as not field default for indication-specific tumor-vs-normal DGE.
-- **R is the language for the DGE batch.** DESeq2 + ComBat-seq are R/Bioconductor canon. The interface to the rest of the platform is the **Parquet artifact**, not in-process function calls. Python skills consume what R writes — process boundary as architectural seam.
-- **Canonical TCGA source = GDC DR45.0**, with full release version + manifest UUIDs + pipeline `workflow_version` pinning (2025 PLOS ONE PMC11878898 found ~44% of genes drift across GDC releases due to pipeline shifts; the release tag alone is insufficient). Cross-comparable TCGA + GTEx layer = recount3 (preferred) or UCSC Xena/Toil. Source decision sourced from the deep-research workflow `wf_f6040283-fdb` (23/25 claims confirmed, 22 primary sources).
-- **OncoLand demoted to TPM convenience cache** (`system_of_record: false`, `license: proprietary`). DESeq2 needs raw counts; OncoLand ships TPM-only; it is automatically excluded from canonical compute.
-- **Tempus RWD integrates as a `tempus_summary:` block inside the `expression-rna` artifact's `result`** (NOT a separate dimension or subtype). Preserves the Takeda-specific `iDAS_group` strata (MSS_RASMut_3L+, MSS_RASWT_1L2L, etc.) and the RWD-specific `pct_detected` field. Catalog manifest for the Tempus deposit is `tempus-crc-2026-03-17.yaml` with `system_of_record: false` since the data is pre-aggregated by an upstream pipeline.
-- **No DVC.** The catalog manifest's `s3_uri` + `md5` already provide reproducibility; DVC would add tooling overhead without commensurate value at current team size.
-- **No `production/` stage in the catalog.** A derived dataset is "blessed" by being cited from `core-artifacts/`; the catalog's `cited_by:` field tracks citations automatically. Anything currently cited by a core artifact is under implicit "do not delete" protection.
+| Path | What it is |
+|---|---|
+| [skills/](skills/) | The compositional skill framework (tables above). Each skill is a `SKILL.md` (frontmatter contract + description) plus `scripts/`. |
+| [skills/_skills_common/](skills/_skills_common/) | Shared helpers used across skills. |
+| [libs/target_id_resolver/](libs/target_id_resolver/) | Target-ID resolver consumed by ingestion + skills so raw-ID joins don't silently drop. |
+| [core-artifacts-schema/](core-artifacts-schema/) | The stored-artifact contract (`evidence.schema.json`, `target.schema.json`) + per-product `result` schemas. Consumed by `query-target-evidence`. |
+| [batch/](batch/) | Out-of-band compute. `batch/expression_rna_COADREAD/` is the reference R/Bioconductor DGE pipeline (DESeq2 + ComBat-seq + lfcShrink(apeglm)); `batch/loaders/` defines the source-loader `Protocol`. Batch jobs write artifacts; they are **never invoked by Claude**. |
+| [configs/](configs/) | Per-indication parameters (`COADREAD.yaml`: cohorts, subtypes, FDR tiers, reference). |
+| [docs/](docs/) | Design + governance docs — scope reviews, defect register, `target-profile` walkthrough, showcase design, worked examples. |
+| [notebooks/](notebooks/) | Exploration before code hardens into `batch/` or a method module. |
+| [.claude-plugin/](.claude-plugin/) | Plugin + marketplace manifests for Claude Code installation. |
 
-The full v2 design rationale and decision log lives in [`personal-notes/strategy/oncology-platform-implementation-runbook.md`](https://github.com/takoncoder/personal-notes/blob/main/strategy/oncology-platform-implementation-runbook.md).
+---
+
+## The four-repo ecosystem
+
+`claude-oncology-skills` is the top-level consumer. A skill change often needs coordinated
+changes downstream:
+
+| Repo | Owns | This repo's dependency |
+|---|---|---|
+| **claude-oncology-skills** (here) | Skills — one biological question each; composition | — |
+| [`target-contracts`](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts) | Evidence **cards**, rules, dashboard specs, schemas, vocabularies | Skills' `cards_used` / `rules_scope` reference IDs here |
+| [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods) | **Method modules** — the actual compute | Skills invoke method CLIs for tier-1 evidence |
+| [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog) | Versioned source + derived-product **manifests** (GDC release + UUID + pipeline-version pins) | Indirectly, via `analysis-methods`; provenance flows through catalog manifest IDs |
+
+`compose-dashboard` also writes into a `data-products` repo (the emitted evidence packages).
+
+See [CLAUDE.md](CLAUDE.md) for the cross-session coordination ritual and branch discipline —
+because multiple parallel sessions edit these repos, claim your workstream in
+`~/.claude/wip-registry.md` before non-trivial writes.
+
+---
+
+## Conventions that still hold
+
+- **Indication = a literal AACR OncoTree code** (uppercase): `COADREAD`, `LUAD`, `LUSC`,
+  `NSCLC`, `PAAD`, `STAD`, … — see https://oncotree.mskcc.org/. Direct cross-reference to
+  GENIE / cBioPortal / TCGA project IDs without translation.
+- **Subtype is a path axis**, default `all`. Stratified analyses produce one shard per
+  stratum (`COADREAD/CMS4/…`, `COADREAD/MSS-RASmut/…`). Subtype is *molecular*
+  (CMS, RAS, MSI) — Takeda-internal vocabulary, since OncoTree doesn't enumerate it.
+- **Therapeutic modality is not a dimension.** It's a post-hoc lens (`--modality`) that
+  decides which evidence is required and how to interpret it; the underlying measurements
+  are modality-agnostic. Re-evaluating a target as a different modality = same evidence,
+  new lens.
+- **Derived products are gene-sorted and read by pushdown.** A per-target product is Parquet
+  physically sorted on the read key + a resolver sidecar; queries read one row, not the
+  monolith. Sorting on the wrong key (or scanning) silently fails at scale.
+- **DGE methodology** (batch layer) = DESeq2 + ComBat-seq + lfcShrink(apeglm) on raw integer
+  counts; actionability filter `padj < 0.05 AND |log2FC| ≥ 1 AND baseMean cutoff`.
+- **Canonical TCGA source = GDC DR45.0**, pinned by release + manifest UUID + pipeline
+  `workflow_version` (release tag alone is insufficient — ~44% of genes drift across GDC
+  releases due to pipeline shifts).
 
 ---
 
 ## AWS configuration
 
-Two AWS profiles map to two distinct Takeda accounts (deliberate data-sovereignty separation):
+Two AWS profiles map to two Takeda accounts (deliberate data-sovereignty separation):
 
 | Profile | AWS account | Used by | Purpose |
 |---------|---|---------|---------|
-| `cbg` | `557690623046` (`tec-rnd-cbg-dev`) | All v2 batch + retrieval; anything reading `s3://onc-compbio/...` | S3 access to the data catalog and core-artifacts |
-| `cmp-dev` | `888307857004` (`tec-rnd-cmp-dev`) | Bedrock SDK calls (literature dimension, future LLM-as-judge) | Bedrock access for Sonnet + Opus |
+| `cbg` | `557690623046` (`tec-rnd-cbg-dev`) | All data reads — derived products, catalog, core-artifacts under `s3://onc-compbio/…` | S3 data access |
+| `cmp-dev` | `888307857004` (`tec-rnd-cmp-dev`) | Bedrock SDK calls (LLM synthesis in `target-profile`, `compose-dashboard`) | Bedrock (Opus / Sonnet), region `us-east-1` |
 
 On a fresh SageMaker space:
 
@@ -99,7 +196,14 @@ aws sso login --profile cmp-dev
 export AWS_PROFILE=cbg     # default for data work
 ```
 
-> The home directory on this SageMaker space is on ephemeral EBS, not EFS — every restart wipes `~/`. The recovery script at [`personal-notes/bin/bootstrap.sh`](https://github.com/takoncoder/personal-notes/blob/main/bin/bootstrap.sh) re-establishes both profiles, gh auth, repo clones, and pixi in one command. Run it after every space restart.
+> **Bedrock note:** the LLM-synthesis skills invoke Bedrock via the `cmp-dev` account in
+> `us-east-1` — `cbg` is data-only. If a synthesis call 400s, export *frozen* credentials
+> (the Bedrock SDK client does not honor `AWS_PROFILE`) and strip any `[1m]` alias suffix
+> from the model ID before invoking.
+
+> **Ephemeral `$HOME`:** this SageMaker space is on ephemeral EBS — every restart wipes `~/`.
+> Re-establish profiles, `gh` auth, clones, and pixi in one command with the recovery script
+> (`personal-notes/bin/bootstrap.sh`). Run it after every restart.
 
 ---
 
@@ -112,17 +216,24 @@ git checkout v2-architecture
 pixi install
 ```
 
-The repo-root `pixi.toml` carries the env for the v2 batch pipeline (R + DESeq2 + ComBat-seq via Bioconductor — to be added — plus python tooling for `query_evidence.py`). The v1 skills under `skills/{analysis,workflow}-*/` each carry their own `pixi.toml` and remain isolated.
-
-To run the retrieval skill against the live S3:
+Run a focused question skill against live S3 (example — dependency call for KRAS in CRC):
 
 ```bash
 export AWS_PROFILE=cbg
-pixi run python skills/query-target-evidence/scripts/query_evidence.py \
-    --gene SCD1 --indication COADREAD --subtype all --dimension expression-rna
+pixi run python skills/functional-requirement/scripts/run.py \
+    --gene KRAS --indication COADREAD
 ```
 
-(Today this returns `[MISSING] SCD1/COADREAD/all/expression-rna — no artifact. Produced by: batch/expression_rna_COADREAD/run_pipeline.R` — the contract is in place; the first real artifact lands once the GDC mirror completes and the batch pipeline runs.)
+Run a full composed profile with LLM synthesis:
+
+```bash
+export AWS_PROFILE=cbg AWS_REGION=us-east-1   # Bedrock for synthesis
+pixi run python skills/target-profile/scripts/run.py \
+    --gene MET --indication NSCLC
+```
+
+The repo-root `pixi.toml` carries the env for the v2 skills + batch pipeline. The retained
+v1 `analysis-*` / `workflow-*` skills carry their own isolated `pixi.toml`.
 
 ---
 
@@ -130,26 +241,21 @@ pixi run python skills/query-target-evidence/scripts/query_evidence.py \
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | v1 — currently plugin-installable production system |
-| **`v2-architecture`** | **You are here.** v2 redesign (compute/retrieve separation, evidence artifact contract, data catalog integration) |
-| `feat/*` | Feature branches off `v2-architecture` |
+| `main` | v1 — plugin-installable production system (`analysis-*`, `workflow-*` skills) |
+| **`v2-architecture`** | **You are here.** Long-lived architectural branch for the compositional framework; feature branches cut off it and PR back into it |
+| `feat/*`, `fix/*`, `chore/*` | Short-lived work branches off `v2-architecture` (draft PR on first push) |
 
-When v2 reaches parity with v1's analytical capabilities, it will be merged to `main` and v1 will become a legacy install path documented in release notes.
-
----
-
-## Versioning
-
-v2 work is unversioned during development on this branch. The first v2 release will be tagged `v2.0.0` after the merge to `main`, and will be a **major** semver bump because the dimension naming, S3 path schema, and skill-invocation patterns are all breaking changes from v1.
+When v2 reaches parity with v1's analytical capabilities it merges to `main`; v1 becomes a
+documented legacy install path.
 
 ---
 
 ## Requirements
 
-- **Python** ≥ 3.10
-- **R** ≥ 4.4 with Bioconductor 3.20+ (DESeq2, sva for ComBat-seq, apeglm for lfcShrink, arrow for Parquet) — for the batch DGE pipeline. To be wired into the repo `pixi.toml`.
+- **Python** ≥ 3.10 — skills + orchestration
+- **R** ≥ 4.4 with Bioconductor 3.20+ (DESeq2, sva, apeglm, arrow) — batch DGE pipeline
 - **pixi** for env management
-- **AWS credentials** — `cbg` profile for S3, `cmp-dev` profile for Bedrock (see [AWS configuration](#aws-configuration))
+- **AWS credentials** — `cbg` for S3, `cmp-dev` for Bedrock (see [AWS configuration](#aws-configuration))
 
 ---
 
@@ -162,4 +268,4 @@ Internal use only — Computational Biology Oncology Team, Takeda Pharmaceutical
 ## Authors
 
 - **v1 (main):** Ming-Ju Tsai (ming-ju.tsai@takeda.com)
-- **v2 architecture (this branch):** Ryan Abo (ryan.abo@takeda.com), with v1 as foundation
+- **v2 architecture (this branch):** Ryan Abo (ryan.abo@takeda.com), building on v1 as foundation
