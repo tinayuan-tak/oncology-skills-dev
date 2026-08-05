@@ -187,34 +187,38 @@ def _hgnc_to_uniprot_ac(target: str) -> Optional[str]:
     return _hgnc_symbol_to_uniprot_ac_cached(target)
 
 
+# The RESOLVER SIDECAR shipped alongside the Reactome source (produced by target_id_resolver at
+# ingest time): maps every UniProt2Reactome native accession → canonical HGNC symbol. Replaces the
+# former hardcoded ~30-target inline crosswalk (a v0.1 shortcut that failed the standing resolver-
+# sidecar rule for any target outside the inline set). 12,136 rows, lru-cached per process.
+REACTOME_RESOLVER_SIDECAR_S3_KEY = (
+    "data-catalog/sources/reactome/v96/UniProt2Reactome_All_Levels.txt.target_resolution.parquet"
+)
+
+
 @lru_cache(maxsize=1)
 def _load_hgnc_uniprot_crosswalk() -> dict:
-    """HGNC symbol → primary UniProt-AC crosswalk.
+    """HGNC symbol (UPPER) → primary UniProt-AC, from the Reactome resolver sidecar on S3.
 
-    Loaded from the framework's hgnc-2026-q2 backbone. For iter-1 v0.1
-    we ingest from a minimal UniProt gene-name crosswalk file OR fall
-    back to querying UniProt REST when the file isn't cached.
-
-    Simplified fallback: hard-code the top ~20 oncology targets HGNC→AC
-    crosswalk inline. This is a v0.1 shortcut; a proper resolver
-    integration is a follow-up.
-    """
-    # Minimal inline crosswalk for iter-1 v0.1 smoke test.
-    # A production framework should read from the hgnc-2026-q2 catalog
-    # OR the uniprot-sprot-human ID-mapping sidecar.
-    return {
-        "KRAS": "P01116", "TP53": "P04637", "EGFR": "P00533",
-        "MYC": "P01106", "BRAF": "P15056", "PIK3CA": "P42336",
-        "MET": "P08581", "ERBB2": "P04626", "ERBB3": "P21860",
-        "AR": "P10275", "ESR1": "P03372", "ALK": "Q9UM73",
-        "NFE2L2": "Q16236", "MDM2": "Q00987", "CDKN2A": "P42771",
-        "PTEN": "P60484", "APC": "P25054", "RB1": "P06400",
-        "KEAP1": "Q14145", "SMAD4": "Q13485",
-        "SRC": "P12931", "SOS1": "Q07889", "RAF1": "P04049",
-        "MAPK1": "P28482", "MAPK3": "P27361", "PIK3CB": "P42338",
-        "AKT1": "P31749", "MTOR": "P42345", "TSC1": "Q92574",
-        "TSC2": "P49815", "STK11": "Q15831",
-    }
+    Reads the target_id_resolver sidecar (hgnc_primary_symbol_at_resolution → native_row_key)
+    shipped with reactome-v96 — the same discipline as the CSPA/GPI/topology readers (never a
+    hardcoded map, never a source symbol column). Empty dict on read failure (the caller then
+    returns target_symbol_not_resolvable — honest, never a crash)."""
+    try:
+        import io
+        import pandas as pd
+        s3 = _boto3_client()
+        body = s3.get_object(Bucket=S3_BUCKET, Key=REACTOME_RESOLVER_SIDECAR_S3_KEY)["Body"].read()
+        df = pd.read_parquet(io.BytesIO(body))
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict[str, str] = {}
+    sym_col, ac_col = "hgnc_primary_symbol_at_resolution", "native_row_key"
+    if sym_col in df.columns and ac_col in df.columns:
+        for sym, ac in zip(df[sym_col].values, df[ac_col].values):
+            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip():
+                out.setdefault(sym.strip().upper(), ac.strip())
+    return out
 
 
 def _hgnc_symbol_to_uniprot_ac_cached(symbol: str) -> Optional[str]:
