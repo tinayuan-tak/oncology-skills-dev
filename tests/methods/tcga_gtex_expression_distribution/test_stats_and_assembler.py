@@ -158,6 +158,39 @@ def test_assembler_data_unavailable(monkeypatch):
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [])
     out = R.read_tumor_expression_distribution("GHOST", "COADREAD")
     assert out["tumor_expression_class"] == "data_unavailable" and out["n_tumor_samples"] == 0
+    # Phase 1C: the data-gap branch still carries the allgene fields (null), so the card's
+    # declared summary_fields are always present — a consumer never KeyErrors on them.
+    assert out["allgene_percentile"] is None
+    assert out["allgene_percentile_class"] == "data_unavailable"
+    assert "allgene_percentile_context" in out
+
+
+# ---- Phase 1C: allgene percentile merged into the Q1 assembler (no S3) ----
+def test_assembler_merges_allgene_percentile(monkeypatch):
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8] * 5)
+    # patch the reader's lookup seam (not S3) — assert the fields flow through verbatim.
+    monkeypatch.setattr(R, "_tumor_allgene_percentile", lambda target, studies: {
+        "allgene_percentile": 99.9, "allgene_percentile_class": "top_1pct",
+        "allgene_percentile_context": "tcga_tumor:COAD,READ (allgene-tumor-rank-v1)",
+        "allgene_percentile_by_study": {"COAD": 99.9, "READ": 99.92}})
+    out = R.read_tumor_expression_distribution("CEACAM5", "COADREAD")
+    assert out["allgene_percentile"] == pytest.approx(99.9)
+    assert out["allgene_percentile_class"] == "top_1pct"
+    assert out["allgene_percentile_by_study"] == {"COAD": 99.9, "READ": 99.92}
+    # the enrichment must NOT disturb the core distribution verdict (one-directional).
+    assert out["tumor_expression_class"] == "broadly_high"
+
+
+def test_tumor_allgene_percentile_seam_offline(monkeypatch):
+    """The _tumor_allgene_percentile seam resolves symbol→ensembl + delegates to the lookup,
+    both patched — proves the reader wires the accessor without touching S3."""
+    monkeypatch.setattr(R, "_symbol_to_ensembl_ids", lambda s: ["ENSG00000105383"])
+    import methods.allgene_percentile_precompute.lookup as _lk
+    monkeypatch.setattr(_lk, "_tumor_rows",
+                        lambda ids, source: (("COAD", 88.0, 500, 41000, 4.0),))
+    out = R._tumor_allgene_percentile("CD33", ["COAD"])
+    assert out["allgene_percentile"] == pytest.approx(88.0)
+    assert out["allgene_percentile_class"] == "mid"
 
 
 # ---- subtype layer (synthetic shard + bridged reader; no S3) ----

@@ -470,6 +470,22 @@ def _classify_normal_liability(critical_organ_max, highest_median, breadth_fract
     return "moderate_normal_breadth"
 
 
+def _tumor_allgene_percentile(target: str, studies: list) -> dict:
+    """All-gene percentile of the target's tumor MEDIAN within the indication's TCGA
+    study/studies (Phase 1C). A single-gene predicate-pushdown lookup of the precomputed
+    allgene-tumor-rank-v1 (NO re-scan of the multi-GB long products); the per-study
+    percentiles are averaged (COADREAD → COAD+READ) into one scalar, with every study
+    named in the context string. Additive/display — never flips tumor_expression_class.
+    data_unavailable-safe (any failure → None percentile)."""
+    try:
+        from methods.allgene_percentile_precompute.lookup import tumor_allgene_percentile
+        ensembl_ids = _symbol_to_ensembl_ids(target) or []
+        return tumor_allgene_percentile(ensembl_ids, studies)
+    except Exception:  # noqa: BLE001 — enrichment best-effort
+        return {"allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
+                "allgene_percentile_context": None, "allgene_percentile_by_study": {}}
+
+
 def read_tumor_expression_distribution(target: str, indication: str) -> dict:
     """Q1 assembler: the tumor per-sample distribution summary for a (target, indication).
     Composes the stats primitives into the spec's `tumor_expression` block. data_unavailable-safe."""
@@ -480,9 +496,12 @@ def read_tumor_expression_distribution(target: str, indication: str) -> dict:
                 "n_tumor_samples": 0, "distribution_pattern": None,
                 "coefficient_of_variation": None,
                 "detectable_fraction": None, "moderate_fraction": None, "high_fraction": None,
+                "allgene_percentile": None, "allgene_percentile_class": "data_unavailable",
+                "allgene_percentile_context": None,
                 "_data_note": "target absent from TCGA long product for this indication",
                 "studies": studies}
-    return {**_distribution_summary(tumor), "studies": studies}
+    return {**_distribution_summary(tumor), **_tumor_allgene_percentile(target, studies),
+            "studies": studies}
 
 
 def _classify_tumor_expression(detectable_fraction, high_fraction, pattern) -> str:
