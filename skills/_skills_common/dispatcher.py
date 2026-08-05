@@ -168,14 +168,24 @@ def run_wired_skill(
     """
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True, help="HGNC gene symbol")
-    ap.add_argument("--indication", required=True, help="OncoTree code")
+    # --indication is OPTIONAL (2026-08-05): TARGET-INTRINSIC skills (e.g. target-intrinsic) fan out
+    # over tier:target cards that take no indication, so they invoke with --target alone. When omitted,
+    # a pan-cancer sentinel is passed to resolve_cards — target-grain card readers ignore it, and an
+    # indication-scoped reader invoked without a real indication degrades to data_unavailable (its
+    # honest gap posture). BACKWARD-COMPATIBLE: every existing focused skill still passes --indication,
+    # so their behavior is unchanged.
+    ap.add_argument("--indication", required=False, default=None, help="OncoTree code (optional for target-intrinsic skills)")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--modality", default=None,
                     help="OPTIONAL post-hoc modality lens.")
     args = ap.parse_args(argv)
 
+    # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
+    # signature is unchanged; tier:target readers ignore it (see the --indication help above).
+    _indication = args.indication if args.indication is not None else "PANCANCER"
+
     # 1. Resolve cards via compose-dashboard live-readers
-    card_outputs = resolve_cards(cards, args.target, args.indication)
+    card_outputs = resolve_cards(cards, args.target, _indication)
 
     # 2. Apply arch A4 on_dependency_status behavior
     card_outputs, skipped_card_ids, a4_caveats = _apply_on_dependency_status(
@@ -232,8 +242,8 @@ def run_wired_skill(
     # 8. Compose decision.json
     decision = make_decision_json(
         skill_name=skill_name,
-        target=args.target, indication=args.indication,
-        question=question.format(target=args.target, indication=args.indication),
+        target=args.target, indication=_indication,
+        question=question.format(target=args.target, indication=_indication),
         card_outputs=card_outputs, fired=fired,
         headline=headline, modality_lenses=lenses,
     )
@@ -244,7 +254,7 @@ def run_wired_skill(
         decision=decision,
         card_outputs=card_outputs,
         target=args.target,
-        indication=args.indication,
+        indication=_indication,
         skill_name=skill_name,
         skill_version=skill_version,
         invoked_lenses=invoked_lenses,
