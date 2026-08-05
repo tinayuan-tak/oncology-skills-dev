@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """tumor-presence — expression/protein presence for a (target, indication).
 
-Consumes 10 wired cards in two tiers (see CARDS below + SKILL.md):
+Consumes 9 wired cards in two tiers (see CARDS below + SKILL.md):
   VERDICT-BEARING (5, feed the presence ladder): cellline-rna-distribution (cell-line RNA),
     tumor-rna-vs-adjacent (tumor RNA), tumor-protein-abundance-cptac (tumor protein),
     cellline-protein-abundance (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
-  DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-rna-distribution,
-    tumor-rna-distribution-by-subtype, expression-purity-confound, phospho-pathway-activity,
-    cellline-rna-protein-concordance.
+  DISPLAY-ONLY facets (4, feed NO resolver — verdict byte-stable): tumor-rna-distribution,
+    tumor-rna-distribution-by-subtype, expression-purity-confound, cellline-rna-protein-concordance.
+  (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
+   signaling-state readout, not a presence/abundance signal — it belongs with the mechanism lens.)
 Emits a data-package output tree with a rank-ordered presence verdict + per-(measurement,
 sample_context) sub-verdicts.
 
@@ -55,12 +56,10 @@ CARDS = [
                                         # render facet — its purity_confound_class + rules feed NO
                                         # resolver ladder (presence verdict byte-stable). The ADC/TCE
                                         # antigen-reality (modality-gate) facet is DEFERRED to P4.
-    "phospho-pathway-activity",         # Q8 (2026-07-23) — target biology at the PHOSPHO level (CPTAC
-                                        # phosphoproteomics): is it phosphorylated (pathway-activity
-                                        # proxy) beyond total abundance? The sharpest presence signal
-                                        # for kinases/signaling. ADDITIVE render facet — phospho_activity_class
-                                        # + rules feed NO resolver (presence verdict byte-stable). Same
-                                        # (bulk_protein_ms, tumor) bucket as tumor-protein-abundance-cptac.
+    # (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: phosphorylation is
+    #  an ACTIVITY / signaling-STATE readout, not a presence/abundance signal — it presupposes
+    #  presence rather than measuring it. It belongs with the mechanism lens, not the expression lens.
+    #  The distinction sharpened once tumor-presence synthesis became an expression-RELEVANCE judge.)
     "cellline-rna-protein-concordance",          # Q5 (2026-07-23 composition) — rna_as_biomarker: is RNA an
                                         # adequate PROXY for protein presence (cell-line arm)? A
                                         # presence-proxy QUALITY qualifier on the RNA presence read +
@@ -98,7 +97,7 @@ CARD_CONTEXT = {
     "cellline-protein-abundance":    ("bulk_protein_ms", "cell_line"), # Gygi cell-line MS
     "tumor-elevation-breadth":      ("bulk_protein_ms", "tumor"),     # CPTAC pan-cancer breadth (target-grain) — same bucket as CPTAC per-indication
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
-    "phospho-pathway-activity":     ("bulk_protein_ms", "tumor"),     # Q8 — CPTAC phosphoproteomics (tumor MS); (bulk_protein_ms, tumor) bucket, same as tumor-protein-abundance-cptac. A render-facet pathway-activity readout, not a presence sub-verdict.
+    # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence).
     "cellline-rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
 }
 
@@ -341,9 +340,7 @@ def _headline(cards, fired, verdict_pair):
         # (render facet; does NOT feed the presence verdict — additive, spine byte-stable)
         "purity_confound_class":    get_card_field(cards, "expression-purity-confound", "purity_confound_class"),
         "expression_purity_pearson_r": get_card_field(cards, "expression-purity-confound", "expression_purity_pearson_r"),
-        # Q8 phospho pathway activity — protein/pathway-level presence (render facet, byte-stable)
-        "phospho_activity_class":   get_card_field(cards, "phospho-pathway-activity", "phospho_activity_class"),
-        "n_phosphosites":           get_card_field(cards, "phospho-pathway-activity", "n_phosphosites"),
+        # (phospho_activity_class / n_phosphosites RE-HOMED 2026-08-05 → mechanism-and-pharmacology.)
         # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
         "rna_as_biomarker":         get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker"),
         "rna_protein_r":            get_card_field(cards, "cellline-rna-protein-concordance", "rna_protein_r"),

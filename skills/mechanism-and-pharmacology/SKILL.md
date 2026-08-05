@@ -30,9 +30,14 @@ composition:
   phase: [D]
   cards_used:
     - signaling-network-mechanism
+    - phospho-pathway-activity          # RE-HOMED 2026-08-05 (was tumor-presence): phosphorylation is an
+                                        # ACTIVITY / signaling-state readout (CPTAC phosphoproteomics),
+                                        # a mechanism signal not a presence one. DISPLAY-ONLY facet —
+                                        # feeds NO resolver (mechanism_verdict byte-stable).
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled.
   measurement_types_pulled:
     - signaling_network_mechanism
+    - phospho_pathway_activity
   rules_scope:
     - all
   synthesis:

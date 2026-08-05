@@ -44,10 +44,11 @@ def test_predictive_biomarker_alteration_role_is_genomic_stratifier():
 
 
 def test_rna_adequate_proxy_prefers_rna():
-    # no genomic stratifier; RNA is an adequate proxy → preferred RNA, corroborating_only
+    # no genomic stratifier; RNA is an adequate proxy → preferred RNA, corroborating_only.
+    # phospho re-homed 2026-08-05: it now surfaces under the `mechanism` sub-result, not `expression`.
     sr = _sr(
-        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "adequate_proxy"},
-                    "phospho-pathway-activity": {"phospho_activity_class": "phospho_active"}},
+        expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "adequate_proxy"}},
+        mechanism={"phospho-pathway-activity": {"phospho_activity_class": "phospho_active"}},
     )
     f = run._biomarker_facet(sr)
     assert f["preferred_assay"] == "RNA"
@@ -55,11 +56,11 @@ def test_rna_adequate_proxy_prefers_rna():
 
 
 def test_poor_proxy_prefers_protein():
-    sr = _sr(expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"},
-                         "phospho-pathway-activity": {"phospho_activity_class": "phospho_present"}})
+    sr = _sr(expression={"cellline-rna-protein-concordance": {"rna_as_biomarker": "poor_proxy"}},
+             mechanism={"phospho-pathway-activity": {"phospho_activity_class": "phospho_present"}})
     f = run._biomarker_facet(sr)
     assert f["preferred_assay"] == "protein"
-    # corroboration present (phospho_present) → corroborating_only (not inadequate)
+    # corroboration present (phospho_present, from the mechanism sub-result) → corroborating_only
     assert f["verdict"] == "corroborating_only"
 
 

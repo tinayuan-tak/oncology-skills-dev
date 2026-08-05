@@ -13,15 +13,16 @@ description: |
     - cellline-protein-abundance         (cell-line protein, DepMap/Gygi TMT-MS)
     - tumor-elevation-breadth           (pan-cancer K-of-N tumor-elevation, target-grain)
 
-  DISPLAY-ONLY facets (5 cards — additive context, feed NO resolver, verdict
+  DISPLAY-ONLY facets (4 cards — additive context, feed NO resolver, verdict
   byte-stable; one-directional gate):
     - tumor-rna-distribution         (per-sample tumor RNA distribution; rules
                                              not yet in the verdict ladder — follow-up)
     - tumor-rna-distribution-by-subtype (per-molecular-subtype panorama; COADREAD
                                              shard only, else subtype_axis_available:false)
     - expression-purity-confound            (is the tumor signal tumor-intrinsic or stromal?)
-    - phospho-pathway-activity              (CPTAC phospho pathway-activity proxy)
     - cellline-rna-protein-concordance               (is RNA an adequate protein proxy?)
+    (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
+     signaling-state readout, not a presence/abundance signal.)
 
   Runs the expression-* + protein-* rule subset over two measurement ladders
   (bulk_rna, bulk_protein_ms). Emits a data-package output tree with a
@@ -56,7 +57,7 @@ composition:
     - tumor-rna-distribution         # Q1 per-sample tumor RNA distribution (was run.py-present, doc-stale)
     - tumor-rna-distribution-by-subtype # Q1 subtype-grain panorama (was run.py-present, doc-stale)
     - expression-purity-confound            # Q9 (2026-07-23): purity-confound caveat — tumor-intrinsic vs microenvironment (render facet)
-    - phospho-pathway-activity              # Q8 (2026-07-23): CPTAC phospho pathway-activity — phospho-level presence for kinases/signaling (render facet)
+    # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence)
     - cellline-rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality; biomarker preferred_assay input (render facet)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
@@ -73,7 +74,6 @@ composition:
     - tumor_elevation_breadth
     - tumor_expression_distribution
     - expression_purity_confound
-    - phospho_pathway_activity
     - rna_protein_concordance
   rules_scope:
     - cellline-rna-distribution

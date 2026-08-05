@@ -161,7 +161,8 @@ SUB_SKILL_CARDS = {
                                          # panorama (per_subgroup_metrics). Same pairing rule: wired into
                                          # tumor-presence CARDS + this composer map together.
         "expression-purity-confound",    # Q9 (2026-07-23) — purity-confound caveat; render facet.
-        "phospho-pathway-activity",      # Q8 (2026-07-23) — CPTAC phospho pathway-activity; render facet.
+        # phospho-pathway-activity RE-HOMED 2026-08-05 → the mechanism-and-pharmacology entry below
+        # (activity/signaling-state, not presence). Kept in lockstep with its sub-skill CARDS.
         "cellline-rna-protein-concordance",       # Q5 (2026-07-23) — rna_as_biomarker; biomarker preferred_assay input.
     ],
     "tumor-selectivity": [
@@ -201,6 +202,8 @@ SUB_SKILL_CARDS = {
     ],
     "mechanism-and-pharmacology": [
         "signaling-network-mechanism",
+        "phospho-pathway-activity",      # RE-HOMED 2026-08-05 from tumor-presence — phospho ACTIVITY /
+                                         # signaling-state facet (CPTAC phosphoproteomics). Render facet.
     ],
     "genomic-alteration-profile": [          # reframed from mutation-profile
         "mutation-type-counts",
@@ -802,8 +805,11 @@ _BIOMARKER_INPUTS = {
                                                                              #  which _first_card_summary_field never sees)
     "expression":        [("rna_as_biomarker", "stratification"),            # Q5 preferred-assay input
                           ("subtype_stratification_class", "stratification"), # subtype patient-selection (2026-08-04)
-                          ("phospho_activity_class", "corroboration"),       # Q8 pathway-active
                           ("purity_confound_class", "corroboration")],       # Q9 signal-is-tumor-intrinsic
+    # phospho_activity_class RE-HOMED 2026-08-05: it now surfaces under the mechanism sub-result
+    # (phospho card moved tumor-presence → mechanism-and-pharmacology), so read it from there — else
+    # the biomarker facet would silently drop the Q8 pathway-active corroboration signal.
+    "mechanism":         [("phospho_activity_class", "corroboration")],      # Q8 pathway-active (phospho)
     "differentiation":   [("survival_association_class", "stratification")], # Q11 prognostic stratifier
 }
 

@@ -32,6 +32,12 @@ SKILL_VERSION = "1.2.0"                       # bumped for W4c dispatcher refact
 
 CARDS = [
     "signaling-network-mechanism",
+    # phospho-pathway-activity RE-HOMED here 2026-08-05 (was tumor-presence). Phosphorylation is an
+    # ACTIVITY / signaling-STATE readout (CPTAC phosphoproteomics: is the target phosphorylated, at
+    # which sites, in how many tumors) — a MECHANISM signal, not a presence/abundance one. DISPLAY-ONLY
+    # facet: feeds NO resolver rung, so the mechanism_verdict stays byte-stable (the mechanism resolver
+    # keys only on signaling-network-mechanism fields).
+    "phospho-pathway-activity",
 ]
 
 QUESTION = ("For {target} in {indication}, what upstream regulators + "
@@ -75,6 +81,15 @@ def _headline(cards, fired, verdict_pair):
                                           "has_pd_marker"),
         "moa_ontology_version":      get_card_field(cards, "signaling-network-mechanism",
                                           "moa_ontology_version"),
+        # Phospho ACTIVITY facet (re-homed 2026-08-05) — CPTAC phosphoproteomics signaling-state
+        # readout. Display-only (feeds no resolver); enriches the mechanism picture for kinases/
+        # signaling nodes. data_unavailable for indications with no CPTAC cohort or non-phosphoproteins.
+        "phospho_activity_class":    get_card_field(cards, "phospho-pathway-activity",
+                                          "phospho_activity_class"),
+        "n_phosphosites":            get_card_field(cards, "phospho-pathway-activity",
+                                          "n_phosphosites"),
+        "max_site_detection_fraction": get_card_field(cards, "phospho-pathway-activity",
+                                          "max_site_detection_fraction"),
     }
 
 
