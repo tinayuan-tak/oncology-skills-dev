@@ -8,12 +8,14 @@ Reusable, language-agnostic analytical code — packaged as CLIs (some R-driven,
 
 This repo is the third of the v2 framework's five repos. Sits between [target-contracts](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts) (governance) and [claude-oncology-skills](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills) (orchestration) in the dependency graph. Skills *call* methods; methods don't know about skills.
 
-## Method inventory (74 method modules)
+## Method inventory (71 methods + 4 shared helpers under `methods/`)
 
 Methods are grouped below by the biology gate / evidence axis they serve. Each is a self-contained
 module under `methods/<name>/` with a `read.py` library entry (consumed by the `compose-dashboard`
 dispatcher) and, where it emits figures, a `cli.py` (CLI + figure emitters). The `*_precompute`
-methods build the gene-sorted derived products that the per-target readers query by pushdown.
+methods build the gene-sorted derived products that the per-target readers query by pushdown. The
+four shared helpers (`io/`, `depmap_common`, `opentargets_common`, `subgroup_common`) hold code
+reused across a family of methods and are not invoked directly.
 
 **Presence & selectivity (expression, RNA + protein)**
 `dge_deseq2` · `dge_tcga_gtex_precompute` · `tcga_gtex_expression_distribution` ·
@@ -57,7 +59,8 @@ methods build the gene-sorted derived products that the per-target readers query
 
 **Subgroup / subtype substrate**
 `subgroup_assigner_classifier` · `subgroup_assigner_directly_tagged` ·
-`subgroup_assigner_maf_filter` · `subgroup_common`
+`subgroup_assigner_maf_filter` · `sclc_george_harmonize` (SCLC NAPY subtype vertical) ·
+`subgroup_common`
 
 **RWD & shared I/O**
 `tempus_rwd_aggregator` · `patient_model_expression_correspondence` · `io/` (shared loaders)
@@ -125,7 +128,7 @@ A method's output validates against its schema before `compose-dashboard` curate
 
 ## Status
 
-**74 method modules**, spanning every biology gate of the framework (see inventory above). The
+**71 methods + 4 shared helpers**, spanning every biology gate of the framework (see inventory above). The
 dependency, expression, genomic-alteration, mechanism, PRISM-tractability, safety, and
 target-intrinsic methods are wired into `compose-dashboard` dispatchers with tests + figure
 emitters; the surface-density and structural-feature methods are partially wired (their upstream
