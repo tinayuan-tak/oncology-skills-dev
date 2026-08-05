@@ -60,6 +60,8 @@ CARDS = [
     # --- MECHANISM / PATHWAY ROLE (the molecule's place in signaling) ---------------------------
     "signaling-network-mechanism",       # SIGNOR/OmniPath upstream regulators + downstream effectors, MoA class
     "reactome-pathway-membership",       # Reactome pathway/geneset MEMBERSHIP + top-level rollup (distinct from directed edges above)
+    # --- INTERACTOME (physical/functional interactions + complex membership) --------------------
+    "ppi-interactome",                   # STRING high-confidence functional network + CORUM complex membership
     # --- PARALOGS (gene-family redundancy — a genomic-intrinsic property) -----------------------
     "paralog-buffering",                 # sequence paralogs + buffering (dependency-hardening context)
     # --- NORMAL (non-disease) EXPRESSION --------------------------------------------------------
@@ -106,6 +108,11 @@ def _headline(cards, fired, verdict_pair):
         "pathway_class":                 g("reactome-pathway-membership", "pathway_class"),
         "pathway_count":                 g("reactome-pathway-membership", "pathway_count"),
         "top_level_pathways":            g("reactome-pathway-membership", "top_level_pathways"),
+        # interactome (STRING network + CORUM complexes)
+        "interactome_class":             g("ppi-interactome", "interactome_class"),
+        "n_high_confidence_interactors": g("ppi-interactome", "n_high_confidence_interactors"),
+        "n_corum_complexes":             g("ppi-interactome", "n_corum_complexes"),
+        "in_protein_complex":            g("ppi-interactome", "in_protein_complex"),
         # paralogs (gene-family redundancy)
         "paralog_buffering_class":       g("paralog-buffering", "paralog_buffering_class"),
         "n_paralogs_annotated":          g("paralog-buffering", "n_paralogs_annotated"),

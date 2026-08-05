@@ -588,6 +588,14 @@ def _dispatch_co_mutation_and_mutual_exclusivity(target: str, indication: str) -
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_ppi_interactome(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: ppi-interactome card → STRING functional-network degree + CORUM complex
+    membership via methods/ppi_interactome/read.py. Target-intrinsic (indication ignored).
+    """
+    mod = _import_method("ppi_interactome")
+    return mod.read_target_summary(target=target, indication=indication)
+
+
 def _dispatch_reactome_pathway_membership(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: reactome-pathway-membership card → Reactome pathway/geneset membership
     via methods/reactome_pathway_context/read.py. Target-intrinsic (indication ignored); the
@@ -998,6 +1006,7 @@ CARD_DISPATCHERS = {
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
     "reactome-pathway-membership": _dispatch_reactome_pathway_membership,  # target-intrinsic pathway/geneset membership
     "gene-ontology-annotation": _dispatch_gene_ontology_annotation,  # target-intrinsic GO BP/MF/CC membership
+    "ppi-interactome": _dispatch_ppi_interactome,  # target-intrinsic STRING network + CORUM complexes
     "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,

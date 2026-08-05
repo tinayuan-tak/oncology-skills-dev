@@ -42,6 +42,7 @@ composition:
     - surfaceome-family-classification
     - structure-features-static
     - shed-ectodomain-liability
+    - ppi-interactome
     - gene-ontology-annotation
     - signaling-network-mechanism
     - reactome-pathway-membership
@@ -62,6 +63,7 @@ composition:
     - surfaceome_family
     - structure_druggability
     - shed_ectodomain_liability
+    - ppi_interactome
     - gene_ontology_annotation
     - signaling_network_mechanism
     - reactome_pathway_membership
