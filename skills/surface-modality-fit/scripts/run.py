@@ -46,6 +46,15 @@ CARDS = [
                                         # modality gates, divergent reads. ADDITIVE signal-only: its
                                         # surface rule feeds NO resolver rung (surface_modality resolves
                                         # off adc-tce-modality-fit.fit_class) → verdict byte-stable.
+    "rna-protein-concordance-tumor",    # Orphan-fix (audit 2026-08-05): tier:indication RNA↔protein
+                                        # concordance, modality_relevance [adc, bite_tce, antibody]. Its
+                                        # surface-intrinsic rules (rna-poor-proxy-surface-warning [important,
+                                        # OPPOSING] + rna-adequate-proxy-surface-supportive) already exist
+                                        # but were UNREACHABLE — no skill composed the card. An RNA-based
+                                        # read is a poor proxy for a SURFACE antigen when protein disagrees;
+                                        # this is the tumor-grain twin of tumor-presence's cell-line concordance
+                                        # facet. ADDITIVE signal-only: surface_modality resolves off
+                                        # adc-tce-modality-fit.fit_class → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "

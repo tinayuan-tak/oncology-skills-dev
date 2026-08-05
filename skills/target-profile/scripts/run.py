@@ -243,6 +243,9 @@ SUB_SKILL_CARDS = {
                                              # density (adc/bite_tce/antibody). Cross-cutting — ALSO in
                                              # genomic-alteration-profile (SM/degrader). Example B: one
                                              # card, two modality gates, divergent modality reads.
+        "rna-protein-concordance-tumor",     # orphan-fix (2026-08-05): tier:indication RNA↔protein
+                                             # concordance; its important-weighted ADC/TCE surface rules
+                                             # were unreachable until surface-modality-fit composed it.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",
@@ -792,7 +795,11 @@ _BIOMARKER_INPUTS = {
                            ("mutation_stratification_class", "stratification")],  # mutant-stratified dependency
     "dependency":        [("abundance_dependency_class", "corroboration"),   # Q7 protein abundance→dep
                           ("correlation_class", "corroboration"),            # RNA arm expression→dep
-                          ("model_correspondence_class", "corroboration")],  # Q4 model-backed dependency
+                          ("correspondence_class", "corroboration")],        # Q4 model-backed dependency
+                                                                             # (the recommended-models CARD key;
+                                                                             #  NOT the functional-requirement
+                                                                             #  headline alias model_correspondence_class,
+                                                                             #  which _first_card_summary_field never sees)
     "expression":        [("rna_as_biomarker", "stratification"),            # Q5 preferred-assay input
                           ("subtype_stratification_class", "stratification"), # subtype patient-selection (2026-08-04)
                           ("phospho_activity_class", "corroboration"),       # Q8 pathway-active

@@ -30,7 +30,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
-    make_decision_json, write_package,
+    make_decision_json, write_package, get_card_field,
 )
 from _skills_common.resolver import resolve_verdict_for_gate
 
