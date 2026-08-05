@@ -14,10 +14,11 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.synthesis_selectivity import synthesize_selectivity
 
 
 SKILL_NAME = "tumor-selectivity"
-SKILL_VERSION = "1.1.0"
+SKILL_VERSION = "1.2.0"    # 2026-08-05: opt-in --synthesize (selectivity-lens narrator, two-slot)
 
 CARDS = [
     "tumor-vs-normal-selectivity",
@@ -69,6 +70,10 @@ def _headline(cards, fired, verdict_pair):
         "sig_all_cells":      tvn.get("sig_all_cells"),
         "max_abs_log2fc":     tvn.get("max_abs_log2fc"),
         "data_schema":        tvn.get("_schema"),
+        # Axis-1 selectivity contextualization (SEL-1) — where this gene's fold-change sits among
+        # ALL genes in-indication. DISPLAY facet, verdict-inert (also read by the synthesis prompt).
+        "selectivity_allgene_percentile":       tvn.get("selectivity_allgene_percentile"),
+        "selectivity_allgene_percentile_class": tvn.get("selectivity_allgene_percentile_class"),
         # Q2 per-sample percentile-crossing (namespaced to avoid the selectivity_class collision):
         "percentile_crossing_class":       pcx.get("selectivity_class"),
         "fraction_tumor_above_normal_p95": pcx.get("fraction_tumor_above_normal_p95"),
@@ -85,4 +90,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Opt-in --synthesize narrates through the SELECTIVITY lens (its own tool schema + prompt),
+        # NOT the presence narrator the dispatcher used to hardcode. Two-slot / verdict-inert.
+        synthesize_fn=synthesize_selectivity,
     ))

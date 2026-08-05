@@ -57,6 +57,12 @@ from . import (
 # Types
 VerdictFn = Callable[[list[dict]], tuple[str, Optional[str]]]
 HeadlineFn = Callable[[list[dict], list[dict], Optional[tuple[str, Optional[str]]]], dict]
+# A skill-specific two-slot synthesizer: (decision, model_id, subtype_query) -> llm_synthesis dict.
+# Each single-lens skill declares its OWN narrator (presence / selectivity / genomic-alteration),
+# each with its own tool schema + prompt. When --synthesize is passed but no synthesize_fn is
+# provided, the dispatcher falls back to synthesize_presence (backward-compat for tumor-presence,
+# which relied on the former hardcoded import).
+SynthesizeFn = Callable[[dict, Optional[str], Optional[str]], dict]
 
 
 # ARCH A4 — behaviors when a `cards_used` dep is missing at runtime.
@@ -133,6 +139,7 @@ def run_wired_skill(
     on_dependency_status: Optional[dict[str, str]] = None,
     partial_status_note: Optional[str] = None,
     isoform_check_target: bool = False,
+    synthesize_fn: Optional[SynthesizeFn] = None,
     argv: Optional[list[str]] = None,
 ) -> int:
     """Run a wired compositional skill end-to-end.
@@ -265,10 +272,18 @@ def run_wired_skill(
     # without --synthesize; a synthesis failure degrades to a note (the deterministic run must
     # never break because the narration layer is unavailable — Bedrock auth, network, etc.).
     if args.synthesize:
-        from .synthesis import synthesize_presence
+        # Each single-lens skill narrates through its OWN synthesizer (its tool schema + prompt
+        # match its evidence). synthesize_fn is passed by the skill's run.py; when omitted, fall
+        # back to synthesize_presence (backward-compat for tumor-presence). This is the fix for the
+        # former hardcoded `from .synthesis import synthesize_presence` — a --synthesize selectivity
+        # run used to be narrated by the PRESENCE narrator (wrong lens).
+        _synth = synthesize_fn
+        if _synth is None:
+            from .synthesis import synthesize_presence
+            _synth = synthesize_presence
         try:
-            decision["llm_synthesis"] = synthesize_presence(
-                decision, model_id=args.synthesis_model, subtype_query=args.subtype)
+            decision["llm_synthesis"] = _synth(
+                decision, args.synthesis_model, args.subtype)
         except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
             decision["llm_synthesis"] = {
                 "_synthesis_error": f"{type(e).__name__}: {e}",
