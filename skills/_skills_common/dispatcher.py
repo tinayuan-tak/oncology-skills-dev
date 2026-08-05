@@ -184,6 +184,11 @@ def run_wired_skill(
                          "verdict spine (the decision is byte-identical without this flag).")
     ap.add_argument("--synthesis-model", default=None,
                     help="Override the Bedrock synthesis model id (default: framework Opus).")
+    ap.add_argument("--subtype", default=None,
+                    help="OPTIONAL synthesis-grain selector: name a molecular subtype (e.g. MSI_H) to "
+                         "have the narration FOREGROUND that stratum's position, in addition to the "
+                         "across-subtype omnibus. Emphasis-only — no spine change; if the subtype is "
+                         "not among the computed strata, synthesis says so honestly.")
     args = ap.parse_args(argv)
 
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
@@ -262,7 +267,8 @@ def run_wired_skill(
     if args.synthesize:
         from .synthesis import synthesize_presence
         try:
-            decision["llm_synthesis"] = synthesize_presence(decision, model_id=args.synthesis_model)
+            decision["llm_synthesis"] = synthesize_presence(
+                decision, model_id=args.synthesis_model, subtype_query=args.subtype)
         except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
             decision["llm_synthesis"] = {
                 "_synthesis_error": f"{type(e).__name__}: {e}",

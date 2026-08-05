@@ -975,7 +975,17 @@ _SYSTEM_PROMPT = (
     "NOT calibrated: never sum or average them, and treat off-scale cells "
     "(insufficient/not_applicable) as coverage gaps, not low scores. When a matrix "
     "cell disagrees with a gate's resolved verdict, the VERDICT is the decision — "
-    "the cell is the raw per-modality signal behind it."
+    "the cell is the raw per-modality signal behind it. "
+    "Note (altitude): your PRIMARY job is the INTEGRATED relevance case — reason across the biology "
+    "lenses (expression, selectivity, dependency, mechanism, mutation, safety) to a recommendation. "
+    "Modality is a SECONDARY, supporting dimension: discuss it AFTER the relevance case has been made, "
+    "not as the headline. "
+    "Note (biology-axis governance): you may be given a MODALITY-EMPHASIS GOVERNANCE block stating the "
+    "target's curated biology_axis (intracellular vs surface) and its plausible modalities. WHEN you "
+    "discuss modality, RESPECT it — do not propose ADC/T-cell-engager/CAR for an intracellular target "
+    "(or small-molecule-occupancy for a purely surface antigen) unless a fired rule overrides the axis. "
+    "The block keeps modality talk biologically honest; it does NOT make modality the lead, and it never "
+    "changes the deterministic verdict or recommendation (the gate owns those)."
 )
 
 
@@ -1137,13 +1147,23 @@ def _build_user_prompt(
     therapeutic_hypothesis: Optional[str] = None,
     ordinal_matrix: Optional[dict] = None,
     biomarker_facet: Optional[dict] = None,
+    axis_info: Optional[dict] = None,
 ) -> str:
-    """Compose the user-message text: sub-verdicts + modality-scoped matrix slice + biomarker
-    convergence facet + card summaries + optional lens context."""
+    """Compose the user-message text: biology-axis governance + sub-verdicts + modality-scoped
+    matrix slice + biomarker convergence facet + card summaries + optional lens context.
+
+    axis_info (from _skills_common.biology_axis.resolve_biology_axis) steers modality EMPHASIS:
+    it foregrounds the plausible modalities for the target's curated axis so the narration does
+    not over-weight surface-antigen framing for an intracellular target (or vice versa). It is a
+    SLOT-2 emphasis steer only — the deterministic verdict + recommendation are untouched."""
     lines = [
         f"Target: {target}",
         f"Indication: {indication}",
     ]
+    if axis_info is not None:
+        from _skills_common.biology_axis import format_axis_governance_block
+        lines.append("")
+        lines.append(format_axis_governance_block(axis_info))
     if modality:
         lines.append(f"Modality lens (post-hoc, reweight narrative): {modality}")
     if therapeutic_hypothesis:
@@ -1182,8 +1202,22 @@ def _build_user_prompt(
         lines.append(f"\n#### {short} ({r['skill_dir']})")
         for c in r["cards"]:
             cid = c["card_id"]
+            # Distinguish the TWO _missing kinds (both are tagged _missing=True by resolve_cards,
+            # but they mean opposite things to a reviewer):
+            #   dispatcher_returned_none → the card is NOT WIRED (no reader) → truly absent.
+            #   <anything else>          → the card WAS READ and returned data_unavailable → this is
+            #     a MEASURED gap (coverage/proxy/underpowering), and resolve_cards RETAINED the real
+            #     summary. Forwarding it (with its reason) is the difference between "we looked and
+            #     found nothing" and "we never looked" — the measured-negative-vs-data_unavailable
+            #     doctrine, applied inside the prompt so the LLM does not conflate them.
             if c.get("_missing"):
-                lines.append(f"- {cid}: MISSING (no dispatcher)")
+                reason = c.get("_missing_reason")
+                if reason == "dispatcher_returned_none":
+                    lines.append(f"- {cid}: NOT WIRED (no dispatcher)")
+                    continue
+                summary = c.get("summary") or {}
+                detail = _format_card_summary_for_prompt(summary) if summary else "no summary fields"
+                lines.append(f"- {cid}: DATA_UNAVAILABLE ({reason or 'measured gap'}) — {detail}")
                 continue
             summary = c.get("summary") or {}
             lines.append(f"- {cid}: {_format_card_summary_for_prompt(summary)}")
@@ -3345,8 +3379,17 @@ def main() -> int:
     # nomination.json. One-directional: informs confidence, never mints a nominate.
     biomarker_facet = _biomarker_facet(sub_results)
 
+    # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
+    # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
+    # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
+    # uncurated target resolves to axis=unknown and the block says "do not assume a modality
+    # class." SLOT-2 emphasis only; the deterministic verdict + gate recommendation are untouched.
+    from _skills_common.biology_axis import resolve_biology_axis
+    axis_info = resolve_biology_axis(args.target)
+
     # 2. LLM synthesis via Bedrock (structured tool_use).
-    print(f"[target-profile] Invoking Bedrock synthesis...", file=sys.stderr)
+    print(f"[target-profile] Invoking Bedrock synthesis (biology_axis={axis_info['biology_axis']})...",
+          file=sys.stderr)
     tool_schema = _build_synthesis_tool()
     user_prompt = _build_user_prompt(
         args.target, args.indication, sub_results,
@@ -3354,6 +3397,7 @@ def main() -> int:
         therapeutic_hypothesis=args.therapeutic_hypothesis,
         ordinal_matrix=ordinal_matrix,
         biomarker_facet=biomarker_facet,
+        axis_info=axis_info,
     )
     llm_output = synthesize_structured(
         system_prompt=_SYSTEM_PROMPT,

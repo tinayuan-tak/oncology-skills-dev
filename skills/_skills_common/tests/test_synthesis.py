@@ -6,6 +6,7 @@ The narration can never touch the verdict spine. Bedrock is fully mocked (no net
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -38,9 +39,19 @@ def _decision_fixture():
                 "control_negatives": {"ACTB": 99.9, "SFTPC": 18.0},
                 "control_negatives_excluded_lineage_conflict": []}},
             {"card_id": "tumor-rna-distribution-by-subtype", "summary": {
+                "subtype_axis_available": True,
                 "subtype_effect_size_class": "moderate", "subtype_variance_explained": 0.097,
                 "which_subtypes_separate": {"highest": "stage_I", "lowest": "MSI_H"},
+                "n_subtypes_measured": 4,
+                "per_subtype": {"MSI_H": "18.0 (log2tpm 8.1)", "MSS": "22.0 (log2tpm 9.4)"},
                 "subtype_stratification_class": "pan_subtype_uniform"}},
+            # a verdict-bearing DEG card + protein card that the OLD prompt dropped entirely
+            {"card_id": "tumor-rna-vs-adjacent", "summary": {
+                "expression_class": "strongly_upregulated", "log2fc": 3.1,
+                "direction": "up", "adjusted_pvalue": 1e-12}},
+            {"card_id": "tumor-elevation-breadth", "summary": {
+                "tumor_elevation_breadth_class": "broad", "n_indications_elevated": 7,
+                "n_indications_measured": 12}},
         ],
         "fired_rules": [],
     }
@@ -52,9 +63,54 @@ def test_prompt_grounds_all_three_axes():
     assert "broadly_high_expression" in p
     assert "99.9" in p and "top_1pct" in p                 # axis 1
     assert "above_all_positives" in p                       # axis 2
-    assert "moderate" in p and "MSI_H" in p                 # axis 3
+    assert "moderate" in p and "MSI_H" in p                 # axis 3 (subtype axis available)
     # the system prompt forbids inventing/changing the verdict
     assert "never" in SYN._SYSTEM.lower() and "narrate" in SYN._SYSTEM.lower()
+
+
+def test_prompt_forwards_the_full_gathered_evidence():
+    """Regression for the '2 of 10 cards' drop: the verdict-bearing DEG card + the pan-cancer
+    breadth frame must reach the prompt (they were previously never referenced)."""
+    p = SYN.build_user_prompt(_decision_fixture())
+    assert "tumor-rna-vs-adjacent" in p and "strongly_upregulated" in p   # DEG card now forwarded
+    assert "PAN-CANCER FRAME" in p and "broad" in p                       # true pan-cancer grain
+
+
+def test_grain_governance_gates_subtype_axis_when_unavailable():
+    """When the subtype axis is not available, the prompt must say so — NOT narrate an effect."""
+    d = _decision_fixture()
+    for c in d["cards"]:
+        if c["card_id"] == "tumor-rna-distribution-by-subtype":
+            c["summary"] = {"subtype_axis_available": False}
+    p = SYN.build_user_prompt(d)
+    assert "subtype axis NOT available" in p
+    assert "moderate" not in p.split("AXIS 3")[1]   # no effect narrated after the axis header
+
+
+def test_queried_subtype_foregrounded_only_when_in_strata():
+    # in per_subtype value map → foregrounded with its position
+    p_hit = SYN.build_user_prompt(_decision_fixture(), subtype_query="MSI_H")
+    assert "QUERIED SUBTYPE MSI_H" in p_hit and "foreground this stratum" in p_hit
+    # named in the omnibus extremes only (no per-stratum value) → narrate role, don't fabricate
+    d = _decision_fixture()
+    for c in d["cards"]:
+        if c["card_id"] == "tumor-rna-distribution-by-subtype":
+            c["summary"].pop("per_subtype", None)   # only which_subtypes_separate remains
+    p_named = SYN.build_user_prompt(d, subtype_query="stage_I")
+    assert "appears in the omnibus extremes" in p_named
+    # not in any stratum → honest "not among the computed strata", no invented position
+    p_miss = SYN.build_user_prompt(_decision_fixture(), subtype_query="POLE_ULTRA")
+    assert "QUERIED SUBTYPE POLE_ULTRA: NOT among the computed strata" in p_miss
+
+
+def test_data_unavailable_card_forwarded_not_flattened():
+    """A measured-but-unavailable card must be rendered as DATA_UNAVAILABLE, distinct from
+    a never-wired card — the null result reaches the LLM."""
+    d = _decision_fixture()
+    d["cards"].append({"card_id": "tumor-protein-abundance-cptac", "summary": {},
+                       "_missing": True, "_missing_reason": "no_cptac_cohort_for_indication"})
+    p = SYN.build_user_prompt(d)
+    assert "tumor-protein-abundance-cptac: DATA_UNAVAILABLE" in p
 
 
 def test_prompt_handles_missing_axes_gracefully():
@@ -67,14 +123,30 @@ def test_prompt_handles_missing_axes_gracefully():
 # ---------------------------------------------------------------------------
 # 2. Tool schema is well-formed + verdict-neutral (no field that could restate a verdict)
 # ---------------------------------------------------------------------------
-def test_tool_schema_is_confidence_only_never_a_verdict():
+def test_tool_schema_is_relevance_read_never_a_verdict():
     props = SYN.SYNTHESIS_TOOL_SCHEMA["properties"]
-    # the ONLY enum field is a CONFIDENCE qualifier — there is no presence_verdict field
-    assert "confidence_qualifier" in props
+    # the headline is a single-lens RELEVANCE read (not a presence verdict restatement)
+    assert "expression_relevance_for_target" in props
+    assert props["expression_relevance_for_target"]["enum"] == [
+        "strongly_supports", "supports_with_caveats", "neutral_uninformative", "argues_against"]
+    # confidence remains a separate CONFIDENCE qualifier
     assert props["confidence_qualifier"]["enum"] == [
         "well_supported", "supported_with_caveats", "weakly_supported", "insufficient_evidence"]
-    assert "presence_verdict" not in props   # the LLM cannot emit a verdict
+    # the LLM cannot emit or restate the deterministic verdict
+    assert "presence_verdict" not in props
     assert SYN.SYNTHESIS_TOOL_SCHEMA["additionalProperties"] is False
+
+
+def test_schema_and_system_are_modality_free():
+    """The single-lens presence synthesis must NOT solicit or discuss therapeutic modality —
+    that reasoning belongs to the cross-lens target-profile synthesis."""
+    import json
+    schema_txt = json.dumps(SYN.SYNTHESIS_TOOL_SCHEMA).lower()
+    for tok in ["adc", "t-cell-engager", "tce", "bite", "car ", "small_molecule", "degrader", "antibody"]:
+        assert tok not in schema_txt, f"schema should not mention modality token {tok!r}"
+    # the system prompt explicitly scopes modality OUT
+    assert "do not discuss therapeutic modality" in SYN._SYSTEM.lower()
+    assert "relevan" in SYN._SYSTEM.lower()   # relevance is the stated purpose
 
 
 # ---------------------------------------------------------------------------
@@ -158,3 +230,24 @@ def test_synthesis_failure_degrades_to_note(tmp_path):
     assert "_synthesis_error" in d["llm_synthesis"]
     # the verdict spine is untouched despite the synthesis failure
     assert d["headline"]["presence_verdict"] == "broadly_high_expression"
+
+
+# ---------------------------------------------------------------------------
+# 5. LIVE Bedrock smoke (opt-in only — skipped in CI / offline). Set RUN_LIVE_BEDROCK=1
+#    with an invoke-entitled profile (BEDROCK_AWS_PROFILE=cmp-dev, AWS_REGION=us-east-1)
+#    to exercise the real synthesize_structured path end-to-end.
+# ---------------------------------------------------------------------------
+@pytest.mark.skipif(os.environ.get("RUN_LIVE_BEDROCK") != "1",
+                    reason="live Bedrock opt-in; set RUN_LIVE_BEDROCK=1 with an entitled profile")
+def test_live_relevance_read_is_scoped_and_categorical():
+    block = SYN.synthesize_presence(_decision_fixture())
+    # returns the reshaped relevance schema, provenance-stamped
+    rel = block["expression_relevance_for_target"]
+    val = rel["value"] if isinstance(rel, dict) else rel
+    assert val in ("strongly_supports", "supports_with_caveats",
+                   "neutral_uninformative", "argues_against")
+    # narration must not have drifted into modality talk (single-lens scope)
+    joined = " ".join(v.get("value", "") if isinstance(v, dict) else str(v)
+                      for v in block.values()).lower()
+    for tok in [" adc", "t-cell engager", "t-cell-engager", "small molecule", "degrader"]:
+        assert tok not in joined, f"live narration leaked modality token {tok!r}"

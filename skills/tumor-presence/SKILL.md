@@ -162,6 +162,11 @@ When called as `/tumor-presence`, Claude should:
    Add `--synthesize` if the user wants an LLM narration of the read (optional; needs
    Bedrock access — degrades to a note under `llm_synthesis` if unavailable, leaving the
    deterministic verdict intact).
+   Add `--subtype <SUBTYPE>` (with `--synthesize`) if the user asks about a specific
+   molecular subtype (e.g. `--subtype MSI_H`): the narration foregrounds that stratum's
+   position in addition to the across-subtype omnibus. Emphasis-only — no spine change;
+   if the subtype is not among the computed strata, the narration says so rather than
+   inventing a position.
 4. Read `<OUT_DIR>/decision.json`, present the headline (presence_verdict +
    driving_rule_id + per-card summary highlights) inline. If `--synthesize` was used,
    the `llm_synthesis` block carries the narration (tagged `_source: llm_synthesized`).

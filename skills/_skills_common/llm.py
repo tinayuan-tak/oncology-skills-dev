@@ -40,27 +40,53 @@ BEDROCK_AWS_PROFILE = os.environ.get("BEDROCK_AWS_PROFILE", "cmp-dev")
 
 @contextmanager
 def _bedrock_profile():
-    """Temporarily set AWS_PROFILE to the Bedrock-enabled profile.
+    """Temporarily authenticate as the Bedrock-enabled profile for one LLM call.
 
-    Rationale: skill runs use `AWS_PROFILE=cbg` for onc-compbio S3
-    GetObject (data reads), but that profile lacks
-    aws-marketplace:Subscribe permission for Bedrock model access.
-    Bedrock calls must use `cmp-dev` (the framework's default per
-    ~/.claude/settings.json). Swap the profile in-process for the
-    duration of the LLM call, then restore.
+    Rationale: skill runs use `AWS_PROFILE=cbg` for onc-compbio S3 GetObject
+    (data reads), but that profile lacks the aws-marketplace entitlement for
+    Bedrock model access. Bedrock calls must use `cmp-dev` (the framework's
+    default per ~/.claude/settings.json; override via BEDROCK_AWS_PROFILE).
 
-    Override via BEDROCK_AWS_PROFILE env var if your account uses a
-    different profile.
+    THE SUBTLE PART (fixed 2026-08-05): AnthropicBedrock does NOT honor
+    `AWS_PROFILE` — its internal boto3 chain resolves the ambient/instance role
+    (on SageMaker, the execution role, which lacks the entitlement) even when
+    AWS_PROFILE is set, so a bare profile-swap silently 400s ("account is not
+    authorized to invoke this API operation"). boto3's OWN client honors the
+    profile, so we RESOLVE the profile's frozen credentials with boto3 and export
+    them as the standard AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
+    AWS_SESSION_TOKEN env vars — which AnthropicBedrock's chain DOES honor. We
+    also drop AWS_PROFILE for the duration so the explicit creds win cleanly.
+    If the profile can't be resolved (e.g. not configured), fall back to the
+    old profile-swap behavior so nothing gets worse than before.
     """
-    old = os.environ.get("AWS_PROFILE")
-    os.environ["AWS_PROFILE"] = BEDROCK_AWS_PROFILE
+    _CRED_KEYS = ("AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+                  "AWS_SESSION_TOKEN")
+    saved = {k: os.environ.get(k) for k in _CRED_KEYS}
     try:
+        frozen = None
+        try:
+            import boto3
+            frozen = boto3.Session(profile_name=BEDROCK_AWS_PROFILE) \
+                .get_credentials().get_frozen_credentials()
+        except Exception:  # noqa: BLE001 — profile unresolvable → fall back to profile-swap
+            frozen = None
+        if frozen is not None:
+            os.environ.pop("AWS_PROFILE", None)   # explicit creds must win over any ambient profile
+            os.environ["AWS_ACCESS_KEY_ID"] = frozen.access_key
+            os.environ["AWS_SECRET_ACCESS_KEY"] = frozen.secret_key
+            if frozen.token:
+                os.environ["AWS_SESSION_TOKEN"] = frozen.token
+            else:
+                os.environ.pop("AWS_SESSION_TOKEN", None)
+        else:
+            os.environ["AWS_PROFILE"] = BEDROCK_AWS_PROFILE
         yield
     finally:
-        if old is None:
-            os.environ.pop("AWS_PROFILE", None)
-        else:
-            os.environ["AWS_PROFILE"] = old
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
 def _import_bedrock_client():
@@ -168,6 +194,13 @@ def synthesize_structured(
         client = get_client()
         cfg = ModelConfig.from_env()
         model = model_id or cfg.synthesis_model
+        # Strip the `[1m]` context-window ALIAS if present. The Claude Code harness sets
+        # ANTHROPIC_MODEL=us.anthropic.claude-opus-4-8[1m], which ModelConfig.from_env() may
+        # inherit — but the `[1m]` alias is NOT a Bedrock-invokable model id (invoke returns
+        # 400 "account is not authorized to invoke this API operation"). The base id IS
+        # invokable. This is a no-op for already-clean ids.
+        if model and model.endswith("[1m]"):
+            model = model[:-len("[1m]")]
 
         tool = {
             "name": tool_name,
