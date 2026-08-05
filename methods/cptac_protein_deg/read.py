@@ -777,13 +777,14 @@ def _surface_accessibility(target: str) -> dict:
                        beta_barrel, OR topology data_unavailable / read error / not-in-table: absence is
                        NEVER negative evidence — the estimate stands, flagged provisional.
 
-    ⚠ KNOWN UNDER-CALL (deferred to Slice 2, UniProt curated topology): GPI-ANCHORED antigens present
-    as `no_transmembrane` here (TMbed 1D topology cannot see a GPI anchor — see
-    topology_predictions_tmbed/classify.py), so a real GPI target like MSLN (mesothelin) is currently
-    called `unsupported`. UniProt's LIPID/GPI feature is the fix — a separate ingestion slice. Until
-    then, `unsupported` remains a SOFT downgrade, never a suppression, so an under-called GPI target
-    keeps its whole-cell estimate + a provisional-grade path via any measured ladder/CSPA anchor.
-    Never raises."""
+    GPI-ANCHOR RESCUE (P8.1 Slice 2, 2026-08-05): TMbed 1D topology cannot see a GPI anchor (no
+    membrane-spanning segment), so GPI-anchored antigens (MSLN/FOLR1/CD59/ALPP) predict as
+    `no_transmembrane`. Before calling those `unsupported`, we consult UniProt curated LIPID features
+    (uniprot-gpi-anchored-v1) — a GPI-anchored target is RECLASSIFIED admissible (it IS displayed on
+    the outer leaflet). The discriminator is specific: NRAS (cytoplasmic S-farnesyl lipid-anchor, NOT
+    GPI) stays `unsupported`. GPI enrichment is best-effort — its absence/error never breaks the gate,
+    and a genuine no_transmembrane non-GPI protein (NRAS/GAPDH) is still `unsupported` (whole-cell
+    estimate retained, never suppressed). Never raises."""
     try:
         from methods.topology_predictions_tmbed.read import read_target_summary as _topo
         s = _topo(target)
@@ -802,13 +803,28 @@ def _surface_accessibility(target: str) -> dict:
         return {"surface_density_admissibility": "admissible",
                 "surface_accessibility_note": f"extracellular_topology_{tclass}_ecd_outside",
                 "_topology_class": tclass}
-    # No membrane-spanning domain at all → not a surface density (NRAS/GAPDH). GPI is under-called here
-    # (Slice 2); still a soft downgrade — whole-cell estimate retained, never suppressed.
+    # No membrane-spanning domain in TMbed's 1D topology. Before calling this not-a-surface-density,
+    # check the GPI-ANCHOR RESCUE (P8.1 Slice 2): a GPI-anchored antigen (MSLN/FOLR1/CD59/ALPP) has NO
+    # membrane-spanning segment — TMbed cannot see it — but IS displayed on the outer leaflet and IS a
+    # biologics target. UniProt curated LIPID features (uniprot-gpi-anchored-v1) carry the fact TMbed
+    # lacks, so a no_transmembrane target that is GPI-anchored is RECLASSIFIED admissible. GPI read is
+    # best-effort: any error / not-GPI falls through to the unsupported call below (never breaks the gate).
     if tclass == "no_transmembrane":
+        try:
+            from methods.uniprot_gpi_anchor.read import read_gpi_anchor
+            gpi = read_gpi_anchor(target)
+        except Exception:  # noqa: BLE001 — GPI enrichment is best-effort; absence never negative
+            gpi = None
+        if gpi and gpi.get("is_gpi_anchored") is True:
+            return {"surface_density_admissibility": "admissible",
+                    "surface_accessibility_note": ("gpi_anchored_external_"
+                                                   f"{(gpi.get('gpi_lipid_note') or 'gpi_anchor').replace(' ', '_')}"),
+                    "_topology_class": tclass, "_gpi_anchored": True}
+        # Not GPI (or GPI product unavailable) → genuinely no extracellular exposure (NRAS/GAPDH).
         return {"surface_density_admissibility": "unsupported",
                 "surface_accessibility_note": ("no_transmembrane_domain_whole_cell_estimate_retained_"
-                                               "not_a_surface_density_gpi_underdetected_slice2"),
-                "_topology_class": tclass}
+                                               "not_a_surface_density"),
+                "_topology_class": tclass, "_gpi_anchored": False}
     # Membrane-spanning but orientation ambiguous (single_pass_type_other) or beta_barrel → provisional.
     return {"surface_density_admissibility": "provisional",
             "surface_accessibility_note": f"membrane_spanning_orientation_uncertain_{tclass}",

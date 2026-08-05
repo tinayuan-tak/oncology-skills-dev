@@ -210,10 +210,20 @@ def _patch_topology(monkeypatch, *, topology_class, ecd_orientation="outside"):
     monkeypatch.setattr(_topo, "read_target_summary", lambda target, indication=None: dict(payload))
 
 
+def _patch_gpi(monkeypatch, *, is_gpi, note="GPI-anchor amidated serine"):
+    # Patch the GPI-anchor reader the no_transmembrane branch consults (P8.1 Slice 2). Hermetic:
+    # no_transmembrane tests MUST patch this or they'd hit a live S3 read.
+    import methods.uniprot_gpi_anchor.read as _gpi
+    payload = {"is_gpi_anchored": is_gpi, "gpi_lipid_note": note if is_gpi else None,
+               "uniprot_ac": "Q_TEST" if is_gpi else None}
+    monkeypatch.setattr(_gpi, "read_gpi_anchor", lambda target, indication=None: dict(payload))
+
+
 def test_unsupported_retains_estimate_but_flags_not_surface(monkeypatch):
-    # no_transmembrane (the NRAS/GAPDH case) -> unsupported. The whole-cell estimate is RETAINED
-    # (visibility), but the surface class is relabeled + viability flags False.
+    # no_transmembrane + NOT GPI-anchored (the NRAS/GAPDH case) -> unsupported. The whole-cell estimate
+    # is RETAINED (visibility), but the surface class is relabeled + viability flags False.
     _patch_topology(monkeypatch, topology_class="no_transmembrane", ecd_orientation="inside")
+    _patch_gpi(monkeypatch, is_gpi=False)
     _patch_hpa(monkeypatch, breadth="broad_normal_expression",
                specific=[{"tissue": "intestine", "intensity": 5.0e7}])
     _patch_cptac(monkeypatch, cls="strong_up", effect=2.0)
@@ -264,19 +274,35 @@ def test_membrane_spanning_orientation_uncertain_is_provisional(monkeypatch):
     assert d["surface_density_class"] == "high"
 
 
-def test_gpi_anchored_currently_under_called_slice2(monkeypatch):
-    # KNOWN LIMITATION (Slice 2): a GPI-anchored antigen (MSLN) presents as no_transmembrane in TMbed
-    # 1D topology -> unsupported here. Pinned so the Slice-2 UniProt-GPI fix has an explicit target: this
-    # assertion should FLIP to admissible once curated GPI-anchor detection lands. Still non-suppressing:
-    # the whole-cell estimate is retained.
+def test_gpi_anchored_rescued_to_admissible_slice2(monkeypatch):
+    # P8.1 Slice 2: a GPI-anchored antigen (MSLN) presents as no_transmembrane in TMbed 1D topology
+    # (a GPI anchor has no membrane-spanning segment), but UniProt curated LIPID features say GPI-
+    # anchored -> RESCUED to admissible (GPI antigens ARE displayed on the outer leaflet).
     _patch_topology(monkeypatch, topology_class="no_transmembrane", ecd_orientation="outside")
+    _patch_gpi(monkeypatch, is_gpi=True)
     _patch_hpa(monkeypatch, breadth="broad_normal_expression",
                specific=[{"tissue": "intestine", "intensity": 5.0e7}])
     _patch_cptac(monkeypatch, cls="modest_up", effect=1.05)
     d = r.read_abundance_density_summary("MSLN", "MESO")
-    assert d["surface_density_admissibility"] == "unsupported"   # Slice-2 target: should become admissible
-    assert "gpi_underdetected_slice2" in d["surface_accessibility_note"]
-    assert d["estimated_copies_per_cell_median"] is not None     # retained regardless
+    assert d["surface_density_admissibility"] == "admissible"      # rescued via GPI
+    assert d["_gpi_anchored"] is True
+    assert "gpi_anchored_external" in d["surface_accessibility_note"]
+    assert d["surface_density_class"] == "high"
+    assert d["estimated_copies_per_cell_median"] is not None
+
+
+def test_no_transmembrane_non_gpi_stays_unsupported(monkeypatch):
+    # The specificity guard: no_transmembrane + NOT GPI (NRAS: cytoplasmic lipid-anchor) stays
+    # unsupported. GPI rescue must NOT fire for non-GPI proteins.
+    _patch_topology(monkeypatch, topology_class="no_transmembrane", ecd_orientation="inside")
+    _patch_gpi(monkeypatch, is_gpi=False)
+    _patch_hpa(monkeypatch, breadth="broad_normal_expression",
+               specific=[{"tissue": "intestine", "intensity": 5.0e7}])
+    _patch_cptac(monkeypatch, cls="modest_up", effect=1.05)
+    d = r.read_abundance_density_summary("NRAS", "COADREAD")
+    assert d["surface_density_admissibility"] == "unsupported"
+    assert d["_gpi_anchored"] is False
+    assert d["surface_density_class"] == "not_surface_density_whole_cell_estimate"
 
 
 def test_ladder_measurement_ignores_accessibility_gate(monkeypatch):
