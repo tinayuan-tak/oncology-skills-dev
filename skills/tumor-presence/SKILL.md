@@ -3,15 +3,18 @@ name: tumor-presence
 description: |
   Focused question skill: "Is target X present in indication Y's tumor
   tissue, and how does it distribute across cancer cell lines vs. tumor
-  samples, at RNA and protein level?" Consumes 10 wired cards in two tiers.
+  samples, at RNA, protein, and single-cell level?" Consumes 11 wired cards in two tiers.
 
-  VERDICT-BEARING (5 cards — feed the rank-ordered presence ladder):
+  VERDICT-BEARING (6 cards — feed the rank-ordered presence ladders):
     - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
     - tumor-rna-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
                                          adjacent, else tumor-vs-GTEx fallback)
     - tumor-protein-abundance-cptac            (tumor protein abundance, CPTAC per-cohort)
     - cellline-protein-abundance         (cell-line protein, DepMap/Gygi TMT-MS)
     - tumor-elevation-breadth           (pan-cancer K-of-N tumor-elevation, target-grain)
+    - tumor-scrna-celltype-expression   (SINGLE-CELL per-compartment tumor presence — malignant-
+                                         anchored detection + malignant-vs-microenvironment
+                                         attribution; sc_rna/tumor bucket; COADREAD+NSCLC)
 
   DISPLAY-ONLY facets (4 cards — additive context, feed NO resolver, verdict
   byte-stable; one-directional gate):
@@ -24,9 +27,10 @@ description: |
     (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
      signaling-state readout, not a presence/abundance signal.)
 
-  Runs the expression-* + protein-* rule subset over two measurement ladders
-  (bulk_rna, bulk_protein_ms). Emits a data-package output tree with a
-  rank-ordered presence verdict + per-(measurement, sample_context) sub-verdicts.
+  Runs the expression-* + protein-* + sc-expression-* rule subset over three
+  measurement ladders (bulk_rna, bulk_protein_ms, sc_rna). Emits a data-package
+  output tree with a rank-ordered presence verdict + per-(measurement,
+  sample_context) sub-verdicts.
 
   Use for questions like "is EPCAM expressed in CRC?", "how does MET
   distribute across colon cell lines?", "is CDX2 tumor-elevated relative
@@ -39,7 +43,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -59,6 +63,7 @@ composition:
     - expression-purity-confound            # Q9 (2026-07-23): purity-confound caveat — tumor-intrinsic vs microenvironment (render facet)
     # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence)
     - cellline-rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality; biomarker preferred_assay input (render facet)
+    - tumor-scrna-celltype-expression       # sc_rna slice (2026-08-04): single-cell per-compartment tumor presence (sc_rna/tumor). VERDICT-BEARING via _SC_RNA_RANK
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
@@ -75,12 +80,14 @@ composition:
     - tumor_expression_distribution
     - expression_purity_confound
     - rna_protein_concordance
+    - sc_tumor_celltype_expression        # sc_rna slice (2026-08-04): single-cell per-compartment tumor presence
   rules_scope:
     - cellline-rna-distribution
     - tumor-rna-vs-adjacent
     - tumor-protein-abundance-cptac
     - cellline-protein-abundance
     - tumor-elevation-breadth
+    - tumor-scrna-celltype-expression     # sc-expression-* rules → _SC_RNA_RANK
   synthesis:
     - rule_engine
   output_shape:
@@ -125,12 +132,24 @@ the verdict back to the exact rule in intracellular-intrinsic.rules.yaml.
 
 Beyond the collapsed `presence_verdict`, the skill emits
 `presence_verdict_by_modality` keyed by `measurement/sample_context`
-(e.g. `bulk_rna/cell_line`, `bulk_rna/tumor`, `bulk_protein_ms/tumor`).
+(e.g. `bulk_rna/cell_line`, `bulk_rna/tumor`, `bulk_protein_ms/tumor`,
+`sc_rna/tumor`).
 A **target-only** query honestly reads cell-line buckets as `measured`
 and the per-indication tumor buckets as `data_unavailable` — EXCEPT
 `bulk_protein_ms/tumor`, which `tumor-elevation-breadth` keeps `measured`
 even without an indication (it rolls up CPTAC over all cohorts). That is
 the one tumor-context presence signal a target-only query gets.
+
+The **`sc_rna/tumor`** bucket (2026-08-04) was formerly a hard-coded named
+gap; it is now card-backed by `tumor-scrna-celltype-expression`. It reads
+`measured` for the indications with a landed single-cell pseudobulk product
+that carries a per-cell malignant annotation (v1: **COADREAD + NSCLC**) and
+`data_unavailable` for every other indication (an honest capability ceiling,
+never a coarser fall-back). The single-cell bucket carries what bulk cannot:
+per-cell `detection_fraction` and malignant-vs-microenvironment attribution
+(`sc_expression_class` ∈ malignant_broadly_detected / malignant_subset_detected
+/ microenvironment_dominant / broadly_low / data_unavailable). Only
+`protein_ihc/normal` remains an unbuilt-substrate named gap.
 
 ## What this skill does NOT do
 

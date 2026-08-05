@@ -224,11 +224,74 @@ def test_rna_high_protein_low_disagreement_is_legible():
 # --- honest gaps: unbuilt substrates are data_unavailable, never negative ---
 
 def test_unbuilt_substrates_are_data_unavailable():
+    """After the sc_rna slice (2026-08-04) only protein_ihc/normal remains an UNBUILT substrate.
+    sc_rna/tumor is now card-backed (tumor-scrna-celltype-expression) — see the sc_rna tests below.
+    When NO sc card fires (e.g. a bulk-only fired set), sc_rna/tumor is still data_unavailable, but
+    that is now 'card present, no rule fired' — the same honest empty-bucket path, not an unbuilt gap."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
-    for key in ("sc_rna/tumor", "protein_ihc/normal"):
-        assert pm[key]["verdict"] == "data_unavailable"
-        assert pm[key]["evidence_state"] == "data_unavailable"
+    # protein_ihc/normal is the ONLY remaining unbuilt substrate (no card in this skill)
+    assert pm["protein_ihc/normal"]["verdict"] == "data_unavailable"
+    assert pm["protein_ihc/normal"]["evidence_state"] == "data_unavailable"
+    # sc_rna/tumor with no sc rule fired → still data_unavailable (empty bucket), but it is now
+    # card-backed: a fired sc rule DOES resolve it (test_sc_rna_bucket_resolves_when_card_fires).
+    assert pm["sc_rna/tumor"]["evidence_state"] == "data_unavailable"
+
+
+# --- sc_rna slice (2026-08-04): sc_rna/tumor is now card-backed --------------
+
+def test_sc_rna_bucket_resolves_when_card_fires():
+    """THE sc_rna slice payoff: the sc_rna/tumor bucket, formerly a hard-coded named gap, now
+    resolves to a real MEASURED verdict when the tumor-scrna-celltype-expression card fires."""
+    fired = [_fr("sc-expression-malignant-broadly-detected-supportive",
+                 "tumor-scrna-celltype-expression")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["sc_rna/tumor"]["verdict"] == "sc_malignant_detected"
+    assert pm["sc_rna/tumor"]["evidence_state"] == "measured"
+
+
+def test_sc_rna_microenvironment_dominant_is_neutral_measured():
+    """microenvironment_dominant is a MEASURED neutral (present but not tumor-cell-intrinsic),
+    ranked above broadly_low, never a killer."""
+    fired = [_fr("sc-expression-microenvironment-dominant-neutral",
+                 "tumor-scrna-celltype-expression")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["sc_rna/tumor"]["verdict"] == "sc_microenvironment_dominant"
+    assert pm["sc_rna/tumor"]["evidence_state"] == "measured"
+
+
+def test_sc_rna_card_context_is_sc_rna_tumor():
+    assert tp.CARD_CONTEXT["tumor-scrna-celltype-expression"] == ("sc_rna", "tumor")
+
+
+def test_sc_rna_only_target_resolves_collapsed_spine_not_insufficient():
+    """A target firing ONLY an sc rule (e.g. a COADREAD single-cell read with no bulk cards) now
+    resolves the collapsed presence_verdict instead of collapsing to insufficient."""
+    v, drv = tp._verdict([_fr("sc-expression-malignant-broadly-detected-supportive",
+                              "tumor-scrna-celltype-expression")])
+    assert v == "sc_malignant_detected"
+    assert drv == "sc-expression-malignant-broadly-detected-supportive"
+
+
+def test_sc_rna_ranks_below_bulk_backbone_byte_stable():
+    """sc_rna measured rules rank BELOW the bulk backbone in the collapsed spine, so a target firing
+    BOTH a bulk expression rule and an sc rule keeps its OLD (bulk) verdict — byte-stability."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+             _fr("sc-expression-malignant-broadly-detected-supportive",
+                 "tumor-scrna-celltype-expression")]
+    v, drv = tp._verdict(fired)
+    assert v == "broadly_high_expression"                  # unchanged — bulk backbone wins
+    assert drv == "expression-broadly-high-supportive"
+
+
+def test_sc_rna_data_unavailable_sinks_below_measured():
+    """An sc data_unavailable rule must not outrank a measured bulk/protein call in the collapsed
+    spine (measured-first invariant extends to the sc gap partition)."""
+    fired = [_fr("expression-data-unavailable-insufficient", "cellline-rna-distribution"),
+             _fr("sc-expression-data-unavailable-insufficient", "tumor-scrna-celltype-expression"),
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
+    v, _ = tp._verdict(fired)
+    assert v == "protein_strongly_upregulated"
 
 
 def test_no_fired_rules_all_buckets_data_unavailable():

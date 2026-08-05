@@ -807,6 +807,27 @@ def _emit_tumor_expression_distribution(
     return figures
 
 
+def _emit_sc_tumor_celltype_expression(
+    summary: dict, out_dir: Path, target: str, indication: str,
+) -> list[dict]:
+    """Emit the single-cell per-compartment detection bar (tumor-scrna-celltype-expression card):
+    cross-donor median detection_fraction per compartment, malignant highlighted. Summary-driven
+    (the summary carries compartment_detection). On _live_read_error or data_unavailable → []."""
+    if _has_live_read_error(summary):
+        return []
+    if not summary or summary.get("sc_expression_class") == "data_unavailable":
+        return []                                   # no product / gene absent (honest gap)
+    _ensure_methods_path()
+    from methods.sc_tumor_expression_celltype import cli as sccli
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sccli.emit_compartment_bar(summary, target, out_dir, TARGET_CONTRACTS)
+    return [
+        {"id": "sc_compartment_detection",
+         "path": "figure_sc_compartment_detection.svg",
+         "type": "per_compartment_detection_bar", "primary": True},
+    ]
+
+
 def _emit_tumor_expression_distribution_subtype(
     summary: dict, out_dir: Path, target: str, indication: str,
 ) -> list[dict]:
@@ -1149,6 +1170,7 @@ def _emit_phospho_pathway_activity(
 
 CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = {
     "tumor-rna-distribution": _emit_tumor_expression_distribution,
+    "tumor-scrna-celltype-expression": _emit_sc_tumor_celltype_expression,
     "alteration-role": _emit_alteration_role,
     "functional-gene-state": _emit_functional_gene_state,
     "genomic-event-model-match": _emit_genomic_event_model_match,

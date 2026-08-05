@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 """tumor-presence — expression/protein presence for a (target, indication).
 
-Consumes 9 wired cards in two tiers (see CARDS below + SKILL.md):
-  VERDICT-BEARING (5, feed the presence ladder): cellline-rna-distribution (cell-line RNA),
+Consumes 11 wired cards in two tiers (see CARDS below + SKILL.md):
+  VERDICT-BEARING (6, feed the presence ladders): cellline-rna-distribution (cell-line RNA),
     tumor-rna-vs-adjacent (tumor RNA), tumor-protein-abundance-cptac (tumor protein),
-    cellline-protein-abundance (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain).
-  DISPLAY-ONLY facets (4, feed NO resolver — verdict byte-stable): tumor-rna-distribution,
-    tumor-rna-distribution-by-subtype, expression-purity-confound, cellline-rna-protein-concordance.
+    cellline-protein-abundance (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain),
+    tumor-scrna-celltype-expression (single-cell per-compartment tumor presence — sc_rna/tumor).
+  DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-rna-distribution,
+    tumor-rna-distribution-by-subtype, expression-purity-confound, cellline-rna-protein-concordance,
+    normal-tissue-liability (protein_ihc/normal SAFETY COMPARATOR — P8.3, closes the last named gap).
   (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
    signaling-state readout, not a presence/abundance signal — it belongs with the mechanism lens.)
 Emits a data-package output tree with a rank-ordered presence verdict + per-(measurement,
-sample_context) sub-verdicts.
+sample_context) sub-verdicts across THREE measurement ladders (bulk_rna, bulk_protein_ms, sc_rna).
 
 W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
 Slice B3 (2026-07-21): + tumor-elevation-breadth (the target-grain tumor signal).
 Card roster grew 2->10 across the expression-extraction plan (Q1/Q5/Q8/Q9 + protein + breadth + subtype).
+sc_rna slice (2026-08-04): + tumor-scrna-celltype-expression — fills the sc_rna/tumor bucket that
+  MODALITY_TAXONOMY.md named as an unbuilt gap (single-cell per-compartment presence + malignant-vs-
+  microenvironment attribution; a 3rd measurement ladder _SC_RNA_RANK). 10->11 cards.
 """
 
 from __future__ import annotations
@@ -30,7 +35,7 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.1.0"
+SKILL_VERSION = "1.2.0"   # sc_rna slice — tumor-scrna-celltype-expression + _SC_RNA_RANK (sc_rna/tumor bucket)
 
 CARDS = [
     "cellline-rna-distribution",
@@ -66,6 +71,13 @@ CARDS = [
                                         # the biomarker facet's preferred_assay input. ADDITIVE render
                                         # facet — its rna-protein-* rules feed NO resolver (presence
                                         # verdict byte-stable). (bulk_rna, cell_line) bucket.
+    "tumor-scrna-celltype-expression",  # sc_rna slice (2026-08-04) — SINGLE-CELL per-compartment tumor
+                                        # presence (sc_rna x tumor). VERDICT-BEARING: fills the
+                                        # sc_rna/tumor bucket MODALITY_TAXONOMY.md named as an unbuilt gap.
+                                        # Malignant-anchored sc_expression_class → the _SC_RNA_RANK ladder.
+                                        # Adds two signals bulk can't: detection_fraction (in how many
+                                        # cells) + malignant-vs-microenvironment attribution. v1: COADREAD
+                                        # + NSCLC (other indications → data_unavailable, honest).
     "normal-tissue-liability",          # P8.3 (2026-08-05) — HPA IHC normal-tissue protein footprint
                                         # (measurement: protein_ihc, sample_context: normal). Fills the
                                         # LAST hardcoded data_unavailable bucket in ALL_CONTEXTS
@@ -109,6 +121,7 @@ CARD_CONTEXT = {
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
     # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence).
     "cellline-rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
+    "tumor-scrna-celltype-expression": ("sc_rna", "tumor"),                   # sc_rna slice — single-cell per-compartment tumor presence; the FIRST card in the sc_rna/tumor bucket (was a named gap). VERDICT-BEARING via _SC_RNA_RANK.
     "normal-tissue-liability":      ("protein_ihc", "normal"),        # P8.3 — HPA IHC normal-tissue protein footprint; the (protein_ihc, normal) SAFETY COMPARATOR bucket. A render-facet comparator (normal_tissue_breadth_class), NOT a presence sub-verdict — feeds no presence ladder; safety verdict owned by on-target-safety-liability.
 }
 
@@ -120,17 +133,17 @@ def _ctx_key(measurement: str, sample_context: str) -> str:
 
 
 # The enumerated universe of (measurement, sample_context) buckets this skill
-# reports on. The four card-backed buckets PLUS the two unbuilt substrates named in
-# MODALITY_TAXONOMY.md as explicit gaps: sc_rna in tumor (heterogeneity / minor-
-# population presence) and protein_ihc in normal (HPA IHC normal-tissue-safety
-# comparator). Buckets with no card emit an explicit `data_unavailable` — a NAMED
+# reports on. The FIVE card-backed buckets (sc_rna/tumor landed 2026-08-04 via the
+# tumor-scrna-celltype-expression card) PLUS the one remaining unbuilt substrate named in
+# MODALITY_TAXONOMY.md as an explicit gap: protein_ihc in normal (HPA IHC normal-tissue-
+# safety comparator). Buckets with no card emit an explicit `data_unavailable` — a NAMED
 # gap, not silence. Ordered for stable, legible output.
 ALL_CONTEXTS = (
     ("bulk_rna", "cell_line"),
     ("bulk_rna", "tumor"),
     ("bulk_protein_ms", "cell_line"),
     ("bulk_protein_ms", "tumor"),
-    ("sc_rna", "tumor"),          # unbuilt substrate — named gap
+    ("sc_rna", "tumor"),          # card-backed 2026-08-04 (tumor-scrna-celltype-expression); COADREAD+NSCLC measured, else data_unavailable
     ("protein_ihc", "normal"),    # unbuilt substrate — named gap (HPA IHC safety)
 )
 
@@ -210,16 +223,30 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
     ("tumor-breadth-data-unavailable-insufficient",     "data_unavailable"),
 ]
 
+# sc_rna ladder (2026-08-04 sc_rna slice). The single-cell cards fire `sc-expression-*` rules
+# (malignant-anchored per-compartment presence, keyed on sc_expression_class). Presence-positive
+# tiers first; microenvironment_dominant is NEUTRAL (present in the tumor but not tumor-cell-
+# intrinsic — a presence caveat, not an absence) ranked above broadly_low; NO killer (a per-
+# indication single-cell read cannot kill a target-wide nomination — same discipline as the bulk
+# tumor-RNA rules). data_unavailable sinks to the bottom (measured-first invariant).
+_SC_RNA_RANK: list[tuple[str, str]] = [
+    ("sc-expression-malignant-broadly-detected-supportive", "sc_malignant_detected"),
+    ("sc-expression-microenvironment-dominant-neutral",     "sc_microenvironment_dominant"),
+    ("sc-expression-broadly-low-neutral",                   "sc_broadly_low"),
+    ("sc-expression-data-unavailable-insufficient",         "data_unavailable"),
+]
+
 # Per-MEASUREMENT ladder selection. The rule VOCABULARY (which rules can fire) is a
 # function of the measurement LAYER only — bulk_rna cards fire `expression-*` rules,
-# bulk_protein_ms cards fire `protein-*` rules. `sample_context` NEVER changes which
-# rules exist (a cell-line-RNA card and a tumor-RNA card both fire expression rules),
-# so the ladder is keyed by measurement alone even though the BUCKET is keyed by the
-# (measurement, sample_context) pair. Measurements without a card (sc_rna, protein_ihc)
+# bulk_protein_ms cards fire `protein-*` rules, sc_rna cards fire `sc-expression-*` rules.
+# `sample_context` NEVER changes which rules exist (a cell-line-RNA card and a tumor-RNA card
+# both fire expression rules), so the ladder is keyed by measurement alone even though the BUCKET
+# is keyed by the (measurement, sample_context) pair. Measurements without a card (protein_ihc)
 # have no ladder → their buckets emit data_unavailable in _per_modality_verdicts.
 _MEASUREMENT_RANK: dict[str, list[tuple[str, str]]] = {
     "bulk_rna": _EXPRESSION_RANK,
     "bulk_protein_ms": _PROTEIN_RANK,
+    "sc_rna": _SC_RNA_RANK,
 }
 
 # Collapsed ladder. Naive concatenation (_EXPRESSION_RANK + _PROTEIN_RANK) is WRONG:
@@ -228,11 +255,14 @@ _MEASUREMENT_RANK: dict[str, list[tuple[str, str]]] = {
 # not_detected killer) resolves to `data_unavailable` — silently discarding the measured
 # protein signal (the exact cross-modality-swallow the per-ladder C1 fix does NOT cover).
 #
-# Correct order: ALL measured rules first (expression measured, then protein measured —
-# RNA stays the backbone so existing RNA-target verdicts are byte-stable), then EVERY
-# `data_unavailable` entry sinks to the bottom. A measured protein call therefore always
-# outranks an expression coverage-gap, while an RNA target still resolves on its
-# expression rule first (measured expression precedes measured protein).
+# Correct order: ALL measured rules first (expression measured, then protein measured, then
+# sc_rna measured — RNA stays the backbone so existing RNA-target verdicts are byte-stable), then
+# EVERY `data_unavailable` entry sinks to the bottom. A measured protein/sc call therefore always
+# outranks an expression coverage-gap, while an RNA target still resolves on its expression rule
+# first (measured expression precedes measured protein precedes measured sc_rna). sc_rna is appended
+# LAST among measured so a target firing BOTH a bulk rule and an sc rule keeps its old (bulk) verdict
+# (byte-stability); a target firing ONLY sc rules (COADREAD/NSCLC single-cell, no bulk) now resolves
+# instead of collapsing to insufficient.
 def _partition_measured(ladder: list[tuple[str, str]]) -> tuple[list, list]:
     measured = [(rid, v) for rid, v in ladder if v != "data_unavailable"]
     gap = [(rid, v) for rid, v in ladder if v == "data_unavailable"]
@@ -241,8 +271,9 @@ def _partition_measured(ladder: list[tuple[str, str]]) -> tuple[list, list]:
 
 _EXPR_MEASURED, _EXPR_GAP = _partition_measured(_EXPRESSION_RANK)
 _PROT_MEASURED, _PROT_GAP = _partition_measured(_PROTEIN_RANK)
+_SC_MEASURED, _SC_GAP = _partition_measured(_SC_RNA_RANK)
 _VERDICT_RANK: list[tuple[str, str]] = (
-    _EXPR_MEASURED + _PROT_MEASURED + _EXPR_GAP + _PROT_GAP
+    _EXPR_MEASURED + _PROT_MEASURED + _SC_MEASURED + _EXPR_GAP + _PROT_GAP + _SC_GAP
 )
 
 
@@ -396,6 +427,15 @@ def _headline(cards, fired, verdict_pair):
         # One-directional: raises CONFIDENCE / defines patient population, NEVER moves presence_verdict.
         "subtype_stratification_class": get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_stratification_class"),
         "n_subtypes_restricted":    get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_restricted"),
+        # sc_rna slice (2026-08-04) — single-cell per-compartment tumor presence, ELEVATED into the
+        # audit spine. VERDICT-BEARING via _SC_RNA_RANK (feeds the sc_rna/tumor bucket + the collapsed
+        # spine below the bulk backbone). malignant_detection_fraction is the sc-native headline metric;
+        # top_microenvironment_* carries the malignant-vs-microenvironment attribution bulk can't make.
+        "sc_expression_class":      get_card_field(cards, "tumor-scrna-celltype-expression", "sc_expression_class"),
+        "sc_malignant_detection_fraction": get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_fraction"),
+        "sc_malignant_compartment_available": get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_compartment_available"),
+        "sc_top_microenvironment_compartment": get_card_field(cards, "tumor-scrna-celltype-expression", "top_microenvironment_compartment"),
+        "sc_n_donor_groups":        get_card_field(cards, "tumor-scrna-celltype-expression", "n_donor_groups"),
         # P8.3 (2026-08-05) — HPA IHC normal-tissue protein footprint COMPARATOR (protein_ihc/normal
         # bucket). A safety comparator surfaced for context, NOT a presence signal — feeds no resolver
         # ladder (presence_verdict byte-stable); the safety VERDICT is owned by on-target-safety-liability.

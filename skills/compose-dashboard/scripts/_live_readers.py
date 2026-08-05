@@ -416,6 +416,17 @@ def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str
     return mod.build_subtype_panorama(target, indication)
 
 
+def _dispatch_sc_tumor_celltype_expression(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route tumor-scrna-celltype-expression card (sc_rna/tumor bucket) to
+    methods/sc_tumor_expression_celltype/cli.py::build_summary.
+
+    Single-cell per-compartment tumor presence from the donor×compartment pseudobulk product:
+    malignant-anchored sc_expression_class + per-compartment detection_fraction + microenvironment
+    attribution. Indication-scoped (v1: COADREAD + NSCLC); other indications → data_unavailable."""
+    mod = _import_method("sc_tumor_expression_celltype.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route tumor-vs-normal-percentile-crossing card (Q2, Gate B) to
     methods/tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_summary.
@@ -993,6 +1004,7 @@ CARD_DISPATCHERS = {
     "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
+    "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "recommended-models": _dispatch_recommended_models,
