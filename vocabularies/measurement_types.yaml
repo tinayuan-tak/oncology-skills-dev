@@ -314,6 +314,15 @@ measurement_types:
     providers:
       - {kind: dataset, source: signor-mechanism-network-per-gene-v1, evidence_tier: measured}
 
+  protein_domains_class:
+    # Target-intrinsic domain architecture (FT DOMAIN) + protein class (UniProt keyword taxonomy).
+    # No modality_relevance — descriptive molecular context, not a modality-routing signal.
+    claim: "What is target's curated domain architecture and molecular protein class(es)?"
+    entity_grains: [target]
+    cards: [protein-domains-class]
+    providers:
+      - {kind: dataset, source: uniprot-protein-features-v1, evidence_tier: measured}
+
   reactome_pathway_membership:
     # Target-intrinsic pathway/geneset MEMBERSHIP (distinct from signaling_network_mechanism's
     # directed edges). No modality_relevance — this is descriptive molecular context, not a

@@ -1,0 +1,101 @@
+# Card — PROTEIN DOMAINS & CLASS (v1; target-intrinsic)
+#
+# The INDICATION-INDEPENDENT molecular-architecture view of a target: its curated UniProt DOMAIN
+# architecture (FT DOMAIN — e.g. "RBD; Protein kinase", "Ig-like C2-type 1; Ig-like C2-type 2") and
+# its molecular PROTEIN CLASS(es) (mapped from UniProt keywords — kinase / gpcr / protease /
+# ion_channel / transcription_factor / receptor / transporter / ...). Two of the axes the
+# target-intrinsic dossier was built to carry ("domains, protein class"). Cancer-independent.
+# Descriptive, no verdict.
+#
+# protein_features_class (PRIMARY): multi_domain (>=2 curated domains) | single_domain | no_curated_domain
+#   (keyword-class only — e.g. TP53, no FT DOMAIN) | data_unavailable (no domain + no class keyword /
+#   not resolvable).
+
+card_id: protein-domains-class
+version: 1.0.0
+question: "What is {target.symbol}'s curated domain architecture, and what molecular protein class(es) does it belong to?"
+
+tier: target   # domain architecture + protein class are properties of the protein, independent of indication
+
+applies_when:
+  - "context.data_sources.uniprot_available == true"
+
+required_inputs:
+  - product_id: uniprot-protein-features-v1   # derived from the reviewed-human SwissProt DAT (FT DOMAIN + KW)
+
+derived_from:
+  - card_id: target-identity-summary   # HGNC symbol -> UniProt-AC resolution (via the resolver sidecar)
+
+methods:
+  - call: uniprot-protein-features
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - protein_features_class       # PRIMARY (multi_domain | single_domain | no_curated_domain | data_unavailable)
+    - n_domains                    # count of curated FT DOMAIN features
+    - domain_names                 # list<string> — ordered domain names
+    - domain_architecture          # "A; B; C" ordered string (null if no curated domain)
+    - protein_class                # list<string> — mapped molecular classes (a protein may have several)
+    - protein_class_primary        # convenience: first class in UniProt keyword order (read the LIST, not this, when several)
+    - uniprot_ac                   # provenance: the AC features were looked up by
+
+  summary_fields_vocabulary:
+    protein_features_class:
+      - multi_domain
+      - single_domain
+      - no_curated_domain
+      - data_unavailable
+    protein_class:                 # the mapped taxonomy (a protein may carry several)
+      - kinase
+      - gpcr
+      - receptor
+      - protease
+      - hydrolase
+      - transferase
+      - oxidoreductase
+      - lyase
+      - ligase
+      - isomerase
+      - ion_channel
+      - transporter
+      - transcription_factor
+      - chromatin_regulator
+      - cell_adhesion
+      - growth_factor
+      - cytokine
+      - chaperone
+      - ubiquitin_system
+
+warning_predicates:
+  - warning_id: no_uniprot_features
+    if: "protein_features_class == 'data_unavailable'"
+    message: "{target.symbol} has no curated UniProt domain AND no class-bearing keyword (or is not resolvable to a UniProt AC). Architecture/class is UNKNOWN — a curation/coverage gap, never 'featureless'."
+  - warning_id: keyword_class_no_domain
+    if: "protein_features_class == 'no_curated_domain'"
+    message: "{target.symbol} has a protein-class keyword but NO curated FT DOMAIN (e.g. a transcription factor whose DNA-binding is annotated as a 'region', not a 'domain'). The protein_class is informative; domain_architecture is legitimately empty, not missing."
+
+caveats:
+  - |
+    Two axes reported together (they share the UniProt substrate): DOMAIN architecture (FT DOMAIN, the
+    modular structure) + PROTEIN CLASS (mapped from UniProt keywords, the functional type). A protein
+    legitimately has MULTIPLE classes (an adhesion-GPCR is both gpcr AND cell_adhesion) — protein_class
+    is a LIST; protein_class_primary is a convenience (first keyword-order class), not authoritative.
+  - |
+    Target-intrinsic (cancer-independent): the same regardless of indication. This card takes no
+    indication and emits no verdict — descriptive molecular context for the target-intrinsic dossier.
+  - |
+    DOMAIN coverage is UniProt's CURATED FT DOMAIN subset (Pfam-derived), NOT full Pfam/InterPro
+    domain-hit coverage — a fuller InterPro ingest is a documented follow-on. A gene with no curated
+    FT DOMAIN reads no_curated_domain, which is distinct from data_unavailable (the latter = no domain
+    AND no class keyword / unresolvable).
+  - |
+    HGNC symbol -> UniProt-AC resolution uses the target_id_resolver sidecar shipped with the derived
+    product (never a source symbol column). Pinned to uniprot-sprot-human-2026-02. UniProt CC-BY-4.0.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `protein_domains_class` claim (target-grain).
+# No measurement/sample_context — expression-family-only fields; this is a reference-annotation card.
+measurement_type: protein_domains_class
+entity_grains: [target]
+schema_version: 1
