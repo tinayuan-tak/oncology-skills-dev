@@ -1,0 +1,86 @@
+# Card — PPI INTERACTOME (v1; target-intrinsic)
+#
+# The INDICATION-INDEPENDENT protein-protein-interaction view of a target: how connected is the
+# protein (STRING high-confidence functional network) and is it a member of any stable protein
+# complex (CORUM). Two biologically-distinct signals, NOT collapsed:
+#   - STRING functional NETWORK: n high-confidence interactors (combined_score >= 700) + top partners.
+#   - CORUM stable COMPLEX membership: which named complexes (proteasome, mediator, BAF, ...) — a
+#     stronger target-intrinsic signal (complex identity implies function; complex members are often
+#     harder to drug in isolation).
+#
+# Target-intrinsic (cancer-independent). Consumed by the target-intrinsic dossier. Descriptive, no verdict.
+#
+# interactome_class (PRIMARY): hub (>=50 HC interactors) | connected (>=10) | sparse (>=1) |
+#   no_high_confidence_interactors | data_unavailable.
+
+card_id: ppi-interactome
+version: 1.0.0
+question: "How connected is {target.symbol} in the STRING functional network, and is it a member of any CORUM protein complex?"
+
+tier: target   # the interactome is a property of the protein, independent of indication
+
+applies_when:
+  - "context.data_sources.string_available == true"
+
+required_inputs:
+  - product_id: string-v12-human-snapshot-2026-06-30   # STRING functional network (links + info)
+  - product_id: corum-5-3                               # CORUM stable-complex membership
+
+derived_from:
+  - card_id: target-identity-summary   # symbol resolution (STRING self-contained; CORUM via UniProt sidecar)
+
+methods:
+  - call: ppi-interactome
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - interactome_class              # PRIMARY (hub | connected | sparse | no_high_confidence_interactors | data_unavailable)
+    - n_high_confidence_interactors  # STRING combined_score >= 700 degree
+    - top_interactors                # list<{partner, combined_score}> — top 15 by score
+    - n_corum_complexes              # count of CORUM complexes the target is a member of
+    - corum_complexes                # list<{corum_id, complex_name}> — top 15
+    - in_protein_complex             # bool — member of >=1 CORUM complex
+    - string_protein_id              # provenance: the STRING ENSP id resolved
+
+  summary_fields_vocabulary:
+    interactome_class:
+      - hub
+      - connected
+      - sparse
+      - no_high_confidence_interactors
+      - data_unavailable
+
+warning_predicates:
+  - warning_id: not_in_string_or_corum
+    if: "interactome_class == 'data_unavailable'"
+    message: "{target.symbol} was not resolvable in STRING v12 or CORUM. Interactome is UNKNOWN, not empty — a coverage/resolution gap, never 'has no interactions'."
+  - warning_id: hub_promiscuity_caveat
+    if: "interactome_class == 'hub'"
+    message: "{target.symbol} is a STRING hub (>=50 high-confidence interactors). High connectivity can indicate a promiscuous/central protein — interpret 'interactor' lists as functional-association context, not direct binary binding partners (STRING combines many evidence channels)."
+
+caveats:
+  - |
+    Two signals reported SEPARATELY, never merged: STRING functional-association degree (how connected)
+    vs CORUM stable-complex membership (part of a named machine). STRING edges are multi-channel
+    functional associations (co-expression, text-mining, databases, experiments), NOT necessarily
+    direct physical binding; the high-confidence cutoff (combined_score >= 700) is STRING's canonical
+    threshold. CORUM complexes are curated stable assemblies.
+  - |
+    Target-intrinsic (cancer-independent): the same regardless of indication. This card takes no
+    indication and emits no verdict — descriptive molecular context for the target-intrinsic dossier.
+  - |
+    BioGRID physical-interaction detail (direct binary assays) is a documented v2 enrichment — the
+    ingested BioGRID 5.0.259 source is not yet wired (180MB tab3, no resolver sidecar). v1 uses STRING
+    (functional network) + CORUM (complexes).
+  - |
+    Symbol resolution: STRING is self-contained (9606.protein.info maps symbol<->ENSP); CORUM
+    (UniProt-AC-keyed) resolves symbol->AC via a target_id_resolver sidecar. Pinned to STRING v12 +
+    CORUM 5.3. License: STRING CC-BY-4.0; CORUM CC-BY-NC-4.0 (non-commercial).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `ppi_interactome` claim (target-grain).
+# No measurement/sample_context — expression-family-only fields; this is a reference-annotation card.
+measurement_type: ppi_interactome
+entity_grains: [target]
+schema_version: 1

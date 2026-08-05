@@ -333,6 +333,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: gene-ontology-release-2026-05-19, evidence_tier: measured}
 
+  ppi_interactome:
+    # Target-intrinsic protein-protein-interaction context: STRING functional network degree + CORUM
+    # complex membership. No modality_relevance — descriptive context, not a modality-routing signal.
+    # Two providers report DISTINCT signals side-by-side (functional-association degree vs stable-
+    # complex membership) — surface_discordance = report alongside, NEVER average/collapse (Rule 5).
+    claim: "How connected is target in STRING, and which CORUM protein complexes is it a member of?"
+    entity_grains: [target]
+    cards: [ppi-interactome]
+    multi_provider_policy: surface_discordance
+    providers:
+      - {kind: dataset, source: string-v12-human-snapshot-2026-06-30, evidence_tier: measured}
+      - {kind: dataset, source: corum-5-3, evidence_tier: measured}
+
   structure_druggability:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
