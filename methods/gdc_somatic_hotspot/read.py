@@ -57,6 +57,9 @@ DEFAULT_CACHE_BASE = Path("/home/sagemaker-user/data-products-cache/gdc_hotspots
 # importable without dragging in cli.py's click dependency).
 INDICATION_TO_GDC_PROJECTS = {
     "COADREAD": ["TCGA-COAD", "TCGA-READ"],
+    # PAAD = framework canonical (indication_crosswalk.yaml); PDAC = CPTAC spelling. Dual-keyed
+    # to match cli.py — the PDAC-only key silently n/a'd a canonical PAAD query. See cli.py note.
+    "PAAD": ["TCGA-PAAD"],
     "PDAC": ["TCGA-PAAD"],
     "NSCLC": ["TCGA-LUAD", "TCGA-LUSC"],
     "SCLC": [],

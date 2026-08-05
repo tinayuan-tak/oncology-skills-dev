@@ -35,6 +35,12 @@ MC3_S3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf
 # Indication → list of TCGA project codes that compose it (canonical OncoTree mapping).
 INDICATION_TO_TCGA_PROJECTS = {
     "COADREAD": ["TCGA-COAD", "TCGA-READ"],
+    # Pancreatic: PAAD is the framework CANONICAL OncoTree code (indication_crosswalk.yaml);
+    # PDAC is the CPTAC-cohort spelling. Dual-keyed (mirrors dge_deseq2) so a skill invoked
+    # with either resolves — the earlier PDAC-only key silently produced an EMPTY product for a
+    # canonical PAAD query. The `indication` column stamps whatever the caller passed, so build
+    # with --indication PAAD to write the canonical value the PAAD-querying reader filters on.
+    "PAAD": ["TCGA-PAAD"],
     "PDAC": ["TCGA-PAAD"],
     "NSCLC": ["TCGA-LUAD", "TCGA-LUSC"],
     "SCLC": [],
