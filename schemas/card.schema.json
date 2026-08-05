@@ -193,6 +193,32 @@
                     "type": {"type": "string", "enum": ["integer", "boolean", "string", "number"]}
                   },
                   "additionalProperties": false
+                },
+                {
+                  "comment": "Nested list-of-records: a summary_field record may carry a key whose value is itself a list of records (one level of nesting, e.g. per_subgroup_metrics[].proxy_normal_windows[]). record_schema maps each nested leaf key to a flat type/enum spec.",
+                  "type": "object",
+                  "required": ["record_schema"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "record_schema": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "additionalProperties": {
+                        "oneOf": [
+                          {"type": "string", "enum": ["integer", "boolean", "string", "number"]},
+                          {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                          {
+                            "type": "object",
+                            "properties": {
+                              "enum": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+                              "type": {"type": "string", "enum": ["integer", "boolean", "string", "number"]}
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  }
                 }
               ]
             },

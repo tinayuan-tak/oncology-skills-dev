@@ -67,6 +67,24 @@ outputs:
     - matched_normal_tissue                      # true GTEx tissue-of-origin (null when none exists)
     - normal_comparator_type                     # matched | proxy | none — HOW the window was computed
     - proxy_normal_tissues                        # proxy tissues used when no true normal (HNSC etc.)
+    # ACROSS-SUBTYPE OMNIBUS (Phase 3, 2026-08-05) — the ANOVA-analogue over the POWERED strata's
+    # per-sample vectors. Answers "is subtype a patient-selection axis for this target, and how much
+    # of the expression variance does it explain?" Kruskal-Wallis (non-parametric — log2TPM is
+    # non-normal/heteroscedastic) + ε² variance-explained EFFECT SIZE. The effect-size CLASS is the
+    # decision-relevant field; the p-value is DISPLAY-ONLY (at TCGA n's KW p is near-always
+    # significant → significance != actionability; effect size is what discriminates). One-directional
+    # display facet — NEVER moves presence_verdict (consistent with the rest of this card).
+    - subtype_omnibus_kruskal_h                  # float — the H statistic (or null)
+    - subtype_omnibus_p                          # float — asymptotic chi-square p (DISPLAY-ONLY)
+    - subtype_variance_explained                 # float — ε² ∈ [0,1] (variance subtype explains)
+    - subtype_effect_size_class                  # categorical — large / moderate / negligible / data_unavailable
+    - which_subtypes_separate                    # {highest, lowest} stratum ids at the median extremes (or null)
+  summary_fields_vocabulary:
+    subtype_effect_size_class:
+      - large                                    # ε² >= subtype_effect_large (subtype a strong patient-selection axis)
+      - moderate                                 # ε² >= subtype_effect_moderate
+      - negligible                               # ε² below moderate (subtype not a meaningful selection axis)
+      - data_unavailable                         # <2 powered strata / no shard
   summary_fields_record_schemas:
     # record-schema value specs declare the EXPECTED scalar type; a runtime null (e.g. an
     # underpowered stratum's subtype_signal / median) is permitted — the schema types the
@@ -116,10 +134,15 @@ thresholds:
   # shift — mirrors SUBTYPE_ENRICH_LOG2_DELTA in the method.
   subtype_enrich_log2_delta: 0.585
   subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+  # across-subtype omnibus ε² (variance-explained) effect-size cutoffs — the method bins
+  # subtype_variance_explained → subtype_effect_size_class on these (Cohen-style bands adapted to ε²).
+  # Declared here (not hardcoded in rules) so they are reviewable; mirror EPSILON_SQUARED_* in stats.py.
+  subtype_effect_large: 0.14
+  subtype_effect_moderate: 0.06
 
 caveats:
   - "Landed tumor assignment shards (2026-08-04): COADREAD, HNSC, STAD, NSCLC, ESCA, PAAD. Other indications return subtype_axis_available:false (honest) until their shards land (the subgroup-assignment-shards workstream)."
-  - "normal_comparator_type distinguishes matched (true GTEx tissue-of-origin) from proxy (histological analogue, e.g. HNSC→esophagus/skin/salivary — GTEx has no head-and-neck track). A PROXY window is WEAKER evidence and must be weighted accordingly: proxy fields live in proxy_normal_windows, NEVER in the matched fraction_tumor_above_normal_* fields. EGFR/HNSC illustrates why the panel is multi-proxy — the window is strong vs esophagus/salivary (~86%) but weak vs skin (~33%, EGFR is a keratinocyte gene)."
+  - "normal_comparator_type distinguishes matched (true GTEx tissue-of-origin) from proxy (histological analogue, e.g. HNSC→esophagus/skin/salivary — GTEx has no head-and-neck track). A PROXY window is WEAKER evidence: proxy fields live in proxy_normal_windows, NEVER in the matched fraction_tumor_above_normal_* fields. The panel is multi-proxy because a target's window can be strong vs one proxy but weak vs another (EGFR/HNSC: ~86% vs esophagus/salivary but ~33% vs skin)."
   - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
   - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
   - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
