@@ -135,6 +135,52 @@ INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST = {
     "PDAC": "tcga-subgroup-assignments-paad-v1",
 }
 
+# indication → landed TCGA MAF-FILTER (genomic-strata) assignment shard. The base map above carries the
+# directly-tagged molecular/histology strata (HPV, site, Bass/Moffitt subtype, etc.); this map carries
+# the ORTHOGONAL genomic strata (driver-mutation status: TP53_mut, KRAS_G12C/G12D/WT, PIK3CA_mut) from
+# the maf_filter assigner. Deliberately PARTIAL — only the 4 indications with a landed -maf shard whose
+# strata are VERIFIED powered (>=SUBGROUP_N_FLOOR members): HNSC (TP53_mut/PIK3CA_mut), ESCA (TP53_mut),
+# PAAD (TP53_mut/KRAS_G12D/KRAS_WT), NSCLC (KRAS_G12C only — thin but real). COADREAD/STAD have no -maf
+# shard yet. The genomic + directly-tagged strata are UNIONED per indication (disjoint stratum_ids), so
+# a subtype landscape shows molecular AND genomic subtypes side by side. Absence here = base strata only
+# (honest — never a false empty). Same lockstep + verify-emitted-not-audit discipline as the base map.
+INDICATION_TO_TUMOR_MAF_MANIFEST = {
+    "HNSC": "tcga-subgroup-assignments-hnsc-maf-v1",
+    "HNSCC": "tcga-subgroup-assignments-hnsc-maf-v1",
+    "NSCLC": "tcga-subgroup-assignments-nsclc-maf-v1",
+    "LUAD": "tcga-subgroup-assignments-nsclc-maf-v1",
+    "LUSC": "tcga-subgroup-assignments-nsclc-maf-v1",
+    "ESCA": "tcga-subgroup-assignments-esca-maf-v1",
+    "PAAD": "tcga-subgroup-assignments-paad-maf-v1",
+    "PDAC": "tcga-subgroup-assignments-paad-maf-v1",
+}
+
+
+def _load_subtype_assignments(indication: str):
+    """Load the UNION of an indication's directly-tagged (base) + maf-filter (genomic) assignment
+    shards as one DataFrame, so the subtype engine enumerates BOTH strata families in one pass.
+
+    Returns (assignments_df, base_manifest_id) — base_manifest_id is None when the indication has no
+    landed base shard (the caller treats that as subtype_axis_unavailable, unchanged). The maf shard is
+    OPTIONAL: absent → base strata only; present-but-unfetchable → base strata only (never fail the
+    whole landscape on the genomic add-on). The two shards carry DISJOINT stratum_ids and identical
+    schema (sample_id/stratum_id/is_member/...), so a plain row-concat is correct — no dedup needed."""
+    from methods.subgroup_common.loaders import load_assignments
+    import pandas as _pd
+    key = indication.upper().strip()
+    base_manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(key)
+    if base_manifest is None:
+        return None, None
+    frames = [load_assignments(base_manifest)]
+    maf_manifest = INDICATION_TO_TUMOR_MAF_MANIFEST.get(key)
+    if maf_manifest is not None:
+        try:
+            frames.append(load_assignments(maf_manifest))
+        except Exception:  # noqa: BLE001 — genomic add-on is best-effort; base strata still stand
+            pass
+    merged = _pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
+    return merged, base_manifest
+
 # indication → recount3 TCGA study codes (mirrors dge_deseq2.read.INDICATION_TO_TCGA_STUDIES).
 INDICATION_TO_TCGA_STUDIES = {
     "COADREAD": ["COAD", "READ"], "COAD": ["COAD"], "READ": ["READ"],
@@ -548,13 +594,22 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
     from methods.subgroup_common.panorama import (evidence_state as _evstate,
                                                    SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
     from methods.subgroup_common.scoping import compute_join_coverage
-    from methods.subgroup_common.loaders import load_assignments
 
     pooled = read_tumor_expression_distribution(target, indication)
-    manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
 
     base = dict(pooled)
     base["spotlight_subtype"] = subtype
+    # UNION of directly-tagged (molecular/histology) + maf-filter (genomic driver-status) strata.
+    try:
+        assignments, manifest = _load_subtype_assignments(indication)
+    except Exception as e:  # noqa: BLE001 — base shard itself unfetchable
+        assignments, manifest = None, INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
+        if manifest is not None:
+            base.update({"subtype_axis_available": False, "subtype_landscape": [],
+                         "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
+                         "subtype_stratification_class": "subtype_axis_unavailable",
+                         "_subtype_note": f"assignment shard unavailable: {type(e).__name__}"})
+            return base
     if manifest is None or pooled.get("tumor_expression_class") == "data_unavailable":
         base.update({"subtype_axis_available": False, "subtype_landscape": [],
                      "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
@@ -565,14 +620,6 @@ def read_tumor_expression_subtype_landscape(target: str, indication: str,
         return base
 
     bridged = read_tumor_samples_with_case(target, indication)  # DataFrame[case, log2_tpm]
-    try:
-        assignments = load_assignments(manifest)
-    except Exception as e:  # noqa: BLE001
-        base.update({"subtype_axis_available": False, "subtype_landscape": [],
-                     "n_subtypes_measured": 0, "n_subtypes_enriched": 0, "n_subtypes_restricted": 0,
-                     "subtype_stratification_class": "subtype_axis_unavailable",
-                     "_subtype_note": f"assignment shard unavailable: {type(e).__name__}"})
-        return base
 
     strata = sorted(assignments.loc[assignments["is_member"] == True, "stratum_id"].unique().tolist())
     pooled_median = pooled.get("median_log2tpm")
@@ -726,19 +773,19 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
     data_unavailable-safe (no shard / target absent → available False)."""
     from methods.subgroup_common.panorama import (evidence_state as _evstate,
                                                    SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR)
-    from methods.subgroup_common.loaders import load_assignments
 
-    manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
     pooled_vals = read_tumor_samples(target, indication)
-    if manifest is None or not pooled_vals:
+    base_manifest = INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
+    if base_manifest is None or not pooled_vals:
         return {"available": False, "pooled_values": pooled_vals or [], "pooled_median": None,
                 "strata": [], "_note": ("no landed tumor assignment shard for this indication"
-                                        if manifest is None else "target absent")}
+                                        if base_manifest is None else "target absent")}
     import statistics as _st
     pooled_median = _st.median(pooled_vals)
     bridged = read_tumor_samples_with_case(target, indication)
+    # UNION of directly-tagged + maf-filter (genomic) strata — same helper as the landscape reader.
     try:
-        assignments = load_assignments(manifest)
+        assignments, manifest = _load_subtype_assignments(indication)
     except Exception as e:  # noqa: BLE001
         return {"available": False, "pooled_values": pooled_vals, "pooled_median": pooled_median,
                 "strata": [], "_note": f"assignment shard unavailable: {type(e).__name__}"}
