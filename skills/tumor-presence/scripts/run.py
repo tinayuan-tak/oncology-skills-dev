@@ -66,6 +66,16 @@ CARDS = [
                                         # the biomarker facet's preferred_assay input. ADDITIVE render
                                         # facet — its rna-protein-* rules feed NO resolver (presence
                                         # verdict byte-stable). (bulk_rna, cell_line) bucket.
+    "normal-tissue-liability",          # P8.3 (2026-08-05) — HPA IHC normal-tissue protein footprint
+                                        # (measurement: protein_ihc, sample_context: normal). Fills the
+                                        # LAST hardcoded data_unavailable bucket in ALL_CONTEXTS
+                                        # (protein_ihc/normal). This is the normal-tissue-safety COMPARATOR
+                                        # the bucket was reserved for — NOT a tumor-presence signal: it
+                                        # feeds NO presence ladder + is verdict-inert (the presence spine
+                                        # is byte-stable). The safety VERDICT stays owned by
+                                        # on-target-safety-liability (P7 axis-separation boundary); here it
+                                        # is a labeled comparator so the (protein_ihc, normal) context is a
+                                        # real read, not silence.
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -99,6 +109,7 @@ CARD_CONTEXT = {
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
     # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence).
     "cellline-rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
+    "normal-tissue-liability":      ("protein_ihc", "normal"),        # P8.3 — HPA IHC normal-tissue protein footprint; the (protein_ihc, normal) SAFETY COMPARATOR bucket. A render-facet comparator (normal_tissue_breadth_class), NOT a presence sub-verdict — feeds no presence ladder; safety verdict owned by on-target-safety-liability.
 }
 
 
@@ -254,7 +265,17 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return _rank_verdict(fired)
 
 
-def _per_modality_verdicts(fired: list[dict]) -> dict[str, dict]:
+# The (protein_ihc, normal) bucket is a SAFETY COMPARATOR, not a presence measurement — its card
+# (normal-tissue-liability) fires SAFETY-axis rules (not the intracellular_intrinsic rules this skill
+# fires), so it produces no presence sub-verdict to rank. It is surfaced as a labeled comparator read
+# (evidence_state='comparator') carrying the HPA-IHC breadth class, so the bucket is a real read
+# rather than a hardcoded data_unavailable — WITHOUT entering the presence ladder (spine byte-stable).
+_COMPARATOR_BUCKETS = {
+    ("protein_ihc", "normal"): ("normal-tissue-liability", "normal_tissue_breadth_class"),
+}
+
+
+def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -> dict[str, dict]:
     """Slice A2 (MODALITY_TAXONOMY.md): one sub-verdict PER (measurement,
     sample_context) bucket.
 
@@ -292,9 +313,26 @@ def _per_modality_verdicts(fired: list[dict]) -> dict[str, dict]:
             out[key] = {"measurement": measurement, "sample_context": sample_context,
                         "verdict": v, "driving_rule_id": drv,
                         "evidence_state": "measured"}
+        elif (measurement, sample_context) in _COMPARATOR_BUCKETS:
+            # SAFETY COMPARATOR bucket (protein_ihc/normal): the card fires no presence rule (its
+            # rules are on the safety axis), so read its comparator readout from the card summary.
+            # evidence_state='comparator' — NOT a presence verdict; excluded from the collapsed spine.
+            card_id, field = _COMPARATOR_BUCKETS[(measurement, sample_context)]
+            # get_card_field RAISES on an absent card_id (typo-guard), so only call it when the
+            # comparator card actually resolved this run — else the bucket stays data_unavailable.
+            _present = {c["card_id"] for c in (cards or [])}
+            val = get_card_field(cards, card_id, field) if card_id in _present else None
+            if val not in (None, "data_unavailable"):
+                out[key] = {"measurement": measurement, "sample_context": sample_context,
+                            "verdict": val, "driving_rule_id": None,
+                            "evidence_state": "comparator"}
+            else:
+                out[key] = {"measurement": measurement, "sample_context": sample_context,
+                            "verdict": "data_unavailable", "driving_rule_id": None,
+                            "evidence_state": "data_unavailable"}
         else:
-            # No card for this bucket in this skill (sc_rna/tumor, protein_ihc/normal),
-            # OR a tagged card produced no fired rule. Either way: not measured here.
+            # No card for this bucket in this skill (sc_rna/tumor), OR a tagged card produced no
+            # fired rule. Either way: not measured here.
             out[key] = {"measurement": measurement, "sample_context": sample_context,
                         "verdict": "data_unavailable", "driving_rule_id": None,
                         "evidence_state": "data_unavailable"}
@@ -303,7 +341,7 @@ def _per_modality_verdicts(fired: list[dict]) -> dict[str, dict]:
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
-    per_modality = _per_modality_verdicts(fired)
+    per_modality = _per_modality_verdicts(fired, cards)
     return {
         # COLLAPSED verdict — the audit spine target-profile reads as `verdict`.
         # Byte-stable across the Slice-Y refactor (F1-safe: additive).
@@ -358,6 +396,11 @@ def _headline(cards, fired, verdict_pair):
         # One-directional: raises CONFIDENCE / defines patient population, NEVER moves presence_verdict.
         "subtype_stratification_class": get_card_field(cards, "tumor-rna-distribution-by-subtype", "subtype_stratification_class"),
         "n_subtypes_restricted":    get_card_field(cards, "tumor-rna-distribution-by-subtype", "n_subtypes_restricted"),
+        # P8.3 (2026-08-05) — HPA IHC normal-tissue protein footprint COMPARATOR (protein_ihc/normal
+        # bucket). A safety comparator surfaced for context, NOT a presence signal — feeds no resolver
+        # ladder (presence_verdict byte-stable); the safety VERDICT is owned by on-target-safety-liability.
+        "normal_tissue_ihc_breadth_class": get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
+        "normal_tissue_ihc_essential_flag": get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
     }
 
 
