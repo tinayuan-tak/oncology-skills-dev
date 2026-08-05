@@ -29,14 +29,23 @@ def test_luad_lusc_unchanged_single_study():
     assert R.INDICATION_TO_TCGA_STUDIES.get("LUSC") == ["LUSC"]
 
 
-def test_every_subtype_shard_indication_resolves_base_maps():
-    """The consistency invariant. Any code in the subtype-assignment map must also be in
-    BOTH base maps — otherwise a subtype query has no pooled tumor data to stratify."""
-    missing_studies, missing_tissue = [], []
+def test_every_subtype_shard_indication_resolves_a_tumor_source():
+    """The consistency invariant (generalized 2026-08-05 for non-TCGA cohorts). Any code in the
+    subtype-assignment map must resolve a TUMOR PER-SAMPLE SOURCE — either the TCGA studies map OR
+    the non-TCGA source map (SCLC→George) — otherwise a subtype query has no pooled tumor data to
+    stratify. (Tissue is TCGA-only; non-TCGA cohorts have no matched GTEx normal, which is fine.)"""
+    missing = []
     for code in R.INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST:
-        if code not in R.INDICATION_TO_TCGA_STUDIES:
-            missing_studies.append(code)
-        if code not in R.INDICATION_TO_GTEX_TISSUE:
-            missing_tissue.append(code)
-    assert not missing_studies, f"subtype-shard codes absent from INDICATION_TO_TCGA_STUDIES: {missing_studies}"
-    assert not missing_tissue, f"subtype-shard codes absent from INDICATION_TO_GTEX_TISSUE: {missing_tissue}"
+        in_tcga = code in R.INDICATION_TO_TCGA_STUDIES
+        in_nontcga = code in R.INDICATION_TO_NONTCGA_SOURCE
+        if not (in_tcga or in_nontcga):
+            missing.append(code)
+    assert not missing, f"subtype-shard codes with NO tumor source (TCGA or non-TCGA): {missing}"
+
+
+def test_sclc_routes_nontcga_not_tcga():
+    # SCLC is deliberately NOT in the TCGA maps — it routes via the non-TCGA source (George).
+    assert "SCLC" in R.INDICATION_TO_NONTCGA_SOURCE
+    assert R.INDICATION_TO_NONTCGA_SOURCE["SCLC"] == ("sclc", "SCLC")
+    assert "SCLC" not in R.INDICATION_TO_TCGA_STUDIES   # not a TCGA study
+    assert R._tumor_source("SCLC") == ("sclc", ["SCLC"])

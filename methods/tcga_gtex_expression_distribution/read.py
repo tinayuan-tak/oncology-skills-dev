@@ -52,6 +52,14 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
     return ids or None
 TCGA_LONG_KEY = ("data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_long.parquet")
 GTEX_LONG_KEY = ("data-catalog/derived/gtex-tpm-recount3-long-v1/gtex_tpm_long.parquet")
+# SCLC is NOT a TCGA study (no TCGA-SCLC cohort). The George et al. 2015 patient cohort was
+# ingested (data-catalog cbioportal-sclc-ucologne-2015) + harmonized FPKM→log2(TPM+1) onto the
+# recount3 gene axis (sclc-george-tpm-long-v1), with the SAME long-product schema as the TCGA
+# product (gene_symbol, ensembl_gene_id, sample_id, study='SCLC', log2_tpm) — so _read_gene reads
+# it through the identical code path via a `which="sclc"` branch. UNIT-comparable to TCGA
+# (log2(TPM+1)) but hg19/FPKM-derived, so cross-TCGA ABSOLUTE reads carry a batch caveat; the
+# subtype (NAPY) + within-cohort presence use is batch-robust (each sample vs the SCLC cohort).
+SCLC_LONG_KEY = ("data-catalog/derived/sclc-george-tpm-long-v1/sclc_george_tpm_long.parquet")
 # The per-sample TPM product's companion sidecar: one row per tumor sample_id
 # (recount3 gdc_file_id UUID) → study / sample_type / submitter_id (TCGA case
 # barcode). This is the UUID↔barcode BRIDGE for tumor subtyping: the long product
@@ -133,6 +141,10 @@ INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST = {
     "ESCA": "tcga-subgroup-assignments-esca-v1",
     "PAAD": "tcga-subgroup-assignments-paad-v1",
     "PDAC": "tcga-subgroup-assignments-paad-v1",
+    # SCLC — NON-TCGA (George 2015 cohort). NAPY strata (SCLC-A/N/P/Y + uncommitted) derived from
+    # ASCL1/NEUROD1/POU2F3/YAP1 argmax (sclc_george_harmonize.build_napy_shard). The tumor per-sample
+    # source is the George product (routed via INDICATION_TO_NONTCGA_SOURCE), NOT a TCGA study.
+    "SCLC": "sclc-subgroup-assignments-v1",
 }
 
 # indication → landed TCGA MAF-FILTER (genomic-strata) assignment shard. The base map above carries the
@@ -271,8 +283,10 @@ def _read_gene(which: str, target: str):
     # Once per process; a no-op on the common case (only the sidecar present).
     _sweep_stale_cache_once()
 
-    key = TCGA_LONG_KEY if which == "tcga" else GTEX_LONG_KEY
-    group_col = "study" if which == "tcga" else "tissue"
+    # which ∈ {tcga, sclc, gtex}. tcga + sclc share the long-product schema (group col = study);
+    # gtex uses tissue. SCLC routes to the George product (see SCLC_LONG_KEY).
+    key = {"tcga": TCGA_LONG_KEY, "sclc": SCLC_LONG_KEY}.get(which, GTEX_LONG_KEY)
+    group_col = "tissue" if which == "gtex" else "study"
     cols = ["gene_symbol", "ensembl_gene_id", "sample_id", group_col, "log2_tpm"]
     try:
         s3fs = fs.S3FileSystem(region="us-east-1")
@@ -293,11 +307,32 @@ def _read_gene(which: str, target: str):
         return pd.DataFrame(columns=cols)
 
 
+# Non-TCGA tumor cohorts whose per-sample product has the TCGA long-product schema but lives
+# at its own S3 key + carries its own `study` value. Each maps indication → (_read_gene `which`,
+# study value in the product). SCLC (George 2015) is the first; the tumor readers route here so
+# the same distribution/subtype code path serves non-TCGA indications with NO special-casing
+# beyond the source pick. (The subtype bridge also skips the UUID↔barcode sidecar for these —
+# their sample_id is already the shard's sample_id; see read_tumor_samples_with_case.)
+INDICATION_TO_NONTCGA_SOURCE = {
+    "SCLC": ("sclc", "SCLC"),
+}
+
+
+def _tumor_source(indication: str):
+    """Return (which, studies) for the tumor per-sample read: a non-TCGA cohort (e.g. SCLC→George)
+    or the default TCGA path. `studies` is the list of `study`-column values to keep."""
+    key = indication.upper().strip()
+    if key in INDICATION_TO_NONTCGA_SOURCE:
+        which, study_val = INDICATION_TO_NONTCGA_SOURCE[key]
+        return which, [study_val]
+    return "tcga", INDICATION_TO_TCGA_STUDIES.get(key)
+
+
 def read_tumor_samples(target: str, indication: str):
-    """Per-sample tumor log2(TPM+1) for target restricted to the indication's TCGA study/studies.
-    Returns the log2_tpm list (empty if unmapped / absent)."""
-    studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip())
-    df = _read_gene("tcga", target)
+    """Per-sample tumor log2(TPM+1) for target restricted to the indication's study/studies.
+    Routes SCLC (+ future non-TCGA cohorts) to their own long product. Empty if unmapped/absent."""
+    which, studies = _tumor_source(indication)
+    df = _read_gene(which, target)
     if df.empty or not studies:
         return []
     return df[df["study"].isin(studies)]["log2_tpm"].dropna().astype(float).tolist()
@@ -338,13 +373,19 @@ def read_tumor_samples_with_case(target: str, indication: str):
     (some recount3 UUIDs have no sidecar barcode / no stratum) is honest attrition,
     surfaced by the join-coverage guard in the stratified assembler."""
     import pandas as pd
-    studies = INDICATION_TO_TCGA_STUDIES.get(indication.upper().strip())
-    df = _read_gene("tcga", target)
+    which, studies = _tumor_source(indication)
+    df = _read_gene(which, target)
     if df.empty or not studies:
         return pd.DataFrame(columns=["case", "log2_tpm"])
     df = df[df["study"].isin(studies)][["sample_id", "log2_tpm"]].dropna(subset=["log2_tpm"])
     if df.empty:
         return pd.DataFrame(columns=["case", "log2_tpm"])
+    # Non-TCGA cohorts (SCLC/George) have NO UUID↔barcode sidecar: their per-sample product's
+    # sample_id IS the assignment-shard grain, so `case` = sample_id directly (no bridge hop).
+    if which != "tcga":
+        df["case"] = df["sample_id"]
+        df["log2_tpm"] = df["log2_tpm"].astype(float)
+        return df[["case", "log2_tpm"]]
     side = _load_sidecar()
     if side.empty:
         return pd.DataFrame(columns=["case", "log2_tpm"])
