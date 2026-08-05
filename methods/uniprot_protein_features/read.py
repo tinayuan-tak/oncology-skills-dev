@@ -15,13 +15,23 @@ import os
 from functools import lru_cache
 from typing import Optional
 
-METHOD_VERSION = "1.0.0"
+METHOD_VERSION = "1.1.0"   # 1.1.0 (2026-08-05): + additive InterPro domain layer (coverage-broadening)
 S3_BUCKET = "onc-compbio"
 DERIVED_MANIFEST_ID = "uniprot-protein-features-v1"
 _PREFIX = f"data-catalog/derived/{DERIVED_MANIFEST_ID}"
 PAYLOAD_KEY = f"{_PREFIX}/uniprot_protein_features_v1.parquet"
 SIDECAR_KEY = f"{_PREFIX}/uniprot_protein_features_v1.target_resolution.parquet"
 DEFAULT_AWS_PROFILE = "cbg"
+
+# InterPro domain-hit product (data-catalog interpro-109-0-snapshot-2026-08-05). ADDITIVE source:
+# the CURATED FT DOMAIN fields above stay authoritative + byte-stable; InterPro BROADENS domain
+# coverage from 8,768 (curated) to ~15,019 domain-annotated proteins (6,445 proteins have an
+# InterPro domain but NO curated FT DOMAIN). AC-keyed; pushdown on uniprot_accession.
+INTERPRO_MANIFEST_ID = "interpro-109-0-snapshot-2026-08-05"
+INTERPRO_KEY = ("data-catalog/sources/interpro/109.0-snapshot-2026-08-05/"
+                "interpro_human_domain_hits.parquet")
+INTERPRO_SIDECAR_KEY = ("data-catalog/sources/interpro/109.0-snapshot-2026-08-05/"
+                        "interpro_human_domain_hits.parquet.target_resolution.parquet")
 
 
 def _ensure_aws_profile():
@@ -73,9 +83,76 @@ def _as_list(v):
         return [v]
 
 
+@lru_cache(maxsize=1)
+def _load_interpro_symbol_map(sidecar_path: Optional[str] = None) -> dict:
+    """symbol(UPPER) -> AC from the InterPro product's OWN resolver sidecar. The InterPro sidecar
+    (19,652 symbols) is a SUPERSET of the curated-product sidecar (14,807) — used as a fallback so a
+    target that InterPro covers but the curated product doesn't still gets its InterPro domains."""
+    try:
+        sc = _read_parquet(sidecar_path, S3_BUCKET, INTERPRO_SIDECAR_KEY)
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    if "hgnc_primary_symbol_at_resolution" in sc.columns and "native_row_key" in sc.columns:
+        for sym, ac in zip(sc["hgnc_primary_symbol_at_resolution"].values, sc["native_row_key"].values):
+            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip():
+                out.setdefault(sym.strip().upper(), ac.strip())
+    return out
+
+
+def _interpro_domains_for(ac: str, interpro_path: Optional[str] = None) -> Optional[list]:
+    """Pushdown-read the InterPro product for one AC's type=domain hits. Returns a list of
+    {interpro_id, interpro_name, start, end} ordered by start (the domain architecture), or None if
+    the product is unreadable (caller then reports interpro coverage as unavailable, distinct from
+    'this AC has no InterPro domains')."""
+    import pyarrow.parquet as pq
+    flt = [("uniprot_accession", "==", ac), ("interpro_type", "==", "domain")]
+    cols = ["interpro_id", "interpro_name", "start", "end"]
+    try:
+        if interpro_path is not None:
+            tbl = pq.read_table(interpro_path, filters=flt, columns=cols)
+        else:
+            _ensure_aws_profile()
+            import pyarrow.fs as fs
+            tbl = pq.read_table(f"{S3_BUCKET}/{INTERPRO_KEY}",
+                                filesystem=fs.S3FileSystem(region="us-east-1"),
+                                filters=flt, columns=cols)
+    except Exception:  # noqa: BLE001 — product unreadable → interpro layer unavailable
+        return None
+    d = tbl.to_pandas()
+    # order by start (NaN/None last) so the architecture reads N→C-terminal
+    d = d.sort_values("start", na_position="last")
+    return [{"interpro_id": str(r["interpro_id"]), "interpro_name": str(r["interpro_name"]),
+             "start": (None if r["start"] != r["start"] else int(r["start"])),
+             "end": (None if r["end"] != r["end"] else int(r["end"]))}
+            for _, r in d.iterrows()]
+
+
+def _interpro_fields(ac: Optional[str], interpro_path: Optional[str]) -> dict:
+    """The additive InterPro domain layer for an AC. Returns interpro_* fields; interpro domains are
+    only looked up when we HAVE an AC (a target unresolved to an AC gets an empty InterPro layer)."""
+    ip = _interpro_domains_for(ac, interpro_path) if ac else None
+    if ip is None:
+        # either no AC, or the product was unreadable → no InterPro layer this run
+        return {"interpro_n_domains": 0, "interpro_domain_names": [],
+                "interpro_domain_architecture": None}
+    names = [d["interpro_name"] for d in ip]
+    return {"interpro_n_domains": len(ip),
+            "interpro_domain_names": names,
+            "interpro_domain_architecture": ("; ".join(names) if names else None)}
+
+
 def read_target_summary(target: str, indication: str = None,
-                        payload_path: Optional[str] = None, sidecar_path: Optional[str] = None) -> dict:
-    """Per-target domain architecture + protein class. `indication` unused (target-intrinsic)."""
+                        payload_path: Optional[str] = None, sidecar_path: Optional[str] = None,
+                        interpro_path: Optional[str] = None,
+                        interpro_sidecar_path: Optional[str] = None) -> dict:
+    """Per-target domain architecture + protein class. `indication` unused (target-intrinsic).
+
+    CURATED FT DOMAIN + protein class are authoritative (from uniprot-protein-features-v1). An
+    ADDITIVE InterPro layer (interpro-109-0) BROADENS domain coverage: a target with NO curated
+    FT DOMAIN may still have InterPro domains (6,445 such proteins) — so InterPro is consulted even
+    when the curated record is absent, and `domain_evidence` records the provenance
+    (curated | both | interpro_only | none)."""
     idx = _load_indexed(payload_path, sidecar_path)
     if idx is None:
         return _empty("protein_features_derived_product_unavailable")
@@ -83,17 +160,51 @@ def read_target_summary(target: str, indication: str = None,
     key = target.strip()
     ac = key if key in by_ac else symbol_to_ac.get(key.upper())
     rec = by_ac.get(ac) if ac else None
+    # AC-resolution fallback: if the curated sidecar didn't resolve the symbol, try the InterPro
+    # product's own sidecar (a superset) so InterPro-only targets still get their domains. This never
+    # changes the CURATED record lookup (rec stays None if not in the curated product) — it only
+    # supplies an AC for the additive InterPro layer.
+    if ac is None:
+        ac = _load_interpro_symbol_map(interpro_sidecar_path).get(key.upper())
+
+    ip = _interpro_fields(ac, interpro_path)
+    ip_n = ip["interpro_n_domains"]
+
     if rec is None:
-        return _empty(f"{target!r} has no curated UniProt domain or class-bearing keyword "
-                      f"(annotation gap, not 'featureless')")
+        # No curated FT DOMAIN AND no class keyword. BEFORE reporting data_unavailable, honor the
+        # InterPro layer: if InterPro has domains for this AC, this is the interpro_only gap-fill —
+        # a real, coverage-broadening answer, not an annotation gap.
+        if ac and ip_n > 0:
+            out = _empty("no curated UniProt FT DOMAIN or class keyword; InterPro domains present "
+                         "(interpro_only coverage)")
+            out.update(ip)
+            out["uniprot_ac"] = ac
+            out["domain_evidence"] = "interpro_only"
+            return out
+        out = _empty(f"{target!r} has no curated UniProt domain or class-bearing keyword "
+                     f"(annotation gap, not 'featureless')")
+        out.update(ip)
+        out["uniprot_ac"] = ac
+        out["domain_evidence"] = "none"
+        return out
+
     domain_names = _as_list(rec.get("domain_names"))
     protein_class = _as_list(rec.get("protein_class"))
     n_dom = int(rec.get("n_domains") or 0)
-    # a compact class for quick reads: has_domains + primary class
+    # a compact class for quick reads: has_domains + primary class (CURATED — unchanged vocabulary)
     features_class = ("multi_domain" if n_dom >= 2 else
                       "single_domain" if n_dom == 1 else
                       "no_curated_domain")
-    return {
+    # domain_evidence: provenance of the domain call (curated FT DOMAIN vs InterPro-broadened)
+    if n_dom > 0 and ip_n > 0:
+        domain_evidence = "both"
+    elif n_dom > 0:
+        domain_evidence = "curated"
+    elif ip_n > 0:
+        domain_evidence = "interpro_only"   # keyword-class record but no curated domain; InterPro fills it
+    else:
+        domain_evidence = "none"
+    out = {
         "protein_features_class": features_class,   # PRIMARY (multi_domain | single_domain | no_curated_domain)
         "n_domains": n_dom,
         "domain_names": domain_names,
@@ -101,9 +212,12 @@ def read_target_summary(target: str, indication: str = None,
         "protein_class": protein_class,
         "protein_class_primary": rec.get("protein_class_primary"),
         "uniprot_ac": ac,
+        "domain_evidence": domain_evidence,
         "method_version": METHOD_VERSION,
-        "_data_source": DERIVED_MANIFEST_ID,
+        "_data_source": f"{DERIVED_MANIFEST_ID}+{INTERPRO_MANIFEST_ID}",
     }
+    out.update(ip)
+    return out
 
 
 def _empty(note: str) -> dict:
@@ -111,5 +225,7 @@ def _empty(note: str) -> dict:
         "protein_features_class": "data_unavailable",
         "n_domains": 0, "domain_names": [], "domain_architecture": None,
         "protein_class": [], "protein_class_primary": None, "uniprot_ac": None,
+        "domain_evidence": "none",
+        "interpro_n_domains": 0, "interpro_domain_names": [], "interpro_domain_architecture": None,
         "method_version": METHOD_VERSION, "_data_source": DERIVED_MANIFEST_ID, "_data_note": note,
     }
