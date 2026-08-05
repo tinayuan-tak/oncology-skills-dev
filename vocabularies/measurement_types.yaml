@@ -100,6 +100,34 @@ measurement_types:
       - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}
       - {kind: dataset, source: gtex-tpm-recount3-long-v1, evidence_tier: measured}   # matched-normal p95 overlay (auxiliary)
 
+  sc_tumor_celltype_expression:
+    claim: "In how many cells of each tumor COMPARTMENT (malignant / immune / stromal / endothelial) is target detected at single-cell resolution, and is a detectable tumor signal tumor-cell-intrinsic (malignant) or microenvironmental?"
+    # sc_rna MODALITY, tumor sample_context — the single-cell analogue of tumor_expression_distribution.
+    # Rule 1 concordance test (distinct claim, shown ALONGSIDE bulk — NOT interchangeable): single-cell
+    # carries TWO signals bulk RNA cannot — (1) DETECTION_FRACTION (fraction of a compartment's cells
+    # expressing the target; bulk averages this away), and (2) COMPARTMENT ATTRIBUTION (is the tumor
+    # signal from malignant cells or from immune/stromal microenvironment — the sc-unique answer to
+    # the same question expression_purity_confound only ESTIMATES from bulk×purity). So this is a NEW
+    # type, not a new provider of tumor_expression_distribution. Routes: Presence (A) only — a pure
+    # biology-axis presence facet. NO modality_relevance key by design: the ADC/TCE antigen-reality
+    # (microenvironment-dominant → is the antigen tumor-intrinsic?) modality-gate reading is DEFERRED
+    # to P4; adding modality_relevance now would force a modality-axis rule this slice doesn't ship.
+    entity_grains: [target_indication]   # per-indication tumor; target_subtype not attempted (per-cell subtyping is a later slice)
+    cards: [tumor-scrna-celltype-expression]
+    # tier_dominant: the CELLxGENE Census donor-pseudobulk is the single dominant provider of the
+    # per-compartment single-cell presence claim. v1 materializes COADREAD + NSCLC (both carry a
+    # per-cell MALIGNANT annotation + enough donors for the donor-is-replicate roll-up); other
+    # indications resolve data_unavailable (honest capability ceiling).
+    multi_provider_policy: tier_dominant
+    providers:
+      # kind: dataset (NOT derived_from): the donor×compartment pseudobulk is a RAW data-catalog
+      # product from a filtered CELLxGENE Census query — NOT a composition of upstream framework
+      # measurement_types. derived_from's inputs: must be registered measurement_type keys (DAG
+      # edges); a manifest ID there is a dangling edge (Rule 4, cf. the fusion_rearrangement fix).
+      # ONE provider today (COADREAD product); the NSCLC product is the SAME provider/claim at a
+      # second indication (a grain value within entity_grains, not a second provider).
+      - {kind: dataset, source: sc-pseudobulk-donor-celltype-coadread-v1, method: sc_celltype_pseudobulk, evidence_tier: measured}   # + sc-pseudobulk-donor-celltype-nsclc-v1 (same provider, NSCLC indication)
+
   tumor_vs_normal_selectivity:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.

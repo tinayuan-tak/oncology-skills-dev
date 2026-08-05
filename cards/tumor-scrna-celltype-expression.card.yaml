@@ -1,0 +1,105 @@
+# Card — SINGLE-CELL PER-COMPARTMENT TUMOR EXPRESSION (sc_rna; CELLxGENE Census donor pseudobulk)
+#
+# The single-cell analogue of tumor-expression-distribution. The bulk cards (cellline-rna-distribution
+# = DepMap cell lines; tumor-expression-distribution = TCGA per-sample tumor) all average expression
+# over a bulk population. This card answers what bulk CANNOT: at SINGLE-CELL resolution, in how many
+# cells of each tumor COMPARTMENT (malignant / immune / stromal / endothelial) is the target detected,
+# and is a detectable tumor signal TUMOR-CELL-INTRINSIC (malignant compartment) or MICROENVIRONMENTAL
+# (immune/stromal)? The two single-cell-native signals are detection_fraction (fraction of a
+# compartment's cells expressing the target — dropout-aware) and compartment attribution.
+#
+# PRESENCE-side card (Gate A / tumor-presence skill) — fills the sc_rna/tumor bucket that
+# MODALITY_TAXONOMY.md named as an unbuilt gap. A presence/abundance signal, NOT a tumor-vs-normal
+# contrast (that is tumor-vs-normal-selectivity, Gate B) and NOT the bulk per-sample distribution
+# (tumor-expression-distribution). The microenvironment-vs-intrinsic attribution is the sc-unique
+# answer to the question expression-purity-confound only ESTIMATES from bulk expression × purity.
+
+card_id: tumor-scrna-celltype-expression
+version: 0.1.0
+question: "At single-cell resolution, in how many cells of each tumor compartment (malignant / immune / stromal / endothelial) is {target.symbol} detected in {indication.label}, and is a detectable signal tumor-cell-intrinsic (malignant) or microenvironmental?"
+
+tier: indication   # the per-indication single-cell compartment landscape; per-cell subtype grain is a later slice
+
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # per-cell molecular-subtype stratification (subtype x compartment) is a later
+                         # slice; this card carries the pooled per-indication compartment landscape.
+  axes: [molecular_subtype]
+  rationale: "Per-cell subtype stratification needs a per-cell subtype label the donor-pseudobulk product does not carry (the emit aggregates per dataset_id x donor_id x compartment). Deferred to a later single-cell slice; this card stays at target_indication grain."
+
+applies_when:
+  # ONLY the indications whose CELLxGENE Census atlases carry a per-cell MALIGNANT annotation AND
+  # enough donors for the donor-is-replicate roll-up have a landed product (v1: COADREAD + NSCLC).
+  # Others are excluded at compose time (honest capability ceiling — the skill reads data_unavailable
+  # for any indication not listed, never a silent coarser fall-back).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC']"
+
+required_inputs:
+  - product_id: sc-pseudobulk-donor-celltype-coadread-v1     # COADREAD donor x compartment pseudobulk
+  - product_id: sc-pseudobulk-donor-celltype-nsclc-v1        # NSCLC (LUAD+LUSC+NSCLC-umbrella) donor x compartment pseudobulk
+
+methods:
+  - call: sc-tumor-expression-celltype
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - sc_expression_class                       # PRIMARY categorical (drives Tier-2 rules)
+    - malignant_detection_fraction              # cross-donor median detection in the malignant compartment
+    - malignant_abundance_log1p_cp10k           # cross-donor median abundance (malignant)
+    - malignant_compartment_available           # false → indication's atlases lack a malignant label (honest gap)
+    - top_microenvironment_compartment          # immune | stromal | endothelial — the top-detecting microenv compartment
+    - top_microenvironment_detection_fraction   # its cross-donor median detection
+    - n_compartments_measured
+    - n_donor_groups                            # (dataset_id, donor_id) replicate count — the donor-is-replicate n
+    - n_datasets                                # contributing CELLxGENE datasets
+    - compartment_detection                     # {compartment: cross-donor median detection_fraction}
+    - indication
+    - product_id
+
+  summary_fields_vocabulary:
+    sc_expression_class:
+      - malignant_broadly_detected              # malignant median detection >= 0.5 — target in most tumor cells
+      - malignant_subset_detected               # 0.1 <= malignant detection < 0.5 — a real target-high tumor-cell subset
+      - microenvironment_dominant               # low malignant detection but a microenvironment compartment detects >= 0.25 — present in the tumor but NOT tumor-cell-intrinsic
+      - broadly_low                             # detected in only a minority of cells in every compartment
+      - data_unavailable                        # no landed product for the indication, gene absent from product, OR no malignant compartment to anchor (coverage gap, NOT a measured negative)
+
+  figures:
+    - id: sc_compartment_detection
+      type: per_compartment_detection_bar
+      description: "Cross-donor median single-cell detection fraction per tumor compartment (malignant highlighted). Shows whether a detectable tumor signal is tumor-cell-intrinsic (malignant bar high) or microenvironmental (immune/stromal bar high)."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+
+thresholds:
+  # Detection-fraction cutoffs (cross-donor median). Dropout-aware — scRNA under-detects, so these sit
+  # BELOW the bulk TPM-fraction cutoffs by design. Anchored in stats.py; surfaced here for review.
+  malignant_broadly_detected_min: 0.5          # detected in >=50% of malignant cells
+  malignant_subset_detected_min: 0.10          # a real expressing malignant subset
+  microenvironment_detected_min: 0.25          # a microenv compartment counts as "expressing"
+  broadly_low_max: 0.05                        # below this everywhere == effectively undetected
+
+warning_predicates:
+  - warning_id: no_malignant_compartment
+    if: "malignant_compartment_available == false"
+    message: "This indication's single-cell atlases carry no per-cell malignant annotation — the malignant-anchored presence call cannot be made and resolves data_unavailable. (Not a measured absence; a compartment-annotation coverage gap.)"
+  - warning_id: microenvironment_dominant_signal
+    if: "sc_expression_class == 'microenvironment_dominant'"
+    message: "Target is detected in the tumor sample but predominantly in the microenvironment (immune/stromal), not malignant cells — the bulk-RNA presence signal may be microenvironment-derived, not tumor-cell-intrinsic. Relevant for tumor-cell-targeted modalities."
+
+caveats:
+  - "Single-cell donor pseudobulk from the CELLxGENE Census (filtered API query; see data-catalog sc-pseudobulk-donor-celltype-{indication}-v1). The DONOR (dataset_id, donor_id) is the biological replicate; compartment statistics are cross-donor MEDIANS, so one large contributing atlas cannot dominate."
+  - "detection_fraction is single-cell-native (fraction of cells with UMI>0) and is NOT comparable to bulk TPM or the bulk cards' detectable-fraction; scRNA dropout under-detects lowly-expressed genes."
+  - "compartment is a coarse L1 mapping over the Cell Ontology cell_type (malignant/immune/stromal/endothelial/epithelial_normal/other). The compartment token map is CRC-tuned; lineage-specific NORMAL epithelial cells in non-CRC indications may fall to `other`, but the malignant/immune/stromal/endothelial compartments that drive the presence call are lineage-agnostic."
+  - "v1 covers COADREAD + NSCLC (the indications with per-cell malignant annotation + donor replication in this Census release). Other indications resolve data_unavailable — an honest capability gap, not a measured negative."
+  - "RNA detection does not imply protein presence; pair with the CPTAC protein cards for ADC/TCE decisions. The microenvironment-vs-intrinsic attribution here is a presence-axis readout; the ADC/TCE antigen-reality modality-gate interpretation is a deferred (P4) follow-up."
+
+measurement: sc_rna
+sample_context: tumor         # patient tumor single-cell (CELLxGENE Census) — orthogonal to measurement
+
+measurement_type: sc_tumor_celltype_expression
+entity_grains: [target_indication]
+schema_version: 1
