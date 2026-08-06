@@ -22,20 +22,23 @@ from functools import lru_cache
 from typing import Optional
 
 from .classify import SampleEvidence, classify_functional_state, summarize_states
+from methods.catalog_query.read import bucket_key_for, bucket_prefix_for, s3_uri_for
 
-S3_BUCKET = "onc-compbio"
-PANCAN_PREFIX = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"
-MC3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf.gz"
+# bucket + source-dir prefixes/keys resolved from the data-catalog manifests (single source of
+# truth); rstrip('/') keeps the existing f"{PREFIX}/file" idioms byte-identical.
+S3_BUCKET, PANCAN_PREFIX = bucket_prefix_for("gdc-pancanatlas-cnv-2018")
+PANCAN_PREFIX = PANCAN_PREFIX.rstrip("/")
+MC3_KEY = f"{bucket_prefix_for('tcga-mc3-public-v0-2-8')[1]}mc3.v0.2.8.PUBLIC.maf.gz"
 ABS_SEGTABS_KEY = f"{PANCAN_PREFIX}/TCGA_mastercalls.abs_segtabs.fixed.txt"
 GISTIC_KEY = f"{PANCAN_PREFIX}/all_thresholded.by_genes_whitelisted.tsv"
 SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
-DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_PREFIX = bucket_prefix_for("depmap-consortium-26q1")[1].rstrip("/")
 
 # CCLE 2019 RRBS methylation (model side, Phase-2 epigenetic arm).
 # Rows = TSS-1kb windows; locus_id = GENESYMBOL_CHR_START_END.
 # Columns 0-2 are meta (locus_id, CpG_sites_hg19, avg_coverage); rest are CELLLINENAME_TISSUE.
 # Values are fractional methylation beta ∈ [0,1]; NaN = not measured in that cell line.
-CCLE_RRBS_KEY = "data-catalog/sources/depmap-consortium/dmc-ccle-2019/CCLE_RRBS_TSS1kb_20181022.txt.gz"
+CCLE_RRBS_KEY = f"{bucket_prefix_for('depmap-consortium-ccle-2019')[1]}CCLE_RRBS_TSS1kb_20181022.txt.gz"
 DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
 # Standard PanCanAtlas threshold: beta > 0.3 = promoter hypermethylated (silenced).
 _RRBS_METH_THRESHOLD = 0.30
@@ -44,8 +47,7 @@ _RRBS_METH_THRESHOLD = 0.30
 # tcga-sesame-promoter-methylation-v1: 2,730 GDC per-sample SeSAMe TSVs → per-(gene,patient)
 # island-anchored promoter methylation call. 31.8M rows, 13,844 genes, 2,422 patients, 373 MB,
 # sorted by gene_symbol for pyarrow row-group predicate pushdown (reads ~14 kB per gene).
-HM450_PROMOTER_KEY = ("data-catalog/derived/sesame-methylation/tcga/v1/"
-                      "promoter_methylation.parquet")
+_, HM450_PROMOTER_KEY = bucket_key_for("tcga-sesame-promoter-methylation-v1")
 
 # framework indication → TCGA project code(s) used in merged_sample_quality_annotations `cancer type`
 # (mirrors gdc_somatic_hotspot's INDICATION_TO_PROJECTS, minus the "TCGA-" prefix which this table omits).
@@ -193,8 +195,7 @@ def _loh_homdel_at_locus(segs, sample: str, chrom: float, pos: float):
 # an absent row is provably wt (classify rule 6), reconstructed from the indication's patient set. The
 # classifier + roll-up below are UNCHANGED, so the summary is byte-identical to the live path (verified:
 # KRAS/TP53/APC/PTEN in COADREAD). Methylation stays a separate gene-pushdown read, applied identically.
-TWO_HIT_PRODUCT_S3_URI = ("s3://onc-compbio/data-catalog/derived/"
-                          "pancan-genomic-two-hit-per-gene/v1/functional_gene_state_evidence.parquet")
+TWO_HIT_PRODUCT_S3_URI = s3_uri_for("pancan-genomic-two-hit-per-gene-v1")
 
 
 @lru_cache(maxsize=64)

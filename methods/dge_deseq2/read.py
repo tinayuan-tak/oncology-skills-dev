@@ -23,6 +23,8 @@ from typing import Optional
 
 import yaml
 
+from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+
 DATA_CATALOG = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
 DEFAULT_AWS_PROFILE = "cbg"
 
@@ -231,9 +233,11 @@ def _classify_expression_call(log2_fc, q_value) -> str:
 # Structure: sources/recount3/tcga-gtex-2023-01-04/{tcga,gtex}/{TISSUE}/
 #              gene_sums/{tcga|gtex}.gene_sums.{TISSUE}.G026.gz  (raw counts)
 #              metadata/{tcga|gtex}.{tcga|gtex}.{TISSUE}.MD.gz    (sample annotations)
-RECOUNT3_S3_PREFIX = "data-catalog/sources/recount3/tcga-gtex-2023-01-04"
-ENSEMBL_ID_MAP_S3 = ("data-catalog/sources/ensembl-id-mapping/"
-                     "release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv")
+# source prefixes/keys resolved from the data-catalog manifests (single source of truth);
+# rstrip('/') keeps the existing f"{RECOUNT3_S3_PREFIX}/tcga/..." idiom byte-identical.
+RECOUNT3_S3_PREFIX = bucket_prefix_for("recount3-tcga-gtex-2023-01-04")[1].rstrip("/")
+ENSEMBL_ID_MAP_S3 = (f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}"
+                     "hsapiens_gene_id_map_release-116.tsv")
 
 # Indication → recount3 TCGA study codes. Some framework indications map to
 # multiple recount3 studies (COADREAD = COAD + READ).
@@ -637,11 +641,13 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
     _ensure_aws_profile()
-    s3_uri = (f"s3://onc-compbio/data-catalog/derived/"
-              f"{indication.lower()}-dge-tumor-vs-gtex-v1/tumor_vs_gtex.parquet")
-    path = _s3_uri_to_path(s3_uri)
     s3fs = fs.S3FileSystem()
     try:
+        # Resolve the product URI from its data-catalog manifest (single source of truth).
+        # Indications without a landed manifest raise FileNotFoundError → caught → None,
+        # matching the prior "product absent → None" behavior.
+        s3_uri = s3_uri_for(f"{indication.lower()}-dge-tumor-vs-gtex-v1")
+        path = _s3_uri_to_path(s3_uri)
         table = pq.read_table(path, filesystem=s3fs,
                                 filters=[("gene_symbol", "=", target)])
     except Exception:
@@ -680,12 +686,13 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
     _ensure_aws_profile()
-    s3_uri = (f"s3://onc-compbio/data-catalog/derived/"
-              f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1/"
-              f"sensitivity.parquet")
-    path = _s3_uri_to_path(s3_uri)
+    manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
     s3fs = fs.S3FileSystem()
     try:
+        # Resolve the product URI from its data-catalog manifest (single source of truth).
+        # Indications without a landed manifest raise FileNotFoundError → caught → None.
+        s3_uri = s3_uri_for(manifest_id)
+        path = _s3_uri_to_path(s3_uri)
         table = pq.read_table(path, filesystem=s3fs,
                               filters=[("gene_symbol", "=", target)])
     except Exception:
@@ -693,7 +700,6 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     if table.num_rows == 0:
         return None
     raw = {col: table[col][0].as_py() for col in table.column_names}
-    manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
     # SELECTIVITY all-gene percentile (SEL-1, 2026-08-05) — the Axis-1 analog for the
     # tumor-vs-normal CONTRAST: where does this gene's log2FC sit among ALL genes in this
     # sensitivity product? Answers "is +1.9 an unusually selective fold-change here, or middling?"
@@ -925,10 +931,8 @@ def _fetch_recount3_gtex_library_sizes(tissue: str) -> "pd.Series":
     return pd.Series(totals, index=sample_cols, name="library_size")
 
 
-GTEX_TPM_LONG_S3_URI = (
-    "s3://onc-compbio/data-catalog/derived/gtex-tpm-recount3-long-v1/"
-    "gtex_tpm_long.parquet"
-)
+# resolved from the data-catalog manifest (single source of truth).
+GTEX_TPM_LONG_S3_URI = s3_uri_for("gtex-tpm-recount3-long-v1")
 
 
 def _fetch_gtex_samples_from_long_product(
