@@ -133,8 +133,12 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "",
         "RECURRENCE CONTEXT (Axis-1 — is recurrence unusual among all mutated genes in-indication?):",
         f"  overall_mutation_frequency: {_fmt(h.get('overall_mutation_frequency'), 3)}",
-        f"  driver_recurrence_class: {h.get('driver_recurrence_class')}  "
+        f"  driver_recurrence_class (TCGA-MC3, whole-exome ~1k pts): {h.get('driver_recurrence_class')}  "
         f"(percentile {_fmt(h.get('driver_recurrence_percentile'))})",
+        f"  genie_driver_recurrence_class (GENIE, panel ~35x pts, coverage-correct): "
+        f"{h.get('genie_driver_recurrence_class')}  (freq {_fmt(h.get('genie_mutation_frequency'), 3)})",
+        "  NOTE: MC3 + GENIE are independent comparators — agreement = robust; divergence is a "
+        "coverage/cohort caveat, not a contradiction. Neither is a functional-driver call.",
     ]
 
     # Subtype panorama — only present when --subtypes scoped this run (descriptive; verdict-inert).

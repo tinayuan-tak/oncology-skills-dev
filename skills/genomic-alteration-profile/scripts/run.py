@@ -198,10 +198,16 @@ def main() -> int:
                                               "overall_mutation_frequency"),
         # Driver-recurrence percentile (Axis-1 contextualization, 2026-08-05) — is this gene's
         # recurrence unusual among all mutated genes in-indication? DISPLAY facet, verdict-inert.
+        # TCGA-MC3 (whole-exome, ~1k pts) + GENIE (panel, ~35x pts, coverage-correct) — two distinct
+        # comparators surfaced side by side (2026-08-06). Both verdict-inert.
         "driver_recurrence_class":       get_card_field(cards, "mutation-hotspot-frequency",
                                               "driver_recurrence_class"),
         "driver_recurrence_percentile":  get_card_field(cards, "mutation-hotspot-frequency",
                                               "driver_recurrence_percentile"),
+        "genie_driver_recurrence_class": get_card_field(cards, "mutation-hotspot-frequency",
+                                              "genie_driver_recurrence_class"),
+        "genie_mutation_frequency":      get_card_field(cards, "mutation-hotspot-frequency",
+                                              "genie_mutation_frequency"),
         # Copy-number axis
         "copy_number_class":             get_card_field(cards, "copy-number-distribution",
                                               "copy_number_class"),
