@@ -144,7 +144,18 @@ VARIANT_CLASSIFICATION_TO_EFFECT = {
 }
 
 # Indication → filter parameters per strategy.
-GENIE_CANCER_TYPE = {"COADREAD": "Colorectal Cancer"}
+# GENIE top-level CANCER_TYPE (OncoTree broad label) per framework indication code.
+# NOTE granularity mismatch: GENIE CANCER_TYPE is COARSER than TCGA projects. NSCLC maps
+# cleanly (≡ "Non-Small Cell Lung Cancer"), but GC (STAD) maps to "Esophagogastric Cancer"
+# which ALSO spans esophageal — an approximate, broader cohort than STAD alone. This is
+# documented on the derived product; a CANCER_TYPE_DETAILED refinement is a future option.
+GENIE_CANCER_TYPE = {
+    "COADREAD": "Colorectal Cancer",
+    "NSCLC": "Non-Small Cell Lung Cancer",
+    "PAAD": "Pancreatic Cancer",
+    "PDAC": "Pancreatic Cancer",          # canonical/CPTAC-spelling dual-key (see gdc_somatic_hotspot)
+    "GC": "Esophagogastric Cancer",       # BROADER than STAD (includes esophageal) — see note above
+}
 DEPMAP_LINEAGE = {"COADREAD": "Bowel"}
 
 # GENIE-BPC LOT derivation is a distinct mode (not a MAF filter): it derives
