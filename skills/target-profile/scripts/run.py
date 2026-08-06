@@ -215,6 +215,9 @@ SUB_SKILL_CARDS = {
         "fusion-stratified-dependency",      # A1-fusion (2026-08-06): fusion×dependency rescue (fires
                                              # biomarker_stratified_dependency; EWSR1-FLI1/BCR-ABL1);
                                              # composer-consistency with genomic-alteration-profile CARDS
+        "amp-expr-stratified-dependency",    # A1 amp-expr (2026-08-06): conjoint amp+overexpr×dependency
+                                             # rescue (fires biomarker_stratified_dependency; ERBB2/MYC/
+                                             # KRAS-amp); composer-consistency with genomic CARDS
         "fusion-rearrangement-landscape",    # LIVE (tcga-fusion-consensus-v1); additive signal-only
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)

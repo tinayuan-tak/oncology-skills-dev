@@ -687,6 +687,20 @@ def _dispatch_fusion_stratified_dependency(target: str, indication: str) -> Opti
     return fus_module.read_fusion_stratified_dependency(target=target, indication=indication)
 
 
+def _dispatch_amp_expr_stratified_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route amp-expr-stratified-dependency card (Card E3.ae) to
+    methods/depmap_amp_expr_dependency/read.py.
+
+    The conjoint (amplification+overexpression) three-way analog of Card E3.cn: does a target's
+    dependency stratify by whether the line is BOTH amplified (relative CN > 1.5) AND high-expression
+    (top-tertile log2TPM) for the target — the amplification-DRIVEN overexpression-addiction hypothesis
+    (ERBB2/MYC/KRAS-amp, the amp→overexpression→dependency chain the CN-only path under-weights)?
+    Target-only; indication accepted for back-compat but not consumed.
+    """
+    ae_module = _import_method("depmap_amp_expr_dependency")
+    return ae_module.read_amp_expr_dependency(target=target, indication=indication)
+
+
 def _dispatch_dependency_predictability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route dependency-predictability card (E5) to
     methods/depmap_predictability/read.py.
@@ -1227,6 +1241,7 @@ CARD_DISPATCHERS = {
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     "copy-number-stratified-dependency": _dispatch_cn_stratified_dependency,
     "fusion-stratified-dependency": _dispatch_fusion_stratified_dependency,
+    "amp-expr-stratified-dependency": _dispatch_amp_expr_stratified_dependency,
     "dependency-predictability": _dispatch_dependency_predictability,
     "prism-compound-activity": _dispatch_prism_compound_activity,
     "prism-crispr-concordance": _dispatch_prism_crispr_concordance,

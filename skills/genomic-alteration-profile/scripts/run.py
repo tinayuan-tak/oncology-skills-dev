@@ -63,6 +63,14 @@ CARDS = [
     # enumerated combos). Distinct from fusion-rearrangement-landscape below (TCGA-patient recurrence,
     # signal-only) — this is the DepMap cell-line dependency-establishing test.
     "fusion-stratified-dependency",
+    # Amp→expr→dep three-way (A1 amp-expr, 2026-08-06) — the CONJOINT sibling of copy-number-stratified-
+    # dependency: are lines BOTH amplified AND high-expression for the target Chronos-more-dependent? Its
+    # amp-expr-*-dependent rules fire the SAME biomarker_stratified_dependency verdict (resolver section
+    # 2d; reuses the mutation verdict), capturing amplification-DRIVEN overexpression-addiction (ERBB2/
+    # MYC/KRAS-amp) that the CN-only path (expression-blind) under-weights. VERDICT-MOVING but golden-
+    # snapshot byte-identical (new rule ids never fire on old enumerated combos). Precedence mut > cn >
+    # fusion > amp-expr (most-specific last).
+    "amp-expr-stratified-dependency",
     # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
     # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
     # data_unavailable}. ADDITIVE signal-only: reaches the LLM/matrix + headline, touches NO
@@ -250,6 +258,12 @@ def main() -> int:
         # dependency-establishing signal.
         "fusion_stratification_class":   get_card_field(cards, "fusion-stratified-dependency",
                                               "fusion_stratification_class"),
+        # Amp→expr→dep three-way (A1 amp-expr) — conjoint amplified+overexpressed-vs-rest Chronos split;
+        # amplification-DRIVEN overexpression-addiction (ERBB2/MYC/KRAS-amp). Fires
+        # biomarker_stratified_dependency via the resolver's section-2d rungs (reuses the mutation
+        # verdict). Surfaced for the LLM/matrix. The conjoint refinement the CN-only class under-weights.
+        "amp_expr_stratification_class": get_card_field(cards, "amp-expr-stratified-dependency",
+                                              "amp_expr_stratification_class"),
         # Fusion / rearrangement axis — LIVE (tcga-fusion-consensus-v1). fusion_class is the TCGA
         # 3-caller-consensus verdict (deep, 33 tissues); the genie_sv_* fields are the pan-cohort
         # BREADTH complement (GENIE 271k panel tumors, coverage-correct — genie-sv-recurrence-v1,
