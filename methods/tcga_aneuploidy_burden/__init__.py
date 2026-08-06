@@ -28,4 +28,5 @@ from .read import (  # noqa: E402,F401
     aneuploidy_burden_for_indication,
     wgd_summary_for_indication,
     msi_summary_for_indication,
+    model_msi_summary_for_indication,
 )

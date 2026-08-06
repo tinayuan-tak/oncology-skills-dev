@@ -59,6 +59,29 @@ MSI_LABEL_SOURCE = {
 _MSI_HIGH_FRACTION = 0.15
 _MSI_LOW_FRACTION = 0.05
 
+# MODEL-side MSI (DepMap cell lines) — the complementary arm to the patient marker-paper labels.
+# OmicsGlobalSignatures.csv carries MSIScore (MSIsensor2) per ModelID for ALL lineages, so the model
+# arm COVERS the indications the patient labels miss (NSCLC/PAAD have no patient MSI, but DO have
+# cell-line MSIScore). Cell-line MSI is a MODEL-cohort property, distinct from patient prevalence.
+DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_GLOBAL_SIGNATURES_KEY = f"{DEPMAP_PREFIX}/OmicsGlobalSignatures.csv"
+DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
+# MSIsensor2 MSI-H threshold: score >= 20 (the standard MSIsensor2 cutoff; the MSIScore distribution
+# is bimodal with a clean gap between the MSS bulk (~2 median) and the MSI-H cluster (>>20)).
+_MODEL_MSI_HIGH_SCORE = 20.0
+# framework indication → DepMap OncotreeLineage (26q1 STRINGS — release-correct; note the subgroup
+# assigner's INDICATION_TO_DEPMAP_LINEAGE is STALE for 26q1: 26q1 merged Stomach+Esophagus into
+# "Esophagus/Stomach" and Ovary into "Ovary/Fallopian Tube", so STAD/GC map to the merged lineage
+# (broader than gastric alone — includes esophageal, mirroring the GENIE Esophagogastric breadth note).
+INDICATION_TO_DEPMAP_LINEAGE = {
+    "COADREAD": ("Bowel",), "COAD": ("Bowel",), "READ": ("Bowel",),
+    "NSCLC": ("Lung",), "LUAD": ("Lung",), "LUSC": ("Lung",), "SCLC": ("Lung",),
+    "PAAD": ("Pancreas",), "PDAC": ("Pancreas",),
+    "GC": ("Esophagus/Stomach",), "STAD": ("Esophagus/Stomach",), "ESCA": ("Esophagus/Stomach",),
+    "HNSC": ("Head and Neck",), "HNSCC": ("Head and Neck",),
+    "OV": ("Ovary/Fallopian Tube",), "UCEC": ("Uterus",),
+}
+
 
 def _ensure_aws_profile():
     if "AWS_PROFILE" not in os.environ:
@@ -259,6 +282,71 @@ def _msi_unavailable(note: str) -> dict:
         "msi_class": "data_unavailable", "msi_high_fraction": None,
         "n_msi_high": 0, "n_msi_low": 0, "n_mss": 0, "n_samples": 0,
         "msi_context": None, "method_version": "0.2.0", "_data_note": note,
+    }
+
+
+@lru_cache(maxsize=1)
+def _load_model_msi_by_lineage():
+    """{OncotreeLineage: [MSIScore, ...]} from DepMap OmicsGlobalSignatures joined to Model.csv,
+    deduped to one row per ModelID. Empty on failure. The model-side MSI substrate (all lineages)."""
+    import pandas as pd
+    try:
+        sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_GLOBAL_SIGNATURES_KEY)))
+        model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)),
+                            usecols=["ModelID", "OncotreeLineage"])
+    except Exception:  # noqa: BLE001
+        return {}
+    if "MSIScore" not in sig.columns or "ModelID" not in sig.columns:
+        return {}
+    sig = sig.dropna(subset=["MSIScore"]).drop_duplicates(subset=["ModelID"])  # one row per model
+    merged = sig.merge(model, on="ModelID", how="inner")
+    out: dict = {}
+    for lineage, grp in merged.groupby("OncotreeLineage"):
+        out[str(lineage)] = [float(v) for v in grp["MSIScore"]]
+    return out
+
+
+def model_msi_summary_for_indication(indication: str) -> dict:
+    """Per-indication MODEL-side (DepMap cell-line) MSI prevalence from OmicsGlobalSignatures MSIScore
+    (MSIsensor2). The complement to the patient marker-paper labels — covers ALL lineages (incl. the
+    NSCLC/PAAD that patient labels miss). Cell-line cohort property, target-independent.
+
+    Returns model_msi_class {msi_high_enriched / msi_intermediate / mss_dominant / data_unavailable}
+    on the fraction of cell lines with MSIScore >= 20 (MSIsensor2 MSI-H), + model_msi_high_fraction,
+    n_model_msi_high, n_model_lines. data_unavailable when no lineage mapping or the DepMap file is
+    unresolvable (NOT a fabricated 0%)."""
+    lineages = INDICATION_TO_DEPMAP_LINEAGE.get(str(indication or "").upper().strip())
+    if not lineages:
+        return _model_msi_unavailable(f"no DepMap lineage mapping for {indication!r}")
+    by_lin = _load_model_msi_by_lineage()
+    if not by_lin:
+        return _model_msi_unavailable("DepMap OmicsGlobalSignatures/Model unresolvable")
+    scores = [s for lin in lineages for s in by_lin.get(lin, [])]
+    n = len(scores)
+    if n == 0:
+        return _model_msi_unavailable(f"no DepMap cell lines for {indication} ({lineages})")
+    n_high = sum(1 for s in scores if s >= _MODEL_MSI_HIGH_SCORE)
+    frac = n_high / n
+    return {
+        "model_msi_class": _classify_msi(frac),   # reuse the same 0.15/0.05 fraction cutoffs
+        "model_msi_high_fraction": frac,
+        "n_model_msi_high": n_high,
+        "n_model_lines": n,
+        "model_msi_context": (
+            f"{indication}: {frac:.0%} of {n} DepMap {'/'.join(lineages)} cell lines are MSI-high "
+            f"(MSIsensor2 MSIScore >= {_MODEL_MSI_HIGH_SCORE:.0f}); MODEL-cohort property, "
+            f"target-independent — the all-lineage complement to the CRC+STAD-only patient labels."
+        ),
+        "method_version": "0.2.0",
+        "_data_source": "depmap-consortium-26q1",
+    }
+
+
+def _model_msi_unavailable(note: str) -> dict:
+    return {
+        "model_msi_class": "data_unavailable", "model_msi_high_fraction": None,
+        "n_model_msi_high": 0, "n_model_lines": 0,
+        "model_msi_context": None, "method_version": "0.2.0", "_data_note": note,
     }
 
 

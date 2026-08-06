@@ -161,3 +161,50 @@ def test_msi_unmapped_indication_is_data_unavailable(monkeypatch):
     out = r.msi_summary_for_indication("NSCLC")
     assert out["msi_class"] == "data_unavailable" and out["msi_high_fraction"] is None
     assert "CRC + STAD only" in out["_data_note"]
+
+
+# ---------- MODEL-side MSI summary (v0.2.0, DepMap OmicsGlobalSignatures MSIScore) ----------
+
+def _setup_model_msi(monkeypatch, by_lineage):
+    """by_lineage: {OncotreeLineage: [MSIScore, ...]}."""
+    r._load_model_msi_by_lineage.cache_clear()
+    monkeypatch.setattr(r, "_load_model_msi_by_lineage", lambda: by_lineage)
+
+
+def test_model_msi_covers_lung_where_patient_absent(monkeypatch):
+    # NSCLC → Lung lineage; the model arm gives a MEASURED value where the patient arm is data_unavailable.
+    # 2 of 264 lines MSI-H (score>=20) → 0.8% → mss_dominant (a measured negative, NOT data_unavailable).
+    scores = [50.0, 40.0] + [2.0] * 262
+    _setup_model_msi(monkeypatch, {"Lung": scores})
+    out = r.model_msi_summary_for_indication("NSCLC")
+    assert out["n_model_lines"] == 264 and out["n_model_msi_high"] == 2
+    assert out["model_msi_class"] == "mss_dominant"
+    assert out["model_msi_high_fraction"] < 0.05
+
+
+def test_model_msi_high_enriched(monkeypatch):
+    # UCEC → Uterus; ~49% MSI-H → msi_high_enriched.
+    scores = [30.0] * 24 + [1.0] * 25
+    _setup_model_msi(monkeypatch, {"Uterus": scores})
+    out = r.model_msi_summary_for_indication("UCEC")
+    assert out["model_msi_class"] == "msi_high_enriched" and out["n_model_msi_high"] == 24
+
+
+def test_model_msi_merged_lineage_pools_eso_stomach(monkeypatch):
+    # GC/STAD/ESCA all map to the 26q1 merged "Esophagus/Stomach" lineage (broader than gastric).
+    _setup_model_msi(monkeypatch, {"Esophagus/Stomach": [25.0] * 10 + [2.0] * 174})
+    out = r.model_msi_summary_for_indication("STAD")
+    assert out["n_model_lines"] == 184 and out["n_model_msi_high"] == 10
+
+
+def test_model_msi_score_threshold_at_20(monkeypatch):
+    # boundary: exactly 20 counts as MSI-H (>=), 19.9 does not.
+    _setup_model_msi(monkeypatch, {"Bowel": [20.0, 19.9, 100.0]})
+    out = r.model_msi_summary_for_indication("COADREAD")
+    assert out["n_model_msi_high"] == 2 and out["n_model_lines"] == 3
+
+
+def test_model_msi_unmapped_indication_data_unavailable(monkeypatch):
+    _setup_model_msi(monkeypatch, {"Bowel": [50.0]})
+    out = r.model_msi_summary_for_indication("MADEUP")
+    assert out["model_msi_class"] == "data_unavailable" and out["model_msi_high_fraction"] is None
