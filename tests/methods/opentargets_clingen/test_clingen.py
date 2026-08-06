@@ -76,3 +76,43 @@ def test_end_to_end_via_monkeypatch(monkeypatch):
     out = r.read_clingen_dosage("TP53")
     assert out["dosage_sensitivity_class"] == "autosomal_dominant_loss"
     assert out["ensembl_gene_id"] == "ENSG_TP53"
+
+
+# ---- germline_inheritance_mode facet (recessive-reassurance-aware complement to dosage) ----
+
+def test_inheritance_recessive_only_is_reassurance():
+    # exclusively AR high-confidence → recessive_only (carriers healthy = full-KO reassurance).
+    out = r.classify_inheritance_mode([_row("Definitive", ["AR"], "Fanconi"), _row("Strong", ["AR"])])
+    assert out["germline_inheritance_mode"] == "recessive_only"
+    assert out["n_high_confidence"] == 2
+
+
+def test_inheritance_dominant():
+    out = r.classify_inheritance_mode([_row("Definitive", ["AD"], "haploinsufficiency-disease")])
+    assert out["germline_inheritance_mode"] == "dominant"
+
+
+def test_inheritance_both_ad_and_ar():
+    # BRCA1-like: AD (cancer predisposition) + AR (Fanconi) → dominant_and_recessive.
+    out = r.classify_inheritance_mode([_row("Definitive", ["AD"], "cancer"),
+                                       _row("Definitive", ["AR"], "fanconi")])
+    assert out["germline_inheritance_mode"] == "dominant_and_recessive"
+
+
+def test_inheritance_xlinked_only():
+    out = r.classify_inheritance_mode([_row("Definitive", ["XL"], "x-disease")])
+    assert out["germline_inheritance_mode"] == "xlinked_or_other"
+
+
+def test_inheritance_no_high_confidence_is_no_mendelian():
+    # only disputed/limited rows → no high-confidence Mendelian disease.
+    out = r.classify_inheritance_mode([_row("Disputed", ["AD"]), _row("Limited", ["AR"])])
+    assert out["germline_inheritance_mode"] == "no_mendelian_disease"
+
+
+def test_inheritance_recessive_only_distinct_from_dosage_sufficient():
+    # the KEY point: dosage collapses recessive-only to 'dosage_sufficient'; the inheritance facet
+    # surfaces it as recessive_only (a POSITIVE reassurance), on the SAME rows.
+    rows = [_row("Definitive", ["AR"], "recessive-disease")]
+    assert r.classify_dosage(rows)["dosage_sensitivity_class"] == "dosage_sufficient"
+    assert r.classify_inheritance_mode(rows)["germline_inheritance_mode"] == "recessive_only"

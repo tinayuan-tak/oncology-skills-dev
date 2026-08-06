@@ -101,6 +101,45 @@ def classify_dosage(rows: list) -> dict:
     }
 
 
+def classify_inheritance_mode(rows: list) -> dict:
+    """Pure classifier: a gene's ClinGen rows → germline_inheritance_mode + evidence.
+
+    The SAFETY-REASSURANCE complement to dosage_sensitivity_class. dosage_sensitivity_class collapses
+    'exclusively recessive' into 'dosage_sufficient' and discards the rest; this surfaces the FULL
+    inheritance picture, because the recessive-only case is a positive full-KO-tolerability signal the
+    dosage call under-states:
+      recessive_only        → high-confidence disease is EXCLUSIVELY autosomal-recessive (AR): heterozygous
+                              carriers are healthy → losing one/both copies is human-tolerated at the
+                              carrier level → REASSURANCE for a full-KO modality (the distinctive OMIM-
+                              style inheritance signal).
+      dominant              → any high-confidence autosomal-dominant (AD) disease: one hit is pathogenic
+                              (haploinsufficiency) → full-KO CAUTION (mirrors dosage's dominant call).
+      dominant_and_recessive→ both AD and AR high-confidence diseases (mode depends on the specific disease).
+      xlinked_or_other      → only X-linked / mitochondrial / semidominant / undetermined high-confidence.
+      no_mendelian_disease  → gene in ClinGen but no high-confidence disease (or not in ClinGen).
+    High-confidence = Definitive/Strong only (same gate as the dosage class)."""
+    hc = [r for r in rows if r.get("confidence") in _HIGH_CONFIDENCE]
+    if not hc:
+        return {"germline_inheritance_mode": "no_mendelian_disease",
+                "n_high_confidence": 0, "inheritance_allelic_requirements": []}
+    has_ad = any(_tokens(r.get("allelicRequirements")) & _DOMINANT_TOKENS for r in hc)
+    has_ar = any(_tokens(r.get("allelicRequirements")) & _RECESSIVE_TOKENS for r in hc)
+    toks = sorted({t for r in hc for t in _tokens(r.get("allelicRequirements"))})
+    if has_ad and has_ar:
+        mode = "dominant_and_recessive"
+    elif has_ad:
+        mode = "dominant"
+    elif has_ar:
+        mode = "recessive_only"
+    else:
+        mode = "xlinked_or_other"
+    return {
+        "germline_inheritance_mode": mode,
+        "n_high_confidence": len(hc),
+        "inheritance_allelic_requirements": toks,
+    }
+
+
 def read_clingen_dosage(target: str, indication: Optional[str] = None) -> dict:
     """ClinGen dosage-sensitivity safety summary for `target` (HGNC symbol or ENSG).
 
@@ -112,18 +151,24 @@ def read_clingen_dosage(target: str, indication: Optional[str] = None) -> dict:
             "source": "opentargets-26-06/evidence_clingen"}
     if ensg is None:
         return {**base, "dosage_sensitivity_class": "insufficient",
+                "germline_inheritance_mode": "insufficient",
                 "_note": "target not resolvable to an Ensembl gene id via the OT resolver sidecar"}
 
     df = read_entity("evidence_clingen", columns=_FIELDS)
     if df.empty:
         return {**base, "dosage_sensitivity_class": "insufficient",
+                "germline_inheritance_mode": "insufficient",
                 "_note": "evidence_clingen entity not available"}
     hit = df[df["targetId"] == ensg]
     if hit.empty:
         return {**base, "dosage_sensitivity_class": "no_clingen_entry",
+                "germline_inheritance_mode": "no_mendelian_disease",
                 "n_total_rows": 0, "_note": f"{ensg} has no ClinGen gene-disease validity rows"}
 
-    return {**base, **classify_dosage(hit.to_dict("records"))}
+    recs = hit.to_dict("records")
+    # dosage class (verdict-driving, dominant-focused) + inheritance-mode facet (additive, recessive-
+    # reassurance-aware) — computed from the SAME high-confidence rows, merged into one summary.
+    return {**base, **classify_dosage(recs), **classify_inheritance_mode(recs)}
 
 
 def _main(argv=None):
