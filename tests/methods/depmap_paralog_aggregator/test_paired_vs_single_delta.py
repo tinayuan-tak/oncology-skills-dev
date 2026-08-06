@@ -18,7 +18,10 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Resolve the repo root from THIS test file's location (parents[3] = repo root) so the test
+# imports the reader from the SAME checkout it lives in — not a hardcoded absolute path that
+# would silently import a DIFFERENT checkout (e.g. the primary tree while editing in a worktree).
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 import methods.depmap_paralog_aggregator.read as R  # noqa: E402
@@ -58,6 +61,11 @@ def reader(tmp_path, monkeypatch):
     ]
     csv_path = _write_csv(tmp_path, header, rows)
     monkeypatch.setattr(R, "_ensure_paralog_cached", lambda: csv_path)
+    # Force the RAW-CSV FALLBACK path: pretend the derived product is unreachable so these
+    # buffering-MATH tests exercise the live recompute (the primary product-read path is
+    # covered separately in test_derived_product_path.py). _derived_parquet_uri → None makes
+    # _read_from_derived_product return None → read_target_summary falls back to _read_from_raw_csv.
+    monkeypatch.setattr(R, "_derived_parquet_uri", lambda: None)
     return R
 
 
@@ -106,3 +114,29 @@ def test_class_vocab_matches_card_contract(reader):
     for g in ("GA", "GC", "GE", "GG", "NOSUCHGENE"):
         emitted.add(reader.read_target_summary(g)["paralog_buffering_class"])
     assert emitted <= {"strong", "partial", "none", "data_unavailable"}
+
+
+# --- AM-3 (2026-08-05): RAW-CSV FALLBACK path — honest provenance + ohnolog=None ---
+# The `reader` fixture forces this path (_derived_parquet_uri → None). The PRIMARY
+# product-read path (with real ohnolog) is covered in test_derived_product_path.py.
+
+def test_fallback_data_source_reports_raw_csv(reader):
+    """On the raw-CSV FALLBACK, _data_source must say so (not claim the derived product). The
+    derived product is named separately as the preferred/intended source — no misleading stamp."""
+    res = reader.read_target_summary("GA")
+    assert "ParalogGeneEffect.csv" in res["_data_source"]
+    assert "raw" in res["_data_source"].lower()
+    assert res["_intended_derived_product"] == "depmap-paralog-buffering-per-gene-v1"
+    assert res["_data_source"] != "depmap-paralog-buffering-per-gene-v1"
+
+
+def test_fallback_ohnolog_is_none_with_reason(reader):
+    """On the fallback path the reader can't compute ohnolog (no Ensembl-Compara join), so it
+    emits strongest_paralog_ohnolog=None WITH a documented reason — never omit or fabricate."""
+    res = reader.read_target_summary("GA")               # a measured (strong) target
+    assert "strongest_paralog_ohnolog" in res
+    assert res["strongest_paralog_ohnolog"] is None
+    assert "ohnolog" in res["_paralog_ohnolog_note"].lower()
+    # also present (None) on the data_unavailable path
+    empty = reader.read_target_summary("NOSUCHGENE")
+    assert empty["strongest_paralog_ohnolog"] is None

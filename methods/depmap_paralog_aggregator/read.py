@@ -228,6 +228,94 @@ def _classify_buffering(delta: Optional[float]) -> str:
     return "none"
 
 
+# ---- Derived-product read path (preferred; 2026-08-05) -----------------------------------
+# The gene-sorted derived product depmap-paralog-buffering-per-gene-v1 carries everything the
+# live raw-CSV recompute produces PLUS the Ensembl-Compara ohnolog_flag the card declares
+# (strongest_paralog_ohnolog). It is now materialized on S3, so this is the PRIMARY read:
+# a cheap per-gene pyarrow predicate-pushdown lookup (vs parsing the 69 MB CSV live). The
+# raw-CSV recompute (_read_from_raw_csv) is retained as a graceful FALLBACK when the product
+# is unreachable (network/auth/absent) — same buffering math, minus the ohnolog annotation.
+DERIVED_PRODUCT_MANIFEST_ID = "depmap-paralog-buffering-per-gene-v1"
+
+
+def _derived_parquet_uri() -> Optional[str]:
+    """Resolve the derived product's S3 URI from the data-catalog manifest (single source of
+    truth). Returns None if the manifest is unreadable (then the reader falls back to raw CSV)."""
+    try:
+        from methods.catalog_query.read import s3_uri_for
+        return s3_uri_for(DERIVED_PRODUCT_MANIFEST_ID)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _fetch_derived_row(parquet_uri: str, gene: str) -> Optional[dict]:
+    """Pyarrow predicate-pushdown read of ONE gene row from the derived product. Returns the
+    row dict or None (target absent). Mirrors depmap_predictability.cli.fetch_predictability_row."""
+    import pyarrow.parquet as pq
+    if parquet_uri.startswith("s3://"):
+        import pyarrow.fs as pafs
+        without = parquet_uri[len("s3://"):]
+        bucket, _, key = without.partition("/")
+        fs = pafs.S3FileSystem()
+        path = f"{bucket}/{key}"
+    else:
+        fs = None
+        path = parquet_uri
+    table = pq.read_table(path, filesystem=fs,
+                          filters=[("target_gene_symbol", "=", gene.upper().strip())])
+    if table.num_rows == 0:
+        return None
+    return {col: table[col][0].as_py() for col in table.column_names}
+
+
+def _read_from_derived_product(target: str) -> Optional[dict]:
+    """Preferred read: map a derived-product row → the card's summary_fields, INCLUDING the real
+    strongest_paralog_ohnolog (from the strongest partner's ohnolog_flag). Returns:
+      - a full summary dict on success,
+      - an _empty_result('target_not_in_paralog_screens') when the gene is absent from the product,
+      - None to signal "product unreachable — caller should fall back to the raw-CSV recompute".
+    """
+    import json as _json
+    uri = _derived_parquet_uri()
+    if not uri:
+        return None
+    try:
+        row = _fetch_derived_row(uri, target)
+    except Exception:  # noqa: BLE001 — unreachable product → signal fallback (None)
+        return None
+    if row is None:
+        return _empty_result("target_not_in_paralog_screens")
+
+    try:
+        top = _json.loads(row.get("top_partners") or "[]")
+    except (ValueError, TypeError):
+        top = []
+    # Card-shaped functional_paralogs (rename product keys → card keys).
+    functional_paralogs = [{
+        "partner_gene_symbol": p.get("partner_symbol"),
+        "median_dual_ko_effect": p.get("median_dual_ko_effect"),
+        "single_ko_effect": p.get("single_ko_target"),
+        "dep_delta_paired_vs_max_single": p.get("dep_delta_paired_vs_max_single"),
+        "buffering_class": p.get("buffering_class"),
+        "ohnolog": p.get("ohnolog_flag"),
+    } for p in top]
+    # The strongest partner is the first entry (product sorts top_partners by delta desc).
+    strongest = top[0] if top else None
+    return {
+        "paralog_buffering_class": row.get("paralog_buffering_class", "data_unavailable"),
+        "n_paralogs_annotated": row.get("n_paralogs_annotated", 0),
+        "n_paralogs_functionally_buffering": row.get("n_paralogs_buffering", 0),
+        "functional_paralogs": functional_paralogs[:20],
+        "strongest_paralog_symbol": row.get("strongest_partner") or "",
+        # The card-declared field, now POPULATED from the product's Ensembl-Compara ohnolog_flag.
+        "strongest_paralog_ohnolog": (strongest.get("ohnolog_flag") if strongest else None),
+        "strongest_paralog_delta": row.get("strongest_delta"),
+        "method_version": "0.3.0",   # 0.3.0: read the derived product (real ohnolog); raw CSV = fallback
+        "_data_source": DERIVED_PRODUCT_MANIFEST_ID,
+        "_data_source_upstream": PARALOG_SOURCE_MANIFEST_ID,
+    }
+
+
 def read_target_summary(target: str, indication: str = None) -> dict:
     """Per-target paralog-buffering summary (aligned to the card + rule contract).
 
@@ -235,15 +323,32 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         target: HGNC gene symbol (paralog data keys on symbol directly).
         indication: unused (paralog buffering is indication-agnostic).
 
+    PREFERRED path: read the gene-sorted derived product depmap-paralog-buffering-per-gene-v1
+    (cheap predicate-pushdown), which carries the Ensembl-Compara ohnolog annotation. If that
+    product is unreachable, FALL BACK to recomputing from the raw ParalogGeneEffect.csv (same
+    buffering math; strongest_paralog_ohnolog is then None — the annotation lives only in the
+    product's offline Ensembl join).
+
     Returns dict with:
       - paralog_buffering_class ∈ {strong, partial, none, data_unavailable}
-        (the card's `no_paralog` maps to our target_not_in_paralog_screens →
-        data_unavailable; strong/partial/none per dep_delta thresholds)
       - n_paralogs_annotated, n_paralogs_functionally_buffering (strong or partial)
       - functional_paralogs: list<{partner_gene_symbol, median_dual_ko_effect,
-        single_ko_effect (max of the pair), dep_delta_paired_vs_max_single, buffering_class}>
-      - strongest_paralog_symbol / strongest_paralog_delta (the card's primary numeric)
+        single_ko_effect, dep_delta_paired_vs_max_single, buffering_class[, ohnolog]}>
+      - strongest_paralog_symbol / strongest_paralog_delta / strongest_paralog_ohnolog
     """
+    # 1) PREFERRED: the derived product (real ohnolog). None → product unreachable → fall back.
+    product_result = _read_from_derived_product(target)
+    if product_result is not None:
+        return product_result
+
+    # 2) FALLBACK: recompute live from the raw CSV (no ohnolog annotation available).
+    return _read_from_raw_csv(target)
+
+
+def _read_from_raw_csv(target: str) -> dict:
+    """FALLBACK read: recompute buffering live from the raw ParalogGeneEffect.csv when the
+    derived product is unreachable. strongest_paralog_ohnolog is None here (the Ensembl-Compara
+    ohnolog join exists only in the offline product build)."""
     try:
         pair_delta_index, per_gene_pair_index = _load_paralog_indexed()
     except Exception as e:
@@ -298,10 +403,24 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         "n_paralogs_functionally_buffering": n_buffering,
         "functional_paralogs": functional_paralogs[:20],
         "strongest_paralog_symbol": strongest["partner_gene_symbol"],
+        # strongest_paralog_ohnolog is None on this FALLBACK path only. The ohnolog annotation
+        # (Ensembl-Compara LCA) is produced solely by the offline product build; this raw-CSV
+        # recompute cannot derive it. The PRIMARY read (_read_from_derived_product) DOES populate
+        # it — this branch fires only when that product is transiently unreachable. Emit None +
+        # a documented reason rather than omitting the card-declared field or fabricating a value.
+        "strongest_paralog_ohnolog": None,
         "strongest_paralog_delta": strongest["dep_delta_paired_vs_max_single"],
-        "method_version": "0.2.0",   # re-derived to dep_delta_paired_vs_max_single
-        "_data_source": "depmap-paralog-buffering-per-gene-v1",
+        "method_version": "0.3.0-fallback-raw-csv",   # fallback recompute (product unreachable)
+        # PROVENANCE: this FALLBACK recomputes buffering LIVE from the RAW source CSV
+        # (ParalogGeneEffect.csv) — report exactly that, and name the derived product as the
+        # preferred source the primary path reads instead.
+        "_data_source": "depmap-consortium-26q1-paralogs/ParalogGeneEffect.csv (raw, live recompute — FALLBACK)",
         "_data_source_upstream": PARALOG_SOURCE_MANIFEST_ID,
+        "_intended_derived_product": "depmap-paralog-buffering-per-gene-v1",
+        "_paralog_ohnolog_note": (
+            "ohnolog annotation unavailable on the raw-CSV fallback path; it is populated by the "
+            "PRIMARY read from the derived product depmap-paralog-buffering-per-gene-v1. This "
+            "fallback fired because that product was unreachable at read time."),
     }
 
 
@@ -312,7 +431,8 @@ def _empty_result(note: str, n_annotated: int = 0) -> dict:
         "n_paralogs_functionally_buffering": 0,
         "functional_paralogs": [],
         "strongest_paralog_symbol": "",
+        "strongest_paralog_ohnolog": None,   # card-declared field; always present (None when unmeasured)
         "strongest_paralog_delta": None,
-        "method_version": "0.2.0",
+        "method_version": "0.2.1",
         "_data_note": note,
     }

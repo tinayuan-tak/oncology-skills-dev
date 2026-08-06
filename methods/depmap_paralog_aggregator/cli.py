@@ -48,6 +48,16 @@ ENSEMBL_PARALOG_S3_KEY = (
 ENSEMBL_CACHE_DIR = Path.home() / ".cache" / "framework-ensembl-compara"
 ENSEMBL_CACHE_TSV = ENSEMBL_CACHE_DIR / "hsapiens_paralog_subtypes_release-116.tsv"
 
+# Ensembl gene-ID -> HGNC-symbol bridge. The paralog-subtypes TSV keys the QUERY side on
+# `Gene stable ID` (an Ensembl gene id, ENSG...), NOT a symbol — only the PARTNER side carries a
+# symbol. DepMap paralog columns are HGNC symbols, so the query id must be mapped to its symbol
+# before a (query_symbol, partner_symbol) pair can be formed. The compara manifest names this
+# companion explicitly ("bridges to the HGNC symbol via ensembl-id-mapping-release-116-...").
+ENSEMBL_ID_MAP_MANIFEST_ID = "ensembl-id-mapping-release-116-snapshot-2026-06-18"
+_S3_BUCKET_IDMAP, _ENSEMBL_IDMAP_PREFIX = bucket_prefix_for(ENSEMBL_ID_MAP_MANIFEST_ID)
+ENSEMBL_ID_MAP_S3_KEY = f"{_ENSEMBL_IDMAP_PREFIX}hsapiens_gene_id_map_release-116.tsv"
+ENSEMBL_ID_MAP_CACHE_TSV = ENSEMBL_CACHE_DIR / "hsapiens_gene_id_map_release-116.tsv"
+
 METHOD_VERSION = "1.0.0"
 
 
@@ -68,37 +78,97 @@ def _ensure_ensembl_cached() -> Path | None:
         return None
 
 
+def _ensure_ensembl_id_map_cached() -> Path | None:
+    """Download the Ensembl gene-ID -> HGNC-symbol bridge TSV to local cache."""
+    ENSEMBL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if ENSEMBL_ID_MAP_CACHE_TSV.exists() and ENSEMBL_ID_MAP_CACHE_TSV.stat().st_size > 0:
+        return ENSEMBL_ID_MAP_CACHE_TSV
+    try:
+        import boto3
+        s3 = boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+        click.echo("  Downloading Ensembl gene-ID -> HGNC-symbol map...", err=True)
+        s3.download_file(_S3_BUCKET_IDMAP, ENSEMBL_ID_MAP_S3_KEY, str(ENSEMBL_ID_MAP_CACHE_TSV))
+        return ENSEMBL_ID_MAP_CACHE_TSV
+    except Exception as e:
+        click.echo(f"  WARNING: Ensembl id-map cache failed: {e} — ohnolog annotation skipped",
+                   err=True)
+        return None
+
+
+def _load_ensembl_gene_id_to_symbol() -> dict[str, str]:
+    """Ensembl `Gene stable ID` (ENSG..., no version) -> upper-cased HGNC symbol.
+
+    Reads hsapiens_gene_id_map_release-116.tsv (columns: Gene stable ID, Gene stable ID
+    version, HGNC ID, HGNC symbol, Gene name). Only rows with a non-empty HGNC symbol are
+    kept. Returns {} if the bridge is unavailable (caller then yields no ohnolog pairs)."""
+    path = _ensure_ensembl_id_map_cached()
+    if not path:
+        return {}
+    import csv
+    id2sym: dict[str, str] = {}
+    with path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            gid = (row.get("Gene stable ID") or "").strip()
+            sym = (row.get("HGNC symbol") or "").strip().upper()
+            if gid and sym:
+                id2sym[gid] = sym
+    click.echo(f"  Loaded {len(id2sym):,} Ensembl-ID -> HGNC-symbol mappings", err=True)
+    return id2sym
+
+
 def _load_ensembl_ohnolog_set() -> frozenset[tuple[str, str]]:
-    """Load the set of (GENE_A_upper, GENE_B_upper) pairs that are ohnologs.
+    """Load the set of (GENE_A_upper, GENE_B_upper) HGNC-symbol pairs that are ohnologs.
 
-    Ohnologs = vertebrate whole-genome-duplication products. The Ensembl
-    compara file has a `Paralogue last common ancestor with Human` column;
-    pairs with LCA 'Vertebrata' or earlier and conserved in fish/birds are
-    the canonical WGD ohnologs. We use LCA in
-    {'Vertebrata', 'Bilateria', 'Opisthokonta', 'Eukaryota'} as a proxy
-    (conservative — recent divergences like 'Homo sapiens' / 'Mammalia'
-    are NOT ohnologs).
+    Ohnologs = ancient whole-genome-duplication products. The compara paralog-subtypes TSV
+    columns are: `Gene stable ID` (QUERY, an Ensembl gene id — NOT a symbol),
+    `Human paralogue associated gene name` (PARTNER symbol),
+    `Human paralogue gene stable ID`, `Paralogue last common ancestor with Human` (LCA).
+    We map the query id -> HGNC symbol via the id-mapping companion, take the partner symbol
+    directly, and keep pairs whose LCA is in the ANCIENT set (proxy for WGD ancestry;
+    conservative — recent divergences like 'Homo sapiens' / 'Mammalia' / 'Primates' are NOT
+    ohnologs). ANCIENT set matches the derived manifest's declared ohnolog_lca_set plus the
+    older strata present in this release's data (Chordata/Gnathostomata/Euteleostomi are
+    vertebrate-WGD-era and correctly included; Eutheria/Amniota and later are excluded).
 
-    Returns empty frozenset if cache unavailable.
+    Returns empty frozenset if either the paralog TSV or the id->symbol bridge is unavailable.
     """
     path = _ensure_ensembl_cached()
     if not path:
         return frozenset()
+    id2sym = _load_ensembl_gene_id_to_symbol()
+    if not id2sym:
+        click.echo("  WARNING: Ensembl-ID->symbol bridge empty — ohnolog annotation skipped",
+                   err=True)
+        return frozenset()
 
     import csv
+    # WGD-era ancestry (Vertebrata-2R and older). Anything younger than the jawed-vertebrate
+    # radiation (Euteleostomi/Gnathostomata/Vertebrata/Chordata + the deep pan-eukaryotic strata)
+    # is treated as an ohnolog-era divergence; Eutheria and later placental/primate strata are not.
+    ANCIENT_LCAS = {
+        "Vertebrata", "Chordata", "Gnathostomata", "Euteleostomi",   # vertebrate 2R-WGD era
+        "Bilateria", "Opisthokonta", "Eukaryota", "Unikonta",        # deep pan-eukaryotic
+    }
+    n_query_unmapped = 0
     ohnolog_pairs: set[tuple[str, str]] = set()
-    ANCIENT_LCAS = {"Vertebrata", "Bilateria", "Opisthokonta", "Eukaryota",
-                    "Unikonta", "Opisthokonta"}
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            query_sym = (row.get("Gene name") or "").strip().upper()
+            gid = (row.get("Gene stable ID") or "").strip()
             partner_sym = (row.get("Human paralogue associated gene name") or "").strip().upper()
             lca = (row.get("Paralogue last common ancestor with Human") or "").strip()
-            if query_sym and partner_sym and lca in ANCIENT_LCAS:
-                pair = tuple(sorted([query_sym, partner_sym]))
-                ohnolog_pairs.add(pair)
-    click.echo(f"  Loaded {len(ohnolog_pairs):,} ohnolog pairs from Ensembl compara", err=True)
+            if not gid or not partner_sym or lca not in ANCIENT_LCAS:
+                continue
+            query_sym = id2sym.get(gid)
+            if not query_sym:
+                n_query_unmapped += 1
+                continue
+            if query_sym == partner_sym:
+                continue
+            ohnolog_pairs.add(tuple(sorted([query_sym, partner_sym])))
+    click.echo(f"  Loaded {len(ohnolog_pairs):,} ohnolog pairs from Ensembl compara "
+               f"({n_query_unmapped:,} query rows had no HGNC symbol)", err=True)
     return frozenset(ohnolog_pairs)
 
 
