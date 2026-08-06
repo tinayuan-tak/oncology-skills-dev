@@ -1,0 +1,99 @@
+"""depmap_cn_dependency.compute_cn_stratification — hermetic (synthetic chronos + CN, no S3).
+
+Mirrors depmap_mutation_dependency's stratification test shape but for the CN vector. Pins the
+three decisive classifications: amplified lines cleanly more dependent → amplified_*_dependent;
+no separation → not_cn_stratified; too few amplified lines → insufficient_amplification_rate.
+Amplified boolean = relative CN > FOCAL_AMP (1.5); neutral = everything else (broad comparator).
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[3]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from methods.depmap_cn_dependency.cli import compute_cn_stratification, FOCAL_AMP  # noqa: E402
+
+
+def _panel(amp_chronos, neutral_chronos, amp_cn=3.0, neutral_cn=1.0):
+    """Build (chronos_by_model, cn_by_model) with N amplified + M neutral lines.
+    amp_cn > FOCAL_AMP (amplified), neutral_cn <= FOCAL_AMP (neutral)."""
+    chronos, cn = {}, {}
+    i = 0
+    for c in amp_chronos:
+        m = f"ACH-{i:05d}"; chronos[m] = c; cn[m] = amp_cn; i += 1
+    for c in neutral_chronos:
+        m = f"ACH-{i:05d}"; chronos[m] = c; cn[m] = neutral_cn; i += 1
+    return chronos, cn
+
+
+def test_amplified_strongly_dependent():
+    """Amplified lines deeply dependent (~-1.2), neutral not (~0) → delta <= -0.5 + significant
+    → amplified_strongly_dependent (the ERBB2-class signal this slice exists to capture)."""
+    import random
+    rng = random.Random(0)
+    amp = [-1.2 + rng.uniform(-0.1, 0.1) for _ in range(40)]
+    neutral = [-0.05 + rng.uniform(-0.1, 0.1) for _ in range(300)]
+    chronos, cn = _panel(amp, neutral)
+    s = compute_cn_stratification(chronos, cn)
+    assert s["cn_stratification_class"] == "amplified_strongly_dependent"
+    assert s["delta_chronos_amplified_vs_neutral"] <= -0.5
+    assert s["n_amplified"] == 40 and s["n_neutral"] == 300
+    assert s["amplification_threshold_relative_cn"] == FOCAL_AMP
+
+
+def test_not_cn_stratified_when_no_separation():
+    """Amplified + neutral both near 0 → no dependency difference → not_cn_stratified
+    (the method must NOT fabricate a CN signal, e.g. the MET/EGFR live result)."""
+    import random
+    rng = random.Random(1)
+    amp = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(40)]
+    neutral = [0.0 + rng.uniform(-0.08, 0.08) for _ in range(300)]
+    chronos, cn = _panel(amp, neutral)
+    s = compute_cn_stratification(chronos, cn)
+    assert s["cn_stratification_class"] == "not_cn_stratified"
+
+
+def test_moderate_tier():
+    """A modest but real separation (delta ~ -0.3) → amplified_moderately_dependent (ERBB2/MYC live)."""
+    import random
+    rng = random.Random(2)
+    amp = [-0.35 + rng.uniform(-0.08, 0.08) for _ in range(50)]
+    neutral = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(300)]
+    chronos, cn = _panel(amp, neutral)
+    s = compute_cn_stratification(chronos, cn)
+    assert s["cn_stratification_class"] == "amplified_moderately_dependent"
+    assert -0.5 < s["delta_chronos_amplified_vs_neutral"] <= -0.2
+
+
+def test_insufficient_amplification_rate():
+    """Fewer than min_amplified (5) amplified lines → insufficient_amplification_rate, never a call
+    off an underpowered amplified group."""
+    import random
+    rng = random.Random(3)
+    amp = [-1.2, -1.1, -1.3]  # only 3 amplified
+    neutral = [0.0 + rng.uniform(-0.08, 0.08) for _ in range(300)]
+    chronos, cn = _panel(amp, neutral)
+    s = compute_cn_stratification(chronos, cn)
+    assert s["cn_stratification_class"] == "insufficient_amplification_rate"
+
+
+def test_neutral_more_dependent_is_never_mislabeled_amplified_dependent():
+    """Inverse: neutral lines MORE dependent than amplified. The reused Mann-Whitney is ONE-SIDED
+    ("amplified more dependent"), so this pattern yields a non-significant one-sided p → the class is
+    `not_cn_stratified` (NOT amplified_*_dependent). The key guarantee: amplification is NEVER
+    credited with a dependency it doesn't have. (The `neutral_strongly_dependent` branch is a faithful
+    mirror of the mutation path's wt_strongly_dependent but, like it, is effectively unreachable under
+    a one-sided-less test — kept for parity, harmless.)"""
+    import random
+    rng = random.Random(4)
+    amp = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(40)]
+    neutral = [-0.6 + rng.uniform(-0.1, 0.1) for _ in range(300)]
+    chronos, cn = _panel(amp, neutral)
+    s = compute_cn_stratification(chronos, cn)
+    assert s["cn_stratification_class"] == "not_cn_stratified"
+    assert s["cn_stratification_class"] not in ("amplified_strongly_dependent",
+                                                "amplified_moderately_dependent")
+    assert s["delta_chronos_amplified_vs_neutral"] > 0   # neutral more dependent → positive delta
