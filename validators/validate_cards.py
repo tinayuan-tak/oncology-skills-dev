@@ -194,6 +194,7 @@ KNOWN_FIGURE_DEBT = {
     'paralog-buffering', 'subgroup-stratified-mutation-frequency',
     'synthetic-lethal-partners',   # figure backfill deferred (viz-debt queue)
     'subgroup-stratified-dependency', 'subgroup-stratified-expression',
+    'copy-number-stratified-dependency',   # A1a (2026-08-06) — amp-vs-neutral strip emitter deferred (viz-debt queue)
     # surface tier + shed:
     'shed-ectodomain-liability', 'surface-topology-and-ptm',
     'surfaceome-family-classification', 'surfaceome-cohort-ranking',

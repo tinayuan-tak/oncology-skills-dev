@@ -1,0 +1,114 @@
+# Card E3.cn — COPY-NUMBER-STRATIFIED DEPENDENCY  (pure-data, target-only)
+#
+# The copy-number analog of mutation-stratified-dependency (Card E3.mut): does dependency on
+# {target} stratify by {target}'s OWN amplification status across the cell-line panel? Drives the
+# amplification-addiction biomarker hypothesis (amplified cells strongly dependent ↔ copy-number-
+# stratified strategy) — the class the mutation-only stratified path MISSES for amplification-driven
+# oncogenes (ERBB2, MYC, MET-amp).
+#
+# DECOUPLED FROM INDICATION (Decision 2A, mirrors E3.mut): evaluates the FULL DepMap panel;
+# per-indication amplification prevalence is a downstream synthesis question. One evidence package
+# per target serves all indications.
+#
+# Demonstration cases (live-verified 26Q1):
+#   - ERBB2: HER2-amplified cells more dependent → amplified_moderately_dependent (delta -0.31, q=3.5e-11)
+#   - MYC:   amplified cells more dependent → amplified_moderately_dependent (delta -0.24)
+#   - MET:   dependency is exon14-skip/fusion-driven, NOT amplification → not_cn_stratified (delta +0.02)
+#
+# Single-tier CN grouping (unlike E3.mut's hotspot/damaging/any tiers — one CN vector):
+#   - AMPLIFIED: relative CN > FOCAL_AMP (1.5) — the DepMap-side focal-amplification convention
+#   - NEUTRAL (comparator): everything NOT amplified (broad — the faithful mirror of E3.mut's
+#     WT = "everything not mutant")
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from Card 1+2 loader)
+#   - OmicsCNGeneMC_WES.csv (relative CN, primary; WGS fallback for off-WES-panel genes)
+#   - ModelCondition.csv (ModelConditionID → ModelID bridge, applied by the CN loader)
+
+card_id: copy-number-stratified-dependency
+version: 1.0.0
+question: "Is dependency on {target.symbol} stratified by {target.symbol}'s own copy-number amplification status across the DepMap panel? (Amplification-addiction biomarker hypothesis.)"
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-cn-stratified
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel-wide context (target-only) ===
+    - n_cell_lines_evaluated                   # cells with BOTH Chronos AND CN coverage
+    # === Amplification stratification (amplification-addiction signal) ===
+    - n_amplified                              # cells with relative CN > amplification_threshold
+    - n_neutral                                # cells not amplified (within evaluated set)
+    - median_chronos_amplified
+    - median_chronos_neutral
+    - delta_chronos_amplified_vs_neutral       # amplified - neutral (negative = amplified more dependent)
+    - cn_stratification_mannwhitney_p
+    - cn_stratification_mannwhitney_q          # single test → q == p (no multi-tier BH)
+    - cn_stratification_effect_size            # rank-biserial correlation
+    - amplification_threshold_relative_cn      # the FOCAL_AMP cutoff used (provenance)
+    # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
+    - cn_stratification_class
+
+  summary_fields_vocabulary:
+    cn_stratification_class:
+      - amplified_strongly_dependent           # amplified median chronos significantly < neutral (delta <= -0.5); amplification-addiction
+      - amplified_moderately_dependent         # significant but smaller effect (delta <= -0.2)
+      - neutral_strongly_dependent             # neutral cells more dependent (rare; one-sided test rarely reaches this — see caveat)
+      - not_cn_stratified                      # no significant amplified-vs-neutral difference
+      - insufficient_amplification_rate        # <min_amplified_cells carry amplification; test underpowered
+      - data_unavailable
+
+  figures:
+    - id: amp_vs_neutral_strip
+      type: cn_stratified_strip
+      description: "Per-cell-line Chronos strip plot split into Amplified (relative CN > 1.5) / Neutral groups. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_cell_line_chronos_with_cn_status
+
+thresholds:
+  # Sample-size discipline — Mann-Whitney meaningless below these (mirror E3.mut)
+  min_amplified_cells: 5
+  min_neutral_cells: 30
+  # Amplification cutoff (DepMap relative-CN convention; diploid ~ 1.0, NOT log2)
+  amplification_threshold: 1.5                 # FOCAL_AMP — reused from depmap_cn_distribution
+  # Significance + effect-size cutoffs (identical to E3.mut)
+  stratification_alpha: 0.05                   # q
+  strong_effect_delta: -0.5                    # amplified median >= 0.5 lower than neutral = strong
+  moderate_effect_delta: -0.2                  # >= 0.2 lower = moderate
+
+warning_predicates:
+  - warning_id: rare_amplification
+    if: "n_amplified < 10"
+    message: "Fewer than 10 amplified cell lines; amplification-stratification estimate has wide CI. Interpret cn_stratification_class cautiously."
+  - warning_id: significant_but_small_effect
+    if: "cn_stratification_mannwhitney_q < 0.05 && delta_chronos_amplified_vs_neutral > -0.2"
+    message: "Amplified-vs-neutral difference is statistically significant but sub-threshold in effect size (delta > -0.2) — at panel n, small deltas reach significance; not classified as stratified (significance != actionable effect)."
+
+caveats:
+  - "Amplification status = DepMap relative copy number > 1.5 (focal-amp convention; diploid ~ 1.0, NOT log2). Does not distinguish focal from arm-level/broad amplification."
+  - "Mann-Whitney is one-sided (alternative: amplified more dependent). Neutral-more-dependent patterns rarely surface as `neutral_strongly_dependent` under the one-sided test — a non-significant one-sided p correctly yields `not_cn_stratified` (amplification is never credited with a dependency it lacks)."
+  - "Amplification and mutation stratification are NOT independent — an amplified target is often also mutant/co-selected (e.g. KRAS). When both stratify, the resolver's mutation rung takes precedence (driving_rule names the mutation path)."
+  - "Cell-line amplification-stratified dependency is necessary but NOT sufficient for a clinical biomarker — needs orthogonal validation (PDX, isogenic, patient copy-number)."
+  - "Strict 'is the target amplified' boolean at a single relative-CN cutoff — does not model amplicon structure, co-amplified neighbours, or expression consequence. Those are downstream questions (see the amp→expression→dependency three-way signature)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `cn_stratified_dependency` claim (is
+# dependency stratified by the target's own amplification status?), derived_from
+# [copy_number_alteration, crispr_lof_dependency]. The CN analog of mutation_stratified_dependency;
+# copy_number_alteration is the per-line relative-CN input (the copy-number-distribution card's type),
+# crispr_lof_dependency the Chronos requirement. Both co-resident in DepMap; a type→type edge.
+measurement_type: cn_stratified_dependency
+# P4: declaration-only routing key — amplification-addiction biomarker → SM/degrader efficacy stratifier.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

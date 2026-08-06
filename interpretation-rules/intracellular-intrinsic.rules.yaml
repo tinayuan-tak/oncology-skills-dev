@@ -390,6 +390,38 @@ rules:
       Supportive but not dominant on its own; biomarker hypothesis viable but needs
       stronger orthogonal evidence (PDX, isogenic-model rescue) before clinical strategy.
 
+  # A1a (2026-08-06): copy-number analogs of the two mutation-stratified rules above. The CN card
+  # (copy-number-stratified-dependency) is the amplification sibling; these rules fire the SAME
+  # biomarker_stratified_dependency verdict in genomic_alteration.resolver.yaml (no new verdict,
+  # no gate change). Closes the amplification-driven-oncogene gap the mutation-only path missed.
+  - rule_id: cn-amplified-strongly-dependent-supportive
+    when:
+      card_id: copy-number-stratified-dependency
+      field: cn_stratification_class
+      equals: amplified_strongly_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Amplified cells significantly + strongly more dependent than non-amplified (q < α,
+      |delta| >= 0.5). Amplification-addiction biomarker — supports a copy-number-stratified
+      strategy. The copy-number analog of oncogene-addiction; the class the mutation-only
+      stratified path misses for amplification-driven oncogenes (ERBB2, MYC).
+
+  - rule_id: cn-amplified-moderately-dependent-supportive
+    when:
+      card_id: copy-number-stratified-dependency
+      field: cn_stratification_class
+      equals: amplified_moderately_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Significant amplified-vs-neutral stratification but smaller effect size (-0.2 to -0.5).
+      Supportive but not dominant on its own; the amplification-addiction hypothesis is viable
+      but needs stronger orthogonal evidence. Live example: ERBB2 (delta -0.31), MYC (-0.24).
+
   - rule_id: wt-strongly-dependent-neutral
     when:
       card_id: mutation-stratified-dependency

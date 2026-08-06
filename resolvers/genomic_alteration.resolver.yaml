@@ -65,6 +65,16 @@ resolve:
   - {verdict: recurrent_lof_driver,            when_fired: mut-lof-dominant-supportive}
   - {verdict: recurrent_missense_driver,       when_fired: mut-missense-dominant-supportive}
 
+  # (2b) CN-STRATIFIED DEPENDENCY (A1a, 2026-08-06). Amplified cells Chronos-proven more dependent —
+  #      the copy-number analog of the mut-stratified rescue above. REUSES the SAME
+  #      biomarker_stratified_dependency / moderate_biomarker_dependency verdicts (so
+  #      nomination_verdict_gate.yaml is unchanged; distinct driving_rule_id preserves auditability).
+  #      Placed AFTER the mut single-driver rungs (mutation wins first-match when both fire — e.g.
+  #      KRAS amp+mut → driving_rule names the mutation path) and BEFORE the CN-ONLY rungs below (a
+  #      Chronos-proven amplification DEPENDENCY outranks a bare CN-landscape driver with no dep test).
+  - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
+
   # (3) CN-ONLY (cn drives, mutation not a driver) — amplified before deleted (first-match parity).
   - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
   - {verdict: recurrent_deletion_driver,       when_fired: cn-recurrently-deleted-supportive}
