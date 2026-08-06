@@ -133,6 +133,97 @@ rules:
       level rubric grades.
 
   # ============================================================================
+  # F1b — ECD-engineerability (biologics-augment Phase 3.1, 2026-08-06)
+  # ============================================================================
+  # Makes the extracellular-domain SIZE a first-class biologics-substrate signal, keyed on the
+  # DERIVED `ecd_engineerability_class` (surface-topology-and-ptm card; from extracellular_residue_
+  # count + topology_class). Mirrors biologics-target-discovery's TopologyECDProvider: "is the
+  # exposed surface large enough to engineer a binder against?" — and, crucially, treats a LARGE ECD
+  # as a TCE-FAVORABLE substrate positive, not only an ADC epitope-accessibility gate (the card's
+  # prior framing). ADDITIVE signal-only: no resolver rung (surface_modality resolves off
+  # adc-tce-modality-fit.fit_class) → the verdict is byte-stable; these enrich the surface signal set.
+  # Complementary to topology_class rules (which key on TM count/orientation) — ECD SIZE is orthogonal
+  # to pass-count: a single-pass protein can still have a tiny (minimal) or ample (large) ectodomain.
+
+  - rule_id: ecd-large-biologics-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: large_ecd
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Large extracellular domain (>= 200 AA, extracellular-facing) — ample epitope area for
+      antibody engagement AND a strong bispecific-binder substrate. Supportive across all
+      antibody-based modalities. This is the ECD-SIZE argument, orthogonal to TM pass-count: a
+      large exposed ectodomain is the raw material a biologic is engineered against (the
+      TopologyECDProvider "engineerable surface" signal). Important importance for ADC/TCE.
+
+  - rule_id: ecd-moderate-biologics-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: moderate_ecd
+    signals:
+      adc: neutral
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Moderate extracellular domain (30-199 AA, extracellular-facing) — engineerable: there is a
+      real ectodomain to raise a binder against (TCE / antibody supportive). Neutral (not
+      supportive) for ADC, whose epitope-accessibility floor is higher (the card's
+      min_ecd_length_adc_favorable = 200) — a moderate ECD is bindable but the ADC epitope area is
+      constrained. Not a hard-kill; an affinity-tuned antibody can still work.
+
+  - rule_id: ecd-minimal-biologics-opposing
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: minimal_ecd
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Minimal extracellular domain (< 30 AA, extracellular-facing) — too small to reliably
+      engineer a binder against, even though the protein IS surface-anchored. Opposing (NOT killer)
+      for all antibody modalities: the target has a membrane anchor but effectively no bindable
+      ectodomain (the classic multi-pass small-loop case, e.g. tiny GPCR/transporter loops).
+      Secondary importance — a real negative, but epitope-accessibility can occasionally be
+      rescued by a conformational / loop-specific binder, so it de-prioritizes rather than vetoes.
+
+  - rule_id: ecd-none-biologics-opposing
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: no_extracellular_domain
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      No accessible extracellular domain — either no transmembrane segment (secreted /
+      intracellular) or the longest domain faces the cytoplasm. There is no extracellular target
+      for an antibody-based biologic to engage. Opposing at important importance (the topology_class
+      no-transmembrane KILLER already hard-vetoes the 0-TM case; this ECD-orientation rule catches
+      the inside-facing-ECD variant that topology_class alone may not, and stays `opposing` to avoid
+      double-killing). data_unavailable emits NO rule (coverage gap, abstain — surfaced, not scored).
+
+  # ============================================================================
   # F2 — Surfaceome-family-classification card
   # ============================================================================
 
