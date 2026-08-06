@@ -1280,6 +1280,59 @@ rules:
   # (possibly the wrong cohort for the target's biology — DLL3/SCLC) or a missing cohort is a coverage
   # gap, surfaced by the card's warnings, NOT scored as a modality negative (cohort-honesty).
 
+  # ============================================================================
+  # N — Tumor immune context / EFFECTOR arm (biologics-augment, 2026-08-06)
+  # ============================================================================
+  # Keyed on immune_context_class (immune-context card; CIBERSORT LM22 CD8 T-cell infiltration). The
+  # EFFECTOR half of the biologics story: a T-cell engager can only work where T cells are PRESENT to
+  # redirect — orthogonal to surface-antigen presence. Signals bite_tce ONLY (an ADC is payload-
+  # independent of T cells, so immune context does not gate it). ADDITIVE signal-only: no
+  # surface_modality resolver rung → the surface-modality verdict is byte-stable; the immune-context
+  # SKILL resolves its own effector verdict from these fired rules. data_unavailable fires no rule.
+
+  - rule_id: immune-context-hot-tce-supportive
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: immune_hot
+    signals:
+      bite_tce: supportive
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Immune-HOT indication (CD8 T-cell fraction at/above the pan-cancer 75th percentile — SKCM-like).
+      An ample effector population is present for a T-cell engager to redirect. Supportive (important)
+      for bite_tce — this is the effector prerequisite a TCE program depends on, independent of how
+      clean the surface antigen is. Not an ADC signal (ADC payload is T-cell-independent).
+
+  - rule_id: immune-context-intermediate-tce-neutral
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: immune_intermediate
+    signals:
+      bite_tce: neutral
+    rationale: |
+      Intermediate immune context (CD8 fraction between the pan-cancer 25th and 75th percentiles —
+      most carcinomas, e.g. COADREAD/NSCLC/PAAD). An effector population exists but is not richly
+      inflamed; neutral for bite_tce — neither a green light nor a program-killer on the effector axis.
+
+  - rule_id: immune-context-cold-tce-opposing
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: immune_cold
+    signals:
+      bite_tce: opposing
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Immune-COLD indication (CD8 fraction at/below the pan-cancer 25th percentile — T-cell-excluded /
+      desert). A T-cell engager has few effector cells to redirect — a first-order TCE efficacy risk
+      regardless of surface-antigen quality. Opposing (important), NOT killer: TME-conditioning
+      combinations or a switch to an ADC (T-cell-independent payload) can still make the target viable.
+      data_unavailable fires nothing (abstain — never a false cold).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================

@@ -827,6 +827,18 @@ measurement_types:
     providers:
       - {kind: dataset, source: tcga-gtex-tpm-tissue-quantiles-v1, method: modality_therapeutic_window, evidence_tier: measured}
 
+  immune_context:
+    # biologics-augment effector arm (2026-08-06): tumor T-cell infiltration (immune-hot vs cold) from
+    # CIBERSORT LM22 per-sample leukocyte composition. The EFFECTOR half of the TCE story — orthogonal
+    # to surface-antigen presence (a T-cell engager needs BOTH a target AND T cells to redirect). v1 is
+    # per-indication / target-independent; antigen-conditioned join is a deferred v2 facet.
+    modality_relevance: [bite_tce]
+    claim: "Is the tumor immune-hot or immune-cold — is there a CD8 T-cell effector population for a T-cell engager to redirect?"
+    entity_grains: [target_indication]
+    cards: [immune-context]
+    providers:
+      - {kind: dataset, source: gdc-pancanatlas-immune-2018, method: immune_context, evidence_tier: measured}
+
   adc_tce_modality_fit:
     claim: "Which biologic modalities (ADC / TCE / both / neither) are viable candidates for target?"
     entity_grains: [target]

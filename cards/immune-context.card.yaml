@@ -1,0 +1,87 @@
+# Card — TUMOR IMMUNE CONTEXT (effector arm; v1)
+#
+# The EFFECTOR arm of the biologics story (IO-target-ID seed note method #2). A T-cell engager
+# redirects cytotoxic T cells to the antigen, so it can only work where T cells are PRESENT to be
+# redirected. Surface-antigen presence (surface-modality-fit) answers "is there a target?"; THIS card
+# answers the orthogonal "is there an effector population?" — immune-hot vs immune-cold.
+#
+# v1 is per-indication, target-INDEPENDENT (the immune landscape of the indication), from CIBERSORT
+# LM22 per-sample leukocyte composition (Thorsson 2018 / gdc-pancanatlas-immune-2018). The sharper
+# antigen-CONDITIONED read (are the ANTIGEN-HIGH patients also T-cell-high?) is a deferred v2 facet —
+# it needs a per-sample antigen-expression join on TCGA barcode (a sample-id-join trap).
+#
+# Interpretation surface (immune_context_class is PRIMARY):
+#   immune_hot          → CD8 T-cell fraction >= pan-cancer Q3 — ample effector pool, TCE-favorable
+#   immune_intermediate → between pan-cancer Q1 and Q3
+#   immune_cold         → CD8 fraction <= pan-cancer Q1 — T-cell-excluded/desert, TCE efficacy at risk
+#   data_unavailable    → indication not in CIBERSORT / no TCGA study (abstain, never a false 'cold')
+
+card_id: immune-context
+version: 1.0.0
+question: "For {indication.label}, is the tumor immune-hot or immune-cold — is there a CD8 T-cell effector population present for a T-cell engager to redirect?"
+
+tier: indication   # the per-indication immune landscape; target-independent (v1). Antigen-conditioned = v2.
+
+applies_when:
+  # needs the indication to map to a TCGA study present in the CIBERSORT CancerType vocabulary.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC', 'GBM', 'LGG', 'SARC']"
+
+required_inputs:
+  - product_id: gdc-pancanatlas-immune-2018   # CIBERSORT LM22 per-sample leukocyte composition (Thorsson 2018)
+
+methods:
+  - call: immune-context
+    args:
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - immune_context_class                       # PRIMARY categorical
+    - median_cd8_fraction                        # median CD8 T-cell fraction of the leukocyte pool
+    - median_total_t_cell_fraction               # median summed T-cell (CD8+CD4+Treg+gd) fraction
+    - n_samples                                  # CIBERSORT samples in the indication's TCGA study/studies
+    - tumor_studies                              # TCGA study code(s) pooled
+
+  summary_fields_vocabulary:
+    immune_context_class:
+      - immune_hot                               # CD8 fraction >= pan-cancer Q3 (TCE-favorable effector pool)
+      - immune_intermediate                      # between Q1 and Q3
+      - immune_cold                              # CD8 fraction <= pan-cancer Q1 (T-cell-excluded)
+      - data_unavailable                         # no CIBERSORT coverage / no TCGA study (abstain)
+
+  figure: immune_context_leukocyte_composition
+
+thresholds:
+  # anchored to the pan-cancer across-study CD8-fraction distribution (33 TCGA studies), linear fraction.
+  cd8_fraction_hot_min: 0.113                    # pan-cancer Q3
+  cd8_fraction_cold_max: 0.084                   # pan-cancer Q1
+
+warning_predicates:
+  - warning_id: immune_cold_tce_efficacy_risk
+    if: "immune_context_class == 'immune_cold'"
+    message: "{indication.label} is immune-COLD (CD8 fraction <= pan-cancer 25th pctile). A T-cell engager needs an effector pool to redirect — a T-cell-excluded tumor is a first-order TCE efficacy risk however clean the antigen. Consider TME-conditioning combos or an ADC (T-cell-independent payload)."
+
+caveats:
+  - |
+    v1 is target-INDEPENDENT: the immune landscape of the INDICATION, not conditioned on the target
+    antigen. The sharper question — are the ANTIGEN-HIGH patients also T-cell-high? — is a deferred v2
+    facet (needs a per-sample antigen-expression join on TCGA barcode). Read v1 as the baseline effector
+    context for the indication, not a per-target claim.
+  - |
+    CIBERSORT LM22 gives RELATIVE leukocyte fractions (composition of the immune compartment), not
+    absolute infiltrate density. A high CD8 FRACTION in a lymphocyte-poor tumor is fewer absolute CD8
+    cells than the same fraction in a lymphocyte-rich tumor. The class is a relative-composition screen;
+    pair with an absolute-infiltrate or IHC read before a hard immune-cold call.
+  - |
+    Bulk deconvolution (CIBERSORT on bulk RNA-seq) estimates composition; it does not resolve spatial
+    exclusion (T cells present but stroma-restricted, not tumor-infiltrating). Spatial / single-cell
+    confirms whether CD8 cells actually contact tumor cells — a documented next layer.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the DERIVED `immune_context` claim (tumor T-cell infiltration
+# / immune-hot-vs-cold). The EFFECTOR arm — orthogonal to surface-antigen presence; a TCE needs both.
+measurement_type: immune_context
+# P4 modality routing: immune context gates the T-cell-REDIRECTING modality (bite_tce); an ADC is
+# payload-independent of T cells, so this is bite_tce-relevant (not adc).
+modality_relevance: [bite_tce]
+entity_grains: [target_indication]
+schema_version: 1
