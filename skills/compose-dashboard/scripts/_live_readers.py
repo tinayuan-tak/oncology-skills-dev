@@ -1226,6 +1226,31 @@ def _dispatch_shed_ectodomain_liability(target: str, indication: str) -> Optiona
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_immune_context(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: immune-context card -> tumor T-cell infiltration (EFFECTOR arm) via
+    methods/immune_context. Merges the per-indication class (read_immune_context - v1, target-
+    independent) with the antigen-CONDITIONED facet (read_antigen_conditioned - v2, T-cells among
+    ANTIGEN-HIGH patients; barcode<->UUID join guarded by a coverage floor). The primary
+    immune_context_class is the per-indication call; the antigen_conditioned_* fields are an additive
+    per-target facet (data_unavailable when the join is too thin or the target has no per-sample TPM).
+    A TCE needs BOTH a surface antigen AND an effector pool - this is the effector half.
+    """
+    mod = _import_method("immune_context")
+    out = dict(mod.read_immune_context(indication=indication))
+    try:
+        from methods.immune_context.antigen_conditioned import read_antigen_conditioned
+        ac = read_antigen_conditioned(target, indication)
+        for k in ("antigen_conditioned_call", "cd8_fraction_antigen_high", "cd8_fraction_antigen_low",
+                  "cd8_high_minus_low", "antigen_high_immune_context_class", "join_fraction",
+                  "n_patients_joined"):
+            if k in ac:
+                out[k] = ac[k]
+    except Exception as e:  # noqa: BLE001 - v1 class stands even if the v2 join is unavailable
+        out["antigen_conditioned_call"] = "data_unavailable"
+        out["_antigen_conditioned_note"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "tumor-rna-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
@@ -1288,6 +1313,7 @@ CARD_DISPATCHERS = {
     "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
     "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # P5 follow-on (ClinVar germline-pathogenic, verdict-moving)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
+    "immune-context": _dispatch_immune_context,
     "cellline-protein-abundance": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
     "synthetic-lethal-partners": _dispatch_synthetic_lethal_partners,
