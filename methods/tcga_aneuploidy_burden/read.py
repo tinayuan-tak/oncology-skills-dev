@@ -17,6 +17,15 @@ S3_BUCKET = "onc-compbio"
 PANCAN_PREFIX = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"
 SEG_SCORES_KEY = f"{PANCAN_PREFIX}/seg_based_scores.tsv"
 SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
+# ABSOLUTE per-sample purity/ploidy/genome-doublings (the WGD source — sibling of seg_based_scores
+# in the SAME PanCanAtlas snapshot). `array` = sample-level barcode (TCGA-OR-A5J1-01), joined to
+# cancer type via the same _barcode_to_patient truncation + merged_sample_quality_annotations.
+ABSOLUTE_KEY = f"{PANCAN_PREFIX}/TCGA_mastercalls.abs_tables_JSedit.fixed.txt"
+# Cohort WGD-prevalence class cutoffs on the FRACTION of samples with >=1 genome doubling
+# (Genome doublings >= 1). Pan-cancer WGD prevalence is ~30-40% (Bielski 2018); a cohort well
+# above that is WGD-enriched, well below is WGD-rare.
+_WGD_HIGH_FRACTION = 0.50
+_WGD_LOW_FRACTION = 0.20
 
 # framework indication → TCGA `cancer type` code(s) in merged_sample_quality_annotations
 # (mirrors functional_gene_state.INDICATION_TO_TCGA; kept local to avoid cross-method coupling).
@@ -74,6 +83,82 @@ def _load_seg_scores():
         return pd.read_csv(io.BytesIO(raw), sep="\t")
     except Exception:  # noqa: BLE001
         return pd.DataFrame()
+
+
+@lru_cache(maxsize=1)
+def _load_absolute():
+    """ABSOLUTE abs_tables → DataFrame (array=sample barcode, purity, ploidy, Genome doublings, …).
+    The WGD/ploidy source. Empty on failure."""
+    import pandas as pd
+    try:
+        raw = _s3_read_bytes(ABSOLUTE_KEY)
+        return pd.read_csv(io.BytesIO(raw), sep="\t")
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def _classify_wgd(wgd_fraction: Optional[float]) -> str:
+    if wgd_fraction is None:
+        return "data_unavailable"
+    if wgd_fraction >= _WGD_HIGH_FRACTION:
+        return "wgd_enriched"
+    if wgd_fraction <= _WGD_LOW_FRACTION:
+        return "wgd_rare"
+    return "wgd_intermediate"
+
+
+def wgd_summary_for_indication(indication: str) -> dict:
+    """Per-indication whole-genome-doubling (WGD) prevalence + ploidy summary from PanCanAtlas
+    ABSOLUTE. Cohort-level, target-independent (genome-wide phenotype — sibling of the aneuploidy
+    burden). Returns wgd_class {wgd_enriched / wgd_intermediate / wgd_rare / data_unavailable},
+    the WGD fraction (samples with >=1 genome doubling), median ploidy + purity, n_samples.
+    data_unavailable when the file/indication is unresolvable."""
+    import numpy as np
+    codes = INDICATION_TO_TCGA.get(str(indication or "").upper().strip())
+    if not codes:
+        return _wgd_unavailable(f"no TCGA project mapping for indication={indication!r}")
+    absol = _load_absolute()
+    if absol is None or absol.empty or "Genome doublings" not in absol.columns:
+        return _wgd_unavailable("ABSOLUTE abs_tables unavailable")
+    cancer = _load_sample_cancer_types()
+    if not cancer:
+        return _wgd_unavailable("sample→cancer-type annotation unavailable")
+
+    df = absol.copy()
+    df["_patient"] = df["array"].map(_barcode_to_patient)
+    df["_ctype"] = df["_patient"].map(cancer)
+    sub = df[df["_ctype"].isin(set(codes))]
+    gd = sub["Genome doublings"].dropna().astype(float)
+    if len(gd) == 0:
+        return _wgd_unavailable(f"no ABSOLUTE samples for {indication} ({codes})")
+
+    wgd_fraction = float((gd >= 1).mean())
+    ploidy = sub["ploidy"].dropna().astype(float) if "ploidy" in sub.columns else np.array([])
+    purity = sub["purity"].dropna().astype(float) if "purity" in sub.columns else np.array([])
+    return {
+        "wgd_class": _classify_wgd(wgd_fraction),
+        "wgd_fraction": wgd_fraction,
+        "n_wgd_samples": int((gd >= 1).sum()),
+        "median_ploidy": float(np.median(ploidy)) if len(ploidy) else None,
+        "median_purity": float(np.median(purity)) if len(purity) else None,
+        "n_samples": int(len(gd)),
+        "wgd_context": (
+            f"{indication}: {wgd_fraction:.0%} of {len(gd)} PanCanAtlas ABSOLUTE samples carry "
+            f">=1 whole-genome doubling (median ploidy "
+            f"{('%.1f' % np.median(ploidy)) if len(ploidy) else 'n/a'}); cohort-level, "
+            f"target-independent genome-state context"
+        ),
+        "method_version": "0.2.0",
+        "_data_source": "gdc-pancanatlas-cnv-2018",
+    }
+
+
+def _wgd_unavailable(note: str) -> dict:
+    return {
+        "wgd_class": "data_unavailable", "wgd_fraction": None, "n_wgd_samples": 0,
+        "median_ploidy": None, "median_purity": None, "n_samples": 0,
+        "wgd_context": None, "method_version": "0.2.0", "_data_note": note,
+    }
 
 
 def _classify_burden(median_frac: Optional[float]) -> str:

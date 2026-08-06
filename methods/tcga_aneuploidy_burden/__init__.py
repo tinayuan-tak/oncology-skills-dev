@@ -14,10 +14,17 @@ per-arm arm-loss + per-lineage-selectivity-percentile card (feedback_aneuploidy_
 the Taylor-2018 arm-level calls, which are NOT yet ingested — a separate follow-up. This slice ships
 the data-in-hand burden metric.
 
-METHOD_VERSION 0.1.0.
+WGD/ploidy (0.2.0): a second genome-state axis — whole-genome-doubling prevalence + median ploidy
+from the ABSOLUTE abs_tables (sibling of seg_based_scores in the same source), via
+wgd_summary_for_indication(). Same cohort grain, same barcode→cancer-type join.
+
+METHOD_VERSION 0.2.0.
 """
 from __future__ import annotations
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
-from .read import aneuploidy_burden_for_indication  # noqa: E402,F401
+from .read import (  # noqa: E402,F401
+    aneuploidy_burden_for_indication,
+    wgd_summary_for_indication,
+)
