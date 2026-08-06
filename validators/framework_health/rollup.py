@@ -83,11 +83,20 @@ def _match(cond: dict, ctx: dict) -> bool:
 
 
 def _resolve(ladder: list[dict], ctx: dict) -> tuple[str, str]:
-    """First-match-wins over an ordered ladder → (verdict, rule_id)."""
+    """First-match-wins over an ordered ladder → (verdict, rule_id).
+
+    Both ladders in health_rules.yaml END in a `when: {}` catch-all, so a match is
+    guaranteed. If that catch-all is ever removed we want a LOUD failure, not a
+    silent degrade to a made-up "partial" verdict — that would let an unclassified
+    component quietly read healthy. Hence raise rather than return a default.
+    """
     for rung in ladder:
         if _match(rung.get("when", {}), ctx):
             return rung["verdict"], rung["id"]
-    return "partial", "no-rung-matched"
+    raise ValueError(
+        "no health-rule rung matched — the ladder is missing its `when: {}` "
+        "catch-all (health_rules.yaml). Refusing to invent a default verdict."
+    )
 
 
 def load_rules() -> dict:
@@ -273,6 +282,22 @@ def build_health(roots: dict[str, Path]) -> dict:
     modality_types = probe.modality_relevant_types(roots["contracts"])  # P4: type -> routing set (None if vocab absent)
     spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])  # card_id -> [spec names]
 
+    # probe_card is called from BOTH the per-skill loop and the card-universe loop,
+    # with identical constant args (roots + the precomputed index sets) for the whole
+    # build. Cache on card_id so each card's yaml is parsed from disk ONCE per run
+    # (was ~2.5x: 179 calls / 71 cards). Output is byte-identical — self_check guards it.
+    _card_cache: dict[str, dict] = {}
+
+    def probe_card_cached(cid: str) -> dict:
+        if cid not in _card_cache:
+            _card_cache[cid] = probe.probe_card(
+                cid, roots["contracts"], roots["methods"],
+                live_ids, fired_ids, dispatch_modules, catalog_ids, modality_types,
+            )
+        # Return a shallow copy: callers augment the dict (consumers, is_orphan, …)
+        # and mutating the cached original would leak fields across the two loops.
+        return dict(_card_cache[cid])
+
     skill_names = probe.list_skill_names(roots["skills"])
 
     skill_nodes: list[dict] = []
@@ -281,15 +306,7 @@ def build_health(roots: dict[str, Path]) -> dict:
         # Cards a skill consumes: union of declared cards_used + run.py CARDS.
         card_ids = sorted(set(sig["declared"].get("cards_used") or [])
                           | set(sig["derived"].get("cards_in_runpy") or []))
-        cards = [
-            roll_up_card(
-                probe.probe_card(cid, roots["contracts"], roots["methods"],
-                                 live_ids, fired_ids, dispatch_modules, catalog_ids,
-                                 modality_types),
-                rules,
-            )
-            for cid in card_ids
-        ]
+        cards = [roll_up_card(probe_card_cached(cid), rules) for cid in card_ids]
         drift = compute_drift(sig, cards, spec_cards)
         node = roll_up_skill(sig, cards, drift, rules)
         # Attach risk_category / coverage via the short mapping (for matrix grouping).
@@ -318,12 +335,7 @@ def build_health(roots: dict[str, Path]) -> dict:
 
     card_nodes: list[dict] = []
     for cid in universe:
-        cn = roll_up_card(
-            probe.probe_card(cid, roots["contracts"], roots["methods"],
-                             live_ids, fired_ids, dispatch_modules, catalog_ids,
-                             modality_types),
-            rules,
-        )
+        cn = roll_up_card(probe_card_cached(cid), rules)
         cn["consumers"] = sorted(consumers.get(cid, []))
         cn["n_consumers"] = len(cn["consumers"])
         cn["is_orphan"] = (cn["n_consumers"] == 0)  # on disk but pulled by no skill

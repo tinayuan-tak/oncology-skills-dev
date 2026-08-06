@@ -1,41 +1,41 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-04T20:58:07.210449+00:00",
+  "generated_at": "2026-08-05T18:21:35.668734+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/wt-p4-lens",
+    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "fdfa211",
-    "skills": "ce203f3",
-    "methods": "dab7bdc",
-    "products": "c092956",
-    "catalog": "fd8858f"
+    "contracts": "e868769",
+    "skills": "3d7aba0",
+    "methods": "a7b23cd",
+    "products": "d5f54a2",
+    "catalog": "22be99e"
   },
   "summary": {
-    "n_skills": 18,
+    "n_skills": 20,
     "verdict_tally": {
+      "partial": 10,
       "placeholder": 2,
-      "production_ready": 7,
-      "partial": 9
+      "production_ready": 8
     },
-    "n_drift_flags": 43,
+    "n_drift_flags": 51,
     "n_error_drift": 0,
-    "n_unregistered_skills": 14,
-    "n_live_reader_cards": 53,
+    "n_unregistered_skills": 16,
+    "n_live_reader_cards": 58,
     "n_cards_firing_in_real_packages": 26,
-    "n_cards": 66,
+    "n_cards": 71,
     "card_health_tally": {
-      "partial": 29,
+      "partial": 34,
       "broken": 9,
       "live": 24,
       "blocked": 4
     },
     "modality_routing_tally": {
-      "not_required": 35,
+      "not_required": 40,
       "declared": 24,
       "not_applicable": 6,
       "drift": 1
@@ -44,12 +44,12 @@
     "n_p4_declared_cards": 25,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 1,
-    "n_orphan_cards": 9,
-    "n_cards_consumed_but_no_spec": 31,
-    "n_datasets": 221,
-    "n_datasets_in_catalog": 211,
-    "n_orphan_datasets": 181,
-    "n_broken_dataset_refs": 10
+    "n_orphan_cards": 6,
+    "n_cards_consumed_but_no_spec": 38,
+    "n_datasets": 233,
+    "n_datasets_in_catalog": 222,
+    "n_orphan_datasets": 184,
+    "n_broken_dataset_refs": 11
   },
   "registry_drift": {
     "marketplace_exists": true,
@@ -66,6 +66,7 @@
       "workflow-target-evaluation-onc"
     ],
     "on_disk": [
+      "catalog-query",
       "combo-and-resistance",
       "compose-dashboard",
       "differentiation-landscape",
@@ -78,6 +79,7 @@
       "surface-modality-fit",
       "surfaceome-cohort-ranking",
       "synthetic-lethal-partners",
+      "target-intrinsic",
       "target-profile",
       "tractability-small-molecule",
       "translational-readiness",
@@ -86,6 +88,7 @@
       "workflow-target-evaluation-onc"
     ],
     "unregistered": [
+      "catalog-query",
       "combo-and-resistance",
       "differentiation-landscape",
       "functional-requirement",
@@ -95,6 +98,7 @@
       "surface-modality-fit",
       "surfaceome-cohort-ranking",
       "synthetic-lethal-partners",
+      "target-intrinsic",
       "target-profile",
       "tractability-small-molecule",
       "translational-readiness",
@@ -103,6 +107,48 @@
     ]
   },
   "skills": [
+    {
+      "name": "catalog-query",
+      "declared": {
+        "status": null,
+        "phase": null,
+        "cards_used": [],
+        "rules_scope": [],
+        "prose_markers": [],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "OTHER",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 0
+      },
+      "cards": [],
+      "n_core_cards": 0,
+      "n_cards": 0,
+      "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
+      "drift_flags": [
+        {
+          "code": "missing_status_field",
+          "severity": "warn",
+          "detail": "no machine-readable status: field in SKILL.md frontmatter"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-default",
+      "reason_text": "no skill rule matched (fallback)",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
     {
       "name": "combo-and-resistance",
       "declared": {
@@ -1151,7 +1197,8 @@
           "D"
         ],
         "cards_used": [
-          "signaling-network-mechanism"
+          "signaling-network-mechanism",
+          "phospho-pathway-activity"
         ],
         "rules_scope": [
           "all"
@@ -1173,11 +1220,39 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [
-          "signaling-network-mechanism"
+          "signaling-network-mechanism",
+          "phospho-pathway-activity"
         ],
         "test_count": 1
       },
       "cards": [
+        {
+          "card_id": "phospho-pathway-activity",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "phospho_pathway_activity",
+          "has_live_reader": true,
+          "method_call": "phospho-pathway-activity",
+          "dispatch_module": "phospho_pathway_activity.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "datasets": [
+            {
+              "product_id": "cptac-pdc-snapshot-2026-07-01",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cptac-pdc-snapshot-2026-07-01"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
         {
           "card_id": "signaling-network-mechanism",
           "card_yaml_exists": true,
@@ -1207,8 +1282,8 @@
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 1,
-      "n_cards_live": 0,
+      "n_cards": 2,
+      "n_cards_live": 1,
       "n_p4_required": 0,
       "n_p4_declared": 0,
       "drift_flags": [
@@ -1733,7 +1808,8 @@
           "surface-abundance-density",
           "adc-tce-modality-fit",
           "normal-tissue-liability",
-          "copy-number-distribution"
+          "copy-number-distribution",
+          "rna-protein-concordance-tumor"
         ],
         "test_count": 3
       },
@@ -1821,6 +1897,37 @@
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "rna-protein-concordance-tumor",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "rna_protein_concordance",
+          "has_live_reader": true,
+          "method_call": "depmap-rna-protein-concordance",
+          "dispatch_module": "depmap_rna_protein_concordance.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "cptac-rna-protein-matched-per-sample-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cptac-rna-protein-matched-per-sample-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "drift",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         },
         {
           "card_id": "structure-features-static",
@@ -1946,15 +2053,20 @@
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 7,
+      "n_cards": 8,
       "n_cards_live": 2,
-      "n_p4_required": 6,
-      "n_p4_declared": 6,
+      "n_p4_required": 7,
+      "n_p4_declared": 7,
       "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['rna-protein-concordance-tumor'])"
+        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
         },
         {
           "code": "stale_method_label",
@@ -1969,7 +2081,12 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "warn",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+        },
+        {
+          "code": "modality_relevance_drift",
+          "severity": "warn",
+          "detail": "consumed card(s) declare modality_relevance values outside their measurement_type's routing set: rna-protein-concordance-tumor"
         }
       ],
       "health_verdict": "partial",
@@ -2156,6 +2273,605 @@
       "gate_short": "synthetic_lethal_partners",
       "risk_category": "biomarker",
       "framework_can_evidence": "partial"
+    },
+    {
+      "name": "target-intrinsic",
+      "declared": {
+        "status": "wired",
+        "phase": [
+          "A",
+          "C",
+          "F",
+          "G"
+        ],
+        "cards_used": [
+          "target-identity-summary",
+          "gnomad-lof-constraint",
+          "gene-burden-safety",
+          "clingen-dosage",
+          "clinvar-pathogenicity-safety",
+          "mouse-ko-phenotype",
+          "target-safety-prioritisation",
+          "surfaceome-family-classification",
+          "structure-features-static",
+          "shed-ectodomain-liability",
+          "protein-domains-class",
+          "ppi-interactome",
+          "gene-ontology-annotation",
+          "signaling-network-mechanism",
+          "reactome-pathway-membership",
+          "paralog-buffering",
+          "normal-tissue-liability"
+        ],
+        "rules_scope": [],
+        "prose_markers": [
+          "wired"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "target-identity-summary",
+          "gnomad-lof-constraint",
+          "gene-burden-safety",
+          "clingen-dosage",
+          "clinvar-pathogenicity-safety",
+          "mouse-ko-phenotype",
+          "target-safety-prioritisation",
+          "surfaceome-family-classification",
+          "structure-features-static",
+          "shed-ectodomain-liability",
+          "gene-ontology-annotation",
+          "signaling-network-mechanism",
+          "reactome-pathway-membership",
+          "ppi-interactome",
+          "protein-domains-class",
+          "paralog-buffering",
+          "normal-tissue-liability"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "clingen-dosage",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "dosage_sensitivity_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-clingen-dosage",
+          "dispatch_module": "opentargets_clingen.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "opentargets-26-06",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "opentargets-26-06"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "clinvar-pathogenicity-safety",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "clinvar_germline_pathogenicity_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-clinvar-pathogenic",
+          "dispatch_module": "opentargets_clinvar.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "opentargets-26-06",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "opentargets-26-06"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "gene-burden-safety",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "human_genetic_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-gene-burden",
+          "dispatch_module": "opentargets_gene_burden.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "opentargets-26-06",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "opentargets-26-06"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "gene-ontology-annotation",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "gene_ontology_annotation",
+          "has_live_reader": true,
+          "method_call": "gene-ontology-annotation",
+          "dispatch_module": "gene_ontology_annotation",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "gene-ontology-release-2026-05-19",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gene-ontology-release-2026-05-19"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "gnomad-lof-constraint",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "gnomad_lof_constraint",
+          "has_live_reader": true,
+          "method_call": "gnomad-constraint-lookup",
+          "dispatch_module": "gnomad_constraint",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "gnomad-constraint-snapshot-2026-07-02",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "mouse-ko-phenotype",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mouse_ko_phenotype_safety",
+          "has_live_reader": true,
+          "method_call": "opentargets-mouse-ko-phenotype",
+          "dispatch_module": "opentargets_mouse_phenotype.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "opentargets-26-06",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "opentargets-26-06"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "normal-tissue-liability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "normal_tissue_protein_breadth",
+          "has_live_reader": true,
+          "method_call": "hpa-normal-tissue-liability",
+          "dispatch_module": "hpa_normal_tissue_liability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "datasets": [
+            {
+              "product_id": "hpa-v25-1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "hpa-v25-1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "paralog-buffering",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "paralog_buffering",
+          "has_live_reader": true,
+          "method_call": "depmap-paralog-aggregator",
+          "dispatch_module": "depmap_paralog_aggregator",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "depmap-paralog-buffering-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-paralog-buffering-per-gene-v1"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "ppi-interactome",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "ppi_interactome",
+          "has_live_reader": true,
+          "method_call": "ppi-interactome",
+          "dispatch_module": "ppi_interactome",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "string-v12-human-snapshot-2026-06-30",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "string-v12-human-snapshot-2026-06-30"
+            },
+            {
+              "product_id": "corum-5-3",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "corum-5-3"
+            },
+            {
+              "product_id": "biogrid-physical-interactions-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "biogrid-physical-interactions-per-gene-v1"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "protein-domains-class",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "protein_domains_class",
+          "has_live_reader": true,
+          "method_call": "uniprot-protein-features",
+          "dispatch_module": "uniprot_protein_features",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "uniprot-protein-features-v1",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            },
+            {
+              "product_id": "interpro-109-0-snapshot-2026-08-05",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "interpro-109-0-snapshot-2026-08-05"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "reactome-pathway-membership",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "reactome_pathway_membership",
+          "has_live_reader": true,
+          "method_call": "reactome-pathway-context",
+          "dispatch_module": "reactome_pathway_context",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "reactome-v96",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "reactome-v96"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "shed-ectodomain-liability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "shed_ectodomain_liability",
+          "has_live_reader": true,
+          "method_call": "shed-ectodomain-lookup",
+          "dispatch_module": "shed_ectodomain_liability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "hpa-v25-1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "hpa-v25-1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "signaling-network-mechanism",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "signaling_network_mechanism",
+          "has_live_reader": true,
+          "method_call": "signor-mechanism-network",
+          "dispatch_module": "mechanism_composed",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "signor-mechanism-network-per-gene-v1",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "structure-features-static",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "structure_druggability",
+          "has_live_reader": true,
+          "method_call": "structure-features-static",
+          "dispatch_module": "structure_features_static",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "pdb-alphafold-structure-features-per-uniprot-v1",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "surfaceome-family-classification",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surfaceome_family",
+          "has_live_reader": true,
+          "method_call": "surfaceome-family-fusion",
+          "dispatch_module": "surfaceome_family_fusion",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "surfaceome-family-classification-per-uniprot-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "surfaceome-family-classification-per-uniprot-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "target-identity-summary",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "target_identity",
+          "has_live_reader": true,
+          "method_call": "target-id-resolve",
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": true,
+          "datasets": [
+            {
+              "product_id": "target-id-resolver-release",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "live",
+          "health_reason": "card-live-fired",
+          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "target-safety-prioritisation",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "target_safety_prioritisation",
+          "has_live_reader": true,
+          "method_call": "opentargets-target-prioritisation",
+          "dispatch_module": "opentargets_target_prioritisation.read",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "opentargets-26-06",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "opentargets-26-06"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 17,
+      "n_cards": 17,
+      "n_cards_live": 2,
+      "n_p4_required": 6,
+      "n_p4_declared": 6,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+        },
+        {
+          "code": "stale_method_label",
+          "severity": "info",
+          "detail": "card methods.call label differs from the dispatcher's actual import: clingen-dosage, clinvar-pathogenicity-safety, gnomad-lof-constraint, mouse-ko-phenotype, shed-ectodomain-liability, signaling-network-mechanism"
+        },
+        {
+          "code": "dataset_ref_not_in_catalog",
+          "severity": "warn",
+          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1, target-id-resolver-release, uniprot-protein-features-v1"
+        },
+        {
+          "code": "card_consumed_but_no_spec",
+          "severity": "warn",
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+        }
+      ],
+      "health_verdict": "production_ready",
+      "health_reason": "skill-production-ready",
+      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
     },
     {
       "name": "target-profile",
@@ -3310,15 +4026,16 @@
           "tumor-rna-distribution",
           "tumor-rna-distribution-by-subtype",
           "expression-purity-confound",
-          "phospho-pathway-activity",
-          "cellline-rna-protein-concordance"
+          "cellline-rna-protein-concordance",
+          "tumor-scrna-celltype-expression"
         ],
         "rules_scope": [
           "cellline-rna-distribution",
           "tumor-rna-vs-adjacent",
           "tumor-protein-abundance-cptac",
           "cellline-protein-abundance",
-          "tumor-elevation-breadth"
+          "tumor-elevation-breadth",
+          "tumor-scrna-celltype-expression"
         ],
         "prose_markers": [
           "wired"
@@ -3343,8 +4060,9 @@
           "tumor-rna-distribution",
           "tumor-rna-distribution-by-subtype",
           "expression-purity-confound",
-          "phospho-pathway-activity",
-          "cellline-rna-protein-concordance"
+          "cellline-rna-protein-concordance",
+          "tumor-scrna-celltype-expression",
+          "normal-tissue-liability"
         ],
         "test_count": 1
       },
@@ -3482,28 +4200,32 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
-          "card_id": "phospho-pathway-activity",
+          "card_id": "normal-tissue-liability",
           "card_yaml_exists": true,
           "is_placeholder": false,
           "placeholder_reason": null,
-          "measurement_type": "phospho_pathway_activity",
+          "measurement_type": "normal_tissue_protein_breadth",
           "has_live_reader": true,
-          "method_call": "phospho-pathway-activity",
-          "dispatch_module": "phospho_pathway_activity.cli",
+          "method_call": "hpa-normal-tissue-liability",
+          "dispatch_module": "hpa_normal_tissue_liability",
           "method_dir_exists": true,
           "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": true,
           "datasets": [
             {
-              "product_id": "cptac-pdc-snapshot-2026-07-01",
+              "product_id": "hpa-v25-1",
               "in_catalog": true,
               "matched_by": "exact",
-              "resolved_id": "cptac-pdc-snapshot-2026-07-01"
+              "resolved_id": "hpa-v25-1"
             }
           ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
@@ -3672,18 +4394,61 @@
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "tumor-scrna-celltype-expression",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "sc_tumor_celltype_expression",
+          "has_live_reader": true,
+          "method_call": "sc-tumor-expression-celltype",
+          "dispatch_module": "sc_tumor_expression_celltype.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "sc-pseudobulk-donor-celltype-coadread-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sc-pseudobulk-donor-celltype-coadread-v1"
+            },
+            {
+              "product_id": "sc-pseudobulk-donor-celltype-nsclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sc-pseudobulk-donor-celltype-nsclc-v1"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         }
       ],
-      "n_core_cards": 5,
-      "n_cards": 10,
+      "n_core_cards": 6,
+      "n_cards": 11,
       "n_cards_live": 9,
-      "n_p4_required": 4,
-      "n_p4_declared": 4,
+      "n_p4_required": 5,
+      "n_p4_declared": 5,
       "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['normal-tissue-liability'])"
+        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype, tumor-scrna-celltype-expression"
+        },
+        {
+          "code": "card_consumed_but_no_spec",
+          "severity": "warn",
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-scrna-celltype-expression"
         }
       ],
       "health_verdict": "production_ready",
@@ -4176,9 +4941,10 @@
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
-        "on-target-safety-liability"
+        "on-target-safety-liability",
+        "target-intrinsic"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -4249,9 +5015,10 @@
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
-        "on-target-safety-liability"
+        "on-target-safety-liability",
+        "target-intrinsic"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -4728,7 +5495,43 @@
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
-        "on-target-safety-liability"
+        "on-target-safety-liability",
+        "target-intrinsic"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
+      "card_id": "gene-ontology-annotation",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "gene_ontology_annotation",
+      "has_live_reader": true,
+      "method_call": "gene-ontology-annotation",
+      "dispatch_module": "gene_ontology_annotation",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "gene-ontology-release-2026-05-19",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "gene-ontology-release-2026-05-19"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "target-intrinsic"
       ],
       "n_consumers": 1,
       "is_orphan": false,
@@ -4814,9 +5617,10 @@
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
         "on-target-safety-liability",
+        "target-intrinsic",
         "target-profile"
       ],
-      "n_consumers": 2,
+      "n_consumers": 3,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -4940,9 +5744,10 @@
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
-        "on-target-safety-liability"
+        "on-target-safety-liability",
+        "target-intrinsic"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -5101,9 +5906,11 @@
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
         "on-target-safety-liability",
-        "surface-modality-fit"
+        "surface-modality-fit",
+        "target-intrinsic",
+        "tumor-presence"
       ],
-      "n_consumers": 2,
+      "n_consumers": 4,
       "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
@@ -5260,9 +6067,10 @@
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
         "functional-requirement",
+        "target-intrinsic",
         "target-profile"
       ],
-      "n_consumers": 2,
+      "n_consumers": 3,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -5351,7 +6159,7 @@
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
-        "tumor-presence"
+        "mechanism-and-pharmacology"
       ],
       "n_consumers": 1,
       "is_orphan": false,
@@ -5360,6 +6168,53 @@
       ],
       "in_dashboard_spec": true,
       "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "ppi-interactome",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "ppi_interactome",
+      "has_live_reader": true,
+      "method_call": "ppi-interactome",
+      "dispatch_module": "ppi_interactome",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "string-v12-human-snapshot-2026-06-30",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "string-v12-human-snapshot-2026-06-30"
+        },
+        {
+          "product_id": "corum-5-3",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "corum-5-3"
+        },
+        {
+          "product_id": "biogrid-physical-interactions-per-gene-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "biogrid-physical-interactions-per-gene-v1"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "target-intrinsic"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "prism-compound-activity",
@@ -5444,6 +6299,47 @@
       "consumed_but_no_spec": false
     },
     {
+      "card_id": "protein-domains-class",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "protein_domains_class",
+      "has_live_reader": true,
+      "method_call": "uniprot-protein-features",
+      "dispatch_module": "uniprot_protein_features",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "uniprot-protein-features-v1",
+          "in_catalog": false,
+          "matched_by": null,
+          "resolved_id": null
+        },
+        {
+          "product_id": "interpro-109-0-snapshot-2026-08-05",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "interpro-109-0-snapshot-2026-08-05"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "target-intrinsic"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "protein-surface-evidence",
       "card_yaml_exists": true,
       "is_placeholder": false,
@@ -5483,6 +6379,41 @@
       ],
       "in_dashboard_spec": true,
       "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "reactome-pathway-membership",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "reactome_pathway_membership",
+      "has_live_reader": true,
+      "method_call": "reactome-pathway-context",
+      "dispatch_module": "reactome_pathway_context",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "reactome-v96",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "reactome-v96"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "target-intrinsic"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "recommended-models",
@@ -5583,12 +6514,14 @@
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
-      "consumers": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumers": [
+        "surface-modality-fit"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
-      "consumed_but_no_spec": false
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "rwd-stratified-expression",
@@ -5657,12 +6590,14 @@
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
-      "consumers": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumers": [
+        "target-intrinsic"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
-      "consumed_but_no_spec": false
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "signaling-network-mechanism",
@@ -5692,9 +6627,10 @@
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
         "mechanism-and-pharmacology",
+        "target-intrinsic",
         "target-profile"
       ],
-      "n_consumers": 2,
+      "n_consumers": 3,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -5731,10 +6667,11 @@
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
         "surface-modality-fit",
+        "target-intrinsic",
         "target-profile",
         "tractability-small-molecule"
       ],
-      "n_consumers": 3,
+      "n_consumers": 4,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -6016,9 +6953,10 @@
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
         "surface-modality-fit",
+        "target-intrinsic",
         "target-profile"
       ],
-      "n_consumers": 2,
+      "n_consumers": 3,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -6085,9 +7023,11 @@
       "card_health": "live",
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
-      "consumers": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumers": [
+        "target-intrinsic"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
         "surface-intrinsic-base"
@@ -6122,9 +7062,10 @@
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
-        "on-target-safety-liability"
+        "on-target-safety-liability",
+        "target-intrinsic"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -6350,6 +7291,47 @@
       "consumed_but_no_spec": false
     },
     {
+      "card_id": "tumor-scrna-celltype-expression",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "sc_tumor_celltype_expression",
+      "has_live_reader": true,
+      "method_call": "sc-tumor-expression-celltype",
+      "dispatch_module": "sc_tumor_expression_celltype.cli",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "sc-pseudobulk-donor-celltype-coadread-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sc-pseudobulk-donor-celltype-coadread-v1"
+        },
+        {
+          "product_id": "sc-pseudobulk-donor-celltype-nsclc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sc-pseudobulk-donor-celltype-nsclc-v1"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "tumor-presence"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "tumor-vs-normal-percentile-crossing",
       "card_yaml_exists": true,
       "is_placeholder": false,
@@ -6465,6 +7447,53 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "allgene-depmap-rank-26q1-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "allgene-tumor-rank-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "biogrid-physical-interactions-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "ppi-interactome"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -6684,6 +7713,21 @@
       "provider": "cbioportal",
       "version": "2020",
       "size_bytes": 2653304,
+      "file_count": 6,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "cbioportal-sclc-ucologne-2015",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "cbioportal",
+      "version": "2015",
+      "size_bytes": 38682661,
       "file_count": 6,
       "system_of_record": false,
       "n_derived_from": 0,
@@ -7319,9 +8363,11 @@
       "file_count": 3,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "ppi-interactome"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -7339,6 +8385,21 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "cptac-phospho-per-site-per-cohort-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 2,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
       "is_broken_ref": false
     },
     {
@@ -8092,9 +9153,11 @@
       "file_count": 2,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "gene-ontology-annotation"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -8421,6 +9484,23 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "interpro-109-0-snapshot-2026-08-05",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "interpro",
+      "version": "109.0",
+      "size_bytes": 2358661,
+      "file_count": 1,
+      "system_of_record": null,
+      "n_derived_from": 0,
+      "consumed_by_cards": [
+        "protein-domains-class"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -9021,9 +10101,11 @@
       "file_count": 6,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "reactome-pathway-membership"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -9088,6 +10170,55 @@
     },
     {
       "product_id": "sc-pseudobulk-donor-celltype-coadread-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "tumor-scrna-celltype-expression"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "sc-pseudobulk-donor-celltype-nsclc-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "tumor-scrna-celltype-expression"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "sclc-george-tpm-long-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 2,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "sclc-subgroup-assignments-v1",
       "in_catalog": true,
       "kind": "derived",
       "provider": null,
@@ -9173,9 +10304,11 @@
       "file_count": 3,
       "system_of_record": false,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "ppi-interactome"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -9841,6 +10974,38 @@
       "is_broken_ref": false
     },
     {
+      "product_id": "uniprot-gpi-anchored-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "uniprot-protein-features-v1",
+      "in_catalog": false,
+      "kind": null,
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 0,
+      "consumed_by_cards": [
+        "protein-domains-class"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": true
+    },
+    {
       "product_id": "uniprot-sprot-human-2026-02-snapshot-2026-06-18",
       "in_catalog": true,
       "kind": "source",
@@ -9850,6 +11015,21 @@
       "file_count": 2,
       "system_of_record": null,
       "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "uniprot-string-hc-edges-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
@@ -9873,6 +11053,14 @@
   ],
   "graph": {
     "nodes": [
+      {
+        "id": "skill:catalog-query",
+        "layer": "skill",
+        "label": "catalog-query",
+        "health": "partial",
+        "kind": "OTHER",
+        "risk_category": null
+      },
       {
         "id": "skill:combo-and-resistance",
         "layer": "skill",
@@ -9968,6 +11156,14 @@
         "health": "partial",
         "kind": "FOCUSED",
         "risk_category": "biomarker"
+      },
+      {
+        "id": "skill:target-intrinsic",
+        "layer": "skill",
+        "label": "target-intrinsic",
+        "health": "production_ready",
+        "kind": "FOCUSED",
+        "risk_category": null
       },
       {
         "id": "skill:target-profile",
@@ -10242,6 +11438,14 @@
         "measurement_type": "human_genetic_safety"
       },
       {
+        "id": "card:gene-ontology-annotation",
+        "layer": "card",
+        "label": "gene-ontology-annotation",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "gene_ontology_annotation"
+      },
+      {
         "id": "card:genomic-event-model-match",
         "layer": "card",
         "label": "genomic-event-model-match",
@@ -10378,6 +11582,14 @@
         "measurement_type": "phospho_pathway_activity"
       },
       {
+        "id": "card:ppi-interactome",
+        "layer": "card",
+        "label": "ppi-interactome",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "ppi_interactome"
+      },
+      {
         "id": "card:prism-compound-activity",
         "layer": "card",
         "label": "prism-compound-activity",
@@ -10394,12 +11606,28 @@
         "measurement_type": "chemical_genetic_concordance"
       },
       {
+        "id": "card:protein-domains-class",
+        "layer": "card",
+        "label": "protein-domains-class",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "protein_domains_class"
+      },
+      {
         "id": "card:protein-surface-evidence",
         "layer": "card",
         "label": "protein-surface-evidence",
         "health": "partial",
         "is_orphan": false,
         "measurement_type": "surface_confirmation"
+      },
+      {
+        "id": "card:reactome-pathway-membership",
+        "layer": "card",
+        "label": "reactome-pathway-membership",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "reactome_pathway_membership"
       },
       {
         "id": "card:recommended-models",
@@ -10422,7 +11650,7 @@
         "layer": "card",
         "label": "rna-protein-concordance-tumor",
         "health": "partial",
-        "is_orphan": true,
+        "is_orphan": false,
         "measurement_type": "rna_protein_concordance"
       },
       {
@@ -10438,7 +11666,7 @@
         "layer": "card",
         "label": "shed-ectodomain-liability",
         "health": "partial",
-        "is_orphan": true,
+        "is_orphan": false,
         "measurement_type": "shed_ectodomain_liability"
       },
       {
@@ -10526,7 +11754,7 @@
         "layer": "card",
         "label": "target-identity-summary",
         "health": "live",
-        "is_orphan": true,
+        "is_orphan": false,
         "measurement_type": "target_identity"
       },
       {
@@ -10576,6 +11804,14 @@
         "health": "live",
         "is_orphan": false,
         "measurement_type": "tumor_vs_adjacent_expression"
+      },
+      {
+        "id": "card:tumor-scrna-celltype-expression",
+        "layer": "card",
+        "label": "tumor-scrna-celltype-expression",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "sc_tumor_celltype_expression"
       },
       {
         "id": "card:tumor-vs-normal-percentile-crossing",
@@ -10744,6 +11980,12 @@
         "health": "live"
       },
       {
+        "id": "method:gene_ontology_annotation",
+        "layer": "method",
+        "label": "gene_ontology_annotation",
+        "health": "live"
+      },
+      {
         "id": "method:genomic_event_model_match",
         "layer": "method",
         "label": "genomic_event_model_match",
@@ -10810,6 +12052,24 @@
         "health": "live"
       },
       {
+        "id": "method:ppi_interactome",
+        "layer": "method",
+        "label": "ppi_interactome",
+        "health": "live"
+      },
+      {
+        "id": "method:reactome_pathway_context",
+        "layer": "method",
+        "label": "reactome_pathway_context",
+        "health": "live"
+      },
+      {
+        "id": "method:sc_tumor_expression_celltype",
+        "layer": "method",
+        "label": "sc_tumor_expression_celltype",
+        "health": "live"
+      },
+      {
         "id": "method:shed_ectodomain_liability",
         "layer": "method",
         "label": "shed_ectodomain_liability",
@@ -10855,6 +12115,12 @@
         "id": "method:topology_predictions_tmbed",
         "layer": "method",
         "label": "topology_predictions_tmbed",
+        "health": "live"
+      },
+      {
+        "id": "method:uniprot_protein_features",
+        "layer": "method",
+        "label": "uniprot_protein_features",
         "health": "live"
       }
     ],
@@ -10950,6 +12216,11 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:gene-ontology-annotation",
+        "dst": "method:gene_ontology_annotation",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:genomic-event-model-match",
         "dst": "method:genomic_event_model_match",
         "rel": "backed_by"
@@ -11010,6 +12281,11 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:ppi-interactome",
+        "dst": "method:ppi_interactome",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:prism-compound-activity",
         "dst": "method:depmap_prism_activity",
         "rel": "backed_by"
@@ -11020,8 +12296,18 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:protein-domains-class",
+        "dst": "method:uniprot_protein_features",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:protein-surface-evidence",
         "dst": "method:cspa_surface_confirmation",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:reactome-pathway-membership",
+        "dst": "method:reactome_pathway_context",
         "rel": "backed_by"
       },
       {
@@ -11102,6 +12388,11 @@
       {
         "src": "card:tumor-rna-vs-adjacent",
         "dst": "method:dge_deseq2",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:tumor-scrna-celltype-expression",
+        "dst": "method:sc_tumor_expression_celltype",
         "rel": "backed_by"
       },
       {
@@ -11251,6 +12542,11 @@
       },
       {
         "src": "skill:mechanism-and-pharmacology",
+        "dst": "card:phospho-pathway-activity",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:mechanism-and-pharmacology",
         "dst": "card:signaling-network-mechanism",
         "rel": "consumes"
       },
@@ -11331,6 +12627,11 @@
       },
       {
         "src": "skill:surface-modality-fit",
+        "dst": "card:rna-protein-concordance-tumor",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
         "dst": "card:structure-features-static",
         "rel": "consumes"
       },
@@ -11368,6 +12669,91 @@
         "src": "skill:synthetic-lethal-partners",
         "dst": "resolver:synthetic_lethal_partners",
         "rel": "resolves_via"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:clingen-dosage",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:clinvar-pathogenicity-safety",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:gene-burden-safety",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:gene-ontology-annotation",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:gnomad-lof-constraint",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:mouse-ko-phenotype",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:normal-tissue-liability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:paralog-buffering",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:ppi-interactome",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:protein-domains-class",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:reactome-pathway-membership",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:shed-ectodomain-liability",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:signaling-network-mechanism",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:structure-features-static",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:surfaceome-family-classification",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:target-identity-summary",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
+        "dst": "card:target-safety-prioritisation",
+        "rel": "consumes"
       },
       {
         "src": "skill:target-profile",
@@ -11551,7 +12937,7 @@
       },
       {
         "src": "skill:tumor-presence",
-        "dst": "card:phospho-pathway-activity",
+        "dst": "card:normal-tissue-liability",
         "rel": "consumes"
       },
       {
@@ -11580,6 +12966,11 @@
         "rel": "consumes"
       },
       {
+        "src": "skill:tumor-presence",
+        "dst": "card:tumor-scrna-celltype-expression",
+        "rel": "consumes"
+      },
+      {
         "src": "skill:tumor-selectivity",
         "dst": "card:tumor-vs-normal-percentile-crossing",
         "rel": "consumes"
@@ -11596,15 +12987,21 @@
       }
     ],
     "layer_counts": {
-      "skill": 18,
+      "skill": 20,
       "resolver": 8,
-      "card": 66,
-      "method": 44
+      "card": 71,
+      "method": 49
     },
-    "n_nodes": 136,
-    "n_edges": 147
+    "n_nodes": 148,
+    "n_edges": 172
   },
   "drift_index": [
+    {
+      "skill": "catalog-query",
+      "code": "missing_status_field",
+      "severity": "warn",
+      "detail": "no machine-readable status: field in SKILL.md frontmatter"
+    },
     {
       "skill": "differentiation-landscape",
       "code": "declared_cards_mismatch_runpy",
@@ -11721,9 +13118,15 @@
     },
     {
       "skill": "surface-modality-fit",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['rna-protein-concordance-tumor'])"
+    },
+    {
+      "skill": "surface-modality-fit",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
     },
     {
       "skill": "surface-modality-fit",
@@ -11741,7 +13144,13 @@
       "skill": "surface-modality-fit",
       "code": "card_consumed_but_no_spec",
       "severity": "warn",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+    },
+    {
+      "skill": "surface-modality-fit",
+      "code": "modality_relevance_drift",
+      "severity": "warn",
+      "detail": "consumed card(s) declare modality_relevance values outside their measurement_type's routing set: rna-protein-concordance-tumor"
     },
     {
       "skill": "surfaceome-cohort-ranking",
@@ -11778,6 +13187,30 @@
       "code": "card_consumed_but_no_spec",
       "severity": "warn",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: synthetic-lethal-partners"
+    },
+    {
+      "skill": "target-intrinsic",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+    },
+    {
+      "skill": "target-intrinsic",
+      "code": "stale_method_label",
+      "severity": "info",
+      "detail": "card methods.call label differs from the dispatcher's actual import: clingen-dosage, clinvar-pathogenicity-safety, gnomad-lof-constraint, mouse-ko-phenotype, shed-ectodomain-liability, signaling-network-mechanism"
+    },
+    {
+      "skill": "target-intrinsic",
+      "code": "dataset_ref_not_in_catalog",
+      "severity": "warn",
+      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1, target-id-resolver-release, uniprot-protein-features-v1"
+    },
+    {
+      "skill": "target-intrinsic",
+      "code": "card_consumed_but_no_spec",
+      "severity": "warn",
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
     },
     {
       "skill": "target-profile",
@@ -11823,9 +13256,21 @@
     },
     {
       "skill": "tumor-presence",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['normal-tissue-liability'])"
+    },
+    {
+      "skill": "tumor-presence",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype, tumor-scrna-celltype-expression"
+    },
+    {
+      "skill": "tumor-presence",
+      "code": "card_consumed_but_no_spec",
+      "severity": "warn",
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-scrna-celltype-expression"
     },
     {
       "skill": "tumor-selectivity",
@@ -11856,13 +13301,6 @@
       "code": "missing_status_field",
       "severity": "warn",
       "detail": "no machine-readable status: field in SKILL.md frontmatter"
-    },
-    {
-      "skill": null,
-      "card_id": "rna-protein-concordance-tumor",
-      "code": "modality_relevance_drift",
-      "severity": "warn",
-      "detail": "orphan card rna-protein-concordance-tumor (pulled by no skill) has modality_routing=drift \u2014 P4 non-compliance invisible in the skill view"
     }
   ]
 }

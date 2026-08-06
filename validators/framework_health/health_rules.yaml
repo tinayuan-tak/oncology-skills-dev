@@ -83,11 +83,9 @@ card_health:
         - {fires_in_real_package: false}
     reason: "has a live reader but has not fired passed/warned in any real package yet"
 
-  - id: card-live
-    verdict: live
-    when: {fires_in_real_package: true}
-    reason: "fires passed/passed_with_warnings in at least one real evidence package"
-
+  # NOTE: no second `fires_in_real_package: true` rung here — that verdict is owned
+  # by card-live-fired at the TOP of the ladder (ground-truth dominates). A duplicate
+  # rung this far down is unreachable (first-match-wins), so it was removed (2026-08-05).
   - id: card-default
     verdict: partial
     when: {}
