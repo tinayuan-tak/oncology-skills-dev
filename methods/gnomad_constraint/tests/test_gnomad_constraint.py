@@ -1,10 +1,11 @@
 """Synthetic-data tests for the gnomad_constraint reader (no S3).
 
-Validates: (1) the constraint_class classifier at each band + the card thresholds;
-(2) canonical/MANE transcript selection; (3) the not-in-table → `indeterminate`
-distinction (a real read, gene absent) vs the graceful `data_unavailable` (couldn't
-read); (4) the card-contract field set. The classifier is pure — most assertions
-need no file at all.
+Validates: (1) the constraint_class classifier at each band + the card thresholds
+(high_loeuf=0.45 as of the v4.1.1 refresh); (2) per-gene lookup against the
+gnomad-constraint-per-gene-v1 product (one row per gene, already representative-
+selected at derive time); (3) the not-in-table → `indeterminate` distinction (a real
+read, gene absent) vs the graceful `data_unavailable` (couldn't read); (4) the
+card-contract field set. The classifier is pure — most assertions need no file at all.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from methods.gnomad_constraint import read as gc_read  # noqa: E402
 # --- classifier (pure; the card thresholds) -------------------------------
 
 def test_classify_highly_constrained():
-    # LOEUF <= 0.35 OR pLI >= 0.9
+    # LOEUF <= 0.45 OR pLI >= 0.9
     assert gc.classify_constraint(pli=0.99, loeuf=0.15) == "highly_constrained"
     assert gc.classify_constraint(pli=None, loeuf=0.30) == "highly_constrained"   # LOEUF alone
     assert gc.classify_constraint(pli=0.95, loeuf=None) == "highly_constrained"   # pLI alone
@@ -43,39 +44,49 @@ def test_classify_indeterminate_when_both_missing():
 def test_band_boundaries_are_inclusive():
     # exactly at the high thresholds → highly_constrained
     assert gc.classify_constraint(pli=0.9, loeuf=1.0) == "highly_constrained"    # pLI==0.9
-    assert gc.classify_constraint(pli=0.0, loeuf=0.35) == "highly_constrained"   # LOEUF==0.35
+    assert gc.classify_constraint(pli=0.0, loeuf=0.45) == "highly_constrained"   # LOEUF==0.45 (v4.1.1 cutoff)
+    # just inside the widened high band (would have been moderate under the old 0.35)
+    assert gc.classify_constraint(pli=0.0, loeuf=0.40) == "highly_constrained"
+    # just above the high LOEUF cutoff, below moderate → moderately_constrained
+    assert gc.classify_constraint(pli=0.0, loeuf=0.46) == "moderately_constrained"
     # exactly at the moderate thresholds → moderately_constrained
     assert gc.classify_constraint(pli=0.5, loeuf=1.0) == "moderately_constrained"
     assert gc.classify_constraint(pli=0.0, loeuf=0.6) == "moderately_constrained"
 
 
-# --- row selection + summary (synthetic TSV) ------------------------------
+# --- per-gene lookup + summary (synthetic parquet matching the product schema) ---
 
-def _write_tsv(tmp_path):
-    p = tmp_path / "gnomad.v4.1.constraint_metrics.tsv"
-    cols = [gc.COL_GENE, "transcript", gc.COL_CANONICAL, gc.COL_MANE,
-            gc.COL_PLI, gc.COL_LOEUF, gc.COL_MIS_Z, gc.COL_SYN_Z,
-            gc.COL_OBS_LOF, gc.COL_EXP_LOF]
-    rows = [
-        # TP53: two transcripts; the MANE row is the constrained one — selection must pick it
-        ["TP53", "ENST_alt", "false", "false", "0.10", "1.10", "0.5", "0.1", "40", "45.0"],
-        ["TP53", "ENST_mane", "true", "true", "0.99", "0.12", "5.2", "0.3", "1", "38.0"],
-        # KRAS: highly constrained, canonical only
-        ["KRAS", "ENST_kras", "true", "false", "0.96", "0.20", "3.1", "0.2", "2", "20.0"],
-        # SCD (an expendable-ish gene): tolerant
-        ["SCD", "ENST_scd", "true", "true", "0.02", "1.35", "0.1", "0.0", "60", "55.0"],
+def _write_parquet(tmp_path):
+    """Write a synthetic gnomad-constraint-per-gene-v1 product: one row per gene,
+    columns gene_symbol, gene_id, pli, loeuf, mis_z, syn_z, obs_lof, exp_lof."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    p = tmp_path / "gnomad_constraint_per_gene.parquet"
+    recs = [
+        # TP53: highly constrained (representative row already chosen at derive time)
+        {"gene_symbol": "TP53", "gene_id": "7157", "pli": 0.99, "loeuf": 0.12,
+         "mis_z": 5.2, "syn_z": 0.3, "obs_lof": 1.0, "exp_lof": 38.0},
+        # KRAS: highly constrained
+        {"gene_symbol": "KRAS", "gene_id": "3845", "pli": 0.96, "loeuf": 0.20,
+         "mis_z": 3.1, "syn_z": 0.2, "obs_lof": 2.0, "exp_lof": 20.0},
+        # SCD: tolerant
+        {"gene_symbol": "SCD", "gene_id": "6319", "pli": 0.02, "loeuf": 1.35,
+         "mis_z": 0.1, "syn_z": 0.0, "obs_lof": 60.0, "exp_lof": 55.0},
     ]
-    with open(p, "w") as fh:
-        fh.write("\t".join(cols) + "\n")
-        for r in rows:
-            fh.write("\t".join(r) + "\n")
+    schema = pa.schema([
+        ("gene_symbol", pa.string()), ("gene_id", pa.string()),
+        ("pli", pa.float64()), ("loeuf", pa.float64()),
+        ("mis_z", pa.float64()), ("syn_z", pa.float64()),
+        ("obs_lof", pa.float64()), ("exp_lof", pa.float64()),
+    ])
+    pq.write_table(pa.Table.from_pylist(recs, schema=schema), p)
     return str(p)
 
 
-def test_mane_row_selected_and_classified(tmp_path):
-    tsv = _write_tsv(tmp_path)
-    row = gc.load_constraint_row("TP53", tsv_path=tsv)
-    assert row["transcript"] == "ENST_mane", "must pick the MANE_select transcript, not the alt"
+def test_gene_row_looked_up_and_classified(tmp_path):
+    pq_path = _write_parquet(tmp_path)
+    row = gc.load_constraint_row("TP53", parquet_path=pq_path)
+    assert row is not None and row["gene_symbol"] == "TP53"
     s = gc.compute_summary(row, "TP53")
     assert s["constraint_class"] == "highly_constrained"
     assert s["pli_score"] == 0.99 and s["loeuf_score"] == 0.12
@@ -84,15 +95,20 @@ def test_mane_row_selected_and_classified(tmp_path):
     assert s["method_version"] == gc.METHOD_VERSION
 
 
+def test_lookup_is_case_insensitive(tmp_path):
+    pq_path = _write_parquet(tmp_path)
+    assert gc.load_constraint_row("kras", parquet_path=pq_path)["gene_symbol"] == "KRAS"
+
+
 def test_tolerant_gene(tmp_path):
-    tsv = _write_tsv(tmp_path)
-    s = gc.compute_summary(gc.load_constraint_row("SCD", tsv_path=tsv), "SCD")
+    pq_path = _write_parquet(tmp_path)
+    s = gc.compute_summary(gc.load_constraint_row("SCD", parquet_path=pq_path), "SCD")
     assert s["constraint_class"] == "tolerant"
 
 
 def test_gene_not_in_table_is_indeterminate_not_data_unavailable(tmp_path):
-    tsv = _write_tsv(tmp_path)
-    row = gc.load_constraint_row("FOOBAR", tsv_path=tsv)
+    pq_path = _write_parquet(tmp_path)
+    row = gc.load_constraint_row("FOOBAR", parquet_path=pq_path)
     assert row is None
     s = gc.compute_summary(row, "FOOBAR")
     assert s["constraint_class"] == "indeterminate", (
@@ -101,8 +117,8 @@ def test_gene_not_in_table_is_indeterminate_not_data_unavailable(tmp_path):
 
 
 def test_card_contract_fields_present(tmp_path):
-    tsv = _write_tsv(tmp_path)
-    s = gc.compute_summary(gc.load_constraint_row("KRAS", tsv_path=tsv), "KRAS")
+    pq_path = _write_parquet(tmp_path)
+    s = gc.compute_summary(gc.load_constraint_row("KRAS", parquet_path=pq_path), "KRAS")
     for f in ("constraint_class", "pli_score", "loeuf_score", "mis_z_score",
               "syn_z_score", "obs_lof_count", "exp_lof_count", "gene_length_bp",
               "method_version"):

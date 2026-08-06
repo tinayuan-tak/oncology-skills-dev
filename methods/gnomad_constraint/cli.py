@@ -1,13 +1,28 @@
 """gnomad_constraint.cli — loader + deterministic constraint classifier + CLI.
 
-Source: gnomad-constraint-snapshot-2026-07-02 (data-catalog), file
-`gnomad.v4.1.constraint_metrics.tsv` (gene+transcript, ~19,700 genes). Per-gene
-representative row = canonical OR mane_select. Emits the card contract fields for
-`gnomad-lof-constraint` (constraint_class + pLI/LOEUF/mis_z/syn_z/obs_lof/exp_lof).
+Source: gnomad-constraint-per-gene-v1 (data-catalog DERIVED product), file
+`gnomad_constraint_per_gene.parquet` — a gene-keyed, per-gene-representative
+distillation of the gnomAD v4.1.1 constraint source. One row per gene
+(representative = mane_select > canonical > first, resolved at derive time),
+8 columns already renamed to the card-contract fields. Emits the card contract
+fields for `gnomad-lof-constraint`
+(constraint_class + pLI/LOEUF/mis_z/syn_z/obs_lof/exp_lof).
+
+Why the product (was: raw gnomad.v4.1.1.constraint_metrics.tsv.bgz): the raw v4.1.1
+flat export is 574 MB / 1.65 GB uncompressed / 221,898 all-transcript rows x 113
+columns. This reader does single-gene lookups, and scanning the raw file cost
+~13.7 s/gene. The derived product (gnomad-constraint-per-gene-v1, ~1.08 MB, gene-
+sorted parquet) collapses the per-gene-representative selection ONCE at derive time,
+so a lookup is a small pushdown read (single-digit ms). See the derived manifest for
+the transformation.
 
 Thresholds are the card's (target-contracts/cards/gnomad-lof-constraint.card.yaml):
-  high_pli 0.9 / high_loeuf 0.35 ; moderate_pli 0.5 / moderate_loeuf 0.6.
-LOEUF is the primary metric (Karczewski 2020); pLI corroborates.
+  high_pli 0.9 / high_loeuf 0.45 ; moderate_pli 0.5 / moderate_loeuf 0.6.
+LOEUF is the primary metric (Karczewski 2020); pLI corroborates. The high_loeuf
+cutoff is gnomAD's v4-recommended value (moved 0.35->0.45 with the v4.1.1 recompute).
+Classification is OR across metrics (either metric clearing a band qualifies the
+gene) — chosen for a safety-SENSITIVITY signal, where a false negative (missing a
+constrained gene) is worse than a false positive; see classify_constraint.
 """
 
 from __future__ import annotations
@@ -15,31 +30,32 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from methods.catalog_query.read import bucket_prefix_for
+from methods.catalog_query.read import bucket_key_for
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"  # 0.1.0 -> 0.2.0: repoint to gnomad-constraint-per-gene-v1 product (v4.1.1)
 
-# --- source location (landed manifest gnomad-constraint-snapshot-2026-07-02) ---
-SOURCE_MANIFEST_ID = "gnomad-constraint-snapshot-2026-07-02"
-# bucket + key resolved from the data-catalog manifest (single source of truth);
-# was a hand-typed literal with no manifest_id constant to tie it back.
-S3_BUCKET, _SOURCE_PREFIX = bucket_prefix_for(SOURCE_MANIFEST_ID)
-S3_KEY = f"{_SOURCE_PREFIX}gnomad.v4.1.constraint_metrics.tsv"
+# --- source location (landed derived manifest gnomad-constraint-per-gene-v1) ---
+SOURCE_MANIFEST_ID = "gnomad-constraint-per-gene-v1"
+# bucket + key resolved from the data-catalog manifest (single source of truth).
+S3_BUCKET, S3_KEY = bucket_key_for(SOURCE_MANIFEST_ID)
 DEFAULT_AWS_PROFILE = "cbg"
 
-# --- v4.1 column names (per the source manifest content-schema) ---
-COL_GENE = "gene"
-COL_CANONICAL = "canonical"
-COL_MANE = "mane_select"
-COL_PLI = "lof.pLI"
-COL_LOEUF = "lof.oe_ci.upper"      # this IS LOEUF in v4.1
-COL_MIS_Z = "mis.z_score"
-COL_SYN_Z = "syn.z_score"
-COL_OBS_LOF = "lof.obs"
-COL_EXP_LOF = "lof.exp"
+# --- product column names (gnomad-constraint-per-gene-v1 parquet schema) ---
+COL_GENE = "gene_symbol"
+COL_PLI = "pli"
+COL_LOEUF = "loeuf"          # LOEUF (lof.oe_ci.upper distilled from the v4.1.1 source)
+COL_MIS_Z = "mis_z"
+COL_SYN_Z = "syn_z"
+COL_OBS_LOF = "obs_lof"
+COL_EXP_LOF = "exp_lof"
 
-# --- card thresholds ---
-HIGH_PLI, HIGH_LOEUF = 0.9, 0.35
+# --- card thresholds (target-contracts/cards/gnomad-lof-constraint.card.yaml) ---
+# high_loeuf moved 0.35 -> 0.45 with the gnomAD v4.1.1 recompute (gnomAD's
+# v4-recommended cutoff). Under the OR semantics below this is a no-op on current
+# classifications (every gene with LOEUF in (0.35, 0.45] already has pLI >= 0.9, so
+# it was already highly_constrained via the pLI clause) — verified against the
+# v4.1.1 table — but it is the correct forward-looking value.
+HIGH_PLI, HIGH_LOEUF = 0.9, 0.45
 MOD_PLI, MOD_LOEUF = 0.5, 0.6
 
 
@@ -85,40 +101,35 @@ def _ensure_aws_profile():
 def _local_cache_path() -> str:
     root = os.environ.get("FRAMEWORK_CACHE_ROOT") or os.path.expanduser("~/.cache/framework-gnomad")
     os.makedirs(root, exist_ok=True)
-    return os.path.join(root, "gnomad.v4.1.constraint_metrics.tsv")
+    return os.path.join(root, "gnomad_constraint_per_gene.parquet")
 
 
 def _download_source(dest: str) -> None:
-    """S3 read-through: download the constraint TSV to the local cache if absent."""
+    """S3 read-through: download the per-gene constraint parquet to the local cache if absent."""
     import boto3  # local import — framework runtime shouldn't require boto3 unless a live read happens
     _ensure_aws_profile()
     boto3.client("s3").download_file(S3_BUCKET, S3_KEY, dest)
 
 
-def load_constraint_row(gene_symbol: str, tsv_path: Optional[str] = None) -> Optional[dict]:
-    """Return the per-gene representative constraint row (canonical/MANE) or None.
+def load_constraint_row(gene_symbol: str, parquet_path: Optional[str] = None) -> Optional[dict]:
+    """Return the per-gene constraint row from gnomad-constraint-per-gene-v1, or None.
 
-    tsv_path override is for tests (a synthetic TSV); production streams from S3 cache.
-    Picks the mane_select row if present, else canonical, else the first matching row.
+    The product is already one-row-per-gene (representative selection done at derive
+    time), gene-sorted on gene_symbol. A lookup is a filtered pushdown read on the
+    gene_symbol column — no per-transcript scan / representative selection here.
+
+    parquet_path override is for tests (a synthetic parquet); production reads the
+    S3 read-through cache.
     """
-    import csv
-    path = tsv_path or _local_cache_path()
-    if tsv_path is None and not os.path.exists(path):
+    import pyarrow.parquet as pq
+    import pyarrow.compute as pc
+    path = parquet_path or _local_cache_path()
+    if parquet_path is None and not os.path.exists(path):
         _download_source(path)
-    matches = []
-    with open(path, newline="") as fh:
-        for row in csv.DictReader(fh, delimiter="\t"):
-            if (row.get(COL_GENE) or "").strip().upper() == gene_symbol.strip().upper():
-                matches.append(row)
-    if not matches:
-        return None
-    def _truthy(row, col):
-        return str(row.get(col, "")).strip().lower() in ("true", "1", "yes", "t")
-    for col in (COL_MANE, COL_CANONICAL):
-        for row in matches:
-            if _truthy(row, col):
-                return row
-    return matches[0]
+    key = gene_symbol.strip().upper()
+    table = pq.read_table(path)
+    hits = table.filter(pc.equal(pc.utf8_upper(table[COL_GENE]), key)).to_pylist()
+    return hits[0] if hits else None
 
 
 def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
@@ -130,7 +141,7 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
             "mis_z_score": None, "syn_z_score": None,
             "obs_lof_count": None, "exp_lof_count": None, "gene_length_bp": None,
             "method_version": METHOD_VERSION,
-            "_note": f"{gene_symbol} not in gnomAD v4.1 constraint table (indeterminate).",
+            "_note": f"{gene_symbol} not in gnomAD v4.1.1 constraint table (indeterminate).",
         }
     pli = _to_float(row.get(COL_PLI))
     loeuf = _to_float(row.get(COL_LOEUF))
@@ -204,7 +215,7 @@ def emit_constraint_gauge(summary: dict, target_symbol: str, out_dir, target_con
     ax.set_title(f"{target_symbol} — gnomAD LoF constraint  [{klass}]")
     ax.legend(loc="lower right", fontsize=7)
 
-    # LOEUF gauge (0-2; <=0.35 = constrained — LOWER is more constrained)
+    # LOEUF gauge (0-2; <=HIGH_LOEUF = constrained — LOWER is more constrained)
     ax = axes[1]
     ax.barh([0], [loeuf if loeuf is not None else 0], color=bar_color, height=0.5)
     ax.axvline(HIGH_LOEUF, color=pal.REFLINE_KILLER["color"], linestyle="--", linewidth=1,
@@ -221,7 +232,8 @@ if __name__ == "__main__":
     import json
     ap = argparse.ArgumentParser(description="gnomAD LoF-constraint lookup for a gene.")
     ap.add_argument("--target", required=True)
-    ap.add_argument("--tsv", default=None, help="local TSV override (tests); default streams from S3")
+    ap.add_argument("--parquet", default=None,
+                    help="local per-gene parquet override (tests); default reads S3 cache")
     args = ap.parse_args()
-    row = load_constraint_row(args.target, tsv_path=args.tsv)
+    row = load_constraint_row(args.target, parquet_path=args.parquet)
     print(json.dumps(compute_summary(row, args.target), indent=2))
