@@ -20,8 +20,8 @@
 # resolver rung.
 
 card_id: genomic-instability-state
-version: 0.1.0
-question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome — and where does its genome-instability burden sit?"
+version: 0.2.0   # 0.2.0 (Phase 3a): + whole-genome-doubling (WGD) prevalence + ploidy from ABSOLUTE — a 2nd genome-state axis
+question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome; how prevalent is whole-genome doubling — and where does its genome-instability burden sit?"
 
 tier: indication
 
@@ -29,10 +29,13 @@ applies_when:
   - "true"   # any indication with a TCGA-project mapping; data_unavailable-safe otherwise
 
 required_inputs:
-  - product_id: gdc-pancanatlas-cnv-2018        # seg_based_scores.tsv (per-sample frac_altered)
+  - product_id: gdc-pancanatlas-cnv-2018        # seg_based_scores.tsv (frac_altered) + ABSOLUTE abs_tables (WGD/ploidy)
   - product_id: gdc-pancanatlas-clinical-2018   # merged_sample_quality_annotations (barcode→cancer type)
 
 methods:
+  # ONE method module (tcga_aneuploidy_burden) supplies BOTH genome-state axes: the skill dispatcher
+  # merges aneuploidy_burden_for_indication() + wgd_summary_for_indication() (ABSOLUTE abs_tables,
+  # sibling source), the same two-function-merge pattern the fusion card uses for GENIE-SV.
   - call: tcga-aneuploidy-burden
     args:
       indication: "{indication}"
@@ -45,20 +48,34 @@ outputs:
     - p75_fraction_genome_altered
     - n_samples                          # PanCanAtlas samples in the indication cohort
     - aneuploidy_burden_context          # human-readable burden summary
+    # ---- WGD / ploidy axis (Phase 3a; ABSOLUTE abs_tables) — 2nd cohort genome-state facet ----
+    - wgd_class                          # cohort WGD-prevalence class (enriched/intermediate/rare)
+    - wgd_fraction                       # fraction of cohort samples with >=1 whole-genome doubling
+    - median_ploidy                      # cohort median ABSOLUTE ploidy (tracks WGD)
+    - median_purity                      # cohort median ABSOLUTE tumor purity
+    - wgd_context                        # human-readable WGD summary
   summary_fields_vocabulary:
     aneuploidy_burden_class:
       - highly_aneuploid                 # cohort median frac_altered >= 0.40
       - intermediate_aneuploidy          # 0.10 < median < 0.40
       - quiet_genome                     # median <= 0.10 — comparatively CN-stable cohort
       - data_unavailable                 # no TCGA-project mapping or seg-scores/annotation unresolvable
+    wgd_class:
+      - wgd_enriched                     # >= 50% of cohort samples carry >=1 genome doubling
+      - wgd_intermediate                 # 20% < fraction < 50% (near the ~30-40% pan-cancer baseline)
+      - wgd_rare                         # <= 20% — comparatively WGD-infrequent cohort
+      - data_unavailable                 # no TCGA-project mapping or ABSOLUTE/annotation unresolvable
 
 thresholds:
   high_median_frac_altered: 0.40         # method bins median → highly_aneuploid
   low_median_frac_altered: 0.10          # method bins median → quiet_genome
+  wgd_enriched_fraction: 0.50            # method bins WGD fraction → wgd_enriched
+  wgd_rare_fraction: 0.20                # method bins WGD fraction → wgd_rare
 
 caveats:
-  - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy is a genome-wide cohort phenotype, not a per-gene call. The class describes the indication's chromosomal instability, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
+  - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy + WGD are genome-wide cohort phenotypes, not per-gene calls. The classes describe the indication's chromosomal instability / doubling prevalence, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
   - "Per-SAMPLE genome-wide instability (frac_altered), NOT per-arm. A per-arm arm-loss / per-lineage-selectivity-percentile view needs Taylor-2018 arm-level calls (not yet ingested) — deferred. DISPLAY facet, verdict-inert."
+  - "WGD prevalence (wgd_class / wgd_fraction) is from PanCanAtlas ABSOLUTE Genome-doublings (>=1 doubling), the sibling of the aneuploidy burden — the two axes correlate (WGD-enriched cohorts run higher frac_altered + ploidy) but are reported separately. High WGD is a copy-number-noise + prognosis caveat, NOT a target-specific amplification signal. MSI and mutational-signature genome-state axes are not yet wired (patient-side signatures/HRD are a deferred derivation)."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `genomic_instability_state` claim.
 measurement_type: genomic_instability_state
