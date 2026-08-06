@@ -92,6 +92,7 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
     n_donor_groups = rows[["dataset_id", "donor_id"]].drop_duplicates().shape[0]
     out = {
         "sc_expression_class": classed["sc_expression_class"],
+        "tce_homogeneity_class": classed["tce_homogeneity_class"],   # Phase 3.2 biologics-homogeneity lens
         "malignant_detection_fraction": classed["malignant_detection_fraction"],
         "malignant_abundance_log1p_cp10k": classed["malignant_abundance_log1p_cp10k"],
         "malignant_compartment_available": classed["malignant_compartment_available"],
@@ -113,6 +114,7 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
     skills resolver's _summary_is_unavailable honors) plus a human-readable `_data_note`."""
     return {
         "sc_expression_class": "data_unavailable",
+        "tce_homogeneity_class": "data_unavailable",
         "malignant_detection_fraction": None,
         "malignant_abundance_log1p_cp10k": None,
         "malignant_compartment_available": False,

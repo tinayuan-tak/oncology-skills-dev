@@ -58,6 +58,41 @@ def compartment_summary(rows) -> dict:
     return out
 
 
+# --- TCE within-tumor homogeneity thresholds (biologics-augment Phase 3.2) ---
+# A DISTINCT lens on malignant_detection_fraction from the presence ladder above: for a T-cell
+# engager, within-tumor antigen HOMOGENEITY is a program-killer — antigen-low malignant cells escape
+# redirected killing (there is no bystander payload, unlike an ADC). So the SAME malignant detection
+# fraction that reads as "a real expressing subset" for PRESENCE reads as an ESCAPE-RESERVOIR risk for
+# a TCE. Kept as a separate categorical so the presence `sc_expression_class` is untouched.
+# The 0.25 heterogeneity cut is a deliberate design call (see plan Phase 3.2): only clearly-low
+# malignant coverage fires the TCE-opposing signal; the 0.25-0.5 band is neutral (a real subset
+# expresses, but detection-fraction alone — dropout-aware — is too uncertain to penalize).
+TCE_HOMOGENEOUS_MIN = 0.5        # >=50% of malignant cells express — uniform coverage, low escape
+TCE_HETEROGENEOUS_MAX = 0.25     # <25% — antigen-low escape reservoir; TCE-opposing
+
+
+def classify_tce_homogeneity(malignant_detection_fraction, malignant_compartment_available) -> str:
+    """Within-tumor antigen-homogeneity class for the TCE modality lens (Phase 3.2).
+
+    Vocabulary (surface-modality-fit / bite_tce homogeneity):
+      homogeneous            — malignant detection >= 0.5 (uniform; low antigen-escape risk)
+      moderately_homogeneous — 0.25 <= detection < 0.5 (a real expressing subset; neutral — the
+                               deliberate "don't over-penalize" band)
+      heterogeneous          — detection < 0.25 with a malignant compartment present (escape reservoir)
+      data_unavailable       — no malignant compartment / product (abstain — coverage gap, NOT a zero)
+
+    Discipline: an ABSENT malignant compartment / detection → data_unavailable (abstain), never
+    coerced to heterogeneous (a measured-negative). Mirrors the measured-vs-data_unavailable doctrine.
+    """
+    if not malignant_compartment_available or malignant_detection_fraction is None:
+        return "data_unavailable"
+    if malignant_detection_fraction >= TCE_HOMOGENEOUS_MIN:
+        return "homogeneous"
+    if malignant_detection_fraction < TCE_HETEROGENEOUS_MAX:
+        return "heterogeneous"
+    return "moderately_homogeneous"
+
+
 def classify_sc_expression(comp_summary: dict,
                            malignant_broadly=MALIGNANT_BROADLY_DETECTED_MIN,
                            malignant_subset=MALIGNANT_SUBSET_DETECTED_MIN,
@@ -83,6 +118,7 @@ def classify_sc_expression(comp_summary: dict,
     if not comp_summary:
         return {
             "sc_expression_class": "data_unavailable",
+            "tce_homogeneity_class": "data_unavailable",
             "malignant_detection_fraction": None,
             "malignant_abundance_log1p_cp10k": None,
             "malignant_compartment_available": False,
@@ -107,6 +143,11 @@ def classify_sc_expression(comp_summary: dict,
         "top_microenvironment_detection_fraction": top_micro_det,
         "n_compartments_measured": len(comp_summary),
     }
+    # TCE within-tumor homogeneity lens (Phase 3.2) — a biologics read of the SAME malignant detection
+    # fraction, independent of the presence sc_expression_class below. data_unavailable when no
+    # malignant compartment (the mal is None guard just below returns base with this already set).
+    base["tce_homogeneity_class"] = classify_tce_homogeneity(
+        base["malignant_detection_fraction"], base["malignant_compartment_available"])
 
     # Malignant compartment absent → can't make a malignant-anchored call. v1 indications (COADREAD,
     # NSCLC) both carry it; this branch is the honest guard for any future indication that doesn't.

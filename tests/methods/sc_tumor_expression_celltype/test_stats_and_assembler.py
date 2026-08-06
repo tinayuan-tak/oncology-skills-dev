@@ -174,3 +174,80 @@ def test_cli_build_summary_adds_method_version(monkeypatch):
     out = C.build_summary("EPCAM", "PAAD")
     assert out["method_version"] == C.METHOD_VERSION
     assert out["sc_expression_class"] == "data_unavailable"
+
+
+# --- classify_tce_homogeneity: the biologics within-tumor homogeneity lens (Phase 3.2) ----------
+# A DISTINCT read of malignant_detection_fraction from sc_expression_class: for a TCE, antigen
+# heterogeneity is an escape-reservoir program-killer. The 0.25 heterogeneity cut is a deliberate
+# design call — the 0.25-0.5 band is neutral (moderately_homogeneous), not opposing.
+
+def test_tce_homogeneous_when_broadly_detected():
+    assert S.classify_tce_homogeneity(0.7, True) == "homogeneous"
+    assert S.classify_tce_homogeneity(S.TCE_HOMOGENEOUS_MIN, True) == "homogeneous"   # 0.5 inclusive
+
+
+def test_tce_moderately_homogeneous_is_the_neutral_band():
+    # 0.25 <= detection < 0.5 — a real expressing subset, but NOT penalized (the stricter-cut call)
+    assert S.classify_tce_homogeneity(0.4, True) == "moderately_homogeneous"
+    assert S.classify_tce_homogeneity(S.TCE_HETEROGENEOUS_MAX, True) == "moderately_homogeneous"  # 0.25 inclusive
+    assert S.classify_tce_homogeneity(0.49, True) == "moderately_homogeneous"
+
+
+def test_tce_heterogeneous_below_the_strict_cut():
+    # < 0.25 with a malignant compartment present — antigen-low escape reservoir
+    assert S.classify_tce_homogeneity(0.24, True) == "heterogeneous"
+    assert S.classify_tce_homogeneity(0.02, True) == "heterogeneous"
+
+
+def test_tce_homogeneity_data_unavailable_abstains_not_zero():
+    # no malignant compartment / no detection → data_unavailable (abstain), NEVER coerced to heterogeneous
+    assert S.classify_tce_homogeneity(None, False) == "data_unavailable"
+    assert S.classify_tce_homogeneity(None, True) == "data_unavailable"
+    assert S.classify_tce_homogeneity(0.8, False) == "data_unavailable"   # compartment flag governs
+
+
+# --- classify_sc_expression emits tce_homogeneity_class alongside the presence class ----
+def test_sc_expression_also_emits_tce_homogeneity_broadly():
+    cs = {"malignant": {"n_donors": 5, "n_cells_total": 1000,
+                        "median_detection_fraction": 0.7, "median_abundance_log1p_cp10k": 3.0}}
+    r = S.classify_sc_expression(cs)
+    assert r["sc_expression_class"] == "malignant_broadly_detected"
+    assert r["tce_homogeneity_class"] == "homogeneous"
+
+
+def test_sc_expression_subset_maps_to_heterogeneous_or_moderate_by_the_strict_cut():
+    # malignant_subset_detected spans 0.1-0.5; the TCE lens splits it at 0.25.
+    lo = {"malignant": {"n_donors": 5, "n_cells_total": 1000,
+                        "median_detection_fraction": 0.15, "median_abundance_log1p_cp10k": 1.0}}
+    hi = {"malignant": {"n_donors": 5, "n_cells_total": 1000,
+                        "median_detection_fraction": 0.35, "median_abundance_log1p_cp10k": 1.0}}
+    r_lo = S.classify_sc_expression(lo)
+    r_hi = S.classify_sc_expression(hi)
+    assert r_lo["sc_expression_class"] == "malignant_subset_detected"   # presence class SAME for both
+    assert r_hi["sc_expression_class"] == "malignant_subset_detected"
+    assert r_lo["tce_homogeneity_class"] == "heterogeneous"             # but TCE lens SPLITS them
+    assert r_hi["tce_homogeneity_class"] == "moderately_homogeneous"
+
+
+def test_sc_expression_empty_and_no_malignant_emit_data_unavailable_homogeneity():
+    assert S.classify_sc_expression({})["tce_homogeneity_class"] == "data_unavailable"
+    cs = {"immune": {"n_donors": 8, "n_cells_total": 4000,
+                     "median_detection_fraction": 0.6, "median_abundance_log1p_cp10k": 2.5}}
+    assert S.classify_sc_expression(cs)["tce_homogeneity_class"] == "data_unavailable"
+
+
+def test_assembler_surfaces_tce_homogeneity_class(monkeypatch):
+    import pandas as pd
+    rows = pd.DataFrame(_rows([
+        ("malignant", "dsA", "d1", 300, 0.8, 3.1),
+        ("malignant", "dsB", "d2", 250, 0.6, 2.8),
+    ]))
+    monkeypatch.setattr(R, "read_gene_compartment_rows", lambda t, i: rows)
+    out = R.read_sc_expression_presence("EPCAM", "COADREAD")
+    assert out["tce_homogeneity_class"] == "homogeneous"
+
+
+def test_assembler_data_unavailable_carries_homogeneity(monkeypatch):
+    monkeypatch.setattr(R, "read_gene_compartment_rows", lambda t, i: None)
+    out = R.read_sc_expression_presence("EPCAM", "PAAD")
+    assert out["tce_homogeneity_class"] == "data_unavailable"
