@@ -640,13 +640,29 @@ def _dispatch_mutation_type_counts(target: str, indication: str) -> Optional[dic
 
 
 def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route copy-number-distribution card (E3.b) to
-    methods/depmap_cn_distribution/read.py.
+    """Dispatcher: route copy-number-distribution card (E3.b) to methods/depmap_cn_distribution.
 
-    WES-primary + WGS-fallback. Indication accepted but not consumed (pan-cancer card).
+    WES-primary + WGS-fallback for the CELL-LINE arm (copy_number_class — verdict-driving, pan-cancer;
+    indication not consumed by that path). MERGES a PATIENT-tumour CN cross-check (tcga_patient_cn,
+    TCGA GISTIC, INDICATION-specific) — the two-function-merge pattern the genome-state + fusion cards
+    use. The patient_* fields are ADDITIVE/verdict-inert; they fire no rule (the CN verdict still rests
+    on the cell-line copy_number_class). Each arm degrades independently.
     """
     cn_module = _import_method("depmap_cn_distribution")
-    return cn_module.read_cn_distribution(target=target, indication=indication)
+    out = dict(cn_module.read_cn_distribution(target=target, indication=indication))
+    try:
+        pcn = _import_method("tcga_patient_cn").patient_cn_summary_for_gene(target, indication)
+        for k in ("patient_copy_number_class", "patient_amplified_fraction",
+                  "patient_high_amp_fraction", "patient_deleted_fraction",
+                  "patient_homdel_fraction", "patient_cn_context"):
+            out[k] = pcn.get(k)
+    except Exception:  # noqa: BLE001 — patient CN is additive; never break the cell-line read
+        for k in ("patient_copy_number_class", "patient_amplified_fraction",
+                  "patient_high_amp_fraction", "patient_deleted_fraction",
+                  "patient_homdel_fraction", "patient_cn_context"):
+            out.setdefault(k, None)
+        out["patient_copy_number_class"] = "data_unavailable"
+    return out
 
 
 def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Optional[dict]:

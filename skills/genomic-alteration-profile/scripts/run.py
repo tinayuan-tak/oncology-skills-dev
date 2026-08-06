@@ -243,9 +243,13 @@ def main() -> int:
                                               "genie_driver_recurrence_class"),
         "genie_mutation_frequency":      get_card_field(cards, "mutation-hotspot-frequency",
                                               "genie_mutation_frequency"),
-        # Copy-number axis
+        # Copy-number axis (cell-line, verdict-driving) + PATIENT-tumour CN cross-check (TCGA GISTIC,
+        # indication-specific, verdict-inert). Surfacing both lets the LLM/reviewer flag cell-line↔patient
+        # CN discrepancies (a locus amplified in patients but not the cell-line panel, or vice versa).
         "copy_number_class":             get_card_field(cards, "copy-number-distribution",
                                               "copy_number_class"),
+        "patient_copy_number_class":     get_card_field(cards, "copy-number-distribution",
+                                              "patient_copy_number_class"),
         # Copy-number-STRATIFIED dependency (A1a) — amplified-vs-neutral Chronos split; the
         # amplification-addiction biomarker (ERBB2/MYC). Fires biomarker_stratified_dependency via
         # the resolver's section-2b rungs (reuses the mutation verdict). Surfaced for the LLM/matrix.
