@@ -816,6 +816,50 @@ _BIOMARKER_INPUTS = {
 }
 
 
+# ── A2a: quantitative re-surfacing (biomarker-axis plan §A2a) ─────────────────────────────────
+# The categorical *_class fields above are BUCKETED from raw statistics the cards already compute
+# (pearson_r, effect sizes, Mann-Whitney q, delta-Chronos, agreement fractions) — but the facet
+# collapses each card to its class and DISCARDS the numbers. This map names, per sub-skill, the
+# companion NUMERIC summary fields to re-surface alongside the class, so the facet carries the
+# strength of each signal, not just its bucket. Pulled with the SAME _first_card_summary_field
+# accessor the categorical read uses (no new data, no computation). Verdict-inert: the numbers ride
+# in a parallel `quantitative` block; the recommendation gate never reads the facet.
+_BIOMARKER_QUANT = {
+    # short (sub-skill) : list of numeric summary_fields to re-surface if present
+    "genomic_alteration": ["hotspot_mannwhitney_q", "hotspot_effect_size",
+                           "delta_chronos_hotspot_mut_vs_wt",
+                           "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype"],
+    "dependency":        ["pearson_r", "pearson_p", "spearman_r",
+                          "delta_chronos_top_vs_bottom_quartile",
+                          "protein_dependency_pearson_r", "protein_dependency_pearson_p",
+                          "n_cell_lines_evaluated", "n_paired_models",
+                          "fraction_agree", "fraction_dependent_in_both"],
+    "expression":        ["rna_protein_r", "rna_protein_spearman", "n_paired_tumors"],
+    "differentiation":   ["logrank_p", "logrank_chi2", "n_patients", "n_events",
+                          "high_expr_hazard_direction"],
+}
+
+
+def _biomarker_quantitative(sub_results: dict) -> dict:
+    """Re-surface the raw statistics behind the biomarker categorical classes (A2a). Returns a
+    {sub_skill: {field: value}} dict of the numeric companion fields that were present this run —
+    reusing _first_card_summary_field (same accessor as the categorical read). Verdict-inert: this
+    is display strength only; null/absent fields are simply omitted (honest coverage, not fabricated)."""
+    quant: dict = {}
+    for short, numeric_fields in _BIOMARKER_QUANT.items():
+        r = sub_results.get(short)
+        if not r:
+            continue
+        found = {}
+        for field in numeric_fields:
+            val = _first_card_summary_field(r, field)
+            if val is not None:
+                found[field] = val
+        if found:
+            quant[short] = found
+    return quant
+
+
 # ── BEST-role classification (biomarker-axis plan §1) ────────────────────────────────────────
 # The facet's corroboration/stratification blocks answer "IS there a biomarker signal?" but NOT
 # "what KIND?". A biomarker is always one of a fixed set of intended-uses, and they MUST stay
@@ -966,9 +1010,13 @@ def _biomarker_facet(sub_results: dict) -> dict:
     biomarker_hypotheses = _classify_biomarker_best_roles(corroboration, stratification)
     intended_uses = sorted({h["intended_use"] for h in biomarker_hypotheses})
 
+    # A2a: re-surface the raw statistics behind the categorical classes (strength, not just bucket).
+    quantitative = _biomarker_quantitative(sub_results)
+
     return {
         "corroboration_role": corroboration,
         "stratification_role": stratification,
+        "quantitative": quantitative,                   # A2a: raw stats behind the classes (verdict-inert)
         "preferred_assay": preferred_assay,
         "verdict": verdict,
         "biomarker_hypotheses": biomarker_hypotheses,   # BEST-role §1: typed, non-exclusive
@@ -978,8 +1026,11 @@ def _biomarker_facet(sub_results: dict) -> dict:
                         "mints a nomination. biomarker_hypotheses are BEST-role-typed (predictive / "
                         "prognostic / diagnostic_subtyping / pharmacodynamic) + NON-exclusive — a "
                         "target can carry several; predictive and prognostic are kept strictly "
-                        "separate. Predictive-performance (PPV/NPV) + deployability are NOT yet "
-                        "computed. null fields = input not reachable this run, not a measured negative."),
+                        "separate. `quantitative` re-surfaces the raw statistics (r / effect size / "
+                        "Mann-Whitney q / delta-Chronos / agreement fraction) the cards already "
+                        "computed behind each class — strength, not a computed predictive metric. "
+                        "Predictive-performance (PPV/NPV) + deployability are NOT yet computed. null "
+                        "fields = input not reachable this run, not a measured negative."),
     }
 
 
@@ -1310,6 +1361,22 @@ def _build_user_prompt(
         lines.append(f"- corroboration (→ confidence in biology verdicts): "
                      f"{corr if corr else 'none reachable'}")
         lines.append(f"- stratification (→ patient selection): {strat if strat else 'none reachable'}")
+        # A2c: surface the QUANTITATIVE strengths behind the classes (from A2a's `quantitative` block)
+        # so the narration reports HOW STRONG each biomarker signal is, not just its bucket. Each stat
+        # is glossed in plain language for a non-computational reader (publication-register discipline).
+        quant = {k: v for k, v in (bf.get("quantitative") or {}).items() if v}
+        if quant:
+            lines.append(f"- quantitative strength (raw statistics behind the classes above): {quant}")
+            lines.append("  METRIC GLOSS (interpret in plain language; report with scale + direction): "
+                         "hotspot_mannwhitney_q = FDR-adjusted p that mutant vs WT Chronos differ (lower "
+                         "= more separated); hotspot_effect_size = rank-biserial (0-1, higher = cleaner "
+                         "mutant-vs-WT dependency split); delta_chronos_* = mutant-minus-WT median "
+                         "Chronos (more negative = mutant lines more dependent); pearson_r/spearman = "
+                         "expression↔dependency correlation (negative = higher expression, more "
+                         "dependent); fraction_agree = CRISPR/RNAi concordance rate; rna_protein_r = "
+                         "how well RNA proxies protein (higher = RNA is an adequate assay); logrank_p = "
+                         "expression↔survival separation. These quantify the STRATIFICATION / "
+                         "CORROBORATION strength; they predict DEPENDENCY, not proven drug response.")
         lines.append("  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
                      "patient-selection population (stratification); it must NEVER by itself justify "
                      "a `nominate` — the deterministic gate owns the recommendation.")

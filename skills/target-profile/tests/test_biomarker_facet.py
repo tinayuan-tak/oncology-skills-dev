@@ -179,3 +179,53 @@ def test_best_role_data_unavailable_contributes_no_role():
              genomic_alteration={"mutation-stratified-dependency": {"mutation_stratification_class": "insufficient_mutation_rate"}})
     f = run._biomarker_facet(sr)
     assert f["biomarker_hypotheses"] == []
+
+
+# --- A2a: quantitative re-surfacing (the raw stats behind each categorical class) ---
+
+def test_quantitative_block_resurfaces_card_statistics():
+    """A2a: the facet re-surfaces the numeric companions the cards compute (r, effect size,
+    Mann-Whitney q, delta-Chronos, agreement fractions) alongside the categorical classes."""
+    sr = _sr(
+        genomic_alteration={"mutation-stratified-dependency": {
+            "mutation_stratification_class": "mutant_strongly_dependent",
+            "hotspot_mannwhitney_q": 0.002, "hotspot_effect_size": 0.61,
+            "delta_chronos_hotspot_mut_vs_wt": -0.83}},
+        dependency={"expression-dependency-correlation": {
+            "correlation_class": "strong_negative", "pearson_r": -0.55,
+            "delta_chronos_top_vs_bottom_quartile": -0.7},
+            "crispr-rnai-dependency-concordance": {
+            "concordance_class": "concordant", "fraction_agree": 0.88}},
+    )
+    f = run._biomarker_facet(sr)
+    q = f["quantitative"]
+    assert q["genomic_alteration"]["hotspot_mannwhitney_q"] == 0.002
+    assert q["genomic_alteration"]["hotspot_effect_size"] == 0.61
+    assert q["dependency"]["pearson_r"] == -0.55
+    assert q["dependency"]["fraction_agree"] == 0.88
+    # the categorical roles are still present (re-surfacing is ADDITIVE)
+    assert f["stratification_role"]["mutation_stratification_class"] == "mutant_strongly_dependent"
+
+
+def test_quantitative_is_verdict_inert():
+    """Adding the numeric companions must NOT change verdict / preferred_assay / intended_uses —
+    they ride in a parallel block; the facet's categorical logic is untouched."""
+    base_cards = {"mutation-stratified-dependency": {"mutation_stratification_class": "mutant_strongly_dependent"}}
+    with_nums = {"mutation-stratified-dependency": {
+        "mutation_stratification_class": "mutant_strongly_dependent",
+        "hotspot_mannwhitney_q": 0.002, "hotspot_effect_size": 0.61}}
+    f_base = run._biomarker_facet(_sr(genomic_alteration=base_cards))
+    f_num = run._biomarker_facet(_sr(genomic_alteration=with_nums))
+    for k in ("verdict", "preferred_assay", "intended_uses", "corroboration_role", "stratification_role"):
+        assert f_base[k] == f_num[k], f"{k} changed when numeric fields were added (not verdict-inert)"
+
+
+def test_quantitative_omits_absent_fields_honestly():
+    """Absent numeric fields are simply omitted (no fabricated 0/null); a sub-skill with no numeric
+    companions present contributes no quantitative entry."""
+    sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
+        "mutation_stratification_class": "mutant_strongly_dependent"}})  # class only, no numbers
+    f = run._biomarker_facet(sr)
+    # no numeric companions present → genomic_alteration key absent from quantitative (not {}/null-filled)
+    assert "genomic_alteration" not in f["quantitative"]
+    assert isinstance(f["quantitative"], dict)
