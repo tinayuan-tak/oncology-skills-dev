@@ -105,6 +105,63 @@ def _load_consensus():
         return pd.DataFrame()
 
 
+# sample_coverage.parquet is a SIBLING of the payload at the SAME S3 prefix (not a separate
+# manifest) — the assayed-sample denominator (columns: sample_key, tissue, caller). Basename-swap
+# the payload key, cache alongside, degrade to None so a missing companion just keeps freq=None.
+_COVERAGE_KEY = DERIVED_S3_KEY.rsplit("/", 1)[0] + "/sample_coverage.parquet"
+CACHE_COVERAGE = CACHE_DIR / "sample_coverage.parquet"
+_COVERAGE_STATUS: Optional[bool] = None
+
+
+def _ensure_coverage_cached() -> Optional[Path]:
+    global _COVERAGE_STATUS
+    if _COVERAGE_STATUS is False:
+        return None
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if CACHE_COVERAGE.exists() and CACHE_COVERAGE.stat().st_size > 0:
+        _COVERAGE_STATUS = True
+        return CACHE_COVERAGE
+    if _COVERAGE_STATUS is None:
+        try:
+            _boto3_client().download_file(S3_BUCKET, _COVERAGE_KEY, str(CACHE_COVERAGE))
+            _COVERAGE_STATUS = True
+            return CACHE_COVERAGE
+        except Exception as e:  # noqa: BLE001
+            resp = getattr(e, "response", None)
+            code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
+            if code in ("404", "NoSuchKey") or e.__class__.__name__ in ("NoSuchKey", "404"):
+                _COVERAGE_STATUS = False
+            return None
+    return None
+
+
+@lru_cache(maxsize=1)
+def _load_coverage():
+    path = _ensure_coverage_cached()
+    if path is None:
+        return pd.DataFrame()
+    try:
+        return pd.read_parquet(path)
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def _n_assayed_in_tissue(indication: Optional[str]) -> Optional[int]:
+    """Distinct fusion-ASSAYED samples in the indication's tissue(s) — the honest fusion-frequency
+    denominator. None when coverage is unavailable OR no indication is given (a pan-tissue frequency
+    has no meaningful single denominator → keep freq=None rather than divide by an unknown cohort)."""
+    ind = str(indication or "").upper().strip()
+    if not ind:
+        return None
+    cov = _load_coverage()
+    if cov is None or cov.empty or "tissue" not in cov.columns:
+        return None
+    codes = _indication_tissue_codes(ind)
+    hit = cov[cov["tissue"].astype(str).str.upper().isin(codes)]
+    n = hit["sample_key"].nunique()
+    return int(n) if n > 0 else None
+
+
 def _empty_summary(note: str) -> dict:
     return {
         "n_samples_with_fusion": 0,
@@ -176,11 +233,14 @@ def read_target_summary(target: str, indication: str = None,
     else:
         fclass = "sporadic_fusion"
 
+    # frequency = fused samples / ASSAYED samples in the indication tissue (sample_coverage sibling).
+    # None when coverage is unavailable or no indication given — never divide by an unknown cohort.
+    n_assayed = _n_assayed_in_tissue(indication)
+    freq = (n_samples / n_assayed) if n_assayed else None
     return {
         "n_samples_with_fusion": int(n_samples),
-        # frequency needs an assayed denominator (sample_coverage) — deferred; None keeps it honest
-        # rather than dividing by an unknown/whole-cohort denominator.
-        "fusion_frequency": None,
+        "fusion_frequency": freq,
+        "n_assayed_in_tissue": n_assayed,
         "recurrent_partners": recurrent_partners,
         "fusion_class": fclass,
         "method_version": METHOD_VERSION,

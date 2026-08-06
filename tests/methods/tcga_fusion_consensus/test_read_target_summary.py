@@ -109,3 +109,39 @@ def test_coadread_indication_maps_coad_and_read(monkeypatch):
     d = r.read_target_summary("APC", "COADREAD")
     assert d["n_samples_with_fusion"] == 3
     assert d["recurrent_partners"][0]["partner"] == "X"
+
+
+# --- fusion_frequency denominator (Phase 2a) ---------------------------------
+
+def _patch_coverage(monkeypatch, cov_rows):
+    monkeypatch.setattr(r, "_load_coverage", lambda: pd.DataFrame(cov_rows))
+
+
+def test_fusion_frequency_uses_assayed_denominator(monkeypatch):
+    # 3 LUAD samples with ALK fusion; coverage = 10 assayed LUAD samples → freq 3/10.
+    rows = [_row(f"TCGA-01-{i}-01", "ALK", "LUAD", 3, partners_tf=["EML4"], n_tf=1) for i in range(3)]
+    _patch(monkeypatch, rows)
+    _patch_coverage(monkeypatch, [{"sample_key": f"TCGA-01-{i}-01", "tissue": "LUAD", "caller": "x"}
+                                  for i in range(10)])
+    d = r.read_target_summary("ALK", "NSCLC")
+    assert d["n_samples_with_fusion"] == 3
+    assert d["n_assayed_in_tissue"] == 10
+    assert abs(d["fusion_frequency"] - 0.3) < 1e-9
+
+
+def test_fusion_frequency_none_when_coverage_absent(monkeypatch):
+    rows = [_row("TCGA-01-1-01", "ALK", "LUAD", 3, partners_tf=["EML4"], n_tf=1)]
+    _patch(monkeypatch, rows)
+    _patch_coverage(monkeypatch, [])   # coverage sibling unavailable
+    d = r.read_target_summary("ALK", "NSCLC")
+    assert d["fusion_frequency"] is None and d["n_assayed_in_tissue"] is None
+    assert d["n_samples_with_fusion"] == 1   # count still reported
+
+
+def test_fusion_frequency_none_without_indication(monkeypatch):
+    # pan-tissue query has no single honest denominator → None even if coverage exists.
+    rows = [_row("TCGA-01-1-01", "ALK", "LUAD", 3, partners_tf=["EML4"], n_tf=1)]
+    _patch(monkeypatch, rows)
+    _patch_coverage(monkeypatch, [{"sample_key": "TCGA-01-1-01", "tissue": "LUAD", "caller": "x"}])
+    d = r.read_target_summary("ALK")   # no indication
+    assert d["fusion_frequency"] is None
