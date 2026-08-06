@@ -422,6 +422,41 @@ rules:
       Supportive but not dominant on its own; the amplification-addiction hypothesis is viable
       but needs stronger orthogonal evidence. Live example: ERBB2 (delta -0.31), MYC (-0.24).
 
+  # A1-fusion (2026-08-06): gene-fusion analogs of the two mutation-stratified + CN-stratified rules
+  # above. The fusion card (fusion-stratified-dependency) is the fusion-addiction sibling; these rules
+  # fire the SAME biomarker_stratified_dependency verdict in genomic_alteration.resolver.yaml (no new
+  # verdict, no gate change). Closes the fusion-driven-oncogene gap (EWSR1-FLI1, BCR-ABL1) that BOTH
+  # the mutation-only and CN-only stratified paths miss.
+  - rule_id: fusion-positive-strongly-dependent-supportive
+    when:
+      card_id: fusion-stratified-dependency
+      field: fusion_stratification_class
+      equals: fusion_positive_strongly_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Fusion-positive cells significantly + strongly more dependent than fusion-negative (q < α,
+      |delta| >= 0.5). Fusion-addiction biomarker — supports a fusion-stratified strategy. The class
+      the mutation-only + CN-only stratified paths miss for fusion-driven oncogenes: the target is
+      neither hotspot-mutated nor amplified but the fusion establishes the dependency (EWSR1-FLI1
+      Ewing addiction, delta -0.69; BCR-ABL1).
+
+  - rule_id: fusion-positive-moderately-dependent-supportive
+    when:
+      card_id: fusion-stratified-dependency
+      field: fusion_stratification_class
+      equals: fusion_positive_moderately_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Significant fusion-positive-vs-negative stratification but smaller effect size (-0.2 to -0.5).
+      Supportive but not dominant on its own; the fusion-addiction hypothesis is viable but needs
+      stronger orthogonal evidence (fusion-positive PDX, isogenic breakpoint constructs). Live
+      example: ABL1 (delta -0.47, BCR-ABL1).
+
   - rule_id: wt-strongly-dependent-neutral
     when:
       card_id: mutation-stratified-dependency

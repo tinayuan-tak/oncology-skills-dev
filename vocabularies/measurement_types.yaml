@@ -288,6 +288,18 @@ measurement_types:
       # 2026-08-04: was mis-declared as derived_from at #108, failing the vocab validator on main since.
       - {kind: dataset, source: tcga-fusion-consensus-v1, method: tcga_fusion_consensus, evidence_tier: measured}   # LIVE 2026-07-23: pan-TCGA 3-caller consensus (TumorFusions/Gao/cBioPortal SV)
 
+  fusion_status:
+    claim: "Does the cell line carry a fusion INVOLVING the target (target as 5' or 3' partner), per line (a per-line boolean, the fusion biomarker axis)?"
+    # A1-fusion (2026-08-06): the CELL-LINE fusion-involvement boolean — the DepMap analog of
+    # mutation_status, distinct from the PATIENT-grain fusion_rearrangement above (target_indication,
+    # TCGA recurrence). This is a per-line ModelID-keyed boolean from DepMap OmicsFusionFiltered.csv,
+    # the input to fusion_stratified_dependency. Like mutation_status, no standalone card is a view of
+    # it today — it exists as a derived-edge input (cards: []).
+    entity_grains: [target, target_lineage]
+    cards: []
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
   genomic_instability_state:
     claim: "How chromosomally unstable is the indication's cohort (aneuploidy / CIN burden)?"
     # M7 genome-state slice: an INDICATION-level, target-INDEPENDENT genome-wide phenotype (not a
@@ -755,6 +767,19 @@ measurement_types:
     cards: [copy-number-stratified-dependency]
     providers:
       - {kind: derived_from, inputs: [copy_number_alteration, crispr_lof_dependency], method: stratified_effect, evidence_tier: measured}
+
+  fusion_stratified_dependency:
+    # A1-fusion (2026-08-06): the gene-fusion analog of mutation_stratified_dependency /
+    # cn_stratified_dependency — is dependency stratified by whether the line carries a fusion
+    # INVOLVING the target (fusion-addiction biomarker)? Same stratified_effect method (reuses the
+    # Mann-Whitney contrast); fusion_status is the per-line fusion-involvement boolean input. Closes
+    # the fusion-driven-oncogene gap (EWSR1-FLI1, BCR-ABL1) that mutation + CN both miss.
+    modality_relevance: [small_molecule, degrader]
+    claim: "Is target dependency stratified by whether the line carries a fusion involving the target (fusion-addiction biomarker)?"
+    entity_grains: [target]
+    cards: [fusion-stratified-dependency]
+    providers:
+      - {kind: derived_from, inputs: [fusion_status, crispr_lof_dependency], method: stratified_effect, evidence_tier: measured}
 
   chemical_genetic_concordance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance

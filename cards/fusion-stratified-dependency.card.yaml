@@ -1,0 +1,114 @@
+# Card E3.fus — FUSION-STRATIFIED DEPENDENCY  (pure-data, target-only)
+#
+# The gene-fusion analog of mutation-stratified-dependency (Card E3.mut) and copy-number-stratified-
+# dependency (Card E3.cn): does dependency on {target} stratify by whether the cell line carries a
+# fusion INVOLVING {target} across the DepMap panel? Drives the fusion-addiction biomarker hypothesis
+# (fusion-positive cells strongly dependent ↔ fusion-stratified strategy) — the class BOTH the
+# mutation-only and CN-only stratified paths MISS for fusion-driven oncogenes (EWSR1-FLI1, BCR-ABL1),
+# which are neither hotspot-mutated nor amplified.
+#
+# DECOUPLED FROM INDICATION (Decision 2A, mirrors E3.mut/E3.cn): evaluates the FULL DepMap panel;
+# per-indication fusion prevalence is a downstream synthesis question. One evidence package per
+# target serves all indications.
+#
+# Demonstration cases (live-verified 26Q1):
+#   - FLI1: EWSR1-FLI1 Ewing lines strongly dependent → fusion_positive_strongly_dependent
+#           (delta -0.69, q=2.5e-9, effect 0.70) — invisible to the mutation + CN paths
+#   - ABL1: BCR-ABL1 lines more dependent → fusion_positive_moderately_dependent (delta -0.47, q=7e-6)
+#   - ALK:  CRISPR dependency is not fusion-stratified at panel power → not_fusion_stratified (delta +0.01)
+#
+# Single-tier fusion grouping (unlike E3.mut's hotspot/damaging/any tiers — one boolean vector):
+#   - FUSION-POSITIVE: target is a partner (5' LeftGene OR 3' RightGene) in ANY default high-confidence
+#     fusion call for the line — the gene-collapsed symbol-union boolean
+#   - FUSION-NEGATIVE (comparator): every OTHER fusion-PROFILED line (lines never fusion-called are
+#     EXCLUDED, not counted negative — the faithful mirror of E3.mut's WT over the profiled universe)
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from Card 1+2 loader)
+#   - OmicsFusionFiltered.csv (per-event fusion calls, ModelID-native; IsDefaultEntryForModel filter)
+
+card_id: fusion-stratified-dependency
+version: 1.0.0
+question: "Is dependency on {target.symbol} stratified by whether the cell line carries a fusion involving {target.symbol} across the DepMap panel? (Fusion-addiction biomarker hypothesis.)"
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-fusion-stratified
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel-wide context (target-only) ===
+    - n_cell_lines_evaluated                         # cells with BOTH Chronos AND fusion profiling
+    # === Fusion stratification (fusion-addiction signal) ===
+    - n_fusion_positive                              # cells carrying a fusion involving the target
+    - n_fusion_negative                              # fusion-profiled cells NOT carrying such a fusion
+    - median_chronos_fusion_positive
+    - median_chronos_fusion_negative
+    - delta_chronos_fusion_positive_vs_negative      # positive - negative (negative = fusion-pos more dependent)
+    - fusion_stratification_mannwhitney_p
+    - fusion_stratification_mannwhitney_q            # single test → q == p (no multi-tier BH)
+    - fusion_stratification_effect_size              # rank-biserial correlation
+    # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
+    - fusion_stratification_class
+
+  summary_fields_vocabulary:
+    fusion_stratification_class:
+      - fusion_positive_strongly_dependent           # fusion-positive median chronos significantly < negative (delta <= -0.5); fusion-addiction
+      - fusion_positive_moderately_dependent         # significant but smaller effect (delta <= -0.2)
+      - fusion_negative_strongly_dependent           # fusion-negative cells more dependent (rare; one-sided test rarely reaches this — see caveat)
+      - not_fusion_stratified                        # no significant positive-vs-negative difference
+      - insufficient_fusion_rate                     # <min_fusion_positive_cells carry a fusion; test underpowered
+      - data_unavailable
+
+  figures:
+    - id: fusion_vs_negative_strip
+      type: fusion_stratified_strip
+      description: "Per-cell-line Chronos strip plot split into Fusion-positive (target is a partner) / Fusion-negative groups. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_cell_line_chronos_with_fusion_status
+
+thresholds:
+  # Sample-size discipline — Mann-Whitney meaningless below these (mirror E3.mut/E3.cn)
+  min_fusion_positive_cells: 5
+  min_fusion_negative_cells: 30
+  # Significance + effect-size cutoffs (identical to E3.mut/E3.cn)
+  stratification_alpha: 0.05                         # q
+  strong_effect_delta: -0.5                          # fusion-positive median >= 0.5 lower than negative = strong
+  moderate_effect_delta: -0.2                        # >= 0.2 lower = moderate
+
+warning_predicates:
+  - warning_id: rare_fusion
+    if: "n_fusion_positive < 10"
+    message: "Fewer than 10 fusion-positive cell lines; fusion-stratification estimate has wide CI. Interpret fusion_stratification_class cautiously."
+  - warning_id: significant_but_small_effect
+    if: "fusion_stratification_mannwhitney_q < 0.05 && delta_chronos_fusion_positive_vs_negative > -0.2"
+    message: "Fusion-positive-vs-negative difference is statistically significant but sub-threshold in effect size (delta > -0.2) — at panel n, small deltas reach significance; not classified as stratified (significance != actionable effect)."
+
+caveats:
+  - "Fusion status = the target appears as EITHER the 5' (LeftGene) or 3' (RightGene) partner in any default high-confidence DepMap fusion call (gene-collapsed symbol-union boolean). v1 does NOT require the target be the in-frame / kinase-retaining / dependency-conferring partner — 5'/3' orientation + reading-frame resolution (OmicsFusionFilteredSupplementary) is a v2 upgrade."
+  - "The symbol-union v1 is CONSERVATIVE by construction: the one-sided Mann-Whitney (alternative: fusion-positive more dependent) means a bystander-partner fusion (target is the passenger fragment) only dilutes toward the null — it can never manufacture a false-positive dependency call."
+  - "Fusion-negative comparator = every OTHER fusion-PROFILED line. Lines absent from OmicsFusionFiltered.csv were never fusion-called and are EXCLUDED (abstain), not counted as negatives — the denominator is the profiled universe, not all Chronos-screened lines."
+  - "Mann-Whitney is one-sided (alternative: fusion-positive more dependent). Fusion-negative-more-dependent patterns rarely surface as `fusion_negative_strongly_dependent` under the one-sided test — a non-significant one-sided p correctly yields `not_fusion_stratified` (a fusion is never credited with a dependency it lacks)."
+  - "Fusion, mutation, and copy-number stratification are NOT independent. When more than one stratifies, the resolver's mutation rung takes precedence, then CN, then fusion (driving_rule names the winning path)."
+  - "Cell-line fusion-stratified dependency is necessary but NOT sufficient for a clinical biomarker — needs orthogonal validation (fusion-positive PDX, isogenic breakpoint constructs, patient fusion status)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `fusion_stratified_dependency` claim (is
+# dependency stratified by whether the line carries a fusion involving the target?), derived_from
+# [fusion_status, crispr_lof_dependency]. The fusion analog of mutation_stratified_dependency /
+# cn_stratified_dependency; fusion_status is the per-line fusion-involvement boolean input,
+# crispr_lof_dependency the Chronos requirement. Both co-resident in DepMap; a type→type edge.
+measurement_type: fusion_stratified_dependency
+# P4: declaration-only routing key — fusion-addiction biomarker → SM/degrader efficacy stratifier.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

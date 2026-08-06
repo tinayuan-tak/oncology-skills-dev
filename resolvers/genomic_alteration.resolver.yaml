@@ -75,6 +75,17 @@ resolve:
   - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
   - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
 
+  # (2c) FUSION-STRATIFIED DEPENDENCY (A1-fusion, 2026-08-06). Fusion-positive cells Chronos-proven
+  #      more dependent — the gene-fusion analog of the mut/CN-stratified rescues above. REUSES the
+  #      SAME biomarker_stratified_dependency / moderate_biomarker_dependency verdicts (so
+  #      nomination_verdict_gate.yaml is unchanged; distinct driving_rule_id preserves auditability).
+  #      Placed AFTER the mut + CN single-driver rungs (precedence mut > cn > fusion when several fire)
+  #      and BEFORE the CN-ONLY rungs below (a Chronos-proven fusion DEPENDENCY outranks a bare
+  #      CN-landscape driver with no dependency test). Recovers EWSR1-FLI1/BCR-ABL1 — targets neither
+  #      hotspot-mutated nor amplified, invisible to (2)/(2b).
+  - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
+
   # (3) CN-ONLY (cn drives, mutation not a driver) — amplified before deleted (first-match parity).
   - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
   - {verdict: recurrent_deletion_driver,       when_fired: cn-recurrently-deleted-supportive}
