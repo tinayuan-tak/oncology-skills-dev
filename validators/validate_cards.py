@@ -196,6 +196,7 @@ KNOWN_FIGURE_DEBT = {
     'subgroup-stratified-dependency', 'subgroup-stratified-expression',
     'copy-number-stratified-dependency',   # A1a (2026-08-06) — amp-vs-neutral strip emitter deferred (viz-debt queue)
     'fusion-stratified-dependency',   # A1-fusion (2026-08-06) — fusion-vs-negative strip emitter deferred (viz-debt queue)
+    'amp-expr-stratified-dependency',   # A1 amp-expr (2026-08-06) — conjoint amp+overexpr strip emitter deferred (viz-debt queue)
     # surface tier + shed:
     'shed-ectodomain-liability', 'surface-topology-and-ptm',
     'surfaceome-family-classification', 'surfaceome-cohort-ranking',

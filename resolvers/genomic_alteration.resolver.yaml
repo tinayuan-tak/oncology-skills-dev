@@ -86,6 +86,16 @@ resolve:
   - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
   - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
 
+  # (2d) AMP→EXPR→DEPENDENCY three-way (A1 amp-expr, 2026-08-06). Amplified+overexpressed cells Chronos-
+  #      proven more dependent — the CONJOINT refinement of the CN-stratified rescue (adds the expression
+  #      term). REUSES the SAME biomarker_stratified_dependency / moderate_biomarker_dependency verdicts
+  #      (nomination_verdict_gate.yaml unchanged; distinct driving_rule_id preserves auditability). Placed
+  #      LAST among the stratified-dependency rungs (precedence mut > cn > fusion > amp-expr): it is the
+  #      MOST SPECIFIC signal (both conditions), so any single-alteration driver names the verdict first,
+  #      and the bare CN-landscape rungs below (no dependency test) come after. ERBB2/MYC/KRAS-amp.
+  - {verdict: biomarker_stratified_dependency, when_fired: amp-expr-strongly-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: amp-expr-moderately-dependent-supportive}
+
   # (3) CN-ONLY (cn drives, mutation not a driver) — amplified before deleted (first-match parity).
   - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
   - {verdict: recurrent_deletion_driver,       when_fired: cn-recurrently-deleted-supportive}

@@ -457,6 +457,40 @@ rules:
       stronger orthogonal evidence (fusion-positive PDX, isogenic breakpoint constructs). Live
       example: ABL1 (delta -0.47, BCR-ABL1).
 
+  # A1 amp→expr→dep (2026-08-06): the CONJOINT (amplified AND overexpressed) analog of the CN-stratified
+  # rules above. The three-way card (amp-expr-stratified-dependency) is the amplification-DRIVEN-
+  # overexpression-addiction sibling; these rules fire the SAME biomarker_stratified_dependency verdict
+  # in genomic_alteration.resolver.yaml (no new verdict, no gate change). Closes the amp→overexpression→
+  # dependency gap the CN-only path (expression-blind) under-weights (ERBB2 sharper here than CN-alone).
+  - rule_id: amp-expr-strongly-dependent-supportive
+    when:
+      card_id: amp-expr-stratified-dependency
+      field: amp_expr_stratification_class
+      equals: amplified_overexpressed_strongly_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Amplified+overexpressed cells significantly + strongly more dependent than the rest (q < α,
+      |delta| >= 0.5). Amplification-driven overexpression-addiction — supports a copy-number+expression-
+      stratified strategy. The conjoint refinement the CN-only path under-weights: conditioning the
+      amplified arm on ALSO-overexpressed isolates the addicted subset. Live example: KRAS (delta -0.64).
+
+  - rule_id: amp-expr-moderately-dependent-supportive
+    when:
+      card_id: amp-expr-stratified-dependency
+      field: amp_expr_stratification_class
+      equals: amplified_overexpressed_moderately_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Significant amplified+overexpressed-vs-rest stratification but smaller effect size (-0.2 to -0.5).
+      Supportive but not dominant on its own; the amplification-driven-addiction hypothesis is viable but
+      needs stronger orthogonal evidence (isogenic amplification models). Live example: ERBB2 (delta -0.41,
+      SHARPER than the CN-only -0.31 — the conditioning on overexpression works), MYC (delta -0.26).
+
   - rule_id: wt-strongly-dependent-neutral
     when:
       card_id: mutation-stratified-dependency
