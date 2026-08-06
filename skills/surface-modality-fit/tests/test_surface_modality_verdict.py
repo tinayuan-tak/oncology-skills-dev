@@ -102,6 +102,10 @@ _NEWLY_REACHABLE_RULES = [
     # biologics-augment Phase 3.2 — within-tumor antigen-homogeneity (single-cell Census):
     "sc-homogeneity-uniform-tce-supportive",  # homogeneous → TCE supportive
     "sc-homogeneity-heterogeneous-tce-opposing",  # heterogeneous → TCE opposing (escape reservoir)
+    # biologics-augment window arc — modality therapeutic-window (tumor / max-essential-normal):
+    "modality-window-clean-supportive",       # clean_window → supportive
+    "modality-window-essential-liability-tce-opposing",  # essential liability → TCE opposing, ADC neutral
+    "modality-window-narrow-opposing",        # narrow_window → opposing
 ]
 
 
@@ -112,6 +116,8 @@ def test_newly_wired_cards_are_in_the_skill_card_set():
     assert "shed-ectodomain-liability" in smf.CARDS
     # Phase 3.2 — the single-cell homogeneity card carries the tce_homogeneity_class facet
     assert "tumor-scrna-celltype-expression" in smf.CARDS
+    # window arc — the therapeutic-window card
+    assert "modality-therapeutic-window" in smf.CARDS
 
 
 def test_additive_surface_signals_do_not_move_the_verdict():

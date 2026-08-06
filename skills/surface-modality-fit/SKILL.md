@@ -66,6 +66,12 @@ composition:
                                        # Its surface rules (sc-homogeneity-uniform-tce-supportive / -heterogeneous-tce-
                                        # opposing) fire on the homogeneity facet; the card's PRIMARY sc_expression_class
                                        # stays presence-axis. LIVE for COADREAD+NSCLC. Additive; verdict byte-stable.
+    - modality-therapeutic-window      # (in run.py CARDS; wired 2026-08-06, biologics-augment window arc)
+                                       # Clean-antigen THERAPEUTIC WINDOW: tumor / max-essential-normal TPM, modality-
+                                       # tiered (strict/TCE default). Surfaces the CEACAM5 paradox neither selectivity
+                                       # nor normal-tissue-liability makes. Rules fire on window_class (essential_tissue_
+                                       # liability → bite_tce opposing, adc NEUTRAL = ADC-vs-TCE discriminator). Emits
+                                       # both essential + full-normal ratios (Theme-1). Additive; verdict byte-stable.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -92,6 +98,8 @@ composition:
                                        # not just a pulled intent — CSPA wired into CARDS same change.
     - sc_tumor_celltype_expression     # (2026-08-06, biologics-augment Phase 3.2) single-cell within-tumor antigen
                                        # homogeneity (tce_homogeneity_class facet); TCE-escape signal, adc/bite_tce.
+    - modality_window                  # (2026-08-06, biologics-augment window arc) tumor / max-essential-normal TPM
+                                       # therapeutic-window ratio, modality-tiered; adc/bite_tce/antibody.
   rules_scope:
     - all
   synthesis:

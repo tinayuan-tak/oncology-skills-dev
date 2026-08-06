@@ -88,6 +88,18 @@ CARDS = [
                                         # LIVE for COADREAD + NSCLC (Census per-cell malignant annotation);
                                         # other indications → data_unavailable (honest gap). ADDITIVE signal-
                                         # only (no resolver rung) → verdict byte-stable.
+    "modality-therapeutic-window",      # biologics-augment window arc (2026-08-06): clean-antigen
+                                        # THERAPEUTIC-WINDOW — tumor / max-essential-normal TPM ratio,
+                                        # modality-tiered (scored strict/TCE by default). Reads
+                                        # tcga-gtex-tpm-tissue-quantiles-v1 at claim-grade TPM. Surfaces the
+                                        # CEACAM5 paradox (huge window yet strict-TCE liability) neither
+                                        # tumor-vs-normal-selectivity (within-tissue) nor normal-tissue-
+                                        # liability (off-tumor breadth) makes. Rules (modality-window-clean-
+                                        # supportive / -essential-liability-tce-opposing [adc NEUTRAL — the
+                                        # ADC-vs-TCE discriminator] / -narrow-opposing) fire on window_class.
+                                        # Emits BOTH essential + full-normal ratios (Theme-1 fix). Cohort-
+                                        # honest (DLL3/SCLC → not_expressed). ADDITIVE signal-only (no resolver
+                                        # rung) → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -146,6 +158,14 @@ def _headline(cards, fired, verdict_pair):
         # LIVE for COADREAD + NSCLC only; else data_unavailable. Additive; verdict byte-stable.
         "tce_homogeneity_class":          get_card_field(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class"),
         "malignant_detection_fraction":   get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_fraction"),
+        # Modality therapeutic window (tumor / max-essential-normal TPM, strict/TCE tier). Its rules
+        # fire on window_class: clean_window → supportive; essential_tissue_liability → bite_tce opposing
+        # + adc/antibody NEUTRAL (the ADC-vs-TCE discriminator, CEACAM5 pattern); narrow_window →
+        # opposing. Both denominators surfaced (Theme-1). Additive; verdict byte-stable.
+        "window_class":                   get_card_field(cards, "modality-therapeutic-window", "window_class"),
+        "window_ratio_essential":         get_card_field(cards, "modality-therapeutic-window", "window_ratio_essential"),
+        "window_ratio_full_normal":       get_card_field(cards, "modality-therapeutic-window", "window_ratio_full_normal"),
+        "window_max_essential_organ":     get_card_field(cards, "modality-therapeutic-window", "max_essential_normal_organ"),
     }
 
 
