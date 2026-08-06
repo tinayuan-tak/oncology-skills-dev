@@ -34,7 +34,7 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.0.0
+version: 1.1.0    # 2026-08-06: + cn_homozygous_deletion_recurrent display flag (degrader-relevant, verdict-inert)
 question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
 
 applies_when:
@@ -72,6 +72,12 @@ outputs:
     - cn_recurrent_amplification_score   # combined focal + high amp fraction
     - cn_recurrent_deletion_score        # combined shallow + deep del fraction
     - copy_number_class                  # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    # Recurrent HOMOZYGOUS (deep) deletion flag (2026-08-06, DISPLAY facet). copy_number_class folds
+    # deep + shallow del into recurrently_deleted; this isolates recurrent DEEP deletion (CN<0.5 in
+    # >=20% of the panel) — the degrader-relevant pattern (no protein to degrade). SEPARATE from
+    # copy_number_class ON PURPOSE (that field is verdict-driving; this is additive/verdict-inert). A
+    # degrader-not-viable rule keyed on this is a deferred follow-up.
+    - cn_homozygous_deletion_recurrent
     - cn_top_amplified_lineages          # per-lineage stats for amplified lineages
     - cn_top_deleted_lineages            # per-lineage stats for deleted lineages
 
@@ -81,6 +87,10 @@ outputs:
       - recurrently_deleted              # >=20% of panel shows shallow+deep del
       - mixed                            # both amp and del recurrent (different lineages)
       - broadly_neutral                  # neither amp nor del recurrent — VALID DESCRIPTIVE CALL
+      - data_unavailable                 # target absent from CN matrix or load failed
+    cn_homozygous_deletion_recurrent:
+      - recurrent_homozygous_deletion    # deep deletion (CN<0.5) in >=20% of the panel — degrader-relevant (no protein)
+      - not_recurrent_homozygous_deletion
       - data_unavailable                 # target absent from CN matrix or load failed
     cn_assay_used:
       - wes
