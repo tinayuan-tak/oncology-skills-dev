@@ -92,9 +92,46 @@ _SYSTEM = (
     "DRIVING CLASS: the same gene can drive via different classes across indications (ERBB2 amp in "
     "gastric vs mutation in a lung subset). Say WHICH class carries the signal here. State "
     "DATA_UNAVAILABLE gaps plainly — a null result is decision-useful. "
+    "REGISTER — write to scientific-publication standard: the voice of a methods/results section. "
+    "Declarative, precise, and factual; complete sentences; active voice. Report each number with its "
+    "scale and direction, never bare. Do NOT use promotional or editorialising language (avoid "
+    "'promising', 'exciting', 'compelling', 'robustly', 'clearly'); let the evidence carry the claim. "
+    "Concise but readable — a domain biologist who is not a statistician must follow it without a glossary. "
+    "PLAIN-LANGUAGE METRICS — on FIRST use of any technical quantity, add a short parenthetical gloss so a "
+    "non-computational reader can interpret it, e.g.: mutation frequency (share of tumours in the cohort "
+    "carrying a mutation in this gene); driver-recurrence percentile (where that recurrence ranks among "
+    "ALL mutated genes in the indication — high = recurrent beyond the passenger background); "
+    "alteration_role (a curated GoF/LoF/biomarker/passenger call from OncoKB x IntOGen — FUNCTION, not "
+    "frequency); copy_number_class (recurrent amplification vs deletion vs neutral). Gloss once, then "
+    "use the term freely. "
     "SCOPE DISCIPLINE: do NOT discuss therapeutic MODALITY, expression level, or surface accessibility. "
     "Those belong to other lenses / the composed target-profile synthesis."
 )
+
+# Deterministic plain-language legend for the metrics this narration cites — attached as a sibling
+# key (metric_legend) so a non-computational reader always has an accurate, byte-stable reference,
+# independent of the LLM's inline glosses. Mirrors synthesis_dependency.METRIC_LEGEND.
+METRIC_LEGEND = {
+    "mutation_frequency": ("The share of tumours in the cohort carrying a mutation in this gene "
+                           "(0-1). Frequency alone is NOT function — a large gene in a hypermutated "
+                           "cohort accumulates passenger mutations at high frequency."),
+    "driver_recurrence_percentile": ("Where this gene's mutation recurrence ranks among ALL mutated "
+                                     "genes in the indication (0-100). High = recurrent well beyond "
+                                     "the passenger background (a driver-like pattern); mid/low = "
+                                     "passenger-level. The contextualization of raw frequency."),
+    "alteration_role": ("A curated FUNCTIONAL call (OncoKB x IntOGen): gain-of-function (GoF, "
+                        "activating oncogene), loss-of-function (LoF, tumour suppressor), "
+                        "predictive_biomarker, or passenger. Weigh this AGAINST recurrence — a "
+                        "recurrently-mutated passenger is not a driver."),
+    "copy_number_class": ("The copy-number alteration pattern: recurrently amplified, recurrently "
+                          "deleted, or copy-neutral. An amplification-driven target (e.g. ERBB2) can "
+                          "read 'not a driver' on mutation frequency yet be driven by copy number."),
+    "mutation_stratification_class": ("Whether mutant status stratifies a dependency — i.e. is the "
+                                      "gene's mutation a candidate patient-selection biomarker for a "
+                                      "dependency, rather than just recurrent?"),
+    "functional_state_class": ("The allele-count / two-hit state: whether the gene is biallelically "
+                               "inactivated (completed two-hit -> LoF) or only monoallelically hit."),
+}
 
 
 def _fmt(v, nd=1):
@@ -215,10 +252,15 @@ def synthesize_genomic_alteration(decision: dict, model_id: Optional[str] = None
     failure — synthesis is never allowed to break the deterministic run)."""
     from _skills_common.llm import synthesize_structured
     user_prompt = build_user_prompt(decision, subtype_query=subtype_query)
-    return synthesize_structured(
+    result = synthesize_structured(
         system_prompt=_SYSTEM,
         user_prompt=user_prompt,
         tool_name=SYNTHESIS_TOOL_NAME,
         tool_schema=SYNTHESIS_TOOL_SCHEMA,
         model_id=model_id,
     )
+    # Attach the deterministic plain-language metric legend (sibling key), on a successful
+    # narration only — a degraded {_synthesis_error} block stays minimal. Mirrors synthesis_dependency.
+    if isinstance(result, dict) and "_synthesis_error" not in result:
+        result.setdefault("metric_legend", METRIC_LEGEND)
+    return result

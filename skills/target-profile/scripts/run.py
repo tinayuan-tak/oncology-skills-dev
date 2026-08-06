@@ -1147,6 +1147,15 @@ _SYSTEM_PROMPT = (
     "lenses (expression, selectivity, dependency, mechanism, mutation, safety) to a recommendation. "
     "Modality is a SECONDARY, supporting dimension: discuss it AFTER the relevance case has been made, "
     "not as the headline. "
+    "Note (register): write to scientific-publication standard — the voice of a methods/results "
+    "section. Declarative, precise, factual; complete sentences; active voice. Report each number with "
+    "its scale and direction, never bare. Do NOT use promotional or editorialising language (avoid "
+    "'promising', 'exciting', 'compelling', 'robustly', 'clearly'); let the evidence carry the claim. "
+    "Concise but readable — a domain biologist who is not a statistician must follow it without a "
+    "glossary. On FIRST use of a technical metric, add a short plain-language parenthetical gloss (e.g. "
+    "Chronos knockout fitness score ~ -1 = a typically essential gene; ε² = fraction of variation a "
+    "grouping explains, ~0.14 large; log2 fold-change +1 = 2x). A deterministic metric_legend is also "
+    "attached to the output for reference. "
     "Note (biology-axis governance): you may be given a MODALITY-EMPHASIS GOVERNANCE block stating the "
     "target's curated biology_axis (intracellular vs surface) and its plausible modalities. WHEN you "
     "discuss modality, RESPECT it — do not propose ADC/T-cell-engager/CAR for an intracellular target "
@@ -1154,6 +1163,35 @@ _SYSTEM_PROMPT = (
     "The block keeps modality talk biologically honest; it does NOT make modality the lead, and it never "
     "changes the deterministic verdict or recommendation (the gate owns those)."
 )
+
+# Cross-cutting plain-language legend for the metrics the COMPOSED synthesis may cite across lenses.
+# Attached to the LLM output as a sibling key (metric_legend) so a non-computational reader has an
+# accurate, byte-stable reference independent of the LLM's inline glosses. Superset of the per-lens
+# METRIC_LEGENDs in _skills_common/synthesis_*.py (this composed view spans all lenses).
+_METRIC_LEGEND = {
+    "chronos_score": ("CRISPR knockout fitness score (dependency lens). 0 = knockout does not affect "
+                      "growth; ~ -1 = a typically essential gene; more negative = stronger dependency. "
+                      "A pan-essential-level score is a broad-toxicity liability, not a target win."),
+    "log2_fold_change": ("log2 of a ratio (e.g. tumour vs normal expression). +1 = 2x higher, 0 = no "
+                         "difference. Used by the expression/selectivity lenses."),
+    "allgene_percentile": ("Where a target ranks among ALL genes in the same cohort (0-100) — the "
+                           "'relative to what?' frame for abundance (presence) or fold-change "
+                           "(selectivity)."),
+    "epsilon_squared": ("ε² (epsilon-squared): the fraction of a signal's variation across a grouping "
+                        "(molecular subtype, or lineage for dependency) that the grouping explains, "
+                        "0-1. ~0.06 moderate, ~0.14 large. Large = concentrated in a subgroup."),
+    "driver_recurrence_percentile": ("Where a gene's mutation recurrence ranks among all mutated genes "
+                                     "in the indication (mutation lens). High = recurrent beyond the "
+                                     "passenger background; frequency is not function."),
+    "alteration_role": ("Curated functional call (OncoKB x IntOGen): GoF (activating oncogene), LoF "
+                        "(tumour suppressor), predictive_biomarker, or passenger."),
+    "fit_class": ("Surface-modality-fit verdict: ADC_preferred / TCE_preferred / both_viable / "
+                  "neither_viable — whether surface biology (topology, family) supports a biologics "
+                  "modality. Distinct from the small-molecule tractability call."),
+    "ordinal_matrix": ("A gate x modality reprojection of the same signals into order-preserving "
+                       "ordinals — NOT a calibrated score; never summed or averaged. Off-scale cells "
+                       "(insufficient / not_applicable) are coverage gaps, not low scores."),
+}
 
 
 def _build_synthesis_tool() -> dict:
@@ -3588,6 +3626,11 @@ def main() -> int:
         tool_name="target_profile_synthesis",
         tool_schema=tool_schema,
     )
+    # Attach the deterministic cross-cutting metric legend (sibling key) so a non-computational
+    # reader has an accurate reference for the quantities cited across lenses — independent of the
+    # LLM's inline glosses. On a successful narration only (a degraded/error dict stays minimal).
+    if isinstance(llm_output, dict) and "_synthesis_error" not in llm_output:
+        llm_output.setdefault("metric_legend", _METRIC_LEGEND)
 
     # 2b. Deterministic recommendation gate. A killer sub-verdict FORCES the
     # recommendation regardless of what the LLM chose — the auditable rule wins.

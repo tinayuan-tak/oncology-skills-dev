@@ -86,12 +86,46 @@ _SYSTEM = (
     "WHAT 'SELECTIVITY' MEANS HERE: the tumor-vs-normal CONTRAST, distinct from ABUNDANCE. A target can "
     "be abundant yet non-selective (no window — presence's job, not this lens) or selective on a faint "
     "signal. Judge the window, not the level. "
+    "REGISTER — write to scientific-publication standard: the voice of a methods/results section. "
+    "Declarative, precise, and factual; complete sentences; active voice. Report each number with its "
+    "scale and direction, never bare. Do NOT use promotional or editorialising language (avoid "
+    "'promising', 'exciting', 'compelling', 'robustly', 'clearly'); let the evidence carry the claim. "
+    "Concise but readable — a domain biologist who is not a statistician must follow it without a glossary. "
+    "PLAIN-LANGUAGE METRICS — on FIRST use of any technical quantity, add a short parenthetical gloss so a "
+    "non-computational reader can interpret it, e.g.: log2 fold-change (log2 of the tumor-vs-normal "
+    "expression ratio; +1 = 2x higher in tumour, 0 = no difference); fraction-of-tumours-above-normal-p95 "
+    "(share of tumour samples exceeding the 95th percentile of the normal distribution — a per-sample "
+    "window measure); ComBat (a batch-effect correction applied to the adjacent-normal comparator); "
+    "all-gene selectivity percentile (where this target's fold-change ranks among all genes in the "
+    "indication). Gloss once, then use the term freely. "
     "ROBUSTNESS DISCIPLINE: a call concordant across TCGA-adjacent (raw + ComBat) and GTEx-population is "
     "stronger than one resting on a single comparator; discordance across comparators is a real caveat "
     "to foreground. State DATA_UNAVAILABLE gaps plainly — a null result is decision-useful. "
     "SCOPE DISCIPLINE: do NOT discuss therapeutic MODALITY, surface accessibility, dependency, or "
     "absolute expression level. Those belong to other lenses / the composed target-profile synthesis."
 )
+
+# Deterministic plain-language legend for the metrics this narration cites — attached to the output
+# as a sibling key (metric_legend) so a non-computational reader always has an accurate, byte-stable
+# reference, independent of the LLM's inline glosses. Mirrors synthesis_dependency.METRIC_LEGEND.
+METRIC_LEGEND = {
+    "log2_fold_change": ("log2 of the tumour-vs-normal expression ratio. 0 = equal in tumour and "
+                         "normal; +1 = 2x higher in tumour; -1 = 2x lower. The tumour-vs-normal "
+                         "CONTRAST — distinct from absolute abundance."),
+    "fraction_tumor_above_normal_p95": ("The share of tumour samples whose expression exceeds the "
+                                        "95th percentile of the matched-normal distribution. A "
+                                        "per-sample window measure: high = a clean tumour-high "
+                                        "population above normal, even if medians overlap."),
+    "distribution_overlap_tumor_normal": ("How much the tumour and normal expression distributions "
+                                          "overlap (0 = fully separated, 1 = identical). Lower = a "
+                                          "cleaner therapeutic window."),
+    "comparator_cells": ("Independent tumour-vs-normal comparisons: TCGA tumour vs adjacent normal "
+                         "(raw and ComBat batch-corrected) and tumour vs the GTEx normal-tissue "
+                         "population. A call supported by more concordant comparators is stronger."),
+    "selectivity_allgene_percentile": ("Where this target's tumour-vs-normal fold-change ranks among "
+                                       "ALL genes in the indication (0-100). High = unusually "
+                                       "selective relative to the transcriptome, not just elevated."),
+}
 
 
 def _fmt(v, nd=2):
@@ -158,10 +192,15 @@ def synthesize_selectivity(decision: dict, model_id: Optional[str] = None,
     note on failure — synthesis is never allowed to break the deterministic run)."""
     from _skills_common.llm import synthesize_structured
     user_prompt = build_user_prompt(decision, subtype_query=subtype_query)
-    return synthesize_structured(
+    result = synthesize_structured(
         system_prompt=_SYSTEM,
         user_prompt=user_prompt,
         tool_name=SYNTHESIS_TOOL_NAME,
         tool_schema=SYNTHESIS_TOOL_SCHEMA,
         model_id=model_id,
     )
+    # Attach the deterministic plain-language metric legend (sibling key), on a successful
+    # narration only — a degraded {_synthesis_error} block stays minimal. Mirrors synthesis_dependency.
+    if isinstance(result, dict) and "_synthesis_error" not in result:
+        result.setdefault("metric_legend", METRIC_LEGEND)
+    return result

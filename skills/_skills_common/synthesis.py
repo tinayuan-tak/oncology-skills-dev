@@ -108,11 +108,47 @@ _SYSTEM = (
     "given; bring in the subtype grain only if the subtype axis is available; foreground a queried "
     "subtype only if it is among the computed strata. State DATA_UNAVAILABLE gaps plainly — a null "
     "result is decision-useful. "
+    "REGISTER — write to scientific-publication standard: the voice of a methods/results section. "
+    "Declarative, precise, and factual; complete sentences; active voice. Report each number with its "
+    "scale and direction, never bare. Do NOT use promotional or editorialising language (avoid "
+    "'promising', 'exciting', 'compelling', 'robustly', 'clearly'); let the evidence carry the claim. "
+    "Concise but readable — a domain biologist who is not a statistician must follow it without a glossary. "
+    "PLAIN-LANGUAGE METRICS — on FIRST use of any technical quantity, add a short parenthetical gloss so a "
+    "non-computational reader can interpret it, e.g.: log2(TPM+1) (log-scaled transcript abundance; ~1 = "
+    "low/detectable, >=5 ~ highly expressed); all-gene percentile (where this target's abundance ranks "
+    "among all genes in the same cohort, 0-100); control-benchmark position (where the target sits vs "
+    "curated known-abundant antigens and silent/floor negatives on the same percentile scale); "
+    "epsilon-squared / ε² (the fraction of expression variation across molecular subtypes that subtype "
+    "explains, 0-1; ~0.06 moderate, ~0.14 large). Gloss once, then use the term freely. "
     "SCOPE DISCIPLINE: do NOT discuss therapeutic MODALITY (small-molecule / degrader / ADC / "
     "T-cell-engager / antibody / CAR) or surface accessibility. Modality reasoning requires holding "
     "multiple evidence lenses together and belongs to the composed target-profile synthesis, not to "
     "this single-lens presence skill. The control benchmarks are only an ABUNDANCE yardstick."
 )
+
+# Deterministic plain-language legend for the metrics this narration cites — attached as a sibling
+# key (metric_legend) so a non-computational reader always has an accurate, byte-stable reference,
+# independent of the LLM's inline glosses. Mirrors synthesis_dependency.METRIC_LEGEND.
+METRIC_LEGEND = {
+    "log2_tpm": ("log2(TPM+1): log-scaled transcript abundance. Roughly: ~1 = low but detectable, "
+                 "~3.5 = moderate (TPM~10), >=5 = highly expressed (TPM~50+). The ABSOLUTE level, "
+                 "distinct from tumour-vs-normal selectivity."),
+    "allgene_percentile": ("Where this target's abundance ranks among ALL genes measured in the same "
+                           "cohort (0-100). 99th = top-1% most abundant; answers 'abundant relative to "
+                           "what?' A lineage-restricted antigen can read high in-tissue yet mid on a "
+                           "pan-cancer panel — the two frames are orthogonal."),
+    "control_position": ("Where the target's abundance percentile sits relative to curated controls "
+                         "on the same scale: known tumour-abundant antigens (positive anchors, e.g. "
+                         "CEACAM5/EPCAM) and housekeeping-ceiling / silent-floor negatives. "
+                         "'above_all_positives' = antigen-level abundance; 'below_negatives' = low."),
+    "subtype_epsilon_squared": ("ε² (epsilon-squared): the fraction of expression variation across "
+                                "molecular subtypes that subtype membership explains, 0-1. ~0.06 "
+                                "moderate, ~0.14 large. Large = expression concentrates in a subtype "
+                                "(a patient-selection axis); negligible = uniform across subtypes."),
+    "tumor_vs_adjacent_log2fc": ("log2 fold-change of tumour vs paired adjacent-normal (or GTEx "
+                                 "fallback). +1 = 2x higher in tumour. A directional presence signal; "
+                                 "the tumour-vs-normal WINDOW itself is the selectivity lens's job."),
+}
 
 
 def _fmt(v, nd=1):
@@ -277,10 +313,15 @@ def synthesize_presence(decision: dict, model_id: Optional[str] = None,
     never allowed to break the deterministic run)."""
     from _skills_common.llm import synthesize_structured
     user_prompt = build_user_prompt(decision, subtype_query=subtype_query)
-    return synthesize_structured(
+    result = synthesize_structured(
         system_prompt=_SYSTEM,
         user_prompt=user_prompt,
         tool_name=SYNTHESIS_TOOL_NAME,
         tool_schema=SYNTHESIS_TOOL_SCHEMA,
         model_id=model_id,
     )
+    # Attach the deterministic plain-language metric legend (sibling key), on a successful
+    # narration only — a degraded {_synthesis_error} block stays minimal. Mirrors synthesis_dependency.
+    if isinstance(result, dict) and "_synthesis_error" not in result:
+        result.setdefault("metric_legend", METRIC_LEGEND)
+    return result
