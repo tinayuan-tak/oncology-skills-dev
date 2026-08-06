@@ -32,6 +32,7 @@ required_inputs:
 methods:
   - call: immune-context
     args:
+      target: "{target.symbol}"        # v1 ignores target (per-indication class); v2 facet uses it
       indication: "{indication}"
 
 outputs:
@@ -41,6 +42,15 @@ outputs:
     - median_total_t_cell_fraction               # median summed T-cell (CD8+CD4+Treg+gd) fraction
     - n_samples                                  # CIBERSORT samples in the indication's TCGA study/studies
     - tumor_studies                              # TCGA study code(s) pooled
+    # --- antigen-CONDITIONED facet (v2): are the ANTIGEN-HIGH patients also T-cell-high? Additive
+    #     per-target facet; does NOT drive the primary immune_context_class (per-indication) call. ---
+    - antigen_conditioned_call                   # antigen_high_immune_{hot,intermediate,cold} | antigen_high_is_colder | data_unavailable
+    - cd8_fraction_antigen_high                  # median CD8 fraction in the antigen-HIGH (top-tertile) patients
+    - cd8_fraction_antigen_low                   # median CD8 fraction in the antigen-LOW patients
+    - cd8_high_minus_low                         # delta; negative => antigen-high patients are T-cell-POORER (effector escape)
+    - antigen_high_immune_context_class          # the antigen-high subset's own hot/intermediate/cold
+    - join_fraction                              # CIBERSORT-barcode <-> recount3-UUID join coverage (guard; <0.5 => data_unavailable)
+    - n_patients_joined                          # patients in the antigen x T-cell join
 
   summary_fields_vocabulary:
     immune_context_class:
@@ -48,6 +58,12 @@ outputs:
       - immune_intermediate                      # between Q1 and Q3
       - immune_cold                              # CD8 fraction <= pan-cancer Q1 (T-cell-excluded)
       - data_unavailable                         # no CIBERSORT coverage / no TCGA study (abstain)
+    antigen_conditioned_call:
+      - antigen_high_immune_hot                  # the ideal: the targetable (antigen-high) patients are ALSO inflamed
+      - antigen_high_immune_intermediate
+      - antigen_high_immune_cold                 # targetable patients are a T-cell desert
+      - antigen_high_is_colder                   # antigen-high patients meaningfully T-cell-POORER than antigen-low (effector escape)
+      - data_unavailable                         # barcode<->UUID join too thin (guard) / no per-sample TPM / <10 joined patients
 
   figure: immune_context_leukocyte_composition
 
