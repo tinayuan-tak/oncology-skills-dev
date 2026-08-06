@@ -124,6 +124,10 @@ def _headline(cards, fired, verdict_pair):
         # P5 Slice 3 — ClinGen dosage sensitivity (verdict-moving in Slice 5)
         "dosage_sensitivity_class": get_card_field(cards, "clingen-dosage", "dosage_sensitivity_class"),
         "dosage_top_disease":       get_card_field(cards, "clingen-dosage", "top_disease"),
+        # Germline INHERITANCE MODE (2026-08-06) — the in-hand OMIM-style KO-safety facet: recessive_only
+        # = het carriers healthy → full-KO REASSURANCE the dominant-focused dosage class understates.
+        # Additive/verdict-inert; surfaced for the LLM/reviewer beside the dosage call.
+        "germline_inheritance_mode": get_card_field(cards, "clingen-dosage", "germline_inheritance_mode"),
         # P5 Slice 4 — mouse-KO normal-physiology (verdict-moving in Slice 5)
         "mouse_ko_phenotype_class": get_card_field(cards, "mouse-ko-phenotype", "ko_phenotype_class"),
         "mouse_ko_top_lethal":      get_card_field(cards, "mouse-ko-phenotype", "top_lethal_label"),
