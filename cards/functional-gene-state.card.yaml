@@ -14,12 +14,13 @@
 #   - alteration-role             — functional GoF/LoF ROLE (direction, not allele count)
 #   THIS card = how many alleles are inactivated + by what mechanism (mutation / copy-loss / LOH).
 #
-# PHASE 1 (this card) = GENETIC-ONLY vocabulary, ZERO new ingestion:
-#     {wt, monoallelic, biallelic-genetic, uncertain}
-# PHASE 2 (queued fast-follow) extends the vocabulary with the EPIGENETIC second hit
-#     {epigenetic, biallelic+epigenetic}
-#   once patient DNA-methylation (PanCanAtlas HM450 → promoter methylation) is ingested (DepMap RRBS
-#   already covers the model side). Phase-1 states are a strict SUBSET — additive, no rework.
+# FULL PHASE-2b VOCABULARY (LIVE 2026-08-05) = genetic + EPIGENETIC states:
+#     {wt, monoallelic, biallelic-genetic, biallelic+epigenetic, epigenetic, uncertain}
+#   The method emits vocabulary_phase = genetic_epigenetic_full_phase2b. The epigenetic second hit is
+#   DETECTED on BOTH arms: patient promoter methylation (GDC SeSAMe HM450, tcga-sesame-promoter-
+#   methylation-v1) + model CCLE RRBS. A methylation-silenced allele (e.g. MLH1/BRCA1/VHL/CDKN2A) now
+#   upgrades wt→epigenetic and monoallelic→biallelic+epigenetic; the genetic-only states are the strict
+#   subset from the earlier Phase-1 slice (additive, no rework).
 #
 # ROUTES INTO GATES: primary = Genomic-alteration gate (the biallelic-inactivation signal corroborates
 # an LoF driver call + informs synthetic-lethality/TSG framing). ADDITIVE signal-only in this slice —
@@ -27,7 +28,7 @@
 # resolver ladder (the verdict spine stays byte-stable). Wiring INTO a verdict is a later, riskier step.
 
 card_id: functional-gene-state
-version: 0.1.0
+version: 0.2.0    # 2026-08-05: doc-lag fix — methylation Phase-2b is LIVE (epigenetic states + methylation inputs declared)
 question: "Is {target.symbol} biallelically inactivated (completed two-hit) or only monoallelically hit in {indication.label} — and by what mechanism (mutation, copy loss, LOH, homozygous deletion)?"
 
 # TWO grains (grain-split like cellline-rna-protein-concordance): the patient arm is target_indication
@@ -42,6 +43,8 @@ required_inputs:
   - product_id: tcga-mc3-public-v0-2-8       # patient somatic mutations (hg19 MAF)
   - product_id: gdc-pancanatlas-cnv-2018     # patient ABSOLUTE allele-specific LOH + GISTIC per-gene CN
   - product_id: depmap-consortium-26q1       # model mutation matrices + relative per-gene CN
+  - product_id: tcga-sesame-promoter-methylation-v1   # patient epigenetic arm (GDC SeSAMe HM450 promoter methylation)
+  - product_id: depmap-consortium-ccle-2019           # model epigenetic arm (CCLE RRBS TSS-1kb)
 
 methods:
   - call: functional-gene-state
@@ -54,11 +57,11 @@ outputs:
     - functional_state_class        # PRIMARY target-level headline (recurrent/sporadic/monoallelic/rare)
     - patient                       # patient (TCGA) arm: state_counts + fraction_biallelic + fraction_any_alteration
     - model                         # model (DepMap) arm: same shape (pan-lineage)
-    - vocabulary_phase              # genetic_only_phase1 (Phase 2 adds epigenetic states)
+    - vocabulary_phase              # genetic_epigenetic_full_phase2b (LIVE — epigenetic states emitted)
   summary_fields_vocabulary:
     functional_state_class: [recurrent_biallelic_inactivation, sporadic_biallelic_inactivation, predominantly_monoallelic, rarely_altered, data_unavailable]
-    # per-sample states inside each arm's state_counts (Phase 1):
-    sample_state: [wt, monoallelic, biallelic-genetic, uncertain]
+    # per-sample states inside each arm's state_counts (full phase-2b — matches classify.py FUNCTIONAL_STATES):
+    sample_state: [wt, monoallelic, biallelic-genetic, biallelic+epigenetic, epigenetic, uncertain]
   figure: functional_gene_state_stacked_bar   # per-arm stacked state composition (patient vs model)
 
 thresholds:
@@ -67,7 +70,7 @@ thresholds:
   depmap_loss_relative_cn_max: 0.75    # 0.20 < CN ≤ this → single-copy loss (model arm)
 
 caveats:
-  - "PHASE 1 is GENETIC-ONLY: an epigenetically silenced allele (promoter hypermethylation, e.g. MLH1/BRCA1/VHL/CDKN2A) is NOT yet detected → such a second hit reads as monoallelic or uncertain, understating true biallelic loss for methylation-silenced TSGs. Phase 2 adds the epigenetic states."
+  - "EPIGENETIC second hit is DETECTED (phase-2b LIVE): promoter hypermethylation (e.g. MLH1/BRCA1/VHL/CDKN2A) upgrades wt→epigenetic and monoallelic→biallelic+epigenetic. Sources: patient GDC-SeSAMe HM450 (tcga-sesame-promoter-methylation-v1; cohorts LUAD/LUSC/HNSC/PAAD/STAD/ESCA) + model CCLE RRBS. EPIC not ingested; an indication without a landed methylation cohort degrades to the genetic-only states (no false downgrade)."
   - "PATIENT arm is the SHARP arm: PanCanAtlas ABSOLUTE gives PER-LOCUS allele-specific LOH (point-in-interval at the mutation locus), so copy-neutral LOH biallelic events are resolved cleanly. MODEL arm has only DepMap RELATIVE per-gene CN + GENOME-WIDE LoH, so copy-neutral per-gene LOH is undeterminable → those cell lines resolve `uncertain` rather than a false biallelic. The arms agree on mechanism but the patient arm is more sensitive to copy-neutral two-hit events."
   - "`uncertain` means a mutation is present but the second-hit background could not be confirmed (CN/LOH not measured) — it is NOT `wt`. It is EXCLUDED from the fraction_biallelic denominator (undeterminable, not not-biallelic) but COUNTED in fraction_any_alteration (the sample does carry a hit)."
   - "gene-level, not variant-resolved: a passenger mutation co-occurring with LOH is scored as a two-hit event even if the specific variant is functionally neutral. Interpret alongside alteration-role (is the gene an LoF driver at all?)."
