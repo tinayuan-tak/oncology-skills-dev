@@ -809,25 +809,46 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     is_surface = family.get("is_surface_protein", False)
     tm_count = topology.get("tm_pass_count", 0) or 0
     ec_length = topology.get("extracellular_residue_count", 0) or 0
-    endo_high_conf = topology.get("endocytosis_motif_count_high_confidence", 0) or 0
-    n_ubiq = topology.get("n_ubiquitination_sites", 0) or 0
+    # Read endocytosis + ubiquitination RAW (not `or 0`) so we can distinguish UNMEASURED (None —
+    # the topology product carries topology only; PTM/endocytosis-motif fields are hardcoded None,
+    # `_ptm_coverage: data_unavailable`) from a MEASURED zero. Coalescing to 0 conflated the two and
+    # let an unmeasured field VETO the ADC branch — a coverage gap acting as a measured-negative,
+    # which violates the framework's measured-vs-data_unavailable doctrine.
+    endo_raw = topology.get("endocytosis_motif_count_high_confidence")
+    n_ubiq_raw = topology.get("n_ubiquitination_sites")
+    endo_measured = endo_raw is not None
+    ubiq_measured = n_ubiq_raw is not None
+    endo_high_conf = endo_raw or 0
+    n_ubiq = n_ubiq_raw or 0
+    # endocytosis_confidence — the card-declared field (was never emitted). Makes the coverage state
+    # explicit: high/moderate when measured, `unmeasured` when the product doesn't carry it (today).
+    if not endo_measured:
+        endocytosis_confidence = "unmeasured"
+    elif endo_high_conf >= 3:
+        endocytosis_confidence = "high"
+    elif endo_high_conf >= 1:
+        endocytosis_confidence = "moderate"
+    else:
+        endocytosis_confidence = "low"
 
     if not is_surface or tm_count == 0:
         fit_class = "neither_viable"
     else:
-        # ADC: single-pass TM, large ectodomain for antibody engagement, high endocytosis
-        # for payload delivery. n_ubiq is a POSITIVE signal for ADC (promotes recycling)
-        # but not a minimum requirement — a target with moderate ubiquitination can still
-        # be ADC-viable if endo is high. Removed n_ubiq >= 5 requirement so ADC/TCE can
-        # overlap (both_viable) when a target has good surface architecture + high endo
-        # + moderate ubiquitination.
-        adc_favorable = (tm_count == 1 and ec_length >= 200 and endo_high_conf >= 3)
-        # TCE: bridges T-cell to tumor surface — endocytosis is irrelevant (TCE doesn't
-        # require internalization). Low ubiquitination preferred (high ubiq → fast
-        # internalization → target disappears before T-cell engagement). Removed the old
-        # endo_high_conf <= 2 requirement which made ADC and TCE mutually exclusive
-        # (ADC requires endo >= 3; TCE previously required endo <= 2).
-        tce_favorable = (tm_count >= 1 and ec_length >= 100 and n_ubiq <= 3)
+        # ADC topology: single-pass TM + large ectodomain for antibody engagement. Internalization
+        # (endocytosis) is genuinely an ADC determinant — but it is NOT measured in the current
+        # topology product, so it must NOT hard-gate the call (an unmeasured field cannot veto).
+        # ADC-favorability therefore rests on the two LIVE topology inputs; a MEASURED endocytosis
+        # signal is an UPGRADE (required only when we actually have the data). When endo is
+        # unmeasured, the call is ADC-favorable on topology with endocytosis_confidence='unmeasured'
+        # surfaced as an explicit caveat (honest coverage gap, not a fabricated positive).
+        adc_topology_ok = (tm_count == 1 and ec_length >= 200)
+        endo_ok = (endo_high_conf >= 3) if endo_measured else True   # unmeasured → abstain, don't veto
+        adc_favorable = adc_topology_ok and endo_ok
+        # TCE: bridges T-cell to tumor surface — endocytosis irrelevant. Low ubiquitination preferred
+        # (high ubiq → fast internalization → target lost before engagement). Same discipline: an
+        # UNMEASURED ubiquitination count must not veto (abstain, don't fail).
+        ubiq_ok = (n_ubiq <= 3) if ubiq_measured else True           # unmeasured → abstain, don't veto
+        tce_favorable = (tm_count >= 1 and ec_length >= 100 and ubiq_ok)
         if adc_favorable and tce_favorable:
             fit_class = "both_viable"
         elif adc_favorable:
@@ -844,7 +865,13 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     return {
         "fit_class": fit_class,
         "fit_rationale": f"tm_count={tm_count}, ec_length={ec_length}, "
-                         f"endo_motif_hc={endo_high_conf}, n_ubiq={n_ubiq}",
+                         f"endo_motif_hc={endo_high_conf if endo_measured else 'unmeasured'}, "
+                         f"n_ubiq={n_ubiq if ubiq_measured else 'unmeasured'}",
+        # Card-declared field (adc-tce-modality-fit.card.yaml) — previously never emitted. Makes the
+        # endocytosis coverage state explicit: `unmeasured` today (topology product carries no
+        # endocytosis-motif data), so an ADC_preferred call rests on topology + is flagged as
+        # internalization-unverified rather than internalization-confirmed.
+        "endocytosis_confidence": endocytosis_confidence,
         "is_adc_topology_favorable": tm_count == 1 and ec_length >= 200,
         "is_tce_topology_favorable": tm_count >= 1 and ec_length >= 100,
         "surface_family_class": family.get("family_class"),

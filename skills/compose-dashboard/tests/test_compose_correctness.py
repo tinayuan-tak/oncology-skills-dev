@@ -30,13 +30,26 @@ from _synthesis import synthesize  # noqa: E402
 # C3 — both_viable reachability
 # ---------------------------------------------------------------------------
 
-def _topo(tm=1, ec=200, endo_hc=3, n_ubiq=5) -> dict:
+def _topo(tm=1, ec=200, endo_hc=None, n_ubiq=None) -> dict:
+    """Topology fixture. endo_hc / n_ubiq default to None to mirror the LIVE product, which carries
+    topology only (endocytosis + ubiquitination fields are hardcoded None, _ptm_coverage=
+    data_unavailable). Pass explicit ints to exercise the MEASURED-endocytosis upgrade path."""
     return {
         "tm_pass_count": tm,
         "extracellular_residue_count": ec,
         "endocytosis_motif_count_high_confidence": endo_hc,
         "n_ubiquitination_sites": n_ubiq,
     }
+
+
+def _fit(topology: dict, family: dict | None = None) -> dict:
+    """Full dispatcher return (not just fit_class) — for asserting endocytosis_confidence etc."""
+    import unittest.mock as mock
+    with mock.patch("_live_readers._dispatch_surface_topology_and_ptm", return_value=topology), \
+         mock.patch("_live_readers._dispatch_surfaceome_family_classification",
+                    return_value=(family or _family())), \
+         mock.patch("_live_readers._dispatch_structure_features_static", return_value={}):
+        return _dispatch_adc_tce_modality_fit("GENE", "NSCLC")
 
 def _family(is_surface=True) -> dict:
     return {"is_surface_protein": is_surface, "family_class": "RTK"}
@@ -199,3 +212,47 @@ def test_multiple_rows_parse_correctly(tmp_path):
     assert len(rows) == 3
     parsed = {r["path"] for r in rows}
     assert parsed == set(paths), f"Path mismatch: {parsed} vs {set(paths)}"
+
+
+# ---------------------------------------------------------------------------
+# C3b — ADC-reachability on the LIVE path (B1 fix, 2026-08-06)
+# The live topology product carries NO endocytosis/ubiquitination data (both None,
+# _ptm_coverage=data_unavailable). Before B1, `endo_hc or 0` collapsed None→0, so an
+# UNMEASURED field vetoed the ADC branch → ADC_preferred/both_viable were unreachable on
+# every real target. These tests exercise the live (unmeasured) path the old mocks hid.
+# ---------------------------------------------------------------------------
+
+def test_adc_preferred_reachable_when_endocytosis_UNMEASURED():
+    """The core B1 fix: TROP2-like single-pass, long-ECD, endocytosis UNMEASURED (None, the live
+    product state) must reach ADC_preferred on topology — an unmeasured field cannot veto."""
+    r = _fit(_topo(tm=1, ec=248, endo_hc=None, n_ubiq=None))  # TROP2-like ECD ~248
+    assert r["fit_class"] in ("ADC_preferred", "both_viable"), (
+        f"ADC arm must be reachable with unmeasured endocytosis, got {r['fit_class']!r}")
+    # the gap is surfaced explicitly, not silently treated as a positive
+    assert r["endocytosis_confidence"] == "unmeasured"
+
+
+def test_measured_low_endocytosis_STILL_gates_adc():
+    """Discipline check: when endocytosis IS measured and low (0), it legitimately gates the ADC
+    arm (a measured negative, unlike an unmeasured gap) → not ADC_preferred."""
+    r = _fit(_topo(tm=1, ec=250, endo_hc=0, n_ubiq=1))
+    assert r["endocytosis_confidence"] == "low"
+    assert r["fit_class"] != "ADC_preferred"   # measured-low endo correctly withholds the ADC upgrade
+    # TCE arm still reachable (ec>=100, ubiq measured-low)
+    assert r["fit_class"] == "TCE_preferred"
+
+
+def test_measured_high_endocytosis_confirms_adc():
+    """When endocytosis IS measured high (>=3), ADC is confirmed with high confidence (the upgrade)."""
+    r = _fit(_topo(tm=1, ec=250, endo_hc=3, n_ubiq=6))  # high ubiq blocks TCE
+    assert r["fit_class"] == "ADC_preferred"
+    assert r["endocytosis_confidence"] == "high"
+
+
+def test_endocytosis_confidence_field_always_emitted():
+    """The card declares endocytosis_confidence; the dispatcher must always emit it (contract gap fix)."""
+    for endo in (None, 0, 2, 5):
+        r = _fit(_topo(tm=1, ec=250, endo_hc=endo, n_ubiq=None))
+        assert "endocytosis_confidence" in r
+    assert _fit(_topo(endo_hc=None))["endocytosis_confidence"] == "unmeasured"
+    assert _fit(_topo(endo_hc=2))["endocytosis_confidence"] == "moderate"
