@@ -227,7 +227,8 @@ _MUTATION_ASSIGNMENTS_MANIFEST = {
 # shard + the genie_registry MAF. Rows from the two universes are never merged into one
 # comparison (each carries its source_cohort); the card's caveats already mandate that.
 _MUTATION_LOT_ASSIGNMENTS_MANIFEST = {
-    "COADREAD": "genie-bpc-subgroup-assignments-coadread-v1",   # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus
+    "COADREAD": "genie-bpc-subgroup-assignments-coadread-v1",   # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus (1,176)
+    "NSCLC": "genie-bpc-subgroup-assignments-nsclc-v1",         # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus (1,093)
 }
 # LOT strata are identified by id prefix (the catalog tags them applicable_data_sources:[genie_bpc]).
 _LOT_STRATUM_PREFIX = "LOT_"
