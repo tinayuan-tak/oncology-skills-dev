@@ -42,6 +42,10 @@ composition:
     - copy-number-distribution         # P4 (2026-07-23): genomic amplification → surface antigen-density
                                        # signal (adc/bite_tce/antibody). Same card reads SM/degrader at
                                        # genomic-alteration-profile — Example B. Render/signal facet.
+    - rna-protein-concordance-tumor    # (in run.py CARDS; synced 2026-08-05) tumor RNA↔protein concordance
+                                       # → ADC/antibody antigen-reality caution (is the protein confirmed?).
+                                       # Additive signal facet; verdict byte-stable (fit_class resolves off
+                                       # adc-tce-modality-fit). Its P4 modality set widened in the vocab (grain-split).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/

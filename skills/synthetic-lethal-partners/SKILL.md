@@ -27,6 +27,8 @@ description: |
   Biology-first output; modality-independent primary verdict.
 composition:
   data_mode: derived_read
+  phase: [C]                        # Gate-C (dependency) — SL-partner annotation is a Gate-C veto-suppressor
+  status: wired                     # card-consuming verdict skill; resolves synthetic_lethal_partners gate (veto-suppressor)
   cards_used:
     - synthetic-lethal-partners
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled (annotation type; suppresses a
@@ -38,6 +40,11 @@ composition:
     - sl-computational-partner-informational
     - sl-no-partner-neutral
     - sl-data-unavailable-insufficient
+  synthesis:
+    - rule_engine
+  output_shape:
+    - data_package
+  steps_covered: [1, 2, 3, 4, 6]
 ---
 
 # synthetic-lethal-partners

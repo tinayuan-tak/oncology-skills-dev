@@ -16,7 +16,7 @@ description: |
                                          anchored detection + malignant-vs-microenvironment
                                          attribution; sc_rna/tumor bucket; COADREAD+NSCLC)
 
-  DISPLAY-ONLY facets (4 cards — additive context, feed NO resolver, verdict
+  DISPLAY-ONLY facets (5 cards — additive context, feed NO resolver, verdict
   byte-stable; one-directional gate):
     - tumor-rna-distribution         (per-sample tumor RNA distribution; rules
                                              not yet in the verdict ladder — follow-up)
@@ -24,6 +24,7 @@ description: |
                                              shard only, else subtype_axis_available:false)
     - expression-purity-confound            (is the tumor signal tumor-intrinsic or stromal?)
     - cellline-rna-protein-concordance               (is RNA an adequate protein proxy?)
+    - normal-tissue-liability        (HPA-IHC normal-tissue comparator; protein_ihc/normal bucket)
     (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
      signaling-state readout, not a presence/abundance signal.)
 
@@ -64,6 +65,7 @@ composition:
     # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence)
     - cellline-rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality; biomarker preferred_assay input (render facet)
     - tumor-scrna-celltype-expression       # sc_rna slice (2026-08-04): single-cell per-compartment tumor presence (sc_rna/tumor). VERDICT-BEARING via _SC_RNA_RANK
+    - normal-tissue-liability               # P8.3 (2026-08-05, in run.py CARDS; synced): HPA-IHC normal-tissue comparator, protein_ihc/normal bucket — DISPLAY-ONLY facet (verdict-inert, feeds no ladder)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence

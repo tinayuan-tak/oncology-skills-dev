@@ -34,8 +34,9 @@ composition:
   cards_used:
     - co-mutation-and-mutual-exclusivity   # Wired 2026-07-08 (Layer 6f)
     - expression-clinical-association       # Q11 (2026-07-23): expression→survival prognostic context (render facet)
-    - clinical-precedent                   # Placeholder (Cortellis licensing)
-    - patent-landscape                     # Placeholder (PatBase licensing)
+    # clinical-precedent + patent-landscape intentionally NOT listed — they are
+    # excluded from the runtime card set (commercial-data licensing unresolved) and
+    # never reach run.py CARDS; see NOTE below. (Trimmed 2026-08-05 to match run.py.)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
   # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent is pulled.
   # expression_clinical_association (Q11) is an ADDITIVE render facet (verdict-inert — feeds no resolver).

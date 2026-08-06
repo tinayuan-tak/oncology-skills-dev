@@ -29,14 +29,20 @@ metadata:
 composition:
   data_mode: derived_read
   phase: [G]
-  cards_used:
+  cards_used:                          # synced to run.py CARDS 2026-08-05 (P5 human-genetics axis grew this 2→8)
     - gnomad-lof-constraint            # Wired 2026-07-08 (Layer 6e)
-    - normal-tissue-liability          # Placeholder (HPA dispatcher pending)
-    - protein-surface-evidence         # Placeholder (HPA IHC dispatcher pending)
+    - target-safety-prioritisation     # P5 composite safety-prioritisation
+    - normal-tissue-liability-gtex     # P5: GTEx normal-tissue liability (re-scoped from the HPA-IHC normal-tissue-liability card, which was re-homed to surface-modality-fit/tumor-presence)
     - alteration-role                  # 2026-07-23 — mechanism CONTEXT for mutant-selective
                                        # conditioning of the WT gnomAD-constraint concern (its
                                        # activating-driver-role-safety-context rule combines with the
                                        # highly-constrained warning in the resolver → downgrade).
+    - clinvar-pathogenicity-safety     # P5: ClinVar germline pathogenicity
+    - mouse-ko-phenotype               # P5: IMPC mouse-KO phenotype
+    - clingen-dosage                   # P5: ClinGen haploinsufficiency/triplosensitivity dosage
+    - gene-burden-safety               # P5: gene-burden safety signal
+    # NOTE: protein-surface-evidence was DROPPED from this skill — re-homed to
+    # surface-modality-fit (LIVE there as surface_confirmation via the CSPA reader).
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. normal_tissue_protein_breadth is
   # the safety-framed normal-tissue type (distinct from selectivity's tumor_vs_normal). surface_
   # confirmation is pulled-but-data-blocked (its card needs the CSPA/HPA reader) — a visible-gap state.
