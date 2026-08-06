@@ -650,18 +650,20 @@ def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     """
     cn_module = _import_method("depmap_cn_distribution")
     out = dict(cn_module.read_cn_distribution(target=target, indication=indication))
+    # patient_focal_cn_class is REQUIRED: it's the field the CN-consensus verdict rules
+    # (cn-patient-focal-amplified/deleted-supportive) fire on — without it the rescue can't trigger.
+    _PCN_KEYS = ("patient_copy_number_class", "patient_focal_cn_class",
+                 "patient_amplified_fraction", "patient_high_amp_fraction",
+                 "patient_deleted_fraction", "patient_homdel_fraction", "patient_cn_context")
     try:
         pcn = _import_method("tcga_patient_cn").patient_cn_summary_for_gene(target, indication)
-        for k in ("patient_copy_number_class", "patient_amplified_fraction",
-                  "patient_high_amp_fraction", "patient_deleted_fraction",
-                  "patient_homdel_fraction", "patient_cn_context"):
+        for k in _PCN_KEYS:
             out[k] = pcn.get(k)
     except Exception:  # noqa: BLE001 — patient CN is additive; never break the cell-line read
-        for k in ("patient_copy_number_class", "patient_amplified_fraction",
-                  "patient_high_amp_fraction", "patient_deleted_fraction",
-                  "patient_homdel_fraction", "patient_cn_context"):
+        for k in _PCN_KEYS:
             out.setdefault(k, None)
         out["patient_copy_number_class"] = "data_unavailable"
+        out["patient_focal_cn_class"] = "data_unavailable"
     return out
 
 
