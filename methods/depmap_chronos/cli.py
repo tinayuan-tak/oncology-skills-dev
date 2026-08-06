@@ -306,6 +306,23 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
     else:
         enrichment_class = "no_lineage_enrichment"
 
+    # Axis-3 (contextualized interpretation): ACROSS-LINEAGE OMNIBUS effect size.
+    # COMPLEMENTARY to enrichment_class (which is a per-lineage one-vs-rest THRESHOLD test):
+    # this is the GLOBAL variance view — "how much of the dependency (Chronos) variance across
+    # the whole panel is explained by lineage?" — via Kruskal-Wallis + epsilon-squared. Reuses
+    # the SAME proven helper the tumor-presence subtype omnibus uses (pure numpy, ships its own
+    # chi-square SF; scipy is its test-oracle only), fed per-lineage Chronos vectors instead of
+    # per-subtype log2TPM. Kept ALONGSIDE enrichment_class, NOT replacing it — exactly as
+    # presence keeps subtype_stratification_class + the omnibus (non-redundant: a target can be
+    # pan_subtype_uniform on the threshold view yet moderate on the global-variance view).
+    # DISPLAY-ONLY / verdict-inert: the CLASS bins on ε² ONLY (effect size); the omnibus p is
+    # display-only (at DepMap n's KW p is near-always significant → significance != actionability).
+    lineage_vectors = {
+        stat["lineage"]: merged[merged["OncotreeLineage"] == stat["lineage"]]["chronos"].tolist()
+        for stat in per_lineage_stats
+    }
+    omnibus = _lineage_omnibus(lineage_vectors, min_group_n=min_n_lineage)
+
     return {
         "n_cell_lines_panel": n_panel,
         "median_chronos_panel": median_panel,
@@ -314,10 +331,44 @@ def compute_lineage_summary(chronos_by_model: dict, model_metadata: dict,
         "enriched_lineages": enriched_lineages,
         "n_enriched_lineages": n_enriched,
         "enrichment_class": enrichment_class,
+        # Axis-3 across-lineage omnibus (display-only; complements enrichment_class):
+        **omnibus,
         # Internal-only payload preserved for the figure emitters (which need the
         # ranked table to draw the forest plot). Underscore-prefixed → renderer hides
         # per dashboard-rendering-discipline.
         "_per_lineage_records": per_lineage_stats,
+    }
+
+
+def _lineage_omnibus(lineage_vectors: dict, min_group_n: int = 5) -> dict:
+    """Across-lineage Kruskal-Wallis + epsilon-squared omnibus, remapped to lineage_* keys.
+
+    Reuses tcga_gtex_expression_distribution.stats.kruskal_epsilon_squared (substrate-agnostic:
+    {group_id: [values]} → omnibus dict) — feeding per-lineage Chronos vectors gives the true
+    across-lineage variance-explained effect size that the per-lineage one-vs-rest enrichment
+    test does not provide. Renames the helper's subtype_* keys to lineage_* so the field names
+    read correctly for the dependency card. data_unavailable-safe (never raises): a helper import
+    failure degrades to a data_unavailable omnibus block, leaving the descriptive stats intact.
+    """
+    try:
+        from methods.tcga_gtex_expression_distribution.stats import kruskal_epsilon_squared
+        res = kruskal_epsilon_squared(lineage_vectors, min_group_n=min_group_n, min_groups=2)
+    except Exception:  # noqa: BLE001 — Axis-3 is a display facet; never break the lineage summary
+        return {
+            "lineage_omnibus_kruskal_h": None,
+            "lineage_omnibus_p": None,
+            "lineage_variance_explained": None,
+            "lineage_omnibus_effect_size_class": "data_unavailable",
+            "which_lineages_separate": None,
+            "n_lineages_omnibus_tested": 0,
+        }
+    return {
+        "lineage_omnibus_kruskal_h": res.get("subtype_omnibus_kruskal_h"),
+        "lineage_omnibus_p": res.get("subtype_omnibus_p"),               # DISPLAY-ONLY
+        "lineage_variance_explained": res.get("subtype_variance_explained"),  # ε²
+        "lineage_omnibus_effect_size_class": res.get("subtype_effect_size_class"),
+        "which_lineages_separate": res.get("which_subtypes_separate"),
+        "n_lineages_omnibus_tested": res.get("n_subtypes_tested", 0),
     }
 
 
