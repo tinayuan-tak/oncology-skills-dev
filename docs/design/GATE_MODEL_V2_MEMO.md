@@ -1,7 +1,13 @@
 # Gate model v2 — decision memo
 
-**Status:** proposal for review (2026-07-21). No code. Written after a full card-by-card audit
-of the A–H model + review of the predesigned module dashboard.
+**Status:** IMPLEMENTED. Proposed 2026-07-21 (this memo); migration landed via the v2 two-axis
+restructure — `vocabularies/gate_coverage.yaml` is now `version: 2.0.0` (biology_gates + modality_fit
++ biomarker_facets with `reports_into`), and the composer consumes it (`target-profile/scripts/run.py`:
+`_V2_GATE_LISTS`, `_flatten_gate_coverage`, `_card_reports_into`). This memo is retained as the
+DESIGN RATIONALE for that model (it is cited from `gate_coverage.yaml`, the gate-coverage tests, and
+`RISK_CATEGORY_DASHBOARD_SPINE.md`); the accompanying `gate_coverage_v2_sketch.yaml` proposal file has
+been removed now that the live vocab supersedes it. The problem statement + design below describe why
+the two-axis model exists and remain accurate; treat any "proposed"/"will" phrasing below as historical.
 
 ## The problem (one sentence)
 
