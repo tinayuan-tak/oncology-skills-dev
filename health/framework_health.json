@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-06T02:06:45.419763+00:00",
+  "generated_at": "2026-08-06T02:16:50.219527+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,18 +9,18 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "3191de0",
+    "contracts": "ed0978e",
     "skills": "34cd4d6",
     "methods": "d239864",
     "products": "d5f54a2",
-    "catalog": "b1130c3"
+    "catalog": "8e6261d"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-06T02:01:25.235874+00:00",
+    "prior_generated_at": "2026-08-06T02:15:11.801543+00:00",
     "n_skills": 0,
     "n_cards": 0,
-    "n_drift_flags": -1,
+    "n_drift_flags": 0,
     "n_error_drift": 0,
     "verdict_tally": {},
     "card_health_tally": {},
@@ -36,7 +36,7 @@
       "placeholder": 2,
       "production_ready": 8
     },
-    "n_drift_flags": 43,
+    "n_drift_flags": 42,
     "n_error_drift": 0,
     "n_unregistered_skills": 16,
     "n_live_reader_cards": 58,
@@ -57,11 +57,11 @@
     "n_p4_declared_cards": 25,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
-    "n_orphan_cards": 7,
+    "n_orphan_cards": 6,
     "n_cards_consumed_but_no_spec": 36,
-    "n_datasets": 236,
-    "n_datasets_in_catalog": 227,
-    "n_orphan_datasets": 185,
+    "n_datasets": 237,
+    "n_datasets_in_catalog": 228,
+    "n_orphan_datasets": 186,
     "n_broken_dataset_refs": 9
   },
   "registry_drift": {
@@ -838,7 +838,8 @@
           "fusion-rearrangement-landscape",
           "alteration-role",
           "functional-gene-state",
-          "genomic-event-model-match"
+          "genomic-event-model-match",
+          "subgroup-stratified-mutation-frequency"
         ],
         "test_count": 1
       },
@@ -1159,11 +1160,6 @@
       "n_p4_required": 4,
       "n_p4_declared": 4,
       "drift_flags": [
-        {
-          "code": "declared_cards_mismatch_runpy",
-          "severity": "warn",
-          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['subgroup-stratified-mutation-frequency']; only in run.py: [])"
-        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
@@ -2862,7 +2858,10 @@
         "resolver_bound": false,
         "fans_out": true,
         "is_placeholder": false,
-        "cards_in_runpy": [],
+        "cards_in_runpy": [
+          "subgroup-stratified-dependency",
+          "subgroup-stratified-mutation-frequency"
+        ],
         "test_count": 15,
         "fanout_count": 10,
         "fanout_members": [
@@ -3427,6 +3426,75 @@
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         },
         {
+          "card_id": "subgroup-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_lof_dependency",
+          "has_live_reader": false,
+          "method_call": "depmap-chronos",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "depmap-consortium-26q1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1"
+            },
+            {
+              "product_id": "subgroup-catalog",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "blocked",
+          "health_reason": "card-no-reader-no-fire",
+          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+        },
+        {
+          "card_id": "subgroup-stratified-mutation-frequency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_hotspot_frequency",
+          "has_live_reader": false,
+          "method_call": "gdc-somatic-hotspot",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "gdc-pancohort-somatic",
+              "in_catalog": true,
+              "matched_by": "prefix",
+              "resolved_id": "gdc-pancohort-somatic-dr45-0"
+            },
+            {
+              "product_id": "subgroup-catalog",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "blocked",
+          "health_reason": "card-no-reader-no-fire",
+          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+        },
+        {
           "card_id": "surface-abundance-density",
           "card_yaml_exists": true,
           "is_placeholder": false,
@@ -3613,10 +3681,10 @@
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 25,
+      "n_cards": 27,
       "n_cards_live": 15,
-      "n_p4_required": 16,
-      "n_p4_declared": 16,
+      "n_p4_required": 17,
+      "n_p4_declared": 17,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -3631,7 +3699,7 @@
         {
           "code": "dataset_ref_not_in_catalog",
           "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1"
+          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1, subgroup-catalog"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -6608,9 +6676,11 @@
       "card_health": "blocked",
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
-      "consumers": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumers": [
+        "target-profile"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
         "target-in-indication"
@@ -6694,9 +6764,10 @@
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
       "consumers": [
-        "genomic-alteration-profile"
+        "genomic-alteration-profile",
+        "target-profile"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
@@ -8888,6 +8959,21 @@
     },
     {
       "product_id": "gbm-dge-tumor-vs-normal-sensitivity-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "gdc-dr45-alchemist-nsclc-hotspot-v1",
       "in_catalog": true,
       "kind": "derived",
       "provider": null,
@@ -11631,7 +11717,7 @@
         "layer": "card",
         "label": "subgroup-stratified-dependency",
         "health": "blocked",
-        "is_orphan": true,
+        "is_orphan": false,
         "measurement_type": "crispr_lof_dependency"
       },
       {
@@ -12778,6 +12864,16 @@
       },
       {
         "src": "skill:target-profile",
+        "dst": "card:subgroup-stratified-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
+        "dst": "card:subgroup-stratified-mutation-frequency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-profile",
         "dst": "card:surface-abundance-density",
         "rel": "consumes"
       },
@@ -12919,7 +13015,7 @@
       "method": 49
     },
     "n_nodes": 147,
-    "n_edges": 169
+    "n_edges": 171
   },
   "drift_index": [
     {
@@ -12951,12 +13047,6 @@
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, paralog-buffering, recommended-models"
-    },
-    {
-      "skill": "genomic-alteration-profile",
-      "code": "declared_cards_mismatch_runpy",
-      "severity": "warn",
-      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['subgroup-stratified-mutation-frequency']; only in run.py: [])"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -13124,7 +13214,7 @@
       "skill": "target-profile",
       "code": "dataset_ref_not_in_catalog",
       "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1"
+      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1, subgroup-catalog"
     },
     {
       "skill": "target-profile",

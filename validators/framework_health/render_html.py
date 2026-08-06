@@ -14,6 +14,8 @@ from __future__ import annotations
 import html
 import json
 
+from .rollup import DRIFT_SEVERITY   # code -> severity, to color the drift-code glossary
+
 # Status color ramp (from the coverage-matrix slide palette).
 _GREEN, _AMBER, _RED, _GREY, _PURPLE = "#0ca30c", "#fab219", "#c0392b", "#898781", "#6c5aa8"
 _TEAL = "#199e70"   # ready_unproven: works-but-not-yet-fired (distinct from proven green)
@@ -33,6 +35,42 @@ CARD_COLORS = {
     "broken": _RED,
 }
 SEVERITY_COLORS = {"error": _RED, "warn": _AMBER, "info": _PURPLE}
+
+# What each drift SEVERITY means — surfaced inline + on hover so "info" isn't mistaken
+# for a defect. error = breaks the verdict; warn = real gap to fix; info = roadmap/coverage.
+SEVERITY_GLOSS = {
+    "error": "breaks the skill's verdict — declared status contradicts what's on disk (forces broken_or_drift)",
+    "warn": "a real gap to fix, but it does NOT break the verdict",
+    "info": "not a defect — a roadmap/coverage signal (something true and worth surfacing; no one did anything wrong)",
+}
+SEVERITY_LABEL = {"error": "error (breaks verdict)", "warn": "warn (fix, non-breaking)",
+                  "info": "info (roadmap, not a defect)"}
+
+# Every drift code → a plain-language sentence (the "full relabel": show a readable label,
+# keep the machine code as a secondary breadcrumb). Keeps the UI legible without renaming the
+# codes themselves (they are load-bearing in rollup.py + tests).
+DRIFT_CODE_LABEL = {
+    "status_wired_no_entrypoint": "declared “wired” but has no runnable entrypoint",
+    "status_wired_card_broken": "declared “wired” but a card it needs is broken",
+    "skillmd_cites_nonexistent_entrypoint": "SKILL.md points at an entrypoint file that doesn’t exist",
+    "declared_cards_mismatch_runpy": "SKILL.md’s card list disagrees with what run.py actually loads",
+    "fanout_count_mismatch": "composed skill fans out to a different number of sub-skills than declared",
+    "missing_status_field": "SKILL.md has no machine-readable status: field",
+    "card_registered_never_fires": "card is wired but has never fired in a real evidence package yet",
+    "stale_method_label": "card’s method label differs from the method the dispatcher actually imports",
+    "dataset_ref_not_in_catalog": "card references a dataset that isn’t registered in the data-catalog",
+    "card_consumed_but_no_spec": "a skill pulls this card, but no dashboard_spec does — so it can never fire",
+    "modality_relevance_missing": "card routes to a modality-fit gate but declares no modality_relevance (P4)",
+    "modality_relevance_drift": "card’s declared modality_relevance is outside its type’s routing set (P4)",
+}
+
+# One-line definition of "P4" — the roadmap term used for the modality-routing lens, expanded
+# everywhere it appears so a reader needn't know the master-sequencing plan.
+P4_GLOSS = ("P4 = the roadmap’s modality-vector layer: each card declares modality_relevance — "
+            "which drug modalities (small-molecule, degrader, ADC, TCE, antibody) its evidence "
+            "informs — so its signal routes to the right modality-fit gate instead of being "
+            "stranded on the biology axis. This lens is metadata PARALLEL to health; it never "
+            "changes a card’s health.")
 
 # Plain-language glosses shown on hover (title=) so outsiders needn't learn the vocab.
 SKILL_GLOSS = {
@@ -184,32 +222,66 @@ def _matrix(report: dict) -> str:
     )
 
 
+def _severity_key() -> str:
+    """Inline, always-visible legend defining the three drift severities — so 'info'
+    is never mistaken for a defect. Rendered as a caption line under section headers."""
+    bits = " · ".join(
+        f'{_chip(sev, SEVERITY_COLORS[sev], SEVERITY_GLOSS[sev])} {_esc(SEVERITY_GLOSS[sev])}'
+        for sev in ("error", "warn", "info")
+    )
+    return f'<div class="sevkey">{bits}</div>'
+
+
+def _drift_li(d: dict) -> str:
+    """One drift line: readable label first, machine code as a secondary breadcrumb,
+    severity chip carrying its plain-language meaning on hover."""
+    sev = d["severity"]
+    label = DRIFT_CODE_LABEL.get(d["code"], d["code"])
+    return (f'<li>{_chip(SEVERITY_LABEL.get(sev, sev), SEVERITY_COLORS.get(sev, _PURPLE), SEVERITY_GLOSS.get(sev))} '
+            f'<b>{_esc(d["skill"])}</b> — {_esc(label)} '
+            f'<code class="driftcode">{_esc(d["code"])}</code><br>'
+            f'<span class="driftdetail">{_esc(d["detail"])}</span></li>')
+
+
+def _drift_code_glossary() -> str:
+    """Every drift code → readable label + its severity chip + the machine code, sorted
+    error→warn→info so the reader sees breaking codes first. Feeds the always-visible glossary."""
+    rows = sorted(DRIFT_CODE_LABEL.items(),
+                  key=lambda kv: (-_SEV_RANK.get(DRIFT_SEVERITY.get(kv[0], "info"), 0), kv[0]))
+    out = ""
+    for code, label in rows:
+        sev = DRIFT_SEVERITY.get(code, "info")
+        out += (f'<li>{_chip(sev, SEVERITY_COLORS.get(sev, _PURPLE), SEVERITY_GLOSS.get(sev))} '
+                f'<b>{_esc(label)}</b> <code class="driftcode">{_esc(code)}</code></li>')
+    return out
+
+
 def _alerts(report: dict) -> str:
     errs = [d for d in report["drift_index"] if d["severity"] == "error"]
     warns = [d for d in report["drift_index"] if d["severity"] == "warn"]
     if not errs and not warns:
-        return '<div class="banner ok">No error- or warn-severity drift detected.</div>'
-
-    def _li(d: dict) -> str:
-        return (f'<li>{_chip(d["severity"], SEVERITY_COLORS[d["severity"]])} '
-                f'<b>{_esc(d["skill"])}</b> · {_esc(d["code"])} — {_esc(d["detail"])}</li>')
+        return ('<div class="banner ok">No error- or warn-severity drift detected. '
+                '(info-level items are roadmap/coverage signals, not defects — see the Cards tab.)</div>')
 
     # Errors are actionable → always visible. Warns fold into a <details> (native,
     # no JS), with a per-code breakdown in the summary so the gist reads collapsed.
-    err_html = f'<ul>{"".join(_li(d) for d in errs)}</ul>' if errs else ""
+    err_html = f'<ul>{"".join(_drift_li(d) for d in errs)}</ul>' if errs else ""
     warns_block = ""
     if warns:
         by_code: dict[str, int] = {}
         for d in warns:
             by_code[d["code"]] = by_code.get(d["code"], 0) + 1
-        breakdown = " · ".join(f"{n} {code}" for code, n in sorted(by_code.items()))
+        breakdown = " · ".join(f"{n} × {DRIFT_CODE_LABEL.get(code, code)}"
+                               for code, n in sorted(by_code.items()))
         warns_block = (
             f'<details class="warns"><summary>{len(warns)} warnings '
             f'<span class="brk">({breakdown})</span></summary>'
-            f'<ul>{"".join(_li(d) for d in warns)}</ul></details>'
+            f'<ul>{"".join(_drift_li(d) for d in warns)}</ul></details>'
         )
     return (f'<div class="banner alert"><h3>⚠ Drift &amp; alerts '
-            f'({len(errs)} error, {len(warns)} warn)</h3>{err_html}{warns_block}</div>')
+            f'({len(errs)} error, {len(warns)} warn) '
+            f'<span class="hdrnote">— severity ≠ badness; see key below</span></h3>'
+            f'{_severity_key()}{err_html}{warns_block}</div>')
 
 
 _SEV_RANK = {"error": 3, "warn": 2, "info": 1}
@@ -392,6 +464,14 @@ table.punch th{background:#898781;color:#fff;font-size:11px;text-align:left;padd
 table.punch td{border-top:1px solid var(--line);padding:5px 8px;font-size:12px;vertical-align:top}
 table.punch td:first-child{width:36px;text-align:center}
 .pcode{color:var(--muted);font-size:10.5px;font-family:ui-monospace,Menlo,monospace;margin-top:2px}
+/* self-documenting glosses (severity key, inline captions, drift-code breadcrumbs) */
+.sevkey{font-size:11px;color:var(--muted);margin:4px 0 8px;line-height:1.9}
+.captn{font-size:11px;color:var(--muted);margin:6px 2px 2px;line-height:1.5}
+.hdrnote{font-weight:400;color:#a08a5a;font-size:11px}
+.driftcode{background:#eceae2;color:#6b6a64;padding:0 4px;border-radius:3px;font-size:10px;
+ font-family:ui-monospace,Menlo,monospace}
+.driftdetail{color:var(--muted);font-size:11px}
+ul.glosslist{margin:4px 0;padding-left:16px}ul.glosslist li{margin:3px 0;font-size:12px}
 """
 
 _JS = """
@@ -489,7 +569,8 @@ def _cards_table(report: dict) -> str:
     return (
         "<table class='matrix'><thead><tr>"
         "<th>card</th><th>health</th><th>live reader</th><th>fires in real pkg</th>"
-        "<th>in spec</th><th>measurement_type</th><th>P4 routing</th><th>method (dispatcher)</th><th>consumed by</th>"
+        f"<th>in spec</th><th>measurement_type</th><th title='{_esc(P4_GLOSS)}'>modality routing "
+        f"<span class='hdrnote'>(P4)</span></th><th>method (dispatcher)</th><th>consumed by</th>"
         "</tr></thead><tbody>" + body + "</tbody></table>"
     )
 
@@ -580,12 +661,14 @@ def _p4_summary_cards(report: dict) -> str:
     dec = s.get("n_p4_declared_cards", 0)
     mt = s.get("modality_routing_tally", {})
     coverage = f"{dec}/{req} declared" if req else "0/0"
-    return _stat_strip([
-        (f"P4 coverage · {coverage}", mt.get("declared", 0), _GREEN),
+    strip = _stat_strip([
+        (f"modality routing · {coverage}", mt.get("declared", 0), _GREEN),
         ("missing (stranded)", s.get("n_p4_missing_cards", 0), _RED),
         ("drift", s.get("n_p4_drift_cards", 0), _AMBER),
         ("not required (biology-axis)", mt.get("not_required", 0), _GREY),
     ])
+    caption = (f'<div class="captn"><b>Modality routing (roadmap “P4”)</b> — {_esc(P4_GLOSS)}</div>')
+    return strip + caption
 
 
 # Any node health value -> a color (skills + cards share the ramp; resolver/method
@@ -762,14 +845,25 @@ def render(report: dict) -> str:
 </div>
 </div>
 
-<div class="panel"><h3>Legend</h3>
+<div class="panel"><h3>How to read this dashboard — glossary</h3>
 <p><b>Skill health:</b> {' '.join(_chip(k, v) for k, v in SKILL_COLORS.items())}</p>
 <p><b>Card health:</b> {' '.join(_chip(k, v) for k, v in CARD_COLORS.items())}</p>
 <p><b>broken</b> = no path to data (no reader + no backing method, never fires);
 <b>blocked</b> = no live reader (honest gap); <b>partial</b> = reader exists but hasn't fired in a real package yet;
-<b>orphan</b> = card defined on disk but consumed by no skill (unclaimed measurement).</p>
-<p><b>P4 routing:</b> {' '.join(_chip(k, v) for k, v in MODALITY_COLORS.items() if k not in ("not_applicable", "unknown"))}</p>
-<p><b>declared</b> = measurement_type routes to a modality-fit gate (SM/degrader/ADC/TCE/antibody) and the card declares its vector;
+<b>live</b> = has fired (passed/warned) in a real evidence package; <b>orphan</b> = card defined on disk but consumed by no skill (unclaimed measurement).</p>
+
+<h3>Drift severity — <span class="hdrnote">severity is about IMPACT, not badness</span></h3>
+<p>{' '.join(_chip(SEVERITY_LABEL[s], SEVERITY_COLORS[s]) for s in ("error", "warn", "info"))}</p>
+<p><b>error</b> = {_esc(SEVERITY_GLOSS["error"])}; <b>warn</b> = {_esc(SEVERITY_GLOSS["warn"])};
+<b>info</b> = {_esc(SEVERITY_GLOSS["info"])}. Only error + warn appear in the Fix-next queue; info items are shown for transparency.</p>
+
+<h3>Drift codes — what each one means</h3>
+<ul class="glosslist">{_drift_code_glossary()}</ul>
+
+<h3>Modality routing <span class="hdrnote">(roadmap term “P4”)</span></h3>
+<p>{_esc(P4_GLOSS)}</p>
+<p>{' '.join(_chip(k, v) for k, v in MODALITY_COLORS.items() if k not in ("not_applicable", "unknown"))}</p>
+<p><b>declared</b> = measurement_type routes to a modality-fit gate (small-molecule/degrader/ADC/TCE/antibody) and the card declares its vector;
 <b>not required</b> = biology-axis type, correctly silent; <b>missing</b> = routes but declares nothing (stranded — validator error);
 <b>drift</b> = declares values outside its type's routing set. Routing is metadata PARALLEL to health — it never changes a card's health.</p>
 </div>

@@ -586,6 +586,53 @@ def test_self_check_catches_inconsistent_dataset_flags(tmp_path):
     assert not ok and any("is_orphan" in e for e in errs)
 
 
+def test_self_documenting_glosses_present():
+    """The dashboard must explain its own jargon inline: severity meanings (incl. that
+    'info' is not a defect), the 'P4' term expanded to modality routing with a full
+    definition, and every drift code mapped to a readable label. Guards against the
+    self-documentation silently regressing."""
+    from validators.framework_health import render_html, rollup
+    # 1. every drift code carries a readable label + a severity
+    for code in rollup.DRIFT_SEVERITY:
+        assert code in render_html.DRIFT_CODE_LABEL, f"drift code {code} has no readable label"
+    # 2. severity glosses exist for all three and 'info' is framed as non-defect
+    assert set(render_html.SEVERITY_GLOSS) == {"error", "warn", "info"}
+    assert "not a defect" in render_html.SEVERITY_GLOSS["info"]
+    # 3. P4 gloss defines the term (not just the letter)
+    assert "modality" in render_html.P4_GLOSS.lower() and "P4" in render_html.P4_GLOSS
+    # 4. the drift-code glossary helper renders every code
+    gloss_html = render_html._drift_code_glossary()
+    for code in rollup.DRIFT_SEVERITY:
+        assert code in gloss_html, f"{code} missing from rendered glossary"
+
+
+def test_render_expands_p4_and_severity_inline():
+    """A full render must surface the plain-language severity key and the modality-routing
+    (P4) expansion inline — not leave them as bare jargon."""
+    from validators.framework_health import render_html
+    report = {
+        "summary": {"n_skills": 1, "verdict_tally": {"partial": 1}, "n_error_drift": 0,
+                    "n_unregistered_skills": 0, "n_cards": 1, "card_health_tally": {"partial": 1},
+                    "modality_routing_tally": {"not_required": 1}, "n_p4_required_cards": 0,
+                    "n_p4_declared_cards": 0, "n_p4_missing_cards": 0, "n_p4_drift_cards": 0,
+                    "n_datasets_in_catalog": 0, "n_orphan_cards": 0, "n_cards_consumed_but_no_spec": 0,
+                    "n_orphan_datasets": 0, "n_broken_dataset_refs": 0, "n_datasets": 0},
+        "registry_drift": {"unregistered": []},
+        "skills": [{"name": "s", "declared": {"status": "partial"}, "derived": {"kind": "FOCUSED",
+                    "resolver_bound": False, "test_count": 1}, "cards": [], "drift_flags": [],
+                    "health_verdict": "partial", "health_reason": "x", "reason_text": "r",
+                    "risk_category": None}],
+        "cards": [], "datasets": [],
+        "graph": {"nodes": [], "edges": [], "layer_counts": {}, "n_nodes": 0, "n_edges": 0},
+        "drift_index": [],
+    }
+    html = render_html.render(report)
+    assert "modality routing" in html.lower()          # P4 relabeled
+    assert "roadmap" in html.lower()                     # P4 framed as a roadmap term
+    assert "not a defect" in html                        # info-severity clarified
+    assert "stranded on the biology axis" in html        # full P4 definition present
+
+
 def test_matrix_css_has_no_overflow_hidden_clip():
     """Regression guard: .matrix must NOT carry overflow:hidden — it clipped the
     expanded drill-down (the nested cards table grows a detail row past the table
