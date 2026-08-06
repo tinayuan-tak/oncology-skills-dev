@@ -20,7 +20,7 @@
 # resolver rung.
 
 card_id: genomic-instability-state
-version: 0.4.0   # 0.4.0: + MODEL-side MSI (DepMap, all lineages); 0.3.0: + patient MSI (CRC+STAD); 0.2.0: + WGD
+version: 0.5.0   # 0.5.0: + MODEL mutational-signature arm (MMR-sig cross-validates MSI + weak SBS3-HRD proxy); 0.4.0: + MODEL MSI; 0.3.0: + patient MSI; 0.2.0: + WGD
 question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome; how prevalent are whole-genome doubling and microsatellite instability — and where does its genome-instability burden sit?"
 
 tier: indication
@@ -66,6 +66,13 @@ outputs:
     - model_msi_high_fraction            # fraction of DepMap lineage cell lines with MSIsensor MSIScore >= 20
     - n_model_msi_high                   # MSI-H cell-line count
     - model_msi_context                  # human-readable model MSI summary
+    # ---- Mutational-SIGNATURE arm, MODEL (Phase 3a; DepMap OmicsMolecularSignatureMatrix) — all lineages ----
+    # MMR-signature = an INDEPENDENT cross-validation of MSI (mutation spectrum, not microsatellite length).
+    # HRD (SBS3) is a WEAK PARP proxy only — a real HRD/genomic-scar score (scarHRD) is deferred.
+    - model_mmr_signature_class          # cohort MMR-deficiency-signature prevalence class
+    - model_mmr_signature_high_fraction  # fraction of lines with MMR SBS >= 20% of burden
+    - model_hrd_signature_present_fraction  # fraction with SBS3 >= 10% (WEAK HRD/PARP proxy)
+    - model_signature_context            # human-readable signature summary
   summary_fields_vocabulary:
     aneuploidy_burden_class:
       - highly_aneuploid                 # cohort median frac_altered >= 0.40
@@ -87,6 +94,11 @@ outputs:
       - msi_intermediate                 # 5% < fraction < 15%
       - mss_dominant                     # <= 5% MSI-high — e.g. NSCLC ~0.8%, PAAD ~1.7% (measured, not unavailable)
       - data_unavailable                 # no DepMap lineage mapping or OmicsGlobalSignatures unresolvable
+    model_mmr_signature_class:           # fraction of lines MMR-signature-high (MMR SBS >= 20% of burden)
+      - mmr_signature_enriched           # >= 15% of lines MMR-sig-high (uterus ~43%, bowel ~21% — tracks MSI)
+      - mmr_signature_intermediate       # 5% < fraction < 15% (ovary ~10%, gastric ~5%)
+      - mmr_signature_rare               # <= 5% — MMR-clean cohort (lung ~0%, pancreas ~1%)
+      - data_unavailable                 # no DepMap lineage mapping or signature matrix unresolvable
 
 thresholds:
   high_median_frac_altered: 0.40         # method bins median → highly_aneuploid
@@ -96,6 +108,9 @@ thresholds:
   msi_high_enriched_fraction: 0.15       # method bins MSI-high fraction → msi_high_enriched (patient + model)
   msi_mss_dominant_fraction: 0.05        # method bins MSI-high fraction → mss_dominant
   model_msi_high_score: 20               # MSIsensor2 MSI-H per-cell-line score cutoff (model arm)
+  mmr_signature_high_model_fraction: 0.20  # per-cell-line: MMR SBS fraction >= this = MMR-sig-high
+  mmr_signature_cohort_enriched: 0.15    # cohort: >= this fraction of lines MMR-sig-high → enriched
+  hrd_signature_present_model_fraction: 0.10  # per-cell-line: SBS3 >= this = HRD-signature-present (weak)
 
 caveats:
   - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy + WGD are genome-wide cohort phenotypes, not per-gene calls. The classes describe the indication's chromosomal instability / doubling prevalence, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
@@ -103,6 +118,8 @@ caveats:
   - "WGD prevalence (wgd_class / wgd_fraction) is from PanCanAtlas ABSOLUTE Genome-doublings (>=1 doubling), the sibling of the aneuploidy burden — the two axes correlate (WGD-enriched cohorts run higher frac_altered + ploidy) but are reported separately. High WGD is a copy-number-noise + prognosis caveat, NOT a target-specific amplification signal."
   - "PATIENT MSI (msi_class / msi_high_fraction) is from TCGA marker-paper labels, CRC + STAD ONLY — other indications return data_unavailable (UNLABELLED, NOT a measured 0% MSI-high). The MODEL arm (model_msi_class, DepMap MSIsensor) FILLS this gap: all-lineage, so NSCLC/PAAD get a measured model_msi_class where patient msi_class is unavailable. A genome-wide PATIENT MSIsensor score is a deferred derivation. Cohort-level, target-independent."
   - "MODEL MSI (model_msi_class / model_msi_high_fraction) is DepMap cell-line MSIsensor (MSIScore >= 20 = MSI-H), a MODEL-cohort property — NOT patient prevalence (MSI-H lines are over-represented vs tumours, so model fractions can run higher). DepMap 26q1 merges gastric with esophageal into 'Esophagus/Stomach', so GC/STAD/ESCA model MSI is broader than gastric alone (dilutes vs the patient STAD label). Where both arms exist they cross-validate; where they differ, note the cohort difference."
+  - "MODEL MMR-SIGNATURE (model_mmr_signature_class) is DepMap SBS exposures normalized per-model; MMR-deficiency signatures (SBS6/14/15/21/26/44) are an INDEPENDENT cross-validation of the MSI axis — a different signal (mutation spectrum, not microsatellite length) that tracks it closely (uterus/bowel enriched, lung rare). Reported as the FRACTION of lines MMR-sig-high (a subset phenomenon; the cohort median sits at MSS baseline)."
+  - "model_hrd_signature_present_fraction (SBS3, defective-HR) is a WEAK PARP-sensitivity proxy ONLY: SBS3 is flat/featureless and rarely dominates a cell line's spectrum, so a low 10% presence threshold is used and near-zero fractions are expected. A real HRD / genomic-scar score (scarHRD-style, allele-specific CN) is a deferred derivation. Do NOT read a low HRD-signature fraction as HR-proficient."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `genomic_instability_state` claim.
 measurement_type: genomic_instability_state
