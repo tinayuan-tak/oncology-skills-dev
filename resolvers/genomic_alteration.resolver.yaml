@@ -47,6 +47,13 @@ resolve:
   - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-amplified-supportive}
   - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-deleted-supportive}
   - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-deleted-supportive}
+  # PATIENT-FOCAL CN + role (consensus twins of the 4 cell-line cn+role rungs above; ADDITIVE — a
+  # patient-focal-amplified/deleted target with a driver role reads confirmed_driver just as the
+  # cell-line path would). driving_rule names the patient rule for auditability.
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-amplified-supportive}
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-amplified-supportive}
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive}
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-deleted-supportive}
 
   # (1) MULTI-CLASS: any mut-driver AND any cn-driver. Cross-product, mut-priority order.
   #     driving_rule = the mut rule (matches the inline `return "multi_class_driver", mut_rule`).
@@ -58,6 +65,18 @@ resolve:
   - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-deleted-supportive], driving_rule: mut-lof-dominant-supportive}
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive], driving_rule: mut-missense-dominant-supportive}
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-deleted-supportive], driving_rule: mut-missense-dominant-supportive}
+  # PATIENT-FOCAL CN multi-class twins (mut-driver AND patient-focal-cn-driver → multi_class_driver,
+  # same as mut AND cell-line-cn). ADDITIVE: a mut-driver that is ALSO patient-focal-amplified/deleted
+  # (but cell-line-CN-neutral) now reads multi_class_driver instead of single mut-driver — a rescue,
+  # never a downgrade. driving_rule = the mut rule (matches the cell-line multi-class convention).
+  - {verdict: multi_class_driver, when_all_fired: [mutant-strongly-dependent-supportive, cn-patient-focal-amplified-supportive], driving_rule: mutant-strongly-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mutant-strongly-dependent-supportive, cn-patient-focal-deleted-supportive], driving_rule: mutant-strongly-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mutant-moderately-dependent-supportive, cn-patient-focal-amplified-supportive], driving_rule: mutant-moderately-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mutant-moderately-dependent-supportive, cn-patient-focal-deleted-supportive], driving_rule: mutant-moderately-dependent-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive], driving_rule: mut-lof-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive], driving_rule: mut-lof-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive], driving_rule: mut-missense-dominant-supportive}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive], driving_rule: mut-missense-dominant-supportive}
 
   # (2) SINGLE MUT-DRIVER (mut drives, no cn-driver fired) — mut-priority order.
   - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
@@ -99,6 +118,12 @@ resolve:
   # (3) CN-ONLY (cn drives, mutation not a driver) — amplified before deleted (first-match parity).
   - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
   - {verdict: recurrent_deletion_driver,       when_fired: cn-recurrently-deleted-supportive}
+  # (3b) PATIENT-FOCAL CN-ONLY (consensus): a target that is patient-focal-amplified/deleted but
+  #      cell-line-CN-neutral + not a mut-driver. Placed AFTER the cell-line CN-only rungs so cell-line
+  #      wins first-match when BOTH fire (existing calls byte-stable); this only adds NEW rescues (the
+  #      ERBB2/BRCA case: cell-line broadly_neutral, no mut-driver, patient recurrent_focal_amplification).
+  - {verdict: recurrent_amplification_driver,  when_fired: cn-patient-focal-amplified-supportive}
+  - {verdict: recurrent_deletion_driver,       when_fired: cn-patient-focal-deleted-supportive}
 
   # (4) FALLBACK: mutation axis said something non-driver (mixed / passenger), no cn.
   - {verdict: mixed_pattern,      when_fired: mut-mixed-neutral}
