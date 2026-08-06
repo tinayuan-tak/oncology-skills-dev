@@ -278,6 +278,9 @@ def main() -> int:
         # MSI prevalence (Phase 3a) — cohort-level, CRC+STAD only (data_unavailable elsewhere = unlabelled,
         # not measured-negative). Same card, verdict-inert.
         "msi_class":                     get_card_field(cards, "genomic-instability-state", "msi_class"),
+        # MODEL-side MSI (DepMap, all lineages) — the complement filling NSCLC/PAAD where patient MSI
+        # is data_unavailable. Same card, cohort-level, verdict-inert.
+        "model_msi_class":               get_card_field(cards, "genomic-instability-state", "model_msi_class"),
         # Per-VARIANT interpretation (CIViC) — the gene→variant axis: WHICH variants are oncogenic
         # (vs the gene-level role) + which confer therapy resistance. signal-only, verdict-inert.
         "civic_variant_class":           get_card_field(cards, "variant-level-interpretation", "civic_variant_class"),

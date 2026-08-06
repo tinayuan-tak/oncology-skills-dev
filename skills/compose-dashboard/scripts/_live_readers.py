@@ -187,7 +187,8 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
     GENIE-SV):
       - aneuploidy_burden_for_indication() — per-sample frac_altered CIN burden (seg_based_scores)
       - wgd_summary_for_indication()       — whole-genome-doubling prevalence + ploidy (ABSOLUTE)
-      - msi_summary_for_indication()       — microsatellite-instability prevalence (marker-paper; CRC+STAD)
+      - msi_summary_for_indication()       — PATIENT MSI prevalence (marker-paper; CRC+STAD only)
+      - model_msi_summary_for_indication() — MODEL (DepMap) MSI prevalence (all lineages; fills the gap)
     Each degrades to data_unavailable independently. DISPLAY facet, verdict-inert."""
     mod = _import_method("tcga_aneuploidy_burden")
     out = dict(mod.aneuploidy_burden_for_indication(indication))
@@ -208,6 +209,10 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
                  "median_purity", "wgd_context"), "wgd_class")
     _merge_axis("msi_summary_for_indication",
                 ("msi_class", "msi_high_fraction", "n_msi_high", "msi_context"), "msi_class")
+    # MODEL-side MSI (DepMap MSIsensor) — all-lineage complement; covers NSCLC/PAAD that patient labels miss.
+    _merge_axis("model_msi_summary_for_indication",
+                ("model_msi_class", "model_msi_high_fraction", "n_model_msi_high",
+                 "model_msi_context"), "model_msi_class")
     return out
 
 
