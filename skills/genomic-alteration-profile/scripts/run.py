@@ -259,6 +259,9 @@ def main() -> int:
         # (whole-genome-doubling prevalence, ABSOLUTE) — same card, also cohort-level + verdict-inert.
         "aneuploidy_burden_class":       get_card_field(cards, "genomic-instability-state", "aneuploidy_burden_class"),
         "wgd_class":                     get_card_field(cards, "genomic-instability-state", "wgd_class"),
+        # MSI prevalence (Phase 3a) — cohort-level, CRC+STAD only (data_unavailable elsewhere = unlabelled,
+        # not measured-negative). Same card, verdict-inert.
+        "msi_class":                     get_card_field(cards, "genomic-instability-state", "msi_class"),
         # Per-VARIANT interpretation (CIViC) — the gene→variant axis: WHICH variants are oncogenic
         # (vs the gene-level role) + which confer therapy resistance. signal-only, verdict-inert.
         "civic_variant_class":           get_card_field(cards, "variant-level-interpretation", "civic_variant_class"),

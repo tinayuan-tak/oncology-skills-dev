@@ -181,25 +181,33 @@ def _dispatch_alteration_role(target: str, indication: str) -> Optional[dict]:
 def _dispatch_genomic_instability_state(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route genomic-instability-state card to methods/tcga_aneuploidy_burden.
 
-    INDICATION-level, target-INDEPENDENT (aneuploidy + WGD are genome-wide cohort phenotypes) — the
-    `target` arg is accepted for dispatcher-signature uniformity but IGNORED. MERGES two axes from
-    the same method module (the two-function-merge pattern the fusion dispatcher uses for GENIE-SV):
+    INDICATION-level, target-INDEPENDENT (aneuploidy + WGD + MSI are genome-wide cohort phenotypes) —
+    the `target` arg is accepted for dispatcher-signature uniformity but IGNORED. MERGES three axes
+    from the same method module (the multi-function-merge pattern the fusion dispatcher uses for
+    GENIE-SV):
       - aneuploidy_burden_for_indication() — per-sample frac_altered CIN burden (seg_based_scores)
       - wgd_summary_for_indication()       — whole-genome-doubling prevalence + ploidy (ABSOLUTE)
+      - msi_summary_for_indication()       — microsatellite-instability prevalence (marker-paper; CRC+STAD)
     Each degrades to data_unavailable independently. DISPLAY facet, verdict-inert."""
     mod = _import_method("tcga_aneuploidy_burden")
     out = dict(mod.aneuploidy_burden_for_indication(indication))
-    try:
-        wgd = mod.wgd_summary_for_indication(indication)
-        # merge the WGD fields (distinct keys — no clash with the burden fields)
-        for k in ("wgd_class", "wgd_fraction", "n_wgd_samples", "median_ploidy",
-                  "median_purity", "wgd_context"):
-            out[k] = wgd.get(k)
-    except Exception:  # noqa: BLE001 — WGD is additive; never break the burden read
-        for k in ("wgd_class", "wgd_fraction", "n_wgd_samples", "median_ploidy",
-                  "median_purity", "wgd_context"):
-            out.setdefault(k, None)
-        out.setdefault("wgd_class", "data_unavailable")
+
+    def _merge_axis(fn_name, keys, class_key):
+        """Merge an additive axis's fields into `out`; never break the burden read."""
+        try:
+            axis = getattr(mod, fn_name)(indication)
+            for k in keys:
+                out[k] = axis.get(k)
+        except Exception:  # noqa: BLE001 — additive axis; a failure degrades, never breaks
+            for k in keys:
+                out.setdefault(k, None)
+            out[class_key] = "data_unavailable"
+
+    _merge_axis("wgd_summary_for_indication",
+                ("wgd_class", "wgd_fraction", "n_wgd_samples", "median_ploidy",
+                 "median_purity", "wgd_context"), "wgd_class")
+    _merge_axis("msi_summary_for_indication",
+                ("msi_class", "msi_high_fraction", "n_msi_high", "msi_context"), "msi_class")
     return out
 
 
