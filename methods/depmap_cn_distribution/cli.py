@@ -260,6 +260,7 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
             "cn_n_cell_lines_evaluated": 0,
             "cn_assay_used": "data_unavailable",
             "copy_number_class": "data_unavailable",
+            "cn_homozygous_deletion_recurrent": "data_unavailable",
             "cn_distribution_shape": "unclassified",
         }
 
@@ -302,6 +303,17 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
     summary["copy_number_class"] = _classify_cn(
         fraction_recurrent_amp, fraction_recurrent_del,
         recurrent_threshold=recurrent_threshold,
+    )
+    # Homozygous-deletion recurrence flag (2026-08-06, DISPLAY facet). copy_number_class folds deep +
+    # shallow deletion into one `recurrently_deleted` value; this SEPARATE companion isolates recurrent
+    # DEEP (homozygous, CN < DEEP_DEL) deletion — the degrader-relevant pattern (no protein to degrade).
+    # Emitted as its OWN field, NOT a copy_number_class value: copy_number_class is verdict-driving (in
+    # the genomic resolver), so splitting it would change the verdict for deep-del targets. This flag is
+    # additive/verdict-inert — it surfaces "recurrently homozygously deleted" to render/LLM without
+    # touching the resolver spine. (A degrader-not-viable KILLER rule keyed on it is a deferred follow-up.)
+    summary["cn_homozygous_deletion_recurrent"] = (
+        "recurrent_homozygous_deletion" if frac_deep_del >= recurrent_threshold
+        else "not_recurrent_homozygous_deletion"
     )
     summary["cn_distribution_shape"] = _classify_shape(
         median_cn, iqr, fraction_recurrent_amp, fraction_recurrent_del
