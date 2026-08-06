@@ -200,3 +200,40 @@ def test_system_prompt_enforces_publication_register_and_glosses():
     # the schema field descriptions also ask for the register / glossing
     desc = SD.SYNTHESIS_TOOL_SCHEMA["properties"]["dependency_rationale"]["description"].lower()
     assert "publication register" in desc and "plain language" in desc
+
+
+# --- molecular-subgroup panorama in the narration (2026-08-06) ---
+
+def _decision_with_panorama(pattern="not_informative"):
+    d = _decision(prism_missing=False)
+    d["headline"]["subtype_scope"] = ["MSI_H", "MSS"]
+    d["headline"]["subtype_dependency_panorama"] = {
+        "subtype_dependency_pattern": pattern,
+        "cross_subgroup_delta_dependency": 0.53,
+        "measured_strata": ["MSS"],
+        "per_stratum": [
+            {"stratum": "MSI_H", "class": "moderate_dependency",
+             "evidence_state": "underpowered", "median_chronos": -0.69, "subgroup_n": 17},
+            {"stratum": "MSS", "class": "strong_dependency",
+             "evidence_state": "measured", "median_chronos": -1.22, "subgroup_n": 71},
+        ],
+    }
+    return d
+
+
+def test_prompt_renders_subgroup_panorama_with_power_flags():
+    p = SD.build_user_prompt(_decision_with_panorama())
+    assert "MOLECULAR-SUBGROUP DEPENDENCY" in p
+    assert "MSI_H" in p and "MSS" in p
+    # per-stratum evidence_state must be shown so an underpowered stratum is visible
+    assert "underpowered" in p and "measured" in p
+    # the discipline instruction must be present
+    assert "compare ONLY across strata tagged 'measured'" in p
+    # scope + admissible strata surfaced
+    assert "measured' strata: ['MSS']" in p or "['MSS']" in p
+
+
+def test_prompt_omits_subgroup_block_when_no_panorama():
+    """Without --subtypes (no panorama in the headline), the subgroup block must not appear."""
+    p = SD.build_user_prompt(_decision(prism_missing=False))
+    assert "MOLECULAR-SUBGROUP DEPENDENCY" not in p

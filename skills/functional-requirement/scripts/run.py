@@ -21,15 +21,17 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common import get_card_field
+from _skills_common import get_card_field, resolve_cards
 from _skills_common.resolver import resolve_verdict_for_gate
 from _skills_common.synthesis_dependency import synthesize_dependency
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.2.0"   # 1.2.0: opt-in --synthesize LLM narration (dependency lens) — two-slot,
-                          #        verdict-inert; narrates the FULL evidence set + Axis-2 control
-                          #        benchmark + Axis-3 lineage omnibus. Spine byte-stable without the flag.
+SKILL_VERSION = "1.3.0"   # 1.3.0: opt-in --subtypes DESCRIPTIVE dependency-by-molecular-subgroup
+                          #        panorama (subgroup-stratified-dependency; e.g. MSI_H vs MSS).
+                          #        Verdict-inert (touches no rung); byte-stable without the flag.
+                          # 1.2.0: opt-in --synthesize LLM narration (dependency lens) — two-slot,
+                          #        verdict-inert; FULL evidence set + Axis-2 controls + Axis-3 omnibus.
 
 CARDS = [
     "pan-cancer-crispr-dependency-distribution",
@@ -75,6 +77,84 @@ CARDS = [
                                                 # ADDITIVE — feed NO resolver ladder → dependency verdict
                                                 # byte-stable. Also in target-profile SUB_SKILL_CARDS.
 ]
+
+# SUBTYPE axis (2026-08-06) — kept OUT of the scalar CARDS list ON PURPOSE, mirroring
+# genomic-alteration-profile's SUBTYPE_CARDS. subgroup-stratified-dependency (tier:subtype) is a
+# PANORAMA card: its dispatcher needs externally-resolved strata (subgroup_context.resolved_strata_ids)
+# or it returns only a data-note — so it resolves on a SEPARATE, --subtypes-gated path (the
+# dispatcher's subtype_panorama_fn hook), never on the whole-cohort verdict spine. DESCRIPTIVE:
+# recomputes per-stratum Chronos WITHIN each subgroup's cell-line set (e.g. MSI_H vs MSS), emitting
+# per_subgroup_metrics + cross_subgroup_delta_dependency; NO verdict signal → touches NO resolver rung
+# (the dependency verdict is byte-stable whether or not a subtype scope is passed). The dependency
+# analog of genomic-alteration's subgroup-stratified-mutation-frequency + tumor-presence's
+# tumor-rna-distribution-by-subtype. NOTE: DepMap per-indication molecular strata are frequently
+# UNDERPOWERED (few cell lines per subgroup) — the card tags subgroup_n<30 `underpowered`, and the
+# panorama surfaces the evidence_state so an underpowered stratum is never over-read.
+SUBTYPE_CARDS = [
+    "subgroup-stratified-dependency",
+]
+
+# Cross-stratum delta threshold mirroring the card's interpretation_hints
+# (meaningful_subgroup_delta). Display-only flavor label, NOT a verdict.
+_MEANINGFUL_SUBGROUP_DELTA = 0.10
+
+
+def _resolve_dependency_subtype_panorama(target: str, indication: str | None,
+                                         subtypes: list) -> dict:
+    """DESCRIPTIVE dependency-by-subgroup panorama — resolve subgroup-stratified-dependency across
+    the requested strata (e.g. MSI_H, MSS). Mirrors genomic-alteration's _resolve_subtype_panorama:
+    the card is a PANORAMA dispatcher, so it needs subgroup_context.resolved_strata_ids threaded or
+    it returns only a data-note (why it is NOT in the whole-cohort CARDS list).
+
+    Returns the {cards, scope_subtypes, subtype_dependency_panorama} projection the dispatcher's
+    subtype_panorama_fn hook expects. NO resolver rung is touched, so the dependency verdict spine
+    is byte-stable whether or not --subtypes is passed. Reads the card's ACTUAL emitted field names
+    (per_subgroup_metrics rows: stratum/class/evidence_state/median_chronos/subgroup_n;
+    cross_subgroup_delta_dependency reducer)."""
+    subgroup_context = {"resolved_strata_ids": list(subtypes),
+                        "catalog_status": "resolved_active"}
+    sub_cards = resolve_cards(SUBTYPE_CARDS, target, indication,
+                              subgroup_context=subgroup_context)
+    dep = next((c for c in sub_cards
+                if c["card_id"] == "subgroup-stratified-dependency"), None)
+    summary = (dep or {}).get("summary") or {}
+    per_subgroup = summary.get("per_subgroup_metrics") or []
+    # Only MEASURED strata are admissible for comparison (underpowered/absent are inadmissible —
+    # the card's own discipline: DepMap per-subgroup cell-line n is frequently below the floor).
+    measured = [r for r in per_subgroup if r.get("evidence_state") == "measured"]
+    delta = summary.get("cross_subgroup_delta_dependency")
+
+    # Compact pattern label mirroring the card's interpretation_hints (delta on median_chronos):
+    # >= 0.10 with >=2 measured strata = subgroup-specific; < 0.10 with >=2 = uniform; else n/a.
+    # DISPLAY-ONLY flavor — NOT a verdict.
+    if len(measured) < 2 or delta is None:
+        pattern = "not_informative"
+    elif abs(delta) >= _MEANINGFUL_SUBGROUP_DELTA:
+        pattern = "subgroup_specific_dependency"
+    else:
+        pattern = "uniform_across_subgroups"
+
+    return {
+        "cards": sub_cards,
+        "scope_subtypes": list(subtypes),
+        "subtype_dependency_panorama": {
+            "subtype_dependency_pattern":       pattern,   # display-only flavor, NOT a verdict
+            "n_subgroups_with_data":            summary.get("n_subgroups_with_data"),
+            "max_subgroup_dependency":          summary.get("max_subgroup_dependency"),
+            "min_subgroup_dependency":          summary.get("min_subgroup_dependency"),
+            "cross_subgroup_delta_dependency":  delta,
+            "measured_strata":                  [r.get("stratum") for r in measured],
+            # surface per-stratum class + power so an underpowered stratum is never over-read
+            "per_stratum":                      [{"stratum": r.get("stratum"),
+                                                  "class": r.get("class"),
+                                                  "evidence_state": r.get("evidence_state"),
+                                                  "median_chronos": r.get("median_chronos"),
+                                                  "subgroup_n": r.get("subgroup_n")}
+                                                 for r in per_subgroup],
+            "_missing": bool(dep is None or dep.get("_missing")),
+            "_missing_reason": (dep or {}).get("_missing_reason"),
+        },
+    }
 
 # The verdicts that ARE a real dependency call (positive or veto) — the ones a predictability
 # confidence note meaningfully sharpens. On insufficient/discordant/underpowered verdicts the
@@ -190,4 +270,8 @@ if __name__ == "__main__":
         # so it is structurally impossible for the narration to alter dependency_verdict. Without this
         # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens).
         synthesize_fn=synthesize_dependency,
+        # Opt-in --subtypes resolves the DESCRIPTIVE dependency-by-molecular-subgroup panorama
+        # (subgroup-stratified-dependency; e.g. MSI_H vs MSS). Verdict-inert: its cards touch no
+        # resolver rung, so the dependency verdict is byte-identical without --subtypes.
+        subtype_panorama_fn=_resolve_dependency_subtype_panorama,
     ))

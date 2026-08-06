@@ -16,7 +16,7 @@ description: |
   is modality-independent.
 
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -37,6 +37,7 @@ composition:
     - expression-dependency-correlation  # RNA arm: mRNA predicts dependency (was in run.py CARDS, missing here)
     - recommended-models                 # Q4 patient↔model correspondence: model-backed-dependency (was in run.py CARDS, missing here)
     - abundance-dependency               # Q7 PROTEIN arm: protein abundance predicts dependency (2026-07-22)
+    - subgroup-stratified-dependency     # SUBTYPE axis (2026-08-06): per-molecular-subgroup Chronos (MSI_H/MSS…); tier:subtype, DESCRIPTIVE panorama (emits NO verdict — display facet like genomic-alteration's by-subgroup card); resolves ONLY on the --subtypes path (SUBTYPE_CARDS), never the whole-cohort spine
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type CLAIMS this gate PULLs (resolves against
   # target-contracts/vocabularies/measurement_types.yaml; the 2 CRISPR cards fold into one type).
   # chemical_genetic_concordance = the prism-crispr CONFIRMATION arm; dependency_predictability is
@@ -105,6 +106,29 @@ tumor-presence hardening). Both are ADDITIVE — no rule reads them, so the
   variance view ("how much of the dependency variance does lineage explain?"),
   **complementing** the existing per-lineage-threshold `enrichment_class`. Emitted
   by `depmap_chronos.compute_lineage_summary`.
+
+## Optional molecular-subgroup panorama (`--subtypes`)
+
+Opt-in `--subtypes MSI_H,MSS` (comma-separated stratum ids) resolves the DESCRIPTIVE
+`subgroup-stratified-dependency` card — per-molecular-subgroup Chronos **within this
+indication's cell lines** (e.g. MSI-H vs MSS), the patient-selection grain **distinct
+from lineage** (tissue-of-origin). This is the dependency analog of
+genomic-alteration-profile's `--subtypes` and tumor-presence's subtype panorama; the
+cell-line→subgroup mapping comes from the `depmap-subgroup-assignments-{indication}-v1`
+shards.
+
+**Verdict-inert**: the subgroup cards are resolved on a separate path (the dispatcher's
+`subtype_panorama_fn` hook), never enter `fired`, and touch no resolver rung — so
+`dependency_verdict` is **byte-identical** with or without `--subtypes`. Without the flag
+the path is a complete no-op.
+
+**Power discipline (important)**: DepMap per-indication molecular strata are frequently
+**underpowered** (few cell lines per subgroup). The card tags `subgroup_n < 30` as
+`underpowered`; the panorama surfaces each stratum's `evidence_state`, and the pattern
+label is `not_informative` unless ≥2 strata are `measured`. A cross-subgroup Δ over an
+underpowered stratum is **not** read as a subgroup-specific difference (the `--synthesize`
+narration enforces the same rule). Availability is per-indication: only indications with a
+landed subgroup-assignment shard (COADREAD, ESCA, HNSC, NSCLC, PAAD, STAD) can be scoped.
 
 ## Optional LLM synthesis (`--synthesize`)
 

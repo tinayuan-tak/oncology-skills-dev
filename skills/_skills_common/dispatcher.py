@@ -63,6 +63,14 @@ HeadlineFn = Callable[[list[dict], list[dict], Optional[tuple[str, Optional[str]
 # provided, the dispatcher falls back to synthesize_presence (backward-compat for tumor-presence,
 # which relied on the former hardcoded import).
 SynthesizeFn = Callable[[dict, Optional[str], Optional[str]], dict]
+# A skill-specific subtype-PANORAMA resolver: (target, indication, [stratum_ids]) -> dict with
+#   {"cards": [<resolved subtype card outputs>], "scope_subtypes": [...], "<axis>": {<panorama>}}.
+# ONLY invoked when the caller both (a) passes subtype_panorama_fn AND (b) the run receives
+# --subtypes. The returned cards are APPENDED to the emitted package + the returned panorama block
+# is merged into the headline, but they are NOT in `fired` — the panorama touches NO resolver rung,
+# so the verdict spine is byte-identical whether or not --subtypes is passed. This is the shared-
+# dispatcher equivalent of genomic-alteration-profile's hand-rolled --subtypes path.
+SubtypePanoramaFn = Callable[[str, Optional[str], list], dict]
 
 
 # ARCH A4 — behaviors when a `cards_used` dep is missing at runtime.
@@ -140,6 +148,7 @@ def run_wired_skill(
     partial_status_note: Optional[str] = None,
     isoform_check_target: bool = False,
     synthesize_fn: Optional[SynthesizeFn] = None,
+    subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
     argv: Optional[list[str]] = None,
 ) -> int:
     """Run a wired compositional skill end-to-end.
@@ -168,6 +177,12 @@ def run_wired_skill(
             two fields (isoform_selective_warning + isoform_selective_
             dominant_isoform) into the headline. Enables arch A3 discipline
             for skills that emit modality-relevant fields.
+        subtype_panorama_fn: optional (target, indication, [stratum_ids]) -> dict resolver for
+            a DESCRIPTIVE per-subtype panorama (e.g. dependency by MSI status). Invoked ONLY when
+            the run receives --subtypes AND this fn is supplied. Its cards are appended to the
+            emitted package + its panorama block merged into the headline, but they never enter
+            `fired` — the verdict spine is byte-identical with or without --subtypes. When None
+            (every existing caller), --subtypes is inert: a complete no-op.
         argv: optional argv override (for tests / programmatic invocation).
 
     Returns:
@@ -196,6 +211,13 @@ def run_wired_skill(
                          "have the narration FOREGROUND that stratum's position, in addition to the "
                          "across-subtype omnibus. Emphasis-only — no spine change; if the subtype is "
                          "not among the computed strata, synthesis says so honestly.")
+    ap.add_argument("--subtypes", default=None,
+                    help="OPTIONAL comma-separated molecular subtype/stratum ids (e.g. 'MSI_H,MSS'). "
+                         "When set AND the skill supplies a subtype_panorama_fn, resolves a DESCRIPTIVE "
+                         "per-stratum panorama across those strata (e.g. dependency by MSI status) and "
+                         "appends it to the package + headline. Does NOT affect the verdict (byte-stable "
+                         "regardless). Distinct from --subtype (singular), which only steers synthesis "
+                         "emphasis over already-computed strata.")
     args = ap.parse_args(argv)
 
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
@@ -217,6 +239,20 @@ def run_wired_skill(
 
     # 4. Verdict (optional callback)
     verdict_pair = verdict_fn(fired) if verdict_fn else None
+
+    # 4b. OPTIONAL subtype panorama (DESCRIPTIVE, --subtypes-gated). Resolved on a SEPARATE path
+    # from the whole-cohort spine: its cards are NOT in `fired` and touch no resolver rung, so the
+    # verdict is byte-identical whether or not --subtypes is passed. Only runs when the skill both
+    # supplies subtype_panorama_fn AND the run receives --subtypes. A panorama-resolution failure
+    # degrades to None (never breaks the deterministic run — same discipline as synthesis).
+    subtype_result = None
+    _subtypes = [s.strip() for s in (args.subtypes or "").split(",") if s.strip()]
+    if subtype_panorama_fn is not None and _subtypes:
+        try:
+            subtype_result = subtype_panorama_fn(args.target, args.indication, _subtypes)
+        except Exception as e:  # noqa: BLE001 — the panorama is a display facet; never load-bearing
+            subtype_result = {"cards": [], "scope_subtypes": _subtypes,
+                              "_subtype_panorama_error": f"{type(e).__name__}: {e}"}
 
     # 5. Isoform-selective A3 check (optional)
     isoform_warning = None
@@ -250,6 +286,15 @@ def run_wired_skill(
             isoform_warning.dominant_isoform if isoform_warning else None
         )
 
+    # Attach the subtype panorama to the headline (DESCRIPTIVE; verdict-inert). The skill's
+    # panorama_fn returns a dict with a "scope_subtypes" list + one panorama block keyed by axis
+    # name; surface both for the LLM/render. Never present unless --subtypes was passed.
+    if subtype_result is not None:
+        headline["subtype_scope"] = subtype_result.get("scope_subtypes")
+        for k, v in subtype_result.items():
+            if k not in ("cards", "scope_subtypes"):   # the panorama block(s) + any error note
+                headline[k] = v
+
     # 7. Optional modality lens
     lenses = None
     invoked_lenses: dict = {}
@@ -257,12 +302,18 @@ def run_wired_skill(
         lenses = {args.modality: modality_lens(fired, args.modality)}
         invoked_lenses["modality"] = args.modality
 
+    # The whole-cohort cards drive the verdict; the subtype panorama cards (if any) are appended for
+    # the emitted package + LLM only — they are NOT in `fired`, so they touch no rung (spine stable).
+    emitted_cards = card_outputs + (subtype_result.get("cards", []) if subtype_result else [])
+    if subtype_result is not None:
+        invoked_lenses["subtypes"] = subtype_result.get("scope_subtypes")
+
     # 8. Compose decision.json
     decision = make_decision_json(
         skill_name=skill_name,
         target=args.target, indication=_indication,
         question=question.format(target=args.target, indication=_indication),
-        card_outputs=card_outputs, fired=fired,
+        card_outputs=emitted_cards, fired=fired,
         headline=headline, modality_lenses=lenses,
     )
 
@@ -290,11 +341,11 @@ def run_wired_skill(
                 "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
             }
 
-    # 9. Emit standard data-package tree
+    # 9. Emit standard data-package tree (include the subtype panorama cards when present)
     written = write_package(
         out_dir=args.out,
         decision=decision,
-        card_outputs=card_outputs,
+        card_outputs=emitted_cards,
         target=args.target,
         indication=_indication,
         skill_name=skill_name,

@@ -247,6 +247,35 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"(variance_explained ε²={_fmt(lineage.get('lineage_variance_explained'), 3)})",
         f"  which_lineages_separate: {lineage.get('which_lineages_separate')}",
         f"  enrichment_class (per-lineage threshold view): {lineage.get('enrichment_class')}",
+    ]
+
+    # MOLECULAR-SUBGROUP panorama — present ONLY when --subtypes was passed (dependency by molecular
+    # stratum within THIS indication's cell lines, e.g. MSI_H vs MSS). Distinct grain from lineage
+    # (tissue-of-origin): this is patient-selection WITHIN the indication. Underpowered strata
+    # (subgroup_n < 30) are inadmissible for comparison — the narration must not over-read them.
+    panorama = h.get("subtype_dependency_panorama")
+    if panorama is not None:
+        lines += [
+            "",
+            "MOLECULAR-SUBGROUP DEPENDENCY (patient-selection grain WITHIN the indication — present "
+            "only because --subtypes was passed; distinct from lineage/tissue-of-origin):",
+            f"  scope: {h.get('subtype_scope')}   pattern: {panorama.get('subtype_dependency_pattern')} "
+            "(subgroup_specific / uniform / not_informative — a display label, NOT a verdict)",
+            f"  cross-subgroup Δ median Chronos: {_fmt(panorama.get('cross_subgroup_delta_dependency'))}  "
+            f"(admissible i.e. 'measured' strata: {panorama.get('measured_strata')})",
+        ]
+        for r in (panorama.get("per_stratum") or []):
+            lines.append(
+                f"    {r.get('stratum')}: {r.get('class')}  median Chronos "
+                f"{_fmt(r.get('median_chronos'))}  n={r.get('subgroup_n')}  "
+                f"[{r.get('evidence_state')}]")
+        lines.append(
+            "  DISCIPLINE: compare ONLY across strata tagged 'measured'. A stratum tagged "
+            "'underpowered' (few cell lines) or 'absent' must NOT be read as a subgroup-specific "
+            "dependency difference — say the subgroup axis is underpowered instead. If fewer than 2 "
+            "strata are 'measured', state that no subgroup comparison is supported.")
+
+    lines += [
         "",
         "PATIENT↔MODEL CORROBORATION (render facet — is the dependency backed by lineage-matched models?):",
         f"  model_correspondence_class: {h.get('model_correspondence_class')}  "
@@ -257,9 +286,12 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "the verdict. Foreground the SELECTIVE-vs-PAN-ESSENTIAL distinction: a pan-essential read "
         "(as_essential_as_pan_essential + negligible lineage ε²) ARGUES AGAINST the target (broad tox), "
         "it is NOT support. If CRISPR and RNAi disagree, or a paralog buffers, or the pooled call is "
-        "underpowered, foreground that. If the target is non-dependent/insufficient, say dependency is "
-        "UNINFORMATIVE and the rationale must come from other lenses. Do NOT discuss expression, "
-        "mutation, or modality. Ground every claim in the fields; state DATA_UNAVAILABLE gaps plainly.",
+        "underpowered, foreground that. If a molecular-subgroup panorama is present, note whether the "
+        "dependency concentrates in a subgroup (patient-selection) — but ONLY across 'measured' strata; "
+        "call an underpowered subgroup axis underpowered, do not manufacture a difference. If the target "
+        "is non-dependent/insufficient, say dependency is UNINFORMATIVE and the rationale must come from "
+        "other lenses. Do NOT discuss expression, mutation, or modality. Ground every claim in the "
+        "fields; state DATA_UNAVAILABLE gaps plainly.",
     ]
     return "\n".join(lines)
 
