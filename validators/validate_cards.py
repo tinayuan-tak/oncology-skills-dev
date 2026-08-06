@@ -97,6 +97,43 @@ _FIGURE_EMITTERS_PATH = (_SKILLS_REPO / "skills" / "compose-dashboard" / "script
 # the pull-routing registry honest: every declared type resolves to a governed vocabulary entry.
 _MEASUREMENT_TYPES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
                            / 'measurement_types.yaml')
+_RULES_DIR = Path(__file__).resolve().parent.parent / 'interpretation-rules'
+# The 5 modality lenses a rule's signals{} dict can carry (matches card.schema.json modality_relevance
+# enum + the per-rule signal keys in interpretation-rules/*.rules.yaml).
+_MODALITY_SIGNAL_KEYS = frozenset({'small_molecule', 'degrader', 'adc', 'bite_tce', 'antibody'})
+
+
+def _card_modality_signals() -> Optional[dict[str, set[str]]]:
+    """Build {card_id -> set of modality lenses its rules emit a signal for} across ALL
+    interpretation-rules/*.rules.yaml. A rule contributes to its `when.card_id` the modality keys
+    present in its `signals:` dict (small_molecule/degrader/adc/bite_tce/antibody). Cards with NO
+    rule are absent from the map (distinguished from cards-with-rules-but-no-modality-signal).
+
+    Returns None if the rules dir is absent (graceful-skip). This is the substrate for the
+    'declared-relevant-but-mute' governance check: a card that declares a modality lens in
+    `modality_relevance` but whose rules never emit that lens's signal cannot actually route evidence
+    to that modality gate (the P4 bug class — the real router is the per-rule signals{} dict, not the
+    declaration)."""
+    if not _RULES_DIR.exists():
+        return None
+    out: dict[str, set[str]] = {}
+    for rules_file in sorted(_RULES_DIR.glob('*.rules.yaml')):
+        try:
+            with rules_file.open() as f:
+                doc = yaml.safe_load(f) or {}
+        except yaml.YAMLError:
+            continue
+        for rule in (doc.get('rules') or []):
+            if not isinstance(rule, dict):
+                continue
+            when = rule.get('when') or {}
+            card_id = when.get('card_id') if isinstance(when, dict) else None
+            if not card_id:
+                continue
+            signals = rule.get('signals') or {}
+            emitted = {k for k in signals if k in _MODALITY_SIGNAL_KEYS} if isinstance(signals, dict) else set()
+            out.setdefault(card_id, set()).update(emitted)
+    return out
 
 
 def _registered_measurement_types() -> Optional[set[str]]:
@@ -611,6 +648,29 @@ def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
                 f'{sorted(extra)} not in its measurement_type `{mtype}` routing set {sorted(type_mr)}. '
                 f'The card claims a modality gate the type does not route to — align the card + the '
                 f'vocab entry.')
+
+    # DECLARED-RELEVANT-BUT-MUTE (2026-08-06 — the P4-deferred governance cross-check). The field
+    # modality_relevance is DECLARATION metadata; the ACTUAL router is the per-rule signals{} dict.
+    # A card can therefore declare a modality lens yet have NO rule emitting that lens's signal — it
+    # LOOKS wired to the modality gate but its evidence can never reach it (exactly the bug P4 fixed by
+    # ADDING a rule, cf. TC#102/#103). This warns on that inconsistency. Discipline:
+    #   - Only fires when the card HAS ≥1 rule (a pure-data facet with NO rules reaches gates via
+    #     reports_into, not signals — flagging it would be a false positive; it is skipped).
+    #   - WARNING, not ERROR: an un-ruled modality is a roadmap gap, not a contract violation. It makes
+    #     the "declared but unrealised" set VISIBLE (the loop P4 left open) without touching any verdict.
+    if mtype in relevant and card_mr:
+        sig_map = _card_modality_signals()
+        if sig_map is not None and card_id in sig_map:
+            emitted = sig_map[card_id]                       # modalities this card's rules actually emit
+            mute = [m for m in card_mr if m not in emitted]  # declared lenses with no signal-carrying rule
+            if mute:
+                report.add_warning(
+                    f'MODALITY_RELEVANCE_MUTE: card `{card_id}` declares modality_relevance {sorted(card_mr)} '
+                    f'but its interpretation rules emit signals only for {sorted(emitted) or "no modality"}; '
+                    f'lens(es) {sorted(mute)} are DECLARED-RELEVANT-BUT-MUTE — no rule carries that '
+                    f'modality\'s signal, so the card\'s evidence cannot route to that modality gate '
+                    f'(the real router is the per-rule signals{{}} dict, not the declaration). Add a rule '
+                    f'emitting the {sorted(mute)} signal, or drop the lens from modality_relevance.')
 
 
 def validate_card_file(path: str | Path, schema: dict | None = None) -> ValidationReport:

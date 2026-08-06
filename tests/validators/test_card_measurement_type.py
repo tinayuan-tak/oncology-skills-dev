@@ -190,3 +190,72 @@ def test_modality_relevance_enum_enforced_by_schema(tmp_path):
     report = _validate(tmp_path, _base_card(modality_relevance=["not_a_modality"]))
     assert not report.ok
     assert "STRUCTURAL" in _errs(report)
+
+
+# ---------- declared-relevant-but-mute governance cross-check (2026-08-06, P4-deferred) ----------
+# A card can declare a modality lens yet have NO rule emitting that lens's signal — it LOOKS wired to
+# the modality gate but its evidence can never reach it (the real router is the per-rule signals{} dict).
+# This is a WARNING (roadmap gap, not a contract violation), fires only when the card HAS rules, and
+# never touches a verdict. _card_modality_signals is monkeypatched for hermeticity.
+
+def _mute_setup(monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"surface_confirmation"})
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: {"surface_confirmation"})
+
+
+def test_declared_lens_with_no_signal_rule_is_mute_warning(tmp_path, monkeypatch):
+    """Card declares [adc, bite_tce] but its rules emit only adc → bite_tce is MUTE → warning."""
+    _mute_setup(monkeypatch)
+    monkeypatch.setattr(VC, "_card_modality_signals",
+                        lambda: {"synthetic-test-card": {"adc"}})
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
+                                            modality_relevance=["adc", "bite_tce"]))
+    assert report.ok, _errs(report)                      # WARNING, never an error
+    assert "MODALITY_RELEVANCE_MUTE" in _warns(report)
+    assert "bite_tce" in _warns(report)
+    assert "adc" not in _warns(report).split("MODALITY_RELEVANCE_MUTE")[1].split("lens(es)")[1]  # adc is realised, not muted
+
+
+def test_all_declared_lenses_realised_is_clean(tmp_path, monkeypatch):
+    """Every declared lens has a signal-emitting rule → no mute warning."""
+    _mute_setup(monkeypatch)
+    monkeypatch.setattr(VC, "_card_modality_signals",
+                        lambda: {"synthetic-test-card": {"adc", "bite_tce", "antibody"}})
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
+                                            modality_relevance=["adc", "bite_tce", "antibody"]))
+    assert report.ok, _errs(report)
+    assert "MODALITY_RELEVANCE_MUTE" not in _warns(report)
+
+
+def test_card_with_no_rules_is_not_flagged_mute(tmp_path, monkeypatch):
+    """A pure-data facet with NO rule (absent from the signal map) reaches gates via reports_into,
+    not signals — it must NOT be flagged mute (that would be a false positive)."""
+    _mute_setup(monkeypatch)
+    monkeypatch.setattr(VC, "_card_modality_signals",
+                        lambda: {"some-other-card": {"adc"}})   # synthetic-test-card absent → has no rules
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
+                                            modality_relevance=["adc", "bite_tce"]))
+    assert report.ok, _errs(report)
+    assert "MODALITY_RELEVANCE_MUTE" not in _warns(report)
+
+
+def test_mute_check_graceful_skip_when_rules_absent(tmp_path, monkeypatch):
+    """Rules dir unreadable (None) → the mute check skips rather than false-flagging."""
+    _mute_setup(monkeypatch)
+    monkeypatch.setattr(VC, "_card_modality_signals", lambda: None)
+    report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation",
+                                            modality_relevance=["adc", "bite_tce"]))
+    assert report.ok, _errs(report)
+    assert "MODALITY_RELEVANCE_MUTE" not in _warns(report)
+
+
+def test_card_modality_signals_reads_real_rules():
+    """Integration: the real rules dir yields a non-empty {card_id -> modality set} map, and a known
+    surface rule's card carries a surface signal (guards the parser against silent breakage)."""
+    m = VC._card_modality_signals()
+    if m is None:
+        return  # rules dir absent in this checkout
+    assert isinstance(m, dict) and m, "rules present but yielded no card→signal map"
+    # surface-topology-and-ptm has surface rules (e.g. no-transmembrane-adc-killer emits adc)
+    if "surface-topology-and-ptm" in m:
+        assert m["surface-topology-and-ptm"] & {"adc", "bite_tce", "antibody"}
