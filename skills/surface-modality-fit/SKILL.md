@@ -10,12 +10,13 @@ description: |
   (chemical-genetic) verdict. This skill makes the surface-modality call,
   resolving from the composed `adc-tce-modality-fit` card's `fit_class`.
 
-  status: partial — SOME surface derived products are landed (surfaceome-family +
-  topology-predictions on S3; surface_confirmation LIVE via the merged CSPA reader),
-  but the density + structural products (surface-abundance-density, structure-features)
-  are not yet materialized, so the composed fit_class verdict is often an honest
-  `insufficient` until they land (see the Status section for the current per-product
-  state). The sibling small-molecule tractability call is `tractability-small-molecule`.
+  status: partial — surfaceome-family + topology + surface-abundance-density readers are
+  live (density's method IS built; a derived density product is still pending), while
+  structure-features is a hard gap (its derived product is absent from the data-catalog).
+  The composed `fit_class` keys on topology+family only and emits `neither_viable` (an
+  honest negative), NOT `insufficient`, when upstream is thin; today `ADC_preferred` is
+  structurally unreachable because the topology product lacks an endocytosis/PTM axis (see
+  the Status section). The sibling small-molecule tractability call is `tractability-small-molecule`.
 
   Use for questions like "does EGFR look ADC-favorable in COADREAD?", "is this
   target TCE-viable topologically?"
@@ -117,24 +118,34 @@ composition:
 
 ## Status: partial
 
-Per-product state (verified 2026-07-23):
-- LANDED: `surfaceome-family-classification` (on S3), `topology-predictions` (surface-topology-and-ptm,
-  on S3), `surface_confirmation` (LIVE via the merged CSPA reader — `protein-surface-evidence`).
-- NOT yet materialized (the current backfill — see gap-backfill-plan.md):
-  - `surface-abundance-density` — method not yet built (the ADC/TCE antigen-DENSITY verdict input).
-  - `structure-features-static` — method exists, but its PDB + AlphaFold source snapshots are absent
-    from S3 (ingest-first). Feeds the SM-pocket + surface-epitope reads.
+Per-product / per-input state (reconciled 2026-08-06 against framework-health):
+- LANDED + reader-live: `surfaceome-family-classification` (S3), `topology-predictions`
+  (surface-topology-and-ptm, S3), `surface-abundance-density` (method IS built — reads CPTAC
+  per-cohort + a 181-row calibrated antigen-density ladder; what's missing is a *derived* density
+  product, not the method), `rna-protein-concordance-tumor`, `copy-number-distribution` (additive
+  P4 antigen-density signal), `normal-tissue-liability`.
+- HARD GAP: `structure-features-static` — the method exists, but its derived product
+  `pdb-alphafold-structure-features-per-uniprot-v1` is NOT in the data-catalog (ingest-first). The
+  reader always degrades to `no_structure`. NOTE: structure is a PASSTHROUGH here — it does not feed
+  `fit_class` (see below).
 
-Until the density + structural products land, the composed `adc-tce-modality-fit.fit_class` is often
-`data_unavailable` and the verdict `insufficient`. This is honest, not a bug — the skill does not
-fabricate a modality call from missing surface data. (P4's copy-number-amplification → antigen-density
-signal + CSPA surface_confirmation DO resolve today; the density/structure verdict is what's pending.)
+How `fit_class` actually resolves today (the composed `adc-tce-modality-fit` card): it keys on
+TOPOLOGY + SURFACEOME-FAMILY only — density and structure are consumed but do NOT move the class.
+When upstream is thin the composed card emits `neither_viable` (an honest negative), NOT
+`data_unavailable`/`insufficient` — the `fit_class` field is never marked `_missing`, so a rule always
+fires and the resolver's `insufficient` default is effectively unreachable.
 
-## Known design gap (flagged, not owned by this skill)
+THE REAL CURRENT LIMITATION (not the memory's "insufficient" framing): the topology product carries
+NO endocytosis-motif PTM data (`endo_high_conf` resolves to 0), so the ADC branch
+(`tm_count==1 AND ecd_length>=200 AND endo_high_conf>=3`) can NEVER be True. **`ADC_preferred` and
+`both_viable` are therefore structurally unreachable today**; realistic outputs collapse to
+`TCE_preferred` (genuine surface target, ECD>=100) or `neither_viable`. Wiring an endocytosis/PTM
+axis into the topology product is the highest-leverage fix to enable ADC-favorable calls.
 
-`fit_class == modality_ambiguous` has NO rule in `surface-intrinsic.rules.yaml`,
-so a target landing there fires nothing → `insufficient`. Adding that rule is a
-target-contracts change (rule-coverage-holes), tracked separately.
+Note on CSPA: `surface_confirmation` (CSPA reader, `cspa-surface-confirmation-per-uniprot-v1`) is
+LIVE in the framework and pulled as a measurement_type, but `protein-surface-evidence` is NOT in this
+skill's runtime `cards_used` — so within surface-modality-fit, CSPA is a declared pull-intent, not a
+firing card.
 
 ## How Claude invokes this skill
 

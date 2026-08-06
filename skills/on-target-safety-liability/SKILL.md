@@ -1,28 +1,28 @@
 ---
 name: on-target-safety-liability
 description: |
-  Phase-G skill — germline LoF-constraint safety signal from gnomAD +
-  (iter-2) HPA normal-tissue liability + IMPC + ClinVar. Consumes the
-  gnomad-lof-constraint card as its first wired evidence.
-
-  GRADUATED 2026-07-08: placeholder → partial. gnomAD constraint card
-  wired against the existing gnomad-constraint-snapshot-2026-07-02 source
-  manifest (data-catalog PR #79). Remaining cards
-  (normal-tissue-liability, protein-surface-evidence) stay placeholder;
-  their data sources are catalogued but the dispatchers are not built.
+  Phase-G skill — on-target safety liability from HUMAN GENETICS: gnomAD LoF
+  constraint + a 5-leg human-genetics axis (Open Targets 26.06: gene-burden,
+  ClinGen dosage, mouse-KO phenotype, ClinVar pathogenicity, target-priority)
+  + GTEx normal-tissue breadth, mechanism-conditioned by alteration-role
+  (mutant-selective GoF downgrade). 8 cards; verdict via the shared declarative
+  resolver (safety.resolver.yaml).
 
   Question this skill answers:
-  Is {target} highly constrained against loss-of-function variants in the
-  gnomAD population, and what does this imply for on-target safety of a
-  full-KO modality (degrader, RNA therapeutic, or full-inhibition SM)?
+  Is {target} intolerant of loss-of-function in humans (gnomAD constraint,
+  population burden, dosage sensitivity, mouse-KO lethality, germline
+  pathogenicity), and what does that imply for on-target safety of a full-KO
+  modality (degrader, RNA therapeutic, full-inhibition SM)? An activating
+  mutant-selective mechanism (alteration-role GoF) DOWNGRADES the WT-constraint
+  concern, since a mutant-selective agent need not fully inhibit the WT gene.
 
-  Reviewer-driven graduation (2026-07-08): this closes the plan's most
-  obvious G-phase gap. gnomAD data was landed; wiring is a ~1-day fix
-  that moves the skill from `not_wired` → `partial` with a concrete
-  germline-safety signal.
+  History: graduated not_wired → partial 2026-07-08 (gnomAD leg, PR #79 + the
+  gnomad_constraint method, merged AM #41 2026-07-19). Grew 2→8 cards over the
+  P5 human-genetics-as-safety build (Slices 1-5, 2026-07-24). Stays `partial`
+  because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.2.0
+  version: 1.7.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -60,52 +60,68 @@ composition:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
   status: partial
-  # KNOWN GAP (2026-07-13 review): the gnomad-lof-constraint dispatcher
-  # currently imports methods.gnomad_constraint, which does NOT exist — so
-  # this card resolves to _missing (its source manifest landed, but the
-  # reader method was never written). The skill therefore produces no real
-  # constraint verdict yet. Tracked as a separate feature workstream (build
-  # the gnomad_constraint method module). status stays `partial` honestly.
-  # normal-tissue-liability + protein-surface-evidence are excluded from the
-  # runtime card set (dispatchers pending); a prior on_dependency_status
-  # block was removed because run.py never passed it.
+  # WHY still `partial` (2026-08-06 reconcile): the 6 verdict-moving human-genetics
+  # legs are LIVE — gnomad-lof-constraint (method AM #41, merged 2026-07-19; NOT
+  # missing), + the 5 Open-Targets-26.06 legs (gene-burden, clingen-dosage,
+  # mouse-ko-phenotype, clinvar-pathogenicity, target-safety-prioritisation), all
+  # with built readers + a v1.x safety.resolver.yaml. Two axes remain incomplete,
+  # which keeps the honest ceiling at `partial`: (a) the readers are wired but have
+  # not yet fired in an emitted evidence package / been added to a dashboard_spec
+  # (framework-health "reader-live-never-fired"); (b) HPA-IHC normal-tissue liability
+  # + protein-surface-evidence were RE-HOMED to surface-modality-fit, so this skill's
+  # normal-tissue signal is GTEx-RNA breadth (normal-tissue-liability-gtex) only.
 ---
 
 # on-target-safety-liability — Phase G partial skill
 
-## What this skill does (iter-1 partial wiring)
+## What this skill does
 
-Given a target:
-  1. Loads the gnomad-lof-constraint card summary (pLI, LOEUF, mis_z,
-     constraint_class).
-  2. Rules engine consumes constraint_class categorical → per-modality
-     safety signals (highly_constrained → warning; tolerant → supportive).
-  3. Emits a data_package output tree with the constraint-derived safety
-     verdict.
+Given a target, it assembles a HUMAN-GENETICS safety picture across 8 cards and
+resolves a `safety_verdict` via the shared declarative resolver
+(`resolvers/safety.resolver.yaml`). The verdict-moving legs:
 
-## What this skill does NOT do (yet)
+  1. **gnomad-lof-constraint** — population LoF intolerance (pLI, LOEUF, mis_z →
+     constraint_class). LIVE (method `gnomad_constraint`, streams gnomAD v4.1).
+  2. **gene-burden-safety** — rare-variant BURDEN LoF signal (Open Targets 26.06).
+  3. **clingen-dosage** — ClinGen haploinsufficiency / triplosensitivity.
+  4. **mouse-ko-phenotype** — IMPC mouse-KO normal-physiology phenotype (lethality).
+  5. **clinvar-pathogenicity-safety** — ClinVar germline pathogenicity.
+  6. **target-safety-prioritisation** — OT composite target-priority (context).
 
-- **gnomAD constraint (the one "wired" card):** currently NON-FUNCTIONAL —
-  the dispatcher imports `methods.gnomad_constraint`, a method module that
-  has not been written yet (the gnomAD source manifest landed, but the
-  reader did not). The card resolves to `_missing`; no constraint verdict is
-  produced until that method is built. Tracked as a separate workstream.
-- **Normal-tissue liability from HPA IHC:** the normal-tissue-liability
-  card's HPA IHC-intensity dispatcher is not built; the card is not in this
-  skill's runtime card set, so no section is produced for it.
-- **Protein-surface evidence:** same — dispatcher pending, not in card set.
-- **IMPC mouse KO phenotypes:** not catalogued; iter-2 backlog.
-- **ClinVar germline outcomes:** not catalogued; iter-2 backlog.
-- **Historical trial-outcome DB:** external data feed licensing pending.
+  Plus two conditioning/context inputs:
+  7. **normal-tissue-liability-gtex** — GTEx normal-tissue RNA breadth
+     (critical-organ liability). NOTE: this is the GTEx-RNA leg; HPA-IHC
+     normal-tissue liability was re-homed to surface-modality-fit.
+  8. **alteration-role** — mechanism CONTEXT: an activating GoF role
+     DOWNGRADES the WT-constraint concern in the resolver (a mutant-selective
+     agent need not fully inhibit the WT gene).
+
+The rules engine maps each card's categorical to per-modality safety signals
+(e.g. highly_constrained → warning for a full-KO modality; tolerant →
+supportive), and the resolver combines them (with the mutant-selective
+downgrade) into `safety_verdict` + `driving_rule_id`.
+
+## What this skill does NOT do (yet) — why status is `partial`
+
+- **Not yet exercised end-to-end:** all 8 readers are BUILT, but they have not
+  yet fired in an emitted evidence package / been added to a dashboard_spec
+  (framework-health flags this as "reader-live-never-fired"). The wiring is
+  live; the package-level exercise is pending.
+- **Normal-tissue liability is GTEx-RNA only:** the HPA-IHC normal-tissue
+  liability card + protein-surface-evidence were RE-HOMED to
+  surface-modality-fit (protein-surface-evidence is LIVE there as
+  `surface_confirmation` via the CSPA reader). This skill carries the GTEx-RNA
+  breadth leg (`normal-tissue-liability-gtex`), not the IHC one.
+- **On-target clinical-precedent / trial-outcome:** external trial-outcome feed
+  licensing pending — no card in the runtime set.
 
 ## Output tree (data_package shape)
 
 ```
 <out>/
-├── decision.json                 # rule verdicts + fired rules
-├── summary.yaml                  # card summary_fields (gnomad only in iter-1)
-├── tables/
-│   └── gnomad_constraint_summary.csv   # emitted only when the card resolves
+├── decision.json                 # safety_verdict + driving_rule_id + fired rules
+├── summary.yaml                  # per-card summary_fields (8 cards)
+├── tables/                       # per-card CSVs (emitted for cards that resolve)
 └── provenance.yaml               # data_provenance (manifest IDs) + partial-status notice
 ```
 
@@ -122,14 +138,11 @@ Given a target:
 - `data_provenance`: per-card data_source (derived-manifest ID) + missing
   flag/reason, emitted by the shared writer.
 - `skill_status`: `partial` — surfaced in every output so consumers see the
-  epistemic ceiling.
-- Placeholder cards (normal-tissue-liability, protein-surface-evidence) are
-  excluded from the runtime card set rather than skipped via a runtime
-  mechanism.
+  epistemic ceiling (see the status note above for exactly what is + is not live).
 
-## Iter-2 wiring roadmap
+## Roadmap to `wired`
 
-1. Build HPA IHC-intensity dispatcher for normal-tissue-liability card.
-2. Add IMPC + ClinVar source manifests to data-catalog.
-3. Add on-target-safety-clinical-precedent card (external trial-outcome
-   feed licensing).
+1. Exercise the 8-card set in an emitted evidence package + add to a
+   dashboard_spec (clears the "reader-live-never-fired" health flag).
+2. Add an on-target clinical-precedent card (external trial-outcome feed
+   licensing).
