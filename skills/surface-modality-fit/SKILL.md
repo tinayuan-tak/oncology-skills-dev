@@ -13,10 +13,12 @@ description: |
   status: partial — surfaceome-family + topology + surface-abundance-density readers are
   live (density's method IS built; a derived density product is still pending), while
   structure-features is a hard gap (its derived product is absent from the data-catalog).
-  The composed `fit_class` keys on topology+family only and emits `neither_viable` (an
-  honest negative), NOT `insufficient`, when upstream is thin; today `ADC_preferred` is
-  structurally unreachable because the topology product lacks an endocytosis/PTM axis (see
-  the Status section). The sibling small-molecule tractability call is `tractability-small-molecule`.
+  The composed `fit_class` keys on topology+family and emits `neither_viable` (an honest
+  negative), NOT `insufficient`, when upstream is thin. `ADC_preferred`/`both_viable` are
+  REACHABLE (B1): the topology product does not measure endocytosis, so that unmeasured field
+  no longer vetoes the ADC branch (ADC rests on topology; `endocytosis_confidence: unmeasured`
+  is surfaced as the honest gap), and curated clinical-ADC antigens
+  (internalizing_antigen_targets.yaml) carry a `clinically_internalizing` positive signal. The sibling small-molecule tractability call is `tractability-small-molecule`.
 
   Use for questions like "does EGFR look ADC-favorable in COADREAD?", "is this
   target TCE-viable topologically?"
@@ -135,12 +137,18 @@ When upstream is thin the composed card emits `neither_viable` (an honest negati
 `data_unavailable`/`insufficient` — the `fit_class` field is never marked `_missing`, so a rule always
 fires and the resolver's `insufficient` default is effectively unreachable.
 
-THE REAL CURRENT LIMITATION (not the memory's "insufficient" framing): the topology product carries
-NO endocytosis-motif PTM data (`endo_high_conf` resolves to 0), so the ADC branch
-(`tm_count==1 AND ecd_length>=200 AND endo_high_conf>=3`) can NEVER be True. **`ADC_preferred` and
-`both_viable` are therefore structurally unreachable today**; realistic outputs collapse to
-`TCE_preferred` (genuine surface target, ECD>=100) or `neither_viable`. Wiring an endocytosis/PTM
-axis into the topology product is the highest-leverage fix to enable ADC-favorable calls.
+ENDOCYTOSIS / ADC-REACHABILITY (B1, 2026-08-06 — was previously unreachable): the topology product
+carries NO endocytosis-motif data (the field is hardcoded null). Previously `endo_high_conf = ... or 0`
+collapsed that null to 0, so the unmeasured field VETOED the ADC branch → `ADC_preferred`/`both_viable`
+were structurally unreachable. FIXED: the dispatcher now reads endocytosis raw, distinguishes UNMEASURED
+(abstain — a coverage gap must not veto) from MEASURED, and satisfies the ADC internalization term via
+EITHER a measured motif signal, OR curated clinical-ADC precedent (internalizing_antigen_targets.yaml —
+approved/late-clinical ADC antigens: ERBB2/TROP2/NECTIN4/FOLR1/…), OR abstention when genuinely unmeasured
++ uncurated. `endocytosis_confidence` (now emitted; card-declared) labels the state: `clinically_internalizing`
+(curated) / `high|moderate|low` (measured) / `unmeasured` (honest gap). So an ADC-favorable call on a novel
+target is flagged internalization-UNVERIFIED, while a known ADC antigen carries a positive signal. The full
+endocytosis-motif prediction pipeline (YXXΦ/NPXY on the cytoplasmic tail × AlphaFold accessibility) remains
+the first-principles long-term upgrade.
 
 Note on CSPA: `surface_confirmation` (CSPA reader, `cspa-surface-confirmation-per-uniprot-v1`) is
 LIVE in the framework and pulled as a measurement_type, but `protein-surface-evidence` is NOT in this

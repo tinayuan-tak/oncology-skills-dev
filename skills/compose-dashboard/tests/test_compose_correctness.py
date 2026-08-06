@@ -42,14 +42,15 @@ def _topo(tm=1, ec=200, endo_hc=None, n_ubiq=None) -> dict:
     }
 
 
-def _fit(topology: dict, family: dict | None = None) -> dict:
-    """Full dispatcher return (not just fit_class) — for asserting endocytosis_confidence etc."""
+def _fit(topology: dict, family: dict | None = None, target: str = "GENE") -> dict:
+    """Full dispatcher return (not just fit_class) — for asserting endocytosis_confidence etc.
+    `target` lets a test pass a curated internalizing-antigen symbol (B1 Rank-2)."""
     import unittest.mock as mock
     with mock.patch("_live_readers._dispatch_surface_topology_and_ptm", return_value=topology), \
          mock.patch("_live_readers._dispatch_surfaceome_family_classification",
                     return_value=(family or _family())), \
          mock.patch("_live_readers._dispatch_structure_features_static", return_value={}):
-        return _dispatch_adc_tce_modality_fit("GENE", "NSCLC")
+        return _dispatch_adc_tce_modality_fit(target, "NSCLC")
 
 def _family(is_surface=True) -> dict:
     return {"is_surface_protein": is_surface, "family_class": "RTK"}
@@ -256,3 +257,33 @@ def test_endocytosis_confidence_field_always_emitted():
         assert "endocytosis_confidence" in r
     assert _fit(_topo(endo_hc=None))["endocytosis_confidence"] == "unmeasured"
     assert _fit(_topo(endo_hc=2))["endocytosis_confidence"] == "moderate"
+
+
+# ---------------------------------------------------------------------------
+# C3c — B1 Rank-2: curated clinical-ADC internalization signal
+# ---------------------------------------------------------------------------
+
+def test_curated_antigen_gets_clinically_internalizing_confidence():
+    """A gene in internalizing_antigen_targets.yaml (e.g. TROP2/TACSTD2) with unmeasured topology
+    endocytosis gets endocytosis_confidence='clinically_internalizing' (a measured-positive from
+    clinical-ADC precedent), NOT 'unmeasured'."""
+    r = _fit(_topo(tm=1, ec=248, endo_hc=None, n_ubiq=None), target="TACSTD2")
+    assert r["endocytosis_confidence"] == "clinically_internalizing"
+    assert r["fit_class"] in ("ADC_preferred", "both_viable")
+
+
+def test_noncurated_target_stays_unmeasured():
+    """A gene NOT in the vocab is unchanged — endocytosis_confidence stays 'unmeasured' (positive-only
+    vocab; absence of ADC precedent is never marked non-internalizing)."""
+    r = _fit(_topo(tm=1, ec=248, endo_hc=None, n_ubiq=None), target="NOVELGENE123")
+    assert r["endocytosis_confidence"] == "unmeasured"
+
+
+def test_curated_overrides_measured_low_endo_for_adc():
+    """Edge where Rank-2 changes the CALL: a curated antigen with a MEASURED-low motif count would
+    fail the >=3 motif gate, but clinical-ADC precedent satisfies the internalization requirement →
+    ADC arm reachable. (Measured motif still sets confidence when present.)"""
+    r = _fit(_topo(tm=1, ec=248, endo_hc=0, n_ubiq=6), target="TACSTD2")  # measured-low + high ubiq (blocks TCE)
+    # measured motif present → confidence reflects the measurement ('low'), but the curated precedent
+    # satisfies endo_ok so the ADC arm is reachable despite the low motif count.
+    assert r["fit_class"] == "ADC_preferred"

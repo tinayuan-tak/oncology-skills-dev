@@ -32,6 +32,29 @@ from typing import Optional
 
 METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"))
 DATA_CATALOG_LIBS = Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")) / "libs"
+_TARGET_CONTRACTS_ROOT = Path(os.environ.get(
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
+
+
+def _load_internalizing_antigens() -> frozenset:
+    """B1 Rank-2: the curated internalizing-antigen gene set (target-contracts vocab
+    internalizing_antigen_targets.yaml). Clinically-validated ADC-internalizing antigens
+    (approved/late-clinical ADC precedent). Read-only, lru-cached, never raises — an unreadable
+    vocab yields an EMPTY set (→ every target stays endocytosis 'unmeasured', the honest degrade).
+    Positive-only: presence upgrades to a measured-internalizing signal; absence is unchanged."""
+    import functools
+    return _load_internalizing_antigens_cached(str(_TARGET_CONTRACTS_ROOT))
+
+
+@__import__("functools").lru_cache(maxsize=4)
+def _load_internalizing_antigens_cached(contracts_root: str) -> frozenset:
+    path = Path(contracts_root) / "vocabularies" / "internalizing_antigen_targets.yaml"
+    try:
+        import yaml
+        doc = yaml.safe_load(path.read_text())
+        return frozenset((doc or {}).get("entries", {}).keys())
+    except Exception:  # noqa: BLE001 — never break the dispatcher on a vocab read
+        return frozenset()
 
 
 def _import_method(method_name: str):
@@ -820,16 +843,21 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     ubiq_measured = n_ubiq_raw is not None
     endo_high_conf = endo_raw or 0
     n_ubiq = n_ubiq_raw or 0
-    # endocytosis_confidence — the card-declared field (was never emitted). Makes the coverage state
-    # explicit: high/moderate when measured, `unmeasured` when the product doesn't carry it (today).
-    if not endo_measured:
-        endocytosis_confidence = "unmeasured"
-    elif endo_high_conf >= 3:
-        endocytosis_confidence = "high"
-    elif endo_high_conf >= 1:
-        endocytosis_confidence = "moderate"
+    # B1 Rank-2: curated clinical-precedent internalization signal. A gene with an approved/
+    # late-clinical ADC (internalizing_antigen_targets.yaml) is internalizing by regulatory/trial
+    # fact — a MEASURED-POSITIVE that supersedes the topology-only 'unmeasured' abstention. Positive-
+    # only: a gene NOT in the vocab is unchanged (stays 'unmeasured'), never marked non-internalizing.
+    clinically_internalizing = target.upper().strip() in _load_internalizing_antigens()
+    # endocytosis_confidence — the card-declared field. Precedence: measured-motif (if the product
+    # ever carries it) > curated clinical precedent > unmeasured. `clinically_internalizing` is a
+    # distinct, honestly-labeled tier (NOT conflated with a measured motif count).
+    if endo_measured:
+        endocytosis_confidence = ("high" if endo_high_conf >= 3
+                                  else "moderate" if endo_high_conf >= 1 else "low")
+    elif clinically_internalizing:
+        endocytosis_confidence = "clinically_internalizing"
     else:
-        endocytosis_confidence = "low"
+        endocytosis_confidence = "unmeasured"
 
     if not is_surface or tm_count == 0:
         fit_class = "neither_viable"
@@ -837,12 +865,21 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         # ADC topology: single-pass TM + large ectodomain for antibody engagement. Internalization
         # (endocytosis) is genuinely an ADC determinant — but it is NOT measured in the current
         # topology product, so it must NOT hard-gate the call (an unmeasured field cannot veto).
-        # ADC-favorability therefore rests on the two LIVE topology inputs; a MEASURED endocytosis
-        # signal is an UPGRADE (required only when we actually have the data). When endo is
-        # unmeasured, the call is ADC-favorable on topology with endocytosis_confidence='unmeasured'
-        # surfaced as an explicit caveat (honest coverage gap, not a fabricated positive).
+        # ADC-favorability rests on the two LIVE topology inputs; the endocytosis term is satisfied
+        # by EITHER a MEASURED motif signal (>=3) OR curated clinical-ADC precedent (Rank-2), and
+        # ABSTAINS (doesn't veto) only when endocytosis is genuinely unmeasured AND uncurated.
         adc_topology_ok = (tm_count == 1 and ec_length >= 200)
-        endo_ok = (endo_high_conf >= 3) if endo_measured else True   # unmeasured → abstain, don't veto
+        # endo_ok satisfied by: curated clinical-ADC precedent (regulatory FACT of internalization —
+        # outranks a motif-count heuristic), OR a measured motif signal (>=3), OR — when endocytosis
+        # is genuinely unmeasured AND uncurated — abstention (don't veto on a coverage gap, Rank-1).
+        # An approved-ADC antigen is not gated out by a low PREDICTED motif count; the measured count
+        # still sets endocytosis_confidence, but clinical precedent is a hard positive for the gate.
+        if clinically_internalizing:
+            endo_ok = True
+        elif endo_measured:
+            endo_ok = endo_high_conf >= 3
+        else:
+            endo_ok = True                            # unmeasured + uncurated → abstain, don't veto (Rank-1)
         adc_favorable = adc_topology_ok and endo_ok
         # TCE: bridges T-cell to tumor surface — endocytosis irrelevant. Low ubiquitination preferred
         # (high ubiq → fast internalization → target lost before engagement). Same discipline: an
