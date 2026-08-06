@@ -54,8 +54,23 @@ def read_pan_cancer_distribution(target: str, indication: Optional[str] = None,
             "distribution_shape": "unclassified",
         }
 
-    return _cli.compute_summary_stats(
+    summary = _cli.compute_summary_stats(
         chronos_by_model, model_metadata,
         strong_threshold=strong_threshold,
         moderate_threshold=moderate_threshold,
     )
+
+    # Axis-2 (contextualized interpretation): control-benchmark position. ADDITIVE +
+    # verdict-inert — the dep_control_* fields anchor the target's Chronos against curated
+    # pan-essential (ceiling) + non-essential (floor) controls so a reader can tell a
+    # pan-essential tox liability from a selective dependency window. No rule reads them
+    # (the dependency resolver is untouched). Wrapped so a control-read failure NEVER
+    # breaks the primary distribution summary (degrades to data_unavailable).
+    try:
+        from methods.dependency_controls import control_position_dependency
+        summary.update(control_position_dependency(target, release_pin="26q1"))
+    except Exception as e:  # noqa: BLE001 — the control axis is a display facet, never load-bearing
+        summary.setdefault("dep_control_position_class", "data_unavailable")
+        summary.setdefault("_dep_control_note", f"control axis unavailable: {type(e).__name__}")
+
+    return summary
