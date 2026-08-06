@@ -1,0 +1,172 @@
+# internalizing_antigen_targets.yaml
+#
+# Curated vocabulary of gene symbols whose cell-surface protein is a CLINICALLY
+# VALIDATED INTERNALIZING antigen — i.e. antibody binding triggers receptor-
+# mediated endocytosis efficient enough to deliver a cytotoxic payload, the
+# defining requirement for an antibody-drug conjugate (ADC).
+#
+# WHY THIS VOCABULARY EXISTS (the B1 gap it fills, 2026-08-06):
+#   The composed adc-tce-modality-fit card scores ADC-favorability partly on an
+#   endocytosis signal (endocytosis_motif_count_high_confidence). That field is
+#   NOT MEASURED by the current topology product (it is hardcoded null;
+#   _ptm_coverage: data_unavailable). B1 Rank-1 correctly stopped that UNMEASURED
+#   field from vetoing the ADC branch (an absent read must not act as a
+#   negative) — so ADC_preferred is now reachable on topology, flagged
+#   endocytosis_confidence='unmeasured'. This vocabulary is B1 Rank-2: it supplies
+#   a MEASURED-POSITIVE internalization signal for the antigens where
+#   internalization is clinically established, upgrading them from 'unmeasured' to
+#   a curated positive. A target NOT in this list stays 'unmeasured' — never
+#   fabricated as internalizing.
+#
+# WHY A CURATED CLINICAL-PRECEDENT CROSSWALK, NOT A PREDICTION (mirrors
+# shed_antigen_targets.yaml / isoform_selective_targets.yaml):
+#   Endocytosis-motif prediction (YXXΦ / NPXY / dileucine on the cytoplasmic tail,
+#   cross-referenced to AlphaFold accessibility) is the eventual first-principles
+#   signal (the surface-topology-and-ptm card's designed-but-unbuilt pipeline —
+#   the Tier-c long-term answer). Absent that product, the ONE reliable signal for
+#   the antigens that matter is clinical ADC precedent: an antigen with an
+#   APPROVED or late-clinical ADC is, by definition, internalizing efficiently
+#   enough to deliver payload. This is a citable crosswalk grounded in regulatory/
+#   trial fact, NOT a research-grade "may internalize" list. The framework has
+#   flagged internalization as `honest_blind` in known_target_calibration_set.yaml
+#   (even HER2); this vocabulary is the honest, minimal, precedent-grounded fill.
+#
+# Usage discipline (per consumer): the adc-tce-modality-fit composed dispatcher
+# consumes this vocabulary. If the target's HGNC symbol appears in `entries:`, the
+# dispatcher sets endocytosis_confidence = `clinically_internalizing` (a curated
+# positive tier) and treats the ADC internalization requirement as SATISFIED (a
+# measured positive, not the topology-only 'unmeasured' abstention). A target NOT
+# in the list is UNCHANGED (endocytosis_confidence stays 'unmeasured' — the honest
+# coverage gap). This is a POSITIVE-only vocabulary: it never marks a target
+# non-internalizing (absence of ADC precedent is not evidence of non-internalization).
+#
+# Curation discipline (mirrors shed_antigen_targets.yaml):
+#   - Only entries where receptor-mediated internalization is established by an
+#     APPROVED ADC or a Phase II+ ADC clinical program against that antigen.
+#   - Every entry cites (a) the ADC agent(s) + payload, (b) approval/clinical
+#     stage, (c) the internalization mechanism note, (d) a primary citation.
+#   - v1 is small (~10 clinically-validated ADC antigens). Extension is cheap —
+#     add an entry + bump version.
+#
+# CITATION STATUS (2026-08-06): the internalization biology + ADC-agent mapping
+# per entry is high-confidence regulatory/clinical fact and drives the signal —
+# the reader keys on GENE IDENTITY, not on the citation string. The per-entry
+# primary_source fields are curator-recalled and NOT yet independently verified
+# (same discipline as shed_antigen_targets.yaml); do not cite these to reviewers
+# as reference-grade until a verification pass runs (tracked follow-up).
+
+version: 1.0.0
+snapshot_date: "2026-08-06"
+curator: ryan.abo@takeda.com
+
+entries:
+
+  ERBB2:
+    adc_agents: trastuzumab emtansine (T-DM1); trastuzumab deruxtecan (T-DXd)
+    payload: DM1 (maytansinoid); DXd (topoisomerase-I inhibitor)
+    clinical_stage: approved (T-DM1 2013; T-DXd 2019+)
+    internalization_note: >
+      HER2 undergoes antibody-induced receptor-mediated endocytosis; T-DM1/T-DXd
+      rely on internalization + lysosomal payload release. The archetypal
+      internalizing ADC antigen. (NOTE: ERBB2 also carries an isoform-selectivity
+      caveat, p95HER2 — see isoform_selective_targets.yaml; that is a separate axis.)
+    primary_source_citation: >
+      Verma S et al. 2012, EMILIA (T-DM1); Modi S et al. 2020/2022, DESTINY-Breast
+      (T-DXd). Internalization is the established ADC delivery mechanism.
+
+  TACSTD2:
+    adc_agents: sacituzumab govitecan (TROP2 ADC)
+    payload: SN-38 (topoisomerase-I inhibitor)
+    clinical_stage: approved (2020, TNBC; 2021+ urothelial)
+    internalization_note: >
+      TROP2 is internalized on antibody binding; sacituzumab govitecan delivers
+      SN-38 intracellularly. A validated internalizing ADC antigen (single-pass,
+      moderate ECD ~248 residues — clears the ADC topology floor).
+    primary_source_citation: >
+      Bardia A et al. 2021, ASCENT (sacituzumab govitecan, TNBC).
+
+  NECTIN4:
+    adc_agents: enfortumab vedotin
+    payload: MMAE (auristatin, microtubule inhibitor)
+    clinical_stage: approved (2019, urothelial carcinoma)
+    internalization_note: >
+      NECTIN4 internalizes on antibody binding; enfortumab vedotin delivers MMAE.
+      Validated internalizing antigen with a shorter ECD (~340) — the rubric's
+      cited example that ECD floors are not one-size-fit-all.
+    primary_source_citation: >
+      Powles T et al. 2021, EV-301 (enfortumab vedotin, urothelial).
+
+  FOLR1:
+    adc_agents: mirvetuximab soravtansine
+    payload: DM4 (maytansinoid)
+    clinical_stage: approved (2022, FRα-high platinum-resistant ovarian)
+    internalization_note: >
+      Folate receptor alpha is internalized via receptor-mediated endocytosis;
+      mirvetuximab soravtansine delivers DM4. Validated internalizing ADC antigen.
+    primary_source_citation: >
+      Moore KN et al. 2023, MIRASOL (mirvetuximab soravtansine, ovarian).
+
+  CEACAM5:
+    adc_agents: tusamitamab ravtansine (CARMEN-LC03); labetuzumab govitecan
+    payload: DM4; SN-38
+    clinical_stage: phase_2_plus
+    internalization_note: >
+      CEA (CEACAM5) supports internalizing ADCs in late clinical development.
+      CAVEAT: CEACAM5 is GPI-ANCHORED, not single-pass type-I, so it may resolve
+      to a non-single-pass topology (tm_count != 1) and fall to neither_viable on
+      the topology gate regardless of this internalization signal — the weakest
+      topology fit of the entries here (flagged for that reason).
+    primary_source_citation: >
+      Gazzah A et al. 2022, tusamitamab ravtansine phase-1/2 (CEACAM5 ADC).
+
+  MSLN:
+    adc_agents: anetumab ravtansine; multiple MSLN ADCs
+    payload: DM4 (maytansinoid)
+    clinical_stage: phase_2_plus
+    internalization_note: >
+      Mesothelin is internalized on antibody binding, enabling ADC payload
+      delivery (also a shed antigen — see shed_antigen_targets.yaml — so it
+      carries BOTH an internalizing-positive and a shed-sink liability).
+    primary_source_citation: >
+      Hassan R et al. 2020, anetumab ravtansine phase-1 (mesothelin ADC).
+
+  CD22:
+    adc_agents: inotuzumab ozogamicin
+    payload: calicheamicin
+    clinical_stage: approved (2017, relapsed/refractory B-ALL)
+    internalization_note: >
+      CD22 is rapidly internalized on antibody binding — one of the fastest-
+      recycling ADC targets; inotuzumab ozogamicin delivers calicheamicin.
+    primary_source_citation: >
+      Kantarjian HM et al. 2016, INO-VATE ALL (inotuzumab ozogamicin).
+
+  CD79B:
+    adc_agents: polatuzumab vedotin
+    payload: MMAE (auristatin)
+    clinical_stage: approved (2019, DLBCL)
+    internalization_note: >
+      CD79b (BCR component) internalizes on antibody binding; polatuzumab vedotin
+      delivers MMAE. Validated internalizing ADC antigen.
+    primary_source_citation: >
+      Sehn LH et al. 2020, polatuzumab vedotin + BR (DLBCL).
+
+  TNFRSF17:
+    adc_agents: belantamab mafodotin (BCMA ADC)
+    payload: MMAF (auristatin)
+    clinical_stage: approved/withdrawn-then-returning (BCMA multiple myeloma)
+    internalization_note: >
+      BCMA (TNFRSF17) internalizes on antibody binding; belantamab mafodotin
+      delivers MMAF. Validated internalizing antigen (also a shed antigen — soluble
+      BCMA — so it carries a co-occurring sink liability).
+    primary_source_citation: >
+      Lonial S et al. 2020, DREAMM-2 (belantamab mafodotin, myeloma).
+
+  ERBB3:
+    adc_agents: patritumab deruxtecan (HER3-DXd)
+    payload: DXd (topoisomerase-I inhibitor)
+    clinical_stage: phase_2_plus
+    internalization_note: >
+      HER3 (ERBB3) supports an internalizing ADC (patritumab deruxtecan) in late
+      clinical development for EGFR-mutant NSCLC + breast.
+    primary_source_citation: >
+      Jänne PA et al. 2022, patritumab deruxtecan phase-1 (HERTHENA/EGFRm NSCLC).
