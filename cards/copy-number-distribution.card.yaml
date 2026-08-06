@@ -34,7 +34,7 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.1.0    # 2026-08-06: + cn_homozygous_deletion_recurrent display flag (degrader-relevant, verdict-inert)
+version: 1.2.0    # 1.2.0: + PATIENT CN cross-check (patient_copy_number_class, TCGA GISTIC, verdict-inert); 1.1.0: + homdel flag
 question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
 
 applies_when:
@@ -43,6 +43,7 @@ applies_when:
 required_inputs:
   - product_id: depmap-consortium-26q1
     release_pin: "{release_pin}"
+  - product_id: tcga-patient-cn-per-gene-v1     # PATIENT GISTIC cross-check (additive; skill dispatcher merges)
 
 methods:
   - call: depmap-cn-distribution
@@ -51,6 +52,13 @@ methods:
       release_pin: "{release_pin}"
       amplification_threshold: "THRESHOLD.amplification_threshold"
       deletion_threshold: "THRESHOLD.deletion_threshold"
+  # PATIENT-tumour CN cross-check (tcga_patient_cn, TCGA GISTIC). The skill dispatcher merges its
+  # patient_* fields onto the cell-line output — the two-function-merge pattern the genome-state +
+  # fusion cards use. ADDITIVE/verdict-inert: the CN verdict still rests on the cell-line copy_number_class.
+  - call: tcga-patient-cn
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
 
 outputs:
   summary_fields:
@@ -80,6 +88,17 @@ outputs:
     - cn_homozygous_deletion_recurrent
     - cn_top_amplified_lineages          # per-lineage stats for amplified lineages
     - cn_top_deleted_lineages            # per-lineage stats for deleted lineages
+    # ---- PATIENT-tumour CN cross-check (TCGA GISTIC, tcga-patient-cn-per-gene-v1) ----
+    # The verdict-driving copy_number_class above is DepMap CELL-LINE CN. These patient_* fields are
+    # the TUMOUR cross-check (per-indication GISTIC amp/del prevalence), same class vocabulary so they
+    # line up directly. ADDITIVE/verdict-inert: they fire NO rule; where cell-line and patient CN
+    # DISAGREE (e.g. a locus amplified in patients but not the cell-line panel) is the decision-useful signal.
+    - patient_copy_number_class          # TCGA GISTIC cohort CN class (mirrors copy_number_class vocab)
+    - patient_amplified_fraction         # fraction of tumours with GISTIC >= +1
+    - patient_high_amp_fraction          # fraction with GISTIC +2 (high-level/focal — cleaner oncogene signal)
+    - patient_deleted_fraction           # fraction with GISTIC <= -1
+    - patient_homdel_fraction            # fraction with GISTIC -2 (homozygous deletion)
+    - patient_cn_context                 # human-readable patient-CN summary
 
   summary_fields_vocabulary:
     copy_number_class:
@@ -92,6 +111,12 @@ outputs:
       - recurrent_homozygous_deletion    # deep deletion (CN<0.5) in >=20% of the panel — degrader-relevant (no protein)
       - not_recurrent_homozygous_deletion
       - data_unavailable                 # target absent from CN matrix or load failed
+    patient_copy_number_class:           # TCGA GISTIC tumour cohort — mirrors copy_number_class vocab
+      - recurrently_amplified            # >=20% of tumours GISTIC-amplified (>= +1)
+      - recurrently_deleted              # >=20% deleted (<= -1)
+      - mixed                            # both recurrent, neither dominates by 1.5x
+      - broadly_neutral                  # neither recurrent
+      - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
     cn_assay_used:
       - wes
       - wgs
@@ -153,6 +178,8 @@ caveats:
   - "Method uses WES gene-level CN (OmicsCNGeneMC_WES.csv, n≈1954) as PRIMARY. When the target gene is absent from the WES panel (e.g. MYC, BRAF in 26Q1), method falls back to WGS gene-level CN (OmicsCNGeneWGS.csv, n≈800, full genome coverage). Card emits cn_assay_used ∈ {wes, wgs} to surface which source was used per target. Different denominators per target are honest reporting, not silent imputation."
   - "CN scale is raw relative CN (median ~1.0 = diploid), NOT log2 ratio. Thresholds: deep del < 0.5, shallow del < 0.92, neutral 0.92-1.07, shallow amp >1.07, focal amp >1.5, high amp >4."
   - "Copy number ≠ functional effect: a focal amplification can be passenger; a homozygous deletion of a tumor-suppressor can be a driver. Functional inference requires the dependency cards as orthogonal evidence."
+  - "TWO CN COHORTS: copy_number_class (+ cn_* fractions) is DepMap CELL-LINE CN — the VERDICT-DRIVING axis. patient_copy_number_class (+ patient_* fractions) is TCGA PATIENT-tumour GISTIC, per-INDICATION (tcga-patient-cn-per-gene-v1) — a verdict-INERT cross-check, NOT a verdict input. Rewiring the verdict to prefer patient CN is a separate, explicit decision (deferred). Patient CN uses raw GISTIC discrete (honest amp AND del), NOT the LoF-biased 'min-wins' two-hit product."
+  - "The two CN cohorts can legitimately DIFFER (cell-line = pan-cancer + culture-selected; patient = indication-specific, in-vivo). A gene amplified in patients but not the cell-line panel — or the reverse — is a decision-useful discrepancy to surface, not an error. patient_high_amp_fraction (GISTIC +2) is the cleaner focal-oncogene signal vs patient_amplified_fraction (any gain, includes arm-level)."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `copy_number_alteration` claim.
 measurement_type: copy_number_alteration
