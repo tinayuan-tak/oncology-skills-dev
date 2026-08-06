@@ -663,6 +663,19 @@ def _dispatch_cn_stratified_dependency(target: str, indication: str) -> Optional
     return cn_module.read_cn_stratified_dependency(target=target, indication=indication)
 
 
+def _dispatch_fusion_stratified_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route fusion-stratified-dependency card (Card E3.fus) to
+    methods/depmap_fusion_dependency/read.py.
+
+    The gene-fusion analog of Card 3 / Card E3.cn: does a target's dependency stratify by
+    whether the line carries a fusion INVOLVING the target (either partner) across the DepMap
+    panel — the fusion-addiction biomarker hypothesis (EWSR1-FLI1/BCR-ABL1-class, invisible to
+    the mutation + CN paths)? Target-only; indication accepted for back-compat but not consumed.
+    """
+    fus_module = _import_method("depmap_fusion_dependency")
+    return fus_module.read_fusion_stratified_dependency(target=target, indication=indication)
+
+
 def _dispatch_dependency_predictability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route dependency-predictability card (E5) to
     methods/depmap_predictability/read.py.
@@ -1202,6 +1215,7 @@ CARD_DISPATCHERS = {
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     "copy-number-stratified-dependency": _dispatch_cn_stratified_dependency,
+    "fusion-stratified-dependency": _dispatch_fusion_stratified_dependency,
     "dependency-predictability": _dispatch_dependency_predictability,
     "prism-compound-activity": _dispatch_prism_compound_activity,
     "prism-crispr-concordance": _dispatch_prism_crispr_concordance,

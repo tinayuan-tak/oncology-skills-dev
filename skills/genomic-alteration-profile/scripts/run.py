@@ -54,6 +54,15 @@ CARDS = [
     # (ERBB2/MYC). VERDICT-MOVING but golden-snapshot byte-identical (new rule ids never fire on
     # old enumerated combos). Composed here so the genomic gate reads the amplification-addiction signal.
     "copy-number-stratified-dependency",
+    # Fusion-STRATIFIED dependency (A1-fusion, 2026-08-06) — the gene-fusion analog of the mut/CN
+    # stratified cards: are cell lines carrying a fusion INVOLVING the target Chronos-more-dependent?
+    # Its fusion-positive-*-dependent rules fire the SAME biomarker_stratified_dependency verdict
+    # (resolver section 2c; reuses the mutation verdict), recovering the fusion-driven-oncogene class
+    # (EWSR1-FLI1/BCR-ABL1) that BOTH the mutation-only and CN-only paths miss (neither mutated nor
+    # amplified). VERDICT-MOVING but golden-snapshot byte-identical (new rule ids never fire on old
+    # enumerated combos). Distinct from fusion-rearrangement-landscape below (TCGA-patient recurrence,
+    # signal-only) — this is the DepMap cell-line dependency-establishing test.
+    "fusion-stratified-dependency",
     # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
     # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
     # data_unavailable}. ADDITIVE signal-only: reaches the LLM/matrix + headline, touches NO
@@ -234,6 +243,13 @@ def main() -> int:
         # the resolver's section-2b rungs (reuses the mutation verdict). Surfaced for the LLM/matrix.
         "cn_stratification_class":       get_card_field(cards, "copy-number-stratified-dependency",
                                               "cn_stratification_class"),
+        # Fusion-STRATIFIED dependency (A1-fusion) — fusion-positive-vs-negative Chronos split; the
+        # fusion-addiction biomarker (EWSR1-FLI1/BCR-ABL1). Fires biomarker_stratified_dependency via
+        # the resolver's section-2c rungs (reuses the mutation verdict). Surfaced for the LLM/matrix.
+        # DISTINCT from fusion_class below (TCGA-patient recurrence facet) — this is the cell-line
+        # dependency-establishing signal.
+        "fusion_stratification_class":   get_card_field(cards, "fusion-stratified-dependency",
+                                              "fusion_stratification_class"),
         # Fusion / rearrangement axis — LIVE (tcga-fusion-consensus-v1). fusion_class is the TCGA
         # 3-caller-consensus verdict (deep, 33 tissues); the genie_sv_* fields are the pan-cohort
         # BREADTH complement (GENIE 271k panel tumors, coverage-correct — genie-sv-recurrence-v1,
