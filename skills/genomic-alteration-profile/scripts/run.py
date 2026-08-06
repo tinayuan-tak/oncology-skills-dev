@@ -216,6 +216,18 @@ def main() -> int:
         # Copy-number axis
         "copy_number_class":             get_card_field(cards, "copy-number-distribution",
                                               "copy_number_class"),
+        # Fusion / rearrangement axis — LIVE (tcga-fusion-consensus-v1). fusion_class is the TCGA
+        # 3-caller-consensus verdict (deep, 33 tissues); the genie_sv_* fields are the pan-cohort
+        # BREADTH complement (GENIE 271k panel tumors, coverage-correct — genie-sv-recurrence-v1,
+        # 2026-08-06). All DISPLAY facets: the fusion axis touches NO resolver rung (spine byte-stable).
+        "fusion_class":                  get_card_field(cards, "fusion-rearrangement-landscape",
+                                              "fusion_class"),
+        "genie_sv_recurrence_class":     get_card_field(cards, "fusion-rearrangement-landscape",
+                                              "genie_sv_recurrence_class"),
+        "genie_sv_frequency":            get_card_field(cards, "fusion-rearrangement-landscape",
+                                              "genie_sv_frequency"),
+        "genie_sv_recurrent_partners":   get_card_field(cards, "fusion-rearrangement-landscape",
+                                              "genie_sv_recurrent_partners"),
         # Typed driver-role axis (OncoKB × IntOGen)
         "alteration_role":               get_card_field(cards, "alteration-role", "alteration_role"),
         "functional_direction":          get_card_field(cards, "alteration-role", "functional_direction"),

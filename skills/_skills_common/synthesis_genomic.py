@@ -105,6 +105,16 @@ def _fmt(v, nd=1):
     return str(v)
 
 
+def _genie_sv_line(h: dict) -> str:
+    """One-line GENIE-SV breadth summary for the fusion axis: class + coverage-correct frequency +
+    up to 3 recurrent SV partners (EML4 for ALK, etc.). n/a-safe when the facet is absent."""
+    cls = h.get("genie_sv_recurrence_class", "n/a")
+    freq = _fmt(h.get("genie_sv_frequency"), 4)
+    partners = [p.get("partner") for p in (h.get("genie_sv_recurrent_partners") or [])][:3]
+    tail = f", partners {partners}" if partners else ""
+    return f"{cls} (freq {freq}{tail})"
+
+
 def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> str:
     """Assemble the LLM input from the DETERMINISTIC genomic-alteration decision spine. Narrates the
     multi-class verdict + driving class + role + recurrence, grounded in the actual headline fields the
@@ -124,7 +134,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"  mutation_stratification_class: {h.get('mutation_stratification_class')} "
         "(is mutant status a dependency biomarker?)",
         f"  copy_number_class: {h.get('copy_number_class')}",
-        f"  fusion: {h.get('fusion_class', 'n/a')}",
+        f"  fusion_class (TCGA 3-caller consensus, deep/33 tissues): {h.get('fusion_class', 'n/a')}",
+        f"  genie_sv breadth (GENIE panel, 271k tumors, coverage-correct): {_genie_sv_line(h)}",
+        "  NOTE: TCGA fusion consensus is DEEP but tissue-limited; GENIE-SV is higher-N BREADTH "
+        "(e.g. ALK: ~5 TCGA LUAD vs 774 GENIE NSCLC). Neither drives the verdict — both are display.",
         "",
         "DRIVER ROLE (function, not just frequency — OncoKB x IntOGen):",
         f"  alteration_role: {h.get('alteration_role')}   functional_direction: {h.get('functional_direction')}",
