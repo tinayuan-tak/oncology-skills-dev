@@ -41,6 +41,9 @@ outputs:
     - tm_pass_count                              # int; count of TM alpha-helical segments
     - has_tm_beta                                # bool; typically false in human proteome
     - extracellular_residue_count                # int; length of longest ECD run
+    - ecd_engineerability_class                  # DERIVED categorical: is the ECD a viable biologics-binder
+                                                 # substrate? (large/moderate/minimal/none). Two-sided read:
+                                                 # a large ECD is TCE-favorable substrate, not only an ADC gate.
     - ecd_orientation                            # 'outside' | 'inside' | 'unknown'
     - signal_peptide_present                     # bool
     - signal_peptide_length                      # int
@@ -64,6 +67,15 @@ outputs:
       - beta_barrel                              # TM beta (rare in human)
       - no_transmembrane                         # 0 TM (secreted or intracellular)
       - data_unavailable
+    ecd_engineerability_class:                   # DERIVED from extracellular_residue_count + topology_class +
+                                                 # ecd_orientation (method: topology_predictions_tmbed). Makes the
+                                                 # extracellular-domain SIZE a first-class biologics-substrate
+                                                 # signal, mirroring biologics-target-discovery's TopologyECDProvider.
+      - large_ecd                                # ECD >= 200 AA, outside — ample epitope area (ADC + TCE substrate)
+      - moderate_ecd                             # 30-199 AA, outside — engineerable; ADC epitope-area constrained
+      - minimal_ecd                              # < 30 AA, outside — too small to raise a binder against
+      - no_extracellular_domain                  # 0 TM, or ECD inside — no accessible extracellular target
+      - data_unavailable                         # ECD length unmeasured — abstain (never coerced to zero)
     endocytosis_motif_types:
       - YXXphi                                   # tyrosine-based (clathrin-mediated)
       - NPXY                                     # NPXY tyrosine-based (PTB-domain binding)
