@@ -773,12 +773,14 @@ rules:
   #
   # SCOPE (3 LIVE alteration-classes only): activating-mutation + loss-of-function keyed here on
   # alteration-role.functional_direction; AMPLIFICATION's surface read already exists
-  # (cn-amplified-surface-antigen-supportive, P4). The other matrix rows are BLOCKED on absent
-  # substrate and deliberately NOT encoded (a rule would only ever fire data_unavailable):
-  #   - FUSION: fusion-rearrangement-landscape is a placeholder (data_unavailable only) — unblocks
-  #     when the cBioPortal SV ingestion lands (genomic plan).
-  #   - PROMOTER METHYLATION: functional-gene-state is genetic-only (Phase 1); epigenetic states are
-  #     Phase 2, gated on patient TCGA/GDC methylation (not landed).
+  # (cn-amplified-surface-antigen-supportive, P4). The other matrix rows are deliberately NOT
+  # encoded as surface rules — for TWO different reasons:
+  #   SUBSTRATE NOW LANDED, encoding is a scoping decision (not a data block):
+  #   - FUSION: fusion-rearrangement-landscape is LIVE (tcga-fusion-consensus-v1, 3-caller TCGA
+  #     consensus). A fusion_class → surface-modality row is a future scope item, not blocked.
+  #   - PROMOTER METHYLATION: functional-gene-state is now full phase-2b (epigenetic states LIVE via
+  #     GDC-SeSAMe HM450 + CCLE RRBS). An epigenetic-silencing → surface row is a future scope item.
+  #   STILL GENUINELY ABSENT:
   #   - RESISTANCE MUTATION: no card emits a resistance-substitution class yet.
   #   - PARALOG del/silencing: paralog-buffering carries buffering, not a del/silencing class.
   - rule_id: modality-matrix-activating-role-surface-neutral
