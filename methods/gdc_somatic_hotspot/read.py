@@ -192,6 +192,24 @@ def _driver_recurrence_percentile(aggregate_path: Path, indication, overall_freq
     return pct, classify_percentile(pct, cutoffs)
 
 
+def _genie_recurrence_fields(target: str, indication: str) -> dict:
+    """The GENIE panel-coverage-correct recurrence fields (genie_driver_recurrence_*) for the
+    mutation-hotspot-frequency card — the higher-N sibling of the MC3 driver_recurrence_*. Lazily
+    imports genie_panel_recurrence + always returns the 4 keys (graceful data_unavailable on any
+    failure/absence), so the card gains the GENIE comparator without ever breaking the MC3 path."""
+    keys = ("genie_driver_recurrence_percentile", "genie_driver_recurrence_class",
+            "genie_mutation_frequency", "genie_recurrence_context")
+    try:
+        from methods.genie_panel_recurrence.read import genie_recurrence_for_gene
+        g = genie_recurrence_for_gene(target, indication)
+        return {k: g.get(k) for k in keys}
+    except Exception:
+        return {"genie_driver_recurrence_percentile": None,
+                "genie_driver_recurrence_class": "data_unavailable",
+                "genie_mutation_frequency": None,
+                "genie_recurrence_context": None}
+
+
 def read_hotspot_summary(
     target: str,
     indication: str,
@@ -229,6 +247,10 @@ def read_hotspot_summary(
             "driver_recurrence_percentile": None,
             "driver_recurrence_class": "data_unavailable",
             "driver_recurrence_context": None,
+            # GENIE is a SEPARATE cohort/source — fetch it even when the MC3 aggregate is absent
+            # (a gene missing from MC3 may still be mutated in GENIE's panel cohort; the comparators
+            # are independent). Graceful data_unavailable if GENIE also lacks it.
+            **_genie_recurrence_fields(target, indication),
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
@@ -257,6 +279,9 @@ def read_hotspot_summary(
                 f"among genes with >=1 non-synonymous mutation in {indication} "
                 f"(TCGA-MC3 aggregate); target itself has zero mutations"
             ),
+            # GENIE independent of MC3: a target with zero MC3 mutations may still be mutated in
+            # GENIE's panel cohort — the informative cross-source disagreement.
+            **_genie_recurrence_fields(target, indication),
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
@@ -287,6 +312,10 @@ def read_hotspot_summary(
             f"among genes with >=1 non-synonymous mutation in {indication} "
             f"(TCGA-MC3 aggregate, n_genes={len(_allgene_mutation_frequency_null(str(aggregate_path), indication))})"
         ),
+        # GENIE (higher-N, panel-coverage-correct) recurrence — the DISTINCT sibling comparator to the
+        # MC3 driver_recurrence_* above (whole-exome breadth vs 40k-patient panel). Graceful-degrade:
+        # data_unavailable when GENIE has no cohort/coverage for this (target, indication).
+        **_genie_recurrence_fields(target, indication),
         "hotspot_frequencies": [
             {
                 "protein_change": r["hotspot_protein_change"],

@@ -112,3 +112,21 @@ def test_missing_aggregate_is_data_unavailable(tmp_path, monkeypatch):
     assert s["driver_recurrence_class"] == "data_unavailable"
     assert s["driver_recurrence_percentile"] is None
     assert s["driver_recurrence_context"] is None
+
+
+# --- GENIE recurrence fields on the card (Phase 1e tail) ---------------------
+
+def test_genie_recurrence_fields_graceful_when_module_absent(monkeypatch):
+    """read_hotspot_summary always carries the 4 genie_driver_recurrence_* keys; if the GENIE
+    reader raises/absent, they degrade to data_unavailable rather than breaking the MC3 card."""
+    from methods.gdc_somatic_hotspot import read as r
+    def _boom(*a, **k):
+        raise RuntimeError("genie module unavailable")
+    # patch the lazy import target so the try/except fallback fires
+    import methods.genie_panel_recurrence.read as gr
+    monkeypatch.setattr(gr, "genie_recurrence_for_gene", _boom)
+    fields = r._genie_recurrence_fields("KRAS", "NSCLC")
+    assert fields["genie_driver_recurrence_class"] == "data_unavailable"
+    assert fields["genie_driver_recurrence_percentile"] is None
+    assert set(fields) == {"genie_driver_recurrence_percentile", "genie_driver_recurrence_class",
+                           "genie_mutation_frequency", "genie_recurrence_context"}
