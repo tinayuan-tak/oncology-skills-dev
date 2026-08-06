@@ -477,7 +477,16 @@ measurement_types:
   rna_protein_concordance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
-    modality_relevance: [small_molecule, degrader]
+    # GRAIN-SPLIT ROUTING (2026-08-05): this type spans TWO grains that route to DIFFERENT
+    # modality-fit gates, so the routing set is their UNION. Cell-line arm (target grain) →
+    # small_molecule/degrader (is RNA an adequate SM biomarker?). Tumor arm (target_indication
+    # grain) → adc/bite_tce/antibody (is the protein ANTIGEN actually present, or must it be
+    # confirmed for a biologic?) — surface-intrinsic.rules.yaml consumes exactly this signal.
+    # A per-card modality_relevance is a subset of this union; validate_cards' subset check then
+    # passes for BOTH sibling cards. (Before this, the tumor card's [adc,bite_tce,antibody] read
+    # as MODALITY_RELEVANCE_DRIFT against an SM-only routing set — a false drift; the card was
+    # right, the vocab was under-specified. modality_relevance is really per (type × grain).)
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "Does target RNA predict its protein (is RNA an adequate proxy, or must protein be measured directly)?"
     # Q5 of the expression spec. The rna_as_biomarker question — RNA vs protein correlation. TWO grains,
     # TWO cards (grain-split): cellline-rna-protein-concordance (target grain, CELL-LINE: DepMap RNA vs Gygi MS)
