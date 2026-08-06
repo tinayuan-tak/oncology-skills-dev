@@ -46,7 +46,10 @@ methods:
 
 outputs:
   summary_fields:
-    - sc_expression_class                       # PRIMARY categorical (drives Tier-2 rules)
+    - sc_expression_class                       # PRIMARY categorical (drives Tier-2 rules) — PRESENCE axis
+    - tce_homogeneity_class                      # biologics lens (Phase 3.2): within-tumor antigen homogeneity
+                                                 # from the SAME malignant_detection_fraction — a TCE-escape signal,
+                                                 # independent of the presence class. Drives surface-intrinsic rules.
     - malignant_detection_fraction              # cross-donor median detection in the malignant compartment
     - malignant_abundance_log1p_cp10k           # cross-donor median abundance (malignant)
     - malignant_compartment_available           # false → indication's atlases lack a malignant label (honest gap)
@@ -66,6 +69,14 @@ outputs:
       - microenvironment_dominant               # low malignant detection but a microenvironment compartment detects >= 0.25 — present in the tumor but NOT tumor-cell-intrinsic
       - broadly_low                             # detected in only a minority of cells in every compartment
       - data_unavailable                        # no landed product for the indication, gene absent from product, OR no malignant compartment to anchor (coverage gap, NOT a measured negative)
+    tce_homogeneity_class:                       # biologics within-tumor homogeneity lens (Phase 3.2), from
+                                                 # malignant_detection_fraction. A TCE program-killer is antigen
+                                                 # HETEROGENEITY (antigen-low malignant cells escape redirected
+                                                 # killing — no bystander payload). Split at 0.25 (design call).
+      - homogeneous                             # malignant detection >= 0.5 — uniform expression, low escape risk
+      - moderately_homogeneous                  # 0.25 <= detection < 0.5 — a real subset; NEUTRAL (don't over-penalize)
+      - heterogeneous                           # detection < 0.25 (malignant compartment present) — escape reservoir
+      - data_unavailable                        # no malignant compartment / detection — abstain (never a measured zero)
 
   figures:
     - id: sc_compartment_detection
@@ -101,5 +112,11 @@ measurement: sc_rna
 sample_context: tumor         # patient tumor single-cell (CELLxGENE Census) — orthogonal to measurement
 
 measurement_type: sc_tumor_celltype_expression
+# P4 modality routing (2026-08-06, biologics-augment Phase 3.2): the tce_homogeneity_class facet is a
+# biologics-modality signal — within-tumor antigen homogeneity gates TCE efficacy (heterogeneity =
+# escape reservoir) and, more weakly, ADC. The card's PRIMARY sc_expression_class remains a presence-axis
+# (Gate-A) readout; this modality_relevance declares the surface-gate routing of the homogeneity facet so
+# the surface-intrinsic rules on tce_homogeneity_class land in the biologics modality-fit gate.
+modality_relevance: [bite_tce, adc]
 entity_grains: [target_indication]
 schema_version: 1
