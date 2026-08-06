@@ -189,6 +189,7 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
       - wgd_summary_for_indication()       — whole-genome-doubling prevalence + ploidy (ABSOLUTE)
       - msi_summary_for_indication()       — PATIENT MSI prevalence (marker-paper; CRC+STAD only)
       - model_msi_summary_for_indication() — MODEL (DepMap) MSI prevalence (all lineages; fills the gap)
+      - model_signature_summary_for_indication() — MODEL SBS signatures (MMR cross-validates MSI; weak SBS3-HRD)
     Each degrades to data_unavailable independently. DISPLAY facet, verdict-inert."""
     mod = _import_method("tcga_aneuploidy_burden")
     out = dict(mod.aneuploidy_burden_for_indication(indication))
@@ -213,6 +214,11 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
     _merge_axis("model_msi_summary_for_indication",
                 ("model_msi_class", "model_msi_high_fraction", "n_model_msi_high",
                  "model_msi_context"), "model_msi_class")
+    # MODEL mutational-signature (DepMap SBS): MMR-sig cross-validates MSI + weak SBS3-HRD proxy.
+    _merge_axis("model_signature_summary_for_indication",
+                ("model_mmr_signature_class", "model_mmr_signature_high_fraction",
+                 "model_hrd_signature_present_fraction", "model_signature_context"),
+                "model_mmr_signature_class")
     return out
 
 
