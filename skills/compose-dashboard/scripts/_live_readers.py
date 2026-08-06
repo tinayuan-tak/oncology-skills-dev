@@ -605,6 +605,19 @@ def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Op
     return mut_module.read_mutation_stratified_dependency(target=target, indication=indication)
 
 
+def _dispatch_cn_stratified_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route copy-number-stratified-dependency card (Card E3.cn) to
+    methods/depmap_cn_dependency/read.py.
+
+    The copy-number analog of Card 3: does a target's dependency stratify by ITS OWN
+    amplification status (relative CN > 1.5) across the DepMap panel — the amplification-
+    addiction biomarker hypothesis (ERBB2/MYC-class)? Target-only; indication accepted for
+    back-compat but not consumed by the compute path.
+    """
+    cn_module = _import_method("depmap_cn_dependency")
+    return cn_module.read_cn_stratified_dependency(target=target, indication=indication)
+
+
 def _dispatch_dependency_predictability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route dependency-predictability card (E5) to
     methods/depmap_predictability/read.py.
@@ -1102,6 +1115,7 @@ CARD_DISPATCHERS = {
     "copy-number-distribution": _dispatch_cn_distribution,
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
+    "copy-number-stratified-dependency": _dispatch_cn_stratified_dependency,
     "dependency-predictability": _dispatch_dependency_predictability,
     "prism-compound-activity": _dispatch_prism_compound_activity,
     "prism-crispr-concordance": _dispatch_prism_crispr_concordance,

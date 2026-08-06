@@ -210,6 +210,8 @@ SUB_SKILL_CARDS = {
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",
         "copy-number-distribution",          # CN axis wired 2026-07-14
+        "copy-number-stratified-dependency", # A1a (2026-08-06): amp×dependency rescue (fires
+                                             # biomarker_stratified_dependency); composer-consistency
         "fusion-rearrangement-landscape",    # LIVE (tcga-fusion-consensus-v1); additive signal-only
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)

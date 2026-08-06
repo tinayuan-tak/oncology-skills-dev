@@ -47,6 +47,13 @@ CARDS = [
     "mutation-hotspot-frequency",
     # Copy number (amplification / deletion) — card + rules already existed
     "copy-number-distribution",
+    # Copy-number-STRATIFIED dependency (A1a, 2026-08-06) — the CN analog of
+    # mutation-stratified-dependency: are AMPLIFIED cell lines Chronos-more-dependent? Its
+    # cn-amplified-*-dependent rules fire the SAME biomarker_stratified_dependency verdict the
+    # mutation path uses (resolver section 2b), closing the amplification-driven-oncogene gap
+    # (ERBB2/MYC). VERDICT-MOVING but golden-snapshot byte-identical (new rule ids never fire on
+    # old enumerated combos). Composed here so the genomic gate reads the amplification-addiction signal.
+    "copy-number-stratified-dependency",
     # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
     # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
     # data_unavailable}. ADDITIVE signal-only: reaches the LLM/matrix + headline, touches NO
@@ -222,6 +229,11 @@ def main() -> int:
         # Copy-number axis
         "copy_number_class":             get_card_field(cards, "copy-number-distribution",
                                               "copy_number_class"),
+        # Copy-number-STRATIFIED dependency (A1a) — amplified-vs-neutral Chronos split; the
+        # amplification-addiction biomarker (ERBB2/MYC). Fires biomarker_stratified_dependency via
+        # the resolver's section-2b rungs (reuses the mutation verdict). Surfaced for the LLM/matrix.
+        "cn_stratification_class":       get_card_field(cards, "copy-number-stratified-dependency",
+                                              "cn_stratification_class"),
         # Fusion / rearrangement axis — LIVE (tcga-fusion-consensus-v1). fusion_class is the TCGA
         # 3-caller-consensus verdict (deep, 33 tissues); the genie_sv_* fields are the pan-cohort
         # BREADTH complement (GENIE 271k panel tumors, coverage-correct — genie-sv-recurrence-v1,
