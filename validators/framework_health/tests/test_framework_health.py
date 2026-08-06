@@ -491,6 +491,31 @@ def test_catalog_manifests_scan(tmp_path):
     assert "ds-a" in cat and cat["ds-a"]["kind"] == "source" and cat["ds-a"]["provider"] == "acme"
 
 
+def test_catalog_manifests_registers_resolver_release(tmp_path):
+    """resolver-releases/ is a catalog artifact OUTSIDE manifests/, keyed by
+    `resolver_release:` not `id:`. Cards depend on it as `target-id-resolver-release`;
+    catalog_manifests must register that logical id so it isn't a false broken-ref."""
+    for kind in ("sources", "derived"):
+        (tmp_path / "manifests" / kind).mkdir(parents=True)
+    rr = tmp_path / "resolver-releases"
+    rr.mkdir()
+    (rr / "v0.1.0-alpha.yaml").write_text("resolver_release: resolver_v0.1.0-alpha\nstatus: alpha\n")
+    (rr / "v1.0.0.yaml").write_text("resolver_release: resolver_v1.0.0\nstatus: production\n")
+    cat = probe.catalog_manifests(tmp_path)
+    assert "target-id-resolver-release" in cat
+    assert cat["target-id-resolver-release"]["kind"] == "resolver_release"
+    assert cat["target-id-resolver-release"]["version"] == "resolver_v1.0.0"   # newest pin
+    assert cat["target-id-resolver-release"]["file_count"] == 2
+
+
+def test_catalog_manifests_no_resolver_dir_is_safe(tmp_path):
+    """No resolver-releases/ dir → no key, no crash (isolated/partial checkout)."""
+    for kind in ("sources", "derived"):
+        (tmp_path / "manifests" / kind).mkdir(parents=True)
+    cat = probe.catalog_manifests(tmp_path)
+    assert "target-id-resolver-release" not in cat
+
+
 def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
     (tmp_path / "cards").mkdir()
     (tmp_path / "cards" / "c.card.yaml").write_text(

@@ -462,6 +462,32 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
             prod = m.get("product_id")
             if prod and prod != mid and prod not in aliases:
                 aliases[prod] = {**meta, "is_product_alias": True}
+
+    # resolver-releases/ is a first-class catalog artifact tracked OUTSIDE manifests/
+    # (versioned resolver pins keyed by `resolver_release:`, not `id:`). Cards that
+    # depend on the resolver name it by the logical id `target-id-resolver-release`
+    # (e.g. target-identity-summary), so register that id here — otherwise a real,
+    # present artifact reads as a broken dataset ref (false positive). We register the
+    # LOGICAL id once; individual release files are versions of the same product.
+    rr_dir = catalog_root / "resolver-releases"
+    if rr_dir.is_dir():
+        releases = sorted(rr_dir.glob("*.yaml"))
+        if releases:
+            newest = releases[-1]  # lexical last ≈ newest version pin
+            try:
+                rm = yaml.safe_load(newest.read_text()) or {}
+            except yaml.YAMLError:
+                rm = {}
+            out.setdefault("target-id-resolver-release", {
+                "kind": "resolver_release",
+                "provider": rm.get("provider"),
+                "version": rm.get("resolver_release") or newest.name[:-5],
+                "license": rm.get("license"),
+                "size_bytes": None, "file_count": len(releases),
+                "system_of_record": rm.get("system_of_record"),
+                "derived_from": [],
+            })
+
     # Real manifest ids take precedence over product_id aliases on collision.
     for k, v in aliases.items():
         out.setdefault(k, v)
