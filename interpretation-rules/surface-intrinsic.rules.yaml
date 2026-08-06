@@ -1154,6 +1154,59 @@ rules:
       engage the tumor compartment. Secondary importance: it removes a confound rather than adding a
       first-order presence signal (abundance/selectivity carry that).
 
+  # ============================================================================
+  # L — Within-tumor antigen HOMOGENEITY (biologics-augment Phase 3.2, 2026-08-06)
+  # ============================================================================
+  # Keyed on the DERIVED tce_homogeneity_class (tumor-scrna-celltype-expression card; from single-cell
+  # malignant_detection_fraction, CELLxGENE Census donor pseudobulk). For a T-cell engager, within-tumor
+  # antigen heterogeneity is a first-order program-killer: antigen-low malignant cells escape redirected
+  # killing (there is no bystander payload to reach them — unlike an ADC). ADC is MORE heterogeneity-
+  # tolerant, so the ADC signals here are milder than the TCE signals (the classic ADC-vs-TCE
+  # discriminator). ADDITIVE signal-only: no surface_modality resolver rung → verdict BYTE-STABLE; these
+  # enrich the biologics signal set. Coverage: COADREAD + NSCLC only (Census per-cell malignant
+  # annotation); every other indication resolves data_unavailable and fires NO rule (abstain).
+
+  - rule_id: sc-homogeneity-uniform-tce-supportive
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: tce_homogeneity_class
+      equals: homogeneous
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+      adc: secondary
+    rationale: |
+      Uniform within-tumor antigen expression (>= 50% of malignant cells express the target, single-cell
+      Census). Low antigen-escape risk — the DLL3/BCMA-like uniform-expression ideal that makes a T-cell
+      engager work. Important importance for BiTE/TCE (homogeneity is the TCE-critical cross-cutting
+      signal); secondary-supportive for ADC (which also benefits from uniform coverage but tolerates more).
+
+  - rule_id: sc-homogeneity-heterogeneous-tce-opposing
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: tce_homogeneity_class
+      equals: heterogeneous
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Heterogeneous within-tumor antigen expression (< 25% of malignant cells express the target,
+      single-cell Census). Antigen-low malignant cells form an ESCAPE RESERVOIR: a T-cell engager
+      redirects killing only to antigen+ cells, so an antigen-low subpopulation survives and repopulates.
+      This is a first-order TCE program-killer — but OPPOSING (not killer), because affinity/avidity
+      engineering, antigen-density-independent formats, or a combination/OR-gate can still rescue a
+      heterogeneous target. Neutral for ADC (bystander payload reaches antigen-low neighbors).
+
+  # moderately_homogeneous (0.25-0.5 malignant detection) DELIBERATELY fires NO rule — a real expressing
+  # subset exists but detection-fraction alone (dropout-aware scRNA) is too uncertain to penalize (the
+  # stricter-cut design decision). data_unavailable likewise fires nothing (coverage gap → abstain).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
