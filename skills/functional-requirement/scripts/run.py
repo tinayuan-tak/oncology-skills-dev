@@ -23,10 +23,13 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.synthesis_dependency import synthesize_dependency
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.1.0"
+SKILL_VERSION = "1.2.0"   # 1.2.0: opt-in --synthesize LLM narration (dependency lens) — two-slot,
+                          #        verdict-inert; narrates the FULL evidence set + Axis-2 control
+                          #        benchmark + Axis-3 lineage omnibus. Spine byte-stable without the flag.
 
 CARDS = [
     "pan-cancer-crispr-dependency-distribution",
@@ -181,4 +184,10 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Opt-in --synthesize narrates through the DEPENDENCY lens (its own tool schema + prompt,
+        # foregrounding the selective-vs-pan-essential distinction). Two-slot / verdict-inert: the
+        # dispatcher attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed,
+        # so it is structurally impossible for the narration to alter dependency_verdict. Without this
+        # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens).
+        synthesize_fn=synthesize_dependency,
     ))

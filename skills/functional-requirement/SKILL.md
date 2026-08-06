@@ -16,7 +16,7 @@ description: |
   is modality-independent.
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -71,20 +71,52 @@ composition:
   status: wired
 ---
 
-# Micro — Dependency in Indication
+# functional-requirement — Dependency in Indication
 
 ## What this skill does
 
-- Fetches the 4 dependency-relevant cards via the compose-dashboard live-reader
-  dispatchers (zero new dispatcher code; same read path Macro uses).
-- Filters the intracellular-intrinsic rules to those whose `when.card_id` is
-  in the 4 dependency cards (skips tvn-*, prism-*, mutation-*, cn-*, etc.).
+- Fetches the dependency-relevant cards via the compose-dashboard live-reader
+  dispatchers (zero new dispatcher code; same read path the composed target-profile uses).
+- Filters the intracellular-intrinsic rules to the dependency-* subset (skips
+  tvn-*, mutation-*, cn-*, etc.).
 - Emits `decision.json` with:
-  - `headline`: `dependency_verdict` (essential / lineage_selective /
-    concordant_dependent / non_dependent / discordant / insufficient),
-    plus the driving CRISPR + RNAi calls.
+  - `headline`: `dependency_verdict` (pan_essential_killer / concordant_dependent /
+    lineage_selective / selective_dependent / chemical_genetic_confirmed_dependent /
+    discordant / non_dependent / non_dependent_paralog_buffered / broadly_dependent /
+    insufficient*), plus the driving CRISPR + RNAi calls and the predictability
+    confidence annotation.
   - `fired_rules`: which of the dep-* rules matched.
-  - `modality_lenses`: optional SM+degrader tally.
+  - `modality_lenses`: optional SM+degrader tally (`--modality`).
+
+## Contextualized interpretation axes (display-only, verdict-inert)
+
+Two "relative-to-what?" axes anchor the raw dependency signal (mirrors the
+tumor-presence hardening). Both are ADDITIVE — no rule reads them, so the
+`dependency_verdict` spine is byte-identical with or without them:
+
+- **Axis-2 — control benchmark** (`dep_control_position_class` on the CRISPR
+  distribution card): anchors the target's pan-panel median Chronos against curated
+  **pan-essential** (ceiling) + **non-essential** (floor) controls. Note the
+  **inversion** vs presence: reading `as_essential_as_pan_essential` is a
+  **broad-toxicity liability**, NOT a win; the therapeutic window is `between_controls`
+  (a selective dependency). Emitted by `methods/dependency_controls`.
+- **Axis-3 — across-lineage omnibus** (`lineage_omnibus_effect_size_class` +
+  `lineage_variance_explained` ε² on the lineage-selectivity card): the global
+  variance view ("how much of the dependency variance does lineage explain?"),
+  **complementing** the existing per-lineage-threshold `enrichment_class`. Emitted
+  by `depmap_chronos.compute_lineage_summary`.
+
+## Optional LLM synthesis (`--synthesize`)
+
+Opt-in `--synthesize` attaches a provenance-tagged narration under
+`decision['llm_synthesis']` (Bedrock, forced structured tool-use). It is a **two-slot**
+design: the narration is attached as a SIBLING key AFTER the deterministic decision is
+composed, so it is **structurally impossible** for it to alter the verdict spine (a run
+WITHOUT the flag is byte-identical). The dependency narrator reads the FULL evidence set
+(CRISPR + RNAi + concordance + lineage + paralog + PRISM + predictability) plus the two
+axes, and foregrounds the **selective-vs-pan-essential** distinction (a pan-essential
+read argues AGAINST the target). A Bedrock failure degrades to a `_synthesis_error` note
+— the deterministic verdict is unaffected.
 
 ## Verdict resolution
 
@@ -107,9 +139,13 @@ rules YAML.
 
 ## What this skill does NOT do
 
-- No new dispatchers, no new rules — reuses target-contracts.
+- No new dispatchers, no new rules — reuses target-contracts. The verdict is
+  resolved from the shared declarative `resolvers/dependency.resolver.yaml`
+  (the former per-skill if-chain was retired; the resolver is the source of truth).
+- The two contextualization axes + the `--synthesize` narration are ADDITIVE and
+  verdict-inert (no rule reads them; the resolver golden snapshot is untouched).
 - No figure rendering by default; caller can invoke `compose-dashboard` on
-  a filtered spec to get the 4-card figure set.
+  a filtered spec to get the dependency-card figure set.
 - Not modality-locked. Modality lenses are OPTIONAL post-hoc projections
   (biology-first output shape).
 
@@ -119,26 +155,29 @@ rules YAML.
 python scripts/run.py --target KRAS --indication COADREAD \
     --out /tmp/dep-KRAS-COADREAD
 # → writes /tmp/dep-KRAS-COADREAD/decision.json
+
+# Optional LLM narration (two-slot, verdict-inert; needs Bedrock creds):
+python scripts/run.py --target KRAS --indication COADREAD \
+    --out /tmp/dep-KRAS-COADREAD --synthesize
 ```
 
 ## How Claude invokes this skill
 
-When called as `/micro-dependency-in-indication`, Claude should:
+When called as `/functional-requirement`, Claude should:
 
 1. Extract `target` (HGNC gene symbol, uppercase) and `indication`
    (AACR OncoTree code, uppercase — e.g. COADREAD, LUAD, BRCA) from the
    user's prompt. Ask if either is missing or ambiguous.
-2. Pick an `out` directory. Default: `/tmp/micro-dependency-in-indication/{target}-{indication}`
+2. Pick an `out` directory. Default: `/tmp/functional-requirement/{target}-{indication}`
    unless the user specifies one.
 3. Run:
    ```
    export AWS_PROFILE=cbg && \
-   python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/micro-dependency-in-indication/scripts/run.py \
+   python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/functional-requirement/scripts/run.py \
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
-4. Read `<OUT_DIR>/decision.json`, present the headline + the driving_rule_id
-   inline, and offer to open the full JSON if the user wants details.
-5. If the underlying card summary carries `_schema: v2_two_product_fallback`
-   (only `micro-tumor-selectivity`), flag that the v3 sensitivity product
-   is not yet in S3 for that indication and the response is on legacy
-   two-contrast data.
+   Add `--synthesize` when the user wants a narrative synthesis (attaches
+   `decision['llm_synthesis']`; the deterministic verdict is unchanged).
+4. Read `<OUT_DIR>/decision.json`, present the `dependency_verdict` + the
+   `driving_rule_id` + the `dep_control_position_class` (selective vs
+   pan-essential) inline, and offer to open the full JSON if the user wants details.
