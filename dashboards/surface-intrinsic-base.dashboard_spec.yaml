@@ -50,6 +50,30 @@ optional_cards:
   - card_id: rwd-stratified-expression
     version: ">=1.0.0,<2"
     when: "indication in [\"COADREAD\"]"
+  # B2 (2026-08-06): the surface-modality-fit VERDICT cards were consumed by the
+  # surface-modality-fit skill but absent from every dashboard_spec — so they could NEVER fire in a
+  # real evidence package (health flags `card_consumed_but_no_spec` + `card-reader-never-fires`).
+  # Wiring them here (the surface-intrinsic base, shared across adc/bite_tce/antibody — all six carry
+  # modality_relevance:[adc,bite_tce,antibody]) makes them spec-reachable. They are OPTIONAL because
+  # several are context/data-gated by their own applies_when and resolve data_unavailable honestly when
+  # the gate is unmet — that is the correct behaviour, not a failure. structure-features-static is NOT
+  # added here: it is a small_molecule/degrader card (belongs to the tractability-small-molecule spec),
+  # and its derived product is absent from the catalog (data-blocked) — a separate honest gap.
+  - card_id: adc-tce-modality-fit              # the composed fit_class verdict card (ADC/TCE/both/neither)
+    version: ">=1.0.0,<2"
+  - card_id: surface-topology-and-ptm          # TMbed topology + PTM (the ADC/TCE reachability substrate)
+    version: ">=1.0.0,<2"
+    when: "context.data_sources.tmbed_predictor_available == true"
+  - card_id: surfaceome-family-classification  # surfaceome family (SURFY) — modality-routing metadata
+    version: ">=1.0.0,<2"
+  - card_id: shed-ectodomain-liability         # shed-antigen liability (ADC/TCE sink risk)
+    version: ">=1.0.0,<2"
+  - card_id: rna-protein-concordance-tumor     # RNA↔protein concordance (CPTAC cohorts only)
+    version: ">=0.1.0,<2"
+    when: "indication in [\"BRCA\", \"CCRCC\", \"KIRC\", \"COADREAD\", \"COAD\", \"READ\", \"GBM\", \"HNSC\", \"HNSCC\", \"LUSC\", \"LSCC\", \"LUAD\", \"OV\", \"PAAD\", \"PDAC\", \"UCEC\"]"
+  - card_id: modality-therapeutic-window       # per-modality therapeutic-window arc (TCGA-mapped indications)
+    version: ">=1.0.0,<2"
+    when: "context.data_sources.tcga_gtex_tpm_quantiles_available == true"
 
 # Three modality modules layer on top of this base.
 optional_modality_modules:
