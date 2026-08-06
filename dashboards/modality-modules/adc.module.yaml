@@ -8,10 +8,10 @@ version: 1.0.0
 extends_axes: [surface_intrinsic]
 
 additional_cards:
-  - card_id: antigen-density-evidence
+  - card_id: surface-abundance-density
     version: ">=1.0.0,<2"
-    data_status: data_blocked
-    data_status_note: "Antigen density (IHC quantification, copy-number per cell) requires proteomics / quantitative IHC data sources not yet wired into the catalog. Iter-2 deliverable. iter-1b emits this card as excluded_by_applies_when with a structured 'data_blocked' reason."
+    data_status: available
+    data_status_note: "Antigen DENSITY (copies-per-cell) for ADC payload-index reasoning. Repointed 2026-08-06 from the phantom `antigen-density-evidence` (no such card ever existed) to the LIVE surface-abundance-density card (method built 2026-07-23: grade-D HPA×CPTAC inference + grade-A/B measured ladder for 11 calibrated antigens; modality_relevance includes adc). What remains pending is a materialized derived DENSITY PRODUCT, not the card/method."
 
 threshold_overlays:
   normal-tissue-liability:
@@ -47,7 +47,7 @@ synthesis_emphasis:
     - antigen-prevalence
   secondary_cards:
     - tumor-rna-vs-adjacent
-    - antigen-density-evidence
+    - surface-abundance-density   # repointed 2026-08-06 from phantom antigen-density-evidence
   modality_killer_conditions:
     - card_id: normal-tissue-liability
       predicate_type: warning_id_fires

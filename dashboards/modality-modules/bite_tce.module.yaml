@@ -8,14 +8,14 @@ version: 1.0.0
 extends_axes: [surface_intrinsic]
 
 additional_cards:
-  - card_id: antigen-density-evidence
+  - card_id: surface-abundance-density
     version: ">=1.0.0,<2"
-    data_status: data_blocked
-    data_status_note: "BiTE/TCE requires high antigen density per tumor cell to form productive cytotoxic synapses. Antigen-density data sources (quantitative IHC, proteomics) not yet in catalog."
+    data_status: available
+    data_status_note: "BiTE/TCE requires high antigen density per tumor cell to form productive cytotoxic synapses (avidity threshold ~1,000 copies/cell). Repointed 2026-08-06 from the phantom `antigen-density-evidence` (no such card ever existed) to the LIVE surface-abundance-density card (method built 2026-07-23; modality_relevance includes bite_tce). What remains pending is a materialized derived DENSITY PRODUCT, not the card/method."
   - card_id: antigen-homogeneity-evidence
     version: ">=1.0.0,<2"
     data_status: method_pending
-    data_status_note: "BiTE/TCE requires uniform antigen expression across tumor-cell population — heterogeneity leaves antigen-low subpopulations that escape. Homogeneity assessment requires single-cell or quantitative-IHC data; iter-2 deliverable."
+    data_status_note: "BiTE/TCE requires uniform antigen expression across the tumor-cell population — within-tumor heterogeneity leaves antigen-low subpopulations that escape T-cell engagement. No homogeneity card exists yet (genuinely method_pending, not phantom). PLANNED landing slot (biologics-augment Phase 3.2): a within-tumor antigen-homogeneity signal from single-cell (CELLxGENE Census pointer manifest cellxgene-census-pointer-snapshot-2026-07-09 is already catalogued; fraction of malignant cells expressing the antigen), reusing tumor-scrna-celltype-expression's Census reader rather than a new access path."
 
 threshold_overlays:
   normal-tissue-liability:
