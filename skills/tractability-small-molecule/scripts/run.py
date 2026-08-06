@@ -37,6 +37,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
+from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "tractability-small-molecule"
@@ -57,15 +58,31 @@ QUESTION = ("Does {target} in {indication} show small-molecule druggability evid
 
 
 def _snapshot(fired: list[dict]) -> tuple[str, str | None]:
-    """Rank-ordered small-molecule druggability resolution (first match wins).
+    """Verdict — DELEGATES to the shared declarative resolver (B3a, 2026-08-06).
+    The former 11-rung if-chain now lives in resolvers/tractability_small_molecule.resolver.yaml
+    (target-contracts), evaluated by the ONE interpreter every gate skill calls. Proven byte-for-byte
+    equivalent to the former if-chain by the golden-oracle test (test_tractability_sm_resolver_oracle.py,
+    which enumerates every rule combination against the retained _snapshot_legacy_oracle). A missing spec
+    raises (the resolver is the source of truth — no silent fallback to a stale copy, which would
+    reintroduce drift). Mirrors surface-modality-fit's _verdict."""
+    result = resolve_verdict_for_gate(fired, "tractability_small_molecule")
+    if result is None:
+        raise RuntimeError(
+            "tractability_small_molecule resolver spec missing "
+            "(target-contracts/resolvers/tractability_small_molecule.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result
 
-    Chemical-genetic evidence (E6/E7, RETROSPECTIVE — a compound has actually hit
-    the target) ranks highest. Structural / forward ligandability (E8 — a druggable
-    pocket, added 2026-07-17) ranks BELOW a real chemical hit but ABOVE
-    `chemically_unhit`: a druggable-but-not-yet-drugged target (KRAS-G12C switch-II
-    pre-sotorasib) is a genuinely better SM prospect than one with no handle at all.
-    A measured structural NEGATIVE (low-confidence/disordered fold) ranks with the
-    weak-chemical tier as an SM-opposing note.
+
+def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
+    """RETAINED ONLY as the golden-oracle for the equivalence test — NOT called at runtime.
+    The original rank-ordered if-chain (first match wins). Chemical-genetic evidence (E6/E7,
+    RETROSPECTIVE — a compound has actually hit the target) ranks highest. Structural / forward
+    ligandability (E8 — a druggable pocket) ranks BELOW a real chemical hit but ABOVE
+    `chemically_unhit` (KRAS-G12C switch-II pre-sotorasib). A measured structural NEGATIVE ranks
+    as an SM-opposing note. test_tractability_sm_resolver_oracle.py asserts the declarative resolver
+    reproduces this function's output for EVERY rule combination; do not edit without re-freezing that
+    equivalence.
     """
     fired_by_id = {r["rule_id"]: r for r in fired}
     # --- Chemical-genetic (retrospective: a compound was found) ---
