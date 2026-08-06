@@ -34,7 +34,7 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.2.0    # 1.2.0: + PATIENT CN cross-check (patient_copy_number_class, TCGA GISTIC, verdict-inert); 1.1.0: + homdel flag
+version: 1.3.0    # 1.3.0: + patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient); 1.2.0: patient CN cross-check; 1.1.0: homdel flag
 question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
 
 applies_when:
@@ -93,11 +93,16 @@ outputs:
     # the TUMOUR cross-check (per-indication GISTIC amp/del prevalence), same class vocabulary so they
     # line up directly. ADDITIVE/verdict-inert: they fire NO rule; where cell-line and patient CN
     # DISAGREE (e.g. a locus amplified in patients but not the cell-line panel) is the decision-useful signal.
-    - patient_copy_number_class          # TCGA GISTIC cohort CN class (mirrors copy_number_class vocab)
+    - patient_copy_number_class          # TCGA GISTIC cohort CN class, ANY-gain (mirrors copy_number_class vocab; DISPLAY cross-check)
+    # FOCAL categorical (2026-08-06): gates on HIGH-LEVEL +2 amp / -2 homdel, NOT arm-level any-gain.
+    # THIS is the field the CN-CONSENSUS VERDICT rung fires on (cell-line OR patient focal) — so
+    # arm-level noise (e.g. KRAS 12p, recurrently_amplified any-gain but focal_neutral) does NOT drive
+    # the verdict. Categorical companion (rule engine is equals-only) — same pattern as the homdel flag.
+    - patient_focal_cn_class             # recurrent_focal_amplification / recurrent_focal_deletion / focal_neutral
     - patient_amplified_fraction         # fraction of tumours with GISTIC >= +1
-    - patient_high_amp_fraction          # fraction with GISTIC +2 (high-level/focal — cleaner oncogene signal)
+    - patient_high_amp_fraction          # fraction with GISTIC +2 (high-level/focal — drives patient_focal_cn_class)
     - patient_deleted_fraction           # fraction with GISTIC <= -1
-    - patient_homdel_fraction            # fraction with GISTIC -2 (homozygous deletion)
+    - patient_homdel_fraction            # fraction with GISTIC -2 (homozygous deletion — drives focal deletion)
     - patient_cn_context                 # human-readable patient-CN summary
 
   summary_fields_vocabulary:
@@ -111,11 +116,16 @@ outputs:
       - recurrent_homozygous_deletion    # deep deletion (CN<0.5) in >=20% of the panel — degrader-relevant (no protein)
       - not_recurrent_homozygous_deletion
       - data_unavailable                 # target absent from CN matrix or load failed
-    patient_copy_number_class:           # TCGA GISTIC tumour cohort — mirrors copy_number_class vocab
-      - recurrently_amplified            # >=20% of tumours GISTIC-amplified (>= +1)
+    patient_copy_number_class:           # TCGA GISTIC tumour cohort, ANY-gain — DISPLAY cross-check (NOT the verdict gate)
+      - recurrently_amplified            # >=20% of tumours GISTIC-amplified (>= +1, includes arm-level)
       - recurrently_deleted              # >=20% deleted (<= -1)
       - mixed                            # both recurrent, neither dominates by 1.5x
       - broadly_neutral                  # neither recurrent
+      - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
+    patient_focal_cn_class:              # FOCAL gate — the CN-CONSENSUS VERDICT input (high-level +2 / homdel -2 only)
+      - recurrent_focal_amplification    # high-level (+2) in >=10% of tumours — focal oncogene amp (drives verdict)
+      - recurrent_focal_deletion         # homdel (-2) in >=10% — focal TSG loss (drives verdict)
+      - focal_neutral                    # no recurrent FOCAL event (arm-level any-gain lands here — verdict-safe)
       - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
     cn_assay_used:
       - wes
@@ -178,7 +188,8 @@ caveats:
   - "Method uses WES gene-level CN (OmicsCNGeneMC_WES.csv, n≈1954) as PRIMARY. When the target gene is absent from the WES panel (e.g. MYC, BRAF in 26Q1), method falls back to WGS gene-level CN (OmicsCNGeneWGS.csv, n≈800, full genome coverage). Card emits cn_assay_used ∈ {wes, wgs} to surface which source was used per target. Different denominators per target are honest reporting, not silent imputation."
   - "CN scale is raw relative CN (median ~1.0 = diploid), NOT log2 ratio. Thresholds: deep del < 0.5, shallow del < 0.92, neutral 0.92-1.07, shallow amp >1.07, focal amp >1.5, high amp >4."
   - "Copy number ≠ functional effect: a focal amplification can be passenger; a homozygous deletion of a tumor-suppressor can be a driver. Functional inference requires the dependency cards as orthogonal evidence."
-  - "TWO CN COHORTS: copy_number_class (+ cn_* fractions) is DepMap CELL-LINE CN — the VERDICT-DRIVING axis. patient_copy_number_class (+ patient_* fractions) is TCGA PATIENT-tumour GISTIC, per-INDICATION (tcga-patient-cn-per-gene-v1) — a verdict-INERT cross-check, NOT a verdict input. Rewiring the verdict to prefer patient CN is a separate, explicit decision (deferred). Patient CN uses raw GISTIC discrete (honest amp AND del), NOT the LoF-biased 'min-wins' two-hit product."
+  - "TWO CN COHORTS, CONSENSUS VERDICT: copy_number_class is DepMap CELL-LINE CN; the patient_* fields are TCGA PATIENT-tumour GISTIC (tcga-patient-cn-per-gene-v1, per-INDICATION). The genomic CN-driver verdict rung fires on EITHER cell-line recurrent amp/del OR patient FOCAL amp/del (cell-line-OR-patient consensus) — strictly ADDITIVE: it only RESCUES false-negatives (e.g. ERBB2/BRCA, cell-line-neutral but patient-focal-amplified), never weakens an existing cell-line call."
+  - "The patient VERDICT gate is patient_focal_cn_class (HIGH-LEVEL +2 amp / -2 homdel only) — NOT patient_copy_number_class, which fires on any-gain (>= +1, includes arm-level noise like KRAS 12p) and stays a DISPLAY cross-check. This focal gate keeps arm-level gain out of the verdict. Patient CN uses raw GISTIC discrete (honest amp+del), NOT the LoF-biased 'min-wins' two-hit product."
   - "The two CN cohorts can legitimately DIFFER (cell-line = pan-cancer + culture-selected; patient = indication-specific, in-vivo). A gene amplified in patients but not the cell-line panel — or the reverse — is a decision-useful discrepancy to surface, not an error. patient_high_amp_fraction (GISTIC +2) is the cleaner focal-oncogene signal vs patient_amplified_fraction (any gain, includes arm-level)."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `copy_number_alteration` claim.
