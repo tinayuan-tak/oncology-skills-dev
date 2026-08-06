@@ -120,7 +120,7 @@ def _prewarm_sub_skill_imports() -> None:
 #     chemical-genetic verdict) + surface-modality-fit (biologics-modality call
 #     the old skill only displayed).
 #   - mutation-profile REFRAMED → genomic-alteration-profile (SNV + copy-number
-#     + fusion placeholder).
+#     + fusion [LIVE, additive signal-only]).
 #   - patient-population-and-access DELETED (thin re-projection of the
 #     mutation-hotspot-frequency card; its prevalence fields folded into
 #     genomic-alteration-profile).
@@ -210,7 +210,7 @@ SUB_SKILL_CARDS = {
         "mutation-stratified-dependency",
         "mutation-hotspot-frequency",
         "copy-number-distribution",          # CN axis wired 2026-07-14
-        "fusion-rearrangement-landscape",    # placeholder (resolves _missing)
+        "fusion-rearrangement-landscape",    # LIVE (tcga-fusion-consensus-v1); additive signal-only
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)
         "functional-gene-state",             # M6 allele-count / biallelic two-hit state (2026-07-22) —

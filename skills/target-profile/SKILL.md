@@ -9,7 +9,7 @@ description: |
     - tumor-selectivity
     - functional-requirement
     - mechanism-and-pharmacology
-    - genomic-alteration-profile        (SNV + copy-number + fusion placeholder)
+    - genomic-alteration-profile        (SNV + copy-number + fusion [LIVE, additive])
     - differentiation-landscape
     - tractability-small-molecule       (small-molecule chemical-genetic half)
     - surface-modality-fit              (biologics ADC/TCE half)
@@ -62,7 +62,7 @@ composition:
     - mutation-stratified-dependency
     - mutation-hotspot-frequency
     - copy-number-distribution                 # 2026-07-14 CN axis wired
-    - fusion-rearrangement-landscape           # 2026-07-14 placeholder (resolves _missing)
+    - fusion-rearrangement-landscape           # LIVE (tcga-fusion-consensus-v1); additive signal-only
     - co-mutation-and-mutual-exclusivity       # (differentiation-landscape)
     # Phase D (mechanism)
     - signaling-network-mechanism              # Layer 6h addition (Phase D)

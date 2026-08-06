@@ -85,8 +85,9 @@ composition:
 - Fetches the SNV/indel cards (mutation-type-counts, mutation-stratified-
   dependency, mutation-hotspot-frequency) + copy-number-distribution via the
   compose-dashboard live-reader dispatchers. Fusion-rearrangement-landscape is
-  a declared placeholder (resolves `_missing` until fusion data lands).
-- Fires the `mut-*` / `mutant-*` / `cn-*` rules.
+  LIVE (tcga-fusion-consensus-v1, 3-caller TCGA consensus) + composed as an
+  ADDITIVE signal-only layer (reaches the headline/LLM, fires no resolver rung).
+- Fires the `mut-*` / `mutant-*` / `cn-*` rules (fusion is NOT in rules_scope).
 - Emits `decision.json` with:
   - `headline`: `genomic_alteration_profile` verdict + `driving_rule_id`, plus
     the mutation landscape/stratification classes, mutation frequency, and the
@@ -113,15 +114,19 @@ a modifier so amplification/deletion-driven targets aren't collapsed to passenge
 - **SNV / indel** — wired (TCGA MC3 + DepMap), 3 cards, full rule coverage.
 - **Copy number** — wired (copy-number-distribution card + its 11 `cn-*` rules
   already existed; this reframe is the first skill to compose them).
-- **Fusion / rearrangement** — PLACEHOLDER (`fusion-rearrangement-landscape`
-  card, v0.1.0). No method/product yet; resolves `_missing`, does not
-  contribute to the verdict. Fusion may warrant its own skill if it grows heavy.
+- **Fusion / rearrangement** — LIVE (`fusion-rearrangement-landscape` card,
+  backed by `tcga-fusion-consensus-v1`: TumorFusions/PRADA + Gao 2018 +
+  cBioPortal-TCGA-SV, 3-caller consensus). ADDITIVE signal-only: reaches the
+  headline + LLM narrative + evidence matrix but fires no resolver rung, so the
+  deterministic verdict spine is byte-stable. TCGA-only, presence-not-frequency
+  (denominator is a fast-follow). GENIE-SV breadth is a future additive source.
 
 ## What this skill does NOT do
 
 - Doesn't recompute alteration calls. Reads existing DepMap 26Q1 + TCGA MC3
   sources via existing dispatchers.
-- Doesn't yet score fusions (placeholder axis).
+- Doesn't fold fusion into the deterministic verdict (fusion is composed but
+  additive signal-only — it informs the narrative, not the resolver rung).
 
 ## How Claude invokes this skill
 

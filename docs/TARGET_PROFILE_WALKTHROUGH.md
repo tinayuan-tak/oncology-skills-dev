@@ -31,7 +31,7 @@ Each sub-skill answers one question. This is the full set the composed profile a
 | Is it selective for tumor vs normal? | tumor-selectivity | TCGA + GTEx (recount3) expression | wired |
 | Is the tumor dependent on it? | functional-requirement | DepMap CRISPR + RNAi | wired |
 | What's the mechanism / MoA context? | mechanism-and-pharmacology | SIGNOR + CollecTri + Reactome | wired |
-| How is it genomically altered (mutation + copy number)? | genomic-alteration-profile | DepMap + TCGA/GDC mutation + copy number | wired (fusion planned) |
+| How is it genomically altered (mutation + copy number + fusion)? | genomic-alteration-profile | DepMap + TCGA/GDC mutation + copy number + TCGA fusion consensus | wired (fusion LIVE, additive) |
 | What co-occurs with or excludes it? | differentiation-landscape | TCGA MC3 + GENIE co-mutation | wired |
 | Is it druggable by a small molecule? | tractability-small-molecule | DepMap PRISM + CRISPR | wired |
 | Does the surface biology support a biologic (ADC/TCE)? | surface-modality-fit | surfaceome / topology / structure | planned (surface products pending) |
@@ -97,11 +97,11 @@ One block per sub-skill: the wired card(s), the data source, the method that com
 ### mechanism-and-pharmacology (wired)
 - **signaling-network-mechanism** — SIGNOR + CollecTri + Reactome → `signor-mechanism-network` → `network_class` + MoA classes · plot: network summary · 5 rules.
 
-### genomic-alteration-profile (wired; fusion planned)
+### genomic-alteration-profile (wired; fusion LIVE, additive signal-only)
 - **mutation-stratified-dependency** — DepMap 26Q1 mutant-vs-WT → `depmap-mutation-stratified` → `mutation_stratification_class` · plots: mut-vs-WT strip, per-hotspot Chronos · 6 rules.
 - **mutation-hotspot-frequency** — GDC / TCGA MC3 tumor MAF → `gdc-somatic-hotspot` → hotspot frequency + top variants.
 - **copy-number-distribution** — DepMap 26Q1 copy number → `depmap-cn-distribution` → `copy_number_class` · plots: density, per-lineage strip, waterfall · 5 rules.
-- **fusion-rearrangement-landscape** *(planned)* — placeholder; resolves `_missing` today.
+- **fusion-rearrangement-landscape** — LIVE; TCGA 3-caller consensus (TumorFusions + Gao 2018 + cBioPortal-TCGA-SV) → `tcga-fusion-consensus-v1` → `fusion_class`. Additive signal-only (informs headline/LLM, not the resolver verdict).
 
 ### differentiation-landscape (wired)
 - **co-mutation-and-mutual-exclusivity** — TCGA MC3 + GENIE (Fisher scan) → `cooccurrence-fisher-pancohort` → `cooccurrence_class` · plot: forest (planned) · 8 rules.
