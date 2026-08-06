@@ -288,6 +288,18 @@ measurement_types:
       # 2026-08-04: was mis-declared as derived_from at #108, failing the vocab validator on main since.
       - {kind: dataset, source: tcga-fusion-consensus-v1, method: tcga_fusion_consensus, evidence_tier: measured}   # LIVE 2026-07-23: pan-TCGA 3-caller consensus (TumorFusions/Gao/cBioPortal SV)
 
+  genomic_instability_state:
+    claim: "How chromosomally unstable is the indication's cohort (aneuploidy / CIN burden)?"
+    # M7 genome-state slice: an INDICATION-level, target-INDEPENDENT genome-wide phenotype (not a
+    # per-gene call). Read LIVE from the PanCanAtlas seg-based scores (per-sample frac_altered),
+    # scoped to the indication via the barcode→cancer-type annotation. DISPLAY facet — verdict-inert
+    # context (high CIN correlates with WGD / prognosis / copy-number-noise caveats). No modality_relevance:
+    # it is not a per-modality driver signal, it is cohort-genome context.
+    entity_grains: [cohort]
+    cards: [genomic-instability-state]
+    providers:
+      - {kind: dataset, source: gdc-pancanatlas-cnv-2018, method: tcga_aneuploidy_burden, evidence_tier: measured}
+
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
     # The typed FUNCTIONAL-ROLE call layered on the descriptive alteration cards — the primitive the

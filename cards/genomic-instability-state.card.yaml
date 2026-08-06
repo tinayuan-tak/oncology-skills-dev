@@ -1,0 +1,66 @@
+# Card — GENOMIC INSTABILITY STATE  (M7 genome-state slice: aneuploidy / CIN burden)
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT context: how chromosomally unstable is this cancer's
+# cohort? Aneuploidy / chromosomal instability (CIN) is a genome-WIDE phenotype, not a per-gene
+# property — so this card describes the indication, and a target maps in only as context ("is my
+# target in a highly-aneuploid indication?"). High CIN correlates with whole-genome doubling,
+# poorer prognosis, and modality caveats (e.g. broad copy-number noise complicating a clean
+# copy-number driver read).
+#
+# Source: PanCanAtlas seg_based_scores.tsv (per-sample frac_altered = fraction of the genome
+# CN-altered), scoped to the indication's TCGA project(s) via merged_sample_quality_annotations —
+# the SAME barcode→cancer-type join functional-gene-state uses. Read LIVE (small per-indication
+# compute), like alteration-role reads OncoKB/IntOGen live — NO intermediate derived product.
+#
+# SCOPE NOTE: this is per-SAMPLE genome-wide instability, NOT per-arm gain/loss. A per-arm
+# arm-loss + per-lineage-selectivity-percentile card (the arm-loss-discovery direction) needs the
+# Taylor-2018 arm-level calls, which are not yet ingested — a deferred follow-up.
+#
+# DISPLAY facet — verdict-inert. Surfaces the cohort instability class to render/LLM; touches no
+# resolver rung.
+
+card_id: genomic-instability-state
+version: 0.1.0
+question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome — and where does its genome-instability burden sit?"
+
+tier: indication
+
+applies_when:
+  - "true"   # any indication with a TCGA-project mapping; data_unavailable-safe otherwise
+
+required_inputs:
+  - product_id: gdc-pancanatlas-cnv-2018        # seg_based_scores.tsv (per-sample frac_altered)
+  - product_id: gdc-pancanatlas-clinical-2018   # merged_sample_quality_annotations (barcode→cancer type)
+
+methods:
+  - call: tcga-aneuploidy-burden
+    args:
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - aneuploidy_burden_class            # PRIMARY categorical (indication cohort CIN level)
+    - median_fraction_genome_altered     # cohort median frac_altered (the burden metric)
+    - p25_fraction_genome_altered
+    - p75_fraction_genome_altered
+    - n_samples                          # PanCanAtlas samples in the indication cohort
+    - aneuploidy_burden_context          # human-readable burden summary
+  summary_fields_vocabulary:
+    aneuploidy_burden_class:
+      - highly_aneuploid                 # cohort median frac_altered >= 0.40
+      - intermediate_aneuploidy          # 0.10 < median < 0.40
+      - quiet_genome                     # median <= 0.10 — comparatively CN-stable cohort
+      - data_unavailable                 # no TCGA-project mapping or seg-scores/annotation unresolvable
+
+thresholds:
+  high_median_frac_altered: 0.40         # method bins median → highly_aneuploid
+  low_median_frac_altered: 0.10          # method bins median → quiet_genome
+
+caveats:
+  - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy is a genome-wide cohort phenotype, not a per-gene call. The class describes the indication's chromosomal instability, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
+  - "Per-SAMPLE genome-wide instability (frac_altered), NOT per-arm. A per-arm arm-loss / per-lineage-selectivity-percentile view needs Taylor-2018 arm-level calls (not yet ingested) — deferred. DISPLAY facet, verdict-inert."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `genomic_instability_state` claim.
+measurement_type: genomic_instability_state
+entity_grains: [cohort]
+schema_version: 1
