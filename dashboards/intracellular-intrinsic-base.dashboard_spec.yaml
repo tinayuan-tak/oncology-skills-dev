@@ -85,6 +85,11 @@ required_cards:
     version: ">=1.0.0,<2"        # is the tumor signal tumor-intrinsic or stromal (facet; verdict-inert)
   - card_id: phospho-pathway-activity
     version: ">=1.0.0,<2"        # CPTAC phospho pathway-activity (facet; verdict-inert)
+  - card_id: tumor-scrna-celltype-expression
+    version: ">=0.1.0,<1"        # single-cell per-compartment tumor presence (sc_rna/tumor; verdict-bearing via _SC_RNA_RANK).
+                                 # No spec-level when: the card self-gates via applies_when (indication in COADREAD/NSCLC
+                                 # shards) → excludes gracefully elsewhere. Added 2026-08-05 to close the consumed-but-no-spec
+                                 # gap (tumor-presence pulled it but no spec did, so it could never fire).
 
 optional_cards:
   - card_id: tumor-rna-distribution-by-subtype

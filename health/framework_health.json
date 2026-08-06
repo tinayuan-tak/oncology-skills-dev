@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-06T01:45:54.458998+00:00",
+  "generated_at": "2026-08-06T02:06:45.419763+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,15 +9,15 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "c4e25e3",
-    "skills": "2ea4c9d",
+    "contracts": "3191de0",
+    "skills": "34cd4d6",
     "methods": "d239864",
     "products": "d5f54a2",
-    "catalog": "24f5b15"
+    "catalog": "b1130c3"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-06T01:24:09.130484+00:00",
+    "prior_generated_at": "2026-08-06T02:01:25.235874+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": -1,
@@ -36,7 +36,7 @@
       "placeholder": 2,
       "production_ready": 8
     },
-    "n_drift_flags": 45,
+    "n_drift_flags": 43,
     "n_error_drift": 0,
     "n_unregistered_skills": 16,
     "n_live_reader_cards": 58,
@@ -58,11 +58,11 @@
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
     "n_orphan_cards": 7,
-    "n_cards_consumed_but_no_spec": 37,
-    "n_datasets": 235,
-    "n_datasets_in_catalog": 225,
-    "n_orphan_datasets": 184,
-    "n_broken_dataset_refs": 10
+    "n_cards_consumed_but_no_spec": 36,
+    "n_datasets": 236,
+    "n_datasets_in_catalog": 227,
+    "n_orphan_datasets": 185,
+    "n_broken_dataset_refs": 9
   },
   "registry_drift": {
     "marketplace_exists": true,
@@ -269,7 +269,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 9
+        "test_count": 10
       },
       "cards": [],
       "n_core_cards": 0,
@@ -720,9 +720,9 @@
           "datasets": [
             {
               "product_id": "depmap-prism-activity-v4",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-prism-activity-v4"
             }
           ],
           "modality_relevance": [
@@ -778,11 +778,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: abundance-dependency, paralog-buffering, recommended-models"
-        },
-        {
-          "code": "dataset_ref_not_in_catalog",
-          "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v4"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -3360,9 +3355,9 @@
           "datasets": [
             {
               "product_id": "depmap-prism-activity-v4",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-prism-activity-v4"
             }
           ],
           "modality_relevance": [
@@ -3636,7 +3631,7 @@
         {
           "code": "dataset_ref_not_in_catalog",
           "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, depmap-prism-activity-v4, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1"
+          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -3762,9 +3757,9 @@
           "datasets": [
             {
               "product_id": "depmap-prism-activity-v4",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-prism-activity-v4"
             }
           ],
           "modality_relevance": [
@@ -3821,7 +3816,7 @@
         {
           "code": "dataset_ref_not_in_catalog",
           "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, depmap-prism-activity-v4, pdb-alphafold-structure-features-per-uniprot-v1"
+          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -4374,11 +4369,6 @@
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype, tumor-scrna-celltype-expression"
-        },
-        {
-          "code": "card_consumed_but_no_spec",
-          "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-scrna-celltype-expression"
         }
       ],
       "health_verdict": "production_ready",
@@ -6180,9 +6170,9 @@
       "datasets": [
         {
           "product_id": "depmap-prism-activity-v4",
-          "in_catalog": false,
-          "matched_by": null,
-          "resolved_id": null
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-prism-activity-v4"
         }
       ],
       "modality_relevance": [
@@ -7235,9 +7225,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "intracellular-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "tumor-vs-normal-percentile-crossing",
@@ -8680,20 +8672,20 @@
     },
     {
       "product_id": "depmap-prism-activity-v4",
-      "in_catalog": false,
-      "kind": null,
+      "in_catalog": true,
+      "kind": "derived",
       "provider": null,
       "version": null,
       "size_bytes": null,
       "file_count": null,
       "system_of_record": null,
-      "n_derived_from": 0,
+      "n_derived_from": 3,
       "consumed_by_cards": [
         "prism-crispr-concordance"
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": false
     },
     {
       "product_id": "depmap-subgroup-assignments-coadread-v1",
@@ -9200,6 +9192,21 @@
       "file_count": 303,
       "system_of_record": true,
       "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "genie-registry-per-sample-maf-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
@@ -12941,12 +12948,6 @@
     },
     {
       "skill": "functional-requirement",
-      "code": "dataset_ref_not_in_catalog",
-      "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v4"
-    },
-    {
-      "skill": "functional-requirement",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, paralog-buffering, recommended-models"
@@ -13123,7 +13124,7 @@
       "skill": "target-profile",
       "code": "dataset_ref_not_in_catalog",
       "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, depmap-prism-activity-v4, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1"
+      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1, signor-mechanism-network-per-gene-v1"
     },
     {
       "skill": "target-profile",
@@ -13141,7 +13142,7 @@
       "skill": "tractability-small-molecule",
       "code": "dataset_ref_not_in_catalog",
       "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, depmap-prism-activity-v4, pdb-alphafold-structure-features-per-uniprot-v1"
+      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: depmap-prism-activity-v3, pdb-alphafold-structure-features-per-uniprot-v1"
     },
     {
       "skill": "tractability-small-molecule",
@@ -13154,12 +13155,6 @@
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype, tumor-scrna-celltype-expression"
-    },
-    {
-      "skill": "tumor-presence",
-      "code": "card_consumed_but_no_spec",
-      "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-scrna-celltype-expression"
     },
     {
       "skill": "tumor-selectivity",
