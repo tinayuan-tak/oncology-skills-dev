@@ -115,6 +115,22 @@ def _genie_sv_line(h: dict) -> str:
     return f"{cls} (freq {freq}{tail})"
 
 
+def _civic_variant_line(variants, class_key: str, with_therapies: bool = False) -> str:
+    """Compact 'variant:class[(therapies)]' list (top 4) for the CIViC per-variant axis.
+    `variants` is the oncogenic_variants / resistance_variants list from the card. n/a-safe."""
+    if not variants:
+        return "none"
+    parts = []
+    for v in variants[:4]:
+        s = f"{v.get('variant')}:{v.get(class_key)}"
+        if with_therapies:
+            ther = (v.get("therapies") or [])[:2]
+            if ther:
+                s += f"({'/'.join(ther)})"
+        parts.append(s)
+    return "; ".join(parts)
+
+
 def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> str:
     """Assemble the LLM input from the DETERMINISTIC genomic-alteration decision spine. Narrates the
     multi-class verdict + driving class + role + recurrence, grounded in the actual headline fields the
@@ -152,6 +168,15 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"{h.get('genie_driver_recurrence_class')}  (freq {_fmt(h.get('genie_mutation_frequency'), 3)})",
         "  NOTE: MC3 + GENIE are independent comparators — agreement = robust; divergence is a "
         "coverage/cohort caveat, not a contradiction. Neither is a functional-driver call.",
+        "",
+        "PER-VARIANT INTERPRETATION (CIViC — the gene->variant axis: FUNCTION of specific alleles, "
+        "not the gene-level role or recurrence):",
+        f"  civic_variant_class (strongest oncogenicity among the gene's variants): {h.get('civic_variant_class', 'n/a')}",
+        f"  oncogenic variants: {_civic_variant_line(h.get('civic_oncogenic_variants'), 'oncogenicity_class')}",
+        f"  resistance variants (therapy-linked): {_civic_variant_line(h.get('civic_resistance_variants'), 'resistance_class', with_therapies=True)}",
+        "  NOTE: per-VARIANT, aggregated to the gene — names WHICH alleles are oncogenic (vs the "
+        "gene-level role) + which confer therapy resistance. data_unavailable = uncurated by CIViC, "
+        "NOT benign. Verdict-inert.",
     ]
 
     # Subtype panorama — only present when --subtypes scoped this run (descriptive; verdict-inert).

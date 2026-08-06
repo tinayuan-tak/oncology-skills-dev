@@ -166,6 +166,18 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
     return mod.aneuploidy_burden_for_indication(indication)
 
 
+def _dispatch_variant_level_interpretation(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route variant-level-interpretation card to
+    methods/civic_variant_interpretation::civic_interpretation_for_gene.
+
+    Per-VARIANT oncogenicity + therapy-resistance from CIViC, aggregated to the gene. TARGET-grain,
+    indication-INDEPENDENT (a variant's oncogenicity/resistance is a property of the gene's variants)
+    — the `indication` arg is accepted for dispatcher-signature uniformity but IGNORED. DISPLAY
+    facet, verdict-inert."""
+    mod = _import_method("civic_variant_interpretation")
+    return mod.civic_interpretation_for_gene(target)
+
+
 def _dispatch_functional_gene_state(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route functional-gene-state card (M6) to
     methods/functional_gene_state/cli.py::build_summary.
@@ -1066,6 +1078,7 @@ CARD_DISPATCHERS = {
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
     "genomic-instability-state": _dispatch_genomic_instability_state,
+    "variant-level-interpretation": _dispatch_variant_level_interpretation,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
     "fusion-rearrangement-landscape": _dispatch_fusion_rearrangement_landscape,

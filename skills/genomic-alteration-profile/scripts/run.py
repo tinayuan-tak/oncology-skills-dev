@@ -76,6 +76,12 @@ CARDS = [
     # WGD/prognosis + copy-number-noise caveats). ADDITIVE signal-only: feeds LLM/matrix + headline,
     # touches NO resolver rung (verdict spine byte-stable). Reads tcga_aneuploidy_burden live.
     "genomic-instability-state",
+    # Per-VARIANT interpretation (variant_level_interpretation, CIViC). Closes the gene→variant gap:
+    # every other mutation card is per-GENE (alteration-role = GoF/LoF per gene) or FREQUENCY
+    # (recurrence), not FUNCTION — this names which specific variants are oncogenic (vs VUS/benign)
+    # and which confer therapy resistance (EGFR T790M→TKIs, BRAF V600E→cetuximab). ADDITIVE
+    # signal-only: feeds LLM/matrix + headline, touches NO resolver rung (verdict spine byte-stable).
+    "variant-level-interpretation",
 ]
 
 # SUBTYPE axis (2026-08-05 hardening) — kept OUT of the scalar CARDS list ON PURPOSE.
@@ -239,6 +245,11 @@ def main() -> int:
         # Genome-instability / aneuploidy burden (M7) — INDICATION cohort context, target-independent.
         # signal-only, does NOT feed the verdict.
         "aneuploidy_burden_class":       get_card_field(cards, "genomic-instability-state", "aneuploidy_burden_class"),
+        # Per-VARIANT interpretation (CIViC) — the gene→variant axis: WHICH variants are oncogenic
+        # (vs the gene-level role) + which confer therapy resistance. signal-only, verdict-inert.
+        "civic_variant_class":           get_card_field(cards, "variant-level-interpretation", "civic_variant_class"),
+        "civic_oncogenic_variants":      get_card_field(cards, "variant-level-interpretation", "oncogenic_variants"),
+        "civic_resistance_variants":     get_card_field(cards, "variant-level-interpretation", "resistance_variants"),
         "cards_available":               sum(1 for c in cards if not c.get("_missing")),
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }

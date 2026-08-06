@@ -81,10 +81,11 @@ def test_lot_only_routes_to_genie(monkeypatch):
 
 def test_lot_without_shard_emits_note_not_crash(monkeypatch):
     fake = _patch(monkeypatch)
-    # NSCLC has no LOT shard in the map → LOT arm degrades to a data-note, molecular arm still runs.
+    # STAD has no LOT shard in the map → LOT arm degrades to a data-note, molecular arm still runs.
+    # (NSCLC/COADREAD now HAVE LOT shards — Phase 3d/iter-1 — so an unsharded indication is used here.)
     out = L._dispatch_subgroup_stratified_mutation_frequency(
-        "KRAS", "NSCLC", subgroups=["MSS", "LOT_1L_only"],
-        subgroup_assignments_manifest="tcga-subgroup-assignments-nsclc-v1")
+        "KRAS", "STAD", subgroups=["MSS", "LOT_1L_only"],
+        subgroup_assignments_manifest="tcga-subgroup-assignments-stad-v1")
     # only the molecular arm actually calls the builder; LOT arm is a note
     assert any(c["maf_source"] == "tcga_mc3" for c in fake.calls)
     assert "_data_note" in out and "LOT" in out["_data_note"]
