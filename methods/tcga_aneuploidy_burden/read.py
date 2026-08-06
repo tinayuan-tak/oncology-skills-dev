@@ -41,6 +41,24 @@ INDICATION_TO_TCGA = {
 _HIGH_MEDIAN = 0.40
 _LOW_MEDIAN = 0.10
 
+# MSI (microsatellite instability) is patient-side available ONLY for CRC + STAD (the two TCGA
+# marker papers that ship an MSI status column). This is a genuine coverage boundary, NOT a wiring
+# gap — every OTHER indication returns msi_class=data_unavailable (never a fabricated 0% MSI-H).
+# Each entry: framework indication → (marker-paper CSV, MSI column name). The column differs by file
+# (CRC: MSI_status "MSI-H"/"MSI-L"/"MSS"; STAD: "MSI.status" same values).
+_MARKER_PAPER_PREFIX = "data-catalog/sources/tcga-marker-papers/subtypes-2018"
+MSI_LABEL_SOURCE = {
+    "COADREAD": (f"{_MARKER_PAPER_PREFIX}/tcga_subtype_CRC.csv", "MSI_status"),
+    "COAD": (f"{_MARKER_PAPER_PREFIX}/tcga_subtype_CRC.csv", "MSI_status"),
+    "READ": (f"{_MARKER_PAPER_PREFIX}/tcga_subtype_CRC.csv", "MSI_status"),
+    "GC": (f"{_MARKER_PAPER_PREFIX}/tcga_subtype_STAD.csv", "MSI.status"),
+    "STAD": (f"{_MARKER_PAPER_PREFIX}/tcga_subtype_STAD.csv", "MSI.status"),
+}
+# Cohort MSI class cutoffs on the FRACTION of samples that are MSI-HIGH. MSI-H prevalence is ~14%
+# in CRC and ~22% in STAD (TCGA marker papers); a cohort above the high bar is MSI-enriched.
+_MSI_HIGH_FRACTION = 0.15
+_MSI_LOW_FRACTION = 0.05
+
 
 def _ensure_aws_profile():
     if "AWS_PROFILE" not in os.environ:
@@ -158,6 +176,89 @@ def _wgd_unavailable(note: str) -> dict:
         "wgd_class": "data_unavailable", "wgd_fraction": None, "n_wgd_samples": 0,
         "median_ploidy": None, "median_purity": None, "n_samples": 0,
         "wgd_context": None, "method_version": "0.2.0", "_data_note": note,
+    }
+
+
+@lru_cache(maxsize=4)
+def _load_msi_labels(key: str, column: str) -> tuple:
+    """(MSI-status, ...) values from a marker-paper subtype CSV. Cached per (file, column).
+    Returns a tuple of raw status strings (MSI-H / MSI-L / MSS / …). Empty on failure."""
+    import pandas as pd
+    try:
+        raw = _s3_read_bytes(key)
+        df = pd.read_csv(io.BytesIO(raw))
+        if column not in df.columns:
+            return tuple()
+        return tuple(df[column].dropna().astype(str))
+    except Exception:  # noqa: BLE001
+        return tuple()
+
+
+def _classify_msi(msi_high_fraction: Optional[float]) -> str:
+    if msi_high_fraction is None:
+        return "data_unavailable"
+    if msi_high_fraction >= _MSI_HIGH_FRACTION:
+        return "msi_high_enriched"
+    if msi_high_fraction <= _MSI_LOW_FRACTION:
+        return "mss_dominant"
+    return "msi_intermediate"
+
+
+def msi_summary_for_indication(indication: str) -> dict:
+    """Per-indication microsatellite-instability (MSI) prevalence from the TCGA marker-paper
+    subtype labels. Cohort-level, target-independent. PATIENT-SIDE COVERAGE IS CRC + STAD ONLY —
+    every other indication returns data_unavailable (a coverage boundary, NOT a measured 0%).
+
+    Returns msi_class {msi_high_enriched / msi_intermediate / mss_dominant / data_unavailable} +
+    the MSI-high fraction, MSI-H/MSI-L/MSS counts, n_samples."""
+    ind = str(indication or "").upper().strip()
+    src = MSI_LABEL_SOURCE.get(ind)
+    if src is None:
+        return _msi_unavailable(
+            f"no patient-side MSI labels for {indication!r} (CRC + STAD only in TCGA marker papers)")
+    key, column = src
+    labels = _load_msi_labels(key, column)
+    if not labels:
+        return _msi_unavailable(f"MSI label file/column unresolvable ({key}::{column})")
+
+    # Normalize: MSI-H / MSI-L / MSS (marker papers use these; treat anything else as non-evaluable).
+    def _norm(v):
+        u = v.upper().replace(" ", "").replace("_", "-")
+        if u in ("MSI-H", "MSIH"):
+            return "MSI-H"
+        if u in ("MSI-L", "MSIL"):
+            return "MSI-L"
+        if u in ("MSS",):
+            return "MSS"
+        return None
+    normed = [n for n in (_norm(v) for v in labels) if n is not None]
+    n = len(normed)
+    if n == 0:
+        return _msi_unavailable(f"no evaluable MSI labels for {indication}")
+    n_high = sum(1 for x in normed if x == "MSI-H")
+    n_low = sum(1 for x in normed if x == "MSI-L")
+    n_mss = sum(1 for x in normed if x == "MSS")
+    frac = n_high / n
+    return {
+        "msi_class": _classify_msi(frac),
+        "msi_high_fraction": frac,
+        "n_msi_high": n_high, "n_msi_low": n_low, "n_mss": n_mss,
+        "n_samples": n,
+        "msi_context": (
+            f"{indication}: {frac:.0%} MSI-high ({n_high}/{n} evaluable TCGA marker-paper samples; "
+            f"{n_low} MSI-L, {n_mss} MSS); cohort-level, target-independent. MSI patient-labels are "
+            f"CRC + STAD only."
+        ),
+        "method_version": "0.2.0",
+        "_data_source": "tcga-marker-papers-subtypes-2018",
+    }
+
+
+def _msi_unavailable(note: str) -> dict:
+    return {
+        "msi_class": "data_unavailable", "msi_high_fraction": None,
+        "n_msi_high": 0, "n_msi_low": 0, "n_mss": 0, "n_samples": 0,
+        "msi_context": None, "method_version": "0.2.0", "_data_note": note,
     }
 
 

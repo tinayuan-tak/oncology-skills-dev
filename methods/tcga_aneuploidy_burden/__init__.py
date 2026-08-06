@@ -27,4 +27,5 @@ METHOD_VERSION = "0.2.0"
 from .read import (  # noqa: E402,F401
     aneuploidy_burden_for_indication,
     wgd_summary_for_indication,
+    msi_summary_for_indication,
 )

@@ -118,3 +118,46 @@ def test_wgd_unmapped_indication_is_data_unavailable(monkeypatch):
     _setup_wgd(monkeypatch, [], {})
     out = r.wgd_summary_for_indication("MADEUP")
     assert out["wgd_class"] == "data_unavailable" and out["wgd_fraction"] is None
+
+
+# ---------- MSI summary (v0.2.0, TCGA marker-paper subtype labels — CRC + STAD only) ----------
+
+def _setup_msi(monkeypatch, labels):
+    """labels: tuple of raw MSI-status strings the marker-paper CSV would supply."""
+    r._load_msi_labels.cache_clear()
+    monkeypatch.setattr(r, "_load_msi_labels", lambda key, column: tuple(labels))
+
+
+def test_msi_high_enriched(monkeypatch):
+    # 22% MSI-H (STAD-like) → >= 0.15 → msi_high_enriched.
+    labels = ["MSI-H"] * 22 + ["MSI-L"] * 15 + ["MSS"] * 63   # n=100, 22% H
+    _setup_msi(monkeypatch, labels)
+    out = r.msi_summary_for_indication("GC")
+    assert out["n_samples"] == 100 and out["n_msi_high"] == 22
+    assert out["msi_high_fraction"] == 0.22 and out["msi_class"] == "msi_high_enriched"
+
+
+def test_msi_mss_dominant_low_fraction(monkeypatch):
+    # 3% MSI-H → <= 0.05 → mss_dominant.
+    labels = ["MSI-H"] * 3 + ["MSS"] * 97
+    _setup_msi(monkeypatch, labels)
+    out = r.msi_summary_for_indication("COADREAD")
+    assert out["msi_high_fraction"] == 0.03 and out["msi_class"] == "mss_dominant"
+
+
+def test_msi_normalizes_status_spellings(monkeypatch):
+    # mixed spellings/casing must normalize; non-evaluable ("Not Evaluable") dropped from denominator.
+    # "MSI-H", "msi_h", and "MSI H" all normalize to MSI-H (3); + 1 MSI-L + 1 MSS = 5 evaluable;
+    # "Not Evaluable" → None, dropped.
+    labels = ["MSI-H", "msi_h", "MSI-L", "MSS", "Not Evaluable", "MSI H"]
+    _setup_msi(monkeypatch, labels)
+    out = r.msi_summary_for_indication("COADREAD")
+    assert out["n_samples"] == 5 and out["n_msi_high"] == 3 and out["n_mss"] == 1
+
+
+def test_msi_unmapped_indication_is_data_unavailable(monkeypatch):
+    # NSCLC / PAAD etc. have NO patient MSI labels → data_unavailable, NOT a fabricated 0% MSI-H.
+    _setup_msi(monkeypatch, [])   # loader won't even be called for an unmapped indication
+    out = r.msi_summary_for_indication("NSCLC")
+    assert out["msi_class"] == "data_unavailable" and out["msi_high_fraction"] is None
+    assert "CRC + STAD only" in out["_data_note"]
