@@ -59,12 +59,30 @@ outputs:
     - n_enriched_lineages                       # count where q_value < significance threshold
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - enrichment_class                          # SHAPE of lineage variation across the panel
+    # === Axis-3 (contextualized interpretation): ACROSS-LINEAGE OMNIBUS effect size. DISPLAY-ONLY /
+    #     verdict-inert — NO rule reads these; the dependency resolver is untouched. COMPLEMENTARY to
+    #     enrichment_class: that is a per-lineage one-vs-rest THRESHOLD test, this is the GLOBAL
+    #     variance view (Kruskal-Wallis + ε²: how much of the Chronos variance across the panel does
+    #     lineage explain?). Both kept — non-redundant (mirrors presence's subtype_stratification_class
+    #     + subtype omnibus). Emitted by depmap_chronos.compute_lineage_summary. The CLASS bins on ε²
+    #     ONLY; lineage_omnibus_p is display-only (at DepMap n's KW p is near-always significant).
+    - lineage_omnibus_effect_size_class         # categorical — variance-explained band (ε²)
+    - lineage_variance_explained                # float ε² ∈ [0,1] — the decision-relevant effect size
+    - lineage_omnibus_kruskal_h                 # float — Kruskal-Wallis H statistic
+    - lineage_omnibus_p                         # float — asymptotic χ² p (DISPLAY-ONLY)
+    - which_lineages_separate                   # {highest, lowest} lineage ids by median Chronos
+    - n_lineages_omnibus_tested                 # count of lineages entering the omnibus
 
   summary_fields_vocabulary:
     enrichment_class:
       - lineage_selective                       # ≥1 lineage significantly more dependent than the rest (BH q < α)
       - broadly_lineage_dependent               # multiple lineages show dependency but none significantly enriched
       - no_lineage_enrichment                   # no lineage shows significant dependency vs the rest
+      - data_unavailable
+    lineage_omnibus_effect_size_class:          # Axis-3 (display-only); bins on ε² (variance explained)
+      - large                                   # ε² ≥ 0.14 — lineage explains a large share of dependency variance
+      - moderate                                # ε² ≥ 0.06
+      - negligible                              # ε² < 0.06 — lineage explains ~no variance (e.g. a pan-essential)
       - data_unavailable
 
   figures:

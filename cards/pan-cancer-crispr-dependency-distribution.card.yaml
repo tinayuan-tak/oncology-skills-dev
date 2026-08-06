@@ -58,6 +58,20 @@ outputs:
     - selectivity_index
     - dependency_class                           # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
     - top_dependent_lineages
+    # --- Axis-2 (contextualized interpretation): control-benchmark position. DISPLAY-ONLY /
+    #     verdict-inert — NO rule reads these; the dependency resolver is untouched. Anchors the
+    #     target's pan-panel median Chronos against curated pan-essential (ceiling) + non-essential
+    #     (floor) controls (vocabularies/dependency_controls.yaml). INVERTED semantics: reading AT
+    #     the pan-essential ceiling is a BROAD-TOX liability, not a win (cf. presence, where above
+    #     the positives is good). Emitted by methods/dependency_controls via the distribution reader.
+    - dep_control_position_class                 # categorical — where the target sits vs the control bands
+    - dep_control_position                       # string — "as/more essential than N/M pan-essential; more dependent than N/M non-essential"
+    - dep_control_target_chronos                 # float — target's pan-panel median Chronos (the anchored value)
+    - dep_control_positives                      # {symbol: median_chronos} — pan-essential ceiling anchors
+    - dep_control_negatives                      # {symbol: median_chronos} — non-essential floor anchors
+    - dep_control_pan_essential_ceiling          # float — least-negative positive median (shallow edge of the essentiality band)
+    - dep_control_non_essential_floor            # float — most-negative negative median (deepest a non-essential reaches)
+    - dep_control_position_context               # string — controls vocab + release + bands (audit)
 
   summary_fields_vocabulary:
     dependency_class:
@@ -82,6 +96,11 @@ outputs:
       - shifted_dependent
       - non_essential
       - unclassified
+    dep_control_position_class:                   # Axis-2 control benchmark (display-only, INVERTED)
+      - as_essential_as_pan_essential             # target <= pan-essential ceiling → BROAD-TOX liability (NOT a win)
+      - between_controls                          # below non-essential floor, above pan-essential ceiling → selective dependency window
+      - non_dependent_near_negatives              # target >= non-essential floor → no dependency
+      - data_unavailable
 
   figures:
     - id: waterfall
