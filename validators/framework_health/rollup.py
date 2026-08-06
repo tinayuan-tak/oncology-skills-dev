@@ -31,7 +31,14 @@ DRIFT_SEVERITY = {
     "card_registered_never_fires": "info",
     "stale_method_label": "info",
     "dataset_ref_not_in_catalog": "warn",
-    "card_consumed_but_no_spec": "warn",
+    # INFO, not warn (demoted 2026-08-05): "consumed by a skill but in no dashboard_spec"
+    # is a COVERAGE/roadmap signal, not a defect. It fires on ~half the card corpus
+    # (many are target-intrinsic / descriptive cards that legitimately don't belong in a
+    # PER-INDICATION spec), which at warn-severity drowned the genuinely-actionable warns
+    # (dataset_ref_not_in_catalog, declared_cards_mismatch_runpy). Surfaced instead as a
+    # spec-coverage metric on the Cards tab; kept in the drift index at info so it stays
+    # traceable without dominating the warn tier.
+    "card_consumed_but_no_spec": "info",
     # P4 modality-vector lens. WARN (not error) deliberately: validate_cards.py already ENFORCES
     # these at commit time (missing=error, drift=warning) and blocks merge, so a healthy repo never
     # carries them. The dashboard is a VISIBILITY layer, not a second enforcer — warn surfaces P4

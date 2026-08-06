@@ -53,21 +53,69 @@ def _git_sha(repo: Path) -> str | None:
         return None
 
 
-def generate(roots: dict[str, Path]) -> dict:
-    """Full report envelope (body + volatile provenance fields)."""
+def compute_delta(prior: dict | None, fresh_body: dict) -> dict | None:
+    """What changed since the last committed artifact — a VOLATILE, relative-to-last-run
+    field (dropped from the stable projection, like generated_at). None if no prior exists.
+
+    Kept deliberately small: the headline count moves + the NAMES of skills/cards that
+    appeared or disappeared (the "what changed" a maintainer scans for), plus the net
+    move in each skill verdict and in error-severity drift. Not part of the derived
+    truth — purely a diff of two truths — so it never feeds --check or self_check.
+    """
+    if not prior:
+        return None
+    ps, fs = prior.get("summary", {}), fresh_body.get("summary", {})
+    prior_skills = {s["name"] for s in prior.get("skills", [])}
+    fresh_skills = {s["name"] for s in fresh_body.get("skills", [])}
+    prior_cards = {c["card_id"] for c in prior.get("cards", [])}
+    fresh_cards = {c["card_id"] for c in fresh_body.get("cards", [])}
+
+    def _tally_delta(key: str) -> dict:
+        pt, ft = ps.get(key, {}) or {}, fs.get(key, {}) or {}
+        return {k: ft.get(k, 0) - pt.get(k, 0)
+                for k in sorted(set(pt) | set(ft)) if ft.get(k, 0) != pt.get(k, 0)}
+
+    return {
+        "has_prior": True,
+        "prior_generated_at": prior.get("generated_at"),
+        "n_skills": fs.get("n_skills", 0) - ps.get("n_skills", 0),
+        "n_cards": fs.get("n_cards", 0) - ps.get("n_cards", 0),
+        "n_drift_flags": fs.get("n_drift_flags", 0) - ps.get("n_drift_flags", 0),
+        "n_error_drift": fs.get("n_error_drift", 0) - ps.get("n_error_drift", 0),
+        "verdict_tally": _tally_delta("verdict_tally"),
+        "card_health_tally": _tally_delta("card_health_tally"),
+        "skills_added": sorted(fresh_skills - prior_skills),
+        "skills_removed": sorted(prior_skills - fresh_skills),
+        "cards_added": sorted(fresh_cards - prior_cards),
+        "cards_removed": sorted(prior_cards - fresh_cards),
+    }
+
+
+def generate(roots: dict[str, Path], prior: dict | None = None) -> dict:
+    """Full report envelope (body + volatile provenance fields).
+
+    `prior` (the currently-committed report, if any) is diffed into a volatile
+    `delta` field so the dashboard can show what moved since the last run.
+    """
     body = rollup.build_health(roots)
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": "<stamped-at-write>",   # set at write time; excluded from --check
         "roots": {k: str(v) for k, v in roots.items()},
         "root_shas": {k: _git_sha(v) for k, v in roots.items()},
+        "delta": compute_delta(prior, body),     # volatile: relative to the prior artifact
         **body,
     }
 
 
 def stable_projection(report: dict) -> str:
-    """Canonical serialization with volatile fields dropped — the --check basis."""
-    volatile = {"generated_at", "roots", "root_shas"}
+    """Canonical serialization with volatile fields dropped — the --check basis.
+
+    `delta` joins generated_at/roots/root_shas as volatile: it is a diff against the
+    PRIOR artifact, so it legitimately changes run-to-run and must not make --check
+    (which asks "is the committed derived-truth stale?") false-positive.
+    """
+    volatile = {"generated_at", "roots", "root_shas", "delta"}
     projected = {k: v for k, v in report.items() if k not in volatile}
     return json.dumps(projected, indent=2, sort_keys=True, default=str)
 
@@ -247,19 +295,24 @@ def main(argv=None) -> int:
     if missing:
         print(f"  WARNING: repo root(s) not found, probes will degrade: {missing}", file=sys.stderr)
 
-    report = generate(roots)
+    # Load the currently-committed artifact (if any) BEFORE we overwrite it — used both
+    # as the --check comparison basis and as the `prior` the delta diffs against.
+    prior = None
+    if JSON_PATH.exists():
+        try:
+            prior = json.loads(JSON_PATH.read_text())
+        except (OSError, json.JSONDecodeError):
+            prior = None
+
+    report = generate(roots, prior=prior)
     fresh_projection = stable_projection(report)
 
     if args.check:
-        if not JSON_PATH.exists():
-            print(f"  MISSING {JSON_PATH.name} — run without --check to generate.", file=sys.stderr)
+        if prior is None:
+            print(f"  MISSING/UNREADABLE {JSON_PATH.name} — run without --check to generate.",
+                  file=sys.stderr)
             return 1
-        try:
-            committed = json.loads(JSON_PATH.read_text())
-        except (OSError, json.JSONDecodeError) as e:
-            print(f"  UNREADABLE {JSON_PATH.name}: {e}", file=sys.stderr)
-            return 1
-        if stable_projection(committed) != fresh_projection:
+        if stable_projection(prior) != fresh_projection:
             print(f"  STALE {JSON_PATH.name} — committed dashboard differs from computed; regenerate.",
                   file=sys.stderr)
             return 1

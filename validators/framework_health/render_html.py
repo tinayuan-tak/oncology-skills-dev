@@ -152,15 +152,29 @@ def _skill_detail(n: dict) -> str:
     )
 
 
+# Skill-verdict actionability rank — higher sorts first (what to fix next).
+_VERDICT_RANK = {"broken_or_drift": 4, "partial": 3, "ready_unproven": 2,
+                 "placeholder": 1, "production_ready": 0}
+
+
+def _skill_actionability(n: dict) -> tuple:
+    """Sort key (descending): worst-drift severity, then verdict rank, then name.
+    Floats drifting/broken skills to the top of their risk group — the fix-next order."""
+    worst = max((_SEV_RANK.get(d["severity"], 0) for d in n.get("drift_flags", [])), default=0)
+    return (-worst, -_VERDICT_RANK.get(n["health_verdict"], 0), n["name"])
+
+
 def _matrix(report: dict) -> str:
-    # Group skills by risk_category (the AZ-5R spine), ungrouped last.
+    # Group skills by risk_category (the AZ-5R spine), ungrouped last. WITHIN each
+    # group, order by actionability (most-drifting / least-ready first) so the top of
+    # every group is the next thing to fix — not alphabetical.
     groups: dict[str, list] = {}
     for n in report["skills"]:
         groups.setdefault(n.get("risk_category") or "ungrouped", []).append(n)
     body = ""
     for cat in sorted(groups, key=lambda c: (c == "ungrouped", c)):
         body += f'<tr class="grp"><td colspan="9">{_esc(cat)}</td></tr>'
-        for n in sorted(groups[cat], key=lambda n: n["name"]):
+        for n in sorted(groups[cat], key=_skill_actionability):
             body += _skill_row(n) + _skill_detail(n)
     return (
         '<table class="matrix"><thead><tr>'
@@ -196,6 +210,92 @@ def _alerts(report: dict) -> str:
         )
     return (f'<div class="banner alert"><h3>⚠ Drift &amp; alerts '
             f'({len(errs)} error, {len(warns)} warn)</h3>{err_html}{warns_block}</div>')
+
+
+_SEV_RANK = {"error": 3, "warn": 2, "info": 1}
+
+# Fix-next punch list: map each actionable drift code to an imperative "what to do".
+# Info-severity codes (roadmap/coverage signals, not defects) are intentionally omitted
+# — the punch list is the ACTIONABLE queue, not the full drift index.
+_PUNCH_ACTION = {
+    "status_wired_no_entrypoint": "add scripts/run.py (declared wired, no entrypoint)",
+    "status_wired_card_broken": "fix/replace the broken card, or correct the declared status",
+    "skillmd_cites_nonexistent_entrypoint": "fix the SKILL.md entrypoint reference",
+    "dataset_ref_not_in_catalog": "catalog the dataset, or fix the product_id the card names",
+    "declared_cards_mismatch_runpy": "reconcile SKILL.md cards_used with run.py CARDS",
+    "missing_status_field": "add a machine-readable status: to SKILL.md frontmatter",
+    "modality_relevance_missing": "declare modality_relevance on the routing card (P4)",
+    "modality_relevance_drift": "fix modality_relevance values to the type's routing set (P4)",
+}
+
+
+def _fix_next(report: dict) -> str:
+    """Actionable punch list: the drift index collapsed by code, error→warn only (info
+    codes are roadmap/coverage, not defects), each with an imperative action + the
+    specific component ids to act on. A pure derivation of drift_index — no new state."""
+    di = report.get("drift_index", [])
+    actionable = [d for d in di if d["severity"] in ("error", "warn")]
+    if not actionable:
+        return ('<div class="panel"><h3>✓ Fix-next</h3>'
+                '<p>No error- or warn-severity items. Nothing actionable is outstanding.</p></div>')
+    by_code: dict[str, list] = {}
+    for d in actionable:
+        by_code.setdefault(d["code"], []).append(d)
+    ordered = sorted(by_code.items(),
+                     key=lambda kv: (-_SEV_RANK.get(kv[1][0]["severity"], 0), -len(kv[1]), kv[0]))
+    rows = ""
+    for code, items in ordered:
+        sev = items[0]["severity"]
+        action = _PUNCH_ACTION.get(code, "review — see drift detail")
+        # collect the distinct component ids this code implicates (skills + any card
+        # ids named in the detail are already in the detail; show the skills here).
+        skills = sorted({d["skill"] for d in items if d.get("skill")})
+        who = ", ".join(skills[:6]) + (f" +{len(skills)-6} more" if len(skills) > 6 else "")
+        rows += (
+            f'<tr><td>{_chip(str(len(items)), SEVERITY_COLORS.get(sev, _PURPLE))}</td>'
+            f'<td><b>{_esc(action)}</b><div class="pcode">{_esc(code)}</div></td>'
+            f'<td class="consumers">{_esc(who) or "—"}</td></tr>'
+        )
+    return (
+        '<div class="panel"><h3>Fix-next — the actionable queue (error + warn, most-impactful first)</h3>'
+        '<table class="punch"><thead><tr><th>n</th><th>action · code</th><th>affected skills</th>'
+        '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+    )
+
+
+def _delta_ribbon(report: dict) -> str:
+    """A one-line 'what changed since the last committed artifact' ribbon. Reads the
+    volatile `delta` envelope field (None on first-ever run or when unchanged)."""
+    d = report.get("delta")
+    if not d or not d.get("has_prior"):
+        return ""
+
+    def _mv(n: int, noun: str) -> str | None:
+        if n == 0:
+            return None
+        arrow = "▲" if n > 0 else "▼"
+        col = _GREEN if n > 0 else _RED
+        return f'<span style="color:{col}">{arrow} {abs(n)} {noun}</span>'
+
+    bits = [x for x in (
+        _mv(d.get("n_skills", 0), "skills"),
+        _mv(d.get("n_cards", 0), "cards"),
+        _mv(d.get("n_drift_flags", 0), "drift flags"),
+        _mv(d.get("n_error_drift", 0), "error drift"),
+    ) if x]
+    named = []
+    if d.get("skills_added"):
+        named.append(f'+skills: {_esc(", ".join(d["skills_added"]))}')
+    if d.get("skills_removed"):
+        named.append(f'−skills: {_esc(", ".join(d["skills_removed"]))}')
+    if d.get("cards_added"):
+        ca = d["cards_added"]
+        named.append(f'+{len(ca)} card' + ("s" if len(ca) != 1 else "")
+                     + f': {_esc(", ".join(ca[:8]))}' + (" …" if len(ca) > 8 else ""))
+    when = _esc((d.get("prior_generated_at") or "")[:10])
+    body = " · ".join(bits) if bits else "no count changes"
+    named_html = ("<div class='dnamed'>" + " · ".join(named) + "</div>") if named else ""
+    return (f'<div class="delta"><b>Since last run</b> ({when}): {body}{named_html}</div>')
 
 
 def _summary_cards(report: dict) -> str:
@@ -284,6 +384,14 @@ code{background:#e1e0d9;padding:1px 5px;border-radius:3px}
 .tabpane{display:none}.tabpane.active{display:block}
 .orphan td{background:#faf3f3}
 .consumers{color:var(--muted);font-size:11px}
+.delta{background:#eef0f5;border:1px solid var(--line);border-left:3px solid #6c5aa8;
+ border-radius:5px;padding:6px 12px;margin:10px 0;font-size:12px}
+.delta .dnamed{color:var(--muted);font-size:11px;margin-top:3px}
+table.punch{width:100%;border-collapse:collapse;margin-top:4px}
+table.punch th{background:#898781;color:#fff;font-size:11px;text-align:left;padding:4px 8px}
+table.punch td{border-top:1px solid var(--line);padding:5px 8px;font-size:12px;vertical-align:top}
+table.punch td:first-child{width:36px;text-align:center}
+.pcode{color:var(--muted);font-size:10.5px;font-family:ui-monospace,Menlo,monospace;margin-top:2px}
 """
 
 _JS = """
@@ -624,9 +732,11 @@ def render(report: dict) -> str:
 </div>
 
 <div class="tabpane active" id="pane-skills">
+{_delta_ribbon(report)}
 {_summary_cards(report)}
+{_fix_next(report)}
 {_alerts(report)}
-<h2>Skill matrix — grouped by risk category</h2>
+<h2>Skill matrix — grouped by risk category, most-actionable first within each group</h2>
 {_matrix(report)}
 {_registry_panel(report)}
 </div>

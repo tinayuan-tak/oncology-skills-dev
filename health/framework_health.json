@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-05T18:21:35.668734+00:00",
+  "generated_at": "2026-08-06T01:24:09.130484+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,11 +9,29 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "e868769",
-    "skills": "3d7aba0",
-    "methods": "a7b23cd",
+    "contracts": "a3bfa36",
+    "skills": "0887e35",
+    "methods": "8e2912e",
     "products": "d5f54a2",
-    "catalog": "22be99e"
+    "catalog": "24f5b15"
+  },
+  "delta": {
+    "has_prior": true,
+    "prior_generated_at": "2026-08-05T18:33:03.729531+00:00",
+    "n_skills": 0,
+    "n_cards": -1,
+    "n_drift_flags": -5,
+    "n_error_drift": 0,
+    "verdict_tally": {},
+    "card_health_tally": {
+      "broken": -1
+    },
+    "skills_added": [],
+    "skills_removed": [],
+    "cards_added": [],
+    "cards_removed": [
+      "patent-landscape"
+    ]
   },
   "summary": {
     "n_skills": 20,
@@ -22,32 +40,32 @@
       "placeholder": 2,
       "production_ready": 8
     },
-    "n_drift_flags": 51,
+    "n_drift_flags": 46,
     "n_error_drift": 0,
     "n_unregistered_skills": 16,
     "n_live_reader_cards": 58,
     "n_cards_firing_in_real_packages": 26,
-    "n_cards": 71,
+    "n_cards": 70,
     "card_health_tally": {
       "partial": 34,
-      "broken": 9,
+      "broken": 8,
       "live": 24,
       "blocked": 4
     },
     "modality_routing_tally": {
       "not_required": 40,
       "declared": 24,
-      "not_applicable": 6,
+      "not_applicable": 5,
       "drift": 1
     },
     "n_p4_required_cards": 25,
     "n_p4_declared_cards": 25,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 1,
-    "n_orphan_cards": 6,
-    "n_cards_consumed_but_no_spec": 38,
-    "n_datasets": 233,
-    "n_datasets_in_catalog": 222,
+    "n_orphan_cards": 7,
+    "n_cards_consumed_but_no_spec": 37,
+    "n_datasets": 235,
+    "n_datasets_in_catalog": 224,
     "n_orphan_datasets": 184,
     "n_broken_dataset_refs": 11
   },
@@ -281,9 +299,7 @@
         ],
         "cards_used": [
           "co-mutation-and-mutual-exclusivity",
-          "expression-clinical-association",
-          "clinical-precedent",
-          "patent-landscape"
+          "expression-clinical-association"
         ],
         "rules_scope": [
           "co-mutation-and-mutual-exclusivity"
@@ -311,33 +327,6 @@
         "test_count": 1
       },
       "cards": [
-        {
-          "card_id": "clinical-precedent",
-          "card_yaml_exists": true,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "clinical_precedent",
-          "has_live_reader": false,
-          "method_call": "query-target-evidence",
-          "dispatch_module": null,
-          "method_dir_exists": false,
-          "method_has_read": false,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "datasets": [
-            {
-              "product_id": "literature-snapshot",
-              "in_catalog": false,
-              "matched_by": null,
-              "resolved_id": null
-            }
-          ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
-          "card_health": "broken",
-          "health_reason": "card-no-path",
-          "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data"
-        },
         {
           "card_id": "co-mutation-and-mutual-exclusivity",
           "card_yaml_exists": true,
@@ -397,52 +386,22 @@
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
-        },
-        {
-          "card_id": "patent-landscape",
-          "card_yaml_exists": false,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": null,
-          "has_live_reader": false,
-          "method_call": null,
-          "dispatch_module": null,
-          "method_dir_exists": null,
-          "method_has_read": null,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "datasets": [],
-          "modality_relevance": null,
-          "modality_routing": "not_applicable",
-          "card_health": "broken",
-          "health_reason": "card-missing-yaml",
-          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
         }
       ],
       "n_core_cards": 1,
-      "n_cards": 4,
+      "n_cards": 2,
       "n_cards_live": 0,
       "n_p4_required": 0,
       "n_p4_declared": 0,
       "drift_flags": [
-        {
-          "code": "declared_cards_mismatch_runpy",
-          "severity": "warn",
-          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['clinical-precedent', 'patent-landscape']; only in run.py: [])"
-        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: co-mutation-and-mutual-exclusivity, expression-clinical-association"
         },
         {
-          "code": "dataset_ref_not_in_catalog",
-          "severity": "warn",
-          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: literature-snapshot"
-        },
-        {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: co-mutation-and-mutual-exclusivity, expression-clinical-association"
         }
       ],
@@ -832,7 +791,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, paralog-buffering, recommended-models"
         }
       ],
@@ -859,12 +818,12 @@
           "fusion-rearrangement-landscape",
           "alteration-role",
           "functional-gene-state",
-          "genomic-event-model-match"
+          "genomic-event-model-match",
+          "subgroup-stratified-mutation-frequency"
         ],
         "rules_scope": [
           "mutation-type-counts",
           "mutation-stratified-dependency",
-          "mutation-hotspot-frequency",
           "copy-number-distribution"
         ],
         "prose_markers": [
@@ -998,6 +957,18 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-consortium-26q1"
+            },
+            {
+              "product_id": "tcga-sesame-promoter-methylation-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-sesame-promoter-methylation-v1"
+            },
+            {
+              "product_id": "depmap-consortium-ccle-2019",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-ccle-2019"
             }
           ],
           "modality_relevance": null,
@@ -1158,14 +1129,52 @@
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "subgroup-stratified-mutation-frequency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "mutation_hotspot_frequency",
+          "has_live_reader": false,
+          "method_call": "gdc-somatic-hotspot",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "gdc-pancohort-somatic",
+              "in_catalog": true,
+              "matched_by": "prefix",
+              "resolved_id": "gdc-pancohort-somatic-dr45-0"
+            },
+            {
+              "product_id": "subgroup-catalog",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "blocked",
+          "health_reason": "card-no-reader-no-fire",
+          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
         }
       ],
-      "n_core_cards": 4,
-      "n_cards": 8,
+      "n_core_cards": 3,
+      "n_cards": 9,
       "n_cards_live": 4,
       "n_p4_required": 4,
       "n_p4_declared": 4,
       "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['subgroup-stratified-mutation-frequency']; only in run.py: [])"
+        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
@@ -1177,8 +1186,13 @@
           "detail": "card methods.call label differs from the dispatcher's actual import: mutation-stratified-dependency"
         },
         {
-          "code": "card_consumed_but_no_spec",
+          "code": "dataset_ref_not_in_catalog",
           "severity": "warn",
+          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
+        },
+        {
+          "code": "card_consumed_but_no_spec",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
         }
       ],
@@ -1304,7 +1318,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: signaling-network-mechanism"
         }
       ],
@@ -1324,9 +1338,13 @@
         ],
         "cards_used": [
           "gnomad-lof-constraint",
-          "normal-tissue-liability",
-          "protein-surface-evidence",
-          "alteration-role"
+          "target-safety-prioritisation",
+          "normal-tissue-liability-gtex",
+          "alteration-role",
+          "clinvar-pathogenicity-safety",
+          "mouse-ko-phenotype",
+          "clingen-dosage",
+          "gene-burden-safety"
         ],
         "rules_scope": [
           "gnomad-lof-constraint",
@@ -1540,37 +1558,6 @@
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         },
         {
-          "card_id": "normal-tissue-liability",
-          "card_yaml_exists": true,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "normal_tissue_protein_breadth",
-          "has_live_reader": true,
-          "method_call": "hpa-normal-tissue-liability",
-          "dispatch_module": "hpa_normal_tissue_liability",
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": true,
-          "datasets": [
-            {
-              "product_id": "hpa-v25-1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "hpa-v25-1"
-            }
-          ],
-          "modality_relevance": [
-            "adc",
-            "bite_tce",
-            "antibody"
-          ],
-          "modality_routing": "declared",
-          "card_health": "live",
-          "health_reason": "card-live-fired",
-          "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
-        },
-        {
           "card_id": "normal-tissue-liability-gtex",
           "card_yaml_exists": true,
           "is_placeholder": false,
@@ -1593,37 +1580,6 @@
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
-          "card_health": "partial",
-          "health_reason": "card-reader-never-fires",
-          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
-        },
-        {
-          "card_id": "protein-surface-evidence",
-          "card_yaml_exists": true,
-          "is_placeholder": false,
-          "placeholder_reason": null,
-          "measurement_type": "surface_confirmation",
-          "has_live_reader": true,
-          "method_call": "cspa-surface-confirmation",
-          "dispatch_module": "cspa_surface_confirmation",
-          "method_dir_exists": true,
-          "method_has_read": true,
-          "stale_method_label": false,
-          "fires_in_real_package": false,
-          "datasets": [
-            {
-              "product_id": "cspa-surface-confirmation-per-uniprot-v1",
-              "in_catalog": true,
-              "matched_by": "exact",
-              "resolved_id": "cspa-surface-confirmation-per-uniprot-v1"
-            }
-          ],
-          "modality_relevance": [
-            "adc",
-            "bite_tce",
-            "antibody"
-          ],
-          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1657,20 +1613,15 @@
         }
       ],
       "n_core_cards": 1,
-      "n_cards": 10,
-      "n_cards_live": 1,
-      "n_p4_required": 4,
-      "n_p4_declared": 4,
+      "n_cards": 8,
+      "n_cards_live": 0,
+      "n_p4_required": 2,
+      "n_p4_declared": 2,
       "drift_flags": [
-        {
-          "code": "declared_cards_mismatch_runpy",
-          "severity": "warn",
-          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['normal-tissue-liability', 'protein-surface-evidence']; only in run.py: ['clingen-dosage', 'clinvar-pathogenicity-safety', 'gene-burden-safety', 'mouse-ko-phenotype', 'normal-tissue-liability-gtex', 'target-safety-prioritisation'])"
-        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
         },
         {
           "code": "stale_method_label",
@@ -1679,7 +1630,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
         }
       ],
@@ -1782,7 +1733,8 @@
           "surface-abundance-density",
           "adc-tce-modality-fit",
           "normal-tissue-liability",
-          "copy-number-distribution"
+          "copy-number-distribution",
+          "rna-protein-concordance-tumor"
         ],
         "rules_scope": [
           "all"
@@ -2059,11 +2011,6 @@
       "n_p4_declared": 7,
       "drift_flags": [
         {
-          "code": "declared_cards_mismatch_runpy",
-          "severity": "warn",
-          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['rna-protein-concordance-tumor'])"
-        },
-        {
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
@@ -2080,7 +2027,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
         },
         {
@@ -2174,7 +2121,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: surfaceome-cohort-ranking"
         }
       ],
@@ -2188,8 +2135,10 @@
     {
       "name": "synthetic-lethal-partners",
       "declared": {
-        "status": null,
-        "phase": null,
+        "status": "wired",
+        "phase": [
+          "C"
+        ],
         "cards_used": [
           "synthetic-lethal-partners"
         ],
@@ -2199,7 +2148,9 @@
           "sl-no-partner-neutral",
           "sl-data-unavailable-insufficient"
         ],
-        "prose_markers": [],
+        "prose_markers": [
+          "wired"
+        ],
         "skill_md_exists": true,
         "skill_md_parse_error": null
       },
@@ -2252,18 +2203,13 @@
       "n_p4_declared": 0,
       "drift_flags": [
         {
-          "code": "missing_status_field",
-          "severity": "warn",
-          "detail": "no machine-readable status: field in SKILL.md frontmatter"
-        },
-        {
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: synthetic-lethal-partners"
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: synthetic-lethal-partners"
         }
       ],
@@ -2862,7 +2808,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
         }
       ],
@@ -3706,7 +3652,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
         }
       ],
@@ -3891,7 +3837,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: structure-features-static"
         }
       ],
@@ -4027,7 +3973,8 @@
           "tumor-rna-distribution-by-subtype",
           "expression-purity-confound",
           "cellline-rna-protein-concordance",
-          "tumor-scrna-celltype-expression"
+          "tumor-scrna-celltype-expression",
+          "normal-tissue-liability"
         ],
         "rules_scope": [
           "cellline-rna-distribution",
@@ -4436,18 +4383,13 @@
       "n_p4_declared": 5,
       "drift_flags": [
         {
-          "code": "declared_cards_mismatch_runpy",
-          "severity": "warn",
-          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['normal-tissue-liability'])"
-        },
-        {
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: tumor-rna-distribution-by-subtype, tumor-scrna-celltype-expression"
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-scrna-celltype-expression"
         }
       ],
@@ -4466,10 +4408,12 @@
           "B"
         ],
         "cards_used": [
-          "tumor-vs-normal-selectivity"
+          "tumor-vs-normal-selectivity",
+          "tumor-vs-normal-percentile-crossing"
         ],
         "rules_scope": [
-          "tumor-vs-normal-selectivity"
+          "tumor-vs-normal-selectivity",
+          "tumor-vs-normal-percentile-crossing"
         ],
         "prose_markers": [
           "wired"
@@ -4559,17 +4503,12 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         }
       ],
-      "n_core_cards": 1,
+      "n_core_cards": 2,
       "n_cards": 2,
       "n_cards_live": 1,
       "n_p4_required": 1,
       "n_p4_declared": 1,
       "drift_flags": [
-        {
-          "code": "declared_cards_mismatch_runpy",
-          "severity": "warn",
-          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['tumor-vs-normal-percentile-crossing'])"
-        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
@@ -4582,7 +4521,7 @@
         },
         {
           "code": "card_consumed_but_no_spec",
-          "severity": "warn",
+          "severity": "info",
           "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-vs-normal-percentile-crossing"
         }
       ],
@@ -4976,11 +4915,9 @@
       "card_health": "broken",
       "health_reason": "card-no-path",
       "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data",
-      "consumers": [
-        "differentiation-landscape"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
+      "consumers": [],
+      "n_consumers": 0,
+      "is_orphan": true,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
         "surface-intrinsic-base"
@@ -5416,6 +5353,18 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "depmap-consortium-26q1"
+        },
+        {
+          "product_id": "tcga-sesame-promoter-methylation-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-sesame-promoter-methylation-v1"
+        },
+        {
+          "product_id": "depmap-consortium-ccle-2019",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-consortium-ccle-2019"
         }
       ],
       "modality_relevance": null,
@@ -5905,12 +5854,11 @@
       "health_reason": "card-live-fired",
       "reason_text": "fires passed/passed_with_warnings in at least one real evidence package",
       "consumers": [
-        "on-target-safety-liability",
         "surface-modality-fit",
         "target-intrinsic",
         "tumor-presence"
       ],
-      "n_consumers": 4,
+      "n_consumers": 3,
       "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
@@ -6071,34 +6019,6 @@
         "target-profile"
       ],
       "n_consumers": 3,
-      "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
-    },
-    {
-      "card_id": "patent-landscape",
-      "card_yaml_exists": false,
-      "is_placeholder": false,
-      "placeholder_reason": null,
-      "measurement_type": null,
-      "has_live_reader": false,
-      "method_call": null,
-      "dispatch_module": null,
-      "method_dir_exists": null,
-      "method_has_read": null,
-      "stale_method_label": false,
-      "fires_in_real_package": false,
-      "datasets": [],
-      "modality_relevance": null,
-      "modality_routing": "not_applicable",
-      "card_health": "broken",
-      "health_reason": "card-missing-yaml",
-      "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
-      "consumers": [
-        "differentiation-landscape"
-      ],
-      "n_consumers": 1,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -6369,11 +6289,9 @@
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
-      "consumers": [
-        "on-target-safety-liability"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
+      "consumers": [],
+      "n_consumers": 0,
+      "is_orphan": true,
       "dashboard_specs": [
         "surface-intrinsic-base"
       ],
@@ -6797,9 +6715,11 @@
       "card_health": "blocked",
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
-      "consumers": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumers": [
+        "genomic-alteration-profile"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
         "target-in-indication"
@@ -8697,9 +8617,11 @@
       "file_count": 24,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "functional-gene-state"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -10551,6 +10473,36 @@
       "is_broken_ref": false
     },
     {
+      "product_id": "tcga-mc3-hotspot-frequency-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
+      "product_id": "tcga-mc3-per-sample-maf-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false
+    },
+    {
       "product_id": "tcga-mc3-public-v0-2-8",
       "in_catalog": true,
       "kind": "source",
@@ -10578,9 +10530,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 3,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "functional-gene-state"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "is_broken_ref": false
     },
     {
@@ -11330,7 +11284,7 @@
         "layer": "card",
         "label": "clinical-precedent",
         "health": "broken",
-        "is_orphan": false,
+        "is_orphan": true,
         "measurement_type": "clinical_precedent"
       },
       {
@@ -11558,14 +11512,6 @@
         "measurement_type": "paralog_buffering"
       },
       {
-        "id": "card:patent-landscape",
-        "layer": "card",
-        "label": "patent-landscape",
-        "health": "broken",
-        "is_orphan": false,
-        "measurement_type": null
-      },
-      {
         "id": "card:pd-assay-catalog",
         "layer": "card",
         "label": "pd-assay-catalog",
@@ -11618,7 +11564,7 @@
         "layer": "card",
         "label": "protein-surface-evidence",
         "health": "partial",
-        "is_orphan": false,
+        "is_orphan": true,
         "measurement_type": "surface_confirmation"
       },
       {
@@ -11706,7 +11652,7 @@
         "layer": "card",
         "label": "subgroup-stratified-mutation-frequency",
         "health": "blocked",
-        "is_orphan": true,
+        "is_orphan": false,
         "measurement_type": "mutation_hotspot_frequency"
       },
       {
@@ -12417,22 +12363,12 @@
       },
       {
         "src": "skill:differentiation-landscape",
-        "dst": "card:clinical-precedent",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:differentiation-landscape",
         "dst": "card:co-mutation-and-mutual-exclusivity",
         "rel": "consumes"
       },
       {
         "src": "skill:differentiation-landscape",
         "dst": "card:expression-clinical-association",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:differentiation-landscape",
-        "dst": "card:patent-landscape",
         "rel": "consumes"
       },
       {
@@ -12537,6 +12473,11 @@
       },
       {
         "src": "skill:genomic-alteration-profile",
+        "dst": "card:subgroup-stratified-mutation-frequency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
         "dst": "resolver:genomic_alteration",
         "rel": "resolves_via"
       },
@@ -12587,17 +12528,7 @@
       },
       {
         "src": "skill:on-target-safety-liability",
-        "dst": "card:normal-tissue-liability",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:on-target-safety-liability",
         "dst": "card:normal-tissue-liability-gtex",
-        "rel": "consumes"
-      },
-      {
-        "src": "skill:on-target-safety-liability",
-        "dst": "card:protein-surface-evidence",
         "rel": "consumes"
       },
       {
@@ -12989,11 +12920,11 @@
     "layer_counts": {
       "skill": 20,
       "resolver": 8,
-      "card": 71,
+      "card": 70,
       "method": 49
     },
-    "n_nodes": 148,
-    "n_edges": 172
+    "n_nodes": 147,
+    "n_edges": 169
   },
   "drift_index": [
     {
@@ -13004,26 +12935,14 @@
     },
     {
       "skill": "differentiation-landscape",
-      "code": "declared_cards_mismatch_runpy",
-      "severity": "warn",
-      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['clinical-precedent', 'patent-landscape']; only in run.py: [])"
-    },
-    {
-      "skill": "differentiation-landscape",
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: co-mutation-and-mutual-exclusivity, expression-clinical-association"
     },
     {
       "skill": "differentiation-landscape",
-      "code": "dataset_ref_not_in_catalog",
-      "severity": "warn",
-      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: literature-snapshot"
-    },
-    {
-      "skill": "differentiation-landscape",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: co-mutation-and-mutual-exclusivity, expression-clinical-association"
     },
     {
@@ -13041,8 +12960,14 @@
     {
       "skill": "functional-requirement",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, paralog-buffering, recommended-models"
+    },
+    {
+      "skill": "genomic-alteration-profile",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['subgroup-stratified-mutation-frequency']; only in run.py: [])"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -13058,8 +12983,14 @@
     },
     {
       "skill": "genomic-alteration-profile",
-      "code": "card_consumed_but_no_spec",
+      "code": "dataset_ref_not_in_catalog",
       "severity": "warn",
+      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
+    },
+    {
+      "skill": "genomic-alteration-profile",
+      "code": "card_consumed_but_no_spec",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
     },
     {
@@ -13083,20 +13014,14 @@
     {
       "skill": "mechanism-and-pharmacology",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: signaling-network-mechanism"
-    },
-    {
-      "skill": "on-target-safety-liability",
-      "code": "declared_cards_mismatch_runpy",
-      "severity": "warn",
-      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['normal-tissue-liability', 'protein-surface-evidence']; only in run.py: ['clingen-dosage', 'clinvar-pathogenicity-safety', 'gene-burden-safety', 'mouse-ko-phenotype', 'normal-tissue-liability-gtex', 'target-safety-prioritisation'])"
     },
     {
       "skill": "on-target-safety-liability",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, protein-surface-evidence, target-safety-prioritisation"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
     },
     {
       "skill": "on-target-safety-liability",
@@ -13107,7 +13032,7 @@
     {
       "skill": "on-target-safety-liability",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gnomad-lof-constraint, mouse-ko-phenotype, normal-tissue-liability-gtex, target-safety-prioritisation"
     },
     {
@@ -13115,12 +13040,6 @@
       "code": "missing_status_field",
       "severity": "warn",
       "detail": "no machine-readable status: field in SKILL.md frontmatter"
-    },
-    {
-      "skill": "surface-modality-fit",
-      "code": "declared_cards_mismatch_runpy",
-      "severity": "warn",
-      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['rna-protein-concordance-tumor'])"
     },
     {
       "skill": "surface-modality-fit",
@@ -13143,7 +13062,7 @@
     {
       "skill": "surface-modality-fit",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
     },
     {
@@ -13167,14 +13086,8 @@
     {
       "skill": "surfaceome-cohort-ranking",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: surfaceome-cohort-ranking"
-    },
-    {
-      "skill": "synthetic-lethal-partners",
-      "code": "missing_status_field",
-      "severity": "warn",
-      "detail": "no machine-readable status: field in SKILL.md frontmatter"
     },
     {
       "skill": "synthetic-lethal-partners",
@@ -13185,7 +13098,7 @@
     {
       "skill": "synthetic-lethal-partners",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: synthetic-lethal-partners"
     },
     {
@@ -13209,7 +13122,7 @@
     {
       "skill": "target-intrinsic",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
     },
     {
@@ -13233,7 +13146,7 @@
     {
       "skill": "target-profile",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
     },
     {
@@ -13251,14 +13164,8 @@
     {
       "skill": "tractability-small-molecule",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: structure-features-static"
-    },
-    {
-      "skill": "tumor-presence",
-      "code": "declared_cards_mismatch_runpy",
-      "severity": "warn",
-      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['normal-tissue-liability'])"
     },
     {
       "skill": "tumor-presence",
@@ -13269,14 +13176,8 @@
     {
       "skill": "tumor-presence",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-scrna-celltype-expression"
-    },
-    {
-      "skill": "tumor-selectivity",
-      "code": "declared_cards_mismatch_runpy",
-      "severity": "warn",
-      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['tumor-vs-normal-percentile-crossing'])"
     },
     {
       "skill": "tumor-selectivity",
@@ -13293,7 +13194,7 @@
     {
       "skill": "tumor-selectivity",
       "code": "card_consumed_but_no_spec",
-      "severity": "warn",
+      "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: tumor-vs-normal-percentile-crossing"
     },
     {

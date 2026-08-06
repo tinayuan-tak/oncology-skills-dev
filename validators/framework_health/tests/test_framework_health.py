@@ -22,8 +22,10 @@ from pathlib import Path
 
 import pytest
 
-from validators.framework_health import probe, rollup
-from validators.framework_health.build_framework_health import stable_projection, self_check
+from validators.framework_health import probe, rollup, render_html
+from validators.framework_health.build_framework_health import (
+    stable_projection, self_check, compute_delta,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +237,98 @@ def test_stable_projection_detects_real_change():
     a = {**base, "summary": {"n_skills": 3}}
     b = {**base, "summary": {"n_skills": 4}}
     assert stable_projection(a) != stable_projection(b)
+
+
+def test_stable_projection_excludes_delta():
+    """delta is a diff-vs-prior (changes every run) — it MUST be volatile, else --check
+    would false-positive STALE on every generation. The load-bearing invariant of the
+    trend feature."""
+    base = {"schema_version": "1.0.0", "summary": {"n_skills": 3}, "skills": []}
+    a = {**base, "generated_at": "t", "roots": {}, "root_shas": {}, "delta": {"n_skills": 2}}
+    b = {**base, "generated_at": "t", "roots": {}, "root_shas": {}, "delta": {"n_skills": -5}}
+    assert stable_projection(a) == stable_projection(b)   # differing deltas don't move the projection
+
+
+# ---------------------------------------------------------------------------
+# 6c. Trend/delta — diff vs the prior committed artifact
+# ---------------------------------------------------------------------------
+def _report(n_skills, n_cards, skills, cards, verdict_tally=None, n_drift=0, n_err=0):
+    return {
+        "generated_at": "2026-01-01T00:00:00Z",
+        "summary": {"n_skills": n_skills, "n_cards": n_cards, "n_drift_flags": n_drift,
+                    "n_error_drift": n_err, "verdict_tally": verdict_tally or {},
+                    "card_health_tally": {}},
+        "skills": [{"name": s} for s in skills],
+        "cards": [{"card_id": c} for c in cards],
+    }
+
+
+def test_compute_delta_none_without_prior():
+    assert compute_delta(None, _report(2, 2, ["a", "b"], ["x", "y"])) is None
+
+
+def test_compute_delta_counts_and_names():
+    prior = _report(2, 2, ["a", "b"], ["x", "y"], {"partial": 2})
+    fresh_body = _report(3, 3, ["a", "b", "c"], ["x", "y", "z"], {"partial": 1, "production_ready": 2})
+    d = compute_delta(prior, fresh_body)
+    assert d["has_prior"] and d["n_skills"] == 1 and d["n_cards"] == 1
+    assert d["skills_added"] == ["c"] and d["skills_removed"] == []
+    assert d["cards_added"] == ["z"]
+    # tally delta reports only the moved keys
+    assert d["verdict_tally"] == {"partial": -1, "production_ready": 2}
+
+
+def test_delta_ribbon_empty_without_prior():
+    assert render_html._delta_ribbon({"delta": None}) == ""
+    assert render_html._delta_ribbon({}) == ""
+
+
+def test_delta_ribbon_renders_moves_and_names():
+    report = {"delta": {"has_prior": True, "prior_generated_at": "2026-08-04T00:00:00Z",
+                        "n_skills": 2, "n_cards": 5, "n_drift_flags": -3, "n_error_drift": 0,
+                        "skills_added": ["catalog-query"], "skills_removed": [],
+                        "cards_added": ["a", "b"], "cards_removed": []}}
+    html = render_html._delta_ribbon(report)
+    assert "Since last run" in html and "2026-08-04" in html
+    assert "2 skills" in html and "5 cards" in html and "3 drift flags" in html
+    assert "catalog-query" in html
+
+
+# ---------------------------------------------------------------------------
+# 6d. Fix-next punch list + actionability ordering + severity demotion
+# ---------------------------------------------------------------------------
+def test_consumed_but_no_spec_is_info_not_warn():
+    """Demoted 2026-08-05: it's a coverage/roadmap signal (fires on ~half the corpus),
+    not a defect — must not sit in the actionable warn tier."""
+    assert rollup.DRIFT_SEVERITY["card_consumed_but_no_spec"] == "info"
+
+
+def test_fix_next_only_actionable_and_ordered():
+    report = {"drift_index": [
+        {"skill": "s1", "code": "dataset_ref_not_in_catalog", "severity": "warn", "detail": "d"},
+        {"skill": "s2", "code": "dataset_ref_not_in_catalog", "severity": "warn", "detail": "d"},
+        {"skill": "s3", "code": "status_wired_no_entrypoint", "severity": "error", "detail": "d"},
+        {"skill": "s4", "code": "card_consumed_but_no_spec", "severity": "info", "detail": "d"},
+    ]}
+    html = render_html._fix_next(report)
+    # error sorts above the more-numerous warn (severity beats count)
+    assert html.index("status_wired_no_entrypoint") < html.index("dataset_ref_not_in_catalog")
+    # info-severity code is NOT in the actionable queue
+    assert "card_consumed_but_no_spec" not in html
+
+
+def test_fix_next_empty_state():
+    html = render_html._fix_next({"drift_index": [
+        {"skill": "s", "code": "stale_method_label", "severity": "info", "detail": "d"}]})
+    assert "Nothing actionable" in html
+
+
+def test_skill_actionability_floats_drift_first():
+    drifting = {"name": "z-drift", "health_verdict": "partial",
+                "drift_flags": [{"severity": "error"}]}
+    clean = {"name": "a-ready", "health_verdict": "production_ready", "drift_flags": []}
+    # despite alphabetical order putting a-ready first, drifting sorts ahead
+    assert render_html._skill_actionability(drifting) < render_html._skill_actionability(clean)
 
 
 # ---------------------------------------------------------------------------
