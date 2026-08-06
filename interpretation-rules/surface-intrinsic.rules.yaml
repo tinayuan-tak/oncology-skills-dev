@@ -1207,6 +1207,79 @@ rules:
   # subset exists but detection-fraction alone (dropout-aware scRNA) is too uncertain to penalize (the
   # stricter-cut design decision). data_unavailable likewise fires nothing (coverage gap → abstain).
 
+  # ============================================================================
+  # M — Modality therapeutic-window (biologics-augment, 2026-08-06)
+  # ============================================================================
+  # Keyed on window_class (modality-therapeutic-window card): tumor / max-essential-normal TPM ratio,
+  # thresholded per modality tier. The composed card is scored at the STRICT (BiTE/TCE, 1.0 TPM) tier
+  # by default — the conservative surface-gate read — so window_class here is the strict-tier call.
+  # This is the clean-antigen signal neither tumor-vs-normal-selectivity (within-tissue contrast) nor
+  # normal-tissue-liability (off-tumor breadth) makes; it surfaces the CEACAM5 pattern (huge window yet
+  # strict-TCE liability). ADDITIVE signal-only: NO surface_modality resolver rung → verdict BYTE-STABLE.
+  # The ADC-vs-TCE split is the point: an essential-tissue liability at the STRICT tier is a TCE concern
+  # but frequently ADC-tolerable (moderate tier / bystander payload) — so essential_tissue_liability is
+  # bite_tce:opposing, adc:neutral (NOT a shared killer). data_unavailable / not_expressed_in_cohort
+  # fire NO rule (cohort gap or wrong-cohort → abstain, never a false negative).
+
+  - rule_id: modality-window-clean-supportive
+    when:
+      card_id: modality-therapeutic-window
+      field: window_class
+      equals: clean_window
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      bite_tce: important
+      adc: important
+    rationale: |
+      Clean therapeutic window at the strict (TCE) tier: tumor expression clears the >=4x separation
+      from the worst essential normal organ AND no essential organ exceeds the strict 1.0-TPM threshold.
+      This is the clean-antigen ideal (CLDN6/DLL3-in-lineage archetype) — supportive across all
+      antibody-based modalities, important for the strict-tolerance TCE where the window is decisive.
+
+  - rule_id: modality-window-essential-liability-tce-opposing
+    when:
+      card_id: modality-therapeutic-window
+      field: window_class
+      equals: essential_tissue_liability
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      An essential normal organ exceeds the strict (1.0-TPM) tier threshold — even if the tumor window
+      RATIO is large (the CEACAM5 pattern: ~558x window, yet lung > 1.0 TPM). A strict T-cell engager
+      has no bystander buffer, so essential-tissue expression is a first-order concern → bite_tce
+      opposing (important). ADC/antibody are NEUTRAL, not opposing: the moderate-tier (5.0-TPM) bystander
+      buffer frequently tolerates the same essential expression (CEACAM5 is pursued as an ADC) — the
+      ADC-vs-TCE discriminator. Check window_ratio at the ADC tier + surface-abundance-density to confirm.
+
+  - rule_id: modality-window-narrow-opposing
+    when:
+      card_id: modality-therapeutic-window
+      field: window_class
+      equals: narrow_window
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+    rationale: |
+      Expressed with no essential-tissue liability, but the tumor-vs-essential-normal separation is
+      < 4x — a narrow therapeutic window. Opposing (secondary) for ADC + TCE: a thin window leaves
+      little margin for on-target off-tumor toxicity, though it is not a hard block (affinity tuning,
+      dose, or a logic-gate can widen the effective window). Neutral for naked antibody.
+
+  # not_expressed_in_cohort + data_unavailable fire NO rule — a near-zero tumor in THIS TCGA cohort
+  # (possibly the wrong cohort for the target's biology — DLL3/SCLC) or a missing cohort is a coverage
+  # gap, surfaced by the card's warnings, NOT scored as a modality negative (cohort-honesty).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
