@@ -27,6 +27,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 
 SKILL_NAME = "surface-modality-fit"
@@ -178,6 +179,14 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Opt-in --synthesize narrates through the SURFACE-MODALITY (biologics) lens — its own tool schema
+        # + prompt, foregrounding ACCESSIBILITY (bindable ECD) then the ADC-vs-TCE discrimination axes
+        # (normal-tissue liability, within-tumour homogeneity, shed sink, antigen density). Two-slot /
+        # verdict-inert: the dispatcher attaches decision['llm_synthesis'] as a sibling key AFTER the
+        # spine is composed, so it is structurally impossible for the narration to alter
+        # surface_modality_verdict / fit_class. Without this synthesize_fn the dispatcher would fall back
+        # to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
+        synthesize_fn=synthesize_surface_modality,
         partial_status_note=("Most surface derived products (structure-features, "
                              "surfaceome-family, cohort-ranking) are not yet on S3; "
                              "verdict is honest-insufficient until they land."),
