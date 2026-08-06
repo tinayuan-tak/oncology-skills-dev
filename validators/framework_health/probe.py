@@ -265,9 +265,17 @@ def probe_skill(skill_dir: Path) -> dict:
         der["kind"] = "UNPARSEABLE"
         return signals
 
-    # CARDS list in run.py (AST literal).
+    # CARDS list in run.py (AST literal) + the optional SUBTYPE_CARDS list. A FOCUSED skill may
+    # compose a tier:subtype PANORAMA card on a separate --subtypes-gated path (SUBTYPE_CARDS,
+    # mirroring target-profile's SUB_SKILL subtype tier): the card needs subgroup_context threaded
+    # so it is NOT on the scalar CARDS list, but it IS legitimately consumed and IS declared in
+    # SKILL.md cards_used. Union it so the cards_used↔run.py check doesn't false-flag it as drift.
     cards = _find_assign_literal(tree, "CARDS")
-    der["cards_in_runpy"] = [str(c) for c in cards] if isinstance(cards, list) else []
+    runpy_cards = [str(c) for c in cards] if isinstance(cards, list) else []
+    subtype_cards = _find_assign_literal(tree, "SUBTYPE_CARDS")
+    if isinstance(subtype_cards, list):
+        runpy_cards += [str(c) for c in subtype_cards if str(c) not in runpy_cards]
+    der["cards_in_runpy"] = runpy_cards
 
     # Resolver binding.
     gate = _resolver_gate_arg(tree)

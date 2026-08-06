@@ -56,6 +56,42 @@ def test_cards_list_literal_strips_inline_comments():
     assert probe._find_assign_literal(tree, "CARDS") == ["card-one", "card-two"]
 
 
+def test_cards_in_runpy_unions_subtype_cards(tmp_path):
+    """A FOCUSED skill's tier:subtype PANORAMA card lives in SUBTYPE_CARDS (needs
+    subgroup_context threaded → not on the scalar CARDS list) but IS declared in cards_used.
+    cards_in_runpy must union SUBTYPE_CARDS so the cards_used↔run.py check doesn't false-flag it."""
+    run = tmp_path / "scripts" / "run.py"
+    run.parent.mkdir(parents=True)
+    run.write_text(textwrap.dedent('''
+        CARDS = ["mutation-type-counts", "copy-number-distribution"]
+        SUBTYPE_CARDS = ["subgroup-stratified-mutation-frequency"]
+    '''))
+    # Mirror probe.probe_run_py's cards_in_runpy union (CARDS + SUBTYPE_CARDS).
+    tree = ast.parse(run.read_text())
+    cards = probe._find_assign_literal(tree, "CARDS")
+    sub = probe._find_assign_literal(tree, "SUBTYPE_CARDS")
+    union = [str(c) for c in cards] + [str(c) for c in sub if str(c) not in [str(x) for x in cards]]
+    assert "subgroup-stratified-mutation-frequency" in union
+    assert set(union) == {"mutation-type-counts", "copy-number-distribution",
+                          "subgroup-stratified-mutation-frequency"}
+
+
+def test_drift_no_mismatch_when_subtype_card_in_cards_used():
+    """The end-to-end guard: a FOCUSED skill declaring a subtype panorama card in cards_used +
+    SUBTYPE_CARDS (surfaced via cards_in_runpy) must NOT raise declared_cards_mismatch_runpy."""
+    skill = {
+        "declared": {"status": "wired",
+                     "cards_used": ["mutation-type-counts", "copy-number-distribution",
+                                    "subgroup-stratified-mutation-frequency"]},
+        "derived": {"kind": "FOCUSED", "has_entrypoint": True,
+                    # cards_in_runpy already unioned SUBTYPE_CARDS (the probe fix):
+                    "cards_in_runpy": ["mutation-type-counts", "copy-number-distribution",
+                                       "subgroup-stratified-mutation-frequency"]},
+    }
+    flags = rollup.compute_drift(skill, cards=[])
+    assert not any(f["code"] == "declared_cards_mismatch_runpy" for f in flags)
+
+
 def test_live_reader_ids_real_repo_excludes_known_traps():
     """Against the real repo: the commented-tail cards must not appear as live."""
     roots = probe.default_roots()
