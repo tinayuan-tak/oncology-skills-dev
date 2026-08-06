@@ -46,6 +46,17 @@ composition:
                                        # → ADC/antibody antigen-reality caution (is the protein confirmed?).
                                        # Additive signal facet; verdict byte-stable (fit_class resolves off
                                        # adc-tce-modality-fit). Its P4 modality set widened in the vocab (grain-split).
+    - protein-surface-evidence         # (in run.py CARDS; wired 2026-08-06, biologics-augment Phase 1.1)
+                                       # CSPA wet-lab surface confirmation — the `measured` surface-residency tier.
+                                       # Its rules (protein-surface-confirmed-supportive / protein-not-surface-
+                                       # opposing) were silently INERT on live data (CSPA live but no skill composed
+                                       # the card — was a measurement_types_pulled intent only). Additive signal
+                                       # facet; verdict byte-stable (fit_class resolves off adc-tce-modality-fit).
+    - shed-ectodomain-liability        # (in run.py CARDS; wired 2026-08-06, biologics-augment Phase 1.1)
+                                       # Clinically-established shed-ectodomain antigen-sink liability (serum-marker
+                                       # crosswalk). Its F3 rules (shed-ectodomain-clinical/secretome-proxy-opposing,
+                                       # OPPOSING not killer) existed + were axis-wired but UNREACHABLE — no skill
+                                       # composed the card. Additive signal facet; verdict byte-stable.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -62,7 +73,14 @@ composition:
     - surface_density
     - adc_tce_modality_fit
     - normal_tissue_protein_breadth    # HPA IHC off-tumor safety (normal-tissue-liability)
+    - rna_protein_concordance          # (backfill 2026-08-06) rna-protein-concordance-tumor has been in run.py
+                                       # CARDS since the 2026-08-05 orphan-fix, but its type was never added
+                                       # here → test_cards_used_types_are_a_subset_of_pulled failed pre-existing.
     - copy_number_alteration           # P4 (2026-07-23): genomic amplification → surface antigen-density lens
+    - shed_ectodomain_liability        # (2026-08-06, biologics-augment Phase 1.1) shed-ectodomain antigen-sink
+                                       # (serum-marker crosswalk); OPPOSING-not-killer on adc/bite_tce/antibody.
+                                       # surface_confirmation (above) is now a FIRING card (protein-surface-evidence),
+                                       # not just a pulled intent — CSPA wired into CARDS same change.
   rules_scope:
     - all
   synthesis:

@@ -55,6 +55,26 @@ CARDS = [
                                         # this is the tumor-grain twin of tumor-presence's cell-line concordance
                                         # facet. ADDITIVE signal-only: surface_modality resolves off
                                         # adc-tce-modality-fit.fit_class → verdict byte-stable.
+    "protein-surface-evidence",         # Orphan-fix (biologics-augment Phase 1.1, 2026-08-06): CSPA wet-lab
+                                        # surface confirmation (cspa-surface-confirmation-per-uniprot-v1), the
+                                        # `measured` surface-residency tier. measurement_type surface_confirmation,
+                                        # modality_relevance [adc, bite_tce, antibody], tier:target. Its rules
+                                        # (protein-surface-confirmed-supportive [important] + protein-not-surface-
+                                        # opposing [secondary, NOT killer]) were SILENTLY INERT on live data —
+                                        # CSPA went live but no skill composed the card (it was a declared
+                                        # measurement_types_pulled intent only). Measured protein-surface residency
+                                        # is the strongest presence signal the surface gate can receive. ADDITIVE
+                                        # signal-only (no resolver rung) → verdict byte-stable.
+    "shed-ectodomain-liability",        # Orphan-fix (biologics-augment Phase 1.1, 2026-08-06): clinically-
+                                        # established shed-ectodomain antigen-sink liability (curated serum-marker
+                                        # crosswalk — CA125=MUC16, CEA=CEACAM5, SMRP=MSLN, shed-HER2-ECD). A
+                                        # circulating soluble decoy sequesters antibody/ADC/TCE before tumor
+                                        # delivery. measurement_type shed_ectodomain_liability, modality_relevance
+                                        # [adc, bite_tce, antibody], tier:target. Its F3 rules (shed-ectodomain-
+                                        # clinical-opposing + -secretome-proxy-opposing, both OPPOSING not killer —
+                                        # approved biologics exist vs shed antigens) existed + were wired to the
+                                        # surface_intrinsic axis but UNREACHABLE — no skill composed the card.
+                                        # ADDITIVE signal-only (no resolver rung) → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -93,6 +113,19 @@ def _headline(cards, fired, verdict_pair):
         "normal_tissue_breadth_class":    get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
         "essential_tissue_flag":          get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
         "normal_tissue_safety_flags":     get_card_field(cards, "normal-tissue-liability", "safety_tissue_flags"),
+        # CSPA wet-lab surface confirmation (protein-surface-evidence). Its rules fire on the
+        # surface_intrinsic axis (adc/bite_tce/antibody): cell_surface_confirmed → supportive
+        # (important); not_surface → opposing (secondary, NOT killer). Measured protein-surface
+        # residency — the strongest presence signal the surface gate receives. Additive; verdict
+        # byte-stable (fit_class resolves off adc-tce-modality-fit).
+        "surface_confirmation_class":     get_card_field(cards, "protein-surface-evidence", "surface_confirmation_class"),
+        "surface_confirmation_n_celllines": get_card_field(cards, "protein-surface-evidence", "n_celllines_detected"),
+        # Shed-ectodomain antigen-sink liability (shed-ectodomain-liability). Its F3 rules fire on
+        # the surface_intrinsic axis (adc/bite_tce/antibody): clinically_shed / secretome_proxy_shed
+        # → opposing (NOT killer — approved biologics exist against shed antigens; a shed ectodomain
+        # demands a shed-resistant epitope + antigen-sink dose modeling). Additive; verdict byte-stable.
+        "shed_liability_class":           get_card_field(cards, "shed-ectodomain-liability", "shed_liability_class"),
+        "shed_serum_marker":              get_card_field(cards, "shed-ectodomain-liability", "serum_marker"),
     }
 
 
