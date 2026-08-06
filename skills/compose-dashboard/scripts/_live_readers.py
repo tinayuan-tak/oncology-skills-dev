@@ -210,6 +210,16 @@ def _dispatch_fusion_rearrangement_landscape(target: str, indication: str) -> Op
 _MUTATION_ASSIGNMENTS_MANIFEST = {
     "COADREAD": "tcga-subgroup-assignments-coadread-v1",   # directly-tagged: MSI_H/MSS/sidedness/CMS/CIMP
 }
+# Line-of-therapy strata live in a DIFFERENT sample universe (GENIE-BPC, not TCGA) and
+# recompute frequency from the GENIE registry MAF, not MC3. The panorama dispatcher partitions
+# requested strata by axis: molecular → the TCGA shard above + tcga_mc3; LOT → this GENIE-BPC
+# shard + the genie_registry MAF. Rows from the two universes are never merged into one
+# comparison (each carries its source_cohort); the card's caveats already mandate that.
+_MUTATION_LOT_ASSIGNMENTS_MANIFEST = {
+    "COADREAD": "genie-bpc-subgroup-assignments-coadread-v1",   # GENIE-BPC LOT_1L_only/LOT_2L/LOT_3Lplus
+}
+# LOT strata are identified by id prefix (the catalog tags them applicable_data_sources:[genie_bpc]).
+_LOT_STRATUM_PREFIX = "LOT_"
 _DEPENDENCY_ASSIGNMENTS_MANIFEST = {
     "COADREAD": "depmap-subgroup-assignments-coadread-v1",
 }
@@ -218,19 +228,66 @@ _DEPENDENCY_ASSIGNMENTS_MANIFEST = {
 def _dispatch_subgroup_stratified_mutation_frequency(
     target: str, indication: str, subgroups: list, subgroup_assignments_manifest: str,
 ) -> Optional[dict]:
-    """Route subgroup-stratified-mutation-frequency to the per-sample panorama builder.
+    """Route subgroup-stratified-mutation-frequency to the per-sample panorama builder,
+    PARTITIONING requested strata by data-source axis.
 
     methods/gdc_somatic_hotspot/read.py::build_mutation_frequency_panorama fans
     read_stratified_mutation_frequency across `subgroups` and recomputes frequency
     WITHIN each stratum member-set (never an emit-time slice). Descriptive — no signal.
+
+    Two sample universes cannot share one call:
+      - MOLECULAR strata (MSI/MSS/sidedness/CMS/CIMP) → TCGA shard + tcga_mc3 MAF.
+      - LINE-OF-THERAPY strata (LOT_*) → GENIE-BPC shard + genie_registry MAF (the GENIE
+        registry MAF's full sample barcode joins the BPC LOT shard's cpt_genie_sample_id).
+    We split `subgroups`, make one panorama call per populated axis, and MERGE the
+    per_subgroup_metrics lists. Each row carries its own source_cohort (TCGA-MC3 vs
+    GENIE-registry), so the cross-cohort merge is contract-valid (the card's caveats
+    forbid merging rows from different cohorts into a single comparison, which this respects).
     """
     hotspot_module = _import_method("gdc_somatic_hotspot")
-    return hotspot_module.build_mutation_frequency_panorama(
-        target=target,
-        indication=indication,
-        subgroups=subgroups,
-        subgroup_assignments_manifest=subgroup_assignments_manifest,
-    )
+
+    lot_strata = [s for s in subgroups if str(s).startswith(_LOT_STRATUM_PREFIX)]
+    molecular_strata = [s for s in subgroups if not str(s).startswith(_LOT_STRATUM_PREFIX)]
+
+    panoramas: list[dict] = []
+    # Molecular axis → the TCGA shard passed in by read_live_summary (tcga_mc3 default).
+    if molecular_strata:
+        panoramas.append(hotspot_module.build_mutation_frequency_panorama(
+            target=target, indication=indication,
+            subgroups=molecular_strata,
+            subgroup_assignments_manifest=subgroup_assignments_manifest,
+        ))
+    # LOT axis → the GENIE-BPC shard + genie_registry MAF (different sample universe).
+    if lot_strata:
+        lot_manifest = _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication)
+        if lot_manifest is None:
+            panoramas.append({"per_subgroup_metrics": [], "_data_note":
+                f"LOT strata requested but no GENIE-BPC LOT shard for indication={indication!r} "
+                f"(iter-1 ships COADREAD only)"})
+        else:
+            panoramas.append(hotspot_module.build_mutation_frequency_panorama(
+                target=target, indication=indication,
+                subgroups=lot_strata,
+                subgroup_assignments_manifest=lot_manifest,
+                maf_source="genie_registry",
+            ))
+
+    if not panoramas:
+        return {"per_subgroup_metrics": []}
+    if len(panoramas) == 1:
+        return panoramas[0]
+
+    # MERGE: concatenate per_subgroup_metrics; carry a merged data-note if either arm set one.
+    merged_metrics: list = []
+    notes: list[str] = []
+    for p in panoramas:
+        merged_metrics.extend(p.get("per_subgroup_metrics") or [])
+        if p.get("_data_note"):
+            notes.append(p["_data_note"])
+    out = {"per_subgroup_metrics": merged_metrics}
+    if notes:
+        out["_data_note"] = " | ".join(notes)
+    return out
 
 
 def _dispatch_subgroup_stratified_dependency(
