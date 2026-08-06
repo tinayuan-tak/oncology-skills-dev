@@ -38,6 +38,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 
 
 SKILL_NAME = "tractability-small-molecule"
@@ -176,4 +177,11 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_snapshot,
         headline_fn=_headline,
+        # Opt-in --synthesize narrates through the SMALL-MOLECULE tractability lens — its own tool schema
+        # + prompt, foregrounding ON-TARGET-chemical vs FORWARD-structural vs neither (a discordant read
+        # ARGUES AGAINST), plus the additive degrader read. Two-slot / verdict-inert: the dispatcher
+        # attaches decision['llm_synthesis'] as a sibling key AFTER the spine is composed, so it is
+        # structurally impossible for the narration to alter druggability_snapshot. Without this
+        # synthesize_fn the dispatcher would fall back to the PRESENCE narrator (wrong lens — B3b, 2026-08-06).
+        synthesize_fn=synthesize_tractability_sm,
     ))

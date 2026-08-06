@@ -21,6 +21,7 @@ from _skills_common import synthesis_selectivity as S  # noqa: E402
 from _skills_common import synthesis_genomic as G     # noqa: E402
 from _skills_common import synthesis_dependency as D   # noqa: E402
 from _skills_common import synthesis_surface_modality as M  # noqa: E402
+from _skills_common import synthesis_tractability_sm as T  # noqa: E402
 
 # (module, synthesize_fn, a valid narration key for the mocked success)
 NARRATORS = [
@@ -29,6 +30,7 @@ NARRATORS = [
     (G, G.synthesize_genomic_alteration, "alteration_relevance_for_target"),
     (D, D.synthesize_dependency, "dependency_relevance_for_target"),
     (M, M.synthesize_surface_modality, "surface_modality_relevance_for_target"),
+    (T, T.synthesize_tractability_sm, "tractability_relevance_for_target"),
 ]
 
 _DECISION = {"target": "KRAS", "indication": "COADREAD", "headline": {}, "cards": []}
