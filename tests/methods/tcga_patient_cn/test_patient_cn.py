@@ -94,6 +94,37 @@ def test_unmapped_indication_data_unavailable(monkeypatch):
     assert out["patient_copy_number_class"] == "data_unavailable"
 
 
+def test_focal_amplification_gates_on_high_level(monkeypatch):
+    # 25% high-level (+2) → recurrent_focal_amplification (>= 10% focal bar). This is the verdict-consensus gate.
+    g = {f"TCGA-A1-{i:04d}-01A": (2 if i < 25 else 1 if i < 50 else 0) for i in range(100)}
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["patient_focal_cn_class"] == "recurrent_focal_amplification"
+
+
+def test_arm_level_gain_is_NOT_focal(monkeypatch):
+    # 23% any-gain but only 1% high-level (+2) — KRAS-arm-level pattern. patient_copy_number_class is
+    # recurrently_amplified (any-gain), but patient_focal_cn_class must be focal_neutral (NOT a focal driver).
+    g = {}
+    for i in range(100):
+        g[f"TCGA-A6-{i:04d}-01A"] = 2 if i < 1 else (1 if i < 23 else 0)
+    cancer = {f"TCGA-A6-{i:04d}": "COAD" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("KRAS", "COADREAD")
+    assert out["patient_copy_number_class"] == "recurrently_amplified"   # any-gain class
+    assert out["patient_focal_cn_class"] == "focal_neutral"              # but NOT focal → verdict-safe
+
+
+def test_focal_deletion_gates_on_homdel(monkeypatch):
+    # 30% homdel (-2) → recurrent_focal_deletion (the TSG analog).
+    g = {f"TCGA-05-{i:04d}-01A": (-2 if i < 30 else -1 if i < 60 else 0) for i in range(100)}
+    cancer = {f"TCGA-05-{i:04d}": "LUAD" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("CDKN2A", "NSCLC")
+    assert out["patient_focal_cn_class"] == "recurrent_focal_deletion"
+
+
 def test_gene_absent_data_unavailable(monkeypatch):
     monkeypatch.setattr(r, "_read_from_product", lambda t, i: None)
     r._read_gistic_gene.cache_clear()

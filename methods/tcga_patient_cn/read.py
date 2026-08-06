@@ -36,6 +36,14 @@ INDICATION_TO_TCGA = {
 _RECURRENT_FRACTION = 0.20
 # When BOTH amp and del clear the bar, "mixed" iff neither dominates by more than this ratio.
 _DOMINANCE_RATIO = 1.5
+# FOCAL categorical (verdict-consensus companion). patient_copy_number_class fires on ANY gain
+# (>= +1), which includes arm-level noise (e.g. KRAS 12p arm-gain 23% but only 1% focal). The
+# genomic-verdict CN-consensus rung must gate on FOCAL high-level amplification (GISTIC +2), NOT
+# arm-level gain — so this emits a CATEGORICAL patient_focal_amplification the rule engine can match
+# (equals-only; no numeric thresholds in rules — same discipline as the 2b homdel flag). The
+# recurrence bar for FOCAL amp is lower than any-gain because high-level +2 is a stronger event.
+_FOCAL_AMP_FRACTION = 0.10   # high-level (+2) in >= 10% of tumours → recurrent_focal_amplification
+_FOCAL_HOMDEL_FRACTION = 0.10  # homdel (-2) in >= 10% → recurrent_focal_deletion (the TSG analog)
 
 
 def _ensure_aws_profile():
@@ -108,6 +116,22 @@ def _classify(amp_frac: float, del_frac: float) -> str:
     return "broadly_neutral"
 
 
+def _focal_class(high_amp_frac: float, homdel_frac: float) -> str:
+    """FOCAL categorical for the genomic-verdict consensus rung — gates on HIGH-LEVEL (+2) focal
+    amplification / homozygous (-2) deletion, NOT arm-level any-gain. equals-matchable by the rule
+    engine. recurrent_focal_amplification takes precedence over deletion when both clear (a focal
+    high-amp is the actionable oncogene signal); returns focal_neutral when neither is recurrent."""
+    amp = high_amp_frac is not None and high_amp_frac >= _FOCAL_AMP_FRACTION
+    dele = homdel_frac is not None and homdel_frac >= _FOCAL_HOMDEL_FRACTION
+    if amp and dele:
+        return "recurrent_focal_amplification" if high_amp_frac >= homdel_frac else "recurrent_focal_deletion"
+    if amp:
+        return "recurrent_focal_amplification"
+    if dele:
+        return "recurrent_focal_deletion"
+    return "focal_neutral"
+
+
 # Materialized gene-sorted product (the fast path). Registered as tcga-patient-cn-per-gene-v1; the
 # card reads a per-gene pushdown slice (~a few rows) instead of the 589 MB TSV. Live TSV read stays
 # as a fallback when the product isn't resolvable.
@@ -124,12 +148,14 @@ def _summarize(vals) -> Optional[dict]:
     n_del = sum(1 for v in vals if v <= -1)
     n_homdel = sum(1 for v in vals if v <= -2)
     amp_frac, del_frac = n_amp / n, n_del / n
+    high_amp_frac, homdel_frac = n_highamp / n, n_homdel / n
     return {
         "patient_copy_number_class": _classify(amp_frac, del_frac),
+        "patient_focal_cn_class": _focal_class(high_amp_frac, homdel_frac),   # verdict-consensus gate (focal only)
         "patient_amplified_fraction": amp_frac,
-        "patient_high_amp_fraction": n_highamp / n,
+        "patient_high_amp_fraction": high_amp_frac,
         "patient_deleted_fraction": del_frac,
-        "patient_homdel_fraction": n_homdel / n,
+        "patient_homdel_fraction": homdel_frac,
         "n_samples": n,
     }
 
@@ -161,9 +187,9 @@ def _read_from_product(target: str, indication: str) -> Optional[dict]:
     if tbl.num_rows == 0:
         return None
     r = tbl.to_pylist()[0]
-    s = {k: r[k] for k in ("patient_copy_number_class", "patient_amplified_fraction",
-                           "patient_high_amp_fraction", "patient_deleted_fraction",
-                           "patient_homdel_fraction", "n_samples")}
+    s = {k: r[k] for k in ("patient_copy_number_class", "patient_focal_cn_class",
+                           "patient_amplified_fraction", "patient_high_amp_fraction",
+                           "patient_deleted_fraction", "patient_homdel_fraction", "n_samples")}
     return s
 
 
@@ -241,13 +267,15 @@ def build_patient_cn_table():
             if not gi or ni == 0:
                 continue
             amp_f, del_f = amp[i] / ni, dele[i] / ni
+            high_f, homdel_f = float(highamp[i] / ni), float(homdel[i] / ni)
             rows.append({
                 "gene_symbol": gi, "indication": ind,
                 "patient_copy_number_class": _classify(float(amp_f), float(del_f)),
+                "patient_focal_cn_class": _focal_class(high_f, homdel_f),
                 "patient_amplified_fraction": float(amp_f),
-                "patient_high_amp_fraction": float(highamp[i] / ni),
+                "patient_high_amp_fraction": high_f,
                 "patient_deleted_fraction": float(del_f),
-                "patient_homdel_fraction": float(homdel[i] / ni),
+                "patient_homdel_fraction": homdel_f,
                 "n_samples": ni,
             })
     rows.sort(key=lambda r: (r["gene_symbol"], r["indication"]))
@@ -259,6 +287,7 @@ def _schema():
     return pa.schema([
         pa.field("gene_symbol", pa.string()), pa.field("indication", pa.string()),
         pa.field("patient_copy_number_class", pa.string()),
+        pa.field("patient_focal_cn_class", pa.string()),
         pa.field("patient_amplified_fraction", pa.float64()),
         pa.field("patient_high_amp_fraction", pa.float64()),
         pa.field("patient_deleted_fraction", pa.float64()),
@@ -270,6 +299,7 @@ def _schema():
 def _unavailable(note: str) -> dict:
     return {
         "patient_copy_number_class": "data_unavailable",
+        "patient_focal_cn_class": "data_unavailable",
         "patient_amplified_fraction": None, "patient_high_amp_fraction": None,
         "patient_deleted_fraction": None, "patient_homdel_fraction": None,
         "n_samples": 0, "patient_cn_context": None,
