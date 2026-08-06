@@ -60,6 +60,12 @@ composition:
                                        # crosswalk). Its F3 rules (shed-ectodomain-clinical/secretome-proxy-opposing,
                                        # OPPOSING not killer) existed + were axis-wired but UNREACHABLE — no skill
                                        # composed the card. Additive signal facet; verdict byte-stable.
+    - tumor-scrna-celltype-expression  # (in run.py CARDS; wired 2026-08-06, biologics-augment Phase 3.2)
+                                       # Within-tumor antigen HOMOGENEITY via single-cell Census (tce_homogeneity_class
+                                       # facet). TCE program-killer = antigen heterogeneity (antigen-low cells escape).
+                                       # Its surface rules (sc-homogeneity-uniform-tce-supportive / -heterogeneous-tce-
+                                       # opposing) fire on the homogeneity facet; the card's PRIMARY sc_expression_class
+                                       # stays presence-axis. LIVE for COADREAD+NSCLC. Additive; verdict byte-stable.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -84,6 +90,8 @@ composition:
                                        # (serum-marker crosswalk); OPPOSING-not-killer on adc/bite_tce/antibody.
                                        # surface_confirmation (above) is now a FIRING card (protein-surface-evidence),
                                        # not just a pulled intent — CSPA wired into CARDS same change.
+    - sc_tumor_celltype_expression     # (2026-08-06, biologics-augment Phase 3.2) single-cell within-tumor antigen
+                                       # homogeneity (tce_homogeneity_class facet); TCE-escape signal, adc/bite_tce.
   rules_scope:
     - all
   synthesis:

@@ -75,6 +75,19 @@ CARDS = [
                                         # approved biologics exist vs shed antigens) existed + were wired to the
                                         # surface_intrinsic axis but UNREACHABLE — no skill composed the card.
                                         # ADDITIVE signal-only (no resolver rung) → verdict byte-stable.
+    "tumor-scrna-celltype-expression",  # biologics-augment Phase 3.2 (2026-08-06): within-tumor antigen
+                                        # HOMOGENEITY via single-cell CELLxGENE Census (tce_homogeneity_class
+                                        # facet — fraction of MALIGNANT cells expressing the target). For a
+                                        # TCE, antigen heterogeneity is a program-killer (antigen-low cells
+                                        # escape redirected killing — no bystander payload). Its surface rules
+                                        # (sc-homogeneity-uniform-tce-supportive [important] + sc-homogeneity-
+                                        # heterogeneous-tce-opposing [important, ADC neutral — the ADC-vs-TCE
+                                        # discriminator]) fire on the tce_homogeneity_class categorical. The
+                                        # card's PRIMARY sc_expression_class stays a presence-axis (Gate-A)
+                                        # readout — this composes it for its BIOLOGICS-homogeneity facet only.
+                                        # LIVE for COADREAD + NSCLC (Census per-cell malignant annotation);
+                                        # other indications → data_unavailable (honest gap). ADDITIVE signal-
+                                        # only (no resolver rung) → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -126,6 +139,13 @@ def _headline(cards, fired, verdict_pair):
         # demands a shed-resistant epitope + antigen-sink dose modeling). Additive; verdict byte-stable.
         "shed_liability_class":           get_card_field(cards, "shed-ectodomain-liability", "shed_liability_class"),
         "shed_serum_marker":              get_card_field(cards, "shed-ectodomain-liability", "serum_marker"),
+        # Within-tumor antigen homogeneity (tumor-scrna-celltype-expression, single-cell Census).
+        # Its surface rules fire on tce_homogeneity_class (bite_tce/adc): homogeneous → TCE supportive
+        # (uniform, low escape); heterogeneous → TCE opposing (antigen-low escape reservoir), ADC
+        # neutral (bystander payload reaches antigen-low cells) — the ADC-vs-TCE discriminator.
+        # LIVE for COADREAD + NSCLC only; else data_unavailable. Additive; verdict byte-stable.
+        "tce_homogeneity_class":          get_card_field(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class"),
+        "malignant_detection_fraction":   get_card_field(cards, "tumor-scrna-celltype-expression", "malignant_detection_fraction"),
     }
 
 

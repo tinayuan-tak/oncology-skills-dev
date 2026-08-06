@@ -99,6 +99,9 @@ _NEWLY_REACHABLE_RULES = [
     "protein-not-surface-opposing",           # CSPA not_surface (measured-negative; NOT killer)
     "shed-ectodomain-clinical-opposing",      # clinically_shed serum-marker antigen sink
     "shed-ectodomain-secretome-proxy-opposing",
+    # biologics-augment Phase 3.2 — within-tumor antigen-homogeneity (single-cell Census):
+    "sc-homogeneity-uniform-tce-supportive",  # homogeneous → TCE supportive
+    "sc-homogeneity-heterogeneous-tce-opposing",  # heterogeneous → TCE opposing (escape reservoir)
 ]
 
 
@@ -107,6 +110,8 @@ def test_newly_wired_cards_are_in_the_skill_card_set():
     on live data until the skill listed them)."""
     assert "protein-surface-evidence" in smf.CARDS
     assert "shed-ectodomain-liability" in smf.CARDS
+    # Phase 3.2 — the single-cell homogeneity card carries the tce_homogeneity_class facet
+    assert "tumor-scrna-celltype-expression" in smf.CARDS
 
 
 def test_additive_surface_signals_do_not_move_the_verdict():
