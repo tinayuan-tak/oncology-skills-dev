@@ -82,6 +82,27 @@ INDICATION_TO_DEPMAP_LINEAGE = {
     "OV": ("Ovary/Fallopian Tube",), "UCEC": ("Uterus",),
 }
 
+# MODEL-side mutational-SIGNATURE arm (DepMap OmicsMolecularSignatureMatrix, SBS exposure COUNTS per
+# ModelID). The decision-useful, therapeutically-actionable etiologies:
+#   - MMR-deficiency signatures → an INDEPENDENT cross-validation of the MSI axis (different signal:
+#     mutation spectrum vs microsatellite length). Tracks the MSI arm closely (Uterus/Bowel high).
+#   - HRD signature SBS3 → a WEAK PARP-sensitivity proxy. SBS3 is flat/featureless and rarely DOMINATES
+#     a cell line's spectrum (swamped by clock-like SBS40), so it is reported at a LOW presence
+#     threshold + explicitly caveated; a real HRD score needs a scarHRD-style genomic-scar derivation
+#     (deferred). We do NOT overclaim HRD from SBS3 alone.
+DEPMAP_SIGNATURE_MATRIX_KEY = f"{DEPMAP_PREFIX}/OmicsMolecularSignatureMatrix.csv"
+# COSMIC SBS → etiology groups (from MolecularSignatureEtiologies.csv; the actionable subset).
+_MMR_SIGNATURES = ("SBS6", "SBS14", "SBS15", "SBS20", "SBS21", "SBS26", "SBS44")  # mismatch-repair-deficiency
+_HRD_SIGNATURE = "SBS3"                                                            # defective homologous recombination
+# A cell line is "MMR-signature-high" when MMR signatures make up >= 20% of its SBS burden (a
+# dominant MMR spectrum); the cohort class is the FRACTION of lines that clear it (mirrors MSI —
+# MMR-deficiency is a subset phenomenon, so the median is uninformative; the tail carries the signal).
+_MMR_SIG_HIGH_FRACTION = 0.20        # per-model: MMR-signature fraction >= this = MMR-sig-high line
+_MMR_COHORT_HIGH = 0.15              # cohort: >= this fraction of lines MMR-sig-high → mmr_signature_enriched
+_MMR_COHORT_LOW = 0.05               # cohort: <= this → mmr_signature_rare
+# HRD (SBS3) presence: LOW per-model threshold (SBS3 rarely dominates), reported as a weak proxy only.
+_HRD_SIG_PRESENT_FRACTION = 0.10     # per-model: SBS3 >= 10% of burden = "HRD-signature-present" (weak)
+
 
 def _ensure_aws_profile():
     if "AWS_PROFILE" not in os.environ:
@@ -347,6 +368,94 @@ def _model_msi_unavailable(note: str) -> dict:
         "model_msi_class": "data_unavailable", "model_msi_high_fraction": None,
         "n_model_msi_high": 0, "n_model_lines": 0,
         "model_msi_context": None, "method_version": "0.2.0", "_data_note": note,
+    }
+
+
+@lru_cache(maxsize=1)
+def _load_model_signatures_by_lineage():
+    """{OncotreeLineage: DataFrame[mmr_frac, hrd_frac]} from DepMap OmicsMolecularSignatureMatrix.
+    SBS columns are per-model exposure COUNTS → normalized to per-model FRACTIONS (signature /
+    that model's total SBS burden) so a hypermutator doesn't dominate. Deduped per ModelID. Empty
+    on failure. Returns a dict of lineage → list of (mmr_frac, hrd_frac) tuples."""
+    import pandas as pd, numpy as np
+    try:
+        sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_SIGNATURE_MATRIX_KEY)))
+        model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)),
+                            usecols=["ModelID", "OncotreeLineage"])
+    except Exception:  # noqa: BLE001
+        return {}
+    sbs = [c for c in sig.columns if c.startswith("SBS")]
+    if not sbs or "ModelID" not in sig.columns:
+        return {}
+    sig = sig.drop_duplicates(subset=["ModelID"]).copy()
+    total = sig[sbs].sum(axis=1).replace(0, np.nan)
+    mmr_cols = [c for c in _MMR_SIGNATURES if c in sbs]
+    sig["_mmr_frac"] = sig[mmr_cols].sum(axis=1).div(total) if mmr_cols else np.nan
+    sig["_hrd_frac"] = sig[_HRD_SIGNATURE].div(total) if _HRD_SIGNATURE in sbs else np.nan
+    merged = sig.merge(model, on="ModelID", how="inner").dropna(subset=["_mmr_frac"])
+    out: dict = {}
+    for lineage, grp in merged.groupby("OncotreeLineage"):
+        out[str(lineage)] = list(zip(grp["_mmr_frac"], grp["_hrd_frac"]))
+    return out
+
+
+def _classify_mmr_signature(cohort_high_fraction):
+    if cohort_high_fraction is None:
+        return "data_unavailable"
+    if cohort_high_fraction >= _MMR_COHORT_HIGH:
+        return "mmr_signature_enriched"
+    if cohort_high_fraction <= _MMR_COHORT_LOW:
+        return "mmr_signature_rare"
+    return "mmr_signature_intermediate"
+
+
+def model_signature_summary_for_indication(indication: str) -> dict:
+    """Per-indication MODEL-side (DepMap) mutational-SIGNATURE summary from OmicsMolecularSignatureMatrix.
+    Two therapeutically-actionable etiologies, cohort-level, target-independent:
+      - model_mmr_signature_class: fraction of lineage cell lines whose MMR-deficiency signatures make
+        up >= 20% of their SBS burden → enriched/intermediate/rare. An INDEPENDENT cross-validation of
+        the MSI axis (mutation-spectrum signal, not microsatellite length).
+      - model_hrd_signature_present_fraction: fraction of lines with SBS3 (defective-HR) >= 10% of burden
+        — a WEAK PARP-sensitivity proxy (SBS3 rarely dominates; a real HRD score needs scarHRD, deferred).
+    data_unavailable when no lineage mapping or the DepMap file is unresolvable."""
+    lineages = INDICATION_TO_DEPMAP_LINEAGE.get(str(indication or "").upper().strip())
+    if not lineages:
+        return _model_signature_unavailable(f"no DepMap lineage mapping for {indication!r}")
+    by_lin = _load_model_signatures_by_lineage()
+    if not by_lin:
+        return _model_signature_unavailable("DepMap OmicsMolecularSignatureMatrix/Model unresolvable")
+    pairs = [p for lin in lineages for p in by_lin.get(lin, [])]
+    n = len(pairs)
+    if n == 0:
+        return _model_signature_unavailable(f"no DepMap cell lines for {indication} ({lineages})")
+    mmr_high = sum(1 for mmr, _hrd in pairs if mmr >= _MMR_SIG_HIGH_FRACTION)
+    hrd_present = sum(1 for _mmr, hrd in pairs if hrd is not None and hrd >= _HRD_SIG_PRESENT_FRACTION)
+    mmr_cohort_frac = mmr_high / n
+    hrd_cohort_frac = hrd_present / n
+    return {
+        "model_mmr_signature_class": _classify_mmr_signature(mmr_cohort_frac),
+        "model_mmr_signature_high_fraction": mmr_cohort_frac,
+        "n_model_mmr_signature_high": mmr_high,
+        "model_hrd_signature_present_fraction": hrd_cohort_frac,
+        "n_model_hrd_signature_present": hrd_present,
+        "n_model_signature_lines": n,
+        "model_signature_context": (
+            f"{indication}: {mmr_cohort_frac:.0%} of {n} DepMap {'/'.join(lineages)} cell lines are "
+            f"MMR-signature-high (MMR SBS >= {_MMR_SIG_HIGH_FRACTION:.0%} of burden — cross-validates MSI); "
+            f"{hrd_cohort_frac:.0%} carry an HRD signature (SBS3 >= {_HRD_SIG_PRESENT_FRACTION:.0%}, a WEAK "
+            f"PARP-sensitivity proxy — a real HRD/genomic-scar score is deferred). MODEL-cohort, target-independent."
+        ),
+        "method_version": "0.2.0",
+        "_data_source": "depmap-consortium-26q1",
+    }
+
+
+def _model_signature_unavailable(note: str) -> dict:
+    return {
+        "model_mmr_signature_class": "data_unavailable", "model_mmr_signature_high_fraction": None,
+        "n_model_mmr_signature_high": 0, "model_hrd_signature_present_fraction": None,
+        "n_model_hrd_signature_present": 0, "n_model_signature_lines": 0,
+        "model_signature_context": None, "method_version": "0.2.0", "_data_note": note,
     }
 
 

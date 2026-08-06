@@ -208,3 +208,52 @@ def test_model_msi_unmapped_indication_data_unavailable(monkeypatch):
     _setup_model_msi(monkeypatch, {"Bowel": [50.0]})
     out = r.model_msi_summary_for_indication("MADEUP")
     assert out["model_msi_class"] == "data_unavailable" and out["model_msi_high_fraction"] is None
+
+
+# ---------- MODEL-side mutational-SIGNATURE arm (DepMap OmicsMolecularSignatureMatrix) ----------
+
+def _setup_model_sig(monkeypatch, by_lineage):
+    """by_lineage: {OncotreeLineage: [(mmr_frac, hrd_frac), ...]} — already per-model-normalized."""
+    r._load_model_signatures_by_lineage.cache_clear()
+    monkeypatch.setattr(r, "_load_model_signatures_by_lineage", lambda: by_lineage)
+
+
+def test_model_mmr_signature_enriched(monkeypatch):
+    # 3 of 10 lines MMR-sig-high (>=0.20) → 0.30 >= 0.15 → mmr_signature_enriched.
+    pairs = [(0.5, 0.0), (0.4, 0.01), (0.25, 0.0)] + [(0.01, 0.0)] * 7
+    _setup_model_sig(monkeypatch, {"Bowel": pairs})
+    out = r.model_signature_summary_for_indication("COADREAD")
+    assert out["n_model_signature_lines"] == 10 and out["n_model_mmr_signature_high"] == 3
+    assert out["model_mmr_signature_high_fraction"] == 0.3
+    assert out["model_mmr_signature_class"] == "mmr_signature_enriched"
+
+
+def test_model_mmr_signature_rare_lung(monkeypatch):
+    # NSCLC → Lung; ~0% MMR-sig-high → mmr_signature_rare (the MSI cross-validation: lung is MMR-clean).
+    _setup_model_sig(monkeypatch, {"Lung": [(0.01, 0.02)] * 50})
+    out = r.model_signature_summary_for_indication("NSCLC")
+    assert out["model_mmr_signature_class"] == "mmr_signature_rare"
+    assert out["n_model_mmr_signature_high"] == 0
+
+
+def test_model_hrd_present_low_threshold(monkeypatch):
+    # SBS3 present at the LOW 0.10 threshold — a weak proxy; 2 of 5 lines have SBS3>=0.10.
+    pairs = [(0.01, 0.15), (0.01, 0.10), (0.01, 0.05), (0.01, 0.0), (0.01, 0.09)]
+    _setup_model_sig(monkeypatch, {"Ovary/Fallopian Tube": pairs})
+    out = r.model_signature_summary_for_indication("OV")
+    assert out["n_model_hrd_signature_present"] == 2
+    assert out["model_hrd_signature_present_fraction"] == 0.4
+
+
+def test_model_signature_mmr_high_threshold_boundary(monkeypatch):
+    # per-model MMR-sig-high requires >= 0.20; exactly 0.20 counts, 0.19 does not.
+    _setup_model_sig(monkeypatch, {"Bowel": [(0.20, 0.0), (0.19, 0.0)]})
+    out = r.model_signature_summary_for_indication("COADREAD")
+    assert out["n_model_mmr_signature_high"] == 1
+
+
+def test_model_signature_unmapped_data_unavailable(monkeypatch):
+    _setup_model_sig(monkeypatch, {"Bowel": [(0.5, 0.0)]})
+    out = r.model_signature_summary_for_indication("MADEUP")
+    assert out["model_mmr_signature_class"] == "data_unavailable"
+    assert out["model_mmr_signature_high_fraction"] is None
