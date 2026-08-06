@@ -12,13 +12,14 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.0.0
+version: 1.1.0   # 1.1.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort ADDITIVE display sibling to TCGA
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
 applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
 
 required_inputs:
   - product_id: tcga-fusion-consensus-v1
+  - product_id: genie-sv-recurrence-v1              # ADDITIVE breadth sibling (genie_sv_* fields); reader degrades gracefully
 
 methods:
   - call: tcga-fusion-consensus
@@ -32,12 +33,27 @@ outputs:
     - fusion_frequency
     - recurrent_partners
     - fusion_class                                  # PRIMARY categorical driving rules
+    # ---- GENIE-SV breadth (pan-cohort, panel-coverage-correct) — ADDITIVE display, verdict-inert ----
+    # The higher-N complement to the TCGA-consensus facts above (271k panel tumors vs 33 TCGA tissues).
+    # None of these drive a resolver rung; genie_sv_recurrence_class is a DISPLAY comparator only.
+    - genie_sv_recurrence_class                     # breadth-ranked recurrence class (NOT a verdict driver)
+    - genie_sv_recurrence_percentile                # percentile of genie_sv_frequency among SV-covered genes in-indication
+    - genie_sv_frequency                            # n_sv_samples / n_sv_covered — SV-coverage-correct
+    - n_sv_samples                                  # distinct GENIE samples with the target at either breakend
+    - n_sv_covered                                  # SV-profiled cohort samples whose panel covers the target (honest denominator)
+    - genie_sv_recurrent_partners                   # recurrent SV partner genes (EML4 for ALK, etc.); event-tokens excluded
   summary_fields_vocabulary:
     fusion_class:
       - recurrent_fusion_driver                     # a recurrent partner (>=3 samples) OR the target recurs >=3 samples
       - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
       - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
       - data_unavailable                            # product/target absent — NOT a measured negative
+    genie_sv_recurrence_class:                      # DISPLAY-only breadth comparator (does NOT drive rules)
+      - top_1pct                                    # SV frequency in the top 1% of SV-covered genes in-indication
+      - top_decile                                  # top 10%
+      - mid                                         # between the deciles
+      - bottom_decile                               # bottom 10%
+      - data_unavailable                            # coverage-gap (target on no SV panel) OR too-thin (< 20 SV-covered samples)
   figures:
     - id: fusion_partner_bar
       type: ranked_bar
@@ -48,9 +64,9 @@ outputs:
 caveats:
   - "Consensus of 3 TCGA callers (TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas 2018 SV), UNIONED not intersected — caller_count in the product encodes agreement; the reader's min_callers arg (1=union default / 2=majority) lets a consumer require consensus."
   - "RNA transcript-fusion (TumorFusions/Gao) + DNA SV (cBioPortal) are combined; a consumer needing one modality should filter by caller. Gao 2018 publishes no frame predictions."
-  - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is currently None (the assayed-sample denominator, sample_coverage, is a deferred fast-follow — the card reports absolute sample counts, not a rate, rather than divide by an unknown denominator)."
-  - "TCGA-only cohort. A target with fusions predominantly outside the 33 TCGA tissue types will under-report here; GENIE-SV breadth is a future additive source."
-  - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence."
+  - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is n_samples_with_fusion / assayed samples in the indication tissue (sample_coverage), or None when the coverage denominator is unavailable — never a rate over an unknown cohort."
+  - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-sv-recurrence-v1) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
+  - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
 # [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
