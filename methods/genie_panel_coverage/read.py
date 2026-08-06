@@ -28,6 +28,12 @@ PANEL_DIR_PREFIX = f"{GENIE_PREFIX}/gene_panels/"
 # A blank value = the sample was not mutation-profiled → it has NO SNV coverage for
 # any gene (excluded from every mutation denominator).
 _MUTATIONS_PANEL_COLUMN = "mutations"
+# The `sv` column names the panel that assayed a sample's structural variants. GENIE ships
+# per-assay coverage columns (mutations/cna/sv); a sample can be SNV-profiled but NOT
+# SV-profiled, so the SV denominator must key on THIS column, not `mutations`. (In v19 the
+# sv-panel id equals the mutations-panel id where both are present — same gene-list applies —
+# but ~3.3k samples have a blank `sv` and must be excluded from every SV denominator.)
+_SV_PANEL_COLUMN = "sv"
 
 
 def _ensure_aws_profile():
@@ -72,20 +78,38 @@ def load_panel_gene_sets(genie_prefix: str = GENIE_PREFIX) -> dict:
     return out
 
 
-@lru_cache(maxsize=1)
-def load_sample_panel_map(genie_prefix: str = GENIE_PREFIX) -> dict:
-    """{sample_id: panel_id} from data_gene_matrix.txt `mutations` column.
-    Samples with a blank mutations-panel (not SNV-profiled) are OMITTED — they carry
-    no mutation coverage for any gene and must not enter a denominator. Cached once."""
+@lru_cache(maxsize=4)
+def _sample_panel_map_for_column(column: str, genie_prefix: str = GENIE_PREFIX) -> dict:
+    """{sample_id: panel_id} from a data_gene_matrix.txt per-assay column. Samples with a
+    blank panel for that assay (not profiled on it) are OMITTED — they carry no coverage for
+    any gene on that assay and must not enter its denominator. Cached per column."""
     import pandas as pd
     _ensure_aws_profile()
     s3 = _boto3_client()
-    body = s3.get_object(Bucket=S3_BUCKET, Key=GENE_MATRIX_KEY)["Body"]
+    key = f"{genie_prefix}/data_gene_matrix.txt" if genie_prefix != GENIE_PREFIX else GENE_MATRIX_KEY
+    body = s3.get_object(Bucket=S3_BUCKET, Key=key)["Body"]
     df = pd.read_csv(body, sep="\t", dtype=str)
-    # SAMPLE_ID + mutations columns; drop rows with no mutation panel.
-    df = df[["SAMPLE_ID", _MUTATIONS_PANEL_COLUMN]].dropna(subset=[_MUTATIONS_PANEL_COLUMN])
-    df = df[df[_MUTATIONS_PANEL_COLUMN].str.strip() != ""]
-    return dict(zip(df["SAMPLE_ID"], df[_MUTATIONS_PANEL_COLUMN]))
+    if column not in df.columns:
+        return {}
+    df = df[["SAMPLE_ID", column]].dropna(subset=[column])
+    df = df[df[column].str.strip() != ""]
+    return dict(zip(df["SAMPLE_ID"], df[column]))
+
+
+def load_sample_panel_map(genie_prefix: str = GENIE_PREFIX) -> dict:
+    """{sample_id: panel_id} from data_gene_matrix.txt `mutations` column — the panel that
+    assayed each sample's SNVs. Samples with a blank mutations-panel (not SNV-profiled) are
+    OMITTED. Cached once."""
+    return _sample_panel_map_for_column(_MUTATIONS_PANEL_COLUMN, genie_prefix)
+
+
+def load_sv_sample_panel_map(genie_prefix: str = GENIE_PREFIX) -> dict:
+    """{sample_id: panel_id} from data_gene_matrix.txt `sv` column — the panel that assayed
+    each sample's STRUCTURAL VARIANTS. Samples with a blank sv-panel (not SV-profiled) are
+    OMITTED from every SV denominator (absent SV ≠ not-sequenced-for-SV). The panel gene-sets
+    are shared with the mutation side (`load_panel_gene_sets`), since a panel's gene-list is
+    the same regardless of which alteration class it was queried for."""
+    return _sample_panel_map_for_column(_SV_PANEL_COLUMN, genie_prefix)
 
 
 def covered(sample_id: str, gene: str,

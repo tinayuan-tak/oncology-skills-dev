@@ -41,7 +41,8 @@ import pandas as pd
 
 from methods.catalog_query.read import bucket_key_for
 
-METHOD_VERSION = "0.2.0"   # 0.2.0: + per-target read_target_summary over the derived S3 product
+METHOD_VERSION = "0.3.0"   # 0.3.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort display sibling
+#                            0.2.0: + per-target read_target_summary over the derived S3 product
 
 # ---------- per-target read over the derived consensus product (2026-07-23) ----------
 # The builders above (load_*/build_consensus in cli.py) EMIT the derived product; this reader
@@ -162,8 +163,35 @@ def _n_assayed_in_tissue(indication: Optional[str]) -> Optional[int]:
     return int(n) if n > 0 else None
 
 
-def _empty_summary(note: str) -> dict:
-    return {
+# GENIE-SV breadth keys — the pan-cohort (271k panel tumors) complement to the TCGA-consensus
+# fusion facts. Panel-coverage-correct DISPLAY facet (verdict-inert). TCGA is deep-tissue but shallow
+# (LUAD ~5 ALK); GENIE surfaces 774 ALK-SV NSCLC samples with EML4 the dominant partner.
+_GENIE_SV_KEYS = ("genie_sv_recurrence_class", "genie_sv_recurrence_percentile",
+                  "genie_sv_frequency", "n_sv_samples", "n_sv_covered",
+                  "genie_sv_recurrent_partners", "genie_sv_context")
+
+
+def _genie_sv_fields(target: str, indication: Optional[str]) -> dict:
+    """The GENIE panel-coverage-correct SV-recurrence fields for the fusion-rearrangement-landscape
+    card — the higher-N sibling of the TCGA-consensus fusion facts. Lazily imports genie_sv_recurrence
+    and always returns the keys (graceful data_unavailable on any failure/absence), so the card gains
+    the GENIE breadth comparator without ever breaking the TCGA path. No indication → no GENIE cohort."""
+    default = {"genie_sv_recurrence_class": "data_unavailable",
+               "genie_sv_recurrence_percentile": None, "genie_sv_frequency": None,
+               "n_sv_samples": None, "n_sv_covered": None,
+               "genie_sv_recurrent_partners": [], "genie_sv_context": None}
+    if not indication:
+        return default
+    try:
+        from methods.genie_sv_recurrence.read import genie_sv_recurrence_for_gene
+        g = genie_sv_recurrence_for_gene(target, indication)
+        return {k: g.get(k) for k in _GENIE_SV_KEYS}
+    except Exception:  # noqa: BLE001
+        return default
+
+
+def _empty_summary(note: str, target: str = None, indication: str = None) -> dict:
+    out = {
         "n_samples_with_fusion": 0,
         "fusion_frequency": None,
         "recurrent_partners": [],
@@ -172,6 +200,10 @@ def _empty_summary(note: str) -> dict:
         "_data_note": note,
         "_data_source": DERIVED_MANIFEST_ID,
     }
+    # Even when the TCGA product is silent for this target/indication, GENIE-SV breadth may still
+    # carry a signal (its cohort is 271k panel tumors, not the 33 TCGA tissues) — surface it.
+    out.update(_genie_sv_fields(target, indication) if target else {k: None for k in _GENIE_SV_KEYS})
+    return out
 
 
 def read_target_summary(target: str, indication: str = None,
@@ -189,7 +221,7 @@ def read_target_summary(target: str, indication: str = None,
     data_unavailable (never a fabricated call) when the product is absent or the target has no rows."""
     df = _load_consensus()
     if df is None or df.empty:
-        return _empty_summary("fusion_consensus_product_unavailable")
+        return _empty_summary("fusion_consensus_product_unavailable", target, indication)
 
     sym = str(target or "").upper().strip()
     sub = df[df["gene_symbol"].astype(str).str.upper() == sym]
@@ -205,7 +237,7 @@ def read_target_summary(target: str, indication: str = None,
         # target present in the product but not in this indication (or filtered out) → no recurrent call
         # (distinct from product-absent: this is a real measured-negative for the indication)
         note = "target_not_fused_in_indication" if ind else "target_not_in_fusion_product"
-        out = _empty_summary(note)
+        out = _empty_summary(note, target, indication)
         out["fusion_class"] = "no_recurrent_fusion" if _target_in_product(df, sym) else "data_unavailable"
         return out
 
@@ -248,6 +280,8 @@ def read_target_summary(target: str, indication: str = None,
         "_min_callers": min_callers,
         "_n_events_total": int(sub[["n_events_tumorfusions", "n_events_gao_2018",
                                     "n_events_cbioportal"]].sum().sum()),
+        # GENIE-SV breadth (pan-cohort, panel-coverage-correct) — additive display sibling.
+        **_genie_sv_fields(target, indication),
     }
 
 

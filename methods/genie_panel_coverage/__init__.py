@@ -27,5 +27,6 @@ from .read import (  # noqa: E402,F401
     n_covered_samples,
     panel_coverage_denominator,
     load_sample_panel_map,
+    load_sv_sample_panel_map,
     load_panel_gene_sets,
 )
