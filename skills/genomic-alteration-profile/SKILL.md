@@ -43,6 +43,7 @@ composition:
     - alteration-role                        # typed driver ROLE (OncoKB × IntOGen); 2026-07-22
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
     - genomic-event-model-match              # M11 patient↔model genomic-event join (canonical P3); 2026-07-22
+    - genomic-instability-state              # M7 aneuploidy/CIN burden (2026-08-06): INDICATION-level cohort context (target-independent); additive signal-only, verdict-inert
     - subgroup-stratified-mutation-frequency # SUBTYPE axis (2026-08-05): per-stratum mutation frequency (MSI/MSS/sidedness/LoT); tier:subtype, DESCRIPTIVE panorama (emits no verdict — display facet like tumor-presence's by-subtype card); applies only when subgroup_spec is set
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
   # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);

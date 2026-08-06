@@ -71,6 +71,11 @@ CARDS = [
     # feeds LLM/matrix + headline, touches NO resolver rung (verdict spine byte-stable). Corroborates
     # Required (C) — genotype-matched + dependent in-lineage models = a genotype-backed dependency basis.
     "genomic-event-model-match",
+    # Genome-instability / aneuploidy burden (M7, genomic_instability_state). INDICATION-level,
+    # target-INDEPENDENT cohort context: how chromosomally unstable is this cancer? (high CIN →
+    # WGD/prognosis + copy-number-noise caveats). ADDITIVE signal-only: feeds LLM/matrix + headline,
+    # touches NO resolver rung (verdict spine byte-stable). Reads tcga_aneuploidy_burden live.
+    "genomic-instability-state",
 ]
 
 # SUBTYPE axis (2026-08-05 hardening) — kept OUT of the scalar CARDS list ON PURPOSE.
@@ -219,6 +224,9 @@ def main() -> int:
         "functional_state_class":        get_card_field(cards, "functional-gene-state", "functional_state_class"),
         # Patient↔model genomic-event correspondence (M11) — signal-only, does NOT feed the verdict.
         "event_correspondence_class":    get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
+        # Genome-instability / aneuploidy burden (M7) — INDICATION cohort context, target-independent.
+        # signal-only, does NOT feed the verdict.
+        "aneuploidy_burden_class":       get_card_field(cards, "genomic-instability-state", "aneuploidy_burden_class"),
         "cards_available":               sum(1 for c in cards if not c.get("_missing")),
         "cards_missing":                 [c["card_id"] for c in cards if c.get("_missing")],
     }

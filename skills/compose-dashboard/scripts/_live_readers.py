@@ -155,6 +155,17 @@ def _dispatch_alteration_role(target: str, indication: str) -> Optional[dict]:
     return mod.build_summary(target, indication)
 
 
+def _dispatch_genomic_instability_state(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route genomic-instability-state card to
+    methods/tcga_aneuploidy_burden::aneuploidy_burden_for_indication.
+
+    INDICATION-level, target-INDEPENDENT (aneuploidy is a genome-wide cohort phenotype) — the
+    `target` arg is accepted for dispatcher-signature uniformity but IGNORED; the burden is a
+    property of the indication cohort. DISPLAY facet, verdict-inert."""
+    mod = _import_method("tcga_aneuploidy_burden")
+    return mod.aneuploidy_burden_for_indication(indication)
+
+
 def _dispatch_functional_gene_state(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route functional-gene-state card (M6) to
     methods/functional_gene_state/cli.py::build_summary.
@@ -1053,6 +1064,7 @@ CARD_DISPATCHERS = {
     "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
+    "genomic-instability-state": _dispatch_genomic_instability_state,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
     "fusion-rearrangement-landscape": _dispatch_fusion_rearrangement_landscape,
