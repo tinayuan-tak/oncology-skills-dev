@@ -20,7 +20,7 @@
 # resolver rung.
 
 card_id: genomic-instability-state
-version: 0.3.0   # 0.3.0 (Phase 3a): + MSI prevalence (CRC+STAD); 0.2.0: + WGD/ploidy from ABSOLUTE
+version: 0.4.0   # 0.4.0: + MODEL-side MSI (DepMap, all lineages); 0.3.0: + patient MSI (CRC+STAD); 0.2.0: + WGD
 question: "How chromosomally unstable is the {indication.label} cohort — highly aneuploid, intermediate, or a quiet genome; how prevalent are whole-genome doubling and microsatellite instability — and where does its genome-instability burden sit?"
 
 tier: indication
@@ -54,11 +54,18 @@ outputs:
     - median_ploidy                      # cohort median ABSOLUTE ploidy (tracks WGD)
     - median_purity                      # cohort median ABSOLUTE tumor purity
     - wgd_context                        # human-readable WGD summary
-    # ---- MSI axis (Phase 3a; TCGA marker-paper labels) — 3rd cohort genome-state facet; CRC+STAD only ----
-    - msi_class                          # cohort MSI-prevalence class (enriched/intermediate/mss/unavailable)
-    - msi_high_fraction                  # fraction of cohort samples that are MSI-high
-    - n_msi_high                         # MSI-H sample count
-    - msi_context                        # human-readable MSI summary
+    # ---- MSI axis, PATIENT arm (Phase 3a; TCGA marker-paper labels) — CRC+STAD only ----
+    - msi_class                          # PATIENT cohort MSI-prevalence class (enriched/intermediate/mss/unavailable)
+    - msi_high_fraction                  # fraction of PATIENT cohort samples that are MSI-high
+    - n_msi_high                         # patient MSI-H sample count
+    - msi_context                        # human-readable patient MSI summary
+    # ---- MSI axis, MODEL arm (Phase 3a; DepMap MSIsensor MSIScore) — ALL LINEAGES ----
+    # The complement to the patient arm: covers the indications patient labels miss (NSCLC/PAAD get a
+    # MEASURED model_msi_class here where msi_class=data_unavailable). Cell-line cohort, not patient.
+    - model_msi_class                    # MODEL (cell-line) MSI-prevalence class
+    - model_msi_high_fraction            # fraction of DepMap lineage cell lines with MSIsensor MSIScore >= 20
+    - n_model_msi_high                   # MSI-H cell-line count
+    - model_msi_context                  # human-readable model MSI summary
   summary_fields_vocabulary:
     aneuploidy_burden_class:
       - highly_aneuploid                 # cohort median frac_altered >= 0.40
@@ -75,20 +82,27 @@ outputs:
       - msi_intermediate                 # 5% < fraction < 15% (e.g. colorectal ~14%)
       - mss_dominant                     # <= 5% MSI-high — microsatellite-stable cohort
       - data_unavailable                 # NO patient MSI labels for this indication (CRC+STAD only) — NOT 0% MSI-H
+    model_msi_class:                     # same cutoffs as patient msi_class, on DepMap cell lines
+      - msi_high_enriched                # >= 15% of lineage cell lines MSI-high (e.g. uterus ~49%, bowel ~22%)
+      - msi_intermediate                 # 5% < fraction < 15%
+      - mss_dominant                     # <= 5% MSI-high — e.g. NSCLC ~0.8%, PAAD ~1.7% (measured, not unavailable)
+      - data_unavailable                 # no DepMap lineage mapping or OmicsGlobalSignatures unresolvable
 
 thresholds:
   high_median_frac_altered: 0.40         # method bins median → highly_aneuploid
   low_median_frac_altered: 0.10          # method bins median → quiet_genome
   wgd_enriched_fraction: 0.50            # method bins WGD fraction → wgd_enriched
   wgd_rare_fraction: 0.20                # method bins WGD fraction → wgd_rare
-  msi_high_enriched_fraction: 0.15       # method bins MSI-high fraction → msi_high_enriched
+  msi_high_enriched_fraction: 0.15       # method bins MSI-high fraction → msi_high_enriched (patient + model)
   msi_mss_dominant_fraction: 0.05        # method bins MSI-high fraction → mss_dominant
+  model_msi_high_score: 20               # MSIsensor2 MSI-H per-cell-line score cutoff (model arm)
 
 caveats:
   - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy + WGD are genome-wide cohort phenotypes, not per-gene calls. The classes describe the indication's chromosomal instability / doubling prevalence, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
   - "Per-SAMPLE genome-wide instability (frac_altered), NOT per-arm. A per-arm arm-loss / per-lineage-selectivity-percentile view needs Taylor-2018 arm-level calls (not yet ingested) — deferred. DISPLAY facet, verdict-inert."
   - "WGD prevalence (wgd_class / wgd_fraction) is from PanCanAtlas ABSOLUTE Genome-doublings (>=1 doubling), the sibling of the aneuploidy burden — the two axes correlate (WGD-enriched cohorts run higher frac_altered + ploidy) but are reported separately. High WGD is a copy-number-noise + prognosis caveat, NOT a target-specific amplification signal."
-  - "MSI prevalence (msi_class / msi_high_fraction) is from the TCGA marker-paper subtype labels and is PATIENT-SIDE AVAILABLE FOR CRC + STAD ONLY — every other indication returns msi_class=data_unavailable, which means UNLABELLED, NOT a measured 0% MSI-high (a genuine coverage boundary; a genome-wide patient MSIsensor score is a deferred derivation, as are mutational-signature/HRD axes). MSI is cohort-level + target-independent; a target's own mutation load is mutation-hotspot-frequency."
+  - "PATIENT MSI (msi_class / msi_high_fraction) is from TCGA marker-paper labels, CRC + STAD ONLY — other indications return data_unavailable (UNLABELLED, NOT a measured 0% MSI-high). The MODEL arm (model_msi_class, DepMap MSIsensor) FILLS this gap: all-lineage, so NSCLC/PAAD get a measured model_msi_class where patient msi_class is unavailable. A genome-wide PATIENT MSIsensor score is a deferred derivation. Cohort-level, target-independent."
+  - "MODEL MSI (model_msi_class / model_msi_high_fraction) is DepMap cell-line MSIsensor (MSIScore >= 20 = MSI-H), a MODEL-cohort property — NOT patient prevalence (MSI-H lines are over-represented vs tumours, so model fractions can run higher). DepMap 26q1 merges gastric with esophageal into 'Esophagus/Stomach', so GC/STAD/ESCA model MSI is broader than gastric alone (dilutes vs the patient STAD label). Where both arms exist they cross-validate; where they differ, note the cohort difference."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `genomic_instability_state` claim.
 measurement_type: genomic_instability_state
