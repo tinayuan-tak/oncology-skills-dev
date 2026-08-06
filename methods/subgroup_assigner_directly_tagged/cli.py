@@ -217,6 +217,16 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     return df
 
 
+# Per-indication cache-dir slug for the prefetched BPC LOT parquet — MUST match
+# scripts/prefetch_source_maf.py::GENIE_BPC_CACHE_DIR (the producer). Each cohort's
+# LOT parquet lives in its own framework-genie-bpc-<slug>/ dir so identically-named
+# regimen/cpt CSVs don't collide across indications.
+_GENIE_BPC_CACHE_DIR = {
+    "COADREAD": "genie-bpc-crc-v2",
+    "NSCLC": "genie-bpc-nsclc-v2",
+}
+
+
 def _load_genie_bpc_lot(catalog_repo: Path, indication: str) -> pd.DataFrame:
     """Load GENIE-BPC line-of-therapy (LOT) per-sample labels.
 
@@ -229,13 +239,19 @@ def _load_genie_bpc_lot(catalog_repo: Path, indication: str) -> pd.DataFrame:
     GENIE-BPC regimen_cancer_level_dataset.csv, takes max(regimen_number_
     within_cancer) per patient index-cancer (ca_seq=0), maps to a LOT
     category, and joins to sample_id via cancer_panel_test_level_dataset.csv.
-    This loader reads the prefetched per-indication parquet.
+    This loader reads the prefetched per-indication parquet from that
+    indication's cache dir (the producer's GENIE_BPC_CACHE_DIR slug).
 
-    Real derivation 2026-07-15: 1,176 CRC samples — 205 1L-only, 203 2L,
-    768 3L+.
+    Real derivations: 1,176 CRC samples (205 1L / 203 2L / 768 3L+);
+    1,093 NSCLC samples (298 1L / 243 2L / 552 3L+).
     """
-    fallback = (cache_root() / "framework-genie-bpc-crc-v2"
-                / f"{indication.lower()}-bpc-lot.parquet")
+    slug = _GENIE_BPC_CACHE_DIR.get(indication.upper())
+    if slug is None:
+        raise ValueError(
+            f"No GENIE-BPC cache-dir slug for indication {indication!r}; add it to "
+            f"_GENIE_BPC_CACHE_DIR (mirror prefetch_source_maf.py::GENIE_BPC_CACHE_DIR)."
+        )
+    fallback = cache_root() / f"framework-{slug}" / f"{indication.lower()}-bpc-lot.parquet"
     if fallback.exists():
         return pd.read_parquet(fallback)
     raise FileNotFoundError(

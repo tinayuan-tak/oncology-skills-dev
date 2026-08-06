@@ -163,6 +163,13 @@ DEPMAP_LINEAGE = {"COADREAD": "Bowel"}
 # Handled by prefetch_genie_bpc_lot() rather than the generic MAF path.
 GENIE_BPC_S3_PREFIX = {
     "COADREAD": "data-catalog/sources/synapse/genie-bpc-crc-v2.0/CRC_2.0-public_clinical_data",
+    "NSCLC": "data-catalog/sources/synapse/genie-bpc-nsclc-v2.0/NSCLC_2.0-public_clinical_data",
+}
+# Per-indication local cache dir slug for the BPC LOT inputs — keeps each cohort's
+# downloaded regimen/cpt CSVs (identically NAMED but different content) from colliding.
+GENIE_BPC_CACHE_DIR = {
+    "COADREAD": "genie-bpc-crc-v2",
+    "NSCLC": "genie-bpc-nsclc-v2",
 }
 
 
@@ -263,8 +270,12 @@ def prefetch_genie_bpc_lot(indication: str, dry_run: bool) -> int:
     if not prefix:
         _log(f"No GENIE-BPC S3 prefix for {indication}; add to GENIE_BPC_S3_PREFIX.")
         sys.exit(1)
+    cache_slug = GENIE_BPC_CACHE_DIR.get(indication)
+    if not cache_slug:
+        _log(f"No GENIE-BPC cache dir for {indication}; add to GENIE_BPC_CACHE_DIR.")
+        sys.exit(1)
 
-    cache_dir = Path.home() / ".cache" / "framework-genie-bpc-crc-v2"
+    cache_dir = Path.home() / ".cache" / f"framework-{cache_slug}"
     reg_local = cache_dir / "regimen_cancer_level_dataset.csv"
     cpt_local = cache_dir / "cancer_panel_test_level_dataset.csv"
     out_path = cache_dir / f"{indication.lower()}-bpc-lot.parquet"
