@@ -72,6 +72,24 @@ def _run_scan(target: str, partners: list, indication: str, gate: str) -> dict:
               file=sys.stderr)
         results = []
 
+    # SAME-CELL AVIDITY CONFIRMATION (biologics-augment item 1): the bulk gate scan NOMINATES pairs
+    # from sample-level co-expression; for an AND gate that is necessary but NOT sufficient (two
+    # antigens can be high in a tumor sample yet on DIFFERENT cells). Attach the single-cell same-cell
+    # confirmation (sc-samecell-coexpr cube) to each AND-gate pair — closing the avidity caveat. OR/NOT
+    # gates are not same-cell-avidity questions, so they are left unconfirmed. Best-effort: if the cube
+    # is not landed for the indication, each pair carries samecell_avidity_call='data_unavailable'
+    # (the bulk verdict + caveat still stand — never a fabricated confirmation).
+    if gate == "AND" and results:
+        try:
+            from methods.pair_selectivity_gate import samecell as _sc
+            for r in results:
+                if r.get("partner"):
+                    r["samecell_confirmation"] = _sc.confirm_pair_samecell(
+                        target, r["partner"], indication)
+        except Exception as e:  # noqa: BLE001
+            print(f"[bispecific-pair-scan] same-cell confirmation skipped ({type(e).__name__}: {e})",
+                  file=sys.stderr)
+
     scored = [r for r in results if r.get("selectivity") is not None]
     return {
         "target": target,
@@ -109,7 +127,13 @@ def main() -> int:
         "n_partners_scanned":   scan["n_partners_scanned"],
         "n_pairs_scored":       scan["n_pairs_scored"],
         "top_pair":             ({"partner": top.get("partner"), "selectivity": top.get("selectivity"),
-                                  "tumor_fraction": top.get("tumor_fraction"), "call": top.get("call")}
+                                  "tumor_fraction": top.get("tumor_fraction"), "call": top.get("call"),
+                                  # same-cell avidity confirmation (AND-gate only) — closes the bulk-
+                                  # nomination avidity gap: is the bulk co-expression genuinely same-cell?
+                                  "samecell_avidity_call": (top.get("samecell_confirmation") or {}).get(
+                                      "samecell_avidity_call"),
+                                  "samecell_both_fraction": (top.get("samecell_confirmation") or {}).get(
+                                      "samecell_both_fraction_median")}
                                  if top and top.get("selectivity") is not None else None),
         "cards_available":      1 if scan["n_pairs_scored"] > 0 else 0,
         "cards_missing":        [] if scan["n_pairs_scored"] > 0 else ["bispecific-pair-scan"],
