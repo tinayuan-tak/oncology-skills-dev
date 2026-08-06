@@ -58,6 +58,7 @@ def _err(reason: str, remediation: str) -> dict:
         "_live_read_error": reason,
         "_remediation": remediation,
         "topology_class": "data_unavailable",
+        "ecd_engineerability_class": "data_unavailable",   # keep the categorical present on error paths
         "tmbed_model_version": None,
         "method_version": METHOD_VERSION,
     }
