@@ -1,0 +1,31 @@
+# tractability-small-molecule (Gate F / E6-E8) verdict resolver (B3a, 2026-08-06).
+# Declarative transcription of skills/tractability-small-molecule/scripts/run.py::_snapshot
+# (the 11-rung hand-rolled if-chain — the last modality/gate skill without a declarative resolver).
+# Byte-identical to the if-chain: SAME rung ORDER, SAME verdicts, SAME driving_rule_ids (verified by a
+# golden-oracle equivalence test enumerating every rule combination). First match wins.
+#
+# Precedence rationale (unchanged from the if-chain docstring):
+#   1. Chemical-genetic (RETROSPECTIVE — a compound actually hit the target) ranks highest.
+#   2. An opposing/off-target read (e7-discordant) precedes structural positives — a druggable pocket
+#      does not redeem a target whose compound effect is mechanistically unlinked.
+#   3. Structural / forward ligandability (E8 — a druggable pocket, no compound yet) ranks BELOW a real
+#      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
+#   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
+gate: tractability_small_molecule
+version: 1.0.0
+description: Small-molecule druggability precedence (chemical-genetic E6/E7 > opposing > structural E8 > unhit).
+resolve:
+  # --- Chemical-genetic (retrospective: a compound was found) ---
+  - {verdict: well_covered,                 when_fired: e7-triangulated-target-engaged-supportive}
+  - {verdict: chemically_confirmed_genetic, when_fired: e7-crispr-confirmed-supportive-sm}
+  - {verdict: chemically_active,            when_fired: prism-clinically-active-supportive-sm}
+  - {verdict: tool_compound_only,           when_fired: prism-tool-compound-only-weak-supportive-sm}
+  - {verdict: weakly_active,                when_fired: prism-weakly-active-weak-supportive-sm}
+  # --- Opposing / negative reads (must precede structural positives) ---
+  - {verdict: discordant,                   when_fired: e7-discordant-off-target-warning}
+  # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
+  - {verdict: structurally_ligandable,      when_fired: hotspot-in-druggable-pocket-sm-supportive-e8}
+  - {verdict: structurally_ligandable,      when_fired: structure-pocket-adjacent-sm-supportive}
+  - {verdict: structurally_intractable,     when_fired: structure-low-confidence-sm-opposing}
+  - {verdict: chemically_unhit,             when_fired: prism-no-compounds-found-neutral}
+default: insufficient
