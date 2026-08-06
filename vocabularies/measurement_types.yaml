@@ -801,6 +801,18 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [tumor_protein_abundance, surfaceome_family, surface_topology], method: density_estimate, evidence_tier: estimated}
 
+  modality_window:
+    # biologics-augment (2026-08-06): the clean-antigen THERAPEUTIC-WINDOW ratio — tumor / max-essential-
+    # normal, thresholded per modality tier. DISTINCT from surface_density (copies/cell) and from
+    # tumor_vs_normal_selectivity (within-tissue-of-origin contrast): the fused tumor/essential-normal
+    # ratio surfaces the CEACAM5 paradox (huge window yet strict-TCE liability) neither answers.
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "Is tumor expression high enough relative to the worst essential normal organ to open a therapeutic window at this modality tier?"
+    entity_grains: [target_indication]
+    cards: [modality-therapeutic-window]
+    providers:
+      - {kind: dataset, source: tcga-gtex-tpm-tissue-quantiles-v1, method: modality_therapeutic_window, evidence_tier: measured}
+
   adc_tce_modality_fit:
     claim: "Which biologic modalities (ADC / TCE / both / neither) are viable candidates for target?"
     entity_grains: [target]
