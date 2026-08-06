@@ -255,8 +255,10 @@ def main() -> int:
         # Patient↔model genomic-event correspondence (M11) — signal-only, does NOT feed the verdict.
         "event_correspondence_class":    get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
         # Genome-instability / aneuploidy burden (M7) — INDICATION cohort context, target-independent.
-        # signal-only, does NOT feed the verdict.
+        # signal-only, does NOT feed the verdict. Phase 3a adds a 2nd genome-state axis: wgd_class
+        # (whole-genome-doubling prevalence, ABSOLUTE) — same card, also cohort-level + verdict-inert.
         "aneuploidy_burden_class":       get_card_field(cards, "genomic-instability-state", "aneuploidy_burden_class"),
+        "wgd_class":                     get_card_field(cards, "genomic-instability-state", "wgd_class"),
         # Per-VARIANT interpretation (CIViC) — the gene→variant axis: WHICH variants are oncogenic
         # (vs the gene-level role) + which confer therapy resistance. signal-only, verdict-inert.
         "civic_variant_class":           get_card_field(cards, "variant-level-interpretation", "civic_variant_class"),
