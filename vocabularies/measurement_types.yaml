@@ -870,6 +870,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: tcga-gtex-tpm-tissue-quantiles-v1, method: modality_therapeutic_window, evidence_tier: measured}
 
+  exon_window:
+    # enrichment E5 (2026-08-07): the EXON-resolution companion of modality_window. Scores a per-gene
+    # tumor-vs-essential-normal window at exon grain + within-gene exon HETEROGENEITY. HONEST SCOPE
+    # (live-smoke-calibrated): a HYPOTHESIS-GENERATING flag, NOT an isoform-identity call — per-exon
+    # COVERAGE quantiles are blind to transcript membership, so it cannot resolve CLDN18.2 from CLDN18.1.
+    # Reads tcga-gtex-exon-tpm-quantiles-v1 (surfaceome-scoped). Scores exon INCLUSION not SKIPPING.
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "Does the target's tumor-dominant exon show within-gene heterogeneity + a clean window suggesting an isoform-resolved epitope worth junction-level follow-up?"
+    entity_grains: [target_indication]
+    cards: [modality-exon-window]
+    providers:
+      - {kind: dataset, source: tcga-gtex-exon-tpm-quantiles-v1, method: exon_window, evidence_tier: measured}
+
   immune_context:
     # biologics-augment effector arm (2026-08-06): tumor T-cell infiltration (immune-hot vs cold) from
     # CIBERSORT LM22 per-sample leukocyte composition. The EFFECTOR half of the TCE story — orthogonal
