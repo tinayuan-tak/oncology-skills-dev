@@ -991,6 +991,18 @@ def _dispatch_modality_therapeutic_window(target: str, indication: str) -> Optio
     return _window.read_modality_window(target=target, indication=indication)
 
 
+def _dispatch_exon_window(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: modality-exon-window card (E5) → per-exon tumor-vs-normal window + within-gene
+    exon heterogeneity via methods/exon_window/read.py. Reads tcga-gtex-exon-tpm-quantiles-v1. HONEST
+    SCOPE: a hypothesis-generating flag (exon_heterogeneity_flag = worth junction-level follow-up), NOT
+    an isoform-identity call — per-exon coverage can't resolve CLDN18.2 from CLDN18.1. WIRED 2026-08-07
+    with the card+method+rules; without this dispatcher exon_window_class would be null in the headline.
+    """
+    _import_method("exon_window")  # ensures the analysis-methods repo is on sys.path
+    from methods.exon_window import read as _exon
+    return _exon.read_exon_window(target=target, indication=indication)
+
+
 def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: adc-tce-modality-fit COMPOSED card. Reads the upstream
     cards (surface-topology-and-ptm + surfaceome-family-classification +
@@ -1419,6 +1431,7 @@ CARD_DISPATCHERS = {
     "protein-surface-evidence": _dispatch_protein_surface_evidence,
     "surface-abundance-density": _dispatch_surface_abundance_density,
     "modality-therapeutic-window": _dispatch_modality_therapeutic_window,
+    "modality-exon-window": _dispatch_exon_window,
     "pmhc-presentation": _dispatch_pmhc_presentation,
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,

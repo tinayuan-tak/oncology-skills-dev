@@ -110,6 +110,9 @@ _NEWLY_REACHABLE_RULES = [
     # enrichment E1 — peptide-centric HLA presentation (bite_tce-only):
     "pmhc-restricted-presentation-tce-supportive",   # restricted → TCE supportive
     "pmhc-broadly-presented-normal-tce-opposing",    # broad normal presentation → TCE opposing
+    # enrichment E5 — modality exon-window (per-exon tumor-vs-normal + heterogeneity flag):
+    "exon-window-heterogeneity-flag-supportive",     # exon_heterogeneity_flag → secondary supportive (hypothesis)
+    "exon-window-essential-liability-tce-opposing",  # essential_exon_liability → bite_tce opposing, adc neutral
 ]
 
 
@@ -124,6 +127,8 @@ def test_newly_wired_cards_are_in_the_skill_card_set():
     assert "modality-therapeutic-window" in smf.CARDS
     # enrichment E1 — the peptide-centric pMHC card
     assert "pmhc-presentation" in smf.CARDS
+    # enrichment E5 — the per-exon window card
+    assert "modality-exon-window" in smf.CARDS
 
 
 def test_additive_surface_signals_do_not_move_the_verdict():

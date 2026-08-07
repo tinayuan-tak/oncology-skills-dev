@@ -121,6 +121,15 @@ CARDS = [
                                          # normal-tce-opposing) fire on pmhc_presentation_class; bite_tce-only.
                                          # Benign-atlas = normal-presentation SAFETY denominator (broad=liability;
                                          # restricted=clean, MAGE-A4). ADDITIVE (no resolver rung) → byte-stable.
+    "modality-exon-window",              # biologics enrichment E5 (2026-08-07): EXON-resolution companion of
+                                         # modality-therapeutic-window. Reads tcga-gtex-exon-tpm-quantiles-v1 —
+                                         # tumor-dominant exon's tumor-vs-normal window + within-gene exon
+                                         # heterogeneity. HONEST SCOPE (live-smoke-calibrated): a HYPOTHESIS flag,
+                                         # NOT an isoform-ID call (per-exon coverage can't resolve CLDN18.2 from
+                                         # CLDN18.1). Its rules (exon-window-heterogeneity-flag-supportive [SECONDARY
+                                         # — gentle, a follow-up candidate] / exon-window-essential-liability-tce-
+                                         # opposing [ADC-vs-TCE discriminator]) fire on exon_window_class. ADDITIVE
+                                         # (no resolver rung) → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -208,6 +217,14 @@ def _headline(cards, fired, verdict_pair):
         "pmhc_presentation_class":        get_card_field(cards, "pmhc-presentation", "pmhc_presentation_class"),
         "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
         "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
+        # Modality exon-window (modality-exon-window, E5) — EXON-resolution companion of the gene window.
+        # Its rules fire on exon_window_class: exon_heterogeneity_flag → supportive (SECONDARY, a hypothesis
+        # worth junction-level follow-up — per-exon coverage can't confirm isoform identity); essential_exon_
+        # liability → bite_tce opposing / adc neutral (ADC-vs-TCE discriminator). Additive; verdict byte-stable.
+        "exon_window_class":              get_card_field(cards, "modality-exon-window", "exon_window_class"),
+        "exon_best_exon_id":              get_card_field(cards, "modality-exon-window", "best_exon_id"),
+        "exon_best_exon_window_ratio":    get_card_field(cards, "modality-exon-window", "best_exon_window_ratio"),
+        "exon_heterogeneity_log2":        get_card_field(cards, "modality-exon-window", "exon_heterogeneity_log2"),
         # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression, F5 rules).
         # F5 rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
         # bite_tce killer + adc/antibody opposing; NOT_EXPRESSED → supportive (dominant). Provides
