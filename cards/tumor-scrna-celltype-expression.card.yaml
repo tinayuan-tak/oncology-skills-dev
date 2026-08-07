@@ -59,6 +59,17 @@ outputs:
     - n_donor_groups                            # (dataset_id, donor_id) replicate count — the donor-is-replicate n
     - n_datasets                                # contributing CELLxGENE datasets
     - compartment_detection                     # {compartment: cross-donor median detection_fraction}
+    - per_compartment                            # v1 sc-presence depth: FULL per-compartment vector
+                                                 # [{compartment, median_detection_fraction, median_abundance_log1p_cp10k,
+                                                 #   n_donors, n_cells_total, is_caf}] — the whole compartment cube the
+                                                 # presence ladder collapses; surfaces malignant + CAF/stromal + immune +
+                                                 # endothelial + epithelial_normal + other side by side (display-only).
+    - caf_vs_malignant_class                     # explicit CAF/stromal-vs-malignant contrast (the tumor-vs-CAF dual-target
+                                                 # axis: caf_dominant / malignant_dominant / shared_caf_malignant / caf_low /
+                                                 # data_unavailable) — display-only, does NOT alter sc_expression_class
+    - caf_detection_fraction                     # cross-donor median detection in the stromal/CAF compartment
+    - caf_abundance_log1p_cp10k                  # cross-donor median abundance (stromal/CAF)
+    - caf_compartment_available                  # false → no stromal compartment measured (abstain)
     - indication
     - product_id
 
@@ -77,6 +88,14 @@ outputs:
       - moderately_homogeneous                  # 0.25 <= detection < 0.5 — a real subset; NEUTRAL (don't over-penalize)
       - heterogeneous                           # detection < 0.25 (malignant compartment present) — escape reservoir
       - data_unavailable                        # no malignant compartment / detection — abstain (never a measured zero)
+    caf_vs_malignant_class:                      # v1 sc-presence depth: CAF/stromal-vs-malignant contrast (display-only,
+                                                 # the tumor-vs-CAF dual-target axis — e.g. POSTN/CTHRC1 CAF targets vs
+                                                 # tumor-cell-intrinsic targets). Does NOT alter sc_expression_class.
+      - caf_dominant                            # stromal detection >= 0.25 AND clearly exceeds malignant — a CAF target
+      - malignant_dominant                      # malignant detection >= 0.10 AND clearly exceeds stromal — tumor-cell-intrinsic
+      - shared_caf_malignant                    # both compartments detect it within 0.15 — a dual-compartment target
+      - caf_low                                 # stromal below 0.25 — not a CAF target
+      - data_unavailable                        # no stromal compartment measured — abstain (never a measured zero)
 
   figures:
     - id: sc_compartment_detection
