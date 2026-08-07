@@ -375,6 +375,21 @@ measurement_types:
     providers:
       - {kind: dataset, source: uniprot-protein-features-v1, evidence_tier: measured}
 
+  degradation_feasibility:
+    # Degrader-lens E3 slice: is the target a tractable DEGRADATION substrate (PROTAC/glue)? Fuses
+    # curated degrader precedent + natural E3-substrate evidence (UbiBrowser) + a surfaceome location
+    # gate. modality_relevance = degrader (it exists to inform the degrader modality). Feeds the
+    # degrader lens via degrader-channel-only rules; small-molecule spine untouched. Additive.
+    claim: "Is target a tractable degradation substrate (PROTAC/molecular-glue feasibility)?"
+    entity_grains: [target]
+    cards: [degradation-feasibility]
+    # UbiBrowser natural-substrate evidence is authoritative for the ubiquitination-competence signal;
+    # SwissProt only supplies the AC->symbol join for the predicted layer → tier_dominant.
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: ubibrowser-e3-substrate-per-gene-v1, evidence_tier: measured}
+      - {kind: dataset, source: uniprot-sprot-human-2026-02-snapshot-2026-06-18, evidence_tier: measured}
+
   domain_modality_relevance:
     # The INTERPRETIVE layer on top of protein_domains_class (roadmap #3): does the target's domain
     # FUNCTION favor a catalytic-site inhibitor, or REMOVAL (degrader/glue) because the therapeutic

@@ -1,0 +1,107 @@
+# Card — DEGRADATION FEASIBILITY (v1; target-intrinsic; degrader-lens E3 slice)
+#
+# The degrader-lens "slice 3" the tractability-small-molecule degrader lens flagged as
+# degradability_machinery: not_yet_assessed. Answers: is this target a tractable DEGRADATION
+# substrate (targeted-degrader / molecular-glue)? Fuses three in-hand signals with a precedence:
+#   1. surfaceome LOCATION gate — a cell-surface / secreted protein is NOT reachable by cytoplasmic
+#      E3 ligases, so a classic intracellular PROTAC cannot degrade it (ADC/TCE territory) →
+#      unfavorable_location. The one genuinely NEGATIVE call.
+#   2. curated PROTAC/molecular-glue PRECEDENT (vocabularies/degrader_precedent_targets.yaml) →
+#      precedented_degradable (feasibility demonstrated).
+#   3. natural E3-substrate evidence (ubibrowser-e3-substrate-per-gene-v1) → a literature-curated
+#      substrate is ubiquitination-competent → ubiquitination_substrate (a positive prior).
+#   else plausible_untested; data_unavailable when nothing to reason from.
+#
+# ASYMMETRY (baked in): absence of a natural E3 substrate is NOT disqualifying — PROTACs recruit E3s
+# de novo (induced neo-substrate), so a target with no natural substrate can still be degradable
+# (BRD4 has 1 natural E3 yet is a top PROTAC target). Only unfavorable_location is a true negative.
+#
+# Feeds the degrader lens via DEGRADER-CHANNEL-ONLY interpretation rules (see intracellular-intrinsic
+# rules); the small-molecule verdict spine is untouched.
+
+card_id: degradation-feasibility
+version: 1.0.0
+question: "Is {target.symbol} a tractable degradation substrate — does E3-substrate biology, degrader precedent, and subcellular location support a PROTAC / molecular-glue program?"
+
+tier: target   # degradability is a property of the protein, independent of indication
+
+applies_when:
+  - "context.data_sources.uniprot_available == true"
+
+required_inputs:
+  - product_id: ubibrowser-e3-substrate-per-gene-v1    # natural E3-substrate evidence
+  - product_id: surfaceome-family-classification-per-uniprot-v1   # location gate (surface/secreted)
+
+derived_from:
+  - card_id: surfaceome-family-classification   # supplies the surface_family_class location gate
+
+methods:
+  - call: degradation-feasibility
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - degradability_feasibility_class    # PRIMARY (see vocabulary)
+    - e3_substrate_evidence              # literature | predicted_only | none_in_ubibrowser (natural-substrate tier)
+    - n_e3_ligases_literature            # count of curated natural E3 ligases
+    - e3_ligases_literature              # list<string> — the curated E3 ligase symbols
+    - e3_types_literature                # list<string> — E3 structural types (RING/HECT/SOCS_VHL_BC-box/...)
+    - n_e3_predicted_confident           # count of confident predicted E3 partners (Pvalue<=0.05)
+    - degrader_precedent                 # bool — a curated PROTAC/glue precedent exists
+    - degrader_precedent_examples        # list<string> — representative degrader molecules
+    - surface_location_excluded          # bool — surface/secreted → cytoplasmic-E3-unreachable
+    - degradability_context              # string — human-readable rationale (audit / LLM)
+
+  summary_fields_vocabulary:
+    degradability_feasibility_class:
+      - unfavorable_location             # surface/secreted — cytoplasmic PROTAC cannot reach it (true negative)
+      - precedented_degradable           # curated degrader precedent — feasibility demonstrated
+      - ubiquitination_substrate         # natural literature E3 substrate — ubiquitination-competent prior
+      - plausible_untested               # intracellular, no precedent/lit-substrate — plausible, unproven
+      - data_unavailable                 # no signal to reason from (coverage gap)
+    e3_substrate_evidence:              # null when the target is absent from the UbiBrowser product
+      - literature
+      - predicted_only
+      - none_in_ubibrowser
+
+warning_predicates:
+  - warning_id: degrader_unfavorable_location
+    if: "degradability_feasibility_class == 'unfavorable_location'"
+    message: "{target.symbol} is a surface/secreted protein — outside cytoplasmic-E3 reach, so a classic intracellular PROTAC/molecular-glue cannot degrade it. A biologics surface modality (ADC/TCE) applies instead; do not read a degrader rationale here."
+  - warning_id: degradability_data_unavailable
+    if: "degradability_feasibility_class == 'data_unavailable'"
+    message: "{target.symbol} has no E3-substrate, precedent, or location signal — degradation feasibility is UNKNOWN (a coverage gap), not 'infeasible'."
+
+caveats:
+  - |
+    Degrader-lens E3 slice: this card fills the degradability_machinery slot the
+    tractability-small-molecule degrader lens reported as not_yet_assessed. It reasons about whether
+    the TARGET is a tractable degradation substrate — NOT whether the degradation machinery (CRBN/VHL/
+    proteasome) is expressed in a given lineage (those E3s are near-ubiquitous; expression adds little
+    discrimination and is deliberately not the signal).
+  - |
+    ASYMMETRY (do not misread absence): only unfavorable_location is a true negative. Absence of a
+    natural E3 substrate is NOT disqualifying — PROTACs create INDUCED neo-substrate relationships
+    (recruit any E3), so an intracellular target with no UbiBrowser evidence reads plausible_untested,
+    never infeasible. Natural-substrate presence is a POSITIVE prior (ubiquitination-competent), not a
+    requirement.
+  - |
+    Precedent > substrate. precedented_degradable comes from the curated
+    degrader_precedent_targets.yaml (targets with a named clinical/tool degrader). Because PROTAC-DB is
+    license-restricted (no mirroring), precedent is captured as curated facts citing it + primary
+    literature, NOT by ingesting PROTAC-DB. Coverage is intentionally small/high-precision and grows
+    manually.
+  - |
+    Natural E3-substrate evidence is from UbiBrowser (ubibrowser-e3-substrate-per-gene-v1): literature
+    = manually PubMed-curated; predicted_only = ML-predicted (Pvalue<=0.05) with no curated pair. The
+    location gate uses surfaceome-family-classification (surface/secreted vs intracellular). HGNC
+    symbol keys throughout. UbiBrowser open-with-citation (Li 2017 Nat Commun + Wang 2022 NAR).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `degradation_feasibility` claim (target-grain).
+# modality_relevance degrader: this card EXISTS to inform the degrader modality (the degrader lens's
+# missing E3 slice). It feeds the degrader lens via degrader-channel-only rules; SM spine byte-stable.
+measurement_type: degradation_feasibility
+modality_relevance: [degrader]
+entity_grains: [target]
+schema_version: 1

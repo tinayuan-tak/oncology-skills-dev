@@ -3441,3 +3441,90 @@ rules:
     rationale: |
       No curated/InterPro domain or protein-class signal to reason from — the domain→modality
       implication is unknown (coverage gap), not evidence for or against a degrader. Never touches SM.
+
+  # ============================================================================
+  # E3 degradability slice — degradation-feasibility card → DEGRADER lens (verdict-wiring, 2026-08-07)
+  # Fills the degrader lens's degradability_machinery slot (tractability-small-molecule
+  # _degrader_snapshot reads modality_lens(fired, "degrader")). DELIBERATELY degrader-channel ONLY:
+  # NO small_molecule signal on any rule → the SM resolver + druggability_snapshot stay byte-stable
+  # (the SM resolver does not reference this card). Same discipline as the domain-modality degrader
+  # rules (TC#234). Composes with domain-modality: a scaffolding target (removal_required_scaffolding)
+  # that is ALSO precedented/ubiquitinatable accumulates multiple degrader-supportive signals.
+  #   unfavorable_location     -> degrader OPPOSING (surface/secreted = cytoplasmic-E3-unreachable;
+  #       a true negative for the intracellular-PROTAC modality — NOT a killer, since a molecular glue
+  #       or an extracellular degrader (LYTAC/AbTAC) could still apply, so opposing not veto)
+  #   precedented_degradable   -> degrader supportive + DOMINANT (feasibility demonstrated by a real
+  #       degrader molecule; strong enough to stand alone -> strong_degrader_rationale)
+  #   ubiquitination_substrate -> degrader supportive (natural E3 substrate = ubiquitination-competent)
+  #   plausible_untested       -> degrader NEUTRAL (plausible but no positive evidence; absence of
+  #       natural substrate is explicitly NOT held against it)
+  #   data_unavailable         -> degrader insufficient (coverage gap, not evidence)
+  # ============================================================================
+
+  - rule_id: degradation-unfavorable-location-degrader-opposing
+    when:
+      card_id: degradation-feasibility
+      field: degradability_feasibility_class
+      equals: unfavorable_location
+    signals:
+      degrader: opposing
+    rationale: |
+      The target is a cell-surface / secreted protein — outside the reach of cytoplasmic E3
+      ligases, so a classic intracellular PROTAC / molecular-glue cannot ubiquitinate and degrade
+      it (this is an ADC / TCE surface-modality target instead). OPPOSING for the degrader lens, not
+      a killer: an extracellular-degrader modality (LYTAC / AbTAC) or a membrane-tethered approach
+      could in principle apply, so this disfavors — but does not veto — the intracellular-degrader
+      read. DEGRADER CHANNEL ONLY — the small-molecule verdict is untouched.
+
+  - rule_id: degradation-precedented-degrader-supportive-dominant
+    when:
+      card_id: degradation-feasibility
+      field: degradability_feasibility_class
+      equals: precedented_degradable
+    signals:
+      degrader: supportive
+    dominant: true
+    rationale: |
+      The target has documented targeted-degrader precedent (a named clinical or tool PROTAC /
+      molecular glue that degrades it — curated degrader_precedent_targets.yaml). Degradation
+      feasibility is DEMONSTRATED, not merely inferred, so this is DOMINANT for the degrader lens
+      (stands alone -> strong_degrader_rationale). DEGRADER CHANNEL ONLY — SM verdict untouched (a
+      precedented degrader target may or may not also be a small-molecule-inhibitor target; this
+      does not speak to SM).
+
+  - rule_id: degradation-ubiquitination-substrate-degrader-supportive
+    when:
+      card_id: degradation-feasibility
+      field: degradability_feasibility_class
+      equals: ubiquitination_substrate
+    signals:
+      degrader: supportive
+    rationale: |
+      The target is a natural E3-ligase substrate (literature-curated in UbiBrowser) — it is
+      ubiquitination-competent (accessible lysines, E3-reachable), a positive prior that a targeted
+      degrader can engage the ubiquitin-proteasome system against it. Supportive (not dominant): a
+      strong mechanistic prior short of demonstrated degrader precedent. DEGRADER CHANNEL ONLY.
+
+  - rule_id: degradation-plausible-untested-degrader-neutral
+    when:
+      card_id: degradation-feasibility
+      field: degradability_feasibility_class
+      equals: plausible_untested
+    signals:
+      degrader: neutral
+    rationale: |
+      Intracellular target with no curated degrader precedent and no literature natural-substrate
+      evidence. NEUTRAL for the degrader lens (explicitly not opposing): degradation is plausible but
+      unproven, and absence of a natural substrate is NOT held against the target — PROTACs recruit
+      E3s de novo (induced neo-substrate). Never touches SM.
+
+  - rule_id: degradation-feasibility-data-unavailable-degrader-insufficient
+    when:
+      card_id: degradation-feasibility
+      field: degradability_feasibility_class
+      equals: data_unavailable
+    signals:
+      degrader: insufficient
+    rationale: |
+      No E3-substrate, precedent, or location signal for this target — degradation feasibility is a
+      coverage gap, not evidence for or against a degrader. Never touches SM.
