@@ -53,6 +53,7 @@ entity_grain_vocabulary:
   target_indication: {partition_required: false, note: "within one indication cohort"}
   target_lineage:    {partition_required: false, note: "DepMap cell-line lineage; read-side groupby over per-ModelID rows"}
   target_subtype:    {partition_required: true,  note: "molecular subgroup; needs subgroup-catalog + assignment product"}
+  target_pair:       {partition_required: false, note: "gene-PAIR grain: a claim about {target, partner} jointly (e.g. combinatorial-KO genetic interaction). Read-side keyed on target_gene; each pair carried under both members."}
   cohort:            {partition_required: false, note: "reserved — a named sample cohort"}
   single_cell:       {partition_required: false, note: "reserved — per-cell resolution"}
 
@@ -965,6 +966,19 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [tumor_protein_abundance], method: breadth_rollup, evidence_tier: measured}       # CPTAC protein (Slice B)
       - {kind: derived_from, inputs: [tumor_vs_normal_selectivity], method: breadth_rollup, evidence_tier: measured}   # pan-cancer RNA (Slice C)
+
+  combinatorial_ko_dependency:
+    claim: "When {target} is co-knocked-out with a paralog partner, is there a synthetic-lethal / buffering genetic interaction (GI = dual - sum-of-singles, Chronos scale), and is it constitutive or context-conditional?"
+    # NEW measurement_type (measured dual-KO GI). Distinct from crispr_lof_dependency (single-gene)
+    # and from the paralog-buffering annotation (per-gene veto-suppressor). target_pair grain: the
+    # claim is about {target, partner} jointly. tier_dominant — DepMap ParalogV2 is the single
+    # dominant provider; published CC-BY GI maps (Dede/in4mer/Horlbeck) are a future corroboration leg.
+    entity_grains: [target, target_pair]
+    cards: [combinatorial-dependency]
+    modality_relevance: [small_molecule, degrader]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: depmap-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}
 
   sc_normal_celltype_expression:
     claim: "Single-cell RNA expression in normal tissue by cell type (pseudobulk, donor-replicate) — on-target-off-tumor safety substrate at cell-type resolution"
