@@ -1333,6 +1333,49 @@ rules:
       combinations or a switch to an ADC (T-cell-independent payload) can still make the target viable.
       data_unavailable fires nothing (abstain — never a false cold).
 
+  # ============================================================================
+  # O — Peptide-centric HLA presentation (biologics enrichment E1, 2026-08-07)
+  # ============================================================================
+  # Keyed on pmhc_presentation_class (pmhc-presentation card; HLA Ligand Atlas benign immunopeptidome).
+  # The peptide-centric TCE axis: an intracellular oncoprotein presented on HLA is reachable by a
+  # TCR-mimetic T-cell engager. INVERTED safety semantics (benign atlas): restricted normal-tissue
+  # presentation = a CLEAN pMHC-TCE target; broad normal presentation = on-target/off-tumor LIABILITY.
+  # Signals bite_tce ONLY (a pMHC TCE — an ADC/naked antibody binds the folded protein, not pMHC).
+  # ADDITIVE signal-only: no surface_modality resolver rung -> verdict byte-stable. not_observed +
+  # intermediate + data_unavailable fire NO rule (weak-negative / ambiguous / gap -> abstain).
+
+  - rule_id: pmhc-restricted-presentation-tce-supportive
+    when:
+      card_id: pmhc-presentation
+      field: pmhc_presentation_class
+      equals: restricted_presentation
+    signals:
+      bite_tce: supportive
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Peptides presented on <= 3 normal tissues (atlas Q1) — a CLEAN peptide-centric target: a
+      TCR-mimetic pMHC T-cell engager can reach it (even if intracellular / no surface expression) with
+      limited on-target/off-tumor presentation risk (MAGE-A4 archetype: testis-restricted). Important for
+      bite_tce — this opens targets invisible to surface-antibody modalities. Necessary-not-sufficient:
+      the tumor-restriction call still needs a tumor immunopeptidome.
+
+  - rule_id: pmhc-broadly-presented-normal-tce-opposing
+    when:
+      card_id: pmhc-presentation
+      field: pmhc_presentation_class
+      equals: broadly_presented_normal
+    signals:
+      bite_tce: opposing
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Peptides presented on >= 19 normal tissues (atlas Q3) — a broad on-target/off-tumor liability: a
+      TCR-mimetic pMHC TCE would engage many normal-tissue cells. Opposing (important), NOT killer — a
+      tumor-restricted peptide + tight HLA restriction can still carve a window, but broad benign
+      presentation is a first-order concern for a peptide-centric program. not_observed / intermediate
+      fire nothing (weak-negative / ambiguous -> abstain).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================

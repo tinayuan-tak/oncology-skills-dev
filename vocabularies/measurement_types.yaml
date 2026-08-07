@@ -839,6 +839,17 @@ measurement_types:
     providers:
       - {kind: dataset, source: gdc-pancanatlas-immune-2018, method: immune_context, evidence_tier: measured}
 
+  pmhc_presentation:
+    # biologics enrichment E1 (2026-08-07): peptide-centric HLA presentation — reaches intracellular
+    # targets via the peptide-MHC complex (TCR-mimetic TCE), an axis surface_confirmation/topology can't
+    # see. Benign-atlas breadth = the normal-presentation SAFETY denominator (broad = liability).
+    modality_relevance: [bite_tce]
+    claim: "Are the target's peptides presented on HLA, and how broadly across normal tissue (clean pMHC-TCE target vs broad presentation liability)?"
+    entity_grains: [target]
+    cards: [pmhc-presentation]
+    providers:
+      - {kind: dataset, source: hla-ligand-atlas-presentation-per-protein-v1, method: pmhc_presentation, evidence_tier: measured}
+
   adc_tce_modality_fit:
     claim: "Which biologic modalities (ADC / TCE / both / neither) are viable candidates for target?"
     entity_grains: [target]
