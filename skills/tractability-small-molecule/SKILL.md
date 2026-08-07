@@ -30,6 +30,7 @@ composition:
     - prism-crispr-concordance
     - dependency-predictability
     - structure-features-static      # E8: forward ligandability (pocket structure)
+    - degradation-feasibility        # E3 slice 3: DEGRADER-lens degradability (fires degrader-channel rules)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. chemical_genetic_concordance is
   # the derived on-target-engagement type this gate shares with functional-requirement (flow-pattern 2:
   # one atom, two gate-views). dependency_predictability had no puller before this — now claimed here.
@@ -38,6 +39,7 @@ composition:
     - chemical_genetic_concordance
     - dependency_predictability
     - structure_druggability
+    - degradation_feasibility        # E3 slice 3: target degradability (degrader-lens only; SM verdict byte-stable)
   rules_scope:
     - all
   synthesis:

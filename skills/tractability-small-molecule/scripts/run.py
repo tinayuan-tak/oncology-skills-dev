@@ -50,6 +50,7 @@ CARDS = [
     "prism-crispr-concordance",
     "dependency-predictability",
     "structure-features-static",   # E8: FORWARD ligandability (pocket structure)
+    "degradation-feasibility",     # E3 slice 3: DEGRADER-lens degradability (E3-substrate + precedent + location gate)
 ]
 
 QUESTION = ("Does {target} in {indication} show small-molecule druggability evidence "
@@ -151,12 +152,20 @@ def _headline(cards, fired, verdict_pair):
     return {
         "druggability_snapshot":     v,
         "driving_rule_id":           drv,
-        # DEGRADER lens (slice 2) — additive, verdict-inert. The degrader modality read alongside the
-        # SM read; degradation ≠ inhibition (KO-like complete removal). Full machinery check pending
-        # the E3-machinery card (slice 3).
+        # DEGRADER lens — additive to the SM verdict; degradation ≠ inhibition (KO-like complete
+        # removal). The degrader_snapshot now folds in the E3-degradability slice (slice 3): the
+        # degradation-feasibility card's degrader-channel rules fire into the same `fired` set the
+        # lens tallies, so a scaffolding/precedented/ubiquitinatable target reads
+        # strong_degrader_rationale and a surface/secreted target reads degrader_opposed — WITHOUT
+        # touching the small-molecule druggability_snapshot (degrader-channel-only rules; SM spine
+        # byte-stable, proven by the resolver golden-oracle test).
         "degrader_snapshot":         degrader_class,
         "degrader_driving_rule_id":  degrader_drv,
-        "degradability_machinery":   "not_yet_assessed",   # slice 3: E3-machinery card (CRBN/VHL/proteasome)
+        # slice 3 LANDED: the target-degradability read (E3-substrate + PROTAC precedent + location
+        # gate) from the degradation-feasibility card, replacing the not_yet_assessed placeholder.
+        "degradability_machinery":   get_card_field(cards, "degradation-feasibility", "degradability_feasibility_class"),
+        "degradability_e3_evidence": get_card_field(cards, "degradation-feasibility", "e3_substrate_evidence"),
+        "degrader_precedent":        get_card_field(cards, "degradation-feasibility", "degrader_precedent"),
         "prism_activity_class":      get_card_field(cards, "prism-compound-activity", "activity_class"),
         "prism_crispr_concord":      get_card_field(cards, "prism-crispr-concordance", "concordance_class"),
         "predictability_class":      get_card_field(cards, "dependency-predictability", "predictability_class"),

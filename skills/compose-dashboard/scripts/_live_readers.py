@@ -856,6 +856,19 @@ def _dispatch_domain_modality_relevance(target: str, indication: str) -> Optiona
     return mod.domain_modality_for_gene(target)
 
 
+def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: degradation-feasibility card → the degrader-lens E3 slice via
+    methods/degradation_feasibility/read.py. Is the target a tractable degradation substrate
+    (PROTAC / molecular glue)? Fuses natural E3-substrate evidence (UbiBrowser) + curated PROTAC
+    precedent + a surfaceome LOCATION gate. The location gate is supplied by composing the
+    surfaceome-family dispatcher (surface/secreted → cytoplasmic-E3-unreachable → unfavorable_location).
+    Target-intrinsic (indication ignored). Feeds the degrader lens; verdict-inert for SM."""
+    family = _dispatch_surfaceome_family_classification(target, indication) or {}
+    surface_family_class = family.get("family_class")
+    mod = _import_method("degradation_feasibility")
+    return mod.degradation_feasibility_for_gene(target, surface_family_class=surface_family_class)
+
+
 def _dispatch_ppi_interactome(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: ppi-interactome card → STRING functional-network degree + CORUM complex
     membership via methods/ppi_interactome/read.py. Target-intrinsic (indication ignored).
@@ -1398,6 +1411,7 @@ CARD_DISPATCHERS = {
     "ppi-interactome": _dispatch_ppi_interactome,  # target-intrinsic STRING network + CORUM complexes
     "protein-domains-class": _dispatch_protein_domains_class,  # target-intrinsic domain architecture + protein class
     "domain-modality-relevance": _dispatch_domain_modality_relevance,  # interpretive domain→modality (roadmap #3)
+    "degradation-feasibility": _dispatch_degradation_feasibility,  # degrader-lens E3 slice 3 (UbiBrowser + precedent + location gate)
     "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,
