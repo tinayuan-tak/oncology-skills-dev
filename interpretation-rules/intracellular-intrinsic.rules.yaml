@@ -2146,6 +2146,28 @@ rules:
       — one comparator dissents, typically the naive GTEx arm (cell C) where the
       TCGA-vs-GTEx batch confound bites. Interpret alongside the 3-cell forest in the figure.
 
+  - rule_id: tvn-field-effect-selective-supportive
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: field_effect_tumor_selective
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      FIELD-EFFECT tumor-selective: the tumor-vs-adjacent comparators (cells A/B) are flat or
+      slightly DOWN while the GTEx population-normal (cell C) is strongly UP (≥1.5). This is the
+      field-cancerization signature — the tumour-ADJACENT 'normal' tissue is already molecularly
+      shifted toward tumour (Aran/Butte 2017 Nat Commun: NAT is an intermediate state carrying ~55%
+      fewer tumour-vs-NAT than tumour-vs-healthy DEGs), so within-patient contrast UNDERSTATES a
+      genuinely tumour-selective epithelial lineage antigen (CEACAM5/EPCAM in colon). We defer to the
+      GTEx population-normal — the less-biased baseline for the over-expression call. Supportive for
+      small-molecule + degrader, like strong_tumor_selective, but flagged as GTEx-anchored (the
+      within-patient arm did not corroborate — a field-effect caveat, not full 3-cell robustness).
+      Does NOT imply protein/surface selectivity, and does NOT address normal-tissue BREADTH (a
+      separate axis — see normal-tissue-liability-gtex; a field-effect-selective gene can still be
+      broadly expressed across critical normal tissues).
+
   - rule_id: tvn-discordant-neutral-flagged
     when:
       card_id: tumor-vs-normal-selectivity

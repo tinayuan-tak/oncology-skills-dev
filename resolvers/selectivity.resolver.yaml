@@ -10,6 +10,8 @@ resolve:
     when_fired: tvn-strong-selective-supportive
   - verdict: modest_tumor_selective
     when_fired: tvn-modest-selective-supportive
+  - verdict: field_effect_tumor_selective
+    when_fired: tvn-field-effect-selective-supportive
   - verdict: discordant_across_comparators
     when_fired: tvn-discordant-neutral-flagged
   - verdict: not_selective

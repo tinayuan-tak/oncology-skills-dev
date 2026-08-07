@@ -43,7 +43,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.3.0    # 2026-08-05: + selectivity all-gene percentile (Axis-1 contextualization; SEL-1 orphaned-signal surface)
+version: 3.4.0    # 2026-08-05: + selectivity all-gene percentile (Axis-1 contextualization; SEL-1 orphaned-signal surface)
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 tier: indication   # indication-scoped tumor-vs-normal selectivity; subtype-eligible once a per-sample expression reader ships
@@ -112,9 +112,16 @@ outputs:
       - discordant                          # both families sig, OPPOSITE directions (field-effect failure mode; or a family self-disagrees)
       - single_comparator                   # only one family ran/reached significance — cross-comparator agreement UNTESTED
     selectivity_class:
-      - strong_tumor_selective              # all cells that ran support, up, max|log2FC|>=1.5
-      - modest_tumor_selective              # supporting_frac>=2/3, up, max|log2FC|>=0.5
-      - discordant_across_comparators       # sig cells disagree in direction
+      - strong_tumor_selective              # all cells that ran support, up, RAW max|log2FC|>=1.5 (cell A/C, not ComBat B)
+      - modest_tumor_selective              # supporting_frac>=2/3, up, RAW max|log2FC|>=0.5
+      - field_effect_tumor_selective        # discordant BUT adjacent-flat/down + GTEx-population strongly up
+                                            # (>=1.5): field-cancerization signature — the adjacent 'normal'
+                                            # already over-expresses (Aran/Butte 2017), so defer to the GTEx
+                                            # population-normal comparator. Tumor-selective vs TRUE normal,
+                                            # flagged (recovers epithelial lineage antigens e.g. CEACAM5/EPCAM
+                                            # in colon that read discordant against field-affected adjacent).
+      - discordant_across_comparators       # sig cells disagree in direction (a GENUINE comparator conflict,
+                                            # not the field-effect signature)
       - not_selective                       # supporting_frac>=2/3, dominant DOWN
       - not_informative                     # supporting_frac low
       - data_unavailable
