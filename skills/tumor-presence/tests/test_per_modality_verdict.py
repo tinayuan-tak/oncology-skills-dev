@@ -224,15 +224,18 @@ def test_rna_high_protein_low_disagreement_is_legible():
 # --- honest gaps: unbuilt substrates are data_unavailable, never negative ---
 
 def test_unbuilt_substrates_are_data_unavailable():
-    """After the sc_rna slice (2026-08-04) only protein_ihc/normal remains an UNBUILT substrate.
-    sc_rna/tumor is now card-backed (tumor-scrna-celltype-expression) — see the sc_rna tests below.
-    When NO sc card fires (e.g. a bulk-only fired set), sc_rna/tumor is still data_unavailable, but
-    that is now 'card present, no rule fired' — the same honest empty-bucket path, not an unbuilt gap."""
+    """After Phase 3.3 (2026-08-07) all buckets are card-backed (no more unbuilt gaps).
+    sc_rna/normal is a safety comparator backed by sc-normal-celltype-expression;
+    protein_ihc/normal is backed by normal-tissue-liability. When no comparator value is
+    available (card absent / data_unavailable), buckets still emit data_unavailable."""
     fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
     pm = tp._per_modality_verdicts(fired)
-    # protein_ihc/normal is the ONLY remaining unbuilt substrate (no card in this skill)
+    # protein_ihc/normal and sc_rna/normal are comparator buckets — no presence rule fires for them,
+    # so without a card supplying a valid comparator value they remain data_unavailable.
     assert pm["protein_ihc/normal"]["verdict"] == "data_unavailable"
     assert pm["protein_ihc/normal"]["evidence_state"] == "data_unavailable"
+    assert pm["sc_rna/normal"]["verdict"] == "data_unavailable"
+    assert pm["sc_rna/normal"]["evidence_state"] == "data_unavailable"
     # sc_rna/tumor with no sc rule fired → still data_unavailable (empty bucket), but it is now
     # card-backed: a fired sc rule DOES resolve it (test_sc_rna_bucket_resolves_when_card_fires).
     assert pm["sc_rna/tumor"]["evidence_state"] == "data_unavailable"
@@ -306,7 +309,7 @@ def test_all_taxonomy_buckets_present():
     pm = tp._per_modality_verdicts([])
     assert set(pm.keys()) == {"bulk_rna/cell_line", "bulk_rna/tumor",
                               "bulk_protein_ms/cell_line", "bulk_protein_ms/tumor",
-                              "sc_rna/tumor", "protein_ihc/normal"}
+                              "sc_rna/tumor", "sc_rna/normal", "protein_ihc/normal"}
     # each bucket carries its two axes as explicit fields
     for (m, s) in tp.ALL_CONTEXTS:
         b = pm[tp._ctx_key(m, s)]

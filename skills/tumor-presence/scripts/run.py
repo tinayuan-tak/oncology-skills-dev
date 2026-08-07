@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tumor-presence — expression/protein presence for a (target, indication).
 
-Consumes 11 wired cards in two tiers (see CARDS below + SKILL.md):
+Consumes 13 wired cards in two tiers (see CARDS below + SKILL.md):
   VERDICT-BEARING (7, feed the presence ladders): cellline-rna-distribution (cell-line RNA),
     tumor-rna-vs-adjacent (tumor RNA), tumor-rna-distribution (per-sample tumor RNA — its
     tumor-expression-* rules ARE in the bulk_rna ladder; reclassified from display-only 2026-08-07),
@@ -11,6 +11,8 @@ Consumes 11 wired cards in two tiers (see CARDS below + SKILL.md):
   DISPLAY-ONLY facets (4, feed NO resolver — verdict byte-stable):
     tumor-rna-distribution-by-subtype, expression-purity-confound, cellline-rna-protein-concordance,
     normal-tissue-liability (protein_ihc/normal SAFETY COMPARATOR — P8.3, closes the last named gap).
+  SAFETY COMPARATORS (2, verdict-inert — safety ruled by surface-modality-fit): normal-tissue-liability
+    (protein_ihc/normal — HPA IHC, P8.3), sc-normal-celltype-expression (sc_rna/normal — scRNA Phase 3.3).
   (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
    signaling-state readout, not a presence/abundance signal — it belongs with the mechanism lens.)
 Emits a data-package output tree with a rank-ordered presence verdict + per-(measurement,
@@ -37,7 +39,7 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.2.0"   # sc_rna slice — tumor-scrna-celltype-expression + _SC_RNA_RANK (sc_rna/tumor bucket)
+SKILL_VERSION = "1.3.0"   # Phase 3.3 — sc-normal-celltype-expression (sc_rna/normal safety comparator bucket)
 
 CARDS = [
     "cellline-rna-distribution",
@@ -91,6 +93,9 @@ CARDS = [
                                         # on-target-safety-liability (P7 axis-separation boundary); here it
                                         # is a labeled comparator so the (protein_ihc, normal) context is a
                                         # real read, not silence.
+    "sc-normal-celltype-expression",    # Phase 3.3 (2026-08-07) — scRNA cell-type-resolved normal-tissue
+                                        # safety (measurement: sc_rna, sample_context: normal). Fills the
+                                        # sc_rna/normal COMPARATOR bucket. NOT a tumor-presence signal.
 ]
 
 # --- Measurement × sample-context taxonomy (MODALITY_TAXONOMY.md) -----------
@@ -126,6 +131,7 @@ CARD_CONTEXT = {
     "cellline-rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
     "tumor-scrna-celltype-expression": ("sc_rna", "tumor"),                   # sc_rna slice — single-cell per-compartment tumor presence; the FIRST card in the sc_rna/tumor bucket (was a named gap). VERDICT-BEARING via _SC_RNA_RANK.
     "normal-tissue-liability":      ("protein_ihc", "normal"),        # P8.3 — HPA IHC normal-tissue protein footprint; the (protein_ihc, normal) SAFETY COMPARATOR bucket. A render-facet comparator (normal_tissue_breadth_class), NOT a presence sub-verdict — feeds no presence ladder; safety verdict owned by on-target-safety-liability.
+    "sc-normal-celltype-expression": ("sc_rna", "normal"),            # Phase 3.3 — scRNA cell-type-resolved normal-tissue safety; the (sc_rna, normal) SAFETY COMPARATOR bucket.
 }
 
 
@@ -147,7 +153,8 @@ ALL_CONTEXTS = (
     ("bulk_protein_ms", "cell_line"),
     ("bulk_protein_ms", "tumor"),
     ("sc_rna", "tumor"),          # card-backed 2026-08-04 (tumor-scrna-celltype-expression); COADREAD+NSCLC measured, else data_unavailable
-    ("protein_ihc", "normal"),    # unbuilt substrate — named gap (HPA IHC safety)
+    ("sc_rna", "normal"),         # safety comparator 2026-08-07 (sc-normal-celltype-expression)
+    ("protein_ihc", "normal"),    # safety comparator P8.3 (normal-tissue-liability HPA IHC)
 )
 
 QUESTION = ("Is {target} expressed in {indication} tumor tissue, and how "
@@ -306,6 +313,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 # rather than a hardcoded data_unavailable — WITHOUT entering the presence ladder (spine byte-stable).
 _COMPARATOR_BUCKETS = {
     ("protein_ihc", "normal"): ("normal-tissue-liability", "normal_tissue_breadth_class"),
+    ("sc_rna", "normal"):      ("sc-normal-celltype-expression", "sc_normal_expression_class"),
 }
 
 
@@ -488,6 +496,11 @@ def _headline(cards, fired, verdict_pair):
         # ladder (presence_verdict byte-stable); the safety VERDICT is owned by on-target-safety-liability.
         "normal_tissue_ihc_breadth_class": get_card_field(cards, "normal-tissue-liability", "normal_tissue_breadth_class"),
         "normal_tissue_ihc_essential_flag": get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
+        # Phase 3.3 (2026-08-07) — scRNA cell-type-resolved normal-tissue safety COMPARATOR (sc_rna/normal bucket).
+        "sc_normal_expression_class":      get_card_field(cards, "sc-normal-celltype-expression", "sc_normal_expression_class"),
+        "sc_normal_max_det_cell_type":     get_card_field(cards, "sc-normal-celltype-expression", "max_detection_cell_type"),
+        "sc_normal_max_det_fraction":      get_card_field(cards, "sc-normal-celltype-expression", "max_detection_fraction"),
+        "sc_normal_safety_essential_flags": get_card_field(cards, "sc-normal-celltype-expression", "safety_essential_flags"),
     }
 
 

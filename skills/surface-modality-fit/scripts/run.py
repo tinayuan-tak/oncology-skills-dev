@@ -34,7 +34,7 @@ from orthogonality import score_orthogonality   # noqa: E402 — skill-local E7 
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.1.0"   # sc-normal-celltype-expression — scRNA cell-type-resolved normal-tissue safety (sc_rna/normal)
 
 CARDS = [
     "surface-topology-and-ptm",
@@ -43,6 +43,15 @@ CARDS = [
     "surface-abundance-density",
     "adc-tce-modality-fit",
     "normal-tissue-liability",          # HPA IHC on-target-off-tumor safety (wired 2026-07-20)
+    "sc-normal-celltype-expression",    # biologics-augment Phase 3.3 (2026-08-07): scRNA cell-type-resolved
+                                        # normal-tissue safety from Census pseudobulk (sc_rna/normal). Its F5
+                                        # rules fire on sc_normal_expression_class: HIGH_LIABILITY →
+                                        # bite_tce killer + adc/antibody opposing; MODERATE → all opposing;
+                                        # NOT_EXPRESSED → supportive (dominant). Complements HPA IHC (F4):
+                                        # IHC misses low-level inducible targets + can't distinguish cell
+                                        # types (e.g. hepatocyte vs Kupffer cell). LIVE for colon+lung;
+                                        # other tissues → data_unavailable (honest coverage gap). ADDITIVE
+                                        # signal-only (no resolver rung → verdict byte-stable).
     "copy-number-distribution",         # P4 (2026-07-23) — genomic AMPLIFICATION → surface antigen-
                                         # density argument. The SAME card is in genomic-alteration-profile
                                         # (SM/degrader read); here it fires cn-amplified-surface-antigen-
@@ -192,6 +201,17 @@ def _headline(cards, fired, verdict_pair):
         "pmhc_presentation_class":        get_card_field(cards, "pmhc-presentation", "pmhc_presentation_class"),
         "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
         "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
+        # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression, F5 rules).
+        # F5 rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
+        # bite_tce killer + adc/antibody opposing; NOT_EXPRESSED → supportive (dominant). Provides
+        # cell-type-level resolution HPA IHC can't deliver (e.g. hepatocyte vs Kupffer cell, AT2 vs
+        # alveolar macrophage). LIVE for colon+lung; other tissues → data_unavailable (named gap).
+        # Additive; verdict byte-stable (no resolver rung — safety_essential_flags surfaced for LLM).
+        "sc_normal_expression_class":     get_card_field(cards, "sc-normal-celltype-expression", "sc_normal_expression_class"),
+        "sc_normal_max_det_cell_type":    get_card_field(cards, "sc-normal-celltype-expression", "max_detection_cell_type"),
+        "sc_normal_max_det_fraction":     get_card_field(cards, "sc-normal-celltype-expression", "max_detection_fraction"),
+        "sc_normal_n_cell_types_above_20pct": get_card_field(cards, "sc-normal-celltype-expression", "n_cell_types_above_20pct"),
+        "sc_normal_safety_essential_flags": get_card_field(cards, "sc-normal-celltype-expression", "safety_essential_flags"),
     }
     # Orthogonality facet (E7, 2026-08-07) — VERDICT-INERT display meta-facet. Counts the
     # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence
