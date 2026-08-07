@@ -29,6 +29,9 @@ from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from orthogonality import score_orthogonality   # noqa: E402 — skill-local E7 facet
+
 
 SKILL_NAME = "surface-modality-fit"
 SKILL_VERSION = "1.0.0"
@@ -131,7 +134,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
-    return {
+    hl = {
         "surface_modality_verdict":       v,
         "driving_rule_id":                drv,
         "fit_class":                      get_card_field(cards, "adc-tce-modality-fit", "fit_class"),
@@ -190,6 +193,16 @@ def _headline(cards, fired, verdict_pair):
         "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
         "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
     }
+    # Orthogonality facet (E7, 2026-08-07) — VERDICT-INERT display meta-facet. Counts the
+    # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence
+    # cluster collapsed to ONE line, not counted 6x). A target corroborated across 4-5
+    # orthogonal axes is a stronger biologics call than one resting on a single axis at the
+    # same fit_class. Emitted as a headline sub-key; the surface_modality resolver keys ONLY
+    # on adc-tce-modality-fit.fit_class rungs, so a headline key CANNOT move the verdict
+    # (pinned by test_orthogonality_is_verdict_inert). Coverage vs support kept separate:
+    # an abstaining dimension (data_unavailable) is a coverage gap, never an opposing vote.
+    hl["orthogonality"] = score_orthogonality(cards)
+    return hl
 
 
 if __name__ == "__main__":

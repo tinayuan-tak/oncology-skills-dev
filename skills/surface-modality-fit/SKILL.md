@@ -142,6 +142,25 @@ composition:
   5. `isoform-dependent-modality-suppression` → `isoform_dependent_undefined`
   6. else → `insufficient` (honest — surface inputs data_unavailable)
 
+## Orthogonality facet (E7, 2026-08-07 — VERDICT-INERT)
+
+The headline carries an `orthogonality` sub-key: a meta-facet scoring how many
+INDEPENDENT lines of surface-biology evidence converge. Of the 13 composed cards only
+~5 measure independent things; the scorer collapses the 6-card presence cluster
+(CSPA / topology / density / family / RNA-proxy / CN) into ONE dimension, so a target is
+not double-counted for measuring presence six ways. Five dimensions —
+`presence_accessibility`, `selectivity_window`, `shed_liability` (inverted: not-shed =
+supportive), `effector_homogeneity`, `pmhc_presentation` — each resolve to
+supportive / opposing / abstain. Coverage and support are reported SEPARATELY
+(`n_dimensions_covered` vs `n_dimensions_supportive`): an abstaining dimension is a
+data-coverage gap, never an opposing vote (honest-coverage doctrine). `orthogonality_class`
+∈ broadly_corroborated (≥4) / moderately (3) / narrowly (2) / single_axis (1) /
+uncorroborated (covered, none supportive) / insufficient_coverage (nothing measurable).
+It is emitted in the headline and CANNOT move the verdict — the resolver keys only on
+`fit_class` rungs (pinned by test_orthogonality_is_verdict_inert). A stronger biologics
+call rests on 4-5 orthogonal axes, not one; this makes that explicit without collapsing
+it into the verdict.
+
 ## Status: partial
 
 Per-product / per-input state (reconciled 2026-08-06 against framework-health):
