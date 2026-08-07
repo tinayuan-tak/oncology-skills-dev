@@ -14,7 +14,7 @@
 # for context; the selectivity CONTRAST lives on the selectivity card.
 
 card_id: tumor-rna-distribution
-version: 0.1.0
+version: 0.2.0
 question: "How does {target.symbol} RNA expression DISTRIBUTE across {indication.label} tumors — median, fraction of patients detectable/high, and shape (continuous, bimodal, long-tail)?"
 
 tier: indication   # the POOLED per-indication tumor distribution; the target_subtype grain lives on the
@@ -38,6 +38,15 @@ required_inputs:
 
 methods:
   - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+  # Additive patient-SPLICING facet (2026-08-07, roadmap #2 patient arm). ORTHOGONAL to the
+  # expression-LEVEL fields above: those say how MUCH / how BROADLY the gene is expressed;
+  # this says whether its SPLICING is dysregulated in patient tumours (TCGA SpliceSeq PSI).
+  # The patient complement to the model-arm isoform facet on cellline-rna-distribution.
+  # Reads tcga-spliceseq-psi-per-gene-v1. Verdict-inert — display + LLM context only.
+  - call: tcga-spliceseq-psi
     args:
       target: "{target.symbol}"
       indication: "{indication}"
@@ -84,6 +93,20 @@ outputs:
     - control_negatives                          # {symbol: percentile} — applicable negative anchors
     - control_negatives_excluded_lineage_conflict # [symbol] — lineage-marker negatives dropped (marker in THIS tissue)
     - control_position_context                   # string — controls vocab + indication normal tissue + scale (audit)
+    # Patient-SPLICING facet (additive, 2026-08-07, roadmap #2 patient arm). Is this gene's
+    # SPLICING dysregulated in patient tumours? From TCGA SpliceSeq per-event PSI: variability
+    # across tumours + tumour-vs-matched-normal PSI shift. ORTHOGONAL to the expression-LEVEL /
+    # percentile / control axes (how MUCH vs which SPLICE EVENTS shift). The patient complement
+    # to the model-arm isoform facet (cellline-rna-distribution). Verdict-inert: display + LLM
+    # context; NEVER moves tumor_expression_class. From tcga-spliceseq-psi-per-gene-v1.
+    - splicing_dysregulation_class               # categorical (see vocabulary); verdict-inert
+    - n_splice_events                            # int — annotated alternative-splicing events for the gene
+    - max_event_psi_std                          # float — max across events of tumour PSI std (variability)
+    - median_event_psi_std                       # float — median event PSI std
+    - n_variable_events                          # int — events with tumour PSI std >= 0.10
+    - n_tumor_shifted_events                     # int/null — events shifted vs matched normal (null if no normals)
+    - dominant_event_splice_type                 # string — splice class (ES/AA/AD/RI/AP/AT/ME) of the most-variable event
+    - splicing_context                           # string — human-readable splicing summary (audit)
 
   summary_fields_vocabulary:
     tumor_expression_class:
@@ -109,6 +132,11 @@ outputs:
       - above_negatives_below_positives         # clears every (floor) negative but below all positives
       - below_negatives                         # below the highest non-housekeeping (silent/lineage) floor
       - data_unavailable
+    splicing_dysregulation_class:
+      - tumor_shifted                           # >=1 event with |median tumour - median normal| PSI >= 0.10 (directional tumour change)
+      - highly_variable                         # >=1 event with tumour PSI std >= 0.10 (dynamic splicing, no normal contrast)
+      - stable                                  # no variable/shifted event — splicing is flat across the cohort
+      - data_unavailable                        # gene/indication absent from the SpliceSeq product (coverage gap)
 
   figures:
     - id: expression_distribution_per_sample
@@ -147,6 +175,9 @@ caveats:
   - "distribution_pattern uses a dependency-light gap heuristic (not a KDE/dip test), robust on small panels; a `bimodal` call is a patient-selection hypothesis, not a statistical guarantee."
   - "RNA distribution does not imply protein; pair with the CPTAC protein cards for ADC/TCE decisions."
   - "The fraction_tumor_above_normal_p95 fields are a matched-normal OVERLAY for context; the tumor-vs-normal selectivity VERDICT lives on tumor-vs-normal-selectivity (Gate B), kept separate from this presence/distribution card."
+  - "The splicing_* fields are from TCGA SpliceSeq per-event PSI (patient tumours), a SEPARATE substrate from the recount3 expression above; they measure alternative-splicing dysregulation, not expression level, and never move tumor_expression_class."
+  - "splicing_dysregulation_class is a bulk-cohort POPULATION view: a low-frequency/context-specific cancer isoform (e.g. AR-V7 in castration-resistant disease, largely absent from treatment-naive TCGA) reads 'stable' because it does not move cohort PSI variance. This is orthogonal to the curated isoform_selective_targets guardrail, by design; absence of a shift is not absence of a clinically-relevant isoform."
+  - "n_tumor_shifted_events is null when the indication has no matched normals (9/33 TCGA cohorts); in that case only the variability signal (highly_variable/stable) is available, not the tumour-vs-normal shift."
 
 measurement: bulk_rna
 sample_context: tumor         # patient tumor per-sample (TCGA) — orthogonal to measurement
