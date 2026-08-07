@@ -67,6 +67,10 @@ composition:
                                        # opposing) fire on the homogeneity facet; the card's PRIMARY sc_expression_class
                                        # stays presence-axis. LIVE for COADREAD+NSCLC. Additive; verdict byte-stable.
     - modality-therapeutic-window      # (in run.py CARDS; wired 2026-08-06, biologics-augment window arc)
+    - pmhc-presentation                # (in run.py CARDS; wired 2026-08-07, enrichment E1) peptide-centric
+                                       # HLA presentation (benign immunopeptidome). Reaches INTRACELLULAR targets
+                                       # via pMHC (TCR-mimetic TCE), invisible to surface presence. bite_tce rules;
+                                       # benign-atlas = normal-presentation safety denominator. Additive; byte-stable.
                                        # Clean-antigen THERAPEUTIC WINDOW: tumor / max-essential-normal TPM, modality-
                                        # tiered (strict/TCE default). Surfaces the CEACAM5 paradox neither selectivity
                                        # nor normal-tissue-liability makes. Rules fire on window_class (essential_tissue_
@@ -82,6 +86,7 @@ composition:
   # uniprot-v1 on S3, dispatcher wired) — CSPA is the `measured` tier; HPA-IHC remains a future adjunct.
   # exactly the first-class visible state Rule 3 describes.
   measurement_types_pulled:
+    - pmhc_presentation                # (2026-08-07, E1) peptide-centric HLA presentation; bite_tce
     - surface_confirmation
     - surface_topology
     - surfaceome_family

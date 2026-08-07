@@ -106,6 +106,9 @@ _NEWLY_REACHABLE_RULES = [
     "modality-window-clean-supportive",       # clean_window → supportive
     "modality-window-essential-liability-tce-opposing",  # essential liability → TCE opposing, ADC neutral
     "modality-window-narrow-opposing",        # narrow_window → opposing
+    # enrichment E1 — peptide-centric HLA presentation (bite_tce-only):
+    "pmhc-restricted-presentation-tce-supportive",   # restricted → TCE supportive
+    "pmhc-broadly-presented-normal-tce-opposing",    # broad normal presentation → TCE opposing
 ]
 
 
@@ -118,6 +121,8 @@ def test_newly_wired_cards_are_in_the_skill_card_set():
     assert "tumor-scrna-celltype-expression" in smf.CARDS
     # window arc — the therapeutic-window card
     assert "modality-therapeutic-window" in smf.CARDS
+    # enrichment E1 — the peptide-centric pMHC card
+    assert "pmhc-presentation" in smf.CARDS
 
 
 def test_additive_surface_signals_do_not_move_the_verdict():

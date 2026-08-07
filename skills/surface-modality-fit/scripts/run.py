@@ -101,6 +101,14 @@ CARDS = [
                                         # Emits BOTH essential + full-normal ratios (Theme-1 fix). Cohort-
                                         # honest (DLL3/SCLC → not_expressed). ADDITIVE signal-only (no resolver
                                         # rung) → verdict byte-stable.
+    "pmhc-presentation",                 # biologics enrichment E1 (2026-08-07): peptide-centric HLA
+                                         # presentation (benign immunopeptidome). The peptide-centric TCE
+                                         # axis — reaches INTRACELLULAR targets via the peptide-MHC complex
+                                         # (KRAS/WT1/PRAME/MAGE-A4), invisible to surface presence. Its rules
+                                         # (pmhc-restricted-presentation-tce-supportive / -broadly-presented-
+                                         # normal-tce-opposing) fire on pmhc_presentation_class; bite_tce-only.
+                                         # Benign-atlas = normal-presentation SAFETY denominator (broad=liability;
+                                         # restricted=clean, MAGE-A4). ADDITIVE (no resolver rung) → byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -167,6 +175,12 @@ def _headline(cards, fired, verdict_pair):
         "window_ratio_essential":         get_card_field(cards, "modality-therapeutic-window", "window_ratio_essential"),
         "window_ratio_full_normal":       get_card_field(cards, "modality-therapeutic-window", "window_ratio_full_normal"),
         "window_max_essential_organ":     get_card_field(cards, "modality-therapeutic-window", "max_essential_normal_organ"),
+        # Peptide-centric HLA presentation (pmhc-presentation) — the TCR-mimetic-TCE axis. Its rules fire
+        # on pmhc_presentation_class (bite_tce): restricted → supportive (clean pMHC target); broad → opposing
+        # (normal-presentation liability). Additive; verdict byte-stable. not_observed = weak-negative candidate.
+        "pmhc_presentation_class":        get_card_field(cards, "pmhc-presentation", "pmhc_presentation_class"),
+        "pmhc_n_normal_tissues":          get_card_field(cards, "pmhc-presentation", "n_normal_tissues_presented"),
+        "pmhc_hla_class":                 get_card_field(cards, "pmhc-presentation", "hla_class"),
     }
 
 

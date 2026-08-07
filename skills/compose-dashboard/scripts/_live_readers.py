@@ -901,6 +901,18 @@ def _dispatch_surface_abundance_density(target: str, indication: str) -> Optiona
     return mod.read_abundance_density_summary(target=target, indication=indication)
 
 
+def _dispatch_pmhc_presentation(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: pmhc-presentation card -> peptide-centric HLA presentation (benign immunopeptidome,
+    HLA Ligand Atlas) via methods/pmhc_presentation/read.py. The peptide-centric TCE axis — reaches
+    intracellular targets via the peptide-MHC complex. Presentation is a protein property; indication
+    accepted for the dispatcher contract, not consumed. An absent target is a WEAK-negative
+    (not_observed), never data_unavailable (MS asymmetry).
+    """
+    _import_method("pmhc_presentation")  # ensures the analysis-methods repo is on sys.path
+    from methods.pmhc_presentation import read_pmhc_presentation
+    return read_pmhc_presentation(target=target, indication=indication)
+
+
 def _dispatch_modality_therapeutic_window(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: modality-therapeutic-window card → tumor / max-essential-normal TPM window
     (modality-tiered, strict/TCE default) via methods/tcga_gtex_tpm_quantiles/window.py. Reads the
@@ -1339,6 +1351,7 @@ CARD_DISPATCHERS = {
     "protein-surface-evidence": _dispatch_protein_surface_evidence,
     "surface-abundance-density": _dispatch_surface_abundance_density,
     "modality-therapeutic-window": _dispatch_modality_therapeutic_window,
+    "pmhc-presentation": _dispatch_pmhc_presentation,
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,
     "tumor-protein-abundance-cptac": _dispatch_protein_presence_cptac,
