@@ -37,9 +37,19 @@
 #                                  unknown). Coverage gap — NOT a claim of "not shed"
 #                                  (structured shedding sources have systematic
 #                                  false negatives, esp. for shed RTKs).
+#
+# MEASURED facet (v1.1.0, enrichment E3 2026-08-07) — `measured_shed_class` is a
+# PARALLEL categorical alongside the annotation-based shed_liability_class (which is
+# UNCHANGED). It reads Olink NPX in DepMap CONDITIONED MEDIA (harmonized_olink_media_
+# 26Q1_filtered) — protein a live cancer cell actually released into supernatant, the
+# empirical shed/secreted readout the v1 header reserved as an Iter-2 upgrade. It
+# corroborates (or adds honest measured nuance to) the annotation tiers; it does NOT
+# override them. The Olink media panel is bounded (1,038 proteins) + secretome-
+# preselected, so panel-ABSENCE (`not_on_secreted_panel`) is NON-informative, never a
+# measured negative — only `media_shed_high` is verdict-relevant (opposing, not killer).
 
 card_id: shed-ectodomain-liability
-version: 1.0.0
+version: 1.1.0   # v1.1.0 (E3, 2026-08-07): + measured Olink conditioned-media shed facet (parallel; annotation classes unchanged)
 question: "Is the extracellular domain of {target.symbol} proteolytically shed as a soluble circulating decoy, creating an antigen-sink liability for antibody / ADC / T-cell-engager modalities?"
 
 tier: target   # scope-invariant: ectodomain shedding is a property of the protein, not of any tumor subgroup. Never stratifies.
@@ -58,6 +68,11 @@ required_inputs:
   # UniProt SwissProt features (CHAIN/PEPTIDE + Secreted) are an additional proxy
   # source already landed (uniprot-sprot-human-2026-02-snapshot-2026-06-18); the
   # reader consumes it opportunistically where topology is available.
+  - product_id: depmap-consortium-26q1-proteomics  # MEASURED tier (E3): Olink conditioned-media NPX
+                                                    # (harmonized_olink_media_26Q1_filtered.csv). The same
+                                                    # landed source whose Gygi-TMT whole-cell leg feeds
+                                                    # cellline-protein-abundance; here the media (secreted)
+                                                    # leg is the empirical shed readout.
 
 methods:
   - call: shed-ectodomain-lookup
@@ -74,6 +89,12 @@ outputs:
     - hpa_secretome_location                        # str|null; HPA "Secretome location" value (proxy)
     - source_citation                               # str|null; primary published citation for the shed claim
     - method_version
+    # --- MEASURED Olink conditioned-media facet (E3, v1.1.0) — parallel to shed_liability_class ---
+    - measured_shed_class                           # PARALLEL categorical (measured); does NOT alter shed_liability_class
+    - media_mean_npx                                # float|null; mean Olink NPX in conditioned media across DepMap lines
+    - media_n_lines_detected                        # int|null; number of cell lines with a detected media value
+    - media_panel_high_npx                          # float|null; self-calibrated panel p75 mean-NPX (the "high" bar)
+    - media_uniprot                                 # str|null; UniProt accession resolved for the media lookup
 
   summary_fields_vocabulary:
     shed_liability_class:
@@ -86,6 +107,11 @@ outputs:
       - secretome_proxy
       - uniprot_feature
       - none
+    measured_shed_class:
+      - media_shed_high                             # mean media NPX >= panel p75 AND detected in >= 3 lines: empirically released into supernatant
+      - media_shed_low                              # on the secreted panel, below the high bar (informational only)
+      - not_on_secreted_panel                       # NOT a column on the bounded Olink secreted panel: NON-informative, never a measured negative
+      - data_unavailable                            # media matrix / id map unreadable (infra failure)
 
   figure: shed_liability_evidence_panel
 
@@ -99,6 +125,9 @@ warning_predicates:
   - warning_id: shed_indeterminate
     if: "shed_liability_class == 'indeterminate'"
     message: "Shedding status of {target.symbol} could not be evidenced (not in the curated shed vocab; no HPA secretome signal). COVERAGE GAP, not a determination that the ectodomain is not shed — structured sources under-annotate shed receptors. Treat shed liability as UNKNOWN for biologics."
+  - warning_id: measured_media_shed_confirmed
+    if: "measured_shed_class == 'media_shed_high'"
+    message: "{target.symbol} is empirically released into conditioned media across DepMap lines (Olink NPX {media_mean_npx} >= panel-high {media_panel_high_npx}, n={media_n_lines_detected}) — a MEASURED shed signal corroborating an antigen-sink liability for biologics. Opposing, not killer."
 
 caveats:
   - |
@@ -135,12 +164,25 @@ caveats:
     Absence of a shedding annotation therefore carries high false-negative risk
     and must not be read as a trusted negative.
   - |
+    MEASURED facet (measured_shed_class, v1.1.0): Olink NPX in DepMap CONDITIONED MEDIA is
+    the empirical shed readout — protein a live cancer cell released into supernatant. A
+    PARALLEL categorical: it corroborates or adds measured nuance to shed_liability_class
+    but NEVER alters it (a clinically_shed antigen stays clinically_shed even if it reads
+    media_shed_low). Only media_shed_high is verdict-relevant (opposing); low /
+    not_on_secreted_panel are informational.
+  - |
+    MEASURED facet — three load-bearing limits: (i) PANEL BOUND — the Olink media panel is
+    ~1,038 proteins, secretome-preselected, so `not_on_secreted_panel` is NON-informative
+    (never a measured "not shed"); (ii) IN-VITRO — cell-line supernatant shedding models,
+    does not prove, an in-vivo circulating-antigen sink (MSLN/FOLR1 read low in vitro);
+    (iii) some shed RTKs (CEACAM5, ERBB2) are off the panel entirely — the curated clinical
+    tier remains the reliable cover for those.
+  - |
     Iter-2 upgrades: (a) add MEROPS sheddase→substrate cleavage evidence (ADAM10/17,
-    BACE1) as a mechanistic tier if its LGPL redistribution is legally cleared;
-    (b) derive a UniProt CHAIN/PEPTIDE-vs-transmembrane-topology shed classifier
-    genome-wide (structured, landed source) to broaden the proxy tier beyond the
-    HPA secretome column; (c) extend the curated vocab as new shed antigens are
-    clinically characterized (bump vocabulary version).
+    BACE1) as a mechanistic tier if LGPL redistribution is legally cleared; (b) a
+    genome-wide UniProt CHAIN/PEPTIDE-vs-topology shed classifier to broaden the proxy
+    tier beyond the HPA secretome column; (c) extend the curated vocab as new shed
+    antigens are characterized. [(d) DONE v1.1.0: the measured Olink-media tier.]
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `shed_ectodomain_liability` claim.
 measurement_type: shed_ectodomain_liability
