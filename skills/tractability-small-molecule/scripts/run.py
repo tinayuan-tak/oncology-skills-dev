@@ -106,12 +106,22 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
     # Ranked below any real chemical hit, above chemically_unhit — a druggable pocket
     # is a positive SM prospect even before a compound exists (the KRAS-G12C fix).
+    # E8-lig (composite structure-ligandability-per-protein-v1, 2026-08-07): the LIVE structural
+    # leg. A real experimental co-crystal is the STRONGEST forward handle → top of the structural
+    # tier; predicted (pocket/VS-hit/cryptic) sits with the existing pocket rungs. Kept byte-in-sync
+    # with resolvers/tractability_small_molecule.resolver.yaml (same rung order + driving ids).
+    if "ligandability-experimental-sm-supportive" in fired_by_id:
+        return "structurally_ligandable", "ligandability-experimental-sm-supportive"
     if "hotspot-in-druggable-pocket-sm-supportive-e8" in fired_by_id:
         return "structurally_ligandable", "hotspot-in-druggable-pocket-sm-supportive-e8"
     if "structure-pocket-adjacent-sm-supportive" in fired_by_id:
         return "structurally_ligandable", "structure-pocket-adjacent-sm-supportive"
+    if "ligandability-predicted-sm-supportive" in fired_by_id:
+        return "structurally_ligandable", "ligandability-predicted-sm-supportive"
     if "structure-low-confidence-sm-opposing" in fired_by_id:
         return "structurally_intractable", "structure-low-confidence-sm-opposing"
+    if "ligandability-disordered-sm-opposing" in fired_by_id:
+        return "structurally_intractable", "ligandability-disordered-sm-opposing"
     if "prism-no-compounds-found-neutral" in fired_by_id:
         return "chemically_unhit", "prism-no-compounds-found-neutral"
     return "insufficient", None

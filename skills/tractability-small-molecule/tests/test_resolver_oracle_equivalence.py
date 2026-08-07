@@ -19,7 +19,9 @@ import pytest
 
 RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
 
-# The 10 rule_ids the ladder branches on (order matches the resolver rungs).
+# The 14 rule_ids the ladder branches on (order matches the resolver rungs).
+# +4 E8-lig composite-ligandability rungs (2026-08-07): experimental/predicted (structurally_ligandable),
+# disordered (structurally_intractable). no-evidence maps to the default fallthrough (no branch).
 RULE_IDS = [
     "e7-triangulated-target-engaged-supportive",
     "e7-crispr-confirmed-supportive-sm",
@@ -27,9 +29,12 @@ RULE_IDS = [
     "prism-tool-compound-only-weak-supportive-sm",
     "prism-weakly-active-weak-supportive-sm",
     "e7-discordant-off-target-warning",
+    "ligandability-experimental-sm-supportive",
     "hotspot-in-druggable-pocket-sm-supportive-e8",
     "structure-pocket-adjacent-sm-supportive",
+    "ligandability-predicted-sm-supportive",
     "structure-low-confidence-sm-opposing",
+    "ligandability-disordered-sm-opposing",
     "prism-no-compounds-found-neutral",
 ]
 
