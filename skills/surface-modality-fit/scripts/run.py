@@ -160,6 +160,14 @@ def _headline(cards, fired, verdict_pair):
         # demands a shed-resistant epitope + antigen-sink dose modeling). Additive; verdict byte-stable.
         "shed_liability_class":           get_card_field(cards, "shed-ectodomain-liability", "shed_liability_class"),
         "shed_serum_marker":              get_card_field(cards, "shed-ectodomain-liability", "serum_marker"),
+        # MEASURED Olink conditioned-media shed facet (E3, card v1.1.0) — PARALLEL to the
+        # annotation-based shed_liability_class (unchanged). media_shed_high fires shed-ectodomain-
+        # measured-media-opposing (adc/bite_tce/antibody opposing — measurement-corroborated antigen
+        # sink). Panel bounded + secretome-preselected → not_on_secreted_panel is NON-informative
+        # (never a measured negative). Additive; verdict byte-stable (no resolver rung).
+        "measured_shed_class":            get_card_field(cards, "shed-ectodomain-liability", "measured_shed_class"),
+        "shed_media_mean_npx":            get_card_field(cards, "shed-ectodomain-liability", "media_mean_npx"),
+        "shed_media_n_lines_detected":    get_card_field(cards, "shed-ectodomain-liability", "media_n_lines_detected"),
         # Within-tumor antigen homogeneity (tumor-scrna-celltype-expression, single-cell Census).
         # Its surface rules fire on tce_homogeneity_class (bite_tce/adc): homogeneous → TCE supportive
         # (uniform, low escape); heterogeneous → TCE opposing (antigen-low escape reservoir), ADC

@@ -60,6 +60,9 @@ composition:
                                        # crosswalk). Its F3 rules (shed-ectodomain-clinical/secretome-proxy-opposing,
                                        # OPPOSING not killer) existed + were axis-wired but UNREACHABLE — no skill
                                        # composed the card. Additive signal facet; verdict byte-stable.
+                                       # E3 (2026-08-07): + MEASURED Olink conditioned-media facet (measured_shed_class);
+                                       # media_shed_high fires shed-ectodomain-measured-media-opposing. Panel bounded +
+                                       # secretome-preselected → not_on_secreted_panel non-informative. Still byte-stable.
     - tumor-scrna-celltype-expression  # (in run.py CARDS; wired 2026-08-06, biologics-augment Phase 3.2)
                                        # Within-tumor antigen HOMOGENEITY via single-cell Census (tce_homogeneity_class
                                        # facet). TCE program-killer = antigen heterogeneity (antigen-low cells escape).

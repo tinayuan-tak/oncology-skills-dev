@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -224,8 +225,18 @@ def run_wired_skill(
     # signature is unchanged; tier:target readers ignore it (see the --indication help above).
     _indication = args.indication if args.indication is not None else "PANCANCER"
 
+    # ── run-health instrumentation (per-subskill; every wired skill flows through here) ──
+    # perf_counter is monotonic wall-clock; splits DATA-READ (resolve_cards → the S3/parquet
+    # reads) from COMPUTE (rules + verdict + headline). Timings are OBSERVABILITY only — they
+    # never touch the verdict spine, and they land in decision['run_health'] (a sibling key,
+    # like llm_synthesis). Written per subskill, so the health probe can read real read/compute
+    # latency + liveness for EACH subskill's own run — not just compose-dashboard's package.
+    _t0 = time.perf_counter()
+
     # 1. Resolve cards via compose-dashboard live-readers
     card_outputs = resolve_cards(cards, args.target, _indication)
+    _read_secs = time.perf_counter() - _t0
+    _compute_start = time.perf_counter()
 
     # 2. Apply arch A4 on_dependency_status behavior
     card_outputs, skipped_card_ids, a4_caveats = _apply_on_dependency_status(
@@ -317,6 +328,27 @@ def run_wired_skill(
         headline=headline, modality_lenses=lenses,
     )
 
+    # 8a. Per-subskill RUN-HEALTH record (observability; sibling key, never touches the spine).
+    # status: ok = all consumed cards resolved; degraded = some card missing/skipped (arch A4)
+    # but the run completed. (A hard failure raises before here, so a written decision.json is
+    # never 'error' — the ABSENCE of a fresh run_health is itself the error signal downstream.)
+    _cards_missing = [c["card_id"] for c in card_outputs if c.get("_missing")]
+    _cards_fired_ids = sorted({f.get("card_id") for f in fired if f.get("card_id")})
+    decision["run_health"] = {
+        "skill_name": skill_name,
+        "skill_version": skill_version,
+        "status": "degraded" if (_cards_missing or skipped_card_ids) else "ok",
+        "n_cards_consumed": len(cards),
+        "n_cards_resolved": sum(1 for c in card_outputs if not c.get("_missing")),
+        "n_cards_fired": len(_cards_fired_ids),
+        "cards_fired": _cards_fired_ids,
+        "cards_missing": sorted(_cards_missing),
+        "cards_skipped_a4": sorted(skipped_card_ids),
+        "read_secs": round(_read_secs, 4),
+        "compute_secs": round(time.perf_counter() - _compute_start, 4),
+        # total is stamped at the very end (below) so it includes synthesis + write.
+    }
+
     # 8b. OPT-IN LLM synthesis (two-slot design). Attaches a provenance-tagged narration
     # as a SIBLING key decision['llm_synthesis'] AFTER the deterministic decision is composed,
     # so it is structurally impossible for the LLM to alter the verdict spine. Never runs
@@ -340,6 +372,10 @@ def run_wired_skill(
                 "_synthesis_error": f"{type(e).__name__}: {e}",
                 "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
             }
+
+    # Stamp total wall-clock (read + compute + optional synthesis) BEFORE write_package
+    # serializes the decision — write time itself is not a data-access signal.
+    decision["run_health"]["total_secs"] = round(time.perf_counter() - _t0, 4)
 
     # 9. Emit standard data-package tree (include the subtype panorama cards when present)
     written = write_package(

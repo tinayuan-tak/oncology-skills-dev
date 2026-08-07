@@ -99,6 +99,7 @@ _NEWLY_REACHABLE_RULES = [
     "protein-not-surface-opposing",           # CSPA not_surface (measured-negative; NOT killer)
     "shed-ectodomain-clinical-opposing",      # clinically_shed serum-marker antigen sink
     "shed-ectodomain-secretome-proxy-opposing",
+    "shed-ectodomain-measured-media-opposing",  # enrichment E3 — measured Olink conditioned-media shed (media_shed_high)
     # biologics-augment Phase 3.2 — within-tumor antigen-homogeneity (single-cell Census):
     "sc-homogeneity-uniform-tce-supportive",  # homogeneous → TCE supportive
     "sc-homogeneity-heterogeneous-tce-opposing",  # heterogeneous → TCE opposing (escape reservoir)

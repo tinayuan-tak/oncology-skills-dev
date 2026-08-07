@@ -244,13 +244,57 @@ def _run(tmp_path, synthesize: bool, synth_return=None, synth_raises=False):
 def test_synthesize_adds_only_llm_synthesis_key(tmp_path):
     base = _run(tmp_path / "a", synthesize=False)
     synth = _run(tmp_path / "b", synthesize=True)
-    # the deterministic spine (everything except llm_synthesis + volatile timestamp) is identical
-    base.pop("generated_at", None); synth.pop("generated_at", None)
+    # the deterministic spine (everything except llm_synthesis + volatile fields) is identical.
+    # run_health is VOLATILE (per-run timings + monotonic clock) — excluded from the spine
+    # comparison exactly like generated_at. It is added by the dispatcher unconditionally, NOT
+    # by synthesis, so it must be present in BOTH runs.
+    for d in (base, synth):
+        d.pop("generated_at", None)
+        d.pop("run_health", None)
+    assert "run_health" not in base and "run_health" not in synth  # popped from both
     assert "llm_synthesis" not in base
     assert "llm_synthesis" in synth
     synth_wo = {k: v for k, v in synth.items() if k != "llm_synthesis"}
     assert synth_wo == base, "synthesis must NOT change any deterministic field"
     assert synth["headline"]["presence_verdict"] == base["headline"]["presence_verdict"]
+
+
+def test_dispatcher_emits_run_health(tmp_path):
+    """Every wired subskill writes a per-run run_health block (observability; sibling key,
+    never touches the spine). Guards the read/compute timing + liveness record."""
+    d = _run(tmp_path / "rh", synthesize=False)
+    assert "run_health" in d, "dispatcher must emit run_health into decision.json"
+    rh = d["run_health"]
+    # shape + liveness
+    assert rh["skill_name"] and rh["skill_version"]
+    assert rh["status"] == "ok"                      # the 1 mocked card resolves, none missing/skipped
+    assert rh["n_cards_resolved"] == 1
+    assert rh["cards_missing"] == [] and rh["cards_skipped_a4"] == []
+    # timings are present, non-negative, and total ≥ read (monotonic clock)
+    for k in ("read_secs", "compute_secs", "total_secs"):
+        assert isinstance(rh[k], (int, float)) and rh[k] >= 0, f"{k} bad"
+    assert rh["total_secs"] >= rh["read_secs"]
+
+
+def test_run_health_status_degraded_on_missing_card(tmp_path):
+    """A consumed card that resolves _missing → status 'degraded' (run completed, but not
+    all evidence was available). Distinguishes an honest partial run from a clean one."""
+    from _skills_common import dispatcher as D
+    import json
+    card_outputs = [
+        {"card_id": "present-card", "summary": {}, "_missing": False},
+        {"card_id": "absent-card", "summary": {}, "_missing": True},
+    ]
+    argv = ["--target", "KRAS", "--indication", "COADREAD", "--out", str(tmp_path / "deg")]
+    with patch.object(D, "resolve_cards", return_value=card_outputs), \
+         patch.object(D, "fired_rules", return_value=[]):
+        D.run_wired_skill(skill_name="t", skill_version="9.9.9", cards=["present-card", "absent-card"],
+                          axis="intracellular_intrinsic", question="q {target} {indication}",
+                          headline_fn=lambda c, f, v: {"verdict": "x"}, argv=argv)
+    rh = json.loads((tmp_path / "deg" / "decision.json").read_text())["run_health"]
+    assert rh["status"] == "degraded"
+    assert rh["cards_missing"] == ["absent-card"]
+    assert rh["n_cards_resolved"] == 1
 
 
 def test_synthesis_failure_degrades_to_note(tmp_path):
