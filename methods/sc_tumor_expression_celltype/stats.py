@@ -59,6 +59,72 @@ def compartment_summary(rows) -> dict:
     return out
 
 
+# Canonical compartment display order for the full per-compartment vector (v1: sc-presence depth).
+# malignant first (the anchor), then the microenvironment triplet, then normal-epithelial + other.
+# The pseudobulk cube's `compartment` values (verified on the NSCLC/COADREAD products):
+# malignant, stromal, immune, endothelial, epithelial_normal, other.
+COMPARTMENT_ORDER = ("malignant", "stromal", "immune", "endothelial", "epithelial_normal", "other")
+
+
+def per_compartment_vector(comp_summary: dict) -> list:
+    """The FULL per-compartment detection/abundance vector (v1 sc-presence depth) — surfaces the
+    whole compartment cube the presence ladder collapses to malignant + top-microenvironment. Each
+    entry: {compartment, median_detection_fraction, median_abundance_log1p_cp10k, n_donors,
+    n_cells_total, is_caf}. Ordered by COMPARTMENT_ORDER (measured compartments only), unknown
+    compartments appended alphabetically. `is_caf` flags the stromal/CAF compartment explicitly so
+    the CAF axis the deck cares about (POSTN/CTHRC1-style CAF targets) is first-class, not buried
+    inside `top_microenvironment`. Empty summary → [] (honest gap)."""
+    if not comp_summary:
+        return []
+    ordered = [c for c in COMPARTMENT_ORDER if c in comp_summary]
+    ordered += sorted(c for c in comp_summary if c not in COMPARTMENT_ORDER)
+    vec = []
+    for c in ordered:
+        s = comp_summary[c]
+        vec.append({
+            "compartment": c,
+            "median_detection_fraction": s["median_detection_fraction"],
+            "median_abundance_log1p_cp10k": s["median_abundance_log1p_cp10k"],
+            "n_donors": s["n_donors"],
+            "n_cells_total": s["n_cells_total"],
+            "is_caf": c == "stromal",   # DepMap/Census pseudobulk labels CAF/fibroblast as `stromal`
+        })
+    return vec
+
+
+def caf_readout(comp_summary: dict) -> dict:
+    """Explicit CAF/stromal-compartment readout (the deck's tumor-vs-CAF dual-target axis). Returns
+    {caf_detection_fraction, caf_abundance_log1p_cp10k, caf_compartment_available, caf_vs_malignant_class}.
+    caf_vs_malignant_class contrasts stromal vs malignant detection (the POSTN/PD-L1-style question:
+    is this target ON the CAFs, the tumor cells, or both):
+      caf_dominant        — stromal detection >= microenv_min AND clearly > malignant
+      malignant_dominant  — malignant detection >= subset AND clearly > stromal
+      shared_caf_malignant— both compartments detect it (a dual-compartment target)
+      caf_low             — stromal below microenv_min (not a CAF target)
+      data_unavailable    — no stromal compartment measured (abstain, never a zero)."""
+    stromal = comp_summary.get("stromal") if comp_summary else None
+    mal = comp_summary.get("malignant") if comp_summary else None
+    if stromal is None:
+        return {"caf_detection_fraction": None, "caf_abundance_log1p_cp10k": None,
+                "caf_compartment_available": False, "caf_vs_malignant_class": "data_unavailable"}
+    caf_det = stromal["median_detection_fraction"]
+    mal_det = mal["median_detection_fraction"] if mal else None
+    if caf_det < MICROENV_DETECTED_MIN:
+        cls = "caf_low"
+    elif mal_det is None:
+        cls = "caf_dominant"
+    elif caf_det >= MICROENV_DETECTED_MIN and mal_det >= MALIGNANT_SUBSET_DETECTED_MIN \
+            and abs(caf_det - mal_det) < 0.15:
+        cls = "shared_caf_malignant"
+    elif caf_det > mal_det:
+        cls = "caf_dominant"
+    else:
+        cls = "malignant_dominant"
+    return {"caf_detection_fraction": caf_det,
+            "caf_abundance_log1p_cp10k": stromal["median_abundance_log1p_cp10k"],
+            "caf_compartment_available": True, "caf_vs_malignant_class": cls}
+
+
 # --- TCE within-tumor homogeneity thresholds (biologics-augment Phase 3.2) ---
 # A DISTINCT lens on malignant_detection_fraction from the presence ladder above: for a T-cell
 # engager, within-tumor antigen HOMOGENEITY is a program-killer — antigen-low malignant cells escape

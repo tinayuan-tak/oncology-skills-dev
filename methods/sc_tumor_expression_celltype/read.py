@@ -103,10 +103,39 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
         "n_datasets": int(rows["dataset_id"].nunique()),
         "compartment_detection": {c: comp_summary[c]["median_detection_fraction"]
                                   for c in comp_summary},
+        # v1 sc-presence depth (additive; presence ladder above untouched): the FULL per-compartment
+        # vector + an explicit CAF/stromal readout (the deck's tumor-vs-CAF dual-target axis).
+        "per_compartment": _stats.per_compartment_vector(comp_summary),
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
     }
+    out.update(_stats.caf_readout(comp_summary))
     return out
+
+
+def read_two_antigen_samecell(target: str, partner: str, indication: str) -> dict:
+    """Two-antigen SAME-CELL co-expression in the malignant compartment — the deck's dual-target
+    cell-type-specificity question (POSTN/PD-L1, CLDN18.2/LRRC15, slide 6): do BOTH antigens sit on
+    the SAME tumor cells, or on different cells within the tumor?
+
+    REUSES pair_selectivity_gate.samecell.confirm_pair_samecell (the tested same-cell reader, PR#203)
+    — the computation is identical to the bispecific-avidity confirmation; only the FRAMING differs
+    (presence/co-localization vs avidity-for-a-bispecific). We do NOT re-read the cube here. Returns
+    the same-cell avidity/co-localization call + cross-donor both-fraction/enrichment, presence-framed:
+      same_cell_coordinated       — co-expressed on the same malignant cells (true dual-antigen target)
+      same_cell_independent       — both present, co-occur ~by chance
+      same_cell_mutually_exclusive— rarely the same cell (bulk co-expression was misleading)
+      data_unavailable            — cube/pair not landed (honest gap).
+    """
+    from methods.pair_selectivity_gate.samecell import confirm_pair_samecell
+    r = confirm_pair_samecell(target, partner, indication)
+    # presence-framed alias on the same underlying call (keep the raw fields for provenance)
+    r = dict(r)
+    r["two_antigen_colocalization_class"] = r.get("samecell_avidity_call")
+    r["target"] = str(target).upper().strip()
+    r["partner"] = str(partner).upper().strip()
+    r["indication"] = str(indication).upper().strip()
+    return r
 
 
 def _data_unavailable(target: str, indication: str, note: str) -> dict:
@@ -124,6 +153,11 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "n_donor_groups": 0,
         "n_datasets": 0,
         "compartment_detection": {},
+        "per_compartment": [],
+        "caf_detection_fraction": None,
+        "caf_abundance_log1p_cp10k": None,
+        "caf_compartment_available": False,
+        "caf_vs_malignant_class": "data_unavailable",
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
         "_data_note": note,

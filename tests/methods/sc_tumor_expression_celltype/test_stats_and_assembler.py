@@ -77,6 +77,56 @@ def test_compartment_summary_collapses_multiple_rows_per_donor_first():
     assert cs["immune"]["median_detection_fraction"] == pytest.approx(0.45)
 
 
+# --- v1 sc-presence depth: full per-compartment vector + CAF readout ---------
+
+def test_per_compartment_vector_orders_and_flags_caf():
+    """The full vector: malignant first, canonical order, stromal flagged is_caf."""
+    rows = _rows([
+        ("stromal", "dsA", "d1", 100, 0.30, 0.4),
+        ("malignant", "dsA", "d1", 100, 0.60, 1.0),
+        ("immune", "dsA", "d1", 100, 0.05, 0.1),
+    ])
+    cs = S.compartment_summary(rows)
+    vec = S.per_compartment_vector(cs)
+    # malignant first (anchor), stromal second (canonical order), immune third
+    assert [v["compartment"] for v in vec] == ["malignant", "stromal", "immune"]
+    caf = [v for v in vec if v["is_caf"]]
+    assert len(caf) == 1 and caf[0]["compartment"] == "stromal"
+    assert vec[0]["median_detection_fraction"] == pytest.approx(0.60)
+
+
+def test_per_compartment_vector_empty_is_empty_list():
+    assert S.per_compartment_vector({}) == []
+
+
+def test_caf_readout_shared_when_both_detect():
+    """CAF + malignant both detect within 0.15 → shared_caf_malignant (a dual-compartment target)."""
+    rows = _rows([
+        ("malignant", "dsA", "d1", 100, 0.40, 1.0),
+        ("stromal",   "dsA", "d1", 100, 0.35, 0.9),
+    ])
+    r = S.caf_readout(S.compartment_summary(rows))
+    assert r["caf_compartment_available"] is True
+    assert r["caf_vs_malignant_class"] == "shared_caf_malignant"
+
+
+def test_caf_readout_caf_dominant_and_low():
+    # CAF-dominant: stromal clears microenv_min and clearly exceeds malignant
+    rows_dom = _rows([("malignant","d","1",100,0.05,0.1),("stromal","d","1",100,0.50,1.0)])
+    assert S.caf_readout(S.compartment_summary(rows_dom))["caf_vs_malignant_class"] == "caf_dominant"
+    # CAF-low: stromal below microenv_min → not a CAF target
+    rows_low = _rows([("malignant","d","1",100,0.60,1.0),("stromal","d","1",100,0.10,0.2)])
+    assert S.caf_readout(S.compartment_summary(rows_low))["caf_vs_malignant_class"] == "caf_low"
+
+
+def test_caf_readout_no_stromal_is_data_unavailable():
+    """No stromal compartment measured → abstain, never a fabricated zero."""
+    rows = _rows([("malignant", "d", "1", 100, 0.6, 1.0)])
+    r = S.caf_readout(S.compartment_summary(rows))
+    assert r["caf_compartment_available"] is False
+    assert r["caf_vs_malignant_class"] == "data_unavailable"
+
+
 # --- classify_sc_expression: the ladder --------------------------------------
 
 def test_classify_malignant_broadly_detected():
