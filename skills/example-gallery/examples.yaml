@@ -1,0 +1,20 @@
+# Example-gallery config: one row per (subskill, target, indication) to showcase.
+# Add a row + re-run generate_example_gallery.py — no code change needed.
+# `indication` is omitted for target-grain subskills (target-intrinsic).
+examples:
+  # tumor-presence — the richest figure coverage (RNA distribution, protein, breadth, subtype);
+  # three contrasting relevance reads.
+  - {skill: tumor-presence, target: CEACAM5, indication: COADREAD}   # strong presence (surface antigen)
+  - {skill: tumor-presence, target: KRAS,    indication: COADREAD}   # present-but-uninformative (intracellular driver)
+  - {skill: tumor-presence, target: EPCAM,   indication: COADREAD}   # epithelial marker
+
+  # target-intrinsic — indication-independent molecular dossier (17 cards): identity, domains
+  # (InterPro), PPI (STRING+CORUM+BioGRID), phospho, safety-genetics, paralogs, etc.
+  - {skill: target-intrinsic, target: EGFR}    # kinase, multi-domain, PPI hub
+  - {skill: target-intrinsic, target: KRAS}    # GTPase, interpro_only domain, RAF interactors
+
+  # cross-section of subskills for one target (KRAS/COADREAD) — shows the framework breadth.
+  # (tumor-presence + target-intrinsic KRAS rows above complete the cross-section.)
+  - {skill: functional-requirement,     target: KRAS, indication: COADREAD}   # dependency (CRISPR+RNAi)
+  - {skill: genomic-alteration-profile, target: KRAS, indication: COADREAD}   # SNV/CN alteration mix
+  - {skill: mechanism-and-pharmacology, target: KRAS, indication: COADREAD}   # SIGNOR MoA + phospho activity
