@@ -18,6 +18,59 @@ from typing import Optional
 
 METHOD_VERSION = "0.1.0"
 
+
+def parse_cif_plddt(cif_text: str) -> list:
+    """Extract the per-residue pLDDT array from an AlphaFold model CIF (pure text — NO structure library).
+
+    AlphaFold stores per-residue confidence (pLDDT) as the CA atom's B-factor (`_atom_site.B_iso_or_equiv`)
+    in the `_atom_site` loop; there is exactly one CA per residue, so the ordered CA B-factors ARE the
+    per-residue pLDDT array (1-indexed by residue). We locate the loop header to resolve column order
+    (robust to AF schema changes), then read CA rows in file order. Validated against the API's
+    globalMetricValue (KRAS: parsed mean 91.52 == API 91.5).
+
+    Returns [] if the CIF is empty/unparseable/has no CA atoms (caller then treats pLDDT as unavailable —
+    the row still carries PDB coverage + the summary-API mean if provided separately)."""
+    if not cif_text:
+        return []
+    lines = cif_text.splitlines()
+    # 1. Find the _atom_site column headers (contiguous block of `_atom_site.<field>` lines).
+    cols: list[str] = []
+    seen_header = False
+    for ln in lines:
+        s = ln.strip()
+        if s.startswith("_atom_site."):
+            cols.append(s)
+            seen_header = True
+        elif seen_header:
+            break
+    if not cols:
+        return []
+
+    def _col_idx(field: str) -> Optional[int]:
+        target = f"_atom_site.{field}"
+        for j, c in enumerate(cols):
+            if c == target:
+                return j
+        return None
+
+    i_atom = _col_idx("label_atom_id")
+    i_b = _col_idx("B_iso_or_equiv")
+    if i_atom is None or i_b is None:
+        return []
+
+    # 2. Collect CA-atom B-factors in file order (= per-residue pLDDT, N→C).
+    plddt: list = []
+    need = max(i_atom, i_b)
+    for ln in lines:
+        if ln.startswith("ATOM") or ln.startswith("HETATM"):
+            p = ln.split()
+            if len(p) > need and p[i_atom] == "CA":
+                try:
+                    plddt.append(float(p[i_b]))
+                except (ValueError, IndexError):
+                    continue
+    return plddt
+
 # pLDDT bands (AlphaFold convention; matches the card thresholds + read.py classifier).
 PLDDT_DISORDERED_MAX = 50.0     # residues below this are treated as disordered/very-low-confidence
 PLDDT_LOW_DOMAIN_MAX = 70.0     # a domain whose min pLDDT is below this is "low-confidence" (n_domains_low_plddt)
@@ -107,22 +160,35 @@ def pdb_coverage(pdb_entries: list) -> dict:
             "pdb_best_method": str(entries[0].get("method") or "unknown")}
 
 
+# Disorder-dominated guard: a protein whose structure is mostly low-confidence is not a credible
+# small-molecule pocket scaffold regardless of where a hotspot lands (pilot 2026-08-07: without this,
+# AR/BRD4/NR3C1 at 55-61% disorder all falsely called 'adjacent'). The pLDDT-only heuristic SATURATES
+# to all-adjacent without it — see the B0 plan / pilot note.
+DISORDER_DOMINATED_FRACTION = 0.50
+
+
 def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
                      has_structure: bool) -> dict:
-    """v1 pLDDT+domain HEURISTIC pocket-adjacency call.
+    """v1 pLDDT+domain HEURISTIC pocket-adjacency call (HARDENED after the 2026-08-07 pilot).
 
     Returns mutation_hotspot_in_druggable_pocket (bool) + hotspot_pocket_adjacency_call (the 4-value
-    card enum). Logic, conservative by construction:
-      - no_structure          : neither PDB nor AlphaFold coverage (has_structure False / no pLDDT).
-      - no_hotspots_annotated : structure exists but the gene has ZERO parseable hotspot residues.
-      - adjacent              : >=1 hotspot residue sits in a HIGH-confidence structured region
-                                (pLDDT >= PLDDT_POCKET_MIN) — a candidate druggable-pocket location.
-      - distant               : hotspots exist + structure exists, but ALL hotspot residues fall in
-                                low-pLDDT / disordered regions (not a credible small-molecule pocket).
-    mutation_hotspot_in_druggable_pocket is True iff the call is 'adjacent'. NOTE: pLDDT is a CONFIDENCE
-    proxy, not a cavity/SASA measurement — a high-pLDDT hotspot is a CANDIDATE, upgraded by fpocket/canSAR
-    in iter-2. The heuristic never calls 'adjacent' without a structured hotspot, so it cannot manufacture
-    a pocket where the structure is disordered."""
+    card enum). `hotspot_residues` MUST be pre-filtered to RECURRENT hotspots by the caller (drop
+    whole-exome passengers/frameshifts — pull.py filters on hotspot_n_samples); a bare
+    variant-of-unknown-significance is not a druggability signal.
+
+    Logic, conservative + DISCRIMINATING by construction:
+      - no_structure          : neither PDB nor AlphaFold coverage.
+      - no_hotspots_annotated : structure exists but NO recurrent hotspot residue for the gene.
+      - distant               : recurrent hotspots exist but (a) the protein is DISORDER-DOMINATED
+                                (disordered_fraction >= 0.50 — not a credible SM scaffold), OR (b) every
+                                recurrent hotspot residue falls in a low-pLDDT region.
+      - adjacent              : the protein is NOT disorder-dominated AND >=1 recurrent hotspot residue
+                                sits in a HIGH-confidence structured region (pLDDT >= PLDDT_POCKET_MIN) —
+                                a candidate druggable-pocket location.
+    mutation_hotspot_in_druggable_pocket is True iff 'adjacent'. pLDDT is a CONFIDENCE proxy, not a
+    cavity/SASA measurement — 'adjacent' is a CANDIDATE, upgraded by fpocket/canSAR (iter-2). The
+    disorder-dominated guard + the recurrent-hotspot pre-filter are what keep the call from saturating
+    to all-adjacent (the pilot failure mode)."""
     vals = [float(v) if v is not None else None for v in (plddt or [])]
     structured = has_structure and any(v is not None for v in vals)
     if not structured:
@@ -134,13 +200,22 @@ def pocket_adjacency(hotspot_residues: list, plddt: list, domains: list,
         return {"mutation_hotspot_in_druggable_pocket": False,
                 "hotspot_pocket_adjacency_call": "no_hotspots_annotated"}
 
+    # Disorder-dominated proteins are not a credible SM-pocket scaffold — call distant regardless of
+    # where the hotspot lands (the key discrimination the pilot forced).
+    present = [v for v in vals if v is not None]
+    disordered_fraction = (sum(1 for v in present if v < PLDDT_DISORDERED_MAX) / len(present)
+                           if present else 1.0)
+    if disordered_fraction >= DISORDER_DOMINATED_FRACTION:
+        return {"mutation_hotspot_in_druggable_pocket": False,
+                "hotspot_pocket_adjacency_call": "distant"}
+
     for res in residues:
         if 1 <= res <= len(vals):
             v = vals[res - 1]
             if v is not None and v >= PLDDT_POCKET_MIN:
                 return {"mutation_hotspot_in_druggable_pocket": True,
                         "hotspot_pocket_adjacency_call": "adjacent"}
-    # hotspots exist but none land in a high-confidence structured region
+    # recurrent hotspots exist, protein is ordered, but none land in a high-confidence residue
     return {"mutation_hotspot_in_druggable_pocket": False,
             "hotspot_pocket_adjacency_call": "distant"}
 

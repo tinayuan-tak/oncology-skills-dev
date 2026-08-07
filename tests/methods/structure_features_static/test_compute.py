@@ -17,8 +17,49 @@ if str(REPO) not in sys.path:
 
 from methods.structure_features_static.compute import (  # noqa: E402
     parse_hgvsp_residue, aggregate_plddt, per_domain_plddt, pdb_coverage,
-    pocket_adjacency, build_row, PLDDT_POCKET_MIN,
+    pocket_adjacency, build_row, parse_cif_plddt, PLDDT_POCKET_MIN,
 )
+
+
+# ---------- CIF per-residue pLDDT parse (pure text, no structure lib) ----------
+# Minimal AlphaFold-style _atom_site loop: 3 residues, one CA each, B-factor = pLDDT.
+# Column order deliberately NOT the AF default (B_iso_or_equiv before Cartn_x) to prove the
+# parser resolves columns by NAME, not position.
+_MINI_CIF = """data_AF-TEST-F1
+loop_
+_atom_site.group_PDB
+_atom_site.label_atom_id
+_atom_site.label_seq_id
+_atom_site.B_iso_or_equiv
+_atom_site.Cartn_x
+ATOM CA 1 85.0 1.0
+ATOM CB 1 85.0 1.5
+ATOM CA 2 95.5 2.0
+ATOM CA 3 40.0 3.0
+"""
+
+
+def test_parse_cif_plddt_ca_only_in_order():
+    plddt = parse_cif_plddt(_MINI_CIF)
+    assert plddt == [85.0, 95.5, 40.0]   # 3 CA rows, in file order; the CB row ignored
+
+
+def test_parse_cif_plddt_empty_and_malformed():
+    assert parse_cif_plddt("") == []
+    assert parse_cif_plddt("no atom_site loop here\njust text") == []
+    # header present but no B-factor column → can't extract → []
+    assert parse_cif_plddt("loop_\n_atom_site.group_PDB\n_atom_site.label_atom_id\nATOM CA\n") == []
+
+
+def test_parse_cif_plddt_feeds_kernels_end_to_end():
+    """The parsed array flows into aggregate_plddt + pocket_adjacency exactly like the live path."""
+    plddt = parse_cif_plddt(_MINI_CIF)
+    agg = aggregate_plddt(plddt)
+    assert agg["alphafold_plddt_mean"] == round((85.0 + 95.5 + 40.0) / 3, 3)
+    assert agg["disordered_fraction"] == round(1 / 3, 4)   # residue 3 (40.0) < 50
+    # residue 2 (95.5) is high-confidence → a hotspot there is 'adjacent'
+    s = pocket_adjacency([2], plddt=plddt, domains=[], has_structure=True)
+    assert s["hotspot_pocket_adjacency_call"] == "adjacent"
 
 
 # ---------- HGVSp → residue ----------
@@ -119,10 +160,24 @@ def test_pocket_distant_when_hotspot_in_disordered_region():
     assert s["mutation_hotspot_in_druggable_pocket"] is False
 
 
-def test_pocket_adjacent_needs_only_one_structured_hotspot():
-    """Multiple hotspots: one in a structured region is enough to call adjacent."""
-    plddt = [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 95]  # residue 12 high, rest disordered
-    s = pocket_adjacency([5, 12], plddt=plddt, domains=[], has_structure=True)
+def test_pocket_distant_when_protein_is_disorder_dominated():
+    """PILOT-DRIVEN DISCRIMINATION (2026-08-07): a hotspot in a HIGH-pLDDT residue is STILL 'distant' if
+    the protein overall is disorder-dominated (>=50% below pLDDT 50) — an AR/BRD4/NR3C1-class protein is
+    not a credible SM-pocket scaffold even at a locally-ordered hotspot. Without this guard the pLDDT-only
+    call saturated to all-adjacent."""
+    # residue 12 is high-confidence (95) but 12 of 20 residues are disordered (60% > 50% floor)
+    plddt = [30] * 11 + [95] + [30] * 8
+    s = pocket_adjacency([12], plddt=plddt, domains=[], has_structure=True)
+    assert s["hotspot_pocket_adjacency_call"] == "distant"
+    assert s["mutation_hotspot_in_druggable_pocket"] is False
+
+
+def test_pocket_adjacent_needs_only_one_structured_hotspot_in_ordered_protein():
+    """In an ORDERED protein (not disorder-dominated), one recurrent hotspot in a high-pLDDT residue is
+    enough to call adjacent."""
+    # mostly ordered: only 2/12 disordered → below the 0.50 floor; residue 12 high
+    plddt = [90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 30, 95]
+    s = pocket_adjacency([12], plddt=plddt, domains=[], has_structure=True)
     assert s["hotspot_pocket_adjacency_call"] == "adjacent"
 
 
