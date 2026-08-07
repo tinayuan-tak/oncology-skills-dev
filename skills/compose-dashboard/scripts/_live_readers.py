@@ -558,9 +558,30 @@ def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Opt
 
     Per-SAMPLE tumor RNA distribution (percentiles, detectable/moderate/high fraction, CoV,
     distribution_pattern) + matched-normal fraction-above-p95 overlay, from the TCGA + GTEx long
-    products. Indication-scoped (the tumor distribution is per-indication)."""
+    products. Indication-scoped (the tumor distribution is per-indication).
+
+    MERGES an additive patient-SPLICING facet (roadmap #2 patient arm) from a SEPARATE method
+    module (tcga_spliceseq_psi -> tcga-spliceseq-psi-per-gene-v1): whether the gene's SPLICING is
+    dysregulated in patient tumours (TCGA SpliceSeq PSI variability + tumour-vs-normal shift).
+    ORTHOGONAL to the expression-LEVEL fields (how MUCH vs which SPLICE EVENTS shift); the patient
+    complement to the model-arm isoform facet on cellline-rna-distribution. Verdict-inert; degrades
+    to data_unavailable on any failure without breaking the primary distribution read."""
     mod = _import_method("tcga_gtex_expression_distribution.cli")
-    return mod.build_summary(target, indication)
+    out = dict(mod.build_summary(target, indication))
+    try:
+        ss_mod = _import_method("tcga_spliceseq_psi")
+        ss = ss_mod.spliceseq_summary_for_gene(target, indication)
+        for k in ("splicing_dysregulation_class", "n_splice_events", "max_event_psi_std",
+                  "median_event_psi_std", "n_variable_events", "n_tumor_shifted_events",
+                  "dominant_event_splice_type", "splicing_context"):
+            out[k] = ss.get(k)
+    except Exception:  # noqa: BLE001 — additive facet; a failure degrades, never breaks the read
+        out.setdefault("splicing_dysregulation_class", "data_unavailable")
+        for k in ("n_splice_events", "max_event_psi_std", "median_event_psi_std",
+                  "n_variable_events", "n_tumor_shifted_events", "dominant_event_splice_type",
+                  "splicing_context"):
+            out.setdefault(k, None)
+    return out
 
 
 def _dispatch_tumor_expression_distribution_subtype(target: str, indication: str) -> Optional[dict]:
