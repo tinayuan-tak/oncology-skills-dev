@@ -14,7 +14,7 @@
 #   log2(TPM+1) <  1.0   = not expressed   (TPM <  1.0)
 
 card_id: cellline-rna-distribution
-version: 1.0.0
+version: 1.1.0
 question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
 
 applies_when:
@@ -30,6 +30,13 @@ methods:
       target: "{target.symbol}"
       release_pin: "{release_pin}"
       expressed_threshold: "THRESHOLD.expressed_threshold_log2tpm"
+  # Additive isoform-EXPRESSION facet (2026-08-07, roadmap #2 model arm). ORTHOGONAL to the
+  # expression-LEVEL fields above: those say how MUCH the gene is expressed; this says WHICH
+  # transcript carries it. Reads the gene-sorted depmap-isoform-expression-per-gene-v1 product
+  # (per-gene dominant-isoform fraction across the panel). Verdict-inert — display + LLM context only.
+  - call: depmap-isoform-expression
+    args:
+      target: "{target.symbol}"
 
 outputs:
   summary_fields:
@@ -68,6 +75,20 @@ outputs:
     - control_positives                            # {symbol: percentile} — the positive anchors on this scale
     - control_negatives                            # {symbol: percentile} — the applicable negative anchors
     - control_position_context                     # string — controls vocab + scale the position was read on (audit)
+    # Isoform-EXPRESSION facet (additive, 2026-08-07, roadmap #2 model arm). Across the DepMap
+    # panel, how DOMINATED is this gene's expression by a SINGLE transcript? A single-isoform
+    # target is a cleaner modality/epitope target (an antibody/ADC/oligo hits a defined
+    # transcript); an isoform-diverse target (VEGFA, ERBB2, BCL2L1) flags that the functional/
+    # druggable isoform must be specified. ORTHOGONAL to expression-LEVEL + percentile + lineage
+    # axes (those say how MUCH; this says WHICH transcript). Verdict-inert: display + LLM context;
+    # NEVER moves expression_class. From depmap-isoform-expression-per-gene-v1 (MODEL arm; patient
+    # SpliceSeq is a separate deferred ingestion).
+    - isoform_expression_class                     # categorical (see vocabulary); verdict-inert
+    - dominant_isoform_fraction                    # float — cohort median top-isoform TPM / gene-total TPM
+    - n_expressed_isoforms                         # int — cohort median count of expressed isoforms per model
+    - dominant_isoform                             # string — modal top-isoform ENST across the panel
+    - isoform_n_models                             # int — cell lines expressing the gene (isoform-facet denominator)
+    - isoform_context                              # string — human-readable isoform summary (audit)
 
   summary_fields_vocabulary:
     expression_class:
@@ -87,6 +108,11 @@ outputs:
       - within_positives                           # target among the positives (>= at least one, below the max)
       - above_negatives_below_positives            # clears every (floor) negative but below all positives
       - below_negatives                            # below the highest non-housekeeping (silent/lineage) floor
+      - data_unavailable
+    isoform_expression_class:
+      - single_isoform_dominant                    # cohort-median dominant-isoform fraction >= 0.80 (one transcript carries expression)
+      - balanced                                   # 0.50-0.80 (a dominant isoform, but meaningful secondary transcripts)
+      - isoform_diverse                            # < 0.50 (no single isoform dominates — alternative splicing)
       - data_unavailable
 
   figures:
@@ -127,6 +153,8 @@ caveats:
   - "Cell-line expression does not match tumor expression directly; DepMap lines are immortalized lab cultures and gene expression is biased toward proliferation programs."
   - "Expression class is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
   - "Lineage-restricted expression in DepMap is informative but the gold-standard normal-tissue safety signal comes from GTEx via the lineage-restriction-evidence card."
+  - "Isoform-expression fields are MODEL-side (DepMap cell lines) and reflect transcript-level TPM; patient-tumour isoform usage (TCGA SpliceSeq) is a separate deferred axis. The dominant-isoform fraction is computed over transcript columns that map to GENCODE v26 (~83% of the matrix), so it is a within-mapped-isoform dominance, not a claim over unannotated transcripts."
+  - "isoform_expression_class is a verdict-inert display facet: it flags whether a target is a clean single-transcript target (modality/epitope simplicity) vs isoform-diverse (functional/druggable isoform must be specified); it does not move expression_class or fire any interpretation rule."
 
 measurement: bulk_rna
 sample_context: cell_line     # DepMap cell lines — NOT patient tumor (orthogonal to measurement; 2026-07-21)
