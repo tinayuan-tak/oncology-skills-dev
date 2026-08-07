@@ -1040,6 +1040,116 @@ def _biomarker_facet(sub_results: dict) -> dict:
     }
 
 
+# --- SUBTYPE convergence facet (capstone Part 3c integration layer) ----------------------------
+# The cross-card per-molecular-subtype convergence the capstone owed. Where _biomarker_facet
+# converges SCALAR biomarker roles, this converges the PER-STRATUM panoramas: the three
+# subtype-grain cards each emit `per_subgroup_metrics` (one record per molecular subtype, carrying
+# evidence_state measured/underpowered/absent + a metric), scattered across three sub-skills. Nothing
+# assembled them BY SUBTYPE across cards. This facet does: for each molecular subtype, which axes
+# (expression / dependency / mutation-frequency) carry a MEASURED signal, and which subtypes have
+# ≥2 axes converge (the actionable patient-selection strata). Deterministic, additive, verdict-inert.
+#
+# (sub_skill_short, card_id, axis_label) — the three subtype-grain panorama cards + where they live.
+_SUBTYPE_INPUTS = [
+    ("expression",         "tumor-rna-distribution-by-subtype",        "expression"),
+    ("dependency",         "subgroup-stratified-dependency",           "dependency"),
+    ("genomic_alteration", "subgroup-stratified-mutation-frequency",   "mutation_frequency"),
+]
+
+
+def _first_card_per_subgroup(sub_result: dict, card_id: str) -> list:
+    """Return the named card's per_subgroup_metrics list (records per molecular subtype), or []."""
+    for c in sub_result.get("cards") or []:
+        if c.get("card_id") == card_id:
+            return (c.get("summary") or {}).get("per_subgroup_metrics") or []
+    return []
+
+
+def _subtype_stratum_key(rec: dict) -> str | None:
+    """The molecular-subtype identity of a per_subgroup_metrics record. Panorama rows use `stratum`
+    (subgroup_common.build_panorama); tolerate a few historical aliases. None if unidentifiable."""
+    for k in ("stratum", "subgroup_id", "subgroup_label", "subgroup"):
+        v = rec.get(k)
+        if v:
+            return str(v)
+    return None
+
+
+def _subtype_facet(sub_results: dict) -> dict:
+    """Assemble the per-molecular-subtype CONVERGENCE facet (capstone Part 3c). Deterministic;
+    additive; VERDICT-INERT (a synthesis facet, never a gate — informs patient-selection confidence,
+    never mints a nominate). Converges the three subtype-grain panoramas BY SUBTYPE:
+
+      per_subtype: {subtype: {axes_measured: [...], axes_present: [...], n_axes_measured, metrics:{}}}
+      convergent_subtypes: subtypes with >= 2 MEASURED axes (the actionable strata)
+      verdict:
+        convergent_stratification  — >=1 subtype with >=2 measured axes (cross-axis patient-selection)
+        single_axis_stratification — measured subtype signal on only one axis
+        no_subtype_signal          — panoramas present but no measured stratum on any axis
+        subtype_axis_unavailable   — no subtype shard reached for this indication (coverage gap)
+
+    Absence is HONEST: a subtype/axis with no measured record contributes nothing (never fabricated)."""
+    per_subtype: dict = {}
+    axes_seen: set = set()
+    any_rows = False
+    for short, card_id, axis in _SUBTYPE_INPUTS:
+        r = sub_results.get(short)
+        if not r:
+            continue
+        rows = _first_card_per_subgroup(r, card_id)
+        if rows:
+            any_rows = True
+            axes_seen.add(axis)
+        for rec in rows:
+            subtype = _subtype_stratum_key(rec)
+            if not subtype:
+                continue
+            state = rec.get("evidence_state")
+            block = per_subtype.setdefault(subtype, {"axes_measured": [], "axes_present": [],
+                                                     "metrics": {}})
+            block["axes_present"].append(axis)
+            # carry the axis metric (whatever numeric/class the panorama row exposes beyond bookkeeping)
+            metric = {k: v for k, v in rec.items()
+                      if k not in ("stratum", "subgroup_id", "subgroup_label", "subgroup",
+                                   "subgroup_n", "subgroup_n_floor_met", "evidence_state",
+                                   "source_cohort") and v is not None}
+            if metric:
+                block["metrics"][axis] = metric
+            if state == "measured":
+                block["axes_measured"].append(axis)
+
+    for block in per_subtype.values():
+        block["axes_measured"] = sorted(set(block["axes_measured"]))
+        block["axes_present"] = sorted(set(block["axes_present"]))
+        block["n_axes_measured"] = len(block["axes_measured"])
+
+    convergent = sorted(st for st, b in per_subtype.items() if b["n_axes_measured"] >= 2)
+    any_measured = any(b["n_axes_measured"] >= 1 for b in per_subtype.values())
+
+    if not any_rows:
+        verdict = "subtype_axis_unavailable"
+    elif convergent:
+        verdict = "convergent_stratification"
+    elif any_measured:
+        verdict = "single_axis_stratification"
+    else:
+        verdict = "no_subtype_signal"
+
+    return {
+        "verdict": verdict,
+        "convergent_subtypes": convergent,
+        "n_subtypes_evaluated": len(per_subtype),
+        "axes_available": sorted(axes_seen),
+        "per_subtype": per_subtype,
+        "_disclaimer": ("Subtype is a FACET, not a gate: it converges the per-molecular-subtype "
+                        "panoramas (expression / dependency / mutation-frequency) BY SUBTYPE to "
+                        "surface cross-axis patient-selection strata. It informs confidence + "
+                        "patient-selection, never mints a nominate. convergent_subtypes = subtypes "
+                        "with >=2 MEASURED axes. subtype_axis_unavailable = no shard for this "
+                        "indication (P2 coverage gap), not a measured negative."),
+    }
+
+
 # --- Positive tier (deterministic confidence FLOOR; F1-safe) ----------------
 #
 # Graded positives (dependency/selectivity/small-molecule tractability) raise an
@@ -1358,6 +1468,7 @@ def _build_user_prompt(
     therapeutic_hypothesis: Optional[str] = None,
     ordinal_matrix: Optional[dict] = None,
     biomarker_facet: Optional[dict] = None,
+    subtype_facet: Optional[dict] = None,
     axis_info: Optional[dict] = None,
 ) -> str:
     """Compose the user-message text: biology-axis governance + sub-verdicts + modality-scoped
@@ -1424,6 +1535,27 @@ def _build_user_prompt(
         lines.append("  NOTE: this facet may RAISE CONFIDENCE (corroboration) or define the "
                      "patient-selection population (stratification); it must NEVER by itself justify "
                      "a `nominate` — the deterministic gate owns the recommendation.")
+    if subtype_facet is not None:
+        sf = subtype_facet
+        lines.append("")
+        lines.append("### Subtype convergence facet (deterministic; a FACET, not a gate)")
+        lines.append(f"- facet verdict: `{sf.get('verdict')}`  |  axes available: "
+                     f"{sf.get('axes_available') or 'none'}  |  subtypes evaluated: "
+                     f"{sf.get('n_subtypes_evaluated')}")
+        conv = sf.get("convergent_subtypes") or []
+        if conv:
+            lines.append(f"- CONVERGENT subtypes (>=2 measured axes → cross-axis patient-selection "
+                         f"strata): {conv}")
+            for st in conv:
+                b = (sf.get("per_subtype") or {}).get(st, {})
+                lines.append(f"    - {st}: measured on {b.get('axes_measured')} "
+                             f"(metrics: {b.get('metrics')})")
+        else:
+            lines.append("- no subtype converges >=2 measured axes this run "
+                         "(single-axis or no measured stratum, or no shard for this indication)")
+        lines.append("  NOTE: subtype convergence defines a PATIENT-SELECTION population + may raise "
+                     "confidence; it must NEVER by itself justify a `nominate`. subtype_axis_unavailable "
+                     "= no subtype shard for this indication (a P2 coverage gap), not a measured negative.")
     lines.append("### Card summaries (raw, per-card)")
     for short, r in sub_results.items():
         lines.append(f"\n#### {short} ({r['skill_dir']})")
@@ -3612,6 +3744,13 @@ def main() -> int:
     # nomination.json. One-directional: informs confidence, never mints a nominate.
     biomarker_facet = _biomarker_facet(sub_results)
 
+    # Subtype convergence facet (capstone Part 3c integration layer): converge the three
+    # subtype-grain panoramas (expression / dependency / mutation-frequency) BY molecular subtype
+    # to surface cross-axis patient-selection strata. Like the biomarker facet: deterministic,
+    # additive, verdict-inert; computed before the prompt so synthesis can reason over it, and
+    # emitted in nomination.json. One-directional — informs confidence, never mints a nominate.
+    subtype_facet = _subtype_facet(sub_results)
+
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
     # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
@@ -3630,6 +3769,7 @@ def main() -> int:
         therapeutic_hypothesis=args.therapeutic_hypothesis,
         ordinal_matrix=ordinal_matrix,
         biomarker_facet=biomarker_facet,
+        subtype_facet=subtype_facet,
         axis_info=axis_info,
     )
     llm_output = synthesize_structured(
@@ -3806,6 +3946,10 @@ def main() -> int:
         # Biomarker convergence facet (Q12, Part 3c): corroboration + stratification + preferred_assay.
         # A FACET (not a gate) — informs confidence + patient-selection; never mints a nominate.
         "biomarker_facet": biomarker_facet,
+        # Subtype convergence facet (Part 3c integration layer): the per-molecular-subtype cross-axis
+        # convergence (expression / dependency / mutation-frequency). A FACET (not a gate) — defines
+        # patient-selection strata + informs confidence; never mints a nominate.
+        "subtype_facet": subtype_facet,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
