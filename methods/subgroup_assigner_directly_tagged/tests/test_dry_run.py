@@ -325,6 +325,33 @@ def test_sample_label_null_on_missing_value():
     assert n2["is_member"] is None or pd.isna(n2["is_member"])
 
 
+def test_depmap_oncotree_to_histology_and_site_mapping():
+    """Regression for the DepMap all-null-stratum bug: NSCLC histology + HNSC
+    anatomic-site strata reference clinical.histology / clinical.anatomic_site,
+    which DepMap doesn't name — so they must be DERIVED from OncotreeSubtype.
+    Before the fix the column was absent → is_member=null for every DepMap row.
+    Maps land the real categoricals; unmapped subtypes stay NaN (tri-value null)."""
+    import pandas as pd
+    from methods.subgroup_assigner_directly_tagged.cli import (
+        _DEPMAP_ONCOTREE_TO_HISTOLOGY, _DEPMAP_ONCOTREE_TO_SITE)
+
+    subt = pd.Series([
+        "Lung Adenocarcinoma", "Lung Squamous Cell Carcinoma", "Small Cell Lung Cancer",
+        "Oral Cavity Squamous Cell Carcinoma", "Larynx Squamous Cell Carcinoma",
+        "Hypopharynx Squamous Cell Carcinoma",
+    ])
+    hist = subt.map(_DEPMAP_ONCOTREE_TO_HISTOLOGY)
+    site = subt.map(_DEPMAP_ONCOTREE_TO_SITE)
+    # NSCLC histology maps to the catalog rule values, small-cell → NaN (not a stratum)
+    assert hist.iloc[0] == "adenocarcinoma" and hist.iloc[1] == "squamous_cell_carcinoma"
+    assert pd.isna(hist.iloc[2])
+    # HNSC anatomic site maps larynx/oral_cavity; hypopharynx → NaN (no matching stratum)
+    assert site.iloc[3] == "oral_cavity" and site.iloc[4] == "larynx"
+    assert pd.isna(site.iloc[5])
+    # the two axes are disjoint (a lung subtype has no site; an HNSC subtype no histology)
+    assert pd.isna(site.iloc[0]) and pd.isna(hist.iloc[3])
+
+
 # ---------- CN-amp (GISTIC) path -------------------------------------------
 
 def test_cn_amp_evaluator():

@@ -570,6 +570,23 @@ INDICATION_TO_TCGA_TISSUES = {
 }
 
 
+# DepMap OncotreeSubtype → catalog-rule categorical vocab. DepMap cell lines
+# carry no direct histology/anatomic-site column, but OncotreeSubtype encodes
+# both; these maps land the two NSCLC-histology + three HNSC-anatomic-site
+# strata that would otherwise emit all-null on the DepMap source. A subtype
+# absent from the map (small-cell, large-cell, adenosquamous, hypopharynx,
+# NUT-midline, generic-HNSC) intentionally maps to NaN → tri-value null.
+_DEPMAP_ONCOTREE_TO_HISTOLOGY = {
+    "Lung Adenocarcinoma": "adenocarcinoma",             # NSCLC histology_Adeno
+    "Lung Squamous Cell Carcinoma": "squamous_cell_carcinoma",  # histology_SCC
+}
+_DEPMAP_ONCOTREE_TO_SITE = {
+    "Oral Cavity Squamous Cell Carcinoma": "oral_cavity",   # HNSC site_oral_cavity
+    "Larynx Squamous Cell Carcinoma": "larynx",             # site_larynx
+    "Oropharynx Squamous Cell Carcinoma": "oropharyngeal",  # site_oropharyngeal
+}
+
+
 def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = None) -> pd.DataFrame:
     """Load DepMap OmicsInferredMolecularSubtypes.csv + Model.csv join.
 
@@ -646,6 +663,25 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
     # tumor-type, not tumor location). `primary_site` rule will emit is_member=
     # null (insufficient) for all rows — this is CORRECT tri-value behavior:
     # sidedness cannot be evaluated for cell lines.
+
+    # ---- Derive histology / anatomic_site from OncotreeSubtype ----
+    # NSCLC histology and HNSC anatomic-site strata reference clinical.histology
+    # and clinical.anatomic_site — fields DepMap does not name directly. But
+    # DepMap's OncotreeSubtype encodes both (e.g. "Lung Adenocarcinoma",
+    # "Larynx Squamous Cell Carcinoma"), so we map it onto the catalog rules'
+    # expected categorical vocabulary. Without this the rule evaluator finds no
+    # `histology`/`anatomic_site` column and emits is_member=null for EVERY
+    # DepMap row (the all-null-stratum bug). A subtype that maps to nothing
+    # stays NaN → tri-value null (correct: genuinely unclassifiable).
+    if "OncotreeSubtype" in df.columns:
+        df["histology"] = df["OncotreeSubtype"].map(_DEPMAP_ONCOTREE_TO_HISTOLOGY)
+        df["anatomic_site"] = df["OncotreeSubtype"].map(_DEPMAP_ONCOTREE_TO_SITE)
+    # NOTE: HPV status (hpv_status), HNSC Bass subtype (hnsc_bass_subtype), and
+    # PAAD Moffitt subtype (paad_moffitt_subtype) are NOT derivable from DepMap
+    # — cell lines carry no HPV typing, and Bass/Moffitt are expression-classifier
+    # calls (the subgroup_assigner_classifier path), not Oncotree fields. Those
+    # strata correctly stay is_member=null on the DepMap source (unmeasurable,
+    # not broken); they resolve on the TCGA source where the labels exist.
 
     return df
 
