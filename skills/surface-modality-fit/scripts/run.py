@@ -166,6 +166,13 @@ def _headline(cards, fired, verdict_pair):
         # byte-stable (fit_class resolves off adc-tce-modality-fit).
         "surface_confirmation_class":     get_card_field(cards, "protein-surface-evidence", "surface_confirmation_class"),
         "surface_confirmation_n_celllines": get_card_field(cards, "protein-surface-evidence", "n_celllines_detected"),
+        # HPA-IF SECOND measured surface provider (2026-08-07) — orthogonal (immunofluorescence
+        # microscopy) corroboration of CSPA mass-spec, composed in the cspa_surface_confirmation
+        # method. VERDICT-INERT (rules fire on surface_confirmation_class, CSPA-driven). Surfaced so the
+        # biologics-fit call shows multi-modal agreement: corroborated_surface (both) is the strongest
+        # antigen-reality signal; discordant flags a CSPA false-negative/coverage gap (e.g. CEACAM5).
+        "surface_multimodal_support":     get_card_field(cards, "protein-surface-evidence", "surface_multimodal_support"),
+        "hpa_if_surface_class":           get_card_field(cards, "protein-surface-evidence", "hpa_if_surface_class"),
         # Shed-ectodomain antigen-sink liability (shed-ectodomain-liability). Its F3 rules fire on
         # the surface_intrinsic axis (adc/bite_tce/antibody): clinically_shed / secretome_proxy_shed
         # → opposing (NOT killer — approved biologics exist against shed antigens; a shed ectodomain
