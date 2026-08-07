@@ -840,9 +840,26 @@ def _dispatch_signaling_network_mechanism_composed(target: str, indication: str)
 def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: surface-topology-and-ptm card → TMbed topology + UniProt PTM
     + AlphaFold pLDDT + motif regex via methods/topology_predictions_tmbed/read.py.
+
+    ISOFORM OVERLAY (2026-08-07): the TMbed product carries topology only and hardcodes
+    isoform_selective_warning=False (the card comment says "the composed card / skill applies the
+    isoform vocab overlay" — but nothing did, so isoform_dependent_undefined was structurally
+    unreachable on live data). Apply the curated isoform-selective vocabulary here so the topology
+    RULE (isoform-selective-warning-modality-suppression) AND the composed fit_class both see it. Uses
+    the shared vocab consumer (target-contracts/vocabularies/isoform_selective_targets.yaml).
     """
     mod = _import_method("topology_predictions_tmbed")
-    return mod.read_target_summary(target=target, indication=indication)
+    out = dict(mod.read_target_summary(target=target, indication=indication) or {})
+    try:
+        from _skills_common.isoform_selective_targets import check_target
+        warning = check_target(target.upper().strip())
+        if warning is not None:
+            out["isoform_selective_warning"] = True
+            out["isoform_selective_dominant_isoform"] = warning.dominant_isoform
+            out["vocabulary_version_isoform"] = warning.vocabulary_version
+    except Exception:  # noqa: BLE001 — vocab unreadable → leave the product's default (no false warning)
+        pass
+    return out
 
 
 def _dispatch_surfaceome_family_classification(target: str, indication: str) -> Optional[dict]:
@@ -882,6 +899,18 @@ def _dispatch_surface_abundance_density(target: str, indication: str) -> Optiona
     """
     mod = _import_method("cptac_protein_deg")
     return mod.read_abundance_density_summary(target=target, indication=indication)
+
+
+def _dispatch_modality_therapeutic_window(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: modality-therapeutic-window card → tumor / max-essential-normal TPM window
+    (modality-tiered, strict/TCE default) via methods/tcga_gtex_tpm_quantiles/window.py. Reads the
+    tcga-gtex-tpm-tissue-quantiles-v1 product; the CEACAM5-paradox signal (huge window yet strict-TCE
+    liability). WIRED 2026-08-07 — the card+method+rules shipped in the window arc but this dispatcher
+    was never added, so the 3 window rules never fired and window_class was null in every headline.
+    """
+    _import_method("tcga_gtex_tpm_quantiles")  # ensures the analysis-methods repo is on sys.path
+    from methods.tcga_gtex_tpm_quantiles import window as _window
+    return _window.read_modality_window(target=target, indication=indication)
 
 
 def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dict]:
@@ -937,7 +966,15 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     else:
         endocytosis_confidence = "unmeasured"
 
-    if not is_surface or tm_count == 0:
+    # E2b (2026-08-07): distinguish a genuine COVERAGE GAP (topology/family product unavailable) from a
+    # MEASURED non-surface. When family/topology came back data_unavailable, the composed call is a gap
+    # (data_unavailable), NOT a measured neither_viable killer — otherwise a target with no topology/family
+    # product reads as a hard biologics no-go rather than "unknown" (measured-vs-data_unavailable doctrine).
+    family_unavailable = family.get("family_class") == "data_unavailable"
+    topology_unavailable = topology.get("topology_class") == "data_unavailable"
+    if family_unavailable and topology_unavailable:
+        fit_class = "data_unavailable"
+    elif not is_surface or tm_count == 0:
         fit_class = "neither_viable"
     else:
         # ADC topology: single-pass TM + large ectodomain for antibody engagement. Internalization
@@ -1301,6 +1338,7 @@ CARD_DISPATCHERS = {
     "structure-features-static": _dispatch_structure_features_static,
     "protein-surface-evidence": _dispatch_protein_surface_evidence,
     "surface-abundance-density": _dispatch_surface_abundance_density,
+    "modality-therapeutic-window": _dispatch_modality_therapeutic_window,
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
     "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,
     "tumor-protein-abundance-cptac": _dispatch_protein_presence_cptac,
