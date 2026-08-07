@@ -62,3 +62,49 @@ def test_verdict_strings_match_risk_table_biological_keys():
 def test_verdict_fn_is_discoverable_by_composer():
     """target-profile's _load_sub_skill_verdict_fn looks for _verdict OR _snapshot."""
     assert hasattr(ts, "_verdict") or hasattr(ts, "_snapshot")
+
+
+# --- axis-B/E NORMAL-BREADTH VETO (conjunction redesign INC-1/2, 2026-08-07) -----------------
+# A gene over-expressed vs its tissue-of-origin (axis A: strong/modest/field_effect) but with NO
+# therapeutic window vs the worst critical normal (housekeeping: GAPDH/ACTB/TUBB) is NOT a target.
+# The modality-therapeutic-window card's tvn-no-therapeutic-window-veto rule fires; _verdict applies
+# it as a conjunction that DOWNGRADES the axis-A call to selective_but_broadly_normal.
+_VETO = "tvn-no-therapeutic-window-veto"
+
+
+def _fire_two(axis_a_rule):
+    return ts._verdict([{"rule_id": axis_a_rule}, {"rule_id": _VETO}])
+
+
+def test_strong_selective_downgraded_by_window_veto():
+    """The GAPDH archetype: strong axis-A fold-change, but tumor below worst critical normal."""
+    assert _fire_two("tvn-strong-selective-supportive") == (
+        "selective_but_broadly_normal", _VETO)
+
+
+def test_modest_selective_downgraded_by_window_veto():
+    assert _fire_two("tvn-modest-selective-supportive")[0] == "selective_but_broadly_normal"
+
+
+def test_field_effect_selective_downgraded_by_window_veto():
+    assert _fire_two("tvn-field-effect-selective-supportive")[0] == "selective_but_broadly_normal"
+
+
+def test_veto_alone_does_not_manufacture_a_selective_call():
+    """The clamp is one-directional — it only downgrades a selective axis-A verdict, never
+    upgrades. With ONLY the veto (no axis-A selective rule), the resolver verdict stands."""
+    verdict = ts._verdict([{"rule_id": _VETO}])[0]
+    assert verdict != "selective_but_broadly_normal"
+
+
+def test_not_selective_unaffected_by_window_veto():
+    """A NOT-selective gene that also has no window stays not_selective — the veto can't
+    turn a down-regulated gene into 'broadly normal' (that verdict is a downgrade OF selective)."""
+    assert ts._verdict(
+        [{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _VETO}])[0] == "not_selective"
+
+
+def test_selective_without_veto_is_unchanged():
+    """No veto fired (CEACAM5/FOLR1/MSLN archetype: real window) → axis-A call stands byte-for-byte."""
+    assert _fire("tvn-strong-selective-supportive") == (
+        "strong_tumor_selective", "tvn-strong-selective-supportive")

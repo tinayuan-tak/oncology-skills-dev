@@ -27,7 +27,21 @@ CARDS = [
                                              # tumor-vs-normal-crossing-* rules emit SM/degrader signals;
                                              # the selectivity RESOLVER stays keyed to the aggregate card
                                              # (verdict byte-stable — Q2 is additive signal/rationale).
+    "modality-therapeutic-window",           # axis-B/E NORMAL-BREADTH VETO (conjunction redesign INC-1/2,
+                                             # 2026-08-07): its therapeutic_window_class == no_therapeutic_window
+                                             # (tumor below worst critical normal) fires tvn-no-therapeutic-
+                                             # window-veto, which _verdict uses to DOWNGRADE a selective axis-A
+                                             # call to selective_but_broadly_normal. The housekeeping fix:
+                                             # over-expression vs tissue-of-origin is necessary but NOT
+                                             # sufficient (best practice = tumor-to-WORST-normal window).
 ]
+
+# The axis-A "selective" verdicts the normal-breadth veto can downgrade (over-expressed, but the
+# conjunction with no therapeutic window makes them not a real target).
+_AXIS_A_SELECTIVE = frozenset({
+    "strong_tumor_selective", "modest_tumor_selective", "field_effect_tumor_selective",
+})
+_WINDOW_VETO_RULE = "tvn-no-therapeutic-window-veto"
 
 QUESTION = ("How selectively is {target} expressed in {indication} tumor "
             "tissue, and how robust is that call across independent tumor-vs-"
@@ -48,6 +62,17 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
         raise RuntimeError(
             "selectivity resolver spec missing (target-contracts/resolvers/"
             "selectivity.resolver.yaml) — the verdict source of truth is absent.")
+    # axis-B/E NORMAL-BREADTH VETO (conjunction redesign INC-1/2) — a DOCUMENTED post-resolver clamp
+    # (the resolver's when_fired is single-card; this veto is a 2-card conjunction). Best practice:
+    # tumor-vs-tissue-of-origin over-expression (axis A, the resolver verdict) is NECESSARY but NOT
+    # SUFFICIENT — a gene with NO therapeutic window vs the worst critical normal (housekeeping:
+    # GAPDH/ACTB/TUBB) is not a target regardless of its axis-A fold-change. When axis-A is selective
+    # AND the therapeutic-window veto rule fired (modality-therapeutic-window therapeutic_window_class
+    # == no_therapeutic_window), downgrade to selective_but_broadly_normal. One-directional: it can
+    # only DOWNGRADE a selective call, never upgrade — F1-safe.
+    verdict, driving = result
+    if verdict in _AXIS_A_SELECTIVE and any(r.get("rule_id") == _WINDOW_VETO_RULE for r in fired):
+        return ("selective_but_broadly_normal", _WINDOW_VETO_RULE)
     return result
 
 
