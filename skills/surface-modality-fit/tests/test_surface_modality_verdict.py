@@ -113,6 +113,9 @@ _NEWLY_REACHABLE_RULES = [
     # enrichment E5 — modality exon-window (per-exon tumor-vs-normal + heterogeneity flag):
     "exon-window-heterogeneity-flag-supportive",     # exon_heterogeneity_flag → secondary supportive (hypothesis)
     "exon-window-essential-liability-tce-opposing",  # essential_exon_liability → bite_tce opposing, adc neutral
+    # enrichment E6-CD — CD/IO-antigen backbone clinical-precedent (supportive-only):
+    "cd-established-io-backbone-supportive",         # established_io_backbone → supportive (important)
+    "cd-antigen-backbone-supportive",                # cd_antigen → supportive (secondary)
 ]
 
 
@@ -129,6 +132,8 @@ def test_newly_wired_cards_are_in_the_skill_card_set():
     assert "pmhc-presentation" in smf.CARDS
     # enrichment E5 — the per-exon window card
     assert "modality-exon-window" in smf.CARDS
+    # enrichment E6-CD — the CD/IO-antigen backbone card
+    assert "cd-antigen-backbone" in smf.CARDS
 
 
 def test_additive_surface_signals_do_not_move_the_verdict():

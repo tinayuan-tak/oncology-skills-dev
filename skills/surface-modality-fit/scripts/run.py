@@ -136,6 +136,13 @@ CARDS = [
                                          # mutation-stratified-surface-window-v1 (v1 = KRAS×NSCLC archetype). Its rule
                                          # (mutant-up-surface-antigen-supportive) fires adc/bite_tce/antibody supportive
                                          # ONLY on mutant_up_surface. ADDITIVE (no resolver rung) → verdict byte-stable.
+    "cd-antigen-backbone",               # enrichment E6-CD (2026-08-07): CD/immuno-oncology antigen-BACKBONE clinical-
+                                         # PRECEDENT prior (hgnc-gene-group-471). Orthogonal to the PREDICTED-biology axes
+                                         # — is the target a canonical CD/IO antigen whose class delivered approved
+                                         # biologics (CD19/CD20/BCMA-class)? Its rules (cd-established-io-backbone-supportive
+                                         # [important] / cd-antigen-backbone-supportive [secondary]) fire on cd_antigen_
+                                         # backbone_class. SUPPORTIVE-ONLY: not_cd_antigen fires nothing (not a negative —
+                                         # solid-tumor ADC/TCE antigens aren't CD molecules). ADDITIVE (no rung) → byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -238,6 +245,13 @@ def _headline(cards, fired, verdict_pair):
         "mutant_stratified_surface_class": get_card_field(cards, "mutation-stratified-surface", "mutant_stratified_surface_class"),
         "mutant_surface_driver":          get_card_field(cards, "mutation-stratified-surface", "driver_gene"),
         "mutant_surface_delta_log2":      get_card_field(cards, "mutation-stratified-surface", "delta_log2"),
+        # CD/IO-antigen backbone (cd-antigen-backbone, E6-CD) — class-level clinical-PRECEDENT prior.
+        # Its rules fire on cd_antigen_backbone_class: established_io_backbone → supportive (important,
+        # the class delivered approved biologics); cd_antigen → supportive (secondary). SUPPORTIVE-ONLY —
+        # not_cd_antigen fires nothing (not a negative). Additive; verdict byte-stable.
+        "cd_antigen_backbone_class":      get_card_field(cards, "cd-antigen-backbone", "cd_antigen_backbone_class"),
+        "cd_number":                      get_card_field(cards, "cd-antigen-backbone", "cd_number"),
+        "cd_established_io_precedent":    get_card_field(cards, "cd-antigen-backbone", "established_io_precedent"),
         # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression, F5 rules).
         # F5 rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
         # bite_tce killer + adc/antibody opposing; NOT_EXPRESSED → supportive (dominant). Provides

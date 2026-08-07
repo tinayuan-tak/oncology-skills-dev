@@ -1353,6 +1353,17 @@ def _dispatch_shed_ectodomain_liability(target: str, indication: str) -> Optiona
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_cd_antigen_backbone(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: cd-antigen-backbone card (E6-CD) → CD/immuno-oncology antigen-BACKBONE
+    clinical-precedent prior via methods/cd_antigen_backbone/read.py. Reads the landed
+    hgnc-gene-group-471 CD-molecule roster (CC0). A class-level tractability-precedent signal
+    (is the target on the antigen class that delivered approved biologics?), supportive-only.
+    Protein-intrinsic — indication accepted for the CARD_DISPATCHERS contract, not consumed.
+    """
+    mod = _import_method("cd_antigen_backbone")
+    return mod.read_cd_antigen_backbone(target=target, indication=indication)
+
+
 def _dispatch_immune_context(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: immune-context card -> tumor T-cell infiltration (EFFECTOR arm) via
     methods/immune_context. Merges the per-indication class (read_immune_context - v1, target-
@@ -1445,6 +1456,7 @@ CARD_DISPATCHERS = {
     "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
     "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # P5 follow-on (ClinVar germline-pathogenic, verdict-moving)
     "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
+    "cd-antigen-backbone": _dispatch_cd_antigen_backbone,
     "immune-context": _dispatch_immune_context,
     "cellline-protein-abundance": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
