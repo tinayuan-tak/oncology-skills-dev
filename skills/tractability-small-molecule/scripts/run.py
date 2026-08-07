@@ -50,6 +50,7 @@ CARDS = [
     "prism-crispr-concordance",
     "dependency-predictability",
     "structure-features-static",   # E8: FORWARD ligandability (pocket structure)
+    "known-drug-tractability",     # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
     "degradation-feasibility",     # E3 slice 3: DEGRADER-lens degradability (E3-substrate + precedent + location gate)
 ]
 
@@ -94,6 +95,11 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
         return "chemically_confirmed_genetic", "e7-crispr-confirmed-supportive-sm"
     if "prism-clinically-active-supportive-sm" in fired_by_id:
         return "chemically_active", "prism-clinically-active-supportive-sm"
+    # E-known-drug (DGIdb pharmacology leg, 2026-08-07): an APPROVED drug catalogued against the
+    # target -> chemically_active (SAME verdict as PRISM clinically-active; rescues a target PRISM
+    # missed). Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
+    if "known-drug-approved-antineoplastic-sm-supportive" in fired_by_id:
+        return "chemically_active", "known-drug-approved-antineoplastic-sm-supportive"
     if "prism-tool-compound-only-weak-supportive-sm" in fired_by_id:
         return "tool_compound_only", "prism-tool-compound-only-weak-supportive-sm"
     if "prism-weakly-active-weak-supportive-sm" in fired_by_id:
@@ -118,6 +124,10 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
         return "structurally_ligandable", "structure-pocket-adjacent-sm-supportive"
     if "ligandability-predicted-sm-supportive" in fired_by_id:
         return "structurally_ligandable", "ligandability-predicted-sm-supportive"
+    # E-known-drug (DGIdb): a druggable-CATEGORY membership (clinically-actionable / druggable-genome,
+    # no approved drug) is a forward druggable-class prior -> structurally_ligandable tier.
+    if "known-drug-druggable-category-sm-supportive" in fired_by_id:
+        return "structurally_ligandable", "known-drug-druggable-category-sm-supportive"
     if "structure-low-confidence-sm-opposing" in fired_by_id:
         return "structurally_intractable", "structure-low-confidence-sm-opposing"
     if "ligandability-disordered-sm-opposing" in fired_by_id:
@@ -184,6 +194,10 @@ def _headline(cards, fired, verdict_pair):
         "hotspot_in_druggable_pocket": get_card_field(cards, "structure-features-static", "mutation_hotspot_in_druggable_pocket"),
         "pdb_coverage_class":        get_card_field(cards, "structure-features-static", "pdb_coverage_class"),
         "alphafold_confidence_class": get_card_field(cards, "structure-features-static", "alphafold_confidence_class"),
+        # E-known-drug PHARMACOLOGY leg (DGIdb, 2026-08-07): known-drug + druggable-category read
+        "known_drug_tractability":   get_card_field(cards, "known-drug-tractability", "known_drug_tractability_class"),
+        "has_approved_drug":         get_card_field(cards, "known-drug-tractability", "has_approved_drug"),
+        "n_antineoplastic_interactions": get_card_field(cards, "known-drug-tractability", "n_antineoplastic_interactions"),
     }
 
 

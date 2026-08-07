@@ -26,6 +26,7 @@ RULE_IDS = [
     "e7-triangulated-target-engaged-supportive",
     "e7-crispr-confirmed-supportive-sm",
     "prism-clinically-active-supportive-sm",
+    "known-drug-approved-antineoplastic-sm-supportive",   # E-known-drug: approved -> chemically_active
     "prism-tool-compound-only-weak-supportive-sm",
     "prism-weakly-active-weak-supportive-sm",
     "e7-discordant-off-target-warning",
@@ -33,6 +34,7 @@ RULE_IDS = [
     "hotspot-in-druggable-pocket-sm-supportive-e8",
     "structure-pocket-adjacent-sm-supportive",
     "ligandability-predicted-sm-supportive",
+    "known-drug-druggable-category-sm-supportive",        # E-known-drug: category -> structurally_ligandable
     "structure-low-confidence-sm-opposing",
     "ligandability-disordered-sm-opposing",
     "prism-no-compounds-found-neutral",
