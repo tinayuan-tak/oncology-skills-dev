@@ -653,6 +653,20 @@ measurement_types:
     providers:
       - {kind: dataset, source: opentargets-26-06, evidence_tier: inferred}
 
+  pathway_stratified_surface:
+    # E4-A3 (2026-08-07): is a surface antigen differentially expressed in a tumor-STATE subset
+    # (e.g. hypoxia-HIGH tertile) — a biologics handle on that tumor compartment (the CA9 hypoxia-ADC
+    # archetype)? Sibling of mutation_stratified_surface (mutation-conditioned); this is PATHWAY/STATE-
+    # conditioned (MSigDB HALLMARK signature tertile). Rule 1 concordance test: distinct claim from
+    # tumor_expression_distribution + from mutation_stratified_surface (different conditioning axis),
+    # shown alongside, not interchangeable -> new type. v1 = HALLMARK_HYPOXIA x NSCLC (follow-on: pan-signature).
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "Is a surface antigen elevated in a pathway/stress-HIGH tumor subset (a biologics handle on that tumor compartment)?"
+    entity_grains: [target_indication]   # the stratification is per (signature, indication) cohort
+    cards: [pathway-stratified-surface]
+    providers:
+      - {kind: dataset, source: pathway-stratified-surface-window-v1, evidence_tier: measured}
+
   mutation_stratified_surface:
     # E4-A2 (2026-08-07): is a surface antigen differentially expressed in a DRIVER's MUTANT tumor
     # subset vs WT — a biologics handle on the driver-mutant patient subset the gene-level-averaged

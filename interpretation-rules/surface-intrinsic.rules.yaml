@@ -1707,3 +1707,30 @@ rules:
       approved-precedent set — a real but weaker backbone prior (a well-characterized surface
       immuno-antigen class). Supportive SECONDARY. not_cd_antigen fires no rule (absence of a
       CD-backbone prior is not a negative — most solid-tumor ADC/TCE antigens are not CD molecules).
+
+  # ============================================================================
+  # F-pathstrat — PATHWAY/STATE-stratified surface window (Card pathway-stratified-surface, E4-A3)
+  # ============================================================================
+  # Sibling of F-mutstrat (E4-A2). A surface antigen ELEVATED in a tumor-STATE-HIGH subset (e.g. the
+  # hypoxia-HIGH tertile) is a biologics handle on that tumor compartment — the gene-level-averaged
+  # tumor-vs-normal window dilutes these state-conditional antigens. ADDITIVE signal-only: the
+  # surface_modality verdict resolves off adc-tce-modality-fit.fit_class, so this rule feeds NO
+  # resolver rung → verdict byte-stable. Only pathway_high_up_surface fires (supportive); down /
+  # not_stratified / underpowered / not_in_product emit nothing (measured-vs-null discipline).
+  - rule_id: pathway-high-up-surface-antigen-supportive
+    when:
+      card_id: pathway-stratified-surface
+      field: pathway_stratified_surface_class
+      equals: pathway_high_up_surface
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      The surface antigen is significantly ELEVATED in the pathway/stress-HIGH subset of this
+      indication (Mann-Whitney q<=0.10, median delta_log2>=0.5 high-vs-low tertile) — a biologics
+      handle on that tumor compartment, which the gene-level-averaged tumor-vs-normal window dilutes
+      away (the hypoxia-HIGH → CA9/SLC2A1 archetype). Supportive across adc/bite_tce/antibody as a
+      state-conditional presence argument; confirm subset antigen density before nomination.
+      SURFACE-scoped. NB v1 = hypoxia in NSCLC where the high tertile is squamous-enriched (a histology
+      confound documented on the card) — read as the hypoxic/squamous niche, not pure hypoxia.
