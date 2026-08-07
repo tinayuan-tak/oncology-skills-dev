@@ -750,23 +750,49 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     correctly whether the product ran 3 cells (current design after cell D
     retirement) or is extended to N in the future — a 3/3 is `strong` if the
     magnitude clears 1.5, same as a 4/4 would be.
+
+    CALIBRATION FIXES (2026-08-07, backtest-driven — see feedback_selectivity_calibration_backtest):
+      FIX 1 (ComBat de-weight): the magnitude gate now keys on the RAW comparators (cell A
+        TCGA-adjacent-raw + cell C GTEx-raw), NOT max-across-all-cells. The ComBat cell B was
+        found to INFLATE / sign-flip log2FC (GAPDH/COADREAD B=4.8 vs A=1.0/C=1.5; EPCAM A=-0.3→B=1.7),
+        driving housekeeping false-positives when B alone cleared 1.5. Cell B still counts toward
+        direction/support, but may not by itself confer `strong`/`modest` magnitude.
+      FIX 2 (field-effect-aware discordant): a discordant row whose signature is
+        adjacent-flat/down (cells A+B) BUT GTEx strongly up (cell C) is the FIELD-CANCERIZATION
+        pattern (adjacent 'normal' already over-expresses — e.g. CEACAM5/EPCAM in COADREAD). Rather
+        than collapse a validated tumour antigen to neutral, defer to the population-normal comparator:
+        classify `field_effect_tumor_selective` (a tumour-selective subclass, GTEx-anchored, flagged).
     """
     if not row:
         return "data_unavailable"
-    if row.get("discordant"):
-        return "discordant_across_comparators"
     supporting = row.get("cells_supporting")
     direction = row.get("dominant_direction")
-    max_lfc = row.get("max_abs_log2fc")
     cells_ran = row.get("cells_ran")
+    # FIX 1: RAW-comparator magnitude (A=TCGA-adjacent-raw, C=GTEx-raw); exclude ComBat cell B.
+    raw_lfcs = [abs(row.get(k)) for k in ("log2fc_cell_a", "log2fc_cell_c")
+                if isinstance(row.get(k), (int, float)) and row.get(k) == row.get(k)]
+    raw_max_lfc = max(raw_lfcs) if raw_lfcs else 0.0
+
+    if row.get("discordant"):
+        # FIX 2: distinguish the field-effect signature from a genuine comparator conflict.
+        adj = _family_direction(row, _ADJACENT_CELLS)   # TCGA-adjacent (A+B)
+        gtex = _family_direction(row, _GTEX_CELLS)       # GTEx population-normal (C)
+        c_lfc = row.get("log2fc_cell_c")
+        gtex_strong_up = (gtex == "up" and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5)
+        if gtex_strong_up and adj in (None, "down"):
+            # adjacent flat/down + GTEx strongly up = field cancerization; the GTEx (population)
+            # normal is the trustworthy reference here. Tumour-selective vs true normal, flagged.
+            return "field_effect_tumor_selective"
+        return "discordant_across_comparators"
+
     if supporting is None or cells_ran is None or cells_ran == 0:
         return "data_unavailable"
     supporting_frac = supporting / cells_ran
     if direction == "down" and supporting_frac >= 1.0:
         return "not_selective"
-    if direction == "up" and supporting_frac >= 1.0 and (max_lfc or 0) >= 1.5:
+    if direction == "up" and supporting_frac >= 1.0 and raw_max_lfc >= 1.5:
         return "strong_tumor_selective"
-    if direction == "up" and supporting_frac >= 2 / 3 and (max_lfc or 0) >= 0.5:
+    if direction == "up" and supporting_frac >= 2 / 3 and raw_max_lfc >= 0.5:
         return "modest_tumor_selective"
     if supporting <= 1:
         return "not_informative"
