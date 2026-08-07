@@ -24,8 +24,20 @@ resolve:
   # --- Opposing / negative reads (must precede structural positives) ---
   - {verdict: discordant,                   when_fired: e7-discordant-off-target-warning}
   # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
+  # E8-lig (composite structure-ligandability-per-protein-v1, 2026-08-07): the LIVE structural
+  # leg. A real experimental co-crystal is the STRONGEST forward handle → ranks at the top of the
+  # structural tier (above the hotspot-in-predicted-pocket rung; a co-crystal is harder evidence).
+  # predicted_ligandable (pocket/VS-hit/cryptic) sits with the existing pocket rungs. All map to
+  # the SAME structurally_ligandable verdict, so the ADDITION cannot change any combo that already
+  # returned structurally_ligandable — it only rescues combos that previously fell through to
+  # chemically_unhit / insufficient (the whole point). Driving-rule id differs (records WHY).
+  - {verdict: structurally_ligandable,      when_fired: ligandability-experimental-sm-supportive}
   - {verdict: structurally_ligandable,      when_fired: hotspot-in-druggable-pocket-sm-supportive-e8}
   - {verdict: structurally_ligandable,      when_fired: structure-pocket-adjacent-sm-supportive}
+  - {verdict: structurally_ligandable,      when_fired: ligandability-predicted-sm-supportive}
   - {verdict: structurally_intractable,     when_fired: structure-low-confidence-sm-opposing}
+  - {verdict: structurally_intractable,     when_fired: ligandability-disordered-sm-opposing}
   - {verdict: chemically_unhit,             when_fired: prism-no-compounds-found-neutral}
+# ligandability-no-evidence-sm-insufficient carries small_molecule:insufficient and maps to the
+# `default: insufficient` fallthrough — no explicit rung needed (a coverage gap, never a verdict).
 default: insufficient
