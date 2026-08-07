@@ -325,6 +325,29 @@ def test_sample_label_null_on_missing_value():
     assert n2["is_member"] is None or pd.isna(n2["is_member"])
 
 
+def test_depmap_eso_gastric_lineage_and_organ_split():
+    """Regression for the ESCA/STAD zero-cell-line bug: DepMap 26q1 collapses
+    esophageal + gastric into one lineage 'Esophagus/Stomach'. Both indications
+    must map to that combined lineage (not the nonexistent 'Stomach'/'Esophagus')
+    and be disambiguated by an OncotreeSubtype organ substring — else each shard
+    was empty. ESCA also gains the esophageal histology map."""
+    from methods.subgroup_assigner_directly_tagged.cli import (
+        INDICATION_TO_DEPMAP_LINEAGE, INDICATION_TO_DEPMAP_ORGAN,
+        _DEPMAP_ONCOTREE_TO_HISTOLOGY)
+    # both eso + gastric point at the real combined lineage
+    assert INDICATION_TO_DEPMAP_LINEAGE["ESCA"] == "Esophagus/Stomach"
+    assert INDICATION_TO_DEPMAP_LINEAGE["STAD"] == "Esophagus/Stomach"
+    # organ disambiguation keeps them disjoint
+    assert INDICATION_TO_DEPMAP_ORGAN["ESCA"] == "esophageal"
+    assert INDICATION_TO_DEPMAP_ORGAN["STAD"] == "stomach"
+    # ESCA histology now derivable from the esophageal OncotreeSubtypes
+    assert _DEPMAP_ONCOTREE_TO_HISTOLOGY["Esophageal Adenocarcinoma"] == "adenocarcinoma"
+    assert _DEPMAP_ONCOTREE_TO_HISTOLOGY["Esophageal Squamous Cell Carcinoma"] == "squamous_cell_carcinoma"
+    # the two organ substrings don't cross-match (a Stomach subtype isn't 'esophageal')
+    assert "esophageal" not in "Stomach Adenocarcinoma".lower()
+    assert "stomach" not in "Esophageal Adenocarcinoma".lower()
+
+
 def test_depmap_oncotree_to_histology_and_site_mapping():
     """Regression for the DepMap all-null-stratum bug: NSCLC histology + HNSC
     anatomic-site strata reference clinical.histology / clinical.anatomic_site,

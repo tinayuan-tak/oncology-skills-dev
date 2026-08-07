@@ -549,10 +549,24 @@ INDICATION_TO_DEPMAP_LINEAGE = {
     "NSCLC": "Lung",
     "SCLC": "Lung",
     "HNSC": "Head and Neck",
-    "STAD": "Stomach",
-    "ESCA": "Esophagus",
+    # DepMap 26q1 merges esophageal + gastric into ONE lineage "Esophagus/Stomach"
+    # (there is no separate "Stomach"/"Esophagus" lineage). Both indications map to
+    # the combined lineage and are disambiguated by organ below
+    # (INDICATION_TO_DEPMAP_ORGAN); without this the `== "Stomach"`/`== "Esophagus"`
+    # filter matched ZERO rows → empty ESCA/STAD cell-line products.
+    "STAD": "Esophagus/Stomach",
+    "ESCA": "Esophagus/Stomach",
     "PAAD": "Pancreas",
     "AML": "Myeloid",
+}
+
+# For lineages DepMap collapses across organs, a second filter on OncotreeSubtype
+# separates the indication. "Esophagus/Stomach" holds both gastric (Stomach*) and
+# esophageal (Esophageal*) models; the substring is matched case-insensitively
+# against OncotreeSubtype. Indications absent here use the lineage filter alone.
+INDICATION_TO_DEPMAP_ORGAN = {
+    "STAD": "stomach",       # Stomach Adenocarcinoma, Tubular/Diffuse/Signet-Ring Stomach, ...
+    "ESCA": "esophageal",    # Esophageal Adenocarcinoma, Esophageal Squamous Cell Carcinoma
 }
 
 # Indication → TCGA disease codes for filtering the pan-TCGA fusion-consensus
@@ -579,6 +593,8 @@ INDICATION_TO_TCGA_TISSUES = {
 _DEPMAP_ONCOTREE_TO_HISTOLOGY = {
     "Lung Adenocarcinoma": "adenocarcinoma",             # NSCLC histology_Adeno
     "Lung Squamous Cell Carcinoma": "squamous_cell_carcinoma",  # histology_SCC
+    "Esophageal Adenocarcinoma": "adenocarcinoma",       # ESCA histology_EAC
+    "Esophageal Squamous Cell Carcinoma": "squamous_cell_carcinoma",  # ESCA histology_ESCC
 }
 _DEPMAP_ONCOTREE_TO_SITE = {
     "Oral Cavity Squamous Cell Carcinoma": "oral_cavity",   # HNSC site_oral_cavity
@@ -633,6 +649,12 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
                 f"to INDICATION_TO_DEPMAP_LINEAGE (mirror indication_crosswalk.yaml)."
             )
         df = df[df["OncotreeLineage"] == lineage].copy()
+        # Second filter for organ-collapsed lineages (Esophagus/Stomach): keep only
+        # the indication's organ by OncotreeSubtype substring, else ESCA and STAD
+        # would each draw the OTHER organ's cell lines into their shard.
+        organ = INDICATION_TO_DEPMAP_ORGAN.get(indication.upper())
+        if organ is not None:
+            df = df[df["OncotreeSubtype"].fillna("").str.lower().str.contains(organ)].copy()
 
     # ---- Source-specific column normalization (Phase 2b/c real-data fix) ----
     # DepMap Model.csv uses `ModelID` as the cell-line identifier. Normalize to
