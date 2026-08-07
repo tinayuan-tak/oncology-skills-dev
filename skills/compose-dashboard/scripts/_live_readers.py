@@ -525,9 +525,31 @@ def _dispatch_expression_distribution(target: str, indication: str) -> Optional[
 
     Pan-cancer cell-line expression panel; indication accepted for dispatcher
     consistency but not consumed (this card is target-only).
-    """
+
+    MERGES an additive isoform-EXPRESSION facet (roadmap #2 model arm) from a SEPARATE method
+    module (depmap_isoform_expression -> depmap-isoform-expression-per-gene-v1): how dominated
+    the gene's expression is by a single transcript across the panel. ORTHOGONAL to the
+    expression-LEVEL fields (how MUCH vs WHICH transcript). Verdict-inert; degrades to
+    data_unavailable on any failure without breaking the primary expression read. The method's
+    `n_models` is remapped to the card field `isoform_n_models` to avoid colliding with the
+    expression panel's own cell-line count."""
     expr_module = _import_method("depmap_expression_distribution")
-    return expr_module.read_expression_distribution(target=target, indication=indication)
+    out = dict(expr_module.read_expression_distribution(target=target, indication=indication))
+    try:
+        iso_mod = _import_method("depmap_isoform_expression")
+        iso = iso_mod.isoform_summary_for_gene(target)
+        out["isoform_expression_class"] = iso.get("isoform_expression_class")
+        out["dominant_isoform_fraction"] = iso.get("dominant_isoform_fraction")
+        out["n_expressed_isoforms"] = iso.get("n_expressed_isoforms")
+        out["dominant_isoform"] = iso.get("dominant_isoform")
+        out["isoform_n_models"] = iso.get("n_models")
+        out["isoform_context"] = iso.get("isoform_context")
+    except Exception:  # noqa: BLE001 — additive facet; a failure degrades, never breaks the read
+        out.setdefault("isoform_expression_class", "data_unavailable")
+        for k in ("dominant_isoform_fraction", "n_expressed_isoforms", "dominant_isoform",
+                  "isoform_n_models", "isoform_context"):
+            out.setdefault(k, None)
+    return out
 
 
 def _dispatch_tumor_expression_distribution(target: str, indication: str) -> Optional[dict]:

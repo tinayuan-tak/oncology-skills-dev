@@ -2596,7 +2596,13 @@ _SHORT_TO_GATE_ANCHOR = {
 # unknown cards fall back to their first ~4 scalar summary fields.
 _CARD_KEYFACTS = {
     "cellline-rna-distribution": [("Call", "expression_call_class"), ("Median log2TPM", "median_log2tpm_panel"),
-                                ("Cell lines", "n_cell_lines")],
+                                ("Cell lines", "n_cell_lines"),
+                                # additive isoform-EXPRESSION facet (roadmap #2 model arm): WHICH transcript
+                                # carries the expression — a single-isoform target is a cleaner modality/
+                                # epitope target; isoform_diverse flags that the druggable isoform must be
+                                # specified (complements the mechanism isoform_selective_warning note).
+                                ("Isoform", "isoform_expression_class"),
+                                ("Dominant-iso frac", "dominant_isoform_fraction")],
     "tumor-rna-vs-adjacent": [("Call", "expression_call_class"), ("log2FC", "log2_fc"),
                                      ("q-value", "q_value")],
     "tumor-protein-abundance-cptac": [("Class", "protein_expression_class"), ("Effect size", "protein_effect_size"),
