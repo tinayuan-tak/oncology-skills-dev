@@ -12,14 +12,19 @@
 #   `no_structure`  → neither PDB nor AlphaFold has usable coverage
 
 card_id: structure-features-static
-version: 1.0.0
-question: "Are {target.symbol}'s known TCGA mutation hotspots in druggable pockets, and how confident is the structural context?"
+version: 1.1.0   # +composite structural_ligandability_class leg (LIVE, structure-ligandability-per-protein-v1)
+question: "Are {target.symbol}'s known TCGA mutation hotspots in druggable pockets, is there any druggable small-molecule handle at all, and how confident is the structural context?"
 
 tier: target   # scope-invariant: AlphaFold structure / pocket features are properties of the protein, identical across patient subgroups. Never stratifies.
 
 applies_when: []
 
 required_inputs:
+  # The composite ligandability product is the LIVE leg (fuses 6 shipped per-UniProt
+  # structure products). The hotspot-adjacency product is a DIFFERENT, still-unmaterialized
+  # schema — kept so the hotspot fields have a documented home, but the reader degrades it
+  # to no_structure gracefully until it is built.
+  - product_id: structure-ligandability-per-protein-v1
   - product_id: pdb-alphafold-structure-features-per-uniprot-v1
 
 methods:
@@ -41,6 +46,21 @@ outputs:
     - alphafold_plddt_min_domain                   # float — lowest per-domain mean
     - n_domains_low_plddt                          # int; domains with pLDDT_mean < 70
     - disordered_fraction                          # float; fraction with pLDDT < 50
+    # Composite structural-LIGANDABILITY leg (LIVE, 2026-08-07). structural_ligandability_class
+    # is the forward small-molecule ligandability call fused from 6 shipped per-UniProt products
+    # (HOTPocket pockets, GenomeScreen VS-hits, PLINDER co-crystals, CryptoBench cryptic sites,
+    # AlphaFold disorder, InterPro binding/active sites). Answers "is there ANY druggable handle"
+    # — complements hotspot_pocket_adjacency_call ("is a specific hotspot residue in a pocket",
+    # whose product is not yet materialized). VERDICT-BEARING on the SM axis (see the E8-lig rules).
+    - structural_ligandability_class               # PRIMARY ligandability categorical (see vocabulary)
+    - n_ligandability_axes                         # int 0-5; count of positive evidence axes
+    - has_experimental_cocrystal                   # bool; PLINDER proper-ligand co-crystal
+    - has_druggable_pocket                         # bool; HOTPocket supportive tier
+    - has_virtual_screen_hit                       # bool; GenomeScreen leader hit
+    - has_cryptic_site                             # bool; CryptoBench cryptic/allosteric pocket
+    - has_annotated_binding_site                   # bool; InterPro binding/active site
+    - is_foldable                                  # bool; NOT highly-disordered (stable fold to bind)
+    - ligandability_disorder_class                 # 'mostly_ordered' | 'partially_disordered' | 'highly_disordered' | null
     - method_version
 
   summary_fields_vocabulary:
@@ -49,6 +69,13 @@ outputs:
       - distant
       - no_structure
       - no_hotspots_annotated
+    structural_ligandability_class:
+      - experimental_ligandable    # >=1 experimental co-crystal (PLINDER) — strongest handle
+      - predicted_ligandable       # druggable pocket OR virtual-screen hit OR cryptic site (no co-crystal)
+      - annotation_ligandable      # annotated binding/active site + foldable (no pocket/co-crystal call)
+      - no_ligandability_signal    # covered by >=1 source, no positive axis, not highly-disordered
+      - disordered_low             # NO axis AND highly-disordered — MEASURED SM-tractability liability
+      - insufficient_evidence      # absent from all 6 sources — coverage gap, NOT a negative
     pdb_coverage_class:
       - strong
       - partial
@@ -103,6 +130,12 @@ caveats:
     isoform_selective_targets vocabulary), hotspots may map to residues
     absent from the alt isoform — the isoform-selective warning in
     surface-topology-and-ptm card fires accordingly.
+  - |
+    structural_ligandability_class is a FORWARD SM-ligandability signal fused from six
+    structure products. Deliberately PERMISSIVE — most folded proteins have a pocket, so the
+    discriminating power is the ORDINAL tier (experimental co-crystal >> predicted pocket >>
+    annotation >> disordered). `disordered_low` is a MEASURED negative; `insufficient_evidence`
+    is a coverage gap that never asserts undruggability. Pocket prediction is not affinity.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `structure_druggability` claim.
 measurement_type: structure_druggability

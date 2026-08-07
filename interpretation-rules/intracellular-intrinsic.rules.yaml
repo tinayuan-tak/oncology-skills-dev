@@ -1983,6 +1983,80 @@ rules:
       neutral signal separately in surface-intrinsic.rules.yaml.
 
   # ============================================================================
+  # E8-lig — COMPOSITE structural ligandability (Card structure-features-static, v1.1.0)
+  # ============================================================================
+  # The LIVE structure signal (2026-08-07). structural_ligandability_class fuses SIX shipped
+  # per-UniProt products (HOTPocket pocket geometry, GenomeScreen virtual-screen hits, PLINDER
+  # co-crystals, CryptoBench cryptic sites, AlphaFold disorder, InterPro binding/active sites)
+  # into one ordinal via structure-ligandability-per-protein-v1. This is what actually moves
+  # the SM tractability verdict now: the E8 block above keys on hotspot_pocket_adjacency_call,
+  # whose product (pdb-alphafold-structure-features-per-uniprot-v1) is NOT yet materialized —
+  # so those rules only ever see no_structure -> insufficient. These E8-lig rules give the SM
+  # axis a real FORWARD-ligandability signal ("is there ANY druggable handle") that the
+  # retrospective PRISM cards (E6/E7) miss for a not-yet-drugged target (KRAS-G12C switch-II
+  # archetype). SM-scoped ONLY (a pocket says nothing about a biologics modality); the surface
+  # axis does not load a small_molecule module, so no surface twin is needed.
+  #
+  # Ordinal-tier design (measured-vs-null discipline, mirroring the E8 hotspot block):
+  #   experimental_ligandable -> supportive+dominant (a real ligand-bound co-crystal exists)
+  #   predicted_ligandable    -> supportive          (pocket / VS-hit / cryptic site; weaker)
+  #   disordered_low          -> opposing            (MEASURED negative: AF model present, mostly-IDP)
+  #   insufficient_evidence   -> insufficient        (coverage gap; NEVER opposing)
+  # annotation_ligandable / no_ligandability_signal emit no signal (indeterminate middle).
+  - rule_id: ligandability-experimental-sm-supportive
+    when:
+      card_id: structure-features-static
+      field: structural_ligandability_class
+      equals: experimental_ligandable
+    signals:
+      small_molecule: supportive
+    dominant: true
+    rationale: |
+      A real experimental ligand-bound co-crystal exists (PLINDER) — the strongest possible
+      structural handle for small-molecule design. Dominant forward-ligandability signal;
+      credits druggability independent of whether a compound has yet been found in PRISM.
+      SM-scoped.
+
+  - rule_id: ligandability-predicted-sm-supportive
+    when:
+      card_id: structure-features-static
+      field: structural_ligandability_class
+      equals: predicted_ligandable
+    signals:
+      small_molecule: supportive
+    rationale: |
+      A druggable pocket (HOTPocket), virtual-screen hit (GenomeScreen), or cryptic/allosteric
+      site (CryptoBench) is present without a co-crystal — a credible small-molecule handle
+      exists even absent an existing compound. Supportive (not dominant): weaker than a real
+      co-crystal. SM-scoped forward-ligandability signal.
+
+  - rule_id: ligandability-disordered-sm-opposing
+    when:
+      card_id: structure-features-static
+      field: structural_ligandability_class
+      equals: disordered_low
+    signals:
+      small_molecule: opposing
+    rationale: |
+      The AlphaFold model exists and the protein is majority-disordered (highly_disordered)
+      with NO pocket / co-crystal / cryptic-site / annotated-site evidence — classical
+      small-molecule pocket-based design is unlikely to have a handle. A MEASURED structural
+      negative, not an absence. NOT a killer: disordered targets remain addressable by
+      degraders / molecular glue / RNA therapeutics (see mechanism-and-pharmacology). SM-scoped.
+
+  - rule_id: ligandability-no-evidence-sm-insufficient
+    when:
+      card_id: structure-features-static
+      field: structural_ligandability_class
+      equals: insufficient_evidence
+    signals:
+      small_molecule: insufficient
+    rationale: |
+      The target is absent from all six structure/tractability products — a structure-based SM
+      ligandability call cannot be made. Coverage gap (insufficient), NOT an opposing signal
+      (measured-vs-null discipline: absence of data is not evidence of undruggability). SM-scoped.
+
+  # ============================================================================
   # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================
   # MULTI-CELL sensitivity selectivity. The three live cells (TCGA-adjacent raw +
