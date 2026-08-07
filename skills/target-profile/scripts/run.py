@@ -164,6 +164,11 @@ SUB_SKILL_CARDS = {
         # phospho-pathway-activity RE-HOMED 2026-08-05 → the mechanism-and-pharmacology entry below
         # (activity/signaling-state, not presence). Kept in lockstep with its sub-skill CARDS.
         "cellline-rna-protein-concordance",       # Q5 (2026-07-23) — rna_as_biomarker; biomarker preferred_assay input.
+        "tumor-scrna-celltype-expression",        # composer-registry sweep (2026-08-07): single-cell
+                                         # per-compartment tumor presence (P6/sc_rna). In tumor-presence
+                                         # CARDS (and surface-modality-fit CARDS) but composed under NO
+                                         # entry → silently dropped. Composed here under its presence home
+                                         # (also satisfies the surface-modality-fit CARDS listing).
     ],
     "tumor-selectivity": [
         "tumor-vs-normal-selectivity",
@@ -225,6 +230,12 @@ SUB_SKILL_CARDS = {
                                              # composer-consistency with genomic-alteration-profile CARDS.
         "genomic-event-model-match",         # M11 canonical P3 patient↔model genomic-event join
                                              # (2026-07-22) — composer-consistency.
+        "genomic-instability-state",         # composer-registry sweep (2026-08-07): aneuploidy/WGD/MSI/
+                                             # signature genome-state axis. In genomic-alteration-profile
+                                             # CARDS but composed under no entry → dropped. Restored.
+        "variant-level-interpretation",      # composer-registry sweep (2026-08-07): per-variant
+                                             # oncogenicity (CIViC + hotspot). Same drift — in CARDS,
+                                             # not composed → dropped. Restored.
     ],
     "differentiation-landscape": [
         "co-mutation-and-mutual-exclusivity",
@@ -241,6 +252,11 @@ SUB_SKILL_CARDS = {
                                              # modality-fit, a DIFFERENT sub-skill), so the SM ligandability
                                              # signal never reached the composed tractability sub-verdict.
                                              # Cross-gate card (SM pocket + surface epitope), needed in BOTH.
+        "degradation-feasibility",           # composer-registry sweep (2026-08-07): the degrader-lens E3
+                                             # slice (E3-substrate + PROTAC precedent + location gate). In
+                                             # tractability-small-molecule CARDS (feeds the degrader lens)
+                                             # but composed under no entry → dropped. Restored so the
+                                             # degradability signal reaches the composed profile.
     ],
     "surface-modality-fit": [                # split: biologics-modality half
         "surface-topology-and-ptm",
@@ -257,6 +273,14 @@ SUB_SKILL_CARDS = {
         "rna-protein-concordance-tumor",     # orphan-fix (2026-08-05): tier:indication RNA↔protein
                                              # concordance; its important-weighted ADC/TCE surface rules
                                              # were unreachable until surface-modality-fit composed it.
+        # composer-registry sweep (2026-08-07): four surface/biologics cards in surface-modality-fit
+        # CARDS but composed under no entry → silently dropped from the composed profile. Restored.
+        "protein-surface-evidence",          # measured surface-localization evidence (CSPA/HPA).
+        "shed-ectodomain-liability",         # shed-antigen serum-decoy liability (ADC/TCE drug-sink).
+        "modality-therapeutic-window",       # composed therapeutic-window dispatcher call.
+        "pmhc-presentation",                 # peptide-centric pMHC presentation (TCE/TCR-mimetic reach).
+        # tumor-scrna-celltype-expression is in this sub-skill's CARDS too but is composed under
+        # tumor-presence (its presence home) — "composed somewhere" satisfies the invariant.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",
