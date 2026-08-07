@@ -41,4 +41,10 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             "hpa_secretome_location": None,
             "source_citation": None,
             "method_version": _cli.METHOD_VERSION,
+            # measured Olink-media facet (E3) — data_unavailable on the same infra failure
+            "measured_shed_class": "data_unavailable",
+            "media_mean_npx": None,
+            "media_n_lines_detected": None,
+            "media_panel_high_npx": None,
+            "media_uniprot": None,
         }

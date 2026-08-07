@@ -41,7 +41,7 @@ import yaml
 
 from methods.catalog_query.read import bucket_prefix_for
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"  # 0.2.0 (E3): + MEASURED Olink conditioned-media shed facet (media.py)
 
 # --- reliable tier: curated vocab in target-contracts ---
 DEFAULT_TARGET_CONTRACTS = Path(
@@ -213,11 +213,26 @@ def compute_summary(gene_symbol: str,
 
 def load_and_classify(gene_symbol: str,
                       target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
-                      hpa_path=None, vocab: Optional[dict] = None) -> dict:
-    """Full pipeline for one gene: curated lookup + HPA proxy → card summary."""
+                      hpa_path=None, vocab: Optional[dict] = None,
+                      with_measured: bool = True,
+                      media_path=None, idmap_path=None) -> dict:
+    """Full pipeline for one gene: curated lookup + HPA proxy → card summary, PLUS the
+    MEASURED Olink conditioned-media facet (E3, 2026-08-07).
+
+    The measured facet is a PARALLEL categorical (`measured_shed_class` + media_* fields);
+    it is ADDITIVE and NEVER alters the primary `shed_liability_class`/`shed_evidence_tier`
+    that the two annotation tiers produce — so every gene's primary class is byte-stable.
+    `with_measured=False` reproduces the pre-E3 summary exactly (used by the byte-stability
+    test). `media_path`/`idmap_path` override S3 for offline tests.
+    """
     clinical = lookup_clinical_shed(gene_symbol, target_contracts_dir, vocab=vocab)
     hpa = lookup_hpa_secretome(gene_symbol, hpa_path=hpa_path)
-    return compute_summary(gene_symbol, clinical, hpa)
+    summary = compute_summary(gene_symbol, clinical, hpa)
+    if with_measured:
+        from . import media as _media
+        summary.update(_media.classify_measured_shed(
+            gene_symbol, media_path=media_path, idmap_path=idmap_path))
+    return summary
 
 
 def _main(argv=None):

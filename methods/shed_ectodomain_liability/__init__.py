@@ -12,14 +12,24 @@ structured shedding system-of-record exists):
      The ONLY tier that reliably covers shed receptors (HPA misses ERBB2/CEACAM5).
   2. PROXY `secretome_proxy` — HPA v25-1 "Secretome location" column.
 
+Plus a MEASURED facet (E3, 2026-08-07): Olink NPX in DepMap CONDITIONED MEDIA
+(`media.py`) — protein a live cancer cell actually released into supernatant. A
+PARALLEL categorical (`measured_shed_class`), additive: it never alters the primary
+`shed_liability_class` the two annotation tiers produce. The media panel is bounded +
+secretome-preselected, so panel-absence is NON-informative; only a positive
+`media_shed_high` is verdict-relevant.
+
 Emits `shed_liability_class` ∈ {clinically_shed | secretome_proxy_shed |
-not_shed_membrane_retained | indeterminate}. Signal is `opposing` (drug-sink
-de-prioritizes), never `killer` — approved biologics exist against shed antigens.
+not_shed_membrane_retained | indeterminate} (primary, annotation-based) and
+`measured_shed_class` ∈ {media_shed_high | media_shed_low | not_on_secreted_panel |
+data_unavailable} (parallel, measured). Signal is `opposing` (drug-sink de-prioritizes),
+never `killer` — approved biologics exist against shed antigens.
 
 Modules:
-    cli  — loaders (curated vocab + HPA secretome) + classifier + CLI
-    read — read_target_summary: the live-mode dispatcher entry
+    cli   — loaders (curated vocab + HPA secretome) + classifier + CLI
+    media — the MEASURED Olink conditioned-media leg (measured_shed_class facet)
+    read  — read_target_summary: the live-mode dispatcher entry
 """
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
 from .read import read_target_summary  # noqa: E402,F401
