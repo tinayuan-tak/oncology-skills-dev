@@ -136,6 +136,11 @@ CARDS = [
                                          # mutation-stratified-surface-window-v1 (v1 = KRAS×NSCLC archetype). Its rule
                                          # (mutant-up-surface-antigen-supportive) fires adc/bite_tce/antibody supportive
                                          # ONLY on mutant_up_surface. ADDITIVE (no resolver rung) → verdict byte-stable.
+    "pathway-stratified-surface",        # E4-A3 (2026-08-07): tumor-STATE-conditioned surface presence — is the antigen
+                                         # ELEVATED in a pathway/stress-HIGH subset (e.g. hypoxia-HIGH tertile; a biologics
+                                         # handle on that compartment)? Reads pathway-stratified-surface-window-v1 (v1 =
+                                         # HALLMARK_HYPOXIA×NSCLC). Rule pathway-high-up-surface-antigen-supportive fires
+                                         # adc/bite_tce/antibody supportive on pathway_high_up_surface. ADDITIVE → byte-stable.
     "cd-antigen-backbone",               # enrichment E6-CD (2026-08-07): CD/immuno-oncology antigen-BACKBONE clinical-
                                          # PRECEDENT prior (hgnc-gene-group-471). Orthogonal to the PREDICTED-biology axes
                                          # — is the target a canonical CD/IO antigen whose class delivered approved
@@ -245,6 +250,13 @@ def _headline(cards, fired, verdict_pair):
         "mutant_stratified_surface_class": get_card_field(cards, "mutation-stratified-surface", "mutant_stratified_surface_class"),
         "mutant_surface_driver":          get_card_field(cards, "mutation-stratified-surface", "driver_gene"),
         "mutant_surface_delta_log2":      get_card_field(cards, "mutation-stratified-surface", "delta_log2"),
+        # Pathway-stratified surface window (pathway-stratified-surface, E4-A3) — tumor-STATE-conditioned
+        # presence: is the antigen elevated in a pathway/stress-HIGH subset (hypoxia-HIGH; biologics handle
+        # on that compartment)? Rule fires adc/bite_tce/antibody supportive on pathway_high_up_surface.
+        # Additive; verdict byte-stable. v1 = HYPOXIA×NSCLC (else not_in_product, a gap).
+        "pathway_stratified_surface_class": get_card_field(cards, "pathway-stratified-surface", "pathway_stratified_surface_class"),
+        "pathway_surface_signature":      get_card_field(cards, "pathway-stratified-surface", "signature"),
+        "pathway_surface_delta_log2":     get_card_field(cards, "pathway-stratified-surface", "delta_log2"),
         # CD/IO-antigen backbone (cd-antigen-backbone, E6-CD) — class-level clinical-PRECEDENT prior.
         # Its rules fire on cd_antigen_backbone_class: established_io_backbone → supportive (important,
         # the class delivered approved biologics); cd_antigen → supportive (secondary). SUPPORTIVE-ONLY —

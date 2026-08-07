@@ -84,6 +84,11 @@ composition:
                                        # (a biologics handle on the mutant patient population the gene-level window
                                        # dilutes away)? v1 = KRAS×NSCLC. Rule mutant-up-surface-antigen-supportive fires
                                        # adc/bite_tce/antibody supportive on mutant_up_surface. Additive; byte-stable.
+    - pathway-stratified-surface       # (in run.py CARDS; wired 2026-08-07, enrichment E4-A3) tumor-STATE-conditioned
+                                       # surface presence: is the antigen elevated in a pathway/stress-HIGH subset (e.g.
+                                       # hypoxia-HIGH tertile; a biologics handle on that compartment)? v1 = HALLMARK_HYPOXIA
+                                       # ×NSCLC. Rule pathway-high-up-surface-antigen-supportive fires adc/bite_tce/antibody
+                                       # supportive on pathway_high_up_surface. Additive; byte-stable.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -115,6 +120,8 @@ composition:
                                        # therapeutic-window ratio, modality-tiered; adc/bite_tce/antibody.
     - mutation_stratified_surface      # (2026-08-07, E4-A2) mutation-stratified surface window — antigen elevated in
                                        # a driver's MUTANT subset (biologics handle on mutant patients); adc/bite_tce/antibody.
+    - pathway_stratified_surface       # (2026-08-07, E4-A3) pathway/state-stratified surface window — antigen elevated in
+                                       # a pathway-HIGH subset (hypoxia niche; biologics handle); adc/bite_tce/antibody.
   rules_scope:
     - all
   synthesis:
