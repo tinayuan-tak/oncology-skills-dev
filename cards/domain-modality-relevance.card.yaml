@@ -1,0 +1,107 @@
+# Card — DOMAIN → MODALITY RELEVANCE (v1; target-intrinsic)
+#
+# The INTERPRETIVE layer on top of protein-domains-class (roadmap #3, 2026-08-06). The domain
+# ARCHITECTURE inventory (protein-domains-class: domain_names, protein_class, InterPro hits) is
+# descriptive — it says WHAT domains a target has. This card answers the modality question those
+# domains imply: does the target's domain FUNCTION favor a catalytic-site INHIBITOR, or does it
+# call for REMOVAL (degrader / molecular glue) because the therapeutic function is scaffolding /
+# non-catalytic? The canonical case is RIPK1 — a kinase whose pathological signalling is largely
+# kinase-INDEPENDENT scaffolding (RHIM + death domain), so an inhibitor and a degrader are NOT
+# interchangeable.
+#
+# modality_implication_class (PRIMARY):
+#   inhibitor_sufficient          — catalytic-site inhibition addresses the therapeutic function
+#   removal_favored               — removal (degrader) engages more biology than inhibition alone
+#   removal_required_scaffolding  — inhibition INSUFFICIENT; scaffolding/non-catalytic function
+#                                   dominates → degrader/disruptor needed (curated biology)
+#   context_dependent             — mechanism depends on pathway/indication (curated)
+#   data_unavailable              — no domain/class signal to reason from (coverage gap)
+#
+# Two-signal fusion: a CURATED override (vocabularies/domain_modality_targets.yaml — the
+# catalytic-independent / scaffolding biology the data can't infer) takes PRECEDENCE over a
+# CLASS-DRIVEN heuristic (protein_class + domain count). modality_implication_basis records which.
+# Additive / verdict-inert — informs modality reasoning + LLM synthesis; fires no rule.
+
+card_id: domain-modality-relevance
+version: 1.0.0
+question: "Do {target.symbol}'s protein domains favor a catalytic-site inhibitor, or removal (degrader / molecular glue) because its function is scaffolding / non-catalytic?"
+
+tier: target   # domain→modality implication is a property of the protein, independent of indication
+
+applies_when:
+  - "context.data_sources.uniprot_available == true"
+
+required_inputs:
+  - product_id: uniprot-protein-features-v1          # domain architecture + protein class (the substrate)
+  - product_id: interpro-109-0-snapshot-2026-08-05    # InterPro domain-hit coverage broadening
+
+derived_from:
+  - card_id: protein-domains-class   # the descriptive domain-architecture layer this interprets
+
+methods:
+  - call: domain-modality-relevance
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - modality_implication_class     # PRIMARY (see vocabulary)
+    - modality_implication_basis     # curated | heuristic | none — provenance of the call
+    - scaffolding_function           # bool/null — true when a curated scaffolding/non-catalytic function is documented (null under heuristic — never ASSERTED from class alone)
+    - protein_class                  # list<string> — the mapped molecular class(es) reasoned over
+    - functional_domains             # list<string> — the domain names behind the call (curated or observed)
+    - n_domains                      # curated FT DOMAIN count (context)
+    - modality_context               # string — human-readable rationale (curated mechanism_context verbatim, or the heuristic note)
+
+  summary_fields_vocabulary:
+    modality_implication_class:
+      - inhibitor_sufficient
+      - removal_favored
+      - removal_required_scaffolding
+      - context_dependent
+      - data_unavailable
+    modality_implication_basis:
+      - curated                      # a curated domain_modality_targets.yaml entry drove the call
+      - heuristic                    # class-driven heuristic (protein_class + domain count)
+      - none                         # no signal (data_unavailable)
+
+warning_predicates:
+  - warning_id: scaffolding_inhibitor_insufficient
+    if: "modality_implication_class == 'removal_required_scaffolding'"
+    message: "{target.symbol} has a documented catalytic-INDEPENDENT / scaffolding function — a catalytic-site inhibitor addresses only part of the biology; a degrader / disruptor (full removal) is mechanistically favored. Don't read a small-molecule inhibitor signal as sufficient here."
+  - warning_id: domain_modality_data_unavailable
+    if: "modality_implication_class == 'data_unavailable'"
+    message: "{target.symbol} has no curated/InterPro domain or protein-class signal to reason from — the domain→modality implication is UNKNOWN (a coverage gap), not 'no implication'."
+
+caveats:
+  - |
+    INTERPRETIVE layer, not a measurement: modality_implication_class is an inference from domain
+    function, NOT an experimental readout. It complements the descriptive protein-domains-class card
+    (which says WHAT domains exist) with the modality those domains imply. Verdict-inert — it informs
+    modality reasoning + LLM synthesis and fires no resolver rung.
+  - |
+    CURATED override > heuristic (modality_implication_basis records which). A `curated` call
+    (RIPK1, STAT3, BRD4, FAK, ...) comes from vocabularies/domain_modality_targets.yaml — documented
+    catalytic-independent / scaffolding biology the data cannot infer, with a primary-source citation.
+    A `heuristic` call is class-driven (single-domain enzyme → inhibitor_sufficient; multi-domain
+    enzyme or non-catalytic class → removal_favored) and is coarse — verify before acting.
+  - |
+    scaffolding_function is TRUE only for a curated entry with documented non-catalytic function; it
+    is NULL under the heuristic (the heuristic never ASSERTS scaffolding from protein class alone —
+    absence of a curated entry is not evidence of absence of scaffolding).
+  - |
+    Curated coverage grows manually and is intentionally small (high-precision, literature-backed).
+    Most targets are `heuristic`; a heuristic `inhibitor_sufficient` means "no curated scaffolding
+    caveat + a clean single enzyme domain", NOT a positive claim that no non-catalytic function exists.
+  - |
+    Domain architecture + protein class come from uniprot-protein-features-v1 (curated FT DOMAIN +
+    keyword class) broadened by interpro-109-0. HGNC→UniProt-AC resolution via the derived product's
+    resolver sidecar. UniProt CC-BY-4.0; InterPro CC0.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `domain_modality_relevance` claim (target-grain).
+# P4 modality vector: this facet exists PRECISELY to discriminate small_molecule (inhibitor) vs
+# degrader — its whole point is the modality-routing signal protein-domains-class deliberately lacks.
+measurement_type: domain_modality_relevance
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

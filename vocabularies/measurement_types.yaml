@@ -375,6 +375,22 @@ measurement_types:
     providers:
       - {kind: dataset, source: uniprot-protein-features-v1, evidence_tier: measured}
 
+  domain_modality_relevance:
+    # The INTERPRETIVE layer on top of protein_domains_class (roadmap #3): does the target's domain
+    # FUNCTION favor a catalytic-site inhibitor, or REMOVAL (degrader/glue) because the therapeutic
+    # function is scaffolding / non-catalytic (RIPK1 case)? Curated override (scaffolding biology the
+    # data can't infer) > class-driven heuristic. modality_relevance = small_molecule + degrader
+    # (it discriminates between those two modalities). Additive / verdict-inert display facet.
+    claim: "Does target's domain function favor catalytic inhibition or removal (degrader/glue)?"
+    entity_grains: [target]
+    cards: [domain-modality-relevance]
+    # UniProt curated FT DOMAIN + protein class is authoritative; InterPro only BROADENS domain
+    # coverage (never overrides the curated class the heuristic reasons over) → tier_dominant.
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: uniprot-protein-features-v1, evidence_tier: measured}
+      - {kind: dataset, source: interpro-109-0-snapshot-2026-08-05, evidence_tier: measured}
+
   variant_level_interpretation:
     # PER-VARIANT functional interpretation (oncogenicity + therapy resistance), aggregated to the
     # gene. Closes the gene→variant gap: alteration-role is per-GENE, mutation-hotspot-frequency is
