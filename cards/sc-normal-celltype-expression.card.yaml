@@ -1,0 +1,109 @@
+# Card — SC-NORMAL-CELLTYPE-EXPRESSION  (single-cell RNA, normal tissue, cell-type resolution)
+#
+# On-target-off-tumor safety substrate at cell-type resolution — the single-cell RNA layer
+# of the normal-tissue safety column. Complements normal-tissue-liability (F4, HPA IHC protein
+# breadth) with CELL-TYPE-RESOLVED RNA detection and cross-donor consistency.
+#
+# ADC/TCE programs need to know WHICH specific normal cell types express the target, not just
+# that "protein is detected somewhere" — a cardiomyocyte hit is clinically different from a
+# fibroblast hit. Cell-type resolution at single-cell resolution (not bulk average) is the
+# discriminating axis.
+#
+# Substrate:
+#   Tier-1 cross-donor aggregations from CELLxGENE Census normal-tissue pseudobulk shards:
+#   sc-normal-celltype-expression-{tissue}-v1 parquets (median_det, expressing_donor_fraction,
+#   n_donors_reliable, n_cell_types_above_20pct, detection_pct_rank per gene×cell_type).
+#   Tier-2 source: sc-pseudobulk-normal-celltype-{tissue}-v1 (raw donor×cell_type×gene).
+#
+# WIRED 2026-08-06: colon + lung shards first (COADREAD/NSCLC safety priority);
+# 8 additional safety-essential tissues to follow (brain, kidney, liver, heart, etc.).
+
+card_id: sc-normal-celltype-expression
+version: 0.1.0
+question: "In which normal tissue cell types is {target.symbol} expressed by scRNA, and how broadly and consistently across donors?"
+
+tier: target   # normal-tissue cell-type expression is a property of the gene, not a tumor subgroup
+
+applies_when:
+  - "true"    # always attempt; graceful data_unavailable if no tissue shard matches indication
+
+required_inputs:
+  - product_id: sc-normal-celltype-expression-colon-v1
+  - product_id: sc-normal-celltype-expression-lung-v1
+  # Additional tissue shards added here as sc-normal-celltype-expression-{tissue}-v1 products land
+
+methods:
+  - call: sc-normal-celltype-expression
+    args:
+      target: "{target.symbol}"
+      indication: "{context.indication}"
+
+outputs:
+  summary_fields:
+    - sc_normal_expression_class          # PRIMARY liability ladder (rules-keyed field)
+    - max_detection_cell_type             # cell type with highest median_det
+    - max_detection_fraction              # median_det of that cell type
+    - expressing_donor_fraction_max       # cross-donor consistency at the peak cell type
+    - safety_essential_flags              # {cell_type: median_det} for safety-essential cell types only
+    - n_cell_types_above_20pct            # breadth indicator: how many cell types have median_det > 0.20
+    - tissues_queried                     # list of tissue shards used (depends on indication)
+    - method_version
+
+  summary_fields_vocabulary:
+    sc_normal_expression_class:
+      - HIGH_LIABILITY    # any cell type: median_det > 0.50 AND expressing_donor_fraction > 0.70
+      - MODERATE_LIABILITY  # any cell type: median_det > 0.20 OR expressing_donor_fraction > 0.30
+      - LOW_LIABILITY     # detected but below MODERATE thresholds
+      - NOT_EXPRESSED     # all cell types: median_det < 0.01
+      - data_unavailable  # no product for queried tissue(s) OR all n_donors_reliable < 5
+
+thresholds:
+  high_liability_median_det: 0.50
+  high_liability_donor_fraction: 0.70
+  moderate_liability_median_det: 0.20
+  moderate_liability_donor_fraction: 0.30
+  min_reliable_donors: 5
+  not_expressed_ceiling: 0.01
+
+warning_predicates:
+  - warning_id: sc_normal_essential_cell_type
+    if: "len(safety_essential_flags) > 0"
+    message: "{target.symbol} shows scRNA expression in safety-essential normal cell types: {safety_essential_flags}. Check modality tolerance — essential-cell-type expression is a primary BiTE/TCE safety concern."
+  - warning_id: sc_normal_broad_expression
+    if: "n_cell_types_above_20pct >= 5"
+    message: "{target.symbol} is detected at >20% cells in {n_cell_types_above_20pct} distinct normal cell types — broad normal-tissue RNA footprint across cell lineages."
+  - warning_id: sc_normal_data_unavailable
+    if: "sc_normal_expression_class == 'data_unavailable'"
+    message: "{target.symbol} scRNA normal-tissue assessment unavailable (no tissue shard for indication, or insufficient donor coverage). Normal-cell-type liability is UNKNOWN, not low — do not read absence as a favorable window."
+
+caveats:
+  - |
+    scRNA Census pseudobulk (mean log1p CP10K + detection fraction per donor×cell_type) reflects
+    TRANSCRIPT, not protein. Low-abundance surface targets (GPCRs, CD antigens with regulated
+    expression) are systematically under-detected by scRNA. Complement with HPA IHC (protein) and
+    membrane proteomics where available.
+  - |
+    Cell types are raw CELLxGENE Census Cell Ontology labels. Naming consistency varies across
+    contributing atlases (e.g. 'colonocyte' vs 'colon epithelial cell'). Detection-fraction
+    aggregation is done within canonical labels; cross-label synonyms are not merged at this tier.
+  - |
+    n_cells >= 10 filter applied at Tier-1 aggregation: donor-cell-type groups with fewer than 10
+    cells are excluded (statistically unreliable detection estimates). Small cell populations in
+    sparse tissues may be systematically absent.
+  - |
+    Coverage grows as additional tissue shards land (sc-normal-celltype-expression-{tissue}-v1).
+    For indications without a matched tissue product, the result is data_unavailable — this is
+    a coverage gap, not a confirmed safety pass.
+  - |
+    MIN_RELIABLE_DONORS = 5: if a cell type is represented by fewer than 5 donors with n_cells >= 10,
+    that cell type is not used for classification. Very rare normal cell types (e.g. enteroendocrine
+    cells in colon from small atlases) may be under-represented.
+
+measurement: sc_rna
+sample_context: normal
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `sc_normal_celltype_expression` claim.
+measurement_type: sc_normal_celltype_expression
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

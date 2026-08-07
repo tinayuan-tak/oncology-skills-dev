@@ -913,6 +913,21 @@ measurement_types:
       - {kind: derived_from, inputs: [tumor_protein_abundance], method: breadth_rollup, evidence_tier: measured}       # CPTAC protein (Slice B)
       - {kind: derived_from, inputs: [tumor_vs_normal_selectivity], method: breadth_rollup, evidence_tier: measured}   # pan-cancer RNA (Slice C)
 
+  sc_normal_celltype_expression:
+    claim: "Single-cell RNA expression in normal tissue by cell type (pseudobulk, donor-replicate) — on-target-off-tumor safety substrate at cell-type resolution"
+    entity_grains: [target]
+    cards: [sc-normal-celltype-expression]
+    modality_relevance: [adc, bite_tce, antibody]
+    # tier_dominant: the CELLxGENE Census donor-pseudobulk is the single dominant provider of this
+    # claim; colon + lung are the same provider at different tissue shards (grain values, NOT distinct
+    # providers). kind: dataset (NOT derived_from): these are raw data-catalog Tier-1 aggregation
+    # products from the CELLxGENE Census query; derived_from inputs must be registered measurement_type
+    # keys — a manifest ID there is a dangling edge (Rule 4, same as sc_tumor_celltype_expression).
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: sc-normal-celltype-expression-colon-v1, method: sc_normal_celltype_pseudobulk, evidence_tier: measured}   # + lung shard (same provider, different tissue)
+      - {kind: dataset, source: sc-normal-celltype-expression-lung-v1, method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+
 # ============================================================================
 # EXCLUDED — NOT a per-target measurement_type (Rule non-goal / appendix case 14):
 #   surfaceome-cohort-ranking — a population-relative ranking over all surface proteins

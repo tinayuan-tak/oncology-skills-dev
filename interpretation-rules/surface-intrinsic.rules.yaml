@@ -1406,6 +1406,119 @@ rules:
       presentation is a first-order concern for a peptide-centric program. not_observed / intermediate
       fire nothing (weak-negative / ambiguous -> abstain).
 
+  # ============================================================================
+  # F5 — sc-normal-celltype-expression card (scRNA normal, WIRED 2026-08-07)
+  # ============================================================================
+  # Single-cell RNA expression in NORMAL tissue at cell-type resolution (Census
+  # pseudobulk, donor-replicate). Complements the F4 HPA IHC breadth card:
+  # HPA gives protein breadth (gross footprint); this gives cell-type-resolved RNA
+  # signal — critical for ADC/TCE programs that need to know WHICH normal cell types
+  # express the target (cardiomyocyte, hepatocyte, colonocyte, etc.), not just
+  # "detected somewhere". Liability ladder: HIGH → MODERATE → LOW → NOT_EXPRESSED.
+  # Same modality-tiered severity logic as F4 (BiTE/TCE no-buffer → killer on HIGH).
+  # Substrate: sc-normal-celltype-expression-{tissue}-v1 Tier-1 parquets.
+
+  - rule_id: sc-normal-high-liability-bite-killer
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: HIGH_LIABILITY
+    signals:
+      bite_tce: killer
+    dominant: true
+    killer_message: |
+      Single-cell RNA profiling shows HIGH normal-tissue expression (median detection
+      >50% of cells, >70% of donors) in >=1 normal cell type. BiTE/TCE have no payload
+      buffer and no binding-consequence gating — high normal-cell-type expression is a
+      first-order on-target-off-tumor safety liability. Not viable for BiTE/TCE without
+      a mitigation strategy (conditional activation, dual-antigen gating, restricted
+      delivery). Check max_detection_cell_type for the offending cell type.
+    rationale: |
+      The strict-modality no-buffer safety killer (cell-type-resolved RNA layer, mirrors
+      HPA-essential-tissue killer in F4). HIGH_LIABILITY threshold: median_det > 0.50
+      AND expressing_donor_fraction > 0.70 in >=1 normal cell type — both consistency
+      and magnitude required; neither alone is sufficient. Same BiTE/TCE-only killer
+      logic as F4: ADC + antibody receive opposing (not killer) on the same signal.
+
+  - rule_id: sc-normal-high-liability-adc-antibody-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: HIGH_LIABILITY
+    signals:
+      adc: opposing
+      antibody: opposing
+    rationale: |
+      High normal-cell-type RNA expression is an on-target-off-tumor liability for ADC +
+      antibody too, but not a categorical killer: ADCs tolerate some normal-tissue binding
+      via payload/linker design + bystander effect; antibody consequence is
+      binding-context-dependent. Opposing → requires a therapeutic-window justification
+      (tumor-vs-normal differential), not an automatic veto.
+
+  - rule_id: sc-normal-moderate-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: MODERATE_LIABILITY
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Moderate normal-cell-type RNA expression: any cell type has median_det > 0.20 OR
+      expressing_donor_fraction > 0.30. Detectable in a meaningful fraction of donor
+      cells — a caution across all biologic modalities. Opposing, not killer: the
+      specific cell type(s) and tumor-vs-normal window govern whether the liability
+      can be managed. Check max_detection_cell_type + safety_essential_flags.
+
+  - rule_id: sc-normal-low-supportive
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: LOW_LIABILITY
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Low normal-cell-type RNA expression: detected in some cell types but below both
+      the moderate and high thresholds — a favorable on-target-off-tumor safety profile
+      at RNA level. Supportive for all biologic modalities. Complement with HPA IHC
+      (protein may diverge from RNA, especially for glycoproteins / post-translational
+      regulation).
+
+  - rule_id: sc-normal-not-expressed-supportive
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: NOT_EXPRESSED
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Not expressed in any queried normal tissue cell type (all median_det < 0.01) — the
+      most favorable biologics safety profile at the RNA layer (tumor-restricted /
+      neoantigen-like). Dominant supportive. Confirm tumor expression via the scRNA
+      tumor-presence card — 'not expressed in normal' is a safety signal, not a presence
+      signal.
+
+  - rule_id: sc-normal-data-unavailable-insufficient
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: data_unavailable
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    rationale: |
+      No sc-normal-celltype-expression product available for the queried tissue(s), or
+      all donor-cell-type groups have n_donors_reliable < 5. COVERAGE GAP — normal-cell-
+      type liability is UNKNOWN, NOT low. Must NOT be read as a favorable window
+      (measured-vs-null discipline: absence of a safety read is not a safety pass).
+
 # ============================================================================
 # Signal-vocabulary reference
 # ============================================================================
