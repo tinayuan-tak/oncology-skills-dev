@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-07T16:26:17.248761+00:00",
+  "generated_at": "2026-08-07T16:40:00.093168+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,15 +9,15 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "228edb7",
+    "contracts": "1d120cf",
     "skills": "bd6a9a2",
-    "methods": "ba85949",
+    "methods": "2a8a14f",
     "products": "d5f54a2",
     "catalog": "9e92bbf"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-07T16:21:12.337774+00:00",
+    "prior_generated_at": "2026-08-07T16:38:44.814054+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -32,48 +32,48 @@
   "summary": {
     "n_skills": 22,
     "verdict_tally": {
-      "partial": 12,
+      "partial": 13,
       "placeholder": 2,
-      "production_ready": 7,
-      "broken_or_drift": 1
+      "production_ready": 7
     },
     "runs_clean_tally": {
       "unknown": 22
     },
     "n_runs_clean": 0,
     "n_runs_clean_error": 0,
-    "n_drift_flags": 48,
-    "n_error_drift": 1,
+    "n_drift_flags": 47,
+    "n_error_drift": 0,
     "n_unregistered_skills": 18,
     "n_live_reader_cards": 67,
     "n_cards_firing_in_real_packages": 26,
-    "n_cards": 80,
+    "n_cards": 81,
     "card_health_tally": {
       "partial": 42,
-      "broken": 11,
+      "broken": 10,
       "live": 24,
-      "blocked": 3
+      "placeholder": 1,
+      "blocked": 4
     },
     "modality_routing_tally": {
       "not_required": 41,
-      "declared": 33,
+      "declared": 34,
       "not_applicable": 6
     },
-    "n_p4_required_cards": 33,
-    "n_p4_declared_cards": 33,
+    "n_p4_required_cards": 34,
+    "n_p4_declared_cards": 34,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
-    "n_orphan_cards": 5,
+    "n_orphan_cards": 6,
     "n_cards_consumed_but_no_spec": 40,
-    "n_datasets": 266,
+    "n_datasets": 267,
     "n_datasets_in_catalog": 257,
     "n_orphan_datasets": 209,
-    "n_broken_dataset_refs": 9,
+    "n_broken_dataset_refs": 10,
     "n_datasets_high_access_cost": 2,
     "n_datasets_missing_sort_key": 7,
     "access_cost_tally": {
       "moderate_unused": 9,
-      "unknown": 119,
+      "unknown": 120,
       "low": 126,
       "moderate": 5,
       "high_unused": 5,
@@ -2921,14 +2921,14 @@
         {
           "card_id": "domain-modality-relevance",
           "card_yaml_exists": true,
-          "is_placeholder": false,
-          "placeholder_reason": null,
+          "is_placeholder": true,
+          "placeholder_reason": "placeholder marker in card body",
           "measurement_type": "domain_modality_relevance",
           "has_live_reader": true,
           "method_call": "domain-modality-relevance",
           "dispatch_module": "domain_modality_relevance",
-          "method_dir_exists": false,
-          "method_has_read": false,
+          "method_dir_exists": true,
+          "method_has_read": true,
           "stale_method_label": false,
           "fires_in_real_package": false,
           "datasets": [
@@ -2950,9 +2950,9 @@
             "degrader"
           ],
           "modality_routing": "declared",
-          "card_health": "broken",
-          "health_reason": "card-registered-method-unbuilt",
-          "reason_text": "dispatcher registered but declared backing method module is absent, and never fires"
+          "card_health": "placeholder",
+          "health_reason": "card-placeholder",
+          "reason_text": "card is a declared placeholder / blocked-status card"
         },
         {
           "card_id": "gene-burden-safety",
@@ -3412,11 +3412,6 @@
       "n_p4_declared": 7,
       "drift_flags": [
         {
-          "code": "status_wired_card_broken",
-          "severity": "error",
-          "detail": "declared wired but consumed card(s) broken: domain-modality-relevance"
-        },
-        {
           "code": "declared_cards_mismatch_runpy",
           "severity": "warn",
           "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['domain-modality-relevance']; only in run.py: [])"
@@ -3424,7 +3419,7 @@
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
         },
         {
           "code": "stale_method_label",
@@ -3439,12 +3434,12 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
         }
       ],
-      "health_verdict": "broken_or_drift",
-      "health_reason": "skill-error-drift",
-      "reason_text": "an error-severity drift flag fired (declared status contradicts file reality)",
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": null,
       "risk_category": null,
       "framework_can_evidence": null,
@@ -6035,14 +6030,14 @@
     {
       "card_id": "domain-modality-relevance",
       "card_yaml_exists": true,
-      "is_placeholder": false,
-      "placeholder_reason": null,
+      "is_placeholder": true,
+      "placeholder_reason": "placeholder marker in card body",
       "measurement_type": "domain_modality_relevance",
       "has_live_reader": true,
       "method_call": "domain-modality-relevance",
       "dispatch_module": "domain_modality_relevance",
-      "method_dir_exists": false,
-      "method_has_read": false,
+      "method_dir_exists": true,
+      "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
       "datasets": [
@@ -6064,9 +6059,9 @@
         "degrader"
       ],
       "modality_routing": "declared",
-      "card_health": "broken",
-      "health_reason": "card-registered-method-unbuilt",
-      "reason_text": "dispatcher registered but declared backing method module is absent, and never fires",
+      "card_health": "placeholder",
+      "health_reason": "card-placeholder",
+      "reason_text": "card is a declared placeholder / blocked-status card",
       "consumers": [
         "target-intrinsic"
       ],
@@ -6639,6 +6634,43 @@
         "surface-intrinsic-base"
       ],
       "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "modality-exon-window",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "exon_window",
+      "has_live_reader": false,
+      "method_call": "exon-window",
+      "dispatch_module": null,
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "tcga-gtex-exon-tpm-quantiles-v1",
+          "in_catalog": false,
+          "matched_by": null,
+          "resolved_id": null
+        }
+      ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
+      "card_health": "blocked",
+      "health_reason": "card-no-reader-no-fire",
+      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "consumers": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
       "consumed_but_no_spec": false
     },
     {
@@ -12684,6 +12716,26 @@
       "missing_sort_key": false
     },
     {
+      "product_id": "tcga-gtex-exon-tpm-quantiles-v1",
+      "in_catalog": false,
+      "kind": null,
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 0,
+      "consumed_by_cards": [
+        "modality-exon-window"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
       "product_id": "tcga-gtex-tpm-tissue-quantiles-v1",
       "in_catalog": true,
       "kind": "derived",
@@ -13557,7 +13609,7 @@
         "id": "skill:target-intrinsic",
         "layer": "skill",
         "label": "target-intrinsic",
-        "health": "broken_or_drift",
+        "health": "partial",
         "kind": "FOCUSED",
         "risk_category": null
       },
@@ -13819,7 +13871,7 @@
         "id": "card:domain-modality-relevance",
         "layer": "card",
         "label": "domain-modality-relevance",
-        "health": "broken",
+        "health": "placeholder",
         "is_orphan": false,
         "measurement_type": "domain_modality_relevance"
       },
@@ -13934,6 +13986,14 @@
         "health": "broken",
         "is_orphan": true,
         "measurement_type": "normal_tissue_rna_breadth"
+      },
+      {
+        "id": "card:modality-exon-window",
+        "layer": "card",
+        "label": "modality-exon-window",
+        "health": "blocked",
+        "is_orphan": true,
+        "measurement_type": "exon_window"
       },
       {
         "id": "card:modality-therapeutic-window",
@@ -14451,7 +14511,7 @@
         "id": "method:domain_modality_relevance",
         "layer": "method",
         "label": "domain_modality_relevance",
-        "health": "broken"
+        "health": "live"
       },
       {
         "id": "method:driver_role_overlay",
@@ -15632,10 +15692,10 @@
     "layer_counts": {
       "skill": 22,
       "resolver": 9,
-      "card": 80,
+      "card": 81,
       "method": 58
     },
-    "n_nodes": 169,
+    "n_nodes": 170,
     "n_edges": 195
   },
   "drift_index": [
@@ -15821,12 +15881,6 @@
     },
     {
       "skill": "target-intrinsic",
-      "code": "status_wired_card_broken",
-      "severity": "error",
-      "detail": "declared wired but consumed card(s) broken: domain-modality-relevance"
-    },
-    {
-      "skill": "target-intrinsic",
       "code": "declared_cards_mismatch_runpy",
       "severity": "warn",
       "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['domain-modality-relevance']; only in run.py: [])"
@@ -15835,7 +15889,7 @@
       "skill": "target-intrinsic",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
     },
     {
       "skill": "target-intrinsic",
@@ -15853,7 +15907,7 @@
       "skill": "target-intrinsic",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
     },
     {
       "skill": "target-profile",
