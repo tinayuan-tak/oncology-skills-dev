@@ -125,6 +125,17 @@ ACCESS_COST_GLOSS = {
     "unknown": "manifest declares no total_size_bytes — cost can't be estimated statically",
 }
 
+# "RUNS CLEAN?" tier — deterministic offline smoke of each subskill's real run.py (NO live data).
+RUNS_CLEAN_COLORS = {"clean": _GREEN, "clean_uninstrumented": _TEAL, "error": _RED, "unknown": _GREY}
+RUNS_CLEAN_LABEL = {"clean": "runs clean", "clean_uninstrumented": "runs (uninstrumented)",
+                    "error": "run error", "unknown": "not smoked"}
+RUNS_CLEAN_GLOSS = {
+    "clean": "real run.py executes end-to-end under a stubbed-reader smoke (offline, no live data) + emits run_health",
+    "clean_uninstrumented": "runs clean but hand-rolls main() (no run_wired_skill) → no run_health record",
+    "error": "the smoke run FAILED — a real pipeline break the structural probe can't see",
+    "unknown": "not covered by the smoke harness (support/non-wired skill, or the skills artifact isn't in this checkout)",
+}
+
 
 def _esc(x) -> str:
     return html.escape(str(x if x is not None else ""))
@@ -147,11 +158,18 @@ def _skill_row(n: dict) -> str:
         drift_badge = _chip(f"⚠ {len(n['drift_flags'])}", SEVERITY_COLORS.get(worst, _PURPLE))
     n_cards = len(n["cards"])
     n_live = sum(1 for c in n["cards"] if c["card_health"] == "live")
+    # "runs clean?" smoke result (deterministic offline). 'unknown' renders as a quiet dash so
+    # the column reads clean when the skills artifact isn't in this checkout.
+    rc = n.get("runs_clean", "unknown")
+    rc_cell = ("—" if rc == "unknown"
+               else _chip(RUNS_CLEAN_LABEL.get(rc, rc), RUNS_CLEAN_COLORS.get(rc, _GREY),
+                          RUNS_CLEAN_GLOSS.get(rc)))
     return (
         f'<tr class="skrow" onclick="tog(this)">'
         f'<td class="nm">{_esc(n["name"])}</td>'
         f'<td>{_esc(n.get("risk_category") or "—")}</td>'
         f'<td>{_chip(v, SKILL_COLORS.get(v, _GREY), SKILL_GLOSS.get(v))}</td>'
+        f'<td>{rc_cell}</td>'
         f'<td class="declared">{_esc(dec_status)}</td>'
         f'<td>{_esc(der["kind"])}</td>'
         f'<td>{"✓" if der["resolver_bound"] else "—"}</td>'
@@ -197,7 +215,7 @@ def _skill_detail(n: dict) -> str:
             f'<b>{_esc(d["code"])}</b> — {_esc(d["detail"])}</li>'
         )
     return (
-        f'<tr class="detail" style="display:none"><td colspan="9"><div class="det">'
+        f'<tr class="detail" style="display:none"><td colspan="10"><div class="det">'
         f'<p class="why"><b>Verdict:</b> {_chip(n["health_verdict"], SKILL_COLORS.get(n["health_verdict"], _GREY), SKILL_GLOSS.get(n["health_verdict"]))} '
         f'— {_esc(n["reason_text"])} <span class="rid">({_esc(n["health_reason"])})</span></p>'
         + (f'<p><b>Drift flags:</b></p><ul class="drift">{drift_html}</ul>' if drift_html else "")
@@ -230,12 +248,14 @@ def _matrix(report: dict) -> str:
         groups.setdefault(n.get("risk_category") or "ungrouped", []).append(n)
     body = ""
     for cat in sorted(groups, key=lambda c: (c == "ungrouped", c)):
-        body += f'<tr class="grp"><td colspan="9">{_esc(cat)}</td></tr>'
+        body += f'<tr class="grp"><td colspan="10">{_esc(cat)}</td></tr>'
         for n in sorted(groups[cat], key=_skill_actionability):
             body += _skill_row(n) + _skill_detail(n)
     return (
         '<table class="matrix"><thead><tr>'
-        '<th>skill</th><th>risk category</th><th>DERIVED health</th><th>DECLARED status</th>'
+        '<th>skill</th><th>risk category</th><th>DERIVED health</th>'
+        '<th title="deterministic offline smoke of the real run.py — does the compute path run clean?">runs clean?</th>'
+        '<th>DECLARED status</th>'
         '<th>kind</th><th>resolver</th><th>tests</th><th>cards live</th><th>drift</th>'
         '</tr></thead><tbody>' + body + '</tbody></table>'
     )
@@ -392,7 +412,7 @@ def _delta_ribbon(report: dict) -> str:
 def _summary_cards(report: dict) -> str:
     s = report["summary"]
     t = s["verdict_tally"]
-    return _stat_strip([
+    strip = _stat_strip([
         ("ready", t.get("production_ready", 0), _GREEN),
         ("ready (unproven)", t.get("ready_unproven", 0), _TEAL),
         ("partial", t.get("partial", 0), _AMBER),
@@ -401,6 +421,20 @@ def _summary_cards(report: dict) -> str:
         ("error drift", s["n_error_drift"], _PURPLE),
         ("unregistered", s["n_unregistered_skills"], _GREY),
     ])
+    # "runs clean?" tier — only surface it when the smoke artifact is actually present
+    # (else every skill is 'unknown' and the strip would be noise).
+    rct = s.get("runs_clean_tally", {})
+    if any(k != "unknown" for k in rct):
+        strip += _stat_strip([
+            ("runs clean", rct.get("clean", 0), _GREEN),
+            ("runs (uninstrumented)", rct.get("clean_uninstrumented", 0), _TEAL),
+            ("run error", rct.get("error", 0), _RED),
+        ])
+        strip += ('<div class="captn"><b>Runs clean?</b> — a DETERMINISTIC OFFLINE smoke of each '
+                  'subskill\'s real run.py (card readers stubbed; NO live data). Answers "does the '
+                  'compute path execute end-to-end?" — the per-subskill liveness the incidental '
+                  'compose-dashboard packages can\'t give. Absent → column reads "—" (not smoked here).</div>')
+    return strip
 
 
 def _registry_panel(report: dict) -> str:

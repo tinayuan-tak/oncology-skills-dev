@@ -335,6 +335,7 @@ def build_health(roots: dict[str, Path]) -> dict:
     catalog_ids = set(catalog)
     modality_types = probe.modality_relevant_types(roots["contracts"])  # P4: type -> routing set (None if vocab absent)
     spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])  # card_id -> [spec names]
+    run_health = probe.subskill_run_health(roots["skills"])  # skill_name -> "runs clean?" record ({} if absent)
 
     # probe_card is called from BOTH the per-skill loop and the card-universe loop,
     # with identical constant args (roots + the precomputed index sets) for the whole
@@ -368,6 +369,12 @@ def build_health(roots: dict[str, Path]) -> dict:
         node["gate_short"] = short
         node["risk_category"] = (gcov.get(short) or {}).get("risk_category") if short else None
         node["framework_can_evidence"] = (gcov.get(short) or {}).get("framework_can_evidence") if short else None
+        # "RUNS CLEAN?" tier — the deterministic smoke result for this subskill (offline; NO live
+        # data). One of: clean | clean_uninstrumented | error | unknown (absent from the harness
+        # output, e.g. a non-wired/support skill or the artifact isn't present in this checkout).
+        rh = run_health.get(name)
+        node["runs_clean"] = (rh.get("smoke") if rh else "unknown")
+        node["run_health"] = (rh.get("run_health") if rh else None)  # status + cards + timings (or None)
         skill_nodes.append(node)
 
     reg = probe.registry_drift(roots["skills"], skill_names)
@@ -493,6 +500,10 @@ def build_health(roots: dict[str, Path]) -> dict:
         "summary": {
             "n_skills": len(skill_nodes),
             "verdict_tally": tally,
+            # "runs clean?" tier (deterministic offline smoke; {} when the skills artifact is absent):
+            "runs_clean_tally": _tally(skill_nodes, "runs_clean"),
+            "n_runs_clean": sum(1 for n in skill_nodes if n.get("runs_clean") == "clean"),
+            "n_runs_clean_error": sum(1 for n in skill_nodes if n.get("runs_clean") == "error"),
             "n_drift_flags": len(all_drift),
             "n_error_drift": sum(1 for d in all_drift if d["severity"] == "error"),
             "n_unregistered_skills": len(reg["unregistered"]),

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-07T15:27:42.073433+00:00",
+  "generated_at": "2026-08-07T16:26:17.248761+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,15 +9,15 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "2424e78",
-    "skills": "59e7bdf",
-    "methods": "35b43bc",
+    "contracts": "228edb7",
+    "skills": "bd6a9a2",
+    "methods": "ba85949",
     "products": "d5f54a2",
-    "catalog": "74cc81c"
+    "catalog": "9e92bbf"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-07T15:26:24.055540+00:00",
+    "prior_generated_at": "2026-08-07T16:21:12.337774+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -34,41 +34,47 @@
     "verdict_tally": {
       "partial": 12,
       "placeholder": 2,
-      "production_ready": 8
+      "production_ready": 7,
+      "broken_or_drift": 1
     },
-    "n_drift_flags": 46,
-    "n_error_drift": 0,
+    "runs_clean_tally": {
+      "unknown": 22
+    },
+    "n_runs_clean": 0,
+    "n_runs_clean_error": 0,
+    "n_drift_flags": 48,
+    "n_error_drift": 1,
     "n_unregistered_skills": 18,
-    "n_live_reader_cards": 66,
+    "n_live_reader_cards": 67,
     "n_cards_firing_in_real_packages": 26,
-    "n_cards": 79,
+    "n_cards": 80,
     "card_health_tally": {
       "partial": 42,
-      "broken": 10,
+      "broken": 11,
       "live": 24,
       "blocked": 3
     },
     "modality_routing_tally": {
       "not_required": 41,
-      "declared": 32,
+      "declared": 33,
       "not_applicable": 6
     },
-    "n_p4_required_cards": 32,
-    "n_p4_declared_cards": 32,
+    "n_p4_required_cards": 33,
+    "n_p4_declared_cards": 33,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
     "n_orphan_cards": 5,
-    "n_cards_consumed_but_no_spec": 39,
-    "n_datasets": 258,
-    "n_datasets_in_catalog": 249,
-    "n_orphan_datasets": 201,
+    "n_cards_consumed_but_no_spec": 40,
+    "n_datasets": 266,
+    "n_datasets_in_catalog": 257,
+    "n_orphan_datasets": 209,
     "n_broken_dataset_refs": 9,
     "n_datasets_high_access_cost": 2,
     "n_datasets_missing_sort_key": 7,
     "access_cost_tally": {
       "moderate_unused": 9,
-      "unknown": 115,
-      "low": 122,
+      "unknown": 119,
+      "low": 126,
       "moderate": 5,
       "high_unused": 5,
       "high": 2
@@ -197,7 +203,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "catalog-query",
@@ -239,7 +247,9 @@
       "reason_text": "no skill rule matched (fallback)",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "combo-and-resistance",
@@ -326,7 +336,9 @@
       "reason_text": "run.py emits a structured placeholder (emit_placeholder) \u2014 question declared, not wired",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "compose-dashboard",
@@ -362,7 +374,9 @@
       "reason_text": "support skill: has entrypoint + tests, no card dependencies, no drift",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "differentiation-landscape",
@@ -484,7 +498,9 @@
       "reason_text": "declared partial and no stronger signal overrides it",
       "gate_short": "differentiation",
       "risk_category": "commercial",
-      "framework_can_evidence": "partial"
+      "framework_can_evidence": "partial",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "functional-requirement",
@@ -912,7 +928,9 @@
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "dependency",
       "risk_category": "biological",
-      "framework_can_evidence": "partial"
+      "framework_can_evidence": "partial",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "genomic-alteration-profile",
@@ -1481,7 +1499,9 @@
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "genomic_alteration",
       "risk_category": "biological",
-      "framework_can_evidence": "captured"
+      "framework_can_evidence": "captured",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "immune-context",
@@ -1568,7 +1588,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "mechanism-and-pharmacology",
@@ -1694,7 +1716,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": "mechanism",
       "risk_category": "biological",
-      "framework_can_evidence": "partial"
+      "framework_can_evidence": "partial",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "on-target-safety-liability",
@@ -2005,7 +2029,9 @@
       "reason_text": "declared partial and no stronger signal overrides it",
       "gate_short": "safety",
       "risk_category": "safety",
-      "framework_can_evidence": "partial"
+      "framework_can_evidence": "partial",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "query-target-evidence",
@@ -2047,7 +2073,9 @@
       "reason_text": "support skill with no tests (or other soft gap) \u2014 not yet production-ready",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "render-evidence-package",
@@ -2083,7 +2111,9 @@
       "reason_text": "support skill: has entrypoint + tests, no card dependencies, no drift",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "surface-modality-fit",
@@ -2139,7 +2169,7 @@
           "modality-therapeutic-window",
           "pmhc-presentation"
         ],
-        "test_count": 3
+        "test_count": 4
       },
       "cards": [
         {
@@ -2373,6 +2403,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "hpa-v25-1"
+            },
+            {
+              "product_id": "depmap-consortium-26q1-proteomics",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1-proteomics"
             }
           ],
           "modality_relevance": [
@@ -2576,7 +2612,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": "surface_modality",
       "risk_category": "druggability",
-      "framework_can_evidence": "blind"
+      "framework_can_evidence": "blind",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "surfaceome-cohort-ranking",
@@ -2665,7 +2703,9 @@
       "reason_text": "no skill rule matched (fallback)",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "synthetic-lethal-partners",
@@ -2753,7 +2793,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": "synthetic_lethal_partners",
       "risk_category": "biomarker",
-      "framework_can_evidence": "partial"
+      "framework_can_evidence": "partial",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "target-intrinsic",
@@ -2777,6 +2819,7 @@
           "structure-features-static",
           "shed-ectodomain-liability",
           "protein-domains-class",
+          "domain-modality-relevance",
           "ppi-interactome",
           "gene-ontology-annotation",
           "signaling-network-mechanism",
@@ -2874,6 +2917,42 @@
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "domain-modality-relevance",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "domain_modality_relevance",
+          "has_live_reader": true,
+          "method_call": "domain-modality-relevance",
+          "dispatch_module": "domain_modality_relevance",
+          "method_dir_exists": false,
+          "method_has_read": false,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "uniprot-protein-features-v1",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            },
+            {
+              "product_id": "interpro-109-0-snapshot-2026-08-05",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "interpro-109-0-snapshot-2026-08-05"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "broken",
+          "health_reason": "card-registered-method-unbuilt",
+          "reason_text": "dispatcher registered but declared backing method module is absent, and never fires"
         },
         {
           "card_id": "gene-burden-safety",
@@ -3165,6 +3244,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "hpa-v25-1"
+            },
+            {
+              "product_id": "depmap-consortium-26q1-proteomics",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1-proteomics"
             }
           ],
           "modality_relevance": [
@@ -3320,12 +3405,22 @@
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         }
       ],
-      "n_core_cards": 17,
-      "n_cards": 17,
+      "n_core_cards": 18,
+      "n_cards": 18,
       "n_cards_live": 2,
-      "n_p4_required": 6,
-      "n_p4_declared": 6,
+      "n_p4_required": 7,
+      "n_p4_declared": 7,
       "drift_flags": [
+        {
+          "code": "status_wired_card_broken",
+          "severity": "error",
+          "detail": "declared wired but consumed card(s) broken: domain-modality-relevance"
+        },
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['domain-modality-relevance']; only in run.py: [])"
+        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
@@ -3344,15 +3439,17 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
         }
       ],
-      "health_verdict": "production_ready",
-      "health_reason": "skill-production-ready",
-      "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
+      "health_verdict": "broken_or_drift",
+      "health_reason": "skill-error-drift",
+      "reason_text": "an error-severity drift flag fired (declared status contradicts file reality)",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "target-profile",
@@ -4279,7 +4376,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "tractability-small-molecule",
@@ -4464,7 +4563,9 @@
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
       "gate_short": "tractability_sm",
       "risk_category": "druggability",
-      "framework_can_evidence": "partial"
+      "framework_can_evidence": "partial",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "translational-readiness",
@@ -4572,7 +4673,9 @@
       "reason_text": "run.py emits a structured placeholder (emit_placeholder) \u2014 question declared, not wired",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "tumor-presence",
@@ -5014,7 +5117,9 @@
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "expression",
       "risk_category": "biological",
-      "framework_can_evidence": "captured"
+      "framework_can_evidence": "captured",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "tumor-selectivity",
@@ -5146,7 +5251,9 @@
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
       "gate_short": "selectivity",
       "risk_category": "biological",
-      "framework_can_evidence": "captured"
+      "framework_can_evidence": "captured",
+      "runs_clean": "unknown",
+      "run_health": null
     },
     {
       "name": "workflow-target-evaluation-onc",
@@ -5188,7 +5295,9 @@
       "reason_text": "support skill: has entrypoint + tests, no card dependencies, no drift",
       "gate_short": null,
       "risk_category": null,
-      "framework_can_evidence": null
+      "framework_can_evidence": null,
+      "runs_clean": "unknown",
+      "run_health": null
     }
   ],
   "cards": [
@@ -5922,6 +6031,50 @@
       ],
       "in_dashboard_spec": true,
       "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "domain-modality-relevance",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "domain_modality_relevance",
+      "has_live_reader": true,
+      "method_call": "domain-modality-relevance",
+      "dispatch_module": "domain_modality_relevance",
+      "method_dir_exists": false,
+      "method_has_read": false,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "uniprot-protein-features-v1",
+          "in_catalog": false,
+          "matched_by": null,
+          "resolved_id": null
+        },
+        {
+          "product_id": "interpro-109-0-snapshot-2026-08-05",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "interpro-109-0-snapshot-2026-08-05"
+        }
+      ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
+      "card_health": "broken",
+      "health_reason": "card-registered-method-unbuilt",
+      "reason_text": "dispatcher registered but declared backing method module is absent, and never fires",
+      "consumers": [
+        "target-intrinsic"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "expression-clinical-association",
@@ -7429,6 +7582,12 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "hpa-v25-1"
+        },
+        {
+          "product_id": "depmap-consortium-26q1-proteomics",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-consortium-26q1-proteomics"
         }
       ],
       "modality_relevance": [
@@ -8396,6 +8555,42 @@
       "missing_sort_key": false
     },
     {
+      "product_id": "bindingdb-202608",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "bindingdb",
+      "version": "202608",
+      "size_bytes": 459,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "bindingdb-affinity-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
       "product_id": "biogrid-physical-interactions-per-gene-v1",
       "in_catalog": true,
       "kind": "derived",
@@ -9334,6 +9529,42 @@
       "missing_sort_key": false
     },
     {
+      "product_id": "chembl-37",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "ebi-chembl",
+      "version": "37",
+      "size_bytes": 493,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "chembl-bioactivity-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
       "product_id": "civic-nightly-snapshot-2026-07-02",
       "in_catalog": true,
       "kind": "source",
@@ -9579,6 +9810,42 @@
       "is_broken_ref": false,
       "has_sort_key": true,
       "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "cryptobench-cryptic-sites-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "cryptobench-osf-2025",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "skrhak-charles-university",
+      "version": "osf-2025",
+      "size_bytes": 482,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
       "missing_sort_key": false
     },
     {
@@ -9830,9 +10097,10 @@
       "consumed_by_cards": [
         "abundance-dependency",
         "cellline-protein-abundance",
-        "cellline-rna-protein-concordance"
+        "cellline-rna-protein-concordance",
+        "shed-ectodomain-liability"
       ],
-      "n_consumers": 3,
+      "n_consumers": 4,
       "is_orphan": false,
       "is_broken_ref": false,
       "has_sort_key": false,
@@ -11103,9 +11371,10 @@
       "system_of_record": null,
       "n_derived_from": 0,
       "consumed_by_cards": [
+        "domain-modality-relevance",
         "protein-domains-class"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "is_broken_ref": false,
       "has_sort_key": false,
@@ -12568,6 +12837,42 @@
       "missing_sort_key": false
     },
     {
+      "product_id": "tcga-spliceseq-psi-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "tcga-spliceseq-v2",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "tcga-spliceseq",
+      "version": "v2",
+      "size_bytes": 523224063,
+      "file_count": 33,
+      "system_of_record": null,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
       "product_id": "tcga-subgroup-assignments-coadread-v1",
       "in_catalog": true,
       "kind": "derived",
@@ -13061,9 +13366,10 @@
       "system_of_record": null,
       "n_derived_from": 0,
       "consumed_by_cards": [
+        "domain-modality-relevance",
         "protein-domains-class"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "is_broken_ref": true,
       "has_sort_key": null,
@@ -13251,7 +13557,7 @@
         "id": "skill:target-intrinsic",
         "layer": "skill",
         "label": "target-intrinsic",
-        "health": "production_ready",
+        "health": "broken_or_drift",
         "kind": "FOCUSED",
         "risk_category": null
       },
@@ -13508,6 +13814,14 @@
         "health": "live",
         "is_orphan": false,
         "measurement_type": "dependency_predictability"
+      },
+      {
+        "id": "card:domain-modality-relevance",
+        "layer": "card",
+        "label": "domain-modality-relevance",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": "domain_modality_relevance"
       },
       {
         "id": "card:expression-clinical-association",
@@ -14134,6 +14448,12 @@
         "health": "live"
       },
       {
+        "id": "method:domain_modality_relevance",
+        "layer": "method",
+        "label": "domain_modality_relevance",
+        "health": "broken"
+      },
+      {
         "id": "method:driver_role_overlay",
         "layer": "method",
         "label": "driver_role_overlay",
@@ -14401,6 +14721,11 @@
       {
         "src": "card:dependency-predictability",
         "dst": "method:depmap_predictability",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:domain-modality-relevance",
+        "dst": "method:domain_modality_relevance",
         "rel": "backed_by"
       },
       {
@@ -14980,6 +15305,11 @@
       },
       {
         "src": "skill:target-intrinsic",
+        "dst": "card:domain-modality-relevance",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:target-intrinsic",
         "dst": "card:gene-burden-safety",
         "rel": "consumes"
       },
@@ -15302,11 +15632,11 @@
     "layer_counts": {
       "skill": 22,
       "resolver": 9,
-      "card": 79,
-      "method": 57
+      "card": 80,
+      "method": 58
     },
-    "n_nodes": 167,
-    "n_edges": 193
+    "n_nodes": 169,
+    "n_edges": 195
   },
   "drift_index": [
     {
@@ -15491,6 +15821,18 @@
     },
     {
       "skill": "target-intrinsic",
+      "code": "status_wired_card_broken",
+      "severity": "error",
+      "detail": "declared wired but consumed card(s) broken: domain-modality-relevance"
+    },
+    {
+      "skill": "target-intrinsic",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: ['domain-modality-relevance']; only in run.py: [])"
+    },
+    {
+      "skill": "target-intrinsic",
       "code": "card_registered_never_fires",
       "severity": "info",
       "detail": "consumed card(s) have a live reader but never fired in a real package: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
@@ -15511,7 +15853,7 @@
       "skill": "target-intrinsic",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, domain-modality-relevance, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
     },
     {
       "skill": "target-profile",

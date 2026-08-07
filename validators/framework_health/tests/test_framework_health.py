@@ -691,6 +691,90 @@ def test_committed_artifact_has_access_cost_lens():
             assert d["in_catalog"] and d["n_consumers"] > 0 and d.get("has_sort_key") is False
 
 
+def test_subskill_run_health_reader(tmp_path):
+    """probe.subskill_run_health reads the skills-repo _skills_common/subskill_health.json,
+    returns the per-skill map, and DEGRADES to {} when the artifact is absent."""
+    # absent → {} (graceful; the skills repo may have a different branch checked out)
+    assert probe.subskill_run_health(tmp_path) == {}
+    # present → the subskills map
+    sd = tmp_path / "skills" / "_skills_common"
+    sd.mkdir(parents=True)
+    (sd / "subskill_health.json").write_text(json.dumps({"subskills": {
+        "tumor-presence": {"skill_name": "tumor-presence", "smoke": "clean",
+                           "run_health": {"status": "ok", "read_secs": 0.0}},
+        "genomic-alteration-profile": {"skill_name": "genomic-alteration-profile",
+                                       "smoke": "clean_uninstrumented"},
+    }}))
+    got = probe.subskill_run_health(tmp_path)
+    assert got["tumor-presence"]["smoke"] == "clean"
+    assert got["genomic-alteration-profile"]["smoke"] == "clean_uninstrumented"
+    # malformed → {} (never raises)
+    (sd / "subskill_health.json").write_text("{ not json")
+    assert probe.subskill_run_health(tmp_path) == {}
+
+
+def test_rollup_attaches_runs_clean(monkeypatch, tmp_path):
+    """build_health attaches runs_clean + run_health per skill node from the reader, and the
+    summary tallies them. Absent artifact → every skill 'unknown', tally = {unknown: N}."""
+    roots = probe.default_roots()
+    if not (roots["skills"] / "skills").exists():
+        pytest.skip("skills repo not present")
+    # Force the reader to a known fixture so the test is deterministic regardless of what's
+    # checked out in the sibling skills repo.
+    fake = {"tumor-presence": {"smoke": "clean", "run_health": {"status": "ok"}},
+            "functional-requirement": {"smoke": "error", "smoke_reason": "exit 1"}}
+    monkeypatch.setattr(probe, "subskill_run_health", lambda _root: fake)
+    body = rollup.build_health(roots)
+    by_name = {n["name"]: n for n in body["skills"]}
+    if "tumor-presence" in by_name:
+        assert by_name["tumor-presence"]["runs_clean"] == "clean"
+        assert by_name["tumor-presence"]["run_health"] == {"status": "ok"}
+    if "functional-requirement" in by_name:
+        assert by_name["functional-requirement"]["runs_clean"] == "error"
+    # a skill NOT in the fixture → 'unknown'
+    other = next((n for n in body["skills"] if n["name"] not in fake), None)
+    if other:
+        assert other["runs_clean"] == "unknown" and other["run_health"] is None
+    # summary tallies
+    assert body["summary"]["n_runs_clean"] == sum(1 for n in body["skills"] if n["runs_clean"] == "clean")
+    assert body["summary"]["n_runs_clean_error"] == sum(1 for n in body["skills"] if n["runs_clean"] == "error")
+
+
+def test_render_runs_clean_column_and_graceful_absence():
+    """The skill matrix carries a 'runs clean?' column; when every skill is 'unknown'
+    (artifact absent) the extra summary strip is SUPPRESSED (no noise), rendering '—'."""
+    from validators.framework_health import render_html
+    base_skill = {"name": "s", "health_verdict": "partial", "health_reason": "x", "reason_text": "r",
+                  "declared": {"status": "partial", "prose_markers": []},
+                  "derived": {"kind": "FOCUSED", "resolver_bound": False, "test_count": 1},
+                  "cards": [], "drift_flags": [], "risk_category": None, "run_health": None}
+    def _report(runs_clean):
+        sk = {**base_skill, "runs_clean": runs_clean}
+        rct = {}
+        for s in [sk]:
+            rct[s["runs_clean"]] = rct.get(s["runs_clean"], 0) + 1
+        return {"summary": {"n_skills": 1, "verdict_tally": {"partial": 1}, "n_error_drift": 0,
+                            "n_unregistered_skills": 0, "runs_clean_tally": rct,
+                            "n_runs_clean": rct.get("clean", 0), "n_runs_clean_error": rct.get("error", 0),
+                            "n_cards": 0, "card_health_tally": {}, "modality_routing_tally": {},
+                            "n_p4_required_cards": 0, "n_p4_declared_cards": 0, "n_p4_missing_cards": 0,
+                            "n_p4_drift_cards": 0, "n_datasets_in_catalog": 0, "n_orphan_cards": 0,
+                            "n_cards_consumed_but_no_spec": 0, "n_orphan_datasets": 0,
+                            "n_broken_dataset_refs": 0, "n_datasets": 0},
+                "registry_drift": {"unregistered": []}, "skills": [sk], "cards": [], "datasets": [],
+                "graph": {"nodes": [], "edges": [], "layer_counts": {}, "n_nodes": 0, "n_edges": 0},
+                "drift_index": []}
+    # column header always present
+    assert "runs clean?" in render_html.render(_report("unknown"))
+    # Use a caption-ONLY phrase to distinguish the summary strip from the always-present
+    # column-header tooltip (both mention "compute path").
+    caption_marker = "card readers stubbed; NO live data"
+    # absent (unknown) → no runs-clean summary strip
+    assert caption_marker not in render_html.render(_report("unknown"))
+    # present (clean) → strip appears
+    assert caption_marker in render_html.render(_report("clean"))
+
+
 def test_matrix_css_has_no_overflow_hidden_clip():
     """Regression guard: .matrix must NOT carry overflow:hidden — it clipped the
     expanded drill-down (the nested cards table grows a detail row past the table

@@ -650,6 +650,35 @@ def probe_card(
 
 
 # ===========================================================================
+# skills — per-subskill "runs clean?" health (the deterministic smoke tier)
+# ===========================================================================
+def subskill_run_health(skills_root: Path) -> dict[str, dict]:
+    """skill_name -> its committed run-health record from the skills repo's
+    _skills_common/subskill_health.json (produced by the framework_health_smoke harness).
+
+    This is the "RUNS CLEAN?" liveness tier: a DETERMINISTIC, OFFLINE smoke of each
+    wired subskill's real run.py (card readers stubbed — NO live data). Distinct from
+    fired_card_ids(), which asks "did a card fire in a real compose-dashboard package?"
+    (the incidental, coverage-limited signal). runs-clean decouples subskill liveness
+    from which orchestrator happened to run + get committed.
+
+    Degrades gracefully to {} when the artifact is absent (e.g. the skills repo has a
+    different branch checked out, or an isolated checkout) — exactly like every other
+    sibling-repo probe. Absence → the dashboard simply omits the runs-clean tier, never
+    a false negative.
+    """
+    p = skills_root / "skills" / "_skills_common" / "subskill_health.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    subs = data.get("subskills")
+    return subs if isinstance(subs, dict) else {}
+
+
+# ===========================================================================
 # data-products — which cards actually fired in a real emitted package
 # ===========================================================================
 def fired_card_ids(products_root: Path) -> set[str]:
