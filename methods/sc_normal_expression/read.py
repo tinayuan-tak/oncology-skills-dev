@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+import boto3
 import pyarrow.fs as fs
 import pyarrow.parquet as pq
 import pandas as pd
@@ -44,10 +45,10 @@ INDICATION_TO_TISSUES = {
 
 _PARQUET_COLS = [
     "gene_symbol", "ensembl_gene_id", "tissue", "cell_type",
-    "n_donors_total", "n_donors_reliable", "n_donors_expressing",
+    "n_donors_total", "n_donors_reliable", "n_datasets_reliable", "n_donors_expressing",
     "median_det", "q25_det", "q75_det",
     "expressing_donor_fraction",
-    "median_abund", "q75_abund",
+    "median_abund", "q25_abund", "q75_abund",
     "detection_pct_rank", "n_cell_types_above_20pct",
 ]
 
@@ -65,12 +66,19 @@ def read_gene_celltype_rows(target: str, tissues: list[str]) -> Optional[pd.Data
     Returns a concatenated DataFrame (possibly empty), or None when no Tier-1 product
     exists for ANY of the requested tissues. Empty (0-row) DataFrame means the gene is
     absent from the product(s); None means no product exists at all."""
+    # Explicit credential injection — mirrors aggregate.py's CREATE SECRET pattern.
+    # pyarrow S3FileSystem can use AWS_PROFILE via botocore, but that silently falls back to the
+    # Developer-Dev role (cmp-dev) if the env var is unset, which lacks GetObject on onc-compbio.
+    # Explicit boto3 Session guarantees the cbg SSO profile is always used regardless of env state.
     profile = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
-    s3fs = fs.S3FileSystem(region="us-east-1",
-                           role_arn=None)   # honors AWS_PROFILE env var credential chain
-    # boto3 SSO credential injection — DuckDB path uses CREATE SECRET; pyarrow S3FileSystem
-    # picks up the boto3 credential chain via botocore (AWS_PROFILE honored at session level).
-    # If auth fails, FileNotFoundError is raised rather than a silent empty result.
+    session = boto3.Session(profile_name=profile)
+    creds = session.get_credentials().get_frozen_credentials()
+    s3fs = fs.S3FileSystem(
+        region="us-east-1",
+        access_key=creds.access_key,
+        secret_key=creds.secret_key,
+        session_token=creds.token,
+    )
 
     dfs = []
     found_any_product = False

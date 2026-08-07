@@ -41,9 +41,22 @@ def test_compartment_summary_uses_cross_donor_median_not_cell_weighted():
     ])
     cs = S.compartment_summary(rows)
     assert cs["malignant"]["n_donors"] == 2
+    assert cs["malignant"]["n_datasets"] == 2
     # median of {0.9, 0.1} == 0.5 — the giant donor did not dominate
     assert cs["malignant"]["median_detection_fraction"] == pytest.approx(0.5)
     assert cs["malignant"]["n_cells_total"] == 500_100
+
+
+def test_compartment_summary_n_datasets_collapses_same_dataset():
+    """Multiple donors from the same dataset_id must count as 1 dataset, not N donors."""
+    rows = _rows([
+        ("malignant", "dsA", "d1", 200, 0.7, 2.0),   # both from dsA
+        ("malignant", "dsA", "d2", 200, 0.5, 1.5),
+        ("malignant", "dsB", "d3", 200, 0.3, 1.0),   # one from dsB
+    ])
+    cs = S.compartment_summary(rows)
+    assert cs["malignant"]["n_donors"] == 3
+    assert cs["malignant"]["n_datasets"] == 2   # dsA + dsB, not 3
 
 
 def test_compartment_summary_empty_is_empty_dict():

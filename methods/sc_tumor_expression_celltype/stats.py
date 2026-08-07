@@ -51,6 +51,7 @@ def compartment_summary(rows) -> dict:
         )
         out[str(comp)] = {
             "n_donors": int(per_donor.shape[0]),
+            "n_datasets": int(g["dataset_id"].nunique()),
             "n_cells_total": int(g["n_cells"].sum()),
             "median_detection_fraction": float(np.median(per_donor["detection_fraction"])),
             "median_abundance_log1p_cp10k": float(np.median(per_donor["abundance_log1p_cp10k"])),

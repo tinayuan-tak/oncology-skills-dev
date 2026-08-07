@@ -76,29 +76,40 @@ def classify_sc_normal_expression(rows: pd.DataFrame) -> dict:
         )
 
     # --- Safety-essential cell types ---
+    # Floor at 0.05: the Tier-1 WHERE median_det > 0.01 filter lets near-zero values through;
+    # below 0.05 is within census annotation noise (cell-type contaminants, misassignments).
+    SAFETY_FLAG_FLOOR = 0.05
     safety_flags: dict[str, float] = {}
     for _, row in reliable.iterrows():
-        if _is_safety_essential(str(row["cell_type"])):
-            safety_flags[str(row["cell_type"])] = float(row[det_col])
+        det_val = float(row[det_col])
+        if _is_safety_essential(str(row["cell_type"])) and det_val > SAFETY_FLAG_FLOOR:
+            safety_flags[str(row["cell_type"])] = det_val
 
     # --- Liability classification ---
-    max_det_row = reliable.loc[reliable[det_col].idxmax()]
-    max_det_ct = str(max_det_row["cell_type"])
-    max_det_val = float(max_det_row[det_col])
-    max_frac_val = float(max_det_row[frac_col]) if frac_col in reliable.columns else None
-
-    # HIGH: any cell type exceeds both magnitude AND consistency thresholds
+    # HIGH: any cell type exceeds both magnitude AND consistency thresholds (AND gate)
     high_mask = (reliable[det_col] > HIGH_LIABILITY_DET_THRESHOLD) & \
                 (reliable[frac_col] > HIGH_LIABILITY_DONOR_FRACTION)
     if high_mask.any():
         liability = "HIGH_LIABILITY"
+        # Report the triggering cell type (highest det among AND-gate passers), not the
+        # global argmax: a cell at det=0.85/frac=0.40 (MODERATE only) must not shadow a
+        # cell at det=0.55/frac=0.80 that actually fired the HIGH rule.
+        anchor_rows = reliable[high_mask]
+        anchor_row = anchor_rows.loc[anchor_rows[det_col].idxmax()]
     elif (reliable[det_col] > MODERATE_LIABILITY_DET).any() or \
          (reliable[frac_col] > MODERATE_DONOR_FRACTION).any():
         liability = "MODERATE_LIABILITY"
+        anchor_row = reliable.loc[reliable[det_col].idxmax()]
     elif (reliable[det_col] > NOT_EXPRESSED_CEILING).any():
         liability = "LOW_LIABILITY"
+        anchor_row = reliable.loc[reliable[det_col].idxmax()]
     else:
         liability = "NOT_EXPRESSED"
+        anchor_row = reliable.loc[reliable[det_col].idxmax()]
+
+    max_det_ct = str(anchor_row["cell_type"])
+    max_det_val = float(anchor_row[det_col])
+    max_frac_val = float(anchor_row[frac_col]) if frac_col in reliable.columns else None
 
     n_above_20 = int((reliable[det_col] > 0.20).sum())
 

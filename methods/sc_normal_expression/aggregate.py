@@ -6,15 +6,19 @@ from S3 and writes sc-normal-celltype-expression-{tissue}-v1 (Tier-1: ~30-40M ro
 median_det > 0.01 filter) to S3.
 
 The single DuckDB pass computes per-(gene, tissue, cell_type):
-  - n_donors_total:        all donor groups (including small-n ones)
-  - n_donors_reliable:     groups with n_cells >= 10 (statistically reliable detection estimates)
-  - n_donors_expressing:   reliable groups with detection_fraction > 0.10
-  - median_det:            cross-donor median detection_fraction (reliable donors only)
-  - q25_det / q75_det:     IQR of detection_fraction
+  - n_donors_total:           all donor groups (including small-n ones)
+  - n_donors_reliable:        groups with n_cells >= 10 (statistically reliable detection estimates)
+  - n_datasets_reliable:      distinct dataset_ids with n_cells >= 10 (atlas replication count —
+                               a HIGH_LIABILITY call from 1 dataset vs. 3 independent atlases are
+                               qualitatively different confidence levels)
+  - n_donors_expressing:      reliable groups with detection_fraction > 0.10
+  - median_det:               cross-donor median detection_fraction (reliable donors only)
+  - q25_det / q75_det:        IQR of detection_fraction
   - expressing_donor_fraction: n_donors_expressing / n_donors_reliable
-  - median_abund:          cross-donor median abundance_log1p_cp10k
-  - q75_abund:             75th percentile abundance
-  - detection_pct_rank:    PERCENT_RANK over cell types for this gene+tissue
+  - median_abund:             cross-donor median abundance_log1p_cp10k
+  - q25_abund / q75_abund:    IQR of abundance (q25 enables bimodality detection — a high q75
+                               with low median signals a high-expressing tail, not uniform expression)
+  - detection_pct_rank:       PERCENT_RANK over cell types for this gene+tissue
   - n_cell_types_above_20pct: count of cell types with median_det > 0.20 (breadth indicator)
 
 Output is gene-sorted (predicate-pushdown for per-gene reads).
@@ -77,6 +81,7 @@ WITH agg AS (
         cell_type,
         COUNT(DISTINCT (dataset_id, donor_id))                                                    AS n_donors_total,
         COUNT(DISTINCT (dataset_id, donor_id)) FILTER (WHERE n_cells >= {min_cells})              AS n_donors_reliable,
+        COUNT(DISTINCT dataset_id)             FILTER (WHERE n_cells >= {min_cells})              AS n_datasets_reliable,
         COUNT(DISTINCT (dataset_id, donor_id))
             FILTER (WHERE n_cells >= {min_cells} AND detection_fraction > 0.10)                   AS n_donors_expressing,
         MEDIAN(CASE WHEN n_cells >= {min_cells} THEN detection_fraction    END)                   AS median_det,
@@ -85,6 +90,8 @@ WITH agg AS (
         PERCENTILE_CONT(0.75) WITHIN GROUP
             (ORDER BY CASE WHEN n_cells >= {min_cells} THEN detection_fraction    END)            AS q75_det,
         MEDIAN(CASE WHEN n_cells >= {min_cells} THEN abundance_log1p_cp10k END)                   AS median_abund,
+        PERCENTILE_CONT(0.25) WITHIN GROUP
+            (ORDER BY CASE WHEN n_cells >= {min_cells} THEN abundance_log1p_cp10k END)            AS q25_abund,
         PERCENTILE_CONT(0.75) WITHIN GROUP
             (ORDER BY CASE WHEN n_cells >= {min_cells} THEN abundance_log1p_cp10k END)            AS q75_abund
     FROM read_parquet($tier2_uri)
@@ -104,10 +111,10 @@ with_selectivity AS (
 )
 SELECT
     gene_symbol, ensembl_gene_id, tissue, cell_type,
-    n_donors_total, n_donors_reliable, n_donors_expressing,
+    n_donors_total, n_donors_reliable, n_datasets_reliable, n_donors_expressing,
     median_det, q25_det, q75_det,
     expressing_donor_fraction,
-    median_abund, q75_abund,
+    median_abund, q25_abund, q75_abund,
     detection_pct_rank, n_cell_types_above_20pct
 FROM with_selectivity
 WHERE median_det > 0.01

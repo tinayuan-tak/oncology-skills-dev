@@ -24,6 +24,7 @@ from methods.sc_normal_expression import cli as C
 def _tier1_rows(spec) -> pd.DataFrame:
     """Build a Tier-1-shaped DataFrame.
     spec: list of (cell_type, n_donors_reliable, median_det, expressing_donor_fraction)
+    New schema columns (n_datasets_reliable, q25_abund, q25_det) filled with sensible defaults.
     """
     return pd.DataFrame([
         {
@@ -31,10 +32,19 @@ def _tier1_rows(spec) -> pd.DataFrame:
             "ensembl_gene_id": "ENSG00000119888",
             "tissue": "colon",
             "cell_type": ct,
+            "n_donors_total": n,
             "n_donors_reliable": n,
+            "n_datasets_reliable": max(1, n // 5),  # reasonable default: ~1 dataset per 5 donors
+            "n_donors_expressing": max(0, n - 2),
             "median_det": med,
+            "q25_det": med * 0.7,
+            "q75_det": med * 1.3,
             "expressing_donor_fraction": frac,
-            "n_cell_types_above_20pct": 0,   # placeholder; not tested at this layer
+            "median_abund": med * 3.0,
+            "q25_abund": med * 2.0,
+            "q75_abund": med * 4.0,
+            "detection_pct_rank": 0.5,
+            "n_cell_types_above_20pct": 0,
         }
         for (ct, n, med, frac) in spec
     ])
@@ -52,6 +62,41 @@ def test_classify_high_liability():
     assert r["sc_normal_expression_class"] == "HIGH_LIABILITY"
     assert r["max_detection_cell_type"] == "colonocyte"
     assert r["max_detection_fraction"] == pytest.approx(0.85)
+
+
+def test_classify_high_liability_reports_triggering_cell_not_global_argmax():
+    """The cell type with highest raw detection may not be the one that fired HIGH_LIABILITY.
+    When Cell A has det=0.85 (fails AND: frac=0.40 < 0.70) and Cell B has det=0.55 (passes AND:
+    frac=0.80 > 0.70), HIGH fires and max_detection_cell_type must be Cell B, not Cell A."""
+    rows = _tier1_rows([
+        ("fibroblast",   20, 0.85, 0.40),   # highest det but fails AND (frac below threshold)
+        ("colonocyte",   20, 0.55, 0.80),   # lower det but BOTH thresholds met → fires HIGH
+    ])
+    r = S.classify_sc_normal_expression(rows)
+    assert r["sc_normal_expression_class"] == "HIGH_LIABILITY"
+    assert r["max_detection_cell_type"] == "colonocyte"   # the triggering cell, not the argmax
+    assert r["max_detection_fraction"] == pytest.approx(0.55)
+
+
+def test_safety_essential_flags_excludes_near_zero_values():
+    """Entries with median_det <= 0.05 (census annotation noise) must NOT appear in safety flags."""
+    rows = _tier1_rows([
+        ("hepatocyte",   10, 0.03, 0.10),   # essential but below noise floor — must be excluded
+        ("fibroblast",   10, 0.50, 0.60),
+    ])
+    r = S.classify_sc_normal_expression(rows)
+    assert "hepatocyte" not in r["safety_essential_flags"]
+
+
+def test_safety_essential_flags_includes_above_floor():
+    """Entries above the 0.05 floor in safety-essential cell types must appear in flags."""
+    rows = _tier1_rows([
+        ("hepatocyte",   10, 0.08, 0.20),   # above 0.05 floor
+        ("fibroblast",   10, 0.05, 0.10),
+    ])
+    r = S.classify_sc_normal_expression(rows)
+    assert "hepatocyte" in r["safety_essential_flags"]
+    assert r["safety_essential_flags"]["hepatocyte"] == pytest.approx(0.08)
 
 
 def test_classify_moderate_liability_by_det():
