@@ -117,6 +117,13 @@ def _headline(cards, fired, verdict_pair):
         "syn_z_score":      get_card_field(cards, "gnomad-lof-constraint", "syn_z_score"),
         "obs_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "obs_lof_count"),
         "exp_lof_count":    get_card_field(cards, "gnomad-lof-constraint", "exp_lof_count"),
+        # Human OBSERVED-KO (2026-08-07, roadmap #1) — the DIRECT-observation complement to
+        # constraint: obs_hom_lof counts healthy humans HOMOZYGOUS for a predicted-LoF variant
+        # (natural knockouts). natural_ko_observed = full loss tolerated in the population →
+        # strong on-target safety reassurance for a full-KO modality (degrader/RNA), where
+        # pLI/LOEUF only INFER intolerance. Additive/verdict-inert; surfaced for LLM/reviewer.
+        "human_ko_observed_class": get_card_field(cards, "gnomad-lof-constraint", "human_ko_observed_class"),
+        "obs_hom_lof_count":       get_card_field(cards, "gnomad-lof-constraint", "obs_hom_lof_count"),
         # P5 Slice 2 — human-genetics rare-variant burden (verdict-moving in Slice 5)
         "burden_safety_class": get_card_field(cards, "gene-burden-safety", "burden_safety_class"),
         "burden_min_pvalue":   get_card_field(cards, "gene-burden-safety", "min_pvalue"),
