@@ -898,6 +898,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: tcga-gtex-exon-tpm-quantiles-v1, method: exon_window, evidence_tier: measured}
 
+  cd_antigen_backbone:
+    # enrichment E6-CD (2026-08-07): is the target on the CD / immuno-oncology antigen BACKBONE — the
+    # antigen class that has DELIVERED approved biologics (CD19/CD20/CD22/CD38/BCMA-class mAb/TCE/CAR-T)?
+    # A CLASS-level clinical-PRECEDENT prior, orthogonal to the PREDICTED-biology axes (topology/density/
+    # window). Reads hgnc-gene-group-471 (394 canonical CD antigens, CC0). tier:target (protein property).
+    # Supportive-only: not_cd_antigen is NOT a negative (most solid-tumor ADC/TCE antigens aren't CD).
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "Is the target a canonical CD / immuno-oncology antigen with established mAb/TCE/CAR-T clinical precedent?"
+    entity_grains: [target]
+    cards: [cd-antigen-backbone]
+    providers:
+      - {kind: dataset, source: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08, method: cd_antigen_backbone, evidence_tier: measured}
+
   immune_context:
     # biologics-augment effector arm (2026-08-06): tumor T-cell infiltration (immune-hot vs cold) from
     # CIBERSORT LM22 per-sample leukocyte composition. The EFFECTOR half of the TCE story — orthogonal
