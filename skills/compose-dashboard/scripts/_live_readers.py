@@ -1254,6 +1254,15 @@ def _dispatch_paralog_buffering(target: str, indication: str) -> Optional[dict]:
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_combinatorial_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: combinatorial-dependency card → methods/paralog_genetic_interaction/read.py
+    ::combinatorial_dependency_for_gene. Symmetric paralog dual-KO genetic-interaction
+    (GI = dual - sum-of-singles) from depmap-paralog-genetic-interaction-per-pair-v1. Per-target
+    (target_pair grain; indication not consumed — the GI is a cell-line panel property)."""
+    mod = _import_method("paralog_genetic_interaction.read")
+    return mod.combinatorial_dependency_for_gene(target)
+
+
 def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: gnomad-lof-constraint card → gnomAD constraint table lookup.
     The gnomAD constraint manifest is a simple per-gene TSV; a light method
@@ -1449,6 +1458,7 @@ CARD_DISPATCHERS = {
     "tumor-protein-abundance-cptac": _dispatch_protein_presence_cptac,
     "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
     "paralog-buffering": _dispatch_paralog_buffering,
+    "combinatorial-dependency": _dispatch_combinatorial_dependency,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
     "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
