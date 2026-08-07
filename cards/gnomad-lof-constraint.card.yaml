@@ -22,7 +22,7 @@
 #   `indeterminate`          → not covered in gnomAD constraint table
 
 card_id: gnomad-lof-constraint
-version: 1.0.0
+version: 1.1.0
 question: "How constrained is {target.symbol} against loss-of-function variants in the gnomAD population, and what does this imply for on-target safety?"
 
 tier: target   # scope-invariant: population LoF constraint is a property of the human gene, not of any tumor subgroup. Never stratifies.
@@ -47,6 +47,17 @@ outputs:
     - obs_lof_count                                 # int; observed LoF variants
     - exp_lof_count                                 # float; expected LoF variants under neutrality
     - gene_length_bp                                # int; for context
+    # Human OBSERVED-KO facet (additive, 2026-08-07, roadmap #1). The DIRECT-observation
+    # complement to constraint_class: constraint INFERS LoF intolerance; obs_hom_lof OBSERVES
+    # healthy individuals HOMOZYGOUS for a predicted-LoF variant (natural human knockouts). A
+    # natural KO is the strongest on-target safety reassurance for a full-KO modality (degrader,
+    # RNA therapeutic). From the v2.1.1 obs_hom_lof column joined into gnomad-constraint-per-gene-v1.
+    # ASYMMETRIC: obs_hom_lof>=1 is a strong positive; absence (0/null) is WEAK (hom-LoF is rare in
+    # 125k) and defers to constraint_class — NEVER asserts essentiality. Verdict-inert: display + LLM.
+    - human_ko_observed_class                       # categorical (see vocabulary); verdict-inert
+    - obs_hom_lof_count                             # int/null; healthy homozygous-LoF individuals (v2.1.1 natural KOs)
+    - exp_hom_lof_count                             # float/null; expected homozygous-LoF count (context)
+    - human_ko_context                              # string; human-readable observed-KO summary (audit)
     - method_version
 
   summary_fields_vocabulary:
@@ -55,6 +66,11 @@ outputs:
       - moderately_constrained
       - tolerant
       - indeterminate
+    human_ko_observed_class:
+      - natural_ko_observed        # obs_hom_lof >= 1 — healthy humans tolerate full loss (KO-tolerated reassurance)
+      - constrained_no_ko          # obs_hom_lof == 0 AND LoF-constrained — essentiality signal is the CONSTRAINT, not the zero
+      - no_natural_ko              # obs_hom_lof == 0, not constrained — uninformative in a ~125k cohort; defer to constraint_class
+      - data_unavailable           # gene absent from the v2.1.1 hom-LoF join (not zero)
 
   figure: constraint_scores_gauge_panel
 
@@ -103,6 +119,18 @@ caveats:
     lethality), ClinVar germline (population variant health outcomes),
     OMIM disease associations (autosomal dominant / recessive contexts).
     All three are docs-first Phase-G expansions beyond this card.
+  - |
+    human_ko_observed_class complements constraint_class with DIRECT observation: obs_hom_lof
+    counts healthy individuals HOMOZYGOUS for a predicted-LoF variant (natural human knockouts).
+    `natural_ko_observed` (obs_hom_lof>=1) is strong safety reassurance for a full-KO modality.
+    Sourced from gnomAD v2.1.1 (~125k genomes) joined by gene symbol onto the v4.1.1 row — a
+    deliberate cross-release choice (v2.1.1 is the standard hom-KO reference; v4 omits it).
+  - |
+    ASYMMETRY (do not misread a zero): observing a natural KO is meaningful, but its ABSENCE
+    is weak — homozygous LoF is rare in 125k people (only ~12% of genes have any), so
+    obs_hom_lof=0 does NOT imply essentiality. That inference belongs to pLI/LOEUF:
+    `constrained_no_ko` = zero + constrained (essentiality from the constraint), `no_natural_ko`
+    = zero + tolerant (uninformative), `data_unavailable` = absent from the v2 join (not zero).
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gnomad_lof_constraint` claim.
 measurement_type: gnomad_lof_constraint
