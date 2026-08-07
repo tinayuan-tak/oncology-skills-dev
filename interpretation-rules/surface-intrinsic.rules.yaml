@@ -1419,3 +1419,50 @@ rules:
 #   supportive — positive signal for this modality.
 #
 # Rules with dominant=true carry extra weight in Tier-3 synthesis.
+
+  # ============================================================================
+  # Genomic axis → axis-2 SURFACE lens (2026-08-07): the cross-modality matrix's SURFACE column for
+  # two alteration classes that previously fed ONLY the intracellular lens (SM/degrader). Both cards
+  # declare modality_relevance incl. adc/bite_tce/antibody (P4 sweep #241) but had NO surface rules —
+  # "declared-relevant-but-mute", stranded on the biology axis. Encodes the matrix spec verbatim:
+  #   Loss-of-function  → ADC "may ELIMINATE antigen → resistance"; Biologic "may eliminate binding target"
+  #   Fusion            → ADC "only if surface epitope preserved/created"; Biologic "if extracellular/receptor"
+  # DEGRADER-channel untouched here (surface file); SM/degrader cells stay in intracellular rules. All
+  # additive signal-only — no resolver rung references these (verdict spine byte-stable).
+  # ============================================================================
+
+  - rule_id: biallelic-inactivation-surface-antigen-opposing
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: recurrent_biallelic_inactivation
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Recurrent biallelic inactivation (completed two-hit LoF) — the protein is genuinely lost in a
+      recurrent fraction of tumours. For a SURFACE modality this ARGUES AGAINST the target: a
+      degraded/deleted gene may eliminate the antigen (ADC/antibody binding target) or the epitope a
+      TCE engages, so antigen-negative escape is the expected resistance mode. OPPOSING (not killer):
+      the loss is fraction-of-cohort, not universal, and heterozygous/wild-type tumours retain the
+      antigen — a patient-selection caveat, not a veto. Matrix cell: Loss-of-function × {ADC, Biologic}.
+
+  - rule_id: fusion-driver-surface-epitope-neutral
+    when:
+      card_id: fusion-rearrangement-landscape
+      field: fusion_class
+      equals: recurrent_fusion_driver
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      A recurrent fusion driver is a strong INTRACELLULAR signal (catalytic-domain-retained kinase
+      fusion → small-molecule; bindable/degradable fusion → degrader — encoded in the intracellular
+      rules). For a SURFACE modality the matrix is CONDITIONAL: an ADC/antibody/TCE applies "only if a
+      surface epitope is preserved or created" by the fusion — which THIS card cannot determine (it
+      reports recurrence, not the fusion's effect on the extracellular domain / surface topology).
+      NEUTRAL (honest): no positive or negative surface-antigen argument from fusion recurrence alone;
+      a fusion that truncates the ectodomain would be antigen-negative, one creating a neoepitope could
+      be favourable — resolve with the surface-topology card, not here. Matrix cell: Fusion × {ADC, Biologic}.
