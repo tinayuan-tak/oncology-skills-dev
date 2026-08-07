@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# launch_daemon.sh — genome-wide predictability daemon launcher.
+# launch_daemon.sh — predictability daemon launcher.
 #
 # The framework-runs harness kills bash-tool subprocesses when the session
 # reloads (SIGTERM to the process group). This wrapper uses `setsid` to
@@ -7,11 +7,12 @@
 # parent process group), so it survives session teardowns.
 #
 # Usage:
-#   bash launch_daemon.sh <out_dir> [<gene_set>] [<workers>]
+#   bash launch_daemon.sh <out_dir> [<gene_set>] [<workers>] [<threshold>]
 #
 # Defaults:
-#   gene_set = genome  (all ~18k CRISPR-covered protein-coding genes)
-#   workers  = 6       (safe for 62 GB RAM instance; each worker ~5 GB)
+#   gene_set  = medium (dependency-mappable genes; any-lineage |median| > threshold)
+#   workers   = 6      (safe for 62 GB RAM instance; each worker ~5 GB SHM)
+#   threshold = 0.3    (lower values extend coverage: 0.15 ≈ +3-4k genes, ~3-4 days)
 #
 # Monitoring (from any subsequent shell):
 #   cat <out_dir>/daemon.pid       # → PID
@@ -21,9 +22,10 @@
 
 set -euo pipefail
 
-OUT_DIR="${1:?usage: launch_daemon.sh <out_dir> [<gene_set>] [<workers>]}"
-GENE_SET="${2:-genome}"
+OUT_DIR="${1:?usage: launch_daemon.sh <out_dir> [<gene_set>] [<workers>] [<threshold>]}"
+GENE_SET="${2:-medium}"
 WORKERS="${3:-6}"
+THRESHOLD="${4:-0.3}"
 
 METHODS_REPO="/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
 
@@ -54,6 +56,7 @@ setsid nohup env \
     AWS_PROFILE="cbg" \
   python -u -m methods.depmap_predictability_precompute.cli \
     --gene-set "$GENE_SET" \
+    --threshold "$THRESHOLD" \
     --workers "$WORKERS" \
     --checkpoint-every 25 \
     --out "$OUT_DIR" \
@@ -70,7 +73,7 @@ sleep 2  # give the child a moment to actually start
 
 if kill -0 "$DAEMON_PID" 2>/dev/null; then
   echo "[launch_daemon] Started daemon PID=$DAEMON_PID → $OUT_DIR/daemon.log"
-  echo "[launch_daemon]   gene_set=$GENE_SET workers=$WORKERS resume=${RESUME_FLAG:-no}"
+  echo "[launch_daemon]   gene_set=$GENE_SET threshold=$THRESHOLD workers=$WORKERS resume=${RESUME_FLAG:-no}"
   echo "[launch_daemon]   Monitor: tail -f $OUT_DIR/daemon.log"
 else
   echo "[launch_daemon] ERROR: daemon died within 2s. Check $OUT_DIR/daemon.log"
