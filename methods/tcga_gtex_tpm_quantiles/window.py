@@ -61,6 +61,14 @@ MODALITY_TIER_THRESHOLD = {
 TUMOR_EXPRESSION_FLOOR_TPM = 1.0     # below this the tumor is effectively not-expressed (cohort-honesty)
 CLEAN_WINDOW_RATIO = 4.0             # window ratio at/above which the tumor:normal separation is "clean"
 _PSEUDOCOUNT = 1.0                   # linear-TPM pseudocount (window = (tumor+1)/(normal+1))
+# therapeutic_window_class tiers (2026-08-07, selectivity-conjunction INC-1/2) — a PURELY RATIO-BASED
+# re-tiering of the tumor÷worst-essential-normal window, ADDITIVE to the legacy window_class (which
+# keys off an ABSOLUTE essential-organ tier and collapsed high-window genes like CEACAM5 558x into the
+# same essential_tissue_liability bucket as housekeeping genes at 0.5x). Empirically (30-gene backtest)
+# housekeeping genes sit <1.0 (tumor BELOW worst critical normal = no window) while validated antigens
+# are >1 (CEACAM5 558, NECTIN4 17, MSLN 8, EPCAM 4.8, MET 2.6). Thresholds are the user-set 2026-08-07.
+THERAPEUTIC_WINDOW_CLEAN_RATIO = 5.0   # >= 5x worst critical-normal → comfortable window
+THERAPEUTIC_WINDOW_MIN_RATIO = 1.0     # 1-5x → narrow (real but modest); < 1 → NO window (the veto)
 
 
 def _log2tpm_to_linear(x: Optional[float]) -> Optional[float]:
@@ -135,7 +143,20 @@ def compute_window_from_rows(rows, indication: str,
         "tumor_studies": studies,
         "n_gtex_tissues": int(normal["group"].nunique()),
     }
-    # cohort-honesty gate first
+    # NEW therapeutic_window_class (INC-1/2): PURELY the ratio, independent of the absolute-tier
+    # window_class below. This is the selectivity-veto instrument (the ratio separates housekeeping
+    # from real antigens where the absolute-tier class does not). Computed even when not_expressed.
+    if tumor_tpm < TUMOR_EXPRESSION_FLOOR_TPM:
+        result["therapeutic_window_class"] = "not_expressed_in_cohort"
+    elif window_essential >= THERAPEUTIC_WINDOW_CLEAN_RATIO:
+        result["therapeutic_window_class"] = "clean_window"
+    elif window_essential >= THERAPEUTIC_WINDOW_MIN_RATIO:
+        result["therapeutic_window_class"] = "narrow_window"
+    else:
+        result["therapeutic_window_class"] = "no_therapeutic_window"   # ratio < 1: tumor BELOW worst
+                                                                       # critical normal → the veto
+
+    # cohort-honesty gate first (legacy window_class — UNCHANGED tiering, its 3 surface rules stay byte-stable)
     if tumor_tpm < TUMOR_EXPRESSION_FLOOR_TPM:
         result["window_class"] = "not_expressed_in_cohort"
         return result
@@ -152,6 +173,7 @@ def compute_window_from_rows(rows, indication: str,
 def _empty(note: str) -> dict:
     return {
         "window_class": "data_unavailable",
+        "therapeutic_window_class": "data_unavailable",
         "tumor_tpm": None, "max_essential_normal_tpm": None, "max_essential_normal_organ": None,
         "max_full_normal_tpm": None, "max_full_normal_organ": None,
         "window_ratio_essential": None, "window_ratio_full_normal": None,

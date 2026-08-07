@@ -118,3 +118,41 @@ def test_multi_study_indication_takes_max_tumor():
     r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
     assert r["tumor_tpm"] == pytest.approx(200.0, rel=0.01)
     assert r["window_class"] == "clean_window"
+
+
+# ── therapeutic_window_class: the PURELY RATIO-BASED re-tier (selectivity veto instrument, INC-1/2) ──
+# The legacy window_class collapses high-ratio genes (CEACAM5 558x) into essential_tissue_liability
+# alongside housekeeping genes (0.5x); therapeutic_window_class keys on the RATIO only, so it
+# separates them (backtest-validated: housekeeping <1 = no_therapeutic_window; antigens >1 = window).
+from methods.tcga_gtex_tpm_quantiles.window import (  # noqa: E402
+    THERAPEUTIC_WINDOW_CLEAN_RATIO, THERAPEUTIC_WINDOW_MIN_RATIO,
+)
+
+
+def test_therapeutic_window_class_clean_high_ratio():
+    # CEACAM5-like huge ratio → clean_window on therapeutic_window_class (even though legacy = liability)
+    rows = _rows({"COAD": 1878.0}, {"LUNG": 3.3, "COLON": 7.4})
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["therapeutic_window_class"] == "clean_window"
+    assert r["window_class"] == "essential_tissue_liability"   # legacy UNCHANGED (byte-stable)
+
+
+def test_therapeutic_window_class_no_window_housekeeping():
+    # housekeeping signature: tumor BELOW the worst critical normal → ratio < 1 → the VETO value
+    rows = _rows({"COAD": 40.0}, {"MUSCLE": 90.0, "COLON": 50.0})
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["window_ratio_essential"] < 1.0
+    assert r["therapeutic_window_class"] == "no_therapeutic_window"
+
+
+def test_therapeutic_window_class_narrow_between_1_and_5():
+    rows = _rows({"COAD": 30.0}, {"LUNG": 12.0})   # ratio ~ (30+1)/(12+1) = 2.4
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert THERAPEUTIC_WINDOW_MIN_RATIO <= r["window_ratio_essential"] < THERAPEUTIC_WINDOW_CLEAN_RATIO
+    assert r["therapeutic_window_class"] == "narrow_window"
+
+
+def test_therapeutic_window_class_not_expressed_guard():
+    rows = _rows({"COAD": 0.3}, {"LUNG": 0.1})   # tumor below expression floor
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["therapeutic_window_class"] == "not_expressed_in_cohort"
