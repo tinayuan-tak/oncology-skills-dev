@@ -27,13 +27,23 @@ Output schema (per row):
     alphafold_plddt_min_domain             float  — per-domain minimum (lowest across domains)
     n_domains_low_plddt                    int    — domains with pLDDT_mean < 70
     mutation_hotspot_in_druggable_pocket   bool
-    hotspot_pocket_adjacency_call          str    — 'adjacent' | 'distant' | 'no_structure'
+    hotspot_pocket_adjacency_call          str    — 'adjacent' | 'distant' | 'no_structure' | 'no_hotspots_annotated'
     disordered_fraction                    float  — fraction of residues with pLDDT < 50
     method_version                         str
 
 Reviewer note: hotspot_pocket_adjacency_call = 'no_structure' when neither PDB
 nor AlphaFold has usable coverage — clearer than a nullable boolean. Rules
 consume the categorical directly.
+
+B0 (2026-08-07): the row-building COMPUTE now lives in compute.py (pure kernels:
+HGVSp→residue, pLDDT aggregation, per-domain min, PDB coverage, and the v1 pLDDT
+pocket-adjacency heuristic — all unit-tested against fixtures, no live I/O). The
+compute emits the 4th enum value `no_hotspots_annotated` (structure present, no
+annotated hotspot) that this scaffold could not. What remains GATED is the SOURCE
+I/O: this CLI writes a 0-row scaffold until the greenfield PDB + AlphaFold source
+snapshots land on S3 (the pull is a separate, infra-gated step — see the B0 plan
+~/.claude/plans/b0-structure-features-materialization.md). Once the sources exist,
+the source-loading layer feeds compute.build_row per UniProt-AC to emit real rows.
 
 Usage:
     python -m methods.structure_features_static.cli \\
