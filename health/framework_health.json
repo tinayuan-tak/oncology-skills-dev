@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-06T02:16:50.219527+00:00",
+  "generated_at": "2026-08-07T15:27:42.073433+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,15 +9,15 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "ed0978e",
-    "skills": "34cd4d6",
-    "methods": "d239864",
+    "contracts": "2424e78",
+    "skills": "59e7bdf",
+    "methods": "35b43bc",
     "products": "d5f54a2",
-    "catalog": "8e6261d"
+    "catalog": "74cc81c"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-08-06T02:15:11.801543+00:00",
+    "prior_generated_at": "2026-08-07T15:26:24.055540+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -30,39 +30,49 @@
     "cards_removed": []
   },
   "summary": {
-    "n_skills": 20,
+    "n_skills": 22,
     "verdict_tally": {
-      "partial": 10,
+      "partial": 12,
       "placeholder": 2,
       "production_ready": 8
     },
-    "n_drift_flags": 42,
+    "n_drift_flags": 46,
     "n_error_drift": 0,
-    "n_unregistered_skills": 16,
-    "n_live_reader_cards": 58,
+    "n_unregistered_skills": 18,
+    "n_live_reader_cards": 66,
     "n_cards_firing_in_real_packages": 26,
-    "n_cards": 70,
+    "n_cards": 79,
     "card_health_tally": {
-      "partial": 34,
-      "broken": 8,
+      "partial": 42,
+      "broken": 10,
       "live": 24,
-      "blocked": 4
+      "blocked": 3
     },
     "modality_routing_tally": {
-      "not_required": 40,
-      "declared": 25,
-      "not_applicable": 5
+      "not_required": 41,
+      "declared": 32,
+      "not_applicable": 6
     },
-    "n_p4_required_cards": 25,
-    "n_p4_declared_cards": 25,
+    "n_p4_required_cards": 32,
+    "n_p4_declared_cards": 32,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
-    "n_orphan_cards": 6,
-    "n_cards_consumed_but_no_spec": 36,
-    "n_datasets": 237,
-    "n_datasets_in_catalog": 228,
-    "n_orphan_datasets": 186,
-    "n_broken_dataset_refs": 9
+    "n_orphan_cards": 5,
+    "n_cards_consumed_but_no_spec": 39,
+    "n_datasets": 258,
+    "n_datasets_in_catalog": 249,
+    "n_orphan_datasets": 201,
+    "n_broken_dataset_refs": 9,
+    "n_datasets_high_access_cost": 2,
+    "n_datasets_missing_sort_key": 7,
+    "access_cost_tally": {
+      "moderate_unused": 9,
+      "unknown": 115,
+      "low": 122,
+      "moderate": 5,
+      "high_unused": 5,
+      "high": 2
+    }
   },
   "registry_drift": {
     "marketplace_exists": true,
@@ -79,12 +89,14 @@
       "workflow-target-evaluation-onc"
     ],
     "on_disk": [
+      "bispecific-pair-scan",
       "catalog-query",
       "combo-and-resistance",
       "compose-dashboard",
       "differentiation-landscape",
       "functional-requirement",
       "genomic-alteration-profile",
+      "immune-context",
       "mechanism-and-pharmacology",
       "on-target-safety-liability",
       "query-target-evidence",
@@ -101,11 +113,13 @@
       "workflow-target-evaluation-onc"
     ],
     "unregistered": [
+      "bispecific-pair-scan",
       "catalog-query",
       "combo-and-resistance",
       "differentiation-landscape",
       "functional-requirement",
       "genomic-alteration-profile",
+      "immune-context",
       "mechanism-and-pharmacology",
       "on-target-safety-liability",
       "surface-modality-fit",
@@ -120,6 +134,71 @@
     ]
   },
   "skills": [
+    {
+      "name": "bispecific-pair-scan",
+      "declared": {
+        "status": "partial",
+        "phase": [
+          "F"
+        ],
+        "cards_used": [
+          "bispecific-pair-scan"
+        ],
+        "rules_scope": [
+          "bispecific-pair-scan"
+        ],
+        "prose_markers": [
+          "partial"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "OTHER",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "bispecific-pair-scan",
+          "card_yaml_exists": false,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": null,
+          "has_live_reader": false,
+          "method_call": null,
+          "dispatch_module": null,
+          "method_dir_exists": null,
+          "method_has_read": null,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [],
+          "modality_relevance": null,
+          "modality_routing": "not_applicable",
+          "card_health": "broken",
+          "health_reason": "card-missing-yaml",
+          "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+        }
+      ],
+      "n_core_cards": 1,
+      "n_cards": 1,
+      "n_cards_live": 0,
+      "n_p4_required": 0,
+      "n_p4_declared": 0,
+      "drift_flags": [],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
+    },
     {
       "name": "catalog-query",
       "declared": {
@@ -424,7 +503,8 @@
           "dependency-predictability",
           "expression-dependency-correlation",
           "recommended-models",
-          "abundance-dependency"
+          "abundance-dependency",
+          "subgroup-stratified-dependency"
         ],
         "rules_scope": [
           "pan-cancer-crispr-dependency-distribution",
@@ -459,7 +539,8 @@
           "dependency-predictability",
           "expression-dependency-correlation",
           "abundance-dependency",
-          "recommended-models"
+          "recommended-models",
+          "subgroup-stratified-dependency"
         ],
         "test_count": 5
       },
@@ -766,18 +847,59 @@
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "subgroup-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "crispr_lof_dependency",
+          "has_live_reader": false,
+          "method_call": "depmap-chronos",
+          "dispatch_module": null,
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "depmap-consortium-26q1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1"
+            },
+            {
+              "product_id": "subgroup-catalog",
+              "in_catalog": false,
+              "matched_by": null,
+              "resolved_id": null
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "blocked",
+          "health_reason": "card-no-reader-no-fire",
+          "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
         }
       ],
       "n_core_cards": 7,
-      "n_cards": 10,
+      "n_cards": 11,
       "n_cards_live": 7,
-      "n_p4_required": 5,
-      "n_p4_declared": 5,
+      "n_p4_required": 6,
+      "n_p4_declared": 6,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
           "severity": "info",
           "detail": "consumed card(s) have a live reader but never fired in a real package: abundance-dependency, paralog-buffering, recommended-models"
+        },
+        {
+          "code": "dataset_ref_not_in_catalog",
+          "severity": "warn",
+          "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
         },
         {
           "code": "card_consumed_but_no_spec",
@@ -809,6 +931,7 @@
           "alteration-role",
           "functional-gene-state",
           "genomic-event-model-match",
+          "genomic-instability-state",
           "subgroup-stratified-mutation-frequency"
         ],
         "rules_scope": [
@@ -835,10 +958,15 @@
           "mutation-stratified-dependency",
           "mutation-hotspot-frequency",
           "copy-number-distribution",
+          "copy-number-stratified-dependency",
+          "fusion-stratified-dependency",
+          "amp-expr-stratified-dependency",
           "fusion-rearrangement-landscape",
           "alteration-role",
           "functional-gene-state",
           "genomic-event-model-match",
+          "genomic-instability-state",
+          "variant-level-interpretation",
           "subgroup-stratified-mutation-frequency"
         ],
         "test_count": 1
@@ -884,6 +1012,36 @@
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         },
         {
+          "card_id": "amp-expr-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "amp_expr_stratified_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-amp-expr-stratified",
+          "dispatch_module": "depmap_amp_expr_dependency",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "depmap-consortium-26q1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
           "card_id": "copy-number-distribution",
           "card_yaml_exists": true,
           "is_placeholder": false,
@@ -902,6 +1060,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-consortium-26q1"
+            },
+            {
+              "product_id": "tcga-patient-cn-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-patient-cn-per-gene-v1"
             }
           ],
           "modality_relevance": [
@@ -915,6 +1079,36 @@
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "copy-number-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "cn_stratified_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-cn-stratified",
+          "dispatch_module": "depmap_cn_dependency",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "depmap-consortium-26q1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         },
         {
           "card_id": "functional-gene-state",
@@ -986,10 +1180,46 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "tcga-fusion-consensus-v1"
+            },
+            {
+              "product_id": "genie-sv-recurrence-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "genie-sv-recurrence-v1"
             }
           ],
           "modality_relevance": null,
           "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "fusion-stratified-dependency",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "fusion_stratified_dependency",
+          "has_live_reader": true,
+          "method_call": "depmap-fusion-stratified",
+          "dispatch_module": "depmap_fusion_dependency",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "depmap-consortium-26q1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1"
+            }
+          ],
+          "modality_relevance": [
+            "small_molecule",
+            "degrader"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -1025,6 +1255,39 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-consortium-26q1"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "genomic-instability-state",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "genomic_instability_state",
+          "has_live_reader": true,
+          "method_call": "tcga-aneuploidy-burden",
+          "dispatch_module": "tcga_aneuploidy_burden",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "gdc-pancanatlas-cnv-2018",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gdc-pancanatlas-cnv-2018"
+            },
+            {
+              "product_id": "gdc-pancanatlas-clinical-2018",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gdc-pancanatlas-clinical-2018"
             }
           ],
           "modality_relevance": null,
@@ -1152,23 +1415,55 @@
           "card_health": "blocked",
           "health_reason": "card-no-reader-no-fire",
           "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)"
+        },
+        {
+          "card_id": "variant-level-interpretation",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "variant_level_interpretation",
+          "has_live_reader": true,
+          "method_call": "civic-variant-interpretation",
+          "dispatch_module": "civic_variant_interpretation",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "civic-variant-interpretation-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "civic-variant-interpretation-per-gene-v1"
+            }
+          ],
+          "modality_relevance": null,
+          "modality_routing": "not_required",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         }
       ],
       "n_core_cards": 3,
-      "n_cards": 9,
+      "n_cards": 14,
       "n_cards_live": 4,
-      "n_p4_required": 4,
-      "n_p4_declared": 4,
+      "n_p4_required": 7,
+      "n_p4_declared": 7,
       "drift_flags": [
+        {
+          "code": "declared_cards_mismatch_runpy",
+          "severity": "warn",
+          "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['amp-expr-stratified-dependency', 'copy-number-stratified-dependency', 'fusion-stratified-dependency', 'variant-level-interpretation'])"
+        },
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, variant-level-interpretation"
         },
         {
           "code": "stale_method_label",
           "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: mutation-stratified-dependency"
+          "detail": "card methods.call label differs from the dispatcher's actual import: amp-expr-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, mutation-stratified-dependency"
         },
         {
           "code": "dataset_ref_not_in_catalog",
@@ -1178,7 +1473,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, variant-level-interpretation"
         }
       ],
       "health_verdict": "production_ready",
@@ -1187,6 +1482,93 @@
       "gate_short": "genomic_alteration",
       "risk_category": "biological",
       "framework_can_evidence": "captured"
+    },
+    {
+      "name": "immune-context",
+      "declared": {
+        "status": "partial",
+        "phase": [
+          "F"
+        ],
+        "cards_used": [
+          "immune-context"
+        ],
+        "rules_scope": [
+          "surface_intrinsic"
+        ],
+        "prose_markers": [
+          "partial"
+        ],
+        "skill_md_exists": true,
+        "skill_md_parse_error": null
+      },
+      "derived": {
+        "has_entrypoint": true,
+        "entrypoint": "run.py",
+        "kind": "FOCUSED",
+        "resolver_gate": null,
+        "resolver_bound": false,
+        "fans_out": false,
+        "is_placeholder": false,
+        "cards_in_runpy": [
+          "immune-context"
+        ],
+        "test_count": 1
+      },
+      "cards": [
+        {
+          "card_id": "immune-context",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "immune_context",
+          "has_live_reader": true,
+          "method_call": "immune-context",
+          "dispatch_module": "immune_context",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "gdc-pancanatlas-immune-2018",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gdc-pancanatlas-immune-2018"
+            }
+          ],
+          "modality_relevance": [
+            "bite_tce"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        }
+      ],
+      "n_core_cards": 0,
+      "n_cards": 1,
+      "n_cards_live": 0,
+      "n_p4_required": 1,
+      "n_p4_declared": 1,
+      "drift_flags": [
+        {
+          "code": "card_registered_never_fires",
+          "severity": "info",
+          "detail": "consumed card(s) have a live reader but never fired in a real package: immune-context"
+        },
+        {
+          "code": "card_consumed_but_no_spec",
+          "severity": "info",
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: immune-context"
+        }
+      ],
+      "health_verdict": "partial",
+      "health_reason": "skill-partial-core-gap",
+      "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
+      "gate_short": null,
+      "risk_category": null,
+      "framework_can_evidence": null
     },
     {
       "name": "mechanism-and-pharmacology",
@@ -1336,7 +1718,6 @@
           "activating-driver-role-safety-context"
         ],
         "prose_markers": [
-          "graduated",
           "not_wired",
           "partial",
           "placeholder"
@@ -1500,10 +1881,10 @@
           "fires_in_real_package": false,
           "datasets": [
             {
-              "product_id": "gnomad-constraint-snapshot-2026-07-02",
+              "product_id": "gnomad-constraint-per-gene-v1",
               "in_catalog": true,
               "matched_by": "exact",
-              "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
+              "resolved_id": "gnomad-constraint-per-gene-v1"
             }
           ],
           "modality_relevance": [
@@ -1719,7 +2100,12 @@
           "adc-tce-modality-fit",
           "normal-tissue-liability",
           "copy-number-distribution",
-          "rna-protein-concordance-tumor"
+          "rna-protein-concordance-tumor",
+          "protein-surface-evidence",
+          "shed-ectodomain-liability",
+          "tumor-scrna-celltype-expression",
+          "modality-therapeutic-window",
+          "pmhc-presentation"
         ],
         "rules_scope": [
           "all"
@@ -1746,7 +2132,12 @@
           "adc-tce-modality-fit",
           "normal-tissue-liability",
           "copy-number-distribution",
-          "rna-protein-concordance-tumor"
+          "rna-protein-concordance-tumor",
+          "protein-surface-evidence",
+          "shed-ectodomain-liability",
+          "tumor-scrna-celltype-expression",
+          "modality-therapeutic-window",
+          "pmhc-presentation"
         ],
         "test_count": 3
       },
@@ -1790,6 +2181,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-consortium-26q1"
+            },
+            {
+              "product_id": "tcga-patient-cn-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-patient-cn-per-gene-v1"
             }
           ],
           "modality_relevance": [
@@ -1803,6 +2200,37 @@
           "card_health": "live",
           "health_reason": "card-live-fired",
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
+        },
+        {
+          "card_id": "modality-therapeutic-window",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "modality_window",
+          "has_live_reader": true,
+          "method_call": "modality-therapeutic-window",
+          "dispatch_module": "tcga_gtex_tpm_quantiles",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "tcga-gtex-tpm-tissue-quantiles-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-gtex-tpm-tissue-quantiles-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         },
         {
           "card_id": "normal-tissue-liability",
@@ -1836,6 +2264,66 @@
           "reason_text": "fires passed/passed_with_warnings in at least one real evidence package"
         },
         {
+          "card_id": "pmhc-presentation",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "pmhc_presentation",
+          "has_live_reader": true,
+          "method_call": "pmhc-presentation",
+          "dispatch_module": "pmhc_presentation",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "hla-ligand-atlas-presentation-per-protein-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "hla-ligand-atlas-presentation-per-protein-v1"
+            }
+          ],
+          "modality_relevance": [
+            "bite_tce"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "protein-surface-evidence",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "surface_confirmation",
+          "has_live_reader": true,
+          "method_call": "cspa-surface-confirmation",
+          "dispatch_module": "cspa_surface_confirmation",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "cspa-surface-confirmation-per-uniprot-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cspa-surface-confirmation-per-uniprot-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
           "card_id": "rna-protein-concordance-tumor",
           "card_yaml_exists": true,
           "is_placeholder": false,
@@ -1854,6 +2342,37 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "cptac-rna-protein-matched-per-sample-v1"
+            }
+          ],
+          "modality_relevance": [
+            "adc",
+            "bite_tce",
+            "antibody"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "shed-ectodomain-liability",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "shed_ectodomain_liability",
+          "has_live_reader": true,
+          "method_call": "shed-ectodomain-lookup",
+          "dispatch_module": "shed_ectodomain_liability",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": true,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "hpa-v25-1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "hpa-v25-1"
             }
           ],
           "modality_relevance": [
@@ -1987,23 +2506,59 @@
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
+        },
+        {
+          "card_id": "tumor-scrna-celltype-expression",
+          "card_yaml_exists": true,
+          "is_placeholder": false,
+          "placeholder_reason": null,
+          "measurement_type": "sc_tumor_celltype_expression",
+          "has_live_reader": true,
+          "method_call": "sc-tumor-expression-celltype",
+          "dispatch_module": "sc_tumor_expression_celltype.cli",
+          "method_dir_exists": true,
+          "method_has_read": true,
+          "stale_method_label": false,
+          "fires_in_real_package": false,
+          "datasets": [
+            {
+              "product_id": "sc-pseudobulk-donor-celltype-coadread-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sc-pseudobulk-donor-celltype-coadread-v1"
+            },
+            {
+              "product_id": "sc-pseudobulk-donor-celltype-nsclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sc-pseudobulk-donor-celltype-nsclc-v1"
+            }
+          ],
+          "modality_relevance": [
+            "bite_tce",
+            "adc"
+          ],
+          "modality_routing": "declared",
+          "card_health": "partial",
+          "health_reason": "card-reader-never-fires",
+          "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
         }
       ],
       "n_core_cards": 0,
-      "n_cards": 8,
+      "n_cards": 13,
       "n_cards_live": 2,
-      "n_p4_required": 7,
-      "n_p4_declared": 7,
+      "n_p4_required": 12,
+      "n_p4_declared": 12,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
           "severity": "info",
-          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+          "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, modality-therapeutic-window, pmhc-presentation, protein-surface-evidence, rna-protein-concordance-tumor, shed-ectodomain-liability, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-scrna-celltype-expression"
         },
         {
           "code": "stale_method_label",
           "severity": "info",
-          "detail": "card methods.call label differs from the dispatcher's actual import: surface-abundance-density"
+          "detail": "card methods.call label differs from the dispatcher's actual import: modality-therapeutic-window, shed-ectodomain-liability, surface-abundance-density"
         },
         {
           "code": "dataset_ref_not_in_catalog",
@@ -2013,7 +2568,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: pmhc-presentation, structure-features-static, surface-abundance-density"
         }
       ],
       "health_verdict": "partial",
@@ -2389,10 +2944,10 @@
           "fires_in_real_package": false,
           "datasets": [
             {
-              "product_id": "gnomad-constraint-snapshot-2026-07-02",
+              "product_id": "gnomad-constraint-per-gene-v1",
               "in_catalog": true,
               "matched_by": "exact",
-              "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
+              "resolved_id": "gnomad-constraint-per-gene-v1"
             }
           ],
           "modality_relevance": [
@@ -2789,7 +3344,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
         }
       ],
       "health_verdict": "production_ready",
@@ -2971,6 +3526,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-consortium-26q1"
+            },
+            {
+              "product_id": "tcga-patient-cn-per-gene-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-patient-cn-per-gene-v1"
             }
           ],
           "modality_relevance": [
@@ -3094,6 +3655,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "tcga-fusion-consensus-v1"
+            },
+            {
+              "product_id": "genie-sv-recurrence-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "genie-sv-recurrence-v1"
             }
           ],
           "modality_relevance": null,
@@ -3117,10 +3684,10 @@
           "fires_in_real_package": false,
           "datasets": [
             {
-              "product_id": "gnomad-constraint-snapshot-2026-07-02",
+              "product_id": "gnomad-constraint-per-gene-v1",
               "in_catalog": true,
               "matched_by": "exact",
-              "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
+              "resolved_id": "gnomad-constraint-per-gene-v1"
             }
           ],
           "modality_relevance": [
@@ -3704,7 +4271,7 @@
         {
           "code": "card_consumed_but_no_spec",
           "severity": "info",
-          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+          "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density"
         }
       ],
       "health_verdict": "partial",
@@ -3740,8 +4307,8 @@
         "has_entrypoint": true,
         "entrypoint": "run.py",
         "kind": "FOCUSED",
-        "resolver_gate": null,
-        "resolver_bound": false,
+        "resolver_gate": "tractability_small_molecule",
+        "resolver_bound": true,
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [
@@ -3750,7 +4317,7 @@
           "dependency-predictability",
           "structure-features-static"
         ],
-        "test_count": 2
+        "test_count": 3
       },
       "cards": [
         {
@@ -4420,8 +4987,11 @@
               "resolved_id": "sc-pseudobulk-donor-celltype-nsclc-v1"
             }
           ],
-          "modality_relevance": null,
-          "modality_routing": "not_required",
+          "modality_relevance": [
+            "bite_tce",
+            "adc"
+          ],
+          "modality_routing": "declared",
           "card_health": "partial",
           "health_reason": "card-reader-never-fires",
           "reason_text": "has a live reader but has not fired passed/warned in any real package yet"
@@ -4430,8 +5000,8 @@
       "n_core_cards": 6,
       "n_cards": 11,
       "n_cards_live": 9,
-      "n_p4_required": 5,
-      "n_p4_declared": 5,
+      "n_p4_required": 6,
+      "n_p4_declared": 6,
       "drift_flags": [
         {
           "code": "card_registered_never_fires",
@@ -4688,9 +5258,11 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "alteration-role",
@@ -4741,6 +5313,44 @@
       "consumed_but_no_spec": true
     },
     {
+      "card_id": "amp-expr-stratified-dependency",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "amp_expr_stratified_dependency",
+      "has_live_reader": true,
+      "method_call": "depmap-amp-expr-stratified",
+      "dispatch_module": "depmap_amp_expr_dependency",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": true,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "depmap-consortium-26q1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-consortium-26q1"
+        }
+      ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "genomic-alteration-profile"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "antigen-prevalence",
       "card_yaml_exists": true,
       "is_placeholder": false,
@@ -4774,6 +5384,34 @@
       ],
       "in_dashboard_spec": true,
       "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "bispecific-pair-scan",
+      "card_yaml_exists": false,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": null,
+      "has_live_reader": false,
+      "method_call": null,
+      "dispatch_module": null,
+      "method_dir_exists": null,
+      "method_has_read": null,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [],
+      "modality_relevance": null,
+      "modality_routing": "not_applicable",
+      "card_health": "broken",
+      "health_reason": "card-missing-yaml",
+      "reason_text": "card_id consumed by a skill but no cards/<id>.card.yaml exists",
+      "consumers": [
+        "bispecific-pair-scan"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "cellline-protein-abundance",
@@ -5090,6 +5728,12 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "depmap-consortium-26q1"
+        },
+        {
+          "product_id": "tcga-patient-cn-per-gene-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-patient-cn-per-gene-v1"
         }
       ],
       "modality_relevance": [
@@ -5115,6 +5759,44 @@
       ],
       "in_dashboard_spec": true,
       "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "copy-number-stratified-dependency",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "cn_stratified_dependency",
+      "has_live_reader": true,
+      "method_call": "depmap-cn-stratified",
+      "dispatch_module": "depmap_cn_dependency",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": true,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "depmap-consortium-26q1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-consortium-26q1"
+        }
+      ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "genomic-alteration-profile"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
     },
     {
       "card_id": "crispr-rnai-dependency-concordance",
@@ -5446,6 +6128,12 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "tcga-fusion-consensus-v1"
+        },
+        {
+          "product_id": "genie-sv-recurrence-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "genie-sv-recurrence-v1"
         }
       ],
       "modality_relevance": null,
@@ -5458,6 +6146,44 @@
         "target-profile"
       ],
       "n_consumers": 2,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
+      "card_id": "fusion-stratified-dependency",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "fusion_stratified_dependency",
+      "has_live_reader": true,
+      "method_call": "depmap-fusion-stratified",
+      "dispatch_module": "depmap_fusion_dependency",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": true,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "depmap-consortium-26q1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-consortium-26q1"
+        }
+      ],
+      "modality_relevance": [
+        "small_molecule",
+        "degrader"
+      ],
+      "modality_routing": "declared",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "genomic-alteration-profile"
+      ],
+      "n_consumers": 1,
       "is_orphan": false,
       "dashboard_specs": [],
       "in_dashboard_spec": false,
@@ -5582,6 +6308,47 @@
       "consumed_but_no_spec": true
     },
     {
+      "card_id": "genomic-instability-state",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "genomic_instability_state",
+      "has_live_reader": true,
+      "method_call": "tcga-aneuploidy-burden",
+      "dispatch_module": "tcga_aneuploidy_burden",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "gdc-pancanatlas-cnv-2018",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "gdc-pancanatlas-cnv-2018"
+        },
+        {
+          "product_id": "gdc-pancanatlas-clinical-2018",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "gdc-pancanatlas-clinical-2018"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "genomic-alteration-profile"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "gnomad-lof-constraint",
       "card_yaml_exists": true,
       "is_placeholder": false,
@@ -5596,10 +6363,10 @@
       "fires_in_real_package": false,
       "datasets": [
         {
-          "product_id": "gnomad-constraint-snapshot-2026-07-02",
+          "product_id": "gnomad-constraint-per-gene-v1",
           "in_catalog": true,
           "matched_by": "exact",
-          "resolved_id": "gnomad-constraint-snapshot-2026-07-02"
+          "resolved_id": "gnomad-constraint-per-gene-v1"
         }
       ],
       "modality_relevance": [
@@ -5650,6 +6417,43 @@
       "consumed_but_no_spec": true
     },
     {
+      "card_id": "immune-context",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "immune_context",
+      "has_live_reader": true,
+      "method_call": "immune-context",
+      "dispatch_module": "immune_context",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "gdc-pancanatlas-immune-2018",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "gdc-pancanatlas-immune-2018"
+        }
+      ],
+      "modality_relevance": [
+        "bite_tce"
+      ],
+      "modality_routing": "declared",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "immune-context"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "lineage-restriction-evidence",
       "card_yaml_exists": true,
       "is_placeholder": false,
@@ -5678,6 +6482,47 @@
       "consumers": [],
       "n_consumers": 0,
       "is_orphan": true,
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "modality-therapeutic-window",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "modality_window",
+      "has_live_reader": true,
+      "method_call": "modality-therapeutic-window",
+      "dispatch_module": "tcga_gtex_tpm_quantiles",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": true,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "tcga-gtex-tpm-tissue-quantiles-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-gtex-tpm-tissue-quantiles-v1"
+        }
+      ],
+      "modality_relevance": [
+        "adc",
+        "bite_tce",
+        "antibody"
+      ],
+      "modality_routing": "declared",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "surface-modality-fit"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [
         "surface-intrinsic-base"
       ],
@@ -6136,6 +6981,43 @@
       "consumed_but_no_spec": false
     },
     {
+      "card_id": "pmhc-presentation",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "pmhc_presentation",
+      "has_live_reader": true,
+      "method_call": "pmhc-presentation",
+      "dispatch_module": "pmhc_presentation",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "hla-ligand-atlas-presentation-per-protein-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "hla-ligand-atlas-presentation-per-protein-v1"
+        }
+      ],
+      "modality_relevance": [
+        "bite_tce"
+      ],
+      "modality_routing": "declared",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "surface-modality-fit"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
+    },
+    {
       "card_id": "ppi-interactome",
       "card_yaml_exists": true,
       "is_placeholder": false,
@@ -6335,9 +7217,11 @@
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
-      "consumers": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumers": [
+        "surface-modality-fit"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "dashboard_specs": [
         "surface-intrinsic-base"
       ],
@@ -6483,9 +7367,11 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "rwd-stratified-expression",
@@ -6496,7 +7382,7 @@
       "has_live_reader": false,
       "method_call": "tempus-rwd-aggregator",
       "dispatch_module": null,
-      "method_dir_exists": true,
+      "method_dir_exists": false,
       "method_has_read": false,
       "stale_method_label": false,
       "fires_in_real_package": false,
@@ -6510,9 +7396,9 @@
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "blocked",
-      "health_reason": "card-no-reader-no-fire",
-      "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
+      "card_health": "broken",
+      "health_reason": "card-no-path",
+      "reason_text": "no live reader, no backing method module, never fired \u2014 no path to data",
       "consumers": [],
       "n_consumers": 0,
       "is_orphan": true,
@@ -6555,13 +7441,16 @@
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
+        "surface-modality-fit",
         "target-intrinsic"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "signaling-network-mechanism",
@@ -6677,9 +7566,10 @@
       "health_reason": "card-no-reader-no-fire",
       "reason_text": "no live-reader dispatcher and never fired \u2014 card cannot pull data (honest coverage gap)",
       "consumers": [
+        "functional-requirement",
         "target-profile"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base",
@@ -6851,9 +7741,11 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "surfaceome-cohort-ranking",
@@ -6927,9 +7819,11 @@
       ],
       "n_consumers": 3,
       "is_orphan": false,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
-      "consumed_but_no_spec": true
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
+      "consumed_but_no_spec": false
     },
     {
       "card_id": "synthetic-lethal-partners",
@@ -7286,15 +8180,19 @@
           "resolved_id": "sc-pseudobulk-donor-celltype-nsclc-v1"
         }
       ],
-      "modality_relevance": null,
-      "modality_routing": "not_required",
+      "modality_relevance": [
+        "bite_tce",
+        "adc"
+      ],
+      "modality_routing": "declared",
       "card_health": "partial",
       "health_reason": "card-reader-never-fires",
       "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
       "consumers": [
+        "surface-modality-fit",
         "tumor-presence"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
       "dashboard_specs": [
         "intracellular-intrinsic-base"
@@ -7387,6 +8285,41 @@
       ],
       "in_dashboard_spec": true,
       "consumed_but_no_spec": false
+    },
+    {
+      "card_id": "variant-level-interpretation",
+      "card_yaml_exists": true,
+      "is_placeholder": false,
+      "placeholder_reason": null,
+      "measurement_type": "variant_level_interpretation",
+      "has_live_reader": true,
+      "method_call": "civic-variant-interpretation",
+      "dispatch_module": "civic_variant_interpretation",
+      "method_dir_exists": true,
+      "method_has_read": true,
+      "stale_method_label": false,
+      "fires_in_real_package": false,
+      "datasets": [
+        {
+          "product_id": "civic-variant-interpretation-per-gene-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "civic-variant-interpretation-per-gene-v1"
+        }
+      ],
+      "modality_relevance": null,
+      "modality_routing": "not_required",
+      "card_health": "partial",
+      "health_reason": "card-reader-never-fires",
+      "reason_text": "has a live reader but has not fired passed/warned in any real package yet",
+      "consumers": [
+        "genomic-alteration-profile"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "dashboard_specs": [],
+      "in_dashboard_spec": false,
+      "consumed_but_no_spec": true
     }
   ],
   "datasets": [
@@ -7403,7 +8336,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "acc-dge-tumor-vs-normal-sensitivity-v1",
@@ -7418,7 +8354,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "allgene-depmap-rank-26q1-v1",
@@ -7433,7 +8372,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "allgene-tumor-rank-v1",
@@ -7448,7 +8390,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "biogrid-physical-interactions-per-gene-v1",
@@ -7465,7 +8410,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "biogrid-release-5-0-259",
@@ -7480,7 +8428,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "blca-dge-tumor-vs-normal-sensitivity-v1",
@@ -7495,7 +8446,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "brca-dge-tumor-vs-normal-sensitivity-v1",
@@ -7510,7 +8464,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "cancermine-r16849846-snapshot-2026-06-22",
@@ -7525,7 +8482,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-bpc-bladder-public-genie-bpc",
@@ -7540,7 +8500,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-bpc-brca-public-genie-bpc",
@@ -7555,7 +8518,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-bpc-crc-public-genie-bpc",
@@ -7570,7 +8536,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-bpc-nsclc-public-genie-bpc",
@@ -7585,7 +8554,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-bpc-panc-public-genie-bpc",
@@ -7600,7 +8572,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-bpc-prostate-public-genie-bpc",
@@ -7615,7 +8590,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-brca-akt1-genie-2019",
@@ -7630,7 +8608,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-erbb2-genie-public",
@@ -7645,7 +8626,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-genie-public",
@@ -7660,7 +8644,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-glioma-dfci-2020",
@@ -7675,7 +8662,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-genie-mbc-genie-2020",
@@ -7690,7 +8680,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-sclc-ucologne-2015",
@@ -7705,7 +8698,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-acc-tcga-pan-can-atlas-2018",
@@ -7720,7 +8716,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-blca-tcga-pan-can-atlas-2018",
@@ -7735,7 +8734,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-brca-tcga-pan-can-atlas-2018",
@@ -7750,7 +8752,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-cesc-tcga-pan-can-atlas-2018",
@@ -7765,7 +8770,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-chol-tcga-pan-can-atlas-2018",
@@ -7780,7 +8788,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-coadread-tcga-pan-can-atlas-2018",
@@ -7795,7 +8806,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-dlbc-tcga-pan-can-atlas-2018",
@@ -7810,7 +8824,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-esca-tcga-pan-can-atlas-2018",
@@ -7825,7 +8842,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-gbm-tcga-pan-can-atlas-2018",
@@ -7840,7 +8860,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-hnsc-tcga-pan-can-atlas-2018",
@@ -7855,7 +8878,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-kich-tcga-pan-can-atlas-2018",
@@ -7870,7 +8896,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-kirc-tcga-pan-can-atlas-2018",
@@ -7885,7 +8914,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-kirp-tcga-pan-can-atlas-2018",
@@ -7900,7 +8932,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-laml-tcga-pan-can-atlas-2018",
@@ -7915,7 +8950,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-lgg-tcga-pan-can-atlas-2018",
@@ -7930,7 +8968,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-lihc-tcga-pan-can-atlas-2018",
@@ -7945,7 +8986,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-luad-tcga-pan-can-atlas-2018",
@@ -7960,7 +9004,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-lusc-tcga-pan-can-atlas-2018",
@@ -7975,7 +9022,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-meso-tcga-pan-can-atlas-2018",
@@ -7990,7 +9040,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-ov-tcga-pan-can-atlas-2018",
@@ -8005,7 +9058,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-paad-tcga-pan-can-atlas-2018",
@@ -8020,7 +9076,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-pcpg-tcga-pan-can-atlas-2018",
@@ -8035,7 +9094,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-prad-tcga-pan-can-atlas-2018",
@@ -8050,7 +9112,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-sarc-tcga-pan-can-atlas-2018",
@@ -8065,7 +9130,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-skcm-tcga-pan-can-atlas-2018",
@@ -8080,7 +9148,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-stad-tcga-pan-can-atlas-2018",
@@ -8095,7 +9166,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-tgct-tcga-pan-can-atlas-2018",
@@ -8110,7 +9184,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-thca-tcga-pan-can-atlas-2018",
@@ -8125,7 +9202,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-thym-tcga-pan-can-atlas-2018",
@@ -8140,7 +9220,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-ucec-tcga-pan-can-atlas-2018",
@@ -8155,7 +9238,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-ucs-tcga-pan-can-atlas-2018",
@@ -8170,7 +9256,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cbioportal-tcga-pancan-uvm-tcga-pan-can-atlas-2018",
@@ -8185,7 +9274,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cellxgene-census-pointer-snapshot-2026-07-09",
@@ -8200,7 +9292,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cellxgene-discover-collections-index-2026-07-09",
@@ -8215,7 +9310,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cesc-dge-tumor-vs-normal-sensitivity-v1",
@@ -8230,7 +9328,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "civic-nightly-snapshot-2026-07-02",
@@ -8245,7 +9346,30 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "civic-variant-interpretation-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "variant-level-interpretation"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "coad-dge-tumor-vs-normal-sensitivity-v1",
@@ -8260,7 +9384,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "coadread-dge-df06320",
@@ -8275,7 +9402,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "coadread-dge-tumor-vs-gtex-v1",
@@ -8290,7 +9420,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
@@ -8307,7 +9440,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "collectri-snapshot-2026-06-30",
@@ -8322,7 +9458,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "corum-5-3",
@@ -8339,7 +9478,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cptac-pdc-snapshot-2026-07-01",
@@ -8356,7 +9498,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate",
+      "missing_sort_key": true
     },
     {
       "product_id": "cptac-phospho-per-site-per-cohort-v1",
@@ -8371,7 +9516,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
@@ -8390,7 +9538,10 @@
       ],
       "n_consumers": 3,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "cptac-protein-tumor-vs-normal-per-sample-v1",
@@ -8405,7 +9556,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "cptac-rna-protein-matched-per-sample-v1",
@@ -8422,7 +9576,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "cspa-bausch-fluck-2015",
@@ -8437,7 +9594,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "cspa-surface-confirmation-per-uniprot-v1",
@@ -8454,7 +9614,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "datlinger-2017-cropseq-gse92872",
@@ -8469,7 +9632,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-24q4",
@@ -8484,7 +9650,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-25q1v2-paralogs",
@@ -8499,7 +9668,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-25q2",
@@ -8514,7 +9686,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-25q2-paralogs",
@@ -8529,7 +9704,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-25q3",
@@ -8544,7 +9722,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-26q1",
@@ -8558,13 +9739,16 @@
       "n_derived_from": 0,
       "consumed_by_cards": [
         "abundance-dependency",
+        "amp-expr-stratified-dependency",
         "cellline-rna-distribution",
         "cellline-rna-protein-concordance",
         "copy-number-distribution",
+        "copy-number-stratified-dependency",
         "crispr-rnai-dependency-concordance",
         "dependency-lineage-selectivity",
         "expression-dependency-correlation",
         "functional-gene-state",
+        "fusion-stratified-dependency",
         "genomic-event-model-match",
         "mutation-stratified-dependency",
         "mutation-type-counts",
@@ -8572,9 +9756,12 @@
         "recommended-models",
         "subgroup-stratified-dependency"
       ],
-      "n_consumers": 14,
+      "n_consumers": 17,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high",
+      "missing_sort_key": true
     },
     {
       "product_id": "depmap-consortium-26q1-crispr-supplementary",
@@ -8589,7 +9776,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-26q1-paralogs",
@@ -8604,7 +9794,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-26q1-perturbation-screens",
@@ -8619,7 +9812,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-26q1-proteomics",
@@ -8638,7 +9834,10 @@
       ],
       "n_consumers": 3,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-consortium-26q1-rnai",
@@ -8656,7 +9855,10 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate",
+      "missing_sort_key": true
     },
     {
       "product_id": "depmap-consortium-ccle-2019",
@@ -8673,7 +9875,28 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate",
+      "missing_sort_key": true
+    },
+    {
+      "product_id": "depmap-isoform-expression-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 2,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-paralog-buffering-per-gene-v1",
@@ -8690,7 +9913,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-predictability",
@@ -8707,7 +9933,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-predictability-26q1-v2",
@@ -8722,7 +9951,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-prism-activity-v3",
@@ -8739,7 +9971,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-prism-activity-v4",
@@ -8756,7 +9991,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-subgroup-assignments-coadread-v1",
@@ -8771,7 +10009,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-subgroup-assignments-esca-v1",
@@ -8786,7 +10027,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-subgroup-assignments-hnsc-v1",
@@ -8801,7 +10045,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-subgroup-assignments-nsclc-v1",
@@ -8816,7 +10063,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-subgroup-assignments-paad-v1",
@@ -8831,7 +10081,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "depmap-subgroup-assignments-stad-v1",
@@ -8846,7 +10099,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "dream-menden-2019-snapshot-2026-07-23",
@@ -8861,7 +10117,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "ensembl-compara-release-116-snapshot-2026-07-10",
@@ -8876,7 +10135,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "ensembl-coords-release-116-snapshot-2026-06-22",
@@ -8891,7 +10153,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "ensembl-id-mapping-release-116-snapshot-2026-06-18",
@@ -8906,7 +10171,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "esca-dge-tumor-vs-normal-sensitivity-v1",
@@ -8921,7 +10189,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "expression-rna-tumor-vs-adjacent",
@@ -8940,7 +10211,10 @@
       ],
       "n_consumers": 3,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gao-2018-pancan-fusions",
@@ -8955,7 +10229,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "gbm-dge-tumor-vs-normal-sensitivity-v1",
@@ -8970,7 +10247,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gdc-dr45-alchemist-nsclc-hotspot-v1",
@@ -8985,7 +10265,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gdc-pancanatlas-clinical-2018",
@@ -8998,11 +10281,15 @@
       "system_of_record": true,
       "n_derived_from": 0,
       "consumed_by_cards": [
-        "expression-clinical-association"
+        "expression-clinical-association",
+        "genomic-instability-state"
       ],
-      "n_consumers": 1,
+      "n_consumers": 2,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "gdc-pancanatlas-cnv-2018",
@@ -9017,11 +10304,15 @@
       "consumed_by_cards": [
         "expression-purity-confound",
         "functional-gene-state",
-        "genomic-event-model-match"
+        "genomic-event-model-match",
+        "genomic-instability-state"
       ],
-      "n_consumers": 3,
+      "n_consumers": 4,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate",
+      "missing_sort_key": true
     },
     {
       "product_id": "gdc-pancanatlas-immune-2018",
@@ -9033,10 +10324,15 @@
       "file_count": 3,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
-      "is_broken_ref": false
+      "consumed_by_cards": [
+        "immune-context"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "gdc-pancohort-somatic-dr45-0",
@@ -9054,7 +10350,10 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate",
+      "missing_sort_key": true
     },
     {
       "product_id": "gdc-sesame-methylation-tcga-2024",
@@ -9069,7 +10368,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "gencode-v26-exon-index-v1",
@@ -9084,7 +10386,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gencode-v26-gene-lengths-union-of-exons-v1",
@@ -9099,7 +10404,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gencode-v26-primary-assembly",
@@ -9114,7 +10422,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "gencode-v26-tss-windows-v1",
@@ -9129,7 +10440,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gene-ontology-release-2026-05-19",
@@ -9146,7 +10460,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-bladder-v1-0",
@@ -9161,7 +10478,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-brca-v1-0",
@@ -9176,7 +10496,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-crc-v2-0",
@@ -9191,7 +10514,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-crc-v2-treatment",
@@ -9206,7 +10532,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-nsclc-v2-0",
@@ -9221,7 +10550,28 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "genie-bpc-nsclc-v2-treatment",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "aacr-genie-bpc",
+      "version": "v2.0-public",
+      "size_bytes": 3905760,
+      "file_count": 2,
+      "system_of_record": true,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-panc-v1-0",
@@ -9236,7 +10586,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-prostate-v1-0",
@@ -9251,7 +10604,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-bpc-subgroup-assignments-coadread-v1",
@@ -9266,7 +10622,46 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "genie-bpc-subgroup-assignments-nsclc-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "genie-panel-recurrence-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 2,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-public-v19-0",
@@ -9281,7 +10676,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "genie-registry-per-sample-maf-v1",
@@ -9296,7 +10694,86 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "genie-sv-recurrence-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "fusion-rearrangement-landscape"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "genomescreen-hf-2025-04-25",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "thu-atom-tsinghua",
+      "version": "hf-2025-04-25",
+      "size_bytes": 1283,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "genomescreen-hits-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "gnomad-constraint-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "gnomad-lof-constraint"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gnomad-constraint-snapshot-2026-07-02",
@@ -9308,12 +10785,31 @@
       "file_count": 3,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [
-        "gnomad-lof-constraint"
-      ],
-      "n_consumers": 1,
-      "is_orphan": false,
-      "is_broken_ref": false
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "gnomad-constraint-snapshot-2026-08-06",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "gnomad",
+      "version": "constraint-snapshot-2026-08-06",
+      "size_bytes": 592488623,
+      "file_count": 3,
+      "system_of_record": true,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "gtex-tpm-recount3-long-v1",
@@ -9332,7 +10828,10 @@
       ],
       "n_consumers": 3,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gtex-tpm-recount3-per-sample-v1",
@@ -9347,7 +10846,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "gtex-v10-gene-tpm",
@@ -9362,7 +10864,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "guinney-2015-crc-cms-consortium",
@@ -9377,7 +10882,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "hcmi-cmdc-dr45-0",
@@ -9392,7 +10900,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "hgnc-2026-q2",
@@ -9407,7 +10918,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08",
@@ -9422,7 +10936,48 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "hla-ligand-atlas-2020-12",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "hla-ligand-atlas",
+      "version": "2020.12",
+      "size_bytes": 105247565,
+      "file_count": 8,
+      "system_of_record": true,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "hla-ligand-atlas-presentation-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "pmhc-presentation"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1",
@@ -9437,7 +10992,46 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "hotpocket-pockets-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "hotpocket-zenodo-2025-11-19",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "altman-lab-stanford",
+      "version": "zenodo-2025-11-19",
+      "size_bytes": 309455606,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "hpa-normal-tissue-expression",
@@ -9454,7 +11048,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "hpa-v25-1",
@@ -9472,7 +11069,10 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "impc-release-24-0",
@@ -9487,7 +11087,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "interpro-109-0-snapshot-2026-08-05",
@@ -9504,7 +11107,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "intogen-v2024-09-20",
@@ -9521,7 +11127,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "iuphar-gtop-2026-2",
@@ -9536,7 +11145,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "kich-dge-tumor-vs-normal-sensitivity-v1",
@@ -9551,7 +11163,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "kinome-atlas-long-edges-v1",
@@ -9566,7 +11181,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "kinome-atlas-nature-supplementary-snapshot-2026-07-10",
@@ -9581,7 +11199,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "kinome-atlas-pwm-lookup-v1",
@@ -9596,7 +11217,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "kirc-dge-tumor-vs-normal-sensitivity-v1",
@@ -9611,7 +11235,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "kirp-dge-tumor-vs-normal-sensitivity-v1",
@@ -9626,7 +11253,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "lgg-dge-tumor-vs-normal-sensitivity-v1",
@@ -9641,7 +11271,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "lihc-dge-tumor-vs-normal-sensitivity-v1",
@@ -9656,7 +11289,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "literature-snapshot",
@@ -9673,7 +11309,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "luad-dge-tumor-vs-normal-sensitivity-v1",
@@ -9688,7 +11327,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "lusc-dge-tumor-vs-normal-sensitivity-v1",
@@ -9703,7 +11345,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "merops-r12-5",
@@ -9718,7 +11363,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "met500-robinson-2017-supplement",
@@ -9733,7 +11381,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "msigdb-human-v2026-1-hs",
@@ -9748,7 +11399,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "mygene-info-metadata-20260602",
@@ -9763,7 +11417,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "ncbi-gene-snapshot-2026-06-18",
@@ -9778,7 +11435,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "omnipath-snapshot-2026-06-29",
@@ -9793,7 +11453,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "oncokb-gene-roles-public-snapshot-2026-07-01",
@@ -9810,7 +11473,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "opentargets-26-06",
@@ -9831,7 +11497,10 @@
       ],
       "n_consumers": 5,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high",
+      "missing_sort_key": true
     },
     {
       "product_id": "ov-dge-tumor-vs-normal-sensitivity-v1",
@@ -9846,7 +11515,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "ov-tumor-vs-gtex-poc-v1",
@@ -9861,7 +11533,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "paad-dge-tumor-vs-normal-sensitivity-v1",
@@ -9876,7 +11551,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "pancan-dge-tumor-vs-normal-v1",
@@ -9893,7 +11571,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "pancan-genomic-two-hit-per-gene-v1",
@@ -9908,7 +11589,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "pancohort-cooccurrence-fisher-v1",
@@ -9925,7 +11609,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1",
@@ -9940,7 +11627,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "pdb-alphafold-structure-features-per-uniprot-v1",
@@ -9957,7 +11647,46 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "plinder-cocrystal-per-protein-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "plinder-gcs-2024-06-v2",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "plinder-org",
+      "version": "gcs-2024-06-v2",
+      "size_bytes": 647,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prad-dge-tumor-vs-normal-sensitivity-v1",
@@ -9972,7 +11701,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-oncref-dmc-23q4",
@@ -9987,7 +11719,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-oncref-dmc-25q4",
@@ -10002,7 +11737,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-primary-repurposing-24q2",
@@ -10017,7 +11755,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-rep1m-21q2",
@@ -10032,7 +11773,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-repurposing-19q3-primary",
@@ -10047,7 +11791,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-repurposing-19q4",
@@ -10062,7 +11809,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-repurposing-dmc-23q2v2",
@@ -10077,7 +11827,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "prism-repurposing-secondary-20q2",
@@ -10092,7 +11845,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "reactome-v96",
@@ -10109,7 +11865,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "read-dge-tumor-vs-normal-sensitivity-v1",
@@ -10124,7 +11883,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "recount3-tcga-gtex-2023-01-04",
@@ -10139,7 +11901,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "recount3-tcga-gtex-2023-01-04-test5",
@@ -10154,7 +11919,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "sanger-drug-combinations-2022",
@@ -10169,7 +11937,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "sc-pseudobulk-donor-celltype-coadread-v1",
@@ -10186,7 +11957,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "sc-pseudobulk-donor-celltype-nsclc-v1",
@@ -10203,7 +11977,46 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "sc-samecell-coexpr-coadread-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "sc-samecell-coexpr-nsclc-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "sclc-george-tpm-long-v1",
@@ -10218,7 +12031,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "sclc-subgroup-assignments-v1",
@@ -10233,7 +12049,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "signor-jul2026",
@@ -10248,7 +12067,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "signor-mechanism-network-per-gene-v1",
@@ -10265,7 +12087,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "skcm-dge-tumor-vs-normal-sensitivity-v1",
@@ -10280,7 +12105,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "stad-dge-tumor-vs-normal-sensitivity-v1",
@@ -10295,7 +12123,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "string-v12-human-snapshot-2026-06-30",
@@ -10312,7 +12143,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "subgroup-catalog",
@@ -10331,7 +12165,10 @@
       ],
       "n_consumers": 3,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "surface-antigen-absolute-density-curated-v1",
@@ -10346,7 +12183,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "surfaceome-cohort-ranking-per-indication-v1",
@@ -10363,7 +12203,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "surfaceome-family-classification-per-uniprot-v1",
@@ -10380,7 +12223,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "surfacome-ethz-2018",
@@ -10395,7 +12241,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "synlethdb-sl-partners-per-gene-v1",
@@ -10412,7 +12261,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "synlethdb-v3-snapshot-2026-06-30",
@@ -10427,7 +12279,46 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "tahoe-100m-pointer-snapshot-2026-08-06",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "vevo-tx-arc-institute",
+      "version": "pointer-snapshot-2026-08-06",
+      "size_bytes": 293242,
+      "file_count": 1,
+      "system_of_record": false,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "tahoe-drug-perturbation-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "target-id-resolver-release",
@@ -10444,7 +12335,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-fusion-consensus-per-sample-v1",
@@ -10459,7 +12353,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-fusion-consensus-v1",
@@ -10476,7 +12373,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-gdc-dr45-0",
@@ -10491,7 +12391,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "high_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-gdc-dr45-0-test5",
@@ -10506,7 +12409,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-gtex-tpm-tissue-quantiles-v1",
@@ -10518,10 +12424,15 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
-      "is_broken_ref": false
+      "consumed_by_cards": [
+        "modality-therapeutic-window"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-maf-subgroup-assignments-coadread-v1",
@@ -10536,7 +12447,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-marker-papers-subtypes-2018",
@@ -10551,7 +12465,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-mc3-hotspot-frequency-v1",
@@ -10566,7 +12483,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-mc3-per-sample-maf-v1",
@@ -10581,7 +12501,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-mc3-public-v0-2-8",
@@ -10599,7 +12522,30 @@
       ],
       "n_consumers": 2,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "tcga-patient-cn-per-gene-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 1,
+      "consumed_by_cards": [
+        "copy-number-distribution"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-sesame-promoter-methylation-v1",
@@ -10616,7 +12562,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-coadread-v1",
@@ -10633,7 +12582,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-esca-maf-v1",
@@ -10648,7 +12600,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-esca-v1",
@@ -10663,7 +12618,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-hnsc-maf-v1",
@@ -10678,7 +12636,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-hnsc-v1",
@@ -10693,7 +12654,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-nsclc-maf-v1",
@@ -10708,7 +12672,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-nsclc-v1",
@@ -10723,7 +12690,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-paad-maf-v1",
@@ -10738,7 +12708,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-paad-v1",
@@ -10753,7 +12726,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-subgroup-assignments-stad-v1",
@@ -10768,7 +12744,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-tmb-per-sample-v1",
@@ -10783,7 +12762,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-tumor-tpm-per-sample-v1",
@@ -10800,7 +12782,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tcga-tumor-tpm-recount3-long-v1",
@@ -10822,7 +12807,10 @@
       ],
       "n_consumers": 6,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tempus-crc-2026-03-17",
@@ -10837,7 +12825,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "tempus-rwd-stratified-expression",
@@ -10854,7 +12845,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "tflink-human-v1-0-snapshot-2026-06-30",
@@ -10869,7 +12863,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "tgct-dge-tumor-vs-normal-sensitivity-v1",
@@ -10884,7 +12881,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "thca-dge-tumor-vs-normal-sensitivity-v1",
@@ -10899,7 +12899,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "topology-predictions-tmbed-v1",
@@ -10916,7 +12919,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "toxcast-invitrodb-v3-3",
@@ -10931,7 +12937,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "moderate_unused",
+      "missing_sort_key": false
     },
     {
       "product_id": "tumorfusions-pancanatlas-hu-2018",
@@ -10946,7 +12955,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "ucec-dge-tumor-vs-normal-sensitivity-v1",
@@ -10961,7 +12973,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "ucs-dge-tumor-vs-normal-sensitivity-v1",
@@ -10976,7 +12991,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "ucsc-cytoband-hg38-snapshot-2026-07-01",
@@ -10991,7 +13009,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "ucsc-hg38-cpg-islands-v1",
@@ -11006,7 +13027,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "uniprot-gpi-anchored-v1",
@@ -11021,7 +13045,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "uniprot-protein-features-v1",
@@ -11038,7 +13065,10 @@
       ],
       "n_consumers": 1,
       "is_orphan": false,
-      "is_broken_ref": true
+      "is_broken_ref": true,
+      "has_sort_key": null,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "uniprot-sprot-human-2026-02-snapshot-2026-06-18",
@@ -11053,7 +13083,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     },
     {
       "product_id": "uniprot-string-hc-edges-per-gene-v1",
@@ -11068,7 +13101,10 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": true,
+      "access_cost": "unknown",
+      "missing_sort_key": false
     },
     {
       "product_id": "zhou-hm450-manifest-20180909",
@@ -11083,11 +13119,22 @@
       "consumed_by_cards": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_broken_ref": false
+      "is_broken_ref": false,
+      "has_sort_key": false,
+      "access_cost": "low",
+      "missing_sort_key": false
     }
   ],
   "graph": {
     "nodes": [
+      {
+        "id": "skill:bispecific-pair-scan",
+        "layer": "skill",
+        "label": "bispecific-pair-scan",
+        "health": "partial",
+        "kind": "OTHER",
+        "risk_category": null
+      },
       {
         "id": "skill:catalog-query",
         "layer": "skill",
@@ -11135,6 +13182,14 @@
         "health": "production_ready",
         "kind": "FOCUSED",
         "risk_category": "biological"
+      },
+      {
+        "id": "skill:immune-context",
+        "layer": "skill",
+        "label": "immune-context",
+        "health": "partial",
+        "kind": "FOCUSED",
+        "risk_category": null
       },
       {
         "id": "skill:mechanism-and-pharmacology",
@@ -11297,6 +13352,12 @@
         "health": "live"
       },
       {
+        "id": "resolver:tractability_small_molecule",
+        "layer": "resolver",
+        "label": "tractability_small_molecule",
+        "health": "live"
+      },
+      {
         "id": "card:abundance-dependency",
         "layer": "card",
         "label": "abundance-dependency",
@@ -11321,12 +13382,28 @@
         "measurement_type": "alteration_role"
       },
       {
+        "id": "card:amp-expr-stratified-dependency",
+        "layer": "card",
+        "label": "amp-expr-stratified-dependency",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "amp_expr_stratified_dependency"
+      },
+      {
         "id": "card:antigen-prevalence",
         "layer": "card",
         "label": "antigen-prevalence",
         "health": "broken",
         "is_orphan": true,
         "measurement_type": "antigen_expressing_prevalence"
+      },
+      {
+        "id": "card:bispecific-pair-scan",
+        "layer": "card",
+        "label": "bispecific-pair-scan",
+        "health": "broken",
+        "is_orphan": false,
+        "measurement_type": null
       },
       {
         "id": "card:cellline-protein-abundance",
@@ -11401,6 +13478,14 @@
         "measurement_type": "copy_number_alteration"
       },
       {
+        "id": "card:copy-number-stratified-dependency",
+        "layer": "card",
+        "label": "copy-number-stratified-dependency",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "cn_stratified_dependency"
+      },
+      {
         "id": "card:crispr-rnai-dependency-concordance",
         "layer": "card",
         "label": "crispr-rnai-dependency-concordance",
@@ -11465,6 +13550,14 @@
         "measurement_type": "fusion_rearrangement"
       },
       {
+        "id": "card:fusion-stratified-dependency",
+        "layer": "card",
+        "label": "fusion-stratified-dependency",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "fusion_stratified_dependency"
+      },
+      {
         "id": "card:gene-burden-safety",
         "layer": "card",
         "label": "gene-burden-safety",
@@ -11489,6 +13582,14 @@
         "measurement_type": "genomic_event_model_match"
       },
       {
+        "id": "card:genomic-instability-state",
+        "layer": "card",
+        "label": "genomic-instability-state",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "genomic_instability_state"
+      },
+      {
         "id": "card:gnomad-lof-constraint",
         "layer": "card",
         "label": "gnomad-lof-constraint",
@@ -11505,12 +13606,28 @@
         "measurement_type": null
       },
       {
+        "id": "card:immune-context",
+        "layer": "card",
+        "label": "immune-context",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "immune_context"
+      },
+      {
         "id": "card:lineage-restriction-evidence",
         "layer": "card",
         "label": "lineage-restriction-evidence",
         "health": "broken",
         "is_orphan": true,
         "measurement_type": "normal_tissue_rna_breadth"
+      },
+      {
+        "id": "card:modality-therapeutic-window",
+        "layer": "card",
+        "label": "modality-therapeutic-window",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "modality_window"
       },
       {
         "id": "card:models-registry",
@@ -11609,6 +13726,14 @@
         "measurement_type": "phospho_pathway_activity"
       },
       {
+        "id": "card:pmhc-presentation",
+        "layer": "card",
+        "label": "pmhc-presentation",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "pmhc_presentation"
+      },
+      {
         "id": "card:ppi-interactome",
         "layer": "card",
         "label": "ppi-interactome",
@@ -11645,7 +13770,7 @@
         "layer": "card",
         "label": "protein-surface-evidence",
         "health": "partial",
-        "is_orphan": true,
+        "is_orphan": false,
         "measurement_type": "surface_confirmation"
       },
       {
@@ -11684,7 +13809,7 @@
         "id": "card:rwd-stratified-expression",
         "layer": "card",
         "label": "rwd-stratified-expression",
-        "health": "blocked",
+        "health": "broken",
         "is_orphan": true,
         "measurement_type": "rwd_stratified_expression"
       },
@@ -11857,9 +13982,23 @@
         "measurement_type": "tumor_vs_normal_selectivity"
       },
       {
+        "id": "card:variant-level-interpretation",
+        "layer": "card",
+        "label": "variant-level-interpretation",
+        "health": "partial",
+        "is_orphan": false,
+        "measurement_type": "variant_level_interpretation"
+      },
+      {
         "id": "method:abundance_dependency",
         "layer": "method",
         "label": "abundance_dependency",
+        "health": "live"
+      },
+      {
+        "id": "method:civic_variant_interpretation",
+        "layer": "method",
+        "label": "civic_variant_interpretation",
         "health": "live"
       },
       {
@@ -11881,6 +14020,12 @@
         "health": "live"
       },
       {
+        "id": "method:depmap_amp_expr_dependency",
+        "layer": "method",
+        "label": "depmap_amp_expr_dependency",
+        "health": "live"
+      },
+      {
         "id": "method:depmap_chronos",
         "layer": "method",
         "label": "depmap_chronos",
@@ -11890,6 +14035,12 @@
         "id": "method:depmap_chronos_distribution",
         "layer": "method",
         "label": "depmap_chronos_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_cn_dependency",
+        "layer": "method",
+        "label": "depmap_cn_dependency",
         "health": "live"
       },
       {
@@ -11920,6 +14071,12 @@
         "id": "method:depmap_expression_distribution",
         "layer": "method",
         "label": "depmap_expression_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:depmap_fusion_dependency",
+        "layer": "method",
+        "label": "depmap_fusion_dependency",
         "health": "live"
       },
       {
@@ -12031,6 +14188,12 @@
         "health": "live"
       },
       {
+        "id": "method:immune_context",
+        "layer": "method",
+        "label": "immune_context",
+        "health": "live"
+      },
+      {
         "id": "method:mechanism_composed",
         "layer": "method",
         "label": "mechanism_composed",
@@ -12076,6 +14239,12 @@
         "id": "method:phospho_pathway_activity",
         "layer": "method",
         "label": "phospho_pathway_activity",
+        "health": "live"
+      },
+      {
+        "id": "method:pmhc_presentation",
+        "layer": "method",
+        "label": "pmhc_presentation",
         "health": "live"
       },
       {
@@ -12127,6 +14296,12 @@
         "health": "live"
       },
       {
+        "id": "method:tcga_aneuploidy_burden",
+        "layer": "method",
+        "label": "tcga_aneuploidy_burden",
+        "health": "live"
+      },
+      {
         "id": "method:tcga_fusion_consensus",
         "layer": "method",
         "label": "tcga_fusion_consensus",
@@ -12136,6 +14311,12 @@
         "id": "method:tcga_gtex_expression_distribution",
         "layer": "method",
         "label": "tcga_gtex_expression_distribution",
+        "health": "live"
+      },
+      {
+        "id": "method:tcga_gtex_tpm_quantiles",
+        "layer": "method",
+        "label": "tcga_gtex_tpm_quantiles",
         "health": "live"
       },
       {
@@ -12160,6 +14341,11 @@
       {
         "src": "card:alteration-role",
         "dst": "method:driver_role_overlay",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:amp-expr-stratified-dependency",
+        "dst": "method:depmap_amp_expr_dependency",
         "rel": "backed_by"
       },
       {
@@ -12195,6 +14381,11 @@
       {
         "src": "card:copy-number-distribution",
         "dst": "method:depmap_cn_distribution",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:copy-number-stratified-dependency",
+        "dst": "method:depmap_cn_dependency",
         "rel": "backed_by"
       },
       {
@@ -12238,6 +14429,11 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:fusion-stratified-dependency",
+        "dst": "method:depmap_fusion_dependency",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:gene-burden-safety",
         "dst": "method:opentargets_gene_burden",
         "rel": "backed_by"
@@ -12253,8 +14449,23 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:genomic-instability-state",
+        "dst": "method:tcga_aneuploidy_burden",
+        "rel": "backed_by"
+      },
+      {
         "src": "card:gnomad-lof-constraint",
         "dst": "method:gnomad_constraint",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:immune-context",
+        "dst": "method:immune_context",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:modality-therapeutic-window",
+        "dst": "method:tcga_gtex_tpm_quantiles",
         "rel": "backed_by"
       },
       {
@@ -12305,6 +14516,11 @@
       {
         "src": "card:phospho-pathway-activity",
         "dst": "method:phospho_pathway_activity",
+        "rel": "backed_by"
+      },
+      {
+        "src": "card:pmhc-presentation",
+        "dst": "method:pmhc_presentation",
         "rel": "backed_by"
       },
       {
@@ -12433,6 +14649,16 @@
         "rel": "backed_by"
       },
       {
+        "src": "card:variant-level-interpretation",
+        "dst": "method:civic_variant_interpretation",
+        "rel": "backed_by"
+      },
+      {
+        "src": "skill:bispecific-pair-scan",
+        "dst": "card:bispecific-pair-scan",
+        "rel": "consumes"
+      },
+      {
         "src": "skill:combo-and-resistance",
         "dst": "card:combo-crispr-screen",
         "rel": "consumes"
@@ -12509,6 +14735,11 @@
       },
       {
         "src": "skill:functional-requirement",
+        "dst": "card:subgroup-stratified-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:functional-requirement",
         "dst": "resolver:dependency",
         "rel": "resolves_via"
       },
@@ -12519,7 +14750,17 @@
       },
       {
         "src": "skill:genomic-alteration-profile",
+        "dst": "card:amp-expr-stratified-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
         "dst": "card:copy-number-distribution",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:copy-number-stratified-dependency",
         "rel": "consumes"
       },
       {
@@ -12534,7 +14775,17 @@
       },
       {
         "src": "skill:genomic-alteration-profile",
+        "dst": "card:fusion-stratified-dependency",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
         "dst": "card:genomic-event-model-match",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
+        "dst": "card:genomic-instability-state",
         "rel": "consumes"
       },
       {
@@ -12559,8 +14810,18 @@
       },
       {
         "src": "skill:genomic-alteration-profile",
+        "dst": "card:variant-level-interpretation",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:genomic-alteration-profile",
         "dst": "resolver:genomic_alteration",
         "rel": "resolves_via"
+      },
+      {
+        "src": "skill:immune-context",
+        "dst": "card:immune-context",
+        "rel": "consumes"
       },
       {
         "src": "skill:mechanism-and-pharmacology",
@@ -12634,12 +14895,32 @@
       },
       {
         "src": "skill:surface-modality-fit",
+        "dst": "card:modality-therapeutic-window",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
         "dst": "card:normal-tissue-liability",
         "rel": "consumes"
       },
       {
         "src": "skill:surface-modality-fit",
+        "dst": "card:pmhc-presentation",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:protein-surface-evidence",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
         "dst": "card:rna-protein-concordance-tumor",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:shed-ectodomain-liability",
         "rel": "consumes"
       },
       {
@@ -12660,6 +14941,11 @@
       {
         "src": "skill:surface-modality-fit",
         "dst": "card:surfaceome-family-classification",
+        "rel": "consumes"
+      },
+      {
+        "src": "skill:surface-modality-fit",
+        "dst": "card:tumor-scrna-celltype-expression",
         "rel": "consumes"
       },
       {
@@ -12923,6 +15209,11 @@
         "rel": "consumes"
       },
       {
+        "src": "skill:tractability-small-molecule",
+        "dst": "resolver:tractability_small_molecule",
+        "rel": "resolves_via"
+      },
+      {
         "src": "skill:translational-readiness",
         "dst": "card:imaging-tracer-catalog",
         "rel": "consumes"
@@ -13009,13 +15300,13 @@
       }
     ],
     "layer_counts": {
-      "skill": 20,
-      "resolver": 8,
-      "card": 70,
-      "method": 49
+      "skill": 22,
+      "resolver": 9,
+      "card": 79,
+      "method": 57
     },
-    "n_nodes": 147,
-    "n_edges": 171
+    "n_nodes": 167,
+    "n_edges": 193
   },
   "drift_index": [
     {
@@ -13044,21 +15335,33 @@
     },
     {
       "skill": "functional-requirement",
+      "code": "dataset_ref_not_in_catalog",
+      "severity": "warn",
+      "detail": "consumed card(s) reference dataset product_id(s) not in the data-catalog: subgroup-catalog"
+    },
+    {
+      "skill": "functional-requirement",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
       "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: abundance-dependency, paralog-buffering, recommended-models"
     },
     {
       "skill": "genomic-alteration-profile",
+      "code": "declared_cards_mismatch_runpy",
+      "severity": "warn",
+      "detail": "SKILL.md cards_used vs run.py CARDS differ (only in SKILL.md: []; only in run.py: ['amp-expr-stratified-dependency', 'copy-number-stratified-dependency', 'fusion-stratified-dependency', 'variant-level-interpretation'])"
+    },
+    {
+      "skill": "genomic-alteration-profile",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, variant-level-interpretation"
     },
     {
       "skill": "genomic-alteration-profile",
       "code": "stale_method_label",
       "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: mutation-stratified-dependency"
+      "detail": "card methods.call label differs from the dispatcher's actual import: amp-expr-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, mutation-stratified-dependency"
     },
     {
       "skill": "genomic-alteration-profile",
@@ -13070,7 +15373,19 @@
       "skill": "genomic-alteration-profile",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, functional-gene-state, fusion-rearrangement-landscape, genomic-event-model-match"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: alteration-role, amp-expr-stratified-dependency, copy-number-stratified-dependency, functional-gene-state, fusion-rearrangement-landscape, fusion-stratified-dependency, genomic-event-model-match, genomic-instability-state, variant-level-interpretation"
+    },
+    {
+      "skill": "immune-context",
+      "code": "card_registered_never_fires",
+      "severity": "info",
+      "detail": "consumed card(s) have a live reader but never fired in a real package: immune-context"
+    },
+    {
+      "skill": "immune-context",
+      "code": "card_consumed_but_no_spec",
+      "severity": "info",
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: immune-context"
     },
     {
       "skill": "mechanism-and-pharmacology",
@@ -13124,13 +15439,13 @@
       "skill": "surface-modality-fit",
       "code": "card_registered_never_fires",
       "severity": "info",
-      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+      "detail": "consumed card(s) have a live reader but never fired in a real package: adc-tce-modality-fit, modality-therapeutic-window, pmhc-presentation, protein-surface-evidence, rna-protein-concordance-tumor, shed-ectodomain-liability, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification, tumor-scrna-celltype-expression"
     },
     {
       "skill": "surface-modality-fit",
       "code": "stale_method_label",
       "severity": "info",
-      "detail": "card methods.call label differs from the dispatcher's actual import: surface-abundance-density"
+      "detail": "card methods.call label differs from the dispatcher's actual import: modality-therapeutic-window, shed-ectodomain-liability, surface-abundance-density"
     },
     {
       "skill": "surface-modality-fit",
@@ -13142,7 +15457,7 @@
       "skill": "surface-modality-fit",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, rna-protein-concordance-tumor, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: pmhc-presentation, structure-features-static, surface-abundance-density"
     },
     {
       "skill": "surfaceome-cohort-ranking",
@@ -13196,7 +15511,7 @@
       "skill": "target-intrinsic",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, shed-ectodomain-liability, signaling-network-mechanism, structure-features-static, surfaceome-family-classification, target-safety-prioritisation"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: clingen-dosage, clinvar-pathogenicity-safety, gene-burden-safety, gene-ontology-annotation, gnomad-lof-constraint, mouse-ko-phenotype, paralog-buffering, ppi-interactome, protein-domains-class, reactome-pathway-membership, signaling-network-mechanism, structure-features-static, target-safety-prioritisation"
     },
     {
       "skill": "target-profile",
@@ -13220,7 +15535,7 @@
       "skill": "target-profile",
       "code": "card_consumed_but_no_spec",
       "severity": "info",
-      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: adc-tce-modality-fit, co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density, surface-topology-and-ptm, surfaceome-family-classification"
+      "detail": "consumed card(s) are in NO dashboard_spec \u2014 cannot fire in an emitted package until added to a spec: co-mutation-and-mutual-exclusivity, fusion-rearrangement-landscape, gnomad-lof-constraint, paralog-buffering, signaling-network-mechanism, structure-features-static, surface-abundance-density"
     },
     {
       "skill": "tractability-small-molecule",

@@ -452,6 +452,15 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
             except yaml.YAMLError:
                 continue
             mid = m.get("id") or p.name[:-5]
+            # STATIC access-cost inputs (no network): a declared query_optimization
+            # sort/partition key is THE latency lever in this stack (sorted-read +
+            # pushdown ~4x). Its PRESENCE is a structural signal; a large consumed
+            # dataset without one is expensive to query. We record presence only —
+            # never time an actual read (that would break the offline/deterministic
+            # contract the whole dashboard rests on).
+            qo = m.get("query_optimization") or {}
+            has_sort_key = bool(isinstance(qo, dict) and (qo.get("sort_columns") or qo.get("sort_key")
+                                                          or qo.get("primary_filter_column")))
             meta = {
                 "kind": "source" if kind == "sources" else "derived",
                 "provider": m.get("provider"),
@@ -461,6 +470,7 @@ def catalog_manifests(catalog_root: Path) -> dict[str, dict]:
                 "file_count": m.get("file_count"),
                 "system_of_record": m.get("system_of_record"),
                 "derived_from": m.get("derived_from") or [],
+                "has_sort_key": has_sort_key,   # static access-latency lever (query_optimization declared?)
             }
             out[mid] = meta
             # Register the logical registry product as an alias key. Multiple

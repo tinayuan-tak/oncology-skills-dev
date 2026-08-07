@@ -50,6 +50,53 @@ DRIFT_SEVERITY = {
 
 
 # ---------------------------------------------------------------------------
+# STATIC access-cost lens (NO network, NO timing — a structural proxy for "how
+# expensive is this dataset to access", derived purely from manifest metadata).
+# Deliberately NOT a live read: the dashboard's whole contract is offline +
+# deterministic + checkout-only-CI + --check-stable. Real latency is a runtime-
+# observability concern (would need durations emitted into evidence-package
+# provenance first — see the access-cost plan). This lens answers the adjacent,
+# statically-answerable question: which consumed data is big/unoptimized to query.
+# ---------------------------------------------------------------------------
+_GB = 1024 ** 3
+_SORT_KEY_SIZE_FLOOR = 1 * _GB      # below this, a missing sort-key isn't worth flagging
+_ACCESS_COST_HIGH_GB = 20           # >= → high (a heavy dataset)
+_ACCESS_COST_MODERATE_GB = 2        # >= → moderate
+
+
+def _tally(nodes: list[dict], key: str) -> dict[str, int]:
+    """Count nodes by a string field value (skips None)."""
+    out: dict[str, int] = {}
+    for n in nodes:
+        v = n.get(key)
+        if v is not None:
+            out[v] = out.get(v, 0) + 1
+    return out
+
+
+def _access_cost(size_bytes, file_count, n_consumers) -> str:
+    """Static access-cost band from size (+ file-count sprawl), scoped to whether anything
+    consumes it. Returns high|moderate|low|negligible|unknown. Pure metadata arithmetic —
+    a large, many-file, widely-consumed dataset is where an access optimization pays off."""
+    if not size_bytes:
+        return "unknown"
+    gb = size_bytes / _GB
+    # file sprawl bumps cost: many small files = many S3 round-trips even at modest size.
+    sprawl = (file_count or 0) >= 2000
+    if gb >= _ACCESS_COST_HIGH_GB or (sprawl and gb >= _ACCESS_COST_MODERATE_GB):
+        band = "high"
+    elif gb >= _ACCESS_COST_MODERATE_GB or sprawl:
+        band = "moderate"
+    else:
+        band = "low"
+    # An unconsumed dataset's access cost is not a framework concern — downgrade the label
+    # so hotspot ranking surfaces CONSUMED heavy data, not idle catalog bulk.
+    if n_consumers == 0 and band in ("high", "moderate"):
+        return band + "_unused"
+    return band
+
+
+# ---------------------------------------------------------------------------
 # Condition matcher (shared by both ladders)
 # ---------------------------------------------------------------------------
 def _get(ctx: dict, dotted: str) -> Any:
@@ -400,21 +447,34 @@ def build_health(roots: dict[str, Path]) -> dict:
         meta = catalog.get(pid) or {}
         consumers = sorted(set(ds_consumers.get(pid, [])))
         in_cat = pid in catalog
-        dataset_nodes.append({
+        size_b = meta.get("size_bytes")
+        n_cons = len(consumers)
+        has_sort_key = meta.get("has_sort_key")
+        node = {
             "product_id": pid,
             "in_catalog": in_cat,
             "kind": meta.get("kind"),
             "provider": meta.get("provider"),
             "version": meta.get("version"),
-            "size_bytes": meta.get("size_bytes"),
+            "size_bytes": size_b,
             "file_count": meta.get("file_count"),
             "system_of_record": meta.get("system_of_record"),
             "n_derived_from": len(meta.get("derived_from") or []),
             "consumed_by_cards": consumers,
-            "n_consumers": len(consumers),
+            "n_consumers": n_cons,
             "is_orphan": in_cat and not consumers,       # cataloged, no card pulls it
             "is_broken_ref": (not in_cat) and bool(consumers),  # a card names a missing dataset
-        })
+            "has_sort_key": has_sort_key,
+        }
+        node["access_cost"] = _access_cost(size_b, meta.get("file_count"), n_cons)
+        # A CONSUMED (n_cons>0), sizeable, in-catalog dataset with NO declared sort/partition
+        # key is expensive to query — the one static access-latency signal worth acting on.
+        # Not flagged for orphans (nobody queries them) or tiny/unsized datasets.
+        node["missing_sort_key"] = bool(
+            in_cat and n_cons > 0 and has_sort_key is False
+            and (size_b or 0) >= _SORT_KEY_SIZE_FLOOR
+        )
+        dataset_nodes.append(node)
 
     graph = build_graph(skill_nodes, card_nodes)
 
@@ -454,6 +514,10 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_datasets_in_catalog": sum(1 for d in dataset_nodes if d["in_catalog"]),
             "n_orphan_datasets": sum(1 for d in dataset_nodes if d["is_orphan"]),
             "n_broken_dataset_refs": sum(1 for d in dataset_nodes if d["is_broken_ref"]),
+            # STATIC access-cost lens (metadata-derived; NO network/timing):
+            "n_datasets_high_access_cost": sum(1 for d in dataset_nodes if d.get("access_cost") == "high"),
+            "n_datasets_missing_sort_key": sum(1 for d in dataset_nodes if d.get("missing_sort_key")),
+            "access_cost_tally": _tally(dataset_nodes, "access_cost"),
         },
         "registry_drift": reg,
         "skills": skill_nodes,

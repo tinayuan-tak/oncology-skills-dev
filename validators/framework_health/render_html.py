@@ -107,6 +107,25 @@ MODALITY_GLOSS = {
 }
 
 
+# STATIC access-cost lens colors/labels/gloss (a metadata-derived proxy — NOT a live read).
+ACCESS_COST_COLORS = {
+    "high": _RED, "moderate": _AMBER, "low": _GREEN,
+    "high_unused": _GREY, "moderate_unused": _GREY, "unknown": _GREY,
+}
+ACCESS_COST_LABEL = {
+    "high": "high", "moderate": "moderate", "low": "low",
+    "high_unused": "high (unused)", "moderate_unused": "moderate (unused)", "unknown": "size unknown",
+}
+ACCESS_COST_GLOSS = {
+    "high": "large (≥20GB, or ≥2GB across many files) AND consumed by a card — an access-optimization payoff",
+    "moderate": "moderately sized (≥2GB or many files) and consumed",
+    "low": "small — cheap to access",
+    "high_unused": "large but consumed by no card — not a framework access concern",
+    "moderate_unused": "moderately sized but consumed by no card",
+    "unknown": "manifest declares no total_size_bytes — cost can't be estimated statically",
+}
+
+
 def _esc(x) -> str:
     return html.escape(str(x if x is not None else ""))
 
@@ -600,44 +619,67 @@ def _datasets_table(report: dict) -> str:
         cons = d.get("consumed_by_cards") or []
         cons_txt = (f"<span class='consumers'>{_esc(', '.join(cons))}</span>" if cons
                     else "<span class='consumers'>— used by no card</span>")
+        # STATIC access-cost cell: cost band chip + a sort-key indicator (✓ optimized /
+        # ⚠ none = expensive to query when consumed). Neither is a live measurement.
+        ac = d.get("access_cost")
+        cost_cell = _chip(ACCESS_COST_LABEL.get(ac, ac or "—"),
+                          ACCESS_COST_COLORS.get(ac, _GREY), ACCESS_COST_GLOSS.get(ac)) if ac else "—"
+        hsk = d.get("has_sort_key")
+        if d.get("missing_sort_key"):
+            sk = "<span style='color:%s' title='consumed + large + no sort/partition key → expensive to query'>⚠ no sort-key</span>" % _RED
+        elif hsk is True:
+            sk = "<span style='color:%s' title='declares a query_optimization sort/partition key'>✓</span>" % _GREEN
+        else:
+            sk = "<span class='consumers'>—</span>"
         return (
             f"<tr><td class='nm'>{_esc(d['product_id'])}</td>"
             f"<td>{badge}</td><td>{_esc(kind)}</td>"
-            f"<td>{_esc(d.get('provider') or '—')}</td>"
             f"<td>{_esc(_fmt_bytes(d.get('size_bytes')))}</td>"
+            f"<td>{cost_cell}</td><td>{sk}</td>"
             f"<td>{d.get('n_consumers', 0)} {cons_txt}</td></tr>"
         )
 
+    ncol = 7
     body = ""
     if broken:
-        body += (f"<tr class='grp'><td colspan='6'>⚠ REFERENCED BUT NOT IN CATALOG — a card names a "
+        body += (f"<tr class='grp'><td colspan='{ncol}'>⚠ REFERENCED BUT NOT IN CATALOG — a card names a "
                  f"product_id with no manifest ({len(broken)}): not-yet-landed data, or a resource "
                  f"tracked outside manifests/ (resolver-releases, subgroup-catalogs)</td></tr>")
         for d in sorted(broken, key=lambda d: d["product_id"]):
             body += _row(d)
-    body += f"<tr class='grp'><td colspan='6'>CONSUMED BY CARDS — the framework's active data footprint ({len(consumed)})</td></tr>"
-    for d in sorted(consumed, key=lambda d: d["product_id"]):
+    # Consumed datasets sorted by access cost (heaviest first) — the actionable order.
+    body += f"<tr class='grp'><td colspan='{ncol}'>CONSUMED BY CARDS — the framework's active data footprint ({len(consumed)}); heaviest-to-access first</td></tr>"
+    for d in sorted(consumed, key=lambda d: (-(d.get("size_bytes") or 0), d["product_id"])):
         body += _row(d)
-    body += (f"<tr class='grp'><td colspan='6'>CATALOG AT LARGE — cataloged, not consumed by any card "
+    body += (f"<tr class='grp'><td colspan='{ncol}'>CATALOG AT LARGE — cataloged, not consumed by any card "
              f"({len(catalog_only)}); org-wide inventory, not a framework gap</td></tr>")
     for d in sorted(catalog_only, key=lambda d: d["product_id"]):
         body += _row(d)
 
     return (
         "<table class='matrix'><thead><tr>"
-        "<th>dataset (product_id)</th><th>catalog</th><th>kind</th><th>provider</th>"
-        "<th>size</th><th>consumed by cards</th></tr></thead><tbody>" + body + "</tbody></table>"
+        "<th>dataset (product_id)</th><th>catalog</th><th>kind</th>"
+        "<th>size</th><th>access cost</th><th>sort-key</th><th>consumed by cards</th>"
+        "</tr></thead><tbody>" + body + "</tbody></table>"
     )
 
 
 def _dataset_summary_cards(report: dict) -> str:
     s = report["summary"]
-    return _stat_strip([
+    strip = _stat_strip([
         ("in catalog", s.get("n_datasets_in_catalog", 0), _GREEN),
         ("consumed by cards", sum(1 for d in report.get("datasets", []) if d["n_consumers"] > 0 and d["in_catalog"]), _PURPLE),
         ("broken refs", s.get("n_broken_dataset_refs", 0), _RED),
         ("catalog, unused", s.get("n_orphan_datasets", 0), _GREY),
+        ("high access-cost", s.get("n_datasets_high_access_cost", 0), _RED),
+        ("consumed, no sort-key", s.get("n_datasets_missing_sort_key", 0), _AMBER),
     ])
+    caption = ('<div class="captn"><b>Access cost</b> is a STATIC proxy from manifest metadata '
+               '(size × file-count × consumers) — <i>not</i> a measured read latency. '
+               '“no sort-key” flags a large, consumed dataset whose manifest declares no '
+               'query_optimization key (the ~4× sorted-read/pushdown lever). Real timing would need '
+               'runtime instrumentation — deliberately out of this offline probe.</div>')
+    return strip + caption
 
 
 def _card_summary_cards(report: dict) -> str:

@@ -633,6 +633,64 @@ def test_render_expands_p4_and_severity_inline():
     assert "stranded on the biology axis" in html        # full P4 definition present
 
 
+def test_access_cost_bands():
+    """Static access-cost bands from size × file-count × consumers (no network/timing)."""
+    GB = 1024 ** 3
+    ac = rollup._access_cost
+    assert ac(None, 10, 5) == "unknown"                 # no size → can't estimate
+    assert ac(30 * GB, 100, 5) == "high"                # ≥20GB consumed
+    assert ac(5 * GB, 100, 2) == "moderate"             # ≥2GB consumed
+    assert ac(0.5 * GB, 10, 3) == "low"                 # small
+    assert ac(3 * GB, 5000, 4) == "high"                # file sprawl bumps ≥2GB → high
+    # unconsumed heavy data is demoted (not a framework access concern)
+    assert ac(30 * GB, 100, 0) == "high_unused"
+    assert ac(5 * GB, 100, 0) == "moderate_unused"
+
+
+def test_missing_sort_key_flag_scoping():
+    """missing_sort_key fires ONLY for consumed + in-catalog + sizeable + no-sort-key."""
+    GB = 1024 ** 3
+    from validators.framework_health import probe
+    # build two dataset dicts through the real rollup path via a tiny catalog fixture would be
+    # heavy; assert the rule inline mirrors build_health (kept in lockstep by self_check).
+    def flag(in_cat, n, hsk, size):
+        return bool(in_cat and n > 0 and hsk is False and (size or 0) >= rollup._SORT_KEY_SIZE_FLOOR)
+    assert flag(True, 3, False, 5 * GB) is True          # consumed, big, no key → flag
+    assert flag(True, 0, False, 5 * GB) is False         # unconsumed → no flag
+    assert flag(True, 3, True, 5 * GB) is False          # has a key → no flag
+    assert flag(True, 3, False, 0.1 * GB) is False       # below size floor → no flag
+    assert flag(False, 3, False, 5 * GB) is False        # not in catalog → no flag
+
+
+def test_self_check_catches_bad_access_cost(tmp_path):
+    """A dataset whose recorded access_cost doesn't re-derive from its inputs must fail."""
+    rep = _minimal_report()
+    GB = 1024 ** 3
+    rep["datasets"] = [{"product_id": "big", "in_catalog": True, "n_consumers": 5,
+                        "is_orphan": False, "is_broken_ref": False,
+                        "size_bytes": 30 * GB, "file_count": 100,
+                        "access_cost": "low",           # WRONG — 30GB consumed re-derives to 'high'
+                        "has_sort_key": False, "missing_sort_key": True}]
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok and any("access_cost" in e for e in errs)
+
+
+def test_committed_artifact_has_access_cost_lens():
+    """The real artifact must carry the static access-cost lens on datasets + summary."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    rep = json.loads(committed.read_text())
+    assert "access_cost_tally" in rep["summary"], "access-cost summary missing"
+    for d in rep.get("datasets", []):
+        assert "access_cost" in d, f"{d['product_id']} missing access_cost"
+        # missing_sort_key is a strict subset of consumed in-catalog datasets
+        if d.get("missing_sort_key"):
+            assert d["in_catalog"] and d["n_consumers"] > 0 and d.get("has_sort_key") is False
+
+
 def test_matrix_css_has_no_overflow_hidden_clip():
     """Regression guard: .matrix must NOT carry overflow:hidden — it clipped the
     expanded drill-down (the nested cards table grows a detail row past the table

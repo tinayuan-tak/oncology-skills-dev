@@ -202,6 +202,19 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
                 errs.append(f"[dataset {d.get('product_id')}] is_orphan inconsistent")
             if d.get("is_broken_ref") != ((not d.get("in_catalog")) and d.get("n_consumers", 0) > 0):
                 errs.append(f"[dataset {d.get('product_id')}] is_broken_ref inconsistent")
+            # Access-cost lens (only for artifacts that carry it): re-derive the band + the
+            # missing-sort-key flag from the recorded static inputs — the determinism guard.
+            if "access_cost" in d:
+                got = rollup._access_cost(d.get("size_bytes"), d.get("file_count"), d.get("n_consumers", 0))
+                if got != d.get("access_cost"):
+                    errs.append(f"[dataset {d.get('product_id')}] access_cost '{d.get('access_cost')}' "
+                                f"does not re-derive (got '{got}') — regenerate")
+            if "missing_sort_key" in d:
+                expect = bool(d.get("in_catalog") and d.get("n_consumers", 0) > 0
+                              and d.get("has_sort_key") is False
+                              and (d.get("size_bytes") or 0) >= rollup._SORT_KEY_SIZE_FLOOR)
+                if d.get("missing_sort_key") != expect:
+                    errs.append(f"[dataset {d.get('product_id')}] missing_sort_key inconsistent")
 
     # 4c. Card spec-coverage flag consistency (consumed_but_no_spec) — only for
     # cards that actually carry the field (skip minimal/older artifacts).
