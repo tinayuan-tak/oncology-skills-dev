@@ -43,6 +43,7 @@ composition:
     - structure-features-static
     - shed-ectodomain-liability
     - protein-domains-class
+    - domain-modality-relevance
     - ppi-interactome
     - gene-ontology-annotation
     - signaling-network-mechanism
@@ -65,6 +66,7 @@ composition:
     - structure_druggability
     - shed_ectodomain_liability
     - protein_domains_class
+    - domain_modality_relevance
     - ppi_interactome
     - gene_ontology_annotation
     - signaling_network_mechanism

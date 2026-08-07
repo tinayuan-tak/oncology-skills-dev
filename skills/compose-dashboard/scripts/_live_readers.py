@@ -846,6 +846,16 @@ def _dispatch_protein_domains_class(target: str, indication: str) -> Optional[di
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_domain_modality_relevance(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: domain-modality-relevance card → the INTERPRETIVE domain→modality layer via
+    methods/domain_modality_relevance/read.py (roadmap #3). Turns protein_class + domain
+    architecture (+ a curated scaffolding vocab) into modality_implication_class — does the
+    target's domain function favor a catalytic-site inhibitor or REMOVAL (degrader/glue), the
+    RIPK1 scaffolding case. Target-intrinsic (indication ignored). Verdict-inert."""
+    mod = _import_method("domain_modality_relevance")
+    return mod.domain_modality_for_gene(target)
+
+
 def _dispatch_ppi_interactome(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: ppi-interactome card → STRING functional-network degree + CORUM complex
     membership via methods/ppi_interactome/read.py. Target-intrinsic (indication ignored).
@@ -1387,6 +1397,7 @@ CARD_DISPATCHERS = {
     "gene-ontology-annotation": _dispatch_gene_ontology_annotation,  # target-intrinsic GO BP/MF/CC membership
     "ppi-interactome": _dispatch_ppi_interactome,  # target-intrinsic STRING network + CORUM complexes
     "protein-domains-class": _dispatch_protein_domains_class,  # target-intrinsic domain architecture + protein class
+    "domain-modality-relevance": _dispatch_domain_modality_relevance,  # interpretive domain→modality (roadmap #3)
     "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,
