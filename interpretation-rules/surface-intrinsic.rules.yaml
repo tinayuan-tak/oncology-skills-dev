@@ -1311,6 +1311,58 @@ rules:
   # gap, surfaced by the card's warnings, NOT scored as a modality negative (cohort-honesty).
 
   # ============================================================================
+  # F3-exon — Modality EXON-WINDOW card (enrichment E5, 2026-08-07)
+  # ============================================================================
+  # Keyed on exon_window_class (modality-exon-window card): the EXON-resolution companion of the
+  # gene-level window. HONEST SCOPE — a HYPOTHESIS-GENERATING flag, NOT an isoform-identity call
+  # (per-exon coverage cannot resolve CLDN18.2 from CLDN18.1). So exon_heterogeneity_flag fires only a
+  # GENTLE (secondary) supportive signal — it points at a candidate for junction-level follow-up, it
+  # does not confirm an isoform-restricted epitope. essential_exon_liability mirrors the gene-window
+  # essential-liability (bite_tce opposing / adc neutral — the ADC-vs-TCE discriminator). uniform_gene_
+  # window / not_expressed_in_cohort / not_in_product / data_unavailable fire NO rule. ADDITIVE
+  # signal-only: no surface_modality resolver rung (verdict resolves off adc-tce-modality-fit.fit_class)
+  # → verdict byte-stable.
+
+  - rule_id: exon-window-heterogeneity-flag-supportive
+    when:
+      card_id: modality-exon-window
+      field: exon_window_class
+      equals: exon_heterogeneity_flag
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The tumor-dominant exon stands well above the gene's other exons (within-gene heterogeneity)
+      with a clean tumor-vs-essential-normal window — a HYPOTHESIS that an isoform-resolved epitope
+      may offer a window the gene-level view misses (CLDN18.2-class QUESTION). SECONDARY, not
+      important: per-exon COVERAGE quantiles cannot confirm isoform identity (they are blind to
+      transcript membership), so this is a candidate for JUNCTION-level / isoform-resolved follow-up,
+      NOT a confirmed isoform-restricted target. Scores exon INCLUSION, not skipping.
+
+  - rule_id: exon-window-essential-liability-tce-opposing
+    when:
+      card_id: modality-exon-window
+      field: exon_window_class
+      equals: essential_exon_liability
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: secondary
+    rationale: |
+      The tumor-DOMINANT exon's own essential-normal expression clears the strict (1.0-TPM) tier —
+      even at exon resolution the window is not clean. Mirrors the gene-level essential-liability: a
+      strict T-cell engager has no bystander buffer (bite_tce opposing), while ADC/antibody are
+      NEUTRAL (moderate-tier bystander buffer frequently tolerates it — the ADC-vs-TCE discriminator).
+      Secondary importance: an exon-grain read is a refinement of, not a replacement for, the gene window.
+
+  # ============================================================================
   # N — Tumor immune context / EFFECTOR arm (biologics-augment, 2026-08-06)
   # ============================================================================
   # Keyed on immune_context_class (immune-context card; CIBERSORT LM22 CD8 T-cell infiltration). The
