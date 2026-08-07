@@ -263,7 +263,7 @@ def _hotspot_summary(row) -> dict:
         "mutation_hotspot_in_druggable_pocket": bool(row.get("mutation_hotspot_in_druggable_pocket", False)),
         "pdb_coverage_class": _classify_pdb_coverage(row),
         "alphafold_confidence_class": _classify_alphafold_confidence(row),
-        "pdb_ids_available": row.get("pdb_ids_available") or [],
+        "pdb_ids_available": _coerce_id_list(row.get("pdb_ids_available")),
         "pdb_best_resolution_angstrom": row.get("pdb_best_resolution_angstrom"),
         "pdb_best_method": row.get("pdb_best_method", "none"),
         "alphafold_plddt_mean": row.get("alphafold_plddt_mean"),
@@ -276,10 +276,22 @@ def _hotspot_summary(row) -> dict:
     }
 
 
+def _coerce_id_list(v) -> list:
+    """Normalise pdb_ids_available to a plain list. Parquet returns this list column as a numpy
+    ndarray, for which `v or []` raises 'truth value of an array is ambiguous' — so never use
+    truthiness on it. Handles ndarray / list / tuple / scalar str / None uniformly."""
+    if v is None:
+        return []
+    if isinstance(v, str):
+        return [v] if v.strip() else []
+    try:
+        return [x for x in list(v) if x is not None and str(x).strip()]
+    except TypeError:
+        return [v]
+
+
 def _classify_pdb_coverage(row) -> str:
-    ids = row.get("pdb_ids_available") or []
-    if isinstance(ids, str):
-        ids = [ids] if ids else []
+    ids = _coerce_id_list(row.get("pdb_ids_available"))
     if len(ids) >= 5:
         return "strong"
     if len(ids) >= 1:

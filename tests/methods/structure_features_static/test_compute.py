@@ -218,3 +218,19 @@ def test_build_row_disordered_target_is_distant():
     assert row["hotspot_pocket_adjacency_call"] == "distant"
     assert row["pdb_ids_available"] == []
     assert row["disordered_fraction"] == 1.0
+
+
+# ---------- read._coerce_id_list: parquet returns list cols as numpy arrays (regression) ----------
+def test_coerce_id_list_handles_ndarray_list_str_none():
+    """Regression: parquet returns pdb_ids_available as a numpy ndarray; `arr or []` raises
+    'truth value ambiguous'. _coerce_id_list must normalise ndarray/list/tuple/str/None → list.
+    This bug shipped in read.py (never hit until the derived product existed) — B0 publish caught it."""
+    import numpy as np
+    from methods.structure_features_static.read import _coerce_id_list
+    assert _coerce_id_list(np.array(["1ABC", "2DEF"])) == ["1ABC", "2DEF"]   # the failing case
+    assert _coerce_id_list(["1ABC", "2DEF"]) == ["1ABC", "2DEF"]
+    assert _coerce_id_list(("1ABC",)) == ["1ABC"]
+    assert _coerce_id_list("1ABC") == ["1ABC"]
+    assert _coerce_id_list(None) == []
+    assert _coerce_id_list(np.array([])) == []
+    assert _coerce_id_list("") == []
