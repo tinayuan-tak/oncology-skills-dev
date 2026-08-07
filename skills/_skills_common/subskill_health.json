@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0.0",
+  "harness": "framework_health_smoke",
+  "note": "Deterministic offline 'runs clean?' smoke of each wired subskill's real run.py under FRAMEWORK_HEALTH_SMOKE=1 (card readers stubbed; NO live data). smoke=clean \u2192 compute path executed + emitted run_health; clean_uninstrumented \u2192 ran clean but hand-rolls main() (no run_health); error \u2192 a real pipeline break.",
+  "summary": {
+    "n_subskills": 12,
+    "n_clean": 11,
+    "n_clean_uninstrumented": 1,
+    "n_error": 0
+  },
+  "subskills": {
+    "differentiation-landscape": {
+      "skill_name": "differentiation-landscape",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 2,
+        "n_cards_resolved": 2,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1687,
+        "total_secs": 0.1687
+      }
+    },
+    "functional-requirement": {
+      "skill_name": "functional-requirement",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 10,
+        "n_cards_resolved": 10,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1699,
+        "total_secs": 0.17
+      }
+    },
+    "genomic-alteration-profile": {
+      "skill_name": "genomic-alteration-profile",
+      "smoke": "clean_uninstrumented",
+      "smoke_reason": "ran clean but hand-rolls main() (no run_wired_skill) \u2192 no run_health"
+    },
+    "immune-context": {
+      "skill_name": "immune-context",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 1,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.0679,
+        "total_secs": 0.0679
+      }
+    },
+    "mechanism-and-pharmacology": {
+      "skill_name": "mechanism-and-pharmacology",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 2,
+        "n_cards_resolved": 2,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1823,
+        "total_secs": 0.1824
+      }
+    },
+    "on-target-safety-liability": {
+      "skill_name": "on-target-safety-liability",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 8,
+        "n_cards_resolved": 8,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1678,
+        "total_secs": 0.1678
+      }
+    },
+    "surface-modality-fit": {
+      "skill_name": "surface-modality-fit",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 13,
+        "n_cards_resolved": 13,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.085,
+        "total_secs": 0.085
+      }
+    },
+    "synthetic-lethal-partners": {
+      "skill_name": "synthetic-lethal-partners",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 1,
+        "n_cards_resolved": 1,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1704,
+        "total_secs": 0.1705
+      }
+    },
+    "target-intrinsic": {
+      "skill_name": "target-intrinsic",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 17,
+        "n_cards_resolved": 17,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1639,
+        "total_secs": 0.1639
+      }
+    },
+    "tractability-small-molecule": {
+      "skill_name": "tractability-small-molecule",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 4,
+        "n_cards_resolved": 4,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1674,
+        "total_secs": 0.1674
+      }
+    },
+    "tumor-presence": {
+      "skill_name": "tumor-presence",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 11,
+        "n_cards_resolved": 11,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.161,
+        "total_secs": 0.161
+      }
+    },
+    "tumor-selectivity": {
+      "skill_name": "tumor-selectivity",
+      "smoke": "clean",
+      "run_health": {
+        "status": "ok",
+        "n_cards_consumed": 2,
+        "n_cards_resolved": 2,
+        "n_cards_fired": 0,
+        "cards_fired": [],
+        "read_secs": 0.0,
+        "compute_secs": 0.1638,
+        "total_secs": 0.1638
+      }
+    }
+  }
+}

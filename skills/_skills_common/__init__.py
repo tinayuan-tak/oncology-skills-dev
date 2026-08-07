@@ -34,6 +34,7 @@ Design principles:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -126,7 +127,21 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
     subgroup_context (optional): when provided, threaded to the dispatcher so
     panorama cards (subgroup-stratified-*) fan out across the resolved strata.
     Scalar cards ignore it. None → scalar-only (backward-compat).
+
+    FRAMEWORK_HEALTH_SMOKE (env flag): when set, SKIP all live dispatcher reads and
+    return a synthetic minimal card output per card_id. This lets the framework-health
+    harness run each subskill's REAL run.py end-to-end (authentic axis/verdict/headline
+    → run_health) DETERMINISTICALLY and OFFLINE — proving "does the compute path execute
+    cleanly?" without any S3/network read. Off by default: unset → zero production impact
+    (this branch is not entered). Not a data source — a liveness-of-the-pipeline probe.
     """
+    if os.environ.get("FRAMEWORK_HEALTH_SMOKE"):
+        # Synthetic stub per card — a well-formed but empty summary. Rules that need real
+        # values simply don't fire (fired=[]); the point is that resolve→rules→verdict→
+        # run_health executes without error, which is the "runs clean?" health signal.
+        return [{"card_id": cid, "summary": {}, "_missing": False,
+                 "_smoke": True} for cid in card_ids]
+
     read_live = _import_dispatcher()
     outputs: list[dict] = []
     for card_id in card_ids:
