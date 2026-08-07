@@ -243,6 +243,10 @@ KNOWN_FIGURE_DEBT = {
     'protein-surface-evidence', 'surface-abundance-density', 'adc-tce-modality-fit',
     'fusion-rearrangement-landscape', 'rwd-stratified-expression',
     'target-identity-summary',
+    'modality-therapeutic-window',   # figure modality_window_tumor_vs_essential_normal declared at card
+                                     # creation (2026-08-06) but emitter never registered — pre-existing
+                                     # viz-debt (was failing on main before this edit); waived on the
+                                     # convention here. Emitter backfill deferred to the viz-debt queue.
     # tumor-elevation-breadth CLEARED 2026-07-22: the pan-cancer by-tissue TPM distribution
     # emitter (_emit_tumor_elevation_breadth, drawing from tcga-gtex-tpm-tissue-quantiles-v1)
     # is now registered in CARD_FIGURE_EMITTERS — passes the check, not waived.

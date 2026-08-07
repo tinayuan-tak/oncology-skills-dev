@@ -43,7 +43,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.4.0    # 2026-08-05: + selectivity all-gene percentile (Axis-1 contextualization; SEL-1 orphaned-signal surface)
+version: 3.5.0    # 2026-08-07 + selective_but_broadly_normal (axis-B/E therapeutic-window veto, conjunction redesign)
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 tier: indication   # indication-scoped tumor-vs-normal selectivity; subtype-eligible once a per-sample expression reader ships
@@ -114,6 +114,14 @@ outputs:
     selectivity_class:
       - strong_tumor_selective              # all cells that ran support, up, RAW max|log2FC|>=1.5 (cell A/C, not ComBat B)
       - modest_tumor_selective              # supporting_frac>=2/3, up, RAW max|log2FC|>=0.5
+      - selective_but_broadly_normal        # over-expressed vs tissue-of-origin (axis A) BUT no therapeutic
+                                            # window vs the broad normal atlas (modality-therapeutic-window
+                                            # therapeutic_window_class == no_therapeutic_window: tumor BELOW
+                                            # worst critical normal). The housekeeping veto — a conjunction
+                                            # downgrade applied at the skill layer (axis-A selective is
+                                            # NECESSARY but not SUFFICIENT; a broadly-normal gene is not a
+                                            # target regardless of tumor-vs-origin fold-change). See the
+                                            # selectivity conjunction redesign (best-practice: worst-axis).
       - field_effect_tumor_selective        # discordant BUT adjacent-flat/down + GTEx-population strongly up
                                             # (>=1.5): field-cancerization signature — the adjacent 'normal'
                                             # already over-expresses (Aran/Butte 2017), so defer to the GTEx

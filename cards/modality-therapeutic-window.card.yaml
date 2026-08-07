@@ -17,7 +17,7 @@
 #   data_unavailable           → indication has no TCGA study, or target absent from the product
 
 card_id: modality-therapeutic-window
-version: 1.0.0
+version: 1.1.0
 question: "For {target.symbol} in {indication.label}, is tumor expression high enough relative to the worst essential normal organ to open a therapeutic window for a biologic at each modality tier (strict TCE / moderate ADC / pathway antibody)?"
 
 tier: indication   # per-indication tumor-vs-essential-normal window; the tumor numerator is cohort-specific
@@ -38,7 +38,12 @@ methods:
 
 outputs:
   summary_fields:
-    - window_class                               # PRIMARY categorical (per modality tier)
+    - window_class                               # PRIMARY categorical (per modality tier; absolute essential-organ gate)
+    - therapeutic_window_class                   # RATIO-based re-tier (2026-08-07): clean>=5x / narrow 1-5x /
+                                                 # no_therapeutic_window <1x (tumor below worst critical normal) /
+                                                 # not_expressed_in_cohort. Separates high-window antigens from
+                                                 # housekeeping where window_class collapses them; the selectivity
+                                                 # conjunction's normal-breadth VETO keys on no_therapeutic_window.
     - tumor_tpm                                  # linear TPM, max median across the indication's TCGA studies
     - max_essential_normal_tpm                   # denominator 1: worst essential organ (the tier gate)
     - max_essential_normal_organ                 # which essential GTEx tissue
@@ -58,6 +63,12 @@ outputs:
       - narrow_window                            # expressed, no essential liability, but < 4x separation
       - not_expressed_in_cohort                  # tumor < 1.0 TPM in this cohort (not a candidate here)
       - data_unavailable                         # no TCGA study for the indication, or target absent
+    therapeutic_window_class:                    # RATIO-only re-tier (tumor / worst essential-normal)
+      - clean_window                             # ratio >= 5x — comfortable therapeutic window
+      - narrow_window                            # ratio 1-5x — real but modest window (kept, flagged)
+      - no_therapeutic_window                    # ratio < 1x — tumor BELOW worst critical normal (the veto)
+      - not_expressed_in_cohort                  # tumor < 1.0 TPM
+      - data_unavailable
 
   figure: modality_window_tumor_vs_essential_normal
 

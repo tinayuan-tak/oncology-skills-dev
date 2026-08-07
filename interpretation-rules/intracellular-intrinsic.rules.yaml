@@ -2227,6 +2227,33 @@ rules:
       (batch expansion pending, or gene absent). Coverage gap; not used as
       opposing evidence.
 
+  # ── axis-B/E NORMAL-BREADTH VETO (selectivity conjunction INC-1/2, 2026-08-07) ──
+  # The housekeeping veto. Fires on the modality-therapeutic-window card's RATIO-based
+  # therapeutic_window_class == no_therapeutic_window (tumor BELOW the worst critical normal — no
+  # therapeutic window). The tumor-selectivity skill's _verdict applies this as a CONJUNCTION: when
+  # axis-A returns strong/modest/field_effect_tumor_selective AND this veto rule is in `fired`, the
+  # verdict is downgraded to selective_but_broadly_normal (axis-A over-expression is NECESSARY but
+  # NOT SUFFICIENT — a broadly-normal gene like GAPDH is not a target regardless of tumor-vs-origin
+  # fold-change). Backtest: separates housekeeping (no_window) from validated antigens cleanly.
+  # SM/degrader OPPOSING (a genuine on-target/off-tumor liability, not a coverage gap).
+  - rule_id: tvn-no-therapeutic-window-veto
+    when:
+      card_id: modality-therapeutic-window
+      field: therapeutic_window_class
+      equals: no_therapeutic_window
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      Tumor expression is BELOW the worst critical/essential normal organ (tumor÷worst-essential-normal
+      ratio < 1) — there is NO therapeutic window versus the broad normal tissue atlas, even if the gene
+      is over-expressed vs its own tissue of origin (axis A). This is the housekeeping / broadly-expressed
+      signature (GAPDH/ACTB/TUBB/B2M). The tumor-selectivity verdict downgrades a selective axis-A call to
+      selective_but_broadly_normal when this fires (conjunction: over-expression is necessary, not
+      sufficient — best practice is tumor-to-WORST-normal window, not tumor-vs-origin alone). Modality-
+      lensed: on-target/off-tumor liability is worst for a systemic small-molecule/degrader that hits the
+      target everywhere it is expressed.
+
   # ============================================================================
   # Phase D — Signaling-network-mechanism card (added 2026-07-08)
   # ============================================================================
