@@ -2,11 +2,13 @@
 """tumor-presence — expression/protein presence for a (target, indication).
 
 Consumes 11 wired cards in two tiers (see CARDS below + SKILL.md):
-  VERDICT-BEARING (6, feed the presence ladders): cellline-rna-distribution (cell-line RNA),
-    tumor-rna-vs-adjacent (tumor RNA), tumor-protein-abundance-cptac (tumor protein),
-    cellline-protein-abundance (cell-line protein), tumor-elevation-breadth (pan-cancer target-grain),
+  VERDICT-BEARING (7, feed the presence ladders): cellline-rna-distribution (cell-line RNA),
+    tumor-rna-vs-adjacent (tumor RNA), tumor-rna-distribution (per-sample tumor RNA — its
+    tumor-expression-* rules ARE in the bulk_rna ladder; reclassified from display-only 2026-08-07),
+    tumor-protein-abundance-cptac (tumor protein), cellline-protein-abundance (cell-line protein),
+    tumor-elevation-breadth (pan-cancer target-grain),
     tumor-scrna-celltype-expression (single-cell per-compartment tumor presence — sc_rna/tumor).
-  DISPLAY-ONLY facets (5, feed NO resolver — verdict byte-stable): tumor-rna-distribution,
+  DISPLAY-ONLY facets (4, feed NO resolver — verdict byte-stable):
     tumor-rna-distribution-by-subtype, expression-purity-confound, cellline-rna-protein-concordance,
     normal-tissue-liability (protein_ihc/normal SAFETY COMPARATOR — P8.3, closes the last named gap).
   (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
@@ -45,10 +47,11 @@ CARDS = [
     "tumor-elevation-breadth",          # Slice B3 — pan-cancer K-of-N tumor-elevation (target-grain)
     "tumor-rna-distribution",    # Q1 (expression-extraction plan) — per-sample TUMOR RNA
                                         # distribution (bulk_rna x tumor); the per-sample companion to
-                                        # tumor-rna-vs-adjacent's cohort aggregate. Its
-                                        # distribution summary + figure surface now; mapping its
-                                        # tumor_expression_class into the bulk_rna verdict ladder is a
-                                        # follow-up rules PR (intersects the subtyping revisit).
+                                        # tumor-rna-vs-adjacent's cohort aggregate. VERDICT-BEARING: its
+                                        # tumor_expression_class maps into the bulk_rna ladder via the
+                                        # tumor-expression-* rules (_EXPRESSION_RANK below) →
+                                        # tumor_broadly/moderately/sparsely_expressed. (2026-08-07: the
+                                        # "follow-up rules PR" this comment once anticipated HAS landed.)
     "tumor-rna-distribution-by-subtype",  # target_subtype-grain sibling — the per-molecular-subtype
                                         # panorama (per_subgroup_metrics, compute-all). Surfaces the
                                         # subtype landscape + faceted panel; subtype_signal is
@@ -370,9 +373,48 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
     return out
 
 
+# RNA presence-verdict values that are a MEASURED-POSITIVE bulk-RNA presence call (i.e. the
+# presence signal rests on RNA). Used only to QUALIFY the RNA call by its protein-proxy quality —
+# never to change it.
+_RNA_PRESENCE_POSITIVE = frozenset({
+    "broadly_high_expression", "strongly_upregulated_in_tumor", "lineage_restricted",
+    "modestly_upregulated_in_tumor", "broadly_moderate_expression",
+    "tumor_broadly_expressed", "tumor_moderately_expressed",
+})
+
+
+def _bulk_rna_proxy_quality(per_modality: dict, rna_as_biomarker) -> str:
+    """Derived, VERDICT-INERT qualifier: when a bulk-RNA presence call is MEASURED-POSITIVE, how well
+    does RNA proxy the protein it implies? The framework carries both layers but the concordance
+    signal was display-only; this surfaces the interpretive TENSION explicitly (spec D5 — 'RNA is a
+    poor proxy for available protein', the ADC/biologics-critical fact) so synthesis/reviewers can
+    down-weight an RNA-only presence claim. Does NOT move presence_verdict (one-directional).
+
+    Values:
+      rna_confirmed_by_protein     — RNA-positive + RNA is an adequate protein proxy (high-confidence presence)
+      rna_positive_proxy_partial   — RNA-positive + partial proxy (moderate confidence)
+      rna_positive_proxy_poor      — RNA-positive but RNA is a POOR protein proxy → the presence claim
+                                     needs protein confirmation before an ADC/biologics read (caveat)
+      proxy_untested               — RNA-positive but proxy not measurable (too few paired models / no data)
+      not_applicable               — the RNA bucket is not a measured-positive presence call
+    """
+    rna_bucket = (per_modality or {}).get("bulk_rna/tumor") or (per_modality or {}).get("bulk_rna/cell_line")
+    rna_verdict = rna_bucket.get("verdict") if isinstance(rna_bucket, dict) else rna_bucket
+    if rna_verdict not in _RNA_PRESENCE_POSITIVE:
+        return "not_applicable"
+    if rna_as_biomarker == "adequate_proxy":
+        return "rna_confirmed_by_protein"
+    if rna_as_biomarker == "partial_proxy":
+        return "rna_positive_proxy_partial"
+    if rna_as_biomarker == "poor_proxy":
+        return "rna_positive_proxy_poor"
+    return "proxy_untested"   # insufficient_paired_models / data_unavailable / None
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
+    _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")
     return {
         # COLLAPSED verdict — the audit spine target-profile reads as `verdict`.
         # Byte-stable across the Slice-Y refactor (F1-safe: additive).
@@ -411,8 +453,13 @@ def _headline(cards, fired, verdict_pair):
         "expression_purity_pearson_r": get_card_field(cards, "expression-purity-confound", "expression_purity_pearson_r"),
         # (phospho_activity_class / n_phosphosites RE-HOMED 2026-08-05 → mechanism-and-pharmacology.)
         # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
-        "rna_as_biomarker":         get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker"),
+        "rna_as_biomarker":         _rna_biomarker,
         "rna_protein_r":            get_card_field(cards, "cellline-rna-protein-concordance", "rna_protein_r"),
+        # RNA→protein proxy QUALIFIER on the RNA presence call (2026-08-07, review Fix-1). Derived,
+        # VERDICT-INERT: qualifies a MEASURED-POSITIVE bulk-RNA presence verdict by whether RNA is a
+        # trustworthy protein proxy (spec D5). rna_positive_proxy_poor flags an RNA-only presence claim
+        # that needs protein confirmation before an ADC/biologics read. Never moves presence_verdict.
+        "bulk_rna_proxy_quality":   _bulk_rna_proxy_quality(per_modality, _rna_biomarker),
         # SUBTYPE SCOPE (Finding A, 2026-08-04) — the per-molecular-subtype presence landscape from
         # tumor-rna-distribution-by-subtype, ELEVATED into the audit spine so the subtype scope is
         # visible here, not just in a side table (_per_subgroup_metrics.csv). One-directional / non-veto

@@ -5,10 +5,15 @@ description: |
   tissue, and how does it distribute across cancer cell lines vs. tumor
   samples, at RNA, protein, and single-cell level?" Consumes 11 wired cards in two tiers.
 
-  VERDICT-BEARING (6 cards — feed the rank-ordered presence ladders):
+  VERDICT-BEARING (7 cards — feed the rank-ordered presence ladders):
     - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
     - tumor-rna-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
                                          adjacent, else tumor-vs-GTEx fallback)
+    - tumor-rna-distribution         (per-sample TUMOR RNA distribution; bulk_rna/tumor bucket.
+                                         VERDICT-BEARING: its tumor-expression-* rules ARE in the
+                                         bulk_rna ladder — verdicts tumor_broadly/moderately/
+                                         sparsely_expressed. 2026-08-07: reclassified from display-only;
+                                         the "follow-up rules PR" that would wire it HAS landed.)
     - tumor-protein-abundance-cptac            (tumor protein abundance, CPTAC per-cohort)
     - cellline-protein-abundance         (cell-line protein, DepMap/Gygi TMT-MS)
     - tumor-elevation-breadth           (pan-cancer K-of-N tumor-elevation, target-grain)
@@ -16,10 +21,8 @@ description: |
                                          anchored detection + malignant-vs-microenvironment
                                          attribution; sc_rna/tumor bucket; COADREAD+NSCLC)
 
-  DISPLAY-ONLY facets (5 cards — additive context, feed NO resolver, verdict
+  DISPLAY-ONLY facets (4 cards — additive context, feed NO resolver, verdict
   byte-stable; one-directional gate):
-    - tumor-rna-distribution         (per-sample tumor RNA distribution; rules
-                                             not yet in the verdict ladder — follow-up)
     - tumor-rna-distribution-by-subtype (per-molecular-subtype panorama; COADREAD
                                              shard only, else subtype_axis_available:false)
     - expression-purity-confound            (is the tumor signal tumor-intrinsic or stromal?)
