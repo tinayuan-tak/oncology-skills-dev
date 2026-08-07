@@ -12,7 +12,7 @@
 # FUTURE second `measured` provider (would corroborate CSPA), not a blocker.
 
 card_id: protein-surface-evidence
-version: 1.1.0
+version: 1.2.0   # +HPA-IF second measured provider (surface_multimodal_support corroboration facet; verdict-inert)
 question: "Is {target.symbol} confirmed at the protein level and accessible on the tumor cell surface in {indication.label}?"
 
 applies_when:
@@ -24,6 +24,10 @@ applies_when:
 required_inputs:
   - product_id: cspa-surface-confirmation-per-uniprot-v1
     release_pin: "{release_pin}"
+  # Second MEASURED provider (2026-08-07): HPA immunofluorescence subcellular location — an
+  # orthogonal (microscopy) surface-residency signal composed as CORROBORATION by the
+  # cspa-surface-confirmation method. surface_confirmation_class stays CSPA-driven (verdict-stable).
+  - product_id: hpa-subcellular-location-per-gene-v1
 
 methods:
   - call: cspa-surface-confirmation
@@ -34,11 +38,20 @@ methods:
 
 outputs:
   summary_fields:
-    - surface_confirmation_class               # cell_surface_confirmed / not_surface / data_unavailable
+    - surface_confirmation_class               # confirmed_high / confirmed / not_surface / data_unavailable (CSPA-driven; verdict field)
     - cspa_category                            # CSPA high-confidence category
     - n_celllines_detected                     # # cell lines with wet-lab CSPA detection
     - measured_in_cspa                         # True / False (honest measured-negative) / None
     - evidence_tier                            # 'measured' (CSPA is the measured tier)
+    # HPA-IF orthogonal corroboration facet (2026-08-07, additive; verdict-inert — the rules fire on
+    # surface_confirmation_class, which stays CSPA-driven). A second MEASURED modality (immunofluorescence
+    # microscopy vs CSPA mass-spec): agreement raises antigen-reality confidence, disagreement flags a
+    # coverage/false-negative gap (e.g. CEACAM5 — CSPA cell-line panel misses this validated ADC target,
+    # HPA rescues it).
+    - hpa_if_surface_class                     # plasma_membrane_main / plasma_membrane_additional / intracellular_only / location_unavailable
+    - hpa_if_plasma_membrane                   # bool — HPA IF places the protein at the plasma membrane
+    - hpa_if_reliability                       # HPA IF reliability tier (Enhanced > Supported > Approved > Uncertain)
+    - surface_multimodal_support               # corroborated_surface / discordant / cspa_only / hpa_if_only / single_modality_negative / insufficient
   figure: protein_evidence_summary_panel
   plot_data: per_subcellular_location_evidence
 
@@ -58,6 +71,7 @@ thresholds:
 caveats:
   - "CSPA (Bausch-Fluck 2015) is the `measured` surface-confirmation tier: a mass-spec cell-surface-capture surfaceome across cell lines. HPA protein-IHC would be a SECOND measured provider (future corroboration), not a blocker."
   - "A target absent from the CSPA high-confidence surfaceome is an honest measured-NEGATIVE (not_surface), distinct from data_unavailable (target not resolvable to a UniProt AC)."
+  - "HPA immunofluorescence subcellular location is the SECOND measured provider (hpa_if_* + surface_multimodal_support), orthogonal to CSPA mass-spec. VERDICT-INERT: rules fire on surface_confirmation_class (CSPA-driven). surface_multimodal_support=discordant flags a CSPA false-negative/coverage gap (e.g. CEACAM5 — a validated ADC target CSPA's panel misses, HPA localizes to plasma membrane): an antigen-reality corroboration signal, not a verdict."
   - "Surface confirmation in one context does not guarantee accessibility in another (glycosylation, masking, internalization rates differ) — CSPA reflects the cell lines assayed, not the specific tumor context."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — this card is a view of the `surface_confirmation` claim (is the

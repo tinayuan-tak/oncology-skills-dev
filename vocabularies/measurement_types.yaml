@@ -500,7 +500,7 @@ measurement_types:
     multi_provider_policy: tier_dominant            # measured HPA/CSPA beats inferred SURFY (Rule 5)
     cards: [protein-surface-evidence]
     providers:
-      - {kind: dataset, source: hpa-protein-ihc,          evidence_tier: measured}   # + subcellular-localization-uniprot; card currently data-blocked
+      - {kind: dataset, source: hpa-subcellular-location-per-gene-v1, evidence_tier: measured}   # HPA immunofluorescence plasma-membrane residency (2026-08-07); replaces the never-built hpa-protein-ihc placeholder. Orthogonal (microscopy) 2nd measured provider; composed as corroboration in cspa_surface_confirmation (surface_multimodal_support).
       - {kind: dataset, source: cspa-bausch-fluck-2015,   evidence_tier: measured}   # CSPA orphan resolved: registers here per Rule 2 / the doc's worked example
       - {kind: dataset, source: surfaceome-family-surfy-prediction, evidence_tier: inferred}   # SURFY prediction — second, lower-tier provider
 
