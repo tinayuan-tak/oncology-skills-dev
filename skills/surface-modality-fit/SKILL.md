@@ -79,6 +79,11 @@ composition:
                                        # nor normal-tissue-liability makes. Rules fire on window_class (essential_tissue_
                                        # liability → bite_tce opposing, adc NEUTRAL = ADC-vs-TCE discriminator). Emits
                                        # both essential + full-normal ratios (Theme-1). Additive; verdict byte-stable.
+    - mutation-stratified-surface      # (in run.py CARDS; wired 2026-08-07, enrichment E4-A2) patient-selection-aware
+                                       # surface presence: is the antigen elevated in a driver's MUTANT tumor subset
+                                       # (a biologics handle on the mutant patient population the gene-level window
+                                       # dilutes away)? v1 = KRAS×NSCLC. Rule mutant-up-surface-antigen-supportive fires
+                                       # adc/bite_tce/antibody supportive on mutant_up_surface. Additive; byte-stable.
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -108,6 +113,8 @@ composition:
                                        # homogeneity (tce_homogeneity_class facet); TCE-escape signal, adc/bite_tce.
     - modality_window                  # (2026-08-06, biologics-augment window arc) tumor / max-essential-normal TPM
                                        # therapeutic-window ratio, modality-tiered; adc/bite_tce/antibody.
+    - mutation_stratified_surface      # (2026-08-07, E4-A2) mutation-stratified surface window — antigen elevated in
+                                       # a driver's MUTANT subset (biologics handle on mutant patients); adc/bite_tce/antibody.
   rules_scope:
     - all
   synthesis:

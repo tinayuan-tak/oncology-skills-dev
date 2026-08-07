@@ -130,6 +130,12 @@ CARDS = [
                                          # — gentle, a follow-up candidate] / exon-window-essential-liability-tce-
                                          # opposing [ADC-vs-TCE discriminator]) fire on exon_window_class. ADDITIVE
                                          # (no resolver rung) → verdict byte-stable.
+    "mutation-stratified-surface",       # E4-A2 (2026-08-07): patient-selection-aware surface presence — is the
+                                         # antigen ELEVATED in a driver's MUTANT tumor subset (a biologics handle on
+                                         # the mutant patient population the gene-level window dilutes away)? Reads
+                                         # mutation-stratified-surface-window-v1 (v1 = KRAS×NSCLC archetype). Its rule
+                                         # (mutant-up-surface-antigen-supportive) fires adc/bite_tce/antibody supportive
+                                         # ONLY on mutant_up_surface. ADDITIVE (no resolver rung) → verdict byte-stable.
 ]
 
 QUESTION = ("For {target} in {indication}, does the surface biology (topology, "
@@ -225,6 +231,13 @@ def _headline(cards, fired, verdict_pair):
         "exon_best_exon_id":              get_card_field(cards, "modality-exon-window", "best_exon_id"),
         "exon_best_exon_window_ratio":    get_card_field(cards, "modality-exon-window", "best_exon_window_ratio"),
         "exon_heterogeneity_log2":        get_card_field(cards, "modality-exon-window", "exon_heterogeneity_log2"),
+        # Mutation-stratified surface window (mutation-stratified-surface, E4-A2) — patient-selection-aware
+        # presence: is the antigen elevated in a driver's MUTANT subset (biologics handle on mutant patients)?
+        # Its rule (mutant-up-surface-antigen-supportive) fires adc/bite_tce/antibody supportive on
+        # mutant_up_surface. Additive; verdict byte-stable. v1 = KRAS×NSCLC (else not_in_product, a gap).
+        "mutant_stratified_surface_class": get_card_field(cards, "mutation-stratified-surface", "mutant_stratified_surface_class"),
+        "mutant_surface_driver":          get_card_field(cards, "mutation-stratified-surface", "driver_gene"),
+        "mutant_surface_delta_log2":      get_card_field(cards, "mutation-stratified-surface", "delta_log2"),
         # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression, F5 rules).
         # F5 rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
         # bite_tce killer + adc/antibody opposing; NOT_EXPRESSED → supportive (dominant). Provides
