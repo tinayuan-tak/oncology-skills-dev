@@ -2057,6 +2057,48 @@ rules:
       (measured-vs-null discipline: absence of data is not evidence of undruggability). SM-scoped.
 
   # ============================================================================
+  # E-known-drug — PHARMACOLOGY leg (Card known-drug-tractability, DGIdb)
+  # ============================================================================
+  # The known-drug / druggable-category leg of the SM tractability call, from DGIdb. Complements the
+  # STRUCTURE leg (E8/E8-lig, "is there a handle") with "has a drug actually been catalogued". These
+  # rules REUSE the existing verdict rungs (no new verdict string): an APPROVED antineoplastic drug is
+  # retrospective chemical-genetic evidence -> chemically_active (same tier as PRISM clinically-active,
+  # so it RESCUES a target an individual PRISM screen missed but a real oncology drug exists); a
+  # druggable-genome / clinically-actionable-without-approval membership is a forward druggable-class
+  # prior -> structurally_ligandable tier (alongside a pocket). SM-scoped only. Measured-vs-null: DGIdb
+  # absence emits NO signal (a coverage gap, not an opposing note); the card's no_known_drug_evidence
+  # class simply fires nothing here. Both rules map to EXISTING verdicts, so they can only rescue
+  # fall-through combos, never change one that already returned chemically_active/structurally_ligandable.
+  - rule_id: known-drug-approved-antineoplastic-sm-supportive
+    when:
+      card_id: known-drug-tractability
+      field: known_drug_tractability_class
+      equals: approved_drug_tractable
+    signals:
+      small_molecule: supportive
+    dominant: true
+    rationale: |
+      An APPROVED small-molecule drug is catalogued against this target in DGIdb (approved-drug
+      interaction) — a real compound demonstrably engages the target. Retrospective chemical
+      evidence (like PRISM clinically-active), from the drug-catalogue rather than a cell-line
+      screen, so it credits a target an individual PRISM screen may have missed. Maps to the
+      chemically_active verdict rung. SM-scoped.
+
+  - rule_id: known-drug-druggable-category-sm-supportive
+    when:
+      card_id: known-drug-tractability
+      field: known_drug_tractability_class
+      in: [clinically_actionable, druggable_genome]
+    signals:
+      small_molecule: supportive
+    rationale: |
+      The target is in a recognized DGIdb druggable category (CLINICALLY ACTIONABLE or DRUGGABLE
+      GENOME) without an approved drug flagged here — a forward druggable-CLASS prior (kinase/GPCR/
+      enzyme families with established small-molecule chemistry). Supportive, not dominant: a class
+      membership is weaker than an approved drug or a resolved pocket. Maps to the structurally_
+      ligandable tier (a forward handle, no compound yet). SM-scoped.
+
+  # ============================================================================
   # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================
   # MULTI-CELL sensitivity selectivity. The three live cells (TCGA-adjacent raw +

@@ -450,6 +450,18 @@ measurement_types:
       - {kind: dataset, source: string-v12-human-snapshot-2026-06-30, evidence_tier: measured}
       - {kind: dataset, source: corum-5-3, evidence_tier: measured}
 
+  known_drug_tractability:
+    # PHARMACOLOGY leg of small-molecule tractability (DGIdb): has a drug been catalogued against the
+    # target (approved / antineoplastic) + is it in a recognized druggable-genome category? Orthogonal
+    # to the retrospective PRISM cell-line cards and complementary to the STRUCTURE leg
+    # (structure_druggability). Feeds the SM verdict via the E-known-drug intracellular rules.
+    modality_relevance: [small_molecule]
+    claim: "Has a small-molecule drug been catalogued against target (approved/antineoplastic), and is it in a druggable-genome category?"
+    entity_grains: [target]
+    cards: [known-drug-tractability]
+    providers:
+      - {kind: dataset, source: dgidb-drug-gene-per-gene-v1, evidence_tier: measured}
+
   structure_druggability:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.

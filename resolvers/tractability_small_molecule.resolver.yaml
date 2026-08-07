@@ -12,13 +12,18 @@
 #      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
 #   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
 gate: tractability_small_molecule
-version: 1.0.0
-description: Small-molecule druggability precedence (chemical-genetic E6/E7 > opposing > structural E8 > unhit).
+version: 1.1.0   # +E-known-drug DGIdb pharmacology rungs (approved->chemically_active; category->structurally_ligandable)
+description: Small-molecule druggability precedence (chemical-genetic E6/E7 + DGIdb approved-drug > opposing > structural E8 + druggable-category > unhit).
 resolve:
   # --- Chemical-genetic (retrospective: a compound was found) ---
   - {verdict: well_covered,                 when_fired: e7-triangulated-target-engaged-supportive}
   - {verdict: chemically_confirmed_genetic, when_fired: e7-crispr-confirmed-supportive-sm}
   - {verdict: chemically_active,            when_fired: prism-clinically-active-supportive-sm}
+  # E-known-drug (DGIdb pharmacology leg, 2026-08-07): an APPROVED drug catalogued against the target
+  # is retrospective chemical evidence -> chemically_active (SAME verdict as PRISM clinically-active, so
+  # it can only RESCUE a target PRISM missed, never change a combo that already returned it). Placed
+  # right below the PRISM chemically_active rung (equal tier, drug-catalogue vs cell-line source).
+  - {verdict: chemically_active,            when_fired: known-drug-approved-antineoplastic-sm-supportive}
   - {verdict: tool_compound_only,           when_fired: prism-tool-compound-only-weak-supportive-sm}
   - {verdict: weakly_active,                when_fired: prism-weakly-active-weak-supportive-sm}
   # --- Opposing / negative reads (must precede structural positives) ---
@@ -35,6 +40,9 @@ resolve:
   - {verdict: structurally_ligandable,      when_fired: hotspot-in-druggable-pocket-sm-supportive-e8}
   - {verdict: structurally_ligandable,      when_fired: structure-pocket-adjacent-sm-supportive}
   - {verdict: structurally_ligandable,      when_fired: ligandability-predicted-sm-supportive}
+  # E-known-drug (DGIdb): a druggable-CATEGORY membership (CLINICALLY ACTIONABLE / DRUGGABLE GENOME)
+  # without an approved drug is a forward druggable-class prior — same tier as a predicted pocket.
+  - {verdict: structurally_ligandable,      when_fired: known-drug-druggable-category-sm-supportive}
   - {verdict: structurally_intractable,     when_fired: structure-low-confidence-sm-opposing}
   - {verdict: structurally_intractable,     when_fired: ligandability-disordered-sm-opposing}
   - {verdict: chemically_unhit,             when_fired: prism-no-compounds-found-neutral}
