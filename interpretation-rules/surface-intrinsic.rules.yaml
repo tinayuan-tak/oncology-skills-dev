@@ -682,6 +682,36 @@ rules:
       so absence of annotation must not be read as "not shed." Surfaced, not
       scored against the modality.
 
+  # F3-measured (E3, 2026-08-07) — the MEASURED Olink conditioned-media facet.
+  # Fires on measured_shed_class (PARALLEL to shed_liability_class above; the card's
+  # annotation classes are UNCHANGED). Only the POSITIVE media_shed_high is verdict-
+  # relevant — a target empirically released into conditioned media across the DepMap
+  # panel is an antigen-sink liability corroborated by measurement, not just annotation.
+  # media_shed_low / not_on_secreted_panel / data_unavailable get NO rule: the panel is
+  # bounded + secretome-preselected, so a low/absent read is NON-informative (never a
+  # measured "not shed"). Opposing (not killer), same severity as the annotation tiers.
+  - rule_id: shed-ectodomain-measured-media-opposing
+    when:
+      card_id: shed-ectodomain-liability
+      field: measured_shed_class
+      equals: media_shed_high
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      MEASURED antigen-sink signal: the target is empirically released into
+      conditioned media across the DepMap cell-line panel (Olink NPX at/above the
+      panel high bar, detected in multiple lines). Independent wet-lab corroboration
+      that a soluble form is shed/secreted — a first-order pharmacology liability for
+      all antibody-based modalities (drug bound in the periphery before tumor delivery).
+      A PARALLEL facet to the annotation-based shed_liability_class: it does not alter
+      that class, and only the positive media_shed_high fires (the Olink media panel is
+      bounded + secretome-preselected, so a low/off-panel read is non-informative, never
+      a measured "not shed"). Opposing (not killer) — drives epitope + antigen-sink
+      dosing strategy, does not foreclose the modality. In-vitro supernatant shedding
+      models, but does not prove, an in-vivo circulating-antigen sink.
+
   # ============================================================================
   # F4 — Normal-tissue-liability card (HPA IHC, WIRED 2026-07-20)
   # ============================================================================
