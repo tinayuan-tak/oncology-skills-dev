@@ -10,6 +10,6 @@ Companion:
 
 Consumer: structure-features-static evidence card (Phase F) via tractability-and-modality.
 """
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
 from .read import read_target_summary  # noqa: F401,E402
