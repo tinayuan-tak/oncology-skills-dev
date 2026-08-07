@@ -1631,3 +1631,30 @@ rules:
       NEUTRAL (honest): no positive or negative surface-antigen argument from fusion recurrence alone;
       a fusion that truncates the ectodomain would be antigen-negative, one creating a neoepitope could
       be favourable — resolve with the surface-topology card, not here. Matrix cell: Fusion × {ADC, Biologic}.
+
+  # ============================================================================
+  # F-mutstrat — MUTATION-STRATIFIED surface window (Card mutation-stratified-surface, E4-A2)
+  # ============================================================================
+  # A patient-selection-aware surface presence signal: a surface antigen ELEVATED in a driver's
+  # MUTANT tumor subset (vs WT) is a biologics handle enriched in the mutant patient population —
+  # the gene-level-averaged tumor-vs-normal window dilutes these subset-specific antigens. ADDITIVE
+  # signal-only: the surface_modality verdict resolves off adc-tce-modality-fit.fit_class, so this
+  # rule feeds NO resolver rung → verdict byte-stable; it raises/annotates the biologics presence
+  # argument. Only mutant_up_surface fires (supportive); mutant_down / not_stratified / underpowered /
+  # not_in_product emit nothing (measured-vs-null: a coverage gap or non-signal is not opposing).
+  - rule_id: mutant-up-surface-antigen-supportive
+    when:
+      card_id: mutation-stratified-surface
+      field: mutant_stratified_surface_class
+      equals: mutant_up_surface
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      The surface antigen is significantly ELEVATED in the driver-mutant subset of this indication
+      (Mann-Whitney q<=0.10, median delta_log2>=0.5 mutant-vs-WT) — a biologics handle enriched in
+      the driver-mutant patient population, which the gene-level-averaged tumor-vs-normal window
+      dilutes away (the KRAS-mut-NSCLC → MSLN/CEACAM5 archetype). Supportive across adc/bite_tce/
+      antibody as a PATIENT-SELECTION-aware presence argument; confirm mutant-subset antigen density
+      before nomination. SURFACE-scoped (an intracellular SM target does not use a surface antigen).
