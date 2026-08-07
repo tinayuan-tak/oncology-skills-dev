@@ -32,7 +32,7 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
-METHOD_VERSION = "0.2.0"  # 0.1.0 -> 0.2.0: repoint to gnomad-constraint-per-gene-v1 product (v4.1.1)
+METHOD_VERSION = "0.3.0"  # 0.2.0 -> 0.3.0: + human_ko_observed_class (v2.1.1 obs_hom_lof, roadmap #1)
 
 # --- source location (landed derived manifest gnomad-constraint-per-gene-v1) ---
 SOURCE_MANIFEST_ID = "gnomad-constraint-per-gene-v1"
@@ -48,6 +48,8 @@ COL_MIS_Z = "mis_z"
 COL_SYN_Z = "syn_z"
 COL_OBS_LOF = "obs_lof"
 COL_EXP_LOF = "exp_lof"
+COL_OBS_HOM_LOF = "obs_hom_lof"   # v2.1.1 observed homozygous-LoF count (natural human KOs)
+COL_EXP_HOM_LOF = "exp_hom_lof"
 
 # --- card thresholds (target-contracts/cards/gnomad-lof-constraint.card.yaml) ---
 # high_loeuf moved 0.35 -> 0.45 with the gnomAD v4.1.1 recompute (gnomAD's
@@ -77,6 +79,34 @@ def classify_constraint(pli: Optional[float], loeuf: Optional[float]) -> str:
     if moderate:
         return "moderately_constrained"
     return "tolerant"
+
+
+def classify_human_ko_observed(obs_hom_lof: Optional[float], pli: Optional[float],
+                               loeuf: Optional[float]) -> str:
+    """Map (obs_hom_lof, pLI, LOEUF) → human_ko_observed_class (the DIRECT-observation
+    complement to the probabilistic constraint class).
+
+    Vocabulary: natural_ko_observed | constrained_no_ko | no_natural_ko | data_unavailable.
+
+    ASYMMETRIC BY DESIGN (see the derived-product cross-release note): observing a natural
+    human knockout is a STRONG positive (full loss is demonstrably tolerated), but its ABSENCE
+    is WEAK — homozygous LoF is rare in the 125k v2 cohort (only ~12% of genes have any), so
+    obs_hom_lof=0 must NOT be read as essentiality; that inference belongs to pLI/LOEUF.
+      - obs_hom_lof >= 1                      -> natural_ko_observed  (KO-tolerated reassurance)
+      - obs_hom_lof == 0 AND highly constrained (pLI>=0.9 or LOEUF<=0.45)
+                                              -> constrained_no_ko    (no natural KO + constrained:
+                                                 the essentiality signal is the CONSTRAINT, not the 0)
+      - obs_hom_lof == 0 otherwise            -> no_natural_ko        (0 in a 125k cohort; uninformative
+                                                 either way — defer to the constraint class)
+      - obs_hom_lof is None                   -> data_unavailable     (gene absent from the v2 join)
+    """
+    if obs_hom_lof is None:
+        return "data_unavailable"
+    if obs_hom_lof >= 1:
+        return "natural_ko_observed"
+    highly_constrained = (pli is not None and pli >= HIGH_PLI) or \
+                         (loeuf is not None and loeuf <= HIGH_LOEUF)
+    return "constrained_no_ko" if highly_constrained else "no_natural_ko"
 
 
 def _to_float(v):
@@ -140,11 +170,17 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
             "pli_score": None, "loeuf_score": None,
             "mis_z_score": None, "syn_z_score": None,
             "obs_lof_count": None, "exp_lof_count": None, "gene_length_bp": None,
+            "human_ko_observed_class": "data_unavailable",
+            "obs_hom_lof_count": None, "exp_hom_lof_count": None,
+            "human_ko_context": None,
             "method_version": METHOD_VERSION,
             "_note": f"{gene_symbol} not in gnomAD v4.1.1 constraint table (indeterminate).",
         }
     pli = _to_float(row.get(COL_PLI))
     loeuf = _to_float(row.get(COL_LOEUF))
+    obs_hom = _to_int(row.get(COL_OBS_HOM_LOF))
+    ko_class = classify_human_ko_observed(
+        _to_float(row.get(COL_OBS_HOM_LOF)), pli, loeuf)
     return {
         "constraint_class": classify_constraint(pli, loeuf),
         "pli_score": pli,
@@ -154,8 +190,29 @@ def compute_summary(row: Optional[dict], gene_symbol: str) -> dict:
         "obs_lof_count": _to_int(row.get(COL_OBS_LOF)),
         "exp_lof_count": _to_float(row.get(COL_EXP_LOF)),
         "gene_length_bp": None,  # not in the constraint TSV; card field kept for contract, null
+        # Human OBSERVED-KO facet (roadmap #1) — v2.1.1 natural human knockouts. Additive/verdict-inert.
+        "human_ko_observed_class": ko_class,
+        "obs_hom_lof_count": obs_hom,
+        "exp_hom_lof_count": _to_float(row.get(COL_EXP_HOM_LOF)),
+        "human_ko_context": _human_ko_context(gene_symbol, ko_class, obs_hom),
         "method_version": METHOD_VERSION,
     }
+
+
+def _human_ko_context(gene_symbol: str, ko_class: str, obs_hom: Optional[int]) -> Optional[str]:
+    """Human-readable one-liner for the observed-KO facet (audit / LLM context)."""
+    if ko_class == "natural_ko_observed":
+        return (f"{gene_symbol}: {obs_hom} healthy individual(s) homozygous for a predicted-LoF "
+                f"variant in gnomAD v2.1.1 (natural human knockout) — full loss is tolerated in "
+                f"the population; on-target safety reassurance for a full-KO modality.")
+    if ko_class == "constrained_no_ko":
+        return (f"{gene_symbol}: no observed homozygous LoF in gnomAD v2.1.1 AND the gene is "
+                f"LoF-constrained — consistent with essentiality (the signal is the constraint, "
+                f"not the zero count).")
+    if ko_class == "no_natural_ko":
+        return (f"{gene_symbol}: no observed homozygous LoF in gnomAD v2.1.1 — uninformative in a "
+                f"~125k cohort (hom-LoF is rare even for tolerant genes); defer to the constraint class.")
+    return None
 
 
 def _load_takeda_style(target_contracts_dir):

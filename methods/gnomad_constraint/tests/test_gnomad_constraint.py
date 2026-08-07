@@ -41,6 +41,50 @@ def test_classify_indeterminate_when_both_missing():
     assert gc.classify_constraint(pli=None, loeuf=None) == "indeterminate"
 
 
+# --- human observed-KO classifier (roadmap #1; asymmetric by design) ------
+
+def test_ko_observed_positive_is_strong():
+    # obs_hom_lof >= 1 -> natural_ko_observed regardless of constraint (KO tolerated)
+    assert gc.classify_human_ko_observed(2, pli=0.0, loeuf=0.94) == "natural_ko_observed"
+    assert gc.classify_human_ko_observed(1, pli=0.99, loeuf=0.1) == "natural_ko_observed"
+
+
+def test_ko_zero_but_constrained_is_constrained_no_ko():
+    # obs_hom_lof == 0 AND highly constrained -> constrained_no_ko (essentiality from constraint)
+    assert gc.classify_human_ko_observed(0, pli=0.99, loeuf=0.12) == "constrained_no_ko"
+    assert gc.classify_human_ko_observed(0, pli=None, loeuf=0.40) == "constrained_no_ko"  # LOEUF alone
+
+
+def test_ko_zero_and_tolerant_is_no_natural_ko():
+    # obs_hom_lof == 0, not constrained -> no_natural_ko (uninformative in a 125k cohort)
+    assert gc.classify_human_ko_observed(0, pli=0.02, loeuf=1.35) == "no_natural_ko"
+
+
+def test_ko_absent_from_v2_join_is_data_unavailable():
+    # obs_hom_lof is None (gene not in the v2.1.1 join) -> data_unavailable (NOT no_natural_ko)
+    assert gc.classify_human_ko_observed(None, pli=0.95, loeuf=0.2) == "data_unavailable"
+
+
+def test_summary_emits_human_ko_facet(tmp_path):
+    pq_path = _write_parquet(tmp_path)
+    # natural KO observed
+    s = gc.compute_summary(gc.load_constraint_row("CARD8", parquet_path=pq_path), "CARD8")
+    assert s["human_ko_observed_class"] == "natural_ko_observed"
+    assert s["obs_hom_lof_count"] == 2
+    assert "natural human knockout" in s["human_ko_context"]
+    # constrained, no KO
+    s2 = gc.compute_summary(gc.load_constraint_row("TP53", parquet_path=pq_path), "TP53")
+    assert s2["human_ko_observed_class"] == "constrained_no_ko"
+    assert s2["obs_hom_lof_count"] == 0
+    # tolerant, no KO
+    s3 = gc.compute_summary(gc.load_constraint_row("SCD", parquet_path=pq_path), "SCD")
+    assert s3["human_ko_observed_class"] == "no_natural_ko"
+    # absent from v2 join -> data_unavailable, null count
+    s4 = gc.compute_summary(gc.load_constraint_row("NOHOM", parquet_path=pq_path), "NOHOM")
+    assert s4["human_ko_observed_class"] == "data_unavailable"
+    assert s4["obs_hom_lof_count"] is None
+
+
 def test_band_boundaries_are_inclusive():
     # exactly at the high thresholds → highly_constrained
     assert gc.classify_constraint(pli=0.9, loeuf=1.0) == "highly_constrained"    # pLI==0.9
@@ -58,26 +102,39 @@ def test_band_boundaries_are_inclusive():
 
 def _write_parquet(tmp_path):
     """Write a synthetic gnomad-constraint-per-gene-v1 product: one row per gene,
-    columns gene_symbol, gene_id, pli, loeuf, mis_z, syn_z, obs_lof, exp_lof."""
+    columns gene_symbol, gene_id, pli, loeuf, mis_z, syn_z, obs_lof, exp_lof,
+    obs_hom_lof, exp_hom_lof (the last two = v2.1.1 natural-human-KO join)."""
     import pyarrow as pa
     import pyarrow.parquet as pq
     p = tmp_path / "gnomad_constraint_per_gene.parquet"
     recs = [
-        # TP53: highly constrained (representative row already chosen at derive time)
+        # TP53: highly constrained, no natural KO -> constrained_no_ko
         {"gene_symbol": "TP53", "gene_id": "7157", "pli": 0.99, "loeuf": 0.12,
-         "mis_z": 5.2, "syn_z": 0.3, "obs_lof": 1.0, "exp_lof": 38.0},
-        # KRAS: highly constrained
+         "mis_z": 5.2, "syn_z": 0.3, "obs_lof": 1.0, "exp_lof": 38.0,
+         "obs_hom_lof": 0.0, "exp_hom_lof": 0.5},
+        # KRAS: highly constrained, no natural KO -> constrained_no_ko
         {"gene_symbol": "KRAS", "gene_id": "3845", "pli": 0.96, "loeuf": 0.20,
-         "mis_z": 3.1, "syn_z": 0.2, "obs_lof": 2.0, "exp_lof": 20.0},
-        # SCD: tolerant
+         "mis_z": 3.1, "syn_z": 0.2, "obs_lof": 2.0, "exp_lof": 20.0,
+         "obs_hom_lof": 0.0, "exp_hom_lof": 0.3},
+        # SCD: tolerant, no natural KO -> no_natural_ko (0 in a small cohort, uninformative)
         {"gene_symbol": "SCD", "gene_id": "6319", "pli": 0.02, "loeuf": 1.35,
-         "mis_z": 0.1, "syn_z": 0.0, "obs_lof": 60.0, "exp_lof": 55.0},
+         "mis_z": 0.1, "syn_z": 0.0, "obs_lof": 60.0, "exp_lof": 55.0,
+         "obs_hom_lof": 0.0, "exp_hom_lof": 3.0},
+        # CARD8: unconstrained WITH observed natural knockouts -> natural_ko_observed
+        {"gene_symbol": "CARD8", "gene_id": "22900", "pli": 0.0, "loeuf": 0.94,
+         "mis_z": 0.0, "syn_z": 0.0, "obs_lof": 40.0, "exp_lof": 42.0,
+         "obs_hom_lof": 2.0, "exp_hom_lof": 1.5},
+        # NOHOM: constrained but ABSENT from the v2 join (obs_hom_lof null) -> data_unavailable
+        {"gene_symbol": "NOHOM", "gene_id": "999", "pli": 0.95, "loeuf": 0.2,
+         "mis_z": 2.0, "syn_z": 0.1, "obs_lof": 1.0, "exp_lof": 15.0,
+         "obs_hom_lof": None, "exp_hom_lof": None},
     ]
     schema = pa.schema([
         ("gene_symbol", pa.string()), ("gene_id", pa.string()),
         ("pli", pa.float64()), ("loeuf", pa.float64()),
         ("mis_z", pa.float64()), ("syn_z", pa.float64()),
         ("obs_lof", pa.float64()), ("exp_lof", pa.float64()),
+        ("obs_hom_lof", pa.float64()), ("exp_hom_lof", pa.float64()),
     ])
     pq.write_table(pa.Table.from_pylist(recs, schema=schema), p)
     return str(p)
@@ -121,7 +178,8 @@ def test_card_contract_fields_present(tmp_path):
     s = gc.compute_summary(gc.load_constraint_row("KRAS", parquet_path=pq_path), "KRAS")
     for f in ("constraint_class", "pli_score", "loeuf_score", "mis_z_score",
               "syn_z_score", "obs_lof_count", "exp_lof_count", "gene_length_bp",
-              "method_version"):
+              "human_ko_observed_class", "obs_hom_lof_count", "exp_hom_lof_count",
+              "human_ko_context", "method_version"):
         assert f in s, f"card-contract field missing: {f}"
 
 

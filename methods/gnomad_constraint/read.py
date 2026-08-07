@@ -35,6 +35,8 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
                 f"(s3://{_cli.S3_BUCKET}/{_cli.S3_KEY}) for {target}: {e}"),
             "constraint_class": "data_unavailable",
             "pli_score": None, "loeuf_score": None,
+            "human_ko_observed_class": "data_unavailable",
+            "obs_hom_lof_count": None, "exp_hom_lof_count": None, "human_ko_context": None,
             "method_version": _cli.METHOD_VERSION,
         }
     return _cli.compute_summary(row, target)
