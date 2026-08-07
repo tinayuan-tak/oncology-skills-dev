@@ -24,7 +24,7 @@
 # lens is invoked. The isoform-selective vocabulary is authoritative.
 
 card_id: adc-tce-modality-fit
-version: 1.0.0
+version: 1.1.0
 question: "For {target.symbol} in {indication.label}, which biologic modalities are viable candidates (ADC / TCE / both / neither)?"
 
 applies_when:
@@ -148,5 +148,8 @@ caveats:
 # DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `adc_tce_modality_fit` claim (which biologic
 # modalities are viable), derived_from [surface_topology, surfaceome_family, structure_druggability].
 measurement_type: adc_tce_modality_fit
+# P4 modality-vector (2026-08-07 adoption sweep): this IS the composed ADC/TCE modality-fit card —
+# its fit_class output is the biologics-modality call, so it is pulled by the ADC + TCE modality gates.
+modality_relevance: [adc, bite_tce]
 entity_grains: [target]
 schema_version: 1

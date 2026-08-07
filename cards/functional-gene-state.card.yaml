@@ -28,7 +28,7 @@
 # resolver ladder (the verdict spine stays byte-stable). Wiring INTO a verdict is a later, riskier step.
 
 card_id: functional-gene-state
-version: 0.2.0    # 2026-08-05: doc-lag fix — methylation Phase-2b is LIVE (epigenetic states + methylation inputs declared)
+version: 0.3.0    # 2026-08-07 +modality_relevance (P4 sweep); 2026-08-05: doc-lag fix — methylation Phase-2b is LIVE (epigenetic states + methylation inputs declared)
 question: "Is {target.symbol} biallelically inactivated (completed two-hit) or only monoallelically hit in {indication.label} — and by what mechanism (mutation, copy loss, LOH, homozygous deletion)?"
 
 # TWO grains (grain-split like cellline-rna-protein-concordance): the patient arm is target_indication
@@ -83,5 +83,11 @@ caveats:
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: harmonized allele-count / biallelic state.
 measurement_type: functional_gene_state
+# P4 modality-vector (2026-08-07 adoption sweep): the biallelic-inactivation / two-hit state is
+# highly modality-DISCRIMINATING — a completed homozygous deletion kills a degrader (no protein to
+# degrade) and an ADC/antibody (no surface protein), while a biallelic-LoF tumour-suppressor state
+# routes small-molecule reasoning to synthetic-lethal partners rather than direct inhibition. Pulled
+# by all modality-fit gates as a killer/discriminator input.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target, target_indication]
 schema_version: 1

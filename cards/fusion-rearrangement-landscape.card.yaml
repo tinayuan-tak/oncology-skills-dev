@@ -12,7 +12,7 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.1.0   # 1.1.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort ADDITIVE display sibling to TCGA
+version: 1.2.0   # 1.2.0: +modality_relevance (P4 sweep); 1.1.0: + GENIE-SV breadth fields (genie_sv_*) — pan-cohort ADDITIVE display sibling to TCGA
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
 applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
@@ -71,5 +71,10 @@ caveats:
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
 # [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
 measurement_type: fusion_rearrangement
+# P4 modality-vector (2026-08-07 adoption sweep): a recurrent fusion/rearrangement is a genomic
+# driver signal relevant across modalities — it informs small-molecule (inhibit the fusion product,
+# e.g. a kinase fusion) and degrader/biologics (fusion-altered protein / surface neoantigen). Mirrors
+# the all-modality routing of the sibling genomic card copy-number-distribution.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
