@@ -28,7 +28,7 @@
       "description": "Ordered list of evidence→signal mappings. Each rule fires when its predicate matches a card's emitted descriptive label; emits a per-channel signal vector. Multiple matching rules accumulate signals.",
       "items": {"$ref": "#/$defs/rule"},
       "minItems": 1,
-      "maxItems": 200
+      "maxItems": 250
     },
     "schema_version": {
       "type": "integer",

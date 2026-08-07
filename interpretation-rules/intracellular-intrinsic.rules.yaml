@@ -3359,3 +3359,85 @@ rules:
       pathogenic variant (somatic_only) is a cancer-driver signal, NOT this safety signal, and does
       NOT fire. Composes with the mutant-selective downgrade (Slice-5 pattern): an activating driver
       drugged mutant-selectively spares the WT protein this concerns.
+
+  # ============================================================================
+  # Roadmap #3 — domain-modality-relevance card → DEGRADER lens (verdict-wiring, 2026-08-07)
+  # The domain→modality facet MOVES the degrader lens (tractability-small-molecule _degrader_snapshot,
+  # which reads modality_lens(fired, "degrader")). DELIBERATELY degrader-channel ONLY: NO small_molecule
+  # signal on any rule here, so the SM resolver + druggability_snapshot verdict spine stay byte-stable
+  # (the SM resolver does not reference this card). Approved verdict-spine change (degrader lens only).
+  #   removal_required_scaffolding -> degrader supportive + DOMINANT (strong_degrader_rationale):
+  #       catalytic inhibition is insufficient; the scaffolding/non-catalytic function needs removal.
+  #   removal_favored              -> degrader supportive (degrader_rationale)
+  #   inhibitor_sufficient / context_dependent -> degrader NEUTRAL (no movement — inhibitor is the lever
+  #       or the mechanism is undecided; the facet must not push degrader on a clean inhibitor target)
+  #   data_unavailable             -> degrader insufficient (coverage gap, not evidence)
+  # ============================================================================
+
+  - rule_id: domain-modality-scaffolding-degrader-supportive-dominant
+    when:
+      card_id: domain-modality-relevance
+      field: modality_implication_class
+      equals: removal_required_scaffolding
+    signals:
+      degrader: supportive
+    dominant: true
+    rationale: |
+      The target has a documented catalytic-INDEPENDENT / scaffolding function (curated
+      domain_modality_targets.yaml — e.g. RIPK1's kinase-independent RHIM + death-domain necrosome
+      assembly). A catalytic-site inhibitor addresses only part of the biology; a DEGRADER removes the
+      whole protein, scaffold included — so removal is the mechanistically-favored modality. DOMINANT
+      for the degrader lens: a scaffolding function is the canonical degrader rationale, strong enough
+      to stand alone (-> strong_degrader_rationale). DEGRADER CHANNEL ONLY — the small-molecule verdict
+      is untouched (an inhibitor may still address the catalytic arm; this does not oppose SM).
+
+  - rule_id: domain-modality-removal-favored-degrader-supportive
+    when:
+      card_id: domain-modality-relevance
+      field: modality_implication_class
+      equals: removal_favored
+    signals:
+      degrader: supportive
+    rationale: |
+      The target's domain architecture favors removal over catalytic inhibition (a multi-domain enzyme
+      whose interaction/regulatory domains carry biology inhibition leaves intact, or a non-catalytic
+      class with no pocket to inhibit — e.g. a transcription factor). Supportive (not dominant) for the
+      degrader lens: removal engages more of the biology than inhibition, but without a curated
+      scaffolding claim it is one signal among several. DEGRADER CHANNEL ONLY — SM verdict untouched.
+
+  - rule_id: domain-modality-inhibitor-sufficient-degrader-neutral
+    when:
+      card_id: domain-modality-relevance
+      field: modality_implication_class
+      equals: inhibitor_sufficient
+    signals:
+      degrader: neutral
+    rationale: |
+      A clean single-domain enzyme with no curated scaffolding caveat — catalytic-site inhibition is
+      the natural lever. NEUTRAL for the degrader lens (explicitly not opposing): a degrader can still
+      work, but the domain architecture gives it no positive rationale, and the facet must not push a
+      degrader read on a target the inhibitor modality already addresses. Never touches SM.
+
+  - rule_id: domain-modality-context-dependent-degrader-neutral
+    when:
+      card_id: domain-modality-relevance
+      field: modality_implication_class
+      equals: context_dependent
+    signals:
+      degrader: neutral
+    rationale: |
+      The inhibitor-vs-removal choice depends on the specific pathway/indication (curated
+      context_dependent — e.g. EGFR/JAK2, validated catalytic inhibitors that ALSO have
+      kinase-independent or incomplete-clonal-suppression arms). NEUTRAL: do not pre-commit the
+      degrader lens either way; the mechanism is genuinely undecided at the domain level. Never touches SM.
+
+  - rule_id: domain-modality-data-unavailable-degrader-insufficient
+    when:
+      card_id: domain-modality-relevance
+      field: modality_implication_class
+      equals: data_unavailable
+    signals:
+      degrader: insufficient
+    rationale: |
+      No curated/InterPro domain or protein-class signal to reason from — the domain→modality
+      implication is unknown (coverage gap), not evidence for or against a degrader. Never touches SM.
