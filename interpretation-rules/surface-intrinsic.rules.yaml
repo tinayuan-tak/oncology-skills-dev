@@ -1658,3 +1658,52 @@ rules:
       dilutes away (the KRAS-mut-NSCLC → MSLN/CEACAM5 archetype). Supportive across adc/bite_tce/
       antibody as a PATIENT-SELECTION-aware presence argument; confirm mutant-subset antigen density
       before nomination. SURFACE-scoped (an intracellular SM target does not use a surface antigen).
+
+  # ============================================================================
+  # F-precedent — CD / IO-antigen backbone clinical-precedent (enrichment E6-CD, 2026-08-07)
+  # ============================================================================
+  # Keyed on cd_antigen_backbone_class (cd-antigen-backbone card; HGNC gene-group-471). A CLASS-level
+  # clinical-PRECEDENT prior, orthogonal to the PREDICTED-biology surface rules (topology/density/window).
+  # SUPPORTIVE-ONLY: not_cd_antigen fires NOTHING — it is the ABSENCE of a CD-backbone prior, NOT a
+  # negative (most solid-tumor ADC/TCE antigens — CEACAM5/FOLR1/TROP2/MSLN — are not CD molecules; an
+  # opposing signal here would wrongly penalize them). ADDITIVE: no surface_modality resolver rung
+  # (verdict resolves off adc-tce-modality-fit.fit_class) → verdict byte-stable.
+
+  - rule_id: cd-established-io-backbone-supportive
+    when:
+      card_id: cd-antigen-backbone
+      field: cd_antigen_backbone_class
+      equals: established_io_backbone
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Target is a canonical CD/IO antigen whose CLASS has delivered APPROVED or advanced-clinical
+      biologics (CD19/CD20/CD22/CD38/CD30/CD33/CD79B/BCMA-class mAb/ADC/TCE/CAR-T). The strongest
+      tractability PRECEDENT prior surface-modality-fit carries — an antigen class de-risked by real
+      drugs, supportive across all antibody-based modalities. Important, but PRECEDENT-not-validation:
+      class success is not this-target validation; confirm the specific-target evidence.
+
+  - rule_id: cd-antigen-backbone-supportive
+    when:
+      card_id: cd-antigen-backbone
+      field: cd_antigen_backbone_class
+      equals: cd_antigen
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Target is a canonical CD antigen (on the HGNC CD-molecule roster) but not in the curated
+      approved-precedent set — a real but weaker backbone prior (a well-characterized surface
+      immuno-antigen class). Supportive SECONDARY. not_cd_antigen fires no rule (absence of a
+      CD-backbone prior is not a negative — most solid-tumor ADC/TCE antigens are not CD molecules).
