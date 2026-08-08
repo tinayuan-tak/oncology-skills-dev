@@ -1254,6 +1254,15 @@ def _dispatch_paralog_buffering(target: str, indication: str) -> Optional[dict]:
     return mod.read_target_summary(target=target, indication=indication)
 
 
+def _dispatch_combo_crispr_screen(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: combo-crispr-screen card → methods/combo_drug_anchor/read.py
+    ::combination_opportunities_for_gene. Drug-anchored CRISPR combination opportunities
+    ("when target X is inhibited, which co-targets become more essential") from
+    depmap-drug-anchor-combination-per-target-v1. Per-target (indication not consumed)."""
+    mod = _import_method("combo_drug_anchor.read")
+    return mod.combination_opportunities_for_gene(target)
+
+
 def _dispatch_combinatorial_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: combinatorial-dependency card → methods/paralog_genetic_interaction/read.py
     ::combinatorial_dependency_for_gene. Symmetric paralog dual-KO genetic-interaction
@@ -1459,6 +1468,7 @@ CARD_DISPATCHERS = {
     "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
     "paralog-buffering": _dispatch_paralog_buffering,
     "combinatorial-dependency": _dispatch_combinatorial_dependency,
+    "combo-crispr-screen": _dispatch_combo_crispr_screen,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
     "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
