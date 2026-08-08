@@ -41,6 +41,12 @@ methods:
 outputs:
   summary_fields:
     - sc_normal_expression_class          # PRIMARY liability ladder (rules-keyed field)
+    - sc_normal_safety_essential_class    # ORGAN-AWARE safety-essential veto instrument (axis-D):
+                                          # critical_organ_liability (non-origin heart/liver/kidney/marrow
+                                          # essential-cell expression — hard-veto class) / origin_tissue_liability
+                                          # (essential expression only in the tumor's tissue-of-origin —
+                                          # window-arbitrated) / none / data_unavailable. Categorical companion
+                                          # to safety_essential_flags so the rule engine can fire on it.
     - max_detection_cell_type             # cell type with highest median_det
     - max_detection_fraction              # median_det of that cell type
     - expressing_donor_fraction_max       # cross-donor consistency at the peak cell type
@@ -56,6 +62,16 @@ outputs:
       - LOW_LIABILITY     # detected but below MODERATE thresholds
       - NOT_EXPRESSED     # all cell types: median_det < 0.01
       - data_unavailable  # no product for queried tissue(s) OR all n_donors_reliable < 5
+    sc_normal_safety_essential_class:      # organ-aware axis-D veto instrument (2026-08-07)
+      - critical_organ_liability   # essential-cell expression in a NON-origin critical organ
+                                   # (heart/liver/kidney/marrow) — the hard-veto class (HER2-CAR-lung /
+                                   # MAGE-A3-cardiac / CEA-colitis failure mode). Downstream: downgrades
+                                   # a selective tumor-selectivity call to selective_but_broadly_normal.
+      - origin_tissue_liability    # essential-cell expression ONLY in the tumor's tissue-of-origin
+                                   # (e.g. MSLN pleural/lung in NSCLC) — on-tissue, therapeutic-window-
+                                   # arbitrated, NOT a hard veto (a validated ADC target must survive).
+      - none                       # no safety-essential expression above the 0.05 floor
+      - data_unavailable           # no product for queried tissue(s) OR insufficient donor coverage
 
 thresholds:
   high_liability_median_det: 0.50
