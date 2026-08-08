@@ -15,8 +15,9 @@
 #   n_donors_reliable, n_cell_types_above_20pct, detection_pct_rank per gene×cell_type).
 #   Tier-2 source: sc-pseudobulk-normal-celltype-{tissue}-v1 (raw donor×cell_type×gene).
 #
-# WIRED 2026-08-06: colon + lung shards first (COADREAD/NSCLC safety priority);
-# 8 additional safety-essential tissues to follow (brain, kidney, liver, heart, etc.).
+# WIRED 2026-08-06: colon + lung shards first (COADREAD/NSCLC safety priority).
+# EXPANDED 2026-08-08: 9 tissues landed — colon/lung/stomach/skin/small_intestine (tumor-matched)
+# + heart/liver/kidney/bone_marrow (always-on safety-essential). brain shard to follow.
 
 card_id: sc-normal-celltype-expression
 version: 0.1.0
@@ -28,9 +29,19 @@ applies_when:
   - "true"    # always attempt; graceful data_unavailable if no tissue shard matches indication
 
 required_inputs:
+  # Tumor-matched normal tissues (queried when the indication maps to them):
   - product_id: sc-normal-celltype-expression-colon-v1
   - product_id: sc-normal-celltype-expression-lung-v1
-  # Additional tissue shards added here as sc-normal-celltype-expression-{tissue}-v1 products land
+  - product_id: sc-normal-celltype-expression-stomach-v1
+  - product_id: sc-normal-celltype-expression-skin-v1
+  - product_id: sc-normal-celltype-expression-small-intestine-v1
+  # Always-on SAFETY-ESSENTIAL tissues (queried for EVERY target regardless of indication —
+  # on-target toxicity in these organs is modality-limiting independent of tumor type):
+  - product_id: sc-normal-celltype-expression-heart-v1
+  - product_id: sc-normal-celltype-expression-liver-v1
+  - product_id: sc-normal-celltype-expression-kidney-v1
+  - product_id: sc-normal-celltype-expression-bone-marrow-v1
+  # brain shard to follow (Tier-2 emit in progress — ~36M cells, solo run)
 
 methods:
   - call: sc-normal-celltype-expression
