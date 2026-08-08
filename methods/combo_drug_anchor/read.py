@@ -22,18 +22,26 @@ Companion: data-catalog:manifests/derived/depmap-drug-anchor-combination-per-tar
 """
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
 PRODUCT_MANIFEST_ID = "depmap-drug-anchor-combination-per-target-v1"
 METHOD_VERSION = "0.1.0"
 
+# Caches ONLY successful reads (a hit or a definitive empty tuple()), keyed by UPPER(target).
+# A transient read failure returns None WITHOUT caching, so a later call retries — an @lru_cache
+# over the raw read would memoize that None permanently, poisoning the target to data_unavailable
+# for the whole process lifetime after one S3 blip. Mirrors structure_features_static: never latch
+# a negative cache on a transient error.
+_ROWS_CACHE: dict = {}
 
-@lru_cache(maxsize=256)
+
 def _read_rows(target: str) -> Optional[tuple]:
-    """Pushdown-read combination rows for one inhibited_target. None on read failure;
-    empty tuple if the target has no anchor screen."""
+    """Pushdown-read combination rows for one inhibited_target. None on read failure (NOT cached);
+    empty tuple if the target has no anchor screen (cached). Successful reads are cached."""
+    sym = (target or "").strip().upper()
+    if sym in _ROWS_CACHE:
+        return _ROWS_CACHE[sym]
     try:
         import sys as _sys
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -42,12 +50,12 @@ def _read_rows(target: str) -> Optional[tuple]:
         import pyarrow.fs as fs
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
-                            filters=[("inhibited_target", "=", (target or "").strip().upper())])
+                            filters=[("inhibited_target", "=", sym)])
     except Exception:  # noqa: BLE001
         return None
-    if tbl.num_rows == 0:
-        return tuple()
-    return tuple(tbl.to_pylist())
+    result = tuple() if tbl.num_rows == 0 else tuple(tbl.to_pylist())
+    _ROWS_CACHE[sym] = result
+    return result
 
 
 def _classify(rows: Optional[tuple]) -> str:
@@ -102,7 +110,7 @@ def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None
     strongest = partners[0] if partners else None
     anchor = (data[0].get("anchor_drug") if data else None)
     mechanism = (data[0].get("mechanism") if data else None)
-    return {
+    out = {
         "combination_opportunity_class": klass,
         "anchor_drug": anchor,
         "anchor_mechanism": mechanism,
@@ -115,6 +123,12 @@ def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None
         "method_version": METHOD_VERSION,
         "_data_source": PRODUCT_MANIFEST_ID,
     }
+    # A read failure (klass=data_unavailable, from _read_rows returning None) is an infra failure —
+    # surface a breadcrumb so it is never mistaken for a benign coverage gap (mirrors exon_window /
+    # cd_antigen_backbone). NOT cached upstream, so a later call retries.
+    if klass == "data_unavailable":
+        out["_live_read_error"] = "combo_drug_anchor_read_failed"
+    return out
 
 
 def _context(sym: str, klass: str, strongest: Optional[dict], anchor: Optional[str]) -> Optional[str]:

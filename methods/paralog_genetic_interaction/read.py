@@ -28,7 +28,6 @@ Companion: data-catalog:manifests/derived/depmap-paralog-genetic-interaction-per
 """
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -38,6 +37,13 @@ METHOD_VERSION = "0.1.0"
 
 # Verdict thresholds mirror the product's interaction_class (carried raw so the card can re-threshold).
 STRONG_GI = -0.5
+
+# Caches ONLY successful summary reads (a hit or a definitive empty tuple()), keyed by UPPER(target).
+# A transient read failure returns None WITHOUT caching, so a later call retries — an @lru_cache over
+# the raw read would memoize that None permanently, poisoning the target to data_unavailable for the
+# whole process after one S3 blip. Mirrors structure_features_static: never latch a negative cache on
+# a transient error.
+_SUMMARY_CACHE: dict = {}
 
 
 def _bucket_keys():
@@ -51,23 +57,26 @@ def _bucket_keys():
     return bucket, per_line_key, summary_key
 
 
-@lru_cache(maxsize=256)
 def _read_summary_rows(target: str) -> Optional[tuple]:
-    """Pushdown-read summary rows for one target_gene. None if unresolvable/absent.
-    Returns a tuple of dicts (hashable-friendly caching via tuple)."""
+    """Pushdown-read summary rows for one target_gene. None on read failure (NOT cached — so a
+    later call retries); empty tuple if the gene is absent from the library (cached). Successful
+    reads are cached in _SUMMARY_CACHE. Returns a tuple of dicts."""
+    sym = (target or "").strip().upper()
+    if sym in _SUMMARY_CACHE:
+        return _SUMMARY_CACHE[sym]
     try:
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
         bucket, _per_line_key, summary_key = _bucket_keys()
         tbl = pq.read_table(
             f"{bucket}/{summary_key}", filesystem=fs.S3FileSystem(),
-            filters=[("target_gene", "=", (target or "").strip().upper())],
+            filters=[("target_gene", "=", sym)],
         )
     except Exception:  # noqa: BLE001
         return None
-    if tbl.num_rows == 0:
-        return tuple()
-    return tuple(tbl.to_pylist())
+    result = tuple() if tbl.num_rows == 0 else tuple(tbl.to_pylist())
+    _SUMMARY_CACHE[sym] = result
+    return result
 
 
 def _read_pair_lines(target: str, partner: str) -> Optional[list]:
@@ -142,7 +151,7 @@ def combinatorial_dependency_for_gene(target: str, summary_rows: Optional[tuple]
         1 for p in partners
         if p["interaction_class"] in ("constitutive_buffering", "context_buffering", "suppressive")
     )
-    return {
+    out = {
         "combinatorial_dependency_class": klass,
         "n_paralog_partners_screened": len(rows) if rows else 0,
         "n_interacting_partners": n_interacting,
@@ -154,6 +163,12 @@ def combinatorial_dependency_for_gene(target: str, summary_rows: Optional[tuple]
         "method_version": METHOD_VERSION,
         "_data_source": PRODUCT_MANIFEST_ID,
     }
+    # A read failure (klass=data_unavailable, from _read_summary_rows returning None) is an infra
+    # failure — surface a breadcrumb so it is never mistaken for a benign coverage gap (mirrors
+    # exon_window / cd_antigen_backbone). NOT cached upstream, so a later call retries.
+    if klass == "data_unavailable":
+        out["_live_read_error"] = "paralog_genetic_interaction_read_failed"
+    return out
 
 
 def lineage_breakdown_for_pair(target: str, partner: str) -> dict:

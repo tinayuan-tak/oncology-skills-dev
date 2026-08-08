@@ -15,6 +15,10 @@ mutant_stratified_surface_class (from the product):
   not_stratified        tested, not significant / small effect
   underpowered          arm below the sample floor (inadmissible, not a negative)
   not_in_product        target/driver/indication outside the built slice (coverage gap)
+  data_unavailable      the product read RAISED (S3 outage / expired creds / renamed key) —
+                        an infra failure, NOT a coverage gap. Carries a `_live_read_error`
+                        breadcrumb. Distinct from not_in_product so a broken environment is
+                        never silently reported as a benign absence.
 """
 from __future__ import annotations
 
@@ -27,8 +31,24 @@ DEFAULT_DRIVER = "KRAS"
 DEFAULT_INDICATION = "NSCLC"
 
 
-def _read_row(target: str, driver: str, indication: str) -> Optional[dict]:
-    """Pushdown-read the product for (gene_symbol, driver_gene, indication). None if absent."""
+class _ReadError:
+    """Sentinel returned by _read_row when the S3 read RAISED — distinct from a genuine
+    0-row absence (None). Carries the exception message for the `_live_read_error` breadcrumb.
+    Mirrors combo_drug_anchor's None-on-exception-vs-tuple()-on-empty discipline: a read
+    failure must NEVER masquerade as a benign coverage gap (the "bare-except masks broken
+    env" failure class)."""
+    __slots__ = ("msg",)
+
+    def __init__(self, msg: str):
+        self.msg = msg
+
+
+def _read_row(target: str, driver: str, indication: str):
+    """Pushdown-read the product for (gene_symbol, driver_gene, indication).
+
+    Returns the row dict on a hit, None when the row is GENUINELY ABSENT from the built
+    slice (0 rows), or a `_ReadError` sentinel (carrying the exception message) when the
+    read RAISED (infra failure — never a coverage gap)."""
     try:
         import sys as _sys
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -40,8 +60,8 @@ def _read_row(target: str, driver: str, indication: str) -> Optional[dict]:
                             filters=[("gene_symbol", "=", (target or "").strip().upper()),
                                      ("driver_gene", "=", driver),
                                      ("indication", "=", indication)])
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        return _ReadError(f"{type(e).__name__}: {e}")
     if tbl.num_rows == 0:
         return None
     return tbl.to_pylist()[0]
@@ -52,8 +72,26 @@ def read_mutation_stratified_surface(target: str, driver: str = DEFAULT_DRIVER,
                                      row: Optional[dict] = None) -> dict:
     """Per-target mutation-stratified surface window. `row` may be injected for tests.
 
-    Absent from the built slice -> not_in_product (coverage gap, never a negative)."""
+    Absent from the built slice -> not_in_product (coverage gap, never a negative).
+    Read RAISED -> data_unavailable + a `_live_read_error` breadcrumb (infra failure,
+    never a coverage gap)."""
     rec = row if row is not None else _read_row(target, driver, indication)
+    if isinstance(rec, _ReadError):
+        return {
+            "mutant_stratified_surface_class": "data_unavailable",
+            "driver_gene": driver,
+            "indication": indication,
+            "delta_log2": None,
+            "q_value": None,
+            "n_mutant": None,
+            "n_wt": None,
+            "mutation_stratified_context": (
+                f"{target!r}: mutation-stratified surface product unavailable for "
+                f"{driver}/{indication} (read error — infra failure, NOT a coverage gap)."),
+            "method_version": METHOD_VERSION,
+            "_data_source": PRODUCT_MANIFEST_ID,
+            "_live_read_error": rec.msg or "mutation_stratified_surface_read_failed",
+        }
     if rec is None:
         return {
             "mutant_stratified_surface_class": "not_in_product",
