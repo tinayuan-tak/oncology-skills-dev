@@ -19,7 +19,7 @@ sys.path.insert(0, str(COMMON_DIR.parent))  # skills/
 from _skills_common import dispatcher as D  # noqa: E402
 
 
-def _run(tmp_path, *, synthesize, synthesize_fn=None):
+def _run(tmp_path, *, synthesize, synthesize_fn=None, verdict_fn="default"):
     card_outputs = [
         {"card_id": "tumor-vs-normal-selectivity", "summary": {
             "selectivity_class": "strong_tumor_selective"}, "_missing": False},
@@ -27,6 +27,12 @@ def _run(tmp_path, *, synthesize, synthesize_fn=None):
 
     def _headline(cards, fired, vp):
         return {"selectivity_class": "strong_tumor_selective", "driving_rule_id": None}
+
+    # A VERDICT-bearing skill supplies a verdict_fn (tumor-presence/-selectivity do). The presence
+    # fallback + custom-narrator paths are only reachable for verdict-bearing skills; pass a default
+    # verdict_fn so the harness models that. `verdict_fn=None` explicitly models a DESCRIPTIVE skill
+    # (target-intrinsic) — where --synthesize must SKIP, not mis-lens (2026-08-08 synthesis review).
+    _vf = (lambda fired: ("strong_tumor_selective", None)) if verdict_fn == "default" else verdict_fn
 
     argv = ["--target", "MSLN", "--indication", "PAAD", "--out", str(tmp_path)]
     if synthesize:
@@ -38,7 +44,7 @@ def _run(tmp_path, *, synthesize, synthesize_fn=None):
             skill_name="tumor-selectivity", skill_version="9.9.9",
             cards=["tumor-vs-normal-selectivity"], axis="intracellular_intrinsic",
             question="How selective is {target} in {indication}?",
-            headline_fn=_headline, synthesize_fn=synthesize_fn, argv=argv)
+            headline_fn=_headline, verdict_fn=_vf, synthesize_fn=synthesize_fn, argv=argv)
     return json.loads((tmp_path / "decision.json").read_text())
 
 
@@ -61,13 +67,35 @@ def test_synthesize_fn_is_invoked_not_presence(tmp_path):
 
 
 def test_no_synthesize_fn_falls_back_to_presence(tmp_path):
-    """Backward-compat: a skill that passes no synthesize_fn (tumor-presence today) still narrates."""
+    """Backward-compat: a VERDICT-bearing skill that passes no synthesize_fn (tumor-presence today)
+    still narrates via the presence fallback."""
     with patch("_skills_common.synthesis.synthesize_presence",
                return_value={"expression_relevance_for_target": {
                    "value": "supports_with_caveats", "_source": "llm_synthesized"}}) as m:
-        d = _run(tmp_path / "pres", synthesize=True, synthesize_fn=None)
+        d = _run(tmp_path / "pres", synthesize=True, synthesize_fn=None)  # verdict_fn defaults present
     assert m.called
     assert "expression_relevance_for_target" in d["llm_synthesis"]
+
+
+def test_descriptive_skill_skips_synthesis_not_mislens(tmp_path):
+    """2026-08-08 synthesis-review F2: a DESCRIPTIVE skill (verdict_fn=None AND no synthesize_fn —
+    e.g. target-intrinsic) must NOT fall back to the presence narrator (wrong lens → garbage on an
+    indication-independent dossier). --synthesize is a no-op skip with an honest note; the presence
+    narrator must never be invoked."""
+    with patch("_skills_common.synthesis.synthesize_presence",
+               side_effect=AssertionError("presence narrator must NOT run for a descriptive skill")):
+        d = _run(tmp_path / "desc", synthesize=True, synthesize_fn=None, verdict_fn=None)
+    s = d["llm_synthesis"]
+    assert s.get("_synthesis_skipped") == "descriptive_skill_no_narrator"
+    # no mis-lensed presence fields leaked in
+    assert "expression_relevance_for_target" not in s
+    assert "selectivity_relevance_for_target" not in s
+
+
+def test_descriptive_skill_without_synthesize_flag_is_clean(tmp_path):
+    """A descriptive skill WITHOUT --synthesize emits no llm_synthesis key at all (unchanged)."""
+    d = _run(tmp_path / "desc2", synthesize=False, synthesize_fn=None, verdict_fn=None)
+    assert "llm_synthesis" not in d
 
 
 def test_two_slot_byte_stability_with_custom_synthesizer(tmp_path):

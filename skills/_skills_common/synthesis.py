@@ -20,8 +20,13 @@ vs all genes / vs controls / across subtypes — explain why that matters for th
 target") rather than the raw distributions — which keeps its job interpretation-of-
 interpretation, not re-computation (the latter would reintroduce non-reproducibility).
 
-OPT-IN: only runs when the caller passes --synthesize. A run WITHOUT the flag emits a
-decision.json that is byte-identical to the pre-synthesis artifact.
+OPT-IN: only runs when the caller passes --synthesize. Two-slot: the narration is attached as the
+sibling key decision['llm_synthesis'] AFTER the deterministic decision is composed, so it is
+structurally impossible for it to alter the verdict spine. The VERDICT SPINE (headline + cards +
+fired_rules) is byte-identical with or without --synthesize. NOTE: the full decision.json is NOT
+byte-identical run-to-run even without the flag — the dispatcher always stamps `run_health` with
+wall-clock timings (read_secs/compute_secs/total_secs), which vary per run. A determinism diff must
+exclude the `run_health` sibling (and, when present, `llm_synthesis`); both are verdict-inert.
 """
 from __future__ import annotations
 
@@ -288,7 +293,37 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         lines.append("  subtype axis NOT available for this indication (no landed subtype-assignment "
                      "shard). Do NOT narrate a subtype effect — state the axis is unavailable.")
 
+    # PER-MODALITY sub-verdicts (the deterministic per-(measurement, sample_context) buckets — the
+    # narrator should read these directly rather than reconstruct modality-level reads from raw fields).
+    per_modality = h.get("presence_verdict_by_modality") or {}
+    pm_lines = []
+    for _bk, _bv in per_modality.items():
+        if isinstance(_bv, dict):
+            pm_lines.append(f"    {_bk}: {_bv.get('verdict')} [{_bv.get('evidence_state')}]")
     lines += [
+        "",
+        "PER-MODALITY SUB-VERDICTS (deterministic; one per measurement/sample_context bucket — "
+        "do NOT collapse; a positive bulk_rna/tumor with a data_unavailable sc_rna/tumor is a coverage "
+        "statement, not a negative):",
+        ("\n".join(pm_lines) if pm_lines else "    (none emitted)"),
+        "",
+        "SINGLE-CELL (sc_rna/tumor — malignant-vs-microenvironment attribution bulk cannot make; "
+        "COADREAD+NSCLC only, else data_unavailable):",
+        f"  sc_expression_class: {h.get('sc_expression_class')}  "
+        f"malignant_detection_fraction: {_fmt(h.get('sc_malignant_detection_fraction'), 3)}  "
+        f"top_microenvironment_compartment: {h.get('sc_top_microenvironment_compartment')}",
+        "",
+        "RNA→PROTEIN PROXY QUALITY (is the RNA presence claim trustworthy as a stand-in for PROTEIN? "
+        "the TUMOR-arm concordance is what a patient-context claim rests on — bulk-tumor purity/stroma/"
+        "post-transcriptional regulation degrade it far more than cell lines):",
+        f"  bulk_rna_proxy_quality: {h.get('bulk_rna_proxy_quality')} "
+        f"(source: {h.get('bulk_rna_proxy_quality_source')})",
+        f"  cell-line rna_as_biomarker: {h.get('rna_as_biomarker')} (r={_fmt(h.get('rna_protein_r'), 2)})",
+        f"  TUMOR rna_as_biomarker: {h.get('rna_as_biomarker_tumor')} "
+        f"(r={_fmt(h.get('rna_protein_r_tumor'), 2)}, n_paired_tumors={h.get('rna_protein_n_paired_tumors')}, "
+        f"cohort={h.get('rna_protein_cptac_cohort')})",
+        "  → if bulk_rna_proxy_quality is rna_positive_proxy_poor, an RNA-only presence claim needs "
+        "PROTEIN confirmation before a biologics/ADC read; surface this as the key_caveat.",
         "",
         "SUPPORTING CONTEXT:",
         f"  tumor_expression_class: {tumor_rna.get('tumor_expression_class')}  "

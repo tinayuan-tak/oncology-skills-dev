@@ -210,6 +210,12 @@ def _run(tmp_path, synthesize: bool, synth_return=None, synth_raises=False):
     def _headline(cards, fired, vp):
         return {"presence_verdict": "broadly_high_expression", "driving_rule_id": None}
 
+    # tumor-presence is a VERDICT-bearing skill (it passes a verdict_fn); model that so the presence
+    # fallback path is exercised (not the 2026-08-08 descriptive-skill synthesis-skip guard, which is
+    # only for verdict_fn=None skills like target-intrinsic).
+    def _verdict(fired):
+        return ("broadly_high_expression", None)
+
     argv = ["--target", "CEACAM5", "--indication", "COADREAD", "--out", str(tmp_path)]
     if synthesize:
         argv.append("--synthesize")
@@ -234,7 +240,7 @@ def _run(tmp_path, synthesize: bool, synth_return=None, synth_raises=False):
         D.run_wired_skill(skill_name="tumor-presence", skill_version="9.9.9",
                           cards=["tumor-rna-distribution"], axis="intracellular_intrinsic",
                           question="Is {target} present in {indication}?",
-                          headline_fn=_headline, argv=argv)
+                          verdict_fn=_verdict, headline_fn=_headline, argv=argv)
     finally:
         for p in patches:
             p.stop()

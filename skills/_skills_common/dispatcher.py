@@ -361,17 +361,34 @@ def run_wired_skill(
         # former hardcoded `from .synthesis import synthesize_presence` — a --synthesize selectivity
         # run used to be narrated by the PRESENCE narrator (wrong lens).
         _synth = synthesize_fn
-        if _synth is None:
-            from .synthesis import synthesize_presence
-            _synth = synthesize_presence
-        try:
-            decision["llm_synthesis"] = _synth(
-                decision, args.synthesis_model, args.subtype)
-        except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
+        if _synth is None and verdict_fn is None:
+            # DESCRIPTIVE skill (synthesis: none — e.g. target-intrinsic passes verdict_fn=None AND
+            # no synthesize_fn): there is no verdict to narrate and no lens for this grain. The former
+            # blanket fallback ran the PRESENCE narrator here, producing garbage on an indication-
+            # independent dossier ("Complete absence of presence data — the lens cannot be evaluated";
+            # 2026-08-08 synthesis review). Refuse honestly rather than mis-lens: emit a note, leave the
+            # descriptive decision intact. (A skill that WANTS narration supplies synthesize_fn.)
             decision["llm_synthesis"] = {
-                "_synthesis_error": f"{type(e).__name__}: {e}",
-                "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
+                "_synthesis_skipped": "descriptive_skill_no_narrator",
+                "_note": ("This skill is descriptive (no verdict spine) and declares no synthesis "
+                          "narrator, so --synthesize is a no-op — there is no lens-appropriate "
+                          "narration for this grain. The deterministic dossier above is complete."),
             }
+        else:
+            if _synth is None:
+                # A VERDICT-bearing skill that didn't supply its own narrator → the presence narrator
+                # is the backward-compat default (tumor-presence). A skill with a non-presence verdict
+                # should pass its own synthesize_fn (tumor-selectivity/functional-requirement do).
+                from .synthesis import synthesize_presence
+                _synth = synthesize_presence
+            try:
+                decision["llm_synthesis"] = _synth(
+                    decision, args.synthesis_model, args.subtype)
+            except Exception as e:  # noqa: BLE001 — synthesis is optional; never break the spine
+                decision["llm_synthesis"] = {
+                    "_synthesis_error": f"{type(e).__name__}: {e}",
+                    "_note": "LLM synthesis unavailable; the deterministic verdict above is unaffected.",
+                }
 
     # Stamp total wall-clock (read + compute + optional synthesis) BEFORE write_package
     # serializes the decision — write time itself is not a data-access signal.
