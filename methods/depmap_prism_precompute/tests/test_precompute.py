@@ -436,21 +436,61 @@ def test_correlate_maps_returns_none_below_min_lines():
 
 
 def test_classify_concordance_triangulated():
-    """Both CRISPR + RNAi rho ≥ 0.30 → triangulated_target_engaged."""
-    per_cmp = [{"spearman_r_crispr": 0.5, "spearman_r_rnai": 0.4}]
+    """Both CRISPR + RNAi rho ≥ 0.30 AND FDR-significant → triangulated_target_engaged.
+    (2026-08-08: strong calls now require n for a significance test — rho 0.5/0.4 at n=30 both clear
+    BH q<0.05 as a single test.)"""
+    per_cmp = [{"spearman_r_crispr": 0.5, "spearman_r_rnai": 0.4,
+                "n_intersected_crispr": 30, "n_intersected_rnai": 30}]
     assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_TRIANGULATED
 
 
 def test_classify_concordance_crispr_confirmed():
-    """CRISPR strong, RNAi weak → crispr_confirmed_engagement."""
-    per_cmp = [{"spearman_r_crispr": 0.5, "spearman_r_rnai": 0.1}]
+    """CRISPR strong+significant, RNAi weak → crispr_confirmed_engagement."""
+    per_cmp = [{"spearman_r_crispr": 0.5, "spearman_r_rnai": 0.1,
+                "n_intersected_crispr": 30, "n_intersected_rnai": 30}]
     assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_CRISPR_CONFIRMED
 
 
 def test_classify_concordance_rnai_confirmed():
-    """RNAi strong, CRISPR weak → rnai_confirmed_engagement."""
-    per_cmp = [{"spearman_r_crispr": 0.1, "spearman_r_rnai": 0.5}]
+    """RNAi strong+significant, CRISPR weak → rnai_confirmed_engagement."""
+    per_cmp = [{"spearman_r_crispr": 0.1, "spearman_r_rnai": 0.5,
+                "n_intersected_crispr": 30, "n_intersected_rnai": 30}]
     assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_RNAI_CONFIRMED
+
+
+def test_classify_strong_rho_but_underpowered_n_is_not_triangulated():
+    """rho ≥ 0.30 at a TINY n (not significant) must NOT trigger a target-engaged call — the exact
+    gap the FDR gate closes. rho 0.31 at n=20 → p≈0.18, q≈0.18 > 0.05 → falls to mixed_engagement."""
+    per_cmp = [{"spearman_r_crispr": 0.31, "spearman_r_rnai": 0.31,
+                "n_intersected_crispr": 20, "n_intersected_rnai": 20}]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_MIXED
+
+
+def test_classify_best_of_N_multiplicity_guard():
+    """A single spurious rho=0.32 among MANY (20) near-zero compounds must NOT triangulate: BH-FDR
+    over the compound set neutralizes the best-of-N inflation (the heavily-annotated-gene failure mode).
+    All at n=25; the lone 0.32 (single-test p≈0.12) gets q≈0.12·20 ≫ 0.05 after BH → no strong call."""
+    per_cmp = ([{"spearman_r_crispr": 0.32, "spearman_r_rnai": 0.32,
+                 "n_intersected_crispr": 25, "n_intersected_rnai": 25}]
+               + [{"spearman_r_crispr": 0.02 + 0.001 * i, "spearman_r_rnai": 0.01 + 0.001 * i,
+                   "n_intersected_crispr": 25, "n_intersected_rnai": 25} for i in range(19)])
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) != pc.CONCORDANCE_TRIANGULATED
+
+
+def test_classify_independent_max_loophole_closed():
+    """Triangulation must not be minted by TWO DIFFERENT compounds each supplying one assay's max.
+    Compound A: strong+significant CRISPR only; compound B: strong+significant RNAi only. Old logic
+    (independent max) → triangulated. New per-assay-significant logic still returns triangulated ONLY
+    because BOTH assays have their own FDR-significant compound — which is the correct semantics; the
+    loophole that is closed is a NON-significant partner no longer counting. Here we assert the honest
+    case: if the RNAi side is NOT significant, it must fall to crispr_confirmed, not triangulated."""
+    per_cmp = [
+        {"spearman_r_crispr": 0.6, "spearman_r_rnai": None,
+         "n_intersected_crispr": 40, "n_intersected_rnai": None},   # A: strong CRISPR
+        {"spearman_r_crispr": None, "spearman_r_rnai": 0.31,
+         "n_intersected_crispr": None, "n_intersected_rnai": 20},   # B: weak/underpowered RNAi (p≈0.18)
+    ]
+    assert pc.classify_crispr_prism_concordance(per_cmp, True, True) == pc.CONCORDANCE_CRISPR_CONFIRMED
 
 
 def test_classify_concordance_mixed():

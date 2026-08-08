@@ -85,7 +85,9 @@ import click
 DEPMAP_S3_BUCKET = "onc-compbio"
 DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-prism-activity-v4"
 DERIVED_PRODUCT_ID = "depmap-prism-activity-v4"
-DERIVED_PRODUCT_VERSION = "0.4.0"
+DERIVED_PRODUCT_VERSION = "0.4.1"   # 2026-08-08: triangulated/confirmed calls now require BH-FDR
+                                    # q<0.05 per assay (not bare best-of-N rho≥0.30). Takes effect on
+                                    # re-emit; per-compound (rho,n) already persisted in the parquet.
 
 # v4: CRISPR-PRISM concordance thresholds. The concordance is the Spearman
 # correlation between CRISPR Chronos-per-line (gene knockout effect) and
@@ -96,6 +98,15 @@ DERIVED_PRODUCT_VERSION = "0.4.0"
 MIN_LINES_FOR_CONCORDANCE = 20            # need ≥20 intersected lines for meaningful Spearman
 CONCORDANCE_STRONG_SPEARMAN = 0.30        # rho ≥ this → target-engaged call
 CONCORDANCE_WEAK_SPEARMAN = 0.10          # 0.1 ≤ rho < 0.3 → mixed / partial engagement
+CONCORDANCE_FDR_Q = 0.05                  # 2026-08-08: a "strong" (rho≥0.30) call must ALSO clear
+                                          # BH-FDR q < this across the gene's evaluated compounds, PER
+                                          # assay. Fixes the best-of-N multiplicity: max-rho over N
+                                          # annotated compounds at a fixed 0.30 with no significance
+                                          # control gave heavily-annotated genes ~N shots at a spurious
+                                          # 0.30 (worst for polypharmacology hubs). Also closes the
+                                          # independent-max loophole (CRISPR + RNAi maxes taken from
+                                          # DIFFERENT compounds): each assay's best must be its OWN
+                                          # FDR-significant best, computed from the already-stored (rho,n).
 # Dual-responder thresholds
 DUAL_RESPONDER_CHRONOS = -0.5             # cell line "dependent" by CRISPR
 DUAL_RESPONDER_LFC = -1.0                 # cell line "responsive" by PRISM (any compound)
@@ -934,6 +945,37 @@ def _spearman_rho(a: list[float], b: list[float]) -> Optional[float]:
     return num / (var_a ** 0.5 * var_b ** 0.5)
 
 
+def _spearman_p_value(rho: Optional[float], n: Optional[int]) -> Optional[float]:
+    """Two-sided p-value for a Spearman rho at sample size n (asymptotic t-approximation:
+    t = rho·sqrt((n-2)/(1-rho²)) with n-2 df). Closed-form from the already-stored (rho, n) —
+    no recompute of the correlation. Returns None when inputs are missing or n < 4 or |rho| == 1
+    (t undefined). scipy is already a method dependency."""
+    if rho is None or n is None or n < 4:
+        return None
+    if abs(rho) >= 1.0:
+        return 0.0
+    from scipy import stats as _sps
+    t = rho * ((n - 2) / (1.0 - rho * rho)) ** 0.5
+    return float(2.0 * _sps.t.sf(abs(t), df=n - 2))
+
+
+def _bh_fdr(pvals: list[float]) -> list[float]:
+    """Benjamini-Hochberg q-values for a list of p-values (monotone-enforced, clipped to 1).
+    Pure-python (no scipy needed) so it is testable in isolation; order matches input."""
+    m = len(pvals)
+    if m == 0:
+        return []
+    order = sorted(range(m), key=lambda i: pvals[i])
+    q = [0.0] * m
+    prev = 1.0
+    for rank, idx in enumerate(reversed(order), start=1):
+        k = m - rank + 1  # BH rank (largest p first)
+        val = min(prev, pvals[idx] * m / k)
+        q[idx] = val
+        prev = val
+    return q
+
+
 def compute_dual_responders(
     chronos_by_model: dict[str, float],
     lfc_frame,
@@ -1000,37 +1042,65 @@ def classify_crispr_prism_concordance(
 ) -> str:
     """Classify gene-level 3-way concordance (CRISPR × RNAi × PRISM).
 
-    Uses the BEST correlation across compounds for each genetic assay.
+    Per assay, the "strong" (target-engaged) call uses the best FDR-SIGNIFICANT correlation across
+    compounds — best rho among compounds with rho ≥ 0.30 AND BH-FDR q < 0.05 (2026-08-08 fix). The
+    former logic took the bare max rho over N annotated compounds at a fixed 0.30 with NO significance
+    control, so a heavily-annotated gene got ~N shots at a spurious 0.30; and the CRISPR/RNAi maxes
+    were taken independently, so two DIFFERENT compounds could jointly mint `triangulated`. Now each
+    assay's strong call requires its OWN FDR-significant compound. The `mixed`/`off_target` fallback
+    still reads the bare best rho (a descriptive weak-signal band, not a target-engaged call).
     Priority (first-match wins):
-      1. No CRISPR AND no RNAi data for this gene → data_unavailable
-      2. No compound-level concordance rows → thin_evidence
-      3. BOTH best_rho_crispr ≥ 0.30 AND best_rho_rnai ≥ 0.30 → triangulated
-      4. best_rho_crispr ≥ 0.30 (RNAi < 0.30 OR unavailable) → crispr_confirmed
-      5. best_rho_rnai ≥ 0.30 (CRISPR < 0.30 OR unavailable) → rnai_confirmed
-      6. Any pair-wise best_rho in [0.10, 0.30) → mixed_engagement
-      7. All available pair-wise best_rho < 0.10 → discordant_off_target_likely
+      1. No CRISPR AND no RNAi data → data_unavailable
+      2. No compound-level rows → thin_evidence
+      3. BOTH assays have an FDR-significant rho ≥ 0.30 → triangulated
+      4. Only CRISPR has one → crispr_confirmed
+      5. Only RNAi has one → rnai_confirmed
+      6. Best (bare) rho in [0.10, 0.30) → mixed_engagement
+      7. All best (bare) rho < 0.10 → discordant_off_target_likely
     """
     if not chronos_available and not rnai_available:
         return CONCORDANCE_DATA_UNAVAILABLE
     if not per_compound_concordance:
         return CONCORDANCE_THIN
+
+    strong = CONCORDANCE_STRONG_SPEARMAN   # 0.30
+    weak = CONCORDANCE_WEAK_SPEARMAN       # 0.10
+
+    def _best_significant(rho_key: str, n_key: str) -> Optional[float]:
+        """Best rho among this assay's compounds that clear rho ≥ 0.30 AND BH-FDR q < 0.05.
+        BH is computed over ALL evaluated compounds for the assay (the multiplicity set), so more
+        annotated compounds tighten (not loosen) the bar — the opposite of the old best-of-N."""
+        rows = [c for c in per_compound_concordance if c.get(rho_key) is not None]
+        if not rows:
+            return None
+        pvals = [_spearman_p_value(c[rho_key], c.get(n_key)) for c in rows]
+        # a None p (n<4 / |rho|==1) is treated as p=0 (|rho|==1 at n≥4) or dropped (n<4)
+        idx = [i for i, p in enumerate(pvals) if p is not None]
+        if not idx:
+            return None
+        qvals = _bh_fdr([pvals[i] for i in idx])
+        q_by_row = {i: q for i, q in zip(idx, qvals)}
+        sig = [rows[i][rho_key] for i in idx
+               if rows[i][rho_key] >= strong and q_by_row[i] < CONCORDANCE_FDR_Q]
+        return max(sig) if sig else None
+
+    best_c_sig = _best_significant("spearman_r_crispr", "n_intersected_crispr")
+    best_r_sig = _best_significant("spearman_r_rnai", "n_intersected_rnai")
+
+    if best_c_sig is not None and best_r_sig is not None:
+        return CONCORDANCE_TRIANGULATED
+    if best_c_sig is not None:
+        return CONCORDANCE_CRISPR_CONFIRMED
+    if best_r_sig is not None:
+        return CONCORDANCE_RNAI_CONFIRMED
+    # Neither assay has an FDR-significant strong call. Fall back to the DESCRIPTIVE weak-signal band
+    # on the bare best rho (mixed/off-target are not target-engaged calls, so no FDR gate applied).
     crispr_rhos = [c["spearman_r_crispr"] for c in per_compound_concordance
                    if c.get("spearman_r_crispr") is not None]
     rnai_rhos = [c["spearman_r_rnai"] for c in per_compound_concordance
                  if c.get("spearman_r_rnai") is not None]
     best_c = max(crispr_rhos) if crispr_rhos else None
     best_r = max(rnai_rhos) if rnai_rhos else None
-
-    strong = CONCORDANCE_STRONG_SPEARMAN   # 0.30
-    weak = CONCORDANCE_WEAK_SPEARMAN       # 0.10
-
-    if best_c is not None and best_c >= strong and best_r is not None and best_r >= strong:
-        return CONCORDANCE_TRIANGULATED
-    if best_c is not None and best_c >= strong:
-        return CONCORDANCE_CRISPR_CONFIRMED
-    if best_r is not None and best_r >= strong:
-        return CONCORDANCE_RNAI_CONFIRMED
-    # Neither assay strong. Consider best pair-wise in weak range → mixed
     max_rho = max([r for r in [best_c, best_r] if r is not None], default=None)
     if max_rho is None:
         return CONCORDANCE_THIN
