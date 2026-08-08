@@ -306,11 +306,19 @@ def _read_from_derived_product(target: str) -> Optional[dict]:
         "n_paralogs_annotated": row.get("n_paralogs_annotated", 0),
         "n_paralogs_functionally_buffering": row.get("n_paralogs_buffering", 0),
         "functional_paralogs": functional_paralogs[:20],
+        # strongest_paralog_symbol = the MAX-buffering-delta partner (dep_delta_paired_vs_max_single),
+        # NOT necessarily the biologically-canonical redundant paralog. Ties/near-ties among strong
+        # partners are common + meaningful (e.g. CDK4: CDK1 δ=1.57 edges CDK4/6 δ=1.48) — consumers
+        # wanting the full picture should read the ranked `functional_paralogs` list, not just this scalar.
         "strongest_paralog_symbol": row.get("strongest_partner") or "",
-        # The card-declared field, now POPULATED from the product's Ensembl-Compara ohnolog_flag.
+        # The card-declared field, POPULATED from the product's Ensembl-Compara ohnolog_flag.
         "strongest_paralog_ohnolog": (strongest.get("ohnolog_flag") if strongest else None),
+        # Tri-state provenance for the ohnolog flag (2026-08-08): on this PRIMARY path the flag is a
+        # real annotation → `annotated`. The fallback path emits `unknown_fallback` so a None ohnolog
+        # there is never confused with a genuine False by the strong_ohnolog_paralog predicate.
+        "strongest_paralog_ohnolog_status": "annotated",
         "strongest_paralog_delta": row.get("strongest_delta"),
-        "method_version": "0.3.0",   # 0.3.0: read the derived product (real ohnolog); raw CSV = fallback
+        "method_version": "0.3.1",   # 0.3.1: + ohnolog_status tri-state + strongest-paralog semantics doc
         "_data_source": DERIVED_PRODUCT_MANIFEST_ID,
         "_data_source_upstream": PARALOG_SOURCE_MANIFEST_ID,
     }
@@ -402,15 +410,19 @@ def _read_from_raw_csv(target: str) -> dict:
         "n_paralogs_annotated": n_annotated,
         "n_paralogs_functionally_buffering": n_buffering,
         "functional_paralogs": functional_paralogs[:20],
+        # strongest_paralog_symbol = MAX-delta partner (see primary path note); read functional_paralogs
+        # for the full ranked list rather than treating this scalar as the canonical redundant paralog.
         "strongest_paralog_symbol": strongest["partner_gene_symbol"],
-        # strongest_paralog_ohnolog is None on this FALLBACK path only. The ohnolog annotation
-        # (Ensembl-Compara LCA) is produced solely by the offline product build; this raw-CSV
-        # recompute cannot derive it. The PRIMARY read (_read_from_derived_product) DOES populate
-        # it — this branch fires only when that product is transiently unreachable. Emit None +
-        # a documented reason rather than omitting the card-declared field or fabricating a value.
+        # strongest_paralog_ohnolog is UNKNOWN (not False) on this FALLBACK path. The ohnolog annotation
+        # (Ensembl-Compara LCA) is produced solely by the offline product build; this raw-CSV recompute
+        # cannot derive it. Emit None + an explicit `unknown_fallback` STATUS so the value is never
+        # confused with a genuine "not an ohnolog" (False) — the strong_ohnolog_paralog predicate would
+        # otherwise silently read None==True as False and suppress the escape-risk warning (a latent
+        # false-negative). The status field lets the card emit an honest `ohnolog_unknown` caveat instead.
         "strongest_paralog_ohnolog": None,
+        "strongest_paralog_ohnolog_status": "unknown_fallback",
         "strongest_paralog_delta": strongest["dep_delta_paired_vs_max_single"],
-        "method_version": "0.3.0-fallback-raw-csv",   # fallback recompute (product unreachable)
+        "method_version": "0.3.1-fallback-raw-csv",   # fallback recompute (product unreachable)
         # PROVENANCE: this FALLBACK recomputes buffering LIVE from the RAW source CSV
         # (ParalogGeneEffect.csv) — report exactly that, and name the derived product as the
         # preferred source the primary path reads instead.
@@ -432,6 +444,7 @@ def _empty_result(note: str, n_annotated: int = 0) -> dict:
         "functional_paralogs": [],
         "strongest_paralog_symbol": "",
         "strongest_paralog_ohnolog": None,   # card-declared field; always present (None when unmeasured)
+        "strongest_paralog_ohnolog_status": "data_unavailable",   # no paralog data at all → not annotatable
         "strongest_paralog_delta": None,
         "method_version": "0.2.1",
         "_data_note": note,
