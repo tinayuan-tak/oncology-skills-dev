@@ -981,6 +981,20 @@ measurement_types:
       - {kind: derived_from, inputs: [tumor_protein_abundance], method: breadth_rollup, evidence_tier: measured}       # CPTAC protein (Slice B)
       - {kind: derived_from, inputs: [tumor_vs_normal_selectivity], method: breadth_rollup, evidence_tier: measured}   # pan-cancer RNA (Slice C)
 
+  drug_anchored_combination:
+    claim: "When {target} is INHIBITED by its anchor drug, which other genes become MORE essential (drug-anchored CRISPR combination opportunities)?"
+    # NEW measurement_type (Phase-I combination half). DepMap 26Q1 drug-anchor CRISPR screens
+    # (genome-wide KO WITH vs WITHOUT a fixed anchor inhibitor). NARROW coverage: single-target
+    # anchor inhibitors only (KRAS/KIT/XPO1) → a card returns no_anchor_screen for uncovered targets.
+    # Distinct from combinatorial_ko_dependency (paralog dual-KO, gene×gene) — this is drug×gene.
+    # The RESISTANCE arm (positive shifts) is a deferred sibling (resistance-emergence-signature).
+    entity_grains: [target]
+    cards: [combo-crispr-screen]
+    modality_relevance: [small_molecule, degrader]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: depmap-drug-anchor-combination-per-target-v1, method: combo_drug_anchor, evidence_tier: measured}
+
   combinatorial_ko_dependency:
     claim: "When {target} is co-knocked-out with a paralog partner, is there a synthetic-lethal / buffering genetic interaction (GI = dual - sum-of-singles, Chronos scale), and is it constitutive or context-conditional?"
     # NEW measurement_type (measured dual-KO GI). Distinct from crispr_lof_dependency (single-gene)

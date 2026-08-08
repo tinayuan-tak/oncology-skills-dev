@@ -1,0 +1,117 @@
+# Tier-2 signal-mapping rules for the COMBINATION-OPPORTUNITY axis.
+# Maps the combo-crispr-screen card's combination_opportunity_class → per-modality signals consumed
+# by the combo-and-resistance skill's self-contained verdict (combination half).
+#
+# SELF-CONTAINED: drives the combo-and-resistance skill's own combination_verdict. NOT wired into
+# nomination_verdict_gate (a combination opportunity is a co-targeting rationale, not a monotherapy
+# nomination — it should never move the single-target verdict). Dedicated axis combination_opportunity
+# keeps these rules isolated from the shared ladder.
+#
+# Biology: a drug-anchored combination signal ("gene Y becomes essential when target X is inhibited")
+# is a CO-TARGETING hypothesis — inhibit X, add a second agent against Y. Framed as combination
+# rationale, never a single-agent claim about X.
+
+rules_id: combination-opportunity
+version: 1.0.0
+axis: combination_opportunity
+schema_version: 1
+
+rationale: |
+  When a target is inhibited, genes whose knockout deepens the drug's effect are candidate
+  combination partners (e.g. KRAS inhibition + PTPN11/SHP2 loss — a validated combination). This
+  axis surfaces those from DepMap drug-anchor CRISPR screens. Robust (broad across models) vs
+  context (single-model) mirrors the combinatorial-KO axis's constitutive-vs-context framing.
+  Coverage is narrow (single-target anchor inhibitors only); absence is a coverage gap, never a
+  negative.
+
+rules:
+  - rule_id: combo-strong-opportunity
+    when:
+      card_id: combo-crispr-screen
+      field: combination_opportunity_class
+      equals: strong_combination_opportunity
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    verdict: strong_combination_opportunity
+    message: |
+      Robust combination opportunity — when the target is inhibited, at least one co-target's
+      knockout deepens the effect broadly across models. A co-targeting hypothesis (inhibit the
+      target + a second agent against the co-target) worth pursuing.
+    rationale: |
+      >=1 co-target with combination_class=robust_combination (mean shift <= -0.5, significant in
+      >=50% of the anchor drug's model-screens).
+
+  - rule_id: combo-supported-opportunity
+    when:
+      card_id: combo-crispr-screen
+      field: combination_opportunity_class
+      equals: combination_opportunity
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    verdict: combination_opportunity
+    message: |
+      Combination opportunity — >=1 co-target becomes significantly more essential under target
+      inhibition in at least one model. A co-targeting hypothesis to verify.
+    rationale: |
+      >=1 co-target supported_combination (mean shift <= -0.25, >=1 model significant).
+
+  - rule_id: combo-context-opportunity
+    when:
+      card_id: combo-crispr-screen
+      field: combination_opportunity_class
+      equals: context_combination_opportunity
+    signals:
+      small_molecule: conditional
+      degrader: conditional
+    verdict: context_combination_opportunity
+    message: |
+      CONTEXT-specific combination — a single model shows a strong co-target shift. A conditional
+      combination hypothesis; needs the model/lineage context to interpret.
+    rationale: |
+      Only context_combination co-targets (single-model strong significant shift). Weakest positive.
+
+  - rule_id: combo-no-signal
+    when:
+      card_id: combo-crispr-screen
+      field: combination_opportunity_class
+      equals: no_combination_signal
+    signals:
+      small_molecule: uninformative
+      degrader: uninformative
+    verdict: no_combination_signal
+    message: |
+      An anchor screen exists for this target but no co-target passed the combination threshold. A
+      measured negative for the screened context.
+    rationale: |
+      Anchor screened, all co-targets below threshold. Distinct from no_anchor_screen (coverage gap).
+
+  - rule_id: combo-no-anchor-screen
+    when:
+      card_id: combo-crispr-screen
+      field: combination_opportunity_class
+      equals: no_anchor_screen
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    verdict: combination_insufficient
+    message: |
+      No drug-anchor CRISPR screen for this target (the panel covers KRAS/KIT/XPO1 only). A coverage
+      gap — NOT evidence against a combination opportunity.
+    rationale: |
+      Measured-vs-null: absence of an anchor screen is a coverage gap → insufficient, never negative.
+
+  - rule_id: combo-data-unavailable
+    when:
+      card_id: combo-crispr-screen
+      field: combination_opportunity_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    verdict: combination_insufficient
+    message: |
+      Drug-anchor combination product could not be read (infrastructure / access). Verdict withheld.
+    rationale: |
+      Env-failure distinct from measured absence; both → insufficient, different operator message.

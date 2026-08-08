@@ -1,0 +1,91 @@
+# Card — COMBINATION CRISPR SCREEN (drug-anchored co-target opportunities)
+#
+# The combination half of the Phase-I combo-and-resistance question: "when {target} is INHIBITED
+# by its anchor drug, which OTHER genes become MORE essential — i.e. what are the co-targeting /
+# combination-therapy opportunities?" Consumes depmap-drug-anchor-combination-per-target-v1 (DepMap
+# 26Q1 drug-anchor CRISPR screens: genome-wide KO run WITH vs WITHOUT a fixed anchor drug), via
+# methods/combo_drug_anchor.
+#
+# Signal: essentiality SHIFT of each gene under the anchor drug. NEGATIVE = KO becomes more
+# essential when the target is inhibited = a combination candidate. combination_opportunity_class
+# aggregates the strongest co-target across the anchor drug's model-screens.
+#
+# COVERAGE IS NARROW (the discipline): only single-target anchor inhibitors are screened
+# (KRAS/KIT/XPO1). A target with NO anchor drug -> combination_opportunity_class: no_anchor_screen
+# (a coverage gap, NOT "no combination exists"). This card does NOT cover the RESISTANCE arm
+# (positive shifts / rescued genes) — that is resistance-emergence-signature, a deferred sibling.
+#
+# Emits descriptive categoricals + numerics ONLY; interpretation lives in the Tier-2 rules layer
+# (interpretation-rules/combination-opportunity.rules.yaml).
+
+card_id: combo-crispr-screen
+version: 1.0.0
+question: "When {target.symbol} is inhibited by its anchor drug, which co-targets become more essential (combination-therapy opportunities)?"
+
+applies_when:
+  - "context.data_sources.depmap_drug_anchor_available == true"
+
+required_inputs:
+  - product_id: depmap-drug-anchor-combination-per-target-v1
+
+methods:
+  - call: combo-drug-anchor
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - combination_opportunity_class     # PRIMARY categorical (drives Tier-2 rules)
+    - anchor_drug                        # the inhibitor defining the drug arm (e.g. MRTX1133)
+    - anchor_mechanism                   # e.g. "KRAS-G12D inhibitor"
+    - n_co_targets                       # co-targets passing the combination threshold
+    - strongest_co_target                # most-deepening co-target gene
+    - strongest_co_target_shift          # its mean essentiality shift under the drug (negative = combination)
+    - strongest_co_target_class          # robust_combination | supported_combination | context_combination
+    - top_co_targets                     # list<struct> — ranked co-targets w/ shift, n_models, n_significant
+    - combination_context                # narrative summary (measured-vs-null honest)
+
+  summary_fields_vocabulary:
+    combination_opportunity_class:
+      - strong_combination_opportunity   # >=1 robust co-target (deep shift, significant in >=50% models)
+      - combination_opportunity          # else >=1 supported co-target
+      - context_combination_opportunity  # else >=1 context co-target (single-model strong shift)
+      - no_combination_signal            # anchor screened, no co-target passed
+      - no_anchor_screen                 # target has NO anchor drug (COVERAGE GAP, not negative)
+      - data_unavailable                 # product read failure
+
+  figures:
+    - id: combination_cotarget_ranking
+      type: ranked_cotarget_table_with_shift
+      description: "Co-targets ranked by essentiality shift under target inhibition (most-deepening first) with n_models, n_significant, and robust/supported/context class. The combination-therapy hypothesis list."
+      preferred_surfaces: [markdown, decision_memo]
+      primary: true
+
+thresholds:
+  strong_shift: -0.5
+  supported_shift: -0.25
+  fdr_significance: 0.25
+
+warning_predicates:
+  - warning_id: single_model_anchor
+    if: "top_co_targets.0.n_models <= 1"
+    message: "The anchor drug for {target.symbol} was screened in <=1 model — combination calls rest on a single context; treat as hypothesis-generating."
+  - warning_id: narrow_anchor_coverage
+    if: "combination_opportunity_class == no_anchor_screen"
+    message: "No drug-anchor CRISPR screen for {target.symbol} (the panel covers KRAS/KIT/XPO1 only). This is a coverage gap — absence of a combination signal here is NOT evidence against combination opportunities."
+
+caveats:
+  - "Signal = gene-effect(drug arm) - gene-effect(control arm) (Chronos-difference). Negative = the co-target's KO becomes MORE essential when the target is inhibited = a co-targeting / combination candidate."
+  - "DepMap drug-anchor screens cover only single-target anchor INHIBITORS (KRAS via MRTX1133, KIT via Avapritinib, XPO1 via Eltanexor). Cytotoxic chemotherapies were excluded upstream. Absence of an anchor screen is a coverage gap (no_anchor_screen), never evidence against combination (measured-vs-null)."
+  - "This is the COMBINATION arm only. The RESISTANCE arm (genes whose loss RESCUES under inhibition — candidate resistance mediators, positive shifts) is resistance-emergence-signature, a deferred sibling card not wired here."
+  - "A statistically-significant co-target is a HYPOTHESIS to verify, not a validated combination — read the co-target biology (the KRAS/PTPN11 (SHP2) top hit is a validated combination; not every hit will be)."
+  - "Cell-line drug-anchor genetic interaction does not guarantee in-vivo combination benefit; translational validation is separate."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `drug_anchored_combination` claim (what becomes
+# essential under target inhibition). NEW measurement_type. entity_grain target (the inhibited target).
+measurement_type: drug_anchored_combination
+# P4: a combination opportunity is a co-targeting rationale — relevant where the target itself is
+# drugged (small_molecule) and the co-target adds a second agent (small_molecule/degrader/biologic).
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
