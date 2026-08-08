@@ -177,14 +177,21 @@ def compute_concordance(chronos_by_model: dict,
     elif (1.0 - fraction_agree) >= discordant_fraction:
         concordance_class = "discordant"
     else:
-        # Between strongly-concordant and discordant — middle territory. Defaults to
-        # whichever of dependent/non-dependent the agreeing lines lean toward.
+        # MIDDLE band: agreement is below the strongly-concordant floor (0.85) yet above the
+        # discordant floor (i.e. disagreement < 0.30) — genuinely ambiguous. Previously this
+        # was mislabeled `strongly_concordant_*`, so a target with (e.g.) 25% cross-assay
+        # disagreement was reported "strongly concordant" (2026-08-08 review finding). It now
+        # gets its own honest `moderately_concordant_*` label. Side (dependent vs non-dependent)
+        # still follows whichever the agreeing lines lean toward. The consuming rules read
+        # `in: [strongly_*, moderately_*]`, so this relabel is VERDICT-INERT (a moderate-dependent
+        # target still fires the dominant concordant-dependent rung) — it sharpens the DESCRIPTIVE
+        # label without changing the call.
         n_agree_dep = bucket_counts["agree_dependent"]
         n_agree_nondep = bucket_counts["agree_non_dependent"]
         if n_agree_dep >= n_agree_nondep:
-            concordance_class = "strongly_concordant_dependent"
+            concordance_class = "moderately_concordant_dependent"
         else:
-            concordance_class = "strongly_concordant_non_dependent"
+            concordance_class = "moderately_concordant_non_dependent"
 
     summary = {
         "n_in_both": n_in_both,
