@@ -18,6 +18,8 @@ card_id: signaling-network-mechanism
 version: 1.0.0
 question: "What is the upstream+downstream signaling context of {target.symbol}, and which MoA classes are candidate hooks?"
 
+tier: target   # signaling-network context is a property of the gene/protein, independent of indication (was omitted — the only target-intrinsic card lacking an explicit tier; added 2026-08-08 for contract consistency)
+
 applies_when:
   - "context.data_sources.omnipath_snapshot_available == true"
 

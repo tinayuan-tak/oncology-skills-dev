@@ -75,10 +75,6 @@ warning_predicates:
 
 caveats:
   - |
-    not_wired PLACEHOLDER (2026-08-05): card + dispatcher are registered, but the backing method
-    (methods/domain_modality_relevance/read.py) is NOT built yet, so the card never fires. Marks it a
-    placeholder for the roadmap-#3 domain→modality method. Remove this caveat when the method lands.
-  - |
     INTERPRETIVE layer, not a measurement: modality_implication_class is an inference from domain
     function, NOT an experimental readout. It complements the descriptive protein-domains-class card
     (which says WHAT domains exist) with the modality those domains imply. Verdict-inert — it informs
