@@ -47,6 +47,15 @@ outputs:
     - hpa_ihc_intensity_class                        # 'high' | 'medium' | 'low' | 'not_detected' | 'unmeasured'
     - is_tce_viable                                  # bool — surface_density_class in {high, moderate}
     - is_adc_high_payload_viable                     # bool — surface_density_class == 'high'
+    # --- INC-4 Tier-1 ABSOLUTE anchor (2026-08-08) — the calibrated grade-A/B copies/cell from the
+    #     curated corpus, DISTINCT from the grade-D estimate above. Narrow coverage, high precision.
+    #     A verdict-INERT facet the tumor-selectivity skill reads; feeds NO resolver rung. ---
+    - absolute_density_class                         # 'high'|'moderate'|'low'|'very_low'|'no_absolute_measurement'
+    - absolute_copies_per_cell                       # float; calibrated best value (copies/cell), or null
+    - absolute_density_grade                         # 'A'|'A-'|'B'|'B-'|'E' — corpus evidence grade (E = un-anchored)
+    - absolute_measurement_semantics                 # ABC | molecule_count | monovalent_epitope | dSTORM | PE_equivalent
+    - absolute_n_measurements                        # int; admissible corpus rows for this target
+    - density_floor_verdict                          # standing vs the cited modality floors (see vocab)
     - method_version
 
   summary_fields_vocabulary:
@@ -62,6 +71,14 @@ outputs:
       - low
       - not_detected
       - unmeasured
+    density_floor_verdict:                           # from the MEASURED Tier-1 absolute value ONLY (grade A/B).
+      - above_adc_high_payload_floor                 # >= 10,000 copies/cell (ADC high-payload viable)
+      - above_tce_floor_below_adc                    # 1,000-10,000 (soluble-TCE viable, sub-ADC-high-payload)
+      - below_tce_floor                              # < 1,000 — a MODALITY caveat, NOT a target killer
+                                                     #   (CD19 = 110/cell yet a validated CAR-T/TCE antigen;
+                                                     #   high-avidity binders work below the soluble-TCE floor)
+      - unmeasured                                   # no calibrated Tier-1 value (grade E) → abstain; absence
+                                                     #   is NOT low density (the honest-negative discipline)
 
   figure: surface_density_estimation_with_uncertainty_band
 
