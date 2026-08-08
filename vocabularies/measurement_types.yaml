@@ -1006,7 +1006,10 @@ measurement_types:
     modality_relevance: [small_molecule, degrader]
     multi_provider_policy: tier_dominant
     providers:
-      - {kind: dataset, source: depmap-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}
+      - {kind: dataset, source: depmap-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}   # DOMINANT (282 lines)
+      - {kind: dataset, source: dede-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}     # CORROBORATION — Dede 2020 enCas12a, 3 lines (A549/HT29/OVCAR8), CC BY 4.0. Independent published screen; harmonized to the same GI schema. Reader corroborates/discordantly tempers a paralog SL call (e.g. KAT6A/B context in DepMap, not replicated in Dede's 3 lines).
+      - {kind: dataset, source: in4mer-paralog-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}   # CORROBORATION — in4mer 2024 Cas12a, 4 lines (K562/A549/A375/MELJUSO), CC BY 4.0. normZ GI. SUMMARY grain only (source pan-line aggregated — corroborates presence/strength, no per-lineage read). Validated on RAF1/ARAF+BRAF paralog SL.
+      - {kind: dataset, source: horlbeck-genetic-interaction-per-pair-v1, method: paralog_genetic_interaction, evidence_tier: measured}          # EXTENSION — Horlbeck 2018 CRISPRi, K562+Jurkat, CC BY 4.0. UNIQUE role: NON-paralog arbitrary pairs (472-gene all-by-all) — reaches gene pairs the paralog providers (DepMap/Dede/in4mer) cannot. Coverage extension, not just corroboration.
 
   sc_normal_celltype_expression:
     claim: "Single-cell RNA expression in normal tissue by cell type (pseudobulk, donor-replicate) — on-target-off-tumor safety substrate at cell-type resolution"
