@@ -214,6 +214,18 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "  NOTE: per-VARIANT, aggregated to the gene — names WHICH alleles are oncogenic (vs the "
         "gene-level role) + which confer therapy resistance. data_unavailable = uncurated by CIViC, "
         "NOT benign. Verdict-inert.",
+        "",
+        "GENOME-INSTABILITY / PASSENGER-RISK CONTEXT (M7 — INDICATION-level cohort context, "
+        "target-independent; use to WEIGH the recurrence signal, not as a driver call):",
+        f"  aneuploidy_burden_class (CIN): {h.get('aneuploidy_burden_class', 'n/a')}   "
+        f"wgd_class (whole-genome-doubling prevalence): {h.get('wgd_class', 'n/a')}",
+        f"  msi_class (patient, CRC/STAD only): {h.get('msi_class', 'n/a')}   "
+        f"model_msi_class (DepMap, all lineages): {h.get('model_msi_class', 'n/a')}   "
+        f"model_mmr_signature_class (SBS, cross-validates MSI): {h.get('model_mmr_signature_class', 'n/a')}",
+        "  NOTE: a HYPERMUTATED / MSI-H cohort accumulates PASSENGER mutations — in that context a "
+        "large gene's high recurrence is discounted (the passenger-inflation caveat above, now "
+        "quantified). High CIN / WGD also inflates copy-number noise (weigh amplification calls "
+        "accordingly). data_unavailable = unlabelled cohort, NOT low-instability. Verdict-inert.",
     ]
 
     # Subtype panorama — only present when --subtypes scoped this run (descriptive; verdict-inert).

@@ -29,6 +29,10 @@ def _decision_fixture(with_subtype=False):
         "event_correspondence_class": "event_matched_dependent_in_lineage",
         "overall_mutation_frequency": 0.42,
         "driver_recurrence_class": "top_1pct", "driver_recurrence_percentile": 99.7,
+        # M7 genome-instability / passenger-risk context (2026-08-08 T1.2 — was computed but dropped)
+        "aneuploidy_burden_class": "high_cin", "wgd_class": "wgd_frequent",
+        "msi_class": "msi_high", "model_msi_class": "msi_high",
+        "model_mmr_signature_class": "mmr_deficient",
     }
     if with_subtype:
         headline["subtype_axis"] = {
@@ -48,6 +52,20 @@ def test_prompt_grounds_verdict_mix_role_and_recurrence():
     # system prompt forbids changing the verdict + separates frequency from function
     assert "never change" in SG._SYSTEM.lower()
     assert "frequency != function" in SG._SYSTEM.lower() or "recurrently mutated without being a driver" in SG._SYSTEM.lower()
+
+
+def test_prompt_grounds_genome_instability_passenger_context():
+    # T1.2 (2026-08-08): the M7 instability block (aneuploidy/WGD/MSI/MMR) was computed into the
+    # decision headline but NEVER passed to the synthesis prompt — so the LLM's passenger-inflation
+    # warning had no data to reason over. Pin that the block is now grounded.
+    p = SG.build_user_prompt(_decision_fixture())
+    assert "GENOME-INSTABILITY" in p
+    assert "high_cin" in p and "wgd_frequent" in p          # CIN / WGD
+    assert "msi_high" in p and "mmr_deficient" in p         # MSI (patient+model) + MMR signature
+    assert "PASSENGER" in p                                  # the discount instruction
+    # n/a-safe when the M7 fields are absent (indication without instability data)
+    p_bare = SG.build_user_prompt({"target": "X", "indication": "Y", "headline": {}})
+    assert "aneuploidy_burden_class (CIN): n/a" in p_bare
 
 
 def test_prompt_gates_subtype_panorama():
