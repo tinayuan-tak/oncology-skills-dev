@@ -40,8 +40,14 @@ outputs:
     - n_paralogs_annotated
     - n_paralogs_functionally_buffering
     - functional_paralogs                           # list<struct>
-    - strongest_paralog_symbol
-    - strongest_paralog_ohnolog                     # bool
+    - strongest_paralog_symbol                      # the MAX-buffering-delta partner — NOT necessarily the
+                                                    # biologically-canonical redundant paralog. Ties/near-ties
+                                                    # among strong partners are common + meaningful (e.g. CDK4:
+                                                    # CDK1 delta 1.57 edges CDK4/6 delta 1.48). Read the ranked
+                                                    # `functional_paralogs` list for the full picture.
+    - strongest_paralog_ohnolog                     # bool | null (null = not annotatable on this read; see status)
+    - strongest_paralog_ohnolog_status              # annotated | unknown_fallback | data_unavailable (2026-08-08):
+                                                    # provenance of the ohnolog flag, so a null is never read as False
     - strongest_paralog_delta                       # float; dep_delta_paired_vs_max_single
     - screen_source_summary                         # list<string>; 'PARIS_2024' | 'Sanger_2023'
     - method_version
@@ -53,6 +59,10 @@ outputs:
       - none
       - no_paralog
       - data_unavailable
+    strongest_paralog_ohnolog_status:
+      - annotated          # primary derived-product read — the ohnolog flag is a real Ensembl-Compara annotation
+      - unknown_fallback   # raw-CSV fallback (product unreachable) — ohnolog NOT computable; flag is UNKNOWN, not False
+      - data_unavailable   # no paralog data at all — nothing to annotate
 
   figure: paralog_buffering_forest_with_ohnolog_flag
 
@@ -64,6 +74,13 @@ warning_predicates:
   - warning_id: strong_ohnolog_paralog
     if: "paralog_buffering_class == 'strong' && strongest_paralog_ohnolog == true"
     message: "{target.symbol} has a strongly-buffering ohnolog paralog ({strongest_paralog_symbol}, delta={strongest_paralog_delta}). Single-agent inhibition risks paralog-mediated escape. Consider dual-target strategies OR degrader modalities that can hit both paralogs."
+  # 2026-08-08 false-negative fix: on the raw-CSV fallback the ohnolog flag is null (unknown), and the
+  # eval-based predicate above reads null==true as False → it silently SUPPRESSED the escape-risk
+  # warning for a strong-buffering target. This unknown-aware sibling surfaces an HONEST caveat instead
+  # of silence when the buffering is strong but the ohnolog status could not be verified.
+  - warning_id: ohnolog_unknown
+    if: "paralog_buffering_class == 'strong' && strongest_paralog_ohnolog_status == 'unknown_fallback'"
+    message: "{target.symbol} shows strong paralog buffering ({strongest_paralog_symbol}, delta={strongest_paralog_delta}), but ohnolog status is UNVERIFIED (raw-CSV fallback). Paralog-mediated escape risk is possible — treat the ohnolog flag as unknown, not absent; re-run against the derived product."
   - warning_id: sanger_paris_disagreement
     if: "n_paralogs_functionally_buffering > 0 && screen_source_summary contains 'disagreement'"
     message: "PARIS 2024 and Sanger 2023 disagree on {target.symbol}'s paralog-buffering status. Both screens have different cell-line panels; disagreement may reflect lineage-specific buffering. Consider lineage-conditional interpretation."
