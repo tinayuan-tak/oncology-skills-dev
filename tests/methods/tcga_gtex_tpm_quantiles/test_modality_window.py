@@ -75,6 +75,33 @@ def test_theme1_full_normal_denominator_exposes_nonessential_dirtiness():
     assert r["window_ratio_full_normal"] < 1.0
     # the two ratios DIVERGE by >10x — the exact signal the essential-only scorer would hide
     assert r["window_ratio_essential"] / r["window_ratio_full_normal"] > 10
+    # axis-B companion (2026-08-08 selectivity review): therapeutic_window_class (essential-only) is
+    # clean, but the full-normal companion must flag the non-essential breadth as a veto candidate.
+    assert r["therapeutic_window_class"] == "clean_window"          # essential-only: still clean (unchanged)
+    assert r["full_normal_window_class"] == "no_full_normal_window" # pan-normal: SKIN breadth caught
+
+
+# ── AXIS-B companion class (2026-08-08 selectivity review): full_normal_window_class ──
+def test_full_normal_window_class_clean_when_low_across_whole_atlas():
+    # CLDN6 oncofetal: low in EVERY normal (essential AND non-essential) → clean on both axes.
+    rows = _rows({"OV": 34.9}, {"BONE_MARROW": 0.49, "BRAIN": 0.2, "SKIN": 0.3})
+    r = compute_window_from_rows(rows, "OV", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["full_normal_window_class"] == "clean_full_normal_window"
+    assert r["therapeutic_window_class"] == "clean_window"          # both axes agree → genuinely clean
+
+
+def test_full_normal_window_class_narrow_band():
+    # tumor 40, worst full-normal 12 → ratio ~3.2 ∈ [1,5): narrow (real but modest) pan-normal window.
+    rows = _rows({"COAD": 40.0}, {"LUNG": 1.0, "COLON": 12.0})
+    r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["adc"])
+    assert 1.0 <= r["window_ratio_full_normal"] < 5.0
+    assert r["full_normal_window_class"] == "narrow_full_normal_window"
+
+
+def test_full_normal_window_class_not_expressed_mirrors_therapeutic():
+    rows = _rows({"LUAD": 0.3}, {"PITUITARY": 3.9, "SKIN": 1.0})
+    r = compute_window_from_rows(rows, "LUAD", MODALITY_TIER_THRESHOLD["bite_tce"])
+    assert r["full_normal_window_class"] == "not_expressed_in_cohort"
 
 
 # ── COHORT-HONESTY: DLL3-in-LUAD near-zero tumor → not a candidate call, not "clean" ──

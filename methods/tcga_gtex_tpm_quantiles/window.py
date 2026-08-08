@@ -132,6 +132,7 @@ def compute_window_from_rows(rows, indication: str,
 
     result = {
         "window_class": None,
+        "full_normal_window_class": None,   # set below (axis-B pan-normal companion; additive)
         "tumor_tpm": round(tumor_tpm, 2),
         "max_essential_normal_tpm": round(max_ess_tpm, 2),
         "max_essential_normal_organ": max_ess_organ,
@@ -156,6 +157,25 @@ def compute_window_from_rows(rows, indication: str,
         result["therapeutic_window_class"] = "no_therapeutic_window"   # ratio < 1: tumor BELOW worst
                                                                        # critical normal → the veto
 
+    # full_normal_window_class (2026-08-08, selectivity review axis-B companion) — the SAME ratio
+    # tiering as therapeutic_window_class but keyed on window_full_normal (tumor ÷ worst of the
+    # FULL GTEx atlas, not just the 15 essential organs). therapeutic_window_class can only see
+    # essential-organ liability, so a gene broad across NON-essential normals (the TROP2/salivary-
+    # gland archetype: skin/salivary/vagina, none life-critical) reads clean_window there yet has
+    # no real pan-normal window. This companion surfaces that breadth. ADDITIVE + verdict-inert:
+    # therapeutic_window_class above is UNCHANGED (the INC-1/2 veto instrument stays byte-stable);
+    # this field is a NEW signal for a future pan-normal-breadth veto arm (see the selectivity-
+    # conjunction plan, deferred to the selectivity session) and for narrative honesty today.
+    if tumor_tpm < TUMOR_EXPRESSION_FLOOR_TPM:
+        result["full_normal_window_class"] = "not_expressed_in_cohort"
+    elif window_full_normal >= THERAPEUTIC_WINDOW_CLEAN_RATIO:
+        result["full_normal_window_class"] = "clean_full_normal_window"
+    elif window_full_normal >= THERAPEUTIC_WINDOW_MIN_RATIO:
+        result["full_normal_window_class"] = "narrow_full_normal_window"
+    else:
+        result["full_normal_window_class"] = "no_full_normal_window"   # broad across the atlas
+                                                                       # (incl. non-essential) → veto candidate
+
     # cohort-honesty gate first (legacy window_class — UNCHANGED tiering, its 3 surface rules stay byte-stable)
     if tumor_tpm < TUMOR_EXPRESSION_FLOOR_TPM:
         result["window_class"] = "not_expressed_in_cohort"
@@ -174,6 +194,7 @@ def _empty(note: str) -> dict:
     return {
         "window_class": "data_unavailable",
         "therapeutic_window_class": "data_unavailable",
+        "full_normal_window_class": "data_unavailable",
         "tumor_tpm": None, "max_essential_normal_tpm": None, "max_essential_normal_organ": None,
         "max_full_normal_tpm": None, "max_full_normal_organ": None,
         "window_ratio_essential": None, "window_ratio_full_normal": None,
