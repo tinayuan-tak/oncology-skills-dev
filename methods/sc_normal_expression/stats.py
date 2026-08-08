@@ -54,7 +54,7 @@ def _is_safety_essential(cell_type: str) -> bool:
     return any(ct.startswith(pfx) or pfx in ct for pfx in SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES)
 
 
-def classify_sc_normal_expression(rows: pd.DataFrame) -> dict:
+def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:
     """Classify normal-tissue liability from a Tier-1 gene rows DataFrame.
 
     `rows` is a DataFrame with columns: cell_type, n_donors_reliable,
@@ -80,10 +80,26 @@ def classify_sc_normal_expression(rows: pd.DataFrame) -> dict:
     # below 0.05 is within census annotation noise (cell-type contaminants, misassignments).
     SAFETY_FLAG_FLOOR = 0.05
     safety_flags: dict[str, float] = {}
+    # ORGAN-AWARE split (axis-D best-practice, 2026-08-07): a safety-essential-cell hit in a
+    # NON-tissue-of-origin CRITICAL organ (heart/liver/kidney/marrow) is the hard-veto disqualifier
+    # (the HER2-CAR-lung / MAGE-A3-cardiac / CEA-colitis failure class); a hit ONLY in the tumor's
+    # OWN tissue-of-origin (e.g. FOLR1 in lung pneumocytes for NSCLC) is on-tissue and arbitrated by
+    # the therapeutic-window axis, NOT vetoed. Requires the per-row `tissue` column + the caller's
+    # origin_tissues; if tissue info is absent (older callers), we degrade to the un-split behavior.
+    has_tissue = "tissue" in reliable.columns
+    origin = {str(t).lower().strip() for t in (origin_tissues or [])}
+    essential_off_origin = False   # a hit in a critical organ that is NOT the tumor's tissue-of-origin
+    essential_origin_only = False  # essential hits, but ALL in the tissue-of-origin
     for _, row in reliable.iterrows():
         det_val = float(row[det_col])
         if _is_safety_essential(str(row["cell_type"])) and det_val > SAFETY_FLAG_FLOOR:
             safety_flags[str(row["cell_type"])] = det_val
+            row_tissue = str(row["tissue"]).lower().strip() if has_tissue else None
+            if row_tissue is not None and origin and row_tissue in origin:
+                essential_origin_only = True
+            else:
+                # non-origin critical organ (or tissue unknown → treat as off-origin, conservative)
+                essential_off_origin = True
 
     # --- Liability classification ---
     # HIGH: any cell type exceeds both magnitude AND consistency thresholds (AND gate)
@@ -115,6 +131,21 @@ def classify_sc_normal_expression(rows: pd.DataFrame) -> dict:
 
     return {
         "sc_normal_expression_class": liability,
+        # CATEGORICAL companion to the safety_essential_flags dict, so the categorical rule engine can
+        # fire on it (the raw dict is not rule-addressable). ORGAN-AWARE three-tier (2026-08-07):
+        #   critical_organ_liability — essential-cell expression in a NON-origin critical organ
+        #       (heart/liver/kidney/marrow). The axis-D HARD-veto instrument (TNNT2→cardiomyocyte).
+        #   origin_tissue_liability  — essential-cell expression ONLY in the tumor's tissue-of-origin
+        #       (FOLR1→lung pneumocytes for NSCLC). On-tissue; arbitrated by the therapeutic-window
+        #       axis, NOT a hard veto — a validated ADC target must survive this.
+        #   none                     — no safety-essential expression above floor.
+        # This is DISTINCT from sc_normal_expression_class (HIGH_LIABILITY fires on ANY high normal
+        # cell type incl. tissue-of-origin epithelium — too blunt to veto a validated ADC target).
+        # off_origin dominates: any critical-organ hit → critical_organ_liability even if origin also hit.
+        "sc_normal_safety_essential_class": (
+            "critical_organ_liability" if essential_off_origin
+            else "origin_tissue_liability" if essential_origin_only
+            else "none"),
         "max_detection_cell_type": max_det_ct,
         "max_detection_fraction": max_det_val,
         "expressing_donor_fraction_max": max_frac_val,
@@ -127,6 +158,7 @@ def classify_sc_normal_expression(rows: pd.DataFrame) -> dict:
 def _data_unavailable_class(note: str = "") -> dict:
     return {
         "sc_normal_expression_class": "data_unavailable",
+        "sc_normal_safety_essential_class": "data_unavailable",
         "max_detection_cell_type": None,
         "max_detection_fraction": None,
         "expressing_donor_fraction_max": None,

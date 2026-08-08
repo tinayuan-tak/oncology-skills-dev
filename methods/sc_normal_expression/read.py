@@ -147,8 +147,13 @@ def read_target_summary(target: str, indication: str) -> dict:
         return _data_unavailable(target, indication,
                                  note=f"{target} absent from sc-normal-celltype-expression products "
                                       f"for tissues {tissues} (not measured in the Census atlases).")
-    result = _stats.classify_sc_normal_expression(rows)
+    # origin_tissues = the tumor's tissue-of-origin ONLY (matched normal), NOT the always-on
+    # safety-essential organs — so the classifier can split origin-tissue essential expression
+    # (on-tissue, therapeutic-window-arbitrated) from non-origin critical-organ expression (hard veto).
+    origin_tissues = INDICATION_TO_TISSUES.get(str(indication).upper().strip(), [])
+    result = _stats.classify_sc_normal_expression(rows, origin_tissues=origin_tissues)
     result["tissues_queried"] = tissues
+    result["origin_tissues"] = origin_tissues
     result["indication"] = str(indication).upper().strip()
     return result
 

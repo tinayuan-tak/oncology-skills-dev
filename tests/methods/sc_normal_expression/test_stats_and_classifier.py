@@ -21,16 +21,17 @@ from methods.sc_normal_expression import cli as C
 
 # --- fixtures ----------------------------------------------------------------
 
-def _tier1_rows(spec) -> pd.DataFrame:
+def _tier1_rows(spec, tissue: str = "colon") -> pd.DataFrame:
     """Build a Tier-1-shaped DataFrame.
     spec: list of (cell_type, n_donors_reliable, median_det, expressing_donor_fraction)
+    tissue: the origin tissue label for all rows (default 'colon'; override for organ-aware tests).
     New schema columns (n_datasets_reliable, q25_abund, q25_det) filled with sensible defaults.
     """
     return pd.DataFrame([
         {
             "gene_symbol": "EPCAM",
             "ensembl_gene_id": "ENSG00000119888",
-            "tissue": "colon",
+            "tissue": tissue,
             "cell_type": ct,
             "n_donors_total": n,
             "n_donors_reliable": n,
@@ -86,6 +87,27 @@ def test_safety_essential_flags_excludes_near_zero_values():
     ])
     r = S.classify_sc_normal_expression(rows)
     assert "hepatocyte" not in r["safety_essential_flags"]
+    # no safety-essential cell above floor → categorical companion is 'none' (not vetoing)
+    assert r["sc_normal_safety_essential_class"] == "none"
+
+
+def test_safety_essential_class_critical_organ_vs_origin_tissue():
+    """ORGAN-AWARE veto instrument: an essential-cell hit in a NON-origin critical organ →
+    critical_organ_liability (hard veto); essential hits ONLY in the tissue-of-origin →
+    origin_tissue_liability (soft, therapeutic-window-arbitrated). The FOLR1/TNNT2 discriminator."""
+    # hepatocyte (liver) is a critical off-target organ for a LUNG tumor → hard-veto class
+    rows_liver = _tier1_rows([("hepatocyte", 10, 0.30, 0.60)], tissue="liver")
+    r = S.classify_sc_normal_expression(rows_liver, origin_tissues=["lung"])
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    # pneumocyte (lung) essential expression when the tumor IS lung → origin-tissue only (soft)
+    rows_lung = _tier1_rows([("pulmonary alveolar type 1 cell", 10, 0.60, 0.70)], tissue="lung")
+    r2 = S.classify_sc_normal_expression(rows_lung, origin_tissues=["lung"])
+    assert r2["sc_normal_safety_essential_class"] == "origin_tissue_liability"
+    # off_origin dominates: a gene hitting BOTH lung(origin) AND heart(critical) → critical
+    rows_both = _tier1_rows([("pulmonary alveolar type 1 cell", 10, 0.60, 0.70)], tissue="lung") \
+              + _tier1_rows([("cardiac muscle cell", 10, 0.90, 0.90)], tissue="heart")
+    r3 = S.classify_sc_normal_expression(rows_both, origin_tissues=["lung"])
+    assert r3["sc_normal_safety_essential_class"] == "critical_organ_liability"
 
 
 def test_safety_essential_flags_includes_above_floor():
@@ -97,6 +119,8 @@ def test_safety_essential_flags_includes_above_floor():
     r = S.classify_sc_normal_expression(rows)
     assert "hepatocyte" in r["safety_essential_flags"]
     assert r["safety_essential_flags"]["hepatocyte"] == pytest.approx(0.08)
+    # hepatocyte hit with no origin_tissues passed → treated as off-origin critical organ (conservative)
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
 
 
 def test_classify_moderate_liability_by_det():
