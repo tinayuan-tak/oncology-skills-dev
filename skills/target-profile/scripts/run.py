@@ -257,6 +257,11 @@ SUB_SKILL_CARDS = {
                                              # tractability-small-molecule CARDS (feeds the degrader lens)
                                              # but composed under no entry → dropped. Restored so the
                                              # degradability signal reaches the composed profile.
+        "known-drug-tractability",           # composer-registry sweep (2026-08-08): DGIdb pharmacology leg
+                                             # (E-known-drug) wired into tractability-small-molecule CARDS by
+                                             # #272 but composed under no entry → dropped. The card already
+                                             # feeds the skill's own verdict (run.py:198); this restores it to
+                                             # the composed target-profile so the known-drug signal reaches it.
     ],
     "surface-modality-fit": [                # split: biologics-modality half
         "surface-topology-and-ptm",
@@ -279,6 +284,15 @@ SUB_SKILL_CARDS = {
         "shed-ectodomain-liability",         # shed-antigen serum-decoy liability (ADC/TCE drug-sink).
         "modality-therapeutic-window",       # composed therapeutic-window dispatcher call.
         "pmhc-presentation",                 # peptide-centric pMHC presentation (TCE/TCR-mimetic reach).
+        # composer-registry sweep (2026-08-08): five more surface/biologics cards added to
+        # surface-modality-fit CARDS by #275/#276/#277/#280/#281 but composed under no entry →
+        # silently dropped from the composed profile. Restored (all fire additive supportive-only
+        # rules; the composed surface_modality verdict stays byte-stable — narrative completeness only).
+        "cd-antigen-backbone",               # CD/IO-antigen backbone clinical-precedent (E6-CD).
+        "modality-exon-window",              # per-exon tumor-vs-normal ADC/TCE window (E5).
+        "mutation-stratified-surface",       # mutant-up surface-antigen signal (E4-A2).
+        "pathway-stratified-surface",        # pathway-stratified surface signal (E4-A3).
+        "sc-normal-celltype-expression",     # single-cell normal-tissue safety comparator (F5).
         # tumor-scrna-celltype-expression is in this sub-skill's CARDS too but is composed under
         # tumor-presence (its presence home) — "composed somewhere" satisfies the invariant.
     ],

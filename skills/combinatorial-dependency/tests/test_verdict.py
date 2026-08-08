@@ -47,7 +47,7 @@ def test_coverage_gap_is_insufficient_not_negative():
 
 
 def test_data_unavailable_is_insufficient():
-    v, _ = _verdict(_fired("combo-data-unavailable"))
+    v, _ = _verdict(_fired("combo-dependency-data-unavailable"))
     assert v == "combinatorial_dependency_insufficient"
 
 

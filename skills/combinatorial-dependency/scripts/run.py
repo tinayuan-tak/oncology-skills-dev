@@ -48,7 +48,7 @@ _RULE_VERDICT = {
     "combo-suppressive-interaction": "suppressive_combinatorial_interaction",
     "combo-no-interaction": "no_combinatorial_dependency",
     "combo-no-paralog-screened": "combinatorial_dependency_insufficient",
-    "combo-data-unavailable": "combinatorial_dependency_insufficient",
+    "combo-dependency-data-unavailable": "combinatorial_dependency_insufficient",
 }
 # Strongest-wins order (constitutive > context > suppressive > no_interaction > insufficient).
 _PRECEDENCE = [
@@ -57,7 +57,7 @@ _PRECEDENCE = [
     "combo-suppressive-interaction",
     "combo-no-interaction",
     "combo-no-paralog-screened",
-    "combo-data-unavailable",
+    "combo-dependency-data-unavailable",
 ]
 
 

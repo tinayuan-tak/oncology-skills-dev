@@ -20,13 +20,13 @@ from typing import Optional
 
 # --- Enum values ------------------------------------------------------------
 
-DATA_MODES = {"live_read", "derived_read", "batch_compute"}
+DATA_MODES = {"live_read", "derived_read", "batch_compute", "catalog_read"}
 
 PHASES = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"}
 
 SYNTHESIS_KINDS = {"none", "rule_engine", "structured_llm"}
 
-OUTPUT_SHAPES = {"data_package", "target_profile", "evidence_package"}
+OUTPUT_SHAPES = {"data_package", "target_profile", "evidence_package", "text_report"}
 
 STEPS = {1, 2, 3, 4, 5, 6}
 
@@ -116,16 +116,27 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
     data_mode = _require("data_mode")
     _one_of(data_mode, DATA_MODES, "data_mode")
 
+    # Utility skills (data_mode == 'catalog_read') are NOT evidence-composing skills:
+    # they answer no biology gate, compose no cards, and fire no rules. For them the
+    # evidence-skill fields (phase / cards_used / rules_scope / steps_covered) are
+    # OPTIONAL — validated if present, defaulted to empty otherwise — while the fields
+    # a utility skill does carry (synthesis / output_shape / status) are still validated.
+    is_utility = data_mode == "catalog_read"
+
+    def _require_or_empty(key: str):
+        """Required for evidence skills; optional (default []) for utility skills."""
+        return raw.get(key, []) if is_utility else _require(key)
+
     # phase
-    phases_raw = _require("phase")
+    phases_raw = _require_or_empty("phase")
     phases = _list_of_str(phases_raw, "phase")
     _all_in(phases, PHASES, "phase")
 
     # cards_used
-    cards_used = _list_of_str(_require("cards_used"), "cards_used")
+    cards_used = _list_of_str(_require_or_empty("cards_used"), "cards_used")
 
     # rules_scope
-    rules_scope = _list_of_str(_require("rules_scope"), "rules_scope")
+    rules_scope = _list_of_str(_require_or_empty("rules_scope"), "rules_scope")
 
     # synthesis
     synthesis = _list_of_str(_require("synthesis"), "synthesis")
@@ -136,7 +147,7 @@ def validate(raw: dict, skill_name: Optional[str] = None) -> Composition:
     _all_in(output_shape, OUTPUT_SHAPES, "output_shape")
 
     # steps_covered
-    steps_raw = _require("steps_covered")
+    steps_raw = _require_or_empty("steps_covered")
     if not isinstance(steps_raw, list) or not all(isinstance(x, int) for x in steps_raw):
         raise CompositionError(
             f"{label}: 'steps_covered' must be a list of ints (1-6), got {steps_raw!r}"

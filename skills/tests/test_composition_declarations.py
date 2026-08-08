@@ -72,10 +72,14 @@ def test_composition_declaration_valid(skill_name: str):
         )
     # Sanity: composition object was populated
     assert composition.data_mode
-    assert composition.phase
     assert composition.synthesis
     assert composition.output_shape
-    assert composition.steps_covered
+    # Evidence-composing skills must declare a phase + the steps they cover; utility skills
+    # (data_mode == 'catalog_read') answer no biology gate, so those fields are legitimately
+    # empty (mirrors the schema exemption in composition_schema.validate()).
+    if composition.data_mode != "catalog_read":
+        assert composition.phase
+        assert composition.steps_covered
 
 
 def test_at_least_one_wired_skill_per_phase():

@@ -49,7 +49,7 @@ _RULE_VERDICT = {
     "combo-context-opportunity": "context_combination_opportunity",
     "combo-no-signal": "no_combination_signal",
     "combo-no-anchor-screen": "combination_insufficient",
-    "combo-data-unavailable": "combination_insufficient",
+    "combo-opportunity-data-unavailable": "combination_insufficient",
 }
 _PRECEDENCE = [
     "combo-strong-opportunity",
@@ -57,7 +57,7 @@ _PRECEDENCE = [
     "combo-context-opportunity",
     "combo-no-signal",
     "combo-no-anchor-screen",
-    "combo-data-unavailable",
+    "combo-opportunity-data-unavailable",
 ]
 
 
