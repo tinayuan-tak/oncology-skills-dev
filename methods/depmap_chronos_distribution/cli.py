@@ -44,7 +44,13 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"   # 2026-08-08: bimodal_selective now gated on Sarle's bimodality coefficient
+                           # (BC > 0.555) over the in-memory score vector, replacing the median>-0.5 proxy.
+
+# Sarle's bimodality coefficient threshold. BC = (skew²+1)/(kurtosis_excess + 3(n-1)²/((n-2)(n-3))).
+# The uniform distribution gives BC = 5/9 ≈ 0.5556; values ABOVE indicate a bimodal/multimodal shape,
+# below trend toward unimodal (normal → 0.33). Standard cutoff (Pfister et al. 2013; SAS Sarle).
+BIMODALITY_COEFFICIENT_THRESHOLD = 5.0 / 9.0
 
 # === Default paths ===
 DEFAULT_CATALOG_REPO = Path(
@@ -192,6 +198,29 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     return chronos_by_model_id, model_metadata_by_id, load_errors
 
 
+def _bimodality_coefficient(scores) -> Optional[float]:
+    """Sarle's bimodality coefficient of a 1-D score vector.
+
+    BC = (g1² + 1) / (g2 + 3·(n-1)²/((n-2)(n-3)))
+      g1 = sample skewness, g2 = sample EXCESS kurtosis (Fisher, normal→0).
+    Uniform → 5/9 ≈ 0.556; unimodal-normal → 0.33; bimodal → toward 1.0. Returns None when n < 4
+    (the finite-sample correction term divides by (n-2)(n-3)) — the caller then falls back to the
+    median-shift routing. Uses scipy for skew/kurtosis (already a method dependency)."""
+    import numpy as np
+    from scipy.stats import skew, kurtosis
+    x = np.asarray(scores, dtype=float)
+    x = x[~np.isnan(x)]
+    n = x.size
+    if n < 4 or float(np.std(x)) == 0.0:
+        return None
+    g1 = float(skew(x, bias=True))
+    g2 = float(kurtosis(x, fisher=True, bias=True))   # excess kurtosis
+    denom = g2 + 3.0 * (n - 1) ** 2 / ((n - 2) * (n - 3))
+    if denom <= 0:
+        return None
+    return (g1 * g1 + 1.0) / denom
+
+
 def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
                              strong_threshold: float = -1.0,
                              moderate_threshold: float = -0.5,
@@ -226,18 +255,37 @@ def compute_summary_stats(chronos_by_model: dict, model_metadata: dict,
     )
     summary["fraction_non_essential"] = float(np.mean(scores > moderate_threshold))
 
-    # Distribution shape classification
+    # Distribution shape classification.
+    # 2026-08-08: the selective-band bimodal discriminator was formerly the scalar proxy
+    # `median_chronos_panel > -0.5` — no bimodality content at all (a heavy-left-tailed UNIMODAL
+    # distribution with median just above -0.5 was falsely called bimodal_selective → strongly_selective
+    # → the dominant selective_dependent verdict; a genuinely bimodal target whose off-mode dragged the
+    # median just below -0.5 was demoted). Replaced with Sarle's bimodality COEFFICIENT computed from the
+    # in-memory per-line score vector (no extra I/O). BC = (skew² + 1) / (excess_kurtosis + 3(n-1)²/((n-2)(n-3)));
+    # BC > 5/9 ≈ 0.555 is the standard bimodality flag (uniform=0.555, normal→0.33, bimodal→1.0).
+    # NOTE: the Hartigan dip test was evaluated and REJECTED as the instrument — it is far too conservative
+    # on DepMap dependency vectors (heavy-tailed-but-continuous, not separated modes): it fails to reject
+    # unimodality even for KRAS (the canonical bimodal-selective target, dip p≈0.997), which would silently
+    # sabotage the exact call the field exists to make. BC correctly flags KRAS (0.702) + EGFR (0.606) and
+    # rejects pan-essential MTOR (0.260). Gated additionally on a MEANINGFUL separated lower mode
+    # (frac_strong ≥ selective_min, already the band floor) so a bare skew/kurtosis artifact can't fire it.
     frac_strong = summary["fraction_strongly_dependent"]
+    summary["bimodality_coefficient"] = _bimodality_coefficient(scores)  # display + audit
     if frac_strong >= pan_essential_fraction:
         shape = "pan_essential"
     elif selective_min <= frac_strong <= selective_max:
-        # bimodal? — check skewness / detect tail separation
-        # Simple heuristic: distribution is bimodal if there's a clear tail
-        # at frac_strongly_dependent && median_panel > -0.5 (i.e., most cells aren't dependent)
-        if summary["median_chronos_panel"] > -0.5:
+        bc = summary["bimodality_coefficient"]
+        # bimodal_selective requires GENUINE bimodality (BC over the uniform threshold) — a separated
+        # dependent lower mode — not merely a panel median above -0.5. Otherwise it is a whole-panel
+        # shift (shifted_dependent when the bulk sits dependent) or not selective at all.
+        if bc is not None and bc > BIMODALITY_COEFFICIENT_THRESHOLD:
             shape = "bimodal_selective"
-        else:
+        elif summary["median_chronos_panel"] <= -0.5:
             shape = "shifted_dependent"
+        else:
+            # in the selective band by tail fraction, but unimodal AND not median-shifted-dependent:
+            # a heavy tail without a separated mode — not a clean selective call.
+            shape = "non_essential"
     elif summary["median_chronos_panel"] <= -0.5 and frac_strong > selective_max:
         shape = "shifted_dependent"
     else:
