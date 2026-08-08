@@ -38,7 +38,7 @@ from _skills_common import (
 from _skills_common.resolver import resolve_verdict_for_gate
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.1.0"      # 2.0.0 reframed from mutation-profile; 2.1.0 (2026-08-05): subtype panorama + driver-recurrence percentile + opt-in synthesis
+SKILL_VERSION = "2.1.1"      # 2.0.0 reframed from mutation-profile; 2.1.0 (2026-08-05): subtype panorama + driver-recurrence percentile + opt-in synthesis
 
 CARDS = [
     # SNV / indel (mutation)
@@ -78,9 +78,12 @@ CARDS = [
     # corroborates the genomic alteration call; graceful data_unavailable for TCGA-absent targets.
     "fusion-rearrangement-landscape",
     # Typed driver-ROLE call (OncoKB × IntOGen) — the functional-role layer on the descriptive
-    # cards above (frequency ≠ function). Its alteration_role signals feed genomic interpretation;
-    # ADDITIVE (rules touch no resolver rung — the skill's inline verdict stays byte-stable). Also
-    # in target-profile SUB_SKILL_CARDS[genomic-alteration-profile] (composer-consistency).
+    # cards above (frequency ≠ function). VERDICT-DRIVING: its alteration-role-gof-driver-supportive /
+    # alteration-role-lof-driver-neutral rules fire the 12 confirmed_driver rungs (resolver §0) via
+    # when_all_fired with a mut/cn driver rule — confirmed_driver is the HIGHEST-precedence genomic
+    # verdict. (2026-08-08 review: this comment previously claimed "ADDITIVE / rules touch no resolver
+    # rung / byte-stable" — that was FALSE; corrected. Nomination-gate-neutral, but it DOES set the
+    # verdict.) Also in target-profile SUB_SKILL_CARDS[genomic-alteration-profile] (composer-consistency).
     "alteration-role",
     # Harmonized two-hit / biallelic-inactivation state (M6, functional_gene_state). The ALLELE-COUNT
     # layer: is the gene biallelically inactivated (completed two-hit → LoF) or only monoallelically

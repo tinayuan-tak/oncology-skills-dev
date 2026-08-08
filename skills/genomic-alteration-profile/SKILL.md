@@ -23,7 +23,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 2.0.0
+  version: 2.1.1
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -33,14 +33,22 @@ composition:
   data_mode: derived_read
   phase: [A, E]
   cards_used:
+    # VERDICT-DRIVING (rules enter the genomic_alteration resolver — see rules_scope):
     - mutation-type-counts
     - mutation-stratified-dependency
-    - mutation-hotspot-frequency
     - copy-number-distribution
-    - fusion-rearrangement-landscape        # LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller consensus); additive signal-only
+    - copy-number-stratified-dependency      # A1a: amplified lines Chronos-more-dependent → resolver §2b (biomarker_stratified_dependency)
+    - fusion-stratified-dependency           # A1-fusion: fusion-positive lines more-dependent → resolver §2c
+    - amp-expr-stratified-dependency         # A1 amp-expr: amplified+high-expr conjoint → resolver §2d
+    - alteration-role                        # typed driver ROLE (OncoKB × IntOGen); VERDICT-DRIVING — fires the
+                                             # 12 confirmed_driver rungs (resolver §0) via when_all_fired with a
+                                             # mut/cn driver rule. (2026-08-08 review: was mis-filed below as
+                                             # "additive / no resolver rung" — it is NOT additive.)
+    - mutation-hotspot-frequency             # composed + headline, but fires ZERO rules (display-only recurrence); NOT in rules_scope
     # ADDITIVE signal-only layers (feed the LLM/matrix + headline; fire NO resolver rung, so they
     # are NOT in rules_scope and the verdict spine is byte-stable):
-    - alteration-role                        # typed driver ROLE (OncoKB × IntOGen); 2026-07-22
+    - fusion-rearrangement-landscape         # LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller consensus); additive signal-only
+    - variant-level-interpretation           # CIViC per-variant oncogenicity + resistance alleles; additive signal-only
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
     - genomic-event-model-match              # M11 patient↔model genomic-event join (canonical P3); 2026-07-22
     - genomic-instability-state              # M7 aneuploidy/CIN burden (2026-08-06): INDICATION-level cohort context (target-independent); additive signal-only, verdict-inert
@@ -63,11 +71,17 @@ composition:
   # (2026-08-05): mutation-hotspot-frequency was listed here but fires ZERO rules — its
   # overall_mutation_frequency is display-only (headline), never a verdict input. Dropped to
   # match reality (see ALT-3: a driver-recurrence percentile is the intended way to make
-  # frequency verdict-relevant). fusion + the additive layers are correctly NOT in rules_scope.
+  # frequency verdict-relevant). fusion-rearrangement-landscape + the additive layers are NOT here.
+  # (2026-08-08 review: added the 3 stratified-dependency cards — resolver §2b/2c/2d — and
+  # alteration-role — resolver §0 confirmed_driver — which DO enter the resolver but were omitted.)
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency
     - copy-number-distribution
+    - copy-number-stratified-dependency
+    - fusion-stratified-dependency
+    - amp-expr-stratified-dependency
+    - alteration-role
   synthesis:
     - rule_engine
     - structured_llm    # 2026-08-05: opt-in --synthesize (genomic-alteration-lens narrator, two-slot; verdict-inert)
