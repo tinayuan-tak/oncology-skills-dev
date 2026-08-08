@@ -2276,6 +2276,28 @@ rules:
       tumor-selectivity verdict downgrades a selective axis-A call to selective_but_broadly_normal when
       this fires (same conjunction discipline as the essential-organ veto). Modality-lensed identically.
 
+  - rule_id: tvn-sc-normal-critical-organ-veto
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_safety_essential_class
+      equals: critical_organ_liability
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      CELL-TYPE-RESOLVED normal veto (INC-3, axis-D, 2026-08-08). Bulk tumor-vs-normal + the
+      atlas-window vetoes can miss a target expressed in a SAFETY-ESSENTIAL CELL TYPE within a
+      non-origin critical organ (cardiomyocyte / hepatocyte / renal-tubule / HSC / neuron), which
+      bulk tissue medians dilute. sc_normal_safety_essential_class == critical_organ_liability means
+      the target is highly detected in an essential cell type of a NON-tissue-of-origin critical organ
+      (the AM #237 organ-aware instrument, threaded with origin_tissues; origin_tissue_liability is
+      DELIBERATELY NOT a veto — origin-tissue essential expression is expected and modality-arbitrated).
+      The tumor-selectivity verdict downgrades a selective axis-A call to selective_but_broadly_normal
+      when this fires — the third normal-breadth veto arm (worst-case conjunction). Design note: this
+      INCLUDES FOLR1 (real kidney tubule) → correctly downgraded (real target + real off-origin organ
+      liability; window/modality then arbitrate — NOT a rejection). MSLN reads origin_tissue_liability
+      (pleural/lung) → correctly does NOT fire. Modality-lensed (systemic SM/degrader worst).
+
   # ============================================================================
   # Phase D — Signaling-network-mechanism card (added 2026-07-08)
   # ============================================================================
