@@ -61,9 +61,13 @@ _DERIVED_STATUS: Optional[bool] = None
 # Fusion counts are small (spec: ~5 ALK in LUAD), so the bar is low but > sporadic-singleton.
 _RECURRENT_MIN_SAMPLES = 3
 # Consensus floor: only count a (sample, gene) fusion supported by >= this many callers, to avoid
-# single-caller false positives inflating recurrence. 1 = union (default); a consumer wanting majority
-# passes min_callers=2.
-_DEFAULT_MIN_CALLERS = 1
+# single-caller false positives inflating recurrence. This product is a 3-CALLER CONSENSUS and
+# preserves caller_count precisely so the floor can be enforced; the default is therefore MAJORITY
+# (>= 2 callers), not the union. A consumer that explicitly wants the 1-caller union passes
+# min_callers=1. (2026-08-08 genomic-alteration review: the old default of 1 discarded the consensus —
+# a single-caller fusion in >= _RECURRENT_MIN_SAMPLES samples was promoted to recurrent_fusion_driver,
+# defeating the whole point of a 3-caller product.)
+_DEFAULT_MIN_CALLERS = 2
 
 
 def _boto3_client():

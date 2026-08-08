@@ -62,7 +62,9 @@ def test_recurs_without_single_recurrent_partner_still_driver(monkeypatch):
 
 
 def test_sporadic_when_few_samples(monkeypatch):
-    rows = [_row("TCGA-01-1-01", "XYZ", "BRCA", 1, partners_tf=["A"], n_tf=1)]
+    # caller_count=2 so it clears the new majority default (min_callers=2, 2026-08-08); the point of
+    # this test is the FEW-SAMPLES→sporadic path (1 sample < _RECURRENT_MIN_SAMPLES), not the filter.
+    rows = [_row("TCGA-01-1-01", "XYZ", "BRCA", 2, partners_tf=["A"], n_tf=1)]
     _patch(monkeypatch, rows)
     d = r.read_target_summary("XYZ", "BRCA")
     assert d["fusion_class"] == "sporadic_fusion"
