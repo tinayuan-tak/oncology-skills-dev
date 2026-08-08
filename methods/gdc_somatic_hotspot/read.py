@@ -123,8 +123,17 @@ def _read_product_table(local_path: Path, manifest_id: str, *, filters=None, col
     import pyarrow.fs as fs
     try:
         return pq.read_table(key, filesystem=fs.S3FileSystem(), filters=filters, columns=columns)
-    except Exception:
-        return None
+    except Exception as e:  # noqa: BLE001
+        # Distinguish DEFINITIVE ABSENCE (object genuinely not there → data_unavailable, graceful)
+        # from a TRANSIENT/AUTH failure (creds expired, throttle, network) which must NOT be silently
+        # masked as a coverage gap (the "bare-except masks broken env" bug class). Mirrors the
+        # definitive-vs-transient discriminant in tcga_fusion_consensus/read.py.
+        code = str(getattr(e, "response", {}).get("Error", {}).get("Code", "")) if hasattr(e, "response") else ""
+        definitive = (code in ("404", "NoSuchKey", "NoSuchBucket")
+                      or e.__class__.__name__ in ("NoSuchKey", "FileNotFoundError"))
+        if definitive:
+            return None            # real absence → caller renders data_unavailable
+        raise                      # infra failure → surface it, do not mask as a coverage gap
 
 
 def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BASE) -> Path:

@@ -63,8 +63,14 @@ def _load_genie_maf(indication: str):
                             filters=[("indication", "=", indication)],
                             columns=["sample_id", "gene_symbol"])
         return tbl.to_pandas()
-    except Exception:
-        return None
+    except Exception as e:  # noqa: BLE001
+        # DEFINITIVE absence (object not there) → None (caller renders data_unavailable). A
+        # TRANSIENT/AUTH failure must NOT be masked as a coverage gap (bare-except-masks-broken-env);
+        # re-raise it. Mirrors tcga_fusion_consensus/read.py's discriminant.
+        code = str(getattr(e, "response", {}).get("Error", {}).get("Code", "")) if hasattr(e, "response") else ""
+        if code in ("404", "NoSuchKey", "NoSuchBucket") or e.__class__.__name__ in ("NoSuchKey", "FileNotFoundError"):
+            return None
+        raise
 
 
 @lru_cache(maxsize=8)
