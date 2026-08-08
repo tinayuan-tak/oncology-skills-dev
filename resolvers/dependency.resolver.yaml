@@ -13,7 +13,11 @@
 # the analysis-methods classifier; the labels live in the cards).
 
 gate: dependency
-version: 1.1.0   # 1.1.0: + exhaustiveness/provenance rung for data-unavailable calls (verdict unchanged; driving_rule_id no longer null on a measured coverage gap)
+version: 1.2.0   # 1.2.0 (2026-08-08): RNAi-asymmetry fix — RNAi-alone can no longer fire pan_essential_killer
+                #        (rung 2) or selective_dependent (rung 5). Both now require CRISPR (RNAi seed-effect
+                #        false-positive risk); honors the two RNAi rules' own "needs CRISPR cross-check"
+                #        rationales + the "CRISPR-beats-RNAi" invariant. VERDICT-MOVING → golden snapshot regenerated.
+                # 1.1.0: + exhaustiveness/provenance rung for data-unavailable calls (verdict unchanged; driving_rule_id no longer null on a measured coverage gap)
 description: |
   Dependency (Gate C) verdict precedence. Both admissibility guards
   (common_essential_underpowered top-rail, non_dependent_underpowered bottom-rail) and
@@ -30,10 +34,27 @@ resolve:
       - common-essential-underpowered-insufficient
       - rnai-common-essential-underpowered-insufficient
 
+  # pan_essential_killer — CRISPR-DRIVEN only (2026-08-08 RNAi-asymmetry fix). RNAi (DEMETER2) has
+  # well-documented seed-effect off-target toxicity → FALSE pan-essential signals, so RNAi-ALONE must
+  # not fire a SAFETY killer that would kill an otherwise-selective, druggable target. This honors
+  # rnai-pan-essential-killer's OWN rationale ("Cross-check vs CRISPR … if both agree the program is
+  # not viable") and the resolver's stated "CRISPR-beats-RNAi" invariant. When CRISPR AND RNAi both
+  # read pan-essential, CRISPR's pan-essential-killer fires this rung anyway (agreement is preserved);
+  # RNAi-alone pan-essential now falls through (typically to broadly_dependent or insufficient), where
+  # its seed-effect risk cannot mask a real selective dependency. See rnai-pan-essential-killer-with-
+  # crispr below for the explicit both-agree corroboration path.
   - verdict: pan_essential_killer
-    when_any_fired:
-      - pan-essential-killer
+    when_fired: pan-essential-killer
+
+  # Both-agree RNAi pan-essential corroboration: RNAi pan-essential is admissible as a killer ONLY when
+  # CRISPR corroborates it is broadly/pan essential (not selective). when_all_fired makes RNAi
+  # non-dominant, exactly as its rule rationale requires. (CRISPR pan-essential already fires the rung
+  # above; this catches CRISPR broadly-dependent + RNAi pan-essential — a consistent broad-essential
+  # picture — without letting RNAi-alone kill.)
+  - verdict: pan_essential_killer
+    when_all_fired:
       - rnai-pan-essential-killer
+      - broadly-dependent-neutral
 
   - verdict: concordant_dependent
     when_fired: concordant-dependent-supportive-dominant
@@ -41,10 +62,20 @@ resolve:
   - verdict: lineage_selective
     when_fired: lineage-selective-supportive
 
+  # selective_dependent — CRISPR-DRIVEN, OR RNAi-selective WITH CRISPR corroboration (2026-08-08
+  # RNAi-asymmetry fix). rnai-strongly-selective-supportive's OWN rationale says "NOT dominant on its
+  # own … RNAi-alone signal needs CRISPR cross-check," but the former when_any_fired promoted it to a
+  # co-equal driver. Now: CRISPR strongly-selective fires it directly; RNAi strongly-selective fires it
+  # ONLY when CRISPR also reads a dependency signal (selective or broadly-dependent) — orthogonal-LOF
+  # corroboration, never RNAi-alone. RNAi-selective-alone (CRISPR non-dependent / data-unavailable)
+  # falls through rather than minting a selective call on the seed-effect-prone assay.
   - verdict: selective_dependent
-    when_any_fired:
-      - strongly-selective-supportive
+    when_fired: strongly-selective-supportive
+
+  - verdict: selective_dependent
+    when_all_fired:
       - rnai-strongly-selective-supportive
+      - broadly-dependent-neutral
 
   # CHEMICAL-GENETIC confirmation arm (E-PRISM re-home, 2026-07-20). The
   # prism-crispr-concordance card's `triangulated_target_engaged` class (CRISPR AND
