@@ -10,9 +10,16 @@
 # directly — a caution flag that matters acutely for ADC / protein-modality targets (an ADC needs
 # PROTEIN antigen, not RNA) and for any RNA biomarker.
 #
-# SCOPE: CELL-LINE concordance only. The TUMOR (CPTAC) RNA↔protein concordance is NOT built — CPTAC
-# per-sample protein is landed but there is NO matched per-sample RNA product in the catalog (an
-# ingestion, out of this extraction plan's scope). Named-deferred.
+# SCOPE: CELL-LINE concordance only. The TUMOR (CPTAC) RNA↔protein concordance IS built — it is the
+# sibling card `rna-protein-concordance-tumor`, backed by the matched cptac-rna-protein-matched-per-
+# sample-v1 product (per-(cohort, patient, gene) RNA+protein, clean Patient_ID join) via
+# depmap_rna_protein_concordance/read.py::read_tumor_rna_protein_concordance. The two are reported
+# SIDE-BY-SIDE (never averaged); their disagreement is the signal (EPCAM/COAD: tumor partial_proxy
+# r≈0.46 vs cell-line adequate r≈0.86; KRAS/COAD tumor r≈0.01 vs cell-line r≈0.55 — RNA is a far
+# worse protein proxy in tumors, the ADC/biologics-critical fact). tumor-presence graduated the tumor
+# arm 2026-08-08 and PREFERS its rna_as_biomarker for bulk_rna_proxy_quality.
+# (Historical note: this comment previously read "NOT built / named-deferred" — stale since the matched
+# product landed 2026-07-22.)
 #
 # ROUTES INTO GATES (master-sequencing plan Part 3): Presence (A) — is RNA an adequate presence proxy;
 # ALSO the ADC/biologic modality lens (RNA-inadequate-proxy → protein must be confirmed) + dependency
