@@ -2258,6 +2258,24 @@ rules:
       lensed: on-target/off-tumor liability is worst for a systemic small-molecule/degrader that hits the
       target everywhere it is expressed.
 
+  - rule_id: tvn-no-full-normal-window-veto
+    when:
+      card_id: modality-therapeutic-window
+      field: full_normal_window_class
+      equals: no_full_normal_window
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      PAN-NORMAL companion to tvn-no-therapeutic-window-veto (DEFERRED-2, 2026-08-08). The
+      therapeutic-window veto keys on therapeutic_window_class, which is ESSENTIAL-ORGANS-ONLY (tumor ÷
+      worst of the 15 critical organs). A gene broad across NON-essential normals but low in the
+      essential set (TROP2/TACSTD2 salivary-gland archetype) reads clean_window there yet has NO
+      pan-normal therapeutic window. full_normal_window_class = no_full_normal_window means tumor is
+      below the worst tissue of the FULL normal atlas — a second, orthogonal normal-breadth veto. The
+      tumor-selectivity verdict downgrades a selective axis-A call to selective_but_broadly_normal when
+      this fires (same conjunction discipline as the essential-organ veto). Modality-lensed identically.
+
   # ============================================================================
   # Phase D — Signaling-network-mechanism card (added 2026-07-08)
   # ============================================================================

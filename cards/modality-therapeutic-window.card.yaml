@@ -44,6 +44,9 @@ outputs:
                                                  # not_expressed_in_cohort. Separates high-window antigens from
                                                  # housekeeping where window_class collapses them; the selectivity
                                                  # conjunction's normal-breadth VETO keys on no_therapeutic_window.
+    - full_normal_window_class                   # PAN-NORMAL companion (AM #239): tumor / worst of the FULL normal
+                                                 # atlas (vs therapeutic_window_class's essential-organs-only). The
+                                                 # selectivity axis-B pan-normal VETO keys on no_full_normal_window.
     - tumor_tpm                                  # linear TPM, max median across the indication's TCGA studies
     - max_essential_normal_tpm                   # denominator 1: worst essential organ (the tier gate)
     - max_essential_normal_organ                 # which essential GTEx tissue
@@ -67,6 +70,18 @@ outputs:
       - clean_window                             # ratio >= 5x — comfortable therapeutic window
       - narrow_window                            # ratio 1-5x — real but modest window (kept, flagged)
       - no_therapeutic_window                    # ratio < 1x — tumor BELOW worst critical normal (the veto)
+      - not_expressed_in_cohort                  # tumor < 1.0 TPM
+      - data_unavailable
+    full_normal_window_class:                    # PAN-NORMAL companion (AM #239, 2026-08-08): tumor / worst
+                                                 # of the FULL normal atlas (not just the 15 essential organs).
+                                                 # therapeutic_window_class is essential-organs-only, so a gene
+                                                 # broad across NON-essential normals (TROP2/salivary-gland
+                                                 # archetype) reads clean there yet has no pan-normal window.
+                                                 # The selectivity conjunction's axis-B pan-normal VETO keys on
+                                                 # no_full_normal_window (DEFERRED-2).
+      - clean_full_normal_window                 # ratio >= 5x vs worst full-normal — pan-normal window
+      - narrow_full_normal_window                # ratio 1-5x
+      - no_full_normal_window                    # ratio < 1x — tumor below worst of the full normal atlas (the veto)
       - not_expressed_in_cohort                  # tumor < 1.0 TPM
       - data_unavailable
 
