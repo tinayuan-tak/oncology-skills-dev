@@ -3,11 +3,14 @@
 
 Answers "what do we know about target X, independent of any cancer?" — the facts that are true of the
 PROTEIN/GENE regardless of indication: identity, on-target-safety genetics (the whole P5 axis is
-target-grain), surface/structure/modality biophysics, pan-cancer presence + dependency breadth, SL
-partners. These are the `tier: target` cards (target-contracts) — a grain that already exists on cards
-but had no composed entrypoint: target-profile hard-required an indication, so target-intrinsic facts
-were scattered across nominally indication-scoped subskills and recomputed identically for every
-(target × indication) run.
+target-grain), protein-class / structure / modality biophysics, functional annotation (GO), mechanism
++ pathway role (SIGNOR / Reactome), interactome (STRING / CORUM / BioGRID), domain architecture +
+domain→modality implication, and paralog buffering. These are the `tier: target` cards (target-contracts)
+— a grain that already exists on cards but had no composed entrypoint: target-profile hard-required an
+indication, so target-intrinsic facts were scattered across nominally indication-scoped subskills and
+recomputed identically for every (target × indication) run. STRICT molecular-intrinsic: pan-cancer
+DISEASE observations (tumor elevation, dependency, mutation frequency, PRISM, cell-line abundance) are
+DELIBERATELY EXCLUDED — they are aggregated cancer behavior, owned by the disease-context subskills.
 
 This is a FOCUSED subskill (like tumor-presence / tumor-selectivity) that the composed skills reuse —
 NOT a nominating gate. It is DESCRIPTIVE: verdict_fn=None. Nomination is inherently indication-
@@ -34,7 +37,9 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.1.0"   # 2026-08-08 — surface domain-modality-relevance in the dossier headline (was
+                          # resolved but unread); prose de-staled (18 strict-molecular-intrinsic cards,
+                          # dropped the removed "pan-cancer presence+dependency" sub-axis). Descriptive, no verdict.
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties TRUE OF THE MOLECULE (protein/gene), independent of
@@ -64,6 +69,12 @@ CARDS = [
     "ppi-interactome",                   # STRING high-confidence functional network + CORUM complex membership
     # --- DOMAIN ARCHITECTURE / PROTEIN CLASS (curated UniProt features) --------------------------
     "protein-domains-class",             # FT DOMAIN architecture + UniProt-keyword protein class
+    "domain-modality-relevance",         # INTERPRETIVE domain→modality facet (inhibitor_sufficient vs
+                                         # removal_required_scaffolding, e.g. RIPK1). tier:target, verdict-inert.
+                                         # Card + method (methods/domain_modality_relevance) + dispatcher all LIVE
+                                         # (#264); was declared in SKILL.md cards_used but MISSING from run.py CARDS
+                                         # (declared-not-consumed drift) AND unread in _headline (resolved invisibly).
+                                         # 2026-08-08: added to CARDS + surfaced in _headline.
     # --- PARALOGS (gene-family redundancy — a genomic-intrinsic property) -----------------------
     "paralog-buffering",                 # sequence paralogs + buffering (dependency-hardening context)
     # --- NORMAL (non-disease) EXPRESSION --------------------------------------------------------
@@ -71,8 +82,9 @@ CARDS = [
 ]
 
 QUESTION = ("What is known about {target} INDEPENDENT of indication — its identity, on-target-safety "
-            "genetics, surface/structure/modality biophysics, pan-cancer presence + dependency "
-            "breadth, and synthetic-lethal partners?")
+            "genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + "
+            "pathway role, interactome, domain architecture + domain→modality implication, and paralog "
+            "buffering?")
 
 
 def _headline(cards, fired, verdict_pair):
@@ -115,6 +127,15 @@ def _headline(cards, fired, verdict_pair):
         "n_domains":                     g("protein-domains-class", "n_domains"),
         "domain_architecture":           g("protein-domains-class", "domain_architecture"),
         "protein_class":                 g("protein-domains-class", "protein_class"),
+        # domain→modality implication (INTERPRETIVE sibling of protein-domains-class): does the domain
+        # architecture imply an inhibitor is sufficient, or is target REMOVAL required (degrader/scaffolding)?
+        # The card + method (methods/domain_modality_relevance) + dispatcher are all LIVE (#264) — this
+        # surfaces its signal in the dossier (it was resolved but unread pre-2026-08-08). Verdict-inert
+        # (target-intrinsic is descriptive); RIPK1 → removal_required_scaffolding (curated).
+        "modality_implication_class":    g("domain-modality-relevance", "modality_implication_class"),
+        "modality_implication_basis":    g("domain-modality-relevance", "modality_implication_basis"),
+        "modality_scaffolding_function": g("domain-modality-relevance", "scaffolding_function"),
+        "modality_implication_context":  g("domain-modality-relevance", "modality_context"),
         # interactome (STRING network + CORUM complexes)
         "interactome_class":             g("ppi-interactome", "interactome_class"),
         "n_high_confidence_interactors": g("ppi-interactome", "n_high_confidence_interactors"),

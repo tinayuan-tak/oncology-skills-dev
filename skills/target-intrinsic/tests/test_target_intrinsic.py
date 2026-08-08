@@ -66,3 +66,30 @@ def test_all_cards_are_indication_independent():
     assert not violations, (
         f"target-intrinsic consumes indication/subtype-grain card(s): {violations} — "
         f"a target-intrinsic skill must only consume tier:target (indication-independent) cards.")
+
+
+def _cards_read_in_headline() -> set[str]:
+    """Card_ids referenced inside _headline via the g(\"card-id\", ...) reader helper.
+    target-intrinsic has NO verdict spine, so the headline is the ONLY place a card's signal
+    reaches output — a card in CARDS but absent here resolves invisibly (resolved, counted in
+    cards_available, but its data never surfaces)."""
+    import re
+    src = (SKILL_DIR / "scripts" / "run.py").read_text()
+    return set(re.findall(r'g\(\s*["\']([a-z0-9-]+)["\']', src))
+
+
+def test_every_card_is_surfaced_in_headline():
+    """DRIFT GUARD: every card in CARDS must be read at least once in _headline (via g(...)).
+
+    A descriptive skill (verdict_fn=None) has no ladder to force a card's signal into output, so
+    a card added to CARDS but never read in _headline resolves INVISIBLY — it costs a live read and
+    inflates cards_available, but its data is silently dropped. That is exactly what happened to
+    domain-modality-relevance (in CARDS via #264, but unread until 2026-08-08). This asserts it
+    cannot recur: CARDS ⊆ cards-read-in-headline."""
+    cards = set(_cards_from_runpy())
+    read = _cards_read_in_headline()
+    unsurfaced = cards - read
+    assert not unsurfaced, (
+        f"card(s) in CARDS but never read in _headline via g(...): {sorted(unsurfaced)} — "
+        f"they resolve invisibly (counted in cards_available but their signal never surfaces). "
+        f"Add g(\"<card-id>\", \"<field>\") reads to _headline, or drop the card from CARDS.")

@@ -20,7 +20,7 @@ description: |
   grain level.
 
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -91,16 +91,22 @@ composition:
 - Answers the INDICATION-INDEPENDENT question: what is true of target X as a
   protein/gene, regardless of cancer type. Invoked with `--target` alone.
 - Fans out (via the shared run_wired_skill dispatcher, which makes `--indication`
-  optional as of 2026-08-05) over the 16 live-wired `tier: target` cards, grouped
+  optional as of 2026-08-05) over the 18 live-wired `tier: target` cards, grouped
   by sub-axis:
   - **identity** — target-identity-summary
   - **on-target-safety genetics (P5)** — gnomAD LoF constraint, gene-burden,
     ClinGen dosage, ClinVar pathogenicity, mouse-KO phenotype, OT safety prioritisation
-  - **surface / structure / modality biophysics** — surfaceome family, structure
+  - **protein class / structure / modality biophysics** — surfaceome family, structure
     ligandability, shed-ectodomain liability, normal-tissue protein breadth
-  - **pan-cancer presence + dependency breadth** — tumor-elevation breadth,
-    cell-line protein abundance, RNA↔protein concordance, abundance↔dependency
-  - **synthetic-lethal partners**
+  - **functional annotation** — Gene Ontology (BP/MF/CC)
+  - **mechanism / pathway role** — SIGNOR signaling network, Reactome pathway membership
+  - **interactome** — STRING network + CORUM complexes + BioGRID physical
+  - **domain architecture + domain→modality implication** — UniProt/InterPro domains
+    (descriptive) and the interpretive inhibitor-sufficient-vs-removal-required call
+  - **paralog buffering** — gene-family redundancy (dependency-hardening context)
+- STRICT molecular-intrinsic: pan-cancer DISEASE observations (tumor elevation,
+  dependency, mutation frequency, PRISM, cell-line abundance) are DELIBERATELY
+  EXCLUDED — they are aggregated cancer behavior owned by the disease-context subskills.
 - Emits `decision.json` whose `headline` is the target dossier (one key per sub-axis).
 
 ## What this skill does NOT do
