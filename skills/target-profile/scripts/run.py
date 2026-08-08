@@ -182,6 +182,10 @@ SUB_SKILL_CARDS = {
                                                  # (the FP the redesign exists to kill, resurrected in Go/No-Go).
                                                  # Adding it here makes the veto fire identically standalone vs
                                                  # composed. (A card may be composed under >1 lens.)
+        "sc-normal-celltype-expression",         # INC-3 — composer-consistency: the sc-normal critical-organ
+                                                 # veto (tvn-sc-normal-critical-organ-veto) must fire in the
+                                                 # COMPOSED selectivity lens too, else the axis-D downgrade is
+                                                 # lost in Go/No-Go (same class as the DEFERRED-1 gap).
         "expression-purity-confound",            # DEFERRED-3 — composer-consistency with the standalone CARDS
                                                  # (verdict-inert facet; feeds no selectivity resolver rung).
     ],

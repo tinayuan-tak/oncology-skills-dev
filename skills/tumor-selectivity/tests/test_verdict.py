@@ -142,6 +142,38 @@ def test_clean_full_normal_target_retains_selective():
         "strong_tumor_selective", "tvn-strong-selective-supportive")
 
 
+# --- INC-3 (2026-08-08): cell-type-resolved axis-D veto (tvn-sc-normal-critical-organ-veto). ---
+_SC_VETO = "tvn-sc-normal-critical-organ-veto"
+
+
+def test_strong_selective_downgraded_by_sc_normal_veto():
+    """TNNT2/FOLR1 archetype: highly detected in an essential cell type of a NON-origin critical organ
+    (critical_organ_liability) → downgrade even when the bulk window vetoes did not fire."""
+    assert ts._verdict(
+        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _SC_VETO}]) == (
+        "selective_but_broadly_normal", _SC_VETO)
+
+
+def test_sc_normal_veto_alone_does_not_manufacture_selective():
+    assert ts._verdict([{"rule_id": _SC_VETO}])[0] != "selective_but_broadly_normal"
+
+
+def test_veto_precedence_essential_over_full_over_sc(tmp_path=None):
+    """When multiple normal-breadth vetoes fire, the verdict is the downgrade and the driving_rule
+    follows precedence: essential-organ window > pan-normal window > sc-normal cell-type."""
+    # all three fire → essential-organ wins the label
+    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
+                          {"rule_id": _VETO}, {"rule_id": _FULL_VETO}, {"rule_id": _SC_VETO}])
+    assert v == "selective_but_broadly_normal" and drv == _VETO
+    # full + sc (no essential) → pan-normal wins
+    _, drv2 = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
+                           {"rule_id": _FULL_VETO}, {"rule_id": _SC_VETO}])
+    assert drv2 == _FULL_VETO
+    # sc alone → sc names it
+    _, drv3 = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _SC_VETO}])
+    assert drv3 == _SC_VETO
+
+
 def test_selective_without_veto_is_unchanged():
     """No veto fired (CEACAM5/FOLR1/MSLN archetype: real window) → axis-A call stands byte-for-byte."""
     assert _fire("tvn-strong-selective-supportive") == (

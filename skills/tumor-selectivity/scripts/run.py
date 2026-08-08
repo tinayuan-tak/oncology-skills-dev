@@ -18,9 +18,10 @@ from _skills_common.synthesis_selectivity import synthesize_selectivity
 
 
 SKILL_NAME = "tumor-selectivity"
-SKILL_VERSION = "1.4.0"    # 2026-08-08: DEFERRED-2 — pan-normal window veto arm (full_normal_window_class
-                           #   == no_full_normal_window fires tvn-no-full-normal-window-veto → downgrade).
-                           #   Second orthogonal normal-breadth veto beside the essential-organ one.
+SKILL_VERSION = "1.5.0"    # 2026-08-08: INC-3 — cell-type-resolved axis-D veto arm. sc-normal-celltype-
+                           #   expression composed; sc_normal_safety_essential_class == critical_organ_liability
+                           #   fires tvn-sc-normal-critical-organ-veto → downgrade. 3rd normal-breadth veto arm.
+                           # 1.4.0: DEFERRED-2 pan-normal window veto arm.
                            # 1.3.0: F1 resolved-verdict emission + DEFERRED-3 purity facet.
                            # 1.2.0: opt-in --synthesize selectivity-lens narrator.
 
@@ -38,6 +39,13 @@ CARDS = [
                                              # call to selective_but_broadly_normal. The housekeeping fix:
                                              # over-expression vs tissue-of-origin is necessary but NOT
                                              # sufficient (best practice = tumor-to-WORST-normal window).
+    "sc-normal-celltype-expression",         # INC-3 axis-D VETO (2026-08-08): cell-type-resolved normal safety.
+                                             # sc_normal_safety_essential_class == critical_organ_liability
+                                             # (target highly detected in an essential cell type of a NON-origin
+                                             # critical organ — cardiomyocyte/hepatocyte/renal-tubule/HSC/neuron
+                                             # — that bulk tissue medians dilute) fires tvn-sc-normal-critical-
+                                             # organ-veto → _verdict downgrades a selective axis-A call. The 3rd
+                                             # normal-breadth veto arm. origin_tissue_liability does NOT veto.
     "expression-purity-confound",            # DEFERRED-3 (2026-08-08 synthesis review): is the tumor-vs-normal
                                              # selectivity signal tumor-cell-intrinsic or stromal/immune
                                              # (microenvironment) content? The four-cell DESeq2 design has no
@@ -57,8 +65,13 @@ _WINDOW_VETO_RULE = "tvn-no-therapeutic-window-veto"
 # full_normal_window is tumor ÷ worst of the FULL normal atlas — catches a gene broad across
 # NON-essential normals (TROP2/TACSTD2 salivary archetype) that clears the essential-organ window.
 _FULL_NORMAL_VETO_RULE = "tvn-no-full-normal-window-veto"
+# INC-3 (2026-08-08): cell-type-resolved axis-D veto — target highly detected in a safety-essential
+# cell type of a NON-origin critical organ (sc_normal_safety_essential_class == critical_organ_liability).
+_SC_NORMAL_VETO_RULE = "tvn-sc-normal-critical-organ-veto"
 # All normal-breadth veto rules — ANY firing downgrades a selective axis-A call (worst-case conjunction).
-_NORMAL_BREADTH_VETO_RULES = frozenset({_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE})
+# Precedence for the driving_rule LABEL when several fire: essential-organ window > pan-normal window >
+# sc-normal cell-type (bulk window vetoes are the longer-standing instruments; all yield the same verdict).
+_NORMAL_BREADTH_VETO_RULES = (_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE)
 
 QUESTION = ("How selectively is {target} expressed in {indication} tumor "
             "tissue, and how robust is that call across independent tumor-vs-"
@@ -94,10 +107,10 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     # takes precedence in the label when both fire — it is the stricter critical-organ signal).
     if verdict in _AXIS_A_SELECTIVE:
         fired_ids = {r.get("rule_id") for r in fired}
-        veto = fired_ids & _NORMAL_BREADTH_VETO_RULES
-        if veto:
-            driving_veto = _WINDOW_VETO_RULE if _WINDOW_VETO_RULE in veto else _FULL_NORMAL_VETO_RULE
-            return ("selective_but_broadly_normal", driving_veto)
+        # first veto in precedence order that fired names the downgrade (all yield the same verdict).
+        for veto_rule in _NORMAL_BREADTH_VETO_RULES:
+            if veto_rule in fired_ids:
+                return ("selective_but_broadly_normal", veto_rule)
     return result
 
 
