@@ -18,10 +18,11 @@ from _skills_common.synthesis_selectivity import synthesize_selectivity
 
 
 SKILL_NAME = "tumor-selectivity"
-SKILL_VERSION = "1.3.0"    # 2026-08-08: F1 — _headline now emits the RESOLVED (post-veto) verdict +
-                           #   driving_rule_id (+ axis_a_selectivity_class); the veto downgrade was
-                           #   formerly computed then discarded. + DEFERRED-3 purity-confound facet
-                           #   (verdict-inert). (1.2.0: opt-in --synthesize selectivity-lens narrator.)
+SKILL_VERSION = "1.4.0"    # 2026-08-08: DEFERRED-2 — pan-normal window veto arm (full_normal_window_class
+                           #   == no_full_normal_window fires tvn-no-full-normal-window-veto → downgrade).
+                           #   Second orthogonal normal-breadth veto beside the essential-organ one.
+                           # 1.3.0: F1 resolved-verdict emission + DEFERRED-3 purity facet.
+                           # 1.2.0: opt-in --synthesize selectivity-lens narrator.
 
 CARDS = [
     "tumor-vs-normal-selectivity",
@@ -52,6 +53,12 @@ _AXIS_A_SELECTIVE = frozenset({
     "strong_tumor_selective", "modest_tumor_selective", "field_effect_tumor_selective",
 })
 _WINDOW_VETO_RULE = "tvn-no-therapeutic-window-veto"
+# DEFERRED-2 (2026-08-08): pan-normal companion veto. therapeutic_window is essential-organs-only;
+# full_normal_window is tumor ÷ worst of the FULL normal atlas — catches a gene broad across
+# NON-essential normals (TROP2/TACSTD2 salivary archetype) that clears the essential-organ window.
+_FULL_NORMAL_VETO_RULE = "tvn-no-full-normal-window-veto"
+# All normal-breadth veto rules — ANY firing downgrades a selective axis-A call (worst-case conjunction).
+_NORMAL_BREADTH_VETO_RULES = frozenset({_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE})
 
 QUESTION = ("How selectively is {target} expressed in {indication} tumor "
             "tissue, and how robust is that call across independent tumor-vs-"
@@ -81,8 +88,16 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     # == no_therapeutic_window), downgrade to selective_but_broadly_normal. One-directional: it can
     # only DOWNGRADE a selective call, never upgrade — F1-safe.
     verdict, driving = result
-    if verdict in _AXIS_A_SELECTIVE and any(r.get("rule_id") == _WINDOW_VETO_RULE for r in fired):
-        return ("selective_but_broadly_normal", _WINDOW_VETO_RULE)
+    # Worst-case conjunction: a selective axis-A call is downgraded if ANY normal-breadth veto fired —
+    # the essential-organ window veto (INC-1/2) OR the pan-normal window veto (DEFERRED-2). One-
+    # directional (only downgrades a selective call). driving_rule names the veto that fired (essential
+    # takes precedence in the label when both fire — it is the stricter critical-organ signal).
+    if verdict in _AXIS_A_SELECTIVE:
+        fired_ids = {r.get("rule_id") for r in fired}
+        veto = fired_ids & _NORMAL_BREADTH_VETO_RULES
+        if veto:
+            driving_veto = _WINDOW_VETO_RULE if _WINDOW_VETO_RULE in veto else _FULL_NORMAL_VETO_RULE
+            return ("selective_but_broadly_normal", driving_veto)
     return result
 
 

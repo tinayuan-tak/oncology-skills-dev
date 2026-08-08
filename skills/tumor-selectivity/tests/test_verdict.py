@@ -104,6 +104,44 @@ def test_not_selective_unaffected_by_window_veto():
         [{"rule_id": "tvn-not-selective-neutral"}, {"rule_id": _VETO}])[0] == "not_selective"
 
 
+# --- DEFERRED-2 (2026-08-08): the PAN-NORMAL window veto arm (tvn-no-full-normal-window-veto). ---
+_FULL_VETO = "tvn-no-full-normal-window-veto"
+
+
+def test_strong_selective_downgraded_by_full_normal_veto():
+    """TROP2/TACSTD2 archetype: clean vs essential organs but broad across NON-essential normals →
+    the pan-normal veto (alone) downgrades a selective axis-A call."""
+    assert ts._verdict(
+        [{"rule_id": "tvn-strong-selective-supportive"}, {"rule_id": _FULL_VETO}]) == (
+        "selective_but_broadly_normal", _FULL_VETO)
+
+
+def test_field_effect_downgraded_by_full_normal_veto():
+    assert ts._verdict(
+        [{"rule_id": "tvn-field-effect-selective-supportive"}, {"rule_id": _FULL_VETO}])[0] == (
+        "selective_but_broadly_normal")
+
+
+def test_full_normal_veto_alone_does_not_manufacture_selective():
+    """One-directional: the pan-normal veto with no axis-A selective rule does not mint a downgrade."""
+    assert ts._verdict([{"rule_id": _FULL_VETO}])[0] != "selective_but_broadly_normal"
+
+
+def test_essential_veto_takes_precedence_in_driving_rule_when_both_fire():
+    """When BOTH normal-breadth vetoes fire, the verdict is the downgrade and the driving_rule names
+    the essential-organ veto (the stricter critical-organ signal)."""
+    v, drv = ts._verdict([{"rule_id": "tvn-strong-selective-supportive"},
+                          {"rule_id": _VETO}, {"rule_id": _FULL_VETO}])
+    assert v == "selective_but_broadly_normal"
+    assert drv == _VETO
+
+
+def test_clean_full_normal_target_retains_selective():
+    """CEACAM5/FOLR1/MSLN archetype: neither veto fired → axis-A selective call stands (no false downgrade)."""
+    assert _fire("tvn-strong-selective-supportive") == (
+        "strong_tumor_selective", "tvn-strong-selective-supportive")
+
+
 def test_selective_without_veto_is_unchanged():
     """No veto fired (CEACAM5/FOLR1/MSLN archetype: real window) → axis-A call stands byte-for-byte."""
     assert _fire("tvn-strong-selective-supportive") == (
