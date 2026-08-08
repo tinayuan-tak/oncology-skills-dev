@@ -74,8 +74,10 @@ outputs:
 
   summary_fields_vocabulary:
     concordance_class:
-      - strongly_concordant_dependent            # both assays call dependent for majority of overlap
-      - strongly_concordant_non_dependent        # both assays call non-dependent for majority
+      - strongly_concordant_dependent            # ≥85% agreement, majority dependent
+      - strongly_concordant_non_dependent        # ≥85% agreement, majority non-dependent
+      - moderately_concordant_dependent          # 0.70-0.85 agreement (middle band), majority dependent — honest label for the ambiguous zone (was mislabeled strongly_* pre-2026-08-08); fires the SAME dependent rung (verdict-inert)
+      - moderately_concordant_non_dependent      # 0.70-0.85 agreement (middle band), majority non-dependent
       - discordant                               # ≥30% of overlap disagrees
       - partially_assayed                        # not enough overlap to assess (< 30 lines)
       - data_unavailable

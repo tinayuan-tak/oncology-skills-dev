@@ -218,7 +218,7 @@ rules:
     when:
       card_id: crispr-rnai-dependency-concordance
       field: concordance_class
-      equals: strongly_concordant_dependent
+      in: [strongly_concordant_dependent, moderately_concordant_dependent]
     signals:
       small_molecule: supportive
       degrader: supportive
@@ -228,12 +228,16 @@ rules:
       both panels. Orthogonal-LOF-evidence confirmation; reliability is high.
       Promoted to dominant because cross-assay agreement is the gold-standard
       'real dependency' signal in cellular models.
+      2026-08-08: also matches `moderately_concordant_dependent` (the 0.70-0.85 agreement
+      band), which was formerly LABELED `strongly_concordant_dependent` — so this rule fires
+      on exactly the same targets as before the relabel (VERDICT-INERT). The moderate label
+      is an honest descriptive downgrade of the agreement strength, not of the dependency call.
 
   - rule_id: concordant-non-dependent-neutral
     when:
       card_id: crispr-rnai-dependency-concordance
       field: concordance_class
-      equals: strongly_concordant_non_dependent
+      in: [strongly_concordant_non_dependent, moderately_concordant_non_dependent]
     signals:
       small_molecule: neutral
       degrader: neutral
