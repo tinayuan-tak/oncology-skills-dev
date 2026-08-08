@@ -133,8 +133,11 @@ def run_aggregation(tissue: str, no_upload: bool = False,
     import duckdb
     import hashlib
 
-    tier2_uri = TIER2_PRODUCT_TEMPLATE.format(tissue=tissue)
-    tier1_uri = TIER1_PRODUCT_TEMPLATE.format(tissue=tissue)
+    # Product IDs use hyphenated slugs (e.g. "bone-marrow", "small-intestine"); accept either
+    # underscore or hyphen on the CLI and normalize so the S3 keys always resolve.
+    slug = tissue.strip().lower().replace("_", "-")
+    tier2_uri = TIER2_PRODUCT_TEMPLATE.format(tissue=slug)
+    tier1_uri = TIER1_PRODUCT_TEMPLATE.format(tissue=slug)
 
     if out_override:
         local_out = out_override
@@ -185,7 +188,7 @@ def run_aggregation(tissue: str, no_upload: bool = False,
     if not no_upload:
         import boto3
         s3 = boto3.Session(profile_name=aws_profile).client("s3", region_name="us-east-1")
-        key = TIER1_PRODUCT_TEMPLATE.format(tissue=tissue).removeprefix(f"s3://{S3_BUCKET}/")
+        key = TIER1_PRODUCT_TEMPLATE.format(tissue=slug).removeprefix(f"s3://{S3_BUCKET}/")
         log.info(f"[aggregate] uploading to s3://{S3_BUCKET}/{key} ...")
         s3.upload_file(str(local_out), S3_BUCKET, key)
         output_uri = f"s3://{S3_BUCKET}/{key}"

@@ -212,12 +212,18 @@ def test_read_target_summary_full_path(monkeypatch):
     out = R.read_target_summary("EPCAM", "COADREAD")
     assert out["sc_normal_expression_class"] == "HIGH_LIABILITY"
     assert out["indication"] == "COADREAD"
-    assert out["tissues_queried"] == ["colon"]
+    # COADREAD now queries the matched tissue (colon) UNION the always-on safety-essential tissues
+    assert out["tissues_queried"] == ["colon", "heart", "liver", "kidney", "bone_marrow"]
 
 
-def test_read_target_summary_unknown_indication():
+def test_read_target_summary_unknown_indication_still_reads_safety_essential(monkeypatch):
+    """Unknown indication no longer abstains-by-mapping: it queries the safety-essential tissues
+    (cross-tissue on-target-tox check). With a real product it would classify; here the reader is
+    monkeypatched to None (no product) → data_unavailable, but tissues_queried is non-empty."""
+    monkeypatch.setattr(R, "read_gene_celltype_rows", lambda t, ts: None)
     out = R.read_target_summary("EPCAM", "UNKNOWN_IND")
     assert out["sc_normal_expression_class"] == "data_unavailable"
+    assert out["tissues_queried"] == ["heart", "liver", "kidney", "bone_marrow"]
     assert "_data_note" in out
 
 
@@ -238,13 +244,23 @@ def test_read_target_summary_gene_absent(monkeypatch):
     assert "absent" in out.get("_data_note", "")
 
 
-def test_indication_tissue_map_covers_v1_scope():
-    """v1 scope: COADREAD→colon, NSCLC→lung. Others (PAAD, STAD) must not resolve."""
-    assert R.INDICATION_TO_TISSUES.get("COADREAD") == ["colon"]
-    assert R.INDICATION_TO_TISSUES.get("NSCLC") == ["lung"]
-    assert R.INDICATION_TO_TISSUES.get("LUAD") == ["lung"]
-    assert R.INDICATION_TO_TISSUES.get("PAAD") is None
-    assert R.INDICATION_TO_TISSUES.get("STAD") is None
+def test_tissues_for_indication_unions_matched_and_safety_essential():
+    """tumor-matched tissue(s) UNION the always-on safety-essential tissues, de-duplicated."""
+    # COADREAD → colon + safety-essential
+    assert R.tissues_for_indication("COADREAD") == ["colon", "heart", "liver", "kidney", "bone_marrow"]
+    assert R.tissues_for_indication("NSCLC") == ["lung", "heart", "liver", "kidney", "bone_marrow"]
+    # Unknown indication → safety-essential only (never empty)
+    assert R.tissues_for_indication("PAAD") == ["heart", "liver", "kidney", "bone_marrow"]
+    assert R.tissues_for_indication("UNKNOWN") == ["heart", "liver", "kidney", "bone_marrow"]
+
+
+def test_all_nine_tissues_have_tier1_products():
+    """All 9 emitted tissues route to a Tier-1 product key (hyphenated slugs for multi-word)."""
+    for t in ["colon", "lung", "heart", "liver", "kidney", "stomach",
+              "bone_marrow", "skin", "small_intestine"]:
+        assert t in R.TISSUE_TO_PRODUCT, f"{t} missing from TISSUE_TO_PRODUCT"
+    assert R.TISSUE_TO_PRODUCT["bone_marrow"] == "sc-normal-celltype-expression-bone-marrow-v1"
+    assert R.TISSUE_TO_PRODUCT["small_intestine"] == "sc-normal-celltype-expression-small-intestine-v1"
 
 
 # --- cli build_summary -------------------------------------------------------

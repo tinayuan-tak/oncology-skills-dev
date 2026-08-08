@@ -27,13 +27,28 @@ S3_BUCKET = "onc-compbio"
 # tissue name → landed Tier-1 product key.
 # Only tissues with sc-normal-celltype-expression-{tissue}-v1 on S3 are listed.
 # Others → data_unavailable (honest capability ceiling, never a silent fall-back).
+# Keys are the hyphen-free tissue names; product IDs use hyphenated slugs.
 TISSUE_TO_PRODUCT = {
-    "colon":  "sc-normal-celltype-expression-colon-v1",
-    "lung":   "sc-normal-celltype-expression-lung-v1",
+    "colon":            "sc-normal-celltype-expression-colon-v1",
+    "lung":             "sc-normal-celltype-expression-lung-v1",
+    "heart":            "sc-normal-celltype-expression-heart-v1",
+    "liver":            "sc-normal-celltype-expression-liver-v1",
+    "kidney":           "sc-normal-celltype-expression-kidney-v1",
+    "stomach":          "sc-normal-celltype-expression-stomach-v1",
+    "bone_marrow":      "sc-normal-celltype-expression-bone-marrow-v1",
+    "skin":             "sc-normal-celltype-expression-skin-v1",
+    "small_intestine":  "sc-normal-celltype-expression-small-intestine-v1",
 }
 
-# indication → primary safety tissue(s) to query. The matched normal tissue for the
-# tumor indication is the first-priority read; additional tissues can be added later.
+# SAFETY-ESSENTIAL tissues queried for EVERY target regardless of indication. On-target
+# toxicity in these organs is catastrophic and modality-limiting whether the tumor is colon,
+# lung, or anything else — a BiTE/ADC against a target expressed in cardiomyocytes, hepatocytes,
+# nephron tubule, or hematopoietic progenitors is dangerous independent of the treated indication.
+# So these are ALWAYS included in the liability read, in addition to the indication-matched tissue.
+SAFETY_ESSENTIAL_TISSUES = ["heart", "liver", "kidney", "bone_marrow"]
+
+# indication → tumor-matched normal tissue(s). The matched tissue is queried IN ADDITION to the
+# always-on SAFETY_ESSENTIAL_TISSUES (see tissues_for_indication).
 INDICATION_TO_TISSUES = {
     "COADREAD": ["colon"],
     "COAD":     ["colon"],
@@ -42,6 +57,20 @@ INDICATION_TO_TISSUES = {
     "LUAD":     ["lung"],
     "LUSC":     ["lung"],
 }
+
+
+def tissues_for_indication(indication: str) -> list[str]:
+    """Tissues to query for a (target, indication) liability read: the tumor-matched normal
+    tissue(s) UNION the always-on safety-essential tissues, de-duplicated, order-stable.
+    Safety-essential tissues are queried for EVERY indication (cross-tissue on-target-tox check);
+    the matched tissue adds indication-local context. Unknown indication → safety-essential only
+    (still a meaningful cross-tissue safety read, never an empty/abstain result)."""
+    matched = INDICATION_TO_TISSUES.get(str(indication).upper().strip(), [])
+    out: list[str] = []
+    for t in matched + SAFETY_ESSENTIAL_TISSUES:
+        if t not in out:
+            out.append(t)
+    return out
 
 _PARQUET_COLS = [
     "gene_symbol", "ensembl_gene_id", "tissue", "cell_type",
@@ -102,14 +131,13 @@ def read_gene_celltype_rows(target: str, tissues: list[str]) -> Optional[pd.Data
 def read_target_summary(target: str, indication: str) -> dict:
     """Assemble the sc-normal-celltype-expression summary for a (target, indication).
 
-    Looks up the tissue(s) for the indication, reads the Tier-1 parquet via predicate-pushdown,
-    classifies the normal-tissue liability, and returns a summary dict with `sc_normal_expression_class`
-    as the primary field. data_unavailable-safe on both "no product" and "gene absent from product"."""
-    tissues = INDICATION_TO_TISSUES.get(str(indication).upper().strip(), [])
-    if not tissues:
-        return _data_unavailable(target, indication,
-                                 note=f"No tissue mapping for indication {indication}; "
-                                      f"sc normal-tissue assessment not available here.")
+    Queries the tumor-matched normal tissue(s) UNION the always-on safety-essential tissues
+    (heart/liver/kidney/bone_marrow), reads the Tier-1 parquet via predicate-pushdown, classifies
+    the normal-tissue liability across ALL queried cell types, and returns a summary dict with
+    `sc_normal_expression_class` as the primary field. data_unavailable-safe on both "no product"
+    and "gene absent from product". Because safety-essential tissues are always included, even an
+    unknown indication yields a meaningful cross-tissue safety read (never an abstain-by-mapping-gap)."""
+    tissues = tissues_for_indication(indication)
     rows = read_gene_celltype_rows(target, tissues)
     if rows is None:
         return _data_unavailable(target, indication,
@@ -127,6 +155,6 @@ def read_target_summary(target: str, indication: str) -> dict:
 
 def _data_unavailable(target: str, indication: str, note: str) -> dict:
     base = _stats._data_unavailable_class(note=note)
-    base["tissues_queried"] = INDICATION_TO_TISSUES.get(str(indication).upper().strip(), [])
+    base["tissues_queried"] = tissues_for_indication(indication)
     base["indication"] = str(indication).upper().strip()
     return base
