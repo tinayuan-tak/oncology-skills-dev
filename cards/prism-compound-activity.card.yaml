@@ -69,18 +69,21 @@ applies_when:
   - "context.data_sources.depmap_prism_available == true"
 
 # Distinct release pin from the 26q1 CRISPR substrate. Sourcing manifest is
-# s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v3/manifest.yaml
+# s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/manifest.yaml
 # which cites PRISM OncRef 25Q4 (Log2AUC + LFCCollapsed) + Repurposing 24Q2
 # (single-dose LFC, annotation-only) + 26Q1 Model.csv (lineage join).
+# Repointed v3 -> v4 (2026-08-08): the catalog publishes depmap-prism-activity-v4 (v3 has no
+# manifest) and the depmap_prism_activity method pins prism-activity-v4 (DEFAULT_RELEASE_PIN); the
+# release_pin is bumped alongside so product_id + pin + method agree.
 required_inputs:
-  - product_id: depmap-prism-activity-v3
-    release_pin: "prism-activity-v3"
+  - product_id: depmap-prism-activity-v4
+    release_pin: "prism-activity-v4"
 
 methods:
   - call: depmap-prism-activity
     args:
       target: "{target.symbol}"
-      release_pin: "prism-activity-v3"
+      release_pin: "prism-activity-v4"
 
 outputs:
   summary_fields:

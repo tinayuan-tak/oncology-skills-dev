@@ -114,11 +114,15 @@ def test_in_record_key_not_in_record_schema_fails(tmp_path):
 
 
 def test_shipped_rules_files_validate_clean():
-    """The real intracellular + surface rules files validate (0 errors) — the
-    shipped subtype-non-dependence-opposing rule passes end-to-end."""
-    for fname in ("intracellular-intrinsic.rules.yaml", "surface-intrinsic.rules.yaml"):
-        rep = V.validate_rules_file(REPO / "interpretation-rules" / fname, CARDS)
-        assert rep.ok, f"{fname}: {rep.errors}"
+    """EVERY shipped interpretation-rules/*.rules.yaml validates (0 errors) —
+    globbed so every current + future rules file is schema-validated (not a
+    hardcoded 2-file allowlist). Covers intracellular + surface + the combo axes
+    (combination-opportunity, combinatorial-dependency)."""
+    rules_files = sorted((REPO / "interpretation-rules").glob("*.rules.yaml"))
+    assert rules_files, "no *.rules.yaml found under interpretation-rules/"
+    for path in rules_files:
+        rep = V.validate_rules_file(path, CARDS)
+        assert rep.ok, f"{path.name}: {rep.errors}"
 
 
 def test_shipped_subtype_rule_present():

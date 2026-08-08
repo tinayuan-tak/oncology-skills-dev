@@ -21,8 +21,12 @@ question: "What is the upstream+downstream signaling context of {target.symbol},
 applies_when:
   - "context.data_sources.omnipath_snapshot_available == true"
 
+# Repointed 2026-08-08: the derived product signor-mechanism-network-per-gene-v1 was reverted out of
+# the data-catalog and has no manifest. The signor_mechanism_network method actually composes from the
+# SOURCE release (SIGNOR_SOURCE_MANIFEST_ID = "signor-jul2026"; reads .../sources/signor/jul2026/
+# SIGNOR_Jul2026_release.txt), so required_inputs points at the real backing manifest signor-jul2026.
 required_inputs:
-  - product_id: signor-mechanism-network-per-gene-v1
+  - product_id: signor-jul2026
 
 derived_from:
   - card_id: target-identity-summary  # UniProt-AC resolution

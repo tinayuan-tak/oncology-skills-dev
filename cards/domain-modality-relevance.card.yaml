@@ -32,6 +32,7 @@ applies_when:
   - "context.data_sources.uniprot_available == true"
 
 required_inputs:
+  # TODO(data-catalog): publish manifest uniprot-protein-features-v1 — product exists in S3 but has no catalog manifest
   - product_id: uniprot-protein-features-v1          # domain architecture + protein class (the substrate)
   - product_id: interpro-109-0-snapshot-2026-08-05    # InterPro domain-hit coverage broadening
 

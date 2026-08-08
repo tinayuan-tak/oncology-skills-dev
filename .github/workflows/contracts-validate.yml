@@ -1,0 +1,63 @@
+name: contracts-validate
+
+# Governance-contract CI: runs the three repo-local validators on every change to
+# the data contracts (cards / interpretation-rules / schemas / vocabularies) or the
+# validators themselves. This is the gate that keeps the evidence-card + rule
+# contracts schema-valid and cross-consistent on every PR.
+#
+# WHY these three (and not the framework-health dashboard): framework-health.yml
+# validates the committed dashboard ARTIFACT's internal integrity. This job
+# validates the SOURCE contracts:
+#   - validate_cards.py            — card_spec structural + cross-reference checks
+#   - validate_measurement_types.py — measurement_type vocab ↔ card concordance
+#   - validate_interpretation_rules.py — Tier-2 rule schema + card-reachability,
+#     run over ALL interpretation-rules/*.rules.yaml (directory form globs them).
+#
+# CROSS-REPO NOTE: the figure-emission check in validate_cards.py reads the sibling
+# claude-oncology-skills repo's _figure_emitters.py. On a checkout-only runner that
+# sibling is absent, so that one check graceful-skips (never a false failure); the
+# KNOWN_FIGURE_DEBT waiver keeps it green where the sibling IS present. Every other
+# check runs fully from this repo alone.
+#
+# Plain `python` invocation (no pixi in this repo) — mirrors framework-health.yml.
+
+on:
+  pull_request:
+    paths:
+      - "cards/**"
+      - "interpretation-rules/**"
+      - "schemas/**"
+      - "vocabularies/**"
+      - "validators/**"
+      - ".github/workflows/contracts-validate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cards/**"
+      - "interpretation-rules/**"
+      - "schemas/**"
+      - "vocabularies/**"
+      - "validators/**"
+      - ".github/workflows/contracts-validate.yml"
+
+jobs:
+  contracts-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pyyaml jsonschema
+
+      - name: Validate card specs
+        run: python validators/validate_cards.py cards/
+
+      - name: Validate measurement types
+        run: python validators/validate_measurement_types.py
+
+      - name: Validate interpretation rules (all rules files)
+        run: python validators/validate_interpretation_rules.py --rules interpretation-rules/ --cards cards/

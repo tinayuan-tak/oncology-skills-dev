@@ -10,6 +10,14 @@
 # Biology: a drug-anchored combination signal ("gene Y becomes essential when target X is inhibited")
 # is a CO-TARGETING hypothesis — inhibit X, add a second agent against Y. Framed as combination
 # rationale, never a single-agent claim about X.
+#
+# NOTE (schema alignment 2026-08-08): the per-rule `verdict:`/`message:` keys are DOCUMENTATION only
+# — the combo-and-resistance skill hardcodes its own rule_id→verdict map (scripts/run.py _RULE_VERDICT).
+# The schema forbids those keys (unevaluatedProperties: false), so each rule's verdict + operator
+# message is preserved here as a COMMENT above the rule. Signal vocabulary is the controlled enum
+# [supportive, opposing, killer, neutral, insufficient, not_applicable]; the former `conditional`
+# (context-conditional, encoded by the verdict) maps to `supportive`, and `uninformative` (a measured
+# no-signal / suppressive result) maps to `neutral`.
 
 rules_id: combination-opportunity
 version: 1.0.0
@@ -25,6 +33,11 @@ rationale: |
   negative.
 
 rules:
+  # verdict: strong_combination_opportunity
+  # message: |
+  #   Robust combination opportunity — when the target is inhibited, at least one co-target's
+  #   knockout deepens the effect broadly across models. A co-targeting hypothesis (inhibit the
+  #   target + a second agent against the co-target) worth pursuing.
   - rule_id: combo-strong-opportunity
     when:
       card_id: combo-crispr-screen
@@ -33,15 +46,14 @@ rules:
     signals:
       small_molecule: supportive
       degrader: supportive
-    verdict: strong_combination_opportunity
-    message: |
-      Robust combination opportunity — when the target is inhibited, at least one co-target's
-      knockout deepens the effect broadly across models. A co-targeting hypothesis (inhibit the
-      target + a second agent against the co-target) worth pursuing.
     rationale: |
       >=1 co-target with combination_class=robust_combination (mean shift <= -0.5, significant in
       >=50% of the anchor drug's model-screens).
 
+  # verdict: combination_opportunity
+  # message: |
+  #   Combination opportunity — >=1 co-target becomes significantly more essential under target
+  #   inhibition in at least one model. A co-targeting hypothesis to verify.
   - rule_id: combo-supported-opportunity
     when:
       card_id: combo-crispr-screen
@@ -50,43 +62,46 @@ rules:
     signals:
       small_molecule: supportive
       degrader: supportive
-    verdict: combination_opportunity
-    message: |
-      Combination opportunity — >=1 co-target becomes significantly more essential under target
-      inhibition in at least one model. A co-targeting hypothesis to verify.
     rationale: |
       >=1 co-target supported_combination (mean shift <= -0.25, >=1 model significant).
 
+  # verdict: context_combination_opportunity
+  # message: |
+  #   CONTEXT-specific combination — a single model shows a strong co-target shift. A conditional
+  #   combination hypothesis; needs the model/lineage context to interpret.
+  # (signal was `conditional` → remapped to `supportive`: the verdict context_combination_opportunity
+  #  already encodes the context-conditionality.)
   - rule_id: combo-context-opportunity
     when:
       card_id: combo-crispr-screen
       field: combination_opportunity_class
       equals: context_combination_opportunity
     signals:
-      small_molecule: conditional
-      degrader: conditional
-    verdict: context_combination_opportunity
-    message: |
-      CONTEXT-specific combination — a single model shows a strong co-target shift. A conditional
-      combination hypothesis; needs the model/lineage context to interpret.
+      small_molecule: supportive
+      degrader: supportive
     rationale: |
       Only context_combination co-targets (single-model strong significant shift). Weakest positive.
 
+  # verdict: no_combination_signal
+  # message: |
+  #   An anchor screen exists for this target but no co-target passed the combination threshold. A
+  #   measured negative for the screened context.
+  # (signal was `uninformative` → remapped to `neutral`: a measured no-signal result, not an insufficiency.)
   - rule_id: combo-no-signal
     when:
       card_id: combo-crispr-screen
       field: combination_opportunity_class
       equals: no_combination_signal
     signals:
-      small_molecule: uninformative
-      degrader: uninformative
-    verdict: no_combination_signal
-    message: |
-      An anchor screen exists for this target but no co-target passed the combination threshold. A
-      measured negative for the screened context.
+      small_molecule: neutral
+      degrader: neutral
     rationale: |
       Anchor screened, all co-targets below threshold. Distinct from no_anchor_screen (coverage gap).
 
+  # verdict: combination_insufficient
+  # message: |
+  #   No drug-anchor CRISPR screen for this target (the panel covers KRAS/KIT/XPO1 only). A coverage
+  #   gap — NOT evidence against a combination opportunity.
   - rule_id: combo-no-anchor-screen
     when:
       card_id: combo-crispr-screen
@@ -95,14 +110,13 @@ rules:
     signals:
       small_molecule: insufficient
       degrader: insufficient
-    verdict: combination_insufficient
-    message: |
-      No drug-anchor CRISPR screen for this target (the panel covers KRAS/KIT/XPO1 only). A coverage
-      gap — NOT evidence against a combination opportunity.
     rationale: |
       Measured-vs-null: absence of an anchor screen is a coverage gap → insufficient, never negative.
 
-  - rule_id: combo-data-unavailable
+  # verdict: combination_insufficient
+  # message: |
+  #   Drug-anchor combination product could not be read (infrastructure / access). Verdict withheld.
+  - rule_id: combo-opportunity-data-unavailable
     when:
       card_id: combo-crispr-screen
       field: combination_opportunity_class
@@ -110,8 +124,5 @@ rules:
     signals:
       small_molecule: insufficient
       degrader: insufficient
-    verdict: combination_insufficient
-    message: |
-      Drug-anchor combination product could not be read (infrastructure / access). Verdict withheld.
     rationale: |
       Env-failure distinct from measured absence; both → insufficient, different operator message.

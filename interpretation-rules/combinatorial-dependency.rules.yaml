@@ -12,6 +12,14 @@
 # inhibit/degrade BOTH nodes, or the buffered node in the partner-loss context. It is NOT a
 # single-agent dependency (single-KO of either gene alone is, by construction, insufficient), so
 # these signals are framed as combination / conditional rationale, never a monotherapy killer.
+#
+# NOTE (schema alignment 2026-08-08): the per-rule `verdict:`/`message:` keys are DOCUMENTATION only
+# — the combinatorial-dependency skill hardcodes its own rule_id→verdict map (scripts/run.py
+# _RULE_VERDICT). The schema forbids those keys (unevaluatedProperties: false), so each rule's verdict
+# + operator message is preserved here as a COMMENT above the rule. Signal vocabulary is the controlled
+# enum [supportive, opposing, killer, neutral, insufficient, not_applicable]; the former `conditional`
+# (context-conditional, encoded by the verdict) maps to `supportive`, and `uninformative` (a measured
+# no-signal / suppressive result) maps to `neutral`.
 
 rules_id: combinatorial-dependency
 version: 1.0.0
@@ -31,6 +39,12 @@ rationale: |
   negative.
 
 rules:
+  # verdict: constitutive_combinatorial_dependency
+  # message: |
+  #   Constitutive synthetic-lethal / buffering interaction with the paralog partner — the pair is
+  #   required together broadly across cell lines. Supports a CO-TARGETING rationale (dual inhibition/
+  #   degradation of both nodes). NOTE: single-agent inhibition of either node alone is buffered
+  #   (insufficient by construction) — the rationale is for the COMBINATION.
   - rule_id: combo-constitutive-synthetic-lethal
     when:
       card_id: combinatorial-dependency
@@ -39,67 +53,70 @@ rules:
     signals:
       small_molecule: supportive
       degrader: supportive
-    verdict: constitutive_combinatorial_dependency
-    message: |
-      Constitutive synthetic-lethal / buffering interaction with the paralog partner — the pair is
-      required together broadly across cell lines. Supports a CO-TARGETING rationale (dual inhibition/
-      degradation of both nodes). NOTE: single-agent inhibition of either node alone is buffered
-      (insufficient by construction) — the rationale is for the COMBINATION.
     rationale: |
       combinatorial_dependency_class=strong_synthetic_lethal means >=1 partner is constitutive_buffering
       (mean GI <= -0.25 across lines, p<0.05). Broad, non-conditional co-dependency.
 
+  # verdict: context_combinatorial_dependency
+  # message: |
+  #   CONTEXT-dependent synthetic-lethal interaction — only a minority of cell lines / specific
+  #   lineages show strong buffering. Supports a GENOTYPE- or LINEAGE-SELECTED combination hypothesis,
+  #   NOT a broad co-target. The actionable next step is stratification: which lineage/genotype, and
+  #   (where the partner is a tumor suppressor) conditioning on partner LOSS status.
+  # (signal was `conditional` → remapped to `supportive`: the verdict context_combinatorial_dependency
+  #  already encodes the context-conditionality.)
   - rule_id: combo-context-conditional-synthetic-lethal
     when:
       card_id: combinatorial-dependency
       field: combinatorial_dependency_class
       equals: context_synthetic_lethal
     signals:
-      small_molecule: conditional
-      degrader: conditional
-    verdict: context_combinatorial_dependency
-    message: |
-      CONTEXT-dependent synthetic-lethal interaction — only a minority of cell lines / specific
-      lineages show strong buffering. Supports a GENOTYPE- or LINEAGE-SELECTED combination hypothesis,
-      NOT a broad co-target. The actionable next step is stratification: which lineage/genotype, and
-      (where the partner is a tumor suppressor) conditioning on partner LOSS status.
+      small_molecule: supportive
+      degrader: supportive
     rationale: |
       context_synthetic_lethal = no constitutive partner, but >=1 context_buffering partner
       (frac_lines_strong_gi >= 0.10 OR a single very-strong line). Conditional dependencies are the
       therapeutically selective case but must be read with the lineage breakdown.
 
+  # verdict: suppressive_combinatorial_interaction
+  # message: |
+  #   Suppressive (positive-GI) interaction — co-loss is LESS lethal than the additive single-KO
+  #   expectation (masking / epistasis). No combinatorial-dependency rationale; if anything a caution
+  #   that co-targeting could be antagonistic.
+  # (signal was `uninformative` → remapped to `neutral`: a measured suppressive result, not an insufficiency.)
   - rule_id: combo-suppressive-interaction
     when:
       card_id: combinatorial-dependency
       field: combinatorial_dependency_class
       equals: suppressive_interaction
     signals:
-      small_molecule: uninformative
-      degrader: uninformative
-    verdict: suppressive_combinatorial_interaction
-    message: |
-      Suppressive (positive-GI) interaction — co-loss is LESS lethal than the additive single-KO
-      expectation (masking / epistasis). No combinatorial-dependency rationale; if anything a caution
-      that co-targeting could be antagonistic.
+      small_molecule: neutral
+      degrader: neutral
     rationale: |
       suppressive_interaction: strongest partner has positive mean GI with p<0.05. Not a co-dependency.
 
+  # verdict: no_combinatorial_dependency
+  # message: |
+  #   Paralog partner(s) screened, but none show a genetic interaction beyond the additive single-KO
+  #   expectation. No combinatorial-dependency rationale from the measured paralog library.
+  # (signal was `uninformative` → remapped to `neutral`: a measured no-signal result, not an insufficiency.)
   - rule_id: combo-no-interaction
     when:
       card_id: combinatorial-dependency
       field: combinatorial_dependency_class
       equals: no_interaction
     signals:
-      small_molecule: uninformative
-      degrader: uninformative
-    verdict: no_combinatorial_dependency
-    message: |
-      Paralog partner(s) screened, but none show a genetic interaction beyond the additive single-KO
-      expectation. No combinatorial-dependency rationale from the measured paralog library.
+      small_molecule: neutral
+      degrader: neutral
     rationale: |
       Partners present in the library, all interaction_class=no_interaction. A measured negative
       (distinct from no_paralog_screened, which is a coverage gap).
 
+  # verdict: combinatorial_dependency_insufficient
+  # message: |
+  #   {target} is not present in the DepMap ParalogV2 dual-KO library — a coverage gap (the library
+  #   screens curated paralog pairs only). NOT evidence of no combinatorial dependency. Published
+  #   CC-BY GI maps (Dede/in4mer/Horlbeck) are a future corroboration leg for non-covered genes.
   - rule_id: combo-no-paralog-screened
     when:
       card_id: combinatorial-dependency
@@ -108,16 +125,15 @@ rules:
     signals:
       small_molecule: insufficient
       degrader: insufficient
-    verdict: combinatorial_dependency_insufficient
-    message: |
-      {target} is not present in the DepMap ParalogV2 dual-KO library — a coverage gap (the library
-      screens curated paralog pairs only). NOT evidence of no combinatorial dependency. Published
-      CC-BY GI maps (Dede/in4mer/Horlbeck) are a future corroboration leg for non-covered genes.
     rationale: |
       Measured-vs-null discipline: absence from the paralog library is a coverage gap → insufficient,
       NEVER a negative verdict.
 
-  - rule_id: combo-data-unavailable
+  # verdict: combinatorial_dependency_insufficient
+  # message: |
+  #   Paralog GI product could not be read (infrastructure / access). Verdict withheld — an
+  #   environment failure, not a biology signal.
+  - rule_id: combo-dependency-data-unavailable
     when:
       card_id: combinatorial-dependency
       field: combinatorial_dependency_class
@@ -125,10 +141,6 @@ rules:
     signals:
       small_molecule: insufficient
       degrader: insufficient
-    verdict: combinatorial_dependency_insufficient
-    message: |
-      Paralog GI product could not be read (infrastructure / access). Verdict withheld — an
-      environment failure, not a biology signal.
     rationale: |
       Distinguish env-failure (data_unavailable) from measured absence (no_paralog_screened) — both
       route to insufficient, but the message differs for the operator.

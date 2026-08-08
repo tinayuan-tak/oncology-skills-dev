@@ -250,6 +250,12 @@ KNOWN_FIGURE_DEBT = {
     # tumor-elevation-breadth CLEARED 2026-07-22: the pan-cancer by-tissue TPM distribution
     # emitter (_emit_tumor_elevation_breadth, drawing from tcga-gtex-tpm-tissue-quantiles-v1)
     # is now registered in CARD_FIGURE_EMITTERS — passes the check, not waived.
+    # combo axes + immune/pMHC (added 2026-08-08): declare a figure but their emitter is not yet
+    # registered in compose-dashboard _figure_emitters.py CARD_FIGURE_EMITTERS. Tracked viz-debt.
+    'combo-crispr-screen',            # figure emitter not yet registered in compose-dashboard _figure_emitters.py
+    'combinatorial-dependency',       # figure emitter not yet registered in compose-dashboard _figure_emitters.py
+    'immune-context',                 # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
+    'pmhc-presentation',              # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
 }
 
 
