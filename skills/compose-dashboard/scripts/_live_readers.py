@@ -1008,12 +1008,58 @@ def _dispatch_protein_surface_evidence(target: str, indication: str) -> Optional
 
 
 def _dispatch_surface_abundance_density(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: surface-abundance-density card → CPTAC protein intensity +
-    HPA IHC anchor → copies-per-cell estimate via
-    methods/cptac_protein_deg/read.py::read_abundance_density_summary().
+    """Dispatcher: surface-abundance-density card. TWO tiers, distinct slots (INC-4, 2026-08-08):
+
+    Tier-2 (grade-D estimate, the base summary) — methods/cptac_protein_deg/read.py::
+      read_abundance_density_summary(): HPA-IHC ordinal × CPTAC log2FC order-of-magnitude copies/cell.
+      Broad coverage, wide uncertainty. This is the existing card payload (surface_density_class,
+      is_tce_viable, is_adc_high_payload_viable) — an ANNOTATION, never a veto (housekeeping-FP guard).
+
+    Tier-1 (calibrated ABSOLUTE anchor) — methods/surface_antigen_density_ladder/read.py::
+      read_absolute_density(): grade A/B bead-calibrated copies/cell from the governed curated corpus
+      (native patient/cell-line partitions). Narrow coverage (~11 antigens today), HIGH precision, DOI-
+      cited. Merged in under `absolute_*` keys so the card exposes the real absolute value + its floor
+      standing WITHOUT overwriting the broad Tier-2 estimate. `unmeasured` (grade E) for un-anchored
+      targets — never fabricated. This is what the tumor-selectivity density facet reads (verdict-inert).
     """
-    mod = _import_method("cptac_protein_deg")
-    return mod.read_abundance_density_summary(target=target, indication=indication)
+    # Tier-2 grade-D estimate. Isolated so a Tier-2 read failure (e.g. a transient CPTAC/HPA read or
+    # sys.path issue) does NOT lose the independent Tier-1 absolute anchor below.
+    try:
+        mod = _import_method("cptac_protein_deg")
+        summary = mod.read_abundance_density_summary(target=target, indication=indication) or {}
+    except Exception as e:  # noqa: BLE001 — Tier-2 is the broad ESTIMATE; degrade it, keep Tier-1
+        summary = {"surface_density_class": "unmeasured",
+                   "_tier2_estimate_error": f"{type(e).__name__}: {e}"}
+
+    # Tier-1 absolute anchor (namespaced; independent of Tier-2 — computed in its own try so a Tier-2
+    # failure never suppresses the calibrated value). Does not disturb the Tier-2 grade-D fields.
+    ladder = _import_method("surface_antigen_density_ladder")
+    abs_ = ladder.read_absolute_density(target=target, indication=indication) or {}
+    value = abs_.get("value_best")
+    grade = abs_.get("density_evidence_level")
+    # density_floor_verdict — ONLY from a MEASURED Tier-1 absolute value (grade A/B). Floors are the
+    # framework's cited constants (Slaga 2018 soluble-TCE 1,000/cell; ADC high-payload 10,000/cell).
+    # unmeasured (grade E / no value) → the facet abstains (absence != low density). NB: below_floor is
+    # a MODALITY caveat (soluble-TCE geometry), NOT a target killer — CD19 is 110/cell yet a validated
+    # CAR-T/TCE antigen (high-avidity binders work below the soluble-TCE floor), so this NEVER clamps
+    # the selectivity verdict; it only informs the modality-viability flags + a caveat.
+    if value is None or grade in (None, "E"):
+        floor_verdict = "unmeasured"
+    elif value >= 10000.0:
+        floor_verdict = "above_adc_high_payload_floor"
+    elif value >= 1000.0:
+        floor_verdict = "above_tce_floor_below_adc"
+    else:
+        floor_verdict = "below_tce_floor"
+    summary.update({
+        "absolute_density_class": abs_.get("absolute_density_class"),
+        "absolute_copies_per_cell": value,
+        "absolute_density_grade": grade,
+        "absolute_measurement_semantics": abs_.get("measurement_semantics_best"),
+        "absolute_n_measurements": abs_.get("n_admissible_measurements"),
+        "density_floor_verdict": floor_verdict,
+    })
+    return summary
 
 
 def _dispatch_pmhc_presentation(target: str, indication: str) -> Optional[dict]:

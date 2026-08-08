@@ -239,3 +239,48 @@ def test_deferred1_composed_path_composes_the_veto_card():
     assert "modality-therapeutic-window" in sel_cards, (
         "DEFERRED-1 regression: the veto card is not composed into the selectivity lens → the "
         "normal-breadth veto cannot fire in target-profile (housekeeping FP resurrected).")
+
+
+# --- INC-4 (2026-08-08): axis-C absolute-density facet is VERDICT-INERT (a display facet, NOT a veto).
+# The CD19 counterexample (110 copies/cell, grade A — a validated CAR-T/TCE antigen below the soluble-TCE
+# floor) is why below_tce_floor must NOT clamp the selectivity verdict. These pin the inert contract. ---
+
+def _headline_with_density(axis_a_class, verdict_pair, density_fields):
+    cards = [{"card_id": "tumor-vs-normal-selectivity", "summary": {"selectivity_class": axis_a_class}},
+             {"card_id": "tumor-vs-normal-percentile-crossing", "summary": {}},
+             {"card_id": "modality-therapeutic-window", "summary": {}},
+             {"card_id": "sc-normal-celltype-expression", "summary": {}},
+             {"card_id": "expression-purity-confound", "summary": {}},
+             {"card_id": "surface-abundance-density", "summary": density_fields}]
+    return ts._headline(cards, [], verdict_pair)
+
+
+def test_density_facet_surfaced_but_verdict_inert():
+    """The absolute-density facet appears in the headline but the selectivity_class is exactly the
+    resolved verdict — the density fields feed NO clamp."""
+    h = _headline_with_density(
+        "strong_tumor_selective", ("strong_tumor_selective", "tvn-strong-selective-supportive"),
+        {"absolute_copies_per_cell": 110.0, "absolute_density_grade": "A",
+         "density_floor_verdict": "below_tce_floor", "is_tce_viable": False})
+    assert h["selectivity_class"] == "strong_tumor_selective"      # NOT downgraded by below_tce_floor
+    assert h["absolute_copies_per_cell"] == 110.0                  # facet surfaced
+    assert h["density_floor_verdict"] == "below_tce_floor"
+
+
+def test_below_floor_does_not_appear_in_veto_rule_set():
+    """Hard guard: no density-floor rule id is in the normal-breadth veto set — axis-C is a facet, not
+    a 4th veto arm (the CD19-protection design decision)."""
+    veto_rules = set(ts._NORMAL_BREADTH_VETO_RULES)
+    assert not any("density" in r or "floor" in r for r in veto_rules), (
+        "INC-4 regression: a density-floor rule leaked into the veto set — axis-C must stay verdict-inert "
+        "(below-floor is a modality caveat, not a target killer; CD19=110/cell is a validated antigen).")
+
+
+def test_density_facet_unmeasured_when_no_anchor():
+    """Un-anchored target → density_floor_verdict passes through as whatever the card emits (unmeasured);
+    the facet still does not touch the verdict."""
+    h = _headline_with_density(
+        "modest_tumor_selective", ("modest_tumor_selective", "tvn-modest-selective-supportive"),
+        {"absolute_copies_per_cell": None, "density_floor_verdict": "unmeasured"})
+    assert h["selectivity_class"] == "modest_tumor_selective"
+    assert h["density_floor_verdict"] == "unmeasured"

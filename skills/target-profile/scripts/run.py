@@ -188,6 +188,9 @@ SUB_SKILL_CARDS = {
                                                  # lost in Go/No-Go (same class as the DEFERRED-1 gap).
         "expression-purity-confound",            # DEFERRED-3 — composer-consistency with the standalone CARDS
                                                  # (verdict-inert facet; feeds no selectivity resolver rung).
+        "surface-abundance-density",             # INC-4 — composer-consistency: the absolute-density facet
+                                                 # (verdict-inert; feeds no resolver rung). Surfaces Tier-1
+                                                 # copies/cell + modality-floor standing in the composed profile.
     ],
     "functional-requirement": [
         "pan-cancer-crispr-dependency-distribution",

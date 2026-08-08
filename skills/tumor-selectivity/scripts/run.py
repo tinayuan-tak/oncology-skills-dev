@@ -18,7 +18,11 @@ from _skills_common.synthesis_selectivity import synthesize_selectivity
 
 
 SKILL_NAME = "tumor-selectivity"
-SKILL_VERSION = "1.5.0"    # 2026-08-08: INC-3 — cell-type-resolved axis-D veto arm. sc-normal-celltype-
+SKILL_VERSION = "1.6.0"    # 2026-08-08: INC-4 — axis-C absolute surface-density facet (Tier-1 calibrated
+                           #   copies/cell + floor standing + modality-viability flags). VERDICT-INERT
+                           #   (display facet, no clamp — below-floor is a modality caveat, not a downgrade;
+                           #   CD19 counterexample). selectivity_class byte-stable.
+                           # 1.5.0: INC-3 — cell-type-resolved axis-D veto arm. sc-normal-celltype-
                            #   expression composed; sc_normal_safety_essential_class == critical_organ_liability
                            #   fires tvn-sc-normal-critical-organ-veto → downgrade. 3rd normal-breadth veto arm.
                            # 1.4.0: DEFERRED-2 pan-normal window veto arm.
@@ -53,6 +57,14 @@ CARDS = [
                                              # read tumor_selective. ADDITIVE render-only facet (verdict-INERT
                                              # — its purity rules feed NO selectivity resolver rung; the
                                              # selectivity_class spine is byte-stable). Surfaces the caveat.
+    "surface-abundance-density",             # INC-4 axis-C (2026-08-08): absolute surface DENSITY (copies/cell).
+                                             # VERDICT-INERT facet — the Tier-1 calibrated absolute anchor
+                                             # (grade A/B curated corpus) + its floor standing (Slaga 2018 TCE
+                                             # 1000/cell, ADC 10000/cell). NOT a veto: below-floor is a MODALITY
+                                             # caveat, not a target killer (CD19=110/cell is a validated CAR-T
+                                             # antigen — high-avidity binders work below the soluble-TCE floor).
+                                             # Feeds NO resolver rung; selectivity_class byte-stable. Un-anchored
+                                             # targets → unmeasured (abstain; absence != low density).
 ]
 
 # The axis-A "selective" verdicts the normal-breadth veto can downgrade (over-expressed, but the
@@ -156,6 +168,16 @@ def _headline(cards, fired, verdict_pair):
         # flags a possible false ADC/degrader window from stromal expression.
         "purity_confound_class":       _summary("expression-purity-confound").get("purity_confound_class"),
         "expression_purity_pearson_r": _summary("expression-purity-confound").get("expression_purity_pearson_r"),
+        # INC-4 axis-C absolute-density facet (VERDICT-INERT — display only; feeds no resolver/clamp,
+        # selectivity_class byte-stable). Tier-1 calibrated copies/cell + floor standing + modality-
+        # viability flags. below_tce_floor is a MODALITY caveat, NOT a downgrade (CD19 counterexample).
+        # density_floor_verdict == 'unmeasured' for un-anchored targets (abstain; absence != low density).
+        "absolute_surface_density_class":   _summary("surface-abundance-density").get("absolute_density_class"),
+        "absolute_copies_per_cell":         _summary("surface-abundance-density").get("absolute_copies_per_cell"),
+        "absolute_density_grade":           _summary("surface-abundance-density").get("absolute_density_grade"),
+        "density_floor_verdict":            _summary("surface-abundance-density").get("density_floor_verdict"),
+        "is_tce_viable":                    _summary("surface-abundance-density").get("is_tce_viable"),
+        "is_adc_high_payload_viable":       _summary("surface-abundance-density").get("is_adc_high_payload_viable"),
     }
 
 
