@@ -21,7 +21,6 @@ applies_when:
   - "context.data_sources.uniprot_available == true"
 
 required_inputs:
-  # TODO(data-catalog): publish manifest uniprot-protein-features-v1 — product exists in S3 but has no catalog manifest
   - product_id: uniprot-protein-features-v1   # derived from the reviewed-human SwissProt DAT (FT DOMAIN + KW) — CURATED layer
   - product_id: interpro-109-0-snapshot-2026-08-05   # InterPro domain-hit product — ADDITIVE coverage-broadening layer (method 1.1.0)
 
