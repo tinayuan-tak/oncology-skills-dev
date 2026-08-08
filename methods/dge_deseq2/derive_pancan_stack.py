@@ -72,6 +72,38 @@ _UNION_COLUMNS = [
     "max_abs_log2fc",
 ]
 
+# Composite (OncoTree parent) indications that are the UNION of finer sibling cohorts also
+# present in the stack. COADREAD = COAD (colon) ∪ READ (rectal): the SAME tumor samples feed
+# all three per-indication DGE products (verified: the raw per-sample substrate has only COAD
+# + READ, no COADREAD label, 0 samples under >1 study — COADREAD is built by merging the two).
+# The stacked product deliberately keeps all three as separate per-indication SLICES (a
+# per-indication LOOKUP legitimately wants any one of them), but a pan-cancer BREADTH roll-up
+# that counts K-of-N indications must NOT count colorectal ~2× (COAD + READ + their union). At
+# breadth-count time we DROP the composite whenever a child is present, keeping the finer
+# COAD/READ granularity. Scan (2026-08-08) confirmed COADREAD is the ONLY composite in the
+# 27-indication stack (NSCLC/GBMLGG/KIPAN/STES are absent — only their single-study children
+# appear). Add a new entry here if a merged-parent indication ever lands alongside its children.
+_COMPOSITE_INDICATIONS = {
+    "COADREAD": {"COAD", "READ"},
+}
+
+
+def _dedupe_overlapping_indications(rows: list) -> list:
+    """Drop composite-parent indication rows whose finer children are also present.
+
+    Prevents a breadth roll-up from double-counting the same underlying tumor samples when a
+    merged OncoTree parent (e.g. COADREAD) and its children (COAD, READ) both appear in the
+    stack. If neither child is present the composite is KEPT (it is then the only colorectal
+    signal available). Rows for non-composite indications pass through untouched. Idempotent."""
+    present = {str(r.get("indication")).upper() for r in rows}
+    drop = {
+        parent for parent, children in _COMPOSITE_INDICATIONS.items()
+        if parent in present and (children & present)
+    }
+    if not drop:
+        return rows
+    return [r for r in rows if str(r.get("indication")).upper() not in drop]
+
 
 def _ensure_aws_profile():
     if "AWS_PROFILE" not in os.environ:
@@ -228,6 +260,12 @@ def read_rna_tumor_elevation_breadth(target: str) -> dict:
     if table.num_rows == 0:
         return empty
     rows = table.to_pandas().to_dict(orient="records")
+
+    # Drop composite-parent indications (COADREAD) when their children (COAD, READ) are also
+    # present, so the K-of-N breadth roll-up does not double-count the same colorectal samples.
+    # A per-indication LOOKUP keeps all slices; only this breadth COUNT dedupes. See
+    # _COMPOSITE_INDICATIONS.
+    rows = _dedupe_overlapping_indications(rows)
 
     n_tested = len(rows)
     elevated = [r for r in rows if _rna_row_is_elevated(r)]
