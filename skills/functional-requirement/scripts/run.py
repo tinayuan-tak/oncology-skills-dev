@@ -27,7 +27,11 @@ from _skills_common.synthesis_dependency import synthesize_dependency
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.3.0"   # 1.3.0: opt-in --subtypes DESCRIPTIVE dependency-by-molecular-subgroup
+SKILL_VERSION = "1.3.1"   # 1.3.1 (2026-08-08): fix 2 headline field-name drift bugs — rnai_call read
+                          #        `dependency_class` (card emits `rnai_dependency_class`) + lineage_selectivity
+                          #        read `lineage_selectivity_class` (card emits `enrichment_class`); both were
+                          #        silently None despite live data. Display-only — verdict spine byte-stable.
+                          # 1.3.0: opt-in --subtypes DESCRIPTIVE dependency-by-molecular-subgroup
                           #        panorama (subgroup-stratified-dependency; e.g. MSI_H vs MSS).
                           #        Verdict-inert (touches no rung); byte-stable without the flag.
                           # 1.2.0: opt-in --synthesize LLM narration (dependency lens) — two-slot,
@@ -230,11 +234,13 @@ def _headline(cards, fired, verdict_pair):
         "crispr_call":              get_card_field(cards, "pan-cancer-crispr-dependency-distribution",
                                           "dependency_class"),
         "rnai_call":                get_card_field(cards, "pan-cancer-rnai-dependency-distribution",
-                                          "dependency_class"),
+                                          "rnai_dependency_class"),   # 2026-08-08 fix: card emits rnai_dependency_class (prefixed), not dependency_class → was silently None
+
         "concordance_call":         get_card_field(cards, "crispr-rnai-dependency-concordance",
                                           "concordance_class"),
         "lineage_selectivity":      get_card_field(cards, "dependency-lineage-selectivity",
-                                          "lineage_selectivity_class"),
+                                          "enrichment_class"),   # 2026-08-08 fix: card emits enrichment_class (the rule keys on it too); lineage_selectivity_class never existed → was silently None
+
         "paralog_buffering_class":  get_card_field(cards, "paralog-buffering",
                                           "paralog_buffering_class"),
         "strongest_paralog_symbol": get_card_field(cards, "paralog-buffering",

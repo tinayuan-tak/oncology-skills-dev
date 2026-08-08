@@ -3,13 +3,18 @@ name: functional-requirement
 description: |
   Focused question skill: "Is target X a genetic dependency in indication
   Y, and how does the call hold up across CRISPR + RNAi + lineage context?"
-  Consumes 4 dependency-relevant cards + the dependency-* rule subset.
-  Emits a data-package output tree with a rank-ordered dependency verdict.
+  Consumes 11 cards: 6 verdict-bearing (CRISPR + RNAi distributions,
+  CRISPR/RNAi concordance, lineage-selectivity, paralog-buffering, prism-crispr
+  chemical-genetic confirmation) resolved via the shared dependency resolver;
+  dependency-predictability as a CONFIDENCE annotation (not the verdict); and
+  4 verdict-inert biomarker-facet render cards (expression↔dependency,
+  abundance↔dependency, recommended-models, + the --subtypes-gated
+  subgroup-stratified-dependency panorama).
 
   Use for focused questions like "is KRAS a dependency in COADREAD?", "is
   MET essential across CRC cell lines?", "does the CRISPR and RNAi signal
   agree for CDK7 in LUAD?" — cases where you want the dependency call
-  without the full 16-card evaluation.
+  without the full composed target-profile evaluation.
 
   Biology-first output. Modality is a POST-HOC lens exposed via optional
   --modality flag; the primary output (dependency_verdict + driving_rule_id)
@@ -144,22 +149,35 @@ read argues AGAINST the target). A Bedrock failure degrades to a `_synthesis_err
 
 ## Verdict resolution
 
-Rank-ordered (first match wins) — kept deliberately simple, biology-first,
-so the logic is inspectable at a glance:
+The verdict is resolved by the shared declarative resolver
+(`target-contracts/resolvers/dependency.resolver.yaml`), evaluated by the ONE
+interpreter both engines call. The former per-skill if-chain was retired
+(gap #5, 2026-07-20) — the resolver is the source of truth, proven byte-for-byte
+equivalent to the old if-chain by the golden-oracle test. The rungs (first
+match wins), highest precedence first:
 
-  1. If a rule marked `dominant: true` fires with a killer signal on either
-     CRISPR or RNAi (e.g. pan-essential): verdict is `pan_essential_killer`.
-  2. Else if `concordant-dependent-supportive-dominant` fires: verdict is
-     `concordant_dependent`.
-  3. Else if a lineage-selective rule fires: `lineage_selective`.
-  4. Else if `concordance-discordant-warning` fires: `discordant`.
-  5. Else if any non-dependent rule fires with no counter-signal:
-     `non_dependent`.
-  6. Else: `insufficient`.
+  1. `insufficient_underpowered_pan_essential` — a ≥85% pan-essential call on a
+     sub-floor panel (tiny-panel artifact; escapes the killer).
+  2. `pan_essential_killer` — no therapeutic window (a SAFETY liability; ranked
+     so no lower positive can mask it).
+  3. `concordant_dependent` — CRISPR + RNAi both dependent (gold standard).
+  4. `lineage_selective` — ≥1 lineage significantly enriched (BH-corrected MW).
+  5. `selective_dependent` — context-specific essentiality.
+  6. `chemical_genetic_confirmed_dependent` — CRISPR + RNAi both track PRISM
+     compound kill (positive-only, veto-safe confirmation).
+  7. `discordant` — ≥30% CRISPR/RNAi disagreement (downgrades a shaky veto).
+  8. `insufficient_underpowered` — below-floor pooled negative contradicted by a
+     concentrated well-sampled lineage.
+  9. `non_dependent_paralog_buffered` — pooled non-dependence AND a strong
+     paralog buffer → buffering artifact spares the veto (veto-suppressor:
+     `when_all_fired`, so it can never fabricate a dependency).
+  10. `non_dependent` — CRISPR non-dependence VETO (RNAi-alone non-dependence is
+      neutral — false-negative-prone — and never vetoes).
+  11. `broadly_dependent` — broad but sub-pan-essential.
+  12. `insufficient` — measured coverage gap / nothing fired (provenance-anchored).
 
-Which specific rule drove the verdict is recorded in the headline
-(`driving_rule_id`), so a reviewer can trace back to the interpretation-
-rules YAML.
+`driving_rule_id` in the headline records which rule drove the verdict, so a
+reviewer can trace back to the resolver rung + the interpretation-rules YAML.
 
 ## What this skill does NOT do
 
