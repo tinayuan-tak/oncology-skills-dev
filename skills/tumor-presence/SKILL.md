@@ -3,7 +3,8 @@ name: tumor-presence
 description: |
   Focused question skill: "Is target X present in indication Y's tumor
   tissue, and how does it distribute across cancer cell lines vs. tumor
-  samples, at RNA, protein, and single-cell level?" Consumes 11 wired cards in two tiers.
+  samples, at RNA, protein, and single-cell level?" Consumes 13 wired cards
+  (7 verdict-bearing + 4 display-only facets + 2 normal-tissue SAFETY COMPARATORS).
 
   VERDICT-BEARING (7 cards — feed the rank-ordered presence ladders):
     - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
@@ -26,10 +27,24 @@ description: |
     - tumor-rna-distribution-by-subtype (per-molecular-subtype panorama; COADREAD
                                              shard only, else subtype_axis_available:false)
     - expression-purity-confound            (is the tumor signal tumor-intrinsic or stromal?)
-    - cellline-rna-protein-concordance               (is RNA an adequate protein proxy?)
-    - normal-tissue-liability        (HPA-IHC normal-tissue comparator; protein_ihc/normal bucket)
+    - cellline-rna-protein-concordance               (is RNA an adequate protein proxy? CELL-LINE arm)
+    - rna-protein-concordance-tumor          (is RNA an adequate protein proxy IN PATIENT TUMORS?
+                                             CPTAC per-cohort arm — graduated 2026-08-08; the tumor
+                                             rna_as_biomarker is the PREFERRED input to
+                                             bulk_rna_proxy_quality, since bulk-tumor purity/stroma/
+                                             post-transcriptional regulation degrade concordance far
+                                             more than in cell lines. Reported SIDE-BY-SIDE with the
+                                             cell-line arm; their disagreement is the signal.)
     (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
      signaling-state readout, not a presence/abundance signal.)
+
+  NORMAL-TISSUE SAFETY COMPARATORS (2 cards — verdict-inert; NOT presence signals.
+  Kept in this skill because normal-tissue expression FRAMES the tumor presence read;
+  the safety VERDICT itself is owned by on-target-safety-liability):
+    - normal-tissue-liability        (HPA-IHC normal-tissue comparator; protein_ihc/normal bucket)
+    - sc-normal-celltype-expression  (scRNA cell-type-resolved normal comparator; sc_rna/normal
+                                             bucket; colon+lung shards → COADREAD/NSCLC, else
+                                             data_unavailable. Dispatcher wired 2026-08-08.)
 
   Runs the expression-* + protein-* + sc-expression-* rule subset over three
   measurement ladders (bulk_rna, bulk_protein_ms, sc_rna). Emits a data-package
@@ -47,7 +62,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 1.2.0
+  version: 1.4.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -66,9 +81,11 @@ composition:
     - tumor-rna-distribution-by-subtype # Q1 subtype-grain panorama (was run.py-present, doc-stale)
     - expression-purity-confound            # Q9 (2026-07-23): purity-confound caveat — tumor-intrinsic vs microenvironment (render facet)
     # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence)
-    - cellline-rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality; biomarker preferred_assay input (render facet)
+    - cellline-rna-protein-concordance               # Q5 (2026-07-23): rna_as_biomarker — RNA-as-proxy-for-protein quality (CELL-LINE arm); biomarker preferred_assay input (render facet)
+    - rna-protein-concordance-tumor         # Q5 TUMOR arm (2026-08-08 graduation): CPTAC per-cohort RNA↔protein concordance — the PREFERRED input to bulk_rna_proxy_quality (disease-context proxy quality). Render facet, verdict-inert.
     - tumor-scrna-celltype-expression       # sc_rna slice (2026-08-04): single-cell per-compartment tumor presence (sc_rna/tumor). VERDICT-BEARING via _SC_RNA_RANK
-    - normal-tissue-liability               # P8.3 (2026-08-05, in run.py CARDS; synced): HPA-IHC normal-tissue comparator, protein_ihc/normal bucket — DISPLAY-ONLY facet (verdict-inert, feeds no ladder)
+    - normal-tissue-liability               # P8.3 (2026-08-05): HPA-IHC normal-tissue SAFETY COMPARATOR, protein_ihc/normal bucket — verdict-inert (feeds no ladder)
+    - sc-normal-celltype-expression         # Phase 3.3 (2026-08-07 CARDS; dispatcher wired 2026-08-08): scRNA cell-type-resolved normal-tissue SAFETY COMPARATOR, sc_rna/normal bucket — verdict-inert
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. RNA (cell_line_rna_expression,
   # tumor_vs_adjacent_expression) and the TWO protein layers (patient tumor_protein_abundance from
   # CPTAC + cell_line_protein_abundance from Gygi MS) are DISTINCT types — the multi-layer presence
@@ -84,8 +101,9 @@ composition:
     - tumor_elevation_breadth
     - tumor_expression_distribution
     - expression_purity_confound
-    - rna_protein_concordance
+    - rna_protein_concordance             # BOTH the cell-line arm (cellline-rna-protein-concordance) AND the tumor arm (rna-protein-concordance-tumor) — same measurement_type, different grain
     - sc_tumor_celltype_expression        # sc_rna slice (2026-08-04): single-cell per-compartment tumor presence
+    - sc_normal_celltype_expression       # Phase 3.3: scRNA normal-tissue safety comparator (sc_rna/normal)
   rules_scope:
     - cellline-rna-distribution
     - tumor-rna-vs-adjacent

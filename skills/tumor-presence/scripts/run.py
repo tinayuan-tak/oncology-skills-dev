@@ -39,7 +39,9 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.3.0"   # Phase 3.3 — sc-normal-celltype-expression (sc_rna/normal safety comparator bucket)
+SKILL_VERSION = "1.4.0"   # 2026-08-08 — graduate RNA→protein TUMOR concordance arm (rna-protein-concordance-tumor);
+                          # tumor rna_as_biomarker now the preferred input to bulk_rna_proxy_quality. Display-only,
+                          # presence verdict byte-stable. (1.3.0 = Phase 3.3 sc-normal sc_rna/normal comparator.)
 
 CARDS = [
     "cellline-rna-distribution",
@@ -76,6 +78,19 @@ CARDS = [
                                         # the biomarker facet's preferred_assay input. ADDITIVE render
                                         # facet — its rna-protein-* rules feed NO resolver (presence
                                         # verdict byte-stable). (bulk_rna, cell_line) bucket.
+    "rna-protein-concordance-tumor",             # Q5 TUMOR arm (2026-08-08 graduation) — the TUMOR-grain
+                                        # sibling: does RNA proxy PROTEIN in PATIENT TUMORS (CPTAC), from
+                                        # the matched cptac-rna-protein-matched-per-sample-v1 product? The
+                                        # substrate + method (build_tumor_summary) + dispatcher ALL pre-
+                                        # existed; only the skill roster + proxy-qualifier wiring were
+                                        # missing. This is the number an RNA-based presence claim IN A
+                                        # PATIENT actually rests on — bulk-tumor purity/stroma/post-
+                                        # transcriptional regulation degrade it far more than in cell lines
+                                        # (EPCAM/COAD partial_proxy r=0.46 vs cell-line adequate r=0.86;
+                                        # KRAS/COAD r≈0.01). ADDITIVE render facet — feeds NO resolver
+                                        # (presence verdict byte-stable); (bulk_rna, tumor) bucket. Its
+                                        # rna_as_biomarker (tumor) is the PREFERRED input to
+                                        # _bulk_rna_proxy_quality (falls back to the cell-line arm).
     "tumor-scrna-celltype-expression",  # sc_rna slice (2026-08-04) — SINGLE-CELL per-compartment tumor
                                         # presence (sc_rna x tumor). VERDICT-BEARING: fills the
                                         # sc_rna/tumor bucket MODALITY_TAXONOMY.md named as an unbuilt gap.
@@ -129,6 +144,7 @@ CARD_CONTEXT = {
     "expression-purity-confound":   ("bulk_rna", "tumor"),            # Q9 — derived from TCGA per-sample tumor bulk RNA (× ABSOLUTE purity); (bulk_rna, tumor) bucket. A render-facet CAVEAT, not a presence reading — its rules emit no presence sub-verdict.
     # phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology (activity, not presence).
     "cellline-rna-protein-concordance":      ("bulk_rna", "cell_line"),        # Q5 — cell-line RNA-vs-protein concordance (rna_as_biomarker); (bulk_rna, cell_line) bucket, same as cellline-rna-distribution. A render-facet proxy-quality qualifier, not a presence sub-verdict.
+    "rna-protein-concordance-tumor":         ("bulk_rna", "tumor"),            # Q5 tumor arm — CPTAC per-tumor RNA-vs-protein concordance (rna_as_biomarker, tumor); (bulk_rna, tumor) bucket. A render-facet proxy-quality qualifier, not a presence sub-verdict (feeds no ladder; presence verdict byte-stable).
     "tumor-scrna-celltype-expression": ("sc_rna", "tumor"),                   # sc_rna slice — single-cell per-compartment tumor presence; the FIRST card in the sc_rna/tumor bucket (was a named gap). VERDICT-BEARING via _SC_RNA_RANK.
     "normal-tissue-liability":      ("protein_ihc", "normal"),        # P8.3 — HPA IHC normal-tissue protein footprint; the (protein_ihc, normal) SAFETY COMPARATOR bucket. A render-facet comparator (normal_tissue_breadth_class), NOT a presence sub-verdict — feeds no presence ladder; safety verdict owned by on-target-safety-liability.
     "sc-normal-celltype-expression": ("sc_rna", "normal"),            # Phase 3.3 — scRNA cell-type-resolved normal-tissue safety; the (sc_rna, normal) SAFETY COMPARATOR bucket.
@@ -423,6 +439,15 @@ def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
     _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")
+    # TUMOR-arm proxy quality (Q5 tumor, 2026-08-08 graduation). This is the number an RNA-based
+    # presence claim IN A PATIENT rests on — bulk-tumor purity/stroma/post-transcriptional regulation
+    # degrade RNA↔protein concordance far more than in cell lines, and it is strongly gene-specific.
+    # PREFER it over the cell-line arm for _bulk_rna_proxy_quality; fall back to cell-line when the
+    # indication has no CPTAC cohort (tumor arm → data_unavailable / insufficient_paired_tumors).
+    _rna_biomarker_tumor = get_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
+    _proxy_biomarker = (_rna_biomarker_tumor
+                        if _rna_biomarker_tumor in ("adequate_proxy", "partial_proxy", "poor_proxy")
+                        else _rna_biomarker)
     return {
         # COLLAPSED verdict — the audit spine target-profile reads as `verdict`.
         # Byte-stable across the Slice-Y refactor (F1-safe: additive).
@@ -461,13 +486,26 @@ def _headline(cards, fired, verdict_pair):
         "expression_purity_pearson_r": get_card_field(cards, "expression-purity-confound", "expression_purity_pearson_r"),
         # (phospho_activity_class / n_phosphosites RE-HOMED 2026-08-05 → mechanism-and-pharmacology.)
         # Q5 rna_as_biomarker — RNA-as-proxy-for-protein quality (render facet + biomarker preferred_assay input)
+        # CELL-LINE arm (target-grain).
         "rna_as_biomarker":         _rna_biomarker,
         "rna_protein_r":            get_card_field(cards, "cellline-rna-protein-concordance", "rna_protein_r"),
+        # Q5 TUMOR arm (2026-08-08 graduation) — the CPTAC per-tumor concordance for THIS indication.
+        # Reported SIDE-BY-SIDE with the cell-line arm (never averaged); their disagreement is the signal
+        # (EPCAM/COAD: tumor partial_proxy r=0.46 vs cell-line adequate r=0.86). Render facet, verdict-inert.
+        "rna_as_biomarker_tumor":   _rna_biomarker_tumor,
+        "rna_protein_r_tumor":      get_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r"),
+        "rna_protein_n_paired_tumors": get_card_field(cards, "rna-protein-concordance-tumor", "n_paired_tumors"),
+        "rna_protein_cptac_cohort": get_card_field(cards, "rna-protein-concordance-tumor", "cptac_cohort"),
         # RNA→protein proxy QUALIFIER on the RNA presence call (2026-08-07, review Fix-1). Derived,
         # VERDICT-INERT: qualifies a MEASURED-POSITIVE bulk-RNA presence verdict by whether RNA is a
         # trustworthy protein proxy (spec D5). rna_positive_proxy_poor flags an RNA-only presence claim
         # that needs protein confirmation before an ADC/biologics read. Never moves presence_verdict.
-        "bulk_rna_proxy_quality":   _bulk_rna_proxy_quality(per_modality, _rna_biomarker),
+        # 2026-08-08: now PREFERS the TUMOR-arm concordance (the disease-context proxy quality) over the
+        # cell-line arm, falling back to cell-line when the indication has no CPTAC cohort.
+        "bulk_rna_proxy_quality":   _bulk_rna_proxy_quality(per_modality, _proxy_biomarker),
+        "bulk_rna_proxy_quality_source": ("tumor" if _rna_biomarker_tumor in
+                                          ("adequate_proxy", "partial_proxy", "poor_proxy")
+                                          else "cell_line"),
         # SUBTYPE SCOPE (Finding A, 2026-08-04) — the per-molecular-subtype presence landscape from
         # tumor-rna-distribution-by-subtype, ELEVATED into the audit spine so the subtype scope is
         # visible here, not just in a side table (_per_subgroup_metrics.csv). One-directional / non-veto

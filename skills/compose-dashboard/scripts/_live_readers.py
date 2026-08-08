@@ -608,6 +608,55 @@ def _dispatch_sc_tumor_celltype_expression(target: str, indication: str) -> Opti
     return mod.build_summary(target, indication)
 
 
+def _dispatch_sc_normal_celltype_expression(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route sc-normal-celltype-expression card (sc_rna/normal SAFETY COMPARATOR
+    bucket) to methods/sc_normal_expression/cli.py::build_summary.
+
+    scRNA cell-type-resolved NORMAL-tissue presence from the CELLxGENE Census normal pseudobulk
+    product (per-cell-type detection_fraction → sc_normal_expression_class). NOT a tumor-presence
+    signal — a normal-tissue comparator consumed by tumor-presence (framing) + surface-modality-fit
+    (safety). Indication-scoped (v1 shards: colon→COADREAD, lung→NSCLC); other indications →
+    data_unavailable. Was in both skills' CARDS since #267 but had no dispatcher here → read_live
+    returned None → run_health degraded on every run; this closes that gap."""
+    mod = _import_method("sc_normal_expression.cli")
+    return mod.build_summary(target, indication)
+
+
+def _dispatch_known_drug_tractability(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route known-drug-tractability card (DGIdb pharmacology leg of small-molecule
+    tractability) to methods/dgidb_drug_gene/read.py::known_drug_tractability_for_gene.
+
+    Target-grain (DGIdb drug-gene interactions + druggable-genome categories are a target property);
+    indication accepted for the CARD_DISPATCHERS contract but NOT consumed. Wired into
+    tractability-small-molecule CARDS (#272) but had no dispatcher here → degraded runs; this closes it."""
+    mod = _import_method("dgidb_drug_gene")
+    return mod.known_drug_tractability_for_gene(target)
+
+
+def _dispatch_mutation_stratified_surface(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route mutation-stratified-surface card (is a surface antigen elevated in a
+    driver's MUTANT tumor subset?) to methods/mutation_stratified_surface/read.py::
+    read_mutation_stratified_surface.
+
+    Indication-scoped; driver defaults inside the method (v1 covers KRAS/NSCLC only → not_in_product
+    elsewhere, an honest coverage gap). Wired into surface-modality-fit CARDS (#276) but had no
+    dispatcher here → degraded runs; this closes it."""
+    mod = _import_method("mutation_stratified_surface")
+    return mod.read_mutation_stratified_surface(target, indication=indication)
+
+
+def _dispatch_pathway_stratified_surface(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route pathway-stratified-surface card (is a surface antigen elevated in a
+    tumor-STATE-HIGH subset?) to methods/pathway_stratified_surface/read.py::
+    read_pathway_stratified_surface.
+
+    Indication-scoped; signature defaults inside the method (v1 covers HALLMARK_HYPOXIA/NSCLC only →
+    not_in_product elsewhere, an honest coverage gap). Wired into surface-modality-fit CARDS (#280)
+    but had no dispatcher here → degraded runs; this closes it."""
+    mod = _import_method("pathway_stratified_surface")
+    return mod.read_pathway_stratified_surface(target, indication=indication)
+
+
 def _dispatch_tumor_vs_normal_percentile_crossing(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route tumor-vs-normal-percentile-crossing card (Q2, Gate B) to
     methods/tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_summary.
@@ -1425,6 +1474,10 @@ CARD_DISPATCHERS = {
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
     "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
+    "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket (#267 added to CARDS, dispatcher was missing)
+    "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg (#272 added to CARDS, dispatcher was missing)
+    "mutation-stratified-surface": _dispatch_mutation_stratified_surface,         # mutant-subset surface window (#276 added to CARDS, dispatcher was missing)
+    "pathway-stratified-surface": _dispatch_pathway_stratified_surface,           # tumor-state-high surface window (#280 added to CARDS, dispatcher was missing)
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
     "normal-tissue-liability-gtex": _dispatch_normal_tissue_liability_gtex,
     "recommended-models": _dispatch_recommended_models,

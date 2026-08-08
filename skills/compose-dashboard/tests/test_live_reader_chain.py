@@ -178,3 +178,61 @@ def test_tumor_vs_adjacent_coadread_uses_legacy_manifest():
     # path would set _data_source=...sensitivity-v1. Assert we did NOT take that path.
     assert "sensitivity-v1" not in (r.get("_data_source") or "")
     assert r.get("log2_fc") is not None
+
+
+# === Drift guard: every card a shipped skill lists in its CARDS roster must have a dispatcher ===
+#
+# The bug this catches (2026-08-07, PR #267): sc-normal-celltype-expression was added to the
+# CARDS list of BOTH tumor-presence and surface-modality-fit, and its method module + card spec
+# existed — but no CARD_DISPATCHERS entry was ever added here. read_live_summary therefore hit its
+# `dispatcher is None: return None` branch, resolve_cards tagged the card _missing, and run_health
+# reported `degraded` on EVERY run of both skills (even for COADREAD, which has a colon shard).
+#
+# The pre-existing per-card tests above assert the FORWARD direction (a hand-listed card has a
+# working chain). This asserts the far more important INVERSE: nothing a skill actually consumes
+# is missing a dispatcher. It reads each skill's real CARDS list from run.py by AST (no import /
+# no S3), so a newly-added-but-unwired card fails here the moment it lands — at the true drift
+# source, not a list someone must remember to update.
+import ast  # noqa: E402
+
+_SKILLS_ROOT = SKILL_DIR.parent  # .../skills
+
+# Buckets legitimately absent from CARD_DISPATCHERS: panorama cards are routed via the SEPARATE
+# PANORAMA_DISPATCHERS table (subgroup-aware), not CARD_DISPATCHERS.
+from _live_readers import PANORAMA_DISPATCHERS  # noqa: E402
+
+
+def _skill_cards(run_py: Path) -> list[str]:
+    """Extract the top-level module CARDS = [...] string literals from a skill's run.py via AST.
+    Returns [] if the skill defines no such list (skills that don't use run_wired_skill)."""
+    try:
+        tree = ast.parse(run_py.read_text())
+    except (OSError, SyntaxError):
+        return []
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name) and tgt.id == "CARDS" and isinstance(node.value, (ast.List, ast.Tuple)):
+                    return [el.value for el in node.value.elts
+                            if isinstance(el, ast.Constant) and isinstance(el.value, str)]
+    return []
+
+
+def _iter_skill_card_pairs():
+    for run_py in sorted(_SKILLS_ROOT.glob("*/scripts/run.py")):
+        skill = run_py.parent.parent.name
+        for card in _skill_cards(run_py):
+            yield skill, card
+
+
+@pytest.mark.parametrize("skill,card_id", list(_iter_skill_card_pairs()))
+def test_every_skill_card_has_a_dispatcher(skill, card_id):
+    """Every card_id in any shipped skill's CARDS roster must be routable — present in
+    CARD_DISPATCHERS (scalar) or PANORAMA_DISPATCHERS (subgroup panorama). A card in a skill's
+    roster with no dispatcher resolves to None → _missing → run_health degraded (the #267 bug)."""
+    assert card_id in CARD_DISPATCHERS or card_id in PANORAMA_DISPATCHERS, (
+        f"skill {skill!r} lists card {card_id!r} in its CARDS roster, but it has NO dispatcher in "
+        f"CARD_DISPATCHERS (nor PANORAMA_DISPATCHERS). read_live_summary will return None → the card "
+        f"is tagged _missing → run_health reports 'degraded' on every run. Add a _dispatch_* wrapper "
+        f"+ registry entry in _live_readers.py (this is the PR #267 sc-normal-celltype-expression bug)."
+    )
