@@ -173,6 +173,17 @@ SUB_SKILL_CARDS = {
     "tumor-selectivity": [
         "tumor-vs-normal-selectivity",
         "tumor-vs-normal-percentile-crossing",   # Q2 — paired with tumor-selectivity CARDS (composer-consistency)
+        "modality-therapeutic-window",           # DEFERRED-1 FIX (2026-08-08): the normal-breadth veto rule
+                                                 # (tvn-no-therapeutic-window-veto) keys on THIS card. It was
+                                                 # composed only under the surface-modality-fit lens, so in the
+                                                 # composed target-profile the veto NEVER fired in the selectivity
+                                                 # lens's `fired` set (card_id_filter=SUB_SKILL_CARDS) → a
+                                                 # broadly-normal housekeeping gene nominated as strong_tumor_selective
+                                                 # (the FP the redesign exists to kill, resurrected in Go/No-Go).
+                                                 # Adding it here makes the veto fire identically standalone vs
+                                                 # composed. (A card may be composed under >1 lens.)
+        "expression-purity-confound",            # DEFERRED-3 — composer-consistency with the standalone CARDS
+                                                 # (verdict-inert facet; feeds no selectivity resolver rung).
     ],
     "functional-requirement": [
         "pan-cancer-crispr-dependency-distribution",

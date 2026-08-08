@@ -18,7 +18,10 @@ from _skills_common.synthesis_selectivity import synthesize_selectivity
 
 
 SKILL_NAME = "tumor-selectivity"
-SKILL_VERSION = "1.2.0"    # 2026-08-05: opt-in --synthesize (selectivity-lens narrator, two-slot)
+SKILL_VERSION = "1.3.0"    # 2026-08-08: F1 — _headline now emits the RESOLVED (post-veto) verdict +
+                           #   driving_rule_id (+ axis_a_selectivity_class); the veto downgrade was
+                           #   formerly computed then discarded. + DEFERRED-3 purity-confound facet
+                           #   (verdict-inert). (1.2.0: opt-in --synthesize selectivity-lens narrator.)
 
 CARDS = [
     "tumor-vs-normal-selectivity",
@@ -34,6 +37,13 @@ CARDS = [
                                              # call to selective_but_broadly_normal. The housekeeping fix:
                                              # over-expression vs tissue-of-origin is necessary but NOT
                                              # sufficient (best practice = tumor-to-WORST-normal window).
+    "expression-purity-confound",            # DEFERRED-3 (2026-08-08 synthesis review): is the tumor-vs-normal
+                                             # selectivity signal tumor-cell-intrinsic or stromal/immune
+                                             # (microenvironment) content? The four-cell DESeq2 design has no
+                                             # purity covariate, so a CAF/stromal gene high in bulk tumor can
+                                             # read tumor_selective. ADDITIVE render-only facet (verdict-INERT
+                                             # — its purity rules feed NO selectivity resolver rung; the
+                                             # selectivity_class spine is byte-stable). Surfaces the caveat.
 ]
 
 # The axis-A "selective" verdicts the normal-breadth veto can downgrade (over-expressed, but the
@@ -86,8 +96,17 @@ def _headline(cards, fired, verdict_pair):
         return {}
     tvn = _summary("tumor-vs-normal-selectivity")
     pcx = _summary("tumor-vs-normal-percentile-crossing")   # Q2 per-sample corroboration
+    # RESOLVED verdict from _verdict (includes the normal-breadth veto downgrade). Prior to 2026-08-08
+    # this headline IGNORED verdict_pair and emitted the raw pre-veto tvn.selectivity_class — so a
+    # veto-downgraded target (selective_but_broadly_normal) was NEVER emitted anywhere in decision.json,
+    # AND the synthesis narrator read the pre-veto class and over-claimed selectivity. Now the resolved
+    # verdict is the headline `selectivity_class`; the raw axis-A class is preserved separately for
+    # transparency/audit. (synthesis-review Finding 1 — the foundation the veto arms rest on.)
+    resolved_verdict, resolved_driving = (verdict_pair or (tvn.get("selectivity_class"), None))
     return {
-        "selectivity_class":  tvn.get("selectivity_class"),
+        "selectivity_class":  resolved_verdict,               # RESOLVED (post-veto) — the audit spine
+        "driving_rule_id":    resolved_driving,               # the rule that set it (e.g. the veto rule)
+        "axis_a_selectivity_class": tvn.get("selectivity_class"),  # raw tumor-vs-origin class (pre-veto)
         "cells_supporting":   tvn.get("cells_supporting"),
         "cells_ran":          tvn.get("cells_ran"),
         "dominant_direction": tvn.get("dominant_direction"),
@@ -103,6 +122,12 @@ def _headline(cards, fired, verdict_pair):
         "percentile_crossing_class":       pcx.get("selectivity_class"),
         "fraction_tumor_above_normal_p95": pcx.get("fraction_tumor_above_normal_p95"),
         "distribution_overlap_tumor_normal": pcx.get("distribution_overlap_tumor_normal"),
+        # DEFERRED-3 purity-confound facet (verdict-INERT — display/caveat only, feeds no resolver rung).
+        # Is the tumor-vs-normal selectivity signal tumor-cell-intrinsic or driven by stromal/immune
+        # microenvironment content the bulk DESeq2 design can't separate? microenvironment_confounded
+        # flags a possible false ADC/degrader window from stromal expression.
+        "purity_confound_class":       _summary("expression-purity-confound").get("purity_confound_class"),
+        "expression_purity_pearson_r": _summary("expression-purity-confound").get("expression_purity_pearson_r"),
     }
 
 

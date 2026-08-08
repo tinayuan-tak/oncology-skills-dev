@@ -157,6 +157,16 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         "DETERMINISTIC VERDICT (fixed — narrate, do not change):",
         f"  selectivity_class: {h.get('selectivity_class')}  (state: {_tvn_state()})",
         f"  dominant_direction: {h.get('dominant_direction')}   discordant: {h.get('discordant')}",
+        # NORMAL-BREADTH VETO transparency: when the resolved verdict is selective_but_broadly_normal,
+        # the raw axis-A (tumor-vs-tissue-of-origin) class was DOWNGRADED because there is no
+        # therapeutic window vs the worst critical normal. Narrate the downgrade — do NOT re-assert the
+        # pre-veto axis-A class as if it were the call.
+        (f"  ⚠ NORMAL-BREADTH VETO APPLIED: axis-A was {h.get('axis_a_selectivity_class')} "
+         f"(tumor-vs-origin over-expression) but was DOWNGRADED to {h.get('selectivity_class')} — "
+         f"no therapeutic window vs the worst critical normal (driving_rule: {h.get('driving_rule_id')}). "
+         f"This is the load-bearing selectivity conclusion; over-expression alone is NOT a window."
+         if h.get("selectivity_class") == "selective_but_broadly_normal"
+         else f"  axis_a_selectivity_class (raw tumor-vs-origin, pre-veto): {h.get('axis_a_selectivity_class')}"),
         "",
         "COMPARATOR ROBUSTNESS (how many independent tumor-vs-normal cells supported the call):",
         f"  cells_supporting / cells_ran: {h.get('cells_supporting')} / {h.get('cells_ran')}",
