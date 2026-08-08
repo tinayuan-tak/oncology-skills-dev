@@ -18,11 +18,18 @@ WGD/ploidy (0.2.0): a second genome-state axis — whole-genome-doubling prevale
 from the ABSOLUTE abs_tables (sibling of seg_based_scores in the same source), via
 wgd_summary_for_indication(). Same cohort grain, same barcode→cancer-type join.
 
-METHOD_VERSION 0.2.0.
+HRD (0.3.0): the genomic-scar homologous-recombination-deficiency score — HRD-LOH + LST + ntAI
+(Abkevich/Popova/Birkbak; Myriad myChoice sums the same three), computed per sample from the
+ABSOLUTE allele-specific segtabs (sibling of abs_tables), rolled up to per-indication HRD-high
+prevalence via hrd_score_for_indication(). This is the RIGOROUS completion of the genome-state
+family — it supersedes the SBS3 "weak PARP-sensitivity proxy" the model-signature arm explicitly
+caveats. See hrd.py for the scar-scoring algorithm. Same cohort grain, same barcode join.
+
+METHOD_VERSION 0.3.0.
 """
 from __future__ import annotations
 
-METHOD_VERSION = "0.2.0"
+METHOD_VERSION = "0.3.0"
 
 from .read import (  # noqa: E402,F401
     aneuploidy_burden_for_indication,
@@ -30,4 +37,5 @@ from .read import (  # noqa: E402,F401
     msi_summary_for_indication,
     model_msi_summary_for_indication,
     model_signature_summary_for_indication,
+    hrd_score_for_indication,
 )

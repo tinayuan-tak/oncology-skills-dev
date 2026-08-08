@@ -21,6 +21,10 @@ SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
 # in the SAME PanCanAtlas snapshot). `array` = sample-level barcode (TCGA-OR-A5J1-01), joined to
 # cancer type via the same _barcode_to_patient truncation + merged_sample_quality_annotations.
 ABSOLUTE_KEY = f"{PANCAN_PREFIX}/TCGA_mastercalls.abs_tables_JSedit.fixed.txt"
+# ABSOLUTE allele-specific SEGMENTS (Modal_HSCN_1/2, LOH, Length) — the HRD genomic-scar substrate.
+# Sibling of abs_tables in the SAME snapshot; the ~1.9M-row per-segment table (one row per CN segment,
+# ~11K samples). The HRD scar counts (LOH/LST/ntAI) are computed from these; see hrd.py.
+ABSOLUTE_SEGTABS_KEY = f"{PANCAN_PREFIX}/TCGA_mastercalls.abs_segtabs.fixed.txt"
 # Cohort WGD-prevalence class cutoffs on the FRACTION of samples with >=1 genome doubling
 # (Genome doublings >= 1). Pan-cancer WGD prevalence is ~30-40% (Bielski 2018); a cohort well
 # above that is WGD-enriched, well below is WGD-rare.
@@ -157,6 +161,86 @@ def _load_absolute():
         return pd.read_csv(io.BytesIO(raw), sep="\t")
     except Exception:  # noqa: BLE001
         return pd.DataFrame()
+
+
+@lru_cache(maxsize=1)
+def _load_absolute_segtabs():
+    """ABSOLUTE allele-specific segtabs → DataFrame (Sample, Chromosome, Start, End, Length,
+    Modal_HSCN_1, Modal_HSCN_2, LOH, …). The HRD genomic-scar substrate (~1.9M rows). Empty on
+    failure. Only the columns HRD scoring needs are read (keeps the ~130 MB file lean)."""
+    import pandas as pd
+    try:
+        raw = _s3_read_bytes(ABSOLUTE_SEGTABS_KEY)
+        return pd.read_csv(
+            io.BytesIO(raw), sep="\t",
+            usecols=["Sample", "Chromosome", "Start", "End", "Length",
+                     "Modal_HSCN_1", "Modal_HSCN_2", "LOH"],
+        )
+    except Exception:  # noqa: BLE001
+        return pd.DataFrame()
+
+
+def hrd_score_for_indication(indication: str) -> dict:
+    """Per-indication homologous-recombination-deficiency (HRD) genomic-scar summary — a REAL scar
+    score (HRD-LOH + LST + ntAI), the rigorous completion of the genome-state family that the
+    model-signature arm's SBS3 could only weakly proxy. Cohort-level, target-independent.
+
+    Computes the three-component HRD score per sample from the PanCanAtlas ABSOLUTE allele-specific
+    segments (see hrd.py), scopes to the indication's TCGA project(s) via the same barcode→cancer-type
+    join, and returns the cohort HRD-high prevalence (score >= 42, Myriad myChoice cutoff) + the
+    score distribution. data_unavailable when the file/indication is unresolvable."""
+    import numpy as np
+    from . import hrd as _hrd
+
+    codes = INDICATION_TO_TCGA.get(str(indication or "").upper().strip())
+    if not codes:
+        return _hrd_unavailable(f"no TCGA project mapping for indication={indication!r}")
+    seg = _load_absolute_segtabs()
+    if seg is None or seg.empty or "Modal_HSCN_1" not in seg.columns:
+        return _hrd_unavailable("ABSOLUTE allele-specific segtabs unavailable")
+    cancer = _load_sample_cancer_types()
+    if not cancer:
+        return _hrd_unavailable("sample→cancer-type annotation unavailable")
+
+    seg = seg.copy()
+    seg["_patient"] = seg["Sample"].map(_barcode_to_patient)
+    seg["_ctype"] = seg["_patient"].map(cancer)
+    sub = seg[seg["_ctype"].isin(set(codes))]
+    if sub.empty:
+        return _hrd_unavailable(f"no ABSOLUTE segment samples for {indication} ({codes})")
+
+    scores: list[int] = []
+    for _sample, grp in sub.groupby("Sample"):
+        scars = _hrd.hrd_scars_for_sample(grp.to_dict("records"))
+        scores.append(scars["hrd_score"])
+    scores_arr = np.array(scores, dtype=float)
+    n = len(scores_arr)
+    n_high = int((scores_arr >= _hrd.HRD_HIGH_SCORE).sum())
+    frac = n_high / n if n else None
+    return {
+        "hrd_class": _hrd.classify_hrd_cohort(frac),
+        "hrd_high_fraction": frac,
+        "n_hrd_high": n_high,
+        "median_hrd_score": float(np.median(scores_arr)) if n else None,
+        "p75_hrd_score": float(np.percentile(scores_arr, 75)) if n else None,
+        "n_samples": n,
+        "hrd_context": (
+            f"{indication}: {frac:.0%} of {n} PanCanAtlas ABSOLUTE samples are HRD-high "
+            f"(genomic-scar score >= {_hrd.HRD_HIGH_SCORE}: HRD-LOH + LST + ntAI; median score "
+            f"{np.median(scores_arr):.0f}); cohort-level PARP-sensitivity context, target-independent. "
+            f"A real genomic-scar score — supersedes the SBS3 weak proxy."
+        ),
+        "method_version": "0.3.0",
+        "_data_source": "gdc-pancanatlas-cnv-2018",
+    }
+
+
+def _hrd_unavailable(note: str) -> dict:
+    return {
+        "hrd_class": "data_unavailable", "hrd_high_fraction": None, "n_hrd_high": 0,
+        "median_hrd_score": None, "p75_hrd_score": None, "n_samples": 0,
+        "hrd_context": None, "method_version": "0.3.0", "_data_note": note,
+    }
 
 
 def _classify_wgd(wgd_fraction: Optional[float]) -> str:
