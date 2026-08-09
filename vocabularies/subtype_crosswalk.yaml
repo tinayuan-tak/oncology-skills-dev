@@ -189,3 +189,36 @@ indications:
         to: subtype_atypical
         relationship: enriched_in
         note: "HPV+ HNSC concentrated in the Atypical Bass subtype + oropharyngeal site."
+
+  # ============================================================================
+  # BRCA — PAM50 intrinsic subtypes (added 2026-08-09 with the new BRCA/PAM50 catalog, DC#311)
+  # ============================================================================
+  - canonical_code: BRCA
+    axes:
+      - axis: pam50_subtype           # Parker 2009 intrinsic subtypes (curated Subtype_Selected)
+        strata: [PAM50_LumA, PAM50_LumB, PAM50_Her2, PAM50_Basal, PAM50_Normal]
+        cohorts: [tcga]               # patient-only iter-1 (directly-tagged); DepMap PAM50 = iter-2 classifier
+        partition: mutually_exclusive
+      - axis: driver_mutation
+        strata: [TP53_mut, PIK3CA_mut]
+        cohorts: [tcga, depmap]
+      - axis: cn_amplification
+        strata: [ERBB2_amp]
+        cohorts: [tcga]
+    associations:
+      # HER2-enriched INTRINSIC (PAM50) vs clinical HER2+ (ERBB2-amp): overlapping, NOT identical —
+      # enriched_in captures that most ERBB2-amp is PAM50_Her2 while the sets differ.
+      - from: ERBB2_amp
+        to: PAM50_Her2
+        relationship: enriched_in
+        note: "Clinical HER2+ (ERBB2-amp) is enriched in the HER2-enriched INTRINSIC subtype, but the two are distinct axes (some ERBB2-amp are non-Her2-intrinsic and vice versa)."
+      # TP53 loss is the genomic hallmark of Basal-like/TNBC-adjacent breast cancer.
+      - from: TP53_mut
+        to: PAM50_Basal
+        relationship: enriched_in
+        note: "TP53 LoF is strongly enriched in Basal-like (~80% of Basal/TNBC), the genomically-unstable arm."
+      # PIK3CA activation concentrates in the luminal (ER+) intrinsic subtypes.
+      - from: PIK3CA_mut
+        to: PAM50_LumA
+        relationship: enriched_in
+        note: "PIK3CA activating mutations are luminal-enriched (LumA/LumB); alpelisib biomarker in HR+/HER2-."
