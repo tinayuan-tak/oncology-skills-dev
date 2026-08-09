@@ -41,7 +41,7 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
     from methods.depmap_cn_distribution import cli as cncli
 
     # 1. Chronos (reuse Card-1's loader)
-    chronos_by_model, _model_metadata, chronos_errs = c1cli.load_depmap_files(
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
         release_pin="26q1", target_symbol=target
     )
     if chronos_errs:
@@ -71,6 +71,21 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
             "cn_stratification_class": "data_unavailable",
         }
 
-    summary = _cli.compute_cn_stratification(chronos_by_model, cn_by_model)
+    # INDICATION-CONDITIONED ladder (T2.0) — within-lineage when powered, else pan-DepMap
+    # (strong→moderate). Compute kernel unchanged. See depmap_common.lineage_ladder.
+    from methods.depmap_common.lineage_ladder import apply_lineage_ladder
+
+    def _compute(mut_models, wt_models):
+        # amplified (cn>focal) = the "mutant" arm → mut_models; neutral = WT arm → wt_models.
+        from methods.depmap_cn_dependency.cli import FOCAL_AMP
+
+        def _keep(m):
+            arm = mut_models if cn_by_model.get(m, 0) > FOCAL_AMP else wt_models
+            return arm is None or m in arm
+        c = {m: v for m, v in chronos_by_model.items() if _keep(m)}
+        cn = {m: v for m, v in cn_by_model.items() if m in c}
+        return _cli.compute_cn_stratification(c, cn)
+
+    summary = apply_lineage_ladder(_compute, "cn_stratification_class", model_metadata, indication)
     summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
     return summary

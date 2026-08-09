@@ -34,13 +34,15 @@ def read_mutation_stratified_dependency(
 ) -> dict:
     """Compute mutation-stratified dependency for target across the DepMap panel.
 
-    `indication` is accepted for back-compat with the dispatcher signature but is
-    NOT consumed by the compute path. Card 3 is target-only per Decision 2A —
-    the per-indication mutation prevalence + indication-specific stratification
-    are downstream synthesis concerns.
+    `indication` drives the INDICATION-CONDITIONED ladder (T2.0, 2026-08-08): when it maps to a
+    DepMap lineage and the within-lineage mutant-vs-WT split clears the floor, the stratified test
+    runs WITHIN that lineage (evidence_scope=within_indication) — so a lineage-context-dependent
+    oncogene (BRAF: addicted in melanoma/thyroid, NOT in CRC) no longer reads a pan-cancer strong
+    biomarker under a CRC label. Otherwise it falls back to pan-DepMap with a strong→moderate
+    downgrade (evidence_scope=pan_lineage_evidence_only). See depmap_common.lineage_ladder.
 
-    Returns dict matching Card 3's outputs.summary_fields, or a dict with
-    _live_read_error key when data is unreachable.
+    Returns dict matching Card 3's outputs.summary_fields (+ evidence_scope / lineage_* provenance),
+    or a dict with _live_read_error key when data is unreachable.
     """
     _ensure_aws_profile()
 
@@ -77,6 +79,23 @@ def read_mutation_stratified_dependency(
             "mutation_stratification_class": "data_unavailable",
         }
 
-    return _cli.compute_mutation_stratification(
-        chronos_by_model, hotspot_by_model, damaging_by_model
-    )
+    # INDICATION-CONDITIONED ladder (T2.0): compute within-lineage when powered, else pan-DepMap
+    # (strong→moderate downgraded). The compute kernel is unchanged (pure, byte-stable); the ladder
+    # only restricts the model dicts + attaches evidence_scope. `restrict=None` → pan-DepMap.
+    from methods.depmap_common.lineage_ladder import apply_lineage_ladder
+
+    def _compute(mut_models, wt_models):
+        # Keep model m in whichever arm its mutation status places it: a MUTANT (hotspot or damaging)
+        # must be in mut_models; a WT must be in wt_models (None = all lines for that arm). This lets
+        # rung 2 pass mut_models=lineage, wt_models=None → lineage mutants vs pan WT.
+        def _keep(m):
+            is_mut = bool(hotspot_by_model.get(m) or damaging_by_model.get(m))
+            arm = mut_models if is_mut else wt_models
+            return arm is None or m in arm
+        c = {m: v for m, v in chronos_by_model.items() if _keep(m)}
+        h = {m: v for m, v in hotspot_by_model.items() if m in c}
+        d = {m: v for m, v in damaging_by_model.items() if m in c}
+        return _cli.compute_mutation_stratification(c, h, d)
+
+    return apply_lineage_ladder(
+        _compute, "mutation_stratification_class", model_metadata, indication)

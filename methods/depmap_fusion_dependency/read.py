@@ -117,7 +117,7 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
     from methods.depmap_chronos_distribution import cli as c1cli
 
     # 1. Chronos (reuse Card-1's loader)
-    chronos_by_model, _model_metadata, chronos_errs = c1cli.load_depmap_files(
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
         release_pin="26q1", target_symbol=target
     )
     if chronos_errs:
@@ -145,5 +145,17 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
             "fusion_stratification_class": "data_unavailable",
         }
 
-    summary = _cli.compute_fusion_stratification(chronos_by_model, fusion_by_model)
-    return summary
+    # INDICATION-CONDITIONED ladder (T2.0) — within-lineage when powered, else pan-DepMap
+    # (strong→moderate). Compute kernel unchanged. See depmap_common.lineage_ladder.
+    from methods.depmap_common.lineage_ladder import apply_lineage_ladder
+
+    def _compute(mut_models, wt_models):
+        # fusion-positive = the "mutant" arm → mut_models; fusion-negative = WT arm → wt_models.
+        def _keep(m):
+            arm = mut_models if fusion_by_model.get(m) else wt_models
+            return arm is None or m in arm
+        c = {m: v for m, v in chronos_by_model.items() if _keep(m)}
+        f = {m: v for m, v in fusion_by_model.items() if m in c}
+        return _cli.compute_fusion_stratification(c, f)
+
+    return apply_lineage_ladder(_compute, "fusion_stratification_class", model_metadata, indication)

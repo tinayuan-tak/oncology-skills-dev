@@ -44,7 +44,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None) -> d
     from methods.depmap_expression_distribution import cli as excli
 
     # 1. Chronos
-    chronos_by_model, _model_metadata, chronos_errs = c1cli.load_depmap_files(
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
         release_pin="26q1", target_symbol=target
     )
     if chronos_errs:
@@ -87,6 +87,31 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None) -> d
             "amp_expr_stratification_class": "data_unavailable",
         }
 
-    summary = _cli.compute_amp_expr_stratification(chronos_by_model, cn_by_model, tpm_by_model)
+    # INDICATION-CONDITIONED ladder (T2.0) — within-lineage when powered, else pan-DepMap
+    # (strong→moderate). Compute kernel unchanged. See depmap_common.lineage_ladder.
+    from methods.depmap_common.lineage_ladder import apply_lineage_ladder
+
+    def _compute(mut_models, wt_models):
+        # amp_expr's POSITIVE arm (amplified AND top-tertile-TPM) is a CONJOINT computed inside the
+        # kernel from the evaluated set's tertile — it can't be split by arm at the read layer. And
+        # the high-prevalence-driver problem (rung 2's reason) doesn't arise for a conjoint (rarely
+        # >30% of a lineage). So amp_expr uses rungs 1+3 only: restrict the whole evaluated set to the
+        # in-lineage intersection of the two arms (None = all). rung 2 (L, None) degenerates to the
+        # full lineage set here — harmless, since without a separable positive arm it equals rung 1.
+        restrict = None
+        if mut_models is not None and wt_models is not None:
+            restrict = mut_models & wt_models
+        elif mut_models is not None:
+            restrict = mut_models
+        elif wt_models is not None:
+            restrict = wt_models
+        if restrict is None:
+            return _cli.compute_amp_expr_stratification(chronos_by_model, cn_by_model, tpm_by_model)
+        c = {m: v for m, v in chronos_by_model.items() if m in restrict}
+        cn = {m: v for m, v in cn_by_model.items() if m in restrict}
+        t = {m: v for m, v in tpm_by_model.items() if m in restrict}
+        return _cli.compute_amp_expr_stratification(c, cn, t)
+
+    summary = apply_lineage_ladder(_compute, "amp_expr_stratification_class", model_metadata, indication)
     summary["_cn_assay_used"] = assay_used   # WES (primary) or WGS (fallback), provenance
     return summary
