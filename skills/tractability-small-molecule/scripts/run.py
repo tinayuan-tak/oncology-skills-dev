@@ -51,6 +51,7 @@ CARDS = [
     "dependency-predictability",
     "structure-features-static",   # E8: FORWARD ligandability (pocket structure)
     "known-drug-tractability",     # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
+    "measured-potency-tractability",  # E-measured-potency (T3.1): ChEMBL/BindingDB MEASURED binding potency
     "degradation-feasibility",     # E3 slice 3: DEGRADER-lens degradability (E3-substrate + precedent + location gate)
 ]
 
@@ -115,6 +116,11 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
         return "tool_compound_only", "prism-tool-compound-only-weak-supportive-sm"
     if "prism-weakly-active-weak-supportive-sm" in fired_by_id:
         return "weakly_active", "prism-weakly-active-weak-supportive-sm"
+    # --- MEASURED potency (T3.1, 2026-08-09): a potent (<=1 uM) MEASURED chemotype series
+    #     (ChEMBL/BindingDB) -> measured_potent_ligand. Below the retrospective chemical-activity
+    #     rungs, above the structural tier. Byte-in-sync with the resolver. ---
+    if "measured-potent-ligand-sm-supportive" in fired_by_id:
+        return "measured_potent_ligand", "measured-potent-ligand-sm-supportive"
     # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
     # Ranked below any real chemical hit, above chemically_unhit — a druggable pocket
     # is a positive SM prospect even before a compound exists (the KRAS-G12C fix).
@@ -134,6 +140,10 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     # no approved drug) is a forward druggable-class prior -> structurally_ligandable tier.
     if "known-drug-druggable-category-sm-supportive" in fired_by_id:
         return "structurally_ligandable", "known-drug-druggable-category-sm-supportive"
+    # T3.1: weak measured activity (a potent hit or two / sub-potent) -> structurally_ligandable tier
+    # (a starting-point handle, same as a predicted pocket). Byte-in-sync with the resolver.
+    if "measured-weak-ligand-sm-supportive" in fired_by_id:
+        return "structurally_ligandable", "measured-weak-ligand-sm-supportive"
     if "structure-low-confidence-sm-opposing" in fired_by_id:
         return "structurally_intractable", "structure-low-confidence-sm-opposing"
     if "ligandability-disordered-sm-opposing" in fired_by_id:

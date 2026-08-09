@@ -27,18 +27,27 @@ RULE_IDS = [
     "e7-crispr-confirmed-supportive-sm",
     "prism-clinically-active-supportive-sm",
     "known-drug-approved-antineoplastic-sm-supportive",   # E-known-drug: approved -> chemically_active
+    "prism-clinical-precedent-only-weak-supportive-sm",   # T1.2: clinical annotation, no measured activity
     "prism-tool-compound-only-weak-supportive-sm",
     "prism-weakly-active-weak-supportive-sm",
     "e7-discordant-off-target-warning",
+    "measured-potent-ligand-sm-supportive",               # T3.1: ChEMBL/BindingDB potent MEASURED series
     "ligandability-experimental-sm-supportive",
     "hotspot-in-druggable-pocket-sm-supportive-e8",
     "structure-pocket-adjacent-sm-supportive",
     "ligandability-predicted-sm-supportive",
     "known-drug-druggable-category-sm-supportive",        # E-known-drug: category -> structurally_ligandable
+    "measured-weak-ligand-sm-supportive",                 # T3.1: weak measured activity -> structurally_ligandable
     "structure-low-confidence-sm-opposing",
     "ligandability-disordered-sm-opposing",
     "prism-no-compounds-found-neutral",
 ]
+# NOTE (T3.1, 2026-08-09): this ORACLE list enumerates the FULL 18-rung resolver LIVE (2^18 in-memory,
+# not stored) — it is the equivalence proof over the complete rule set. The COMMITTED golden snapshot
+# (resolver_golden_snapshots.json) intentionally freezes only the core 16 rule_ids: a full 2^18 stored
+# table is 127 MB (exceeds GitHub's 100 MB limit), and the 2 additive measured-potency rungs only ever
+# RESCUE fall-through combos (they can't change a combo among the frozen 16). So the golden guards the
+# core logic byte-for-byte + this oracle guards resolver==if-chain over all 18 rungs. Belt and braces.
 
 
 def _load():

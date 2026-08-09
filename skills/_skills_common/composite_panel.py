@@ -47,6 +47,7 @@ VERDICT_COLORS = {
     "recurrent_fusion_driver":        "#4a7c9e",   # T1.3 (fusion-landscape recurrence driver)
 
     # Neutral / caution (ochre)
+    "measured_potent_ligand":         "#4a7c9e",   # T3.1: potent (<=1 uM) measured chemotype series (modest-positive)
     "clinical_precedent_only":        "#c07a20",   # T1.2: clinical anchor annotated, NO measured activity (caution)
     "tool_compound_only":             "#c07a20",
     "weakly_active":                  "#c07a20",

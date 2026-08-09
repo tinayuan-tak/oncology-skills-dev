@@ -633,6 +633,17 @@ def _dispatch_known_drug_tractability(target: str, indication: str) -> Optional[
     return mod.known_drug_tractability_for_gene(target)
 
 
+def _dispatch_measured_potency_tractability(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route measured-potency-tractability card (ChEMBL + BindingDB MEASURED binding
+    potency — the measured-potency leg of small-molecule tractability, T3.1) to
+    methods/measured_potency_tractability/read.py::measured_potency_for_gene.
+
+    Target-grain (measured potency is a property of the gene's chemical matter); indication accepted
+    for the CARD_DISPATCHERS contract but NOT consumed."""
+    mod = _import_method("measured_potency_tractability")
+    return mod.measured_potency_for_gene(target)
+
+
 def _dispatch_mutation_stratified_surface(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route mutation-stratified-surface card (is a surface antigen elevated in a
     driver's MUTANT tumor subset?) to methods/mutation_stratified_surface/read.py::
@@ -1574,6 +1585,7 @@ CARD_DISPATCHERS = {
     "tumor-scrna-celltype-expression": _dispatch_sc_tumor_celltype_expression,   # sc_rna/tumor bucket (single-cell per-compartment presence)
     "sc-normal-celltype-expression": _dispatch_sc_normal_celltype_expression,    # sc_rna/normal SAFETY COMPARATOR bucket (#267 added to CARDS, dispatcher was missing)
     "known-drug-tractability": _dispatch_known_drug_tractability,                 # DGIdb pharmacology leg (#272 added to CARDS, dispatcher was missing)
+    "measured-potency-tractability": _dispatch_measured_potency_tractability,     # ChEMBL/BindingDB MEASURED potency leg (T3.1)
     "mutation-stratified-surface": _dispatch_mutation_stratified_surface,         # mutant-subset surface window (#276 added to CARDS, dispatcher was missing)
     "pathway-stratified-surface": _dispatch_pathway_stratified_surface,           # tumor-state-high surface window (#280 added to CARDS, dispatcher was missing)
     "tumor-vs-normal-percentile-crossing": _dispatch_tumor_vs_normal_percentile_crossing,
