@@ -104,16 +104,38 @@ def _import_bedrock_client():
     return get_bedrock_client, ModelConfig, BedrockAuthError
 
 
-def _prompt_hash(system: str, user: str, tool: dict, model_id: str) -> str:
+# Shared evidence-only directive appended to every synthesis system prompt (2026-08-09). A live
+# blinding experiment found the LLM imports PRIOR KNOWLEDGE of a named target beyond the presented
+# data (e.g. the name "KRAS" shifted the read more-caveated than the identical data blinded — the
+# model reasoned from what it "knows about KRAS", not only the evidence). This directive fences the
+# narration to the supplied decision spine, so the synthesis reflects THIS target's measured data
+# rather than the model's memorized lore about a famous gene. It does NOT ask the model to ignore
+# the target name (the name legitimately labels the section); it asks it not to substitute prior
+# belief for the presented evidence.
+EVIDENCE_ONLY_DIRECTIVE = (
+    " EVIDENCE-ONLY GROUNDING: reason SOLELY from the fields presented in this decision package. Do "
+    "NOT introduce facts, frequencies, dependencies, compounds, or claims from prior knowledge of the "
+    "named gene that are not in the provided evidence — even if you recognise the target. If the "
+    "evidence is thin or a value is DATA_UNAVAILABLE, say so; do not backfill it from what the gene is "
+    "'known' to do. Your read must be reproducible by another analyst given only this package."
+)
+
+
+def _prompt_hash(system: str, user: str, tool: dict, model_id: str,
+                 temperature: Optional[float] = None) -> str:
     """Deterministic hash of everything that shapes the LLM output.
 
     Includes system prompt, user prompt, tool schema (serialized as
-    sort-key JSON so field-order permutations don't change the hash), and
-    model_id. Two runs producing the same hash MUST have received the
-    same LLM invocation; different hashes explain any output drift.
+    sort-key JSON so field-order permutations don't change the hash),
+    model_id, and the sampling temperature (or `default` when unset —
+    Opus 4.8 deprecates the param, see synthesize_structured). Two runs
+    producing the same hash MUST have received the same LLM invocation;
+    different hashes explain any output drift. Temperature is part of the
+    hash so a determinism-setting change is visible in provenance.
     """
     h = hashlib.sha256()
-    for part in (system, user, json.dumps(tool, sort_keys=True), model_id):
+    temp_part = "temp=default" if temperature is None else f"temp={temperature}"
+    for part in (system, user, json.dumps(tool, sort_keys=True), model_id, temp_part):
         h.update(part.encode("utf-8"))
         h.update(b"\x00")
     return h.hexdigest()
@@ -164,6 +186,7 @@ def synthesize_structured(
     tool_schema: dict,
     model_id: Optional[str] = None,
     max_tokens: int = 8192,
+    temperature: Optional[float] = None,
 ) -> dict:
     """Invoke Bedrock with forced structured tool-use, return the parsed
     tool_input dict stamped with provenance metadata.
@@ -178,6 +201,19 @@ def synthesize_structured(
         model_id: override Bedrock model id (defaults to
             ModelConfig.from_env().synthesis_model — Opus by default).
         max_tokens: cap on response size
+        temperature: OPTIONAL sampling temperature. Default None = do NOT
+            send the parameter (the current behaviour). IMPORTANT — the
+            framework synthesis model (Opus 4.8 / Claude-5 family) has
+            DEPRECATED the `temperature` API parameter: it accepts only the
+            default (1.0) or omission, and returns HTTP 400
+            ("`temperature` is deprecated for this model") for any other
+            value including 0.0 (verified live 2026-08-09). So on this
+            model, output reproducibility CANNOT be obtained by pinning
+            temperature — the model manages its own decoding. This param is
+            retained for (a) older/other models that still honour it and
+            (b) explicit callers, and is validated below: a non-default
+            value is only sent when it is safe to. Part of the _prompt_hash
+            when set, so a determinism-setting change is visible in provenance.
 
     Returns:
         Dict shaped like the tool_schema's input_schema, with every
@@ -208,9 +244,11 @@ def synthesize_structured(
             "input_schema": tool_schema,
         }
 
-        prompt_hash = _prompt_hash(system_prompt, user_prompt, tool, model)
+        prompt_hash = _prompt_hash(system_prompt, user_prompt, tool, model, temperature)
 
-        response = client.messages.create(
+        # `temperature` is DEPRECATED on Opus 4.8 / Claude-5 (400 for any non-default value); only
+        # forward it when a caller explicitly set it, leaving the model's own decoding otherwise.
+        create_kwargs = dict(
             model=model,
             max_tokens=max_tokens,
             system=system_prompt,
@@ -218,6 +256,9 @@ def synthesize_structured(
             tools=[tool],
             tool_choice={"type": "tool", "name": tool_name},
         )
+        if temperature is not None:
+            create_kwargs["temperature"] = temperature
+        response = client.messages.create(**create_kwargs)
 
     tool_use_block = None
     for block in response.content:

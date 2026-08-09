@@ -26,6 +26,8 @@ run.py::_headline emits (feedback_synthesis_reader_real_field_names).
 """
 from __future__ import annotations
 
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+
 from typing import Optional
 
 SYNTHESIS_TOOL_NAME = "emit_surface_modality_synthesis"
@@ -135,6 +137,7 @@ _SYSTEM = (
     "SCOPE: address only the surface-biology / biologics-modality lens. Do not discuss genetic dependency, "
     "small-molecule druggability, expression magnitude per se, or mutation/alteration status; those belong "
     "to other sections of the dossier."
+    + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Deterministic plain-language legend for the metrics the narration cites. Attached as a SIBLING key

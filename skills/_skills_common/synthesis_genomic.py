@@ -17,6 +17,8 @@ surface accessibility.
 """
 from __future__ import annotations
 
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+
 from typing import Optional
 
 SYNTHESIS_TOOL_NAME = "emit_genomic_alteration_synthesis"
@@ -106,6 +108,7 @@ _SYSTEM = (
     "use the term freely. "
     "SCOPE DISCIPLINE: do NOT discuss therapeutic MODALITY, expression level, or surface accessibility. "
     "Those belong to other lenses / the composed target-profile synthesis."
+    + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Deterministic plain-language legend for the metrics this narration cites — attached as a sibling

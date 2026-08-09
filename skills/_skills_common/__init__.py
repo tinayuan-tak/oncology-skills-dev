@@ -53,7 +53,7 @@ from .composition_schema import (
     validate as validate_composition,
     validate_skill_md,
 )
-from .llm import synthesize_structured
+from .llm import synthesize_structured, EVIDENCE_ONLY_DIRECTIVE
 from .placeholder import emit_placeholder
 from .composite_panel import render_composite_panel
 

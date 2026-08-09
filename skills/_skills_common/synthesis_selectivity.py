@@ -18,6 +18,8 @@ low-abundance (a window on a faint signal).
 """
 from __future__ import annotations
 
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+
 from typing import Optional
 
 SYNTHESIS_TOOL_NAME = "emit_selectivity_synthesis"
@@ -103,6 +105,7 @@ _SYSTEM = (
     "to foreground. State DATA_UNAVAILABLE gaps plainly — a null result is decision-useful. "
     "SCOPE DISCIPLINE: do NOT discuss therapeutic MODALITY, surface accessibility, dependency, or "
     "absolute expression level. Those belong to other lenses / the composed target-profile synthesis."
+    + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Deterministic plain-language legend for the metrics this narration cites — attached to the output

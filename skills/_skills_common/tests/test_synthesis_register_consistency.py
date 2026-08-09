@@ -49,6 +49,42 @@ def test_system_prompt_carries_publication_register(mod, fn, key):
 
 
 @pytest.mark.parametrize("mod,fn,key", NARRATORS, ids=lambda x: getattr(x, "__name__", ""))
+def test_system_prompt_carries_evidence_only_directive(mod, fn, key):
+    """Every narrator must fence the LLM to the presented evidence (blinding-experiment 2026-08-09:
+    the model imported prior knowledge of a named target beyond the data). The shared directive lives
+    in _skills_common.llm.EVIDENCE_ONLY_DIRECTIVE and is appended to each _SYSTEM."""
+    from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE
+    assert EVIDENCE_ONLY_DIRECTIVE.strip() in mod._SYSTEM, \
+        f"{mod.__name__}._SYSTEM missing the shared EVIDENCE_ONLY_DIRECTIVE"
+    assert "evidence-only grounding" in mod._SYSTEM.lower()
+    assert "prior knowledge" in mod._SYSTEM.lower()
+
+
+def test_target_profile_system_prompt_carries_evidence_only_directive():
+    import importlib.util
+    from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE
+    run_py = COMMON.parent / "target-profile" / "scripts" / "run.py"
+    spec = importlib.util.spec_from_file_location("tp_run_reg", run_py)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    assert EVIDENCE_ONLY_DIRECTIVE.strip() in m._SYSTEM_PROMPT
+
+
+def test_synthesize_temperature_is_optional_none_default():
+    """Opus 4.8 DEPRECATES the temperature param (400 on any non-default). synthesize_structured must
+    default temperature=None (not sent) so it never breaks the model; a caller may still set it for
+    models that honour it. The _prompt_hash must distinguish set-vs-unset."""
+    import inspect
+    from _skills_common import llm
+    assert inspect.signature(llm.synthesize_structured).parameters["temperature"].default is None
+    # hash differs between unset and an explicit value (provenance visibility)
+    h_default = llm._prompt_hash("s", "u", {"x": 1}, "m", None)
+    h_zero = llm._prompt_hash("s", "u", {"x": 1}, "m", 0.0)
+    assert h_default != h_zero
+    assert h_default == llm._prompt_hash("s", "u", {"x": 1}, "m")  # None is the documented default
+
+
+@pytest.mark.parametrize("mod,fn,key", NARRATORS, ids=lambda x: getattr(x, "__name__", ""))
 def test_metric_legend_is_nontrivial_dict(mod, fn, key):
     assert isinstance(mod.METRIC_LEGEND, dict) and len(mod.METRIC_LEGEND) >= 4
     for k, v in mod.METRIC_LEGEND.items():

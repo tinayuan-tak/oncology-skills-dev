@@ -30,6 +30,8 @@ exclude the `run_health` sibling (and, when present, `llm_synthesis`); both are 
 """
 from __future__ import annotations
 
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+
 from typing import Optional
 
 # The structured-output contract. Categorical fields use fixed enums so the narration
@@ -129,6 +131,7 @@ _SYSTEM = (
     "T-cell-engager / antibody / CAR) or surface accessibility. Modality reasoning requires holding "
     "multiple evidence lenses together and belongs to the composed target-profile synthesis, not to "
     "this single-lens presence skill. The control benchmarks are only an ABUNDANCE yardstick."
+    + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Deterministic plain-language legend for the metrics this narration cites — attached as a sibling

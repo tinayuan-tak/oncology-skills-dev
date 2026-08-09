@@ -42,6 +42,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import (
+    EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE,
     resolve_cards, fired_rules, modality_lens,
     synthesize_structured, render_composite_panel,
 )
@@ -1452,6 +1453,7 @@ _SYSTEM_PROMPT = (
     "(or small-molecule-occupancy for a purely surface antigen) unless a fired rule overrides the axis. "
     "The block keeps modality talk biologically honest; it does NOT make modality the lead, and it never "
     "changes the deterministic verdict or recommendation (the gate owns those)."
+    + _EVIDENCE_ONLY_DIRECTIVE
 )
 
 # Cross-cutting plain-language legend for the metrics the COMPOSED synthesis may cite across lenses.
