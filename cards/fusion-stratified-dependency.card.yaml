@@ -59,6 +59,10 @@ outputs:
     - fusion_stratification_effect_size              # rank-biserial correlation
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - fusion_stratification_class
+    # Indication-conditioning provenance (T2.0, 2026-08-09) -- scope of the stratified call:
+    - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
+    - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
+    - pan_lineage_fusion_stratification_class  # the pan-DepMap class (audit)
 
   summary_fields_vocabulary:
     fusion_stratification_class:

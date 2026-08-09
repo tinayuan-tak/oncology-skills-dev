@@ -77,6 +77,11 @@ outputs:
     - per_hotspot_stats                        # list of {protein_change, n, median_chronos, p25, p75}
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - mutation_stratification_class
+    # === Indication-conditioning provenance (T2.0, 2026-08-09) — the stratified test now runs
+    #     WITHIN the indication's DepMap lineage when powered; these say at what scope the call was made.
+    - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
+    - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
+    - pan_lineage_mutation_stratification_class # the pan-DepMap class (audit; kept when a within-lineage scope wins)
 
   summary_fields_vocabulary:
     mutation_stratification_class:
