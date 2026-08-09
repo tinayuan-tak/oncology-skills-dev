@@ -84,6 +84,15 @@ outputs:
     - pan_lineage_mutation_stratification_class # the pan-DepMap class (audit; kept when a within-lineage scope wins)
     - indication_lineage                       # the resolved DepMap OncotreeLineage for the indication (null if unmapped)
     - pan_fallback_strong_capped_to_moderate   # True when a pan-fallback STRONG call was capped to moderate (confound unresolved)
+    # === Dependency-classification PERFORMANCE (Thread 3, 2026-08-09) — the hotspot biomarker treated
+    #     as a classifier for the DepMap-dependency phenotype (Chronos <= -0.5). DEPENDENCY performance,
+    #     NOT drug-response / clinical. PPV-lift (PPV / base-rate) separates rare-sharp markers (BRAF ~9.6x)
+    #     from common-dependency high-PPV-low-lift markers (KRAS ~2.2x) the coarse class hides.
+    - hotspot_dependency_ppv                   # P(dependent | hotspot-mutant)
+    - hotspot_dependency_sensitivity           # P(hotspot-mutant | dependent)
+    - hotspot_dependency_specificity           # P(WT | not dependent)
+    - hotspot_dependency_base_rate             # P(dependent) over the evaluated panel (the PPV null)
+    - hotspot_dependency_ppv_lift              # PPV / base-rate — informativeness above the prior
 
   summary_fields_vocabulary:
     mutation_stratification_class:
