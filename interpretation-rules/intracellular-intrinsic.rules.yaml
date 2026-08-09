@@ -2112,11 +2112,11 @@ rules:
   # The LIVE structure signal (2026-08-07). structural_ligandability_class fuses SIX shipped
   # per-UniProt products (HOTPocket pocket geometry, GenomeScreen virtual-screen hits, PLINDER
   # co-crystals, CryptoBench cryptic sites, AlphaFold disorder, InterPro binding/active sites)
-  # into one ordinal via structure-ligandability-per-protein-v1. This is what actually moves
-  # the SM tractability verdict now: the E8 block above keys on hotspot_pocket_adjacency_call,
-  # whose product (pdb-alphafold-structure-features-per-uniprot-v1) is NOT yet materialized —
-  # so those rules only ever see no_structure -> insufficient. These E8-lig rules give the SM
-  # axis a real FORWARD-ligandability signal ("is there ANY druggable handle") that the
+  # into one ordinal via structure-ligandability-per-protein-v1. BOTH structural legs now move the
+  # SM tractability verdict: the E8 block above keys on hotspot_pocket_adjacency_call, whose product
+  # (pdb-alphafold-structure-features-per-uniprot-v1) is LIVE as of 2026-08-07 — the reader loads it
+  # and those rules fire (KRAS/BRAF/ERBB2 -> adjacent / hotspot-in-druggable-pocket). These E8-lig
+  # rules ADD an ordinal FORWARD-ligandability signal ("is there ANY druggable handle") that the
   # retrospective PRISM cards (E6/E7) miss for a not-yet-drugged target (KRAS-G12C switch-II
   # archetype). SM-scoped ONLY (a pocket says nothing about a biologics modality); the surface
   # axis does not load a small_molecule module, so no surface twin is needed.

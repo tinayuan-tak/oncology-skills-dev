@@ -20,10 +20,11 @@ tier: target   # scope-invariant: AlphaFold structure / pocket features are prop
 applies_when: []
 
 required_inputs:
-  # The composite ligandability product is the LIVE leg (fuses 6 shipped per-UniProt
-  # structure products). The hotspot-adjacency product is a DIFFERENT, still-unmaterialized
-  # schema — kept so the hotspot fields have a documented home, but the reader degrades it
-  # to no_structure gracefully until it is built.
+  # The composite ligandability product is a LIVE leg (fuses 6 shipped per-UniProt
+  # structure products). The hotspot-adjacency product is a DIFFERENT schema; it is ALSO
+  # LIVE (materialized 2026-08-07) — the reader loads it and the E8 hotspot rules fire
+  # (KRAS/BRAF/ERBB2 -> adjacent). The reader degrades it to no_structure only on a read
+  # failure or a target absent from the product (an honest coverage gap, never a false negative).
   - product_id: structure-ligandability-per-protein-v1
   - product_id: pdb-alphafold-structure-features-per-uniprot-v1
 
@@ -51,7 +52,7 @@ outputs:
     # (HOTPocket pockets, GenomeScreen VS-hits, PLINDER co-crystals, CryptoBench cryptic sites,
     # AlphaFold disorder, InterPro binding/active sites). Answers "is there ANY druggable handle"
     # — complements hotspot_pocket_adjacency_call ("is a specific hotspot residue in a pocket",
-    # whose product is not yet materialized). VERDICT-BEARING on the SM axis (see the E8-lig rules).
+    # whose product is LIVE as of 2026-08-07). VERDICT-BEARING on the SM axis (see the E8-lig rules).
     - structural_ligandability_class               # PRIMARY ligandability categorical (see vocabulary)
     - n_ligandability_axes                         # int 0-5; count of positive evidence axes
     - has_experimental_cocrystal                   # bool; PLINDER proper-ligand co-crystal
