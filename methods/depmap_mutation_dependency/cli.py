@@ -298,6 +298,33 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     except ValueError:
         p_reverse = None
 
+    # ── Dependency-classification PERFORMANCE (biomarker-axis Thread 3) ────────────────────
+    # Treat the biomarker (mutant/altered = positive) as a CLASSIFIER for the DepMap-dependency
+    # phenotype (dependent = Chronos <= DEPENDENT_THRESHOLD, the -0.5 CHRONOS_STRONG_DEPENDENCY
+    # convention). This yields honest, computable confusion-matrix metrics ON THE ONE GROUND TRUTH
+    # THE FRAMEWORK HAS — DepMap genetic dependency — NOT drug response or a clinical endpoint.
+    #   dependency_ppv         = P(dependent | biomarker+)   — of altered lines, how many are dependent
+    #   dependency_sensitivity = P(biomarker+ | dependent)   — of dependent lines, how many are altered
+    #   dependency_specificity = P(biomarker- | not dependent)
+    #   dependency_base_rate   = P(dependent) over the evaluated panel (the PPV null to beat)
+    # These are verdict-inert diagnostics; a consumer MUST label them dependency-* (a CRISPR-KO
+    # dependency biomarker is not automatically an inhibitor/clinical biomarker — same guardrail the
+    # BEST-role _note carries). Reported only when both classes are populated.
+    DEPENDENT_THRESHOLD = -0.5
+    tp = int(np.sum(mut_arr <= DEPENDENT_THRESHOLD))          # biomarker+ & dependent
+    fp = n_mut - tp                                            # biomarker+ & not dependent
+    n_dep_wt = int(np.sum(wt_arr <= DEPENDENT_THRESHOLD))      # biomarker- & dependent (FN)
+    tn = n_wt - n_dep_wt                                       # biomarker- & not dependent
+    n_dependent = tp + n_dep_wt
+    n_total = n_mut + n_wt
+    dependency_ppv = (tp / n_mut) if n_mut else None
+    dependency_sensitivity = (tp / n_dependent) if n_dependent else None
+    dependency_specificity = (tn / (n_total - n_dependent)) if (n_total - n_dependent) else None
+    dependency_base_rate = (n_dependent / n_total) if n_total else None
+    # PPV LIFT over the base rate: does knowing the biomarker improve the dependency prior?
+    dependency_ppv_lift = ((dependency_ppv / dependency_base_rate)
+                           if (dependency_ppv is not None and dependency_base_rate) else None)
+
     return {
         "n_mutant": int(n_mut),
         "n_wildtype": int(n_wt),
@@ -310,6 +337,13 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
         "q_value_reverse": None,              # filled by caller (reverse BH)
         "effect_size": float(effect),
         "_uncomputable": uncomputable,
+        # dependency-classification performance (Thread 3) — DepMap dependency ground truth only
+        "dependency_ppv": dependency_ppv,
+        "dependency_sensitivity": dependency_sensitivity,
+        "dependency_specificity": dependency_specificity,
+        "dependency_base_rate": dependency_base_rate,
+        "dependency_ppv_lift": dependency_ppv_lift,
+        "dependency_threshold": DEPENDENT_THRESHOLD,
     }
 
 
@@ -438,6 +472,13 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "hotspot_mannwhitney_q": hot["q_value"],
         "hotspot_mannwhitney_q_reverse": hot.get("q_value_reverse"),
         "hotspot_effect_size": hot["effect_size"],
+        # Dependency-classification performance (Thread 3) — the hotspot biomarker as a classifier
+        # for the DepMap-dependency phenotype (Chronos <= -0.5). DEPENDENCY performance, NOT clinical.
+        "hotspot_dependency_ppv": hot.get("dependency_ppv"),
+        "hotspot_dependency_sensitivity": hot.get("dependency_sensitivity"),
+        "hotspot_dependency_specificity": hot.get("dependency_specificity"),
+        "hotspot_dependency_base_rate": hot.get("dependency_base_rate"),
+        "hotspot_dependency_ppv_lift": hot.get("dependency_ppv_lift"),
         # === Damaging tier ===
         "n_damaging_mutant": dam["n_mutant"],
         "n_damaging_wildtype": dam["n_wildtype"],
