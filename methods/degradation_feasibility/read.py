@@ -42,6 +42,23 @@ PRODUCT_MANIFEST_ID = "ubibrowser-e3-substrate-per-gene-v1"
 METHOD_VERSION = "0.1.0"
 
 # surfaceome family_class values that place the target OUTSIDE cytoplasmic-E3 reach.
+# BUGFIX (2026-08-09, modality-fit review): the surfaceome product NEVER emits these strings — its
+# family_class vocabulary is {kinase_surface, enzyme_surface, transporter, cd_molecule, adhesion,
+# gpcr, growth_factor_receptor, immune_receptor, other_surface, not_surface, data_unavailable}. The
+# old set had ZERO overlap with it, so `location_excluded` was ALWAYS False → `unfavorable_location`
+# (the method's only genuinely NEGATIVE call, and the degrader lens's only rejecting signal) never
+# fired: a GPCR / EGFR that a cytoplasmic PROTAC cannot reach got a non-negative degradability read.
+# The location gate now keys on the surfaceome card's `is_surface_protein` BOOLEAN (vocab-independent,
+# robust to family_class label changes); the string set is kept as a fallback and corrected to the
+# REAL surface family_class values (any value other than not_surface / data_unavailable is a surface
+# residency call).
+# The REAL surfaceome family_class values that denote surface residency (i.e. cytoplasmic-E3-
+# unreachable). Any of these → location_excluded when falling back to the string (no boolean given).
+_SURFACE_FAMILY_CLASSES = {
+    "kinase_surface", "enzyme_surface", "transporter", "cd_molecule", "adhesion", "gpcr",
+    "growth_factor_receptor", "immune_receptor", "other_surface",
+}
+# Retained for back-compat with any caller/test still passing the pre-fix literal vocab.
 _SURFACE_SECRETED = {"surface", "cell_surface", "secreted", "membrane", "plasma_membrane"}
 
 
@@ -80,14 +97,22 @@ def _read_e3_substrate(target: str) -> Optional[dict]:
 
 
 def degradation_feasibility_for_gene(target: str, surface_family_class: Optional[str] = None,
+                                     is_surface_protein: Optional[bool] = None,
                                      target_contracts_dir: Optional[str] = None,
                                      e3_row: Optional[dict] = None,
                                      precedent: Optional[dict] = None) -> dict:
     """Per-target degradability feasibility. Precedence: unfavorable_location > precedented_degradable
     > ubiquitination_substrate > plausible_untested > data_unavailable.
 
-    surface_family_class: the surfaceome family_class (injected by the dispatcher from the composed
-    surfaceome card) for the location gate. e3_row / precedent may be injected for tests."""
+    Location gate (2026-08-09 bugfix): a cell-surface / secreted protein is NOT reachable by a
+    cytoplasmic PROTAC/glue → unfavorable_location. Determined from the surfaceome card's
+    `is_surface_protein` BOOLEAN when supplied (robust, vocab-independent); else falls back to the
+    family_class string (any value other than not_surface / data_unavailable is a surface call). The
+    old `surface_family_class in {surface,cell_surface,...}` test was a DEAD gate (those strings are
+    never emitted by the surfaceome product) — see the module-level note.
+
+    surface_family_class / is_surface_protein: injected by the dispatcher from the surfaceome card.
+    e3_row / precedent may be injected for tests."""
     sym = (target or "").strip().upper()
     precedent = precedent if precedent is not None else _load_precedent(target_contracts_dir)
     curated = precedent.get(sym)
@@ -99,8 +124,20 @@ def degradation_feasibility_for_gene(target: str, surface_family_class: Optional
     e3_types = list((row or {}).get("e3_types_literature") or [])
     n_pred_conf = int((row or {}).get("n_e3_predicted_confident") or 0)
 
+    # ----- location gate (fixed) -----
     loc = (surface_family_class or "").strip().lower()
-    location_excluded = loc in _SURFACE_SECRETED
+    if is_surface_protein is not None:
+        # Primary path: the surfaceome card's boolean (vocab-independent).
+        location_excluded = bool(is_surface_protein)
+    elif loc:
+        # Fallback: a real family_class string denotes surface residency, OR a legacy literal
+        # ('surface'/'secreted'/...). A non-surface (not_surface/data_unavailable) or an unknown
+        # value (e.g. 'intracellular') is NOT excluded.
+        location_excluded = (loc in _SURFACE_FAMILY_CLASSES) or (loc in _SURFACE_SECRETED)
+    else:
+        location_excluded = False
+    # location is KNOWN only if the dispatcher supplied a surfaceome signal at all.
+    location_known = (is_surface_protein is not None) or bool(loc)
 
     # ----- precedence -----
     if location_excluded:
@@ -109,10 +146,16 @@ def degradation_feasibility_for_gene(target: str, surface_family_class: Optional
         klass = "precedented_degradable"
     elif n_lit >= 1:
         klass = "ubiquitination_substrate"
-    elif row is None and surface_family_class is None:
+    elif row is None and not location_known:
         klass = "data_unavailable"
     else:
         klass = "plausible_untested"
+
+    # PROTAC vs molecular-glue: surface the curated modality + recruited E3 (previously DISCARDED).
+    # A PROTAC needs a ligandable handle ON the target; a molecular glue does not (it reshapes an E3
+    # surface for a neo-substrate). Recording which lets the degrader lens distinguish the two.
+    degrader_modality = (curated.get("modality") if curated else None)
+    recruited_e3 = (curated.get("recruited_e3") if curated else None)
 
     return {
         "degradability_feasibility_class": klass,
@@ -123,21 +166,28 @@ def degradation_feasibility_for_gene(target: str, surface_family_class: Optional
         "n_e3_predicted_confident": n_pred_conf,
         "degrader_precedent": bool(curated),
         "degrader_precedent_examples": (list(curated.get("examples", [])) if curated else []),
+        "degrader_precedent_modality": degrader_modality,     # PROTAC | molecular_glue (curated) | None
+        "degrader_recruited_e3": recruited_e3,                 # CRBN | VHL | ... (curated) | None
         "surface_location_excluded": location_excluded,
-        "degradability_context": _context(sym, klass, curated, n_lit, e3_ligases, loc),
+        "degradability_context": _context(sym, klass, curated, n_lit, e3_ligases, loc,
+                                          degrader_modality, recruited_e3),
         "method_version": METHOD_VERSION,
         "_data_source": "ubibrowser-v3-human + curated-precedent",
     }
 
 
-def _context(sym, klass, curated, n_lit, e3_ligases, loc) -> Optional[str]:
+def _context(sym, klass, curated, n_lit, e3_ligases, loc,
+             degrader_modality=None, recruited_e3=None) -> Optional[str]:
     if klass == "unfavorable_location":
-        return (f"{sym}: {loc} protein — outside cytoplasmic-E3 reach, so a classic intracellular "
-                f"PROTAC/molecular-glue cannot engage it (an ADC/TCE surface modality applies instead).")
+        loc_label = loc or "cell-surface"
+        return (f"{sym}: {loc_label} protein — outside cytoplasmic-E3 reach, so a classic intracellular "
+                f"PROTAC/molecular-glue cannot engage it (an ADC/TCE surface modality applies instead; "
+                f"an extracellular-degrader modality such as LYTAC/AbTAC is the exception).")
     if klass == "precedented_degradable":
         ex = ", ".join(curated.get("examples", [])[:2]) if curated else ""
+        mod = f" [{degrader_modality}" + (f", recruits {recruited_e3}" if recruited_e3 else "") + "]" if degrader_modality else ""
         return (f"{sym}: documented targeted-degrader precedent"
-                f"{' ('+ex+')' if ex else ''} — degradation feasibility demonstrated.")
+                f"{' ('+ex+')' if ex else ''}{mod} — degradation feasibility demonstrated.")
     if klass == "ubiquitination_substrate":
         return (f"{sym}: natural E3 substrate ({n_lit} curated E3s: {', '.join(e3_ligases[:4])}) — "
                 f"ubiquitination-competent; a positive degradability prior (no drug precedent yet).")
