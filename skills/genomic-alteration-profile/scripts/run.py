@@ -242,6 +242,11 @@ def main() -> int:
                                               "evidence_scope"),
         "stratified_lineage_context_divergent": get_card_field(cards, "mutation-stratified-dependency",
                                               "lineage_context_divergent"),
+        # True when a pan-fallback STRONG stratified call was de-rated to moderate because the
+        # within-lineage mutant arm was underpowered (tissue confound unresolved) — signals a
+        # pan-cancer extrapolation, not indication-specific evidence (T2.0).
+        "stratified_pan_fallback_capped": get_card_field(cards, "mutation-stratified-dependency",
+                                              "pan_fallback_strong_capped_to_moderate"),
         "overall_mutation_frequency":    get_card_field(cards, "mutation-hotspot-frequency",
                                               "overall_mutation_frequency"),
         # Driver-recurrence percentile (Axis-1 contextualization, 2026-08-05) — is this gene's
