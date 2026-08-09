@@ -40,9 +40,13 @@ def test_moderate_biomarker():
     assert _v("mutant-moderately-dependent-supportive")[0] == "moderate_biomarker_dependency"
 
 
-def test_lof_and_missense_drivers():
-    assert _v("mut-lof-dominant-supportive")[0] == "recurrent_lof_driver"
-    assert _v("mut-missense-dominant-supportive")[0] == "recurrent_missense_driver"
+def test_lof_and_missense_dominant_patterns():
+    # T1.1 (2026-08-09): renamed recurrent_{lof,missense}_driver -> {lof,missense}_dominant_pattern.
+    # These fire on variant-CLASS composition (mutation-type-counts), NOT patient recurrence — the
+    # honest name. "recurrent" is reserved for signals that literally count sample recurrence
+    # (cn-recurrently-*, fusion-landscape). Pure verdict-string rename; precedence/logic unchanged.
+    assert _v("mut-lof-dominant-supportive")[0] == "lof_dominant_pattern"
+    assert _v("mut-missense-dominant-supportive")[0] == "missense_dominant_pattern"
 
 
 # --- CN axis --------------------------------------------------------------
@@ -55,6 +59,26 @@ def test_cn_amplification_driver_when_mutation_passenger():
 
 def test_cn_deletion_driver():
     assert _v("cn-recurrently-deleted-supportive")[0] == "recurrent_deletion_driver"
+
+
+def test_fusion_landscape_recurrent_driver():
+    # T1.3 (2026-08-09): a recurrently rearranged patient oncogene with NO DepMap dependency line
+    # now reads recurrent_fusion_driver (was: collapsed to passenger/insufficient). The fusion analog
+    # of recurrent_amplification_driver — a landscape-recurrence driver, not a nominating positive.
+    assert _v("fusion-landscape-recurrent-driver-supportive")[0] == "recurrent_fusion_driver"
+    # ... even when the mutation axis says "no mutations" (the exact line-poor-oncogene gap).
+    assert _v("fusion-landscape-recurrent-driver-supportive", "mut-no-mutations-neutral")[0] == (
+        "recurrent_fusion_driver")
+
+
+def test_precedence_by_strength_strong_cn_over_moderate_mut():
+    # T2.4 (2026-08-09): for a dually-altered gene, a STRONG CN-dependency outranks a MODERATE
+    # mutation-dependency — the larger effect is named the driver. Both map to the stratified
+    # verdicts, but the driving_rule must be the strong CN rule, not the moderate mut rule.
+    v, drv = _v("mutant-moderately-dependent-supportive", "cn-amplified-strongly-dependent-supportive")
+    assert v == "biomarker_stratified_dependency"
+    assert drv == "cn-amplified-strongly-dependent-supportive", (
+        "strong CN dependency must win over moderate mutation dependency (precedence-by-strength)")
 
 
 # --- multi-class ----------------------------------------------------------

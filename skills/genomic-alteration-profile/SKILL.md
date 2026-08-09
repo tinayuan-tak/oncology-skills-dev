@@ -118,11 +118,23 @@ a modifier so amplification/deletion-driven targets aren't collapsed to passenge
      → `multi_class_driver` (mutation rule reported as primary driver).
   2. **Only SNV/indel drives** → the mutation verdict stands:
      `biomarker_stratified_dependency` / `moderate_biomarker_dependency` /
-     `recurrent_lof_driver` / `recurrent_missense_driver`.
-  3. **Only copy-number drives** (mutation passenger/mixed/absent)
-     → `recurrent_amplification_driver` / `recurrent_deletion_driver`.
+     `lof_dominant_pattern` / `missense_dominant_pattern`. The two
+     `*_dominant_pattern` verdicts (renamed from `recurrent_*_driver`, T1.1)
+     report the *variant-class composition* of the mutation spectrum
+     (≥70% missense / ≥50% truncating) — NOT patient recurrence, which the
+     mutation-type card never computes.
+  3. **Only copy-number / fusion drives** (mutation passenger/mixed/absent)
+     → `recurrent_amplification_driver` / `recurrent_deletion_driver` /
+     `recurrent_fusion_driver` (T1.3: a recurrently rearranged patient
+     oncogene — ≥3 samples — with no DepMap dependency line, previously lost
+     to passenger).
   4. **Neither** → the mutation axis's `mixed_pattern` / `passenger_pattern`,
      else `insufficient`.
+
+  Within the stratified-dependency family, precedence is **by effect strength
+  then class** (T2.4): all *strongly*-dependent signals (mut/cn/fusion/amp-expr)
+  outrank all *moderately*-dependent ones, so a strong CN/fusion dependency is
+  named the driver over a moderate mutation dependency for a dually-altered gene.
 
 ## Alteration classes
 

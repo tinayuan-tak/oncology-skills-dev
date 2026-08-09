@@ -42,8 +42,9 @@ VERDICT_COLORS = {
     "chemically_active":              "#4a7c9e",
     "lineage_restricted":             "#4a7c9e",
     "modestly_upregulated_in_tumor":  "#4a7c9e",
-    "recurrent_lof_driver":           "#4a7c9e",
-    "recurrent_missense_driver":      "#4a7c9e",
+    "lof_dominant_pattern":           "#4a7c9e",   # T1.1 rename (was recurrent_lof_driver)
+    "missense_dominant_pattern":      "#4a7c9e",   # T1.1 rename (was recurrent_missense_driver)
+    "recurrent_fusion_driver":        "#4a7c9e",   # T1.3 (fusion-landscape recurrence driver)
 
     # Neutral / caution (ochre)
     "tool_compound_only":             "#c07a20",
