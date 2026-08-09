@@ -125,7 +125,7 @@ warning_predicates:
 
 caveats:
   - "Mutation status is derived from DepMap's OmicsSomaticMutationsMatrix{Hotspot,Damaging}.csv — known-oncogenic hotspots + broader LOF separately. Activating non-hotspot variants are NOT captured."
-  - "Mann-Whitney is one-sided (alternative: mutant more dependent). Tumor-suppressor patterns (WT more dependent) surface as `wt_strongly_dependent` via a second-pass test."
+  - "Two directional passes: a FORWARD one-sided MW (mutant more dependent) drives the oncogene-addiction classes; a SECOND-PASS reverse MW (WT more dependent) makes `wt_strongly_dependent` reachable, gated on its own BH q + a strong positive delta (>= +0.5). The reverse class is TSG synthetic-dependency biology, verdict-inert (neutral rule only). A zero-variance tier is flagged `_uncomputable_tiers`, never reported as a tested negative."
   - "Cell-line mutation-stratified dependency is necessary but NOT sufficient for clinical biomarker — needs orthogonal validation (PDX, GTEx-context, isogenic models)."
   - "Recurrent hotspot list is target-specific; framework defers to DepMap's hotspot annotation rather than re-deriving."
   - "Strict 'is the target mutated' boolean — does not stratify by clonality / VAF / co-mutation patterns. Those are downstream questions."

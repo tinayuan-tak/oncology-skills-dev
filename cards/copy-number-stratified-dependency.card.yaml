@@ -101,7 +101,7 @@ warning_predicates:
 
 caveats:
   - "Amplification status = DepMap relative copy number > 1.5 (focal-amp convention; diploid ~ 1.0, NOT log2). Does not distinguish focal from arm-level/broad amplification."
-  - "Mann-Whitney is one-sided (alternative: amplified more dependent). Neutral-more-dependent patterns rarely surface as `neutral_strongly_dependent` under the one-sided test — a non-significant one-sided p correctly yields `not_cn_stratified` (amplification is never credited with a dependency it lacks)."
+  - "Two directional passes: a FORWARD one-sided MW (amplified more dependent) drives the amplified_*_dependent classes; a SECOND-PASS reverse MW (neutral more dependent) makes `neutral_strongly_dependent` reachable, gated on its own BH q + a strong positive delta (>= +0.5). Amplification is never credited with a dependency it lacks (forward classes cannot fire on a reverse pattern); the reverse class is verdict-inert."
   - "Amplification and mutation stratification are NOT independent — an amplified target is often also mutant/co-selected (e.g. KRAS). When both stratify, the resolver's mutation rung takes precedence (driving_rule names the mutation path)."
   - "Cell-line amplification-stratified dependency is necessary but NOT sufficient for a clinical biomarker — needs orthogonal validation (PDX, isogenic, patient copy-number)."
   - "Strict 'is the target amplified' boolean at a single relative-CN cutoff — does not model amplicon structure, co-amplified neighbours, or expression consequence. Those are downstream questions (see the amp→expression→dependency three-way signature)."
