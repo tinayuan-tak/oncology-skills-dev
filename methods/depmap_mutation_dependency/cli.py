@@ -313,18 +313,27 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     }
 
 
+# Indication → DepMap OncotreeLineage. Single source of truth is depmap_chronos
+# (lineage-selectivity); imported lazily in the conditioning wrapper to avoid a hard
+# module dependency at import time (and to keep the pan-DepMap core dependency-free).
+_STRONG_TO_MODERATE_CAP = {
+    "mutant_strongly_dependent": "mutant_moderately_dependent",
+}
+
+
 def compute_mutation_stratification(chronos_by_model: dict,
                                       hotspot_by_model: dict,
                                       damaging_by_model: dict,
                                       strong_effect_delta: float = -0.5,
                                       moderate_effect_delta: float = -0.2,
                                       stratification_alpha: float = 0.05) -> dict:
-    """Compute Card 3 summary fields.
+    """Compute Card 3 summary fields — PAN-DepMap core (no lineage conditioning).
 
     Three tier Mann-Whitney tests: hotspot, damaging, combined-any. BH correction
     applied across the three. mutation_stratification_class categorical is the
-    strongest signal.
-    """
+    strongest signal. Called with no lineage context, this is BYTE-IDENTICAL to the
+    historical behaviour (the existing golden path). Lineage conditioning is layered
+    on top by `compute_mutation_stratification_conditioned` (T2.0)."""
     import numpy as np
 
     # === Three parallel stratification tests ===
@@ -462,6 +471,131 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "_hotspot_by_model": hotspot_by_model,
         "_damaging_by_model": damaging_by_model,
     }
+
+
+def _resolve_indication_lineage(indication):
+    """Indication → DepMap OncotreeLineage via the depmap_chronos single-source map.
+    Returns the lineage string or None (unknown indication / no map entry)."""
+    if not indication:
+        return None
+    try:
+        from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE
+    except Exception:
+        return None
+    return INDICATION_TO_DEPMAP_LINEAGE.get(indication)
+
+
+def _models_in_lineage(model_metadata: dict, lineage: str) -> set:
+    """ModelIDs whose OncotreeLineage matches (the lineage universe for conditioning)."""
+    if not model_metadata or not lineage:
+        return set()
+    return {mid for mid, meta in model_metadata.items()
+            if (meta or {}).get("OncotreeLineage") == lineage}
+
+
+def compute_mutation_stratification_conditioned(
+        chronos_by_model: dict,
+        hotspot_by_model: dict,
+        damaging_by_model: dict,
+        model_metadata: dict = None,
+        indication: str = None,
+        min_mutant: int = 5,
+        min_wildtype: int = 30,
+        strong_effect_delta: float = -0.5,
+        moderate_effect_delta: float = -0.2,
+        stratification_alpha: float = 0.05) -> dict:
+    """Lineage-conditioned mutation-stratified dependency (T2.0).
+
+    Oncogenic hotspots are lineage-enriched (BRAF-V600E → melanoma/thyroid/CRC), so a
+    pan-DepMap "mutant more dependent" contrast can be TISSUE-confounded. This wrapper
+    runs the stratification WITHIN the indication's DepMap lineage when powered, and
+    records the scope + a within-vs-pan divergence flag. Graceful-degradation ladder
+    (matches the card's declared `evidence_scope` vocabulary):
+
+      within_indication              mutant-in-lineage >= min_mutant AND WT-in-lineage >= min_wildtype
+      within_indication_mut_vs_pan_wt mutant-in-lineage >= min_mutant, WT-in-lineage < min_wildtype
+                                     → lineage-mutants vs the PAN-DepMap WT comparator
+      pan_lineage_evidence_only      mutant-in-lineage < min_mutant → fall back to pan-DepMap; a STRONG
+                                     call is CAPPED to moderate (the confound is unresolved)
+      pan_no_indication              no indication / unmapped lineage / no metadata → pure pan-DepMap
+
+    The pan-DepMap class is ALWAYS computed and preserved as `pan_lineage_mutation_stratification_class`
+    (audit); `lineage_context_divergent` is True when the within-lineage direction disagrees with pan.
+    Called with model_metadata=None / indication=None this degrades to `pan_no_indication` and returns
+    the pan result verbatim (byte-identical to `compute_mutation_stratification`)."""
+    # Pan-DepMap baseline (always computed — the audit anchor + the fallback).
+    pan = compute_mutation_stratification(
+        chronos_by_model, hotspot_by_model, damaging_by_model,
+        strong_effect_delta, moderate_effect_delta, stratification_alpha)
+    pan_class = pan["mutation_stratification_class"]
+
+    lineage = _resolve_indication_lineage(indication)
+    lineage_models = _models_in_lineage(model_metadata, lineage)
+
+    def _finish(result, scope, within_class=None):
+        result["evidence_scope"] = scope
+        result["pan_lineage_mutation_stratification_class"] = pan_class
+        result["indication_lineage"] = lineage
+        # divergence: a directional within-lineage call that disagrees with the pan direction
+        div = False
+        if within_class is not None:
+            within_dir = _dir(within_class)
+            pan_dir = _dir(pan_class)
+            div = (within_dir is not None and pan_dir is not None and within_dir != pan_dir)
+        result["lineage_context_divergent"] = bool(div)
+        return result
+
+    def _dir(cls):
+        if cls in ("mutant_strongly_dependent", "mutant_moderately_dependent"):
+            return "mutant"
+        if cls == "wt_strongly_dependent":
+            return "wt"
+        return None
+
+    # pan_no_indication: no usable lineage context → pan result verbatim.
+    if not lineage or not lineage_models:
+        return _finish(pan, "pan_no_indication")
+
+    # Partition the lineage universe.
+    chronos_lin = {m: c for m, c in chronos_by_model.items() if m in lineage_models}
+    hot_lin = {m: v for m, v in hotspot_by_model.items() if m in lineage_models}
+    dam_lin = {m: v for m, v in damaging_by_model.items() if m in lineage_models}
+    n_mut_lin = sum(1 for m in chronos_lin
+                    if hot_lin.get(m) or dam_lin.get(m))
+    n_wt_lin = sum(1 for m in chronos_lin
+                   if not (hot_lin.get(m) or dam_lin.get(m)))
+
+    # within_indication: both arms powered inside the lineage.
+    if n_mut_lin >= min_mutant and n_wt_lin >= min_wildtype:
+        within = compute_mutation_stratification(
+            chronos_lin, hot_lin, dam_lin,
+            strong_effect_delta, moderate_effect_delta, stratification_alpha)
+        return _finish(within, "within_indication", within["mutation_stratification_class"])
+
+    # within_indication_mut_vs_pan_wt: lineage mutants vs the pan-WT comparator (broadens the
+    # WT arm when the lineage has too few WT lines, keeping the mutant arm lineage-pure).
+    if n_mut_lin >= min_mutant:
+        lin_mut_ids = {m for m in chronos_lin if hot_lin.get(m) or dam_lin.get(m)}
+        # chronos over: lineage mutants + ALL pan WT; hotspot/damaging True only for lineage mutants.
+        chronos_mix = dict(chronos_lin)  # lineage mutants (+ any lineage WT, harmless — reclassified below)
+        pan_wt_ids = {m for m in chronos_by_model
+                      if not (hotspot_by_model.get(m) or damaging_by_model.get(m))}
+        for m in pan_wt_ids:
+            chronos_mix[m] = chronos_by_model[m]
+        hot_mix = {m: (m in lin_mut_ids and bool(hotspot_by_model.get(m))) for m in chronos_mix}
+        dam_mix = {m: (m in lin_mut_ids and bool(damaging_by_model.get(m))) for m in chronos_mix}
+        mix = compute_mutation_stratification(
+            chronos_mix, hot_mix, dam_mix,
+            strong_effect_delta, moderate_effect_delta, stratification_alpha)
+        return _finish(mix, "within_indication_mut_vs_pan_wt", mix["mutation_stratification_class"])
+
+    # pan_lineage_evidence_only: lineage mutant arm underpowered → pan-DepMap, but CAP a strong
+    # call to moderate (the tissue confound is unresolved, so do not credit full strength).
+    capped = dict(pan)
+    if pan_class in _STRONG_TO_MODERATE_CAP:
+        capped["mutation_stratification_class"] = _STRONG_TO_MODERATE_CAP[pan_class]
+        capped["pan_fallback_strong_capped_to_moderate"] = True
+    return _finish(capped, "pan_lineage_evidence_only")
 
 
 def emit_mut_vs_wt_strip_plot(chronos_by_model: dict, hotspot_by_model: dict,
@@ -758,8 +892,9 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
         emit_manifest(target, indication, release_pin, {}, out, mut_errs)
         return 2
 
-    summary = compute_mutation_stratification(
-        chronos_by_model, hotspot_by_model, damaging_by_model
+    summary = compute_mutation_stratification_conditioned(
+        chronos_by_model, hotspot_by_model, damaging_by_model,
+        model_metadata=model_metadata, indication=indication,
     )
 
     with (out / "summary.json").open("w") as f:
