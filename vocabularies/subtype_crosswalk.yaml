@@ -1,0 +1,191 @@
+# subtype_crosswalk.yaml
+# Canonical registry of molecular-subtype/subgroup STRATUM IDs per indication, the AXIS each belongs
+# to, the COHORTS that actually carry members for it, and the cross-axis ASSOCIATIONS between strata.
+#
+# WHY THIS EXISTS (subtyping review 2026-08-09): the per-axis subtype panoramas speak DIFFERENT
+# stratum vocabularies for the same indication — the DepMap dependency axis emits MSI_H/MSS (the only
+# strata with cell-line members), while the TCGA expression axis emits CMS1-4 (which have ZERO DepMap
+# cell lines). So target-profile's cross-axis coherence facet could never find a stratum id shared
+# across >=2 axes, and `convergent_stratification` was effectively unreachable for the richest
+# subtypes. This registry (a) declares the canonical id set + axis per indication so a consumer knows
+# the full vocabulary, (b) records per-cohort availability so the facet knows WHICH axes can even
+# carry a given stratum (CMS: patient-only), and (c) encodes cross-axis ASSOCIATIONS (CMS1 is
+# MSI-H-ENRICHED, not identical) so the facet can relate findings across differently-vocabularied
+# axes HONESTLY — an association is enrichment/overlap, NEVER equivalence.
+#
+# Sibling of indication_crosswalk.yaml (indication-level code reconciliation). Source of truth for
+# stratum ids is the data-catalog subgroup-catalogs/{IND}/*.yaml; this registry MIRRORS those ids +
+# adds the cross-axis relationships they document only in prose. Keep in sync when a catalog adds a
+# stratum (the validator test asserts every id here exists in a catalog).
+
+version: 1.0.0
+schema_version: 1
+curation_status: iter1_authored
+
+# ---- relationship_type vocabulary (how one stratum relates to another) ----
+# enriched_in      : stratum A is over-represented within stratum B (A ⊂ B statistically, not set-wise)
+#                    e.g. MSI_H enriched_in CMS1 (most CMS1 is MSI-H, but not all; and some MSI-H is not CMS1)
+# co_defining      : two axes that partition the SAME biology (e.g. histology_ESCC / EAC are the two halves)
+# mutually_exclusive : membership in A precludes B (e.g. MSI_H vs MSS)
+# orthogonal       : independent axes (e.g. sidedness vs LOT) — no association claim
+# NOTE: the coherence facet treats `enriched_in` as a WEAK bridge (report "related", never "same"),
+# `mutually_exclusive` as a hard partition, and never fabricates convergence across `orthogonal`.
+
+indications:
+
+  # ============================================================================
+  # COADREAD — the reference (fully covered: TCGA + DepMap + GENIE-BPC)
+  # ============================================================================
+  - canonical_code: COADREAD
+    axes:
+      - axis: msi_status
+        strata: [MSI_H, MSS]
+        cohorts: [tcga, depmap]          # the ONE COADREAD axis with DepMap cell-line members
+        partition: mutually_exclusive
+      - axis: molecular_subtype          # Guinney 2015 CMS
+        strata: [CMS1, CMS2, CMS3, CMS4]
+        cohorts: [tcga]                  # PATIENT-ONLY — 0 DepMap cell lines (expected_n_depmap: 0)
+        partition: mutually_exclusive
+      - axis: cimp_status
+        strata: [CIMP_High, CIMP_Low, CIMP_Neg]
+        cohorts: [tcga]
+        partition: mutually_exclusive
+      - axis: sidedness
+        strata: [right_sided, left_sided]
+        cohorts: [tcga]                  # sidedness UNMEASURABLE on DepMap (collection-site != primary sidedness)
+        partition: mutually_exclusive
+      - axis: driver_mutation
+        strata: [KRAS_mut, KRAS_G12C, BRAF_V600E]
+        cohorts: [tcga, depmap, genie]
+      - axis: line_of_therapy
+        strata: [LOT_1L_only, LOT_2L, LOT_3Lplus]
+        cohorts: [genie_bpc]
+    # Cross-axis associations (documented in the catalog prose; made machine-readable here).
+    associations:
+      - from: MSI_H
+        to: CMS1
+        relationship: enriched_in
+        note: "MSI-H is CMS1-associated (Guinney 2015); most CMS1 is MSI-H/hypermutated/immune, but the sets are not equal. A weak bridge for coherence — report 'related', never 'same stratum'."
+      - from: BRAF_V600E
+        to: CMS1
+        relationship: enriched_in
+        note: "BRAF-V600E enriched in CMS1 (MSI-immune) + CIMP-High; right-sided."
+      - from: MSI_H
+        to: CIMP_High
+        relationship: enriched_in
+        note: "CIMP-High strongly MSI-H-enriched + BRAF-V600E-enriched (Weisenberger 2006)."
+      - from: CMS4
+        to: right_sided
+        relationship: enriched_in
+        note: "Mesenchymal CMS4 right-sided-enriched; TGF-beta/stromal biology."
+      - from: CMS2
+        to: left_sided
+        relationship: enriched_in
+        note: "Canonical CMS2 left-sided-enriched; WNT/MYC, best survival."
+      - from: KRAS_mut
+        to: CMS3
+        relationship: enriched_in
+        note: "Metabolic CMS3 KRAS-mutation-enriched."
+
+  # ============================================================================
+  # NSCLC — histology + drivers + fusions (histology data_blocked pending clinical loader)
+  # ============================================================================
+  - canonical_code: NSCLC
+    axes:
+      - axis: histology
+        strata: [histology_Adeno, histology_SCC]
+        cohorts: [tcga]                  # data_blocked until clinical-field loader ships (see repoint runbook)
+        partition: co_defining
+      - axis: driver_mutation
+        strata: [EGFR_mut_ex19del, EGFR_mut_L858R, EGFR_mut_ex20ins, KRAS_G12C, KRAS_G12D, BRAF_V600E, MET_ex14, HER2_mut]
+        cohorts: [tcga, depmap, genie]
+      - axis: fusion
+        strata: [ALK_fusion, ROS1_fusion, RET_fusion, NTRK_fusion]
+        cohorts: [tcga, genie]
+      - axis: tmb
+        strata: [TMB_high]
+        cohorts: [tcga]
+      - axis: line_of_therapy
+        strata: [LOT_1L_only, LOT_2L, LOT_3Lplus]
+        cohorts: [genie_bpc]
+    associations:
+      - from: EGFR_mut_L858R
+        to: histology_Adeno
+        relationship: enriched_in
+        note: "EGFR-mutant NSCLC concentrated in adenocarcinoma (LUAD)."
+      - from: ALK_fusion
+        to: histology_Adeno
+        relationship: enriched_in
+        note: "ALK/ROS1/RET fusions concentrated in LUAD."
+
+  # ============================================================================
+  # SCLC — NAPY (cell-line classifier; patient George cohort)
+  # ============================================================================
+  - canonical_code: SCLC
+    axes:
+      - axis: napy
+        strata: [SCLC_A, SCLC_N, SCLC_P, SCLC_Y]
+        cohorts: [depmap, george_2015]   # NAPY: classifier-derived; only SCLC_A clears n>=30
+        partition: mutually_exclusive
+      - axis: target_high
+        strata: [DLL3_high]
+        cohorts: [depmap]
+    associations:
+      - from: DLL3_high
+        to: SCLC_A
+        relationship: enriched_in
+        note: "DLL3 (Notch ligand) expression is ASCL1(SCLC-A)-driven; DLL3-high concentrated in SCLC-A."
+
+  # PAAD / HNSC / STAD / ESCA: patient-side subtypes present; DepMap subtype members mostly null.
+  # Enumerated minimally here; cross-axis associations are indication-specific follow-ups.
+  - canonical_code: PAAD
+    axes:
+      - axis: moffitt_subtype
+        strata: [Moffitt_basal, Moffitt_classical]
+        cohorts: [tcga]                  # 0 DepMap Moffitt calls (all-null on cell lines)
+        partition: mutually_exclusive
+      - axis: driver_mutation
+        strata: [KRAS_G12D, KRAS_G12V, KRAS_G12R, KRAS_WT, TP53_mut, BRCA1_somatic, BRCA2_somatic]
+        cohorts: [tcga, depmap, genie]
+      - axis: fusion
+        strata: [NTRK_fusion, FGFR2_fusion, RET_fusion_PAAD]
+        cohorts: [tcga]
+    associations: []
+
+  - canonical_code: STAD
+    axes:
+      - axis: tcga_molecular_class
+        strata: [EBV_positive, MSI_H, GS, CIN]
+        cohorts: [tcga]                  # 4-class EBV/MSI/GS/CIN; DepMap all-null
+        partition: mutually_exclusive
+      - axis: cn_amplification
+        strata: [HER2_amp]
+        cohorts: [tcga]
+    associations: []
+
+  - canonical_code: ESCA
+    axes:
+      - axis: histology
+        strata: [histology_ESCC, histology_EAC]
+        cohorts: [tcga, depmap]
+        partition: co_defining
+      - axis: cn_amplification
+        strata: [HER2_amp]
+        cohorts: [tcga]
+    associations: []
+
+  - canonical_code: HNSC
+    axes:
+      - axis: bass_subtype
+        strata: [subtype_atypical, subtype_mesenchymal, subtype_basal, subtype_classical]
+        cohorts: [tcga]
+        partition: mutually_exclusive
+      - axis: hpv_status
+        strata: [HPV_positive, HPV_negative]
+        cohorts: [tcga]                  # data_blocked — HPV in no held source (see repoint runbook)
+        partition: mutually_exclusive
+    associations:
+      - from: HPV_positive
+        to: subtype_atypical
+        relationship: enriched_in
+        note: "HPV+ HNSC concentrated in the Atypical Bass subtype + oropharyngeal site."
