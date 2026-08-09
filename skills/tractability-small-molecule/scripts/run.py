@@ -88,11 +88,18 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     equivalence.
     """
     fired_by_id = {r["rule_id"]: r for r in fired}
-    # --- Chemical-genetic (retrospective: a compound was found) ---
+    # --- On-target chemical-genetic (retrospective, CONCORDANCE-confirmed) — top; discordant does
+    #     NOT override an on-mechanism read. ---
     if "e7-triangulated-target-engaged-supportive" in fired_by_id:
         return "well_covered", "e7-triangulated-target-engaged-supportive"
     if "e7-crispr-confirmed-supportive-sm" in fired_by_id:
         return "chemically_confirmed_genetic", "e7-crispr-confirmed-supportive-sm"
+    # --- Opposing off-target read (T1.1, 2026-08-09): MUST precede the retrospective chemical-ACTIVITY
+    #     positives below (an active-but-off-target compound argues AGAINST tractability). Kept
+    #     byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml. ---
+    if "e7-discordant-off-target-warning" in fired_by_id:
+        return "discordant", "e7-discordant-off-target-warning"
+    # --- Retrospective chemical ACTIVITY (a compound was found; NOT concordance-checked here) ---
     if "prism-clinically-active-supportive-sm" in fired_by_id:
         return "chemically_active", "prism-clinically-active-supportive-sm"
     # E-known-drug (DGIdb pharmacology leg, 2026-08-07): an APPROVED drug catalogued against the
@@ -100,15 +107,14 @@ def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:
     # missed). Byte-in-sync with resolvers/tractability_small_molecule.resolver.yaml.
     if "known-drug-approved-antineoplastic-sm-supportive" in fired_by_id:
         return "chemically_active", "known-drug-approved-antineoplastic-sm-supportive"
+    # T1.2 (2026-08-09): clinical annotation WITHOUT measured PRISM activity -> clinical_precedent_only
+    # (weaker than measured chemically_active, above tool_compound_only).
+    if "prism-clinical-precedent-only-weak-supportive-sm" in fired_by_id:
+        return "clinical_precedent_only", "prism-clinical-precedent-only-weak-supportive-sm"
     if "prism-tool-compound-only-weak-supportive-sm" in fired_by_id:
         return "tool_compound_only", "prism-tool-compound-only-weak-supportive-sm"
     if "prism-weakly-active-weak-supportive-sm" in fired_by_id:
         return "weakly_active", "prism-weakly-active-weak-supportive-sm"
-    # --- Opposing / negative reads (must precede structural positives) ---
-    # e7-discordant signals that chemical activity is off-target — a druggable pocket
-    # does not redeem a target where the compound's effect is mechanistically unlinked.
-    if "e7-discordant-off-target-warning" in fired_by_id:
-        return "discordant", "e7-discordant-off-target-warning"
     # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
     # Ranked below any real chemical hit, above chemically_unhit — a druggable pocket
     # is a positive SM prospect even before a compound exists (the KRAS-G12C fix).

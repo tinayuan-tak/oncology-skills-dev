@@ -47,6 +47,7 @@ VERDICT_COLORS = {
     "recurrent_fusion_driver":        "#4a7c9e",   # T1.3 (fusion-landscape recurrence driver)
 
     # Neutral / caution (ochre)
+    "clinical_precedent_only":        "#c07a20",   # T1.2: clinical anchor annotated, NO measured activity (caution)
     "tool_compound_only":             "#c07a20",
     "weakly_active":                  "#c07a20",
     "discordant_across_comparators":  "#c07a20",
