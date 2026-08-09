@@ -98,15 +98,14 @@ def test_descriptive_skill_without_synthesize_flag_is_clean(tmp_path):
     assert "llm_synthesis" not in d
 
 
-def test_two_slot_byte_stability_with_custom_synthesizer(tmp_path):
+def test_two_slot_byte_stability_with_custom_synthesizer(tmp_path, scrub_volatile):
     """--synthesize with a custom synthesize_fn adds ONLY llm_synthesis; the spine is identical."""
     def _fake(decision, model_id=None, subtype_query=None):
         return {"selectivity_relevance_for_target": {"value": "strongly_supports",
                 "_source": "llm_synthesized", "_model_id": "m", "_prompt_hash": "h"}}
 
-    base = _run(tmp_path / "a", synthesize=False)
-    synth = _run(tmp_path / "b", synthesize=True, synthesize_fn=_fake)
-    base.pop("generated_at", None); synth.pop("generated_at", None)
+    base = scrub_volatile(_run(tmp_path / "a", synthesize=False))
+    synth = scrub_volatile(_run(tmp_path / "b", synthesize=True, synthesize_fn=_fake))
     assert "llm_synthesis" not in base
     assert "llm_synthesis" in synth
     assert {k: v for k, v in synth.items() if k != "llm_synthesis"} == base

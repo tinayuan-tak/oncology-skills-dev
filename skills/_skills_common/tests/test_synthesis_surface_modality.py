@@ -130,12 +130,13 @@ def _run_dispatch(tmp_path, *, synthesize):
     return json.loads((tmp_path / "decision.json").read_text())
 
 
-def test_two_slot_byte_stability(tmp_path):
-    base = _run_dispatch(tmp_path / "a", synthesize=False)
-    synth = _run_dispatch(tmp_path / "b", synthesize=True)
-    base.pop("generated_at", None); synth.pop("generated_at", None)
+def test_two_slot_byte_stability(tmp_path, scrub_volatile):
+    base = scrub_volatile(_run_dispatch(tmp_path / "a", synthesize=False))
+    synth = scrub_volatile(_run_dispatch(tmp_path / "b", synthesize=True))
     assert "llm_synthesis" not in base
     assert "llm_synthesis" in synth
+    # the DETERMINISTIC spine (verdict, cards, fired_rules, run_health sans timings) is byte-identical
+    # whether or not the verdict-inert LLM narration slot is attached.
     assert {k: v for k, v in synth.items() if k != "llm_synthesis"} == base
 
 
