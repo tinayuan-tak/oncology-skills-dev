@@ -84,6 +84,101 @@ def test_facet_is_verdict_inert_shape():
     assert f["verdict"] == "subtype_axis_unavailable"   # empty sub_results → nothing reached
 
 
+def _tmp_registry(tmp_path):
+    """Write a minimal subtype_crosswalk.yaml with an MSI_H↔CMS1 association (DepMap dep ↔ TCGA expr,
+    a cohort bridge) so the association tier can be exercised hermetically."""
+    voc = tmp_path / "vocabularies"
+    voc.mkdir(parents=True, exist_ok=True)
+    (voc / "subtype_crosswalk.yaml").write_text(
+        "schema_version: 1\nindications:\n"
+        "  - canonical_code: COADREAD\n"
+        "    axes:\n"
+        "      - {axis: msi_status, strata: [MSI_H, MSS], cohorts: [tcga, depmap]}\n"
+        "      - {axis: molecular_subtype, strata: [CMS1, CMS2], cohorts: [tcga]}\n"
+        "    associations:\n"
+        "      - {from: MSI_H, to: CMS1, relationship: enriched_in, note: 'MSI-H enriched in CMS1'}\n"
+    )
+    return tmp_path
+
+
+def test_associated_stratification_bridges_msi_dependency_and_cms_expression(tmp_path):
+    # MSI_H measured on the DEPENDENCY axis; CMS1 measured on the EXPRESSION axis. Different stratum
+    # ids → NO same-id convergence. But the registry links MSI_H enriched_in CMS1 → associated tier.
+    reg = _tmp_registry(tmp_path)
+    sr = _sr(
+        dependency={"subgroup-stratified-dependency": {"per_subgroup_metrics": [
+            _row("MSI_H", dependency_class="dependent")]}},
+        expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [
+            _row("CMS1", median_log2tpm=7.0)]}},
+    )
+    f = run._subtype_facet(sr, indication="COADREAD", contracts_repo=reg)
+    assert f["convergent_subtypes"] == []                    # NOT same-id convergence
+    assert f["verdict"] == "associated_stratification"
+    assert len(f["associated_subtypes"]) == 1
+    a = f["associated_subtypes"][0]
+    assert a["from"] == "MSI_H" and a["to"] == "CMS1" and a["relationship"] == "enriched_in"
+    # MSI_H cohorts [tcga, depmap] overlap CMS1 [tcga] → NOT a disjoint cohort bridge (correct: the
+    # association could be traced within TCGA). cohort_bridge only fires on DISJOINT cohort sets.
+    assert a["cohort_bridge"] is False
+
+
+def test_cohort_bridge_true_when_strata_cohorts_disjoint(tmp_path):
+    # A registry where the two associated strata live on DISJOINT cohorts → cohort_bridge True.
+    voc = (tmp_path / "vocabularies"); voc.mkdir(parents=True)
+    (voc / "subtype_crosswalk.yaml").write_text(
+        "schema_version: 1\nindications:\n"
+        "  - canonical_code: SCLC\n"
+        "    axes:\n"
+        "      - {axis: napy, strata: [SCLC_A], cohorts: [depmap]}\n"
+        "      - {axis: target_high, strata: [DLL3_high], cohorts: [george_2015]}\n"
+        "    associations:\n"
+        "      - {from: DLL3_high, to: SCLC_A, relationship: enriched_in, note: DLL3 is ASCL1-driven}\n")
+    sr = _sr(
+        dependency={"subgroup-stratified-dependency": {"per_subgroup_metrics": [_row("SCLC_A", dependency_class="dependent")]}},
+        expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("DLL3_high", median_log2tpm=8.0)]}},
+    )
+    f = run._subtype_facet(sr, indication="SCLC", contracts_repo=tmp_path)
+    assert f["verdict"] == "associated_stratification"
+    assert f["associated_subtypes"][0]["cohort_bridge"] is True   # depmap ↔ george_2015 disjoint
+
+
+def test_association_not_claimed_when_same_axis(tmp_path):
+    # If MSI_H and CMS1 were BOTH only on expression (same axis), the pair is NOT a cross-axis bridge.
+    reg = _tmp_registry(tmp_path)
+    sr = _sr(expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [
+        _row("MSI_H", median_log2tpm=6.0), _row("CMS1", median_log2tpm=7.0)]}})
+    f = run._subtype_facet(sr, indication="COADREAD", contracts_repo=reg)
+    # both measured on the SAME (expression) axis → no cross-axis association → single_axis
+    assert f["associated_subtypes"] == []
+    assert f["verdict"] == "single_axis_stratification"
+
+
+def test_same_id_convergence_wins_over_association(tmp_path):
+    # If MSI_H itself converges on 2 axes, verdict is the STRONG convergent_stratification, not associated.
+    reg = _tmp_registry(tmp_path)
+    sr = _sr(
+        dependency={"subgroup-stratified-dependency": {"per_subgroup_metrics": [_row("MSI_H", dependency_class="dependent")]}},
+        genomic_alteration={"subgroup-stratified-mutation-frequency": {"per_subgroup_metrics": [_row("MSI_H", frequency=0.4)]}},
+        expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("CMS1", median_log2tpm=7.0)]}},
+    )
+    f = run._subtype_facet(sr, indication="COADREAD", contracts_repo=reg)
+    assert f["verdict"] == "convergent_stratification"
+    assert "MSI_H" in f["convergent_subtypes"]
+
+
+def test_no_registry_degrades_to_exact_match(tmp_path):
+    # No crosswalk on disk → association tier empty, facet still works (exact-match only).
+    empty = tmp_path / "no_vocab"
+    empty.mkdir()
+    sr = _sr(
+        dependency={"subgroup-stratified-dependency": {"per_subgroup_metrics": [_row("MSI_H", dependency_class="dependent")]}},
+        expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("CMS1", median_log2tpm=7.0)]}},
+    )
+    f = run._subtype_facet(sr, indication="COADREAD", contracts_repo=empty)
+    assert f["associated_subtypes"] == []
+    assert f["verdict"] == "single_axis_stratification"      # two 1-axis strata, no bridge
+
+
 def test_three_axis_convergence_and_metrics_carried():
     sr = _sr(
         expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("MSI", median_log2tpm=7.0)]}},

@@ -241,6 +241,11 @@ SUB_SKILL_CARDS = {
         "amp-expr-stratified-dependency",    # A1 amp-expr (2026-08-06): conjoint amp+overexpr×dependency
                                              # rescue (fires biomarker_stratified_dependency; ERBB2/MYC/
                                              # KRAS-amp); composer-consistency with genomic CARDS
+        "mutation-drug-response",            # Thread-4 deferred-c (2026-08-09): genotype×PRISM drug-response;
+                                             # its mutation-drug-response-strongly-sensitive-supportive rung
+                                             # fires the DISTINCT drug_response_biomarker verdict. Composed
+                                             # here so that rung can fire in the target-profile (else the
+                                             # verdict was dead-in-composition — the composer guard caught it).
         "fusion-rearrangement-landscape",    # LIVE (tcga-fusion-consensus-v1); additive signal-only
         "alteration-role",                   # typed driver-role (OncoKB×IntOGen), 2026-07-22 —
                                              # paired with genomic-alteration-profile CARDS (composer-consistency)
@@ -1172,20 +1177,57 @@ def _subtype_stratum_key(rec: dict) -> str | None:
     return None
 
 
-def _subtype_facet(sub_results: dict) -> dict:
+def _load_subtype_crosswalk(indication: str, contracts_repo: Path | None = None) -> dict:
+    """Load the indication's block from vocabularies/subtype_crosswalk.yaml. Returns
+    {associations: [...], axis_of: {stratum: axis}, cohorts_of: {stratum: [cohorts]}} or empty dicts
+    when the registry / indication is absent (graceful — the facet degrades to exact-match only)."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "subtype_crosswalk.yaml"
+    out = {"associations": [], "axis_of": {}, "cohorts_of": {}}
+    if not path.exists():
+        return out
+    try:
+        import yaml
+        doc = yaml.safe_load(path.read_text()) or {}
+    except Exception:  # noqa: BLE001
+        return out
+    for ind in doc.get("indications", []) or []:
+        if ind.get("canonical_code") != indication:
+            continue
+        out["associations"] = ind.get("associations", []) or []
+        for ax in ind.get("axes", []) or []:
+            for s in ax.get("strata", []) or []:
+                out["axis_of"][s] = ax.get("axis")
+                out["cohorts_of"][s] = ax.get("cohorts", []) or []
+        break
+    return out
+
+
+def _subtype_facet(sub_results: dict, indication: str = None,
+                   contracts_repo: Path | None = None) -> dict:
     """Assemble the per-molecular-subtype CONVERGENCE facet (capstone Part 3c). Deterministic;
     additive; VERDICT-INERT (a synthesis facet, never a gate — informs patient-selection confidence,
     never mints a nominate). Converges the three subtype-grain panoramas BY SUBTYPE:
 
       per_subtype: {subtype: {axes_measured: [...], axes_present: [...], n_axes_measured, metrics:{}}}
-      convergent_subtypes: subtypes with >= 2 MEASURED axes (the actionable strata)
+      convergent_subtypes: subtypes with >= 2 MEASURED axes on the SAME stratum id (the strong claim)
+      associated_subtypes: pairs of DIFFERENT strata (each measured on its own axis) linked by a
+        subtype_crosswalk association (enriched_in / co_defining) — the WEAK, cohort-bridged claim
+        that lets MSI_H(dependency, DepMap) relate to CMS1(expression, TCGA) WITHOUT claiming they
+        are the same stratum. Each carries the relationship + a cohort_bridge flag when the two axes
+        live on different cohorts (e.g. DepMap dependency vs TCGA expression).
       verdict:
-        convergent_stratification  — >=1 subtype with >=2 measured axes (cross-axis patient-selection)
-        single_axis_stratification — measured subtype signal on only one axis
+        convergent_stratification  — >=1 subtype with >=2 measured axes on the SAME id (strongest)
+        associated_stratification  — no same-id convergence, but >=1 registry-linked measured pair
+        single_axis_stratification — measured subtype signal on only one axis, no association
         no_subtype_signal          — panoramas present but no measured stratum on any axis
         subtype_axis_unavailable   — no subtype shard reached for this indication (coverage gap)
 
-    Absence is HONEST: a subtype/axis with no measured record contributes nothing (never fabricated)."""
+    Absence is HONEST: a subtype/axis with no measured record contributes nothing (never fabricated).
+    The association tier NEVER collapses two strata into one — it reports them as related, with the
+    relationship type + cohort bridge explicit, so a CMS finding is never mislabeled an MSI finding."""
+    xwalk = _load_subtype_crosswalk(indication, contracts_repo) if indication else \
+        {"associations": [], "axis_of": {}, "cohorts_of": {}}
     per_subtype: dict = {}
     axes_seen: set = set()
     any_rows = False
@@ -1223,10 +1265,39 @@ def _subtype_facet(sub_results: dict) -> dict:
     convergent = sorted(st for st, b in per_subtype.items() if b["n_axes_measured"] >= 2)
     any_measured = any(b["n_axes_measured"] >= 1 for b in per_subtype.values())
 
+    # ── Association tier (registry-bridged, WEAK): different strata each measured on their own axis,
+    # linked by a subtype_crosswalk enriched_in / co_defining association. This is what lets
+    # MSI_H(dependency) relate to CMS1(expression) across the vocabulary/cohort gap WITHOUT claiming
+    # they are the same stratum. Only strata that are actually MEASURED here participate.
+    measured_axes_of = {st: set(b["axes_measured"]) for st, b in per_subtype.items()
+                        if b["n_axes_measured"] >= 1}
+    associated_pairs = []
+    for assoc in xwalk["associations"]:
+        a, b_, rel = assoc.get("from"), assoc.get("to"), assoc.get("relationship")
+        if rel not in ("enriched_in", "co_defining"):
+            continue
+        # both endpoints must be measured, and on DIFFERENT axes (else it's not a cross-axis bridge)
+        if a not in measured_axes_of or b_ not in measured_axes_of:
+            continue
+        axes_a, axes_b = measured_axes_of[a], measured_axes_of[b_]
+        cross_axis = bool(axes_a - axes_b) or bool(axes_b - axes_a)
+        if not cross_axis:
+            continue
+        # cohort bridge: the two strata's registry cohorts don't overlap (e.g. DepMap dep vs TCGA expr)
+        coh_a, coh_b = set(xwalk["cohorts_of"].get(a, [])), set(xwalk["cohorts_of"].get(b_, []))
+        cohort_bridge = bool(coh_a and coh_b and not (coh_a & coh_b))
+        associated_pairs.append({
+            "from": a, "to": b_, "relationship": rel,
+            "from_axes_measured": sorted(axes_a), "to_axes_measured": sorted(axes_b),
+            "cohort_bridge": cohort_bridge, "note": assoc.get("note", ""),
+        })
+
     if not any_rows:
         verdict = "subtype_axis_unavailable"
     elif convergent:
         verdict = "convergent_stratification"
+    elif associated_pairs:
+        verdict = "associated_stratification"
     elif any_measured:
         verdict = "single_axis_stratification"
     else:
@@ -1235,6 +1306,7 @@ def _subtype_facet(sub_results: dict) -> dict:
     return {
         "verdict": verdict,
         "convergent_subtypes": convergent,
+        "associated_subtypes": associated_pairs,
         "n_subtypes_evaluated": len(per_subtype),
         "axes_available": sorted(axes_seen),
         "per_subtype": per_subtype,
@@ -1242,8 +1314,13 @@ def _subtype_facet(sub_results: dict) -> dict:
                         "panoramas (expression / dependency / mutation-frequency) BY SUBTYPE to "
                         "surface cross-axis patient-selection strata. It informs confidence + "
                         "patient-selection, never mints a nominate. convergent_subtypes = subtypes "
-                        "with >=2 MEASURED axes. subtype_axis_unavailable = no shard for this "
-                        "indication (P2 coverage gap), not a measured negative."),
+                        "with >=2 MEASURED axes on the SAME stratum id (strong). associated_subtypes "
+                        "= DIFFERENT strata each measured on its own axis, linked by a "
+                        "subtype_crosswalk enriched_in/co_defining association (weak, cohort-bridged) "
+                        "— reported as RELATED, never as the same stratum (a CMS finding is never "
+                        "relabeled an MSI finding); cohort_bridge=true flags a DepMap-vs-TCGA cross. "
+                        "subtype_axis_unavailable = no shard for this indication (coverage gap), not "
+                        "a measured negative."),
     }
 
 
@@ -1648,11 +1725,21 @@ def _build_user_prompt(
                 lines.append(f"    - {st}: measured on {b.get('axes_measured')} "
                              f"(metrics: {b.get('metrics')})")
         else:
-            lines.append("- no subtype converges >=2 measured axes this run "
-                         "(single-axis or no measured stratum, or no shard for this indication)")
-        lines.append("  NOTE: subtype convergence defines a PATIENT-SELECTION population + may raise "
-                     "confidence; it must NEVER by itself justify a `nominate`. subtype_axis_unavailable "
-                     "= no subtype shard for this indication (a P2 coverage gap), not a measured negative.")
+            lines.append("- no subtype converges >=2 measured axes on the SAME id this run")
+        assoc = sf.get("associated_subtypes") or []
+        if assoc:
+            lines.append("- ASSOCIATED strata (different strata, each measured on its own axis, linked "
+                         "by a subtype-registry association — RELATED, not the same stratum):")
+            for a in assoc:
+                bridge = " [CROSS-COHORT bridge: DepMap↔TCGA — interpret cautiously]" if a.get("cohort_bridge") else ""
+                lines.append(f"    - {a['from']} {a['relationship']} {a['to']} "
+                             f"({a['from_axes_measured']} ↔ {a['to_axes_measured']}){bridge}")
+        lines.append("  NOTE: subtype convergence/association defines a PATIENT-SELECTION population + may "
+                     "raise confidence; it must NEVER by itself justify a `nominate`. An ASSOCIATED pair "
+                     "is a WEAK, registry-bridged link (e.g. MSI_H-dependency ↔ CMS1-expression) — the two "
+                     "strata are biologically related, NOT identical; a cohort_bridge crosses DepMap↔TCGA. "
+                     "subtype_axis_unavailable = no subtype shard for this indication (a P2 coverage gap), "
+                     "not a measured negative.")
     lines.append("### Card summaries (raw, per-card)")
     for short, r in sub_results.items():
         lines.append(f"\n#### {short} ({r['skill_dir']})")
@@ -3846,7 +3933,7 @@ def main() -> int:
     # to surface cross-axis patient-selection strata. Like the biomarker facet: deterministic,
     # additive, verdict-inert; computed before the prompt so synthesis can reason over it, and
     # emitted in nomination.json. One-directional — informs confidence, never mints a nominate.
-    subtype_facet = _subtype_facet(sub_results)
+    subtype_facet = _subtype_facet(sub_results, indication=args.indication)
 
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
