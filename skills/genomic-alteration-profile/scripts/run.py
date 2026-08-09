@@ -138,6 +138,82 @@ QUESTION = ("How is {target} genomically altered in {indication} — by SNV/inde
             "number (amplification/deletion), or a mix — and which class drives?")
 
 
+# ── Composed-level family-wise FDR across the stratified-dependency classes (deferred-a) ──────────
+# The 4 stratified-dependency cards (mutation / CN / fusion / amp-expr) each fire the SAME
+# biomarker_stratified_dependency verdict from an INDEPENDENT Mann-Whitney test, each computed in its
+# own method at its own per-card alpha (0.05). Across the family, the per-card alpha is UNCORRECTED —
+# a gene tested on all 4 alteration classes has an inflated family-wise false-positive rate. The
+# effect-size floor (|delta|>=0.2) already guards significance-only FPs, but multiplicity remains.
+#
+# There is NO shared compute point (the cards are architecturally decoupled — composability by
+# design), so the correction MUST happen here, post-composition: collect the firing classes' p-values,
+# apply Benjamini-Hochberg across the family, and DEMOTE any card whose BH-adjusted q >= alpha to its
+# not_*_stratified class so its rule cannot fire. Only bites when >=2 classes fire (family size 1 →
+# BH = identity → byte-stable for the common single-class case). Verdict-moving ONLY for genuinely
+# multi-class targets where the weakest class fails the multiplicity-corrected bar.
+_STRATIFIED_FAMILY = [
+    # (card_id, class_field, p_field, firing_classes, demoted_class)
+    ("mutation-stratified-dependency", "mutation_stratification_class", "hotspot_mannwhitney_p",
+     {"mutant_strongly_dependent", "mutant_moderately_dependent"}, "not_mutation_stratified"),
+    ("copy-number-stratified-dependency", "cn_stratification_class", "cn_stratification_mannwhitney_p",
+     {"amplified_strongly_dependent", "amplified_moderately_dependent"}, "not_cn_stratified"),
+    ("fusion-stratified-dependency", "fusion_stratification_class", "fusion_stratification_mannwhitney_p",
+     {"fusion_positive_strongly_dependent", "fusion_positive_moderately_dependent"}, "not_fusion_stratified"),
+    ("amp-expr-stratified-dependency", "amp_expr_stratification_class", "amp_expr_mannwhitney_p",
+     {"amplified_overexpressed_strongly_dependent", "amplified_overexpressed_moderately_dependent"},
+     "not_amp_expr_stratified"),
+]
+
+
+def _bh_qvalues(pvals: list[float]) -> list[float]:
+    """Benjamini-Hochberg adjusted q-values for a list of p-values (order preserved)."""
+    m = len(pvals)
+    order = sorted(range(m), key=lambda i: pvals[i])
+    q = [0.0] * m
+    prev = 1.0
+    for rank, idx in enumerate(reversed(order), start=1):
+        k = m - rank + 1                       # descending rank
+        val = min(prev, pvals[idx] * m / k)
+        q[idx] = val
+        prev = val
+    return q
+
+
+def _apply_family_wise_fdr(cards: list[dict], alpha: float = 0.05) -> dict:
+    """Collect the FIRING stratified-dependency classes across the family, BH-correct their p-values
+    jointly, and DEMOTE (mutate the card's class in place) any whose family-wise q >= alpha. Returns a
+    provenance dict {family_size, tested, demoted, family_wise_q} for the headline. No-op (byte-stable)
+    when <2 classes fire."""
+    card_by_id = {c["card_id"]: c for c in cards}
+    firing = []
+    for card_id, class_field, p_field, firing_classes, demoted in _STRATIFIED_FAMILY:
+        c = card_by_id.get(card_id)
+        if not c:
+            continue
+        summ = c.get("summary") or {}
+        cls, p = summ.get(class_field), summ.get(p_field)
+        if cls in firing_classes and isinstance(p, (int, float)):
+            firing.append({"card_id": card_id, "class_field": class_field, "p": float(p),
+                           "class": cls, "demoted": demoted, "summary": summ})
+    if len(firing) < 2:
+        # family size 0 or 1 → no multiplicity to correct → byte-stable
+        return {"family_size": len(firing), "tested": [f["card_id"] for f in firing],
+                "demoted": [], "family_wise_q": {}, "corrected": False}
+
+    qs = _bh_qvalues([f["p"] for f in firing])
+    demoted, fam_q = [], {}
+    for f, q in zip(firing, qs):
+        fam_q[f["card_id"]] = round(q, 6)
+        if q >= alpha:
+            # demote: rewrite the class so fired_rules cannot fire the stratified rule
+            f["summary"][f["class_field"]] = f["demoted"]
+            f["summary"]["_family_wise_fdr_demoted"] = True
+            f["summary"]["_family_wise_q"] = round(q, 6)
+            demoted.append(f["card_id"])
+    return {"family_size": len(firing), "tested": [f["card_id"] for f in firing],
+            "demoted": demoted, "family_wise_q": fam_q, "corrected": True}
+
+
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """Multi-class genomic-alteration verdict — DELEGATES to the shared declarative resolver
     (gap #5 conversion, 2026-07-22). The former inline multi-axis if-chain (SNV/indel priority ×
@@ -224,6 +300,9 @@ def main() -> int:
     args = ap.parse_args()
 
     cards = resolve_cards(CARDS, args.target, args.indication)
+    # Composed-level family-wise FDR (deferred-a): correct the stratified-dependency family for
+    # multiplicity BEFORE firing rules. Mutates demoted cards in place; no-op when <2 classes fire.
+    fdr_provenance = _apply_family_wise_fdr(cards)
     fired = fired_rules(cards, axis="intracellular_intrinsic",
                         card_id_filter=CARDS)
     verdict, driving_rule = _verdict(fired)
@@ -235,6 +314,10 @@ def main() -> int:
     headline = {
         "genomic_alteration_profile":    verdict,
         "driving_rule_id":               driving_rule,
+        # Family-wise FDR provenance (deferred-a): when >=2 stratified-dependency classes fired, their
+        # p-values were BH-corrected jointly; any class with family-wise q >= 0.05 was demoted (its rule
+        # suppressed) so a multi-class call is not over-credited by uncorrected multiplicity.
+        "stratified_family_wise_fdr":    fdr_provenance,
         # SNV / indel axis
         "mutation_landscape_class":      get_card_field(cards, "mutation-type-counts",
                                               "mutation_landscape_class"),
