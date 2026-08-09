@@ -89,12 +89,13 @@ def test_data_unavailable_rung_never_outranks_a_real_signal():
 
 def test_new_rule_ids_absent_from_frozen_golden_table_dimension():
     """The 5 new rule_ids must NOT be in the frozen golden snapshot's dependency rule_ids
-    (that is what keeps the 32,768-combo table valid + unchanged — the new rungs are a strict
-    addition that never fires on the old 15). Guards against someone regenerating the snapshot
-    to 2^20 unnecessarily."""
+    (that is what keeps the frozen table's rule dimension valid + unchanged — the new rungs are a
+    strict, low-precedence addition that never fires on the old 15). Guards against someone silently
+    widening the frozen dimension. (Since D5 the table is co-emission-aware, not the full power set,
+    but the dependency dimension is still the 15 pre-existing rule_ids.)"""
     golden = json.loads((SKILLS / "_skills_common" / "tests" /
                          "resolver_golden_snapshots.json").read_text())
     frozen_ids = set(golden["dependency"]["rule_ids"])
     for rid in _DATA_UNAVAILABLE_RULES:
         assert rid not in frozen_ids, (
-            f"{rid} leaked into the frozen golden dimension — the table would need 2^20 combos")
+            f"{rid} leaked into the frozen golden dimension — it would widen the frozen rule set")
