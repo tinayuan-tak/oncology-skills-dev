@@ -242,16 +242,55 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"max_essential_organ: {h.get('window_max_essential_organ')})   "
         f"(modality-therapeutic-window: {_card_state('modality-therapeutic-window')})",
         "",
+        "sc-NORMAL CELL-TYPE LIABILITY (cell-type-resolved normal RNA — a TCE KILLER axis; the "
+        "complement to HPA IHC: it names WHICH normal cell type expresses the antigen):",
+        f"  sc_normal_expression_class: {h.get('sc_normal_expression_class')}   "
+        f"max_detection_cell_type: {h.get('sc_normal_max_det_cell_type')}   "
+        f"max_detection_fraction: {_fmt(h.get('sc_normal_max_det_fraction'))}   "
+        f"essential_flags: {h.get('sc_normal_safety_essential_flags')}   "
+        f"(sc-normal-celltype-expression: {_card_state('sc-normal-celltype-expression')})",
+        "",
+        "PEPTIDE-CENTRIC TCE AXIS (pMHC presentation — the ONLY biologics route to an INTRACELLULAR "
+        "target, via a TCR-mimetic TCE; broad NORMAL presentation is a liability, restricted is favorable):",
+        f"  pmhc_presentation_class: {h.get('pmhc_presentation_class')}   "
+        f"n_normal_tissues_presented: {h.get('pmhc_n_normal_tissues')}   "
+        f"hla_class: {h.get('pmhc_hla_class')}   "
+        f"(pmhc-presentation: {_card_state('pmhc-presentation')})",
+        "",
+        "CD/IO-ANTIGEN BACKBONE (clinical-precedent class prior — is this a CD/IO-backbone antigen like "
+        "the CD19/CD20/BCMA-class validated biologics targets? SUPPORTIVE-ONLY, never a negative):",
+        f"  cd_antigen_backbone_class: {h.get('cd_antigen_backbone_class')}   "
+        f"(cd-antigen-backbone: {_card_state('cd-antigen-backbone')})",
+        "",
+        "PATIENT-SELECTION / STATE-CONDITIONED SURFACE ENRICHERS (is the antigen ELEVATED in a "
+        "mutation- or pathway-defined tumour subset — a patient-selection handle? + EXON-resolution "
+        "window. Additive context, archetype-limited coverage — DATA_UNAVAILABLE off-archetype):",
+        f"  mutant_stratified_surface_class: {h.get('mutant_stratified_surface_class')}   "
+        f"driver: {h.get('mutant_surface_driver')}   delta_log2: {_fmt(h.get('mutant_surface_delta_log2'))}   "
+        f"(mutation-stratified-surface: {_card_state('mutation-stratified-surface')})",
+        f"  pathway_stratified_surface_class: {h.get('pathway_stratified_surface_class')}   "
+        f"signature: {h.get('pathway_surface_signature')}   delta_log2: {_fmt(h.get('pathway_surface_delta_log2'))}   "
+        f"(pathway-stratified-surface: {_card_state('pathway-stratified-surface')})",
+        f"  exon_window_class: {h.get('exon_window_class')}   "
+        f"best_exon: {h.get('exon_best_exon_id')}   window_ratio: {_fmt(h.get('exon_best_exon_window_ratio'))}   "
+        f"heterogeneity_log2: {_fmt(h.get('exon_heterogeneity_log2'))}   "
+        f"(modality-exon-window: {_card_state('modality-exon-window')})",
+        "",
         "TASK: using emit_surface_modality_synthesis, judge how much the SURFACE-BIOLOGY lens informs "
         f"whether {target} is approachable by a biologics modality (ADC / TCE / antibody) in {indication}. "
         "Reason ACROSS the evidence — do not just restate fit_class. Lead with ACCESSIBILITY: if there is no "
-        "bindable extracellular domain, the lens argues AGAINST all biologics. Then DISCRIMINATE ADC vs TCE "
-        "on the axes that separate them (normal-tissue liability, within-tumour homogeneity, shed sink, "
-        "antigen density), and name the KILLER axis where one fires. If surface localisation is RNA-only "
-        "(not protein-confirmed), foreground that caveat. If the surface biology is insufficient to "
-        "distinguish the target, say the lens is UNINFORMATIVE and the rationale must come from other "
-        "lenses. Do NOT discuss genetic dependency, small-molecule druggability, or mutation. Ground every "
-        "claim in the fields; state DATA_UNAVAILABLE gaps plainly.",
+        "bindable extracellular domain, the lens argues AGAINST a surface-binding biologic — BUT check the "
+        "PEPTIDE-CENTRIC pMHC axis before foreclosing, since a TCR-mimetic TCE can reach an INTRACELLULAR "
+        "target via presented peptide (restricted normal presentation = favorable; broad = liability). Then "
+        "DISCRIMINATE ADC vs TCE on the axes that separate them (normal-tissue liability incl. the "
+        "cell-type-resolved sc-normal read, within-tumour homogeneity, shed sink, antigen density), and name "
+        "the KILLER axis where one fires. Use the CD/IO-backbone class prior as supporting precedent (never "
+        "as a negative) and the patient-selection enrichers (mutation-/pathway-stratified surface, exon "
+        "window) as context for WHICH patients / WHICH epitope, not as the primary call. If surface "
+        "localisation is RNA-only (not protein-confirmed), foreground that caveat. If the surface biology is "
+        "insufficient to distinguish the target, say the lens is UNINFORMATIVE and the rationale must come "
+        "from other lenses. Do NOT discuss genetic dependency, small-molecule druggability, or mutation as a "
+        "driver. Ground every claim in the fields; state DATA_UNAVAILABLE gaps plainly.",
     ]
     return "\n".join(lines)
 

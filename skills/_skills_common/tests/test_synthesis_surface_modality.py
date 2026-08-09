@@ -90,11 +90,18 @@ def test_prompt_renders_unavailable_card_as_data_unavailable():
 
 def test_prompt_carries_accessibility_and_adc_vs_tce_steer():
     p = SM.build_user_prompt(_decision())
-    # accessibility-first steer
-    assert "ACCESSIBILITY" in p and "argues AGAINST all biologics" in p
+    # accessibility-first steer (2026-08-09: the no-ECD case now argues against a SURFACE-BINDING
+    # biologic, not "all biologics" — the peptide-centric pMHC axis can still reach intracellular targets)
+    assert "ACCESSIBILITY" in p and "argues AGAINST a surface-binding biologic" in p
     # ADC-vs-TCE discrimination steer + the TCE-killer axes
     assert "DISCRIMINATE ADC vs TCE" in p
     assert "KILLER axis" in p
+    # the 6 previously-invisible enrichment cards now reach the prompt (2026-08-09 wiring)
+    assert "pmhc_presentation_class" in p and "PEPTIDE-CENTRIC" in p
+    assert "cd_antigen_backbone_class" in p
+    assert "sc_normal_expression_class" in p
+    assert "mutant_stratified_surface_class" in p and "pathway_stratified_surface_class" in p
+    assert "exon_window_class" in p
 
 
 # ---- two-slot byte-stability through the dispatcher ----
