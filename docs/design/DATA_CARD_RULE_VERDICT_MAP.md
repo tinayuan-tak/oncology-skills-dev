@@ -52,9 +52,12 @@ rank-ordered rule_id → verdict-string map. The full emitted vocabulary:
 - **mechanism**: well_characterized, partial, sparse, has_pd_marker, data_unavailable,
   insufficient  *(precedence 2026-07-17: network-shape before has_pd_marker)*
 - **genomic_alteration**: biomarker_stratified_dependency, moderate_biomarker_dependency,
-  recurrent_missense_driver, recurrent_lof_driver, recurrent_amplification_driver,
-  recurrent_deletion_driver, multi_class_driver, mixed_pattern, passenger_pattern,
-  insufficient
+  missense_dominant_pattern, lof_dominant_pattern, recurrent_amplification_driver,
+  recurrent_deletion_driver, recurrent_fusion_driver, multi_class_driver, mixed_pattern,
+  passenger_pattern, insufficient
+  *(T1.1 2026-08-09: recurrent_{missense,lof}_driver → {missense,lof}_dominant_pattern — those*
+  *fire on variant-CLASS composition, not patient recurrence. T1.3: + recurrent_fusion_driver*
+  *from the fusion-rearrangement landscape, a true sample-recurrence driver.)*
 - **differentiation**: both_patterns_present, strong_mutually_exclusive, strong_cooccurring,
   has_cooccurring_driver, modest_cooccurring, modest_mutually_exclusive, ns,
   data_unavailable, insufficient

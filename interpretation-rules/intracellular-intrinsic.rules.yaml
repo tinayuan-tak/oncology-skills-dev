@@ -461,6 +461,35 @@ rules:
       stronger orthogonal evidence (fusion-positive PDX, isogenic breakpoint constructs). Live
       example: ABL1 (delta -0.47, BCR-ABL1).
 
+  # T1.3 (2026-08-09) — PATIENT-recurrence fusion driver (the mode-gap fix). DISTINCT from the two
+  # DepMap fusion-DEPENDENCY rules above: this reads fusion-rearrangement-landscape (TCGA-consensus +
+  # GENIE SV patient recurrence), NOT a cell-line Chronos split. It is the fusion analog of
+  # cn-recurrently-amplified-supportive (a patient-recurrence LANDSCAPE driver), and the resolver
+  # promotes it to a NEW recurrent_fusion_driver verdict — closing the gap where a recurrently
+  # rearranged patient oncogene with NO DepMap cell line (or a line-poor tissue) collapsed to
+  # passenger/insufficient (the exact gap the ERBB2/MYC CN reframe fixed for amplification). The card
+  # already emits recurrent_fusion_driver (>=3 samples partner-or-target recurrence, with a measured-
+  # negative no_recurrent_fusion bucket); the surface rules already consume it — only the genomic
+  # verdict lacked a rung. The card's own rationale even says "encoded in the intracellular rules".
+  - rule_id: fusion-landscape-recurrent-driver-supportive
+    when:
+      card_id: fusion-rearrangement-landscape
+      field: fusion_class
+      equals: recurrent_fusion_driver
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target is recurrently involved in gene fusions/rearrangements in the indication (>=3 samples
+      as a recurrent partner OR the target itself recurs >=3 samples; TCGA-consensus 3-caller + GENIE
+      SV breadth). A recurrent fusion is a bona-fide oncogenic driver event — catalytic-domain-retained
+      kinase fusions support small-molecule inhibition (ALK/RET/ROS1/NTRK), and a bindable/degradable
+      fusion protein supports degraders. This is a PATIENT-recurrence landscape signal (the fusion
+      analog of recurrent focal amplification), ORTHOGONAL to the DepMap fusion-dependency cards above:
+      it rescues fusion-driven oncogenes that are line-poor or absent from DepMap and would otherwise
+      read passenger (EWSR1-FLI1, BCR-ABL1, EML4-ALK). NOT a killer — recurrence establishes driver
+      status, the modality-fit + dependency threads carry the tractability story.
+
   # A1 amp→expr→dep (2026-08-06): the CONJOINT (amplified AND overexpressed) analog of the CN-stratified
   # rules above. The three-way card (amp-expr-stratified-dependency) is the amplification-DRIVEN-
   # overexpression-addiction sibling; these rules fire the SAME biomarker_stratified_dependency verdict

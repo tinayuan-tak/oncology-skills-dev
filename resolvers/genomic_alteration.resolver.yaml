@@ -19,7 +19,8 @@
 #
 # GUARDRAIL: pattern-match over fired rule IDs only — no arithmetic (labels live in the cards).
 gate: genomic_alteration
-version: 1.0.0
+version: 1.1.0   # 2026-08-09: T1.1 verdict rename (recurrent_{missense,lof}_driver → *_dominant_pattern),
+                #             T1.3 + recurrent_fusion_driver (fusion-landscape mode-gap), T2.4 precedence-by-strength
 description: |
   Multi-class genomic-alteration verdict. SNV/indel axis primary (strongest therapeutic signals),
   copy-number layered as a modifier so an amplification/deletion-driven target (few mutations) is
@@ -78,42 +79,44 @@ resolve:
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive], driving_rule: mut-missense-dominant-supportive}
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive], driving_rule: mut-missense-dominant-supportive}
 
-  # (2) SINGLE MUT-DRIVER (mut drives, no cn-driver fired) — mut-priority order.
+  # (2) STRATIFIED-DEPENDENCY family — Chronos-PROVEN "altered cells more dependent" across the four
+  #     alteration classes (mut / cn / fusion / amp-expr). PRECEDENCE-BY-STRENGTH (T2.4, 2026-08-09):
+  #     ALL *strongly*-dependent rungs precede ALL *moderately*-dependent rungs, so a STRONG CN/fusion/
+  #     amp-expr dependency (|delta|>=0.5) is named the driver over a MODERATE mutation dependency
+  #     (|delta| 0.2-0.5) for a dually-altered gene — the former is the LARGER effect, and first-match
+  #     must not surface the weaker signal merely because mutation is more "specific". WITHIN each
+  #     strength tier the class tie-break stays mut > cn > fusion > amp-expr (mutation the most direct
+  #     single-alteration signal; amp-expr the most conjoint). All four classes REUSE biomarker_
+  #     stratified_dependency / moderate_biomarker_dependency (nomination_verdict_gate.yaml unchanged;
+  #     distinct driving_rule_id preserves audit). Placed BEFORE the variant-class-PATTERN rungs (2e)
+  #     and the CN-landscape rungs (3): a functional dependency test outranks a bare composition/
+  #     landscape signal that has no dependency evidence.
+  #   -- STRONG tier (|delta| >= 0.5) --
   - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}
-  - {verdict: recurrent_lof_driver,            when_fired: mut-lof-dominant-supportive}
-  - {verdict: recurrent_missense_driver,       when_fired: mut-missense-dominant-supportive}
-
-  # (2b) CN-STRATIFIED DEPENDENCY (A1a, 2026-08-06). Amplified cells Chronos-proven more dependent —
-  #      the copy-number analog of the mut-stratified rescue above. REUSES the SAME
-  #      biomarker_stratified_dependency / moderate_biomarker_dependency verdicts (so
-  #      nomination_verdict_gate.yaml is unchanged; distinct driving_rule_id preserves auditability).
-  #      Placed AFTER the mut single-driver rungs (mutation wins first-match when both fire — e.g.
-  #      KRAS amp+mut → driving_rule names the mutation path) and BEFORE the CN-ONLY rungs below (a
-  #      Chronos-proven amplification DEPENDENCY outranks a bare CN-landscape driver with no dep test).
   - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
-
-  # (2c) FUSION-STRATIFIED DEPENDENCY (A1-fusion, 2026-08-06). Fusion-positive cells Chronos-proven
-  #      more dependent — the gene-fusion analog of the mut/CN-stratified rescues above. REUSES the
-  #      SAME biomarker_stratified_dependency / moderate_biomarker_dependency verdicts (so
-  #      nomination_verdict_gate.yaml is unchanged; distinct driving_rule_id preserves auditability).
-  #      Placed AFTER the mut + CN single-driver rungs (precedence mut > cn > fusion when several fire)
-  #      and BEFORE the CN-ONLY rungs below (a Chronos-proven fusion DEPENDENCY outranks a bare
-  #      CN-landscape driver with no dependency test). Recovers EWSR1-FLI1/BCR-ABL1 — targets neither
-  #      hotspot-mutated nor amplified, invisible to (2)/(2b).
   - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
-
-  # (2d) AMP→EXPR→DEPENDENCY three-way (A1 amp-expr, 2026-08-06). Amplified+overexpressed cells Chronos-
-  #      proven more dependent — the CONJOINT refinement of the CN-stratified rescue (adds the expression
-  #      term). REUSES the SAME biomarker_stratified_dependency / moderate_biomarker_dependency verdicts
-  #      (nomination_verdict_gate.yaml unchanged; distinct driving_rule_id preserves auditability). Placed
-  #      LAST among the stratified-dependency rungs (precedence mut > cn > fusion > amp-expr): it is the
-  #      MOST SPECIFIC signal (both conditions), so any single-alteration driver names the verdict first,
-  #      and the bare CN-landscape rungs below (no dependency test) come after. ERBB2/MYC/KRAS-amp.
   - {verdict: biomarker_stratified_dependency, when_fired: amp-expr-strongly-dependent-supportive}
+  #   -- MODERATE tier (|delta| 0.2-0.5) --
+  - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
   - {verdict: moderate_biomarker_dependency,   when_fired: amp-expr-moderately-dependent-supportive}
+
+  # (2e) VARIANT-CLASS PATTERN (mutation-spectrum composition, NO dependency test) — RENAMED T1.1
+  #      (2026-08-09): recurrent_lof_driver -> lof_dominant_pattern, recurrent_missense_driver ->
+  #      missense_dominant_pattern. HONESTY FIX: these fire from mutation-type-counts variant-CLASS
+  #      dominance (>=70% missense / >=50% truncating among coding variants in >=5 cell lines) — they
+  #      measure the SHAPE of the mutation spectrum, NOT patient RECURRENCE. The old "recurrent_*_driver"
+  #      names over-claimed a recurrence signal the card never computes. Real MC3/GENIE recurrence lives
+  #      in mutation-hotspot-frequency::driver_recurrence_class, which carries a data_unavailable bin —
+  #      GATING the driver call on it would silently demote genuine drivers wherever recurrence is merely
+  #      UNMEASURED (the infra-vs-absence trap), so we RENAME to what the signal actually measures rather
+  #      than false-gate. "recurrent" is now reserved for the signals that literally COUNT sample
+  #      recurrence (cn-recurrently-*, and the new fusion-landscape driver at 3c). Placed AFTER the
+  #      dependency family (a Chronos dependency outranks a bare composition pattern) and BEFORE the
+  #      CN-landscape rungs. VERDICT-STRING rename only — logic + driving_rule + precedence unchanged.
+  - {verdict: lof_dominant_pattern,       when_fired: mut-lof-dominant-supportive}
+  - {verdict: missense_dominant_pattern,  when_fired: mut-missense-dominant-supportive}
 
   # (3) CN-ONLY (cn drives, mutation not a driver) — amplified before deleted (first-match parity).
   - {verdict: recurrent_amplification_driver,  when_fired: cn-recurrently-amplified-supportive}
@@ -124,6 +127,19 @@ resolve:
   #      ERBB2/BRCA case: cell-line broadly_neutral, no mut-driver, patient recurrent_focal_amplification).
   - {verdict: recurrent_amplification_driver,  when_fired: cn-patient-focal-amplified-supportive}
   - {verdict: recurrent_deletion_driver,       when_fired: cn-patient-focal-deleted-supportive}
+
+  # (3c) FUSION-LANDSCAPE RECURRENT DRIVER (T1.3, 2026-08-09) — the MODE-GAP fix. A recurrent patient
+  #      fusion/rearrangement (fusion-rearrangement-landscape::fusion_class == recurrent_fusion_driver:
+  #      >=3 samples partner-or-target recurrence, TCGA-consensus 3-caller + GENIE SV) is a bona-fide
+  #      oncogenic DRIVER event — the fusion analog of recurrent focal amplification. NEW verdict
+  #      recurrent_fusion_driver (mirrors recurrent_amplification_driver: a landscape-recurrence driver,
+  #      NOT a nominating positive_signal — nomination_verdict_gate.yaml unchanged, same as the amp/del
+  #      landscape verdicts). Placed in the LANDSCAPE tier AFTER the CN-only rungs (a gene both
+  #      recurrently amplified AND fused — rare — names the CN path first, byte-stable) and BEFORE the
+  #      mixed/passenger fallback. Closes the gap where a fusion-driven oncogene with NO DepMap line (or
+  #      a line-poor tissue) collapsed to passenger/insufficient despite clear patient recurrence
+  #      (EWSR1-FLI1, BCR-ABL1, EML4-ALK) — the exact gap the ERBB2/MYC CN reframe fixed for amplification.
+  - {verdict: recurrent_fusion_driver,         when_fired: fusion-landscape-recurrent-driver-supportive}
 
   # (4) FALLBACK: mutation axis said something non-driver (mixed / passenger), no cn.
   - {verdict: mixed_pattern,      when_fired: mut-mixed-neutral}
