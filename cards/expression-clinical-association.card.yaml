@@ -16,7 +16,7 @@
 # BIOMARKER FACET (prognostic stratification). Biology axis; no modality-gate facet.
 
 card_id: expression-clinical-association
-version: 0.1.0
+version: 1.0.0
 question: "Does {target.symbol} expression stratify overall survival in {indication.label} — is it a candidate prognostic marker (high-expression worse or better OS)?"
 
 tier: indication

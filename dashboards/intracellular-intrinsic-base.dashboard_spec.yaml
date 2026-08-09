@@ -101,6 +101,15 @@ optional_cards:
   - card_id: rwd-stratified-expression
     version: ">=1.0.0,<2"
     when: "indication in [\"COADREAD\"]"
+  # Expression→survival prognostic association (Q11, 2026-08-09 wiring). Was composed into the
+  # differentiation-landscape SKILL but absent from EVERY dashboard_spec — so it never fired in an
+  # emitted evidence package (framework_health "never fired" flag). VERDICT-INERT render facet: a
+  # univariate median-split log-rank prognostic hypothesis (stage-UNADJUSTED — multivariable Cox is a
+  # documented follow-up), self-gated to the TCGA-CDR-backed indications. Adds the classic clinical-
+  # biomarker prognostic axis to the emitted package.
+  - card_id: expression-clinical-association
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\", \"COAD\", \"READ\", \"LUAD\", \"LUSC\", \"NSCLC\", \"BRCA\", \"PAAD\", \"PDAC\", \"SKCM\", \"STAD\", \"GC\", \"PRAD\", \"OV\", \"KIRC\", \"HNSC\", \"BLCA\", \"LIHC\", \"ESCA\", \"UCEC\"]"
   # Subgroup-panorama LIVE cards (2026-07-16) — descriptive per-subgroup enumeration
   # of {target}'s mutation frequency + CRISPR dependency across the resolved molecular
   # subgroups. Composed only when a subgroup scope is requested. Backed by per-sample
