@@ -1553,6 +1553,97 @@ rules:
       Target absent from the Gygi MS panel or no Chronos — no protein-arm data. Coverage gap (panel
       coverage, not biology); not used as opposing evidence.
 
+  # ============================================================================
+  # MUTATION × DRUG-RESPONSE (Thread 4, 2026-08-09) — the PHARMACOLOGICAL biomarker
+  # ============================================================================
+  # Genotype × PRISM drug-response (Log2AUC) — "are mutant lines more SENSITIVE to a DRUG that targets
+  # this gene?" — the pharmacological sibling of mutation-stratified-dependency (which is CRISPR-KO
+  # dependency). ADDITIVE render facet — feeds NO resolver ladder (dependency/genomic verdict spine
+  # byte-stable). Signals are small_molecule-only (a drug-response biomarker is an SM patient-selection
+  # signal). Deliberately NOT fired as biomarker_stratified_dependency: drug-sensitivity != KO-dependency
+  # (a KO removes noncatalytic scaffolding a small molecule leaves intact); conflating them would
+  # over-credit the genetic verdict with pharmacological evidence. A distinct verdict rung is a
+  # deliberate later step.
+  - rule_id: mutation-drug-response-strongly-sensitive-supportive
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: mutant_strongly_drug_sensitive
+    signals:
+      small_molecule: supportive
+    rationale: |
+      Cell lines carrying an alteration in the target are strongly MORE SENSITIVE to a drug that
+      targets the gene (PRISM Log2AUC, mutant median >= 0.20 below WT, significant). A genotype→
+      drug-response biomarker hypothesis — the strongest, most clinically-shaped biomarker signal in
+      the framework because it reflects an actual pharmacologic agent (e.g. BRAF-mut → vemurafenib).
+      Supportive, not dominant: cell-panel PRISM is necessary-not-sufficient for a clinical biomarker.
+
+  - rule_id: mutation-drug-response-moderately-sensitive-supportive
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: mutant_moderately_drug_sensitive
+    signals:
+      small_molecule: supportive
+    rationale: |
+      Mutant lines moderately more drug-sensitive (significant, smaller effect). A weaker genotype→
+      drug-response biomarker hypothesis; corroborates SM patient-selection.
+
+  - rule_id: mutation-drug-response-resistant-neutral
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: mutant_drug_resistant
+    signals:
+      small_molecule: neutral
+    rationale: |
+      Reverse direction: mutant lines are more RESISTANT (WT more sensitive) to the on-target drug — a
+      candidate RESISTANCE biomarker. Neutral to the SM biology axis (does not kill the target; flags a
+      patient-selection caveat that the altered subset may not respond). Verdict-inert.
+
+  - rule_id: mutation-drug-response-not-stratified-neutral
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: not_drug_response_stratified
+    signals:
+      small_molecule: neutral
+    rationale: |
+      No significant mutant-vs-WT drug-response difference in the PRISM panel. Genotype does not predict
+      on-target drug sensitivity here (e.g. EGFR in the cell panel) — neutral, not opposing.
+
+  - rule_id: mutation-drug-response-no-compound-insufficient
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: no_on_target_compound
+    signals:
+      small_molecule: insufficient
+    rationale: |
+      No PRISM compound targets this gene — the drug-response biomarker cannot be evaluated. An honest
+      coverage gap (no drug in the panel), not opposing evidence.
+
+  - rule_id: mutation-drug-response-insufficient
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: insufficient_mutant_or_drug_data
+    signals:
+      small_molecule: insufficient
+    rationale: |
+      Fewer than the minimum altered (or WT) lines have a measured on-target Log2AUC — the
+      stratification is underpowered. Coverage gap, not opposing evidence.
+
+  - rule_id: mutation-drug-response-data-unavailable-insufficient
+    when:
+      card_id: mutation-drug-response
+      field: drug_response_stratification_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+    rationale: |
+      No PRISM or mutation data for this target — no drug-response-biomarker signal. Coverage gap.
+
   - rule_id: expression-correlation-data-unavailable-insufficient
     when:
       card_id: expression-dependency-correlation

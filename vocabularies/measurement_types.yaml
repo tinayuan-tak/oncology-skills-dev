@@ -829,6 +829,16 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [mutation_status, crispr_lof_dependency], method: stratified_effect, evidence_tier: measured}
 
+  mutation_drug_response:
+    # PHARMACOLOGICAL sibling of mutation_stratified_dependency: genotype × PRISM DRUG response
+    # (Log2AUC), not CRISPR-KO dependency. Verdict-inert facet (v1). Thread 4, 2026-08-09.
+    modality_relevance: [small_molecule]
+    claim: "Are cell lines carrying an alteration in target more SENSITIVE to a drug that targets it (PRISM Log2AUC)?"
+    entity_grains: [target]
+    cards: [mutation-drug-response]
+    providers:
+      - {kind: derived_from, inputs: [mutation_status, prism_compound_activity], method: stratified_effect, evidence_tier: measured}
+
   cn_stratified_dependency:
     # A1a (2026-08-06): the copy-number analog of mutation_stratified_dependency — is dependency
     # stratified by the target's own AMPLIFICATION status (amplification-addiction biomarker)?
