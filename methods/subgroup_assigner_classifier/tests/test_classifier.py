@@ -51,6 +51,48 @@ def test_napy_classifier_argmax():
     assert (sample_Y_rows[sample_Y_rows["stratum_id"] == "SCLC_Y"]["is_member"] == True).all()
 
 
+def _napy_config(min_margin=0.0, min_zscore=0.0):
+    return {
+        "classifier_method": "napy_zscore_classifier",
+        "marker_genes": {"SCLC_A": "ASCL1", "SCLC_N": "NEUROD1", "SCLC_P": "POU2F3", "SCLC_Y": "YAP1"},
+        "min_zscore": min_zscore, "min_margin": min_margin,
+    }
+
+
+def test_min_margin_default_zero_is_backward_compatible():
+    """min_margin=0.0 (default) → pure argmax, byte-identical to the prior behaviour."""
+    from methods.subgroup_assigner_classifier.cli import _run_napy_classifier
+    expr = pd.DataFrame(
+        {"ASCL1": [10, 1, 1, 1], "NEUROD1": [1, 10, 1, 1], "POU2F3": [1, 1, 10, 1], "YAP1": [1, 1, 1, 10]},
+        index=["S_A", "S_N", "S_P", "S_Y"])
+    out = _run_napy_classifier(expr, _napy_config(min_margin=0.0))
+    a = out[(out["sample_id"] == "S_A") & (out["stratum_id"] == "SCLC_A")]
+    assert (a["is_member"] == True).all()          # clean argmax still assigns
+
+
+def test_min_margin_leaves_co_expressing_sample_unclassifiable():
+    """A sample high in BOTH ASCL1 and NEUROD1 (co-expressed, tiny margin) → unclassifiable under a
+    margin requirement, instead of being force-assigned to the marginally-higher marker."""
+    from methods.subgroup_assigner_classifier.cli import _run_napy_classifier
+    # S_mix: ASCL1 and NEUROD1 nearly tied (both high); clean singles for the others to set the z-scale.
+    expr = pd.DataFrame(
+        {"ASCL1":   [10, 1,  1,  1,  9.6],
+         "NEUROD1": [1,  10, 1,  1,  9.5],
+         "POU2F3":  [1,  1,  10, 1,  1],
+         "YAP1":    [1,  1,  1,  10, 1]},
+        index=["S_A", "S_N", "S_P", "S_Y", "S_mix"])
+    out = _run_napy_classifier(expr, _napy_config(min_margin=1.0))
+    mix = out[out["sample_id"] == "S_mix"]
+    # no stratum is a member (unclassifiable) — the two lineage-TFs are co-expressed within the margin
+    assert (mix["is_member"] == False).all()
+    # the would-be-winner row carries a visible unclassifiable reason
+    flagged = mix[mix["derivation_value"].str.startswith("unclassifiable:")]
+    assert len(flagged) == 1 and "below_margin" in flagged.iloc[0]["derivation_value"]
+    # a CLEAN single-marker sample is still committed under the same margin
+    a = out[(out["sample_id"] == "S_A") & (out["stratum_id"] == "SCLC_A")]
+    assert (a["is_member"] == True).all()
+
+
 def test_single_gene_threshold():
     """DLL3-high threshold: sample with z-score >= threshold is member."""
     from methods.subgroup_assigner_classifier.cli import _run_single_gene_threshold

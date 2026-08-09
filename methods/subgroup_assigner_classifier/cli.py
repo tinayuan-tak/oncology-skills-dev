@@ -207,6 +207,15 @@ def _run_napy_classifier(expression_df: pd.DataFrame, config: dict) -> pd.DataFr
     """
     marker_genes = config["marker_genes"]  # {stratum_id: gene_symbol}
     min_zscore = config.get("min_zscore", 0.0)
+    # MIN_MARGIN (subtyping review 2026-08-09): the winning marker must exceed the RUNNER-UP by at
+    # least this z-score margin, else the sample is UNCLASSIFIABLE (a mixed/uncommitted state) rather
+    # than force-assigned to a marginally-higher marker. Rudin's NAPY scheme explicitly allows an
+    # uncommitted class; pure argmax (the prior behaviour) manufactured a committed call for every
+    # sample even when two lineage-TFs were co-expressed. Default 0.0 = BACKWARD-COMPATIBLE (pure
+    # argmax); a config opts in to the stricter margin. Below-margin samples get all is_member=False
+    # (the same "undefined" shape the min_zscore floor already produced) + a diagnostic reason so the
+    # unclassifiable state is visible, not silent.
+    min_margin = config.get("min_margin", 0.0)
 
     # Z-score each marker gene across the cohort
     z = pd.DataFrame({
@@ -214,25 +223,42 @@ def _run_napy_classifier(expression_df: pd.DataFrame, config: dict) -> pd.DataFr
         for stratum_id, gene in marker_genes.items()
     })
 
-    # For each sample: argmax stratum (the "winner")
+    # For each sample: argmax stratum (the "winner") + the runner-up gap (the assignment MARGIN)
     winners = z.idxmax(axis=1)
     winner_scores = z.max(axis=1)
 
-    # Sample is member of its winner stratum ONLY IF winner_score >= min_zscore
-    # (otherwise: "undefined" NAPY assignment → all strata is_member=False)
+    def _runner_up_margin(row: pd.Series) -> float:
+        vals = row.sort_values(ascending=False)
+        if len(vals) < 2 or pd.isna(vals.iloc[0]) or pd.isna(vals.iloc[1]):
+            return float("inf")  # single-marker or NaN runner-up → no margin constraint
+        return float(vals.iloc[0] - vals.iloc[1])
+
     out_rows = []
     for sample_id in expression_df.index:
         w = winners[sample_id]
         w_score = winner_scores[sample_id]
-        winner_valid = (not pd.isna(w_score)) and (w_score >= min_zscore)
+        margin = _runner_up_margin(z.loc[sample_id])
+        # A committed call requires BOTH: winner clears the abundance floor AND separates from the
+        # runner-up by >= min_margin. Otherwise unclassifiable (all is_member=False).
+        floor_ok = (not pd.isna(w_score)) and (w_score >= min_zscore)
+        margin_ok = margin >= min_margin
+        winner_valid = floor_ok and margin_ok
         for stratum_id in marker_genes:
             is_member = winner_valid and (stratum_id == w)
             deriv = f"{marker_genes[stratum_id]}_z={z.at[sample_id, stratum_id]:.2f}"
+            if is_member:
+                dval = f"{deriv}_margin={margin:.2f}"
+            elif not winner_valid and stratum_id == w:
+                # tag the would-be-winner row with WHY it was left unclassifiable (visible, not silent)
+                reason = "below_zscore_floor" if not floor_ok else f"below_margin({margin:.2f}<{min_margin})"
+                dval = f"unclassifiable:{reason}"
+            else:
+                dval = ""
             out_rows.append({
                 "sample_id": sample_id,
                 "stratum_id": stratum_id,
                 "is_member": is_member,
-                "derivation_value": deriv if is_member else "",
+                "derivation_value": dval,
             })
     return pd.DataFrame(out_rows)
 
