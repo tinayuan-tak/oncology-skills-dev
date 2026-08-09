@@ -14,11 +14,17 @@ from typing import Optional
 
 METHOD_VERSION = "0.1.0"
 
-# DepMap-side focal-amplification convention (relative CN, diploid ≈ 1.0; NOT log2).
-# Reused from depmap_cn_distribution.cli (FOCAL_AMP). A line is "amplified" when its
-# relative CN exceeds this; the neutral comparator is everything NOT amplified (broad
-# mirror of the mutation path's WT = "everything not mutant" — sign-off 2026-08-06).
+# DepMap relative CN (diploid ≈ 1.0; ploidy-relative, NOT raw copies, NOT log2).
+# FOCAL_AMP=1.5 is the DISTRIBUTION card's shallow-amp bin (kept for back-compat / callers).
+# FOCAL_AMP_HIGH=2.0 is the DEPENDENCY amplified-arm cut (T2.2, 2026-08-09): the stratified-
+# dependency contrast must define "amplified" as a FOCAL HIGH-LEVEL amp (>=~2x ploidy baseline),
+# not a shallow/arm-level relative gain (1.5-2.0). Empirically (ERBB2, 26Q1): >1.5 flags 95 lines
+# but >2.0 flags 46 — the extra 49 are shallow gains that dilute the amplification-addiction signal
+# (the aneuploidy-baseline concern the review raised; the PATIENT path was already GISTIC-focal-only,
+# this brings the cell-line path to matching focal discipline). The scale is ALREADY ploidy-relative
+# (median ~1.0), so this is a focal-level tightening, NOT a ploidy re-normalization.
 FOCAL_AMP = 1.5
+FOCAL_AMP_HIGH = 2.0
 
 # Classification thresholds — mirror depmap_mutation_dependency exactly.
 STRONG_EFFECT_DELTA = -0.5     # amplified median Chronos - neutral median <= -0.5 → strongly dependent
@@ -30,7 +36,7 @@ WT_INVERSE_DELTA = 0.3         # positive delta with significance → neutral li
 
 
 def compute_cn_stratification(chronos_by_model: dict, cn_by_model: dict,
-                              focal_amp: float = FOCAL_AMP,
+                              focal_amp: float = FOCAL_AMP_HIGH,   # T2.2: focal HIGH-level amp for the dependency arm
                               strong_effect_delta: float = STRONG_EFFECT_DELTA,
                               moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
                               stratification_alpha: float = STRATIFICATION_ALPHA,

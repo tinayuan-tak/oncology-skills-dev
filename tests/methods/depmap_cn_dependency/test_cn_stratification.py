@@ -14,7 +14,9 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from methods.depmap_cn_dependency.cli import compute_cn_stratification, FOCAL_AMP  # noqa: E402
+from methods.depmap_cn_dependency.cli import compute_cn_stratification, FOCAL_AMP_HIGH  # noqa: E402
+# T2.2 (2026-08-09): the DEPENDENCY amplified-arm cut is FOCAL_AMP_HIGH (2.0), not the distribution
+# card's shallow FOCAL_AMP (1.5) — a focal high-level amp, not an arm-level relative gain.
 
 
 def _panel(amp_chronos, neutral_chronos, amp_cn=3.0, neutral_cn=1.0):
@@ -41,7 +43,7 @@ def test_amplified_strongly_dependent():
     assert s["cn_stratification_class"] == "amplified_strongly_dependent"
     assert s["delta_chronos_amplified_vs_neutral"] <= -0.5
     assert s["n_amplified"] == 40 and s["n_neutral"] == 300
-    assert s["amplification_threshold_relative_cn"] == FOCAL_AMP
+    assert s["amplification_threshold_relative_cn"] == FOCAL_AMP_HIGH
 
 
 def test_not_cn_stratified_when_no_separation():
@@ -97,3 +99,19 @@ def test_neutral_more_dependent_is_never_mislabeled_amplified_dependent():
     assert s["cn_stratification_class"] not in ("amplified_strongly_dependent",
                                                 "amplified_moderately_dependent")
     assert s["delta_chronos_amplified_vs_neutral"] > 0   # neutral more dependent → positive delta
+
+
+def test_shallow_gain_excluded_from_amplified_arm():
+    """T2.2: a shallow relative gain (1.5-2.0, arm-level) is NOT counted amplified — only focal
+    high-level (>2.0). Build 40 shallow-gain 'amplified-looking' lines at cn=1.7 (below the 2.0
+    focal cut) that ARE dependent; they must NOT form an amplified arm → insufficient/not-stratified,
+    not amplified_strongly_dependent off arm-level gain."""
+    import random
+    rng = random.Random(9)
+    shallow = [-1.2 + rng.uniform(-0.1, 0.1) for _ in range(40)]   # dependent, but only cn=1.7
+    neutral = [-0.05 + rng.uniform(-0.1, 0.1) for _ in range(300)]
+    chronos, cn = _panel(shallow, neutral, amp_cn=1.7)             # 1.7 < FOCAL_AMP_HIGH (2.0)
+    s = compute_cn_stratification(chronos, cn)
+    # all 40 "amplified-looking" lines fall below the focal cut → 0 amplified → not a focal-amp call
+    assert s["n_amplified"] == 0
+    assert s["cn_stratification_class"] in ("insufficient_amplification_rate", "not_cn_stratified")

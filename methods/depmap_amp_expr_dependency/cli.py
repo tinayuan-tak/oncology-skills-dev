@@ -14,7 +14,10 @@ from pathlib import Path
 METHOD_VERSION = "0.1.0"
 
 # Focal-amplification convention (relative CN, diploid ~ 1.0; NOT log2) — reused from depmap_cn_dependency.
-FOCAL_AMP = 1.5
+# FOCAL_AMP=2.0 (T2.2, 2026-08-09): the amplified component of the amp∩expr conjoint uses the FOCAL
+# HIGH-LEVEL cut (matching depmap_cn_dependency.FOCAL_AMP_HIGH), so the conjoint reflects focal
+# amplification-driven overexpression, not a shallow arm-level relative gain that happens to be high-expr.
+FOCAL_AMP = 2.0
 # High-expression cut: top within-panel tertile of log2TPM among EVALUATED lines (target-relative, no
 # external percentile product needed — adapts per target, mirrors the CN method's self-contained cutoff).
 HIGH_EXPR_TERTILE = 2.0 / 3.0
