@@ -463,6 +463,24 @@ measurement_types:
     providers:
       - {kind: dataset, source: dgidb-drug-gene-per-gene-v1, evidence_tier: measured}
 
+  measured_potency_tractability:
+    # MEASURED-POTENCY leg of small-molecule tractability (T3.1, 2026-08-09): is there a POTENT
+    # (<=1 uM) measured ligand + how deep is the chemotype series? From ChEMBL pchembl + BindingDB
+    # affinity (previously-inert products). DISTINCT from the known-drug leg (DGIdb = presence, not
+    # potency) + the structure leg (predicted pocket) + PRISM (retrospective cell-line killing).
+    # Feeds the SM verdict via the E-measured-potency intracellular rule.
+    modality_relevance: [small_molecule]
+    claim: "Is there a potent (<=1 uM) measured small-molecule ligand for target, and how deep is the chemotype series?"
+    entity_grains: [target]
+    cards: [measured-potency-tractability]
+    # tier_dominant: ChEMBL is the richer, dominant measured-potency source (broader coverage + clinical
+    # phase); BindingDB corroborates + rescues. The reader takes MAX potency across the two (either can
+    # supply a potent series) — NOT an average / arbitrary pick-one — with ChEMBL as the primary tier.
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: chembl-bioactivity-per-protein-v1, evidence_tier: measured}   # dominant (broader + clinical phase)
+      - {kind: dataset, source: bindingdb-affinity-per-protein-v1, evidence_tier: measured}   # corroborating / rescue
+
   structure_druggability:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.

@@ -1,0 +1,95 @@
+# Card — MEASURED-POTENCY TRACTABILITY (v1; target-intrinsic; small-molecule MEASURED-POTENCY leg)
+#
+# The MEASURED-POTENCY leg of tractability-small-molecule (T3.1, 2026-08-09), wiring the previously-
+# INERT chembl-bioactivity + bindingdb-affinity products. The three prior chemical legs answer
+# different, weaker questions: PRISM = "does a compound kill THIS cell line" (retrospective); structure
+# = "is there a druggable HANDLE" (predicted pocket); known-drug/DGIdb = "is a drug catalogued"
+# (presence, not potency; a Dec-2023 snapshot). This leg answers the med-chemist's first question:
+# "is there a POTENT (<=1 uM) chemical start point, and how DEEP is the chemotype series?" — from
+# curated MEASURED binding potency (ChEMBL pchembl + BindingDB affinity).
+#
+# Interpretation surface (measured_bioactivity_class is PRIMARY):
+#   potent_measured_ligand  a potent (<=1 uM) chemotype SERIES (>= 10 potent ligands in either source)
+#                           — a real, deep chemical start point.
+#   weak_measured_ligand    measured activity exists but not a series (a potent hit or two, or
+#                           sub-potent activity) — a starting point that needs optimization.
+#   no_measured_activity    present in a bioactivity source but no measured potency value.
+#   data_unavailable        absent from BOTH products (a coverage gap — NOT 'no chemical matter').
+#
+# CALIBRATION: best_pchembl >= 6 (a single potent activity) is near-universal for studied genes
+# (3,753/5,720 proteins), so the STRONG verdict requires a potent-ligand SERIES (n_potent >= 10, a
+# selective 1,859 proteins) — not a single reported binder. This avoids the over-permissive single-
+# weak-axis pattern the review flagged elsewhere.
+
+card_id: measured-potency-tractability
+version: 1.0.0
+question: "Is there a POTENT (<=1 uM) measured small-molecule ligand for {target.symbol}, and how deep is the chemotype series?"
+
+tier: target   # measured potency is a property of the gene's chemical matter, independent of indication. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: chembl-bioactivity-per-protein-v1
+  - product_id: bindingdb-affinity-per-protein-v1
+
+methods:
+  - call: measured-potency-tractability
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - measured_bioactivity_class         # PRIMARY categorical (see vocabulary)
+    - best_measured_potency_neglog_m     # float — max potency across sources (-log10 M; >=6 == <=1 uM)
+    - chembl_best_pchembl                # float — ChEMBL max pchembl_value
+    - chembl_n_potent_ligands            # int — ChEMBL potent (<=1 uM) ligand count (the series depth)
+    - chembl_max_clinical_phase          # float — ChEMBL max clinical phase (4=approved) [DISPLAY; see caveat]
+    - bindingdb_best_p_affinity          # float — BindingDB max -log10(M) affinity
+    - bindingdb_n_potent_ligands         # int — BindingDB sub-micromolar binder count
+    - measured_potency_context           # string — human-readable rationale (audit / LLM)
+    - method_version
+
+  summary_fields_vocabulary:
+    measured_bioactivity_class:
+      - potent_measured_ligand           # potent (<=1 uM) chemotype SERIES (>=10 potent ligands) — deep start point
+      - weak_measured_ligand             # measured activity but not a series (a potent hit or two, or sub-potent)
+      - no_measured_activity             # in a source, no measured potency value
+      - data_unavailable                 # absent from BOTH products (coverage gap, NOT 'no chemical matter')
+
+warning_predicates:
+  - warning_id: measured_potency_data_unavailable
+    if: "measured_bioactivity_class == 'data_unavailable'"
+    message: "{target.symbol} is absent from both ChEMBL-bioactivity and BindingDB. This is a COVERAGE GAP — not evidence that no chemical matter exists. Check the structure leg (structure-features-static) for a forward-ligandability handle."
+
+caveats:
+  - |
+    Measured-potency leg (ChEMBL + BindingDB) of small-molecule tractability. Answers "is there a
+    POTENT measured ligand + how deep is the series" — the MEASURED-binding complement to the
+    structure leg (a druggable pocket), the retrospective PRISM leg (cell-line killing), and the
+    DGIdb known-drug leg (presence, not potency). A target can have potent measured chemical matter
+    WITHOUT a clean predicted pocket (or vice versa) — read the legs together.
+  - |
+    CALIBRATION: a SINGLE potent activity (best_pchembl >= 6) is near-universal for studied genes, so
+    the strong `potent_measured_ligand` verdict requires a potent-ligand SERIES (>= 10 potent ligands),
+    a chemotype depth signal — not one reported binder. n_potent_ligands is the discriminating field;
+    best_pchembl alone is display context.
+  - |
+    chembl_max_clinical_phase is DISPLAY-only here and does NOT drive this card's class — clinical
+    precedent is the DGIdb known-drug leg's job (approved_drug_tractable). This card's contribution is
+    the DISTINCT, measured-POTENCY dimension; keeping clinical-phase out of its verdict avoids
+    double-counting the approved-drug signal already carried by the known-drug-tractability card.
+  - |
+    Absence is a COVERAGE GAP, never 'undruggable' (measured-vs-null discipline). data_unavailable means
+    the gene is in neither bioactivity source. LICENSE: ChEMBL is CC-BY-SA-3.0 (share-alike); this leg
+    consumes ONLY the aggregate rollup (potent-ligand counts + best-potency maxima), not raw activity
+    rows. Cite ChEMBL (Zdrazil et al. 2024 NAR) + BindingDB (Gilson et al. 2016 NAR).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `measured_potency_tractability` claim (target-grain).
+# modality_relevance small_molecule: measured binding potency is a small-molecule tractability signal.
+# Feeds the SM verdict via the E-measured-potency intracellular rule (a measured-potency rung between
+# the retrospective chemical-activity tier and the structural tier).
+measurement_type: measured_potency_tractability
+modality_relevance: [small_molecule]
+entity_grains: [target]
+schema_version: 1

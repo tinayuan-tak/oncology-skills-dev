@@ -2239,6 +2239,38 @@ rules:
       membership is weaker than an approved drug or a resolved pocket. Maps to the structurally_
       ligandable tier (a forward handle, no compound yet). SM-scoped.
 
+  # E-measured-potency (T3.1, 2026-08-09): the MEASURED-POTENCY leg (ChEMBL + BindingDB), wiring the
+  # previously-inert bioactivity products. DISTINCT from PRISM (retrospective cell-line killing),
+  # known-drug/DGIdb (drug PRESENCE, not potency), and structure (predicted pocket): this is MEASURED
+  # binding potency. A potent chemotype SERIES is a strong forward-tractability signal a med-chemist
+  # values above a predicted pocket. Maps (resolver) to a measured-potency tier between the
+  # retrospective chemical-activity tier and the structural tier.
+  - rule_id: measured-potent-ligand-sm-supportive
+    when:
+      card_id: measured-potency-tractability
+      field: measured_bioactivity_class
+      equals: potent_measured_ligand
+    signals:
+      small_molecule: supportive
+    dominant: true
+    rationale: |
+      A potent (<=1 uM) MEASURED small-molecule ligand SERIES exists (>=10 potent ligands in ChEMBL
+      and/or BindingDB) — a real, deep chemical start point with quantified binding, not a predicted
+      pocket or a presence-only catalogue entry. Dominant for the measured-potency tier. SM-scoped
+      (measured binding potency says nothing about degrader/E3 feasibility).
+
+  - rule_id: measured-weak-ligand-sm-supportive
+    when:
+      card_id: measured-potency-tractability
+      field: measured_bioactivity_class
+      equals: weak_measured_ligand
+    signals:
+      small_molecule: supportive
+    rationale: |
+      Measured small-molecule activity exists but is NOT a potent series (a potent hit or two, or
+      sub-potent affinity) — a starting point that needs optimization. Weak-supportive: real measured
+      chemical matter, but thin. SM-scoped.
+
   # ============================================================================
   # E-tvN-Sel — Tumor vs Normal Selectivity (Card tumor-vs-normal-selectivity v3)
   # ============================================================================

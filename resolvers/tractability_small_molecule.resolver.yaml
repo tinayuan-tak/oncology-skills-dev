@@ -12,8 +12,8 @@
 #      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
 #   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
 gate: tractability_small_molecule
-version: 1.2.0   # T1.1 discordant reorder (above the retrospective chemical positives) + T1.2 clinical_precedent_only verdict
-description: Small-molecule druggability precedence (on-target chemical-genetic E7 > opposing off-target > retrospective chemical activity > structural E8 + druggable-category > unhit).
+version: 1.3.0   # T3.1: + measured_potent_ligand tier (ChEMBL/BindingDB measured potency) between chemical-activity and structural
+description: Small-molecule druggability precedence (on-target chemical-genetic E7 > opposing off-target > retrospective chemical activity > MEASURED potency > structural E8 + druggable-category > unhit).
 resolve:
   # --- On-target chemical-genetic (retrospective, CONCORDANCE-confirmed) ---
   # These are ON-TARGET (the compound kill tracks the CRISPR/RNAi dependency), so an off-target
@@ -42,6 +42,15 @@ resolve:
   - {verdict: clinical_precedent_only,      when_fired: prism-clinical-precedent-only-weak-supportive-sm}
   - {verdict: tool_compound_only,           when_fired: prism-tool-compound-only-weak-supportive-sm}
   - {verdict: weakly_active,                when_fired: prism-weakly-active-weak-supportive-sm}
+  # --- MEASURED POTENCY (T3.1, 2026-08-09): ChEMBL/BindingDB measured binding potency. A potent
+  #     (<=1 uM) chemotype SERIES is a real, deep chemical start point with QUANTIFIED binding —
+  #     stronger than a predicted pocket (below), but the retrospective chemical-activity/genetic
+  #     evidence above (a compound that actually killed cells / an approved drug) is more direct, so
+  #     this sits BELOW those and ABOVE the structural tier. NEW verdict measured_potent_ligand.
+  #     NON-nominating + NON-contradiction (nomination_verdict_gate.yaml unchanged — a distinct
+  #     tractability signal, not a positive nominator). weak_measured_ligand maps to structurally_
+  #     ligandable (a starting-point handle, same tier as a predicted pocket / druggable category). ---
+  - {verdict: measured_potent_ligand,       when_fired: measured-potent-ligand-sm-supportive}
   # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
   # E8-lig (composite structure-ligandability-per-protein-v1, 2026-08-07): the LIVE structural
   # leg. A real experimental co-crystal is the STRONGEST forward handle → ranks at the top of the
@@ -57,6 +66,10 @@ resolve:
   # E-known-drug (DGIdb): a druggable-CATEGORY membership (CLINICALLY ACTIONABLE / DRUGGABLE GENOME)
   # without an approved drug is a forward druggable-class prior — same tier as a predicted pocket.
   - {verdict: structurally_ligandable,      when_fired: known-drug-druggable-category-sm-supportive}
+  # T3.1: weak measured activity (a potent hit or two, or sub-potent) is a starting-point handle —
+  # same tier as a predicted pocket / druggable category (structurally_ligandable), below a potent
+  # measured SERIES (measured_potent_ligand, above) and any retrospective chemical hit.
+  - {verdict: structurally_ligandable,      when_fired: measured-weak-ligand-sm-supportive}
   - {verdict: structurally_intractable,     when_fired: structure-low-confidence-sm-opposing}
   - {verdict: structurally_intractable,     when_fired: ligandability-disordered-sm-opposing}
   - {verdict: chemically_unhit,             when_fired: prism-no-compounds-found-neutral}
