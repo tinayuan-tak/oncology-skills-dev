@@ -330,7 +330,29 @@ def compute_mutation_stratification(chronos_by_model: dict,
             return "wt_strongly_dependent"
         return None
 
-    cls = _classify(hot) or _classify(dam) or _classify(any_)
+    # HOTSPOT-GATED oncogene-addiction (T2.1, 2026-08-09): a DIRECTIONAL "mutant more dependent" call
+    # (mutant_strongly/moderately_dependent = oncogene-addiction) may be set ONLY from the HOTSPOT
+    # (activating) tier. The damaging/"any" tiers POOL activating + LoF + VUS mutations, so a
+    # directional call arising ONLY there is biologically unsound (a KRAS-G12C-addicted line and a
+    # KRAS-LoF/passenger line would be averaged into one "mutant" arm). The pooled tiers may still
+    # corroborate a hotspot call, produce not_mutation_stratified, or surface wt_strongly_dependent —
+    # they just cannot MANUFACTURE oncogene-addiction on their own. (Full GoF/LoF role-conditioning of
+    # the mutant arm is a larger follow-on; the resolver already conjoins alteration-role into
+    # confirmed_driver. See genomic-alteration review T2.1.)
+    _ONCOGENE_ADDICTION = {"mutant_strongly_dependent", "mutant_moderately_dependent"}
+    hot_cls = _classify(hot)
+    pooled_cls = _classify(dam) or _classify(any_)
+    hotspot_gated_note = None
+    if hot_cls is not None:
+        cls = hot_cls                                    # hotspot tier is authoritative when present
+    elif pooled_cls in _ONCOGENE_ADDICTION:
+        # directional call exists ONLY in the pooled tier → do NOT credit oncogene-addiction.
+        cls = "not_mutation_stratified"
+        hotspot_gated_note = (
+            f"pooled-tier {pooled_cls} not credited: no hotspot-tier signal (mixed activating/LoF/VUS "
+            "pool cannot establish oncogene-addiction; T2.1 hotspot-gate)")
+    else:
+        cls = pooled_cls                                 # wt_strongly_dependent / None pass through
     if cls is None:
         # Check sample-size gating
         if hot.get("_insufficient_data") and dam.get("_insufficient_data"):
@@ -371,6 +393,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "per_hotspot_stats": [],
         # === Categorical ===
         "mutation_stratification_class": cls,
+        "hotspot_gate_note": hotspot_gated_note,   # set when a pooled-tier oncogene-addiction call was NOT credited (T2.1)
         # === Internal for figure emitters ===
         "_hotspot_by_model": hotspot_by_model,
         "_damaging_by_model": damaging_by_model,
