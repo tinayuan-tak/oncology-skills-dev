@@ -29,6 +29,18 @@ def _load(p, name):
 
 _sf = _load(SAFETY_RUN, "sf_run_mutsel")
 
+# safety _headline calls get_card_field on ALL of these card_ids, and get_card_field RAISES KeyError
+# on a missing card_id (a deliberate typo-guard). The P5 human-genetics cards were added to _headline
+# after this test was written, so the fixtures below (which supplied only 2 cards) began raising. Every
+# card_id _headline reads must be present; an empty summary is fine for the ones not under test.
+_ALL_SAFETY_CARD_IDS = ["gnomad-lof-constraint", "alteration-role", "gene-burden-safety",
+                        "clingen-dosage", "clinvar-pathogenicity-safety", "mouse-ko-phenotype"]
+
+
+def _safety_cards(**summaries):
+    """All card_ids _headline reads, present; `summaries` supplies real values per card_id under test."""
+    return [{"card_id": cid, "summary": summaries.get(cid, {})} for cid in _ALL_SAFETY_CARD_IDS]
+
 
 def test_both_fired_downgrades_to_mechanism_mismatch():
     v = _sf._verdict([{"rule_id": "highly-constrained-safety-warning"},
@@ -48,11 +60,9 @@ def test_activating_role_alone_is_insufficient():
 
 
 def test_headline_surfaces_conditioning_note_on_downgrade():
-    cards = [
-        {"card_id": "gnomad-lof-constraint", "summary": {"constraint_class": "highly_constrained",
-                                                         "pli_score": 0.99, "loeuf_score": 0.2}},
-        {"card_id": "alteration-role", "summary": {"functional_direction": "activating"}},
-    ]
+    cards = _safety_cards(
+        **{"gnomad-lof-constraint": {"constraint_class": "highly_constrained", "pli_score": 0.99, "loeuf_score": 0.2},
+           "alteration-role": {"functional_direction": "activating"}})
     fired = [{"rule_id": "highly-constrained-safety-warning"},
              {"rule_id": "activating-driver-role-safety-context"}]
     h = _sf._headline(cards, fired, ("wt_constraint_mechanism_mismatch", "highly-constrained-safety-warning"))
@@ -64,8 +74,9 @@ def test_headline_surfaces_conditioning_note_on_downgrade():
 
 
 def test_headline_no_note_when_not_downgraded():
-    cards = [{"card_id": "gnomad-lof-constraint", "summary": {"constraint_class": "highly_constrained"}},
-             {"card_id": "alteration-role", "summary": {"functional_direction": "loss_of_function"}}]
+    cards = _safety_cards(
+        **{"gnomad-lof-constraint": {"constraint_class": "highly_constrained"},
+           "alteration-role": {"functional_direction": "loss_of_function"}})
     h = _sf._headline(cards, [{"rule_id": "highly-constrained-safety-warning"}],
                       ("highly_constrained_safety_concern", "highly-constrained-safety-warning"))
     assert h["mechanism_conditioning_note"] is None
