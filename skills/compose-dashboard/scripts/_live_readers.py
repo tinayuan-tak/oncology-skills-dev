@@ -811,6 +811,21 @@ def _dispatch_amp_expr_stratified_dependency(target: str, indication: str) -> Op
     return ae_module.read_amp_expr_dependency(target=target, indication=indication)
 
 
+def _dispatch_mutation_drug_response(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route mutation-drug-response card (Card E3.drug) to
+    methods/depmap_mutation_drug_response/read.py.
+
+    The PHARMACOLOGICAL sibling of mutation-stratified-dependency: are cell lines carrying an
+    alteration in the target more SENSITIVE to a DRUG that targets it (PRISM Log2AUC), vs the
+    CRISPR-KO dependency the mutation-stratified card measures? Selects on-target PRISM compounds
+    (GeneSymbolOfTargets == target) and stratifies best-responder Log2AUC by mutation status.
+    Target-only; indication accepted for back-compat but not consumed (cell-panel drug response is
+    indication-independent, like the sibling stratified cards).
+    """
+    dr_module = _import_method("depmap_mutation_drug_response")
+    return dr_module.read_mutation_drug_response(target=target, indication=indication)
+
+
 def _dispatch_dependency_predictability(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route dependency-predictability card (E5) to
     methods/depmap_predictability/read.py.
@@ -1577,6 +1592,7 @@ CARD_DISPATCHERS = {
     "copy-number-stratified-dependency": _dispatch_cn_stratified_dependency,
     "fusion-stratified-dependency": _dispatch_fusion_stratified_dependency,
     "amp-expr-stratified-dependency": _dispatch_amp_expr_stratified_dependency,
+    "mutation-drug-response": _dispatch_mutation_drug_response,
     "dependency-predictability": _dispatch_dependency_predictability,
     "prism-compound-activity": _dispatch_prism_compound_activity,
     "prism-crispr-concordance": _dispatch_prism_crispr_concordance,

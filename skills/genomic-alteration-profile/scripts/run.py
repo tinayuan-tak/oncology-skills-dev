@@ -71,6 +71,14 @@ CARDS = [
     # snapshot byte-identical (new rule ids never fire on old enumerated combos). Precedence mut > cn >
     # fusion > amp-expr (most-specific last).
     "amp-expr-stratified-dependency",
+    # Genotype × DRUG-RESPONSE (Thread 4, 2026-08-09) — the PHARMACOLOGICAL sibling of the stratified-
+    # dependency cards above. Are lines carrying an alteration in the target more SENSITIVE to a DRUG
+    # that TARGETS it (PRISM Log2AUC), vs the CRISPR-KO dependency the mutation-stratified card measures?
+    # ADDITIVE signal-only: its small_molecule rules reach the LLM/matrix + headline, touch NO resolver
+    # rung (verdict spine byte-stable). Deliberately NOT fired as biomarker_stratified_dependency:
+    # drug-sensitivity != KO-dependency. Live: BRAF→mutant_strongly_drug_sensitive (vemurafenib q=4.8e-11);
+    # KRAS→sensitive (G12C/G12D-inhibitor era); EGFR→not_stratified (honest cell-panel negative).
+    "mutation-drug-response",
     # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
     # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
     # data_unavailable}. ADDITIVE signal-only: reaches the LLM/matrix + headline, touches NO
@@ -247,6 +255,14 @@ def main() -> int:
         # pan-cancer extrapolation, not indication-specific evidence (T2.0).
         "stratified_pan_fallback_capped": get_card_field(cards, "mutation-stratified-dependency",
                                               "pan_fallback_strong_capped_to_moderate"),
+        # Pharmacological biomarker (Thread 4): genotype → on-target DRUG-response (PRISM Log2AUC),
+        # the complement to the CRISPR-KO stratified dependency above. Verdict-inert facet.
+        "drug_response_stratification_class": get_card_field(cards, "mutation-drug-response",
+                                              "drug_response_stratification_class"),
+        "drug_response_delta_log2auc":    get_card_field(cards, "mutation-drug-response",
+                                              "delta_log2auc_mut_vs_wt"),
+        "drug_response_n_on_target_compounds": get_card_field(cards, "mutation-drug-response",
+                                              "n_on_target_compounds"),
         "overall_mutation_frequency":    get_card_field(cards, "mutation-hotspot-frequency",
                                               "overall_mutation_frequency"),
         # Driver-recurrence percentile (Axis-1 contextualization, 2026-08-05) — is this gene's
