@@ -43,7 +43,9 @@ def synthetic_ligandability(tmp_path, monkeypatch):
     df.to_parquet(cache, index=False)
     monkeypatch.setattr(R, "CACHE_LIGAND_PARQUET", cache)
     monkeypatch.setattr(R, "_LIGAND_STATUS", True)
-    # hotspot product stays unavailable (its schema is unbuilt) — force the negative cache
+    # This fixture ISOLATES the ligandability leg: force the hotspot product's negative cache so the
+    # merge is exercised independently. (The hotspot product IS live in production — see the separate
+    # test_hotspot_leg_is_live below; here we deliberately drive the read-failure degrade path.)
     monkeypatch.setattr(R, "_DERIVED_STATUS", False)
     R._load_ligandability_indexed.cache_clear()
     R._load_structure_indexed.cache_clear()
@@ -59,9 +61,38 @@ def test_ligandability_merged_by_symbol(synthetic_ligandability):
     assert s["has_druggable_pocket"] is True
     assert s["is_foldable"] is True
     assert s["n_ligandability_axes"] == 2
-    # hotspot leg still present + backward-compatible (unmaterialized -> no_structure)
+    # hotspot leg reads no_structure HERE because this fixture forces its negative cache
+    # (_DERIVED_STATUS=False) to isolate the ligandability merge — NOT because the product is
+    # unmaterialized (it is live; see test_hotspot_leg_is_live).
     assert s["hotspot_pocket_adjacency_call"] == "no_structure"
     assert s["method_version"] == "0.2.0"
+
+
+def test_hotspot_leg_is_live(tmp_path, monkeypatch):
+    """GUARD (2026-08-09): the hotspot-adjacency product (pdb-alphafold-structure-features-per-uniprot-v1)
+    IS materialized and read in production — a prior comment falsely called it 'unmaterialized' and the
+    only read-layer test forced its negative cache, so CI could not catch the live leg. This drives a
+    synthetic hotspot index through the merge and asserts the populated 'adjacent' path, so a future edit
+    that drops the hotspot leg fails loudly. Mirrors the live behavior verified against S3 (KRAS ->
+    adjacent, mutation_hotspot_in_druggable_pocket=True)."""
+    # synthetic hotspot-adjacency index keyed as the reader indexes it (by symbol + AC)
+    hotspot_row = {
+        "hotspot_pocket_adjacency_call": "adjacent",
+        "mutation_hotspot_in_druggable_pocket": True,
+        "alphafold_confidence_class": "high",
+    }
+    monkeypatch.setattr(R, "_load_structure_indexed", lambda: {"KRAS": hotspot_row, "P01116": hotspot_row})
+    # ligandability leg unavailable here — isolate the hotspot leg (the mirror of the other fixture)
+    monkeypatch.setattr(R, "_LIGAND_STATUS", False)
+    monkeypatch.setattr(R, "CACHE_LIGAND_PARQUET", tmp_path / "nonexistent.parquet")
+    R._load_ligandability_indexed.cache_clear()
+    s = R.read_target_summary("KRAS")
+    assert s["hotspot_pocket_adjacency_call"] == "adjacent"
+    assert s["mutation_hotspot_in_druggable_pocket"] is True
+    # ligandability leg absent -> its own honest coverage-gap default, independent of the live hotspot leg
+    assert s["structural_ligandability_class"] == "insufficient_evidence"
+    R._load_ligandability_indexed.cache_clear()
+    # note: _load_structure_indexed was monkeypatched to a plain lambda (no lru_cache) — nothing to clear
 
 
 def test_ligandability_lookup_by_uniprot(synthetic_ligandability):

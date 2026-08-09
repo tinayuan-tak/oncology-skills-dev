@@ -40,12 +40,16 @@ DERIVED_S3_KEY = (
 )
 
 # Composite small-molecule structural-LIGANDABILITY product (data-catalog derived).
-# This is the LIVE structure signal: it fuses 6 shipped per-UniProt products (HOTPocket
+# This is a LIVE structure signal: it fuses 6 shipped per-UniProt products (HOTPocket
 # pockets, GenomeScreen VS-hits, PLINDER co-crystals, CryptoBench cryptic sites, AlphaFold
 # disorder, InterPro binding/active sites) into one ordinal structural_ligandability_class.
-# The hotspot-adjacency product above (DERIVED_MANIFEST_ID) is a DIFFERENT, still-
-# unmaterialized schema (mutation-hotspot-in-pocket); its fields degrade to no_structure /
-# unavailable while this ligandability leg carries the forward-ligandability verdict.
+# The hotspot-adjacency product above (DERIVED_MANIFEST_ID) is a DIFFERENT schema
+# (mutation-hotspot-in-pocket). It is ALSO LIVE (materialized 2026-08-07; the read below
+# loads it) — KRAS/BRAF/ERBB2 -> hotspot_pocket_adjacency_call='adjacent',
+# mutation_hotspot_in_druggable_pocket=True; a target with no oncogenic hotspot in a
+# druggable pocket -> 'no_hotspots_annotated'. Both legs feed the E8 SM-ligandability rules.
+# (Historical note: this comment previously said the hotspot product was 'still-unmaterialized'
+# — it was authored 2026-08-07 hours before the product landed and was never updated.)
 LIGAND_MANIFEST_ID = "structure-ligandability-per-protein-v1"
 LIGAND_S3_KEY = (
     "data-catalog/derived/structure-ligandability-per-protein-v1/"
@@ -234,11 +238,13 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     Returns:
         dict matching structure-features-static card summary shape. Always includes
         the composite structural-ligandability fields (from the LIVE ligandability
-        product) merged onto the hotspot-adjacency fields — the two legs are
-        independent, so ligandability is populated even when the hotspot-adjacency
-        product is unavailable (its schema is not yet materialized).
+        product) merged onto the hotspot-adjacency fields. Both legs are LIVE +
+        independent: if EITHER product is unavailable at read time its fields degrade
+        to no_structure / insufficient_evidence (an honest coverage gap, never a false
+        negative), while the other leg still populates.
     """
-    # Hotspot-adjacency leg (currently degrades to no_structure while its product is unbuilt).
+    # Hotspot-adjacency leg (LIVE: pdb-alphafold-structure-features-per-uniprot-v1;
+    # degrades to no_structure only on a read failure or a target absent from the product).
     try:
         idx = _load_structure_indexed()
     except Exception as e:
