@@ -82,6 +82,8 @@ outputs:
     - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
     - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
     - pan_lineage_mutation_stratification_class # the pan-DepMap class (audit; kept when a within-lineage scope wins)
+    - indication_lineage                       # the resolved DepMap OncotreeLineage for the indication (null if unmapped)
+    - pan_fallback_strong_capped_to_moderate   # True when a pan-fallback STRONG call was capped to moderate (confound unresolved)
 
   summary_fields_vocabulary:
     mutation_stratification_class:
