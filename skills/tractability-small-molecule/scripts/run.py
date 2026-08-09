@@ -186,8 +186,15 @@ def _headline(cards, fired, verdict_pair):
         "degradability_machinery":   get_card_field(cards, "degradation-feasibility", "degradability_feasibility_class"),
         "degradability_e3_evidence": get_card_field(cards, "degradation-feasibility", "e3_substrate_evidence"),
         "degrader_precedent":        get_card_field(cards, "degradation-feasibility", "degrader_precedent"),
-        "prism_activity_class":      get_card_field(cards, "prism-compound-activity", "activity_class"),
-        "prism_crispr_concord":      get_card_field(cards, "prism-crispr-concordance", "concordance_class"),
+        # 2026-08-09 bugfix (T5.1): these read the WRONG field names — the methods emit
+        # `prism_activity_class` / `crispr_prism_concordance_class`, not `activity_class` /
+        # `concordance_class`. get_card_field returns None on a missing key (no raise), so both
+        # headline fields were ALWAYS None → decision.json blank + the LLM synthesis prompt
+        # (synthesis_tractability_sm.py reads h['prism_activity_class'] / ['prism_crispr_concord'])
+        # was starved of the two most important chemical facts. Verdict UNAFFECTED (the rules read
+        # the correct field names directly via the rule engine).
+        "prism_activity_class":      get_card_field(cards, "prism-compound-activity", "prism_activity_class"),
+        "prism_crispr_concord":      get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
         "predictability_class":      get_card_field(cards, "dependency-predictability", "predictability_class"),
         # E8 structural / forward ligandability (2026-07-17)
         "hotspot_pocket_adjacency":  get_card_field(cards, "structure-features-static", "hotspot_pocket_adjacency_call"),
