@@ -8,7 +8,7 @@ Reusable, language-agnostic analytical code — packaged as CLIs (some R-driven,
 
 This repo is the third of the v2 framework's five repos. Sits between [target-contracts](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts) (governance) and [claude-oncology-skills](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills) (orchestration) in the dependency graph. Skills *call* methods; methods don't know about skills.
 
-## Method inventory (71 methods + 4 shared helpers under `methods/`)
+## Method inventory (102 methods + 4 shared helpers under `methods/`)
 
 Methods are grouped below by the biology gate / evidence axis they serve. Each is a self-contained
 module under `methods/<name>/` with a `read.py` library entry (consumed by the `compose-dashboard`
@@ -22,31 +22,52 @@ reused across a family of methods and are not invoked directly.
 `tcga_gtex_tpm_quantiles` · `tcga_tpm_precompute` · `gtex_tpm_precompute` ·
 `depmap_expression_distribution` · `allgene_percentile_precompute` · `percentile_null` ·
 `cptac_protein_deg` · `depmap_protein_abundance` · `depmap_rna_protein_concordance` ·
-`expression_purity_confound` · `expression_clinical_association` · `tumor_presence_controls`
+`expression_purity_confound` · `expression_clinical_association` · `tumor_presence_controls` ·
+`sc_tumor_expression_celltype` (single-cell tumor per-compartment presence) ·
+`sc_normal_expression` (single-cell normal-tissue cell-type expression) ·
+`depmap_isoform_expression` (model-side isoform TPM) ·
+`tcga_spliceseq_psi` (patient splicing / PSI)
 
 **Requirement / dependency (DepMap CRISPR + RNAi)**
-`depmap_chronos` · `depmap_chronos_distribution` · `depmap_demeter_distribution` ·
+`depmap_chronos` (+ lineage selectivity) · `depmap_chronos_distribution` · `depmap_demeter_distribution` ·
 `depmap_crispr_rnai_concordance` · `depmap_expression_dependency` · `depmap_mutation_dependency` ·
-`dependency` (lineage selectivity) · `depmap_predictability` · `depmap_predictability_precompute` ·
-`depmap_paralog_aggregator` · `synleth_partner_lookup` · `abundance_dependency` ·
+`depmap_cn_dependency` (copy-number-stratified) · `depmap_amp_expr_dependency` (amp→expr→dependency) ·
+`depmap_fusion_dependency` (fusion-stratified) · `dependency_controls` (pan-essential/non-essential control bands) ·
+`depmap_predictability` · `depmap_predictability_precompute` ·
+`depmap_paralog_aggregator` · `paralog_genetic_interaction` (combinatorial dual-KO genetic interaction) ·
+`combo_drug_anchor` (drug-anchored combination opportunities) · `synleth_partner_lookup` · `abundance_dependency` ·
 `depmap_parquet_precompute` · `depmap_common`
 
 **Genomic alteration (SNV / CN / fusion)**
-`gdc_somatic_hotspot` · `depmap_mutation_type_counts` · `depmap_cn_distribution` ·
+`gdc_somatic_hotspot` · `gdc_dr45_pancohort` (DR45 non-TCGA MAF source) · `depmap_mutation_type_counts` · `depmap_cn_distribution` ·
+`tcga_patient_cn` (per-patient GISTIC CN prevalence) · `tcga_aneuploidy_burden` (per-indication genome instability) ·
 `cooccurrence_fisher_pancohort` · `genomic_event_model_match` · `functional_gene_state` ·
-`driver_role_overlay` · `tcga_fusion_consensus` · `tcga_tmb`
+`driver_role_overlay` · `civic_variant_interpretation` (per-variant clinical interpretation) · `tcga_fusion_consensus` · `tcga_tmb` ·
+`genie_panel_coverage` (panel-aware denominator) · `genie_panel_recurrence` (coverage-correct SNV recurrence) ·
+`genie_sv_recurrence` (coverage-correct SV recurrence + partners)
 
 **Mechanism & pharmacology**
 `mechanism_composed` · `signor_mechanism_network` · `collectri_tf_regulon` ·
 `phospho_pathway_activity` · `kinome_atlas_prediction` · `kinome_atlas_pwm_lookup`
 
-**Tractability — small molecule (PRISM chemical-genetic)**
-`depmap_prism_activity` · `depmap_prism_crispr_concordance` · `depmap_prism_precompute`
+**Tractability — small molecule (PRISM chemical-genetic + pharmacology + degrader lens)**
+`depmap_prism_activity` · `depmap_prism_crispr_concordance` · `depmap_prism_precompute` ·
+`dgidb_drug_gene` (known-drug / druggable-category pharmacology leg) ·
+`degradation_feasibility` (degrader/PROTAC substrate feasibility) ·
+`domain_modality_relevance` (domain→inhibitor-vs-removal implication)
 
 **Surface / modality fit (biologics)**
 `cspa_surface_confirmation` · `surfaceome_family_fusion` · `surfaceome_cohort_ranking` ·
 `topology_predictions_tmbed` · `surface_antigen_density_ladder` · `shed_ectodomain_liability` ·
-`uniprot_gpi_anchor` · `structure_features_static`
+`uniprot_gpi_anchor` · `structure_features_static` ·
+`hpa_subcellular_location` (HPA immunofluorescence surface confirmation) ·
+`cd_antigen_backbone` (HGNC CD/IO-antigen-backbone membership) ·
+`mutation_stratified_surface` (driver-mutant surface window) ·
+`pathway_stratified_surface` (tumor-state/stress surface window) ·
+`exon_window` (per-exon tumor-vs-normal window) ·
+`pmhc_presentation` (HLA-ligand-atlas peptide presentation) ·
+`pair_selectivity_gate` (AND/OR/NOT antigen-pair co-expression scan) ·
+`immune_context` (CD8 effector-population hot/cold, TCE effector arm)
 
 **Safety (germline + normal-tissue liability)**
 `gnomad_constraint` · `hpa_normal_tissue_liability` · `opentargets_gene_burden` ·
@@ -62,8 +83,9 @@ reused across a family of methods and are not invoked directly.
 `subgroup_assigner_maf_filter` · `sclc_george_harmonize` (SCLC NAPY subtype vertical) ·
 `subgroup_common`
 
-**RWD & shared I/O**
-`tempus_rwd_aggregator` · `patient_model_expression_correspondence` · `io/` (shared loaders)
+**Cross-cohort correspondence, catalog & shared I/O**
+`patient_model_expression_correspondence` · `catalog_query` (read-only data-catalog query engine) ·
+`io/` (shared loaders)
 
 > The `target_id_resolver` (symbol → Ensembl/Entrez resolution) lives in
 > `claude-oncology-skills/libs/target_id_resolver/`, co-located with its resolver-release YAMLs, and
@@ -89,8 +111,9 @@ methods/
 │   ├── cli.py
 │   ├── read.py
 │   └── tests/
-├── tempus_rwd_aggregator/
+├── tcga_tmb/
 │   ├── cli.py
+│   ├── compute.py
 │   └── tests/
 ├── subgroup_assigner_directly_tagged/
 │   └── ...
@@ -122,13 +145,15 @@ Every iter-1 method has a corresponding output schema in `target-contracts/schem
 
 - `expression-rna-tumor-vs-adjacent.result.schema.json`
 - `dependency-depmap-chronos.result.schema.json`
-- (gdc-somatic-hotspot, tempus-rwd-aggregator schemas land as those methods ship)
+- `perturbation-prism-viability.result.schema.json`
+- `target-biology-uniprot.result.schema.json`
+- (further per-method schemas land as those methods ship)
 
 A method's output validates against its schema before `compose-dashboard` curates it into a card emission. Output schema drift is caught at compose-time, not silently in the rendered evidence package.
 
 ## Status
 
-**71 methods + 4 shared helpers**, spanning every biology gate of the framework (see inventory above). The
+**102 methods + 4 shared helpers**, spanning every biology gate of the framework (see inventory above). The
 dependency, expression, genomic-alteration, mechanism, PRISM-tractability, safety, and
 target-intrinsic methods are wired into `compose-dashboard` dispatchers with tests + figure
 emitters; the surface-density and structural-feature methods are partially wired (their upstream
