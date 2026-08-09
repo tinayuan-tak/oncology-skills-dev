@@ -2,7 +2,11 @@
 # Declarative transcription of skills/on-target-safety-liability/scripts/run.py::_verdict.
 # Germline gnomAD LoF-constraint signal (highly_constrained → hold in the nomination gate).
 gate: safety
-version: 1.3.0   # 1.3.0 (2026-07-24): + ClinVar germline-pathogenic as a 4th corroborating leg in the
+version: 1.4.0   # 1.4.0 (2026-08-09): PRECEDENCE FIX — human_genetics_safety_concern (HOLD) hoisted ABOVE
+                 #   the SOFT gnomAD rungs (tolerant/moderately/data_unavailable), below highly_constrained.
+                 #   It was co-emission-dead: gnomAD emits indeterminate for absent genes → data_unavailable
+                 #   fired first → the P5 human-genetics HOLD never fired for its intended population.
+                 # 1.3.0 (2026-07-24): + ClinVar germline-pathogenic as a 4th corroborating leg in the
                  #   human_genetics_safety_concern when_any_fired set + its mutant-selective downgrade.
                  # 1.2.0 (2026-07-24): + P5 human-genetics leg (gene-burden / ClinGen-dosage / mouse-KO)
                  #   as a combined concern rung BELOW the gnomAD chain (gnomAD path byte-identical),
@@ -39,22 +43,34 @@ resolve:
     when_all_fired: [clinvar-germline-pathogenic-safety-warning, activating-driver-role-safety-context]
     driving_rule: clinvar-germline-pathogenic-safety-warning
 
-  # ── GROUP 2: the gnomAD chain — UNCHANGED (byte-identical resolution for every gnomAD-firing case).
+  # ── GROUP 2a: the DOMINANT gnomAD signal — a strongly LoF-constrained gene is the top raw concern.
   - verdict: highly_constrained_safety_concern
     when_fired: highly-constrained-safety-warning
+
+  # ── GROUP 3: the P5 human-genetics COMBINED concern (HOLD). PRECEDENCE FIX (2026-08-09, resolver-
+  #    precedence audit): this MUST precede the SOFT gnomAD rungs below (tolerant / moderately /
+  #    data_unavailable). PRIOR BUG: it sat BELOW the whole gnomAD chain on the belief that the chain
+  #    "goes silent" for a gnomAD-absent gene — but the gnomAD card is NEVER silent: an absent gene
+  #    emits constraint_class=indeterminate (a genuine "read-the-table, gene-absent" value, per
+  #    gnomad_constraint/read.py), firing constraint-data-unavailable-insufficient → data_unavailable
+  #    ABOVE this rung. So human_genetics_safety_concern was CO-EMISSION-DEAD for exactly its intended
+  #    population (gene absent-from / tolerant-in gnomAD but carrying a WT-loss human-genetics signal),
+  #    silently dropping the HOLD (nomination_verdict_gate.yaml action: hold). A real gene-burden /
+  #    ClinGen-dominant-loss / ClinVar-pathogenic / mouse-KO-lethal signal is a STRONGER safety concern
+  #    than gnomAD-tolerant/moderate/absent, so it now outranks the soft gnomAD rungs (but still sits
+  #    BELOW highly_constrained gnomAD — a strong constraint call dominates). The GROUP-1 mutant-
+  #    selective downgrades still precede it (top of file), unchanged. driving_rule attributes the
+  #    strongest-tier warning present (gene_burden measured > ClinGen > ClinVar > mouse=inferred).
+  - verdict: human_genetics_safety_concern
+    when_any_fired: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
+
+  # ── GROUP 2b: the SOFT gnomAD rungs — tolerant / moderately-constrained / indeterminate-or-unreadable.
+  #    These are weaker than a real human-genetics WT-loss signal (GROUP 3), so they resolve AFTER it.
+  #    A gene with NO human-genetics warning still lands here exactly as before (gnomAD rows unchanged).
   - verdict: tolerant_reduced_safety_risk
     when_fired: tolerant-safety-supportive
   - verdict: moderately_constrained_safety
     when_fired: moderately-constrained-safety-neutral
   - verdict: data_unavailable
     when_fired: constraint-data-unavailable-insufficient
-
-  # ── GROUP 3: the P5 human-genetics COMBINED concern — fires only when the gnomAD chain is SILENT
-  #    (placed below it, so gnomAD always resolves first → gnomAD golden rows unchanged). Any of the
-  #    three WT-loss human-genetics warnings that survived the GROUP-1 downgrade lands here. This is
-  #    the common real case: a gene not in the gnomAD constraint table, or gnomAD-tolerant, but with a
-  #    population-burden / ClinGen-dominant-loss / mouse-adult-KO signal. driving_rule attributes the
-  #    strongest-tier warning present (gene_burden = measured population, then ClinGen, then mouse=inferred).
-  - verdict: human_genetics_safety_concern
-    when_any_fired: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
 default: insufficient
