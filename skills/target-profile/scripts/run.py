@@ -890,7 +890,14 @@ _BIOMARKER_QUANT = {
     # short (sub-skill) : list of numeric summary_fields to re-surface if present
     "genomic_alteration": ["hotspot_mannwhitney_q", "hotspot_effect_size",
                            "delta_chronos_hotspot_mut_vs_wt",
-                           "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype"],
+                           "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype",
+                           # Thread 3 (2026-08-09): dependency-classification PERFORMANCE — the
+                           # biomarker as a classifier for the DepMap-dependency phenotype. PPV-lift
+                           # separates rare-sharp (BRAF ~9.6x) from common-dep high-PPV-low-lift (KRAS
+                           # ~2.2x) markers the coarse class hides. DEPENDENCY performance, NOT clinical.
+                           "hotspot_dependency_ppv", "hotspot_dependency_sensitivity",
+                           "hotspot_dependency_specificity", "hotspot_dependency_base_rate",
+                           "hotspot_dependency_ppv_lift"],
     "dependency":        ["pearson_r", "pearson_p", "spearman_r",
                           "delta_chronos_top_vs_bottom_quartile",
                           "protein_dependency_pearson_r", "protein_dependency_pearson_p",
@@ -943,13 +950,36 @@ def _biomarker_quantitative(sub_results: dict) -> dict:
 # (predictive-performance PPV/NPV + deployability are the plan's NEXT layers — NOT computed here.)
 
 
-def _classify_biomarker_best_roles(corroboration: dict, stratification: dict) -> list:
+def _classify_biomarker_best_roles(corroboration: dict, stratification: dict,
+                                    quantitative: dict = None) -> list:
     """Type the assembled biomarker signals into a LIST of {intended_use, basis, evidence_strength}
     hypotheses (BEST-role §1). Pure fn — deterministic, no I/O; roles are NON-exclusive. A field that
-    is null / data_unavailable / not_informative contributes nothing (honest — never fabricates a role)."""
+    is null / data_unavailable / not_informative contributes nothing (honest — never fabricates a role).
+
+    When `quantitative` carries the genomic dependency-classification performance (Thread 3), the
+    genomic predictive hypothesis is annotated with the computed dependency-PPV + PPV-lift — a real
+    metric on the DepMap-dependency ground truth (NOT drug-response / clinical PPV)."""
+    quantitative = quantitative or {}
+
     def _live(v):
         return v not in (None, "data_unavailable", "not_informative", "insufficient_survival_data",
                          "insufficient_mutation_rate", "insufficient_paired_models")
+
+    # Dependency-classification performance for the genomic stratifier (Thread 3), if present.
+    _gq = quantitative.get("genomic_alteration", {}) or {}
+    _dep_ppv = _gq.get("hotspot_dependency_ppv")
+    _dep_lift = _gq.get("hotspot_dependency_ppv_lift")
+
+    def _ppv_perf():
+        """A compact dependency-performance dict to attach to a genomic predictive hypothesis."""
+        if _dep_ppv is None:
+            return None
+        return {"dependency_ppv": _dep_ppv,
+                "dependency_ppv_lift": _dep_lift,
+                "dependency_sensitivity": _gq.get("hotspot_dependency_sensitivity"),
+                "dependency_specificity": _gq.get("hotspot_dependency_specificity"),
+                "dependency_base_rate": _gq.get("hotspot_dependency_base_rate"),
+                "_metric_scope": "DepMap genetic-dependency phenotype (Chronos<=-0.5), NOT drug-response/clinical"}
 
     hyps: list = []
     mut_strat = stratification.get("mutation_stratification_class")
@@ -968,11 +998,18 @@ def _classify_biomarker_best_roles(corroboration: dict, stratification: dict) ->
                      "_note": "genotype→drug-response predictive hypothesis (OncoKB/IntOGen-classed)."})
     if mut_strat in ("mutant_strongly_dependent", "mutant_moderately_dependent"):
         strength = "strong" if mut_strat == "mutant_strongly_dependent" else "moderate"
-        hyps.append({"intended_use": "predictive", "basis": f"mutation_stratification_class={mut_strat}",
-                     "evidence_strength": strength,
-                     "_note": "mutation-stratified DEPENDENCY (CRISPR) — a dependency-predictive "
-                              "hypothesis; NOT auto an inhibitor biomarker (KO removes noncatalytic "
-                              "functions). Confirm with a pharmacologic (PRISM) arm before clinical framing."})
+        hyp = {"intended_use": "predictive", "basis": f"mutation_stratification_class={mut_strat}",
+               "evidence_strength": strength,
+               "_note": "mutation-stratified DEPENDENCY (CRISPR) — a dependency-predictive "
+                        "hypothesis; NOT auto an inhibitor biomarker (KO removes noncatalytic "
+                        "functions). Confirm with a pharmacologic (PRISM) arm before clinical framing."}
+        # Thread 3: attach the computed dependency-classification performance. PPV-lift is the
+        # informativeness above the panel base-rate — it separates a rare-sharp predictor (high lift)
+        # from a common-dependency high-PPV-low-lift marker (the coarse strength label hides this).
+        perf = _ppv_perf()
+        if perf is not None:
+            hyp["dependency_performance"] = perf
+        hyps.append(hyp)
     # a dependency-correlation signal WITHOUT a genotype stratifier = a weaker predictive-dependency hypothesis
     if not any(h["intended_use"] == "predictive" for h in hyps) and any(
             v in ("strong_negative", "moderate_negative", "protein_predicts_dependency",
@@ -1065,15 +1102,16 @@ def _biomarker_facet(sub_results: dict) -> dict:
     else:
         verdict = "none"
 
+    # A2a: re-surface the raw statistics behind the categorical classes (strength, not just bucket).
+    quantitative = _biomarker_quantitative(sub_results)
+
     # BEST-role classification (§1): type the assembled signals into a LIST of non-exclusive
     # hypotheses, each naming its intended_use. Kept SEPARATE from the facet verdict (which is a
     # confidence/patient-selection summary) — this answers "what KIND of biomarker(s)", the verdict
-    # answers "how strong a selector". Verdict-inert, additive.
-    biomarker_hypotheses = _classify_biomarker_best_roles(corroboration, stratification)
+    # answers "how strong a selector". Verdict-inert, additive. `quantitative` is passed so a
+    # predictive hypothesis can carry the computed dependency-PPV performance (Thread 3).
+    biomarker_hypotheses = _classify_biomarker_best_roles(corroboration, stratification, quantitative)
     intended_uses = sorted({h["intended_use"] for h in biomarker_hypotheses})
-
-    # A2a: re-surface the raw statistics behind the categorical classes (strength, not just bucket).
-    quantitative = _biomarker_quantitative(sub_results)
 
     return {
         "corroboration_role": corroboration,
@@ -1090,9 +1128,12 @@ def _biomarker_facet(sub_results: dict) -> dict:
                         "target can carry several; predictive and prognostic are kept strictly "
                         "separate. `quantitative` re-surfaces the raw statistics (r / effect size / "
                         "Mann-Whitney q / delta-Chronos / agreement fraction) the cards already "
-                        "computed behind each class — strength, not a computed predictive metric. "
-                        "Predictive-performance (PPV/NPV) + deployability are NOT yet computed. null "
-                        "fields = input not reachable this run, not a measured negative."),
+                        "computed behind each class — strength, not just a bucket. A genomic predictive "
+                        "hypothesis now carries `dependency_performance` (PPV / sensitivity / specificity "
+                        "/ base-rate / PPV-lift) — a COMPUTED metric on the DepMap genetic-dependency "
+                        "phenotype, NOT drug-response or clinical PPV (clinical-PPV/NPV + deployability "
+                        "remain uncomputed). null fields = input not reachable this run, not a measured "
+                        "negative."),
     }
 
 

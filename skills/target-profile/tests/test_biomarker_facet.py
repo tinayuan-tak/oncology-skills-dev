@@ -43,6 +43,36 @@ def test_predictive_biomarker_alteration_role_is_genomic_stratifier():
     assert f["preferred_assay"] == "genomic"
 
 
+def test_dependency_ppv_performance_flows_to_predictive_hypothesis():
+    # Thread 3: dependency-classification performance on the mutation-stratified card should (a) surface
+    # in the quantitative block and (b) attach to the genomic predictive hypothesis as dependency_performance.
+    sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
+        "mutation_stratification_class": "mutant_strongly_dependent",
+        "hotspot_dependency_ppv": 0.81, "hotspot_dependency_ppv_lift": 9.65,
+        "hotspot_dependency_sensitivity": 0.66, "hotspot_dependency_specificity": 0.99,
+        "hotspot_dependency_base_rate": 0.084}})
+    f = run._biomarker_facet(sr)
+    # (a) quantitative re-surfacing
+    assert f["quantitative"]["genomic_alteration"]["hotspot_dependency_ppv_lift"] == 9.65
+    # (b) attached to the predictive hypothesis
+    pred = [h for h in f["biomarker_hypotheses"]
+            if h["intended_use"] == "predictive" and "mutation_stratification_class" in h["basis"]]
+    assert pred, "expected a mutation-stratified predictive hypothesis"
+    perf = pred[0].get("dependency_performance")
+    assert perf is not None
+    assert perf["dependency_ppv"] == 0.81 and perf["dependency_ppv_lift"] == 9.65
+    assert "NOT drug-response" in perf["_metric_scope"]
+
+
+def test_dependency_performance_absent_when_ppv_not_provided():
+    # No PPV fields on the card → predictive hypothesis still forms, but carries no dependency_performance.
+    sr = _sr(genomic_alteration={"mutation-stratified-dependency": {
+        "mutation_stratification_class": "mutant_moderately_dependent"}})
+    f = run._biomarker_facet(sr)
+    pred = [h for h in f["biomarker_hypotheses"] if h["intended_use"] == "predictive"]
+    assert pred and "dependency_performance" not in pred[0]
+
+
 def test_rna_adequate_proxy_prefers_rna():
     # no genomic stratifier; RNA is an adequate proxy → preferred RNA, corroborating_only.
     # phospho re-homed 2026-08-05: it now surfaces under the `mechanism` sub-result, not `expression`.
