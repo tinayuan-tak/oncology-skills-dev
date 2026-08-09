@@ -186,6 +186,13 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"  mutation_landscape_class: {h.get('mutation_landscape_class')}",
         f"  mutation_stratification_class: {h.get('mutation_stratification_class')} "
         "(is mutant status a dependency biomarker?)",
+        f"  stratified_evidence_scope: {h.get('stratified_evidence_scope', 'n/a')}"
+        + (f"  [lineage_context_divergent]" if h.get('stratified_lineage_context_divergent') else ""),
+        "  NOTE (scope): the stratified-dependency call is CELL-LINE dependence in DepMap. "
+        "within_indication = split ran within the indication's lineage; within_indication_mut_vs_pan_wt "
+        "= lineage mutants vs pan-DepMap WT (high-prevalence-driver lineages); pan_lineage_evidence_only "
+        "= within-lineage underpowered, pan-DepMap (strong capped to moderate) — treat as a pan-cancer "
+        "extrapolation, NOT indication-confirmed. Cell-line dependence != clinical monotherapy response.",
         f"  copy_number_class: {h.get('copy_number_class')}",
         f"  fusion_class (TCGA 3-caller consensus, deep/33 tissues): {h.get('fusion_class', 'n/a')}",
         f"  genie_sv breadth (GENIE panel, 271k tumors, coverage-correct): {_genie_sv_line(h)}",

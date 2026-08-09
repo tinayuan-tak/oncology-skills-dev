@@ -232,6 +232,16 @@ def main() -> int:
                                               "mutation_landscape_class"),
         "mutation_stratification_class": get_card_field(cards, "mutation-stratified-dependency",
                                               "mutation_stratification_class"),
+        # Indication-conditioning provenance (T2.0, 2026-08-09) — at what SCOPE was the stratified
+        # dependency call made? within_indication (within-lineage split) / within_indication_mut_vs_pan_wt
+        # (lineage mutants vs pan-DepMap WT — high-prevalence-driver lineages) / pan_lineage_evidence_only
+        # (within-lineage underpowered → pan-DepMap, strong capped to moderate) / pan_no_indication.
+        # Surfaced so a reader/LLM knows whether the biomarker call is indication-specific or a
+        # pan-cancer extrapolation; lineage_context_divergent flags a within-vs-pan disagreement.
+        "stratified_evidence_scope":     get_card_field(cards, "mutation-stratified-dependency",
+                                              "evidence_scope"),
+        "stratified_lineage_context_divergent": get_card_field(cards, "mutation-stratified-dependency",
+                                              "lineage_context_divergent"),
         "overall_mutation_frequency":    get_card_field(cards, "mutation-hotspot-frequency",
                                               "overall_mutation_frequency"),
         # Driver-recurrence percentile (Axis-1 contextualization, 2026-08-05) — is this gene's
