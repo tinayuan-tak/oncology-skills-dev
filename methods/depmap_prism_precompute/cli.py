@@ -161,6 +161,13 @@ CLINICALLY_ACTIVE_LOG2AUC_THRESHOLD = -0.10  # phase_1+ compound needs Log2AUC b
 
 # Vocabulary buckets for prism_activity_class. See card spec for authoritative copy.
 CLASS_CLINICALLY_ACTIVE = "clinically_active"
+# T1.2 (2026-08-09, tractability review): a phase-1+ compound is ANNOTATED against the target but
+# shows NO measured PRISM cell-panel activity (median Log2AUC absent, or not below the clinically-
+# active threshold). Previously this collapsed into clinically_active ("clinical anchor exists even
+# if the pan-cancer signal is thin"), letting a strong chemical verdict rest on ANNOTATION alone with
+# no measured killing + no on-target check. Split out so the verdict layer can report the honestly-
+# weaker clinical_precedent_only rather than the strong chemically_active.
+CLASS_CLINICAL_PRECEDENT_ONLY = "clinical_precedent_only"
 CLASS_TOOL_COMPOUND_ONLY = "tool_compound_only"
 CLASS_WEAKLY_ACTIVE = "weakly_active"
 CLASS_NO_COMPOUNDS_FOUND = "no_compounds_found"
@@ -1142,9 +1149,12 @@ def classify_prism_activity(
     Priority order (first-match wins):
       1. No compounds → no_compounds_found (first-in-class opportunity, NOT killer)
       2. Any phase_1+ compound AND median Log2AUC < CLINICALLY_ACTIVE_LOG2AUC_THRESHOLD
-         → clinically_active
-      3. Any phase_1+ compound (regardless of Log2AUC signal) → clinically_active
-         (clinical anchor exists even if pan-cancer signal is thin)
+         → clinically_active (clinical anchor WITH measured cell-panel activity)
+      3. Any phase_1+ compound but NO measured activity (Log2AUC absent, or not below the
+         clinically-active threshold) → clinical_precedent_only (T1.2, 2026-08-09):
+         a clinical compound is ANNOTATED against the target but the PRISM cell panel does not
+         show it killing — an honestly-weaker signal than measured chemically_active, kept
+         distinct so the verdict layer does not over-call druggability from annotation alone.
       4. tool / preclinical only AND median Log2AUC < WEAKLY_ACTIVE_LOG2AUC_THRESHOLD
          → weakly_active
       5. tool / preclinical only → tool_compound_only
@@ -1156,7 +1166,9 @@ def classify_prism_activity(
     if has_clinical and has_activity and median_log2auc_across_compounds < CLINICALLY_ACTIVE_LOG2AUC_THRESHOLD:
         return CLASS_CLINICALLY_ACTIVE
     if has_clinical:
-        return CLASS_CLINICALLY_ACTIVE
+        # clinical annotation present, but NO measured cell-panel activity below the threshold →
+        # precedent-only (T1.2). Was CLASS_CLINICALLY_ACTIVE (over-called from annotation alone).
+        return CLASS_CLINICAL_PRECEDENT_ONLY
     if has_activity and median_log2auc_across_compounds < WEAKLY_ACTIVE_LOG2AUC_THRESHOLD:
         return CLASS_WEAKLY_ACTIVE
     return CLASS_TOOL_COMPOUND_ONLY
