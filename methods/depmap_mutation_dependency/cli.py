@@ -267,16 +267,19 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     combined = np.concatenate([mut_arr, wt_arr])
     uncomputable = bool(np.ptp(combined) == 0.0)
 
-    # FORWARD (primary): mutant more dependent (lower Chronos). Kept BYTE-IDENTICAL to the
-    # historical one-sided behaviour — same alternative, same scipy defaults, same p=1.0 /
-    # effect=0.0 ValueError fallback — so the forward p_value, the caller's BH across tiers,
-    # and every load-bearing `mutant_*_dependent` call are unchanged. (A determinism pin
-    # for ties/continuity, scipy method=, is a DEFERRED verdict-moving change requiring
-    # golden regeneration — intentionally NOT bundled here.)
+    # DETERMINISM PIN (2026-08-09): method + use_continuity are set EXPLICITLY to scipy's current
+    # defaults (method="auto", use_continuity=True) — verified byte-identical to leaving them unset
+    # (see test_mannwhitney_determinism_pin). This is verdict-NEUTRAL: it does not change any p-value;
+    # it makes the exact/asymptotic behaviour version-STABLE and transparent so a future scipy default
+    # change cannot silently move results. `method="auto"` uses the EXACT null for a group of n<=8 with
+    # no ties (the statistically correct choice at tiny n — Chronos is continuous so ties are rare) and
+    # the tie-corrected asymptotic normal approximation for n>=9. We deliberately do NOT force
+    # method="asymptotic": that would DEGRADE small-n accuracy (e.g. FLT3 n=5: exact p=1.1e-10 vs
+    # asymptotic p=6.4e-5) purely for determinism — the exact test is the right one there, and the pin
+    # already gives version-stability without that accuracy loss.
+    _MW = dict(alternative="less", method="auto", use_continuity=True)
     try:
-        u_stat, p_one_sided = scipy_stats.mannwhitneyu(
-            mut_arr, wt_arr, alternative="less"
-        )
+        u_stat, p_one_sided = scipy_stats.mannwhitneyu(mut_arr, wt_arr, **_MW)
         # Rank-biserial effect size (signed by the forward direction)
         effect = 1.0 - (2.0 * u_stat) / (n_mut * n_wt)
     except ValueError:
@@ -289,10 +292,10 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     # (`wt_strongly_dependent` etc.) genuinely REACHABLE — previously they sat behind a
     # `delta >= +0.3` branch that a one-sided "less" test could never satisfy at significance
     # (a dead branch). The reverse direction is TSG-synthetic-dependency biology and feeds
-    # only neutral/inert rules, so surfacing it is verdict-safe.
+    # only neutral/inert rules, so surfacing it is verdict-safe. Same determinism pin.
     try:
         _, p_reverse = scipy_stats.mannwhitneyu(
-            mut_arr, wt_arr, alternative="greater"
+            mut_arr, wt_arr, alternative="greater", method="auto", use_continuity=True
         )
         p_reverse = float(p_reverse)
     except ValueError:
