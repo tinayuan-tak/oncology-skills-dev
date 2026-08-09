@@ -50,6 +50,8 @@ outputs:
     - n_e3_predicted_confident           # count of confident predicted E3 partners (Pvalue<=0.05)
     - degrader_precedent                 # bool — a curated PROTAC/glue precedent exists
     - degrader_precedent_examples        # list<string> — representative degrader molecules
+    - degrader_precedent_modality        # PROTAC | molecular_glue (curated) | null — the precedent's degrader class
+    - degrader_recruited_e3              # CRBN | VHL | ... (curated) | null — E3 the representative degrader recruits
     - surface_location_excluded          # bool — surface/secreted → cytoplasmic-E3-unreachable
     - degradability_context              # string — human-readable rationale (audit / LLM)
 
@@ -64,6 +66,19 @@ outputs:
       - literature
       - predicted_only
       - none_in_ubibrowser
+    degrader_precedent_modality:        # null when no curated precedent; the precedent's degrader class
+      - PROTAC                           # heterobifunctional — needs a ligandable handle ON the target
+      - molecular_glue                   # reshapes an E3 surface for a neo-substrate — NO target pocket needed
+    degrader_recruited_e3:              # null when no curated precedent; the E3(s) the representative degrader
+                                        # recruits. REPRESENTATIVE not exhaustive — verbatim from the curated
+                                        # precedent vocab, which may carry a slash-combined value (e.g. CRBN/VHL
+                                        # when both are precedented) or a novel E3 as curation grows.
+      - CRBN
+      - VHL
+      - CRBN/VHL
+      - MDM2
+      - IAP
+      - DCAF15
 
 warning_predicates:
   - warning_id: degrader_unfavorable_location
