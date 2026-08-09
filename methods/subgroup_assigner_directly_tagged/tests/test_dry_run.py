@@ -402,3 +402,45 @@ def test_cn_amp_evaluator():
     # Absent product → empty frame (main() then emits null for the stratum).
     empty = _evaluate_cn_amp_stratum(stratum, None)
     assert empty.empty
+
+
+# ── NSCLC histology clinical loader (subtyping review completeness, 2026-08-09) ──────────────────
+
+def test_cdr_histology_label_mapping():
+    """The TCGA-CDR histological_type → catalog-vocabulary mapping: adeno/squamous by substring, with
+    the LUAD/LUSC project code as a blank-histology fallback. Unmappable → None (tri-value null)."""
+    import sys
+    sys.path.insert(0, str(METHODS_REPO))
+    from methods.subgroup_assigner_directly_tagged.cli import _cdr_histology_label
+    # the real compact TCGA-CDR strings
+    assert _cdr_histology_label("Lung Adenocarcinoma", "LUAD") == "adenocarcinoma"
+    assert _cdr_histology_label("Lung Squamous Cell Carcinoma", "LUSC") == "squamous_cell_carcinoma"
+    # granular variants still resolve by substring
+    assert _cdr_histology_label("Lung Papillary Adenocarcinoma", "LUAD") == "adenocarcinoma"
+    assert _cdr_histology_label("Lung Basaloid Squamous Cell Carcinoma", "LUSC") == "squamous_cell_carcinoma"
+    # blank histological_type → falls back to the project code
+    assert _cdr_histology_label("", "LUAD") == "adenocarcinoma"
+    assert _cdr_histology_label(None, "LUSC") == "squamous_cell_carcinoma"
+    # a non-lung / unmappable value → None (tri-value null, never a false negative)
+    assert _cdr_histology_label("Something Else", "BRCA") is None
+
+
+def test_brca_pam50_decode_and_patient_barcode(tmp_path, monkeypatch):
+    """The BRCA PAM50 loader decodes curated Subtype_Selected 'BRCA.<PAM50>' → bare pam50_subtype +
+    reduces aliquot ids to the 12-char patient barcode. Hermetic: synthetic curated CSV."""
+    import sys
+    sys.path.insert(0, str(METHODS_REPO))
+    from methods.subgroup_assigner_directly_tagged import cli
+    cur = tmp_path / "framework-tcga-marker-paper"
+    cur.mkdir(parents=True)
+    pd.DataFrame({
+        "pan.samplesID": ["TCGA-A1-AAAA-01A-11", "TCGA-B2-BBBB-01A-22", "TCGA-C3-CCCC-01A-33", "TCGA-D4-DDDD-01A"],
+        "cancer.type":   ["BRCA", "BRCA", "BRCA", "LUAD"],
+        "Subtype_Selected": ["BRCA.LumA", "BRCA.Basal", "OTHER.Weird", "LUAD.x"],
+    }).to_csv(cur / "pancan_atlas_subtypes_curated.csv", index=False)
+    monkeypatch.setattr(cli, "cache_root", lambda: tmp_path)
+    p = cli._load_brca_pam50_from_curated()
+    got = dict(zip(p["patient_id"], p["pam50_subtype"]))
+    assert got == {"TCGA-A1-AAAA": "LumA", "TCGA-B2-BBBB": "Basal"}   # LumA + Basal decoded
+    # unmappable BRCA row (OTHER.Weird) dropped → tri-value null; non-BRCA LUAD excluded
+    assert "TCGA-C3-CCCC" not in got and "TCGA-D4-DDDD" not in got

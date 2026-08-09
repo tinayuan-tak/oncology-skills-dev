@@ -214,7 +214,99 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
             df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
             df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
 
+    # --- BRCA PAM50 from the PanCanAtlas curated subtypes file --------------------------------
+    # The BRCA catalog's PAM50 strata rule `clinical.pam50_subtype == 'LumA'|'LumB'|'Her2'|'Basal'|
+    # 'Normal'`. The curated file ships them as Subtype_Selected = 'BRCA.LumA'/.LumB/.Her2/.Basal/
+    # .Normal (VERIFIED 1,218 BRCA rows). Decode the BRCA.<PAM50> prefix → a bare `pam50_subtype`
+    # column (mirrors the STAD GI.* decode). Ingest-free; unmappable rows stay NaN → tri-value null.
+    if indication == "BRCA":
+        pam = _load_brca_pam50_from_curated()
+        if pam is not None and not pam.empty:
+            df = df.merge(pam, on="patient_id", how="outer")
+            df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
+            df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
+
+    # --- NSCLC histology from TCGA-CDR clinical (gdc-pancanatlas-clinical-2018) ------------------
+    # The marker-paper LUAD/LUSC files carry no `histology` column (they ARE per-histology), and the
+    # RNA-seq manifest the catalog previously (mis)pointed at has no clinical fields → histology_Adeno/
+    # SCC were silently all-null. TCGA-CDR (TCGA-CDR-SupplementalTableS1.xlsx) has `histological_type`
+    # + `type` (LUAD/LUSC); merge a normalized `histology` column so the scalar rule
+    # `clinical.histology == 'adenocarcinoma'|'squamous_cell_carcinoma'` resolves. Left-merge on the
+    # TCGA patient barcode (bcr_patient_barcode). Ingest-free (manifest already held).
+    if indication == "NSCLC":
+        cdr = _load_pancanatlas_clinical_histology()
+        if cdr is not None and not cdr.empty:
+            df = df.merge(cdr, on="patient_id", how="outer")
+            df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
+            df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
+
     return df
+
+
+# TCGA-CDR histological_type → catalog histology vocabulary. The TCGA-CDR export uses the compact
+# strings 'Lung Adenocarcinoma' / 'Lung Squamous Cell Carcinoma' (verified against the real file);
+# a substring fallback tolerates any granular variant a future export might carry. Anything unmapped
+# stays NaN → tri-value null (unassayed), never a false negative.
+def _cdr_histology_label(hist_type: str, tcga_type: str) -> "str | None":
+    s = str(hist_type or "").lower()
+    if "adenocarcinoma" in s:
+        return "adenocarcinoma"
+    if "squamous" in s:
+        return "squamous_cell_carcinoma"
+    # fall back to the TCGA project code (LUAD=adeno, LUSC=squamous) when histological_type is blank
+    if tcga_type == "LUAD":
+        return "adenocarcinoma"
+    if tcga_type == "LUSC":
+        return "squamous_cell_carcinoma"
+    return None
+
+
+# PAM50 label decode: curated Subtype_Selected 'BRCA.<PAM50>' → the catalog's bare pam50_subtype token.
+_BRCA_PAM50_DECODE = {
+    "BRCA.LumA": "LumA", "BRCA.LumB": "LumB", "BRCA.Her2": "Her2",
+    "BRCA.Basal": "Basal", "BRCA.Normal": "Normal",
+}
+
+
+def _load_brca_pam50_from_curated() -> "pd.DataFrame | None":
+    """Load PanCanAtlas curated subtypes, filter to BRCA, decode Subtype_Selected 'BRCA.<PAM50>' →
+    per-patient `pam50_subtype` ∈ {LumA, LumB, Her2, Basal, Normal}. Unmappable rows dropped →
+    tri-value null. Session-cached fallback; None if unreachable (strata self-degrade to null)."""
+    fallback = cache_root() / "framework-tcga-marker-paper" / "pancan_atlas_subtypes_curated.csv"
+    if not fallback.exists():
+        return None
+    try:
+        cur = pd.read_csv(fallback)
+    except Exception:  # noqa: BLE001
+        return None
+    id_col = "pan.samplesID" if "pan.samplesID" in cur.columns else cur.columns[0]
+    brca = cur[cur["cancer.type"].astype(str).str.upper().str.contains("BRCA", na=False)].copy()
+    brca["pam50_subtype"] = brca["Subtype_Selected"].map(_BRCA_PAM50_DECODE)
+    brca = brca.dropna(subset=["pam50_subtype"])
+    # PanCanAtlas sample ids are aliquot-level (TCGA-XX-XXXX-01A...); reduce to the 12-char patient barcode
+    brca["patient_id"] = brca[id_col].astype(str).str.slice(0, 12)
+    return brca[["patient_id", "pam50_subtype"]].drop_duplicates("patient_id")
+
+
+def _load_pancanatlas_clinical_histology() -> "pd.DataFrame | None":
+    """Load TCGA-CDR clinical, filter to LUAD/LUSC, return per-patient normalized `histology`.
+
+    Columns out: patient_id (TCGA barcode), histology ∈ {adenocarcinoma, squamous_cell_carcinoma}
+    (unmappable rows DROPPED → those patients get tri-value null, not a false negative). Session-cached
+    fallback; returns None if unreachable (strata self-degrade to null)."""
+    fallback = cache_root() / "framework-tcga-cdr" / "TCGA-CDR-SupplementalTableS1.xlsx"
+    if not fallback.exists():
+        return None
+    try:
+        cdr = pd.read_excel(fallback, sheet_name=0)
+    except Exception:  # noqa: BLE001
+        return None
+    lung = cdr[cdr["type"].isin(["LUAD", "LUSC"])].copy()
+    lung["histology"] = [
+        _cdr_histology_label(ht, tp) for ht, tp in zip(lung["histological_type"], lung["type"])]
+    lung = lung.dropna(subset=["histology"])
+    return lung[["bcr_patient_barcode", "histology"]].rename(
+        columns={"bcr_patient_barcode": "patient_id"})
 
 
 # Per-indication cache-dir slug for the prefetched BPC LOT parquet — MUST match
