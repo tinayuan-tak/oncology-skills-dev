@@ -102,6 +102,19 @@ resolve:
   - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
   - {verdict: moderate_biomarker_dependency,   when_fired: amp-expr-moderately-dependent-supportive}
 
+  # (2d-drug) GENOTYPE x DRUG-RESPONSE biomarker (deferred-c, 2026-08-09) — the PHARMACOLOGICAL sibling
+  #     of the stratified-dependency family. Fires a DISTINCT verdict drug_response_biomarker (NEVER
+  #     conflated with biomarker_stratified_dependency): drug-sensitivity != CRISPR-KO dependency, so
+  #     they must stay separate verdicts. Placed AFTER the stratified-dependency family (the KO-proven
+  #     genetic dependency is the more mechanism-anchored call and wins first-match for a dually-
+  #     evidenced gene) but BEFORE the bare variant-class-PATTERN rungs (2e) — a pharmacological
+  #     biomarker (an actual drug shows genotype-selective activity) outranks a mere mutation-spectrum
+  #     composition signal that has no functional test. Only the STRONG class drives a verdict; the
+  #     moderate class stays a signal-only facet (necessary-not-sufficient for a nomination tier).
+  #     New rule id → NOT in the golden's enumerated set → existing 4096 combos byte-identical (proven
+  #     by the golden test); the new verdict is validated by a dedicated rescue test.
+  - {verdict: drug_response_biomarker, when_fired: mutation-drug-response-strongly-sensitive-supportive}
+
   # (2e) VARIANT-CLASS PATTERN (mutation-spectrum composition, NO dependency test) — RENAMED T1.1
   #      (2026-08-09): recurrent_lof_driver -> lof_dominant_pattern, recurrent_missense_driver ->
   #      missense_dominant_pattern. HONESTY FIX: these fire from mutation-type-counts variant-CLASS

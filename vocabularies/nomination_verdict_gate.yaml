@@ -241,6 +241,13 @@ positive_signals:
   # true read. `dominant` for the strong stratified call, `supportive` for moderate.
   - {sub_skill: genomic_alteration, verdict: biomarker_stratified_dependency, weight: dominant}
   - {sub_skill: genomic_alteration, verdict: moderate_biomarker_dependency,   weight: supportive}
+  # Genotype x DRUG-RESPONSE biomarker (deferred-c, 2026-08-09) — a genotype that predicts SENSITIVITY
+  # to a drug TARGETING the gene (PRISM Log2AUC; e.g. BRAF-mut -> vemurafenib). The most clinically-
+  # shaped biomarker signal (an actual pharmacologic agent, not a KO). `supportive`, NOT `dominant`:
+  # cell-panel PRISM is necessary-not-sufficient for a clinical predictive biomarker, and it must not
+  # outrank the KO-proven genetic dependency (biomarker_stratified_dependency stays the dominant call).
+  # DISTINCT verdict from the CRISPR biomarker — the two are never conflated (drug-sensitivity != KO-dep).
+  - {sub_skill: genomic_alteration, verdict: drug_response_biomarker,          weight: supportive}
 
 # An OPPOSING MEASURED verdict on a positive-eligible axis blocks `strong`. NOTE:
 # insufficient / data_unavailable / not_informative are NOT contradictions — absence
