@@ -62,7 +62,11 @@ rank-ordered rule_id → verdict-string map. The full emitted vocabulary:
   has_cooccurring_driver, modest_cooccurring, modest_mutually_exclusive, ns,
   data_unavailable, insufficient
 - **tractability_sm**: well_covered, chemically_confirmed_genetic, chemically_active,
-  tool_compound_only, weakly_active, discordant, chemically_unhit, insufficient
+  clinical_precedent_only, tool_compound_only, weakly_active, structurally_ligandable,
+  structurally_intractable, discordant, chemically_unhit, insufficient
+  *(T1.2 2026-08-09: + clinical_precedent_only — a phase-1+ compound annotated to the target with*
+  *NO measured PRISM activity; honestly weaker than measured chemically_active. T1.1: discordant*
+  *reordered above the retrospective chemical-activity rungs so an off-target read demotes them.)*
 - **surface_modality**: adc_preferred, tce_preferred, both_viable, neither_viable,
   modality_ambiguous, isoform_dependent_undefined,
   adc_preferred_tce_unsafe, tce_unsafe_normal_liability, surface_viable_density_caveated,
@@ -105,8 +109,9 @@ Empty-fallback (missing vocab → no tier, never spurious strong).
   {not_selective, non_dependent, broadly_low_expression}; MEDIUM if
   discordant_across_comparators; else mixed/insufficient.
 - **druggability** ← tractability_sm: well_covered/chemically_confirmed_genetic → LOW;
-  chemically_active → LOW-MEDIUM; tool_compound_only/weakly_active → MEDIUM-HIGH;
-  chemically_unhit/discordant → HIGH.
+  chemically_active → LOW-MEDIUM; clinical_precedent_only → MEDIUM (annotation-only clinical
+  anchor, no measured activity — weaker than a measured hit); tool_compound_only/weakly_active
+  → MEDIUM-HIGH; chemically_unhit/discordant → HIGH.
 - **safety** ← safety: highly_constrained_safety_concern → HIGH;
   moderately_constrained_safety → MEDIUM; tolerant_reduced_safety_risk → LOW.
 - **translational / clinical / commercial** → hardcoded `insufficient_evidence`

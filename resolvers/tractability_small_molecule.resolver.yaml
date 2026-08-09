@@ -12,22 +12,36 @@
 #      chemical hit but ABOVE chemically_unhit (the KRAS-G12C-before-sotorasib case).
 #   4. A measured structural NEGATIVE (low-confidence/disordered fold) is an SM-opposing note.
 gate: tractability_small_molecule
-version: 1.1.0   # +E-known-drug DGIdb pharmacology rungs (approved->chemically_active; category->structurally_ligandable)
-description: Small-molecule druggability precedence (chemical-genetic E6/E7 + DGIdb approved-drug > opposing > structural E8 + druggable-category > unhit).
+version: 1.2.0   # T1.1 discordant reorder (above the retrospective chemical positives) + T1.2 clinical_precedent_only verdict
+description: Small-molecule druggability precedence (on-target chemical-genetic E7 > opposing off-target > retrospective chemical activity > structural E8 + druggable-category > unhit).
 resolve:
-  # --- Chemical-genetic (retrospective: a compound was found) ---
+  # --- On-target chemical-genetic (retrospective, CONCORDANCE-confirmed) ---
+  # These are ON-TARGET (the compound kill tracks the CRISPR/RNAi dependency), so an off-target
+  # discordant read does NOT override them — they stay at the top.
   - {verdict: well_covered,                 when_fired: e7-triangulated-target-engaged-supportive}
   - {verdict: chemically_confirmed_genetic, when_fired: e7-crispr-confirmed-supportive-sm}
+  # --- Opposing off-target read (T1.1, 2026-08-09): MUST precede the retrospective chemical-ACTIVITY
+  #     positives below. A compound active but OFF-target (its kill pattern does NOT track the genetic
+  #     dependency) argues AGAINST tractability — so `discordant` demotes a would-be chemically_active
+  #     hit. Previously this rung sat BELOW the prism-activity rungs and was co-emission-impossible to
+  #     reach (annotated compounds force a positive prism_activity_class that outranked it), so the
+  #     off-target control was dead. It also blocks `strong` nomination (positive_contradictions). It
+  #     stays BELOW the on-target E7 rungs above (those already proved on-mechanism). ---
+  - {verdict: discordant,                   when_fired: e7-discordant-off-target-warning}
+  # --- Retrospective chemical ACTIVITY (a compound was found; NOT concordance-checked here) ---
   - {verdict: chemically_active,            when_fired: prism-clinically-active-supportive-sm}
   # E-known-drug (DGIdb pharmacology leg, 2026-08-07): an APPROVED drug catalogued against the target
   # is retrospective chemical evidence -> chemically_active (SAME verdict as PRISM clinically-active, so
   # it can only RESCUE a target PRISM missed, never change a combo that already returned it). Placed
   # right below the PRISM chemically_active rung (equal tier, drug-catalogue vs cell-line source).
   - {verdict: chemically_active,            when_fired: known-drug-approved-antineoplastic-sm-supportive}
+  # T1.2 (2026-08-09): a phase_1+/approved compound ANNOTATED against the target but with NO measured
+  # PRISM cell-panel activity -> clinical_precedent_only (honestly weaker than measured chemically_active,
+  # stronger than a bare tool compound). Placed BELOW chemically_active, ABOVE tool_compound_only.
+  # NON-nominating + NON-contradiction (nomination_verdict_gate.yaml unchanged).
+  - {verdict: clinical_precedent_only,      when_fired: prism-clinical-precedent-only-weak-supportive-sm}
   - {verdict: tool_compound_only,           when_fired: prism-tool-compound-only-weak-supportive-sm}
   - {verdict: weakly_active,                when_fired: prism-weakly-active-weak-supportive-sm}
-  # --- Opposing / negative reads (must precede structural positives) ---
-  - {verdict: discordant,                   when_fired: e7-discordant-off-target-warning}
   # --- Structural / forward ligandability (E8: druggable pocket, no compound yet) ---
   # E8-lig (composite structure-ligandability-per-protein-v1, 2026-08-07): the LIVE structural
   # leg. A real experimental co-crystal is the STRONGEST forward handle → ranks at the top of the

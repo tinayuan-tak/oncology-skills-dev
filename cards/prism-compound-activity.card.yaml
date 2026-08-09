@@ -107,7 +107,15 @@ outputs:
 
   summary_fields_vocabulary:
     prism_activity_class:
-      - clinically_active                   # ≥1 OncRef-prioritized compound (phase_1+ / approved proxy)
+      - clinically_active                   # ≥1 phase_1+/approved compound WITH measured cell-panel
+                                              # activity (median Log2AUC < clinically-active threshold)
+      - clinical_precedent_only             # T1.2 (2026-08-09): a phase_1+/approved compound is ANNOTATED
+                                              # against the target but shows NO measured PRISM activity
+                                              # (Log2AUC absent, or not below the threshold). An honestly-
+                                              # weaker signal than clinically_active — a clinical anchor
+                                              # exists but the cell panel doesn't show it killing. Kept
+                                              # distinct so the verdict layer does not over-call
+                                              # druggability from annotation alone.
       - tool_compound_only                  # only tool / non-prioritized compounds; no clinical anchor
       - weakly_active                       # tool compounds show activity (median Log2AUC < -0.15) but not clinical
       - no_compounds_found                  # NO compound annotates as targeting this gene across BOTH releases

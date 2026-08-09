@@ -1791,6 +1791,23 @@ rules:
       does not imply degrader (E3 ligase recruitment) feasibility; those are independent
       chemistry problems.
 
+  - rule_id: prism-clinical-precedent-only-weak-supportive-sm
+    when:
+      card_id: prism-compound-activity
+      field: prism_activity_class
+      equals: clinical_precedent_only
+    signals:
+      small_molecule: supportive
+      degrader: neutral
+    rationale: |
+      T1.2 (2026-08-09): a phase_1+/approved compound is ANNOTATED as targeting this gene, but the
+      PRISM cell panel shows NO measured activity (median Log2AUC absent or not below the clinically-
+      active threshold). Weak-supportive — chemistry-matter exists and a clinical anchor is claimed,
+      so the target is chemically approachable; but WITHOUT measured cell-panel killing (and with no
+      on-target concordance check here) this is honestly weaker than a measured clinically_active hit.
+      The verdict layer maps it to `clinical_precedent_only`, below chemically_active. Degrader
+      NEUTRAL (SM inhibitor precedent does not imply degrader feasibility).
+
   - rule_id: prism-tool-compound-only-weak-supportive-sm
     when:
       card_id: prism-compound-activity
