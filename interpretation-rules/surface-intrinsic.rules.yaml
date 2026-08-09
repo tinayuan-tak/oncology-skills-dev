@@ -543,6 +543,31 @@ rules:
       the bulk-protein cohort, or the surface-topology gate was not passed).
       Coverage gap; not opposing evidence.
 
+  # MEASURED absolute-density floor (2026-08-09, modality-fit review — density-integrity fix).
+  # DISTINCT from surface-density-very-low-killer above (which fires on the grade-D CPTAC×HPA
+  # ESTIMATE, surface_density_class): THIS rule fires on density_floor_verdict, which the card sets
+  # ONLY from a MEASURED grade-A/B absolute copies-per-cell anchor (the bead-calibrated curated corpus;
+  # grade-gated at source → 'unmeasured' on grade E, never below_tce_floor). It is OPPOSING, NOT a
+  # killer — a MEASURED sub-soluble-TCE-floor density is a modality caveat, NOT a target killer: CD19
+  # is ~110 copies/cell yet a validated CAR-T/TCE antigen (high-avidity binders + the CAR-T geometry
+  # work below the soluble-TCE floor). The resolver turns this into a DOWNGRADE (surface_viable_density_
+  # caveated), never a veto. Complements the estimate-based killer above with a precise, cited signal.
+  - rule_id: surface-density-below-tce-floor-measured-downgrade
+    when:
+      card_id: surface-abundance-density
+      field: density_floor_verdict
+      equals: below_tce_floor
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      MEASURED (grade A/B, bead-calibrated) absolute surface density sits below the ~1,000
+      copies/cell soluble-TCE viability floor (Slaga 2018). A modality-geometry caveat, NOT a
+      target killer — CD19 (~110 copies/cell) is a validated CAR-T/TCE antigen; high-avidity
+      binders and the CAR-T immunological synapse operate below the soluble-TCE floor. Opposing
+      (dosing/format-selection signal), never a veto. Fires only on a MEASURED value: an unmeasured
+      target's density_floor_verdict is 'unmeasured' and this rule does not fire (honest-negative).
+
   # ---- hpa_ihc_intensity_class (independent categorical on the same card) ----
   # These rules will fire only when HPA IHC data is joined to the card
   # (per MODALITY_TAXONOMY.md, Slice Y candidate). Until then they lie

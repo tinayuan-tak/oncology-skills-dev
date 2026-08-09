@@ -63,8 +63,13 @@ rank-ordered rule_id → verdict-string map. The full emitted vocabulary:
   data_unavailable, insufficient
 - **tractability_sm**: well_covered, chemically_confirmed_genetic, chemically_active,
   tool_compound_only, weakly_active, discordant, chemically_unhit, insufficient
-- **surface_modality**: adc_favorable, tce_favorable, both_viable, neither_viable,
-  insufficient (surface_intrinsic axis)
+- **surface_modality**: adc_preferred, tce_preferred, both_viable, neither_viable,
+  modality_ambiguous, isoform_dependent_undefined,
+  adc_preferred_tce_unsafe, tce_unsafe_normal_liability, surface_viable_density_caveated,
+  shed_dominant_opposed, insufficient (surface_intrinsic axis)
+  *(2026-08-09 modality-fit review: corrected stale adc/tce_favorable → *_preferred; + 4 safety/*
+  *density/shed combination verdicts that let the cards' KILLER/downgrade signals refine the*
+  *topology-only fit_class. All NON-NOMINATING foreclosure/caveat refinements.)*
 - **safety**: highly_constrained_safety_concern, moderately_constrained_safety,
   tolerant_reduced_safety_risk, data_unavailable, insufficient
 - **subtype_fit** (opt-in via `--subtypes`): subtype_specific_non_dependence, None
