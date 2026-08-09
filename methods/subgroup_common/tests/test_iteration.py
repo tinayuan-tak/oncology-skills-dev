@@ -109,3 +109,54 @@ def test_functools_wraps_preserves_name():
         return x
     assert descriptive_method_name.__name__ == "descriptive_method_name"
     assert descriptive_method_name.__doc__ == "Docstring."
+
+
+# ── Fan-out join-coverage guard (subtyping review Tier-1b) ────────────────────────────────────
+
+def test_coverage_guard_warns_on_id_convention_mismatch(tmp_path, monkeypatch):
+    """A reader that reports a NEAR-ZERO matched subgroup_n against a non-empty resolved member set
+    (the sample-id-convention-mismatch signature) triggers a UserWarning — the gap the two
+    @subgroup_iterable readers previously had (they bypassed compute_join_coverage)."""
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch)
+
+    @iteration.subgroup_iterable
+    def mismatched_reader(target: str, _sample_id_filter=None) -> dict:
+        # Simulates a reader whose OWN data ids never match the resolved members (e.g. barcode vs
+        # ModelID) → matched 0 of a 2-member stratum.
+        return {"target": target, "subgroup_n": 0}
+
+    with pytest.warns(UserWarning, match="sample-id-convention mismatch"):
+        mismatched_reader(
+            target="KRAS", subgroups=["MSI_H"],
+            subgroup_assignments_manifest="tcga-subgroup-assignments-coadread-v1",
+            subgroup_catalog_repo=fake_catalog)
+
+
+def test_coverage_guard_silent_on_healthy_match(tmp_path, monkeypatch, recwarn):
+    """A reader that matches its full resolved member set emits NO coverage warning."""
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch)
+
+    @iteration.subgroup_iterable
+    def healthy_reader(target: str, _sample_id_filter=None) -> dict:
+        return {"target": target, "subgroup_n": len(_sample_id_filter or [])}
+
+    healthy_reader(
+        target="KRAS", subgroups=["MSI_H"],
+        subgroup_assignments_manifest="tcga-subgroup-assignments-coadread-v1",
+        subgroup_catalog_repo=fake_catalog)
+    assert not [w for w in recwarn if "sample-id-convention" in str(w.message)]
+
+
+def test_coverage_guard_no_false_alarm_without_subgroup_n(tmp_path, monkeypatch, recwarn):
+    """A reader that does NOT report subgroup_n is skipped by the guard (no false positive)."""
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch)
+
+    @iteration.subgroup_iterable
+    def no_count_reader(target: str, _sample_id_filter=None) -> dict:
+        return {"target": target, "some_other_field": 1}
+
+    no_count_reader(
+        target="KRAS", subgroups=["MSI_H"],
+        subgroup_assignments_manifest="tcga-subgroup-assignments-coadread-v1",
+        subgroup_catalog_repo=fake_catalog)
+    assert not [w for w in recwarn if "sample-id-convention" in str(w.message)]

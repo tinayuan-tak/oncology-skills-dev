@@ -29,10 +29,43 @@ from __future__ import annotations
 
 import functools
 import inspect
+import warnings
 from pathlib import Path
 from typing import Any, Callable
 
 from methods.subgroup_common.scoping import resolve_subgroup_cohort
+
+# Mirror scoping._MATCH_RATE_FLOOR: below this matched-fraction (with a non-empty member set) we
+# suspect an id-convention mismatch, not a legitimate empty stratum. Legitimate subsetting lands at
+# 0.3-0.8; a true convention mismatch lands at ~0.0.
+_FANOUT_MATCH_RATE_FLOOR = 0.05
+
+
+def _emit_join_coverage_warning(wrapped, subgroup_id, member_ids, result) -> None:
+    """Fan-out-path join-coverage guard: warn when a non-empty resolved member set matched
+    NEAR-ZERO rows in the reader's data (the sample-id-convention-mismatch signature). Generic:
+    reads the reader's reported matched count from its `subgroup_n` field (the count AFTER the
+    reader intersected _sample_id_filter with its own data). A reader that does not report
+    subgroup_n is skipped (no false alarm)."""
+    n_members = len(member_ids) if member_ids else 0
+    if not n_members:
+        return  # empty member set is a legitimate absent stratum, not a join failure
+    matched = None
+    if isinstance(result, dict):
+        matched = result.get("subgroup_n")
+    if not isinstance(matched, int):
+        return  # reader doesn't expose a matched count; nothing to compare
+    match_rate = matched / n_members
+    if match_rate < _FANOUT_MATCH_RATE_FLOOR:
+        warnings.warn(
+            f"{getattr(wrapped, '__name__', 'reader')} / subgroup '{subgroup_id}': only "
+            f"{matched}/{n_members} resolved members ({match_rate:.1%}) matched the method's "
+            f"data. This is the signature of a sample-id-convention mismatch (e.g. patient-barcode "
+            f"assignments vs full-aliquot method data, or ModelID vs barcode), NOT necessarily an "
+            f"empty stratum. Check id normalization before trusting per-stratum stats.",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 def subgroup_iterable(wrapped: Callable) -> Callable:
@@ -79,7 +112,18 @@ def subgroup_iterable(wrapped: Callable) -> Callable:
             # Inject _sample_id_filter kwarg — methods opt in by declaring it
             call_kwargs = dict(kwargs)
             call_kwargs["_sample_id_filter"] = member_ids
-            results[subgroup_id] = wrapped(*args, **call_kwargs)
+            result = wrapped(*args, **call_kwargs)
+            # JOIN-COVERAGE GUARD (fan-out path). The reader has now intersected the resolved
+            # member set with its OWN data-id column. Compare the resolved member count against the
+            # reader's matched count (its `subgroup_n`): a non-empty member set that matches
+            # NEAR-ZERO rows is the signature of a sample-id-convention mismatch (e.g. patient-
+            # barcode assignments vs full-aliquot method data, or ModelID vs barcode), NOT a
+            # legitimately empty stratum. Previously only the expression reader called
+            # compute_join_coverage directly; the two @subgroup_iterable readers (depmap_chronos,
+            # gdc_somatic_hotspot) bypassed it entirely — this closes that gap generically for ALL
+            # decorated readers without each needing to know its own id column.
+            _emit_join_coverage_warning(wrapped, subgroup_id, member_ids, result)
+            results[subgroup_id] = result
         return results
 
     # Preserve introspection: expose that this is a subgroup-iterable method
