@@ -914,8 +914,13 @@ def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[
     Target-intrinsic (indication ignored). Feeds the degrader lens; verdict-inert for SM."""
     family = _dispatch_surfaceome_family_classification(target, indication) or {}
     surface_family_class = family.get("family_class")
+    # 2026-08-09 bugfix: pass the surfaceome BOOLEAN so the location gate works (the old
+    # family_class-string gate was dead — those strings are never emitted). is_surface_protein is
+    # the robust, vocab-independent signal; surface_family_class stays as a fallback + for context.
+    is_surface_protein = family.get("is_surface_protein")
     mod = _import_method("degradation_feasibility")
-    return mod.degradation_feasibility_for_gene(target, surface_family_class=surface_family_class)
+    return mod.degradation_feasibility_for_gene(
+        target, surface_family_class=surface_family_class, is_surface_protein=is_surface_protein)
 
 
 def _dispatch_ppi_interactome(target: str, indication: str) -> Optional[dict]:
