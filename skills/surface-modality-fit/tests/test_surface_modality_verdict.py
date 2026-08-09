@@ -85,6 +85,60 @@ def test_fit_class_vocabulary_is_exhaustively_handled():
 
 
 # ---------------------------------------------------------------------------
+# SAFETY/DENSITY/SHED integration (2026-08-09, modality-fit review C1 + density-integrity).
+# The verdict was topology-only (keyed on fit_class); the cards' KILLER/downgrade signals
+# fired into the narrative but could NOT move the verdict. These resolver combination rungs
+# (when_all_fired: fit-positive AND a liability rule) refine the call. Pin the biology + the two
+# validated-antigen guardrails (CEACAM5 ADC survives, CD19 not killed by low density).
+# ---------------------------------------------------------------------------
+
+def _vv(*rule_ids):
+    return smf._verdict([{"rule_id": r} for r in rule_ids])
+
+
+def test_protein_absent_forecloses_both_modalities():
+    # No surface substrate → both ADC + TCE dead, regardless of favorable topology.
+    assert _vv("both-viable-supportive", "ihc-not-detected-killer")[0] == "neither_viable"
+
+
+def test_essential_normal_tissue_drops_tce_but_preserves_adc_CEACAM5_guardrail():
+    # bite_tce-ONLY killer: a both_viable target with essential-normal-tissue expression keeps its
+    # ADC arm (CEACAM5 = validated ADC target w/ normal-gut expression must NOT be killed for ADC).
+    assert _vv("both-viable-supportive", "normal-tissue-essential-bite-killer")[0] == "adc_preferred_tce_unsafe"
+    # sc-normal HIGH_LIABILITY behaves identically.
+    assert _vv("both-viable-supportive", "sc-normal-high-liability-bite-killer")[0] == "adc_preferred_tce_unsafe"
+    # a TCE-only target with the same liability has no safe arm left.
+    assert _vv("tce-preferred-supportive", "normal-tissue-essential-bite-killer")[0] == "tce_unsafe_normal_liability"
+
+
+def test_measured_low_density_is_a_downgrade_never_a_veto_CD19_guardrail():
+    # MEASURED grade-A/B below-TCE-floor density → caveat, NEVER neither_viable. CD19 (~110 copies/cell)
+    # is a validated CAR-T/TCE antigen; a hard density veto would false-negative it.
+    v = _vv("both-viable-supportive", "surface-density-below-tce-floor-measured-downgrade")[0]
+    assert v == "surface_viable_density_caveated"
+    assert v != "neither_viable", "measured low density must NOT foreclose the target (CD19 trap)"
+
+
+def test_dominant_shed_ectodomain_caveats_the_call():
+    assert _vv("both-viable-supportive", "shed-ectodomain-clinical-opposing")[0] == "shed_dominant_opposed"
+
+
+def test_liability_precedence_absence_beats_safety_beats_density():
+    # protein-absence (both dead) outranks a TCE-safety downgrade outranks a density caveat (first-match).
+    assert _vv("both-viable-supportive", "ihc-not-detected-killer", "shed-ectodomain-clinical-opposing")[0] == "neither_viable"
+    assert _vv("both-viable-supportive", "normal-tissue-essential-bite-killer",
+               "surface-density-below-tce-floor-measured-downgrade")[0] == "adc_preferred_tce_unsafe"
+
+
+def test_plain_fit_class_still_byte_stable_without_liabilities():
+    # ADDITIVE-REFINEMENT guarantee: with NO liability rule fired, the original fit_class verdicts
+    # are unchanged (the 64 pre-existing golden combos are byte-identical).
+    assert _vv("both-viable-supportive")[0] == "both_viable"
+    assert _vv("adc-preferred-supportive")[0] == "adc_preferred"
+    assert _vv("tce-preferred-supportive")[0] == "tce_preferred"
+
+
+# ---------------------------------------------------------------------------
 # biologics-augment Phase 1.1 (2026-08-06): protein-surface-evidence (CSPA) +
 # shed-ectodomain-liability were wired into the skill's CARDS. Their surface-
 # intrinsic rules existed but were UNREACHABLE (no skill composed the cards).
@@ -97,7 +151,10 @@ def test_fit_class_vocabulary_is_exhaustively_handled():
 _NEWLY_REACHABLE_RULES = [
     "protein-surface-confirmed-supportive",   # CSPA cell_surface_confirmed
     "protein-not-surface-opposing",           # CSPA not_surface (measured-negative; NOT killer)
-    "shed-ectodomain-clinical-opposing",      # clinically_shed serum-marker antigen sink
+    # NOTE (2026-08-09 modality-fit review): shed-ectodomain-clinical-opposing was PROMOTED to a
+    # resolver combination rung (→ shed_dominant_opposed) and is therefore NO LONGER signal-only;
+    # its verdict-moving behavior is pinned by test_dominant_shed_ectodomain_caveats_the_call above.
+    # The secretome-proxy + measured-media shed variants remain signal-only (not promoted).
     "shed-ectodomain-secretome-proxy-opposing",
     "shed-ectodomain-measured-media-opposing",  # enrichment E3 — measured Olink conditioned-media shed (media_shed_high)
     # biologics-augment Phase 3.2 — within-tumor antigen-homogeneity (single-cell Census):

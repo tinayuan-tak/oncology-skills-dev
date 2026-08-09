@@ -11,14 +11,35 @@ description: |
   resolving from the composed `adc-tce-modality-fit` card's `fit_class`.
 
   status: partial — surfaceome-family + topology + surface-abundance-density readers are
-  live (density's method IS built; a derived density product is still pending), while
-  structure-features is a hard gap (its derived product is absent from the data-catalog).
+  live; structure-features landed 2026-08-07 (pdb-alphafold + ligandability products materialized;
+  the ligandability leg drives the sibling small-molecule call, though structure does NOT feed the
+  biologics `fit_class` by design).
   The composed `fit_class` keys on topology+family and emits `neither_viable` (an honest
   negative), NOT `insufficient`, when upstream is thin. `ADC_preferred`/`both_viable` are
   REACHABLE (B1): the topology product does not measure endocytosis, so that unmeasured field
   no longer vetoes the ADC branch (ADC rests on topology; `endocytosis_confidence: unmeasured`
   is surfaced as the honest gap), and curated clinical-ADC antigens
-  (internalizing_antigen_targets.yaml) carry a `clinically_internalizing` positive signal. The sibling small-molecule tractability call is `tractability-small-molecule`.
+  (internalizing_antigen_targets.yaml) carry a `clinically_internalizing` positive signal.
+
+  SAFETY/DENSITY/SHED REFINEMENT (v1.1.0, 2026-08-09 modality-fit review): the verdict was
+  topology-only — the surface cards' KILLER/downgrade signals (essential-normal-tissue TCE safety,
+  protein-absence, MEASURED low density, dominant shed) fired into the narrative but could NOT move
+  the call. The resolver now carries `when_all_fired` combination rungs so those cited-threshold
+  liabilities REFINE the topology `fit_class`:
+    - protein `ihc-not-detected` → `neither_viable` (no surface substrate for either mechanism).
+    - essential-normal-tissue / sc-normal HIGH_LIABILITY (bite_tce-ONLY killers) → `adc_preferred_tce_unsafe`
+      (drops TCE on safety, PRESERVES ADC — CEACAM5-class: validated ADC target w/ normal-gut expression),
+      or `tce_unsafe_normal_liability` for a TCE-only target.
+    - MEASURED (grade A/B) below-soluble-TCE-floor density → `surface_viable_density_caveated` — a
+      DOWNGRADE, NEVER a veto (CD19 = 110 copies/cell is a validated CAR-T/TCE antigen; unmeasured
+      density abstains, grade-gated at source).
+    - dominant `clinically_shed` ectodomain → `shed_dominant_opposed` (soluble-decoy sink).
+  All refinements are NON-NOMINATING foreclosure/caveat verdicts; the base fit_class rungs are byte-
+  stable when no liability fires (additive-refinement). The sibling small-molecule tractability call
+  is `tractability-small-molecule`.
+  KNOWN GAP (C2, deferred — needs a turnover data source): `ADC_preferred` vs `TCE_preferred` is not
+  yet discriminable on live data because the topology product does not carry ubiquitination/turnover
+  (the ADC-vs-TCE axis), so a surface-favorable target reads `both_viable` before these refinements.
 
   Use for questions like "does EGFR look ADC-favorable in COADREAD?", "is this
   target TCE-viable topologically?"

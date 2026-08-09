@@ -53,6 +53,13 @@ VERDICT_COLORS = {
     "discordant":                     "#c07a20",
     "broadly_moderate_expression":    "#c07a20",
     "mixed_pattern":                  "#c07a20",
+    # surface-modality safety/density/shed refinements (2026-08-09 modality-fit review).
+    # adc_preferred_tce_unsafe keeps a viable ADC arm → modest-positive blue; the rest are
+    # caveats/foreclosures → ochre caution.
+    "adc_preferred_tce_unsafe":       "#4a7c9e",   # TCE dropped on normal-tissue safety, ADC survives
+    "tce_unsafe_normal_liability":    "#c07a20",   # TCE-only target loses its arm on normal-tissue safety
+    "surface_viable_density_caveated": "#c07a20",  # measured below-TCE-floor density (downgrade, not veto)
+    "shed_dominant_opposed":          "#c07a20",   # dominant shed ectodomain (soluble decoy sink)
 
     # Not-selective / no-signal (red-brown)
     "not_selective":                  "#a63d2e",
