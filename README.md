@@ -115,12 +115,14 @@ A full profile walks A → K; a focused question invokes a single skill.
 | **A** Presence | Is the target expressed in the tumor (RNA + protein, cell-line + patient)? | [`tumor-presence`](skills/tumor-presence/) |
 | **B** Selectivity | Is it tumor-selective vs normal tissue, robustly across comparators? | [`tumor-selectivity`](skills/tumor-selectivity/) |
 | **C** Requirement | Is it a genetic dependency (CRISPR + RNAi + lineage), and is a null read a context-conditional false negative? | [`functional-requirement`](skills/functional-requirement/), [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) |
+| **C** Combinatorial dependency | Is it a measured paralog dual-KO (synthetic-lethal / buffering) co-dependency? | [`combinatorial-dependency`](skills/combinatorial-dependency/) |
 | **A/E** Genomic alteration | How is it altered — SNV/indel, copy-number, fusion — and which class drives? | [`genomic-alteration-profile`](skills/genomic-alteration-profile/) |
 | **D** Mechanism | What upstream/downstream signaling context and candidate MoA hooks exist? | [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) |
 | **E** Differentiation | What co-mutation / mutual-exclusivity landscape frames patient selection? | [`differentiation-landscape`](skills/differentiation-landscape/) |
-| **F** Tractability & modality | Is it small-molecule druggable? Does surface biology support ADC/TCE? Whole-surfaceome scan. | [`tractability-small-molecule`](skills/tractability-small-molecule/), [`surface-modality-fit`](skills/surface-modality-fit/), [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/) |
+| **F** Tractability & modality | Is it small-molecule druggable? Does surface biology support ADC/TCE? Whole-surfaceome scan; logic-gated antigen-pair scan. | [`tractability-small-molecule`](skills/tractability-small-molecule/), [`surface-modality-fit`](skills/surface-modality-fit/), [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/), [`bispecific-pair-scan`](skills/bispecific-pair-scan/) |
+| **F** Immune context | Is the tumor immune-hot enough (CD8 effector population) to redirect a TCE? | [`immune-context`](skills/immune-context/) |
 | **G** Safety | Is it germline-constrained (gnomAD) — what does that imply for a full-KO modality? | [`on-target-safety-liability`](skills/on-target-safety-liability/) |
-| **I** Combination/resistance | On inhibition, what combinations / resistance signatures emerge? | [`combo-and-resistance`](skills/combo-and-resistance/) *(placeholder)* |
+| **I** Combination/resistance | On inhibition, what combinations / resistance signatures emerge? | [`combo-and-resistance`](skills/combo-and-resistance/) *(partial)* |
 | **J** Translational readiness | Models, PD assays, imaging tracers available? | [`translational-readiness`](skills/translational-readiness/) *(placeholder)* |
 | **—** Target-intrinsic | Indication-independent molecular dossier (localization, pathways, PPIs, domains, protein class). | [`target-intrinsic`](skills/target-intrinsic/) |
 
@@ -137,20 +139,23 @@ coverage gaps are visible in the catalog. See the per-skill status table below.
 
 | Skill | Ver | Phase | Data mode | Status |
 |---|---|---|---|---|
-| [`tumor-presence`](skills/tumor-presence/) | 1.1.0 | A | `derived_read` | wired — 9 cards, 5 verdict-bearing + 4 display facets |
-| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.1.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
-| [`functional-requirement`](skills/functional-requirement/) | 1.1.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog |
+| [`tumor-presence`](skills/tumor-presence/) | 1.2.0 | A | `derived_read` | wired — 11 cards, 7 verdict-bearing + 4 display facets |
+| [`tumor-selectivity`](skills/tumor-selectivity/) | 1.2.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
+| [`functional-requirement`](skills/functional-requirement/) | 1.3.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog + subtype panorama |
 | [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | — | C | `derived_read` | wired — SynLethDB v3 veto-suppressor (annotation, not measurement) |
-| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.0.0 | A, E | `derived_read` | wired — SNV/indel + copy-number (+ fusion placeholder) |
+| [`combinatorial-dependency`](skills/combinatorial-dependency/) | 1.0.0 | C | `derived_read` | wired — measured paralog dual-KO co-dependency (DepMap ParalogV2 26Q1); self-contained verdict |
+| [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.0.0 | A, E | `derived_read` | wired — SNV/indel + copy-number + fusion [LIVE, additive] |
 | [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.2.0 | D | `derived_read` | wired — SIGNOR/OmniPath MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
 | [`differentiation-landscape`](skills/differentiation-landscape/) | 1.2.0 | E | `derived_read` | partial — co-mutation wired; clinical-precedent / patent placeholder |
 | [`tractability-small-molecule`](skills/tractability-small-molecule/) | 3.1.0 | F | `derived_read` | wired — PRISM + chemical-genetic concordance |
-| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.0.0 | F | `derived_read` | partial — surfaceome/topology landed; density + structure pending |
-| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.2.0 | G | `derived_read` | partial — gnomAD LoF-constraint wired; HPA/IMPC/ClinVar placeholder |
+| [`surface-modality-fit`](skills/surface-modality-fit/) | 1.0.0 | F | `derived_read` | partial — surfaceome-family + topology + density readers live (+ CSPA surface-confirmation, shed-ectodomain, sc-homogeneity, therapeutic-window, pMHC, exon-window, mutation-/pathway-stratified, CD-antigen backbone as additive signal facets); structure-features product still pending |
+| [`immune-context`](skills/immune-context/) | 1.0.0 | F | `derived_read` | partial — CIBERSORT LM22 CD8 infiltration (per-indication); TCE effector-arm companion to surface-modality-fit; antigen-conditioned join is v2 |
+| [`on-target-safety-liability`](skills/on-target-safety-liability/) | 1.7.0 | G | `derived_read` | partial — 6 human-genetics legs live (gnomAD LoF + Open Targets 26.06: gene-burden, ClinGen dosage, mouse-KO, ClinVar, target-priority) + GTEx breadth; two axes remain incomplete |
 | [`surfaceome-cohort-ranking`](skills/surfaceome-cohort-ranking/) | 1.1.0 | F | `batch_compute` | target-scan hook — per-indication whole-surfaceome ranking |
-| [`target-intrinsic`](skills/target-intrinsic/) | 1.0.0 | A,C,F,G | `live_read` | wired — 13 live cards, indication-independent dossier |
-| [`combo-and-resistance`](skills/combo-and-resistance/) | 1.0.0 | I | `derived_read` | **placeholder** — cards not yet wired |
-| [`translational-readiness`](skills/translational-readiness/) | 1.0.0 | J | `derived_read` | **placeholder** — cards not yet wired |
+| [`bispecific-pair-scan`](skills/bispecific-pair-scan/) | 1.0.0 | F | `batch_compute` | partial — logic-gated (AND/OR/NOT) antigen-pair tumor-vs-normal selectivity scan; background candidate-generation hook, not interactive |
+| [`target-intrinsic`](skills/target-intrinsic/) | 1.0.0 | A,C,F,G | `live_read` | wired — 18 live cards, indication-independent dossier |
+| [`combo-and-resistance`](skills/combo-and-resistance/) | 2.0.0 | I | `derived_read` | partial — combination half wired (combo-crispr-screen → DepMap 26Q1 drug-anchor); resistance-emergence half deferred |
+| [`translational-readiness`](skills/translational-readiness/) | 1.0.0 | J | `derived_read` | **placeholder** — cards not yet wired (`not_wired`) |
 
 ### Composition & orchestration skills
 
@@ -161,6 +166,15 @@ coverage gaps are visible in the catalog. See the per-skill status table below.
 | [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). Invoked automatically by `compose-dashboard`. |
 | [`query-target-evidence`](skills/query-target-evidence/) | 2.0.0 | **Retrieval-only.** Reads a stored `evidence.json` from `core-artifacts/`, validates + checks staleness, returns. If an artifact is missing it names the batch job that produces it — it never triggers compute. |
 | [`workflow-target-evaluation-onc`](skills/workflow-target-evaluation-onc/) | 1.0.0 | The v1-lineage end-to-end orchestrator (risk assessment → multi-omics → ScholarEval → PDF), retained on this branch for parity during the v2 transition. |
+
+### Developer & utility skills
+
+| Skill | Ver | Role |
+|---|---|---|
+| [`catalog-query`](skills/catalog-query/) | 1.0.0 | **Read-only** explorer over the `data-catalog` YAML manifests — find which manifest covers a need, inspect one manifest (S3 URI, schema, sort key, license, lineage), trace `derived_from` / `cited_by`, audit coverage gaps. Never adds, edits, or pushes manifests. |
+| [`example-gallery`](skills/example-gallery/) | 1.0.0 | Standalone developer/demo generator — builds a static-HTML gallery of full example outputs (verdict + per-card summaries + tables + figures) from the focused subskills. Not composed into `target-profile`. |
+
+> **Framework-health smoke harness:** `skills/_skills_common/framework_health_smoke.py` is a deterministic, offline "runs clean?" probe — it runs each wired subskill's real `run.py` on stubbed (non-live) cards and rolls the `run_health` blocks into `subskill_health.json`, which the `target-contracts` health probe reads. `python -m _skills_common.framework_health_smoke --check` fails if the committed file is stale (CI gate).
 
 ---
 
