@@ -83,21 +83,23 @@ def test_insufficient_amplification_rate():
 
 
 def test_neutral_more_dependent_is_never_mislabeled_amplified_dependent():
-    """Inverse: neutral lines MORE dependent than amplified. The reused Mann-Whitney is ONE-SIDED
-    ("amplified more dependent"), so this pattern yields a non-significant one-sided p → the class is
-    `not_cn_stratified` (NOT amplified_*_dependent). The key guarantee: amplification is NEVER
-    credited with a dependency it doesn't have. (The `neutral_strongly_dependent` branch is a faithful
-    mirror of the mutation path's wt_strongly_dependent but, like it, is effectively unreachable under
-    a one-sided-less test — kept for parity, harmless.)"""
+    """Inverse: neutral lines strongly MORE dependent than amplified. The KEY GUARANTEE — amplification
+    is NEVER credited with a dependency it lacks — must hold: the FORWARD `amplified_*_dependent` classes
+    must NOT fire. With the second-pass reverse test (gap #4) this strong inverse now correctly surfaces
+    as `neutral_strongly_dependent` (verdict-inert: consumed by no rule/resolver) instead of being lost
+    as `not_cn_stratified`."""
     import random
     rng = random.Random(4)
     amp = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(40)]
     neutral = [-0.6 + rng.uniform(-0.1, 0.1) for _ in range(300)]
     chronos, cn = _panel(amp, neutral)
     s = compute_cn_stratification(chronos, cn)
-    assert s["cn_stratification_class"] == "not_cn_stratified"
+    # the load-bearing guarantee: forward classes never fire on a reverse pattern
     assert s["cn_stratification_class"] not in ("amplified_strongly_dependent",
                                                 "amplified_moderately_dependent")
+    # reverse direction is now reachable + significance-gated
+    assert s["cn_stratification_class"] == "neutral_strongly_dependent"
+    assert s["cn_stratification_mannwhitney_q_reverse"] < 0.05
     assert s["delta_chronos_amplified_vs_neutral"] > 0   # neutral more dependent → positive delta
 
 

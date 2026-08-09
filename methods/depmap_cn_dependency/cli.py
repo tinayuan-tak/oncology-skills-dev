@@ -65,18 +65,25 @@ def compute_cn_stratification(chronos_by_model: dict, cn_by_model: dict,
     # Single test → q == p (no multi-tier BH; the mutation path only BH-corrects across its
     # 3 tiers). Fill q from p so the classifier (which gates on q) works identically.
     q = res.get("p_value")
+    q_reverse = res.get("p_value_reverse")            # second-pass "greater" (neutral more dependent)
     delta = res.get("delta_mut_vs_wt")
 
     def _classify() -> str:
         if res.get("_insufficient_data"):
             return "insufficient_amplification_rate"
-        if q is None or delta is None or q >= stratification_alpha:
+        if delta is None:
             return "not_cn_stratified"
-        if delta <= strong_effect_delta:
-            return "amplified_strongly_dependent"
-        if delta <= moderate_effect_delta:
-            return "amplified_moderately_dependent"
-        if delta >= WT_INVERSE_DELTA:
+        # FORWARD: amplified more dependent (significant forward q + negative delta).
+        if q is not None and q < stratification_alpha:
+            if delta <= strong_effect_delta:
+                return "amplified_strongly_dependent"
+            if delta <= moderate_effect_delta:
+                return "amplified_moderately_dependent"
+        # REVERSE (second pass, gap #4): neutral lines more dependent — significant REVERSE q
+        # AND a strong positive delta. Now reachable (was a dead branch under the one-sided
+        # forward test). Verdict-inert (consumed by no rule/resolver).
+        if (q_reverse is not None and q_reverse < stratification_alpha
+                and delta >= -strong_effect_delta):   # >= +0.5, mirrors forward "strong"
             return "neutral_strongly_dependent"
         return "not_cn_stratified"
 
@@ -92,7 +99,9 @@ def compute_cn_stratification(chronos_by_model: dict, cn_by_model: dict,
         "delta_chronos_amplified_vs_neutral": delta,
         "cn_stratification_mannwhitney_p": res.get("p_value"),
         "cn_stratification_mannwhitney_q": q,
+        "cn_stratification_mannwhitney_q_reverse": q_reverse,
         "cn_stratification_effect_size": res.get("effect_size"),
         "amplification_threshold_relative_cn": float(focal_amp),
         "cn_stratification_class": cls,
+        "_uncomputable": bool(res.get("_uncomputable")),
     }

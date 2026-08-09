@@ -53,18 +53,24 @@ def compute_fusion_stratification(chronos_by_model: dict, fusion_by_model: dict,
     # Single test → q == p (no multi-tier BH; the mutation path only BH-corrects across its
     # 3 tiers). Fill q from p so the classifier (which gates on q) works identically.
     q = res.get("p_value")
+    q_reverse = res.get("p_value_reverse")            # second-pass "greater" (fusion-neg more dependent)
     delta = res.get("delta_mut_vs_wt")
 
     def _classify() -> str:
         if res.get("_insufficient_data"):
             return "insufficient_fusion_rate"
-        if q is None or delta is None or q >= stratification_alpha:
+        if delta is None:
             return "not_fusion_stratified"
-        if delta <= strong_effect_delta:
-            return "fusion_positive_strongly_dependent"
-        if delta <= moderate_effect_delta:
-            return "fusion_positive_moderately_dependent"
-        if delta >= WT_INVERSE_DELTA:
+        # FORWARD: fusion-positive more dependent (significant forward q + negative delta).
+        if q is not None and q < stratification_alpha:
+            if delta <= strong_effect_delta:
+                return "fusion_positive_strongly_dependent"
+            if delta <= moderate_effect_delta:
+                return "fusion_positive_moderately_dependent"
+        # REVERSE (second pass, gap #4): fusion-negative lines more dependent — significant
+        # REVERSE q + strong positive delta. Now reachable; verdict-inert (no rule/resolver).
+        if (q_reverse is not None and q_reverse < stratification_alpha
+                and delta >= -strong_effect_delta):   # >= +0.5, mirrors forward "strong"
             return "fusion_negative_strongly_dependent"
         return "not_fusion_stratified"
 
@@ -80,6 +86,8 @@ def compute_fusion_stratification(chronos_by_model: dict, fusion_by_model: dict,
         "delta_chronos_fusion_positive_vs_negative": delta,
         "fusion_stratification_mannwhitney_p": res.get("p_value"),
         "fusion_stratification_mannwhitney_q": q,
+        "fusion_stratification_mannwhitney_q_reverse": q_reverse,
         "fusion_stratification_effect_size": res.get("effect_size"),
         "fusion_stratification_class": cls,
+        "_uncomputable": bool(res.get("_uncomputable")),
     }

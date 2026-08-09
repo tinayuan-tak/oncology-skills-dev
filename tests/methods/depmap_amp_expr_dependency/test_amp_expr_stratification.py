@@ -110,15 +110,18 @@ def test_insufficient_conjoint_rate():
 
 
 def test_negative_more_dependent_never_mislabeled():
-    """Inverse: comparator MORE dependent than the conjoint arm. One-sided test → not_amp_expr_stratified,
-    NOT amplified_overexpressed_*_dependent (the conjunction is never credited with a dependency it lacks)."""
+    """Inverse: comparator strongly MORE dependent than the conjoint arm. Key guarantee — the conjunction
+    is NEVER credited with a dependency it lacks — must hold: the FORWARD amplified_overexpressed_*_dependent
+    classes must NOT fire. With the second-pass reverse test (gap #4) this strong inverse now correctly
+    surfaces as `amp_expr_negative_more_dependent` (verdict-inert)."""
     import random
     rng = random.Random(4)
     conj = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(40)]
     other = [-0.6 + rng.uniform(-0.1, 0.1) for _ in range(300)]
     chronos, cn, tpm = _panel(conj, other)
     s = compute_amp_expr_stratification(chronos, cn, tpm)
-    assert s["amp_expr_stratification_class"] == "not_amp_expr_stratified"
     assert s["amp_expr_stratification_class"] not in ("amplified_overexpressed_strongly_dependent",
                                                       "amplified_overexpressed_moderately_dependent")
+    assert s["amp_expr_stratification_class"] == "amp_expr_negative_more_dependent"
+    assert s["amp_expr_mannwhitney_q_reverse"] < 0.05
     assert s["delta_chronos_amp_expr_vs_rest"] > 0

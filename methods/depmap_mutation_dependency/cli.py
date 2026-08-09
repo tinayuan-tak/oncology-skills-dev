@@ -212,10 +212,23 @@ def load_mutation_data(release_pin: str, target_symbol: str) -> tuple[dict, dict
 
 def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
                                   min_mutant: int = 5, min_wildtype: int = 30) -> dict:
-    """Run Mann-Whitney U (one-sided: mutant more dependent) for a single mut vector.
+    """Run Mann-Whitney U for a single mut vector, testing BOTH directions.
 
-    Returns a dict with n/median/p/q/effect fields. q is set NaN here (filled by caller
-    via BH correction across the three tests: hotspot + damaging + any)."""
+    The FORWARD test (alternative="less": altered group more dependent / lower Chronos)
+    is the primary oncogene-addiction hypothesis and drives `p_value`/`effect_size`
+    (byte-identical to the historical one-sided behaviour). A SECOND-PASS reverse test
+    (alternative="greater": comparator group more dependent) is ALSO computed so the
+    reverse-direction classes (`wt_strongly_dependent` etc.) the classifier advertises
+    are genuinely REACHABLE rather than dead branches — this is the "second-pass test"
+    the card documents. `p_value_reverse` is significance-gated by the caller exactly
+    like the forward p. The reverse direction is TSG-synthetic-dependency biology
+    (WT/comparator cells more dependent); it feeds only neutral/inert rules, so surfacing
+    it does not move any verdict.
+
+    Returns n/median/p/q/effect fields. q (forward) is filled by the caller's BH step
+    across the three tiers. A NaN/uncomputable direction is flagged, never silently
+    collapsed to a non-significant null (that would report an uncomputable case as a
+    tested negative)."""
     import numpy as np
     from scipy import stats as scipy_stats
 
@@ -233,6 +246,7 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
             "median_wildtype": float(np.median(wt_scores)) if wt_scores else None,
             "delta_mut_vs_wt": None,
             "p_value": None,
+            "p_value_reverse": None,
             "q_value": None,                  # filled by caller's BH step (will stay None)
             "effect_size": None,
             "_insufficient_data": True,
@@ -244,15 +258,45 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
     median_wt = float(np.median(wt_arr))
     delta = median_mut - median_wt
 
+    # An uncomputable case is one with NO rank information: zero variance across the combined
+    # sample (every Chronos identical) — the U-test is meaningless there. Modern scipy does
+    # NOT raise on all-ties (it returns p=1.0 with a tie-corrected U), so detect it explicitly
+    # rather than relying on an exception that no longer fires. This distinguishes "tested,
+    # not significant" from "could not test" (gap #5) WITHOUT changing any numeric output —
+    # the p/effect below stay byte-identical to the historical behaviour.
+    combined = np.concatenate([mut_arr, wt_arr])
+    uncomputable = bool(np.ptp(combined) == 0.0)
+
+    # FORWARD (primary): mutant more dependent (lower Chronos). Kept BYTE-IDENTICAL to the
+    # historical one-sided behaviour — same alternative, same scipy defaults, same p=1.0 /
+    # effect=0.0 ValueError fallback — so the forward p_value, the caller's BH across tiers,
+    # and every load-bearing `mutant_*_dependent` call are unchanged. (A determinism pin
+    # for ties/continuity, scipy method=, is a DEFERRED verdict-moving change requiring
+    # golden regeneration — intentionally NOT bundled here.)
     try:
         u_stat, p_one_sided = scipy_stats.mannwhitneyu(
             mut_arr, wt_arr, alternative="less"
         )
-        # Rank-biserial effect size
+        # Rank-biserial effect size (signed by the forward direction)
         effect = 1.0 - (2.0 * u_stat) / (n_mut * n_wt)
     except ValueError:
         p_one_sided = 1.0
         effect = 0.0
+        uncomputable = True
+
+    # SECOND-PASS REVERSE test: comparator/WT more dependent (higher Chronos in the altered
+    # group). This makes the reverse-direction classes the classifier advertises
+    # (`wt_strongly_dependent` etc.) genuinely REACHABLE — previously they sat behind a
+    # `delta >= +0.3` branch that a one-sided "less" test could never satisfy at significance
+    # (a dead branch). The reverse direction is TSG-synthetic-dependency biology and feeds
+    # only neutral/inert rules, so surfacing it is verdict-safe.
+    try:
+        _, p_reverse = scipy_stats.mannwhitneyu(
+            mut_arr, wt_arr, alternative="greater"
+        )
+        p_reverse = float(p_reverse)
+    except ValueError:
+        p_reverse = None
 
     return {
         "n_mutant": int(n_mut),
@@ -261,8 +305,11 @@ def _mannwhitney_stratification(chronos_by_model: dict, mut_by_model: dict,
         "median_wildtype": median_wt,
         "delta_mut_vs_wt": float(delta),
         "p_value": float(p_one_sided),
-        "q_value": None,                      # filled by caller
+        "p_value_reverse": p_reverse,
+        "q_value": None,                      # filled by caller (forward BH)
+        "q_value_reverse": None,              # filled by caller (reverse BH)
         "effect_size": float(effect),
+        "_uncomputable": uncomputable,
     }
 
 
@@ -290,12 +337,16 @@ def compute_mutation_stratification(chronos_by_model: dict,
         any_by_model[m] = hotspot_by_model.get(m, False) or damaging_by_model.get(m, False)
     any_ = _mannwhitney_stratification(chronos_by_model, any_by_model)
 
-    # BH correction across the 3 tests (when all have p_values)
-    p_values = [(tier_key, tier_dict["p_value"])
-                 for tier_key, tier_dict in [("hot", hot), ("dam", dam), ("any", any_)]
-                 if tier_dict.get("p_value") is not None]
-    if p_values:
-        p_array = np.array([p for _, p in p_values])
+    # BH correction across the 3 tiers, applied to BOTH directions independently. The
+    # forward `q_value` is byte-identical to before (same p-set, same math). The reverse
+    # `q_value_reverse` is the second-pass family.
+    def _bh_across_tiers(pkey: str, qkey: str):
+        pvs = [(tk, td[pkey])
+               for tk, td in [("hot", hot), ("dam", dam), ("any", any_)]
+               if td.get(pkey) is not None]
+        if not pvs:
+            return
+        p_array = np.array([p for _, p in pvs])
         m = len(p_array)
         order = np.argsort(p_array)
         ranks = np.empty_like(order)
@@ -305,28 +356,30 @@ def compute_mutation_stratification(chronos_by_model: dict,
         )[::-1]
         q_back = np.empty_like(q_unord)
         q_back[order] = q_unord
-        for i, (tier_key, _) in enumerate(p_values):
-            q = float(min(1.0, q_back[i]))
-            if tier_key == "hot":
-                hot["q_value"] = q
-            elif tier_key == "dam":
-                dam["q_value"] = q
-            elif tier_key == "any":
-                any_["q_value"] = q
+        tier_map = {"hot": hot, "dam": dam, "any": any_}
+        for i, (tk, _) in enumerate(pvs):
+            tier_map[tk][qkey] = float(min(1.0, q_back[i]))
+
+    _bh_across_tiers("p_value", "q_value")            # forward (unchanged)
+    _bh_across_tiers("p_value_reverse", "q_value_reverse")  # second-pass reverse
 
     # === Classification ===
     # Prefer hotspot signal if present; otherwise damaging; otherwise any.
     def _classify(tier: dict) -> Optional[str]:
-        if tier.get("q_value") is None or tier.get("delta_mut_vs_wt") is None:
+        if tier.get("delta_mut_vs_wt") is None:
             return None
-        if tier["q_value"] >= stratification_alpha:
-            return None
-        if tier["delta_mut_vs_wt"] <= strong_effect_delta:
-            return "mutant_strongly_dependent"
-        if tier["delta_mut_vs_wt"] <= moderate_effect_delta:
-            return "mutant_moderately_dependent"
-        # Inverse (positive delta with significance) → WT cells more dependent
-        if tier["delta_mut_vs_wt"] >= 0.3:
+        # FORWARD: mutant more dependent (significant forward q + negative delta).
+        if tier.get("q_value") is not None and tier["q_value"] < stratification_alpha:
+            if tier["delta_mut_vs_wt"] <= strong_effect_delta:
+                return "mutant_strongly_dependent"
+            if tier["delta_mut_vs_wt"] <= moderate_effect_delta:
+                return "mutant_moderately_dependent"
+        # REVERSE (second pass): WT/comparator more dependent — significant REVERSE q AND a
+        # positive delta of meaningful size. This is now reachable (was a dead branch under
+        # the forward-only test). Verdict-inert (neutral rule only).
+        if (tier.get("q_value_reverse") is not None
+                and tier["q_value_reverse"] < stratification_alpha
+                and tier["delta_mut_vs_wt"] >= -strong_effect_delta):  # >= +0.5, mirrors forward "strong"
             return "wt_strongly_dependent"
         return None
 
@@ -374,6 +427,7 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "delta_chronos_hotspot_mut_vs_wt": hot["delta_mut_vs_wt"],
         "hotspot_mannwhitney_p": hot["p_value"],
         "hotspot_mannwhitney_q": hot["q_value"],
+        "hotspot_mannwhitney_q_reverse": hot.get("q_value_reverse"),
         "hotspot_effect_size": hot["effect_size"],
         # === Damaging tier ===
         "n_damaging_mutant": dam["n_mutant"],
@@ -383,12 +437,22 @@ def compute_mutation_stratification(chronos_by_model: dict,
         "delta_chronos_damaging_mut_vs_wt": dam["delta_mut_vs_wt"],
         "damaging_mannwhitney_p": dam["p_value"],
         "damaging_mannwhitney_q": dam["q_value"],
+        "damaging_mannwhitney_q_reverse": dam.get("q_value_reverse"),
         "damaging_effect_size": dam["effect_size"],
         # === Combined "any mutation" tier ===
         "n_any_mutant": any_["n_mutant"],
         "n_any_wildtype": any_["n_wildtype"],
         "delta_chronos_any_mut_vs_wt": any_["delta_mut_vs_wt"],
         "any_mannwhitney_q": any_["q_value"],
+        "any_mannwhitney_q_reverse": any_.get("q_value_reverse"),
+        # === Second-pass / uncomputable diagnostics (gap #4 + #5) ===
+        "stratification_direction": (
+            "reverse_wt_dependent" if cls == "wt_strongly_dependent"
+            else "forward_mutant_dependent" if cls in _ONCOGENE_ADDICTION
+            else "none"),
+        "_uncomputable_tiers": [
+            k for k, td in (("hotspot", hot), ("damaging", dam), ("any", any_))
+            if td.get("_uncomputable")],
         # === Per-hotspot breakdown (populated by load_per_hotspot_records if MAF available) ===
         "per_hotspot_stats": [],
         # === Categorical ===

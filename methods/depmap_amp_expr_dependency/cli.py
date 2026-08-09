@@ -95,18 +95,24 @@ def compute_amp_expr_stratification(chronos_by_model: dict, cn_by_model: dict, t
     )
 
     q = res.get("p_value")
+    q_reverse = res.get("p_value_reverse")            # second-pass "greater" (comparator more dependent)
     delta = res.get("delta_mut_vs_wt")
 
     def _classify() -> str:
         if res.get("_insufficient_data"):
             return "insufficient_amp_expr_rate"
-        if q is None or delta is None or q >= stratification_alpha:
+        if delta is None:
             return "not_amp_expr_stratified"
-        if delta <= strong_effect_delta:
-            return "amplified_overexpressed_strongly_dependent"
-        if delta <= moderate_effect_delta:
-            return "amplified_overexpressed_moderately_dependent"
-        if delta >= WT_INVERSE_DELTA:
+        # FORWARD: amp+overexpr conjoint more dependent (significant forward q + negative delta).
+        if q is not None and q < stratification_alpha:
+            if delta <= strong_effect_delta:
+                return "amplified_overexpressed_strongly_dependent"
+            if delta <= moderate_effect_delta:
+                return "amplified_overexpressed_moderately_dependent"
+        # REVERSE (second pass, gap #4): comparator lines more dependent — significant REVERSE
+        # q + strong positive delta. Now reachable; verdict-inert (no rule/resolver).
+        if (q_reverse is not None and q_reverse < stratification_alpha
+                and delta >= -strong_effect_delta):   # >= +0.5, mirrors forward "strong"
             return "amp_expr_negative_more_dependent"
         return "not_amp_expr_stratified"
 
@@ -121,8 +127,10 @@ def compute_amp_expr_stratification(chronos_by_model: dict, cn_by_model: dict, t
         "delta_chronos_amp_expr_vs_rest": delta,
         "amp_expr_mannwhitney_p": res.get("p_value"),
         "amp_expr_mannwhitney_q": q,
+        "amp_expr_mannwhitney_q_reverse": q_reverse,
         "amp_expr_effect_size": res.get("effect_size"),
         "amplification_threshold_relative_cn": float(focal_amp),
         "high_expression_log2tpm_threshold": float(high_expr_cut),
         "amp_expr_stratification_class": cls,
+        "_uncomputable": bool(res.get("_uncomputable")),
     }

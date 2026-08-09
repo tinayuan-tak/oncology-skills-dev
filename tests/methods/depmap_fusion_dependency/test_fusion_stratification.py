@@ -80,18 +80,19 @@ def test_insufficient_fusion_rate():
 
 
 def test_fusion_negative_more_dependent_is_never_mislabeled_positive_dependent():
-    """Inverse: fusion-NEGATIVE lines MORE dependent than positive. The reused Mann-Whitney is
-    ONE-SIDED ("fusion-positive more dependent"), so this yields a non-significant one-sided p → the
-    class is `not_fusion_stratified` (NOT fusion_positive_*_dependent). Key guarantee: a fusion is
-    NEVER credited with a dependency it doesn't have — this is exactly what keeps the symbol-union v1
-    conservative (a bystander-partner fusion only dilutes toward the null)."""
+    """Inverse: fusion-NEGATIVE lines strongly MORE dependent than positive. Key guarantee — a fusion is
+    NEVER credited with a dependency it lacks — must hold: the FORWARD `fusion_positive_*_dependent`
+    classes must NOT fire (this keeps the symbol-union v1 conservative; a bystander-partner fusion only
+    dilutes toward the null). With the second-pass reverse test (gap #4) this strong inverse now
+    correctly surfaces as `fusion_negative_strongly_dependent` (verdict-inert)."""
     import random
     rng = random.Random(4)
     pos = [-0.02 + rng.uniform(-0.08, 0.08) for _ in range(24)]
     neg = [-0.6 + rng.uniform(-0.1, 0.1) for _ in range(300)]
     chronos, fusion = _panel(pos, neg)
     s = compute_fusion_stratification(chronos, fusion)
-    assert s["fusion_stratification_class"] == "not_fusion_stratified"
     assert s["fusion_stratification_class"] not in ("fusion_positive_strongly_dependent",
                                                     "fusion_positive_moderately_dependent")
+    assert s["fusion_stratification_class"] == "fusion_negative_strongly_dependent"
+    assert s["fusion_stratification_mannwhitney_q_reverse"] < 0.05
     assert s["delta_chronos_fusion_positive_vs_negative"] > 0   # negative arm more dependent → positive delta
