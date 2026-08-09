@@ -102,6 +102,69 @@ def test_neither_viable_when_not_surface():
 
 
 # ---------------------------------------------------------------------------
+# GPI-anchor rescue (2026-08-09, modality-fit review M1) — TMbed 1D cannot see a GPI anchor, so a
+# GPI-anchored antigen reads tm_count==0 and WAS false-negatived to neither_viable despite being a
+# surface-displayed biologics target (FOLR1/Elahere approved ADC, MSLN, CD59). The curated UniProt
+# LIPID GPI fact rescues it. These patch read_gpi_anchor to exercise the branch hermetically.
+# ---------------------------------------------------------------------------
+
+def _fit_gpi(topology, *, is_gpi, is_surface=True, target="GENE"):
+    """fit_class with read_gpi_anchor patched to a chosen is_gpi_anchored."""
+    import unittest.mock as mock
+    import methods.uniprot_gpi_anchor as gpi_mod
+    with mock.patch("_live_readers._dispatch_surface_topology_and_ptm", return_value=topology), \
+         mock.patch("_live_readers._dispatch_surfaceome_family_classification",
+                    return_value=_family(is_surface=is_surface)), \
+         mock.patch("_live_readers._dispatch_structure_features_static", return_value={}), \
+         mock.patch.object(gpi_mod, "read_gpi_anchor", return_value={"is_gpi_anchored": is_gpi}):
+        return _dispatch_adc_tce_modality_fit(target, "NSCLC")
+
+
+def test_gpi_anchored_rescued_from_neither_viable():
+    """A GPI-anchored surface antigen at tm=0 with a real ECD is RESCUED (not neither_viable).
+    MSLN-class: large ECD, no internalizing precedent → TCE_preferred (no cytoplasmic tail)."""
+    out = _fit_gpi(_topo(tm=0, ec=587), is_gpi=True)
+    assert out["fit_class"] != "neither_viable"
+    assert out["fit_class"] == "TCE_preferred"
+    assert out["is_gpi_anchored"] is True and out["gpi_surface_rescued"] is True
+
+
+def test_gpi_anchored_adc_when_internalizing_precedent():
+    """FOLR1-class: GPI + large ECD + curated internalizing-ADC precedent → both_viable (ADC survives)."""
+    out = _fit_gpi(_topo(tm=0, ec=234), is_gpi=True, target="FOLR1")
+    assert out["fit_class"] == "both_viable"
+    assert out["gpi_surface_rescued"] is True
+
+
+def test_gpi_small_ecd_not_adc():
+    """CD59-class: GPI but small ECD (<200) + no precedent → TCE_preferred, NOT ADC (no default internalization)."""
+    out = _fit_gpi(_topo(tm=0, ec=104), is_gpi=True)
+    assert out["fit_class"] == "TCE_preferred"
+
+
+def test_gpi_tiny_ecd_not_rescued():
+    """A GPI flag with a sub-100 ECD is NOT rescued (no bindable epitope) → stays neither_viable."""
+    out = _fit_gpi(_topo(tm=0, ec=40), is_gpi=True)
+    assert out["fit_class"] == "neither_viable"
+    assert out["gpi_surface_rescued"] is False
+
+
+def test_non_gpi_tm0_still_neither_viable():
+    """The rescue is GPI-GATED: a non-GPI tm=0 protein (intracellular) stays neither_viable."""
+    out = _fit_gpi(_topo(tm=0, ec=300), is_gpi=False)
+    assert out["fit_class"] == "neither_viable"
+    assert out["gpi_surface_rescued"] is False
+
+
+def test_gpi_does_not_disturb_normal_single_pass():
+    """A normal single-pass target (tm=1) is unaffected by the GPI branch even if flagged GPI
+    (CEACAM5-class: TMbed already gave it a TM → normal path, not the rescue)."""
+    out = _fit_gpi(_topo(tm=1, ec=250, endo_hc=3, n_ubiq=3), is_gpi=True)
+    assert out["gpi_surface_rescued"] is False        # tm=1 → normal path
+    assert out["fit_class"] == "both_viable"
+
+
+# ---------------------------------------------------------------------------
 # C4 — fit_level "strong" with zero cards in scope
 # ---------------------------------------------------------------------------
 

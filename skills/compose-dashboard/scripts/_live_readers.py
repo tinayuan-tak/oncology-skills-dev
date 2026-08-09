@@ -1129,6 +1129,17 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     is_surface = family.get("is_surface_protein", False)
     tm_count = topology.get("tm_pass_count", 0) or 0
     ec_length = topology.get("extracellular_residue_count", 0) or 0
+    # GPI-ANCHOR RESCUE (2026-08-09, modality-fit review M1). TMbed 1D topology STRUCTURALLY cannot
+    # see a GPI anchor (no membrane-spanning segment) → a GPI-anchored antigen reads tm_count==0 and
+    # would fall to `neither_viable` below, despite being displayed on the outer leaflet with a real
+    # ECD. FOLR1 (Elahere — approved ADC), MSLN, CD59 are exactly this false-negative (live: tm=0,
+    # ecd=234/587/104, is_surface=True). The curated UniProt LIPID GPI fact (uniprot-gpi-anchored-v1,
+    # reviewed-human complete) supplies what TMbed cannot. A GPI antigen is surface-accessible for
+    # biologics; it has NO cytoplasmic tail (no internalization machinery / low turnover) so it is
+    # inherently TCE/antibody-favorable, and ADC-viable when the ECD is large + internalization is
+    # clinically precedented (FOLR1). is_gpi_anchored=None (product unavailable) is NOT a rescue.
+    _gpi = _import_method("uniprot_gpi_anchor").read_gpi_anchor(target, indication=indication) or {}
+    is_gpi_anchored = bool(_gpi.get("is_gpi_anchored"))
     # Read endocytosis + ubiquitination RAW (not `or 0`) so we can distinguish UNMEASURED (None —
     # the topology product carries topology only; PTM/endocytosis-motif fields are hardcoded None,
     # `_ptm_coverage: data_unavailable`) from a MEASURED zero. Coalescing to 0 conflated the two and
@@ -1162,8 +1173,23 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     # product reads as a hard biologics no-go rather than "unknown" (measured-vs-data_unavailable doctrine).
     family_unavailable = family.get("family_class") == "data_unavailable"
     topology_unavailable = topology.get("topology_class") == "data_unavailable"
+    # A GPI-anchored antigen is surface-accessible even at tm_count==0 (TMbed can't see the anchor).
+    # It rescues the no_transmembrane false-negative ONLY when there is also a real bindable ECD.
+    gpi_surface_accessible = is_gpi_anchored and is_surface and tm_count == 0 and ec_length >= 100
     if family_unavailable and topology_unavailable:
         fit_class = "data_unavailable"
+    elif gpi_surface_accessible:
+        # GPI branch: no cytoplasmic tail → endocytosis/turnover machinery absent. TCE + naked-antibody
+        # favorable (stable surface display); ADC-viable when the ECD is large AND internalization is
+        # clinically precedented (FOLR1/Elahere) — a GPI antigen is NOT auto-ADC (no default internalization).
+        adc_favorable = (ec_length >= 200 and clinically_internalizing)
+        tce_favorable = (ec_length >= 100)
+        if adc_favorable and tce_favorable:
+            fit_class = "both_viable"
+        elif adc_favorable:
+            fit_class = "ADC_preferred"
+        else:
+            fit_class = "TCE_preferred"
     elif not is_surface or tm_count == 0:
         fit_class = "neither_viable"
     else:
@@ -1208,7 +1234,13 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         "fit_class": fit_class,
         "fit_rationale": f"tm_count={tm_count}, ec_length={ec_length}, "
                          f"endo_motif_hc={endo_high_conf if endo_measured else 'unmeasured'}, "
-                         f"n_ubiq={n_ubiq if ubiq_measured else 'unmeasured'}",
+                         f"n_ubiq={n_ubiq if ubiq_measured else 'unmeasured'}"
+                         + (", GPI-anchored (TMbed-invisible surface antigen rescued)" if gpi_surface_accessible else ""),
+        # GPI-anchor rescue provenance (M1 fix): surfaced so a GPI-driven surface call is auditable
+        # (the topology_class stays no_transmembrane — TMbed can't see the anchor — but fit_class is
+        # computed on the ECD as a surface antigen). is_gpi_anchored is the curated UniProt LIPID fact.
+        "is_gpi_anchored": is_gpi_anchored,
+        "gpi_surface_rescued": gpi_surface_accessible,
         # Card-declared field (adc-tce-modality-fit.card.yaml) — previously never emitted. Makes the
         # endocytosis coverage state explicit: `unmeasured` today (topology product carries no
         # endocytosis-motif data), so an ADC_preferred call rests on topology + is flagged as
