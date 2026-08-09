@@ -31,7 +31,7 @@ cross-session coordination ritual that must precede any card/rule ID change.
 
 ```
 target-contracts/
-├── cards/                       # 64 evidence-card definitions (*.card.yaml)
+├── cards/                       # 84 evidence-card definitions (*.card.yaml)
 ├── interpretation-rules/        # signal → verdict rule sets (intracellular + surface intrinsic)
 ├── resolvers/                   # per-gate declarative verdict resolvers (*.resolver.yaml)
 ├── schemas/                     # JSON Schemas for every contract type
@@ -56,12 +56,17 @@ A **card** (`cards/*.card.yaml`) is a declarative contract for one piece of evid
 - an **`applies_when`** predicate (e.g. only when a subtype shard exists);
 - the **output schema** its result must validate against (`schemas/products/`).
 
-The 64 cards span the biology gates: presence & selectivity (`cellline-rna-distribution`,
-`tumor-rna-vs-adjacent`, `tumor-vs-normal-selectivity`, …), requirement/dependency
+The 84 cards span the biology gates: presence & selectivity (`cellline-rna-distribution`,
+`tumor-rna-vs-adjacent`, `tumor-vs-normal-selectivity`, `tumor-scrna-celltype-expression` with
+per-compartment and CAF-axis single-cell fields, …), requirement/dependency
 (`pan-cancer-crispr-dependency-distribution`, `dependency-lineage-selectivity`, `paralog-buffering`, …),
+combination & combinatorial-KO (`combo-crispr-screen` for co-targeting opportunities that emerge under
+anchor-drug inhibition, `combinatorial-dependency` for dual-KO genetic interaction, …),
 genomic alteration (`mutation-hotspot-frequency`, `copy-number-distribution`,
 `fusion-rearrangement-landscape`, …), mechanism, differentiation, tractability & surface modality
-(`adc-tce-modality-fit`, `surface-abundance-density`, …), safety (`gnomad-lof-constraint`,
+(`adc-tce-modality-fit`, `surface-abundance-density`, plus the surface-enrichment cards
+`cd-antigen-backbone`, `mutation-stratified-surface`, `pathway-stratified-surface`,
+`modality-exon-window`, …), safety (`gnomad-lof-constraint`,
 `normal-tissue-liability-gtex`, `clinvar-pathogenicity-safety`, …), and the indication-independent
 target-intrinsic set (`reactome-pathway-membership`, `ppi-interactome`, `gene-ontology-annotation`,
 `protein-domains-class`).
@@ -70,11 +75,15 @@ target-intrinsic set (`reactome-pathway-membership`, `ppi-interactome`, `gene-on
 
 Cards carry *numbers*; **interpretation rules** and **resolvers** turn them into *verdicts*, deterministically.
 
-- **`interpretation-rules/*.rules.yaml`** — the rule sets (split by intrinsic axis: `intracellular-intrinsic`,
-  `surface-intrinsic`). Each rule is a `when → then` mapping keyed on card outputs, producing a class label.
+- **`interpretation-rules/*.rules.yaml`** — the rule sets. The two intrinsic-axis ladders
+  (`intracellular-intrinsic`, `surface-intrinsic`) feed the shared nomination verdict; two self-contained
+  axes (`combination-opportunity`, `combinatorial-dependency`) drive the combo skills' own verdicts and are
+  deliberately isolated from that ladder. Each rule is a `when → then` mapping keyed on card outputs,
+  producing a class label.
 - **`resolvers/*.resolver.yaml`** — one declarative resolver per gate (`dependency`, `selectivity`,
   `genomic_alteration`, `mechanism`, `safety`, `differentiation`, `surface_modality`,
-  `synthetic_lethal_partners`). A single shared interpreter executes these, so both the skill engine and
+  `tractability_small_molecule`, `synthetic_lethal_partners`). A single shared interpreter executes these,
+  so both the skill engine and
   `compose-dashboard` fire the *same* rule kernel. This is what keeps a verdict byte-stable across callers.
 
 ### Vocabularies — the controlled language
