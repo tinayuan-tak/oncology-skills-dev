@@ -534,8 +534,11 @@ def probe_card(
 
     P4 modality-vector lens: `modality_relevance` + a derived `modality_routing` verdict are
     recorded when `modality_types` (the vocab's type->routing-set map) is supplied. This is a
-    PARALLEL dimension to card_health — routing metadata, NOT liveness — so it never feeds the
-    card_health ladder (a card is equally "live" whether or not it declares a modality vector).
+    PARALLEL dimension to card_health — ADVISORY annotation, NOT liveness and NOT actual routing
+    (demoted 2026-08-09: the field has zero behavioral readers; the real router is the per-rule
+    signals{} dict + modality_axis_compatibility.yaml). It never feeds the card_health ladder (a
+    card is equally "live" whether or not it declares a modality vector), and a missing declaration
+    is a documentation lint, not a defect.
     """
     dispatch_modules = dispatch_modules or {}
     catalog_ids = catalog_ids if catalog_ids is not None else set()

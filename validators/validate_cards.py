@@ -616,13 +616,20 @@ def _sample_context_check(spec: dict, report: ValidationReport) -> None:
 
 
 def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
-    """P4 (2026-07-23) — a card whose measurement_type is MODALITY-RELEVANT must declare
-    `modality_relevance` so its evidence routes to the right modality-fit gate (axis-2) rather than
-    being stranded on the biology axis.
+    """P4 (2026-07-23) — `modality_relevance` is an ADVISORY annotation of which modality-fit gates a
+    card's evidence is intended to inform.
+
+    DEMOTED TO ADVISORY (2026-08-09, modality-fit review): the original design intended this field to
+    ROUTE evidence to gates (a declarative PULL), and this check ERRORed on its absence. But that pull
+    mechanism was never built — `modality_relevance` has ZERO behavioral readers; the ACTUAL router is
+    the per-rule `signals{}` dict (+ modality_axis_compatibility.yaml for module loading). Enforcing a
+    field that changes nothing advertised a capability that does not exist. So a MISSING declaration is
+    now a WARNING (documentation lint), not an ERROR — and the message no longer claims evidence is
+    "stranded" (it isn't; routing works via rule signals regardless).
 
     'Modality-relevant' is defined by the VOCAB, not a hardcoded list: a measurement_type is
     modality-relevant iff its entry in vocabularies/measurement_types.yaml declares `modality_relevance`.
-      - card's type is modality-relevant AND card omits top-level modality_relevance → ERROR.
+      - card's type is modality-relevant AND card omits top-level modality_relevance → WARNING (advisory).
       - card declares modality_relevance but its VALUES aren't a subset of the type's declared set →
         WARNING (the card claims a lens the type's routing doesn't list — likely drift).
     Migration-safe: no measurement_type on the card, or vocab absent → graceful skip (the
@@ -636,12 +643,12 @@ def _modality_relevance_check(spec: dict, report: ValidationReport) -> None:
         return  # vocab absent — graceful skip
     card_mr = spec.get('modality_relevance')
     if mtype in relevant and not card_mr:
-        report.add_error(
+        report.add_warning(
             f'MODALITY_RELEVANCE_MISSING: card `{card_id}` has measurement_type `{mtype}`, which is '
-            f'declared MODALITY-RELEVANT in vocabularies/measurement_types.yaml (it carries a '
-            f'`modality_relevance` key), but the card does not declare top-level `modality_relevance`. '
-            f'A modality-relevant card must name the modality-fit gates it routes to, or its evidence '
-            f'is stranded on the biology axis (P4). Add `modality_relevance: [...]` to the card.')
+            f'declared modality-relevant in vocabularies/measurement_types.yaml. Consider adding an '
+            f'ADVISORY `modality_relevance: [...]` annotation naming the modality-fit gate(s) this '
+            f'card informs. NOTE: this is documentation only — evidence routing is driven by the '
+            f'per-rule signals{{}} dict, not this field, so omitting it does NOT strand the card.')
         return
     # optional consistency: card's declared lenses should be within the type's routing set
     if mtype in relevant and card_mr:

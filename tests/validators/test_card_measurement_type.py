@@ -159,12 +159,15 @@ def test_real_vocab_registered_types_are_loadable():
 # A card whose measurement_type is MODALITY-RELEVANT (its vocab entry declares modality_relevance)
 # must carry a top-level modality_relevance array. Anchored to the vocab, not a hardcoded list.
 
-def test_modality_relevant_type_without_field_is_error(tmp_path, monkeypatch):
+def test_modality_relevant_type_without_field_is_advisory_warning(tmp_path, monkeypatch):
+    # DEMOTED 2026-08-09 (modality-fit review): modality_relevance is advisory (0 behavioral readers;
+    # real routing is the per-rule signals{} dict). A missing declaration is a WARNING, not an ERROR.
     monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"surface_confirmation"})
     monkeypatch.setattr(VC, "_modality_relevant_types", lambda: {"surface_confirmation"})
     report = _validate(tmp_path, _base_card(measurement_type="surface_confirmation"))
-    assert not report.ok
-    assert "MODALITY_RELEVANCE_MISSING" in _errs(report)
+    assert report.ok, "missing modality_relevance must NOT fail the card (advisory only)"
+    assert "MODALITY_RELEVANCE_MISSING" in _warns(report)
+    assert "MODALITY_RELEVANCE_MISSING" not in _errs(report)
 
 
 def test_modality_relevant_type_with_field_is_clean(tmp_path, monkeypatch):
