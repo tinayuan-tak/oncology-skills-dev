@@ -42,7 +42,8 @@ from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 
 
 SKILL_NAME = "tractability-small-molecule"
-SKILL_VERSION = "3.1.0"     # 3.1.0: + structure-features-static (E8 forward ligandability).
+SKILL_VERSION = "3.4.0"     # 3.1.0 +E8; +known-drug (#272); +degradation (#266); +T1.1/T1.2/T3.1
+                            #   (discordant reorder, clinical_precedent_only, measured-potency card).
                             # 3.0.0: split from tractability-and-modality 2.1.0.
 
 CARDS = [

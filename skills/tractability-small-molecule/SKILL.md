@@ -16,7 +16,7 @@ description: |
   dependency?"
 
 metadata:
-  version: 3.1.0
+  version: 3.4.0   # +known-drug (#272) +degradation (#266) +T1/T3.1 (discordant reorder, clinical_precedent_only, measured-potency)
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -29,8 +29,9 @@ composition:
     - prism-compound-activity
     - prism-crispr-concordance
     - dependency-predictability
-    - structure-features-static      # E8: forward ligandability (pocket structure)
+    - structure-features-static      # E8: forward ligandability (pocket structure + LIVE hotspot-adjacency)
     - known-drug-tractability        # E-known-drug: PHARMACOLOGY leg (DGIdb known-drug + druggable-category)
+    - measured-potency-tractability  # E-measured-potency (T3.1): ChEMBL/BindingDB MEASURED binding potency
     - degradation-feasibility        # E3 slice 3: DEGRADER-lens degradability (fires degrader-channel rules)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. chemical_genetic_concordance is
   # the derived on-target-engagement type this gate shares with functional-requirement (flow-pattern 2:
@@ -41,6 +42,7 @@ composition:
     - dependency_predictability
     - structure_druggability
     - known_drug_tractability        # E-known-drug: DGIdb pharmacology leg (approved-drug -> chemically_active; druggable-category -> structurally_ligandable)
+    - measured_potency_tractability  # E-measured-potency (T3.1): ChEMBL/BindingDB (potent series -> measured_potent_ligand)
     - degradation_feasibility        # E3 slice 3: target degradability (degrader-lens only; SM verdict byte-stable)
   rules_scope:
     - all
@@ -56,10 +58,14 @@ composition:
 
 ## What this skill does
 
-- Fetches the 3 chemical-genetic cards (prism-compound-activity,
-  prism-crispr-concordance, dependency-predictability) via the
-  compose-dashboard live-reader dispatchers.
-- Fires the `e7-*` / `prism-*` / `predictability-*` rules.
+- Fetches the 7 tractability cards via the compose-dashboard live-reader dispatchers:
+  the 3 chemical-genetic (prism-compound-activity, prism-crispr-concordance,
+  dependency-predictability), the structure leg (structure-features-static: forward
+  ligandability + LIVE hotspot-adjacency), the DGIdb pharmacology leg (known-drug-
+  tractability), the MEASURED-potency leg (measured-potency-tractability: ChEMBL/BindingDB),
+  and the degrader-lens leg (degradation-feasibility).
+- Fires the `e7-*` / `prism-*` / `predictability-*` / `ligandability-*` / `known-drug-*` /
+  `measured-*` rules.
 - Emits `decision.json` with:
   - `headline`: `druggability_snapshot` + `driving_rule_id`, plus the driving
     prism activity class, PRISM-CRISPR concordance class, and predictability
@@ -68,24 +74,34 @@ composition:
 
 ## Snapshot resolution (rank-ordered, first match wins)
 
-Chemical-genetic evidence (RETROSPECTIVE — a compound has actually hit the target)
-ranks highest; structural / forward ligandability (E8 — a druggable pocket, no
-compound required) ranks below a real chemical hit but above `chemically_unhit`.
+Source of truth: `target-contracts/resolvers/tractability_small_molecule.resolver.yaml` (v1.3.0).
+Precedence: ON-TARGET chemical-genetic (concordance-confirmed) > opposing OFF-TARGET > retrospective
+chemical ACTIVITY > MEASURED potency > structural forward-ligandability > unhit.
 
   1. `e7-triangulated-target-engaged-supportive` → `well_covered`
-     (chemical hits agree with genetic dependency — highest confidence)
-  2. `e7-crispr-confirmed-supportive-sm` → `chemically_confirmed_genetic`
-  3. `prism-clinically-active-supportive-sm` → `chemically_active`
-  4. `prism-tool-compound-only-weak-supportive-sm` → `tool_compound_only`
-  5. `prism-weakly-active-weak-supportive-sm` → `weakly_active`
-  6. `hotspot-in-druggable-pocket-sm-supportive-e8` → `structurally_ligandable`
-     (E8: druggable pocket, forward — the KRAS-G12C switch-II archetype)
-  7. `structure-pocket-adjacent-sm-supportive` → `structurally_ligandable`
-  8. `e7-discordant-off-target-warning` → `discordant`
-  9. `structure-low-confidence-sm-opposing` → `structurally_intractable`
-     (E8: low-confidence/disordered fold — SM-opposing, NOT a killer)
-  10. `prism-no-compounds-found-neutral` → `chemically_unhit`
-  11. else → `insufficient`
+     (chemical hit agrees with the genetic dependency — highest confidence; on-target)
+  2. `e7-crispr-confirmed-supportive-sm` → `chemically_confirmed_genetic` (on-target)
+  3. `e7-discordant-off-target-warning` → `discordant`
+     (T1.1: an OFF-target compound demotes a would-be chemical hit; MUST precede the activity rungs.
+      Stays below the on-target rungs above — a proven-on-mechanism target is not overridden.)
+  4. `prism-clinically-active-supportive-sm` → `chemically_active` (measured cell-panel activity)
+  5. `known-drug-approved-antineoplastic-sm-supportive` → `chemically_active` (DGIdb approved drug)
+  6. `prism-clinical-precedent-only-weak-supportive-sm` → `clinical_precedent_only`
+     (T1.2: a phase-1+ compound ANNOTATED but NO measured activity — weaker than a measured hit)
+  7. `prism-tool-compound-only-weak-supportive-sm` → `tool_compound_only`
+  8. `prism-weakly-active-weak-supportive-sm` → `weakly_active`
+  9. `measured-potent-ligand-sm-supportive` → `measured_potent_ligand`
+     (T3.1: a potent ≤1 µM MEASURED chemotype series from ChEMBL/BindingDB — a real chemical start point)
+  10. `ligandability-experimental-sm-supportive` → `structurally_ligandable` (real co-crystal, strongest handle)
+  11. `hotspot-in-druggable-pocket-sm-supportive-e8` → `structurally_ligandable` (LIVE hotspot-in-pocket, KRAS-G12C archetype)
+  12. `structure-pocket-adjacent-sm-supportive` → `structurally_ligandable`
+  13. `ligandability-predicted-sm-supportive` → `structurally_ligandable` (predicted pocket / VS-hit / cryptic)
+  14. `known-drug-druggable-category-sm-supportive` → `structurally_ligandable` (DGIdb druggable-class prior)
+  15. `measured-weak-ligand-sm-supportive` → `structurally_ligandable` (T3.1: weak measured activity — a starting-point handle)
+  16. `structure-low-confidence-sm-opposing` → `structurally_intractable` (E8: low-confidence fold)
+  17. `ligandability-disordered-sm-opposing` → `structurally_intractable` (measured IDP disorder — SM-opposing, not a killer)
+  18. `prism-no-compounds-found-neutral` → `chemically_unhit`
+  19. else → `insufficient`
 
 ## Degrader lens (2026-07-23, modality-specific-interpretation slice 2)
 
