@@ -64,3 +64,46 @@ def test_unmapped_indication_is_data_unavailable(monkeypatch):
 def test_missing_indication_is_data_unavailable():
     out = prog_read.read_progeny_pathway_activity(indication=None)
     assert out["pathway_activity_class"] == "data_unavailable"
+
+
+# --- resolver seam (all 3 hard-coded S3 URIs now resolve via catalog_query.s3_uri_for) --------------
+
+def _patch_resolver(monkeypatch, mapping):
+    """Replace catalog_query.read.s3_uri_for with a dict lookup (hermetic — no manifest files)."""
+    import methods.catalog_query.read as cq
+    monkeypatch.setattr(cq, "s3_uri_for", lambda mid, **kw: mapping[mid])
+
+
+def test_derived_uri_resolves_via_manifest(monkeypatch):
+    _patch_resolver(monkeypatch, {
+        "progeny-pathway-activity-per-indication-v1":
+            "s3://bucket/data-catalog/derived/progeny-pathway-activity-per-indication-v1/progeny_activity_per_indication.parquet"})
+    assert prog_read._resolve_derived_uri().endswith("/progeny_activity_per_indication.parquet")
+    assert prog_read.DERIVED_MANIFEST_ID == "progeny-pathway-activity-per-indication-v1"
+
+
+def test_expr_uri_resolves_via_manifest(monkeypatch):
+    from methods.progeny_pathway_activity import cli as prog_cli
+    _patch_resolver(monkeypatch, {
+        "tcga-tumor-tpm-recount3-long-v1":
+            "s3://bucket/data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_long.parquet"})
+    assert prog_cli._resolve_expr_uri().endswith("/tcga_tpm_long.parquet")
+
+
+def test_model_uri_appends_filename_to_source_directory(monkeypatch):
+    """The source manifest s3_uri is a DIRECTORY (trailing slash); the helper appends the filename."""
+    from methods.progeny_pathway_activity import cli as prog_cli
+    _patch_resolver(monkeypatch, {
+        "progeny-saezlab-snapshot-2026-08-10": "s3://bucket/data-catalog/sources/progeny-saezlab/snapshot-2026-08-10/"})
+    uri = prog_cli._resolve_model_uri()
+    assert uri == "s3://bucket/data-catalog/sources/progeny-saezlab/snapshot-2026-08-10/progeny_model_human.parquet"
+    assert "//progeny_model_human" not in uri.replace("s3://", "")   # no double slash from the join
+
+
+def test_resolver_import_is_call_time_not_import_time(monkeypatch):
+    """read/test paths must not require the resolver at import — the read tests above already pass
+    without patching s3_uri_for because _load_product is monkeypatched. This asserts the seam is a
+    function (deferred import), so a missing manifest fails at call, not at module import."""
+    import inspect
+    src = inspect.getsource(prog_read._resolve_derived_uri)
+    assert "from methods.catalog_query.read import s3_uri_for" in src   # imported INSIDE the function

@@ -28,8 +28,24 @@ import pandas as pd
 METHOD_VERSION = "0.1.0"
 
 TOP_GENES_PER_PATHWAY = 100     # standard PROGENy footprint size
-_MODEL_S3 = "s3://onc-compbio/data-catalog/sources/progeny-saezlab/snapshot-2026-08-10/progeny_model_human.parquet"
-_EXPR_S3 = "s3://onc-compbio/data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_long.parquet"
+
+# Resolver seam: manifest_ids resolve to their authoritative s3_uri via the data-catalog manifests
+# (single source of truth), rather than hand-typed literals that can drift on a re-emit. Resolved at
+# call time (not import) so build-time-only code doesn't force the resolver onto pure read/test paths.
+MODEL_SOURCE_MANIFEST_ID = "progeny-saezlab-snapshot-2026-08-10"  # s3_uri is a directory → append filename
+MODEL_FILENAME = "progeny_model_human.parquet"
+EXPR_MANIFEST_ID = "tcga-tumor-tpm-recount3-long-v1"
+
+
+def _resolve_model_uri() -> str:
+    from methods.catalog_query.read import s3_uri_for
+    base = s3_uri_for(MODEL_SOURCE_MANIFEST_ID)   # ends in '/' (source-release directory)
+    return base + MODEL_FILENAME if base.endswith("/") else f"{base}/{MODEL_FILENAME}"
+
+
+def _resolve_expr_uri() -> str:
+    from methods.catalog_query.read import s3_uri_for
+    return s3_uri_for(EXPR_MANIFEST_ID)
 
 # indication → recount3 TCGA study codes (mirror tcga_gtex_expression_distribution.INDICATION_TO_TCGA_STUDIES).
 INDICATION_TO_STUDIES = {
@@ -48,7 +64,7 @@ _BUILD_INDICATIONS = [k for k, v in INDICATION_TO_STUDIES.items() if len(v) == 1
 
 def _load_model(top_n: int = TOP_GENES_PER_PATHWAY):
     import subprocess
-    raw = subprocess.run(["aws", "s3", "cp", _MODEL_S3, "-"], capture_output=True).stdout
+    raw = subprocess.run(["aws", "s3", "cp", _resolve_model_uri(), "-"], capture_output=True).stdout
     prog = pd.read_parquet(io.BytesIO(raw))
     prog["abw"] = prog["weight"].abs()
     top = prog.sort_values("abw", ascending=False).groupby("pathway").head(top_n)
@@ -73,11 +89,12 @@ def build_per_indication_table(top_n: int = TOP_GENES_PER_PATHWAY) -> pd.DataFra
     net = _load_model(top_n)
     genes = sorted(net["target"].unique())
     con = _duck()
+    expr_uri = _resolve_expr_uri()
     glist = "','".join(g.replace("'", "''") for g in genes)
     rows = []
     for ind in _BUILD_INDICATIONS:
         study = INDICATION_TO_STUDIES[ind][0]
-        q = (f"SELECT gene_symbol, sample_id, log2_tpm FROM read_parquet('{_EXPR_S3}') "
+        q = (f"SELECT gene_symbol, sample_id, log2_tpm FROM read_parquet('{expr_uri}') "
              f"WHERE study = '{study}' AND gene_symbol IN ('{glist}')")
         expr = con.execute(q).df()
         if expr.empty or expr["sample_id"].nunique() < 15:
