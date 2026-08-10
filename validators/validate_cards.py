@@ -235,6 +235,7 @@ KNOWN_FIGURE_DEBT = {
     'fusion-stratified-dependency',   # A1-fusion (2026-08-06) — fusion-vs-negative strip emitter deferred (viz-debt queue)
     'amp-expr-stratified-dependency',   # A1 amp-expr (2026-08-06) — conjoint amp+overexpr strip emitter deferred (viz-debt queue)
     'partner-conditional-dependency',   # Track PC (2026-08-09) — partner-deficient-vs-neutral strip emitter deferred (viz-debt queue)
+    'ddr-deficiency-context',   # Track PI (2026-08-09) — HRD-context strip/bar emitter deferred (viz-debt queue)
     # surface tier + shed:
     'shed-ectodomain-liability', 'surface-topology-and-ptm',
     'surfaceome-family-classification', 'surfaceome-cohort-ranking',

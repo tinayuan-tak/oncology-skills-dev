@@ -327,6 +327,29 @@ measurement_types:
     providers:
       - {kind: dataset, source: gdc-pancanatlas-cnv-2018, method: tcga_aneuploidy_burden, evidence_tier: measured}
 
+  ddr_deficiency_context:
+    claim: "How HRD/DDR-deficient is the indication's cohort (fraction HRD-high)?"
+    # Track PI (2026-08-09): an INDICATION-level, target-INDEPENDENT PRE-INTEGRATED companion result —
+    # the PanCanAtlas DDR footprint (Knijnenburg 2018) per-sample HRD_Score (HRD-TAI+LST+LOH composite)
+    # rolled up to a per-indication HRD-high fraction. DISPLAY facet — verdict-inert cohort HRD prior
+    # (frames the PARP1/HRD blind axis; does NOT establish the partner-conditional dependency, which is
+    # the separate partner_conditional_dependency type). Sibling of genomic_instability_state. No
+    # modality_relevance: cohort-genome context, not a per-modality driver.
+    entity_grains: [cohort]
+    cards: [ddr-deficiency-context]
+    providers:
+      - {kind: derived_from, inputs: [ddr_footprint_score], method: cohort_fraction, evidence_tier: measured}
+
+  ddr_footprint_score:
+    claim: "Per-sample DDR/HRD footprint scores (HRD_Score, mutSig3, PARPi7), the pre-integrated Knijnenburg 2018 result."
+    # Track PI (2026-08-09): the per-sample DDR footprint INPUT to ddr_deficiency_context. Pre-integrated
+    # by Knijnenburg 2018 (we do not recompute HRD). Like fusion_status/partner_deficiency_status, no
+    # standalone card is a view of it — a derived-edge input (cards: []).
+    entity_grains: [cohort]
+    cards: []
+    providers:
+      - {kind: dataset, source: gdc-pancanatlas-companions-2018, evidence_tier: measured}
+
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
     # The typed FUNCTIONAL-ROLE call layered on the descriptive alteration cards — the primitive the
