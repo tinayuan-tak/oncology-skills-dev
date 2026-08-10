@@ -1,0 +1,50 @@
+# Curated partner-conditional-dependency map (Track PC, 2026-08-09).
+#
+# Each entry: a TARGET whose DepMap dependency is hypothesised to be CONDITIONAL on a
+# PARTNER gene's deficiency state. The map names BOTH the partner AND the alteration type
+# that defines "partner-deficient" — because partner deficiency is heterogeneous:
+#   - msi_signature   : partner deficiency is a genome signature (MSI-high), read from
+#                       OmicsInferredMolecularSubtypes.csv (the framework's CANONICAL MSI-H call,
+#                       same source subgroup_assigner_directly_tagged uses).
+#   - lof_mutation    : partner deficiency is a loss-of-function mutation, read from the
+#                       DepMap damaging-mutation matrix (reuse depmap_mutation_dependency.load).
+#   - (future) cn_loss / fusion — not yet wired; add the loader arm when a target needs it.
+#
+# SynLethDB is the CANDIDATE-GENERATION source for extending this map — NOT a blind auto-join
+# (SynLethDB does not name the alteration type, which the stratifier requires). New entries are
+# curated here after an empirical probe confirms the deficiency-type + a measurable signal.
+#
+# ANCHOR: WRN x MSI-high — proven on live DepMap 26q1 (canonical MSI boolean): delta Chronos
+# -0.41, p 8.8e-12, 91 MSI-high lines (validation gate #1, 2026-08-09). Concentrates in
+# Uterus/Bowel/Ovary/Stomach lineages (biologically correct).
+
+version: 1.0.0
+schema: {target: str, partner: str, deficiency_type: "msi_signature|lof_mutation", note: str}
+
+partners:
+  WRN:
+    - partner: MSI            # MSI-high genome state (mismatch-repair deficiency), NOT a single gene
+      deficiency_type: msi_signature
+      note: >
+        Textbook DepMap synthetic lethality (Chan/Behan 2019): MSI-high lines are selectively
+        WRN-dependent. ANCHOR case. Partner "gene" is the MSI genome signature, read from the
+        canonical OmicsInferredMolecularSubtypes.csv MSI boolean.
+
+  PARP1:
+    - partner: BRCA1
+      deficiency_type: lof_mutation
+      note: >
+        Clinical HRD synthetic lethality. HONEST NEGATIVE TEST: expected WEAK in mono-KO CRISPR
+        (probe delta -0.03) because PARPi works largely by TRAPPING, not loss-of-function, and
+        PARP2 buffers. Framework reports insufficient/weak faithfully; NOT forced to flip.
+    - partner: BRCA2
+      deficiency_type: lof_mutation
+      note: HRD partner (paired with BRCA1; either LoF flags the deficient arm).
+
+  SMARCA2:
+    - partner: SMARCA4
+      deficiency_type: lof_mutation
+      note: >
+        Paralog partner-conditional (calibration watchlist). Probe: delta -0.10, significant but
+        below MODERATE on LoF-mutation alone — may need the paralog-buffering signal alongside.
+        Wired as a real test; expected to read weak_partner_selectivity until buffering is combined.
