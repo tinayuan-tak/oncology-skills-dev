@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
-"""combo-and-resistance — combination opportunities (+ resistance, deferred) when target X is inhibited.
+"""combo-and-resistance — combination opportunities AND resistance mediators when target X is inhibited.
 
-GRADUATED 2026-08-07 placeholder → partial. The COMBINATION half is now wired: the combo-crispr-screen
-card reads DepMap 26Q1 drug-anchor CRISPR screens (depmap-drug-anchor-combination-per-target-v1) —
-"when {target} is inhibited by its anchor drug, which co-targets become MORE essential?" — via
-methods/combo_drug_anchor. Emits a self-contained combination_verdict.
+GRADUATED 2026-08-07 placeholder → partial (combination half). UPGRADED 2026-08-10 partial → wired:
+the RESISTANCE half is now live alongside the combination half.
 
-The RESISTANCE half (resistance-emergence-signature: genes whose loss RESCUES under inhibition —
-candidate resistance mediators) is DEFERRED: the positive-shift arm of the same screens is not yet
-distilled into a product. The skill reports it as an explicit remaining gap (status: partial).
+COMBINATION half: the combo-crispr-screen card reads DepMap 26Q1 drug-anchor CRISPR screens
+(depmap-drug-anchor-combination-per-target-v1) — "when {target} is inhibited by its anchor drug,
+which co-targets become MORE essential?" — via methods/combo_drug_anchor. Self-contained
+combination_verdict (axis combination_opportunity).
 
-SELF-CONTAINED verdict (run.py _verdict): maps the fired combination-opportunity rules → the skill's
-own combination_verdict. NOT wired into nomination_verdict_gate — a combination opportunity is a
-co-targeting rationale, not a monotherapy nomination. Dedicated rules axis combination_opportunity.
+RESISTANCE half: the resistance-emergence-signature card reads the SIGN-MIRROR product
+(depmap-drug-anchor-resistance-per-target-v1, the POSITIVE arm of the SAME screens) — "which gene
+knockouts RESCUE the cell under inhibition = candidate resistance mediators?" — via
+methods/resistance_emergence. Self-contained resistance_verdict (axis resistance_emergence).
 
-Biology-first; modality is a post-hoc lens (rules carry small_molecule/degrader co-targeting signals).
+BOTH verdicts are self-contained and NOT wired into nomination_verdict_gate — a combination
+opportunity is a co-targeting rationale and a resistance mediator is a monitoring rationale; neither
+is a monotherapy nomination. The dispatcher fires the combination axis (its primary verdict); the
+resistance axis is fired + resolved here in-skill (no dispatcher change), so the combination spine
+is byte-identical to the pre-resistance version.
+
+Biology-first; modality is a post-hoc lens (rules carry small_molecule/degrader signals).
 """
 from __future__ import annotations
 
@@ -24,25 +30,26 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
+from _skills_common import fired_rules
 from _skills_common.dispatcher import run_wired_skill
 
 
 SKILL_NAME = "combo-and-resistance"
-SKILL_VERSION = "2.0.0"   # 2.0.0: graduated not_wired → partial (combination half wired;
-                          #        resistance-emergence-signature deferred).
+SKILL_VERSION = "3.0.0"   # 3.0.0: resistance half wired (both combination + resistance verdicts).
+                          # 2.0.0 was combination-only (resistance-emergence-signature deferred).
 
 CARDS = [
     "combo-crispr-screen",
+    "resistance-emergence-signature",
 ]
 
-# The resistance half — documented remaining gap (status: partial), not yet a card/product.
-DEFERRED_CARDS = [
-    "resistance-emergence-signature",   # positive-shift / rescued-gene arm of the drug-anchor screens
-]
+# No deferred cards remain — both halves wired.
+DEFERRED_CARDS: list[str] = []
 
-QUESTION = ("When {target} is inhibited, what combination opportunities emerge — which co-targets "
-            "become more essential? (Resistance-signature half deferred.)")
+QUESTION = ("When {target} is inhibited, what combination opportunities emerge (which co-targets "
+            "become more essential) AND what resistance mediators emerge (which knockouts rescue)?")
 
+# ── Combination half (primary; fired by the dispatcher on axis combination_opportunity) ──
 _RULE_VERDICT = {
     "combo-strong-opportunity": "strong_combination_opportunity",
     "combo-supported-opportunity": "combination_opportunity",
@@ -60,6 +67,24 @@ _PRECEDENCE = [
     "combo-opportunity-data-unavailable",
 ]
 
+# ── Resistance half (secondary; fired in-skill on axis resistance_emergence) ──
+_RESISTANCE_VERDICT = {
+    "resistance-strong-signal": "strong_resistance_signal",
+    "resistance-supported-signal": "resistance_signal",
+    "resistance-context-signal": "context_resistance_signal",
+    "resistance-no-signal": "no_resistance_signal",
+    "resistance-no-anchor-screen": "resistance_insufficient",
+    "resistance-data-unavailable": "resistance_insufficient",
+}
+_RESISTANCE_PRECEDENCE = [
+    "resistance-strong-signal",
+    "resistance-supported-signal",
+    "resistance-context-signal",
+    "resistance-no-signal",
+    "resistance-no-anchor-screen",
+    "resistance-data-unavailable",
+]
+
 
 def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """Self-contained combination verdict from the fired combination-opportunity rules.
@@ -71,15 +96,36 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return ("combination_insufficient", None)
 
 
+def _resistance_verdict(fired: list[dict]) -> tuple[str, str | None]:
+    """Self-contained resistance verdict from the fired resistance-emergence rules."""
+    fired_ids = {r.get("rule_id") for r in fired}
+    for rid in _RESISTANCE_PRECEDENCE:
+        if rid in fired_ids:
+            return (_RESISTANCE_VERDICT[rid], rid)
+    return ("resistance_insufficient", None)
+
+
 def _headline(cards, fired, verdict_pair):
     def _summary(cid):
         for c in cards:
             if c.get("card_id") == cid:
                 return c.get("summary") or {}
         return {}
+
+    # combination half
     s = _summary("combo-crispr-screen")
     verdict, driving = verdict_pair
+
+    # resistance half — fire the resistance_emergence axis over the SAME resolved cards, in-skill.
+    # This does not touch the combination spine (separate axis, separate fired list). The resistance
+    # card was resolved because it is in CARDS.
+    r_fired = fired_rules(cards, axis="resistance_emergence",
+                          card_id_filter=[c.get("card_id") for c in cards])
+    r_verdict, r_driving = _resistance_verdict(r_fired)
+    rs = _summary("resistance-emergence-signature")
+
     return {
+        # ── combination half (unchanged) ──
         "combination_verdict": verdict,
         "driving_rule_id": driving,
         "combination_opportunity_class": s.get("combination_opportunity_class"),
@@ -91,8 +137,22 @@ def _headline(cards, fired, verdict_pair):
         "strongest_co_target_class": s.get("strongest_co_target_class"),
         "top_co_targets": s.get("top_co_targets"),
         "combination_context": s.get("combination_context"),
-        # explicit half-wired honesty:
-        "resistance_half_status": "deferred — resistance-emergence-signature (rescued-gene arm) not yet wired",
+        # ── resistance half (newly wired) ──
+        "resistance_verdict": r_verdict,
+        "resistance_driving_rule_id": r_driving,
+        "resistance_emergence_class": rs.get("resistance_emergence_class"),
+        "n_resistance_mediators": rs.get("n_resistance_mediators"),
+        "strongest_resistance_mediator": rs.get("strongest_mediator"),
+        "strongest_resistance_mediator_shift": rs.get("strongest_mediator_shift"),
+        "strongest_resistance_mediator_class": rs.get("strongest_mediator_class"),
+        "top_resistance_mediators": rs.get("top_resistance_mediators"),
+        "resistance_context": rs.get("resistance_context"),
+        # orthogonal, verdict-inert Tahoe transcriptional-adaptation sub-signal (which resistance
+        # programs the anchor drug INDUCES). Enriches the picture; does NOT drive resistance_verdict.
+        "tahoe_adaptation_class": rs.get("tahoe_adaptation_class"),
+        "tahoe_induced_programs": rs.get("tahoe_induced_programs"),
+        "tahoe_adaptation_note": rs.get("tahoe_adaptation_note"),
+        "resistance_half_status": "wired — resistance-emergence-signature (DepMap genetic-rescue verdict + Tahoe transcriptional-adaptation facet) live",
     }
 
 

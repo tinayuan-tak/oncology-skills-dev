@@ -1494,6 +1494,25 @@ def _dispatch_combo_crispr_screen(target: str, indication: str) -> Optional[dict
     return mod.combination_opportunities_for_gene(target)
 
 
+def _dispatch_resistance_emergence_signature(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: resistance-emergence-signature card → methods/resistance_emergence/read.py
+    ::resistance_mediators_for_gene. Drug-anchored CRISPR RESISTANCE mediators ("when target X is
+    inhibited, which gene knockouts RESCUE the cell") from the sign-mirror product
+    depmap-drug-anchor-resistance-per-target-v1 (+ verdict-inert Tahoe transcriptional-adaptation
+    sub-signal). Per-target (indication not consumed)."""
+    mod = _import_method("resistance_emergence.read")
+    return mod.resistance_mediators_for_gene(target)
+
+
+def _dispatch_tahoe_drug_perturbation(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: tahoe-drug-perturbation card → methods/tahoe_drug_perturbation/read.py
+    ::read_tahoe_drug_perturbation. Single-cell drug-perturbation MoA facet ("which drugs move the
+    target's expression, in which cancer lines") from tahoe-drug-perturbation-per-gene-v1. Per-target
+    (indication not consumed — gene-keyed / pan-cancer). VERDICT-INERT display facet."""
+    mod = _import_method("tahoe_drug_perturbation.read")
+    return mod.read_tahoe_drug_perturbation(target, indication)
+
+
 def _dispatch_combinatorial_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: combinatorial-dependency card → methods/paralog_genetic_interaction/read.py
     ::combinatorial_dependency_for_gene. Symmetric paralog dual-KO genetic-interaction
@@ -1690,6 +1709,7 @@ CARD_DISPATCHERS = {
     "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
+    "tahoe-drug-perturbation": _dispatch_tahoe_drug_perturbation,
     "reactome-pathway-membership": _dispatch_reactome_pathway_membership,  # target-intrinsic pathway/geneset membership
     "gene-ontology-annotation": _dispatch_gene_ontology_annotation,  # target-intrinsic GO BP/MF/CC membership
     "ppi-interactome": _dispatch_ppi_interactome,  # target-intrinsic STRING network + CORUM complexes
@@ -1712,6 +1732,7 @@ CARD_DISPATCHERS = {
     "paralog-buffering": _dispatch_paralog_buffering,
     "combinatorial-dependency": _dispatch_combinatorial_dependency,
     "combo-crispr-screen": _dispatch_combo_crispr_screen,
+    "resistance-emergence-signature": _dispatch_resistance_emergence_signature,
     "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
     "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)

@@ -28,10 +28,16 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.2.0"                       # bumped for W4c dispatcher refactor
+SKILL_VERSION = "1.4.0"                       # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
 
 CARDS = [
     "signaling-network-mechanism",
+    # tahoe-drug-perturbation (added 2026-08-10) — single-cell drug-perturbation MoA facet from
+    # Tahoe-100M (which drugs move the target's expression, in which cancer lines). DISPLAY-ONLY
+    # facet: feeds NO resolver rung (mechanism.resolver.yaml keys only on signaling-network-mechanism),
+    # so the mechanism_verdict stays byte-stable. Backtest: engagement != dependency (a MoA lens,
+    # not a dependency/selectivity signal).
+    "tahoe-drug-perturbation",
     # phospho-pathway-activity RE-HOMED here 2026-08-05 (was tumor-presence). Phosphorylation is an
     # ACTIVITY / signaling-STATE readout (CPTAC phosphoproteomics: is the target phosphorylated, at
     # which sites, in how many tumors) — a MECHANISM signal, not a presence/abundance one. DISPLAY-ONLY
@@ -94,6 +100,21 @@ def _headline(cards, fired, verdict_pair):
                                           "n_phosphosites"),
         "max_site_detection_fraction": get_card_field(cards, "phospho-pathway-activity",
                                           "max_site_detection_fraction"),
+        # Tahoe single-cell drug-perturbation MoA facet (added 2026-08-10) — which drugs move the
+        # target's expression, in how many cancer lines. Display-only (feeds no resolver); a
+        # target-ENGAGEMENT / MoA lens (engagement != dependency, per the Pilot-2 backtest).
+        "tahoe_perturbation_class":  get_card_field(cards, "tahoe-drug-perturbation",
+                                          "tahoe_perturbation_class"),
+        "tahoe_n_perturbing_drugs":  get_card_field(cards, "tahoe-drug-perturbation",
+                                          "n_perturbing_drugs"),
+        "tahoe_strongest_mover_drug": get_card_field(cards, "tahoe-drug-perturbation",
+                                          "strongest_mover_drug"),
+        "tahoe_strongest_mover_log2fc": get_card_field(cards, "tahoe-drug-perturbation",
+                                          "strongest_mover_log2fc"),
+        "tahoe_top_suppressing_drugs": get_card_field(cards, "tahoe-drug-perturbation",
+                                          "top_suppressing_drugs"),
+        "tahoe_top_inducing_drugs":  get_card_field(cards, "tahoe-drug-perturbation",
+                                          "top_inducing_drugs"),
     }
 
 

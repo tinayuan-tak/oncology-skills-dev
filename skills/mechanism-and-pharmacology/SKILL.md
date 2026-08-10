@@ -18,18 +18,23 @@ description: |
   hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.2.0
+  version: 1.4.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
     signor_mechanism_network: '0.1.0'
     moa_ontology: '1.0.0'
+    tahoe_drug_perturbation: '0.1.0'
 
 composition:
   data_mode: derived_read
   phase: [D]
   cards_used:
     - signaling-network-mechanism
+    - tahoe-drug-perturbation           # ADDED 2026-08-10: Tahoe-100M single-cell drug-perturbation
+                                        # MoA facet (which drugs move the target's expression). DISPLAY-ONLY
+                                        # facet — feeds NO resolver (mechanism_verdict byte-stable).
+                                        # engagement != dependency (a MoA lens).
     - phospho-pathway-activity          # RE-HOMED 2026-08-05 (was tumor-presence): phosphorylation is an
     - pathway-activity-context             # Track PROGENy (2026-08-10): per-indication PROGENy pathway-activity context; verdict-inert (upgrades Mechanism topology→quantitative activity)
                                         # ACTIVITY / signaling-state readout (CPTAC phosphoproteomics),
@@ -38,6 +43,7 @@ composition:
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled.
   measurement_types_pulled:
     - signaling_network_mechanism
+    - tahoe_drug_perturbation
     - phospho_pathway_activity
   rules_scope:
     - all
