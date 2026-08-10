@@ -417,6 +417,18 @@ measurement_types:
     providers:
       - {kind: dataset, source: pharos-idg-tcrd-snapshot-2026-08-10, evidence_tier: measured}
 
+  cross_consortium_dependency:
+    claim: "Do Broad Achilles + Sanger Project Score CRISPR consortia agree the target is a dependency?"
+    # Project Score (2026-08-10): TARGET-grain gate-C CORROBORATION — independent-consortium (Sanger)
+    # agreement with Broad on the dependency call. Two independent libraries+pipelines agreeing is
+    # stronger than CRISPR×RNAi (both Broad). Reads the landed DepMap Broad (CRISPRGeneEffect) +
+    # Sanger-inclusive (ScreenGeneEffect) Chronos. Verdict-inert (raises C-confidence, never a killer).
+    modality_relevance: [small_molecule, degrader]
+    entity_grains: [target]
+    cards: [cross-consortium-dependency]
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
     # The typed FUNCTIONAL-ROLE call layered on the descriptive alteration cards — the primitive the

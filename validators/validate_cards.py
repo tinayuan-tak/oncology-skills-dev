@@ -237,6 +237,7 @@ KNOWN_FIGURE_DEBT = {
     'oncogenic-pathway-alteration',   # Sanchez-Vega (2026-08-10) — pathway-alteration bar emitter deferred (viz-debt queue)
     'stemness-context',   # Malta 2018 (2026-08-10) — stemness distribution emitter deferred (viz-debt queue)
     'target-development-level',   # Pharos/IDG (2026-08-10) — TDL tier bar emitter deferred (viz-debt queue)
+    'cross-consortium-dependency',   # Project Score (2026-08-10) — Broad-vs-Sanger concordance emitter deferred (viz-debt queue)
     'partner-conditional-dependency',   # Track PC (2026-08-09) — partner-deficient-vs-neutral strip emitter deferred (viz-debt queue)
     'ddr-deficiency-context',   # Track PI (2026-08-09) — HRD-context strip/bar emitter deferred (viz-debt queue)
     'pathway-activity-context',   # Track PROGENy (2026-08-10) — pathway-activity bar/heatmap emitter deferred (viz-debt queue)

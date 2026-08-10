@@ -1,0 +1,71 @@
+# Card — CROSS-CONSORTIUM DEPENDENCY CONCORDANCE (Broad Achilles vs Sanger Project Score)
+#
+# A gate-C CORROBORATION facet: does an INDEPENDENT CRISPR consortium (Sanger Project Score) AGREE with
+# the Broad Achilles dependency call? Two independent guide libraries + analysis pipelines agreeing is
+# STRONGER corroboration than the framework's existing CRISPR×RNAi concordance (both Broad-ecosystem,
+# same guide library). Reads the Broad (CRISPRGeneEffect) + Sanger-inclusive (ScreenGeneEffect) Chronos
+# matrices ALREADY in the DepMap 26q1 release — no new ingestion.
+#
+# tier: target (pan-cancer, indication-independent). Compares the fraction of screened cell lines that
+# are dependent (Chronos <= -0.5) in each consortium.
+#
+# Interpretation surface (cross_consortium_class is PRIMARY):
+#   concordant_dependent      → BOTH consortia call it a dependency (>=10% lines) — strong corroboration
+#   concordant_non_dependent  → both agree it is NOT a pan-cancer dependency
+#   discordant                → consortia disagree — interpret the Broad call with caution
+#   single_consortium_only    → only one consortium screened the gene (no corroboration possible)
+#   data_unavailable          → in neither matrix
+#
+# CORROBORATION FACET (role: corroboration; reports_into: dependency). VERDICT-INERT: it RAISES gate-C
+# confidence when concordant, but NEVER fires a killer (a discordant/single call is a confidence caveat,
+# not a veto — same discipline as crispr_rnai_concordance).
+
+card_id: cross-consortium-dependency
+version: 1.0.0
+question: "Do the Broad Achilles and Sanger Project Score CRISPR consortia AGREE on whether {target.symbol} is a dependency?"
+
+tier: target
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: cross-consortium-dependency
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - cross_consortium_class                     # PRIMARY categorical
+    - broad_frac_dependent                       # fraction of Broad Achilles lines dependent (Chronos <= -0.5)
+    - sanger_frac_dependent                      # fraction of Sanger Project Score lines dependent
+    - broad_median_chronos
+    - sanger_median_chronos
+    - broad_n_lines
+    - sanger_n_lines
+    - dependency_cut                             # the Chronos cut used (-0.5; provenance)
+
+  summary_fields_vocabulary:
+    cross_consortium_class:
+      - concordant_dependent
+      - concordant_non_dependent
+      - discordant
+      - single_consortium_only
+      - data_unavailable
+
+  figure: cross_consortium_dependency_card
+
+caveats:
+  - "CORROBORATION only (role: corroboration → gate-C CONFIDENCE), NEVER a verdict driver. A discordant or single-consortium read is a confidence caveat, not a veto — mirrors crispr_rnai_concordance discipline. Two independent consortia agreeing is the value; disagreement flags the Broad call for scrutiny, it does not overturn it."
+  - "Pan-cancer fraction-dependent comparison at Chronos <= -0.5. A context-conditional dependency (e.g. WRN×MSI) reads concordant_non_dependent pan-cancer in BOTH consortia — correctly; the conditional signal lives in the partner-conditional-dependency card, not here."
+  - "Sanger (ScreenGeneEffect) is the DepMap-integrated Broad+Sanger combined Chronos; the concordance is Broad-only (CRISPRGeneEffect) vs Sanger-inclusive — a conservative agreement test (shared Broad lines dampen discordance), so a discordant call is especially notable."
+  - "Indication-independent (tier: target): the same concordance applies across indications."
+
+measurement_type: cross_consortium_dependency
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
