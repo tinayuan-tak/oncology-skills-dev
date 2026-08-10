@@ -63,6 +63,11 @@ CARDS = [
                                                 # small-molecule's CARDS (E1: "a compound was found") — one
                                                 # measurement routes many-to-many to gates; each gate's
                                                 # resolver/snapshot reads only its own rule_ids.
+    "cross-consortium-dependency",              # Project Score (2026-08-10) — gate-C CORROBORATION: does
+                                                # Sanger Project Score AGREE with Broad Achilles on the
+                                                # dependency? Two independent consortia agreeing > CRISPR×RNAi
+                                                # (both Broad). ADDITIVE, verdict-inert (raises confidence;
+                                                # feeds NO resolver rung).
     "dependency-predictability",                # Gate-C gap 1 (Option A, 2026-07-21) — META-evidence
                                                 # ("how omics-predictable is this dependency, and by what?").
                                                 # Composed so it RUNS; it feeds a CONFIDENCE ANNOTATION only

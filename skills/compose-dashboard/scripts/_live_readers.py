@@ -857,6 +857,17 @@ def _dispatch_partner_conditional_dependency(target: str, indication: str) -> Op
     return pc_module.read_partner_conditional_dependency(target=target, indication=indication)
 
 
+
+def _dispatch_cross_consortium_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route cross-consortium-dependency card to methods/cross_consortium_dependency.
+
+    Gate-C CORROBORATION: does Sanger Project Score agree with Broad Achilles on the dependency call?
+    Reads the landed DepMap Broad (CRISPRGeneEffect) + Sanger-inclusive (ScreenGeneEffect) Chronos.
+    tier: target; verdict-inert (raises C-confidence, never a killer)."""
+    mod = _import_method("cross_consortium_dependency")
+    return mod.read_cross_consortium_dependency(target=target, indication=indication)
+
+
 def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route ddr-deficiency-context card to methods/pancanatlas_ddr_context.
 
@@ -1675,6 +1686,7 @@ CARD_DISPATCHERS = {
     "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
     "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
     "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
+    "cross-consortium-dependency": _dispatch_cross_consortium_dependency,
     "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
