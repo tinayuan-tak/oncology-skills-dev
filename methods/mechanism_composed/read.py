@@ -24,12 +24,20 @@ Returns:
       "moa_ontology_version": ...,
       "moa_ontology_unmapped_fraction": float,
       "source_counts": {"signor": N, "collectri": M, "reactome_pathways": K},
-      "sources_wired": ["signor", "collectri", "reactome"],
+      "sources_wired": ["signor", "collectri", "reactome", "depmap_coessentiality"],
       "reactome_pathway_context": {       # LAYERED annotation, not per-edge
           "pathway_class": ...,
           "pathway_count": ...,
           "top_level_pathways": [...],
           "is_signaling": bool,
+      },
+      "coessentiality_context": {         # FUNCTIONAL lane — DepMap 26Q1 CRISPR
+          "data_available": bool,
+          "n_partners": int,
+          "n_cell_lines": int,
+          "top_partners": [{"symbol", "pearson_r", "abs_rank", "direction"}, ...],
+          "method_version": str,
+          "source_note": str,
       },
     }
 """
@@ -49,6 +57,7 @@ from methods.signor_mechanism_network import read as signor_read
 from methods.collectri_tf_regulon import read as collectri_read
 from methods.reactome_pathway_context import read as reactome_read
 from methods.kinome_atlas_prediction import read as kinome_atlas_read
+from methods.depmap_coessentiality import read as coessentiality_read
 
 
 # Source keys for provenance stamping. Curated sources first; kinome-atlas
@@ -57,11 +66,13 @@ SOURCE_KEY_SIGNOR = "signor"
 SOURCE_KEY_COLLECTRI = "collectri"
 SOURCE_KEY_REACTOME = "reactome"
 SOURCE_KEY_KINOME_ATLAS = "kinome_atlas_prediction"
+SOURCE_KEY_COESSENTIALITY = "depmap_coessentiality"
 
-# Curated sources — governance-grade evidence. Kinome-atlas is separately
-# labelled so downstream can filter/weight distinctly.
+# Curated sources — governance-grade evidence. Kinome-atlas + co-essentiality
+# are separately labelled so downstream can filter/weight distinctly.
 CURATED_SOURCE_KEYS = {SOURCE_KEY_SIGNOR, SOURCE_KEY_COLLECTRI, SOURCE_KEY_REACTOME}
 PREDICTION_SOURCE_KEYS = {SOURCE_KEY_KINOME_ATLAS}
+FUNCTIONAL_SOURCE_KEYS = {SOURCE_KEY_COESSENTIALITY}
 
 
 def _edge_key(edge: dict) -> tuple:
@@ -215,6 +226,23 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         kinome_atlas_result = {"_data_note": f"kinome_atlas_failed: {e}",
                                 "upstream_regulators": [], "downstream_effectors": []}
 
+    # Sprint 4 (2026-08-10): DepMap co-essentiality lane — functional dependency
+    # evidence (correlated CRISPR profiles across 1,538 cell lines). Kept separate
+    # from the curated mechanism edge union; positive r = co-essential, negative r =
+    # anti-correlated dependency (buffering / SL candidate direction).
+    coessentiality_result: dict = {}
+    try:
+        coessentiality_result = coessentiality_read.read_coessential_partners(
+            target, top_n=25
+        )
+        if not coessentiality_result.get("_data_unavailable"):
+            sources_wired.append(SOURCE_KEY_COESSENTIALITY)
+    except Exception as e:
+        coessentiality_result = {
+            "_data_unavailable": True,
+            "_data_note": f"coessentiality_failed: {e}",
+        }
+
     # Curated union: SIGNOR + CollecTri edges (Reactome is layered as
     # pathway context; kinome-atlas is a SEPARATE prediction lane).
     signor_up = signor_result.get("upstream_regulators", [])
@@ -277,6 +305,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             SOURCE_KEY_COLLECTRI: collectri_total_edges,
             SOURCE_KEY_REACTOME: reactome_result.get("pathway_count", 0),
             SOURCE_KEY_KINOME_ATLAS: len(kinome_atlas_upstream) + len(kinome_atlas_downstream),
+            SOURCE_KEY_COESSENTIALITY: coessentiality_result.get("n_partners", 0),
         },
         "sources_wired": sources_wired,
         "reactome_pathway_context": {
@@ -294,6 +323,18 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             "upstream_predicted_kinases": kinome_atlas_upstream,
             "downstream_predicted_substrates": kinome_atlas_downstream,
             "source_note": kinome_atlas_result.get("_source_note", ""),
+        },
+        # Sprint 4 (2026-08-10): FUNCTIONAL lane — DepMap pan-cancer co-essentiality.
+        # Positive r = co-essential (shared complex/pathway); negative r = anti-correlated
+        # dependency (buffering / SL candidate). Not a mechanism edge; kept separate.
+        "coessentiality_context": {
+            "data_available": not coessentiality_result.get("_data_unavailable", False),
+            "n_partners": coessentiality_result.get("n_partners", 0),
+            "n_cell_lines": coessentiality_result.get("n_cell_lines", 0),
+            "top_partners": coessentiality_result.get("partners", []),
+            "method_version": coessentiality_result.get("method_version", ""),
+            "substrate_uri": coessentiality_result.get("substrate_uri", ""),
+            "source_note": "DepMap 26Q1 CRISPR Chronos pan-cancer co-essentiality (1,538 cell lines)",
         },
         "_data_source": "mechanism-composed-per-gene-v1",
     }

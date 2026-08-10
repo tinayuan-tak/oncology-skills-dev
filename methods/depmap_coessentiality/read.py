@@ -11,17 +11,19 @@ from pathlib import Path
 from typing import Optional
 
 import pyarrow.parquet as pq
-import pyarrow.compute as pc
 
 from . import METHOD_VERSION
 
 DEFAULT_AWS_PROFILE = "cbg"
-DEFAULT_S3_URI = (
-    "s3://onc-compbio/data-catalog/derived/"
-    "depmap-coessentiality-26q1-v1/coessentiality_edges.parquet"
-)
+MANIFEST_ID = "depmap-coessentiality-26q1-v1"
 _CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q1-parquet"
 _CACHED_PATH = _CACHE_DIR / "coessentiality_edges.parquet"
+
+
+def _resolve_s3_uri() -> str:
+    """Resolve the manifest-authoritative S3 URI at call time (not at import)."""
+    from methods.catalog_query.read import s3_uri_for
+    return s3_uri_for(MANIFEST_ID)
 
 
 def _ensure_aws_profile() -> None:
@@ -29,8 +31,8 @@ def _ensure_aws_profile() -> None:
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
-def _local_path(s3_uri: str) -> Optional[Path]:
-    """Return a local-cache hit for the given S3 URI, or None."""
+def _local_path() -> Optional[Path]:
+    """Return a local-cache hit, or None."""
     return _CACHED_PATH if _CACHED_PATH.exists() else None
 
 
@@ -61,14 +63,18 @@ def read_coessential_partners(
         _data_unavailable: present (True) if the substrate could not be read
     """
     _ensure_aws_profile()
-    path = parquet_path or DEFAULT_S3_URI
-    local = _local_path(DEFAULT_S3_URI) if not parquet_path else None
+    local = _local_path() if not parquet_path else None
+    if parquet_path:
+        path = parquet_path
+    elif local:
+        path = str(local)
+    else:
+        path = _resolve_s3_uri()
 
     try:
-        resolve_path = str(local) if local else path
         # Predicate pushdown: only row-groups covering this gene are read.
         table = pq.read_table(
-            resolve_path,
+            path,
             filters=[("gene_symbol", "==", target)],
             columns=["gene_symbol", "partner_symbol", "pearson_r", "abs_rank", "n_cell_lines"],
         )
@@ -91,7 +97,7 @@ def read_coessential_partners(
             "_data_unavailable": True,
             "_reason": f"gene '{target}' not found in coessentiality substrate",
             "method_version": METHOD_VERSION,
-            "substrate_uri": resolve_path,
+            "substrate_uri": path,
         }
 
     df = table.to_pandas()
@@ -121,5 +127,5 @@ def read_coessential_partners(
         "n_partners": len(partners),
         "n_cell_lines": n_cell_lines,
         "method_version": METHOD_VERSION,
-        "substrate_uri": resolve_path,
+        "substrate_uri": path,
     }
