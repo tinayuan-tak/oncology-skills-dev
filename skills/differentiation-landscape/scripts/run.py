@@ -26,6 +26,9 @@ SKILL_VERSION = "1.2.0"
 
 CARDS = [
     "co-mutation-and-mutual-exclusivity",
+    "stemness-context",   # Malta 2018 (2026-08-10): per-indication tumor-stemness (mRNAsi) cohort prior
+                          # — dedifferentiation/aggressiveness prognostic context. ADDITIVE, VERDICT-INERT
+                          # (its rules feed NO resolver; differentiation verdict byte-stable). reads stemness_index.
     "expression-clinical-association",   # Q11 (2026-07-23 composition) — does target expression
                                          # stratify SURVIVAL (prognostic context)? A patient-selection /
                                          # clinical-context render facet + biomarker-facet stratification

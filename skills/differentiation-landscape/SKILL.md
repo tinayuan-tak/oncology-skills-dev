@@ -34,6 +34,7 @@ composition:
   cards_used:
     - co-mutation-and-mutual-exclusivity   # Wired 2026-07-08 (Layer 6f)
     - expression-clinical-association       # Q11 (2026-07-23): expression→survival prognostic context (render facet)
+    - stemness-context                    # Malta 2018 (2026-08-10): tumor-stemness (mRNAsi) cohort prior; verdict-inert prognostic/aggressiveness context
     # clinical-precedent + patent-landscape intentionally NOT listed — they are
     # excluded from the runtime card set (commercial-data licensing unresolved) and
     # never reach run.py CARDS; see NOTE below. (Trimmed 2026-08-05 to match run.py.)

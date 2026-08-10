@@ -242,6 +242,14 @@ def _dispatch_oncogenic_pathway_alteration(target: str, indication: str) -> Opti
     pathway membership. DISPLAY facet, verdict-inert (sibling of pathway-activity-context)."""
     mod = _import_method("oncogenic_pathway_alteration")
     return mod.read_oncogenic_pathway_alteration(target=target, indication=indication)
+def _dispatch_stemness_context(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route stemness-context card to methods/stemness_index.
+
+    INDICATION-level, target-INDEPENDENT (tumor stemness is a cohort phenotype). Reads the per-indication
+    mRNAsi rollup (Malta 2018 signature, reimplemented on recount3) → cohort stemness class. DISPLAY
+    facet, verdict-inert (dedifferentiation/aggressiveness prognostic prior)."""
+    mod = _import_method("stemness_index")
+    return mod.read_stemness_index(target=target, indication=indication)
 
 
 def _dispatch_variant_level_interpretation(target: str, indication: str) -> Optional[dict]:
@@ -1632,6 +1640,7 @@ CARD_DISPATCHERS = {
     "genomic-instability-state": _dispatch_genomic_instability_state,
     "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
     "oncogenic-pathway-alteration": _dispatch_oncogenic_pathway_alteration,
+    "stemness-context": _dispatch_stemness_context,
     "variant-level-interpretation": _dispatch_variant_level_interpretation,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
