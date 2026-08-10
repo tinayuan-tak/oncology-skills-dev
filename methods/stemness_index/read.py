@@ -1,0 +1,73 @@
+"""stemness_index.read — library entry for the per-indication mRNAsi tumor-stemness facet.
+
+Reads the MATERIALIZED per-indication mRNAsi rollup (Malta 2018 signature, reimplemented) and returns
+the stemness-context card's summary_fields. Read grain pre-aggregated → O(1) per-indication slice.
+Composite indications (COADREAD/NSCLC) pool member studies sample-weighted.
+
+Target-INDEPENDENT cohort context (tier: indication). Verdict-INERT: no resolver rung.
+"""
+from __future__ import annotations
+
+import io
+import os
+import subprocess
+from typing import Optional
+
+from . import cli as _cli
+
+METHOD_VERSION = _cli.METHOD_VERSION
+DEFAULT_AWS_PROFILE = "cbg"
+_DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
+               "stemness-mrnasi-per-indication-v1/stemness_per_indication.parquet")
+_ALIASES = _cli.INDICATION_TO_STUDIES
+
+
+def _ensure_aws_profile() -> None:
+    os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+
+
+def _load_product():
+    import pandas as pd
+    _ensure_aws_profile()
+    try:
+        raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"], capture_output=True, timeout=120).stdout
+        if raw:
+            return pd.read_parquet(io.BytesIO(raw))
+    except Exception:
+        pass
+    return _cli.build_per_indication_table()   # dev fallback (slow: rescores from source)
+
+
+def read_stemness_index(target: Optional[str] = None, indication: Optional[str] = None) -> dict:
+    """Return the stemness-context card summary_fields for the indication.
+
+    `target` accepted for the dispatcher signature; NOT consumed (cohort-level stemness is
+    target-independent). data_unavailable when the indication is absent.
+    """
+    import pandas as pd
+    if not indication:
+        return {"stemness_class": "data_unavailable",
+                "_note": "indication required (per-indication cohort facet)."}
+    df = _load_product()
+    codes = _ALIASES.get(indication.upper(), [indication.upper()])
+    sub = df[df["indication"].isin(codes)]
+    if sub.empty:
+        return {"stemness_class": "data_unavailable", "indication": indication,
+                "_note": f"{indication} (codes {codes}) not in the stemness product."}
+    n = int(sub["n_samples"].sum())
+    med = float((sub["median_mrnasi"] * sub["n_samples"]).sum() / n) if n else 0.0
+    pan_q3 = float(sub["pan_cancer_q3_mrnasi"].iloc[0])
+    pan_med = float(sub["pan_cancer_median_mrnasi"].iloc[0])
+    cls = ("stem_high" if med >= pan_q3 else "stem_low" if med < pan_med else "stem_intermediate")
+    return {
+        "stemness_class": cls,                       # PRIMARY (relative to pan-cancer distribution)
+        "indication": indication,
+        "median_mrnasi": round(med, 4),
+        "pan_cancer_median_mrnasi": round(pan_med, 4),
+        "pan_cancer_q3_mrnasi": round(pan_q3, 4),
+        "n_samples": n,
+        "pooled_from": codes if len(codes) > 1 else None,
+        "_method_version": METHOD_VERSION,
+        "_source": "Malta 2018 mRNAsi signature, REIMPLEMENTED on recount3 (Spearman+pan-cancer min-max); verdict-inert cohort context",
+        "_caveat": "reimplemented per-sample scores (Malta method applied to recount3), NOT the published per-sample table (which is not distributed).",
+    }
