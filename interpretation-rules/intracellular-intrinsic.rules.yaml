@@ -426,6 +426,43 @@ rules:
       Supportive but not dominant on its own; the amplification-addiction hypothesis is viable
       but needs stronger orthogonal evidence. Live example: ERBB2 (delta -0.31), MYC (-0.24).
 
+  # Track PC (2026-08-09): PARTNER-conditional analogs. Unlike the own-alteration siblings above
+  # (mutation/CN/fusion), the stratifier here is a PARTNER gene's DEFICIENCY (synthetic lethality),
+  # so these fire a DISTINCT verdict (partner_conditional_dependent / moderate) in dependency.resolver
+  # — NOT biomarker_stratified_dependency (partner-SL != own-oncogene addiction; mirrors the
+  # drug_response_biomarker separation). The rescue-firing tier is MODERATE, not just STRONG: the
+  # WRN×MSI anchor is a -0.41 effect (context-conditional SL is structurally smaller than addiction).
+  - rule_id: partner-conditional-strongly-dependent-supportive
+    when:
+      card_id: partner-conditional-dependency
+      field: partner_stratification_class
+      equals: partner_conditional_strongly_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Partner-deficient cells significantly + strongly more dependent than partner-neutral (q < α,
+      |delta| >= 0.5). Synthetic-lethality biomarker — supports a partner-conditional strategy (give
+      the drug where the partner is deficient). The class the pooled dependency scalar misses for
+      partner_conditional_sl targets (definitionally non-monoculture-essential).
+
+  - rule_id: partner-conditional-moderately-dependent-supportive
+    when:
+      card_id: partner-conditional-dependency
+      field: partner_stratification_class
+      equals: partner_conditional_moderately_dependent
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      Significant partner-deficient-vs-neutral stratification, effect size -0.2 to -0.5. For the
+      partner-conditional SL family this MODERATE tier IS the rescue-firing signal (not merely
+      supportive-not-dominant, unlike the own-alteration moderate tier): context-conditional SL
+      effect sizes in mono-KO CRISPR are structurally smaller than oncogene addiction, so the ANCHOR
+      itself lives here. Live example: WRN×MSI (delta -0.41, p 8.8e-12, 91 MSI-high lines).
+
   # A1-fusion (2026-08-06): gene-fusion analogs of the two mutation-stratified + CN-stratified rules
   # above. The fusion card (fusion-stratified-dependency) is the fusion-addiction sibling; these rules
   # fire the SAME biomarker_stratified_dependency verdict in genomic_alteration.resolver.yaml (no new

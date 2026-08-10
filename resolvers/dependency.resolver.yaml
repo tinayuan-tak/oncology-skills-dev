@@ -116,6 +116,31 @@ resolve:
       - strong-paralog-buffering-degrader-preferred
     driving_rule: strong-paralog-buffering-degrader-preferred
 
+  # Track PC (2026-08-09): PARTNER-CONDITIONAL SL rescue (COMPOUND). A pooled non-dependence AND a
+  # significant partner-conditional dependency (partner-deficient cells selectively dependent) → the
+  # pooled non_dependent is a context-conditional FALSE NEGATIVE (the target IS required, in the
+  # partner-deficient subset). Escapes the veto → distinct verdict partner_conditional_dependent
+  # (NOT biomarker_stratified_dependency: partner-SL != own-oncogene addiction). One-directional:
+  # rescues a veto, never vetoes. Placed ABOVE the non_dependent rung so it intercepts (mirrors the
+  # paralog-buffered rescue). BOTH tiers (strong + moderate) rescue: for partner-conditional SL the
+  # MODERATE tier IS the real signal (WRN×MSI = -0.41). driving_rule names the partner rule.
+  # Also fires WITHOUT a pooled veto (a partner-conditional dependency is a positive relevance signal
+  # in its own right); the when_fired rungs below the compound catch that case.
+  - verdict: partner_conditional_dependent
+    when_all_fired:
+      - non-dependent-killer
+      - partner-conditional-strongly-dependent-supportive
+    driving_rule: partner-conditional-strongly-dependent-supportive
+  - verdict: partner_conditional_dependent
+    when_all_fired:
+      - non-dependent-killer
+      - partner-conditional-moderately-dependent-supportive
+    driving_rule: partner-conditional-moderately-dependent-supportive
+  - verdict: partner_conditional_dependent
+    when_fired: partner-conditional-strongly-dependent-supportive
+  - verdict: partner_conditional_dependent
+    when_fired: partner-conditional-moderately-dependent-supportive
+
   # non_dependent → gate VETO. Only CRISPR non-dependence qualifies (RNAi-only
   # non-dependence is neutral, falls through to insufficient — false-negative-prone).
   - verdict: non_dependent

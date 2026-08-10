@@ -222,6 +222,13 @@ positive_signals:
   # would let ONE measurement manufacture a `strong` tier by being counted twice. As a
   # supportive it corroborates (raises confidence) without double-counting into `strong`.
   - {sub_skill: dependency,      verdict: chemical_genetic_confirmed_dependent, weight: supportive}
+  # Track PC (2026-08-09): PARTNER-CONDITIONAL SL dependency is a CROSS-TARGET positive — a target
+  # required only where a PARTNER gene is deficient (WRN×MSI, the partner_conditional_sl family) is a
+  # genuine dependency, not an absence. Pooled pan-cancer CRISPR dilutes it below the non_dependent
+  # floor; the partner-stratified signal is the true read. `dominant`: the rescue rung fires only on a
+  # significant MODERATE-or-stronger partner-conditional dependency, the same bar as the stratified
+  # family. DISTINCT verdict from biomarker_stratified_dependency (partner-SL != own-oncogene addiction).
+  - {sub_skill: dependency,      verdict: partner_conditional_dependent,  weight: dominant}
   - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
   - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
   # 2026-07-21: target-INTRINSIC expression positive. strongly_upregulated_in_tumor comes from the

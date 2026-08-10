@@ -301,6 +301,20 @@ measurement_types:
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
 
+  partner_deficiency_status:
+    claim: "Is a PARTNER gene deficient in the cell line (MSI-high signature OR partner loss-of-function), per line (a per-line boolean, the synthetic-lethality stratifier axis)?"
+    # Track PC (2026-08-09): the per-line PARTNER-DEFICIENCY boolean — the input to
+    # partner_conditional_dependency. Distinct from mutation_status/fusion_status because the deficient
+    # gene is the target's PARTNER, not the target itself, and the deficiency is heterogeneous:
+    # msi_signature (canonical OmicsInferredMolecularSubtypes.csv MSI boolean) OR lof_mutation (partner
+    # damaging matrix). Curated target->partner map (methods/depmap_partner_conditional_dependency/
+    # partner_map.yaml); SynLethDB = candidate-generation. Like mutation_status/fusion_status, no
+    # standalone card is a view of it — it exists as a derived-edge input (cards: []).
+    entity_grains: [target, target_lineage]
+    cards: []
+    providers:
+      - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}
+
   genomic_instability_state:
     claim: "How chromosomally unstable is the indication's cohort (aneuploidy / CIN burden)?"
     # M7 genome-state slice: an INDICATION-level, target-INDEPENDENT genome-wide phenotype (not a
@@ -881,6 +895,23 @@ measurement_types:
     cards: [fusion-stratified-dependency]
     providers:
       - {kind: derived_from, inputs: [fusion_status, crispr_lof_dependency], method: stratified_effect, evidence_tier: measured}
+
+  partner_conditional_dependency:
+    # Track PC (2026-08-09): the PARTNER-feature analog of the mutation/cn/fusion stratified family —
+    # is dependency stratified by a PARTNER gene's DEFICIENCY status (synthetic-lethality biomarker)?
+    # NOT an own-alteration addiction: the stratifier is a DIFFERENT gene's loss (WRN×MSI, PARP1×HRD,
+    # SMARCA2×SMARCA4) — the partner_conditional_sl family the pooled dependency scalar structurally
+    # misses. Same stratified_effect method (reuses the Mann-Whitney contrast); the input is the
+    # PARTNER's deficiency boolean (MSI signature OR partner LoF), NOT the target's own alteration.
+    # ANCHOR: WRN×MSI (live 26q1: delta -0.41, p 8.8e-12, moderately_dependent). Distinct verdict
+    # (partner_conditional_dependent) — never conflated with biomarker_stratified_dependency, since
+    # partner-SL != own-oncogene addiction (mirrors the drug_response_biomarker separation).
+    modality_relevance: [small_molecule, degrader]
+    claim: "Is target dependency stratified by a partner gene's deficiency status (synthetic-lethality biomarker)?"
+    entity_grains: [target]
+    cards: [partner-conditional-dependency]
+    providers:
+      - {kind: derived_from, inputs: [partner_deficiency_status, crispr_lof_dependency], method: stratified_effect, evidence_tier: measured}
 
   amp_expr_stratified_dependency:
     # A1 amp→expr→dep (2026-08-06): the CONJOINT sibling of cn_stratified_dependency — is dependency
