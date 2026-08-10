@@ -34,6 +34,7 @@ composition:
   cards_used:
     - co-mutation-and-mutual-exclusivity   # Wired 2026-07-08 (Layer 6f)
     - expression-clinical-association       # Q11 (2026-07-23): expression→survival prognostic context (render facet)
+    - precog-prognostic-association         # PRECOG (2026-08-10): pan-cancer META-ANALYTIC expression→survival meta-Z (Gentles 2015 + 2026 NAR); the better-powered CORROBORATION of expression-clinical-association; verdict-inert render facet
     - stemness-context                    # Malta 2018 (2026-08-10): tumor-stemness (mRNAsi) cohort prior; verdict-inert prognostic/aggressiveness context
     # clinical-precedent + patent-landscape intentionally NOT listed — they are
     # excluded from the runtime card set (commercial-data licensing unresolved) and
@@ -45,6 +46,7 @@ composition:
     - mutation_cooccurrence
     - clinical_precedent
     - expression_clinical_association
+    - precog_prognostic_association   # PRECOG pan-cancer meta-Z corroboration (verdict-inert render facet)
   rules_scope:
     - co-mutation-and-mutual-exclusivity
   synthesis:

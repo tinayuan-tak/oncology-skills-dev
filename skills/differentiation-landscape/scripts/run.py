@@ -36,6 +36,11 @@ CARDS = [
                                          # (differentiation verdict byte-stable; resolver reads only the
                                          # co-mutation rule_ids). Fills part of the clinical-precedent gap
                                          # this skill's status-partial note flags.
+    "precog-prognostic-association",     # PRECOG (2026-08-10): pan-cancer META-ANALYTIC expression→survival
+                                         # meta-Z (Gentles 2015 + 2026 NAR; 166 datasets / ~18k patients).
+                                         # The better-powered pan-cancer CORROBORATION of the single-cohort
+                                         # expression-clinical-association card above. ADDITIVE, VERDICT-INERT
+                                         # (no resolver rung; differentiation verdict byte-stable). reads precog_prognostic.
 ]
 
 QUESTION = ("What genes co-occur with or are mutually exclusive to "
@@ -91,6 +96,16 @@ def _headline(cards, fired, verdict_pair):
         "survival_association_class":       get_card_field(cards, "expression-clinical-association",
                                                  "survival_association_class"),
         "logrank_p":                        get_card_field(cards, "expression-clinical-association", "logrank_p"),
+        # PRECOG pan-cancer META-ANALYTIC corroboration of the single-cohort survival call above
+        # (render facet; verdict-inert — no resolver rung). Surface the class + both meta-Z views so a
+        # reader can compare the single-cohort log-rank vs the pan-cancer meta-analysis at a glance:
+        "precog_prognostic_class":          get_card_field(cards, "precog-prognostic-association",
+                                                 "prognostic_class"),
+        "precog_meta_z":                    get_card_field(cards, "precog-prognostic-association", "meta_z"),
+        "precog_pan_cancer_meta_z":         get_card_field(cards, "precog-prognostic-association",
+                                                 "pan_cancer_meta_z"),
+        "precog_indication_approx":         get_card_field(cards, "precog-prognostic-association",
+                                                 "precog_indication_approx"),
     }
 
 

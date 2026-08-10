@@ -519,6 +519,17 @@ def _dispatch_expression_clinical_association(target: str, indication: str) -> O
     return mod.build_summary(target, indication)
 
 
+def _dispatch_precog_prognostic(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route precog-prognostic-association card to methods/precog_prognostic.
+
+    Across 166 datasets (~18k patients), does target expression track overall survival (PRECOG
+    pan-cancer META-ANALYTIC meta-Z; Gentles 2015 + 2026 NAR)? POSITIVE meta-Z = high expr → worse OS.
+    TARGET-dependent (the meta-Z is gene-specific). The better-powered pan-cancer CORROBORATION of the
+    single-cohort expression-clinical-association card. DISPLAY facet — verdict-inert (no resolver rung)."""
+    mod = _import_method("precog_prognostic")
+    return mod.read_precog_prognostic(target=target, indication=indication)
+
+
 def _dispatch_phospho_pathway_activity(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route phospho-pathway-activity card (Q8) to
     methods/phospho_pathway_activity/cli.py::build_summary.
@@ -1705,6 +1716,7 @@ CARD_DISPATCHERS = {
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
     "expression-clinical-association": _dispatch_expression_clinical_association,
+    "precog-prognostic-association": _dispatch_precog_prognostic,   # PRECOG pan-cancer meta-Z corroboration of the single-cohort survival card
     "phospho-pathway-activity": _dispatch_phospho_pathway_activity,
     "pathway-activity-context": _dispatch_pathway_activity_context,
     "copy-number-distribution": _dispatch_cn_distribution,
