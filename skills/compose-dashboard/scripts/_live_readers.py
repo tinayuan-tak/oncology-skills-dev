@@ -233,6 +233,17 @@ def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[d
     mod = _import_method("pancanatlas_ddr_context")
     return mod.read_ddr_deficiency_context(target=target, indication=indication)
 
+
+def _dispatch_oncogenic_pathway_alteration(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route oncogenic-pathway-alteration card to methods/oncogenic_pathway_alteration.
+
+    INDICATION-level, target-INDEPENDENT (pathway alteration is a cohort phenotype). Reads the
+    per-(pathway x indication) alteration-frequency rollup (Sanchez-Vega 2018) + the target's own
+    pathway membership. DISPLAY facet, verdict-inert (sibling of pathway-activity-context)."""
+    mod = _import_method("oncogenic_pathway_alteration")
+    return mod.read_oncogenic_pathway_alteration(target=target, indication=indication)
+
+
 def _dispatch_variant_level_interpretation(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route variant-level-interpretation card to
     methods/civic_variant_interpretation::civic_interpretation_for_gene.
@@ -1620,7 +1631,7 @@ CARD_DISPATCHERS = {
     "alteration-role": _dispatch_alteration_role,
     "genomic-instability-state": _dispatch_genomic_instability_state,
     "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
-    "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
+    "oncogenic-pathway-alteration": _dispatch_oncogenic_pathway_alteration,
     "variant-level-interpretation": _dispatch_variant_level_interpretation,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,

@@ -116,12 +116,9 @@ CARDS = [
                                 # facet (sibling of genomic-instability-state) — surfaces the cohort HRD
                                 # prior (hrd_enriched/intermediate/low) that frames HRD-conditional
                                 # hypotheses; touches NO resolver rung. Alteration-verdict byte-stable.
-    # DDR / HRD-deficiency cohort context (Track PI, ddr_deficiency_context). INDICATION-level,
-    # target-INDEPENDENT: how HRD-deficient is this cancer? (OV/BRCA/LUSC enriched; the PARP1/HRD-blind
-    # framing). Pre-integrated PanCanAtlas DDR footprint (Knijnenburg 2018). ADDITIVE signal-only:
-    # feeds LLM/headline, touches NO resolver rung (verdict spine byte-stable). Sibling of
-    # genomic-instability-state; reads pancanatlas_ddr_context (materialized per-indication rollup).
-    "ddr-deficiency-context",
+    "oncogenic-pathway-alteration",   # Sanchez-Vega 2018 (2026-08-10): per-indication oncogenic-pathway
+                                      # ALTERATION frequency (10 pathways); VERDICT-INERT cohort context;
+                                      # complements PROGENy activity. Reads oncogenic_pathway_alteration.
     # Per-VARIANT interpretation (variant_level_interpretation, CIViC). Closes the gene→variant gap:
     # every other mutation card is per-GENE (alteration-role = GoF/LoF per gene) or FREQUENCY
     # (recurrence), not FUNCTION — this names which specific variants are oncogenic (vs VUS/benign)
