@@ -471,6 +471,19 @@ measurement_types:
     providers:
       - {kind: dataset, source: signor-mechanism-network-per-gene-v1, evidence_tier: measured}
 
+  tahoe_drug_perturbation:
+    claim: "Which small molecules significantly move {target}'s expression (suppress or induce), and in how many cancer lines (single-cell drug-perturbation MoA)?"
+    # NEW measurement_type. Tahoe-100M single-cell drug-perturbation atlas (50 cancer lines x 379
+    # drugs), gene-keyed. Distinct from signaling_network_mechanism (SIGNOR topology) and
+    # phospho_pathway_activity (phospho state): this is the gene's TRANSCRIPTIONAL RESPONSE to drugs
+    # = target-ENGAGEMENT / MoA (Pilot-2: engagement != dependency; does NOT concord with DepMap
+    # CRISPR essentiality). VERDICT-INERT display facet — no resolver rung, no rules file.
+    entity_grains: [target]
+    cards: [tahoe-drug-perturbation]
+    modality_relevance: [small_molecule, degrader]
+    providers:
+      - {kind: dataset, source: tahoe-drug-perturbation-per-gene-v1, method: tahoe_drug_perturbation, evidence_tier: measured}
+
   protein_domains_class:
     # Target-intrinsic domain architecture (FT DOMAIN) + protein class (UniProt keyword taxonomy).
     # No modality_relevance — descriptive molecular context, not a modality-routing signal.

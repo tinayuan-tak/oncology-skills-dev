@@ -1,0 +1,105 @@
+# Card — TAHOE DRUG-PERTURBATION (single-cell drug-response MoA facet; VERDICT-INERT)
+#
+# From the Tahoe-100M single-cell drug-perturbation atlas (Vevo Tx / Arc, CC0; 50 cancer cell lines
+# x 379 drugs, significant DE distilled into depmap-drug-anchor... no — tahoe-drug-perturbation-per-
+# gene-v1). For a target gene: which small molecules significantly MOVE its expression (suppress or
+# induce), in how many cancer lines, by how much. A MECHANISM / MoA / pharmacodynamic-response facet.
+#
+#   - drug_suppressed          → >=1 drug drives the gene DOWN >=2-fold (median); no strong inducer.
+#   - drug_induced             → >=1 drug drives it UP >=2-fold; no strong suppressor.
+#   - bidirectionally_perturbed→ both strong suppressors AND inducers exist.
+#   - weakly_perturbed         → measured across the panel but no drug moves it >=2-fold (median).
+#   - not_measured             → gene absent from the product (no significant DE row; ncRNA/pseudogene
+#                                 or genuinely unmoved) — a coverage/measurement gap, not a claim.
+#   - data_unavailable         → product read failure.
+#
+# VERDICT-INERT FACET (v1): this card is a MECHANISM/MoA display facet. Its output feeds the
+# mechanism-and-pharmacology skill's headline/matrix for context ONLY — it is ABSENT from
+# mechanism.resolver.yaml's when_fired clauses, so the mechanism verdict spine is byte-stable whether
+# or not this card is present. It ships with NO interpretation rules (the simplest inert form).
+#
+# CRITICAL FRAMING (Pilot-2 backtest): a transcriptional drug-response is TARGET-ENGAGEMENT / MoA,
+# NOT dependency and NOT selectivity. Backtest: recovery of known target pathways top-1 52% / top-2
+# 76% (AUROC 0.68) — strong for proteasome/MEK, weak/paradoxical for BRAF (RAF inhibitors reactivate
+# ERK) and soft-readout mTOR. And Tahoe drug-response did NOT concord with DepMap CRISPR essentiality
+# (engagement != dependency). So this card is a mechanism CONTEXT lens, never a dependency signal.
+#
+# ZERO new ingestion — reads the pre-distilled tahoe-drug-perturbation-per-gene-v1 (gene-keyed
+# pushdown) via methods/tahoe_drug_perturbation. NO scanpy/anndata at framework runtime.
+
+card_id: tahoe-drug-perturbation
+version: 1.0.0
+question: "Which small molecules significantly move {target.symbol}'s expression (suppress or induce), and in how many cancer lines (single-cell drug-perturbation MoA)?"
+
+tier: target
+
+applies_when:
+  - "context.data_sources.tahoe_drug_perturbation_available == true"
+
+required_inputs:
+  - product_id: tahoe-drug-perturbation-per-gene-v1
+
+methods:
+  - call: tahoe-drug-perturbation
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - tahoe_perturbation_class            # PRIMARY categorical (DISPLAY facet — drives NO resolver rung)
+    - n_perturbing_drugs                  # distinct drugs with a significant DE row for the gene
+    - n_cancer_lines                      # cancer lines contributing
+    - n_strong_movers                     # drugs moving the gene >=2-fold (median)
+    - strongest_mover_drug
+    - strongest_mover_log2fc
+    - top_suppressing_drugs               # ranked list<struct> — drugs driving the gene DOWN
+    - top_inducing_drugs                  # ranked list<struct> — drugs driving the gene UP
+    - perturbation_context                # narrative summary (mechanism-framed, verdict-inert)
+  summary_fields_record_schemas:
+    top_suppressing_drugs:
+      drug: string
+      median_log2FoldChange: number
+      n_observations: number
+      n_cancer_lines: number
+      n_significant_strict: number
+      direction: string
+    top_inducing_drugs:
+      drug: string
+      median_log2FoldChange: number
+      n_observations: number
+      n_cancer_lines: number
+      n_significant_strict: number
+      direction: string
+  summary_fields_vocabulary:
+    tahoe_perturbation_class:
+      - drug_suppressed
+      - drug_induced
+      - bidirectionally_perturbed
+      - weakly_perturbed
+      - not_measured
+      - data_unavailable
+  # No figure declared — the ranked drug lists are served by top_suppressing_drugs /
+  # top_inducing_drugs summary_fields. A bespoke figure emitter is deferred viz-debt (declaring one
+  # without a registered emitter trips the FIGURE_DECLARED_NOT_EMITTED anti-drift guard).
+
+thresholds:
+  padj_strict: 0.05           # card-side significance gate (product pre-filtered to padj<0.25)
+  strong_abs_lfc: 1.0         # |median log2FC| >= 1 (2-fold) = a strong transcriptional move
+  top_n: 15
+
+caveats:
+  - "VERDICT-INERT mechanism/MoA facet. A transcriptional drug-response is TARGET-ENGAGEMENT (was the gene/pathway moved), NOT dependency (does the cell need it) and NOT selectivity. Backtest (Pilot 2): Tahoe drug-response did NOT concord with DepMap CRISPR essentiality — engagement != dependency. Read alongside the functional-requirement dependency verdict, never as a substitute."
+  - "not_measured is a coverage/measurement gap (no significant DE row at padj<0.25 — may be an ncRNA/pseudogene absent from the resolved set, or a gene genuinely unmoved by the screened drugs), NOT a mechanism claim. Distinct from data_unavailable (read failure)."
+  - "MoA recovery is pathway-dependent (Pilot 2: strong for proteasome/MEK inhibitors, but BRAF inhibitors PARADOXICALLY reactivate ERK in RAS-WT lines so a BRAF drug may not suppress ERK-output; mTOR readouts are soft). A drug appearing as a strong mover of a gene is an MoA hypothesis, not proof of a specific mechanism."
+  - "All cell-line (Tahoe = 50 cancer cell lines); patient-tumor transfer is untested. Median across lines/doses hides context-specificity; n_cancer_lines indicates breadth."
+  - "The gene's OWN transcript response is measured — an oncogenic driver (e.g. KRAS) may read weakly_perturbed because its biology is not transcriptional, whereas a pathway-output gene (e.g. DUSP6) moves strongly. Interpret the class relative to the gene's expected regulation."
+
+measurement: sc_rna
+sample_context: cell_line
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: single-cell drug-perturbation MoA response.
+# gene-keyed / pan-cancer → entity_grain target. VERDICT-INERT (no resolver rung; no rules file).
+measurement_type: tahoe_drug_perturbation
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

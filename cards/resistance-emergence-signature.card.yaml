@@ -1,0 +1,123 @@
+# Card — RESISTANCE-EMERGENCE SIGNATURE (drug-anchored resistance mediators)
+#
+# The RESISTANCE half of the Phase-I combo-and-resistance question — the deferred sibling of
+# combo-crispr-screen, now wired: "when {target} is INHIBITED by its anchor drug, which gene
+# knockouts RESCUE the cell — i.e. which genes are candidate mediators of resistance to the
+# {target} inhibitor?" Consumes depmap-drug-anchor-resistance-per-target-v1 (the SIGN-MIRROR of the
+# combination product: POSITIVE essentiality shifts from the same DepMap 26Q1 drug-anchor screens),
+# via methods/resistance_emergence.
+#
+# Signal: essentiality SHIFT of each gene under the anchor drug. POSITIVE = KO becomes LESS
+# essential when the target is inhibited (the drug's killing depends on that gene; losing it blunts
+# the drug) = a candidate resistance mediator. resistance_emergence_class aggregates the strongest
+# rescuer across the anchor drug's model-screens.
+#
+# SELF-TARGET SUPPRESSED: a rescuer_gene == inhibited_target row (KO of the drug's own target) is a
+# self-consistency artifact, dropped by the method — so an all-self result is no_resistance_signal
+# (a real negative), not no_anchor_screen (a coverage gap).
+#
+# COVERAGE IS NARROW (the discipline): only single-target anchor inhibitors are screened
+# (KRAS/KIT/XPO1). A target with NO anchor drug -> resistance_emergence_class: no_anchor_screen
+# (a coverage gap, NOT "no resistance exists").
+#
+# Emits descriptive categoricals + numerics ONLY; interpretation lives in the Tier-2 rules layer
+# (interpretation-rules/resistance-emergence.rules.yaml).
+
+card_id: resistance-emergence-signature
+version: 1.0.0
+question: "When {target.symbol} is inhibited by its anchor drug, which gene knockouts rescue the cell (candidate resistance mediators)?"
+
+applies_when:
+  - "context.data_sources.depmap_drug_anchor_available == true"
+
+required_inputs:
+  - product_id: depmap-drug-anchor-resistance-per-target-v1
+
+methods:
+  - call: resistance-emergence
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - resistance_emergence_class         # PRIMARY categorical (drives Tier-2 rules)
+    - anchor_drug                        # the inhibitor defining the drug arm (e.g. MRTX1133)
+    - anchor_mechanism                   # e.g. "KRAS-G12D inhibitor"
+    - n_resistance_mediators             # rescuer genes passing threshold (self-target excluded)
+    - strongest_mediator                 # strongest rescuer gene
+    - strongest_mediator_shift           # its mean essentiality shift under the drug (positive = rescue)
+    - strongest_mediator_class           # robust_ | supported_ | context_resistance_mediator
+    - top_resistance_mediators           # list<struct> — ranked rescuers w/ shift, n_models, n_significant
+    - resistance_context                 # narrative summary (measured-vs-null honest)
+    # ORTHOGONAL, VERDICT-INERT Tahoe transcriptional-adaptation sub-signal (which resistance-
+    # associated survival programs the anchor drug INDUCES). Enriches the picture; drives NO verdict.
+    - tahoe_adaptation_class             # induced_resistance_programs | no_induced_programs | not_in_tahoe | data_unavailable
+    - tahoe_induced_programs             # list<struct> — induced program + its genes + max induction
+    - tahoe_adaptation_note              # narrative (verdict-inert)
+
+  summary_fields_vocabulary:
+    resistance_emergence_class:
+      - strong_resistance_signal         # >=1 robust rescuer (broad rescue, significant in >=50% models)
+      - resistance_signal                # else >=1 supported rescuer
+      - context_resistance_signal        # else >=1 context rescuer (single-model strong rescue)
+      - no_resistance_signal             # anchor screened, no non-self rescuer passed (real negative)
+      - no_anchor_screen                 # target has NO anchor drug (COVERAGE GAP, not negative)
+      - data_unavailable                 # product read failure
+    tahoe_adaptation_class:              # VERDICT-INERT secondary sub-signal
+      - induced_resistance_programs      # anchor drug induces >=1 curated resistance program (efflux/NRF2/EMT/anti-apoptotic)
+      - no_induced_programs              # anchor drug in Tahoe, no resistance program induced
+      - not_in_tahoe                     # target's anchor drug not in the Tahoe drug set (coverage gap)
+      - data_unavailable                 # Tahoe read failure
+
+  summary_fields_record_schemas:
+    top_resistance_mediators:
+      rescuer_gene: string               # gene whose KO rescues the cell under inhibition
+      anchor_drug: string
+      mechanism: string
+      n_models: number
+      mean_effect_shift: number          # positive = rescue
+      max_effect_shift: number
+      n_models_significant: number
+      frac_models_significant: number
+      resistance_class: string
+    tahoe_induced_programs:
+      program: string                    # efflux | oxidative_stress | emt | anti_apoptotic
+      max_induction: number              # strongest per-gene median log2FC in the program
+      genes_induced:                     # nested list of {gene, median_log2fc} induced above the floor
+        record_schema:
+          gene: string
+          median_log2fc: number
+
+  # No figure declared — the ranked rescuer table is served by the top_resistance_mediators
+  # summary_field (list-of-records). A bespoke figure emitter is deferred viz-debt; declaring one
+  # here without a registered emitter trips the FIGURE_DECLARED_NOT_EMITTED anti-drift guard.
+
+thresholds:
+  strong_shift: 0.5
+  supported_shift: 0.25
+  fdr_significance: 0.25
+
+warning_predicates:
+  - warning_id: single_model_anchor
+    if: "top_resistance_mediators.0.n_models <= 1"
+    message: "The anchor drug for {target.symbol} was screened in <=1 model — resistance calls rest on a single context; treat as hypothesis-generating."
+  - warning_id: narrow_anchor_coverage
+    if: "resistance_emergence_class == no_anchor_screen"
+    message: "No drug-anchor CRISPR screen for {target.symbol} (the panel covers KRAS/KIT/XPO1 only). This is a coverage gap — absence of a resistance signal here is NOT evidence against resistance mechanisms."
+
+caveats:
+  - "Signal = gene-effect(drug arm) - gene-effect(control arm) (Chronos-difference). POSITIVE = the rescuer's KO becomes LESS essential when the target is inhibited (the drug's effect depends on that gene; losing it blunts the drug) = a candidate resistance mediator."
+  - "Self-target rows (rescuer == inhibited target — KO of the drug's own target) are a self-consistency artifact and are dropped upstream; they never appear as mediators."
+  - "DepMap drug-anchor screens cover only single-target anchor INHIBITORS (KRAS via MRTX1133, KIT via Avapritinib, XPO1 via Eltanexor). Absence of an anchor screen is a coverage gap (no_anchor_screen), never evidence against resistance (measured-vs-null)."
+  - "A significant rescuer is a resistance HYPOTHESIS to monitor (loss-of-function, deletion, or downregulation of the gene as a resistance route), not a proven clinical resistance mechanism — read the biology (KRAS/MRTX1133 -> NF1 RAS-GAP reactivation, KEAP1/NRF2 antioxidant program, NF2/Hippo bypass are all validated; not every hit will be)."
+  - "This is a GENETIC rescue signal in cell lines; it does not by itself establish clinical resistance or its frequency. Transcriptional (Tahoe-derived) and clinical resistance layers are orthogonal follow-ons."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `drug_anchored_resistance` claim (what rescues under
+# target inhibition). NEW measurement_type. entity_grain target (the inhibited target).
+measurement_type: drug_anchored_resistance
+# P4: a resistance mediator is a liability to monitor where the target itself is drugged
+# (small_molecule) and, for a degrader, full-KO analog inhibition — same modality surface as the
+# combination sibling.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
