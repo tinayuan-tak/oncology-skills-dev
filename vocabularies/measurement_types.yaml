@@ -407,6 +407,15 @@ measurement_types:
     cards: []
     providers:
       - {kind: dataset, source: gdc-pancanatlas-companions-2018, evidence_tier: measured}
+  target_development_level:
+    claim: "What is the target's Pharos/IDG Target Development Level (druggability/novelty tier) + family?"
+    # Pharos/IDG (2026-08-10): TARGET-INTRINSIC pre-integrated druggability/novelty tier (Tclin/Tchem/
+    # Tbio/Tdark) from NCATS TCRD. DISPLAY facet — verdict-inert (bibliometric novelty component; never a
+    # killer, the OT-association guardrail). Fills the novelty/druggability-tier gap via a CC0 route.
+    entity_grains: [target]
+    cards: [target-development-level]
+    providers:
+      - {kind: dataset, source: pharos-idg-tcrd-snapshot-2026-08-10, evidence_tier: measured}
 
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
@@ -1127,13 +1136,27 @@ measurement_types:
     # (genome-wide KO WITH vs WITHOUT a fixed anchor inhibitor). NARROW coverage: single-target
     # anchor inhibitors only (KRAS/KIT/XPO1) → a card returns no_anchor_screen for uncovered targets.
     # Distinct from combinatorial_ko_dependency (paralog dual-KO, gene×gene) — this is drug×gene.
-    # The RESISTANCE arm (positive shifts) is a deferred sibling (resistance-emergence-signature).
+    # The RESISTANCE arm (positive shifts) is now WIRED as the sibling drug_anchored_resistance.
     entity_grains: [target]
     cards: [combo-crispr-screen]
     modality_relevance: [small_molecule, degrader]
     multi_provider_policy: tier_dominant
     providers:
       - {kind: dataset, source: depmap-drug-anchor-combination-per-target-v1, method: combo_drug_anchor, evidence_tier: measured}
+
+  drug_anchored_resistance:
+    claim: "When {target} is INHIBITED by its anchor drug, which gene knockouts RESCUE the cell (candidate resistance mediators)?"
+    # NEW measurement_type (Phase-I resistance half). The SIGN-MIRROR of drug_anchored_combination:
+    # the POSITIVE arm of the same DepMap 26Q1 drug-anchor CRISPR screens (KO becomes LESS essential
+    # under the drug = the drug's effect depends on that gene = losing it blunts the drug). NARROW
+    # coverage: single-target anchor inhibitors only (KRAS/KIT/XPO1) → a card returns no_anchor_screen
+    # for uncovered targets. Self-target rescue (KO of the drug's own target) is suppressed upstream.
+    entity_grains: [target]
+    cards: [resistance-emergence-signature]
+    modality_relevance: [small_molecule, degrader]
+    multi_provider_policy: tier_dominant
+    providers:
+      - {kind: dataset, source: depmap-drug-anchor-resistance-per-target-v1, method: resistance_emergence, evidence_tier: measured}
 
   combinatorial_ko_dependency:
     claim: "When {target} is co-knocked-out with a paralog partner, is there a synthetic-lethal / buffering genetic interaction (GI = dual - sum-of-singles, Chronos scale), and is it constitutive or context-conditional?"
