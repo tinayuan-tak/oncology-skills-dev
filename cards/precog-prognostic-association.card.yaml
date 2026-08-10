@@ -1,0 +1,75 @@
+# Card — PRECOG PAN-CANCER PROGNOSTIC META-Z ASSOCIATION (does target expression track survival, meta-analytically?)
+#
+# The pan-cancer, META-ANALYTIC prognostic prior for a target's expression<->survival association.
+# PRECOG (Gentles 2015 Nat Med + 2026 NAR update) meta-analyzes each gene's mRNA-expression vs overall
+# survival across 166 independent expression datasets (~18,000 patients, 39 cancer types), collapsing
+# each gene x cancer-type to a single meta-Z (Stouffer over per-dataset univariate Cox z-scores):
+#   - expression_high_worse_survival   → meta-Z >= +1.96: high expression associates with WORSE OS
+#       (candidate poor-prognosis / aggressive-disease marker; supports targeting + patient selection).
+#   - expression_high_better_survival  → meta-Z <= -1.96: high expression associates with BETTER OS
+#       (a caution: the target may mark indolent disease; the targeting rationale is weaker).
+#   - no_prognostic_association         → |meta-Z| < 1.96: no robust meta-analytic survival association.
+#   - data_unavailable                  → gene absent from PRECOG, or the indication is not crosswalked.
+#
+# ROLE — verdict-INERT META-ANALYTIC CORROBORATION of the single-cohort expression-clinical-association
+# card (Q11). That card median-splits ONE indication's TCGA cohort and log-rank tests OS (univariate,
+# often underpowered, cohort-specific). PRECOG is the pan-cancer, far-better-powered SECOND OPINION on
+# the SAME question: when the two AGREE, prognostic confidence rises; when they DIVERGE, it flags a
+# cohort-specific vs pan-cancer effect. Both are prognostic-biomarker facets (NOT clinical-precedent).
+#
+# ZERO new ingestion beyond the PRECOG snapshot — a published pre-integrated RESULT read per (gene x
+# indication). PRECOG is genuinely TARGET-dependent (the meta-Z is specific to THIS gene), unlike the
+# cohort-context facets (stemness/DDR), so `target` is consumed.
+
+card_id: precog-prognostic-association
+version: 1.0.0
+question: "Across 166 datasets (~18k patients), does {target.symbol} expression track overall survival in {indication.label} (pan-cancer meta-analytic prognostic prior)?"
+
+tier: indication   # per-(target x indication); the meta-Z is target-specific but read for an indication
+
+applies_when:
+  - "true"   # any target/indication; data_unavailable-safe when gene absent or indication not crosswalked
+
+required_inputs:
+  - product_id: precog-prognostic-meta-z-per-indication-v1   # per-(gene x indication) PRECOG meta-Z
+
+methods:
+  - call: precog-prognostic
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - prognostic_class                    # PRIMARY categorical (mirrors expression-clinical-association)
+    - meta_z                              # the indication-specific PRECOG meta-Z (signed)
+    - meta_z_significance_cut             # |z|>=1.96 (~ p<0.05) — the class threshold
+    - pan_cancer_meta_z                   # the robust pan-cancer headline meta-Z (all cancers pooled)
+    - pan_cancer_prognostic_class         # the pan-cancer class (context alongside the indication-specific)
+    - precog_source_column                # the PRECOG cancer-type column this indication maps to (provenance)
+    - precog_indication_approx            # True if the indication->PRECOG map is a documented approximation
+    - n_precog_datasets                   # scale note (166 datasets / ~18k patients)
+  summary_fields_vocabulary:
+    prognostic_class: [expression_high_worse_survival, expression_high_better_survival, no_prognostic_association, data_unavailable]
+    pan_cancer_prognostic_class: [expression_high_worse_survival, expression_high_better_survival, no_prognostic_association, data_unavailable]
+  figure: precog_prognostic_association_card
+
+# No `thresholds:` block — this is a verdict-INERT facet (no rule/predicate reads it). The meta-Z
+# significance cut (|z|>=1.96) is applied in the method and surfaced as the meta_z_significance_cut
+# summary field for transparency, not consumed by any interpretation rule here.
+
+caveats:
+  - "HYPOTHESIS-GENERATING, NOT a clinical claim. PRECOG meta-Z aggregates UNIVARIATE (unadjusted for stage/grade/age) per-dataset Cox associations across 166 heterogeneous datasets (varied platforms, cohorts, normalization). A robust meta-Z is a strong prognostic PRIOR, but not a multivariable-validated biomarker."
+  - "META-ANALYTIC CORROBORATION of expression-clinical-association (Q11), NOT a replacement. Q11 is a single TCGA cohort (indication-specific, patient-level, but often underpowered); PRECOG is pan-cancer + far better powered but per-cancer-type columns are noisier than the pooled pan-cancer meta-Z. Read them together: agreement raises confidence; divergence flags a cohort-specific vs pan-cancer effect."
+  - "PROGNOSTIC (expression<->survival), NOT clinical-PRECEDENT (drugs-in-clinic). This does NOT fill the license-walled `clinical` risk_category (Cortellis/IQVIA); it is a biomarker-axis prognostic facet routed to differentiation/prognostic context."
+  - "expression_high_better_survival is NOT a target killer — it flags that the prognostic/targeting rationale differs (the target may mark indolent disease); interpret alongside dependency + genomic evidence."
+  - "INDICATION CROSSWALK: PRECOG's 39 cancer-type columns are idiosyncratic. When precog_indication_approx is True the indication is a documented approximation (COADREAD→Colon_cancer: no rectal split; NSCLC→Lung_cancer_ADENO: representative histology). LUAD/LUSC/SCLC map exactly. Unmapped indications return data_unavailable (pan-cancer meta-Z still surfaced as context)."
+  - "VERDICT-INERT: drives no resolver rung. A pan-cancer meta-analytic prognostic prior surfaced to render/LLM alongside the single-cohort survival card."
+
+measurement: bulk_rna
+sample_context: tumor          # patient tumor expression vs patient survival (meta-analytic across datasets)
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the PRECOG meta-Z claim (a published pre-integrated result).
+measurement_type: precog_prognostic_association
+entity_grains: [target_indication]
+schema_version: 1

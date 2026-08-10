@@ -241,6 +241,7 @@ KNOWN_FIGURE_DEBT = {
     'partner-conditional-dependency',   # Track PC (2026-08-09) — partner-deficient-vs-neutral strip emitter deferred (viz-debt queue)
     'ddr-deficiency-context',   # Track PI (2026-08-09) — HRD-context strip/bar emitter deferred (viz-debt queue)
     'pathway-activity-context',   # Track PROGENy (2026-08-10) — pathway-activity bar/heatmap emitter deferred (viz-debt queue)
+    'precog-prognostic-association',   # PRECOG (2026-08-10) — meta-Z prognostic strip/forest emitter deferred (viz-debt queue)
     # surface tier + shed:
     'shed-ectodomain-liability', 'surface-topology-and-ptm',
     'surfaceome-family-classification', 'surfaceome-cohort-ranking',

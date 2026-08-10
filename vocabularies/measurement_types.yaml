@@ -966,6 +966,18 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [tumor_expression_distribution, patient_survival_cdr], method: median_split_logrank, evidence_tier: measured}
 
+  precog_prognostic_association:
+    claim: "Across 166 datasets (~18k patients), does target expression track overall survival (pan-cancer meta-analytic prognostic prior)?"
+    # PRECOG (Gentles 2015 + 2026 NAR): the pan-cancer META-ANALYTIC expression<->survival meta-Z, read
+    # per (gene x indication). POSITIVE meta-Z = high expr -> worse OS. A published pre-integrated RESULT
+    # (Stouffer over per-dataset Cox z). Verdict-INERT META-ANALYTIC CORROBORATION of the single-cohort
+    # expression_clinical_association (Q11): better powered + pan-cancer, but a prognostic-biomarker facet
+    # (NOT clinical-precedent). Routes to differentiation / prognostic context. Biology axis; no modality facet.
+    entity_grains: [target_indication]
+    cards: [precog-prognostic-association]
+    providers:
+      - {kind: dataset, source: precog-prognostic-meta-z-per-indication-v1, evidence_tier: measured}
+
   mutation_stratified_dependency:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
