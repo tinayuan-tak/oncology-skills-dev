@@ -31,6 +31,7 @@ composition:
   cards_used:
     - signaling-network-mechanism
     - phospho-pathway-activity          # RE-HOMED 2026-08-05 (was tumor-presence): phosphorylation is an
+    - pathway-activity-context             # Track PROGENy (2026-08-10): per-indication PROGENy pathway-activity context; verdict-inert (upgrades Mechanism topology→quantitative activity)
                                         # ACTIVITY / signaling-state readout (CPTAC phosphoproteomics),
                                         # a mechanism signal not a presence one. DISPLAY-ONLY facet —
                                         # feeds NO resolver (mechanism_verdict byte-stable).

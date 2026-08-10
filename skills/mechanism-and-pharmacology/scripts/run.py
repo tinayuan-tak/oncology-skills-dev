@@ -38,6 +38,10 @@ CARDS = [
     # facet: feeds NO resolver rung, so the mechanism_verdict stays byte-stable (the mechanism resolver
     # keys only on signaling-network-mechanism fields).
     "phospho-pathway-activity",
+    "pathway-activity-context",                 # Track PROGENy (2026-08-10): per-indication PROGENy
+                                                # pathway-ACTIVITY context (Schubert 2018). VERDICT-INERT
+                                                # (like phospho) — upgrades Mechanism from topology-only
+                                                # to quantitative activity; keys no resolver rung.
 ]
 
 QUESTION = ("For {target} in {indication}, what upstream regulators + "
