@@ -1,0 +1,67 @@
+# Card — TUMOR-STEMNESS (mRNAsi) COHORT CONTEXT  (Malta 2018, reimplemented; pre-integrated facet)
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT context: how stem-like / dedifferentiated is this indication's
+# TCGA cohort? High tumor stemness (mRNAsi) tracks dedifferentiation and is associated with
+# aggressiveness / worse outcome — a prognostic/aggressiveness cohort PRIOR. A target maps in only as
+# "which indication's stemness landscape am I in".
+#
+# REIMPLEMENTATION NOTE (honest, carried from the method): Malta et al. 2018 do NOT distribute the
+# per-sample mRNAsi scores as a file (only the signature WEIGHTS ship, per the GDC PanCan-Stemness
+# manifest). This card's values are a faithful REIMPLEMENTATION — the Malta one-class scoring (per-sample
+# Spearman corr vs the 12,945-gene mRNAsi signature, pan-cancer min-max) applied to recount3/TCGA — NOT
+# the exact published per-sample table.
+#
+# Interpretation surface (stemness_class is PRIMARY, RELATIVE to the pan-cancer distribution):
+#   stem_high          → cohort median mRNAsi >= pan-cancer Q3 (a stem-like/dedifferentiated cohort;
+#                        TGCT/DLBC/COAD — validated 2026-08-10; TGCT is the germ-cell positive control)
+#   stem_intermediate  → between pan-cancer median and Q3
+#   stem_low           → below pan-cancer median (a differentiated cohort; THCA/KIRC/PAAD)
+#   data_unavailable   → indication not in the stemness product
+#
+# DISPLAY facet — VERDICT-INERT. Surfaces the cohort stemness prior; touches NO resolver rung.
+
+card_id: stemness-context
+version: 1.0.0
+question: "How stem-like / dedifferentiated is the {indication.label} cohort (tumor mRNAsi stemness), as a prognostic/aggressiveness prior?"
+
+tier: indication   # per-indication cohort property; target-independent. Never stratifies by target.
+
+applies_when:
+  - "true"   # any indication; data_unavailable-safe when not in the product
+
+required_inputs:
+  - product_id: stemness-mrnasi-per-indication-v1   # per-indication mRNAsi rollup (Malta 2018, reimplemented)
+
+methods:
+  - call: stemness-index
+    args:
+      target: "{target.symbol}"        # accepted for signature; NOT consumed (per-indication class)
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - stemness_class                             # PRIMARY (stem_high | stem_intermediate | stem_low | data_unavailable)
+    - median_mrnasi                              # cohort median mRNAsi (pan-cancer-normalized [0,1])
+    - pan_cancer_median_mrnasi                   # the class reference (median)
+    - pan_cancer_q3_mrnasi                       # the stem_high threshold
+    - n_samples                                  # cohort samples scored
+    - pooled_from                                # TCGA codes pooled (e.g. [COAD, READ] for COADREAD)
+
+  summary_fields_vocabulary:
+    stemness_class:
+      - stem_high
+      - stem_intermediate
+      - stem_low
+      - data_unavailable
+
+  figure: stemness_context_card
+
+caveats:
+  - "REIMPLEMENTED, NOT the published per-sample table: Malta 2018 distributes only the signature weights (per the GDC PanCan-Stemness manifest), so per-sample mRNAsi is recomputed here (Spearman vs signature + pan-cancer min-max) on recount3/TCGA. Faithful to the method, but treat as a reimplementation."
+  - "Cohort-level PRIOR, NOT a per-target or per-patient stemness call. A target in a stem_high cohort is not itself a stemness gene. This is prognostic/aggressiveness context, not a target property."
+  - "mRNAsi is RELATIVE to the pan-cancer distribution (stem_high = cohort median >= pan-cancer Q3), not an absolute stemness magnitude. Validated cross-cohort: TGCT (germ-cell) highest, THCA/KIRC lowest — the Malta ranking."
+  - "VERDICT-INERT: drives no resolver rung. A dedifferentiation/aggressiveness cohort prior surfaced to render/LLM; routes to differentiation/prognostic context."
+
+measurement_type: stemness_context
+entity_grains: [cohort]
+schema_version: 1

@@ -388,6 +388,25 @@ measurement_types:
     cards: []
     providers:
       - {kind: dataset, source: sanchez-vega-oncogenic-pathways-2018, evidence_tier: measured}
+  stemness_context:
+    claim: "How stem-like / dedifferentiated is the indication's cohort (tumor mRNAsi)?"
+    # Malta 2018 (2026-08-10, REIMPLEMENTED): INDICATION-level, target-INDEPENDENT cohort prior — the
+    # mRNAsi stemness signature (weights in gdc-pancanatlas-companions-2018) scored on recount3, rolled
+    # up per-indication (pan-cancer-relative class). DISPLAY facet — verdict-inert dedifferentiation/
+    # aggressiveness prior. Reimplemented (Malta does not distribute per-sample scores). Prognostic context.
+    entity_grains: [cohort]
+    cards: [stemness-context]
+    providers:
+      - {kind: derived_from, inputs: [stemness_mrnasi_signature, tumor_expression_distribution], method: spearman_signature_score, evidence_tier: inferred}
+
+  stemness_mrnasi_signature:
+    claim: "The Malta 2018 mRNAsi RNA-expression stemness signature (per-gene weights)."
+    # The signature-WEIGHTS input to stemness_context (the only stemness artifact Malta distributes).
+    # A derived-edge input; no standalone card.
+    entity_grains: [cohort]
+    cards: []
+    providers:
+      - {kind: dataset, source: gdc-pancanatlas-companions-2018, evidence_tier: measured}
 
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
