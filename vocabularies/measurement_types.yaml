@@ -369,6 +369,25 @@ measurement_types:
     cards: []
     providers:
       - {kind: derived_from, inputs: [tumor_expression_distribution], method: progeny_mlm, evidence_tier: measured}
+  oncogenic_pathway_alteration:
+    claim: "Which oncogenic signaling pathways are frequently altered in the indication's cohort?"
+    # Sanchez-Vega 2018 (2026-08-10): INDICATION-level, target-INDEPENDENT PRE-INTEGRATED result —
+    # per-sample pathway-altered (driver mut + GISTIC CN + fusion vs expert templates) rolled up to
+    # per-(pathway x indication) alteration frequency. DISPLAY facet — verdict-inert cohort mechanism/
+    # alteration context. Complements pathway_activity_context (PROGENy ACTIVITY); this is ALTERATION.
+    entity_grains: [cohort]
+    cards: [oncogenic-pathway-alteration]
+    providers:
+      - {kind: derived_from, inputs: [oncogenic_pathway_alteration_call], method: cohort_fraction, evidence_tier: measured}
+
+  oncogenic_pathway_alteration_call:
+    claim: "Per-sample binary oncogenic-pathway-altered status (Sanchez-Vega 2018 curated template call)."
+    # The per-sample INPUT to oncogenic_pathway_alteration. Pre-integrated by Sanchez-Vega 2018. Like
+    # ddr_footprint_score / partner_deficiency_status: a derived-edge input, no standalone card.
+    entity_grains: [cohort]
+    cards: []
+    providers:
+      - {kind: dataset, source: sanchez-vega-oncogenic-pathways-2018, evidence_tier: measured}
 
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
