@@ -222,6 +222,17 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
     return out
 
 
+def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route ddr-deficiency-context card to methods/pancanatlas_ddr_context.
+
+    INDICATION-level, target-INDEPENDENT (HRD/DDR deficiency is a cohort phenotype) — the `target`
+    arg is accepted for dispatcher-signature uniformity but IGNORED. Reads the materialized
+    per-indication DDR/HRD rollup (PanCanAtlas DDR footprint, Knijnenburg 2018) → ddr_context_class.
+    DISPLAY facet, verdict-inert (no resolver rung); the cohort HRD prior that frames the PARP1/HRD
+    blind axis. Sibling of _dispatch_genomic_instability_state."""
+    mod = _import_method("pancanatlas_ddr_context")
+    return mod.read_ddr_deficiency_context(target=target, indication=indication)
+
 def _dispatch_variant_level_interpretation(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route variant-level-interpretation card to
     methods/civic_variant_interpretation::civic_interpretation_for_gene.
@@ -806,6 +817,17 @@ def _dispatch_partner_conditional_dependency(target: str, indication: str) -> Op
     """
     pc_module = _import_method("depmap_partner_conditional_dependency")
     return pc_module.read_partner_conditional_dependency(target=target, indication=indication)
+
+
+def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route ddr-deficiency-context card to methods/pancanatlas_ddr_context.
+
+    INDICATION-level, target-INDEPENDENT (HRD/DDR deficiency is a cohort phenotype) — `target` is
+    accepted for dispatcher-signature uniformity but IGNORED. Reads the materialized per-indication
+    HRD rollup (Knijnenburg 2018 DDR footprint) and returns the cohort ddr_context_class. DISPLAY
+    facet, verdict-inert (sibling of genomic-instability-state)."""
+    mod = _import_method("pancanatlas_ddr_context")
+    return mod.read_ddr_deficiency_context(target=target, indication=indication)
 
 
 def _dispatch_fusion_stratified_dependency(target: str, indication: str) -> Optional[dict]:
@@ -1585,6 +1607,8 @@ CARD_DISPATCHERS = {
     "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
     "genomic-instability-state": _dispatch_genomic_instability_state,
+    "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
+    "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
     "variant-level-interpretation": _dispatch_variant_level_interpretation,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,

@@ -111,6 +111,17 @@ CARDS = [
     # WGD/prognosis + copy-number-noise caveats). ADDITIVE signal-only: feeds LLM/matrix + headline,
     # touches NO resolver rung (verdict spine byte-stable). Reads tcga_aneuploidy_burden live.
     "genomic-instability-state",
+    "ddr-deficiency-context",   # Track PI (2026-08-09): per-indication DDR/HRD cohort-context facet
+                                # (PanCanAtlas DDR footprint, Knijnenburg 2018). VERDICT-INERT display
+                                # facet (sibling of genomic-instability-state) — surfaces the cohort HRD
+                                # prior (hrd_enriched/intermediate/low) that frames HRD-conditional
+                                # hypotheses; touches NO resolver rung. Alteration-verdict byte-stable.
+    # DDR / HRD-deficiency cohort context (Track PI, ddr_deficiency_context). INDICATION-level,
+    # target-INDEPENDENT: how HRD-deficient is this cancer? (OV/BRCA/LUSC enriched; the PARP1/HRD-blind
+    # framing). Pre-integrated PanCanAtlas DDR footprint (Knijnenburg 2018). ADDITIVE signal-only:
+    # feeds LLM/headline, touches NO resolver rung (verdict spine byte-stable). Sibling of
+    # genomic-instability-state; reads pancanatlas_ddr_context (materialized per-indication rollup).
+    "ddr-deficiency-context",
     # Per-VARIANT interpretation (variant_level_interpretation, CIViC). Closes the gene→variant gap:
     # every other mutation card is per-GENE (alteration-role = GoF/LoF per gene) or FREQUENCY
     # (recurrence), not FUNCTION — this names which specific variants are oncogenic (vs VUS/benign)
@@ -416,6 +427,10 @@ def main() -> int:
         # MODEL-side MSI (DepMap, all lineages) — the complement filling NSCLC/PAAD where patient MSI
         # is data_unavailable. Same card, cohort-level, verdict-inert.
         "model_msi_class":               get_card_field(cards, "genomic-instability-state", "model_msi_class"),
+        # DDR/HRD cohort context (Track PI) — INDICATION-level, target-independent, verdict-inert.
+        # The cohort HRD prior (hrd_enriched/intermediate/low) that frames the PARP1/HRD-blind axis.
+        "ddr_context_class":             get_card_field(cards, "ddr-deficiency-context", "ddr_context_class"),
+        "frac_hrd_high":                 get_card_field(cards, "ddr-deficiency-context", "frac_hrd_high"),
         # MODEL mutational-signature (DepMap SBS) — MMR-signature cross-validates MSI (independent signal);
         # cohort-level, verdict-inert. (SBS3-HRD is a weak proxy, kept in the card not the headline.)
         "model_mmr_signature_class":     get_card_field(cards, "genomic-instability-state", "model_mmr_signature_class"),
