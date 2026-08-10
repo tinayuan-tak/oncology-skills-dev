@@ -28,9 +28,24 @@ import pandas as pd
 
 METHOD_VERSION = "0.1.0"
 
-_SIG_S3 = ("s3://onc-compbio/data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-           "DNAmethylation_and_RNAexpression_Stemness_Signatures.xlsx")
-_EXPR_S3 = "s3://onc-compbio/data-catalog/derived/tcga-tumor-tpm-recount3-long-v1/tcga_tpm_long.parquet"
+# Resolver seam: manifest_ids resolve to their authoritative s3_uri via the data-catalog manifests
+# (single source of truth), rather than hand-typed literals that can drift on a re-emit. Resolved at
+# call time (not import). The stemness signature xlsx is documented in gdc-pancanatlas-companions-2018
+# (its files: block lists this file; sibling gdc-pancanatlas manifests share the same dir).
+SIG_SOURCE_MANIFEST_ID = "gdc-pancanatlas-companions-2018"
+_SIG_FILE = "DNAmethylation_and_RNAexpression_Stemness_Signatures.xlsx"
+EXPR_MANIFEST_ID = "tcga-tumor-tpm-recount3-long-v1"
+
+
+def _resolve_sig_uri() -> str:
+    from methods.catalog_query.read import s3_uri_for
+    base = s3_uri_for(SIG_SOURCE_MANIFEST_ID)
+    return base + _SIG_FILE if base.endswith("/") else f"{base}/{_SIG_FILE}"
+
+
+def _resolve_expr_uri() -> str:
+    from methods.catalog_query.read import s3_uri_for
+    return s3_uri_for(EXPR_MANIFEST_ID)
 
 # indication → single TCGA study (composites pooled at read time), mirror the other methods.
 INDICATION_TO_STUDIES = {
@@ -50,7 +65,7 @@ MIN_COHORT_N = 15
 
 def _load_mrnasi_signature() -> pd.Series:
     """{gene_symbol -> weight} for the mRNAsi RNA-expression stemness signature (Malta 2018)."""
-    raw = subprocess.run(["aws", "s3", "cp", _SIG_S3, "-"], capture_output=True).stdout
+    raw = subprocess.run(["aws", "s3", "cp", _resolve_sig_uri(), "-"], capture_output=True).stdout
     sig = pd.read_excel(io.BytesIO(raw), sheet_name="mRNAsi", header=0)
     sig.columns = ["ensembl", "hugo", "weight"][: sig.shape[1]]
     sig["weight"] = pd.to_numeric(sig["weight"], errors="coerce")
@@ -78,7 +93,8 @@ def build_per_indication_table() -> pd.DataFrame:
     gl = "','".join(g.replace("'", "''") for g in genes)
     studies = [INDICATION_TO_STUDIES[i][0] for i in _BUILD_INDICATIONS]
     sl = "','".join(studies)
-    q = (f"SELECT study, gene_symbol, sample_id, log2_tpm FROM read_parquet('{_EXPR_S3}') "
+    expr_uri = _resolve_expr_uri()
+    q = (f"SELECT study, gene_symbol, sample_id, log2_tpm FROM read_parquet('{expr_uri}') "
          f"WHERE study IN ('{sl}') AND gene_symbol IN ('{gl}')")
     expr = con.execute(q).df()
     # per-sample Spearman corr(expression, weight) over shared genes
