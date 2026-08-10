@@ -25,11 +25,30 @@ import pandas as pd
 
 METHOD_VERSION = "0.1.0"
 
-_SRC = "s3://onc-compbio/data-catalog/sources/sanchez-vega-oncogenic-pathways-2018/snapshot-2026-08-10"
-_MMC4 = f"{_SRC}/Sanchez-Vega_2018_mmc4_genomic_alteration_matrices.xlsx"
-_MMC3 = f"{_SRC}/Sanchez-Vega_2018_mmc3_pathway_templates.xlsx"
-_BRIDGE = ("s3://onc-compbio/data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/"
-           "merged_sample_quality_annotations.tsv")
+# Resolver seam: manifest_ids resolve to their authoritative s3_uri via the data-catalog manifests
+# (single source of truth), rather than hand-typed literals that can drift on a re-emit. Both source
+# manifests carry a DIRECTORY s3_uri (trailing slash); the per-file key is the dir + filename.
+SANCHEZ_SOURCE_MANIFEST_ID = "sanchez-vega-oncogenic-pathways-2018"
+_MMC4_FILE = "Sanchez-Vega_2018_mmc4_genomic_alteration_matrices.xlsx"
+_MMC3_FILE = "Sanchez-Vega_2018_mmc3_pathway_templates.xlsx"
+# merged_sample_quality_annotations.tsv is documented as a files: entry in gdc-pancanatlas-clinical-2018
+# (four gdc-pancanatlas manifests share the same dir; clinical is the one that lists this file).
+BRIDGE_SOURCE_MANIFEST_ID = "gdc-pancanatlas-clinical-2018"
+_BRIDGE_FILE = "merged_sample_quality_annotations.tsv"
+
+
+def _join(base: str, filename: str) -> str:
+    return base + filename if base.endswith("/") else f"{base}/{filename}"
+
+
+def _resolve_src_dir() -> str:
+    from methods.catalog_query.read import s3_uri_for
+    return s3_uri_for(SANCHEZ_SOURCE_MANIFEST_ID)
+
+
+def _resolve_bridge_uri() -> str:
+    from methods.catalog_query.read import s3_uri_for
+    return _join(s3_uri_for(BRIDGE_SOURCE_MANIFEST_ID), _BRIDGE_FILE)
 
 PATHWAYS = ["Cell Cycle", "HIPPO", "MYC", "NOTCH", "NRF2", "PI3K", "RTK RAS", "TP53", "TGF-Beta", "WNT"]
 MIN_COHORT_N = 15
@@ -42,7 +61,7 @@ def _s3_bytes(uri: str) -> bytes:
 
 def _load_barcode_to_indication() -> dict:
     """{sample_barcode(TCGA-XX-XXXX-01) -> cancer type} from merged_sample_quality_annotations."""
-    df = pd.read_csv(io.BytesIO(_s3_bytes(_BRIDGE)), sep="\t", low_memory=False,
+    df = pd.read_csv(io.BytesIO(_s3_bytes(_resolve_bridge_uri())), sep="\t", low_memory=False,
                      usecols=["aliquot_barcode", "cancer type"])
     # mmc4 SAMPLE_BARCODE is TCGA-OR-A5J1-01 (patient + sample-type); the aliquot is longer. Join on the
     # PATIENT barcode (first 3 fields) — verified 100% coverage of the 9,125 mmc4 samples.
@@ -53,7 +72,7 @@ def _load_barcode_to_indication() -> dict:
 
 def load_gene_pathway_map() -> dict:
     """{gene_symbol -> [pathways]} from the mmc3 pathway templates (one sheet per pathway)."""
-    xl = pd.ExcelFile(io.BytesIO(_s3_bytes(_MMC3)))
+    xl = pd.ExcelFile(io.BytesIO(_s3_bytes(_join(_resolve_src_dir(), _MMC3_FILE))))
     out: dict = {}
     for pw in PATHWAYS:
         if pw not in xl.sheet_names:
@@ -68,7 +87,7 @@ def load_gene_pathway_map() -> dict:
 def build_per_indication_table() -> pd.DataFrame:
     """Per-(pathway x indication) alteration frequency. Returns long DataFrame
     [indication, pathway, n_samples, frac_altered, pathway_alteration_class]."""
-    xl = pd.ExcelFile(io.BytesIO(_s3_bytes(_MMC4)))
+    xl = pd.ExcelFile(io.BytesIO(_s3_bytes(_join(_resolve_src_dir(), _MMC4_FILE))))
     pl = xl.parse("Pathway level", header=0)   # row 0 IS the header (SAMPLE_BARCODE + 10 pathways)
     bc2ind = _load_barcode_to_indication()
     pl["indication"] = pl["SAMPLE_BARCODE"].str.split("-").str[:3].str.join("-").map(bc2ind)
