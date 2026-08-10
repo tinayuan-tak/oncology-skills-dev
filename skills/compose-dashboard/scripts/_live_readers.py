@@ -795,6 +795,19 @@ def _dispatch_cn_stratified_dependency(target: str, indication: str) -> Optional
     return cn_module.read_cn_stratified_dependency(target=target, indication=indication)
 
 
+def _dispatch_partner_conditional_dependency(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route partner-conditional-dependency card (Card C.pc) to
+    methods/depmap_partner_conditional_dependency/read.py.
+
+    The PARTNER-feature analog of Card 3 / Card E3.cn: does a target's dependency stratify by a
+    PARTNER gene's DEFICIENCY status (MSI-high signature OR partner LoF) across the DepMap panel —
+    the synthetic-lethality biomarker hypothesis (WRN×MSI-class)? Target-only; indication accepted
+    for back-compat but not consumed. Returns no_partner_mapped (abstains) for unmapped targets.
+    """
+    pc_module = _import_method("depmap_partner_conditional_dependency")
+    return pc_module.read_partner_conditional_dependency(target=target, indication=indication)
+
+
 def _dispatch_fusion_stratified_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route fusion-stratified-dependency card (Card E3.fus) to
     methods/depmap_fusion_dependency/read.py.
@@ -1602,6 +1615,7 @@ CARD_DISPATCHERS = {
     "mutation-type-counts": _dispatch_mutation_type_counts,
     "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
     "copy-number-stratified-dependency": _dispatch_cn_stratified_dependency,
+    "partner-conditional-dependency": _dispatch_partner_conditional_dependency,
     "fusion-stratified-dependency": _dispatch_fusion_stratified_dependency,
     "amp-expr-stratified-dependency": _dispatch_amp_expr_stratified_dependency,
     "mutation-drug-response": _dispatch_mutation_drug_response,

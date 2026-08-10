@@ -36,6 +36,7 @@ composition:
     - crispr-rnai-dependency-concordance
     - dependency-lineage-selectivity
     - paralog-buffering                  # Layer 6d addition: dependency-hardening signal
+    - partner-conditional-dependency     # Track PC (2026-08-09): VERDICT-BEARING synthetic-lethality rescue — partner-deficient-stratified dependency (WRN×MSI). Fires partner_conditional_dependent in dependency.resolver (distinct verdict; rescues a pooled non_dependent veto, one-directional). MODERATE tier is rescue-firing for this family.
     - prism-crispr-concordance           # E-PRISM re-home 2026-07-20: chemical-genetic confirmation arm (was in run.py CARDS, missing here)
     - dependency-predictability          # Gate-C gap 1 (Option A): META-evidence → CONFIDENCE annotation only, NOT the verdict
     # Biomarker-facet render cards (ADDITIVE, verdict-inert — feed NO resolver ladder). Grouped:

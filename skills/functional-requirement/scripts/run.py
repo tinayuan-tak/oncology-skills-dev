@@ -43,6 +43,17 @@ CARDS = [
     "crispr-rnai-dependency-concordance",
     "dependency-lineage-selectivity",
     "paralog-buffering",                        # Layer 6d addition
+    "partner-conditional-dependency",           # Track PC (2026-08-09) — VERDICT-BEARING synthetic-
+                                                # lethality rescue. Does dependency stratify by a
+                                                # PARTNER gene's deficiency (WRN×MSI, PARP1×HRD)? Its
+                                                # partner-conditional-{strongly,moderately}-dependent
+                                                # rules fire partner_conditional_dependent in
+                                                # dependency.resolver — a distinct verdict that RESCUES
+                                                # a pooled non_dependent veto (mirrors the paralog-
+                                                # buffered rescue), one-directional. Whole-cohort
+                                                # (target-only); the MODERATE tier IS rescue-firing for
+                                                # this family (WRN×MSI = -0.41). Also in target-profile
+                                                # SUB_SKILL_CARDS[functional-requirement].
     "prism-crispr-concordance",                 # E-PRISM re-home 2026-07-20 — chemical-genetic
                                                 # CONFIRMATION arm (gate C). Its triangulated_target_engaged
                                                 # class fires e7-triangulated-target-engaged-supportive, which
