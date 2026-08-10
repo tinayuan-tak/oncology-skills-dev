@@ -250,6 +250,13 @@ def _dispatch_stemness_context(target: str, indication: str) -> Optional[dict]:
     facet, verdict-inert (dedifferentiation/aggressiveness prognostic prior)."""
     mod = _import_method("stemness_index")
     return mod.read_stemness_index(target=target, indication=indication)
+def _dispatch_target_development_level(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route target-development-level card to methods/pharos_tdl.
+
+    TARGET-INTRINSIC (indication-independent). O(1) HGNC lookup on the Pharos/IDG TDL snapshot →
+    tdl_class (Tclin/Tchem/Tbio/Tdark) + family + novelty. DISPLAY facet, verdict-inert."""
+    mod = _import_method("pharos_tdl")
+    return mod.read_pharos_tdl(target=target, indication=indication)
 
 
 def _dispatch_variant_level_interpretation(target: str, indication: str) -> Optional[dict]:
@@ -1641,6 +1648,7 @@ CARD_DISPATCHERS = {
     "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
     "oncogenic-pathway-alteration": _dispatch_oncogenic_pathway_alteration,
     "stemness-context": _dispatch_stemness_context,
+    "target-development-level": _dispatch_target_development_level,
     "variant-level-interpretation": _dispatch_variant_level_interpretation,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,

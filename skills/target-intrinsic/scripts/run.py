@@ -68,7 +68,9 @@ CARDS = [
     # --- INTERACTOME (physical/functional interactions + complex membership) --------------------
     "ppi-interactome",                   # STRING high-confidence functional network + CORUM complex membership
     # --- DOMAIN ARCHITECTURE / PROTEIN CLASS (curated UniProt features) --------------------------
-    "protein-domains-class",             # FT DOMAIN architecture + UniProt-keyword protein class
+    "protein-domains-class",
+    "target-development-level",          # Pharos/IDG TDL (2026-08-10): druggability/novelty tier
+                                         # (Tclin/Tchem/Tbio/Tdark) + family. VERDICT-INERT target-intrinsic facet.             # FT DOMAIN architecture + UniProt-keyword protein class
     "domain-modality-relevance",         # INTERPRETIVE domain→modality facet (inhibitor_sufficient vs
                                          # removal_required_scaffolding, e.g. RIPK1). tier:target, verdict-inert.
                                          # Card + method (methods/domain_modality_relevance) + dispatcher all LIVE
@@ -127,6 +129,10 @@ def _headline(cards, fired, verdict_pair):
         "n_domains":                     g("protein-domains-class", "n_domains"),
         "domain_architecture":           g("protein-domains-class", "domain_architecture"),
         "protein_class":                 g("protein-domains-class", "protein_class"),
+        # Pharos/IDG Target Development Level (2026-08-10) — druggability/novelty tier (verdict-inert)
+        "tdl_class":                     g("target-development-level", "tdl_class"),
+        "tdl_target_family":             g("target-development-level", "target_family"),
+        "tdl_novelty_score":             g("target-development-level", "novelty_score"),
         # domain→modality implication (INTERPRETIVE sibling of protein-domains-class): does the domain
         # architecture imply an inhibitor is sufficient, or is target REMOVAL required (degrader/scaffolding)?
         # The card + method (methods/domain_modality_relevance) + dispatcher are all LIVE (#264) — this

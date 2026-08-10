@@ -43,6 +43,7 @@ composition:
     - structure-features-static
     - shed-ectodomain-liability
     - protein-domains-class
+    - target-development-level            # Pharos/IDG TDL (2026-08-10): druggability/novelty tier (Tclin/Tchem/Tbio/Tdark) + family; verdict-inert
     - domain-modality-relevance
     - ppi-interactome
     - gene-ontology-annotation
