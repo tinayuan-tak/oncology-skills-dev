@@ -60,3 +60,20 @@ def test_unmapped_indication_is_data_unavailable(monkeypatch):
 def test_missing_indication_arg_is_data_unavailable():
     out = ddr_read.read_ddr_deficiency_context(indication=None)
     assert out["ddr_context_class"] == "data_unavailable"
+
+
+# --- resolver seam (the hard-coded derived S3 URI now resolves via catalog_query.s3_uri_for) --------
+
+def test_derived_uri_resolves_via_manifest(monkeypatch):
+    import methods.catalog_query.read as cq
+    monkeypatch.setattr(cq, "s3_uri_for", lambda mid, **kw: {
+        "pancanatlas-ddr-deficiency-per-indication-v1":
+            "s3://b/data-catalog/derived/pancanatlas-ddr-deficiency-per-indication-v1/ddr_deficiency_per_indication.parquet"
+    }[mid])
+    assert ddr_read._resolve_derived_uri().endswith("/ddr_deficiency_per_indication.parquet")
+    assert ddr_read.DERIVED_MANIFEST_ID == "pancanatlas-ddr-deficiency-per-indication-v1"
+
+
+def test_resolver_import_is_call_time():
+    import inspect
+    assert "from methods.catalog_query.read import s3_uri_for" in inspect.getsource(ddr_read._resolve_derived_uri)

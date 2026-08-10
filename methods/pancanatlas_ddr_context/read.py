@@ -20,8 +20,17 @@ from . import cli as _cli
 METHOD_VERSION = _cli.METHOD_VERSION
 DEFAULT_AWS_PROFILE = "cbg"
 
-_DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
-               "pancanatlas-ddr-deficiency-per-indication-v1/ddr_deficiency_per_indication.parquet")
+DERIVED_MANIFEST_ID = "pancanatlas-ddr-deficiency-per-indication-v1"
+
+
+def _resolve_derived_uri() -> str:
+    """Resolve the derived product's manifest-authoritative S3 URI at call time (not import).
+
+    The resolver seam: the s3_uri lives in the data-catalog manifest (single source of truth),
+    never a parallel hand-typed copy that can drift on a re-emit.
+    """
+    from methods.catalog_query.read import s3_uri_for
+    return s3_uri_for(DERIVED_MANIFEST_ID)
 
 # Map common indication aliases to the TCGA disease codes used in the DDR resource.
 _INDICATION_ALIASES = {
@@ -39,7 +48,7 @@ def _load_product():
     import pandas as pd
     _ensure_aws_profile()
     try:
-        raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"],
+        raw = subprocess.run(["aws", "s3", "cp", _resolve_derived_uri(), "-"],
                              capture_output=True, timeout=120).stdout
         if raw:
             return pd.read_parquet(io.BytesIO(raw))
