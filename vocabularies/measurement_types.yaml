@@ -350,6 +350,26 @@ measurement_types:
     providers:
       - {kind: dataset, source: gdc-pancanatlas-companions-2018, evidence_tier: measured}
 
+  pathway_activity_context:
+    claim: "Which PROGENy signaling pathways are relatively active in the indication's cohort (cross-indication z)?"
+    # Track PROGENy (2026-08-10): INDICATION-level, target-INDEPENDENT PRE-INTEGRATED mechanism result —
+    # PROGENy (Schubert 2018) pathway-footprint activity scored on recount3/TCGA, rolled up per-(pathway
+    # x indication) + cross-indication z. DISPLAY facet — verdict-inert mechanism-context prior (upgrades
+    # the Mechanism gate from topology-only to quantitative activity). Sibling of phospho_pathway_activity.
+    entity_grains: [cohort]
+    cards: [pathway-activity-context]
+    providers:
+      - {kind: derived_from, inputs: [pathway_activity_footprint], method: cross_indication_zscore, evidence_tier: measured}
+
+  pathway_activity_footprint:
+    claim: "Per-sample PROGENy pathway-activity scores (MLM over the responsive-gene footprint), the pre-integrated Schubert 2018 model applied to recount3/TCGA."
+    # Track PROGENy input to pathway_activity_context. Like fusion_status/ddr_footprint_score: a
+    # derived-edge input, no standalone card (cards: []).
+    entity_grains: [cohort]
+    cards: []
+    providers:
+      - {kind: derived_from, inputs: [tumor_expression_distribution], method: progeny_mlm, evidence_tier: measured}
+
   alteration_role:
     claim: "Is target a functional cancer driver in the indication (activating GoF / loss-of-function LoF driver / predictive biomarker / passenger)?"
     # The typed FUNCTIONAL-ROLE call layered on the descriptive alteration cards — the primitive the
