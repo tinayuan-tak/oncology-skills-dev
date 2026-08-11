@@ -180,6 +180,42 @@ def test_tumor_vs_adjacent_coadread_uses_legacy_manifest():
     assert r.get("log2_fc") is not None
 
 
+# === N2 regression (2026-08-11 code review): expression_call_class emit-parity off-COADREAD ===
+#
+# Prior bug: the non-COADREAD branch returned only log2_fc/q_value, NOT expression_call_class —
+# the field ALL 6 tumor-rna-vs-adjacent interpretation rules key on. So those rules could never
+# fire for 26/27 indications (silent driving_rule_id drift + dropped degrader-killer rules).
+# These are HERMETIC (mock the dge module) so they run without S3.
+import unittest.mock as _mock  # noqa: E402
+import _live_readers as _lr  # noqa: E402
+
+
+@pytest.mark.parametrize("log2fc,q,expected", [
+    (2.1, 1e-4, "strong_upregulation"),     # rank #2 rule expression-strong-upregulation-supportive
+    (0.8, 1e-3, "modest_upregulation"),
+    (-2.0, 1e-4, "strong_downregulation"),  # degrader-killer rule — was silently dropped off-COADREAD
+    (0.1, 0.9, "not_informative"),
+])
+def test_non_coadread_emits_expression_call_class(log2fc, q, expected):
+    """The non-COADREAD path must emit expression_call_class classified by the SAME function the
+    COADREAD path uses, so the 6 tumor-rna-vs-adjacent rules can fire off-COADREAD."""
+    fake_dge = _mock.MagicMock()
+    # the dispatcher calls read_tumor_vs_normal_sensitivity_gene_row at the PACKAGE level ...
+    fake_dge.read_tumor_vs_normal_sensitivity_gene_row.return_value = {
+        "log2fc_cell_a": log2fc, "q_value_cell_a": q, "cells_ran": 4,
+        "dominant_direction": "up" if log2fc > 0 else "down",
+        "_data_source": "luad-dge-tumor-vs-normal-sensitivity-v1",
+    }
+    # ... and reaches the classifier via the .read submodule. Wire the REAL classifier (a pure
+    # function of log2_fc/q_value) so the test exercises the actual classification, not a stub.
+    real_read = _lr._import_method("dge_deseq2").read
+    fake_dge.read._classify_expression_call = real_read._classify_expression_call
+    with _mock.patch.object(_lr, "_import_method", return_value=fake_dge):
+        r = _lr._dispatch_expression_tumor_vs_adjacent("EGFR", "LUAD")
+    assert r["expression_call_class"] == expected
+    assert r["log2_fc"] == log2fc
+
+
 # === Drift guard: every card a shipped skill lists in its CARDS roster must have a dispatcher ===
 #
 # The bug this catches (2026-08-07, PR #267): sc-normal-celltype-expression was added to the

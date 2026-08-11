@@ -122,9 +122,24 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
             "_data_note": (f"no tumor-vs-adjacent product for {target!r} in "
                            f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"),
         }
+    # 2026-08-11 REVIEW FIX (N2): emit expression_call_class on the non-COADREAD path too.
+    # The COADREAD branch (read_dge_gene_row) emits expression_call_class via
+    # _classify_expression_call; this branch previously returned only log2_fc/q_value, so the 6
+    # tumor-rna-vs-adjacent interpretation rules (all keyed on field: expression_call_class) could
+    # NEVER fire for 26 of 27 indications — silently changing the presence driving_rule_id, dropping
+    # the tumor-vs-adjacent contribution to the bulk_rna bucket, and disabling the degrader-killer
+    # rules (strong-downregulation / not-informative) everywhere except COADREAD. Reuse the SAME
+    # classifier over the SAME two fields the COADREAD path uses (cell A = tumor vs adjacent-normal),
+    # so the two indication paths become emit-consistent.
+    log2_fc = sen.get("log2fc_cell_a")            # cell A = TCGA tumor vs adjacent-normal
+    q_value = sen.get("q_value_cell_a")
+    # _classify_expression_call lives in the method's `read` submodule and is NOT re-exported at the
+    # package level (__all__), so reach it via .read — the same module read_dge_gene_row comes from.
+    _classify = dge_module.read._classify_expression_call
     return {
-        "log2_fc": sen.get("log2fc_cell_a"),      # cell A = TCGA tumor vs adjacent-normal
-        "q_value": sen.get("q_value_cell_a"),
+        "log2_fc": log2_fc,
+        "q_value": q_value,
+        "expression_call_class": _classify(log2_fc, q_value),
         "tumor_mean_tpm": None, "adjacent_mean_tpm": None,   # not carried by sensitivity product
         "n_tumor": None, "n_adjacent": None,
         "cells_ran": sen.get("cells_ran"),
