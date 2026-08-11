@@ -526,3 +526,25 @@ def test_full_per_modality_golden_spine():
     }
     # collapsed spine: the RNA backbone wins (byte-stable)
     assert tp._verdict(fired)[0] == "broadly_high_expression"
+
+
+# --- G3 (2026-08-11 production review): RNA tumor-elevation breadth surfaced ---
+
+def test_rna_tumor_elevation_breadth_surfaced_in_headline_G3():
+    """G3: the parallel RNA tumor-elevation breadth layer (rna_tumor_elevation_breadth_class, 27
+    indications) + breadth_layer_concordance are emitted by tumor-elevation-breadth but were never
+    read by _headline — a dead sub-axis that silently discarded a measured RNA-elevation signal for
+    the RNA-only indications CPTAC (10 cohorts) does not cover. Now surfaced as verdict-inert
+    facets. `rna_only` concordance = protein-coverage-gap breadth, the decision-relevant case."""
+    breadth = {"rna_tumor_elevation_breadth_class": "broadly_tumor_elevated",
+               "rna_n_indications_elevated": 6, "rna_n_indications_tested": 20,
+               "breadth_layer_concordance": "rna_only"}
+    cards = [{"card_id": cid, "summary": (breadth if cid == "tumor-elevation-breadth" else {})}
+             for cid in tp.CARDS]
+    h = tp._headline(cards, [], ("insufficient", None))
+    assert h["rna_tumor_elevation_breadth_class"] == "broadly_tumor_elevated"
+    assert h["rna_tumor_elevation_n_indications_elevated"] == 6
+    assert h["rna_tumor_elevation_n_indications_tested"] == 20
+    assert h["breadth_layer_concordance"] == "rna_only"
+    # verdict-inert: the RNA-breadth facet never moves presence_verdict
+    assert h["presence_verdict"] == "insufficient"

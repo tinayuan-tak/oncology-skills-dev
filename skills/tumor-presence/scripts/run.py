@@ -507,6 +507,23 @@ def _headline(cards, fired, verdict_pair):
                                                    "n_cohorts_elevated"),
         "tumor_elevation_n_cohorts_tested": get_card_field(cards, "tumor-elevation-breadth",
                                                  "n_cohorts_tested"),
+        # RNA breadth layer (G3 fix, 2026-08-11 production review). tumor-elevation-breadth emits a
+        # SECOND, parallel breadth layer (rna_tumor_elevation_breadth_class; pan-cancer DESeq2, 27
+        # indications vs CPTAC's 10) that was EMITTED but neither ruled nor read here — a dead
+        # sub-axis that silently discarded a measured RNA-elevation signal for the RNA-only
+        # indications / target-only queries RNA covers but CPTAC does not. Surfaced ALONGSIDE the
+        # protein layer (never averaged) as a verdict-inert facet, with breadth_layer_concordance so
+        # a protein coverage gap (rna_only) is legible rather than lost. Now also ruled in
+        # target-contracts (rna-tumor-breadth-* rules); PARALLEL by design — feeds NO presence
+        # ladder rung, presence_verdict byte-stable.
+        "rna_tumor_elevation_breadth_class": get_card_field(cards, "tumor-elevation-breadth",
+                                                  "rna_tumor_elevation_breadth_class"),
+        "rna_tumor_elevation_n_indications_elevated": get_card_field(cards, "tumor-elevation-breadth",
+                                                           "rna_n_indications_elevated"),
+        "rna_tumor_elevation_n_indications_tested": get_card_field(cards, "tumor-elevation-breadth",
+                                                         "rna_n_indications_tested"),
+        "breadth_layer_concordance": get_card_field(cards, "tumor-elevation-breadth",
+                                          "breadth_layer_concordance"),
         # Q9 purity confound — is the tumor presence signal tumor-intrinsic or microenvironment?
         # (render facet; does NOT feed the presence verdict — additive, spine byte-stable)
         "purity_confound_class":    get_card_field(cards, "expression-purity-confound", "purity_confound_class"),
