@@ -183,6 +183,22 @@ _DEPENDENCY_CALL_VERDICTS = frozenset({
     "concordant_dependent", "lineage_selective", "selective_dependent",
     "chemical_genetic_confirmed_dependent", "broadly_dependent",
     "non_dependent", "non_dependent_paralog_buffered", "pan_essential_killer",
+    # partner_conditional_dependent IS a real dependency call (Track PC — a partner-conditional
+    # dependency that escapes a pooled non_dependent veto). It was added to dependency.resolver.yaml
+    # but never here, so its predictability-confidence annotation was wrongly suppressed.
+    "partner_conditional_dependent",
+})
+
+# The complement: verdicts that are NOT a dependency call (predictability annotation stays neutral).
+# Together with _DEPENDENCY_CALL_VERDICTS these must EXHAUSTIVELY PARTITION dependency.resolver.yaml's
+# verdict enum — the Guard-A test (skills/tests/test_resolver_verdict_consumers.py) fails if the
+# resolver grows a verdict that neither set classifies, so a new verdict can't silently fall through
+# the "not a call" branch again.
+_NON_CALL_VERDICTS = frozenset({
+    "discordant",
+    "insufficient",
+    "insufficient_underpowered",
+    "insufficient_underpowered_pan_essential",
 })
 
 

@@ -101,12 +101,24 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
             "— the verdict source of truth is absent.")
     return result
 
+# The mutant-selective DOWNGRADE verdicts — a WT-constraint / human-genetics concern that is
+# largely nullified for an allele-selective mechanism. Every such verdict must carry the
+# mechanism-conditioning note (incl. the conditionality caveat). By naming convention these end in
+# `_mechanism_mismatch`; the Guard-A test (skills/tests/test_resolver_verdict_consumers.py) asserts
+# this set == the resolver's *_mechanism_mismatch verdicts, so a new downgrade verdict can't
+# silently lose its note (the wt_human_genetics_mechanism_mismatch bug).
+_MECHANISM_MISMATCH_VERDICTS = frozenset({
+    "wt_constraint_mechanism_mismatch",
+    "wt_human_genetics_mechanism_mismatch",
+})
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
     # (the activating driver role) + the conditionality caveat so a consumer isn't left guessing.
     functional_direction = get_card_field(cards, "alteration-role", "functional_direction")
-    is_mismatch = (v == "wt_constraint_mechanism_mismatch")
+    is_mismatch = (v in _MECHANISM_MISMATCH_VERDICTS)
     return {
         "safety_verdict":   v,
         "driving_rule_id":  drv,
