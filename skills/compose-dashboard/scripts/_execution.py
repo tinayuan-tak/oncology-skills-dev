@@ -357,23 +357,40 @@ def _evaluate_predicate(predicate: str, summary: dict, thresholds: dict) -> bool
 def _provenance_method_calls(plan_entry: dict, execution_mode: str = "stub") -> list[dict]:
     """Convert run_plan method_invocations to evidence_package provenance method_calls.
 
-    git_sha encodes the execution mode so consumers can tell at a glance whether
-    a card's data came from real methods (live) or a pre-authored fixture (stub).
-    Future iter-2 work: replace the mode tag with the actual git SHA of methods/
-    HEAD at execution time."""
-    sha_tag = {
-        "stub": "phase2_stub",
-        "live": "phase2_live",
-        "live-stub-fallback": "phase2_live_or_stub",
-    }.get(execution_mode, f"phase2_{execution_mode}")
+    T8 fix (2026-08-11 engineering review): `git_sha` now carries the REAL short SHA of the
+    analysis-methods repo (where the invoked read functions live), not an execution-mode tag.
+    The mode tag ("stub"/"live"/...) moves to its own `execution_mode` field, so a consumer
+    can tell BOTH which code version ran AND whether it read real data or a fixture — instead
+    of conflating them in one string. In stub mode there is no real method execution, so
+    git_sha is the sentinel "0000000" (methods weren't run)."""
+    if execution_mode == "stub":
+        methods_sha = "0000000"   # no method code executed in stub mode
+    else:
+        methods_sha = _analysis_methods_sha()
     return [
         {
             "method": inv.get("call", "unknown"),
-            "git_sha": sha_tag,
+            "git_sha": methods_sha,
+            "execution_mode": execution_mode,
             "args": inv.get("args", {}),
         }
         for inv in plan_entry.get("method_invocations", [])
     ]
+
+
+def _analysis_methods_sha() -> str:
+    """Short git SHA of the analysis-methods repo (the code that live readers dispatch into).
+    Returns the gitmeta sentinel when unavailable. Best-effort — never blocks emit."""
+    import sys
+    try:
+        skills_dir = Path(__file__).resolve().parent.parent.parent  # scripts->compose-dashboard->skills
+        if str(skills_dir) not in sys.path:
+            sys.path.insert(0, str(skills_dir))
+        from _skills_common.gitmeta import git_sha
+        from _live_readers import METHODS_REPO
+        return git_sha(str(METHODS_REPO))
+    except Exception:  # noqa: BLE001 — provenance best-effort
+        return "0000000"
 
 
 def _provenance_input_manifests(card_spec: dict) -> list[str]:

@@ -467,9 +467,18 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
     across multiple cards. Iter-1b: deterministic concatenation; LLM dedup is iter-2."""
     caveats_parts = []
 
-    # Modality-specific caveats from each loaded module
+    # Modality-specific caveats from each loaded module.
+    # T7 fix (2026-08-11 engineering review): this loop was a no-op `pass`, so the docstring's
+    # promise to "aggregate modality_specific_caveats from loaded modules" was silently unmet.
+    # Now append each loaded module's caveats, prefixed with the modality name for provenance,
+    # deduped across modules (two modality modules can share a caveat string).
+    _seen_caveats: set[str] = set()
     for module in run_plan.get("loaded_modality_modules", []) or []:
-        pass
+        modality = module.get("modality", "modality")
+        for caveat in module.get("modality_specific_caveats", []) or []:
+            if caveat and caveat not in _seen_caveats:
+                _seen_caveats.add(caveat)
+                caveats_parts.append(f"[{modality}] {caveat}")
 
     # Data-blocked cards
     data_blocked = [
