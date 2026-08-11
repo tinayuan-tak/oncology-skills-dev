@@ -261,14 +261,43 @@ def _iter_skill_card_pairs():
             yield skill, card
 
 
+import os  # noqa: E402
+import yaml  # noqa: E402
+
+_CONTRACTS_ROOT = Path(os.environ.get(
+    "TARGET_CONTRACTS_ROOT",
+    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+))
+
+
+def _card_has_generic_wiring(card_id: str) -> bool:
+    """T11: a card is routable WITHOUT a bespoke dispatcher if its card_spec declares a method with
+    an `entrypoint` (the generic dispatcher resolves module+entrypoint and calls it directly)."""
+    card_path = _CONTRACTS_ROOT / "cards" / f"{card_id}.card.yaml"
+    if not card_path.exists():
+        return False
+    try:
+        spec = yaml.safe_load(card_path.read_text()) or {}
+    except Exception:  # noqa: BLE001
+        return False
+    return any(isinstance(m, dict) and m.get("entrypoint") for m in (spec.get("methods") or []))
+
+
 @pytest.mark.parametrize("skill,card_id", list(_iter_skill_card_pairs()))
 def test_every_skill_card_has_a_dispatcher(skill, card_id):
-    """Every card_id in any shipped skill's CARDS roster must be routable — present in
-    CARD_DISPATCHERS (scalar) or PANORAMA_DISPATCHERS (subgroup panorama). A card in a skill's
-    roster with no dispatcher resolves to None → _missing → run_health degraded (the #267 bug)."""
-    assert card_id in CARD_DISPATCHERS or card_id in PANORAMA_DISPATCHERS, (
-        f"skill {skill!r} lists card {card_id!r} in its CARDS roster, but it has NO dispatcher in "
-        f"CARD_DISPATCHERS (nor PANORAMA_DISPATCHERS). read_live_summary will return None → the card "
-        f"is tagged _missing → run_health reports 'degraded' on every run. Add a _dispatch_* wrapper "
-        f"+ registry entry in _live_readers.py (this is the PR #267 sc-normal-celltype-expression bug)."
+    """Every card_id in any shipped skill's CARDS roster must be routable — via a bespoke
+    CARD_DISPATCHERS/PANORAMA_DISPATCHERS entry, OR (T11) via the generic dispatcher when the
+    card_spec declares module+entrypoint. A card with none of these resolves to None → _missing →
+    run_health degraded (the #267 bug)."""
+    routable = (
+        card_id in CARD_DISPATCHERS
+        or card_id in PANORAMA_DISPATCHERS
+        or _card_has_generic_wiring(card_id)
+    )
+    assert routable, (
+        f"skill {skill!r} lists card {card_id!r} in its CARDS roster, but it is NOT routable: no "
+        f"entry in CARD_DISPATCHERS / PANORAMA_DISPATCHERS, and its card_spec declares no method "
+        f"`entrypoint` for the generic dispatcher. read_live_summary will return None → the card is "
+        f"tagged _missing → run_health 'degraded' on every run (the PR #267 bug). Either add a "
+        f"_dispatch_* wrapper + registry entry, or declare module+entrypoint in the card_spec."
     )

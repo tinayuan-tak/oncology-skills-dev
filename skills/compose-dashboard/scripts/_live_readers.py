@@ -1048,12 +1048,10 @@ def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[
         target, surface_family_class=surface_family_class, is_surface_protein=is_surface_protein)
 
 
-def _dispatch_ppi_interactome(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: ppi-interactome card → STRING functional-network degree + CORUM complex
-    membership via methods/ppi_interactome/read.py. Target-intrinsic (indication ignored).
-    """
-    mod = _import_method("ppi_interactome")
-    return mod.read_target_summary(target=target, indication=indication)
+# _dispatch_ppi_interactome REMOVED (T11, 2026-08-11): the ppi-interactome card now declares
+# module: ppi_interactome + entrypoint: read_target_summary in its card_spec, so the GENERIC
+# dispatcher (read_live_summary → _generic_dispatch) invokes it directly. No bespoke passthrough
+# function needed. This is the god-file-collapse pattern: pure passthroughs become card_spec data.
 
 
 def _dispatch_reactome_pathway_membership(target: str, indication: str) -> Optional[dict]:
@@ -1067,13 +1065,9 @@ def _dispatch_reactome_pathway_membership(target: str, indication: str) -> Optio
     return mod.read_target_summary(target=target, indication=indication)
 
 
-def _dispatch_gene_ontology_annotation(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: gene-ontology-annotation card → per-target GO term membership (BP/MF/CC)
-    via methods/gene_ontology_annotation/read.py. Target-intrinsic (indication ignored); HGNC→AC
-    via the GOA resolver sidecar.
-    """
-    mod = _import_method("gene_ontology_annotation")
-    return mod.read_target_summary(target=target, indication=indication)
+# _dispatch_gene_ontology_annotation REMOVED (T11, 2026-08-11): the gene-ontology-annotation card
+# now declares module: gene_ontology_annotation + entrypoint: read_target_summary, so the GENERIC
+# dispatcher invokes it directly. See _generic_dispatch.
 
 
 def _dispatch_signaling_network_mechanism_composed(target: str, indication: str) -> Optional[dict]:
@@ -1739,8 +1733,8 @@ CARD_DISPATCHERS = {
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
     "tahoe-drug-perturbation": _dispatch_tahoe_drug_perturbation,
     "reactome-pathway-membership": _dispatch_reactome_pathway_membership,  # target-intrinsic pathway/geneset membership
-    "gene-ontology-annotation": _dispatch_gene_ontology_annotation,  # target-intrinsic GO BP/MF/CC membership
-    "ppi-interactome": _dispatch_ppi_interactome,  # target-intrinsic STRING network + CORUM complexes
+    # gene-ontology-annotation + ppi-interactome REMOVED from CARD_DISPATCHERS (T11, 2026-08-11):
+    # both now route through the GENERIC dispatcher via card_spec module/entrypoint declarations.
     "protein-domains-class": _dispatch_protein_domains_class,  # target-intrinsic domain architecture + protein class
     "domain-modality-relevance": _dispatch_domain_modality_relevance,  # interpretive domain→modality (roadmap #3)
     "degradation-feasibility": _dispatch_degradation_feasibility,  # degrader-lens E3 slice 3 (UbiBrowser + precedent + location gate)
@@ -1846,7 +1840,11 @@ def read_live_summary(card_id: str, target: str, indication: str,
 
     dispatcher = CARD_DISPATCHERS.get(card_id)
     if dispatcher is None:
-        return None
+        # T11 (2026-08-11 engineering review): no BESPOKE dispatcher registered — try the GENERIC
+        # data-driven path. If the card_spec's method declares a `module` + `entrypoint`, invoke it
+        # directly, so a new pure-passthrough card needs NO hand-written _dispatch_* function. Returns
+        # None only when the card has no generic wiring either (genuinely unwired → caller stubs/fails).
+        return _generic_dispatch(card_id, target, indication)
     try:
         # T4: forward data_context ONLY to dispatchers whose signature declares it (release-aware
         # readers); single-release dispatchers keep the (target, indication) signature untouched.
@@ -1861,4 +1859,38 @@ def read_live_summary(card_id: str, target: str, indication: str,
             pass
         return dispatcher(**kwargs)
     except Exception as e:
+        return {"_live_read_error": str(e)}
+
+
+def _generic_dispatch(card_id: str, target: str, indication: str) -> Optional[dict]:
+    """Data-driven dispatch (T11): resolve (module, entrypoint) from the card_spec's first method
+    and call it as fn(target=, indication=). This collapses the ~30 pure-passthrough dispatchers
+    (mod = _import_method(X); return mod.read_Y(target=, indication=)) into card_spec data, so a new
+    card that follows that pattern needs no bespoke _dispatch_* function.
+
+    Only used as a FALLBACK when no bespoke CARD_DISPATCHERS entry exists — every hand-written
+    dispatcher (multi-method merges, positional-arg readers, .cli quirks) is unaffected. Returns
+    None when the card has no method with an `entrypoint` declared (genuinely unwired)."""
+    import yaml
+    card_path = _TARGET_CONTRACTS_ROOT / "cards" / f"{card_id}.card.yaml"
+    if not card_path.exists():
+        return None
+    try:
+        spec = yaml.safe_load(card_path.read_text()) or {}
+    except Exception:  # noqa: BLE001 — malformed card_spec → treat as unwired
+        return None
+    methods = spec.get("methods") or []
+    method = next((m for m in methods if isinstance(m, dict) and m.get("entrypoint")), None)
+    if method is None:
+        return None   # no generic wiring for this card → genuinely unwired
+    # module defaults to the `call` slug with hyphens→underscores when not explicitly declared.
+    module_path = method.get("module") or (method.get("call", "").replace("-", "_"))
+    entrypoint = method["entrypoint"]
+    if not module_path:
+        return None
+    try:
+        mod = _import_method(module_path)
+        fn = getattr(mod, entrypoint)
+        return fn(target=target, indication=indication)
+    except Exception as e:  # noqa: BLE001 — surface as the structured error sentinel, like bespoke path
         return {"_live_read_error": str(e)}
