@@ -80,12 +80,18 @@ VERDICT_COLORS = {
 
 
 # Phase → display metadata
+# sub_key MUST match a short name emitted by target-profile's SUB_SKILLS (run.py). 2026-08-10
+# REVIEW FIX (M5 + sibling): "tractability" and "population" were STALE — the composer emits
+# "tractability_sm" (the 2026-07-14 SM/biologics split renamed it) and there is no "population"
+# short name (patient-population-and-access was DELETED 2026-07-14 and folded into
+# genomic_alteration). Both badges silently rendered "no rule verdict" on every target. The new
+# test_phase_meta_sub_keys_are_reachable guard keeps these keys in lockstep with SUB_SKILLS.
 PHASE_META = {
     "A": {"name": "Presence",       "sub_key": "expression"},
     "B": {"name": "Selectivity",    "sub_key": "selectivity"},
     "C": {"name": "Requirement",    "sub_key": "dependency"},
-    "F": {"name": "Tractability",   "sub_key": "tractability"},
-    "H": {"name": "Population",     "sub_key": "population"},
+    "F": {"name": "Tractability",   "sub_key": "tractability_sm"},
+    "H": {"name": "Population",     "sub_key": "genomic_alteration"},
     "K": {"name": "Overall",        "sub_key": "_overall"},
 }
 
@@ -126,13 +132,13 @@ def _metric_lines_for(short: str, sub_result: dict) -> list[str]:
             f"pct dependent: {s.get('pct_dependent_indication'):.1f}%"
             if isinstance(s.get("pct_dependent_indication"), (int, float)) else "",
         ]
-    if short == "tractability":
+    if short == "tractability_sm":
         return [
             f"n compounds: {s.get('n_compounds_screened')}"
             if s.get("n_compounds_screened") is not None else "",
             f"activity class: {s.get('activity_class') or ''}",
         ]
-    if short == "population":
+    if short == "genomic_alteration":
         f = s.get("overall_mutation_frequency")
         hs = s.get("hotspot_frequencies")
         top = hs[0] if isinstance(hs, list) and hs else None
