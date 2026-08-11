@@ -314,11 +314,16 @@ def _assemble_evidence_package(
 
     package_id = f"ep-{target}-{indication}-{release_pin}-{data_mode}-001".lower()
 
-    # Determine concurrence absence — iter-1b ships without concurrence by default
+    # Determine concurrence absence — iter-1b ships without concurrence by default.
+    # 2026-08-10 REVIEW FIX (L3): do NOT advertise governance.lockfile_ref="lockfile.yaml" —
+    # nothing in the pipeline ever WROTE that file, so the envelope pointed at a nonexistent
+    # provenance artifact (phantom reproducibility claim). lockfile_ref is optional in the
+    # evidence_package schema and the renderer guards it (`if gov.get("lockfile_ref")`), so
+    # omitting it drops the phantom "Lockfile:" markdown line cleanly. When a real lockfile
+    # writer lands, repopulate this key and the field/rendering return automatically.
     governance = {
         "data_mode": data_mode,
         "release_pin": release_pin,
-        "lockfile_ref": "lockfile.yaml",
         "validation_summary": validation_summary,
     }
 
@@ -407,7 +412,11 @@ def _assemble_evidence_package(
         "dashboard_spec_ref": run_plan["axis_resolution"].get("selected_base_dashboard") or "unresolved",
         "cards": cards,
         "synthesis": synthesis_block,
-        "renderings": {"markdown": "renderings/dashboard.md"},
+        # 2026-08-10 REVIEW FIX (L4): the pointer said "renderings/dashboard.md" but main() writes
+        # the rendering to the package ROOT (out / "dashboard.md") — no renderings/ subdir is ever
+        # created, so the self-describing pointer was wrong on every emitted package. Point at the
+        # actual file. (Keeping the file at root; only the pointer was inconsistent.)
+        "renderings": {"markdown": "dashboard.md"},
         "schema_version": 1,
     }
 
@@ -529,7 +538,20 @@ def main(target: str, indication: str, data_mode: str, release_pin: Optional[str
     click.echo(f"  → ev_package:  {ep_path}")
     click.echo(f"  → markdown:    {rendering_status}")
 
-    # Upsert per-target INDEX.md when writing inside the data-products tree.
+    # 2026-08-10 REVIEW FIX (L5): the INDEX upsert previously ran BEFORE the error gate, so a
+    # package that FAILED validation (written as evidence_package.invalid.json) was still recorded
+    # in the per-target INDEX.md as a successful landed product — the index header claims
+    # "on each successful run", and a consumer following the link hit a dir with no valid
+    # evidence_package.json. Gate the upsert on validation success: on errors, skip the index and
+    # exit non-zero. (Still best-effort — index failure does not change exit status.)
+    if errors:
+        click.echo(f"\nEVIDENCE_PACKAGE VALIDATION ERRORS ({len(errors)}):", err=True)
+        for e in errors:
+            click.echo(f"  {e}", err=True)
+        click.echo("  → index:       skipped (package failed validation)", err=True)
+        return 1
+
+    # Upsert per-target INDEX.md when writing inside the data-products tree (successful runs only).
     # Best-effort — index update failure does not affect exit status.
     try:
         pkg_id = evidence_package.get("package_id") or _compute_package_id(
@@ -545,11 +567,6 @@ def main(target: str, indication: str, data_mode: str, release_pin: Optional[str
     except Exception as e:
         click.echo(f"  → index:       skipped ({type(e).__name__}: {e})", err=True)
 
-    if errors:
-        click.echo(f"\nEVIDENCE_PACKAGE VALIDATION ERRORS ({len(errors)}):", err=True)
-        for e in errors:
-            click.echo(f"  {e}", err=True)
-        return 1
     return 0
 
 

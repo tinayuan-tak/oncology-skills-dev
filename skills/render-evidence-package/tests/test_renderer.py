@@ -372,7 +372,10 @@ def test_cards_without_evidence_section_reconciles_reasoned_and_residual():
     assert "reasoned-absence panels" in md
     assert "1 of 2" in md                       # reasoned count reconciled against the total
     assert "1 further card(s) were dropped" in md   # the residual
-    assert "validation_report.json" in md
+    # 2026-08-10 REVIEW FIX (L3): the residual note no longer points at the phantom
+    # validation_report.json (never written); it points at the real failure signals.
+    assert "validation_report.json" not in md
+    assert "evidence_package.invalid.json" in md
 
 
 def test_no_failed_no_section():
