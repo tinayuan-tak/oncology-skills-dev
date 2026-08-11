@@ -106,10 +106,12 @@ warning_predicates:
 
 caveats:
   - |
-    SIGNOR is a curator-tight, causally-directed subset of OmniPath (~30k
-    human interactions). Extending to full OmniPath-license-commercial edges
-    is a documented iter-2 backlog item; the trade-off is more edges vs.
-    lower directional confidence.
+    SIGNOR is a curator-tight, causally-directed signaling database (~30k
+    human interactions). v1 reads the SIGNOR Jul2026 release DIRECTLY
+    (sources/signor/jul2026/SIGNOR_Jul2026_release.txt), not via an OmniPath
+    snapshot. Extending to the broader OmniPath commercial-cleared edge set is
+    a documented iter-2 backlog item; the trade-off is more edges vs. lower
+    directional confidence.
   - |
     moa_ontology_version is stamped in every emitted row and in this card's
     output. A bump in the ontology (methods/signor_mechanism_network/moa_ontology.py)
@@ -122,10 +124,11 @@ caveats:
     performs the joint reasoning across MoA-relevance + structural
     features + surface-topology to reach modality-fit conclusions.
   - |
-    Reproducibility: OmniPath is a stateless API. This card pins to the
-    specific omnipath-snapshot-2026-06-29 md5. A re-pull would surface as
-    a new dated snapshot; consumer skills receive an explicit version bump
-    signal.
+    Reproducibility: this card pins to the signor-jul2026 SOURCE release. The
+    derived signor-mechanism-network-per-gene-v1 product was reverted (no
+    catalog manifest); the method composes the network on-read from the source
+    release (see required_inputs). A re-pull surfaces as a new dated SIGNOR
+    release; consumers receive an explicit version-bump signal.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `signaling_network_mechanism` claim.
 measurement_type: signaling_network_mechanism

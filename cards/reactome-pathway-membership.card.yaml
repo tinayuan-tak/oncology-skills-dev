@@ -78,6 +78,11 @@ caveats:
   - |
     Reactome is CC0-1.0 (public domain). Pinned to reactome-v96. A version bump surfaces as a new
     dated source manifest.
+  - |
+    CALIBRATION / INTERPRETATION: pathway_class (well_annotated >=20, partial 5-19, sparse 1-4) is a
+    curation-depth / study-bias proxy — it tracks how heavily the gene has been curated into Reactome,
+    NOT target quality. A high count is not a positive nomination signal, and a low count is a coverage
+    gap (see not_in_reactome), not 'uninvolved'. Descriptive completeness only.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `reactome_pathway_membership` claim (target-grain).
 # No `measurement`/`sample_context` — those are expression-family-only (bulk_rna/protein_ms/sc_rna/ihc);

@@ -78,6 +78,12 @@ caveats:
     HGNC symbol -> UniProt-AC resolution uses the target_id_resolver sidecar shipped with the GOA
     source (never the GAF gene-symbol column — deprecated-symbol risk). Pinned to
     gene-ontology-release-2026-05-19. GO + GOA are CC-BY-4.0 (cite the GO Consortium).
+  - |
+    CALIBRATION / INTERPRETATION: annotation_class (well_annotated >=20, partial 5-19, sparse 1-4) is a
+    proxy for how heavily a gene has been STUDIED + curated (annotation depth), NOT a signal of target
+    quality. Heavily-studied oncogenes and obscure genes alike accrue high counts when well annotated; a
+    low count reflects a research-attention gap, not weak biology. Read the class as descriptive
+    completeness of the functional annotation — never as evidence for or against nominating the target.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gene_ontology_annotation` claim (target-grain).
 # No measurement/sample_context — expression-family-only fields; this is a reference-annotation card.

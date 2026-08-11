@@ -8,21 +8,29 @@
 # operating in Phase C, not a differentiation signal. Extends
 # functional-requirement skill.
 #
-# Data: DepMap PARIS 2024 paralog CRISPR screens + Sanger Paralog Screen
-# 2023 + Ensembl paralog annotation (WGD-ancestry ohnolog classification).
-# References: Ito et al 2021 Nature, De Kegel et al 2021 Cell Systems,
-# Dede et al 2020 Genome Biology.
+# Data (v1): DepMap 26Q1 dual-KO paralog CRISPR screen (PARIS library design,
+# ~7,627 gene-pairs / ~4,475 genes with a screened partner) + Ensembl Compara
+# release-116 paralog annotation (WGD-ancestry ohnolog classification). The
+# Sanger Paralog Screen 2023 is NOT included in v1 (no-resale clause; legal
+# review pending) — v2 will add it once cleared, alongside cross-screen
+# concordance. References: Ito et al 2021 Nature, De Kegel et al 2021 Cell
+# Systems, Dede et al 2020 Genome Biology.
 #
 # Interpretation surface (paralog_buffering_class is PRIMARY):
 #   `strong`  → at least 1 paralog with dep_delta_paired_vs_max_single > 0.5
 #   `partial` → at least 1 paralog with 0.2-0.5 delta
 #   `none`    → paralogs annotated but no buffering signal
 #   `no_paralog` → no functional paralogs in Ensembl compara
-#   `data_unavailable` → target not in PARIS or Sanger screen coverage
+#   `data_unavailable` → target not in the DepMap 26Q1 dual-KO paralog screen
 
 card_id: paralog-buffering
-version: 1.0.0
+version: 1.1.0   # 2026-08-11: provenance corrected to the actual v1 backing product (DepMap 26Q1 dual-KO,
+                 # not the published PARIS-2024 + Sanger-2023 screens the header formerly advertised); dropped
+                 # the never-emitted screen_source_summary field + its structurally-dead sanger_paris_disagreement
+                 # warning; added the missing tier: target.
 question: "Does {target.symbol} have functional paralogs that buffer its dependency, and does single-agent inhibition risk paralog-mediated escape?"
+
+tier: target   # paralog buffering is a property of the gene family (sequence paralogs + measured dual-KO buffering), independent of indication — added 2026-08-11 for target-intrinsic contract consistency (was the only such card still lacking an explicit tier).
 
 applies_when: []
 
@@ -49,7 +57,6 @@ outputs:
     - strongest_paralog_ohnolog_status              # annotated | unknown_fallback | data_unavailable (2026-08-08):
                                                     # provenance of the ohnolog flag, so a null is never read as False
     - strongest_paralog_delta                       # float; dep_delta_paired_vs_max_single
-    - screen_source_summary                         # list<string>; 'PARIS_2024' | 'Sanger_2023'
     - method_version
 
   summary_fields_vocabulary:
@@ -81,12 +88,13 @@ warning_predicates:
   - warning_id: ohnolog_unknown
     if: "paralog_buffering_class == 'strong' && strongest_paralog_ohnolog_status == 'unknown_fallback'"
     message: "{target.symbol} shows strong paralog buffering ({strongest_paralog_symbol}, delta={strongest_paralog_delta}), but ohnolog status is UNVERIFIED (raw-CSV fallback). Paralog-mediated escape risk is possible — treat the ohnolog flag as unknown, not absent; re-run against the derived product."
-  - warning_id: sanger_paris_disagreement
-    if: "n_paralogs_functionally_buffering > 0 && screen_source_summary contains 'disagreement'"
-    message: "PARIS 2024 and Sanger 2023 disagree on {target.symbol}'s paralog-buffering status. Both screens have different cell-line panels; disagreement may reflect lineage-specific buffering. Consider lineage-conditional interpretation."
+  # NOTE (2026-08-11): the former `sanger_paris_disagreement` warning was removed. Its predicate keyed on
+  # `screen_source_summary contains 'disagreement'`, but v1 ships a SINGLE screen (DepMap 26Q1 dual-KO) and
+  # the reader never emits screen_source_summary — so the warning was structurally UNREACHABLE. It returns
+  # in v2 once the Sanger screen lands and cross-screen concordance becomes computable.
   - warning_id: data_unavailable_common_target
     if: "paralog_buffering_class == 'data_unavailable' && n_paralogs_annotated > 0"
-    message: "{target.symbol} has annotated paralogs but was not screened in PARIS or Sanger paralog screens. The gene is a plausible paralog-buffering candidate but the empirical evidence is missing — flag for future screen coverage."
+    message: "{target.symbol} has annotated paralogs but was not screened in the DepMap 26Q1 dual-KO paralog screen. The gene is a plausible paralog-buffering candidate but the empirical evidence is missing — flag for future screen coverage."
 
 caveats:
   - |
@@ -96,9 +104,11 @@ caveats:
     signal distinct from mutation cooccurrence (co-mutation-and-mutual-
     exclusivity card).
   - |
-    PARIS 2024 covers ~1,500 paralog pairs across ~60 cell lines. Sanger
-    2023 covers ~700 pairs across ~50 lines. Pairs NOT screened in either
-    return paralog_buffering_class='data_unavailable'.
+    v1 covers the DepMap 26Q1 dual-KO paralog screen (PARIS library design):
+    ~7,627 gene-pairs, ~4,475 genes with at least one screened partner. The
+    Sanger Paralog Screen 2023 is NOT in v1 (no-resale clause; legal review
+    pending) — v2 will add it plus cross-screen concordance. Genes absent from
+    the dual-KO library return paralog_buffering_class='data_unavailable'.
   - |
     Ohnolog flag (whole-genome-duplication ancestry) is stricter than the
     general 'paralog' annotation — ohnologs share cell-type-specific

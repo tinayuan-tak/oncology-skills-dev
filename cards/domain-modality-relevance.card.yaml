@@ -59,6 +59,10 @@ outputs:
       - removal_favored
       - removal_required_scaffolding
       - context_dependent
+      - indeterminate               # 2026-08-11 (method v0.2.0): domain architecture alone can't call
+                                    # inhibitor-vs-removal (e.g. multi-domain enzyme — domain count is not a
+                                    # scaffolding-dependence proxy; EGFR/BTK/RTKs are strong inhibitor targets).
+                                    # Honest non-call; distinct from data_unavailable (which = no signal at all).
       - data_unavailable
     modality_implication_basis:
       - curated                      # a curated domain_modality_targets.yaml entry drove the call
