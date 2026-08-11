@@ -109,8 +109,18 @@
         "properties": {
           "call": {
             "type": "string",
-            "description": "Method CLI name (matches a method module in the methods repo, e.g., 'dge-deseq2', 'depmap-chronos'). Resolved to a subprocess invocation by compose-dashboard.",
+            "description": "Method CLI name (matches a method module in the methods repo, e.g., 'dge-deseq2', 'depmap-chronos'). Resolved to an in-process import of methods.<module> by compose-dashboard's live-reader layer.",
             "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "module": {
+            "type": "string",
+            "description": "OPTIONAL (T11, 2026-08-11): the importable methods-repo module path backing this call, e.g. 'gnomad_constraint' or 'driver_role_overlay.cli'. When present WITH `entrypoint`, compose-dashboard's generic dispatcher can invoke the reader directly without a hand-written _dispatch_* function — collapsing the ~30 pure-passthrough dispatchers into data. Defaults to `call` with hyphens→underscores when omitted.",
+            "pattern": "^[a-z][a-z0-9_.]*[a-z0-9]$"
+          },
+          "entrypoint": {
+            "type": "string",
+            "description": "OPTIONAL (T11, 2026-08-11): the module-level function the generic dispatcher calls, e.g. 'read_target_summary' or 'build_summary'. Called as fn(target=target, indication=indication) (+ data_context/subgroup_context when the fn's signature declares them). Only consulted for cards WITHOUT a bespoke _dispatch_* entry in CARD_DISPATCHERS; bespoke dispatchers (multi-method merges, positional-arg readers) are unaffected.",
+            "pattern": "^[a-z_][a-z0-9_]*$"
           },
           "args": {
             "type": "object",

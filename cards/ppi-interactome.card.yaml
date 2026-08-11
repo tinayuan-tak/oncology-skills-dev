@@ -32,6 +32,8 @@ derived_from:
 
 methods:
   - call: ppi-interactome
+    module: ppi_interactome          # T11: generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
 
