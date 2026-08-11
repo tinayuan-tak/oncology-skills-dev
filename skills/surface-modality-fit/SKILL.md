@@ -110,6 +110,12 @@ composition:
                                        # hypoxia-HIGH tertile; a biologics handle on that compartment)? v1 = HALLMARK_HYPOXIA
                                        # ×NSCLC. Rule pathway-high-up-surface-antigen-supportive fires adc/bite_tce/antibody
                                        # supportive on pathway_high_up_surface. Additive; byte-stable.
+    - sc-normal-celltype-expression    # (in run.py CARDS) cell-type-resolved NORMAL safety comparator (sc-normal);
+                                       # additive safety facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
+    - cd-antigen-backbone              # (in run.py CARDS) additive signal facet, verdict byte-stable.
+                                       # Declared here 2026-08-11 (doc-drift fixed).
+    - modality-exon-window             # (in run.py CARDS) isoform/exon-window surface-epitope facet; additive,
+                                       # verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/

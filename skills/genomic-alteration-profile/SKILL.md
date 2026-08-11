@@ -54,6 +54,8 @@ composition:
     - genomic-instability-state              # M7 aneuploidy/CIN burden (2026-08-06): INDICATION-level cohort context (target-independent); additive signal-only, verdict-inert
     - ddr-deficiency-context                 # Track PI (2026-08-09): per-indication DDR/HRD cohort context (Knijnenburg 2018 DDR footprint); INDICATION-level, target-independent; additive, verdict-inert (frames the PARP1/HRD blind axis)
     - oncogenic-pathway-alteration           # Sanchez-Vega 2018 (2026-08-10): per-indication oncogenic-pathway ALTERATION freq; verdict-inert cohort context; complements PROGENy activity
+    - mutation-drug-response                 # (in run.py CARDS; 2026-08-11 doc-drift fixed) mutation-stratified drug-
+                                             # response (delta log2AUC on-target compounds); additive signal-only, verdict-inert
     - subgroup-stratified-mutation-frequency # SUBTYPE axis (2026-08-05): per-stratum mutation frequency (MSI/MSS/sidedness/LoT); tier:subtype, DESCRIPTIVE panorama (emits no verdict — display facet like tumor-presence's by-subtype card); applies only when subgroup_spec is set
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
   # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);

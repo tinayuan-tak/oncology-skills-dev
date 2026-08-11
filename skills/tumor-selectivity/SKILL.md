@@ -42,6 +42,12 @@ composition:
                                              # via the run.py::_verdict post-resolver clamp (a 2-card conjunction
                                              # the single-rule resolver cannot express). In run.py CARDS since
                                              # the INC-1/2 landing; declared here 2026-08-08 (doc-drift fixed).
+    - sc-normal-celltype-expression          # INC-3 axis-D veto (sc-normal critical-organ liability). In run.py
+                                             # CARDS; declared here 2026-08-11 (doc-drift fixed).
+    - expression-purity-confound             # DEFERRED-3 purity confound caveat. In run.py CARDS; additive render
+                                             # facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
+    - surface-abundance-density              # INC-4 axis-C absolute surface density. In run.py CARDS; additive
+                                             # facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. tumor_vs_normal_selectivity is
   # the efficacy-window framing (distinct from safety's normal_tissue_breadth — Rule 1 discriminator b).
   measurement_types_pulled:
