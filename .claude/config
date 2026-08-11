@@ -7,6 +7,9 @@
 # See CLAUDE.md for scope-root guidance.
 prefixes: add- feat/ fix/ chore/
 
+# Default base branch for new-worktree / land-pr (override with --base).
+default_base: main
+
 # Human-readable top-level scope roots (for reference; not enforced by hooks —
 # hooks enforce against per-branch .claude/branch-scope declarations).
 scope_roots: methods/ libs/ tests/

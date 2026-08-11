@@ -33,6 +33,24 @@ Before starting a new workstream in this repo:
 clearly within an active registry entry's scope skip steps 1-3 (still
 write branch-scope for step 4).
 
+## Worktree-per-workstream (DEFAULT)
+
+Every non-trivial workstream runs in its OWN git worktree — not in this
+primary checkout — so parallel sessions cannot clobber each other's files
+or branch refs. The primary checkout stays parked on `main`.
+
+Start a workstream:
+
+    ~/.claude/git-hooks/new-worktree analysis-methods feat/paralog-aggregator \
+        --scope methods/depmap_paralog_aggregator/ tests/methods/depmap_paralog_aggregator/
+
+This creates `/tmp/wt/<repo>__<branch>/` on a fresh branch off the
+`default_base` in `.claude/config` (here: `main`), writes
+`.claude/branch-scope`, and prints a registry stub to paste into
+`~/.claude/wip-registry.md`. The committed hook symlinks resolve inside the
+worktree, so pre-commit/pre-push enforcement travels with it. Do all work
+in that directory. Trivial in-scope edits may use the primary checkout.
+
 ## Branch & PR discipline
 
 - **Approved branch prefixes**: `add-` (dominant historical convention),
@@ -70,14 +88,35 @@ registry for active work in data-catalog on that manifest. Before
 adding a new method that satisfies a card's `methods:` list, check
 target-contracts for active card-refactor work.
 
-## Completion
+## Landing a PR (merge discipline)
 
-- **On first push**: pre-push hook prompts you to open a draft PR
-  (`gh pr create --draft --fill`). Do so. Then update the registry
-  entry with `pr: <N>`, `status: pr-open`.
-- **On merge**: update the registry entry to `status: merged`.
-- **Cleanup**: any session may remove entries with `status: merged`
-  older than 24h during its startup ritual.
+The lifecycle does NOT end at "PR open." Land it with:
+
+    ~/.claude/git-hooks/land-pr <pr-number>
+
+Merge policy = **auto-merge when CI passes**. Open the PR draft-first;
+land-pr marks it ready, then:
+  - checks pending → enables GitHub auto-merge (lands itself when green)
+  - checks failing → refuses
+  - no checks / all green → squash-merges now
+Always `--squash --delete-branch`. Auto-merge waits for any required checks
+(e.g. CodeQL) before landing.
+
+It NEVER deletes a branch/worktree until it re-reads the PR and confirms
+`state == MERGED` — deleting a head branch before merge closes the PR
+UNMERGED (silent work loss). After a confirmed merge it prunes the
+worktree, deletes the local branch, and fast-forwards `main`.
+
+**Stacked PRs**: if other open PRs use your branch as their base, land-pr
+refuses (squash-merging a parent auto-closes stacked children). Land the
+children first, or pass `--retarget-children`.
+
+## Registry / completion
+
+- State transitions: `planned` → `in-progress` → `pr-open` → `merged`.
+  Set `status: merged` by hand after landing (land-pr does not edit the
+  shared registry). Any session may remove `status: merged` entries older
+  than 24h during its startup ritual.
 
 ## Machine enforcement
 
