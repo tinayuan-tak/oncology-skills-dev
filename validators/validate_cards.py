@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import re
@@ -103,6 +104,7 @@ _RULES_DIR = Path(__file__).resolve().parent.parent / 'interpretation-rules'
 _MODALITY_SIGNAL_KEYS = frozenset({'small_molecule', 'degrader', 'adc', 'bite_tce', 'antibody'})
 
 
+@functools.lru_cache(maxsize=1)
 def _card_modality_signals() -> Optional[dict[str, set[str]]]:
     """Build {card_id -> set of modality lenses its rules emit a signal for} across ALL
     interpretation-rules/*.rules.yaml. A rule contributes to its `when.card_id` the modality keys
@@ -136,6 +138,7 @@ def _card_modality_signals() -> Optional[dict[str, set[str]]]:
     return out
 
 
+@functools.lru_cache(maxsize=1)
 def _registered_measurement_types() -> Optional[set[str]]:
     """The set of measurement_type keys declared in vocabularies/measurement_types.yaml. Returns
     None if the vocab file is absent (→ the check graceful-skips; the vocab is net-new and a repo
@@ -153,6 +156,7 @@ def _registered_measurement_types() -> Optional[set[str]]:
     return set(types.keys())
 
 
+@functools.lru_cache(maxsize=1)
 def _modality_relevant_types() -> Optional[set[str]]:
     """The set of measurement_type keys whose vocab entry declares a `modality_relevance:` key —
     i.e. the types that ROUTE to a modality-fit gate (P4). Returns None if the vocab is absent
@@ -173,6 +177,7 @@ def _modality_relevant_types() -> Optional[set[str]]:
             if isinstance(entry, dict) and entry.get('modality_relevance')}
 
 
+@functools.lru_cache(maxsize=1)
 def _registered_figure_emitters() -> Optional[set[str]]:
     """Parse the card_id keys registered in CARD_FIGURE_EMITTERS. Returns None if the
     skills repo / registry file is unreachable (→ the check graceful-skips, never a

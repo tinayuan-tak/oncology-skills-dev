@@ -24,7 +24,7 @@ Every field traces to the live contracts (`cards/*.card.yaml`, the two `interpre
 
 ## Intended end state: generated, never stale
 
-The full set (34 cards + ~12 skills) should be **generated from the contracts**, not hand-written — hand-written status drifts the moment a card/rule/skill changes. The generator would read `cards/*.card.yaml` (keyed off `schemas/card.schema.json`), the rules files (matched by `when.card_id`), and `SKILL.md` front-matter, reusing the discovery loop in `validators/validate_cards.py` and the SKILL.md parser in `skills/_skills_common/composition_schema.py`. Deferred until this format is approved.
+The full set (all cards in `cards/` + the skills) should be **generated from the contracts**, not hand-written — hand-written status drifts the moment a card/rule/skill changes. The generator would read `cards/*.card.yaml` (keyed off `schemas/card.schema.json`), the rules files (matched by `when.card_id`), and `SKILL.md` front-matter, reusing the discovery loop in `validators/validate_cards.py` and the SKILL.md parser in `skills/_skills_common/composition_schema.py`. Deferred until this format is approved.
 
 ## Format rules
 - Portable GitHub-flavored markdown only — compact tables + fenced ASCII flow. Renders identically in GitHub, VSCode, and `pandoc --from gfm --to docx`.

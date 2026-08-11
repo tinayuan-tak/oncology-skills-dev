@@ -56,7 +56,7 @@ A **card** (`cards/*.card.yaml`) is a declarative contract for one piece of evid
 - an **`applies_when`** predicate (e.g. only when a subtype shard exists);
 - the **output schema** its result must validate against (`schemas/products/`).
 
-The 84 cards span the biology gates: presence & selectivity (`cellline-rna-distribution`,
+The cards (see `cards/` for the current set) span the biology gates: presence & selectivity (`cellline-rna-distribution`,
 `tumor-rna-vs-adjacent`, `tumor-vs-normal-selectivity`, `tumor-scrna-celltype-expression` with
 per-compartment and CAF-axis single-cell fields, …), requirement/dependency
 (`pan-cancer-crispr-dependency-distribution`, `dependency-lineage-selectivity`, `paralog-buffering`, …),
