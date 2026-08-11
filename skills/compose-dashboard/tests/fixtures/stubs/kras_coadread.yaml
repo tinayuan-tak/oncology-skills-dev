@@ -747,3 +747,43 @@ mutation-stratified-dependency:
       p25_chronos: -1.58
       p75_chronos: -1.20
   mutation_stratification_class: mutant_strongly_dependent
+
+# ---------------------------------------------------------------------------
+# STUB-COVERAGE COMPLETION (2026-08-11 code review). The intracellular-intrinsic-base
+# dashboard spec grew to 32 cards as facets landed, but this stub fixture stopped at 25 —
+# so the 7 required + 3 optional facets below were marked FAILED by the stub executor
+# (inflating n_cards_failed and, with the maxItems cap, failing e2e validation).
+# These stubs carry an HONEST data_unavailable primary (a stub genuinely has no measured
+# KRAS value for these newer facets — NO fabricated biology). Each is schema-valid and
+# counts as passed (present summary => never failed). With the M2 fix (PR #332) these now
+# fire their dedicated data_unavailable rung rather than silently collapsing.
+cellline-protein-abundance:
+  protein_expression_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated Gygi MS value for KRAS in this fixture)"
+tumor-protein-abundance-cptac:
+  protein_expression_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated CPTAC value)"
+cellline-rna-protein-concordance:
+  rna_as_biomarker: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated RNA<->protein concordance)"
+tumor-elevation-breadth:
+  tumor_elevation_breadth_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated pan-cancer breadth)"
+tumor-rna-distribution:
+  tumor_expression_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated per-sample tumor RNA distribution)"
+tumor-scrna-celltype-expression:
+  sc_expression_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated single-cell per-compartment value)"
+expression-purity-confound:
+  purity_confound_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated purity-confound estimate)"
+phospho-pathway-activity:
+  phospho_activity_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated CPTAC phospho value)"
+tumor-rna-distribution-by-subtype:
+  subtype_effect_size_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated per-subtype panorama)"
+expression-clinical-association:
+  survival_association_class: data_unavailable
+  _data_note: "stub-coverage placeholder (no fabricated survival association)"
