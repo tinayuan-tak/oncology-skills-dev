@@ -242,10 +242,19 @@ def compose(
         phase2_result["cards"], contracts_root=contracts_root
     )
     if card_output_errors:
-        # Still produce an evidence_package + synthesis, but surface the errors.
-        # Phase-3 runs on whatever it got; the errors propagate through to the
-        # final evidence_package validation check.
-        pass  # errors are appended to the final errors list below
+        # T6 fix (2026-08-11 engineering review): the errors used to be collected here and
+        # then dropped into a bare `pass`, only reappearing (prefixed "phase2:") in the
+        # returned list — easy to miss. Surface them to stderr the moment they're detected so
+        # a malformed phase-2 output is visible even when a caller ignores the returned list.
+        # We still assemble + synthesize (the errors propagate to the final errors list, and
+        # main() writes .invalid artifacts + exits non-zero), but the failure is no longer silent.
+        print(
+            f"[compose-dashboard] {len(card_output_errors)} card_output(s) failed "
+            f"card_output.schema validation BEFORE synthesis:",
+            file=sys.stderr,
+        )
+        for e in card_output_errors:
+            print(f"  - {e}", file=sys.stderr)
 
     # Phase 3 — synthesize
     # EG4 (iter-2): pass contracts_root so synthesis can read each card_spec's
@@ -279,7 +288,17 @@ def _validate_card_outputs(card_outputs: list, contracts_root: Path) -> list[str
     Returns list of error strings (empty if all valid). C3 fix (post-adversarial-review)."""
     schema_path = contracts_root / "schemas" / "card_output.schema.json"
     if not schema_path.exists():
-        return []   # schema not yet shipped → skip validation (backward-compat)
+        # T6 fix (2026-08-11 engineering review): card_output.schema.json is a COMMITTED
+        # contract artifact — its absence is a broken checkout / misconfigured contracts_root,
+        # not a backward-compat path. Previously this returned [] silently, disabling the whole
+        # gate with no signal. Warn loudly; still return [] so a genuinely partial checkout
+        # degrades rather than hard-crashes, but the disabled gate is now visible.
+        print(
+            f"[compose-dashboard] WARNING: card_output validation SKIPPED — schema not found "
+            f"at {schema_path}. Card-output structural validation is DISABLED for this run.",
+            file=sys.stderr,
+        )
+        return []
     with schema_path.open() as f:
         schema = json.load(f)
     v = Draft202012Validator(schema)

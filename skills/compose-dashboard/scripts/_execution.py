@@ -5,12 +5,15 @@ synthesizes. Two execution modes:
 
   - stub: emit pre-authored summary metrics from fixtures (iter-1b auth-session-runnable;
           no R env, no real data needed). Used for testing the synthesis pipeline.
-  - live: subprocess to method CLIs (iter-1b EXECUTION-session work; requires
-          real data + pixi envs + method implementations).
+  - live: in-process import of the method module (`methods.<name>`) via the
+          _live_readers dispatch layer (iter-1b EXECUTION-session work; requires
+          real data + pixi envs + method implementations). NOT a subprocess — the
+          seam is a direct Python function call; see _live_readers.py.
 
 For each card in run_plan.card_run_plan.to_run, this module:
   1. Loads the card_spec to access interpretation_hints + summary_fields
-  2. Obtains a summary dict (from fixtures in stub mode; from method CLI in live mode)
+  2. Obtains a summary dict (from fixtures in stub mode; via the in-process live
+     reader in live mode)
   3. Applies interpretation_hints (with any applied_threshold_overlays) → interpretation_call
   4. Evaluates warning_predicates → warning_ids
   5. Emits a card_output dict matching evidence_package.cards[] schema
@@ -19,7 +22,6 @@ For each card in run_plan.card_run_plan.to_run, this module:
 from __future__ import annotations
 
 import re
-import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -105,6 +107,25 @@ def execute_run_plan(
             summary = _read_live_summary(card_id, target, indication, subgroup_context=subgroup_context)
             if summary is None or (isinstance(summary, dict) and "_live_read_error" in summary):
                 summary = _load_stub_summary(card_id, target, indication, fixtures_dir)
+
+        # T3 fix (2026-08-11 engineering review): a live reader that RAISED returns a
+        # truthy {"_live_read_error": ...} sentinel (see _live_readers.read_live_summary).
+        # In pure `live` mode that dict is non-None, so without this guard it flowed past
+        # the `if summary is None` check below, through _evaluate_interpretation_hints, and
+        # was emitted as a validation_state:"pass" card — a crashed method reading as a
+        # GREEN verdict. Detect the sentinel in ALL live modes (live-stub-fallback already
+        # tried the stub above; if it's STILL an error dict, the stub was absent too) and
+        # route to a first-class card_unavailable stub with availability_state=read_error,
+        # exactly like the not_wired path. An error is never a pass.
+        if isinstance(summary, dict) and "_live_read_error" in summary:
+            n_failed += 1
+            unavailable_cards.append({
+                "card_id": card_id,
+                "card_version": plan_entry.get("card_version", "n/a"),
+                "availability_state": "read_error",
+                "availability_reason": str(summary.get("_live_read_error", "live_read_error")),
+            })
+            continue
 
         if summary is None:
             # No live dispatcher registered for this card_id (read_live_summary returns
