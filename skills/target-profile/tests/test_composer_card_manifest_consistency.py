@@ -132,6 +132,11 @@ CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target
 
 # sub-skill dir -> the resolver gate it calls (resolve_verdict_for_gate(fired, "<gate>")).
 # Only tumor-presence has a genuinely inline verdict (no resolver) and is intentionally absent.
+# WHY (reaffirmed 2026-08-11 prod review): the resolver models ONE gate verdict over the flat
+# fired-set with no grouping, but tumor-presence ALSO emits per-(measurement, sample_context)
+# sub-verdicts (_per_modality_verdicts) that rank within CARD_CONTEXT buckets — a decomposition the
+# resolver grammar can't express. Its inline ladder is frozen by the golden + G1/G2/G5 regressions
+# in tumor-presence/tests/, not un-migrated debt. See tumor-presence/scripts/run.py::_verdict.
 # NOTE (2026-08-10): tractability-small-molecule was MIGRATED to the declarative resolver
 # (tractability-small-molecule/scripts/run.py calls resolve_verdict_for_gate(fired,
 # "tractability_small_molecule"), resolvers/tractability_small_molecule.resolver.yaml v1.3.0), but

@@ -336,7 +336,22 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """COLLAPSED presence verdict across ALL modalities — the audit spine the
     target-profile consumer + risk table read as `verdict`. Expression-primary
     (RNA backbone, byte-stable for RNA targets); protein rules append below so a
-    protein-only target resolves instead of collapsing to insufficient (C1 fix)."""
+    protein-only target resolves instead of collapsing to insufficient (C1 fix).
+
+    INLINE (no declarative resolver) — BY DESIGN, not un-migrated debt. Every other
+    verdict-bearing gate resolves via target-contracts/resolvers/<gate>.resolver.yaml
+    (_skills_common.resolver), but tumor-presence deliberately does NOT, because the
+    resolver models exactly ONE gate verdict over the flat fired-set — it has no notion
+    of grouping. tumor-presence's output is TWO coupled things derived from the SAME
+    ladders: this collapsed spine AND the per-(measurement, sample_context) buckets in
+    _per_modality_verdicts, which rank WITHIN CARD_CONTEXT groups. That bucket
+    decomposition cannot be expressed in the resolver grammar (guardrail: no grouping,
+    lookups, or loops — see _skills_common/resolver.py), and splitting the collapsed
+    order into a YAML while the per-measurement ladders stay in Python would fragment a
+    single source into two (drift risk), not simplify. The ladder is instead frozen by
+    test_full_per_modality_golden_spine + the G1/G2/G5 regressions — the golden-oracle
+    guard the resolver migration would otherwise provide. Reaffirmed 2026-08-11 (prod
+    review); see test_composer_card_manifest_consistency.py for the composer-side note."""
     return _rank_verdict(fired)
 
 
