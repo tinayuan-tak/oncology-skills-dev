@@ -86,29 +86,52 @@ def _primary_class_value(summary: dict):
             or summary.get("interpretation_call"))
 
 
+def _data_unavailable_field(summary: dict) -> Optional[str]:
+    """If this summary's PRIMARY answer is an honest `data_unavailable`, return the
+    field name carrying it, else None.
+
+    2026-08-11 REVIEW FIX (M2/:107): the primary answer lives in a topic-specific
+    `*_class` field for most cards (dependency_class, cn_stratification_class,
+    concordance_class, fit_class, enrichment_class, …) — not just the three names
+    _primary_class_value checks. A `data_unavailable` in any of those was previously
+    NOT detected, so the card was counted available with a junk class value AND its
+    dedicated `data_unavailable` resolver rung never got a chance to fire. Detect the
+    sentinel on any `*_class` field (plus the legacy selectivity_class/class/
+    interpretation_call primaries) so an honest no-data answer is recognized uniformly.
+    """
+    if not isinstance(summary, dict):
+        return None
+    # Legacy primaries first (preserves which field name is reported), then any *_class.
+    candidates = ["selectivity_class", "class", "interpretation_call"]
+    candidates += [k for k in summary.keys() if k.endswith("_class") and k not in candidates]
+    for field in candidates:
+        v = summary.get(field)
+        if isinstance(v, str) and (v == "data_unavailable" or v.endswith("_data_unavailable")):
+            return field
+    return None
+
+
 def _summary_is_unavailable(summary: dict) -> Optional[str]:
     """Return a short reason string if this dispatcher summary represents a
     NON-answer (error or data-unavailable) at the PRIMARY level, else None.
 
     A card is NOT genuinely available if the dispatcher:
       - raised and returned a `{"_live_read_error": ...}` sentinel, OR
-      - the PRIMARY class field carries a data-unavailable marker
-        (`data_unavailable` or `<topic>_data_unavailable`).
+      - a PRIMARY class field carries a data-unavailable marker.
 
-    Only the primary field is checked (NOT a scan of every summary key), so a
-    partially-available card that reports a real primary verdict alongside an
-    unavailable secondary sub-layer is still counted available. Counting a
-    genuinely-errored/empty card as "available" would overstate coverage.
+    2026-08-11 REVIEW FIX (M2): detection now spans any `*_class` field (see
+    _data_unavailable_field), not the 3 hardcoded primaries. NOTE this flags the card
+    for COVERAGE accounting (`_missing`), but resolve_cards separately marks it
+    `_data_unavailable` so fired_rules still evaluates its dedicated data_unavailable
+    rung — an honest no-data answer is a real, rule-fireable signal, not a silent drop.
     """
     if not isinstance(summary, dict):
         return "non_dict_summary"
     if "_live_read_error" in summary:
         return f"live_read_error: {summary['_live_read_error']}"
-    primary = _primary_class_value(summary)
-    if isinstance(primary, str) and (
-        primary == "data_unavailable" or primary.endswith("_data_unavailable")
-    ):
-        return f"primary_class={primary}"
+    field = _data_unavailable_field(summary)
+    if field is not None:
+        return f"{field}={summary.get(field)}"
     return None
 
 
@@ -164,12 +187,21 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
             continue
         unavailable = _summary_is_unavailable(summary)
         if unavailable is not None:
+            # Distinguish an HONEST data_unavailable answer (the card ran and reported
+            # no data) from a genuine absence (dispatcher None / live_read_error). Both
+            # count against COVERAGE (`_missing` → cards_missing / run_health unchanged),
+            # but the honest-data_unavailable card is flagged `_data_unavailable` so
+            # fired_rules still evaluates it and its dedicated `equals: data_unavailable`
+            # resolver rung fires (real driving_rule_id) instead of the verdict silently
+            # collapsing to the bare `insufficient` default. (M2, 2026-08-11.)
+            is_honest_du = "_live_read_error" not in summary and _data_unavailable_field(summary) is not None
             outputs.append({
                 "card_id": card_id,
                 "summary": summary,
                 "interpretation_call": "data_unavailable",
                 "_missing": True,
                 "_missing_reason": unavailable,
+                "_data_unavailable": is_honest_du,
             })
             continue
         outputs.append({
@@ -257,8 +289,13 @@ def fired_rules(card_outputs: list[dict],
         rules = load_interpretation_rules(axis) or []
     rules = filter_rules_by_card_ids(rules, card_id_filter or [])
 
+    # Include cards that are either available OR an HONEST data_unavailable answer. A genuine
+    # absence (_missing without _data_unavailable — dispatcher None / live_read_error) stays
+    # excluded. An honest data_unavailable card IS available for rule-matching so its dedicated
+    # `equals: data_unavailable` rung fires (M2, 2026-08-11): the card's interpretation_call is
+    # "data_unavailable" and its summary carries the data_unavailable *_class value the rule keys on.
     card_by_id = {c["card_id"]: c for c in card_outputs
-                  if c.get("card_id") and not c.get("_missing")}
+                  if c.get("card_id") and (not c.get("_missing") or c.get("_data_unavailable"))}
 
     fired: list[dict] = []
     for rule in rules:

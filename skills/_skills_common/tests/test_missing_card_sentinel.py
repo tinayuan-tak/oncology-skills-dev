@@ -131,3 +131,58 @@ def test_apply_on_dependency_status_skips_underscore_missing():
     assert "card-a" in surviving_ids
     assert "card-b" not in surviving_ids
     assert skipped == ["card-b"]
+
+
+# ---------------------------------------------------------------------------
+# M2 (2026-08-11 code review) — honest data_unavailable is detected on ANY *_class
+# field, still counts against coverage (_missing), but IS available for rule-matching
+# so its dedicated `equals: data_unavailable` resolver rung fires.
+# ---------------------------------------------------------------------------
+
+def test_data_unavailable_detected_on_topic_specific_class_field():
+    """_summary_is_unavailable must recognize data_unavailable in a topic-specific *_class
+    field (dependency_class, cn_stratification_class, fit_class, …), not only the 3 legacy
+    primaries (selectivity_class/class/interpretation_call)."""
+    from _skills_common import _summary_is_unavailable, _data_unavailable_field
+    for field in ("dependency_class", "cn_stratification_class", "fit_class", "concordance_class"):
+        summary = {field: "data_unavailable"}
+        assert _data_unavailable_field(summary) == field
+        assert _summary_is_unavailable(summary) == f"{field}=data_unavailable"
+    # a real answer in a *_class field is NOT flagged
+    assert _data_unavailable_field({"dependency_class": "strongly_dependent"}) is None
+
+
+def test_honest_data_unavailable_is_available_for_rule_matching_but_counts_against_coverage():
+    """The M2 core: an honest data_unavailable card is tagged _missing (coverage) AND
+    _data_unavailable (so fired_rules includes it), while a genuine absence (dispatcher None)
+    is _missing WITHOUT _data_unavailable (excluded from rule-matching)."""
+    from _skills_common import fired_rules
+
+    honest_du = {
+        "card_id": "pan-cancer-crispr-dependency-distribution",
+        "summary": {"dependency_class": "data_unavailable"},
+        "interpretation_call": "data_unavailable",
+        "_missing": True, "_data_unavailable": True,
+    }
+    genuine_absence = {
+        "card_id": "pan-cancer-rnai-dependency-distribution",
+        "summary": {}, "interpretation_call": "not_implemented",
+        "_missing": True,  # no _data_unavailable
+    }
+    rules = [
+        {"rule_id": "crispr-data-unavailable-insufficient",
+         "when": {"card_id": "pan-cancer-crispr-dependency-distribution",
+                  "field": "dependency_class", "equals": "data_unavailable"}, "signals": {}},
+        {"rule_id": "rnai-data-unavailable-insufficient",
+         "when": {"card_id": "pan-cancer-rnai-dependency-distribution",
+                  "field": "rnai_dependency_class", "equals": "data_unavailable"}, "signals": {}},
+    ]
+    fired = fired_rules([honest_du, genuine_absence], axis="intracellular_intrinsic",
+                        rules=rules,
+                        card_id_filter=["pan-cancer-crispr-dependency-distribution",
+                                        "pan-cancer-rnai-dependency-distribution"])
+    fired_ids = {f["rule_id"] for f in fired}
+    # honest data_unavailable → its rung fires (was silently excluded before M2)
+    assert "crispr-data-unavailable-insufficient" in fired_ids
+    # genuine absence (no _data_unavailable) → still excluded from rule-matching
+    assert "rnai-data-unavailable-insufficient" not in fired_ids
