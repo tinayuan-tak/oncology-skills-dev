@@ -10,10 +10,12 @@ touching no verdict — and that per-run coverage DOWNGRADES (never upgrades) th
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 
 RUN_PY = Path(__file__).resolve().parent.parent / "scripts" / "run.py"
-CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
+                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
 
 def _load():

@@ -83,12 +83,20 @@ jobs:
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/_skills_common/tests/ -q
 
-      # NON-BLOCKING coverage of the remaining skills. The BLOCKING gate is the core spine above
-      # (compose-dashboard = the v2 orchestration engine + _skills_common = the shared harness; both
-      # green). Several peripheral skills are not yet CI-portable — unmet test deps (jinja2,
-      # crc_comprehensive_analysis), cross-skill `run` module-name collisions, hardcoded /home paths —
-      # so this step runs + reports them without gating. Promoting it to blocking is a follow-up as
-      # each skill's test hygiene is fixed. --import-mode=importlib avoids duplicate-basename collisions.
+      # BLOCKING: target-profile is the composed nomination skill — the highest-value gate after the
+      # orchestration spine. Its 179 tests are fixture/logic-based (no live S3), so they run green on a
+      # credential-less runner. Promoted to blocking 2026-08-11 (was in the non-blocking bucket only
+      # because of noisier peripheral skills, not its own health).
+      - name: target-profile suite
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/target-profile/tests/ -q
+
+      # NON-BLOCKING coverage of the remaining skills. The BLOCKING gate is the three suites above
+      # (compose-dashboard = v2 orchestration engine, _skills_common = shared harness, target-profile =
+      # composed nomination skill). Several peripheral skills are not yet CI-portable — unmet test deps
+      # (jinja2, crc_comprehensive_analysis), cross-skill `run` module-name collisions, hardcoded /home
+      # paths — so this step runs + reports them without gating. Promoting each is a follow-up as its
+      # test hygiene is fixed. --import-mode=importlib avoids duplicate-basename collisions.
       - name: all remaining skill suites (non-blocking coverage)
         continue-on-error: true
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
@@ -96,3 +104,4 @@ jobs:
           pixi run pytest skills/ -q --import-mode=importlib
           --ignore=skills/compose-dashboard/tests
           --ignore=skills/_skills_common/tests
+          --ignore=skills/target-profile/tests
