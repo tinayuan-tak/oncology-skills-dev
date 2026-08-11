@@ -464,8 +464,17 @@ def _bulk_rna_proxy_quality(per_modality: dict, rna_as_biomarker) -> str:
       proxy_untested               — RNA-positive but proxy not measurable (too few paired models / no data)
       not_applicable               — the RNA bucket is not a measured-positive presence call
     """
-    rna_bucket = (per_modality or {}).get("bulk_rna/tumor") or (per_modality or {}).get("bulk_rna/cell_line")
-    rna_verdict = rna_bucket.get("verdict") if isinstance(rna_bucket, dict) else rna_bucket
+    def _bucket_verdict(key):
+        b = (per_modality or {}).get(key)
+        return b.get("verdict") if isinstance(b, dict) else b
+    # PREFER the tumor arm when it is itself a measured-positive RNA call; otherwise fall back to
+    # the cell-line arm. (Bug: `A or B` short-circuited on the tumor bucket, which
+    # _per_modality_verdicts ALWAYS populates with a truthy dict — even verdict=data_unavailable —
+    # so the cell-line fallback was DEAD: a cell-line-only positive read "not_applicable" while
+    # bulk_rna_proxy_quality_source was reported as "cell_line", a self-contradiction.)
+    tumor_verdict = _bucket_verdict("bulk_rna/tumor")
+    rna_verdict = (tumor_verdict if tumor_verdict in _RNA_PRESENCE_POSITIVE
+                   else _bucket_verdict("bulk_rna/cell_line"))
     if rna_verdict not in _RNA_PRESENCE_POSITIVE:
         return "not_applicable"
     if rna_as_biomarker == "adequate_proxy":

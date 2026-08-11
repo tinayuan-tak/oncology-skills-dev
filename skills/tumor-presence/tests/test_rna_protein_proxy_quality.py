@@ -75,3 +75,25 @@ def test_verdict_inert_qualifier_is_pure():
     import inspect
     sig = inspect.signature(tp._bulk_rna_proxy_quality)
     assert list(sig.parameters) == ["per_modality", "rna_as_biomarker"]
+
+
+def test_prefers_cell_line_when_tumor_bucket_data_unavailable_both_present():
+    # The dead-fallback bug: BOTH buckets present — tumor bucket data_unavailable, cell-line bucket
+    # positive. Must fall back to the cell-line arm (was wrongly "not_applicable" while the headline
+    # reported bulk_rna_proxy_quality_source == "cell_line" — a self-contradiction).
+    pm = {
+        "bulk_rna/tumor": {"measurement": "bulk_rna", "sample_context": "tumor",
+                           "verdict": "data_unavailable", "evidence_state": "data_unavailable"},
+        "bulk_rna/cell_line": {"measurement": "bulk_rna", "sample_context": "cell_line",
+                               "verdict": "broadly_high_expression", "evidence_state": "measured"},
+    }
+    assert tp._bulk_rna_proxy_quality(pm, "adequate_proxy") == "rna_confirmed_by_protein"
+
+
+def test_prefers_tumor_arm_when_tumor_positive_even_if_cell_line_present():
+    # Tumor arm positive wins over the cell-line arm (tumor-preferred).
+    pm = {
+        "bulk_rna/tumor": {"verdict": "strongly_upregulated_in_tumor", "evidence_state": "measured"},
+        "bulk_rna/cell_line": {"verdict": "broadly_low_expression", "evidence_state": "measured"},
+    }
+    assert tp._bulk_rna_proxy_quality(pm, "poor_proxy") == "rna_positive_proxy_poor"
