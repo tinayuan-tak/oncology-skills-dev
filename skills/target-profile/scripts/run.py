@@ -228,6 +228,13 @@ SUB_SKILL_CARDS = {
                                                  # target (WRN×MSI) was force-vetoed non_dependent. The composer
                                                  # guard (test_resolver_dependency_cards_are_in_the_composer_entry)
                                                  # was sitting RED on exactly this. Restored.
+        "cross-consortium-dependency",           # 2026-08-11 REVIEW FIX (facet-drop): Project Score
+                                                 # cross-consortium dependency corroboration. In
+                                                 # functional-requirement CARDS but composed under no
+                                                 # entry → dropped from the composed profile. VERDICT-INERT
+                                                 # (no interpretation rules → feeds no resolver rung), so
+                                                 # composing it is byte-stable on the verdict spine; it only
+                                                 # restores the render facet to the composed target-profile.
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",
@@ -236,6 +243,12 @@ SUB_SKILL_CARDS = {
         "signaling-network-mechanism",
         "phospho-pathway-activity",      # RE-HOMED 2026-08-05 from tumor-presence — phospho ACTIVITY /
                                          # signaling-state facet (CPTAC phosphoproteomics). Render facet.
+        "pathway-activity-context",      # 2026-08-11 REVIEW FIX (facet-drop): PROGENy pathway-activity
+                                         # context. In mechanism-and-pharmacology CARDS, composed under no
+                                         # entry → dropped. VERDICT-INERT render facet (no rules).
+        "tahoe-drug-perturbation",       # 2026-08-11 REVIEW FIX (facet-drop): Tahoe MoA/PD-marker
+                                         # perturbation facet. In mechanism-and-pharmacology CARDS,
+                                         # composed under no entry → dropped. VERDICT-INERT render facet.
     ],
     "genomic-alteration-profile": [          # reframed from mutation-profile
         "mutation-type-counts",
@@ -268,11 +281,23 @@ SUB_SKILL_CARDS = {
         "variant-level-interpretation",      # composer-registry sweep (2026-08-07): per-variant
                                              # oncogenicity (CIViC + hotspot). Same drift — in CARDS,
                                              # not composed → dropped. Restored.
+        "ddr-deficiency-context",            # 2026-08-11 REVIEW FIX (facet-drop): DDR/HRD inert context
+                                             # facet. In genomic-alteration-profile CARDS, composed under
+                                             # no entry → dropped. VERDICT-INERT render facet (no rules).
+        "oncogenic-pathway-alteration",      # 2026-08-11 REVIEW FIX (facet-drop): oncogenic-pathway
+                                             # alteration context. In genomic-alteration-profile CARDS,
+                                             # composed under no entry → dropped. VERDICT-INERT render facet.
     ],
     "differentiation-landscape": [
         "co-mutation-and-mutual-exclusivity",
         "expression-clinical-association",   # Q11 (2026-07-23) — expression→survival prognostic context;
                                              # render facet, paired with differentiation-landscape CARDS.
+        "stemness-context",                  # 2026-08-11 REVIEW FIX (facet-drop): Malta 2018 mRNAsi
+                                             # stemness context. In differentiation-landscape CARDS,
+                                             # composed under no entry → dropped. VERDICT-INERT render facet.
+        "precog-prognostic-association",     # 2026-08-11 REVIEW FIX (facet-drop): PRECOG prognostic
+                                             # meta-Z corroboration. In differentiation-landscape CARDS,
+                                             # composed under no entry → dropped. VERDICT-INERT render facet.
     ],
     "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",
