@@ -284,8 +284,8 @@ def compose(
 
 
 def _validate_card_outputs(card_outputs: list, contracts_root: Path) -> list[str]:
-    """Validate each card output against card_output.schema.json.
-    Returns list of error strings (empty if all valid). C3 fix (post-adversarial-review)."""
+    """Validate each card output against card_output.schema.json (envelope) AND, when present, the
+    card's per-card summary schema (T5). Returns list of error strings (empty if all valid)."""
     schema_path = contracts_root / "schemas" / "card_output.schema.json"
     if not schema_path.exists():
         # T6 fix (2026-08-11 engineering review): card_output.schema.json is a COMMITTED
@@ -304,10 +304,29 @@ def _validate_card_outputs(card_outputs: list, contracts_root: Path) -> list[str
     v = Draft202012Validator(schema)
     errors = []
     for i, card in enumerate(card_outputs):
+        card_id = card.get("card_id", f"<index_{i}>")
         for e in v.iter_errors(card):
-            card_id = card.get("card_id", f"<index_{i}>")
             errors.append(f"[card_outputs[{i}] card_id={card_id}] {e.message}")
+        # T5 (2026-08-11 review): per-card summary-schema validation. OPT-IN — only cards that HAVE
+        # a schemas/methods/<card_id>.summary.schema.json are checked, so partial rollout never
+        # breaks unschematized cards. This is the "drift fails compose-time validation" gate that
+        # DEVELOPMENT_GUIDELINES promised but that never existed. Skips excluded/unavailable
+        # entries (they carry no summary).
+        if isinstance(card, dict) and "summary" in card and not card.get("excluded_by_applies_when"):
+            errors.extend(_validate_summary(card_id, card["summary"], contracts_root))
     return errors
+
+
+def _validate_summary(card_id: str, summary: dict, contracts_root: Path) -> list[str]:
+    """Validate one card's summary dict against schemas/methods/<card_id>.summary.schema.json,
+    IF that schema exists (opt-in). Returns [] when the schema is absent (unschematized card)."""
+    summary_schema_path = contracts_root / "schemas" / "methods" / f"{card_id}.summary.schema.json"
+    if not summary_schema_path.exists():
+        return []   # opt-in: card has no summary schema yet → not validated (current behavior)
+    with summary_schema_path.open() as f:
+        summary_schema = json.load(f)
+    v = Draft202012Validator(summary_schema)
+    return [f"[summary card_id={card_id}] {e.message}" for e in v.iter_errors(summary)]
 
 
 def _assemble_evidence_package(
