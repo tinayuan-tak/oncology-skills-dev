@@ -28,6 +28,24 @@ Before starting a new workstream in this repo:
 **Trivial-work bypass** for single-file edits or clearly scoped edits
 within an active registry entry.
 
+## Worktree-per-workstream (DEFAULT)
+
+Every non-trivial workstream runs in its OWN git worktree — not in this
+primary checkout — so parallel sessions cannot clobber each other's files
+or branch refs. The primary checkout stays parked on `main`.
+
+Start a workstream:
+
+    ~/.claude/git-hooks/new-worktree target-contracts fix/adc-card-provenance \
+        --scope cards/adc-tce-modality-fit.card.yaml
+
+This creates `/tmp/wt/<repo>__<branch>/` on a fresh branch off the
+`default_base` in `.claude/config` (here: `main`), writes
+`.claude/branch-scope`, and prints a registry stub to paste into
+`~/.claude/wip-registry.md`. The committed hook symlinks resolve inside the
+worktree, so pre-commit/pre-push enforcement travels with it. Do all work
+in that directory. Trivial in-scope edits may use the primary checkout.
+
 ## Branch & PR discipline
 
 - **Approved branch prefixes**: `feat/`, `fix/`, `chore/`
@@ -59,10 +77,34 @@ Downstream:
 Before renaming a card or rule ID, check registry for active work in
 `claude-oncology-skills` that might reference it.
 
-## Completion
+## Landing a PR (merge discipline)
 
-- Draft PR on first push, registry `status: pr-open`, then `status: merged`
-  on merge. Entries auto-cleaned 24h post-merge.
+The lifecycle does NOT end at "PR open." Land it with:
+
+    ~/.claude/git-hooks/land-pr <pr-number>
+
+Merge policy = **auto-merge when CI passes**. Open the PR draft-first;
+land-pr marks it ready, then:
+  - checks pending → enables GitHub auto-merge (lands itself when green)
+  - checks failing → refuses
+  - no checks / all green → squash-merges now
+Always `--squash --delete-branch`. This repo HAS CI (`contracts-validate`,
+`framework-health`), so auto-merge normally waits for green.
+
+It NEVER deletes a branch/worktree until it re-reads the PR and confirms
+`state == MERGED` — deleting a head branch before merge closes the PR
+UNMERGED (silent work loss). After a confirmed merge it prunes the
+worktree, deletes the local branch, and fast-forwards `main`.
+
+**Stacked PRs**: if other open PRs use your branch as their base, land-pr
+refuses (squash-merging a parent auto-closes stacked children). Land the
+children first, or pass `--retarget-children` to move them onto `main`.
+
+## Registry / completion
+
+- State transitions: `planned` → `in-progress` → `pr-open` → `merged`.
+  Set `status: merged` by hand after landing (land-pr does not edit the
+  shared registry). Entries auto-cleaned 24h post-merge.
 
 ## Machine enforcement
 
