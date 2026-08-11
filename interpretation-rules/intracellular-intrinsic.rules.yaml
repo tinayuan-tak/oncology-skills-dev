@@ -3321,6 +3321,82 @@ rules:
       gap, NOT opposing evidence — distinct from not_tumor_elevated (a measured negative).
 
   # ============================================================================
+  # RNA tumor-elevation BREADTH (Slice C parallel layer) — added 2026-08-11 (G3 fix)
+  # ----------------------------------------------------------------------------
+  # tumor-elevation-breadth emits a SECOND breadth layer alongside the primary protein one:
+  # rna_tumor_elevation_breadth_class (pan-cancer DESeq2, 27 indications vs CPTAC's 10). It was
+  # EMITTED but UN-RULED — decision-inert, the exact 2026-07-14 "emitted-but-un-ruled" failure the
+  # protein breadth rules above were written to avoid. These mirror the protein signal semantics
+  # (breadth is presence-SUPPORTIVE, never a killer; BREADTH ≠ SELECTIVITY). PARALLEL layer by the
+  # card's own design (protein primary/driving, RNA co-surfaced) — the tumor-presence skill reads
+  # these as a verdict-inert headline facet (rna_tumor_elevation_breadth_class +
+  # breadth_layer_concordance), NOT as a rung in the presence collapsed ladder (the protein breadth
+  # already occupies the breadth rungs). RNA's wider coverage makes breadth_layer_concordance ==
+  # rna_only the decision-relevant case: a protein-coverage-gap breadth that would otherwise vanish.
+  - rule_id: rna-tumor-breadth-broadly-supportive
+    when:
+      card_id: tumor-elevation-breadth
+      field: rna_tumor_elevation_breadth_class
+      equals: broadly_tumor_elevated
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target RNA is elevated vs normal in >=3 indications AND in >=50% of those tested —
+      pan-cancer RNA tumor-presence breadth over 27 indications. Presence-supportive, parallel
+      to the protein breadth broadly rule; surfaced as a facet, not a ladder rung.
+
+  - rule_id: rna-tumor-breadth-multi-supportive
+    when:
+      card_id: tumor-elevation-breadth
+      field: rna_tumor_elevation_breadth_class
+      equals: multi_tumor_elevated
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target RNA is elevated in >=2 indications (below the broadly threshold). Multi-cancer RNA
+      tumor-presence — supportive presence evidence, weaker than broadly.
+
+  - rule_id: rna-tumor-breadth-single-neutral
+    when:
+      card_id: tumor-elevation-breadth
+      field: rna_tumor_elevation_breadth_class
+      equals: single_tumor_elevated
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target RNA is elevated in exactly ONE indication — indication-specific, not pan-cancer
+      breadth. Neutral for a breadth claim (the per-indication tumor-rna cards carry the
+      single-cancer signal).
+
+  - rule_id: rna-tumor-breadth-not-elevated-neutral
+    when:
+      card_id: tumor-elevation-breadth
+      field: rna_tumor_elevation_breadth_class
+      equals: not_tumor_elevated
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Measured negative: RNA-tested in >=1 indication, elevated in NONE. A real negative for the
+      tumor-ELEVATION claim, but NOT for RNA presence (an un-elevated transcript may still be
+      abundantly present) — so neutral, never a killer.
+
+  - rule_id: rna-tumor-breadth-data-unavailable-insufficient
+    when:
+      card_id: tumor-elevation-breadth
+      field: rna_tumor_elevation_breadth_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Target absent from the pan-cancer RNA breadth product. Coverage gap, NOT opposing evidence —
+      distinct from not_tumor_elevated (a measured negative).
+
+  # ============================================================================
   # RNA↔PROTEIN CONCORDANCE (Q5, rna_as_biomarker; cell-line arm) — 2026-07-22
   # ============================================================================
   # The rna_as_biomarker question: does RNA track PROTEIN, so an RNA-only presence/dependency read is
