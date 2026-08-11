@@ -113,6 +113,12 @@ caveats:
     a documented iter-2 backlog item; the trade-off is more edges vs. lower
     directional confidence.
   - |
+    LIVE-DISPATCH COMPOSITION: methods.call=signor-mechanism-network names SIGNOR as the primary
+    curated source, but the compose-dashboard dispatch composes a 5-source UNION via the
+    mechanism_composed method — SIGNOR + CollecTRI + Reactome (curated edges → network_class) plus
+    SEPARATE kinome-atlas PREDICTION and DepMap co-essentiality lanes (in source_counts/sources_wired,
+    weighted lower, never merged). The emitted network can carry more than SIGNOR-only edges.
+  - |
     moa_ontology_version is stamped in every emitted row and in this card's
     output. A bump in the ontology (methods/signor_mechanism_network/moa_ontology.py)
     triggers a new versioned derived manifest; consumers pin against a
