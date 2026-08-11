@@ -17,7 +17,8 @@
 #
 # WIRED 2026-08-06: colon + lung shards first (COADREAD/NSCLC safety priority).
 # EXPANDED 2026-08-08: 9 tissues landed — colon/lung/stomach/skin/small_intestine (tumor-matched)
-# + heart/liver/kidney/bone_marrow (always-on safety-essential). brain shard to follow.
+# + heart/liver/kidney/bone_marrow (always-on safety-essential).
+# COMPLETED 2026-08-11: brain shard landed (always-on safety-essential CNS) — 10 tissues wired.
 
 card_id: sc-normal-celltype-expression
 version: 0.1.0
@@ -41,7 +42,9 @@ required_inputs:
   - product_id: sc-normal-celltype-expression-liver-v1
   - product_id: sc-normal-celltype-expression-kidney-v1
   - product_id: sc-normal-celltype-expression-bone-marrow-v1
-  # brain shard to follow (Tier-2 emit in progress — ~36M cells, solo run)
+  # Brain — always-on safety-essential CNS shard (largest Census shard: 36M cells, 172 cell types).
+  # Many intracellular/kinase targets have documented CNS normal expression distinct from periphery.
+  - product_id: sc-normal-celltype-expression-brain-v1
 
 methods:
   - call: sc-normal-celltype-expression
