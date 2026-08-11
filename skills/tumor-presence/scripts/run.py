@@ -193,25 +193,35 @@ _EXPRESSION_RANK: list[tuple[str, str]] = [
     ("expression-lineage-restricted-supportive",        "lineage_restricted"),
     ("expression-modest-upregulation-neutral",          "modestly_upregulated_in_tumor"),
     ("expression-broadly-moderate-neutral",             "broadly_moderate_expression"),
-    ("expression-broadly-low-degrader-killer",          "broadly_low_expression"),
-    ("expression-call-not-informative-degrader-killer", "not_informative"),
     # ── Per-sample TUMOR RNA (tumor-rna-distribution) + the tumor-vs-adjacent DOWN reads ──
     # APPENDED 2026-08-04 (Finding B): these tumor-context rules were emitted by live cards but were
     # NOT in the ladder, so the bulk_rna/tumor bucket resolved `insufficient` even with real tumor-RNA
-    # data (verified: EGFR/COADREAD, tumor median log2TPM 3.28 on 669 samples → insufficient). Placed
-    # BELOW every pre-existing measured rule so NO currently-resolving verdict changes (the higher
-    # existing rule always wins the collapsed spine) — purely additive: targets that previously fired
-    # ONLY these (→ insufficient) now resolve, and the per-modality bulk_rna/tumor bucket (which sees
-    # only tumor-context rules) now produces a real presence verdict. Presence semantics: absolute
-    # tumor presence (broadly_expressed) outranks the differential DOWN reads — a target modestly lower
-    # than adjacent normal is still PRESENT (the down signal is a selectivity concern for the modality
-    # lens, not an absence). tumor-expression-broadly-low is NEUTRAL not a killer (per-INDICATION low
-    # cannot kill a target-wide nomination — the card's own rationale).
+    # data (verified: EGFR/COADREAD, tumor median log2TPM 3.28 on 669 samples → insufficient). They
+    # rank BELOW the pre-existing PRESENCE-POSITIVE cell-line rules (broadly_high … broadly_moderate)
+    # so an established cell-line-present verdict is byte-stable, but ABOVE the expression KILLERS
+    # (see the G5 block below). Presence semantics: absolute tumor presence (broadly_expressed)
+    # outranks the differential DOWN reads — a target modestly lower than adjacent normal is still
+    # PRESENT (the down signal is a selectivity concern for the modality lens, not an absence).
+    # tumor-expression-broadly-low is NEUTRAL not a killer (per-INDICATION low cannot kill a
+    # target-wide nomination — the card's own rationale).
     ("tumor-expression-broadly-high-supportive",        "tumor_broadly_expressed"),
     ("tumor-expression-broadly-moderate-neutral",       "tumor_moderately_expressed"),
     ("tumor-expression-broadly-low-neutral",            "tumor_sparsely_expressed"),
     ("expression-modest-downregulation-opposing",       "modestly_downregulated_in_tumor"),
     ("expression-strong-downregulation-degrader-killer", "strongly_downregulated_in_tumor"),
+    # ── Cell-line / differential EXPRESSION KILLERS rank BELOW every direct tumor-present read ──
+    # G5 fix (2026-08-11 production review, VERDICT-MOVING — pending sign-off): these two killers used
+    # to sit in the NEUTRAL region ABOVE the tumor-present rungs, so a target broadly-LOW across DepMap
+    # cell lines (`expression-broadly-low-degrader-killer`) OR with a non-informative tumor-vs-adjacent
+    # differential (`expression-call-not-informative-degrader-killer`) but broadly-HIGH in the actual
+    # TCGA tumor collapsed to the killer — a FALSE-NEGATIVE headline for a tumor-PRESENCE question. A
+    # direct absolute tumor read now outranks the cell-line-distribution / differential killer.
+    # Cell-line-low stays fully legible in its own bulk_rna/cell_line per-modality bucket as a
+    # model/degrader caveat; it just no longer overrides the tumor presence call in the collapsed
+    # spine. Ranked at the bottom of the measured expression rungs, still above the data_unavailable
+    # sink (measured-first invariant preserved).
+    ("expression-broadly-low-degrader-killer",          "broadly_low_expression"),
+    ("expression-call-not-informative-degrader-killer", "not_informative"),
     # ── coverage gaps sink to the bottom (measured-first invariant) ──
     ("expression-data-unavailable-insufficient",        "data_unavailable"),
     ("expression-call-data-unavailable-insufficient",   "data_unavailable"),
@@ -241,6 +251,14 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
     ("protein-abundance-broadly-moderate-neutral",      "protein_broadly_moderate"),
     ("tumor-breadth-single-neutral",                    "single_tumor_elevated"),
     ("tumor-breadth-not-elevated-neutral",              "not_tumor_elevated"),
+    # G1 fix (2026-08-11 production review): `protein-modestly-down-opposing` fires on
+    # tumor-protein-abundance-cptac.protein_expression_class == modest_down (rule at
+    # intracellular-intrinsic.rules.yaml:2895) but had NO rung here, so a MEASURED modest protein
+    # down-regulation collapsed to `insufficient` and the verdict was UNREACHABLE — a cross-repo
+    # half-fix (the contracts rule landed; the skill ladder was never taught it). Mirrors the RNA
+    # card's `expression-modest-downregulation-opposing` and ranks above protein strong_down
+    # (modest is the milder measured negative), below all positives/neutrals.
+    ("protein-modestly-down-opposing",                  "protein_modestly_downregulated"),
     ("protein-strongly-down-opposing",                  "protein_strongly_downregulated"),
     ("protein-not-detected-degrader-killer",            "protein_not_detected"),
     ("protein-abundance-broadly-low-degrader-killer",   "protein_broadly_low"),
@@ -363,18 +381,19 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
     for measurement, sample_context in ALL_CONTEXTS:
         key = _ctx_key(measurement, sample_context)
         group = by_ctx.get((measurement, sample_context), [])
-        if group:
-            # rank WITHIN the bucket using the MEASUREMENT's ladder — bulk_protein_ms
-            # must rank against _PROTEIN_RANK, not the expression ladder (the C1 bug
-            # was ranking protein rules against expression-only rule_ids → insufficient).
-            v, drv = _rank_verdict(group, _MEASUREMENT_RANK.get(measurement))
-            out[key] = {"measurement": measurement, "sample_context": sample_context,
-                        "verdict": v, "driving_rule_id": drv,
-                        "evidence_state": "measured"}
-        elif (measurement, sample_context) in _COMPARATOR_BUCKETS:
-            # SAFETY COMPARATOR bucket (protein_ihc/normal): the card fires no presence rule (its
-            # rules are on the safety axis), so read its comparator readout from the card summary.
-            # evidence_state='comparator' — NOT a presence verdict; excluded from the collapsed spine.
+        if (measurement, sample_context) in _COMPARATOR_BUCKETS:
+            # SAFETY COMPARATOR bucket (protein_ihc/normal, sc_rna/normal): the card's OWN rules are
+            # on the safety/selectivity axis, not presence — so this bucket carries a labeled
+            # comparator readout, NEVER a ranked presence sub-verdict.
+            #
+            # G2 fix (2026-08-11 production review): this branch is checked BEFORE the `group` branch.
+            # A cross-axis rule that keys one of these comparator cards but lives on the intracellular
+            # axis (e.g. the tumor-selectivity `tvn-sc-normal-critical-organ-veto`, which keys
+            # sc-normal-celltype-expression) DOES fire in this skill and gets tagged to this
+            # (measurement, sample_context) via CARD_CONTEXT. When the `group` branch ran first, that
+            # fired veto — absent from the measurement ladder — collapsed the comparator bucket to
+            # `insufficient`, erasing the comparator readout for exactly the critical-organ targets
+            # (FOLR1) where it matters most. Comparator buckets never rank a fired rule.
             card_id, field = _COMPARATOR_BUCKETS[(measurement, sample_context)]
             # get_card_field RAISES on an absent card_id (typo-guard), so only call it when the
             # comparator card actually resolved this run — else the bucket stays data_unavailable.
@@ -388,6 +407,14 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
                 out[key] = {"measurement": measurement, "sample_context": sample_context,
                             "verdict": "data_unavailable", "driving_rule_id": None,
                             "evidence_state": "data_unavailable"}
+        elif group:
+            # rank WITHIN the bucket using the MEASUREMENT's ladder — bulk_protein_ms
+            # must rank against _PROTEIN_RANK, not the expression ladder (the C1 bug
+            # was ranking protein rules against expression-only rule_ids → insufficient).
+            v, drv = _rank_verdict(group, _MEASUREMENT_RANK.get(measurement))
+            out[key] = {"measurement": measurement, "sample_context": sample_context,
+                        "verdict": v, "driving_rule_id": drv,
+                        "evidence_state": "measured"}
         else:
             # No card for this bucket in this skill (sc_rna/tumor), OR a tagged card produced no
             # fired rule. Either way: not measured here.

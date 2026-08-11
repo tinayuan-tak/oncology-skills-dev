@@ -435,3 +435,94 @@ def test_subtype_scope_degrades_honestly_when_no_shard():
     assert h["n_subtypes_measured"] == 0
     # presence_verdict still resolves from its own signal, unaffected
     assert h["presence_verdict"] == "broadly_moderate_expression"
+
+
+# --- 2026-08-11 production review: verdict-integrity regressions (G1/G2/G5) ---
+
+def test_protein_modest_down_is_reachable_G1_regression():
+    """G1: `protein-modestly-down-opposing` fires (intracellular-intrinsic.rules.yaml:2895) but
+    had NO rung in _PROTEIN_RANK, so a MEASURED modest_down protein read collapsed to
+    `insufficient` and the verdict `protein_modestly_downregulated` was UNREACHABLE. The
+    contracts-side fix (the rule) landed; the skill-side rung never did — a cross-repo half-fix.
+    Mirrors the RNA card's laddered `expression-modest-downregulation-opposing`."""
+    fired = [_fr("protein-modestly-down-opposing", "tumor-protein-abundance-cptac")]
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["bulk_protein_ms/tumor"]["verdict"] == "protein_modestly_downregulated"
+    assert pm["bulk_protein_ms/tumor"]["evidence_state"] == "measured"
+    # collapsed spine resolves too (was `insufficient` pre-fix)
+    v, drv = tp._verdict(fired)
+    assert v == "protein_modestly_downregulated"
+    assert drv == "protein-modestly-down-opposing"
+
+
+def test_sc_normal_comparator_survives_cross_axis_veto_G2_regression():
+    """G2: `tvn-sc-normal-critical-organ-veto` is a tumor-SELECTIVITY veto that lives on the
+    intracellular axis and keys the sc-normal-celltype-expression card THIS skill dispatches, so
+    it FIRES inside tumor-presence and is tagged (sc_rna, normal) via CARD_CONTEXT. Because
+    _per_modality_verdicts ranked the fired group BEFORE the comparator branch, the veto (absent
+    from _SC_RNA_RANK) collapsed the (sc_rna, normal) COMPARATOR bucket to `insufficient` —
+    erasing the normal-tissue comparator readout for exactly the critical-organ targets (FOLR1)
+    where it matters. A comparator bucket must read its comparator field regardless of any
+    cross-axis rule firing into its context."""
+    fired = [_fr("tvn-sc-normal-critical-organ-veto", "sc-normal-celltype-expression")]
+    cards = [{"card_id": "sc-normal-celltype-expression",
+              "summary": {"sc_normal_expression_class": "HIGH_LIABILITY"}}]
+    b = tp._per_modality_verdicts(fired, cards)["sc_rna/normal"]
+    assert b["evidence_state"] == "comparator"
+    assert b["verdict"] == "HIGH_LIABILITY"
+    assert b["verdict"] != "insufficient"
+
+
+def test_cellline_broadly_low_does_not_kill_tumor_present_G5_regression():
+    """G5 (VERDICT-MOVING — pending sign-off): a target broadly-LOW across DepMap cell lines but
+    broadly-HIGH in the actual TCGA tumor collapsed to the cell-line degrader-killer
+    `broadly_low_expression` — a FALSE-NEGATIVE headline for a tumor-PRESENCE question, because
+    the cell-line proxy (`expression-broadly-low-degrader-killer`) outranked the direct tumor
+    reading (`tumor-expression-broadly-high-supportive`). The direct tumor-present read must win
+    the collapsed spine; cell-line-low stays a legible per-bucket model/modality caveat."""
+    fired = [_fr("expression-broadly-low-degrader-killer", "cellline-rna-distribution"),
+             _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
+    v, drv = tp._verdict(fired)
+    assert v == "tumor_broadly_expressed"
+    assert drv == "tumor-expression-broadly-high-supportive"
+    # per-bucket, both readings stay legible (the taxonomy's whole point)
+    pm = tp._per_modality_verdicts(fired)
+    assert pm["bulk_rna/cell_line"]["verdict"] == "broadly_low_expression"
+    assert pm["bulk_rna/tumor"]["verdict"] == "tumor_broadly_expressed"
+
+    # the coherent half of the fix: a non-informative tumor-vs-adjacent DIFFERENTIAL likewise must
+    # not override a direct absolute tumor-present read in the collapsed spine.
+    fired2 = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent"),
+              _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
+    assert tp._verdict(fired2)[0] == "tumor_broadly_expressed"
+
+
+def test_full_per_modality_golden_spine():
+    """GOLDEN (2026-08-11 production review): a representative multi-modality fired-set that
+    populates every card-backed bucket, snapshotted so any future ladder/bucket edit surfaces as
+    an explicit diff. Deterministic + offline, so #337's skills-validate CI runs it. Guards the
+    presence spine the way the 9 resolver gates are guarded by resolver_golden_snapshots.json."""
+    fired = [
+        _fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+        _fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent"),
+        _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+        _fr("protein-abundance-broadly-high-supportive", "cellline-protein-abundance"),
+        _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac"),
+        _fr("sc-expression-malignant-broadly-detected-supportive", "tumor-scrna-celltype-expression"),
+    ]
+    cards = [{"card_id": "sc-normal-celltype-expression",
+              "summary": {"sc_normal_expression_class": "LOW_LIABILITY"}},
+             {"card_id": "normal-tissue-liability",
+              "summary": {"normal_tissue_breadth_class": "restricted"}}]
+    pm = tp._per_modality_verdicts(fired, cards)
+    assert {k: (v["verdict"], v["evidence_state"]) for k, v in pm.items()} == {
+        "bulk_rna/cell_line":       ("broadly_high_expression", "measured"),
+        "bulk_rna/tumor":           ("strongly_upregulated_in_tumor", "measured"),
+        "bulk_protein_ms/cell_line": ("protein_broadly_high", "measured"),
+        "bulk_protein_ms/tumor":    ("protein_strongly_upregulated", "measured"),
+        "sc_rna/tumor":             ("sc_malignant_detected", "measured"),
+        "sc_rna/normal":            ("LOW_LIABILITY", "comparator"),
+        "protein_ihc/normal":       ("restricted", "comparator"),
+    }
+    # collapsed spine: the RNA backbone wins (byte-stable)
+    assert tp._verdict(fired)[0] == "broadly_high_expression"
