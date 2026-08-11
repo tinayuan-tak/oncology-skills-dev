@@ -34,29 +34,32 @@ from pathlib import Path
 from typing import Optional
 
 DEPMAP_S3_BUCKET = "onc-compbio"
-PARQUET_S3_PREFIX = "data-catalog/derived/depmap-26q1-parquet-v1"
-PARQUET_CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q1-parquet"
+# Release-scoped local cache root. Per-release subdir (framework-depmap-<pin>-parquet) so a
+# multi-release caller never gets a 26q1 file back for a 26q2 request (M4). The bare 26q1 path is
+# preserved as the default subdir name for backward-compat with already-cached files.
+_PARQUET_CACHE_ROOT = Path.home() / ".cache"
+PARQUET_CACHE_DIR = _PARQUET_CACHE_ROOT / "framework-depmap-26q1-parquet"   # legacy 26q1 default
 
-# 2026-08-11 REVIEW FIX (M4): the ONE DepMap release these loaders actually serve. Every loader
-# accepts a `release_pin` arg but the S3 key is built purely from PARQUET_S3_PREFIX above, so a
-# caller-supplied pin was SILENTLY IGNORED — a caller could pass release_pin="26q2" and unknowingly
-# read 26q1 data. True multi-release support is BLOCKED on landing per-release catalog manifests
-# (the `depmap-26q1-parquet-v1` manifest does not exist yet — a data-catalog deliverable). Until
-# then, the honest behavior is to REFUSE a pin we cannot honor rather than serve the wrong release.
-# _SERVED_RELEASE is derived from the prefix so the two can never drift.
-_SERVED_RELEASE = "26q1"   # must match the release encoded in PARQUET_S3_PREFIX
+# 2026-08-11 REVIEW FIX (M4 — full multi-release). Every loader accepts a `release_pin`; the S3
+# prefix is now resolved PER RELEASE from the catalog manifest `depmap-{release_pin}-parquet-v1`
+# via catalog_query.bucket_prefix_for (the same resolver seam sibling loaders.py already uses),
+# instead of a hardcoded 26q1 constant. So a caller-supplied pin actually selects the release, and
+# an UNREGISTERED release raises FileNotFoundError from the resolver — a loud failure that preserves
+# the #283 guard's intent (never silently serve the wrong release) while removing its 26q1-only cap.
+# Predecessor: #283 shipped _assert_release_served as a stopgap when no catalog manifest existed;
+# data-catalog #331 landed depmap-26q1-parquet-v1, so resolution replaces the guard.
 
 
-def _assert_release_served(release_pin: str) -> None:
-    """Raise if a caller pinned a release these loaders cannot serve. Converts the former
-    silent-ignore (wrong-data risk) into an explicit, auditable failure (M4, 2026-08-11)."""
-    if release_pin != _SERVED_RELEASE:
-        raise ValueError(
-            f"depmap_common.parquet serves only release {_SERVED_RELEASE!r} "
-            f"(prefix {PARQUET_S3_PREFIX!r}), but release_pin={release_pin!r} was requested. "
-            f"Multi-release support is not yet wired (needs per-release catalog manifests); "
-            f"this guard refuses to silently return {_SERVED_RELEASE} data under a different pin."
-        )
+@lru_cache(maxsize=8)
+def _release_prefix(release_pin: str = "26q1") -> str:
+    """(bucket-relative) S3 key prefix for a DepMap parquet release, resolved from the catalog
+    manifest depmap-{release_pin}-parquet-v1. Cached per release_pin. Raises FileNotFoundError
+    (from bucket_prefix_for) if the release is not registered in the catalog — the loud,
+    auditable failure that replaces #283's ValueError guard."""
+    from methods.catalog_query.read import bucket_prefix_for
+    _bucket, prefix = bucket_prefix_for(f"depmap-{release_pin}-parquet-v1")
+    return prefix.rstrip("/")   # sibling loaders.py idiom: strip trailing slash, join with "/"
+
 
 _GENE_LABEL_RE = re.compile(r'^"?([A-Za-z0-9._-]+)\s*\(\d+\)"?$')
 
@@ -69,22 +72,28 @@ def _log(msg: str) -> None:
         print(msg, file=sys.stderr)
 
 
-def _local_cached(filename: str) -> Path:
-    PARQUET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return PARQUET_CACHE_DIR / filename
+def _local_cached(filename: str, release_pin: str = "26q1") -> Path:
+    # 26q1 keeps the legacy cache dir (backward-compat with already-downloaded files); other
+    # releases get their own subdir so files never collide across releases (M4).
+    cache_dir = (PARQUET_CACHE_DIR if release_pin == "26q1"
+                 else _PARQUET_CACHE_ROOT / f"framework-depmap-{release_pin}-parquet")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / filename
 
 
-def _fetch_parquet(filename: str) -> Path:
+def _fetch_parquet(filename: str, release_pin: str = "26q1") -> Path:
     """Ensure a parquet file is available locally; download from S3 if not.
-    Returns the local path. On second-session runs, this is a no-op (cache hit)."""
-    local_path = _local_cached(filename)
+    Returns the local path. On second-session runs, this is a no-op (cache hit).
+    The S3 prefix is resolved per release_pin from the catalog manifest (M4)."""
+    local_path = _local_cached(filename, release_pin)
     if local_path.exists():
         return local_path
 
-    _log(f"  Downloading parquet: s3://{DEPMAP_S3_BUCKET}/{PARQUET_S3_PREFIX}/{filename}")
+    prefix = _release_prefix(release_pin)   # catalog-resolved; raises if release unregistered
+    _log(f"  Downloading parquet: s3://{DEPMAP_S3_BUCKET}/{prefix}/{filename}")
     import boto3
     s3 = boto3.client("s3")
-    key = f"{PARQUET_S3_PREFIX}/{filename}"
+    key = f"{prefix}/{filename}"
     try:
         s3.download_file(DEPMAP_S3_BUCKET, key, str(local_path))
     except Exception as e:
@@ -109,10 +118,11 @@ def _find_gene_column(schema_names, target_symbol: str) -> Optional[str]:
 
 
 def _read_wide_target_column(filename: str, target_symbol: str,
-                              id_col_hints: tuple = ("ModelID", "ModelConditionID")):
+                              id_col_hints: tuple = ("ModelID", "ModelConditionID"),
+                              release_pin: str = "26q1"):
     """Read a WIDE parquet with column projection: only ID/metadata cols + target gene."""
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet(filename)
+    local_path = _fetch_parquet(filename, release_pin)
     schema_names = pq.read_schema(local_path).names
     target_col = _find_gene_column(schema_names, target_symbol)
     if target_col is None:
@@ -132,33 +142,29 @@ def _read_wide_target_column(filename: str, target_symbol: str,
 def get_chronos_column(target_symbol: str, release_pin: str = "26q1"):
     """CRISPR Chronos target column. Returns DataFrame or None.
     Column-projection read: ~1-2 MB (vs 564 MB CSV parse)."""
-    _assert_release_served(release_pin)
     return _read_wide_target_column("CRISPRGeneEffect.parquet", target_symbol,
-                                     id_col_hints=("ModelID",))
+                                     id_col_hints=("ModelID",), release_pin=release_pin)
 
 
 @lru_cache(maxsize=128)
 def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
     """TPM target column. Returns DataFrame or None."""
-    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet",
-                                     target_symbol, id_col_hints=("ModelID",))
+                                     target_symbol, id_col_hints=("ModelID",), release_pin=release_pin)
 
 
 @lru_cache(maxsize=128)
 def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
     """CN WES target column. Returns DataFrame or None (fall back to WGS if None)."""
-    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsCNGeneMC_WES.parquet", target_symbol,
-                                     id_col_hints=("ModelConditionID",))
+                                     id_col_hints=("ModelConditionID",), release_pin=release_pin)
 
 
 @lru_cache(maxsize=128)
 def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
     """CN WGS target column (fallback for genes absent from WES panel)."""
-    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsCNGeneWGS.parquet", target_symbol,
-                                     id_col_hints=("ModelConditionID",))
+                                     id_col_hints=("ModelConditionID",), release_pin=release_pin)
 
 
 @lru_cache(maxsize=128)
@@ -171,9 +177,8 @@ def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q1"):
     per cell-line (float32-cast during precompute; downstream code casts to
     bool for the mutation-status flag).
     """
-    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsSomaticMutationsMatrixHotspot.parquet",
-                                     target_symbol, id_col_hints=("ModelID",))
+                                     target_symbol, id_col_hints=("ModelID",), release_pin=release_pin)
 
 
 @lru_cache(maxsize=128)
@@ -182,9 +187,8 @@ def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
     OmicsSomaticMutationsMatrixDamaging. Same shape as get_hotspot_mutation_column.
     Broader panel (~19584 gene cols vs ~554 for hotspot).
     """
-    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsSomaticMutationsMatrixDamaging.parquet",
-                                     target_symbol, id_col_hints=("ModelID",))
+                                     target_symbol, id_col_hints=("ModelID",), release_pin=release_pin)
 
 
 @lru_cache(maxsize=128)
@@ -199,9 +203,8 @@ def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin
     None if the target gene is absent from the matrix. `filename` is the parquet product name
     (e.g. 'OmicsSomaticMutationsMatrixDamaging.parquet').
     """
-    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet(filename)
+    local_path = _fetch_parquet(filename, release_pin)
     schema_names = pq.read_schema(local_path).names
     target_col = _find_gene_column(schema_names, target_symbol)
     if target_col is None:
@@ -220,9 +223,8 @@ def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
     is a single row (~700 float32 values, ~3 KB). Uses filter pushdown on the
     gene_symbol column added at precompute time.
     """
-    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet("D2_combined_gene_dep_scores.parquet")
+    local_path = _fetch_parquet("D2_combined_gene_dep_scores.parquet", release_pin)
     # Filter to target row via gene_symbol column
     filters = [("gene_symbol", "=", target_symbol)]
     table = pq.read_table(local_path, filters=filters)
@@ -249,9 +251,8 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
     the target gene are skipped entirely. Drops per-query read from ~738 MB CSV
     parse to <10 MB parquet slice.
     """
-    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet("OmicsSomaticMutations.parquet")
+    local_path = _fetch_parquet("OmicsSomaticMutations.parquet", release_pin)
     filters = [("HugoSymbol", "=", target_symbol)]
     table = pq.read_table(local_path, filters=filters)
     return table.to_pandas()
@@ -266,9 +267,8 @@ def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
     full 738 MB CSV. Cached (maxsize=1) since the denominator is a per-release
     constant, not per-target.
     """
-    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
-    local_path = _fetch_parquet("OmicsSomaticMutations.parquet")
+    local_path = _fetch_parquet("OmicsSomaticMutations.parquet", release_pin)
     # Also apply IsDefaultEntryForModel filter to match the CSV path's semantics
     filters = [("IsDefaultEntryForModel", "=", "Yes")]
     try:
@@ -283,19 +283,19 @@ def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
     return int(table.column("ModelID").to_pandas().nunique())
 
 
-def get_full_matrix_path(filename: str) -> Path:
+def get_full_matrix_path(filename: str, release_pin: str = "26q1") -> Path:
     """Return the local-cached path for a parquet filename, downloading from S3
     if not already cached. Public entrypoint for consumers that need the FULL
     matrix (not just a per-target column projection) — e.g. batch precompute
     jobs that iterate across thousands of genes and would waste RTTs on per-gene
     column reads.
 
-    The local-disk cache under PARQUET_CACHE_DIR persists across process runs;
-    the first call in a session (or after cache eviction) downloads once from
-    S3, all subsequent calls are no-ops. Callers should use pyarrow.parquet
-    or pandas directly on the returned path.
+    The local-disk cache (release-scoped) persists across process runs; the first
+    call in a session (or after cache eviction) downloads once from S3, all
+    subsequent calls are no-ops. Callers should use pyarrow.parquet or pandas
+    directly on the returned path.
     """
-    return _fetch_parquet(filename)
+    return _fetch_parquet(filename, release_pin)
 
 
 def clear_all_parquet_caches() -> None:
