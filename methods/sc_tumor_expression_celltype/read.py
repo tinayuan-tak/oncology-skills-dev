@@ -28,10 +28,16 @@ S3_BUCKET = "onc-compbio"
 # materialized (v1: COADREAD + NSCLC). Others → data_unavailable (honest capability ceiling, never a
 # silent fall-back). PAAD excluded (n=1 donor); STAD excluded (0 malignant-cell annotation in the
 # Census gastric atlases). Adding an indication = emit its product (data-catalog) + one line here.
+# 2026-08-11 REVIEW FIX (M3): repoint COADREAD to -v2. The catalog's coadread-v2 SUPERSEDES v1
+# (`supersedes: sc-pseudobulk-donor-celltype-coadread-v1`) with a 4.5x-larger cohort — 30 datasets
+# / 749 donors / 828,819 cells / 1,663 donor-compartment groups (v1: 21 / 511 / 182,604) — and is
+# MATERIALIZED (size_bytes 450455052, md5 1ee88c68…, uploaded to its s3_uri). The reader does not
+# follow `supersedes`, so it silently read the stale, biased <25%-cohort subset. NSCLC stays on
+# its v1 (no v2 exists). Adding an indication = emit its product + one line here.
 INDICATION_TO_PRODUCT = {
-    "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v1",
-    "COAD": "sc-pseudobulk-donor-celltype-coadread-v1",
-    "READ": "sc-pseudobulk-donor-celltype-coadread-v1",
+    "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v2",
+    "COAD": "sc-pseudobulk-donor-celltype-coadread-v2",
+    "READ": "sc-pseudobulk-donor-celltype-coadread-v2",
     "NSCLC": "sc-pseudobulk-donor-celltype-nsclc-v1",
     "LUAD": "sc-pseudobulk-donor-celltype-nsclc-v1",
     "LUSC": "sc-pseudobulk-donor-celltype-nsclc-v1",
