@@ -61,9 +61,10 @@ _TOP_LEVEL_HINT_STRINGS = {
 
 
 def _boto3_client():
-    """AWS_PROFILE=cbg boto3 s3 client. Same discipline as signor/collectri."""
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+    """AWS_PROFILE=cbg boto3 s3 client with an adaptive-retry Config (absorbs transient throttling on
+    batch reads — the failure mode that silently dropped dossier cards, 2026-08-11)."""
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 def _ensure_cached(s3_key: str, cache_filename: str) -> Path:
@@ -198,23 +199,14 @@ def _load_hgnc_uniprot_crosswalk() -> dict:
 
     Reads the target_id_resolver sidecar (hgnc_primary_symbol_at_resolution → native_row_key)
     shipped with reactome-v96 — the same discipline as the CSPA/GPI/topology readers (never a
-    hardcoded map, never a source symbol column). Empty dict on read failure (the caller then
-    returns target_symbol_not_resolvable — honest, never a crash)."""
-    try:
-        import io
-        import pandas as pd
-        s3 = _boto3_client()
-        body = s3.get_object(Bucket=S3_BUCKET, Key=REACTOME_RESOLVER_SIDECAR_S3_KEY)["Body"].read()
-        df = pd.read_parquet(io.BytesIO(body))
-    except Exception:  # noqa: BLE001
-        return {}
-    out: dict[str, str] = {}
-    sym_col, ac_col = "hgnc_primary_symbol_at_resolution", "native_row_key"
-    if sym_col in df.columns and ac_col in df.columns:
-        for sym, ac in zip(df[sym_col].values, df[ac_col].values):
-            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip():
-                out.setdefault(sym.strip().upper(), ac.strip())
-    return out
+    hardcoded map, never a source symbol column). Delegates to the shared resolver-sidecar loader,
+    which RAISES on read failure instead of silently returning {} — an empty crosswalk would fail
+    EVERY target (data_unavailable framework-wide). The live-read seam turns a raise into an honest
+    per-card _live_read_error."""
+    from methods.target_id_sidecar import read_resolver_sidecar_map
+    return read_resolver_sidecar_map(
+        S3_BUCKET, REACTOME_RESOLVER_SIDECAR_S3_KEY,
+        "hgnc_primary_symbol_at_resolution", "native_row_key")
 
 
 def _hgnc_symbol_to_uniprot_ac_cached(symbol: str) -> Optional[str]:

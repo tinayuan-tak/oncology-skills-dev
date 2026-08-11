@@ -336,5 +336,11 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             "substrate_uri": coessentiality_result.get("substrate_uri", ""),
             "source_note": "DepMap 26Q1 CRISPR Chronos pan-cancer co-essentiality (1,538 cell lines)",
         },
-        "_data_source": "mechanism-composed-per-gene-v1",
+        # Honest provenance (2026-08-11): there is NO `mechanism-composed-per-gene-v1` derived
+        # manifest in the catalog — this product is COMPOSED ON READ from the upstream source readers
+        # (signor-jul2026, collectri, reactome-v96, kinome-atlas, depmap-coessentiality). The former
+        # id looked like a resolvable manifest (`*-per-gene-v1`) and would mislead a provenance auditor.
+        # Match the established composed-card convention (see _live_readers adc-tce-modality-fit); the
+        # real contributing sources are enumerated in `sources_wired` / `source_counts` above.
+        "_data_source": "mechanism-composed (composed card; no direct S3 product — see sources_wired)",
     }

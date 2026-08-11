@@ -65,8 +65,9 @@ _LIGAND_STATUS: Optional[bool] = None   # negative cache (ligandability product)
 
 
 def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads)
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 def _ensure_derived_cached() -> Optional[Path]:
@@ -101,31 +102,38 @@ def _ensure_derived_cached() -> Optional[Path]:
     return None
 
 
-@lru_cache(maxsize=1)
-def _load_structure_indexed() -> dict:
-    """Load structure-features parquet ONCE, index by both gene_symbol and
-    uniprot_ac for O(1) per-target lookup.
-    """
-    path = _ensure_derived_cached()
+def _index_by_symbol_and_ac(path, ac_col: str) -> dict:
+    """Load a per-protein parquet and index each row by BOTH its gene_symbol (UPPER) and its accession
+    column (`ac_col`), for O(1) per-target lookup. {} if the product is unavailable/empty. RAISES on a
+    broken env (missing pandas/pyarrow) — never masks that as an empty index. Shared by the structure
+    + ligandability loaders (was two copy-pasted parse-and-index blocks)."""
     if path is None:
         return {}
     try:
         import pandas as pd
         df = pd.read_parquet(path)
-    except Exception:
+    except ImportError:
+        raise  # broken env — never mask as an empty index
+    except Exception:  # noqa: BLE001 — a corrupt/partial cached parquet degrades to empty (honest gap)
         return {}
     if df.empty:
         return {}
     idx: dict[str, dict] = {}
     for _, row in df.iterrows():
-        sym = str(row.get("gene_symbol", "")).strip().upper()
-        ac = str(row.get("uniprot_ac", "")).strip()
-        record = row.to_dict()
+        rec = row.to_dict()
+        sym = str(rec.get("gene_symbol", "") or "").strip().upper()
+        ac = str(rec.get(ac_col, "") or "").strip()
         if sym:
-            idx[sym] = record
+            idx[sym] = rec
         if ac:
-            idx[ac] = record
+            idx[ac] = rec
     return idx
+
+
+@lru_cache(maxsize=1)
+def _load_structure_indexed() -> dict:
+    """Structure-features parquet indexed by gene_symbol + uniprot_ac (O(1) per-target lookup)."""
+    return _index_by_symbol_and_ac(_ensure_derived_cached(), "uniprot_ac")
 
 
 def _ensure_ligand_cached() -> Optional[Path]:
@@ -158,28 +166,9 @@ def _ensure_ligand_cached() -> Optional[Path]:
 
 @lru_cache(maxsize=1)
 def _load_ligandability_indexed() -> dict:
-    """Load the composite ligandability parquet ONCE, index by both gene_symbol and
-    uniprot_id for O(1) per-target lookup. {} if the product is unavailable."""
-    path = _ensure_ligand_cached()
-    if path is None:
-        return {}
-    try:
-        import pandas as pd
-        df = pd.read_parquet(path)
-    except Exception:
-        return {}
-    if df.empty:
-        return {}
-    idx: dict[str, dict] = {}
-    for _, row in df.iterrows():
-        rec = row.to_dict()
-        sym = str(rec.get("gene_symbol", "") or "").strip().upper()
-        up = str(rec.get("uniprot_id", "") or "").strip()
-        if sym:
-            idx[sym] = rec
-        if up:
-            idx[up] = rec
-    return idx
+    """Composite ligandability parquet indexed by gene_symbol + uniprot_id (O(1) per-target lookup).
+    {} if the product is unavailable."""
+    return _index_by_symbol_and_ac(_ensure_ligand_cached(), "uniprot_id")
 
 
 def _ligandability_fields(target: str) -> dict:

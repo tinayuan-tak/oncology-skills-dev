@@ -51,8 +51,10 @@ def _ensure_aws_profile():
 
 
 def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
+    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads,
+    # the failure mode that silently dropped cards on a full dossier run — 2026-08-11)
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 @lru_cache(maxsize=1)
@@ -114,23 +116,15 @@ def _load_gaf(gaf_path: Optional[str] = None) -> dict:
 @lru_cache(maxsize=1)
 def _load_symbol_to_ac(sidecar_path: Optional[str] = None) -> dict:
     """HGNC symbol (UPPER) → UniProt AC, from the GOA resolver sidecar (never a GAF symbol column —
-    deprecated-symbol risk)."""
-    try:
-        import pandas as pd
-        if sidecar_path is not None:
-            df = pd.read_parquet(sidecar_path)
-        else:
-            _ensure_aws_profile()
-            body = _boto3_client().get_object(Bucket=S3_BUCKET, Key=SIDECAR_S3_KEY)["Body"].read()
-            df = pd.read_parquet(io.BytesIO(body))
-    except Exception:  # noqa: BLE001
-        return {}
-    out: dict[str, str] = {}
-    if "hgnc_primary_symbol_at_resolution" in df.columns and "native_row_key" in df.columns:
-        for sym, ac in zip(df["hgnc_primary_symbol_at_resolution"].values, df["native_row_key"].values):
-            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip():
-                out.setdefault(sym.strip().upper(), ac.strip())
-    return out
+    deprecated-symbol risk). Delegates to the shared resolver-sidecar loader, which RAISES on any
+    read failure (broken env / transient S3 / schema drift) instead of silently returning {} — an
+    empty crosswalk would silently fail EVERY target (data_unavailable framework-wide). The live-read
+    seam turns a raise into an honest per-card _live_read_error."""
+    from methods.target_id_sidecar import read_resolver_sidecar_map
+    _ensure_aws_profile()
+    return read_resolver_sidecar_map(
+        S3_BUCKET, SIDECAR_S3_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
+        local_path=sidecar_path)
 
 
 def read_target_summary(target: str, indication: str = None,

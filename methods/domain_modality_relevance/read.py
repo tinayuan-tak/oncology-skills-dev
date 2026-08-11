@@ -18,15 +18,27 @@ This method emits `modality_implication_class` for a target by fusing two signal
 modality_implication_class:
   inhibitor_sufficient          — catalytic-site inhibition addresses the therapeutic function
                                   (single clean enzyme class; catalytic pocket is the point)
-  removal_favored               — inhibition is partial; removal (degrader) engages more biology
-                                  (multi-domain enzyme with interaction domains, or a non-enzyme)
+  removal_favored               — no catalytic pocket to inhibit; removal (degrader/glue) is the
+                                  natural lever (non-catalytic class: TF / chromatin / receptor / …)
   removal_required_scaffolding  — catalytic inhibition INSUFFICIENT; scaffolding/non-catalytic
                                   function dominates → degrader/disruptor needed (curated only)
   context_dependent             — mechanism depends on pathway/indication (curated only)
+  indeterminate                 — domain architecture alone cannot call inhibitor-vs-removal. The
+                                  canonical case is a MULTI-DOMAIN ENZYME: the extra domains MAY carry
+                                  therapeutically-relevant scaffolding OR may be irrelevant — many
+                                  multi-domain kinases (EGFR, BTK, most RTKs) are excellent INHIBITOR
+                                  targets. Domain COUNT is not a valid scaffolding-dependence proxy, so
+                                  the heuristic declines to guess; a curated entry resolves it.
   data_unavailable              — no domain/class signal to reason from (coverage gap)
 
 Additive / verdict-inert DISPLAY facet — informs the modality skills' LLM synthesis + reviewer;
 fires no resolver rung.
+
+v0.2.0 (2026-08-11): the heuristic previously labelled ANY multi-domain enzyme `removal_favored`,
+mislabelling well-drugged inhibitor targets (EGFR/BTK/RTKs) as degrader-favored. Domain count is not
+a scaffolding-dependence proxy → those cases now return `indeterminate` (honest non-call). Curated
+overrides (RIPK1/STAT3/BRD4/…) remain authoritative; the non-catalytic-class → `removal_favored`
+call is retained (a genuine no-pocket rationale).
 """
 from __future__ import annotations
 
@@ -40,7 +52,7 @@ DEFAULT_TARGET_CONTRACTS = Path(
                    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 VOCAB_RELPATH = "vocabularies/domain_modality_targets.yaml"
 
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
 # protein_class values that are fundamentally CATALYTIC (a catalytic-site inhibitor has a target).
 _ENZYME_CLASSES = {
@@ -91,10 +103,14 @@ def _heuristic_class(protein_class: list, features_class: Optional[str], n_domai
 
     - a catalytic class present + single clean domain architecture → inhibitor_sufficient
       (the pocket is the therapeutic lever)
-    - a catalytic class but MULTI-domain (extra interaction/regulatory domains) → removal_favored
-      (inhibition is partial; the non-catalytic domains carry biology a degrader also removes)
+    - a catalytic class but MULTI-domain → indeterminate. Domain COUNT is not a valid proxy for
+      scaffolding dependence: many multi-domain enzymes (EGFR, BTK, most RTKs) are excellent
+      inhibitor targets, while a few (RIPK1) are scaffolding-driven. The heuristic cannot tell them
+      apart, so it declines to guess — a curated entry (domain_modality_targets.yaml) resolves it.
     - a non-catalytic class (TF / chromatin / adhesion / receptor / chaperone) → removal_favored
       (no catalytic pocket to inhibit; removal is the natural lever)
+    - a class we don't map (transporter, ion_channel, ubiquitin_system, …) with domains but no
+      catalytic pocket → indeterminate (weak signal; do not assert a removal call)
     - nothing to reason from → data_unavailable
     """
     classes = {c.lower() for c in protein_class}
@@ -103,15 +119,15 @@ def _heuristic_class(protein_class: list, features_class: Optional[str], n_domai
     is_enzyme = bool(classes & _ENZYME_CLASSES)
     is_noncatalytic = bool(classes & _NONCATALYTIC_CLASSES)
     if is_enzyme:
-        # a single-domain enzyme is the clean inhibitor case; multi-domain enzymes carry
-        # interaction/regulatory domains whose biology a degrader additionally removes.
-        return "inhibitor_sufficient" if n_domains <= 1 else "removal_favored"
+        # single-domain enzyme = the clean inhibitor case. A multi-domain enzyme is NOT necessarily
+        # removal-favored (domain count ≠ scaffolding dependence) → honest non-call.
+        return "inhibitor_sufficient" if n_domains <= 1 else "indeterminate"
     if is_noncatalytic:
         return "removal_favored"
-    # a class we don't map as enzyme/non-enzyme (transporter, ion_channel, ubiquitin_system, ...):
-    # if it has domains but no catalytic class, lean removal_favored; else insufficient signal.
+    # a class we don't map as enzyme/non-enzyme: domains present but no catalytic pocket is too weak
+    # to assert removal → indeterminate (was removal_favored, an over-call).
     if has_any_domain:
-        return "removal_favored"
+        return "indeterminate"
     return "data_unavailable"
 
 
@@ -168,9 +184,14 @@ def _heuristic_context(sym: str, klass: str, protein_class: list, n_domains: int
                 f"(no curated scaffolding caveat). Class-driven heuristic; verify for known "
                 f"kinase-independent functions.")
     if klass == "removal_favored":
-        return (f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — removal (degrader) "
-                f"may engage more biology than catalytic inhibition. Class-driven heuristic; not a "
+        return (f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — no catalytic pocket to "
+                f"inhibit; removal (degrader) is the natural lever. Class-driven heuristic; not a "
                 f"curated scaffolding claim.")
+    if klass == "indeterminate":
+        return (f"{sym}: {pc}{' (multi-domain)' if n_domains >= 2 else ''} — domain architecture "
+                f"alone cannot call inhibitor-vs-removal (domain count is not a scaffolding-dependence "
+                f"proxy; many multi-domain enzymes are strong inhibitor targets). No curated entry; "
+                f"treat modality as OPEN pending mechanism review.")
     if klass == "data_unavailable":
         return None
     return f"{sym}: {klass} (class-driven heuristic)."

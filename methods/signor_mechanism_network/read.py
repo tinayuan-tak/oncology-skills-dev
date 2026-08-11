@@ -260,9 +260,16 @@ def _compute_edges_for_target(target: str) -> tuple[list[dict], int, int]:
 
 
 def _aggregate_edges_to_summary(
-    edges: list[dict], total: int, unmapped: int
+    edges: list[dict], total: int, unmapped: int,
+    data_source: str = SIGNOR_SOURCE_MANIFEST_ID,
 ) -> dict:
-    """Aggregate per-edge records → per-target card summary dict."""
+    """Aggregate per-edge records → per-target card summary dict.
+
+    `data_source` stamps the provenance HONESTLY per read path: the derived-parquet
+    path passes DERIVED_MANIFEST_ID; the compute-from-source path (the live path —
+    the derived product was reverted and has no catalog manifest) leaves the default
+    SIGNOR_SOURCE_MANIFEST_ID. The prior code hard-stamped DERIVED_MANIFEST_ID on BOTH
+    paths, so a source-composed read falsely advertised a nonexistent derived product."""
     upstream = [e for e in edges if e["direction"] == "upstream"]
     downstream = [e for e in edges if e["direction"] == "downstream"]
     n_up = len(upstream)
@@ -294,7 +301,7 @@ def _aggregate_edges_to_summary(
         "has_pd_marker": n_down >= 1,
         "moa_ontology_version": ONTOLOGY_VERSION,
         "moa_ontology_unmapped_fraction": unmapped_frac,
-        "_data_source": DERIVED_MANIFEST_ID,
+        "_data_source": data_source,
         "_data_source_upstream": SIGNOR_SOURCE_MANIFEST_ID,
     }
 
@@ -348,7 +355,8 @@ def _read_from_derived_parquet(target: str) -> Optional[dict]:
         ]
         total = len(stripped)
         unmapped = sum(1 for e in stripped if e.get("moa_class") == "unmapped")
-        return _aggregate_edges_to_summary(stripped, total, unmapped)
+        # read from the derived product → stamp it as the source (honest per-path provenance)
+        return _aggregate_edges_to_summary(stripped, total, unmapped, data_source=DERIVED_MANIFEST_ID)
     except Exception:
         return None
 

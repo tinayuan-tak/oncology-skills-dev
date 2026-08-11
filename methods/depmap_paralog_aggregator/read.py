@@ -41,14 +41,20 @@ _PARALOG_STATUS: Optional[bool] = None
 
 
 def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling)
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 def _ensure_paralog_cached() -> Optional[Path]:
-    """Fetch ParalogGeneEffect.csv to local cache. Returns None if S3 fetch
-    fails (network / auth / missing object). Negative-cached module-level.
-    """
+    """Fetch ParalogGeneEffect.csv to local cache. Returns None if unreachable; negative-cached.
+
+    Definitive-vs-transient discipline (mirrors opentargets_common.ensure_entity_cached): a
+    404/NoSuchKey LATCHES the axis unavailable (product genuinely absent), a transient failure
+    (throttle/creds/network) does NOT latch — it stays None so a later call retries — and a broken
+    env (missing boto3) RE-RAISES rather than masking the axis as a fake data gap. Previously ANY
+    exception latched _PARALOG_STATUS=False, so a single transient blip killed the paralog axis for
+    the rest of the process (the dead-axis-masking bug)."""
     global _PARALOG_STATUS
     if _PARALOG_STATUS is False:
         return None
@@ -62,8 +68,13 @@ def _ensure_paralog_cached() -> Optional[Path]:
             s3.download_file(S3_BUCKET, PARALOG_GENE_EFFECT_S3_KEY, str(CACHE_CSV))
             _PARALOG_STATUS = True
             return CACHE_CSV
-        except Exception:
-            _PARALOG_STATUS = False
+        except ImportError:
+            raise  # broken env (boto3 missing) — never mask the whole axis as a data gap
+        except Exception as e:  # noqa: BLE001
+            from methods.target_id_sidecar import is_definitively_absent
+            if is_definitively_absent(e):
+                _PARALOG_STATUS = False   # product genuinely absent -> honest, latched data_unavailable
+            # transient (throttle/creds/network): do NOT latch -> stays None so a later call retries
             return None
     return None
 

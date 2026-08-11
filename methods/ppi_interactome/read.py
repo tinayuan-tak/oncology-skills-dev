@@ -72,8 +72,9 @@ def _ensure_aws_profile():
 
 
 def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
+    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads)
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 @lru_cache(maxsize=1)
@@ -215,23 +216,15 @@ def _load_corum(uniprot_path: Optional[str] = None, complete_path: Optional[str]
 
 @lru_cache(maxsize=1)
 def _load_uniprot_sidecar(sidecar_path: Optional[str] = None) -> dict:
-    """HGNC symbol (UPPER) -> UniProt AC, from a resolver sidecar (for the CORUM UniProt-keyed lookup)."""
-    try:
-        import pandas as pd
-        if sidecar_path is not None:
-            df = pd.read_parquet(sidecar_path)
-        else:
-            _ensure_aws_profile()
-            body = _boto3_client().get_object(Bucket=S3_BUCKET, Key=UNIPROT_SIDECAR_KEY)["Body"].read()
-            df = pd.read_parquet(io.BytesIO(body))
-    except Exception:  # noqa: BLE001
-        return {}
-    out: dict[str, str] = {}
-    if "hgnc_primary_symbol_at_resolution" in df.columns and "uniprot_canonical" in df.columns:
-        for sym, ac in zip(df["hgnc_primary_symbol_at_resolution"].values, df["uniprot_canonical"].values):
-            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip() and ac != "nan":
-                out.setdefault(sym.strip().upper(), ac.strip())
-    return out
+    """HGNC symbol (UPPER) -> UniProt AC, from a resolver sidecar (for the CORUM UniProt-keyed lookup).
+    Delegates to the shared resolver-sidecar loader (RAISES on read failure — an empty crosswalk would
+    silently fail every CORUM lookup); the caller's CORUM block records a non-fatal note on failure so
+    the STRING + BioGRID signals are unaffected."""
+    from methods.target_id_sidecar import read_resolver_sidecar_map
+    _ensure_aws_profile()
+    return read_resolver_sidecar_map(
+        S3_BUCKET, UNIPROT_SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "uniprot_canonical",
+        local_path=sidecar_path)
 
 
 def read_target_summary(target: str, indication: str = None,
@@ -272,14 +265,19 @@ def read_target_summary(target: str, indication: str = None,
 
     # --- CORUM complex membership ---
     complexes = []
+    corum_note = None
     try:
         ac = _load_uniprot_sidecar(sidecar_path).get(sym)
         if ac:
             ac_to_complexes, cid_to_name = _load_corum(corum_uniprot_path, corum_complete_path)
             for cid in sorted(ac_to_complexes.get(ac, [])):
                 complexes.append({"corum_id": cid, "complex_name": cid_to_name.get(cid, cid)})
-    except Exception:  # noqa: BLE001
-        pass
+    except ImportError:
+        raise  # broken env (missing pandas/pyarrow) — never mask; the seam surfaces _live_read_error
+    except Exception as e:  # noqa: BLE001 — CORUM is 1 of 3 INDEPENDENT signals: degrade it, keep
+        # STRING + BioGRID, but RECORD the reason (was a silent `pass` that reported n_corum_complexes:0
+        # while looking available — a transient sidecar/CORUM S3 read now leaves an honest note here).
+        corum_note = f"CORUM unavailable ({type(e).__name__})"
 
     # --- BioGRID experimental-physical interactions (a THIRD, distinct signal) ---
     n_physical, top_physical = 0, []
@@ -326,6 +324,7 @@ def read_target_summary(target: str, indication: str = None,
         "n_corum_complexes": len(complexes),
         "corum_complexes": complexes[:15],                 # [{corum_id, complex_name}]
         "in_protein_complex": len(complexes) > 0,
+        **({"corum_note": corum_note} if corum_note else {}),  # honest degradation flag (non-silent)
         # BioGRID experimental-PHYSICAL leg (distinct signal; direct evidence + literature depth)
         "physical_interactome_class": physical_interactome_class,
         "n_physical_interactors": n_physical,              # BioGRID distinct physical partners

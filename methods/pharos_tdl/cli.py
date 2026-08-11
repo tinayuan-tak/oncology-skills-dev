@@ -14,8 +14,7 @@ FACET-ONLY discipline: the novelty score is literature/grant-driven → verdict-
 from __future__ import annotations
 
 import io
-import os
-import subprocess
+from functools import lru_cache
 from typing import Optional
 
 METHOD_VERSION = "0.1.0"
@@ -29,18 +28,18 @@ _TDL_MEANING = {
     "Tbio":  "biologically studied (no chemical probe / approved drug)",
     "Tdark": "understudied / dark (minimal biology, no probe)",
 }
-_TABLE_CACHE = None
-
-
+@lru_cache(maxsize=1)
 def _load_table():
-    global _TABLE_CACHE
-    if _TABLE_CACHE is not None:
-        return _TABLE_CACHE
+    """Frozen per-gene TDL snapshot, indexed by gene_symbol. Uses boto3 via the shared client
+    (AWS_PROFILE=cbg + adaptive-retry Config) — the sibling-reader convention. Replaces a
+    `subprocess aws s3 cp` shell-out that had NO returncode check (a missing aws CLI or bad creds
+    produced empty stdout → an opaque parquet-parse error). RAISES on read failure: the table either
+    loads or the card honestly errors via the live-read seam (never a silent empty)."""
     import pandas as pd
-    os.environ.setdefault("AWS_PROFILE", "cbg")
-    raw = subprocess.run(["aws", "s3", "cp", _SRC, "-"], capture_output=True, timeout=120).stdout
-    _TABLE_CACHE = pd.read_parquet(io.BytesIO(raw)).set_index("gene_symbol")
-    return _TABLE_CACHE
+    from methods.target_id_sidecar import s3_client
+    bucket, key = _SRC[len("s3://"):].split("/", 1)   # _SRC is an s3:// URI
+    body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
+    return pd.read_parquet(io.BytesIO(body)).set_index("gene_symbol")
 
 
 def read_pharos_tdl(target: str, indication: Optional[str] = None) -> dict:
@@ -53,6 +52,8 @@ def read_pharos_tdl(target: str, indication: Optional[str] = None) -> dict:
         return {"tdl_class": "data_unavailable", "_note": "target required."}
     try:
         tbl = _load_table()
+    except ImportError:
+        raise  # broken env (pandas/boto3) — never mask as a data gap
     except Exception as e:
         return {"tdl_class": "data_unavailable", "_live_read_error": f"{type(e).__name__}: {e}"}
     if target not in tbl.index:

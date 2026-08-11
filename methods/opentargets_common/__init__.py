@@ -41,9 +41,10 @@ _ENTITY_STATUS: dict[str, Optional[bool]] = {}
 
 
 def _boto3_client():
-    import boto3
-    profile = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
-    return boto3.Session(profile_name=profile).client("s3")
+    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling that
+    # would otherwise silently degrade all five OT safety-genetics cards on a batch dossier run)
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 def _entity_prefix(entity: str) -> str:
@@ -113,7 +114,9 @@ def read_entity(entity: str, columns: Optional[list] = None):
         dataset = ds.dataset(str(local_dir), format="parquet")
         table = dataset.to_table(columns=columns) if columns else dataset.to_table()
         return table.to_pandas()
-    except Exception:  # noqa: BLE001
+    except ImportError:
+        raise  # broken env (pyarrow missing) — never mask as an empty read (silent data_unavailable)
+    except Exception:  # noqa: BLE001 — a corrupt/partial cached parquet degrades to empty (honest gap)
         return pd.DataFrame(columns=columns or [])
 
 
@@ -123,27 +126,29 @@ def _sidecar_maps():
 
     symbol_to_ensembl : UPPER(hgnc primary symbol) -> ensembl_gene_id (native_row_key).
     ensembl_to_symbol : ensembl_gene_id -> hgnc primary symbol.
-    Empty maps if the sidecar is unavailable (lookups then fall back to raw-ENSG only).
+
+    RAISES on read failure (broken env / transient S3 / schema drift) rather than silently returning
+    empty maps: this crosswalk backs resolution for ALL FIVE OT safety-genetics cards, so an empty
+    crosswalk = every target `data_unavailable` at once — the bare-`except: return {}` dead-axis bug.
+    The retry-backed client absorbs transient throttling first; a genuine failure surfaces as an honest
+    per-card _live_read_error via the live-read seam (never a fake honest-negative).
     """
-    import pandas as pd
+    import pandas as pd  # ImportError == broken env -> propagates
+    from methods.target_id_sidecar import s3_client
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     local = CACHE_DIR / "target.target_resolution.parquet"
     if not (local.exists() and local.stat().st_size > 0):
-        try:
-            _boto3_client().download_file(S3_BUCKET, SIDECAR_KEY, str(local))
-        except Exception:  # noqa: BLE001
-            return {}, {}
-    try:
-        sc = pd.read_parquet(local, columns=["native_row_key",
-                                             "hgnc_primary_symbol_at_resolution"])
-    except Exception:  # noqa: BLE001
-        return {}, {}
+        s3_client().download_file(S3_BUCKET, SIDECAR_KEY, str(local))   # no silent except (see docstring)
+    sc = pd.read_parquet(local, columns=["native_row_key",
+                                         "hgnc_primary_symbol_at_resolution"])
     s2e, e2s = {}, {}
     for ensg, sym in zip(sc["native_row_key"].values,
                          sc["hgnc_primary_symbol_at_resolution"].values):
         if isinstance(sym, str) and isinstance(ensg, str) and sym and ensg:
             s2e[sym.strip().upper()] = ensg.strip()
             e2s[ensg.strip()] = sym.strip()
+    if not s2e:
+        raise ValueError(f"OT resolver sidecar s3://{S3_BUCKET}/{SIDECAR_KEY} produced an EMPTY crosswalk")
     return s2e, e2s
 
 

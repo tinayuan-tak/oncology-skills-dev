@@ -46,8 +46,10 @@ def _read_parquet(path_or_none, bucket, key):
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     _ensure_aws_profile()
-    import boto3
-    body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
+    # batch reads — the failure mode that silently dropped protein-domains-class on a dossier run)
+    from methods.target_id_sidecar import s3_client
+    body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
 
@@ -56,22 +58,29 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
     """(payload_by_ac, symbol_to_ac). None if payload unavailable."""
     try:
         payload = _read_parquet(payload_path, S3_BUCKET, PAYLOAD_KEY)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # genuine absence (NoSuchKey) → honest data_unavailable (None). A broken env (missing
+        # pandas/pyarrow), transient S3 (throttle/timeout), or creds error must NOT be masked as a
+        # data gap — re-raise so the live-read seam surfaces _live_read_error instead of a dead axis.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return None
     by_ac = {}
     for rec in payload.to_dict("records"):
         ac = str(rec.get("uniprot_ac", "")).strip()
         if ac:
             by_ac[ac] = rec
-    symbol_to_ac = {}
+    # primary symbol→AC crosswalk (the InterPro sidecar is a SUPERSET fallback tried by the caller).
+    from methods.target_id_sidecar import read_resolver_sidecar_map
     try:
-        sc = _read_parquet(sidecar_path, S3_BUCKET, SIDECAR_KEY)
-        if "hgnc_primary_symbol_at_resolution" in sc.columns and "native_row_key" in sc.columns:
-            for sym, ac in zip(sc["hgnc_primary_symbol_at_resolution"].values, sc["native_row_key"].values):
-                if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip():
-                    symbol_to_ac.setdefault(sym.strip().upper(), ac.strip())
-    except Exception:  # noqa: BLE001
-        pass
+        symbol_to_ac = read_resolver_sidecar_map(
+            S3_BUCKET, SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
+            local_path=sidecar_path)
+    except ImportError:
+        raise                              # broken env — never mask
+    except Exception:  # noqa: BLE001 — S3/absence (retry-backed): degrade to the InterPro fallback
+        symbol_to_ac = {}
     return by_ac, symbol_to_ac
 
 
@@ -90,16 +99,15 @@ def _load_interpro_symbol_map(sidecar_path: Optional[str] = None) -> dict:
     """symbol(UPPER) -> AC from the InterPro product's OWN resolver sidecar. The InterPro sidecar
     (19,652 symbols) is a SUPERSET of the curated-product sidecar (14,807) — used as a fallback so a
     target that InterPro covers but the curated product doesn't still gets its InterPro domains."""
+    from methods.target_id_sidecar import read_resolver_sidecar_map
     try:
-        sc = _read_parquet(sidecar_path, S3_BUCKET, INTERPRO_SIDECAR_KEY)
-    except Exception:  # noqa: BLE001
+        return read_resolver_sidecar_map(
+            S3_BUCKET, INTERPRO_SIDECAR_KEY, "hgnc_primary_symbol_at_resolution", "native_row_key",
+            local_path=sidecar_path)
+    except ImportError:
+        raise                              # broken env — never mask
+    except Exception:  # noqa: BLE001 — InterPro is the FALLBACK layer; degrade quietly if unreachable
         return {}
-    out = {}
-    if "hgnc_primary_symbol_at_resolution" in sc.columns and "native_row_key" in sc.columns:
-        for sym, ac in zip(sc["hgnc_primary_symbol_at_resolution"].values, sc["native_row_key"].values):
-            if isinstance(sym, str) and sym.strip() and isinstance(ac, str) and ac.strip():
-                out.setdefault(sym.strip().upper(), ac.strip())
-    return out
 
 
 def _interpro_domains_for(ac: str, interpro_path: Optional[str] = None) -> Optional[list]:
