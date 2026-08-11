@@ -31,6 +31,15 @@ pyyaml = ">=6.0.3,<7"
 jsonschema = ">=4.21,<5"
 jupyter = ">=1.1.1,<2"
 ipykernel = ">=7.3.0,<8"
+pytest = ">=8.0"   # T9 (2026-08-11): declared so `pixi run pytest` works in CI (skills-validate.yml)
+# Test-runtime deps the compose-dashboard suite pulls transitively through the method CLIs + figure
+# emitters it imports (present in analysis-methods' env locally; must be declared here so the skills
+# CI env is a proper superset). 2026-08-11 (T9 CI fix).
+click = ">=8.1"      # method CLI entrypoints (methods/*/cli.py)
+plotly = ">=5"       # figure emitters — plotly figure specs
+openpyxl = ">=3.1"   # Excel parsing (CPTAC clinical XLSX + SURFY) reached by some readers
+matplotlib = ">=3.8" # figure emitters — matplotlib-based card figures (e.g. dependency-lineage-selectivity)
+numpy = ">=1.26"     # explicit (readers/emitters); previously only transitive via pandas/scipy
 
 # R + Bioconductor stack for the batch DGE pipeline (batch/expression_rna_*).
 # DESeq2 + apeglm shrinkage on raw integer counts is the field-standard contract

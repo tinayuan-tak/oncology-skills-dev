@@ -12,13 +12,15 @@ Evaluates the shipped dependency resolver via the shared interpreter (reads targ
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
 import pytest
 
-SKILLS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills")
-CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+SKILLS = Path(__file__).resolve().parents[2]   # the skills/ dir (this test is skills/_skills_common/tests/)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
+                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))

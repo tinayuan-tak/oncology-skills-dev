@@ -1,0 +1,98 @@
+name: Skills Validate
+
+# T9 (2026-08-11 engineering review): the claude-oncology-skills repo had NO CI — the
+# 230-test compose-dashboard suite (and every other skill's tests) never ran on a PR, so
+# schema-vs-reality drift and regressions shipped silently. This workflow runs the skill
+# test suites on every PR. Live-data tests that need S3 skip themselves when the onc-compbio
+# bucket is unreadable (see skills/compose-dashboard/tests/conftest.py::skip_if_no_data), so
+# the suite is green on a credential-less CI runner.
+#
+# CROSS-REPO LAYOUT: this repo's pixi.toml editable-depends on THREE sibling repos via `../`
+# paths (analysis-methods, target-contracts, data-catalog/libs/target_id_resolver). CI must
+# lay them out adjacent under $GITHUB_WORKSPACE so `pixi install --locked` resolves them and
+# the tests can import the method/contract code. Checking out PRIVATE sibling repos needs a
+# token with read access: set repo/org secret `CROSS_REPO_TOKEN` (a PAT or GitHub App token
+# with contents:read on the three siblings). It falls back to the default GITHUB_TOKEN, which
+# only works if each sibling has granted this repo's Actions access (Settings → Actions →
+# Access) — otherwise the sibling-checkout steps 403 and CI cannot run.
+
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - "pixi.toml"
+      - "pixi.lock"
+      - ".github/workflows/skills-validate.yml"
+  push:
+    branches: [v2-architecture, dev, main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # The skill readers resolve sibling code via these env vars (sys.path), in addition to the
+      # editable pixi installs. Point them at the CI checkouts, not the local-dev default path.
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
+      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
+      DATA_CATALOG_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
+    steps:
+      - name: Checkout skills
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-claude-oncology-skills
+
+      - name: Checkout analysis-methods (sibling — editable pixi dep)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
+          ref: main
+          path: rnd-computational-biology-oncology-analysis-methods
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout target-contracts (sibling — editable pixi dep)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
+          ref: main
+          path: rnd-computational-biology-oncology-target-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout data-catalog (sibling — target_id_resolver editable pixi dep)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: main
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Set up pixi (installs the locked env incl. the editable siblings)
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.70.2
+          cache: true
+          manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
+
+      # The compose-dashboard suite is the v2 orchestration spine; run it explicitly first so a
+      # failure there is unmistakable, then the rest of the skill suites + the shared harness.
+      - name: compose-dashboard suite
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/compose-dashboard/tests/ -q
+
+      - name: _skills_common shared harness suite
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/_skills_common/tests/ -q
+
+      # NON-BLOCKING coverage of the remaining skills. The BLOCKING gate is the core spine above
+      # (compose-dashboard = the v2 orchestration engine + _skills_common = the shared harness; both
+      # green). Several peripheral skills are not yet CI-portable — unmet test deps (jinja2,
+      # crc_comprehensive_analysis), cross-skill `run` module-name collisions, hardcoded /home paths —
+      # so this step runs + reports them without gating. Promoting it to blocking is a follow-up as
+      # each skill's test hygiene is fixed. --import-mode=importlib avoids duplicate-basename collisions.
+      - name: all remaining skill suites (non-blocking coverage)
+        continue-on-error: true
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: >
+          pixi run pytest skills/ -q --import-mode=importlib
+          --ignore=skills/compose-dashboard/tests
+          --ignore=skills/_skills_common/tests

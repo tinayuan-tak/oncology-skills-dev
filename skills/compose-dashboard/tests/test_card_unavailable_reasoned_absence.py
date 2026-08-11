@@ -17,6 +17,7 @@ These tests pin:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -28,7 +29,8 @@ sys.path.insert(0, str(SCRIPTS_DIR.parent))
 
 from scripts.compose_dashboard import _assemble_evidence_package  # noqa: E402
 
-CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
+                                "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 
 

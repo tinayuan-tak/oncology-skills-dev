@@ -122,10 +122,18 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
     }
     assert expected_base_required.issubset(cards), f"missing: {expected_base_required - cards}"
 
-    # ADC module adds antigen-density-evidence (data_blocked) → should be EXCLUDED at compose
+    # T2-adjacent (2026-08-11 review): this assertion was STALE. The ADC module used to add a
+    # phantom `antigen-density-evidence` card (data_blocked → excluded), but that card never
+    # existed and was repointed 2026-08-06 (PR #199) to the LIVE `surface-abundance-density`
+    # card, which lands in to_run. The genuinely data_blocked card in this composition is the
+    # antibody module's `functional-blockade-rationale`. Assert the current contract:
+    assert "antigen-density-evidence" not in (cards | _card_ids_excluded(plan)), \
+        "phantom antigen-density-evidence card should not appear (repointed to surface-abundance-density)"
+    assert "surface-abundance-density" in cards, \
+        "ADC module's surface-abundance-density (repointed from the phantom card) should be in to_run"
     excluded = _card_ids_excluded(plan)
-    assert "antigen-density-evidence" in excluded, \
-        "antigen-density-evidence should be excluded_at_compose (data_blocked status from ADC module)"
+    assert "functional-blockade-rationale" in excluded, \
+        "antibody module's functional-blockade-rationale is data_blocked → excluded_at_compose"
 
 
 # ============================================================================
