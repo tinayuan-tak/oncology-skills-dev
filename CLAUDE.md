@@ -28,6 +28,24 @@ Before starting a new workstream in this repo:
 **Trivial-work bypass** for single-file edits or clearly scoped edits
 within an active registry entry.
 
+## Worktree-per-workstream (DEFAULT)
+
+Every non-trivial workstream runs in its OWN git worktree — not in this
+primary checkout — so parallel sessions cannot clobber each other's files
+or branch refs. The primary checkout stays parked on `v2-architecture`.
+
+Start a workstream:
+
+    ~/.claude/git-hooks/new-worktree claude-oncology-skills fix/presence-ladder \
+        --scope skills/tumor-presence/
+
+This creates `/tmp/wt/<repo>__<branch>/` on a fresh branch off the
+`default_base` in `.claude/config` (here: `v2-architecture`), writes
+`.claude/branch-scope`, and prints a registry stub to paste into
+`~/.claude/wip-registry.md`. The committed hook symlinks resolve inside the
+worktree, so pre-commit/pre-push enforcement travels with it. Do all work
+in that directory. Trivial in-scope edits may use the primary checkout.
+
 ## Branch & PR discipline
 
 This repo has an existing branching convention in
@@ -71,12 +89,36 @@ across many workstreams — the one-workstream-per-branch rule does not
 apply here. Workstreams should cut short-lived feature branches OFF
 of `v2-architecture` and PR back into it.
 
-## Completion
+## Landing a PR (merge discipline)
 
-- Draft PR on first push (`gh pr create --draft --base v2-architecture`
-  if branching off the architecture branch, else `--base dev`).
-- Registry state transitions: `planned` → `in-progress` → `pr-open` →
-  `merged`. Entries auto-cleaned 24h post-merge.
+The lifecycle does NOT end at "PR open." Land it with:
+
+    ~/.claude/git-hooks/land-pr <pr-number>
+
+Merge policy = **auto-merge when CI passes**. Open the PR draft-first
+(`gh pr create --draft --base v2-architecture` for arch-branch work);
+land-pr then marks it ready and:
+  - checks pending → enables GitHub auto-merge (lands itself when green)
+  - checks failing → refuses
+  - no checks / all green → squash-merges now
+Always `--squash --delete-branch`.
+
+It NEVER deletes a branch/worktree until it re-reads the PR and confirms
+`state == MERGED` — deleting a head branch before merge closes the PR
+UNMERGED (silent work loss). After a confirmed merge it prunes the
+worktree, deletes the local branch, and fast-forwards `v2-architecture`
+in the primary checkout.
+
+**Stacked PRs**: if other open PRs use your branch as their base, land-pr
+refuses (squash-merging a parent auto-closes stacked children). Land the
+children first, or pass `--retarget-children` to move them onto the base.
+
+## Registry / completion
+
+- State transitions: `planned` → `in-progress` → `pr-open` → `merged`.
+  Set `status: merged` by hand after landing (land-pr does not edit the
+  shared registry — parallel sessions share it). Entries auto-cleaned 24h
+  post-merge.
 
 ## Machine enforcement
 

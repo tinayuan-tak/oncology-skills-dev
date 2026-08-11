@@ -7,5 +7,9 @@
 # Approved branch prefixes for this repo.
 prefixes: feat/ fix/ chore/ feature/
 
+# Default base branch for new-worktree / land-pr (override with --base).
+# This repo's active integration branch is the long-lived v2-architecture.
+default_base: v2-architecture
+
 # Human-readable top-level scope roots.
 scope_roots: skills/ libs/ notebooks/ tests/
