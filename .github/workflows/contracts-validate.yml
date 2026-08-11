@@ -26,18 +26,24 @@ on:
     paths:
       - "cards/**"
       - "interpretation-rules/**"
+      - "resolvers/**"
+      - "dashboards/**"
       - "schemas/**"
       - "vocabularies/**"
       - "validators/**"
+      - "tests/**"
       - ".github/workflows/contracts-validate.yml"
   push:
     branches: [main]
     paths:
       - "cards/**"
       - "interpretation-rules/**"
+      - "resolvers/**"
+      - "dashboards/**"
       - "schemas/**"
       - "vocabularies/**"
       - "validators/**"
+      - "tests/**"
       - ".github/workflows/contracts-validate.yml"
 
 jobs:
@@ -51,7 +57,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip pyyaml jsonschema
+        run: python -m pip install --upgrade pip pyyaml jsonschema pytest
 
       - name: Validate card specs
         run: python validators/validate_cards.py cards/
@@ -61,3 +67,16 @@ jobs:
 
       - name: Validate interpretation rules (all rules files)
         run: python validators/validate_interpretation_rules.py --rules interpretation-rules/ --cards cards/
+
+      # T9b (2026-08-11 engineering review): validate_resolvers.py was a fully-built validator
+      # wired into NO workflow — the dangling-rung / renamed-rule-id drift it guards was unguarded
+      # on PRs. Wire it here so resolver precedence changes are gated.
+      - name: Validate resolvers (dangling-rung / rule-id reachability)
+        run: python validators/validate_resolvers.py --resolvers resolvers/ --rules interpretation-rules/
+
+      # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
+      # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
+      # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test
+      # suite that pins every shipped dashboard_spec.
+      - name: Validate contract instances against schemas (dashboard_spec, etc.)
+        run: python -m pytest tests/schemas/ -q
