@@ -25,9 +25,11 @@ S3_BUCKET = "onc-compbio"
 
 # indication code → landed sc-pseudobulk product key. ONLY the indications whose CELLxGENE Census
 # atlases carry a per-cell MALIGNANT annotation AND enough donors for the donor-replicate roll-up are
-# materialized (v1: COADREAD + NSCLC). Others → data_unavailable (honest capability ceiling, never a
-# silent fall-back). PAAD excluded (n=1 donor); STAD excluded (0 malignant-cell annotation in the
-# Census gastric atlases). Adding an indication = emit its product (data-catalog) + one line here.
+# materialized (v1: COADREAD + NSCLC + LUSC). Others → data_unavailable (honest capability ceiling,
+# never a silent fall-back). PAAD excluded (n=1 donor); STAD excluded (0 malignant-cell annotation in
+# the Census gastric atlases). Adding an indication = emit its product (data-catalog) + one line here.
+# LUSC has a DEDICATED product (66,617 malignant cells, 4 datasets) — squamous-only denominators,
+# distinct from the LUAD+LUSC-mixed NSCLC umbrella. LUAD keeps the umbrella (no LUAD-specific cube).
 # 2026-08-11 REVIEW FIX (M3): repoint COADREAD to -v2. The catalog's coadread-v2 SUPERSEDES v1
 # (`supersedes: sc-pseudobulk-donor-celltype-coadread-v1`) with a 4.5x-larger cohort — 30 datasets
 # / 749 donors / 828,819 cells / 1,663 donor-compartment groups (v1: 21 / 511 / 182,604) — and is
@@ -40,7 +42,7 @@ INDICATION_TO_PRODUCT = {
     "READ": "sc-pseudobulk-donor-celltype-coadread-v2",
     "NSCLC": "sc-pseudobulk-donor-celltype-nsclc-v1",
     "LUAD": "sc-pseudobulk-donor-celltype-nsclc-v1",
-    "LUSC": "sc-pseudobulk-donor-celltype-nsclc-v1",
+    "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",   # dedicated squamous cube (was: nsclc umbrella)
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",

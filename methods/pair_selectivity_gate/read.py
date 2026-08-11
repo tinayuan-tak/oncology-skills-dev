@@ -29,7 +29,13 @@ GTEX_MANIFEST_ID = "gtex-tpm-recount3-long-v1"
 try:
     from methods.dge_deseq2.read import INDICATION_TO_TCGA_STUDIES
 except Exception:  # noqa: BLE001
-    INDICATION_TO_TCGA_STUDIES = {"COADREAD": ["COAD", "READ"], "NSCLC": ["LUAD", "LUSC"]}
+    # Fallback only if the SoR import fails — keep in step with dge_deseq2.read.INDICATION_TO_TCGA_STUDIES.
+    # LUSC is a first-class indication there (own single-study cohort), so the same-cell/pseudobulk
+    # LUSC cubes are reachable; mirror that here so a degraded import doesn't silently drop LUSC.
+    INDICATION_TO_TCGA_STUDIES = {
+        "COADREAD": ["COAD", "READ"], "NSCLC": ["LUAD", "LUSC"],
+        "LUAD": ["LUAD"], "LUSC": ["LUSC"],
+    }
 
 _POS = _gates.GATE_POSITIVE_THRESHOLD_TPM
 _VETO = _gates.NOT_GATE_VETO_ABSENT_TPM

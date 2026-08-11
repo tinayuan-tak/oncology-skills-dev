@@ -11,8 +11,8 @@ pair, the cross-donor fraction of MALIGNANT cells expressing BOTH antigens + enr
 
 The DONOR is the replicate: the cube is per (donor, pair); we summarize ACROSS donors (cross-donor
 median), never a cell-weighted pool. Pushdown-read by (gene_a, gene_b). data_unavailable when the
-indication's same-cell cube is not landed (COADREAD/NSCLC first) — the pair-scan still returns its
-bulk verdict + the honest 'avidity unconfirmed' caveat, never a fabricated confirmation.
+indication's same-cell cube is not landed (COADREAD/NSCLC/LUSC landed) — the pair-scan still returns
+its bulk verdict + the honest 'avidity unconfirmed' caveat, never a fabricated confirmation.
 """
 from __future__ import annotations
 
@@ -21,14 +21,17 @@ from typing import Optional
 
 from methods.catalog_query.read import s3_uri_for
 
-# indication → same-cell cube manifest id (parallels the sc-pseudobulk products; COADREAD + NSCLC first).
+# indication → same-cell cube manifest id (parallels the sc-pseudobulk products; COADREAD + NSCLC + LUSC).
+# LUSC has a DEDICATED cube (squamous-only malignant denominators) — distinct from the LUAD+LUSC-mixed
+# NSCLC umbrella. LUAD stays on the umbrella (no LUAD-specific cube). Adding an indication = emit its
+# cube (data-catalog) + one line here (keep in step with sc_tumor_expression_celltype.INDICATION_TO_PRODUCT).
 INDICATION_TO_SAMECELL_MANIFEST = {
     "COADREAD": "sc-samecell-coexpr-coadread-v1",
     "COAD": "sc-samecell-coexpr-coadread-v1",
     "READ": "sc-samecell-coexpr-coadread-v1",
     "NSCLC": "sc-samecell-coexpr-nsclc-v1",
     "LUAD": "sc-samecell-coexpr-nsclc-v1",
-    "LUSC": "sc-samecell-coexpr-nsclc-v1",
+    "LUSC": "sc-samecell-coexpr-lusc-v1",   # dedicated squamous cube (was: nsclc umbrella)
 }
 
 # enrichment_vs_independence bands for the avidity call.
@@ -70,7 +73,7 @@ def confirm_pair_samecell(target: str, partner: str, indication: str) -> dict:
     data_unavailable payload (cube not landed / pair absent) — never a fabricated confirmation."""
     manifest = INDICATION_TO_SAMECELL_MANIFEST.get(str(indication).upper().strip())
     if not manifest:
-        return _unavailable("indication has no same-cell coexpr cube (COADREAD/NSCLC first)")
+        return _unavailable("indication has no same-cell coexpr cube (COADREAD/NSCLC/LUSC landed)")
     df = _read_cube(manifest)
     if df is None:
         return _unavailable(f"same-cell cube {manifest} not landed / unreadable")
