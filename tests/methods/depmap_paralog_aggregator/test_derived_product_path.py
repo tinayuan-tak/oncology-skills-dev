@@ -103,10 +103,15 @@ def test_unreachable_product_falls_back_to_raw_csv(monkeypatch, tmp_path):
     R._load_paralog_indexed.cache_clear()
 
 
-def test_fetch_derived_row_parses_s3_uri():
+def test_fetch_derived_row_parses_s3_uri(monkeypatch):
     """_fetch_derived_row must split an s3:// URI into (bucket, key) for pyarrow.fs — guard the
-    parsing so a URI-format regression is caught without a live read."""
-    # We can't do a live read here; just verify the URI-splitting logic via a monkeypatched pq.
+    parsing so a URI-format regression is caught without a live read.
+
+    ISOLATION FIX (2026-08-11): `_fetch_derived_row` does `import pyarrow.parquet as pq`, which binds
+    `pq = pyarrow.parquet` — an ATTRIBUTE lookup on the pyarrow module, NOT a sys.modules["pyarrow.parquet"]
+    lookup. The old test faked only sys.modules, so once ANY earlier test in the session imported real
+    pyarrow (setting pyarrow.parquet/pyarrow.fs attributes), the fake was bypassed → real S3 read →
+    order-dependent failure. Patch BOTH the attribute and sys.modules, via monkeypatch (auto-reverts)."""
     import methods.depmap_paralog_aggregator.read as RR
     captured = {}
 
@@ -114,17 +119,18 @@ def test_fetch_derived_row_parses_s3_uri():
         num_rows = 0
         column_names: list = []
 
+    import sys
     import types
     fake_pq = types.SimpleNamespace(read_table=lambda path, filesystem=None, filters=None: (
         captured.update(path=path, filters=filters) or _FakeTable()))
     fake_fs = types.SimpleNamespace(S3FileSystem=lambda: object())
-    import sys as _sys
-    _sys.modules["pyarrow.parquet"] = fake_pq
-    _sys.modules["pyarrow.fs"] = fake_fs
-    try:
-        out = RR._fetch_derived_row("s3://onc-compbio/data-catalog/derived/x/p.parquet", "kras")
-    finally:
-        del _sys.modules["pyarrow.parquet"]; del _sys.modules["pyarrow.fs"]
+    import pyarrow  # real top-level module; we override its .parquet/.fs submodule attributes
+    monkeypatch.setattr(pyarrow, "parquet", fake_pq, raising=False)
+    monkeypatch.setattr(pyarrow, "fs", fake_fs, raising=False)
+    monkeypatch.setitem(sys.modules, "pyarrow.parquet", fake_pq)
+    monkeypatch.setitem(sys.modules, "pyarrow.fs", fake_fs)
+
+    out = RR._fetch_derived_row("s3://onc-compbio/data-catalog/derived/x/p.parquet", "kras")
     assert out is None                                        # num_rows == 0
     assert captured["path"] == "onc-compbio/data-catalog/derived/x/p.parquet"
     assert captured["filters"] == [("target_gene_symbol", "=", "KRAS")]  # upper-cased
