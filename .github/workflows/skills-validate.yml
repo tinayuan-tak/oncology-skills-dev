@@ -93,15 +93,31 @@ jobs:
 
       # NON-BLOCKING coverage of the remaining skills. The BLOCKING gate is the three suites above
       # (compose-dashboard = v2 orchestration engine, _skills_common = shared harness, target-profile =
-      # composed nomination skill). Several peripheral skills are not yet CI-portable — unmet test deps
-      # (jinja2, crc_comprehensive_analysis), cross-skill `run` module-name collisions, hardcoded /home
-      # paths — so this step runs + reports them without gating. Promoting each is a follow-up as its
-      # test hygiene is fixed. --import-mode=importlib avoids duplicate-basename collisions.
-      - name: all remaining skill suites (non-blocking coverage)
+      # composed nomination skill). Each remaining skill runs in its OWN pytest process — this is the
+      # Fix-1 change: many skills ship scripts/run.py, and batching them into a single `pytest skills/`
+      # process made `import run` bind to whichever skill loaded FIRST (sys.modules cache), so a later
+      # skill's test got the wrong run.py (`cannot import name _resistance_verdict/_snapshot from 'run'`).
+      # Per-skill invocation isolates each `run` (exactly like the blocking suites) and removes that
+      # order-dependent fragility. Still non-blocking: failures surface as ::warning:: without gating
+      # (promoting green skills to blocking is a follow-up). Known remaining: workflow-target-evaluation-onc
+      # imports a crc_comprehensive_analysis module not present in the repo (tracked separately, Fix 2).
+      - name: remaining skill suites (per-skill, non-blocking coverage)
         continue-on-error: true
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
-        run: >
-          pixi run pytest skills/ -q --import-mode=importlib
-          --ignore=skills/compose-dashboard/tests
-          --ignore=skills/_skills_common/tests
-          --ignore=skills/target-profile/tests
+        shell: bash
+        run: |
+          set +e   # a failing skill must NOT stop the loop — every remaining skill still runs
+          any_fail=0
+          for d in skills/*/tests; do
+            skill=$(basename "$(dirname "$d")")
+            # the three suites above are their own BLOCKING steps — don't double-run them here
+            case "$skill" in compose-dashboard|_skills_common|target-profile) continue ;; esac
+            ls "$d"/test_*.py >/dev/null 2>&1 || continue   # skip dirs with no test files
+            echo "::group::$skill"
+            pixi run pytest "$d" -q --import-mode=importlib
+            rc=$?
+            echo "::endgroup::"
+            [ "$rc" -ne 0 ] && { echo "::warning title=skills-validate::$skill suite failed (rc=$rc)"; any_fail=1; }
+          done
+          [ "$any_fail" -ne 0 ] && echo "NOTE: one or more non-blocking skill suites failed (see ::warning:: above)"
+          exit 0   # non-blocking coverage — report, never gate
