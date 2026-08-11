@@ -5,7 +5,7 @@
 **Deterministic analytical code.** A method:
 - Has a single CLI entrypoint (`method-name --arg value ...`).
 - Takes catalog manifest IDs and parameters as inputs.
-- Emits a structured output bundle (`summary.json`, `figure.svg`, `plot_data.parquet`, `manifest.yaml`) that validates against the method's per-method output schema in `target-contracts/schemas/methods/`.
+- Emits a structured output bundle (`summary.json`, `figure.svg`, `plot_data.parquet`, `manifest.yaml`) whose `summary` validates against the card's per-card summary schema in `target-contracts/schemas/methods/<card_id>.summary.schema.json` (when one exists — see the opt-in discipline below).
 - Has unit tests in `methods/<method>/tests/`.
 - Is **idempotent** — same inputs + same release_pin → byte-identical deterministic-field output.
 
@@ -21,7 +21,7 @@
 Every method CLI must:
 1. Accept `--release-pin <manifest_id>` (gates resolution against the catalog).
 2. Accept `--out <dir>` (where outputs land in staging).
-3. Emit outputs validating against the method's schema in `target-contracts/schemas/methods/`.
+3. Emit outputs whose `summary` validates against the card's schema in `target-contracts/schemas/methods/<card_id>.summary.schema.json` (opt-in — see the discipline section below).
 4. Exit 0 on success, non-zero on failure with structured stderr.
 5. Run deterministically — same inputs reproduce byte-identical outputs (caveat: timestamps and machine identity in the `manifest.yaml` are excluded from byte-identity).
 
@@ -36,9 +36,11 @@ When implemented in R (like `dge_deseq2`):
 - `cli.py` wraps `Rscript` invocations to numbered step scripts (`steps/00_*.R`, `01_*.R`, …)
 - Argument parsing happens in Python; R receives concrete parameter values via command-line args
 
-## Per-method output schema discipline
+## Per-card summary-output schema discipline
 
-The schema in `target-contracts/schemas/methods/<method>.output.schema.json` is the contract between the method-author and the skill-author (compose-dashboard). A change to a method's output shape requires a coordinated schema bump + a compose-dashboard PR. **Drift fails compose-time validation; it doesn't silently produce a bad evidence package.**
+The schema in `target-contracts/schemas/methods/<card_id>.summary.schema.json` is the contract between the method-author and the skill-author (compose-dashboard) for the `summary` dict a card emits. (Granularity is **per-card**, not per-method: one method can back several cards with different summary shapes, so the schema is keyed by `card_id`.) A change to a card's summary shape requires a coordinated schema bump + a compose-dashboard PR. **Drift fails compose-time validation; it doesn't silently produce a bad evidence package.**
+
+Rollout is **opt-in**: compose-dashboard validates a card's summary only when its `<card_id>.summary.schema.json` exists (generate one with `target-contracts/validators/gen_summary_schemas.py`), so cards without a schema are unaffected until one is committed.
 
 ## Carve-out provenance
 
