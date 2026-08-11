@@ -220,6 +220,14 @@ SUB_SKILL_CARDS = {
                                                  # functional-requirement CARDS (composer-consistency).
         "abundance-dependency",                  # Q7 (2026-07-23) — protein abundance→dependency (protein
                                                  # arm of expression-as-biomarker-of-dependency); render facet.
+        "partner-conditional-dependency",        # 2026-08-10 REVIEW FIX (H1): Track PC verdict-bearing card.
+                                                 # In functional-requirement/run.py CARDS but DROPPED here, so
+                                                 # the dependency resolver's partner_conditional_dependent rung
+                                                 # (partner-conditional-{strongly,moderately}-dependent-supportive)
+                                                 # was DEAD in the composed profile — a partner-conditional SL
+                                                 # target (WRN×MSI) was force-vetoed non_dependent. The composer
+                                                 # guard (test_resolver_dependency_cards_are_in_the_composer_entry)
+                                                 # was sitting RED on exactly this. Restored.
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",
@@ -269,6 +277,13 @@ SUB_SKILL_CARDS = {
     "tractability-small-molecule": [         # split: SM chemical-genetic half
         "prism-compound-activity",
         "prism-crispr-concordance",
+        "measured-potency-tractability",         # 2026-08-10 REVIEW FIX (M1): T3.1 measured-potency card.
+                                                 # In tractability-small-molecule/run.py CARDS but DROPPED here,
+                                                 # so the tractability_small_molecule resolver's measured_potent_ligand
+                                                 # AND structurally_ligandable rungs (measured-potent-ligand-sm-supportive
+                                                 # + measured-weak-ligand-sm-supportive) were unreachable in the
+                                                 # composed profile. Was invisible to the composer guard until the
+                                                 # 2026-08-10 _GATE_BY_SUBSKILL fix added this gate. Restored.
         "dependency-predictability",
         "structure-features-static",         # 2026-07-24 — E8 forward-ligandability (pocket/druggability).
                                              # In tractability-small-molecule/run.py CARDS but was dropped

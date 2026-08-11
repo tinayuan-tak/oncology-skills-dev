@@ -131,14 +131,20 @@ import yaml  # noqa: E402
 CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 # sub-skill dir -> the resolver gate it calls (resolve_verdict_for_gate(fired, "<gate>")).
-# Sub-skills with inline verdicts (tumor-presence, tractability-small-molecule) have no resolver
-# and are intentionally absent — this guard only covers resolver-backed gates.
+# Only tumor-presence has a genuinely inline verdict (no resolver) and is intentionally absent.
+# NOTE (2026-08-10): tractability-small-molecule was MIGRATED to the declarative resolver
+# (tractability-small-molecule/scripts/run.py calls resolve_verdict_for_gate(fired,
+# "tractability_small_molecule"), resolvers/tractability_small_molecule.resolver.yaml v1.3.0), but
+# this map still excluded it — so the measured_potent_ligand rung's card (measured-potency-tractability)
+# could be dropped from the composer with the guard staying green. Added. test_gate_map_matches_resolver_calls
+# (below) now keeps this map in lockstep with the actual resolve_verdict_for_gate() call sites.
 _GATE_BY_SUBSKILL = {
     "tumor-selectivity": "selectivity",
     "functional-requirement": "dependency",
     "mechanism-and-pharmacology": "mechanism",
     "genomic-alteration-profile": "genomic_alteration",
     "differentiation-landscape": "differentiation",
+    "tractability-small-molecule": "tractability_small_molecule",
     "surface-modality-fit": "surface_modality",
     "on-target-safety-liability": "safety",
     "synthetic-lethal-partners": "synthetic_lethal_partners",
@@ -167,6 +173,48 @@ def _resolver_rule_ids(gate: str) -> set[str]:
         for key in ("when_any_fired", "when_all_fired"):
             rids.update(rung.get(key, []) or [])
     return rids
+
+
+def _gate_from_run_py(skill_dir: str) -> str | None:
+    """The gate string a sub-skill passes to resolve_verdict_for_gate(fired, "<gate>"), or None if the
+    skill has an inline verdict (never calls the resolver). Parsed via ast — no live reads."""
+    rp = SKILLS / skill_dir / "scripts" / "run.py"
+    if not rp.exists():
+        return None
+    for node in ast.walk(ast.parse(rp.read_text())):
+        if (
+            isinstance(node, ast.Call)
+            and getattr(node.func, "id", None) == "resolve_verdict_for_gate"
+            and len(node.args) >= 2
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, str)
+        ):
+            return node.args[1].value
+    return None
+
+
+def test_gate_map_matches_resolver_calls():
+    """SELF-AUDIT: _GATE_BY_SUBSKILL must equal the set of gates actually resolved in each sub-skill's
+    run.py. This is what prevents the map from silently going stale (the L6 hole, 2026-08-10): when a
+    sub-skill is migrated to the declarative resolver, this test fails until the gate is added, so the
+    stronger card-availability guard below can never be blind to a resolver-backed sub-skill again.
+
+    Derives ground truth from the resolve_verdict_for_gate(...) call sites, not from a hand list."""
+    _sub_skills, _ssc = _composer_maps()
+    discovered = {}
+    for skill_dir, _short in _sub_skills:
+        gate = _gate_from_run_py(skill_dir)
+        if gate is not None:
+            discovered[skill_dir] = gate
+    missing = {k: v for k, v in discovered.items() if k not in _GATE_BY_SUBSKILL}
+    stale = {k: _GATE_BY_SUBSKILL[k] for k in _GATE_BY_SUBSKILL if k not in discovered}
+    mismatched = {k: (_GATE_BY_SUBSKILL[k], discovered[k])
+                  for k in _GATE_BY_SUBSKILL if k in discovered and _GATE_BY_SUBSKILL[k] != discovered[k]}
+    assert not (missing or stale or mismatched), (
+        "_GATE_BY_SUBSKILL is out of sync with the resolve_verdict_for_gate() call sites.\n"
+        f"  resolver-backed sub-skills MISSING from the map (add them): {missing}\n"
+        f"  map entries with NO resolver call (remove them): {stale}\n"
+        f"  gate-name mismatches (map != run.py): {mismatched}")
 
 
 @pytest.mark.skipif(not CONTRACTS.exists(), reason="target-contracts repo not checked out (cross-repo guard)")
