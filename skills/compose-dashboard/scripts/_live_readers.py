@@ -894,17 +894,6 @@ def _dispatch_cross_consortium_dependency(target: str, indication: str) -> Optio
     return mod.read_cross_consortium_dependency(target=target, indication=indication)
 
 
-def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route ddr-deficiency-context card to methods/pancanatlas_ddr_context.
-
-    INDICATION-level, target-INDEPENDENT (HRD/DDR deficiency is a cohort phenotype) — `target` is
-    accepted for dispatcher-signature uniformity but IGNORED. Reads the materialized per-indication
-    HRD rollup (Knijnenburg 2018 DDR footprint) and returns the cohort ddr_context_class. DISPLAY
-    facet, verdict-inert (sibling of genomic-instability-state)."""
-    mod = _import_method("pancanatlas_ddr_context")
-    return mod.read_ddr_deficiency_context(target=target, indication=indication)
-
-
 def _dispatch_fusion_stratified_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route fusion-stratified-dependency card (Card E3.fus) to
     methods/depmap_fusion_dependency/read.py.

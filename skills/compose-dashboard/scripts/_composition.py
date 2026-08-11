@@ -269,11 +269,41 @@ def _merge_threshold_overlays(
         )
         effective[tier_key] = strictest[1]
 
-    # Step 3: apply numerical overlays last-wins (rare; severity_tier pattern is preferred)
+    # Step 3: apply numerical overlays. Numerical overlays are rare (the severity_tier pattern is
+    # preferred), but when >1 module tunes the same numerical key we must NOT silently resolve by
+    # insertion order — that made the merged threshold depend on module LOAD ORDER (a
+    # non-deterministic, invisible dependency). T19 fix (2026-08-11 engineering review): resolve
+    # order-INDEPENDENTLY. Single contributor → use it. Multiple AGREEING → use the (shared) value.
+    # Multiple DISAGREEING → pick the strictest (min) so composition stays deterministic and errs
+    # toward false-negative (same discipline as the severity-tier strictest-wins rule), and emit a
+    # diagnostic naming the conflict so the ambiguity is visible rather than silently order-decided.
+    import sys as _sys
     for k, contribs in numerical_contributions.items():
-        # Last-wins is a degenerate case; iter-1b cards should use severity_tier pattern.
-        # Future iter-2 work: extend conservative-merge semantics here per-key.
-        effective[k] = contribs[-1][1]
+        distinct_values = {v for _, v in contribs}
+        if len(distinct_values) == 1:
+            # Single value (one contributor, or several that agree) — no ambiguity.
+            effective[k] = contribs[0][1]
+            continue
+        # Contributors disagree. For genuinely NUMERIC thresholds, resolve to the strictest
+        # (min) — deterministic + order-independent (the previous last-wins depended on module
+        # load order), erring toward false-negative like the severity-tier strictest-wins rule.
+        # For NON-numeric overlays (e.g. a free-text `note`), there is no "strictest": keep the
+        # historical last-wins (still a value, no spurious conflict noise) — these are display
+        # annotations, not gates.
+        numeric = [(m, v) for m, v in contribs if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        if len(numeric) == len(contribs):
+            chosen = min(v for _, v in numeric)
+            conflict = ", ".join(f"{m}={v!r}" for m, v in sorted(contribs, key=lambda mv: mv[0]))
+            print(
+                f"[compose-dashboard] numeric threshold-overlay CONFLICT on card {card_id!r} "
+                f"key {k!r}: {conflict} → chose strictest {chosen!r} (order-independent). Prefer "
+                f"the severity_tier pattern for multi-module numerical tuning.",
+                file=_sys.stderr,
+            )
+            effective[k] = chosen
+        else:
+            # Mixed/non-numeric (notes, labels): last-wins, no conflict warning (not a gate).
+            effective[k] = contribs[-1][1]
 
     # Step 4: resolve `essential_tissue_severity_tier` → `essential_tissue_active_threshold`
     # (and similar patterns for other cards) — bridge symbolic tier to numerical threshold
