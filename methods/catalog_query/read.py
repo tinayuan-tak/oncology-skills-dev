@@ -150,6 +150,110 @@ def sidecar_bucket_key_for(manifest_id: str, root: Path = DATA_CATALOG) -> tuple
 
 
 # ---------------------------------------------------------------------------
+# Release resolution (T4, 2026-08-11 engineering review)
+# ---------------------------------------------------------------------------
+# compose-dashboard's data_mode (latest_approved | pinned | exploratory) + release_pin
+# previously flowed only into ID strings — they never selected which manifest a card read.
+# resolve_release turns (logical family, data_mode, release_pin) into a concrete manifest_id,
+# reusing the SAME catalog machinery (load_catalog + the curator-declared `supersedes` graph)
+# rather than inventing a parallel registry.
+#
+# NB on `latest_approved`: the manifest schema carries NO approval/status field (it's
+# additionalProperties:false), so there is no metadata to gate "approved" on today. The only
+# honest, catalog-backed definition of "latest approved" is "the newest sibling in the family
+# that no other manifest has superseded" (i.e. catalog head via the supersedes back-pointer).
+# This is documented as such; a real approval-status field is a future data-catalog change.
+
+
+class ReleaseResolutionError(ValueError):
+    """Raised when a (family, data_mode, release_pin) triple can't be resolved to a manifest."""
+
+
+def _family_of(manifest_id: str) -> str:
+    """The logical family of a manifest id = the id with a trailing version/release suffix
+    stripped. Convention in this catalog: `<family>-<release>-v<N>` or `<family>-v<N>` — new
+    releases are new SIBLINGS (ids never renamed), so the family is the stable join key.
+    Strips trailing `-v<N>` and a trailing release token if present (e.g. `-26q1`)."""
+    mid = re.sub(r"-v\d+$", "", manifest_id)                 # drop -v2
+    mid = re.sub(r"-\d{2}q\d$", "", mid, flags=re.IGNORECASE)  # drop -26q1 style release token
+    return mid
+
+
+def resolve_release(
+    family: str,
+    data_mode: str,
+    release_pin: Optional[str] = None,
+    root: Path = DATA_CATALOG,
+    contracts_root: Path = TARGET_CONTRACTS,
+) -> str:
+    """Resolve a logical product `family` + `data_mode` (+ `release_pin`) to a concrete manifest_id.
+
+    data_mode:
+      - "pinned":         requires release_pin; resolves to the exact sibling for that pin. The
+                          candidate ids tried are `f"{family}-{release_pin}"` and
+                          `f"{family}-{release_pin}-v1"`, else any family member whose id contains
+                          the pin token. Fails loud (ReleaseResolutionError) if none exists.
+      - "latest_approved":the newest family member NOT named in any other manifest's `supersedes`
+                          field (catalog head via the supersedes graph). Ties (no supersedes edges)
+                          break by natural id sort (highest version/release suffix wins).
+      - "exploratory":    same head resolution as latest_approved, but a release_pin — if given and
+                          resolvable — takes precedence (lets a dev pin an in-progress sibling).
+
+    Returns the resolved manifest_id (a string). Never touches S3 — pair with s3_uri_for /
+    bucket_key_for to get the path. Fail-loud by design (mirrors the depmap_common release guard).
+    """
+    idx = load_catalog(root=root, contracts_root=contracts_root)
+    members = [mid for mid in idx.manifests if _family_of(mid) == family]
+    if not members:
+        # family may already BE a concrete id (single-release product) — accept it as-is.
+        if family in idx.manifests:
+            return family
+        raise ReleaseResolutionError(
+            f"No manifest in family {family!r} (data_mode={data_mode!r}). "
+            f"Known families are the id-prefixes under manifests/{{sources,derived}}/."
+        )
+
+    def _pinned(pin: str) -> Optional[str]:
+        for cand in (f"{family}-{pin}", f"{family}-{pin}-v1"):
+            if cand in idx.manifests:
+                return cand
+        hits = sorted(m for m in members if pin.lower() in m.lower())
+        return hits[-1] if hits else None
+
+    if data_mode == "pinned":
+        if not release_pin:
+            raise ReleaseResolutionError(f"data_mode='pinned' requires a release_pin for family {family!r}.")
+        resolved = _pinned(release_pin)
+        if resolved is None:
+            raise ReleaseResolutionError(
+                f"release_pin={release_pin!r} does not resolve to any manifest in family "
+                f"{family!r}. Members: {sorted(members)}."
+            )
+        return resolved
+
+    if data_mode == "exploratory" and release_pin:
+        resolved = _pinned(release_pin)
+        if resolved is not None:
+            return resolved
+        # fall through to head resolution when the pin doesn't resolve (exploratory is permissive)
+
+    if data_mode in ("latest_approved", "exploratory"):
+        superseded = {
+            rec.supersedes for rec in idx.manifests.values()
+            if rec.supersedes and _family_of(rec.supersedes) == family
+        }
+        head = sorted(m for m in members if m not in superseded)
+        if not head:
+            # every member is superseded (dangling chain) — fall back to all members.
+            head = sorted(members)
+        return head[-1]
+
+    raise ReleaseResolutionError(
+        f"Unknown data_mode {data_mode!r} (expected latest_approved | pinned | exploratory)."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Index construction
 # ---------------------------------------------------------------------------
 
