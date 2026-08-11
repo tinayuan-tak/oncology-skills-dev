@@ -1798,7 +1798,8 @@ PANORAMA_DISPATCHERS = {
 
 
 def read_live_summary(card_id: str, target: str, indication: str,
-                       subgroup_context: Optional[dict] = None) -> Optional[dict]:
+                       subgroup_context: Optional[dict] = None,
+                       data_context: Optional[dict] = None) -> Optional[dict]:
     """Dispatch a live-read for the named card to its corresponding method module.
 
     Two dispatch paths:
@@ -1813,9 +1814,15 @@ def read_live_summary(card_id: str, target: str, indication: str,
     Accepting the kwarg (rather than the legacy scalar-only signature) is what lets
     _execution._call_live_reader pass it through without hitting the TypeError shim.
 
+    T4 (2026-08-11): data_context {data_mode, release_pin} is accepted (and forwarded to any
+    dispatcher whose signature declares it) so a release-aware method can pick the right manifest
+    version via catalog_query.resolve_release. Single-release dispatchers ignore it. Accepting the
+    kwarg here is what lets _call_live_reader's signature-introspection pass it through cleanly.
+
     Returns None if no dispatcher exists yet (caller falls back to stub or marks failed).
     """
     ctx = subgroup_context or {}
+    _dctx = data_context or {}  # T4: {data_mode, release_pin}; forwarded to release-aware dispatchers
     subgroups = ctx.get("resolved_strata_ids") or []
 
     # Panorama path: only when the card is panorama-capable AND strata are in scope.
@@ -1841,6 +1848,17 @@ def read_live_summary(card_id: str, target: str, indication: str,
     if dispatcher is None:
         return None
     try:
-        return dispatcher(target=target, indication=indication)
+        # T4: forward data_context ONLY to dispatchers whose signature declares it (release-aware
+        # readers); single-release dispatchers keep the (target, indication) signature untouched.
+        kwargs = {"target": target, "indication": indication}
+        import inspect
+        try:
+            params = inspect.signature(dispatcher).parameters
+            if _dctx and ("data_context" in params
+                          or any(p.kind == p.VAR_KEYWORD for p in params.values())):
+                kwargs["data_context"] = _dctx
+        except (ValueError, TypeError):
+            pass
+        return dispatcher(**kwargs)
     except Exception as e:
         return {"_live_read_error": str(e)}

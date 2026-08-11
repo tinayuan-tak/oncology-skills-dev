@@ -72,6 +72,16 @@ def execute_run_plan(
     # subgroup-aware cards (subgroup-stratified-expression, rwd-stratified-expression)
     # can wire to the correct assignment Parquets in live mode.
     subgroup_context = run_plan.get("subgroup_resolution", {}) or {}
+    # T4 (2026-08-11 engineering review): extract data_mode + release_pin from the run_plan and
+    # make them available to live readers as a data_context dict, so a reader/dispatcher can
+    # resolve WHICH manifest version to read (via catalog_query.resolve_release). Previously these
+    # flowed only into ID strings and never reached the data-access layer. Threaded the SAME way
+    # subgroup_context is (kwarg + TypeError back-compat shim) so no existing dispatcher breaks.
+    _ictx = run_plan.get("input_context", {}) or {}
+    data_context = {
+        "data_mode": _ictx.get("data_mode"),
+        "release_pin": _ictx.get("release_pin"),
+    }
 
     card_outputs: list[dict] = []
     unavailable_cards: list[dict] = []   # F: structured card_unavailable stubs (not synthesis inputs)
@@ -101,10 +111,10 @@ def execute_run_plan(
         if execution_mode == "stub":
             summary = _load_stub_summary(card_id, target, indication, fixtures_dir)
         elif execution_mode == "live":
-            summary = _read_live_summary(card_id, target, indication, subgroup_context=subgroup_context)
+            summary = _read_live_summary(card_id, target, indication, subgroup_context=subgroup_context, data_context=data_context)
         elif execution_mode == "live-stub-fallback":
             # Try live first; if no live reader OR live read errored, fall back to stub
-            summary = _read_live_summary(card_id, target, indication, subgroup_context=subgroup_context)
+            summary = _read_live_summary(card_id, target, indication, subgroup_context=subgroup_context, data_context=data_context)
             if summary is None or (isinstance(summary, dict) and "_live_read_error" in summary):
                 summary = _load_stub_summary(card_id, target, indication, fixtures_dir)
 
@@ -234,13 +244,18 @@ def _load_stub_summary(card_id: str, target: str, indication: str,
 
 
 def _read_live_summary(card_id: str, target: str, indication: str,
-                        subgroup_context: Optional[dict] = None) -> Optional[dict]:
+                        subgroup_context: Optional[dict] = None,
+                        data_context: Optional[dict] = None) -> Optional[dict]:
     """Live mode: dispatch to a card-specific live reader in _live_readers.CARD_READERS.
 
     L3 fix (post-adversarial-review): subgroup_context (the run_plan's subgroup_resolution)
     is now plumbed through so subgroup-aware cards can consume the resolved strata. Live
     readers that don't need it can ignore; readers like the subgroup-stratified-expression
     reader consume the catalog_ref + resolved_strata_ids fields.
+
+    T4 (2026-08-11): data_context {data_mode, release_pin} is plumbed the same way so a reader
+    can resolve which manifest version to read (via catalog_query.resolve_release). Readers that
+    don't accept it are called via the back-compat shim (unchanged behavior).
 
     Returns:
       - A summary dict when a live reader exists and succeeds
@@ -259,20 +274,35 @@ def _read_live_summary(card_id: str, target: str, indication: str,
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return _call_live_reader(mod.read_live_summary, card_id, target, indication, subgroup_context)
-    return _call_live_reader(read_live_summary, card_id, target, indication, subgroup_context)
+        return _call_live_reader(mod.read_live_summary, card_id, target, indication,
+                                 subgroup_context, data_context)
+    return _call_live_reader(read_live_summary, card_id, target, indication,
+                             subgroup_context, data_context)
 
 
 def _call_live_reader(read_fn, card_id: str, target: str, indication: str,
-                       subgroup_context: Optional[dict]) -> Optional[dict]:
-    """Invoke a live reader, gracefully handling readers that don't yet accept subgroup_context.
-    Iter-1b execution-session work will migrate readers to accept it directly; until then
-    this shim absorbs the signature change."""
+                       subgroup_context: Optional[dict],
+                       data_context: Optional[dict] = None) -> Optional[dict]:
+    """Invoke a live reader, passing ONLY the optional context kwargs its signature actually
+    declares. Iter-1b/T4 readers are being migrated to accept subgroup_context / data_context; a
+    legacy reader that accepts neither is called with just the 3 positional args.
+
+    Uses signature INTROSPECTION (not blanket try/except TypeError) so that a TypeError raised
+    *inside* the reader's own logic propagates as a real error instead of being silently masked by
+    a retry with fewer kwargs — the failure mode the previous single-kwarg shim risked."""
+    import inspect
+    kwargs: dict = {}
     try:
-        return read_fn(card_id, target, indication, subgroup_context=subgroup_context)
-    except TypeError:
-        # Reader doesn't accept subgroup_context — call without it (legacy signature)
-        return read_fn(card_id, target, indication)
+        params = inspect.signature(read_fn).parameters
+        accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in params.values())
+        if accepts_var_kw or "subgroup_context" in params:
+            kwargs["subgroup_context"] = subgroup_context
+        if accepts_var_kw or "data_context" in params:
+            kwargs["data_context"] = data_context
+    except (ValueError, TypeError):
+        # signature() can fail on some builtins/C callables — fall back to the safe legacy call.
+        kwargs = {}
+    return read_fn(card_id, target, indication, **kwargs)
 
 
 def _invoke_method_live(plan_entry: dict, target: str, indication: str) -> Optional[dict]:
