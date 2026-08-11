@@ -1767,16 +1767,11 @@ CARD_DISPATCHERS = {
     "cellline-protein-abundance": _dispatch_protein_abundance_celline,
     "normal-tissue-liability": _dispatch_normal_tissue_liability,
     "synthetic-lethal-partners": _dispatch_synthetic_lethal_partners,
-    # Iter-1b execution session adds (each as a dispatcher to a methods/<method>/read.py):
-    #   "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
-    #       → methods/dge_deseq2/read.py + (future) methods/gtex_normal_tissue/read.py
-    #   "antigen-prevalence": _dispatch_antigen_prevalence,
-    #       → methods/dge_deseq2/read.py (per-sample expression matrix)
-    #   "rwd-stratified-expression": _dispatch_rwd_stratified_expression,
-    #       → methods/tempus_rwd_aggregator/read.py
-    #   "subgroup-stratified-expression": _dispatch_subgroup_stratified_expression,
-    #       → BLOCKED (2026-07-16): dge-deseq2 is an emit-time aggregate; no per-sample
-    #         reader. Card tagged blocked_needs_per_sample_reader in target-contracts.
+    # NOTE: a pure-passthrough card needs NO entry here since T11 (#341) — read_live_summary falls
+    # back to the generic dispatcher driven by the card_spec's `module`/`entrypoint`. Add a bespoke
+    # _dispatch_* only for multi-method merges or non-standard readers. (Removed a stale Iter-1b
+    # dispatcher-roadmap comment here: tumor-vs-normal-selectivity is now a live entry above, and
+    # subgroup-stratified-expression's blocked-on-per-sample-reader status lives on its card.)
 }
 
 # Subgroup-panorama dispatchers (2026-07-16). Kept SEPARATE from CARD_DISPATCHERS
