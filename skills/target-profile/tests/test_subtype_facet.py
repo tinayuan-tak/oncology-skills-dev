@@ -179,6 +179,24 @@ def test_no_registry_degrades_to_exact_match(tmp_path):
     assert f["verdict"] == "single_axis_stratification"      # two 1-axis strata, no bridge
 
 
+def test_convergence_reachable_in_production_sub_results_shape():
+    # PRODUCTION shape (regression for the dead-2/3-axes bug): _run_sub_skills resolves the
+    # dependency + mutation-frequency subtype cards under the single 'subtype_fit' short — NOT
+    # under 'dependency'/'genomic_alteration' — while the expression subtype card lives under
+    # 'expression'. The facet must still converge across all three axes.
+    sr = _sr(
+        subtype_fit={
+            "subgroup-stratified-dependency": {"per_subgroup_metrics": [_row("MSI", dependency_class="dependent")]},
+            "subgroup-stratified-mutation-frequency": {"per_subgroup_metrics": [_row("MSI", frequency=0.4)]},
+        },
+        expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("MSI", median_log2tpm=7.0)]}},
+    )
+    f = run._subtype_facet(sr)
+    assert f["verdict"] == "convergent_stratification"
+    assert "MSI" in f["convergent_subtypes"]
+    assert f["per_subtype"]["MSI"]["n_axes_measured"] == 3
+
+
 def test_three_axis_convergence_and_metrics_carried():
     sr = _sr(
         expression={"tumor-rna-distribution-by-subtype": {"per_subgroup_metrics": [_row("MSI", median_log2tpm=7.0)]}},

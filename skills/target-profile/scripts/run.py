@@ -409,7 +409,10 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     """
     subtype_hits = [f for f in fired
                     if f.get("tier") == "subtype"
-                    and "opposing" in (f.get("signals") or {}).get("subtype_fit_genomic", "")]
+                    # `or ''` guards a signals dict that carries subtype_fit_genomic: null
+                    # (present key, None value) — `.get(k, '')` returns None there, not '',
+                    # and `'opposing' in None` would raise TypeError.
+                    and "opposing" in ((f.get("signals") or {}).get("subtype_fit_genomic") or "")]
     if not subtype_hits:
         return None
     # Name the driving rule + the matched stratum for provenance.
@@ -798,7 +801,11 @@ def _deciding_axis(sub_results: dict, gate_action: Optional[str],
 
     # (1) A gate FIRED → the deciding axis is KNOWN (the firing gate). captured by definition.
     if gate_action and gate_hits:
-        top = gate_hits[0]["short"]
+        # Name the gate whose action actually WON (forced == max over action ranks), not merely
+        # the first-iterated hit — otherwise the routing text could name a 'hold' gate while
+        # reporting the 'veto' a different gate forced.
+        _winning = next((h for h in gate_hits if h.get("action") == gate_action), gate_hits[0])
+        top = _winning["short"]
         row = _row(top)
         row["framework_can_evidence"] = "captured"   # it fired → we evidenced it
         return {"basis": "gate_fired", "coverage_source": source,
@@ -1273,10 +1280,19 @@ def _subtype_facet(sub_results: dict, indication: str = None,
     axes_seen: set = set()
     any_rows = False
     for short, card_id, axis in _SUBTYPE_INPUTS:
-        r = sub_results.get(short)
-        if not r:
-            continue
-        rows = _first_card_per_subgroup(r, card_id)
+        # Production (_run_sub_skills) resolves the dependency + mutation-frequency subtype
+        # cards under the single SUBTYPE_SHORT ('subtype_fit') result, NOT under their per-gate
+        # short (the expression subtype card lives under 'expression' / tumor-presence). Search
+        # the per-gate short first (matches the synthetic test fixtures), then fall back to
+        # subtype_fit (matches production). Without the fallback the dependency + genomic axes
+        # were always empty, so >=2-axis convergence was structurally unreachable.
+        rows: list = []
+        for _src in (short, SUBTYPE_SHORT):
+            r = sub_results.get(_src)
+            if r:
+                rows = _first_card_per_subgroup(r, card_id)
+                if rows:
+                    break
         if rows:
             any_rows = True
             axes_seen.add(axis)
@@ -3123,8 +3139,9 @@ def _expression_indication_focus(card: dict, indication: str) -> Optional[dict]:
     else:
         level = "low / not expressed"
     pct = f"{frac*100:.0f}%" if isinstance(frac, (int, float)) else "—"
+    med_str = f"{med:.1f}" if isinstance(med, (int, float)) else "n/a"
     interp = (f"In {lineage} cell lines ({indication}'s DepMap lineage; n={n}), the target is "
-              f"<b>{level}</b> — median log2(TPM+1) {med:.1f}, {pct} of lines above the expressed "
+              f"<b>{level}</b> — median log2(TPM+1) {med_str}, {pct} of lines above the expressed "
               f"threshold. It ranks {rank} of {n_lin} lineages by median expression"
               + (" (among the highest)." if rank and rank <= 3 else
                  " (mid-to-low among lineages)." if rank and rank > n_lin/2 else "."))
@@ -3564,10 +3581,18 @@ def _render_target_profile_html(
         p.append("<table><tr><th>Category</th><th>Risk level</th><th>Driver</th></tr>")
         _RL_CHIP = {"elevated": ("chip-neg", "elevated"), "supported": ("chip-pos", "supported"),
                     "neutral": ("chip-neu", "neutral")}
+        # Gate-section anchors that WILL render this run (same list + id scheme the gate sections
+        # use). The gate sections are appended to `p` LATER (via bands_html), so the previous
+        # `f"id={anchor}" in "".join(p)` check always failed here and the category cells never
+        # became clickable. Check this forward set instead.
+        _rendered_anchor_ids = {
+            f"s-gate-{(g.lower() if g else re.sub(r'[^a-z0-9]+', '-', gn.lower()).strip('-'))}"
+            for (_ax, g, gn, _ss, _mn) in _rendered_gates
+        }
         for c in rollup["surfaced"]:
             cls, lab = _RL_CHIP.get(c["risk_level"], ("chip-neu", c["risk_level"]))
             cat_cell = _esc(c["label"])
-            if c.get("anchor") and f"id={c['anchor']}" in "".join(p):
+            if c.get("anchor") and c["anchor"] in _rendered_anchor_ids:
                 cat_cell = (f"<a href='#{c['anchor']}' style='color:inherit;text-decoration:none;"
                             f"border-bottom:1px dotted var(--line-2)'>{cat_cell}</a>")
             cat_cell += f" <span class=sub>— {_esc(c['sub'])}</span>"
@@ -3840,13 +3865,19 @@ def _render_target_profile_html(
 def _catalogue_rows_from_sub_results(sub_results: dict) -> list[dict]:
     """Distill a manifest→consumers lineage table from the per-card provenance already in the run.
     Envelope-only (no live catalog read → keeps the renderer a pure projection)."""
-    by_manifest: dict[str, set] = {}
+    # Data source per card lives in summary['_data_source'] (the human-readable manifest/
+    # product label the provenance-trace section also reads) — NOT a top-level card['provenance']
+    # key, which card_outputs never carry, so this used to always return [] and the "Data
+    # catalogue" section was dead on every run.
+    by_source: dict[str, set] = {}
     for short, r in sub_results.items():
         for c in r.get("cards") or []:
-            prov = (c.get("provenance") or {}) if isinstance(c, dict) else {}
-            for mid in prov.get("input_manifest_ids", []) or []:
-                by_manifest.setdefault(mid, set()).add(short)
-    return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_manifest.items())]
+            if not isinstance(c, dict):
+                continue
+            src = (c.get("summary") or {}).get("_data_source")
+            if src:
+                by_source.setdefault(str(src), set()).add(short)
+    return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_source.items())]
 
 
 def _load_figure_registry():
