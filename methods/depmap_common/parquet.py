@@ -37,6 +37,27 @@ DEPMAP_S3_BUCKET = "onc-compbio"
 PARQUET_S3_PREFIX = "data-catalog/derived/depmap-26q1-parquet-v1"
 PARQUET_CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q1-parquet"
 
+# 2026-08-11 REVIEW FIX (M4): the ONE DepMap release these loaders actually serve. Every loader
+# accepts a `release_pin` arg but the S3 key is built purely from PARQUET_S3_PREFIX above, so a
+# caller-supplied pin was SILENTLY IGNORED — a caller could pass release_pin="26q2" and unknowingly
+# read 26q1 data. True multi-release support is BLOCKED on landing per-release catalog manifests
+# (the `depmap-26q1-parquet-v1` manifest does not exist yet — a data-catalog deliverable). Until
+# then, the honest behavior is to REFUSE a pin we cannot honor rather than serve the wrong release.
+# _SERVED_RELEASE is derived from the prefix so the two can never drift.
+_SERVED_RELEASE = "26q1"   # must match the release encoded in PARQUET_S3_PREFIX
+
+
+def _assert_release_served(release_pin: str) -> None:
+    """Raise if a caller pinned a release these loaders cannot serve. Converts the former
+    silent-ignore (wrong-data risk) into an explicit, auditable failure (M4, 2026-08-11)."""
+    if release_pin != _SERVED_RELEASE:
+        raise ValueError(
+            f"depmap_common.parquet serves only release {_SERVED_RELEASE!r} "
+            f"(prefix {PARQUET_S3_PREFIX!r}), but release_pin={release_pin!r} was requested. "
+            f"Multi-release support is not yet wired (needs per-release catalog manifests); "
+            f"this guard refuses to silently return {_SERVED_RELEASE} data under a different pin."
+        )
+
 _GENE_LABEL_RE = re.compile(r'^"?([A-Za-z0-9._-]+)\s*\(\d+\)"?$')
 
 
@@ -111,6 +132,7 @@ def _read_wide_target_column(filename: str, target_symbol: str,
 def get_chronos_column(target_symbol: str, release_pin: str = "26q1"):
     """CRISPR Chronos target column. Returns DataFrame or None.
     Column-projection read: ~1-2 MB (vs 564 MB CSV parse)."""
+    _assert_release_served(release_pin)
     return _read_wide_target_column("CRISPRGeneEffect.parquet", target_symbol,
                                      id_col_hints=("ModelID",))
 
@@ -118,6 +140,7 @@ def get_chronos_column(target_symbol: str, release_pin: str = "26q1"):
 @lru_cache(maxsize=128)
 def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
     """TPM target column. Returns DataFrame or None."""
+    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet",
                                      target_symbol, id_col_hints=("ModelID",))
 
@@ -125,6 +148,7 @@ def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
 @lru_cache(maxsize=128)
 def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
     """CN WES target column. Returns DataFrame or None (fall back to WGS if None)."""
+    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsCNGeneMC_WES.parquet", target_symbol,
                                      id_col_hints=("ModelConditionID",))
 
@@ -132,6 +156,7 @@ def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
 @lru_cache(maxsize=128)
 def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
     """CN WGS target column (fallback for genes absent from WES panel)."""
+    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsCNGeneWGS.parquet", target_symbol,
                                      id_col_hints=("ModelConditionID",))
 
@@ -146,6 +171,7 @@ def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q1"):
     per cell-line (float32-cast during precompute; downstream code casts to
     bool for the mutation-status flag).
     """
+    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsSomaticMutationsMatrixHotspot.parquet",
                                      target_symbol, id_col_hints=("ModelID",))
 
@@ -156,6 +182,7 @@ def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
     OmicsSomaticMutationsMatrixDamaging. Same shape as get_hotspot_mutation_column.
     Broader panel (~19584 gene cols vs ~554 for hotspot).
     """
+    _assert_release_served(release_pin)
     return _read_wide_target_column("OmicsSomaticMutationsMatrixDamaging.parquet",
                                      target_symbol, id_col_hints=("ModelID",))
 
@@ -172,6 +199,7 @@ def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin
     None if the target gene is absent from the matrix. `filename` is the parquet product name
     (e.g. 'OmicsSomaticMutationsMatrixDamaging.parquet').
     """
+    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
     local_path = _fetch_parquet(filename)
     schema_names = pq.read_schema(local_path).names
@@ -192,6 +220,7 @@ def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
     is a single row (~700 float32 values, ~3 KB). Uses filter pushdown on the
     gene_symbol column added at precompute time.
     """
+    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
     local_path = _fetch_parquet("D2_combined_gene_dep_scores.parquet")
     # Filter to target row via gene_symbol column
@@ -220,6 +249,7 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
     the target gene are skipped entirely. Drops per-query read from ~738 MB CSV
     parse to <10 MB parquet slice.
     """
+    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
     local_path = _fetch_parquet("OmicsSomaticMutations.parquet")
     filters = [("HugoSymbol", "=", target_symbol)]
@@ -236,6 +266,7 @@ def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
     full 738 MB CSV. Cached (maxsize=1) since the denominator is a per-release
     constant, not per-target.
     """
+    _assert_release_served(release_pin)
     import pyarrow.parquet as pq
     local_path = _fetch_parquet("OmicsSomaticMutations.parquet")
     # Also apply IsDefaultEntryForModel filter to match the CSV path's semantics
