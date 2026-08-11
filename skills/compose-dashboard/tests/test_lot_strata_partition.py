@@ -89,3 +89,33 @@ def test_lot_without_shard_emits_note_not_crash(monkeypatch):
     # only the molecular arm actually calls the builder; LOT arm is a note
     assert any(c["maf_source"] == "tcga_mc3" for c in fake.calls)
     assert "_data_note" in out and "LOT" in out["_data_note"]
+
+
+# --- Finding 4 (bug-audit): read_live_summary must NOT prematurely bail for an indication that
+#     has ONLY a GENIE-BPC LOT shard (e.g. NSCLC). The outer gate keyed on the molecular-only
+#     manifest map, so the NSCLC LOT panorama was unreachable + emitted a factually-wrong note. ---
+
+def test_nsclc_lot_reaches_dispatcher_not_premature_bail(monkeypatch):
+    fake = _patch(monkeypatch)
+    out = L.read_live_summary(
+        "subgroup-stratified-mutation-frequency", "KRAS", "NSCLC",
+        subgroup_context={"resolved_strata_ids": ["LOT_1L_only", "LOT_2L"],
+                          "catalog_status": "resolved_active"})
+    # did NOT short-circuit with the (wrong) "no subgroup-assignments shard for NSCLC" note
+    assert "no subgroup-assignments shard" not in (out.get("_data_note") or "")
+    # the LOT arm ran against the NSCLC GENIE-BPC shard
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["maf_source"] == "genie_registry"
+    assert fake.calls[0]["manifest"] == "genie-bpc-subgroup-assignments-nsclc-v1"
+    assert {r["stratum"] for r in out["per_subgroup_metrics"]} == {"LOT_1L_only", "LOT_2L"}
+
+
+def test_nsclc_molecular_strata_get_data_note_not_crash(monkeypatch):
+    # A molecular stratum requested for NSCLC (no molecular shard): the dispatcher is still reached
+    # (LOT shard exists), the molecular arm emits an honest data-note, and nothing crashes.
+    fake = _patch(monkeypatch)
+    out = L.read_live_summary(
+        "subgroup-stratified-mutation-frequency", "KRAS", "NSCLC",
+        subgroup_context={"resolved_strata_ids": ["MSS"], "catalog_status": "resolved_active"})
+    assert fake.calls == []                                   # builder NOT called with a null manifest
+    assert "no molecular subgroup-assignments shard" in (out.get("_data_note") or "")

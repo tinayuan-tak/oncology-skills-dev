@@ -170,7 +170,11 @@ def _parse_existing_index(index_path: Path) -> list[dict]:
     for line in index_path.read_text().splitlines():
         if not line.startswith("| ") or line.startswith("| Generated") or line.startswith("|---"):
             continue
-        cells = [c.strip() for c in line.split("|")[1:-1]]
+        # Split on UNESCAPED pipes (the writer escapes a literal '|' in headline/class-calls as
+        # '\|' to keep the markdown table valid), then unescape — otherwise a row whose headline
+        # or class-calls contain a pipe splits into >6 cells and is silently dropped (and lost on
+        # the next full re-render, since _upsert re-reads + re-writes the whole table).
+        cells = [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", line)[1:-1]]
         if len(cells) != 6:
             continue
         gen_at, ind, pkg, path, calls, headline = cells

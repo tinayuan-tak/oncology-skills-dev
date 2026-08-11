@@ -384,11 +384,19 @@ def _dispatch_subgroup_stratified_mutation_frequency(
     panoramas: list[dict] = []
     # Molecular axis → the TCGA shard passed in by read_live_summary (tcga_mc3 default).
     if molecular_strata:
-        panoramas.append(hotspot_module.build_mutation_frequency_panorama(
-            target=target, indication=indication,
-            subgroups=molecular_strata,
-            subgroup_assignments_manifest=subgroup_assignments_manifest,
-        ))
+        if subgroup_assignments_manifest is None:
+            # No molecular/TCGA shard for this indication (e.g. NSCLC ships only a GENIE-BPC LOT
+            # shard) — emit an honest per-axis data-note instead of calling the builder with a
+            # null manifest; the LOT arm below still serves the LOT_* strata.
+            panoramas.append({"per_subgroup_metrics": [], "_data_note":
+                f"molecular strata {molecular_strata} requested but no molecular subgroup-"
+                f"assignments shard for indication={indication!r}"})
+        else:
+            panoramas.append(hotspot_module.build_mutation_frequency_panorama(
+                target=target, indication=indication,
+                subgroups=molecular_strata,
+                subgroup_assignments_manifest=subgroup_assignments_manifest,
+            ))
     # LOT axis → the GENIE-BPC shard + genie_registry MAF (different sample universe).
     if lot_strata:
         lot_manifest = _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication)
@@ -1824,7 +1832,14 @@ def read_live_summary(card_id: str, target: str, indication: str,
             return {"_data_note": f"{card_id} requires resolved subgroups; none in scope"}
         dispatcher, manifest_map = panorama
         manifest_id = manifest_map.get(indication)
-        if manifest_id is None:
+        # The mutation-frequency panorama can ALSO serve line-of-therapy (LOT_*) strata from a
+        # separate GENIE-BPC shard even when no molecular/TCGA shard exists for the indication
+        # (e.g. NSCLC ships only the GENIE-BPC LOT shard). Only bail when there is NO shard of
+        # EITHER kind — otherwise call the dispatcher, which partitions strata by axis and emits
+        # its own per-axis data-notes for whichever arm lacks a shard.
+        _has_lot_shard = (card_id == "subgroup-stratified-mutation-frequency"
+                          and _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication) is not None)
+        if manifest_id is None and not _has_lot_shard:
             return {"_data_note": f"no subgroup-assignments shard for indication={indication!r} "
                                   f"(iter-1b ships COADREAD only)"}
         try:
