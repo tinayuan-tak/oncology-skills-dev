@@ -368,18 +368,26 @@ def _build_headline(target: str, indication: str, fit_assessment: list[dict],
     """Compose the headline string.
 
     Discipline:
-      - If 3+ cards return 'not informative' or are excluded: emit "Insufficient evidence"
+      - If 3+ cards actually RETURNED a non-informative call: emit "Insufficient evidence"
       - Otherwise: name the strongest-fit modality + cite primary cards
+
+    2026-08-10 REVIEW FIX (C1): the count formerly also included
+    `excluded_by_applies_when` cards. But an applies_when exclusion is ROUTINE
+    subgroup gating (evidence-neutral) — e.g. the 4 subgroup-gated optional cards
+    are all excluded on the default no-subgroup run — not evidence that the target
+    is un-evaluable. Counting them flipped a strong deterministic verdict to
+    "Insufficient evidence" on the documented default KRAS/COADREAD run. Only
+    genuinely non-informative CALLS count toward the override now.
     """
-    n_not_informative_or_excluded = sum(
+    n_not_informative = sum(
         1 for c in card_outputs
-        if c.get("excluded_by_applies_when")
-        or c.get("interpretation_call", "") in NOT_INFORMATIVE_CALLS
+        if not c.get("excluded_by_applies_when")
+        and c.get("interpretation_call", "") in NOT_INFORMATIVE_CALLS
     )
-    if n_not_informative_or_excluded >= 3:
+    if n_not_informative >= 3:
         return (
             f"Insufficient evidence for evaluation of {target} in {indication}; "
-            f"{n_not_informative_or_excluded} cards excluded or returned non-informative calls."
+            f"{n_not_informative} cards returned non-informative calls."
         )
 
     if not fit_assessment:

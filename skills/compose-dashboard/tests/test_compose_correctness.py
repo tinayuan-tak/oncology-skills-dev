@@ -23,7 +23,7 @@ sys.path.insert(0, str(SKILL_DIR / "scripts"))
 
 from _live_readers import _dispatch_adc_tce_modality_fit  # noqa: E402
 from compose_dashboard import _parse_existing_index  # noqa: E402
-from _synthesis import synthesize  # noqa: E402
+from _synthesis import synthesize, _build_headline  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -350,3 +350,45 @@ def test_curated_overrides_measured_low_endo_for_adc():
     # measured motif present → confidence reflects the measurement ('low'), but the curated precedent
     # satisfies endo_ok so the ADC arm is reachable despite the low motif count.
     assert r["fit_class"] == "ADC_preferred"
+
+
+# ---------------------------------------------------------------------------
+# C1 (2026-08-10 review fix) — applies_when-excluded cards must NOT count toward
+# the "Insufficient evidence" headline override. An applies_when exclusion is
+# routine subgroup gating (evidence-neutral), not evidence that the target is
+# un-evaluable. Counting them flipped a strong verdict to "Insufficient evidence"
+# on the default no-subgroup run (4 subgroup-gated optional cards all excluded).
+# ---------------------------------------------------------------------------
+
+def test_excluded_cards_do_not_trigger_insufficient_headline():
+    """The default no-subgroup run excludes the 4 subgroup-gated optional cards via applies_when.
+    With one strong informative card and NO non-informative CALLS, the headline must NOT be
+    'Insufficient evidence' — the exclusions are routine gating, not missing evidence."""
+    fit_assessment = [{"modality": "small molecule", "fit_level": "strong",
+                       "decision_question": "Q", "primary_cards": []}]
+    card_outputs = [
+        {"card_id": "informative-1", "interpretation_call": "resolved cleanly with curated biology axis"},
+        {"card_id": "sub-1", "excluded_by_applies_when": True},
+        {"card_id": "sub-2", "excluded_by_applies_when": True},
+        {"card_id": "sub-3", "excluded_by_applies_when": True},
+        {"card_id": "sub-4", "excluded_by_applies_when": True},
+    ]
+    headline = _build_headline("KRAS", "COADREAD", fit_assessment, card_outputs)
+    assert "Insufficient evidence" not in headline
+    assert "KRAS" in headline
+
+
+def test_three_noninformative_calls_still_trigger_insufficient():
+    """The override still fires on GENUINELY non-informative calls (>=3), independent of exclusions —
+    the fix narrows the count to real non-informative calls, it does not disable the guard."""
+    fit_assessment = [{"modality": "small molecule", "fit_level": "strong",
+                       "decision_question": "Q", "primary_cards": []}]
+    card_outputs = [
+        {"card_id": "n1", "interpretation_call": "not informative"},
+        {"card_id": "n2", "interpretation_call": "not informative"},
+        {"card_id": "n3", "interpretation_call": "not informative"},
+        {"card_id": "sub-1", "excluded_by_applies_when": True},
+    ]
+    headline = _build_headline("KRAS", "COADREAD", fit_assessment, card_outputs)
+    assert "Insufficient evidence" in headline
+    assert "3 cards returned non-informative calls" in headline
