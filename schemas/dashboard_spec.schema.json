@@ -98,7 +98,7 @@
       "description": "Cards that MUST be in scope for this dashboard. Resolution: each entry's card_id + version range resolves to a specific card_spec in target-contracts/cards/. If a required card's applies_when predicate fails at runtime, the card is excluded with structured exclusion_reason — the dashboard still emits.",
       "items": {"$ref": "#/$defs/card_reference"},
       "minItems": 1,
-      "maxItems": 20
+      "maxItems": 60
     },
     "optional_cards": {
       "type": "array",
@@ -108,11 +108,10 @@
           {"$ref": "#/$defs/card_reference"},
           {
             "type": "object",
-            "required": ["when"],
             "properties": {
               "when": {
                 "type": "string",
-                "description": "CEL-compatible predicate evaluated against the dashboard context. Card-level applies_when runs only if this returns true.",
+                "description": "OPTIONAL CEL-compatible predicate evaluated against the dashboard context. Card-level applies_when runs only if this returns true. When OMITTED, the optional card is admitted unconditionally (compose-dashboard's _evaluate_dashboard_when returns True for a missing/null predicate) — several shipped specs rely on this (e.g. surface-intrinsic-base admits adc-tce-modality-fit, surfaceome-family-classification, shed-ectodomain-liability with no `when`). T2 fix (2026-08-11): `when` was erroneously marked `required`, which made surface-intrinsic-base fail its own schema; the code always treated it as optional.",
                 "format": "cel-predicate",
                 "minLength": 3,
                 "maxLength": 500
@@ -121,7 +120,7 @@
           }
         ]
       },
-      "maxItems": 20
+      "maxItems": 60
     },
     "optional_modality_modules": {
       "type": "object",
