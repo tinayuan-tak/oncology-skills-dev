@@ -145,6 +145,11 @@
           "synthesis_emphasis": {
             "type": "object",
             "description": "Module's synthesis_emphasis block copied verbatim — phase-3 consumes this directly."
+          },
+          "modality_specific_caveats": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "The modality module's modality_specific_caveats, carried verbatim so phase-3 synthesis can aggregate them into evidence_package.synthesis.caveats_summary. T7 fix (2026-08-11): the field was previously dropped in compose_phase1._module_summary, so synthesis had nothing to aggregate; this schema entry admits it (the items schema is unevaluatedProperties:false, so the new field must be declared)."
           }
         }
       }
