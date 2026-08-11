@@ -19,7 +19,7 @@
 #
 # GUARDRAIL: pattern-match over fired rule IDs only — no arithmetic (labels live in the cards).
 gate: genomic_alteration
-version: 1.1.0   # 2026-08-09: T1.1 verdict rename (recurrent_{missense,lof}_driver → *_dominant_pattern),
+version: 1.2.0   # 2026-08-11: N1 precedence fix (stratified-dependency FIRST; see head of resolve:). Was 1.1.0 T1.1 rename (recurrent_{missense,lof}_driver → *_dominant_pattern),
                 #             T1.3 + recurrent_fusion_driver (fusion-landscape mode-gap), T2.4 precedence-by-strength
 description: |
   Multi-class genomic-alteration verdict. SNV/indel axis primary (strongest therapeutic signals),
@@ -28,17 +28,45 @@ description: |
   former inline _verdict; multi_class = mut-driver AND cn-driver via cross-product rungs.
 
 resolve:
+  # (PRECEDENCE FIX, 2026-08-11 code review N1) — STRATIFIED-DEPENDENCY FIRST.
+  #   The stratified-dependency family (below, formerly §2) is moved to the TOP of the ladder,
+  #   ahead of confirmed_driver (§0) and multi_class_driver (§1). WHY: resolve_verdict is
+  #   first-match and emits ONE verdict. confirmed_driver and multi_class_driver carry ZERO weight
+  #   in nomination_verdict_gate.yaml (grep: 0 mentions each — display labels only), whereas
+  #   biomarker_stratified_dependency is BOTH the veto_suppressor (L145, rescues EGFR/IDH1/FLT3)
+  #   AND a `dominant` positive_signal (L249). Ordering confirmed_driver/multi_class ABOVE the
+  #   biomarker rungs therefore SILENTLY DROPPED the gate rescue for any dually-evidenced driver
+  #   (EGFR/LUAD, BRAF, ERBB2-amp: variant/CN pattern + gof role + Chronos dependency) — the §0
+  #   comment's own stated invariant ("biomarker verdicts LEFT UNTOUCHED … swallowing them into
+  #   confirmed_driver would silently drop that rescue") was contradicted by the rung ORDER.
+  #   The engine has no negation predicate (guardrail), so the fix is precedence: whenever a
+  #   Chronos stratified-dependency co-fires it now drives the verdict; a dually-ALTERED gene with
+  #   NO dependency signal still reads confirmed_driver/multi_class exactly as before. Verdict-
+  #   moving: golden re-baselined in the same commit (confirmed_driver/multi_class → biomarker_*).
+  #   -- STRONG tier (|delta| >= 0.5) --
+  - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
+  - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
+  - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
+  - {verdict: biomarker_stratified_dependency, when_fired: amp-expr-strongly-dependent-supportive}
+  #   -- MODERATE tier (|delta| 0.2-0.5) --
+  - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
+  - {verdict: moderate_biomarker_dependency,   when_fired: amp-expr-moderately-dependent-supportive}
+
   # (0) CONFIRMED DRIVER (2026-07-22): a driver-establishing signal CORROBORATED by a typed driver
   #     ROLE (OncoKB×IntOGen gof OR lof) — the strongest "real, annotation-backed driver" statement.
   #     DIRECTION-AGNOSTIC: variant-class-pattern and functional-role are orthogonal (TP53 is a LoF
   #     driver that is missense-dominant), so ANY driver signal + ANY direct-driver role confirms.
   #     SCOPE (deliberate, Option-B): confirmation applies ONLY to the driver calls that are NOT
   #     already load-bearing in the nomination gate — recurrent_missense/lof_driver + the CN drivers.
-  #     The two BIOMARKER-DEPENDENCY verdicts (mutant-strongly/moderately-dependent) are LEFT
-  #     UNTOUCHED: they are the gate's veto-suppressor + dominant positive_signal (EGFR/IDH1/FLT3
-  #     rescue, nomination_verdict_gate.yaml L129/L226), so swallowing them into confirmed_driver
-  #     would silently drop that rescue. Result: ZERO nomination-gate change; confirmation upgrades
-  #     only the safe calls. passenger/data_unavailable roles fire NO rung → never create/downgrade.
+  #     The two BIOMARKER-DEPENDENCY verdicts (mutant-strongly/moderately-dependent) are the gate's
+  #     veto-suppressor + dominant positive_signal (EGFR/IDH1/FLT3 rescue, nomination_verdict_gate.yaml
+  #     L145/L249). As of the N1 precedence fix (2026-08-11) the stratified-dependency rungs sit ABOVE
+  #     this §0 block, so a dually-evidenced gene that ALSO co-fires a dependency resolves to the
+  #     biomarker verdict FIRST and confirmed_driver never swallows the rescue. confirmed_driver here
+  #     applies only to dually-ALTERED genes with NO co-firing dependency signal.
+  #     passenger/data_unavailable roles fire NO rung → never create/downgrade.
   #     8 rungs = {mut-lof, mut-missense, cn-amp, cn-del} × {gof, lof}, mut-priority-ordered.
   - {verdict: confirmed_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive}
   - {verdict: confirmed_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive}
@@ -79,28 +107,14 @@ resolve:
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive], driving_rule: mut-missense-dominant-supportive}
   - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive], driving_rule: mut-missense-dominant-supportive}
 
-  # (2) STRATIFIED-DEPENDENCY family — Chronos-PROVEN "altered cells more dependent" across the four
-  #     alteration classes (mut / cn / fusion / amp-expr). PRECEDENCE-BY-STRENGTH (T2.4, 2026-08-09):
-  #     ALL *strongly*-dependent rungs precede ALL *moderately*-dependent rungs, so a STRONG CN/fusion/
-  #     amp-expr dependency (|delta|>=0.5) is named the driver over a MODERATE mutation dependency
-  #     (|delta| 0.2-0.5) for a dually-altered gene — the former is the LARGER effect, and first-match
-  #     must not surface the weaker signal merely because mutation is more "specific". WITHIN each
-  #     strength tier the class tie-break stays mut > cn > fusion > amp-expr (mutation the most direct
-  #     single-alteration signal; amp-expr the most conjoint). All four classes REUSE biomarker_
-  #     stratified_dependency / moderate_biomarker_dependency (nomination_verdict_gate.yaml unchanged;
-  #     distinct driving_rule_id preserves audit). Placed BEFORE the variant-class-PATTERN rungs (2e)
-  #     and the CN-landscape rungs (3): a functional dependency test outranks a bare composition/
-  #     landscape signal that has no dependency evidence.
-  #   -- STRONG tier (|delta| >= 0.5) --
-  - {verdict: biomarker_stratified_dependency, when_fired: mutant-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_fired: cn-amplified-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_fired: fusion-positive-strongly-dependent-supportive}
-  - {verdict: biomarker_stratified_dependency, when_fired: amp-expr-strongly-dependent-supportive}
-  #   -- MODERATE tier (|delta| 0.2-0.5) --
-  - {verdict: moderate_biomarker_dependency,   when_fired: mutant-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: cn-amplified-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: fusion-positive-moderately-dependent-supportive}
-  - {verdict: moderate_biomarker_dependency,   when_fired: amp-expr-moderately-dependent-supportive}
+  # (2) STRATIFIED-DEPENDENCY family — MOVED to the TOP of the ladder (see PRECEDENCE FIX N1 at the
+  #     head of `resolve:`). The 8 rungs formerly here now lead the ladder so a Chronos stratified-
+  #     dependency wins first-match over confirmed_driver/multi_class (both gate-invisible). Retained
+  #     design notes: PRECEDENCE-BY-STRENGTH (T2.4) — all *strongly* rungs precede all *moderately*;
+  #     within a tier the class tie-break is mut > cn > fusion > amp-expr. All four classes reuse
+  #     biomarker_stratified_dependency / moderate_biomarker_dependency (distinct driving_rule_id
+  #     preserves audit). These still outrank the variant-class-PATTERN rungs (2e) and CN-landscape
+  #     rungs (3) — a functional dependency test outranks a bare composition/landscape signal.
 
   # (2d-drug) GENOTYPE x DRUG-RESPONSE biomarker (deferred-c, 2026-08-09) — the PHARMACOLOGICAL sibling
   #     of the stratified-dependency family. Fires a DISTINCT verdict drug_response_biomarker (NEVER
