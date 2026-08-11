@@ -3,15 +3,21 @@ name: target-intrinsic
 description: |
   The INDICATION-INDEPENDENT target dossier: "what do we know about target X,
   independent of any cancer?" Fans out over the tier:target cards — identity,
-  on-target-safety genetics (the whole P5 axis), surface/structure/modality
-  biophysics, pan-cancer presence + dependency breadth, and synthetic-lethal
-  partners — the facts that are true of the PROTEIN/GENE regardless of indication.
+  on-target-safety genetics (the whole P5 axis), protein-class / structure /
+  modality biophysics, functional annotation (GO), mechanism + pathway role
+  (SIGNOR / Reactome), interactome (STRING / CORUM / BioGRID), domain
+  architecture + domain→modality implication, and paralog buffering — the facts
+  true of the PROTEIN/GENE regardless of indication. Disease/pan-cancer
+  observations (tumor elevation, dependency, mutation frequency, PRISM,
+  cell-line abundance) are DELIBERATELY EXCLUDED — they belong to the
+  indication-scoped subskills.
 
   Invoked with --target ALONE (no --indication). A FOCUSED subskill (like
-  tumor-presence) that the composed skills reuse: it lets target-profile compute
-  the target-intrinsic facts ONCE rather than re-deriving them identically inside
-  every (target × indication) run, and gives a standalone portfolio-triage view —
-  "is this target worth an indication deep-dive at all?"
+  tumor-presence) giving a standalone portfolio-triage view — "is this target
+  worth an indication deep-dive at all?" Its cards feed the indication-scoped
+  skills at the CARD level (shared dispatcher); a bundle-level reuse by
+  target-profile (compute-once) is a documented future optimization, NOT yet
+  wired (target-intrinsic is not in target-profile's sub-skill fan-out).
 
   DESCRIPTIVE, not nominating (synthesis: none, no verdict): target-intrinsic
   evidence informs confidence/context but never mints a recommendation —
@@ -20,7 +26,7 @@ description: |
   grain level.
 
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -67,6 +73,7 @@ composition:
     - structure_druggability
     - shed_ectodomain_liability
     - protein_domains_class
+    - target_development_level          # Pharos/IDG TDL (#322, 2026-08-10) — was in cards_used but missing here
     - domain_modality_relevance
     - ppi_interactome
     - gene_ontology_annotation
@@ -92,13 +99,15 @@ composition:
 - Answers the INDICATION-INDEPENDENT question: what is true of target X as a
   protein/gene, regardless of cancer type. Invoked with `--target` alone.
 - Fans out (via the shared run_wired_skill dispatcher, which makes `--indication`
-  optional as of 2026-08-05) over the 18 live-wired `tier: target` cards, grouped
+  optional as of 2026-08-05) over the 19 live-wired `tier: target` cards, grouped
   by sub-axis:
   - **identity** — target-identity-summary
   - **on-target-safety genetics (P5)** — gnomAD LoF constraint, gene-burden,
     ClinGen dosage, ClinVar pathogenicity, mouse-KO phenotype, OT safety prioritisation
+    (the last is orientation-only — its safety dimension overlaps the dedicated constraint + mouse-KO cards)
   - **protein class / structure / modality biophysics** — surfaceome family, structure
-    ligandability, shed-ectodomain liability, normal-tissue protein breadth
+    ligandability, shed-ectodomain liability, normal-tissue protein breadth, Pharos/IDG
+    target-development-level (Tclin/Tchem/Tbio/Tdark druggability + novelty tier)
   - **functional annotation** — Gene Ontology (BP/MF/CC)
   - **mechanism / pathway role** — SIGNOR signaling network, Reactome pathway membership
   - **interactome** — STRING network + CORUM complexes + BioGRID physical
@@ -125,8 +134,17 @@ composition:
 
 ~40 of 60 cards are target-grain, but the grain had no composed entrypoint
 (target-profile hard-required an indication). This skill (a) gives a standalone
-portfolio-triage dossier and (b) lets target-profile reuse the target-intrinsic
-bundle once instead of re-deriving it per indication.
+portfolio-triage dossier and (b) is the intended home for the target-intrinsic
+bundle so target-profile can eventually compute it ONCE instead of re-deriving
+per indication.
+
+NOTE (2026-08-11): (b) is aspirational — target-intrinsic is NOT yet in
+target-profile's sub-skill fan-out (`SUB_SKILLS` in target-profile/scripts/run.py),
+so the composed skill still re-derives these cards inside its indication-scoped
+sub-skills. The reuse that DOES exist today is at the CARD level: the same live
+readers / CARD_DISPATCHERS back both this skill and the indication-scoped ones,
+so there is no computation drift. Bundle-level compute-once reuse is a tracked
+future optimization.
 
 ## Invocation
 

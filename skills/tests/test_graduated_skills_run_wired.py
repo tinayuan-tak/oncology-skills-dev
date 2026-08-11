@@ -54,6 +54,9 @@ _ALWAYS_WIRED = [
     "differentiation-landscape",         # W2b graduation
     "on-target-safety-liability",        # W2c graduation
     "surfaceome-cohort-ranking",         # W4-only skill (no target arg required)
+    "target-intrinsic",                  # indication-INDEPENDENT dossier (SK#201); descriptive/verdict-free,
+                                         # so it is in the SHAPE+status list but NOT _MUST_FIRE_ON_KRAS_COADREAD
+                                         # (it mints no verdict by design). Added 2026-08-11 prod-readiness pass.
     # patient-population-and-access DELETED 2026-07-14 (prevalence folded into
     # genomic-alteration-profile; was a thin re-projection of one shared card).
 ]

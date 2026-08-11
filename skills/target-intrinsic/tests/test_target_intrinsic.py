@@ -37,6 +37,20 @@ def test_cards_match_skill_md():
     assert set(_cards_from_runpy()) == set(_skill_md_composition()["cards_used"])
 
 
+def test_measurement_types_parity():
+    """DATA_TO_SKILL_CONTRACT Rule 3: every consumed card pulls one measurement_type, so
+    measurement_types_pulled must have the SAME cardinality as cards_used. Guards the drift that
+    shipped when target-development-level (#322) was added to cards_used but NOT to
+    measurement_types_pulled (18 vs 19), uncaught because test_cards_match_skill_md only checks
+    CARDS↔cards_used."""
+    comp = _skill_md_composition()
+    n_cards = len(comp["cards_used"])
+    n_mtypes = len(comp["measurement_types_pulled"])
+    assert n_mtypes == n_cards, (
+        f"measurement_types_pulled ({n_mtypes}) != cards_used ({n_cards}) — each consumed card must "
+        f"declare its pulled measurement_type (DATA_TO_SKILL_CONTRACT Rule 3).")
+
+
 def test_descriptive_no_verdict_contract():
     """target-intrinsic is DESCRIPTIVE: synthesis: none, empty rules_scope (no nomination — that is
     indication-conditioned). Pins the one-directional-gate-at-the-grain-level design."""

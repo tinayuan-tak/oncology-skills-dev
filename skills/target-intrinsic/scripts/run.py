@@ -37,9 +37,12 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "target-intrinsic"
-SKILL_VERSION = "1.1.0"   # 2026-08-08 — surface domain-modality-relevance in the dossier headline (was
-                          # resolved but unread); prose de-staled (18 strict-molecular-intrinsic cards,
-                          # dropped the removed "pan-cancer presence+dependency" sub-axis). Descriptive, no verdict.
+SKILL_VERSION = "1.2.0"   # 2026-08-11 — prod-readiness pass: fixed the catalog-visible description (dropped
+                          # the EXCLUDED pan-cancer/dependency/SL advertising), count corrected to 19 cards
+                          # (target-development-level #322 landed but prose still said 18), measurement_types
+                          # parity, and corrected the target-profile bundle-reuse claim (not wired — card-level
+                          # reuse only). Descriptive, no verdict.
+                          # (1.1.0 2026-08-08 surfaced domain-modality-relevance in the dossier headline.)
 
 CARDS = [
     # STRICT MOLECULAR-INTRINSIC only: properties TRUE OF THE MOLECULE (protein/gene), independent of
@@ -55,7 +58,10 @@ CARDS = [
     "clingen-dosage",                    # ClinGen haploinsufficiency / triplosensitivity
     "clinvar-pathogenicity-safety",      # germline pathogenic-variant burden
     "mouse-ko-phenotype",                # IMPC mouse-KO lethal/developmental phenotypes
-    "target-safety-prioritisation",      # OT composite target-safety context
+    "target-safety-prioritisation",      # OT composite prioritisation score. ORIENTATION-ONLY (verdict-inert):
+                                         # its SAFETY dimension overlaps gnomad-lof-constraint + mouse-ko-phenotype
+                                         # (the dedicated cards); retained for its tractability/precedence dimensions,
+                                         # not to be read as a standalone safety fact. (prod-readiness review 2026-08-11)
     # --- PROTEIN CLASS / STRUCTURE / BIOPHYSICS (properties of the PROTEIN) ---------------------
     "surfaceome-family-classification",  # surface protein family + membership (protein-class proxy)
     "structure-features-static",         # fold / pockets / ligandability (structure-intrinsic)
@@ -68,9 +74,9 @@ CARDS = [
     # --- INTERACTOME (physical/functional interactions + complex membership) --------------------
     "ppi-interactome",                   # STRING high-confidence functional network + CORUM complex membership
     # --- DOMAIN ARCHITECTURE / PROTEIN CLASS (curated UniProt features) --------------------------
-    "protein-domains-class",
+    "protein-domains-class",             # FT DOMAIN architecture + UniProt-keyword protein class
     "target-development-level",          # Pharos/IDG TDL (2026-08-10): druggability/novelty tier
-                                         # (Tclin/Tchem/Tbio/Tdark) + family. VERDICT-INERT target-intrinsic facet.             # FT DOMAIN architecture + UniProt-keyword protein class
+                                         # (Tclin/Tchem/Tbio/Tdark) + family. VERDICT-INERT target-intrinsic facet.
     "domain-modality-relevance",         # INTERPRETIVE domain→modality facet (inhibitor_sufficient vs
                                          # removal_required_scaffolding, e.g. RIPK1). tier:target, verdict-inert.
                                          # Card + method (methods/domain_modality_relevance) + dispatcher all LIVE
@@ -104,7 +110,7 @@ def _headline(cards, fired, verdict_pair):
         "clinvar_pathogenic_class":      g("clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
         "gene_burden_safety_class":      g("gene-burden-safety", "burden_safety_class"),
         "mouse_ko_phenotype_class":      g("mouse-ko-phenotype", "ko_phenotype_class"),
-        "target_safety_prioritisation":  g("target-safety-prioritisation", "prioritisation_status"),
+        "target_safety_prioritisation":  g("target-safety-prioritisation", "prioritisation_status"),  # orientation-only (see CARDS note; safety dim overlaps constraint + mouse-KO)
         # protein class / structure / biophysics
         "surface_protein_family":        g("surfaceome-family-classification", "family_class"),
         "is_surface_protein":            g("surfaceome-family-classification", "is_surface_protein"),
