@@ -33,6 +33,7 @@ Companion (read, never written):
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -54,9 +55,14 @@ def _yaml_load(fh):
     return yaml.load(fh, Loader=_SafeLoader)
 
 
-# Default repo paths — module-level like dge_deseq2/read.py, overridable for tests.
-DATA_CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
-TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+# Repo roots — env-var-overridable with the local-dev default (matches gdc_somatic_hotspot's
+# DATA_CATALOG_ROOT pattern). Overriding via env is what lets CI / a non-/home/sagemaker-user
+# checkout resolve manifests (the hardcoded default previously broke any environment — e.g. GitHub
+# Actions — where the sibling repos aren't at /home/sagemaker-user).
+DATA_CATALOG = Path(os.environ.get(
+    "DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
+TARGET_CONTRACTS = Path(os.environ.get(
+    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
 
 # ---------------------------------------------------------------------------
 # Manifest primitives — the public generalization of dge_deseq2/read.py's
