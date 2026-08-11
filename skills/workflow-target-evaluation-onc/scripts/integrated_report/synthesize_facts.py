@@ -488,7 +488,11 @@ def synthesize_facts(
         'strengths': synthesized.get('strengths', []),
         'risks': synthesized.get('risks', []),
         'mitigations': synthesized.get('mitigations', []),
-        'recommendation': synthesized.get('recommendation', {'level': 'CONDITIONAL'}),
+        # Fallback must carry every key the renderer reads (the risk_assessment
+        # template dereferences recommendation.rationale under StrictUndefined);
+        # include 'rationale' so a synthesis miss degrades to an empty rationale
+        # rather than crashing render_risk_assessment with UndefinedError.
+        'recommendation': synthesized.get('recommendation', {'level': 'CONDITIONAL', 'rationale': ''}),
     }
     return facts
 

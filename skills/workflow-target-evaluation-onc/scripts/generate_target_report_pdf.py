@@ -21,6 +21,15 @@ import matplotlib.patches as mpatches
 import matplotlib.image as mpimg
 import numpy as np
 
+# Shared recommendation classifier — the SINGLE source of truth also used by the
+# integrated-report context builder, so the PDF badge and the report never
+# disagree on 'CONDITIONAL NO-GO' (a NO-GO, not a caution). Defensive path
+# insert so the import resolves whether this file is run as a script or imported.
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+from integrated_report.recommendation import classify_recommendation  # noqa: E402
+
 
 # Skill name for output file naming
 SKILL_NAME = 'workflow-target-evaluation-onc'
@@ -1351,18 +1360,17 @@ def generate_landscape_summary_slide(gene, output_dir, disease='crc', report_dat
     # qualifier present in the markdown ("GO — MEDIUM PRIORITY",
     # "GO — HIGH PRIORITY", etc.).
     rec = (report_data.get('recommendation', 'GO') if report_data else 'GO').upper()
-    is_go = 'GO' in rec and 'NO-GO' not in rec
-    is_conditional = 'CONDITIONAL' in rec and not is_go
     rec_text = rec
-    # 3-way color coding: green (GO), amber (CONDITIONAL — caution but not
-    # rejection), red (NO-GO / EXCLUDE). Amber matches the engine's
-    # "needs more validation" semantics and avoids false-alarm red on
-    # programs that may still advance with the right neosubstrate.
-    if is_go:
+    # 3-way color coding via the shared classifier (NO-GO > CONDITIONAL > GO):
+    # green (GO), amber (CONDITIONAL — caution but not rejection), red (NO-GO /
+    # EXCLUDE / unknown). Using classify_recommendation ensures 'CONDITIONAL
+    # NO-GO' resolves to no_go (red), matching the integrated-report context.
+    _kind = classify_recommendation(rec)
+    if _kind == 'go':
         rec_color = COLORS['GREEN']
-    elif is_conditional:
+    elif _kind == 'conditional':
         rec_color = COLORS['AMBER']
-    else:
+    else:  # no_go / unknown
         rec_color = COLORS['TAKEDA_RED']
     badge_rect = mpatches.FancyBboxPatch((0.80, 0.90), 0.17, 0.05,
                                           boxstyle="round,pad=0.01,rounding_size=0.02",
@@ -1551,13 +1559,13 @@ def generate_pdf_report(gene, output_dir, disease='crc', report_data=None):
     # "PRIORITY" as a default.
     recommendation = report_data.get('recommendation', 'GO') if report_data else 'GO'
     rec_upper = recommendation.upper().strip()
-    is_go = 'GO' in rec_upper and 'NO-GO' not in rec_upper
-    is_conditional = 'CONDITIONAL' in rec_upper and not is_go
-    if is_go:
+    # Shared classifier (NO-GO > CONDITIONAL > GO) so 'CONDITIONAL NO-GO' is red.
+    _kind = classify_recommendation(rec_upper)
+    if _kind == 'go':
         rec_color = COLORS['GREEN']
-    elif is_conditional:
+    elif _kind == 'conditional':
         rec_color = COLORS['AMBER']
-    else:
+    else:  # no_go / unknown
         rec_color = COLORS['RED']
     rec_text = rec_upper
     badge = mpatches.FancyBboxPatch((0.72, 0.942), 0.22, 0.035,

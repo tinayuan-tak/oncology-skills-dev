@@ -15,6 +15,7 @@ from typing import Any
 
 import yaml
 
+from .recommendation import classify_recommendation, BADGE_COLOR
 from .parsers import (
     IDASAssessment, PairwiseComparison, RiskAssessment,
     ScholarEvalResult, SubgroupRow,
@@ -215,7 +216,11 @@ def _build_modality_context(
         'is_degrader': modality_class == 'degrader',
         'is_surface': modality_class in ('antibody_naked', 'adc', 'tce'),
         'source': source,
-        'source_label': source_label_map[source],
+        # .get(): `source` can be an unvalidated value read straight from
+        # facts.yaml (the _read_modality_source path bypasses load_facts), or
+        # the empty string when unset — neither is a map key. Degrade to the
+        # neutral 'default' label instead of raising KeyError.
+        'source_label': source_label_map.get(source, source_label_map['default']),
         'is_default': source == 'default',
     }
 
@@ -248,19 +253,14 @@ def _build_recommendation_context(
       2. Scholar engine's deterministic recommendation.
     """
     full = risk.recommendation or scholar.recommendation or 'TBD'
-    rec_upper = full.upper()
-    is_no_go = 'NO-GO' in rec_upper
-    is_conditional = 'CONDITIONAL' in rec_upper and not is_no_go
-    is_go = 'GO' in rec_upper and not is_no_go and not is_conditional
-
-    if is_no_go:
-        badge_color = 'RED'
-    elif is_conditional:
-        badge_color = 'AMBER'
-    elif is_go:
-        badge_color = 'GREEN'
-    else:
-        badge_color = 'GRAY'
+    # Shared classifier (recommendation.classify_recommendation) — the SINGLE
+    # source of truth also used by the PDF renderers, so the badge can never
+    # diverge on 'CONDITIONAL NO-GO' again. Precedence: NO-GO > CONDITIONAL > GO.
+    kind = classify_recommendation(full)
+    is_no_go = kind == 'no_go'
+    is_conditional = kind == 'conditional'
+    is_go = kind == 'go'
+    badge_color = BADGE_COLOR[kind]
 
     return {
         'full_string': full,
@@ -362,7 +362,11 @@ def _build_idas_context(
     # Summary strings used in Exec Summary "Key Findings".
     n_strong = sum(1 for ws in idas.whitespaces.values() if ws.alignment == 'Strong')
     n_total = len(idas.whitespaces)
-    if n_strong == n_total:
+    if n_total == 0:
+        # No priority whitespaces — guard the 0==0 case so we don't claim
+        # "Strong across all 0 priority whitespaces" (a false positive).
+        alignment_summary = 'No priority whitespaces identified'
+    elif n_strong == n_total:
         alignment_summary = f'Strong across all {n_total} priority whitespaces'
     elif n_strong > 0:
         alignment_summary = f'Strong in {n_strong}/{n_total} priority whitespaces'

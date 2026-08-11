@@ -112,4 +112,4 @@
 
 ### Overall: **{{ recommendation_phrase }}**
 
-{{ recommendation.rationale or '' }}
+{{ recommendation.rationale | default('', true) }}

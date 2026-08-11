@@ -59,6 +59,8 @@ def _scholar(recommendation: str = "TBD") -> ScholarEvalResult:
     ("GO — HIGH PRIORITY",               "GREEN"),
     ("NO-GO",                            "RED"),
     ("NO-GO — insufficient evidence",    "RED"),
+    ("CONDITIONAL NO-GO",                "RED"),     # ← 'NO-GO' wins over 'CONDITIONAL' (was AMBER in PDF)
+    ("conditional no-go",                "RED"),     # case-insensitive
     ("CONDITIONAL",                      "AMBER"),
     ("CONDITIONAL GO",                   "AMBER"),   # ← C1: was GREEN before fix
     ("CONDITIONAL — biomarker required", "AMBER"),

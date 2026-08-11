@@ -238,7 +238,12 @@ def load_suitability(path: Path) -> list[SubgroupRow]:
                 subgroup=r['subgroup'],
                 category=r['category'],
                 key_metric=r['key_metric'],
-                score=int(r['score']),
+                # int(float(...)): the suitability CSV 'score' column is often
+                # written as a decimal string (e.g. "4.0"); run_scholareval reads
+                # the same column as float(). Bare int("4.0") raises ValueError and
+                # aborts integrated-report generation. Parse via float, keep the
+                # int contract this dataclass declares.
+                score=int(float(r['score'])),
                 recommendation=r['recommendation'],
             ))
     return rows
