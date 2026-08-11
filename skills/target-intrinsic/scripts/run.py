@@ -95,71 +95,78 @@ QUESTION = ("What is known about {target} INDEPENDENT of indication — its iden
             "buffering?")
 
 
+# Declarative dossier field-map: (headline_key, card_id, card_field), grouped by target-intrinsic
+# sub-axis. This is the SINGLE SOURCE for both _headline AND the drift guard — the test AST-parses
+# this table's card_ids, so a card added to CARDS but never surfaced here is caught structurally
+# (target-intrinsic is descriptive: this table is the ONLY place a card's signal reaches output).
+_HEADLINE_SPEC = [
+    # identity
+    ("target_symbol",                 "target-identity-summary",          "resolved_hgnc_symbol"),
+    ("target_ensembl_id",             "target-identity-summary",          "resolved_ensembl_id"),
+    # safety genetics (P5)
+    ("gnomad_constraint_class",       "gnomad-lof-constraint",            "constraint_class"),
+    ("clingen_dosage_class",          "clingen-dosage",                   "dosage_sensitivity_class"),
+    ("clinvar_pathogenic_class",      "clinvar-pathogenicity-safety",     "clinvar_pathogenic_class"),
+    ("gene_burden_safety_class",      "gene-burden-safety",               "burden_safety_class"),
+    ("mouse_ko_phenotype_class",      "mouse-ko-phenotype",               "ko_phenotype_class"),
+    # target-safety-prioritisation is ORIENTATION-ONLY (safety dim overlaps constraint + mouse-KO)
+    ("target_safety_prioritisation",  "target-safety-prioritisation",     "prioritisation_status"),
+    # protein class / structure / biophysics
+    ("surface_protein_family",        "surfaceome-family-classification", "family_class"),
+    ("is_surface_protein",            "surfaceome-family-classification", "is_surface_protein"),
+    ("structure_pocket_call",         "structure-features-static",        "hotspot_pocket_adjacency_call"),
+    ("shed_liability_class",          "shed-ectodomain-liability",        "shed_liability_class"),
+    # functional annotation (Gene Ontology)
+    ("go_annotation_class",           "gene-ontology-annotation",         "annotation_class"),
+    ("go_n_terms_total",              "gene-ontology-annotation",         "n_go_terms_total"),
+    ("go_n_biological_process",       "gene-ontology-annotation",         "n_biological_process"),
+    ("go_n_molecular_function",       "gene-ontology-annotation",         "n_molecular_function"),
+    ("go_n_cellular_component",       "gene-ontology-annotation",         "n_cellular_component"),
+    # mechanism / pathway role
+    ("network_class",                 "signaling-network-mechanism",      "network_class"),
+    ("n_upstream_regulators",         "signaling-network-mechanism",      "n_upstream_regulators"),
+    ("n_downstream_effectors",        "signaling-network-mechanism",      "n_downstream_effectors"),
+    # pathway / geneset membership (Reactome)
+    ("pathway_class",                 "reactome-pathway-membership",      "pathway_class"),
+    ("pathway_count",                 "reactome-pathway-membership",      "pathway_count"),
+    ("top_level_pathways",            "reactome-pathway-membership",      "top_level_pathways"),
+    # domain architecture / protein class (UniProt curated)
+    ("protein_features_class",        "protein-domains-class",            "protein_features_class"),
+    ("n_domains",                     "protein-domains-class",            "n_domains"),
+    ("domain_architecture",           "protein-domains-class",            "domain_architecture"),
+    ("protein_class",                 "protein-domains-class",            "protein_class"),
+    # Pharos/IDG Target Development Level (2026-08-10) — druggability/novelty tier (verdict-inert)
+    ("tdl_class",                     "target-development-level",         "tdl_class"),
+    ("tdl_target_family",             "target-development-level",         "target_family"),
+    ("tdl_novelty_score",             "target-development-level",         "novelty_score"),
+    # domain→modality implication (INTERPRETIVE sibling of protein-domains-class): inhibitor-sufficient
+    # vs removal-required (degrader/scaffolding). Verdict-inert (target-intrinsic is descriptive); the
+    # heuristic returns indeterminate for a multi-domain enzyme (v0.2.0), curated RIPK1 →
+    # removal_required_scaffolding.
+    ("modality_implication_class",    "domain-modality-relevance",        "modality_implication_class"),
+    ("modality_implication_basis",    "domain-modality-relevance",        "modality_implication_basis"),
+    ("modality_scaffolding_function", "domain-modality-relevance",        "scaffolding_function"),
+    ("modality_implication_context",  "domain-modality-relevance",        "modality_context"),
+    # interactome (STRING network + CORUM complexes)
+    ("interactome_class",             "ppi-interactome",                  "interactome_class"),
+    ("n_high_confidence_interactors", "ppi-interactome",                  "n_high_confidence_interactors"),
+    ("n_corum_complexes",             "ppi-interactome",                  "n_corum_complexes"),
+    ("in_protein_complex",            "ppi-interactome",                  "in_protein_complex"),
+    # paralogs (gene-family redundancy)
+    ("paralog_buffering_class",       "paralog-buffering",                "paralog_buffering_class"),
+    ("n_paralogs_annotated",          "paralog-buffering",                "n_paralogs_annotated"),
+    ("strongest_paralog_symbol",      "paralog-buffering",                "strongest_paralog_symbol"),
+    # normal (non-disease) expression
+    ("normal_tissue_breadth_class",   "normal-tissue-liability",          "normal_tissue_breadth_class"),
+]
+
+
 def _headline(cards, fired, verdict_pair):
-    """Descriptive target dossier — surfaces the key field per target-intrinsic sub-axis. No verdict
-    spine (verdict_fn=None): target-intrinsic evidence informs confidence/context, never a nomination
-    (nomination is indication-conditioned). A composed consumer reads these as target-grain context."""
-    g = lambda cid, f: get_card_field(cards, cid, f)  # noqa: E731
-    return {
-        # identity
-        "target_symbol":                 g("target-identity-summary", "resolved_hgnc_symbol"),
-        "target_ensembl_id":             g("target-identity-summary", "resolved_ensembl_id"),
-        # safety genetics (P5)
-        "gnomad_constraint_class":       g("gnomad-lof-constraint", "constraint_class"),
-        "clingen_dosage_class":          g("clingen-dosage", "dosage_sensitivity_class"),
-        "clinvar_pathogenic_class":      g("clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
-        "gene_burden_safety_class":      g("gene-burden-safety", "burden_safety_class"),
-        "mouse_ko_phenotype_class":      g("mouse-ko-phenotype", "ko_phenotype_class"),
-        "target_safety_prioritisation":  g("target-safety-prioritisation", "prioritisation_status"),  # orientation-only (see CARDS note; safety dim overlaps constraint + mouse-KO)
-        # protein class / structure / biophysics
-        "surface_protein_family":        g("surfaceome-family-classification", "family_class"),
-        "is_surface_protein":            g("surfaceome-family-classification", "is_surface_protein"),
-        "structure_pocket_call":         g("structure-features-static", "hotspot_pocket_adjacency_call"),
-        "shed_liability_class":          g("shed-ectodomain-liability", "shed_liability_class"),
-        # functional annotation (Gene Ontology)
-        "go_annotation_class":           g("gene-ontology-annotation", "annotation_class"),
-        "go_n_terms_total":              g("gene-ontology-annotation", "n_go_terms_total"),
-        "go_n_biological_process":       g("gene-ontology-annotation", "n_biological_process"),
-        "go_n_molecular_function":       g("gene-ontology-annotation", "n_molecular_function"),
-        "go_n_cellular_component":       g("gene-ontology-annotation", "n_cellular_component"),
-        # mechanism / pathway role
-        "network_class":                 g("signaling-network-mechanism", "network_class"),
-        "n_upstream_regulators":         g("signaling-network-mechanism", "n_upstream_regulators"),
-        "n_downstream_effectors":        g("signaling-network-mechanism", "n_downstream_effectors"),
-        # pathway / geneset membership (Reactome)
-        "pathway_class":                 g("reactome-pathway-membership", "pathway_class"),
-        "pathway_count":                 g("reactome-pathway-membership", "pathway_count"),
-        "top_level_pathways":            g("reactome-pathway-membership", "top_level_pathways"),
-        # domain architecture / protein class (UniProt curated)
-        "protein_features_class":        g("protein-domains-class", "protein_features_class"),
-        "n_domains":                     g("protein-domains-class", "n_domains"),
-        "domain_architecture":           g("protein-domains-class", "domain_architecture"),
-        "protein_class":                 g("protein-domains-class", "protein_class"),
-        # Pharos/IDG Target Development Level (2026-08-10) — druggability/novelty tier (verdict-inert)
-        "tdl_class":                     g("target-development-level", "tdl_class"),
-        "tdl_target_family":             g("target-development-level", "target_family"),
-        "tdl_novelty_score":             g("target-development-level", "novelty_score"),
-        # domain→modality implication (INTERPRETIVE sibling of protein-domains-class): does the domain
-        # architecture imply an inhibitor is sufficient, or is target REMOVAL required (degrader/scaffolding)?
-        # The card + method (methods/domain_modality_relevance) + dispatcher are all LIVE (#264) — this
-        # surfaces its signal in the dossier (it was resolved but unread pre-2026-08-08). Verdict-inert
-        # (target-intrinsic is descriptive); RIPK1 → removal_required_scaffolding (curated).
-        "modality_implication_class":    g("domain-modality-relevance", "modality_implication_class"),
-        "modality_implication_basis":    g("domain-modality-relevance", "modality_implication_basis"),
-        "modality_scaffolding_function": g("domain-modality-relevance", "scaffolding_function"),
-        "modality_implication_context":  g("domain-modality-relevance", "modality_context"),
-        # interactome (STRING network + CORUM complexes)
-        "interactome_class":             g("ppi-interactome", "interactome_class"),
-        "n_high_confidence_interactors": g("ppi-interactome", "n_high_confidence_interactors"),
-        "n_corum_complexes":             g("ppi-interactome", "n_corum_complexes"),
-        "in_protein_complex":            g("ppi-interactome", "in_protein_complex"),
-        # paralogs (gene-family redundancy)
-        "paralog_buffering_class":       g("paralog-buffering", "paralog_buffering_class"),
-        "n_paralogs_annotated":          g("paralog-buffering", "n_paralogs_annotated"),
-        "strongest_paralog_symbol":      g("paralog-buffering", "strongest_paralog_symbol"),
-        # normal (non-disease) expression
-        "normal_tissue_breadth_class":   g("normal-tissue-liability", "normal_tissue_breadth_class"),
-    }
+    """Descriptive target dossier — one field per target-intrinsic sub-axis, built from the declarative
+    _HEADLINE_SPEC table. No verdict spine (verdict_fn=None): target-intrinsic evidence informs
+    confidence/context, never a nomination (indication-conditioned). A composed consumer reads these
+    as target-grain context."""
+    return {key: get_card_field(cards, cid, field) for key, cid, field in _HEADLINE_SPEC}
 
 
 if __name__ == "__main__":

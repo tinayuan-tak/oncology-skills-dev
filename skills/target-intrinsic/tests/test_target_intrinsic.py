@@ -83,27 +83,37 @@ def test_all_cards_are_indication_independent():
 
 
 def _cards_read_in_headline() -> set[str]:
-    """Card_ids referenced inside _headline via the g(\"card-id\", ...) reader helper.
-    target-intrinsic has NO verdict spine, so the headline is the ONLY place a card's signal
-    reaches output — a card in CARDS but absent here resolves invisibly (resolved, counted in
-    cards_available, but its data never surfaces)."""
-    import re
-    src = (SKILL_DIR / "scripts" / "run.py").read_text()
-    return set(re.findall(r'g\(\s*["\']([a-z0-9-]+)["\']', src))
+    """Card_ids surfaced in the dossier, AST-parsed from the _HEADLINE_SPEC table (element [1] of each
+    (headline_key, card_id, card_field) tuple). target-intrinsic has NO verdict spine, so this table
+    is the ONLY place a card's signal reaches output — a card in CARDS but absent here resolves
+    invisibly (resolved, counted in cards_available, but its data never surfaces). AST parse (vs the
+    former g(\"...\") regex) is structural: it reads the actual table, not source text."""
+    tree = ast.parse((SKILL_DIR / "scripts" / "run.py").read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "_HEADLINE_SPEC" for t in node.targets):
+            out: set[str] = set()
+            for elt in node.value.elts:                       # each row: (key, card_id, field)
+                if isinstance(elt, (ast.Tuple, ast.List)) and len(elt.elts) >= 2:
+                    cid = elt.elts[1]
+                    if isinstance(cid, ast.Constant) and isinstance(cid.value, str):
+                        out.add(cid.value)
+            return out
+    raise AssertionError("_HEADLINE_SPEC literal not found in run.py")
 
 
 def test_every_card_is_surfaced_in_headline():
-    """DRIFT GUARD: every card in CARDS must be read at least once in _headline (via g(...)).
+    """DRIFT GUARD: every card in CARDS must appear in the _HEADLINE_SPEC table.
 
     A descriptive skill (verdict_fn=None) has no ladder to force a card's signal into output, so
-    a card added to CARDS but never read in _headline resolves INVISIBLY — it costs a live read and
+    a card added to CARDS but never surfaced resolves INVISIBLY — it costs a live read and
     inflates cards_available, but its data is silently dropped. That is exactly what happened to
     domain-modality-relevance (in CARDS via #264, but unread until 2026-08-08). This asserts it
-    cannot recur: CARDS ⊆ cards-read-in-headline."""
+    cannot recur: CARDS ⊆ cards-in-_HEADLINE_SPEC."""
     cards = set(_cards_from_runpy())
     read = _cards_read_in_headline()
     unsurfaced = cards - read
     assert not unsurfaced, (
-        f"card(s) in CARDS but never read in _headline via g(...): {sorted(unsurfaced)} — "
+        f"card(s) in CARDS but absent from _HEADLINE_SPEC: {sorted(unsurfaced)} — "
         f"they resolve invisibly (counted in cards_available but their signal never surfaces). "
-        f"Add g(\"<card-id>\", \"<field>\") reads to _headline, or drop the card from CARDS.")
+        f"Add a (\"<headline_key>\", \"<card-id>\", \"<field>\") row to _HEADLINE_SPEC, or drop the card from CARDS.")
