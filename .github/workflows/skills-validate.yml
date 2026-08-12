@@ -16,13 +16,15 @@ name: Skills Validate
 # only works if each sibling has granted this repo's Actions access (Settings → Actions →
 # Access) — otherwise the sibling-checkout steps 403 and CI cannot run.
 
+# NOTE (2026-08-12): the pull_request trigger runs on ALL PRs — no `paths:` filter — because the
+# `pytest` check is a REQUIRED status check on v2-architecture (branch protection). A required check
+# that is path-filtered would never report on a PR touching only non-matching paths (libs/, notebooks/,
+# tests/, docs), leaving that PR permanently "Expected — waiting for status" and unmergeable (the
+# required-check deadlock). Running the (fast, self-skipping-when-credential-less) suite on every PR
+# is the robust way to keep the required check from ever wedging a merge. Do NOT re-add `paths:` here
+# without first dropping `pytest` from the branch-protection required set.
 on:
   pull_request:
-    paths:
-      - "skills/**"
-      - "pixi.toml"
-      - "pixi.lock"
-      - ".github/workflows/skills-validate.yml"
   push:
     branches: [v2-architecture, dev, main]
 
