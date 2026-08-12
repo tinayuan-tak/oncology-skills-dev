@@ -20,6 +20,7 @@ degradation in production:
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import sys
 from pathlib import Path
@@ -30,7 +31,15 @@ import yaml
 SKILLS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+# Honors the TARGET_CONTRACTS_ROOT env var CI sets (skills-validate.yml), else the adjacent
+# sibling checkout for local runs. (Was a hardcoded /home/sagemaker-user path — invisible until
+# skills/tests/ was gated in CI, where siblings live under $GITHUB_WORKSPACE, not /home.)
+CONTRACTS = Path(
+    os.environ.get(
+        "TARGET_CONTRACTS_ROOT",
+        SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-target-contracts",
+    )
+)
 RULES_DIR = CONTRACTS / "interpretation-rules"
 
 # Sub-skills whose run.py has a _verdict/_snapshot referencing rule_ids.
