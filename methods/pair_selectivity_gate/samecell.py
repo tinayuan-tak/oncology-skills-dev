@@ -112,3 +112,70 @@ def _unavailable(note: str) -> dict:
         "n_donors": 0,
         "_data_note": note,
     }
+
+
+# --- TARGET-CENTRIC avidity (the card-facing read) -------------------------------------------------
+# confirm_pair_samecell needs an explicit partner; a card is keyed on ONE target (target_pair grain,
+# "each pair carried under both members"). This scans the indication's cube for EVERY pair involving
+# the target and summarizes its same-cell avidity across candidate partners — the read a bispecific
+# co-localization card consumes.
+
+# same_cell_coordinated is the avidity-POSITIVE state (AND-gate bispecific viable); the class ranking
+# below picks the target's BEST partner (most avidity-supportive) as the headline.
+_AVIDITY_RANK = {"same_cell_coordinated": 3, "same_cell_independent": 2,
+                 "same_cell_mutually_exclusive": 1, "avidity_unconfirmed": 0}
+
+
+def _target_unavailable(target: str, indication: str, note: str) -> dict:
+    return {"target": target, "indication": indication, "samecell_avidity_class": "data_unavailable",
+            "n_partners_tested": 0, "n_coordinated_partners": 0, "best_partner": None,
+            "best_enrichment_median": None, "best_both_fraction_median": None,
+            "best_avidity_call": None, "partners": [], "_data_note": note}
+
+
+def read_target_samecell_avidity(target: str, indication: str) -> dict:
+    """Same-cell avidity for a target across ALL candidate partners in the indication's cube.
+
+    Primary field `samecell_avidity_class` = the target's BEST partner call (same_cell_coordinated if
+    ANY partner co-expresses on the same malignant cells → an AND-gate bispecific has a viable partner).
+    data_unavailable-safe (no cube for the indication / target absent from every pair)."""
+    manifest = INDICATION_TO_SAMECELL_MANIFEST.get(str(indication).upper().strip())
+    if not manifest:
+        return _target_unavailable(target, indication,
+                                   "indication has no same-cell coexpr cube (COADREAD/NSCLC/LUSC/PAAD/HNSC/KIRC/OV landed)")
+    df = _read_cube(manifest)
+    if df is None:
+        return _target_unavailable(target, indication, f"same-cell cube {manifest} not landed / unreadable")
+    import numpy as np
+    a = target.upper().strip()
+    m = df[(df["gene_a"] == a) | (df["gene_b"] == a)]
+    if m.empty:
+        return _target_unavailable(target, indication,
+                                   f"{a} not in any nominated pair in {manifest} (no avidity partner scanned)")
+    partner = np.where(m["gene_a"].to_numpy() == a, m["gene_b"], m["gene_a"])
+    m = m.assign(_partner=partner)
+    partners = []
+    for p, g in m.groupby("_partner"):
+        both_med = float(np.median(g["both_fraction"]))
+        enr = g["enrichment_vs_independence"].dropna()
+        enr_med = float(np.median(enr)) if len(enr) else None
+        partners.append({"partner": str(p), "avidity_call": _avidity_call(enr_med, both_med),
+                         "enrichment_median": round(enr_med, 3) if enr_med is not None else None,
+                         "both_fraction_median": round(both_med, 4), "n_donors": int(len(g))})
+    # headline = the most avidity-supportive partner (rank, then enrichment)
+    partners.sort(key=lambda d: (_AVIDITY_RANK.get(d["avidity_call"], 0),
+                                 d["enrichment_median"] or -1.0), reverse=True)
+    best = partners[0]
+    return {
+        "target": target,
+        "indication": str(indication).upper().strip(),
+        "samecell_avidity_class": best["avidity_call"],
+        "n_partners_tested": len(partners),
+        "n_coordinated_partners": sum(1 for d in partners if d["avidity_call"] == "same_cell_coordinated"),
+        "best_partner": best["partner"],
+        "best_enrichment_median": best["enrichment_median"],
+        "best_both_fraction_median": best["both_fraction_median"],
+        "best_avidity_call": best["avidity_call"],
+        "partners": partners,
+        "_evidence_tier": "single_cell_measured",
+    }
