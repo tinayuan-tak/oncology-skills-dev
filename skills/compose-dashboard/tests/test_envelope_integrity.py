@@ -5,7 +5,9 @@ L3 — the composer advertised governance.lockfile_ref="lockfile.yaml", but noth
 L4 — renderings.markdown pointed at "renderings/dashboard.md", but main() writes the rendering to
      the package ROOT ("dashboard.md"); the self-describing pointer must match the actual file.
 
-These assert the envelope shape directly (no live reads, no S3) via _assemble_evidence_package.
+These assert the envelope shape directly (no live reads, no S3) via the shared
+_skills_common.envelope.assemble_evidence_package writer (extracted from compose-dashboard's
+former local _assemble_evidence_package in Phase D D1a).
 """
 from __future__ import annotations
 
@@ -14,8 +16,9 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — for _skills_common
 
-from compose_dashboard import _assemble_evidence_package  # noqa: E402
+from _skills_common.envelope import assemble_evidence_package  # noqa: E402
 
 
 def _minimal_run_plan() -> dict:
@@ -32,7 +35,7 @@ def _minimal_run_plan() -> dict:
 
 
 def _assemble(**kw) -> dict:
-    return _assemble_evidence_package(
+    return assemble_evidence_package(
         run_plan=_minimal_run_plan(),
         card_outputs=kw.get("card_outputs", []),
         synthesis_block={"headline": "test", "caveats_summary": [], "modality_fit_assessment": []},
@@ -40,6 +43,8 @@ def _assemble(**kw) -> dict:
                             "n_cards_passed_with_warnings": 0, "n_cards_failed": 0,
                             "n_cards_excluded_by_applies_when": 0},
         deterministic_timestamps=True,
+        framework_version="2.0.0",
+        generated_by="skills/compose-dashboard@0000000",
         unavailable_cards=None,
     )
 

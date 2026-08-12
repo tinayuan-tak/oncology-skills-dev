@@ -26,8 +26,9 @@ from jsonschema import Draft202012Validator
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR.parent))
+sys.path.insert(0, str(SCRIPTS_DIR.parent.parent))  # skills/ — for _skills_common
 
-from scripts.compose_dashboard import _assemble_evidence_package  # noqa: E402
+from _skills_common.envelope import assemble_evidence_package  # noqa: E402
 
 CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
                                 "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"))
@@ -51,7 +52,7 @@ def _synthesis_block():
 
 
 def _assemble(card_outputs, unavailable_cards):
-    return _assemble_evidence_package(
+    return assemble_evidence_package(
         run_plan=_minimal_run_plan(),
         card_outputs=card_outputs,
         validation_summary={"n_cards_attempted": len(card_outputs), "n_cards_passed": 0,
@@ -60,6 +61,8 @@ def _assemble(card_outputs, unavailable_cards):
                             "n_cards_excluded_by_applies_when": 0},
         synthesis_block=_synthesis_block(),
         deterministic_timestamps=True,
+        framework_version="2.0.0",
+        generated_by="skills/compose-dashboard@0000000",
         unavailable_cards=unavailable_cards,
     )
 
