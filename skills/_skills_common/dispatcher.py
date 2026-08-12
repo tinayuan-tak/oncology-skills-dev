@@ -150,6 +150,7 @@ def run_wired_skill(
     isoform_check_target: bool = False,
     synthesize_fn: Optional[SynthesizeFn] = None,
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
+    extra_axes: Optional[list[str]] = None,
     argv: Optional[list[str]] = None,
 ) -> int:
     """Run a wired compositional skill end-to-end.
@@ -248,8 +249,17 @@ def run_wired_skill(
     fired = fired_rules(card_outputs, axis=axis,
                         card_id_filter=surviving_card_ids)
 
-    # 4. Verdict (optional callback)
+    # 4. Verdict (optional callback) — the PRIMARY `axis` alone drives the verdict.
     verdict_pair = verdict_fn(fired) if verdict_fn else None
+
+    # 4a. Extra AUDIT axes (optional). A skill may fire a SECOND, self-contained axis (e.g.
+    # combo-and-resistance's resistance_emergence) whose rules belong in the emitted audit spine
+    # (decision['fired_rules']) + run_health.cards_fired, but must NOT touch the primary verdict.
+    # Fired AFTER verdict_fn and merged into `fired`, so the resistance verdict a skill computes in
+    # its headline_fn is traceable to a fired rule. Default (no extra_axes) is byte-identical.
+    for _extra_axis in (extra_axes or []):
+        fired = fired + fired_rules(card_outputs, axis=_extra_axis,
+                                    card_id_filter=surviving_card_ids)
 
     # 4b. OPTIONAL subtype panorama (DESCRIPTIVE, --subtypes-gated). Resolved on a SEPARATE path
     # from the whole-cohort spine: its cards are NOT in `fired` and touch no resolver rung, so the

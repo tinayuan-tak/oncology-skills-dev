@@ -30,7 +30,6 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import fired_rules
 from _skills_common.dispatcher import run_wired_skill
 
 
@@ -116,12 +115,12 @@ def _headline(cards, fired, verdict_pair):
     s = _summary("combo-crispr-screen")
     verdict, driving = verdict_pair
 
-    # resistance half — fire the resistance_emergence axis over the SAME resolved cards, in-skill.
-    # This does not touch the combination spine (separate axis, separate fired list). The resistance
-    # card was resolved because it is in CARDS.
-    r_fired = fired_rules(cards, axis="resistance_emergence",
-                          card_id_filter=[c.get("card_id") for c in cards])
-    r_verdict, r_driving = _resistance_verdict(r_fired)
+    # resistance half — the dispatcher fires the resistance_emergence axis as an EXTRA AUDIT axis
+    # (run_wired_skill(extra_axes=["resistance_emergence"])), so its rules are already merged into
+    # `fired` and land in decision['fired_rules'] + run_health. Derive the self-contained resistance
+    # verdict from that SAME fired list — so resistance_verdict/driving_rule_id are traceable to an
+    # emitted fired rule (previously the in-skill firing was dropped from the audit spine).
+    r_verdict, r_driving = _resistance_verdict(fired)
     rs = _summary("resistance-emergence-signature")
 
     return {
@@ -165,4 +164,7 @@ if __name__ == "__main__":
         question=QUESTION,
         verdict_fn=_verdict,
         headline_fn=_headline,
+        # Fire the resistance axis for the AUDIT spine (decision['fired_rules'] + run_health) —
+        # the combination verdict stays keyed on `axis` above; resistance is verdict-independent.
+        extra_axes=["resistance_emergence"],
     ))

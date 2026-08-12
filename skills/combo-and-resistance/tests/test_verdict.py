@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from run import _verdict, _resistance_verdict  # noqa: E402
+from run import _verdict, _resistance_verdict, _headline  # noqa: E402
 
 
 def _f(*ids): return [{"rule_id": r, "card_id": "combo-crispr-screen"} for r in ids]
@@ -58,3 +58,17 @@ def test_resistance_no_rule_defaults_insufficient():
 def test_resistance_precedence_strong_over_context():
     v, d = _resistance_verdict(_rf("resistance-context-signal", "resistance-strong-signal"))
     assert v == "strong_resistance_signal" and d == "resistance-strong-signal"
+
+
+def test_headline_derives_resistance_verdict_from_passed_merged_fired():
+    # Sweep-2 S2: the dispatcher now fires resistance as an extra AUDIT axis and passes the MERGED
+    # fired to _headline; _headline must derive the resistance verdict from THAT (not re-fire), so
+    # the verdict is traceable to an emitted fired rule.
+    cards = [{"card_id": "combo-crispr-screen", "summary": {}},
+             {"card_id": "resistance-emergence-signature",
+              "summary": {"resistance_emergence_class": "strong_resistance_signal"}}]
+    fired = [{"rule_id": "combination-strong", "card_id": "combo-crispr-screen"},
+             {"rule_id": "resistance-strong-signal", "card_id": "resistance-emergence-signature"}]
+    h = _headline(cards, fired, ("combination_supported", "combination-strong"))
+    assert h["resistance_verdict"] == "strong_resistance_signal"
+    assert h["resistance_driving_rule_id"] == "resistance-strong-signal"
