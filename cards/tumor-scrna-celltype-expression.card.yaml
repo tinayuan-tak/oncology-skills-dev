@@ -30,10 +30,13 @@ subgroup_stratification:
 applies_when:
   # ONLY the indications whose atlases carry a per-cell MALIGNANT annotation AND enough donors for
   # the donor-is-replicate roll-up have a landed product. CELLxGENE Census: COADREAD (v2), NSCLC,
-  # LUSC. 3CA atlas (Gavish 2023): PAAD, HNSC. Others are excluded at compose time (honest
+  # LUSC. 3CA atlas (Gavish 2023): PAAD, HNSC, KIRC. Others are excluded at compose time (honest
   # capability ceiling — the skill reads data_unavailable for any indication not listed, never a
-  # silent coarser fall-back).
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC']"
+  # silent coarser fall-back). NB KIRC's 3CA kidney cube is MULTI-ENTITY POOLED (ccRCC-dominant but
+  # includes papillary/chromophobe/Wilms/normal — no cancer_type filter); it is a pan-renal presence
+  # readout, not a ccRCC-pure denominator. KIRP/KICH stay excluded (the pooled cube has no
+  # entity-specific denominators for them).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC']"
 
 required_inputs:
   - product_id: sc-pseudobulk-donor-celltype-coadread-v2     # COADREAD donor x compartment pseudobulk. v2 SUPERSEDES v1 (2026-08-11): 30 datasets / 749 donors / 828,819 CRC cells incl. Pelka 2021 (257K) — v1 silently dropped it via a `disease=='colorectal cancer'` filter (~75% of the cohort). The reader (analysis-methods sc_tumor_expression_celltype, AM#282) already reads v2; this aligns the card's declared provenance / lockfile substrate.
@@ -41,6 +44,7 @@ required_inputs:
   - product_id: sc-pseudobulk-donor-celltype-lusc-v1         # LUSC (Census) donor x compartment pseudobulk
   - product_id: sc-pseudobulk-tumor-3ca-pancreas-v1          # PAAD (3CA atlas) tumor pseudobulk
   - product_id: sc-pseudobulk-tumor-3ca-hnsc-v1              # HNSC (3CA atlas) tumor pseudobulk
+  - product_id: sc-pseudobulk-tumor-3ca-kidney-v1            # KIRC (3CA atlas) tumor pseudobulk — pan-renal pooled (ccRCC + papillary/chromophobe/Wilms); 125 donors / 74 malignant
 
 methods:
   - call: sc-tumor-expression-celltype
