@@ -89,10 +89,13 @@ outputs:
     - cn_top_amplified_lineages          # per-lineage stats for amplified lineages
     - cn_top_deleted_lineages            # per-lineage stats for deleted lineages
     # ---- PATIENT-tumour CN cross-check (TCGA GISTIC, tcga-patient-cn-per-gene-v1) ----
-    # The verdict-driving copy_number_class above is DepMap CELL-LINE CN. These patient_* fields are
+    # The verdict-driving copy_number_class above is DepMap CELL-LINE CN. The patient_* fields below are
     # the TUMOUR cross-check (per-indication GISTIC amp/del prevalence), same class vocabulary so they
-    # line up directly. ADDITIVE/verdict-inert: they fire NO rule; where cell-line and patient CN
-    # DISAGREE (e.g. a locus amplified in patients but not the cell-line panel) is the decision-useful signal.
+    # line up directly. NOTE two DIFFERENT patient fields with DIFFERENT verdict status: the ANY-gain
+    # patient_copy_number_class is ADDITIVE/verdict-inert (a DISPLAY cross-check — fires NO rule), but the
+    # FOCAL patient_focal_cn_class below IS VERDICT-BEARING (fires the CN-consensus rung — see next block).
+    # Where cell-line and patient CN DISAGREE (e.g. a locus amplified in patients but not the cell-line
+    # panel) is the decision-useful signal.
     - patient_copy_number_class          # TCGA GISTIC cohort CN class, ANY-gain (mirrors copy_number_class vocab; DISPLAY cross-check)
     # FOCAL categorical (2026-08-06): gates on HIGH-LEVEL +2 amp / -2 homdel, NOT arm-level any-gain.
     # THIS is the field the CN-CONSENSUS VERDICT rung fires on (cell-line OR patient focal) — so
