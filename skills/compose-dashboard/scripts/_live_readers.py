@@ -826,6 +826,17 @@ def _dispatch_sc_surface_concordance(target: str, indication: str) -> Optional[d
     return mod.build_summary(target, indication)
 
 
+def _dispatch_surface_colocalization_avidity(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route surface-colocalization-avidity card to
+    methods/pair_selectivity_gate/cli.py::build_summary.
+
+    Target-centric same-cell avidity: scans the indication's same-cell coexpr cube for every pair
+    involving the target → best-partner samecell_avidity_class (bispecific AND-gate co-localization).
+    Indication-scoped (the cube is per-indication)."""
+    mod = _import_method("pair_selectivity_gate.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -1755,6 +1766,7 @@ CARD_DISPATCHERS = {
     "cellline-rna-protein-concordance": _dispatch_rna_protein_concordance,
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
+    "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
