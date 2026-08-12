@@ -35,22 +35,25 @@ consumes_validators:
 produces_cached_artifact: true
 cache_key: [dashboard_id, target, indication, subgroup_spec, data_mode, release_pin]
 fan_out_strategy: sequential                          # iter-1 ships sequential; iter-2 may parallelize cards
-status: phase1_operational                            # Phase-1 (compose) ships; phases 2-3 are next-step work
+status: operational                                   # all three phases (compose → execute → synthesize) ship; some phase-2 method CLIs are still iter-1 stubs (see delegates_to)
 ---
 
 # compose-dashboard
 
-**Status: Phase-1 (compose) operational.** Per the plan's three-layer model
-(see § Dashboard, Interpretation, Inference Layers), this skill ships in three phases:
+**Status: all three phases implemented.** Per the plan's three-layer model
+(see § Dashboard, Interpretation, Inference Layers), this skill runs in three phases, chained
+end-to-end by `scripts/compose_dashboard.py`:
 
-- **Phase 1 — compose (LANDED iter-1b)**: resolve dashboard_spec + modality modules + subgroup_catalog
+- **Phase 1 — compose**: resolve dashboard_spec + modality modules + subgroup_catalog
   into a deterministic `run_plan.yaml`. NO method execution; NO synthesis. Implemented in
   `scripts/compose_phase1.py` + `scripts/_resolution.py` + `scripts/_composition.py` + `scripts/_validation.py`.
   Run plan validates against `target-contracts/schemas/run_plan.schema.json`.
-- **Phase 2 — execute (next step)**: take a run_plan.yaml, invoke each card's method CLI, apply
-  interpretation_hints, emit per-card outputs validating against per-method output schemas.
-- **Phase 3 — synthesize (after phase 2)**: read per-card outputs + synthesis_directives from the
-  run_plan, apply modality_module.synthesis_emphasis, emit `evidence_package.synthesis` block.
+- **Phase 2 — execute**: take a run_plan.yaml, invoke each card's method CLI (some methods are
+  still iter-1 stubs — see `delegates_to`), apply interpretation_hints, emit per-card outputs
+  validating against per-method output schemas. Implemented in `scripts/_execution.py`.
+- **Phase 3 — synthesize**: read per-card outputs + synthesis_directives from the
+  run_plan, apply modality_module.synthesis_emphasis, emit the `evidence_package.synthesis` block.
+  Implemented in `scripts/_synthesis.py`.
 
 Each phase's output is independently validatable against a schema. The three phases are pipelined
 deterministically: same inputs → byte-identical outputs at every phase.
@@ -65,7 +68,7 @@ The 7 "Iter-1 done" criteria in B1 reference this skill explicitly:
 4. **Renders to markdown** — delegates to render-evidence-package skill.
 5. **Concurrence recorded** — out of scope for this skill; verify_concurrence.py is separate.
 6. **Card-invariance check passes** — this skill must produce byte-identical deterministic-field
-   output on re-invocation against the same lockfile.
+   output on re-invocation against the same inputs (the `cache_key` tuple above).
 7. **Negative-control refuses correctly** — this skill must emit clean evidence packages for
    (TG, COADREAD) with cards 1/4/5 excluded by applies_when and cards 2/3 as "not informative".
 
