@@ -38,6 +38,11 @@ S3_BUCKET = "onc-compbio"
 # its v1 (no v2 exists). Adding an indication = emit its product + one line here.
 # 2026-08-12: PAAD + HNSC wired to 3CA products (data-catalog #334–#340). Census has 0 HNSC malignant
 # cells; 3CA fills the gap via inferCNV/CNA-validated malignant call. STAD excluded — no 3CA bucket.
+# 2026-08-12: KIRC wired to the 3CA kidney bucket (data-catalog #343–#345). NB the kidney cube is
+# MULTI-ENTITY POOLED (ccRCC-dominant but includes papillary/chromophobe/Wilms/normal — no cancer_type
+# filter, per the source manifest caveat); it serves a pan-renal presence readout, not a ccRCC-pure
+# denominator. Only KIRC is mapped (the strategic ccRCC/NEDD8-UBA3 indication) — KIRP/KICH are NOT
+# mapped, because the pooled cube cannot provide entity-specific denominators for them.
 INDICATION_TO_PRODUCT = {
     "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v2",
     "COAD": "sc-pseudobulk-donor-celltype-coadread-v2",
@@ -47,6 +52,7 @@ INDICATION_TO_PRODUCT = {
     "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",    # dedicated squamous cube (was: nsclc umbrella)
     "PAAD": "sc-pseudobulk-tumor-3ca-pancreas-v1",     # 3CA PDAC — 6 studies / 344K cells (inferCNV malignant)
     "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",         # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
+    "KIRC": "sc-pseudobulk-tumor-3ca-kidney-v1",       # 3CA Kidney — 5 studies / 125 donors / 74 malignant (pan-renal pooled)
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",

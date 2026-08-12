@@ -40,6 +40,25 @@ def test_hnsc_samecell_map_points_to_3ca_hnsc():
     assert SC.INDICATION_TO_SAMECELL_MANIFEST["HNSC"] == "sc-samecell-coexpr-3ca-hnsc-v1"
 
 
+def test_kirc_pseudobulk_map_points_to_3ca_kidney():
+    assert TSC.INDICATION_TO_PRODUCT["KIRC"] == "sc-pseudobulk-tumor-3ca-kidney-v1"
+
+
+def test_kirc_samecell_map_points_to_3ca_kidney():
+    assert SC.INDICATION_TO_SAMECELL_MANIFEST["KIRC"] == "sc-samecell-coexpr-3ca-kidney-v1"
+
+
+def test_kidney_cube_is_pan_renal_only_kirc_mapped():
+    # The 3CA kidney bucket is MULTI-ENTITY POOLED (ccRCC + papillary + chromophobe + Wilms + normal,
+    # no cancer_type filter). Only KIRC is wired — the pooled cube cannot serve entity-specific
+    # denominators for the other renal codes, so they must stay data_unavailable (never silently
+    # fall back to a pan-renal cube presented as papillary/chromophobe-specific).
+    assert "KIRP" not in TSC.INDICATION_TO_PRODUCT
+    assert "KICH" not in TSC.INDICATION_TO_PRODUCT
+    assert "KIRP" not in SC.INDICATION_TO_SAMECELL_MANIFEST
+    assert "KICH" not in SC.INDICATION_TO_SAMECELL_MANIFEST
+
+
 def test_stad_has_no_product_no_3ca_bucket():
     # STAD is explicitly absent — Census gastric atlases label tumor cells 'unknown' (no malignant
     # compartment); 3CA has no gastric bucket. Must stay data_unavailable, never silently fall back.
@@ -65,3 +84,7 @@ def test_3ca_products_resolve_to_catalog_s3_uris():
         "sc-samecell-coexpr-3ca-pancreas-v1/sc_samecell_coexpr.parquet")
     assert s3_uri_for("sc-samecell-coexpr-3ca-hnsc-v1").endswith(
         "sc-samecell-coexpr-3ca-hnsc-v1/sc_samecell_coexpr.parquet")
+    assert s3_uri_for("sc-pseudobulk-tumor-3ca-kidney-v1").endswith(
+        "sc-pseudobulk-tumor-3ca-kidney-v1/sc_pseudobulk.parquet")
+    assert s3_uri_for("sc-samecell-coexpr-3ca-kidney-v1").endswith(
+        "sc-samecell-coexpr-3ca-kidney-v1/sc_samecell_coexpr.parquet")
