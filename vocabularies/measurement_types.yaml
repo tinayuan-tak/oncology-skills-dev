@@ -724,12 +724,13 @@ measurement_types:
     # the comparator. NOTE: providers list = the CELL-LINE arm's substrates (tier_dominant needs a
     # single dominant provider per the validator); the tumor arm's substrate is the matched CPTAC product.
     entity_grains: [target, target_indication]
-    cards: [cellline-rna-protein-concordance, rna-protein-concordance-tumor]
+    cards: [cellline-rna-protein-concordance, rna-protein-concordance-tumor, sc-surface-rna-protein-concordance]
     multi_provider_policy: tier_dominant
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}              # RNA (anchor, cell-line)
       - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}   # protein comparator (cell-line)
       - {kind: dataset, source: cptac-rna-protein-matched-per-sample-v1, evidence_tier: measured}  # tumor arm (matched RNA+protein)
+      - {kind: dataset, source: sc-cite-rna-protein-concordance-v1, evidence_tier: measured}  # single-cell SURFACE arm (CITE-seq ADT vs scRNA)
 
   normal_tissue_protein_breadth:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
