@@ -76,7 +76,25 @@ def compose_card_run_plan(
         else:
             failed.append(entry["failure_entry"])
 
-    # 3. Modality module additional_cards
+    # 3. Placeholder cards (TC #310): declared-but-not-yet-wired cards (card.status
+    #    placeholder_not_wired / dormant_pending_data). Surfaced in excluded_at_compose for roadmap
+    #    transparency — visible in the plan/package but never run (no method/product). NOT gated by
+    #    when: (they never run regardless of context). Reuses the standard exclusion_entry shape so
+    #    downstream (envelope writer, _card_ids_excluded) treats them exactly like data_blocked cards.
+    for card_ref in dashboard_spec.get("placeholder_cards", []):
+        # Reuse the existing `data_blocked_at_compose` exclusion_source (a placeholder card IS
+        # method/data-blocked — no method/product) so no run_plan.schema enum change is needed
+        # (skills-only); the reason text disambiguates dashboard placeholder_card vs module additional_card.
+        excluded.append({
+            "card_id": card_ref["card_id"],
+            "exclusion_source": "data_blocked_at_compose",
+            "exclusion_reason": (
+                "dashboard_spec placeholder_card — card.status placeholder_not_wired/dormant_pending_data; "
+                "declared for roadmap transparency, not wired (no method/product yet)."
+            ),
+        })
+
+    # 4. Modality module additional_cards
     for module in loaded_modules:
         modality_name = module.get("modality_module")
         for card_ref in module.get("additional_cards") or []:

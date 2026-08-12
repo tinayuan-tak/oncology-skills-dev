@@ -71,6 +71,10 @@ def test_kras_coadread_no_modality_enumerates_plausible():
     # re-adding a non-wired card to required_cards.
     assert "clinical-precedent" not in cards, \
         "clinical-precedent is now a placeholder_card (TC #310) — must not be in to_run"
+    # ...but it IS surfaced in excluded_at_compose (compose reads placeholder_cards →
+    # exclusion_source=placeholder_not_wired) so it stays visible for roadmap transparency, not dropped.
+    assert "clinical-precedent" in _card_ids_excluded(plan), \
+        "placeholder_card clinical-precedent must be surfaced in excluded_at_compose, not dropped"
 
     # subgroup-stratified-expression should be admitted because subgroup_spec="all" != null
     assert "subgroup-stratified-expression" in cards
@@ -132,6 +136,9 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
     # compose-dashboard does not run placeholder_cards. Must NOT be in to_run.
     assert {"antigen-prevalence", "clinical-precedent"}.isdisjoint(cards), \
         "antigen-prevalence/clinical-precedent are now placeholder_cards (TC #310) — must not be in to_run"
+    # ...but SURFACED in excluded_at_compose (compose reads placeholder_cards) — visible, not dropped.
+    assert {"antigen-prevalence", "clinical-precedent"}.issubset(_card_ids_excluded(plan)), \
+        "placeholder_cards antigen-prevalence/clinical-precedent must be surfaced in excluded_at_compose"
 
     # T2-adjacent (2026-08-11 review): this assertion was STALE. The ADC module used to add a
     # phantom `antigen-density-evidence` card (data_blocked → excluded), but that card never
