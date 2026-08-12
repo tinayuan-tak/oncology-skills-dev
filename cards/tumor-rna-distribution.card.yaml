@@ -35,6 +35,8 @@ applies_when:
 required_inputs:
   - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the distribution substrate)
   - product_id: gtex-tpm-recount3-long-v1              # matched-normal overlay for the p95 context fields
+  - product_id: allgene-tumor-rank-v1                  # all-gene percentile facet (read on every run) — was under-pinned in the lockfile
+  - product_id: tcga-spliceseq-psi-per-gene-v1         # splicing PSI facet (methods: tcga-spliceseq-psi)
 
 methods:
   - call: tcga-gtex-expression-distribution
