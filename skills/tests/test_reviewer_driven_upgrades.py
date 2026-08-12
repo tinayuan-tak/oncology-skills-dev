@@ -11,7 +11,7 @@ Test index:
     test_isoform_selective_warning             — arch A3 enforcement (ERBB2 fires)
     test_on_dependency_status_validation       — arch A4 enforcement
     test_signor_moa_ontology_classification    — 21-class MoA taxonomy works
-    test_tmbed_license_attestation             — Apache-2.0 in TMbed manifest
+    test_tmbed_license_attestation             — TMbed Apache-2.0 attested in analysis-methods
     test_panel_intersect_fisher_row_schema     — reviewer BLOCKER fix
     test_all_new_cards_validate                — 11 cards structurally clean
     test_modality_rubric_weights_sum_to_100    — rubric integrity
@@ -20,6 +20,7 @@ Test index:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -31,6 +32,14 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 TARGET_CONTRACTS_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-target-contracts"
 DATA_CATALOG_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-data-catalog"
+# Honors the ANALYSIS_METHODS_ROOT env var CI sets (skills-validate.yml), else the adjacent
+# sibling checkout for local runs.
+ANALYSIS_METHODS_ROOT = Path(
+    os.environ.get(
+        "ANALYSIS_METHODS_ROOT",
+        SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-analysis-methods",
+    )
+)
 
 
 # ---------------------------------------------------------------------------
@@ -208,17 +217,34 @@ def test_signor_moa_ontology_classification():
 # ---------------------------------------------------------------------------
 
 def test_tmbed_license_attestation():
-    """The TMbed source manifest must carry an Apache-2.0 attestation."""
-    manifest = DATA_CATALOG_ROOT / "manifests/sources/tmbed-v1-predictor-snapshot-2026-07-08.yaml"
-    data = yaml.safe_load(manifest.read_text())
+    """TMbed's Apache-2.0 license must be attested machine-checkably.
 
-    assert "Apache-2.0" in data.get("license", ""), (
-        f"TMbed manifest license field must mention Apache-2.0; got: {data.get('license')!r}"
+    TMbed is a software TOOL (wrapped by analysis-methods
+    methods/topology_predictions_tmbed/), not a redistributed dataset — modeling it as a
+    data-catalog *source* manifest was tried and deliberately reverted (data-catalog
+    #111 -> #113), and the Derived-manifest schema carries no license field. So the tool's
+    license posture is attested beside the wrapper in LICENSE_ATTRIBUTION.yaml, which this
+    test verifies.
+    """
+    attestation = (
+        ANALYSIS_METHODS_ROOT / "methods/topology_predictions_tmbed/LICENSE_ATTRIBUTION.yaml"
     )
-    # Pipeline block should stamp SPDX
-    pipeline = data.get("pipeline", {})
-    assert pipeline.get("license_spdx_id") == "Apache-2.0", (
-        f"pipeline.license_spdx_id should be Apache-2.0; got {pipeline.get('license_spdx_id')!r}"
+    assert attestation.exists(), (
+        f"TMbed license attestation missing at {attestation} — the tool license must be "
+        f"attested in analysis-methods (data-catalog #111->#113: TMbed is a tool, not a source)."
+    )
+    data = yaml.safe_load(attestation.read_text())
+
+    # The wrapped predictor (TMbed) is Apache-2.0.
+    tool = data.get("tool", {})
+    assert tool.get("license_spdx_id") == "Apache-2.0", (
+        f"tool.license_spdx_id must be Apache-2.0; got {tool.get('license_spdx_id')!r}"
+    )
+    # Its ProtT5-XL-U50 encoder dependency is CC-BY-4.0 — attest it too.
+    deps = {d.get("name"): d for d in data.get("dependencies", [])}
+    assert deps.get("ProtT5-XL-U50", {}).get("license_spdx_id") == "CC-BY-4.0", (
+        f"ProtT5-XL-U50 dependency must be attested CC-BY-4.0; got "
+        f"{deps.get('ProtT5-XL-U50', {}).get('license_spdx_id')!r}"
     )
 
 
