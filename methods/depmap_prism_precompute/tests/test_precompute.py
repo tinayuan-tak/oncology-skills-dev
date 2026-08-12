@@ -163,11 +163,12 @@ def test_classify_prism_activity_clinically_active_with_activity():
     assert pc.classify_prism_activity(2, "phase_1_plus", -0.5) == pc.CLASS_CLINICALLY_ACTIVE
 
 
-def test_classify_prism_activity_clinically_active_no_activity():
-    """Phase 1+ compound exists but no measured Log2AUC → still clinically_active."""
-    assert pc.classify_prism_activity(2, "phase_1_plus", None) == pc.CLASS_CLINICALLY_ACTIVE
-    # And even with weak/flat Log2AUC — clinical presence still counts
-    assert pc.classify_prism_activity(2, "phase_1_plus", -0.02) == pc.CLASS_CLINICALLY_ACTIVE
+def test_classify_prism_activity_clinical_precedent_only_when_no_or_weak_activity():
+    """T1.2 split (#263): a phase_1_plus clinical anchor WITHOUT a measured activity signal (no
+    Log2AUC, or weak/flat) is the weaker `clinical_precedent_only`, NOT the strong `clinically_active`
+    — which now requires an actual activity signal (see the strong-activity test above)."""
+    assert pc.classify_prism_activity(2, "phase_1_plus", None) == pc.CLASS_CLINICAL_PRECEDENT_ONLY
+    assert pc.classify_prism_activity(2, "phase_1_plus", -0.02) == pc.CLASS_CLINICAL_PRECEDENT_ONLY
 
 
 def test_classify_prism_activity_weakly_active():

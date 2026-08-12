@@ -36,9 +36,12 @@ def test_dge_percentile_none_on_empty_null(monkeypatch):
     assert pct is None and klass == "data_unavailable"
 
 
-def test_sensitivity_cellA_percentile_uses_cellA_null(monkeypatch):
+def test_sensitivity_cell_percentile_uses_cell_null(monkeypatch):
+    # read.py generalized _sensitivity_cellA_null -> _sensitivity_cell_null(…, column) and
+    # _dge_sensitivity_cellA_percentile -> _dge_sensitivity_cell_percentile(…, column, …) (per-cell
+    # comparator columns log2fc_A/B/C). This test was stale against the pre-generalization names.
     read = _load()
-    monkeypatch.setattr(read, "_sensitivity_cellA_null",
-                        lambda manifest_id, s3_uri: tuple(range(100)))
-    pct, klass = read._dge_sensitivity_cellA_percentile("m", "s3://x", 99)
+    monkeypatch.setattr(read, "_sensitivity_cell_null",
+                        lambda manifest_id, s3_uri, column: tuple(range(100)))
+    pct, klass = read._dge_sensitivity_cell_percentile("m", "s3://x", "log2fc_A", 99)
     assert pct == pytest.approx(99.5) and klass == "top_1pct"

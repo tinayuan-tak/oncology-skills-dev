@@ -64,7 +64,10 @@ def test_classify_pan_essential():
     })
     summary = c.compute_summary_stats(demeter, meta)
     assert summary["rnai_n_cell_lines_evaluated"] == 30
-    assert summary["rnai_dependency_class"] == "common_essential"
+    # 30 lines is below RNAI_PAN_ESSENTIAL_MIN_PANEL_N (300): a >=85% pan-essential call on a panel
+    # that small is an underpowered artifact, so the classifier (intentionally, H-fix) returns
+    # common_essential_underpowered — the fraction below still confirms the strong-dependence signal.
+    assert summary["rnai_dependency_class"] == "common_essential_underpowered"
     assert summary["rnai_fraction_strongly_dependent"] >= 0.85
 
 
@@ -105,4 +108,5 @@ def test_demeter_thresholds_differ_from_chronos():
     summary = c.compute_summary_stats(demeter, meta, strong_threshold=-0.5)
     # All 30 lines should be flagged as strongly dependent on DEMETER2 scale
     assert summary["rnai_fraction_strongly_dependent"] == 1.0
-    assert summary["rnai_dependency_class"] == "common_essential"
+    # n=30 < RNAI_PAN_ESSENTIAL_MIN_PANEL_N (300) → underpowered pan-essential call (H-fix guard).
+    assert summary["rnai_dependency_class"] == "common_essential_underpowered"
