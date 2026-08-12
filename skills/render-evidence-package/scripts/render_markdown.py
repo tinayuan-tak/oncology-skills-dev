@@ -64,7 +64,16 @@ def render_evidence_package(ep: dict) -> str:
         sections.append(f"_Caveats_: {syn['caveats_summary']}")
         sections.append("")
 
-    # ===== Per-modality fit assessment =====
+    # ===== PRIMARY resolver gate-verdict (Phase-D Stage 2) =====
+    # The declarative resolver's gate verdict is the headline row; the per-modality
+    # fit_level below is a demoted secondary LENS. A verdict-only synthesis block (no
+    # modality_fit_assessment) must not crash — the fit section is gated on `fit`.
+    primary_gate = syn.get("primary_gate_verdict")
+    additional_gates = syn.get("additional_gate_verdicts", []) or []
+    if primary_gate:
+        sections.extend(_render_gate_verdicts(primary_gate, additional_gates))
+
+    # ===== Per-modality fit assessment (SECONDARY lens) =====
     fit = syn.get("modality_fit_assessment", []) or []
     if fit:
         sections.extend(_render_modality_fit_table(fit))
@@ -126,6 +135,72 @@ def _render_refusal_page(ep: dict) -> list[str]:
 FIT_ICONS = {"strong": "🟢", "moderate": "🟡", "weak": "🟠",
               "insufficient_evidence": "⚪", "not_viable": "🔴"}
 
+# Resolver-verdict vocabulary → icon (Phase-D Stage 2). Covers the surface_modality,
+# tractability_small_molecule, dependency, genomic_alteration and selectivity gate
+# verdicts. A verdict absent from the map renders with a neutral marker (never crashes).
+VERDICT_ICONS = {
+    # --- positive / supported ---
+    "both_viable": "🟢", "adc_preferred": "🟢", "tce_preferred": "🟢",
+    "well_covered": "🟢", "chemically_confirmed_genetic": "🟢",
+    "concordant_dependent": "🟢", "chemical_genetic_confirmed_dependent": "🟢",
+    "lineage_selective": "🟢", "selective_dependent": "🟢",
+    "biomarker_stratified_dependency": "🟢", "confirmed_driver": "🟢",
+    "multi_class_driver": "🟢", "strong_tumor_selective": "🟢",
+    "chemically_active": "🟢", "measured_potent_ligand": "🟢",
+    # --- moderate / caveated ---
+    "moderate_biomarker_dependency": "🟡", "modest_tumor_selective": "🟡",
+    "field_effect_tumor_selective": "🟡", "partner_conditional_dependent": "🟡",
+    "clinical_precedent_only": "🟡", "structurally_ligandable": "🟡",
+    "surface_viable_density_caveated": "🟡", "shed_dominant_opposed": "🟡",
+    "adc_preferred_tce_unsafe": "🟡", "drug_response_biomarker": "🟡",
+    "recurrent_amplification_driver": "🟡", "recurrent_deletion_driver": "🟡",
+    "recurrent_fusion_driver": "🟡", "lof_dominant_pattern": "🟡",
+    "missense_dominant_pattern": "🟡", "tool_compound_only": "🟡",
+    "weakly_active": "🟠", "broadly_dependent": "🟡", "non_dependent_paralog_buffered": "🟡",
+    # --- opposing / ambiguous / abstain ---
+    "modality_ambiguous": "⚪", "isoform_dependent_undefined": "⚪",
+    "discordant": "🟠", "discordant_across_comparators": "🟠",
+    "mixed_pattern": "⚪", "passenger_pattern": "⚪",
+    "not_selective": "🟠", "not_informative": "⚪", "data_unavailable": "⚪",
+    "insufficient": "⚪", "insufficient_underpowered": "⚪",
+    "insufficient_underpowered_pan_essential": "⚪",
+    "structurally_intractable": "🟠", "chemically_unhit": "🟠",
+    # --- foreclosure / killer ---
+    "neither_viable": "🔴", "tce_unsafe_normal_liability": "🔴",
+    "pan_essential_killer": "🔴", "non_dependent": "🔴",
+}
+
+
+def _render_gate_verdicts(primary: dict, additional: list[dict]) -> list[str]:
+    """Render the PRIMARY resolver gate-verdict as the headline row + any additional gate
+    verdicts (Phase-D Stage 2). This is the VERDICT; the modality-fit table that follows is a
+    demoted lens."""
+    sections = ["## Verdict", ""]
+
+    def _row(block: dict, primary_row: bool) -> str:
+        gate = block.get("gate", "?")
+        verdict = block.get("verdict", "?")
+        icon = VERDICT_ICONS.get(verdict, "•")
+        driver = block.get("driving_rule_id")
+        driver_cell = f"`{driver}`" if driver else "_default (no rule fired)_"
+        label = "**Primary**" if primary_row else gate
+        return f"| {label} | `{gate}` | {icon} **{verdict}** | {driver_cell} |"
+
+    sections.append("| Role | Gate | Verdict | Driving rule |")
+    sections.append("|---|---|---|---|")
+    sections.append(_row(primary, True))
+    for blk in additional:
+        sections.append(_row(blk, False))
+    sections.append("")
+    # Surface the fired-rule set once (shared across the gates resolved from one axis).
+    fired = primary.get("fired_rule_ids") or []
+    if fired:
+        sections.append(
+            "_Resolved from fired rules: " + ", ".join(f"`{r}`" for r in fired) + "._"
+        )
+        sections.append("")
+    return sections
+
 
 def _fmt_evidence_cell(entry: dict) -> str:
     """Render the 'Primary Evidence' cell of the modality-fit table.
@@ -152,6 +227,9 @@ def _fmt_evidence_cell(entry: dict) -> str:
 def _render_modality_fit_table(fit: list[dict]) -> list[str]:
     sections = []
     sections.append("## Modality Fit Assessment")
+    sections.append("")
+    sections.append("_Per-modality fit is a secondary lens on the resolver verdict above, "
+                    "not the verdict itself._")
     sections.append("")
 
     # Collapse 1-modality table to an inline summary line.
@@ -203,6 +281,9 @@ def _render_modality_fit_table(fit: list[dict]) -> list[str]:
 def _render_toc(ep: dict, fit: list[dict]) -> list[str]:
     """Render a table of contents linking to each non-excluded card section + standard blocks."""
     sections = ["## Contents", ""]
+    # Link the resolver Verdict section only when it renders (gated on primary_gate_verdict).
+    if (ep.get("synthesis", {}) or {}).get("primary_gate_verdict"):
+        sections.append("- [Verdict](#verdict)")
     # Only link the Modality Fit section when it actually renders (render_evidence_package gates it
     # on a non-empty `fit`); otherwise this was a dangling anchor for targets with no assessment.
     if fit:

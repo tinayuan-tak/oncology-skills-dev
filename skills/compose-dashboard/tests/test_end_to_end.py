@@ -45,9 +45,18 @@ def test_e2e_kras_coadread_full_pipeline():
     assert vs["n_cards_passed"] + vs["n_cards_passed_with_warnings"] >= 6  # at least all base cards
     assert vs["n_cards_failed"] == 0, "no card should have failed in stub mode"
 
-    # Phase-3 commitments — meaningful synthesis
-    assert "small_molecule" in ep["synthesis"]["headline"] or "degrader" in ep["synthesis"]["headline"]
-    assert "strong" in ep["synthesis"]["headline"] or "moderate" in ep["synthesis"]["headline"]
+    # Phase-3 commitments — meaningful synthesis.
+    # D2 RE-POINT (2026-08-12): the headline now reads from the PRIMARY resolver gate verdict
+    # (tractability_small_molecule), not the per-modality fit_level (which is a demoted lens).
+    # Pre-swap this asserted the fit_level phrasing ("small_molecule ... strong/moderate") was the
+    # verdict; post-swap we assert the resolver verdict spine + keep the lens as a secondary check.
+    pgv = ep["synthesis"]["primary_gate_verdict"]
+    assert pgv["gate"] == "tractability_small_molecule"
+    assert pgv["verdict"] == "well_covered"
+    assert "well_covered" in ep["synthesis"]["headline"]
+    # LENS (secondary): both loaded modalities still score strong.
+    lens = {f["modality"]: f["fit_level"] for f in ep["synthesis"]["modality_fit_assessment"]}
+    assert lens == {"small_molecule": "strong", "degrader": "strong"}
     assert len(ep["synthesis"]["modality_fit_assessment"]) == 2
 
     # Each loaded modality has a fit assessment
@@ -122,12 +131,16 @@ def test_e2e_kras_explicit_small_molecule():
     )
     assert errors == []
 
-    # Only one modality in fit assessment
+    # Only one modality in fit assessment (the lens)
     assert len(ep["synthesis"]["modality_fit_assessment"]) == 1
     assert ep["synthesis"]["modality_fit_assessment"][0]["modality"] == "small_molecule"
 
-    # Headline references small_molecule specifically
-    assert "small_molecule" in ep["synthesis"]["headline"]
+    # D2 RE-POINT (2026-08-12): headline reads from the resolver's tractability_small_molecule
+    # gate verdict, not the fit_level. The gate is modality-independent (the small_molecule /
+    # degrader lens restriction does not change the intracellular tractability gate), so the
+    # verdict is the same well_covered as the both-modalities run.
+    assert ep["synthesis"]["primary_gate_verdict"]["gate"] == "tractability_small_molecule"
+    assert "small-molecule tractability verdict" in ep["synthesis"]["headline"]
 
 
 # ============================================================================

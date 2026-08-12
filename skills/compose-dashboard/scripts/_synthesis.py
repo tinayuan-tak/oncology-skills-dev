@@ -68,6 +68,73 @@ NOT_INFORMATIVE_CALLS = {
 }
 
 
+# ============================================================================
+# PRIMARY VERDICT ENGINE (Phase-D Stage 2, 2026-08-12) — the SHARED resolver.
+# ============================================================================
+# compose-dashboard historically RECONSTRUCTED its verdict via the per-modality
+# fit_level scorer below (`_build_signal_matrix` -> fit_level). That was the second
+# composition engine and the drift source. Stage 2 makes the SHARED declarative
+# resolver (`_skills_common.resolve_verdict_for_gate` over
+# target-contracts/resolvers/<gate>.resolver.yaml) the PRIMARY verdict, over the SAME
+# fired-rule set the lens consumes. The per-modality fit_level is DEMOTED to an
+# optional lens (`modality_fit_assessment`) — it is NO LONGER the verdict.
+#
+# axis -> gate mapping (mirrors the equivalence golden test_engine_equivalence.py):
+#   surface_intrinsic       -> surface_modality       (single headline gate;
+#                               the verdict names the arm whose lens is `strong`)
+#   intracellular_intrinsic -> tractability_small_molecule (modality-fit headline for
+#                               SM/degrader) + dependency + genomic_alteration +
+#                               selectivity as ADDITIONAL gate-verdict blocks.
+AXIS_GATE_MAP: dict[str, dict] = {
+    "surface_intrinsic": {
+        "headline": "surface_modality",
+        "additional": [],
+    },
+    "intracellular_intrinsic": {
+        "headline": "tractability_small_molecule",
+        "additional": ["dependency", "genomic_alteration", "selectivity"],
+    },
+}
+
+# Stakeholder-readable gloss per resolver verdict (headline text only; the structured
+# {gate, verdict, driving_rule_id} block carries the audit-grade values). Unknown verdicts
+# fall back to the verdict token with underscores spaced.
+SURFACE_VERDICT_PHRASE = {
+    # NOTE: "neither_viable" phrase intentionally contains the exact substring
+    # "no viable modality" the equivalence golden pins for the clean-mapping case.
+    "neither_viable": "no viable modality identified — surface biology forecloses both ADC and TCE",
+    "both_viable": "both ADC and TCE arms are supported",
+    "adc_preferred": "ADC-preferred (TCE arm not favored)",
+    "tce_preferred": "TCE-preferred (ADC arm not favored)",
+    # The DELIBERATE Phase-D behavior change: essential-tissue relaxes ADC (bystander
+    # payload buffer) while foreclosing only the TCE arm — see PR body.
+    "adc_preferred_tce_unsafe": "ADC-preferred; TCE arm unsafe on normal-tissue liability (ADC bystander buffer tolerates it)",
+    "tce_unsafe_normal_liability": "TCE arm unsafe on normal-tissue liability; no safe surface arm remains",
+    "surface_viable_density_caveated": "surface-viable, MEASURED-density caveated (below soluble-TCE floor)",
+    "shed_dominant_opposed": "surface-viable, shed-ectodomain soluble-decoy caveat",
+    "isoform_dependent_undefined": "isoform-dependent; modality not defined",
+    # "modality_ambiguous" phrase intentionally AVOIDS the substring "insufficient evidence"
+    # (the golden pins that the surface ambiguous headline is not the insufficient-evidence override).
+    "modality_ambiguous": "evidence does not distinguish ADC vs TCE",
+    "insufficient": "surface evidence too thin to call a modality",
+}
+
+SM_VERDICT_PHRASE = {
+    "well_covered": "a compound engages the target on-mechanism (chemical-genetic concordance)",
+    "chemically_confirmed_genetic": "chemical activity confirmed against the genetic dependency",
+    "discordant": "compound active but OFF-target (kill does not track the genetic dependency)",
+    "chemically_active": "a compound with measured cell-panel activity exists",
+    "clinical_precedent_only": "a clinical-stage compound is annotated (no measured panel activity)",
+    "tool_compound_only": "only a tool compound is annotated",
+    "weakly_active": "weak measured chemical activity",
+    "measured_potent_ligand": "a potent measured-binding chemotype series exists",
+    "structurally_ligandable": "a druggable pocket exists (forward ligandability; no compound yet)",
+    "structurally_intractable": "measured structural negative (low-confidence / disordered fold)",
+    "chemically_unhit": "no compounds found against the target",
+    "insufficient": "insufficient chemical / structural coverage to call tractability",
+}
+
+
 def synthesize(
     run_plan: dict,
     card_outputs: list[dict],
@@ -274,19 +341,132 @@ def synthesize(
     fit_priority = {"strong": 0, "moderate": 1, "weak": 2, "insufficient_evidence": 3, "not_viable": 4}
     fit_assessment.sort(key=lambda x: fit_priority.get(x["fit_level"], 99))
 
-    # Build headline
     target = run_plan["input_context"]["target_symbol"]
     indication = run_plan["input_context"]["indication"]
-    headline = _build_headline(target, indication, fit_assessment, card_outputs)
+
+    # ---- PRIMARY VERDICT (Phase-D Stage 2): the SHARED declarative resolver ----
+    # Resolve the axis's gate(s) over the SAME fired-rule set the lens above consumed.
+    # This — NOT the per-modality fit_level — is now compose-dashboard's verdict.
+    primary_gate_verdict, additional_gate_verdicts = _resolve_gate_verdicts(
+        card_outputs, axis, tier2_rules, contracts_root
+    )
+
+    # Headline reads from the resolver verdict PRIMARILY. Only when no resolver gate maps
+    # to the resolved axis (e.g. a non-surface/non-intracellular axis, or resolver spec
+    # absent) do we fall back to the legacy fit_level-derived headline (which retains the
+    # >=3-non-informative-calls "Insufficient evidence" override for that unmapped path).
+    if primary_gate_verdict is not None:
+        headline = _build_resolver_headline(
+            target, indication, primary_gate_verdict, additional_gate_verdicts
+        )
+    else:
+        headline = _build_headline(target, indication, fit_assessment, card_outputs)
 
     # Aggregate caveats
     caveats_summary = _build_caveats_summary(run_plan, card_outputs, contracts_root)
 
-    return {
+    synthesis: dict = {
         "headline": headline,
         "caveats_summary": caveats_summary,
+        # PRIMARY resolver gate-verdict (the verdict spine). None only when the axis has
+        # no resolver mapping (legacy-headline fallback path).
+        "primary_gate_verdict": primary_gate_verdict,
+        # Additional gate verdicts resolved from the SAME fired set (intracellular emits
+        # dependency / genomic_alteration / selectivity alongside the SM-tractability headline).
+        "additional_gate_verdicts": additional_gate_verdicts,
+        # DEMOTED per-modality LENS (was the verdict pre-Stage-2). The class-(iii) fit_level
+        # semantics (ratio thresholds 0.75/0.50, MIN_IN_SCOPE_FOR_STRONG sparsity, fit_priority
+        # ordering) live here now — they are a lens, NOT the gate verdict.
         "modality_fit_assessment": fit_assessment,
     }
+    return synthesis
+
+
+def _resolve_gate_verdicts(
+    card_outputs: list[dict],
+    axis: str,
+    tier2_rules: "list[dict] | None",
+    contracts_root,
+) -> "tuple[dict | None, list[dict]]":
+    """PRIMARY verdict engine — resolve the resolved-axis's gate(s) via the SHARED
+    declarative resolver (`resolve_verdict_for_gate`) over the SAME fired-rule set the
+    per-modality lens consumes.
+
+    Returns (primary_block | None, [additional_blocks]). Each block is
+    {gate, verdict, driving_rule_id, fired_rule_ids}. Primary is None when the axis has no
+    gate mapping OR the gate's resolver spec is absent (caller then falls back to the legacy
+    fit_level-derived headline — the same graceful-degradation seam resolve_verdict_for_gate
+    already documents).
+
+    The fired-rule set is built IDENTICALLY to `_build_signal_matrix` (and the equivalence
+    golden's `_norm_for_matcher`): an applies_when-excluded card is normalized to `_missing`
+    so `fired_rules` skips it, and only surviving card_ids are matched.
+    """
+    mapping = AXIS_GATE_MAP.get(axis)
+    if not mapping:
+        return None, []
+
+    # Reach the shared matcher + resolver (same sys.path shim _load_interpretation_rules uses).
+    import sys
+    from pathlib import Path
+    skills_dir = Path(__file__).resolve().parent.parent.parent
+    if str(skills_dir) not in sys.path:
+        sys.path.insert(0, str(skills_dir))
+    from _skills_common import fired_rules, resolve_verdict_for_gate
+
+    normed = [dict(c, _missing=True) if c.get("excluded_by_applies_when") else c
+              for c in card_outputs]
+    surviving = [c["card_id"] for c in normed
+                 if c.get("card_id") and not c.get("_missing")]
+    fired = fired_rules(normed, axis="", card_id_filter=surviving, rules=tier2_rules or [])
+    fired_ids = sorted({fr["rule_id"] for fr in fired if fr.get("rule_id")})
+
+    def _block(gate: str) -> "dict | None":
+        res = resolve_verdict_for_gate(fired, gate, contracts_repo=contracts_root)
+        if res is None:
+            return None  # no resolver spec for this gate → skip (graceful)
+        verdict, driving = res
+        return {
+            "gate": gate,
+            "verdict": verdict,
+            "driving_rule_id": driving,
+            "fired_rule_ids": fired_ids,
+        }
+
+    primary = _block(mapping["headline"])
+    additional: list[dict] = []
+    for g in mapping["additional"]:
+        blk = _block(g)
+        if blk is not None:
+            additional.append(blk)
+    return primary, additional
+
+
+def _build_resolver_headline(
+    target: str, indication: str, primary: dict, additional: list[dict]
+) -> str:
+    """Compose the headline from the PRIMARY resolver gate-verdict (Phase-D Stage 2).
+
+    The verdict token + a stakeholder gloss lead; the driving_rule_id stays in the
+    structured block (not the prose). For intracellular, the dependency gate verdict is
+    appended (the SM-tractability call is more actionable read alongside the dependency call).
+    """
+    gate = primary["gate"]
+    verdict = primary["verdict"]
+    if gate == "surface_modality":
+        phrase = SURFACE_VERDICT_PHRASE.get(verdict, verdict.replace("_", " "))
+        return f"For {target} in {indication}, surface-modality verdict: {verdict} — {phrase}."
+    if gate == "tractability_small_molecule":
+        phrase = SM_VERDICT_PHRASE.get(verdict, verdict.replace("_", " "))
+        head = (f"For {target} in {indication}, small-molecule tractability verdict: "
+                f"{verdict} — {phrase}")
+        dep = next((b for b in additional if b["gate"] == "dependency"), None)
+        if dep is not None:
+            head += f"; dependency verdict: {dep['verdict']}"
+        return head + "."
+    # Generic fallthrough for any other mapped gate.
+    return (f"For {target} in {indication}, {gate} verdict: {verdict} "
+            f"— {verdict.replace('_', ' ')}.")
 
 
 def _check_killer_conditions(

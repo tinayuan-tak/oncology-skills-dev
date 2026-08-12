@@ -261,11 +261,22 @@ def _kras_pipeline():
 
 
 def test_kras_synth_side_pinned():
-    """Engine 1 (synthesize via full compose): small_molecule + degrader both `strong`."""
+    """synthesize() via full compose: the per-modality LENS is unchanged (small_molecule +
+    degrader both `strong`), but the HEADLINE now reads from the resolver verdict.
+
+    D2 RE-POINT (2026-08-12): pre-swap this asserted `"small_molecule fit is strong" in headline`
+    because the fit_level WAS the verdict. Post-swap the headline reads from the PRIMARY resolver
+    gate verdict (tractability_small_molecule = well_covered) — the fit_level is a demoted lens.
+    The lens `fits` assertion is preserved (it still holds); only the headline assertion moves to
+    the resolver verdict token. This is the deliberate Phase-D behavior the golden was written to
+    have re-pointed with confidence."""
     _, ep = _kras_pipeline()
     fits = {f["modality"]: f["fit_level"] for f in ep["synthesis"]["modality_fit_assessment"]}
     assert fits == {"small_molecule": "strong", "degrader": "strong"}, f"drift: {fits}"
-    assert "small_molecule fit is strong" in ep["synthesis"]["headline"]
+    # Headline is now resolver-primary: names the SM-tractability gate verdict.
+    assert "well_covered" in ep["synthesis"]["headline"]
+    assert ep["synthesis"]["primary_gate_verdict"]["gate"] == "tractability_small_molecule"
+    assert ep["synthesis"]["primary_gate_verdict"]["verdict"] == "well_covered"
     # Not the abstention headline — the positive path is exercised.
     assert "insufficient evidence" not in ep["synthesis"]["headline"].lower()
 
