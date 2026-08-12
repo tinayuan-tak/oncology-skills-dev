@@ -1,0 +1,27 @@
+# License attestation for the third-party software + models this method wraps.
+#
+# WHY THIS FILE LIVES HERE (not in the data-catalog):
+#   topology-predictions-tmbed-v1 is a DERIVED catalog product produced by running TMbed
+#   over the catalog's UniProt SwissProt human snapshot. TMbed is a software TOOL, not a
+#   redistributed dataset — modeling it as a catalog *source* manifest was tried and
+#   deliberately reverted (data-catalog #111 -> #113). The catalog's `license` field is for
+#   dataset licensing (SourceRelease only; the Derived schema has no license field). So the
+#   TOOL's license posture is attested HERE, alongside the wrapper that invokes it, which is
+#   the schema-valid, architecturally-honest home for it.
+#
+#   Neither TMbed nor its ProtT5-XL-U50 encoder is redistributed by this repo; both are
+#   fetched at runtime (see README.md "Environment"). This file records license posture only.
+#
+# Machine-checked by the skills repo:
+#   skills/tests/test_reviewer_driven_upgrades.py::test_tmbed_license_attestation
+tool:
+  name: TMbed
+  role: transmembrane-topology + signal-peptide + orientation predictor
+  license_spdx_id: Apache-2.0
+  citation: "Bernhofer & Rost 2022, BMC Bioinformatics 23:326"
+  repo: https://github.com/BernhoferM/TMbed
+dependencies:
+  - name: ProtT5-XL-U50
+    role: protein language model encoder (supplies TMbed's per-residue embeddings)
+    provider: Rostlab
+    license_spdx_id: CC-BY-4.0
