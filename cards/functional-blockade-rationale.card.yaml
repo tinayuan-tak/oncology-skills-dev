@@ -1,0 +1,50 @@
+# Card iter-2 (PLACEHOLDER) — FUNCTIONAL BLOCKADE RATIONALE
+#
+# Declared by the antibody modality module (dashboards/modality-modules/antibody.module.yaml
+# additional_cards, data_status: method_pending). A naked antibody's efficacy depends on Fc effector
+# function AND/OR direct FUNCTIONAL BLOCKADE — evidence that binding the target produces a functional
+# consequence (receptor antagonism, ligand sequestration, dimerization blockade). This card would
+# literature-mine that rationale.
+#
+# STATUS: placeholder_not_wired — NO method/product built yet (iter-2 deliverable). This contract
+# exists so the antibody module's additional_cards reference resolves to a REAL card spec (rather than
+# a phantom reference — the drift this card closes); compose-dashboard emits availability_state=not_wired
+# / excluded_by_applies_when (method_pending) until the iter-2 literature-mining substrate lands.
+# measurement_type IS declared + registered (functional_blockade_rationale) so the card's identity is
+# first-class even while not-yet-wired — a NEW card should declare its type (validate_cards warns otherwise).
+
+card_id: functional-blockade-rationale
+version: 1.0.0
+status: placeholder_not_wired
+question: "Does binding {target.symbol} produce a functional consequence (receptor antagonism, ligand sequestration, dimerization blockade) supporting a naked-antibody blockade rationale in {indication.label}?"
+
+applies_when:
+  - "context.data_sources.functional_blockade_literature_available == true"   # gated OFF until the iter-2 substrate lands → excluded_by_applies_when
+
+required_inputs:
+  - product_id: literature-snapshot
+    release_pin: "{release_pin}"
+
+methods:
+  - call: functional-blockade-rationale
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  # No figure/plot_data on a placeholder (nothing is emitted yet) — a declared figure with no
+  # registered emitter fails validate_cards (FIGURE_DECLARED_NOT_EMITTED). Add them when the card is built.
+  summary_fields:
+    - blockade_rationale_class
+    - functional_consequence_type
+    - supporting_evidence_count
+
+caveats:
+  - "iter-2 deliverable — no method/product built yet (status: placeholder_not_wired). The antibody module declares it method_pending; iter-1b emits excluded_by_applies_when."
+  - "Antibody/TCE-relevant (naked-antibody efficacy needs Fc effector function AND/OR direct blockade); NOT a dependency or selectivity signal."
+  - "Literature-mined evidence lags the field; a null is a coverage gap, not evidence of no blockade rationale."
+
+tier: target
+measurement_type: functional_blockade_rationale   # registered in vocabularies/measurement_types.yaml (2026-08-12)
+entity_grains: [target_indication]
+schema_version: 1

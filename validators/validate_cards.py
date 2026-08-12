@@ -801,6 +801,55 @@ def validate_dashboard_required_cards(cards_dir: Path) -> list[str]:
     return problems
 
 
+def validate_modality_module_card_refs(cards_dir: Path) -> list[str]:
+    """Cross-check (2026-08-12): every card_id referenced (any `card_id:` key, recursively) in a
+    modality-module spec (dashboards/modality-modules/*.module.yaml) MUST resolve to a real card
+    contract in cards/. A reference to a card with no contract is an ERROR — the phantom-reference
+    drift class (e.g. the historical antigen-density-evidence, and functional-blockade-rationale before
+    its placeholder contract was created). Module additional_cards MAY be status placeholder_not_wired /
+    dormant_pending_data (the modality_module schema explicitly allows aspirational data-blocked cards),
+    so status is NOT enforced here — only existence of a contract. No-op if the modules dir is absent."""
+    cards_dir = Path(cards_dir)
+    modules_dir = cards_dir.parent / 'dashboards' / 'modality-modules'
+    if not modules_dir.is_dir():
+        return []
+    real: set[str] = set()
+    for p in cards_dir.rglob('*.card.yaml'):
+        try:
+            d = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        if d.get('card_id'):
+            real.add(d['card_id'])
+
+    def _card_ids(node) -> set[str]:
+        out: set[str] = set()
+        if isinstance(node, dict):
+            cid = node.get('card_id')
+            if isinstance(cid, str):
+                out.add(cid)
+            for v in node.values():
+                out |= _card_ids(v)
+        elif isinstance(node, list):
+            for v in node:
+                out |= _card_ids(v)
+        return out
+
+    problems: list[str] = []
+    for mp in sorted(modules_dir.glob('*.module.yaml')):
+        try:
+            m = yaml.safe_load(mp.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        mid = m.get('modality_module', mp.name)
+        for cid in sorted(_card_ids(m)):
+            if cid not in real:
+                problems.append(
+                    f"[ERROR] modality-module '{mid}': references card '{cid}' which has no card "
+                    f"contract in cards/ (phantom reference — create a card spec or fix the id).")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description='Validate iter-1 card_spec YAML files against card.schema.json + cross-reference rules.'
@@ -837,7 +886,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # Dashboard required_cards ↔ card.status cross-check (2026-08-12): a non-wired card in required_cards
     # is an error (belongs in placeholder_cards). Runs only for a directory target (needs the card set).
-    dashboard_problems = validate_dashboard_required_cards(target) if target.is_dir() else []
+    dashboard_problems = (validate_dashboard_required_cards(target)
+                          + validate_modality_module_card_refs(target)) if target.is_dir() else []
     dash_errors = [p for p in dashboard_problems if p.startswith('[ERROR]')]
     dash_warnings = [p for p in dashboard_problems if p.startswith('[WARNING]')]
     if dashboard_problems:

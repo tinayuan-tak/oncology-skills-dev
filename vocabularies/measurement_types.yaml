@@ -849,6 +849,13 @@ measurement_types:
     providers:
       - {kind: dataset, source: literature-snapshot, evidence_tier: inferred}   # iter-1b literature-mining surface (placeholder-ish)
 
+  functional_blockade_rationale:
+    claim: "Does binding the target produce a functional consequence (receptor antagonism / ligand sequestration / dimerization blockade) supporting a naked-antibody blockade rationale?"
+    entity_grains: [target_indication]
+    cards: [functional-blockade-rationale]
+    providers:
+      - {kind: dataset, source: literature-snapshot, evidence_tier: inferred}   # iter-2 literature-mining (PLACEHOLDER — card status placeholder_not_wired, method not built)
+
   rwd_stratified_expression:
     claim: "How does target expression vary across treatment-line / RAS strata in real-world data?"
     entity_grains: [target_subtype]   # eligible-but-blocked (pre-aggregated RWD; per-sample reader not landed)
