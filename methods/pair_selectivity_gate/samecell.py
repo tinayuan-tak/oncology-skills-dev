@@ -28,6 +28,8 @@ from methods.catalog_query.read import s3_uri_for
 # 2026-08-12: PAAD + HNSC wired to 3CA cubes (paired with INDICATION_TO_PRODUCT extension above).
 # 2026-08-12: KIRC wired to the 3CA kidney cube (data-catalog #345). Pan-renal pooled malignant
 # compartment (see INDICATION_TO_PRODUCT note); KIRC only (not KIRP/KICH).
+# 2026-08-12: OV wired to the 3CA ovarian cube (data-catalog #350). Pan-gynecologic pooled malignant
+# compartment (see INDICATION_TO_PRODUCT note). 10 ovarian pairs anchored on FOLR1/MSLN/MUC16/EPCAM.
 INDICATION_TO_SAMECELL_MANIFEST = {
     "COADREAD": "sc-samecell-coexpr-coadread-v1",
     "COAD": "sc-samecell-coexpr-coadread-v1",
@@ -38,6 +40,7 @@ INDICATION_TO_SAMECELL_MANIFEST = {
     "PAAD": "sc-samecell-coexpr-3ca-pancreas-v1",      # 3CA PDAC — 8 antigen pairs (MSLN/MUC1/EPCAM/ERBB2...)
     "HNSC": "sc-samecell-coexpr-3ca-hnsc-v1",          # 3CA HNSCC — 10 squamous/H&N pairs (EGFR/TROP2/EPCAM/MET...)
     "KIRC": "sc-samecell-coexpr-3ca-kidney-v1",        # 3CA Kidney — 8 ccRCC pairs (CA9/CD70/ENPP3/CDH16/MET...)
+    "OV": "sc-samecell-coexpr-3ca-ovarian-v1",         # 3CA Ovarian — 10 pairs (FOLR1/MSLN/MUC16/EPCAM/TACSTD2/VTCN1/CLDN6...)
 }
 
 # enrichment_vs_independence bands for the avidity call.

@@ -48,6 +48,14 @@ def test_kirc_samecell_map_points_to_3ca_kidney():
     assert SC.INDICATION_TO_SAMECELL_MANIFEST["KIRC"] == "sc-samecell-coexpr-3ca-kidney-v1"
 
 
+def test_ov_pseudobulk_map_points_to_3ca_ovarian():
+    assert TSC.INDICATION_TO_PRODUCT["OV"] == "sc-pseudobulk-tumor-3ca-ovarian-v1"
+
+
+def test_ov_samecell_map_points_to_3ca_ovarian():
+    assert SC.INDICATION_TO_SAMECELL_MANIFEST["OV"] == "sc-samecell-coexpr-3ca-ovarian-v1"
+
+
 def test_kidney_cube_is_pan_renal_only_kirc_mapped():
     # The 3CA kidney bucket is MULTI-ENTITY POOLED (ccRCC + papillary + chromophobe + Wilms + normal,
     # no cancer_type filter). Only KIRC is wired — the pooled cube cannot serve entity-specific
@@ -88,3 +96,7 @@ def test_3ca_products_resolve_to_catalog_s3_uris():
         "sc-pseudobulk-tumor-3ca-kidney-v1/sc_pseudobulk.parquet")
     assert s3_uri_for("sc-samecell-coexpr-3ca-kidney-v1").endswith(
         "sc-samecell-coexpr-3ca-kidney-v1/sc_samecell_coexpr.parquet")
+    assert s3_uri_for("sc-pseudobulk-tumor-3ca-ovarian-v1").endswith(
+        "sc-pseudobulk-tumor-3ca-ovarian-v1/sc_pseudobulk.parquet")
+    assert s3_uri_for("sc-samecell-coexpr-3ca-ovarian-v1").endswith(
+        "sc-samecell-coexpr-3ca-ovarian-v1/sc_samecell_coexpr.parquet")

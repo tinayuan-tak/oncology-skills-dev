@@ -43,6 +43,11 @@ S3_BUCKET = "onc-compbio"
 # filter, per the source manifest caveat); it serves a pan-renal presence readout, not a ccRCC-pure
 # denominator. Only KIRC is mapped (the strategic ccRCC/NEDD8-UBA3 indication) — KIRP/KICH are NOT
 # mapped, because the pooled cube cannot provide entity-specific denominators for them.
+# 2026-08-12: OV wired to the 3CA ovarian bucket (data-catalog #347/#349/#350). Like kidney, the
+# ovarian cube is MULTI-ENTITY POOLED / pan-gynecologic (ovarian-dominant but includes carcinosarcoma/
+# endometrial/GIST/peritoneal — no cancer_type filter, per the source manifest caveat); it serves a
+# pan-gynecologic presence readout, NOT an HGSOC-pure denominator. Malignant biology validated (FOLR1/
+# MSLN/MUC16/EPCAM/PAX8 high; CD70/CEACAM5 correctly absent).
 INDICATION_TO_PRODUCT = {
     "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v2",
     "COAD": "sc-pseudobulk-donor-celltype-coadread-v2",
@@ -53,6 +58,7 @@ INDICATION_TO_PRODUCT = {
     "PAAD": "sc-pseudobulk-tumor-3ca-pancreas-v1",     # 3CA PDAC — 6 studies / 344K cells (inferCNV malignant)
     "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",         # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
     "KIRC": "sc-pseudobulk-tumor-3ca-kidney-v1",       # 3CA Kidney — 5 studies / 125 donors / 74 malignant (pan-renal pooled)
+    "OV": "sc-pseudobulk-tumor-3ca-ovarian-v1",        # 3CA Ovarian — 11 studies / 115 donors / 106 malignant (pan-gynecologic pooled)
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",
