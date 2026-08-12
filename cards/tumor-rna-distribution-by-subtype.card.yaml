@@ -34,7 +34,7 @@ applies_when:
   # members): COADREAD (7 strata), HNSC (9), STAD (4), NSCLC/LUAD/LUSC (3), ESCA (2), PAAD/PDAC (2).
   # Must stay in lockstep with INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST in the tcga_gtex_expression_
   # distribution reader (analysis-methods). An indication not listed → subtype_axis_available:False.
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC']"
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC', 'SCLC']"
   - "indication.subgroup_catalog_available == true"
 
 required_inputs:
