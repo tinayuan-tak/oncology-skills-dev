@@ -30,13 +30,15 @@ subgroup_stratification:
 applies_when:
   # ONLY the indications whose atlases carry a per-cell MALIGNANT annotation AND enough donors for
   # the donor-is-replicate roll-up have a landed product. CELLxGENE Census: COADREAD (v2), NSCLC,
-  # LUSC. 3CA atlas (Gavish 2023): PAAD, HNSC, KIRC. Others are excluded at compose time (honest
+  # LUSC. 3CA atlas (Gavish 2023): PAAD, HNSC, KIRC, OV. Others are excluded at compose time (honest
   # capability ceiling — the skill reads data_unavailable for any indication not listed, never a
   # silent coarser fall-back). NB KIRC's 3CA kidney cube is MULTI-ENTITY POOLED (ccRCC-dominant but
   # includes papillary/chromophobe/Wilms/normal — no cancer_type filter); it is a pan-renal presence
   # readout, not a ccRCC-pure denominator. KIRP/KICH stay excluded (the pooled cube has no
-  # entity-specific denominators for them).
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC']"
+  # entity-specific denominators for them). OV's 3CA ovarian cube is likewise MULTI-ENTITY POOLED /
+  # pan-gynecologic (ovarian-dominant but includes carcinosarcoma/endometrial/GIST/peritoneal — no
+  # cancer_type filter); a pan-gynecologic presence readout, NOT HGSOC-pure.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV']"
 
 required_inputs:
   - product_id: sc-pseudobulk-donor-celltype-coadread-v2     # COADREAD donor x compartment pseudobulk. v2 SUPERSEDES v1 (2026-08-11): 30 datasets / 749 donors / 828,819 CRC cells incl. Pelka 2021 (257K) — v1 silently dropped it via a `disease=='colorectal cancer'` filter (~75% of the cohort). The reader (analysis-methods sc_tumor_expression_celltype, AM#282) already reads v2; this aligns the card's declared provenance / lockfile substrate.
@@ -45,6 +47,7 @@ required_inputs:
   - product_id: sc-pseudobulk-tumor-3ca-pancreas-v1          # PAAD (3CA atlas) tumor pseudobulk
   - product_id: sc-pseudobulk-tumor-3ca-hnsc-v1              # HNSC (3CA atlas) tumor pseudobulk
   - product_id: sc-pseudobulk-tumor-3ca-kidney-v1            # KIRC (3CA atlas) tumor pseudobulk — pan-renal pooled (ccRCC + papillary/chromophobe/Wilms); 125 donors / 74 malignant
+  - product_id: sc-pseudobulk-tumor-3ca-ovarian-v1           # OV (3CA atlas) tumor pseudobulk — pan-gynecologic pooled (ovarian + carcinosarcoma/endometrial/GIST/peritoneal); 115 donors / 106 malignant
 
 methods:
   - call: sc-tumor-expression-celltype
@@ -132,7 +135,7 @@ caveats:
   - "Single-cell donor pseudobulk from the CELLxGENE Census (filtered API query; see data-catalog sc-pseudobulk-donor-celltype-{indication} — COADREAD is v2, NSCLC is v1). The DONOR (dataset_id, donor_id) is the biological replicate; compartment statistics are cross-donor MEDIANS, so one large contributing atlas (e.g. Pelka's ~257K CRC cells in v2) cannot dominate."
   - "detection_fraction is single-cell-native (fraction of cells with UMI>0) and is NOT comparable to bulk TPM or the bulk cards' detectable-fraction; scRNA dropout under-detects lowly-expressed genes."
   - "compartment is a coarse L1 mapping over the Cell Ontology cell_type (malignant/immune/stromal/endothelial/epithelial_normal/other). The compartment token map is CRC-tuned; lineage-specific NORMAL epithelial cells in non-CRC indications may fall to `other`, but the malignant/immune/stromal/endothelial compartments that drive the presence call are lineage-agnostic."
-  - "Coverage: COADREAD (v2), NSCLC, and LUSC from the CELLxGENE Census (per-cell malignant annotation + donor replication); PAAD and HNSC from the 3CA atlas (Gavish 2023). Other indications resolve data_unavailable — an honest capability gap, not a measured negative."
+  - "Coverage: COADREAD (v2), NSCLC, and LUSC from the CELLxGENE Census (per-cell malignant annotation + donor replication); PAAD, HNSC, KIRC, and OV from the 3CA atlas (Gavish 2023) — KIRC pan-renal pooled and OV pan-gynecologic pooled (not entity-pure). Other indications resolve data_unavailable — an honest capability gap, not a measured negative."
   - "RNA detection does not imply protein presence; pair with the CPTAC protein cards for ADC/TCE decisions. The microenvironment-vs-intrinsic attribution here is a presence-axis readout; the ADC/TCE antigen-reality modality-gate interpretation is a deferred (P4) follow-up."
 
 measurement: sc_rna
