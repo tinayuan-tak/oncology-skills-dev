@@ -5,6 +5,7 @@
 
 card_id: rwd-stratified-expression
 version: 1.1.0
+status: placeholder_not_wired   # Tempus RWD is commercial/unlanded; compose emits availability_state=not_wired. Already in optional_cards (not required) — status added for consistency.
 question: "How does {target.symbol} expression vary across treatment-line strata in real-world {indication.label} RWD?"
 
 tier: subtype

@@ -29,6 +29,7 @@
 
 card_id: tahoe-drug-perturbation
 version: 1.0.0
+status: dormant_pending_data   # method + product exist but applies_when-gated off (tahoe_drug_perturbation_available); deferred wiring. NOT in required_cards; status added for consistency.
 question: "Which small molecules significantly move {target.symbol}'s expression (suppress or induce), and in how many cancer lines (single-cell drug-perturbation MoA)?"
 
 tier: target

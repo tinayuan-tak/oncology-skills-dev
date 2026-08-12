@@ -63,8 +63,6 @@ required_cards:
     version: ">=1.0.0,<2"
   - card_id: normal-tissue-liability
     version: ">=1.0.0,<2"
-  - card_id: clinical-precedent
-    version: ">=1.0.0,<2"
   # tumor-presence expansion cards (2026-08-04): the skill grew 2->10 cards across the
   # expression-extraction plan but they were never added to this composition spec, so they never
   # fired in an emitted package (framework-health card_consumed_but_no_spec). Added here as required —
@@ -120,6 +118,13 @@ optional_cards:
   - card_id: subgroup-stratified-dependency
     version: ">=1.0.0,<2"
     when: "subgroup_spec != null"
+
+placeholder_cards:
+  # Declared-but-not-yet-wired (card.status != wired) — surfaced for roadmap transparency, NOT required to
+  # produce. compose-dashboard emits availability_state=not_wired for these; validate_cards forbids a
+  # non-wired card in required_cards (so "required" keeps meaning "must produce").
+  - card_id: clinical-precedent
+    version: ">=1.0.0,<2"        # status: placeholder_not_wired — literature-snapshot product not landed (iter-2 ChEMBL/CT.gov mirror)
 
 # Modality modules that may load on top of this base. Resolved at compose-dashboard runtime:
 #   - if context.modality is specified, load only the matching module

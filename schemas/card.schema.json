@@ -360,6 +360,11 @@
       "description": "Phase 4 (2026-07-15) — Optional annotation of which channel-precedence tier this card's evidence belongs to. Used by validators to enforce tier-appropriate applies_when predicates (target-tier cards should not reference indication.* or subtype.* keys). Enum: target | indication | panel | subtype. Cards without tier tag are un-classified (backward-compat for pre-Phase-4 cards).",
       "enum": ["target", "indication", "panel", "subtype"]
     },
+    "status": {
+      "type": "string",
+      "description": "Card build/wiring state (2026-08-12). `wired` (the default when OMITTED) = has a live method + dispatcher + landed product. `placeholder_not_wired` = declared in the contract but no method/product yet (compose-dashboard emits availability_state=not_wired / dispatcher_returned_none). `dormant_pending_data` = a method exists but the card is gated off because its data source has not landed (applies_when-excluded at runtime). ENFORCEMENT (validate_cards.py): a card whose status is NOT `wired` MUST NOT appear in any dashboard_spec `required_cards` — it belongs in `placeholder_cards`. This keeps `required_cards` meaning 'must produce' rather than 'may be silently not_wired'.",
+      "enum": ["wired", "placeholder_not_wired", "dormant_pending_data"]
+    },
     "subgroup_stratification": {
       "type": "object",
       "description": "Subgroup-panorama layer (2026-07-16) — Optional attestation block declaring whether this card enumerates a target's evidence across molecular subgroups (the DESCRIPTIVE subgroup panorama). Consumed by validators/validate_cards.py grain-check: a card with status:live MUST bind a per-sample stratified reader (read_stratified_* / build_*_panorama) — NOT an aggregate-substrate method whose values are baked at emit time. `tier: target` cards may NOT carry this block (scope-invariant target evidence never stratifies). Cards without the block are non-stratified (backward-compat).",

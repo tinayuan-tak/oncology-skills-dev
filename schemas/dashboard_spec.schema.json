@@ -122,6 +122,12 @@
       },
       "maxItems": 60
     },
+    "placeholder_cards": {
+      "type": "array",
+      "description": "Declared-but-not-yet-wired cards (each carries card.status placeholder_not_wired or dormant_pending_data), surfaced here for roadmap transparency but NOT expected to produce output — compose-dashboard emits availability_state=not_wired / excluded_by_applies_when for them and validation does NOT count them as required. Distinct from required_cards (MUST produce) and optional_cards (produce when their `when` gate passes). This is the honest home for a forward-declared capability whose method/product has not landed; moving such a card OUT of required_cards keeps `required` meaning 'must produce'. validate_cards.py enforces: required_cards may only reference status=wired cards.",
+      "items": {"$ref": "#/$defs/card_reference"},
+      "maxItems": 30
+    },
     "optional_modality_modules": {
       "type": "object",
       "description": "Iter-1b extension: per-modality module references that may load on top of this base dashboard. Resolved at compose-dashboard runtime: if context.modality is specified, load only the matching module; if unspecified, load ALL listed modules for agnostic enumeration. Keys must match `value` entries in modality.enum.yaml; values are paths to modality_module YAMLs validating against modality_module.schema.json.",

@@ -32,16 +32,6 @@ required_cards:
     version: ">=1.0.0,<2"
   - card_id: normal-tissue-liability
     version: ">=1.0.0,<2"
-  - card_id: antigen-prevalence
-    version: ">=1.0.0,<2"
-  - card_id: clinical-precedent
-    version: ">=1.0.0,<2"
-  # EG1 (iter-2): lineage-restriction-evidence — discovery-driving signal for surface
-  # modalities. Card declares "lineage-restricted: single tissue" and ".. : two tissues"
-  # as DOMINANT calls (EG4-aware) so DLL3/CLDN18.2/GUCY2C-class targets get scored
-  # correctly as strong fit regardless of fold-change ratio across other cards.
-  - card_id: lineage-restriction-evidence
-    version: ">=1.0.0,<2"
 
 optional_cards:
   - card_id: subgroup-stratified-expression
@@ -74,6 +64,19 @@ optional_cards:
   - card_id: modality-therapeutic-window       # per-modality therapeutic-window arc (TCGA-mapped indications)
     version: ">=1.0.0,<2"
     when: "context.data_sources.tcga_gtex_tpm_quantiles_available == true"
+
+placeholder_cards:
+  # Declared-but-not-yet-wired (card.status != wired) — surfaced for roadmap transparency, NOT required to
+  # produce. compose-dashboard emits availability_state=not_wired / excluded_by_applies_when; validate_cards
+  # forbids a non-wired card in required_cards (so "required" keeps meaning "must produce").
+  - card_id: antigen-prevalence
+    version: ">=1.0.0,<2"        # status: placeholder_not_wired — no prevalence-aggregator method yet
+  - card_id: clinical-precedent
+    version: ">=1.0.0,<2"        # status: placeholder_not_wired — literature-snapshot not landed (iter-2)
+  # EG1 (iter-2): lineage-restriction-evidence — discovery-driving signal for surface modalities
+  # (DLL3/CLDN18.2/GUCY2C single/two-tissue DOMINANT calls). Dormant until hpa-normal-tissue-expression lands.
+  - card_id: lineage-restriction-evidence
+    version: ">=1.0.0,<2"        # status: dormant_pending_data — hpa_mirror_available gate off
 
 # Three modality modules layer on top of this base.
 optional_modality_modules:

@@ -756,6 +756,51 @@ def _format_report(report: ValidationReport) -> str:
     return '\n'.join(lines)
 
 
+def validate_dashboard_required_cards(cards_dir: Path) -> list[str]:
+    """Cross-check (2026-08-12): every dashboard_spec `required_cards` entry must reference a card whose
+    `status` is `wired` (or OMITTED, which defaults to wired). A non-wired card
+    (placeholder_not_wired / dormant_pending_data) listed in required_cards is an ERROR — it belongs in
+    `placeholder_cards`. This keeps `required` meaning 'must produce' rather than 'may be silently
+    not_wired' (compose-dashboard's availability_state honestly flags such cards at runtime, but the
+    contract should declare them up front). Also warns if a placeholder_cards entry is actually
+    status=wired (mislabel). Reads dashboards/ as a sibling of the cards dir; no-op if absent."""
+    cards_dir = Path(cards_dir)
+    dashboards_dir = cards_dir.parent / 'dashboards'
+    if not dashboards_dir.is_dir():
+        return []
+    status_by_card: dict[str, str] = {}
+    for p in cards_dir.rglob('*.card.yaml'):
+        try:
+            doc = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        cid = doc.get('card_id')
+        if cid:
+            status_by_card[cid] = doc.get('status', 'wired')
+    problems: list[str] = []
+    for dpath in sorted(dashboards_dir.glob('*.dashboard_spec.yaml')):
+        try:
+            dash = yaml.safe_load(dpath.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        did = dash.get('dashboard_id', dpath.name)
+        for entry in (dash.get('required_cards') or []):
+            cid = (entry or {}).get('card_id')
+            st = status_by_card.get(cid, 'wired')
+            if st != 'wired':
+                problems.append(
+                    f"[ERROR] {did}: required_cards references '{cid}' whose card.status is "
+                    f"'{st}' (not wired) — move it to placeholder_cards (required_cards must produce).")
+        for entry in (dash.get('placeholder_cards') or []):
+            cid = (entry or {}).get('card_id')
+            st = status_by_card.get(cid, 'wired')
+            if cid in status_by_card and st == 'wired':
+                problems.append(
+                    f"[WARNING] {did}: placeholder_cards lists '{cid}' but its card.status is 'wired' "
+                    f"— a wired card belongs in required_cards/optional_cards.")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description='Validate iter-1 card_spec YAML files against card.schema.json + cross-reference rules.'
@@ -790,9 +835,20 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print(f'Summary: {len(reports)} card_spec(s); {n_ok} clean, {n_err} with errors, {n_warn} with warnings.')
 
-    if any(not r.ok for r in reports):
+    # Dashboard required_cards ↔ card.status cross-check (2026-08-12): a non-wired card in required_cards
+    # is an error (belongs in placeholder_cards). Runs only for a directory target (needs the card set).
+    dashboard_problems = validate_dashboard_required_cards(target) if target.is_dir() else []
+    dash_errors = [p for p in dashboard_problems if p.startswith('[ERROR]')]
+    dash_warnings = [p for p in dashboard_problems if p.startswith('[WARNING]')]
+    if dashboard_problems:
+        print()
+        print('Dashboard required_cards <-> card.status cross-check:')
+        for p in dashboard_problems:
+            print(f'  {p}')
+
+    if any(not r.ok for r in reports) or dash_errors:
         return 1
-    if args.strict_warnings and any(r.warnings for r in reports):
+    if args.strict_warnings and (any(r.warnings for r in reports) or dash_warnings):
         return 2
     return 0
 
