@@ -1,0 +1,55 @@
+name: Methods Validate
+
+# analysis-methods had NO CI (it is the EMITTER layer every skill reads through). This runs its
+# ~1,500 offline-deterministic tests credential-less. Live-S3 tests self-skip via the root
+# conftest.py (SKILLS_SKIP_LIVE_DATA) — by exception type, so genuine assertion failures stay RED.
+#
+# STATUS: report-only (NOT yet a branch-protection required check). `main` carries a handful of
+# pre-existing REAL offline failures (config-drift + a stale test) that zero-CI let accumulate;
+# this workflow SURFACES them. Promote to a required check once those are triaged (fixed or
+# tracked). --import-mode=importlib is required: several method test files share a basename
+# (test_plotly_spec.py, …) and collide under the default import mode.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      SKILLS_SKIP_LIVE_DATA: "1"        # no AWS creds on the runner → skip live-S3 reads (conftest)
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
+      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
+      DATA_CATALOG_ROOT:     ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
+    steps:
+      - name: Checkout analysis-methods
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-analysis-methods
+
+      - name: Checkout target-contracts (sibling — resolver / catalog_query)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
+          ref: main
+          path: rnd-computational-biology-oncology-target-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout data-catalog (sibling — manifests / catalog_query)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: main
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Set up pixi (installs the locked env + editable siblings)
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.70.2
+          manifest-path: rnd-computational-biology-oncology-analysis-methods/pixi.toml
+
+      - name: methods + tests suite (offline; live-S3 tests self-skip)
+        working-directory: rnd-computational-biology-oncology-analysis-methods
+        run: pixi run pytest methods/ tests/ -q --import-mode=importlib
