@@ -75,39 +75,64 @@ def _import_dispatcher():
 
 # --- Skill API -------------------------------------------------------------
 
+def _is_data_unavailable(v) -> bool:
+    """True if a summary value is the honest 'no data' sentinel."""
+    return isinstance(v, str) and (v == "data_unavailable" or v.endswith("_data_unavailable"))
+
+
 def _primary_class_value(summary: dict):
-    """The card's PRIMARY interpretation categorical — the same field
-    resolve_cards lifts into `interpretation_call`. Only this field decides
-    availability; a data-unavailable value in a secondary sub-field (e.g. a
-    dual-layer card's protein sub-layer) must NOT mark the whole card missing.
+    """The card's PRIMARY interpretation categorical — the value resolve_cards lifts into
+    `interpretation_call`. Legacy primaries (selectivity_class / class / interpretation_call)
+    win; otherwise the card's primary answer lives in a topic-specific `*_class` field
+    (dependency_class, fit_class, immune_context_class, copy_number_class, …), so return the
+    first REAL (non-data_unavailable) `*_class` value — falling back to a data_unavailable one
+    only when there is no real class answer anywhere.
+
+    Only this PRIMARY decides availability; a data_unavailable value in a SECONDARY sub-field
+    (a dual-layer card's protein sub-layer, copy-number's patient_* cross-check, gnomAD's
+    human_ko_observed_class, …) must NOT mark the whole card missing.
     """
-    return (summary.get("selectivity_class")
-            or summary.get("class")
-            or summary.get("interpretation_call"))
+    if not isinstance(summary, dict):
+        return None
+    for f in ("selectivity_class", "class", "interpretation_call"):
+        v = summary.get(f)
+        if v is not None:
+            return v
+    class_vals = [summary[k] for k in summary
+                  if k.endswith("_class") and isinstance(summary[k], str)]
+    if not class_vals:
+        return None
+    real = [v for v in class_vals if not _is_data_unavailable(v)]
+    return real[0] if real else class_vals[0]
 
 
 def _data_unavailable_field(summary: dict) -> Optional[str]:
     """If this summary's PRIMARY answer is an honest `data_unavailable`, return the
     field name carrying it, else None.
 
-    2026-08-11 REVIEW FIX (M2/:107): the primary answer lives in a topic-specific
-    `*_class` field for most cards (dependency_class, cn_stratification_class,
-    concordance_class, fit_class, enrichment_class, …) — not just the three names
-    _primary_class_value checks. A `data_unavailable` in any of those was previously
-    NOT detected, so the card was counted available with a junk class value AND its
-    dedicated `data_unavailable` resolver rung never got a chance to fire. Detect the
-    sentinel on any `*_class` field (plus the legacy selectivity_class/class/
-    interpretation_call primaries) so an honest no-data answer is recognized uniformly.
+    A card answers in a topic-specific `*_class` field (dependency_class, fit_class,
+    immune_context_class, copy_number_class, …), not just the legacy three — so a genuinely
+    no-data PRIMARY must be detected there too (M2, 2026-08-11). BUT a `data_unavailable` in a
+    SECONDARY facet (antigen_high_immune_context_class, patient_copy_number_class,
+    patient_focal_cn_class, human_ko_observed_class, dep_control_position_class, …) is a NORMAL
+    partial-data state and must NOT flag the whole card. So:
+      - if a legacy primary field is present, it ALONE decides;
+      - otherwise the card is data_unavailable only when EVERY present `*_class` categorical is
+        data_unavailable (i.e. there is no real class answer anywhere).
+    This restores the invariant `_primary_class_value` documents; the previous "sentinel on ANY
+    `*_class`" scan violated it and falsely degraded multi-class cards (immune-context on every
+    run, genomic-instability-state / copy-number-distribution / gnomad-lof-constraint on common
+    indications — real primary, data-less secondary).
     """
     if not isinstance(summary, dict):
         return None
-    # Legacy primaries first (preserves which field name is reported), then any *_class.
-    candidates = ["selectivity_class", "class", "interpretation_call"]
-    candidates += [k for k in summary.keys() if k.endswith("_class") and k not in candidates]
-    for field in candidates:
-        v = summary.get(field)
-        if isinstance(v, str) and (v == "data_unavailable" or v.endswith("_data_unavailable")):
-            return field
+    for f in ("selectivity_class", "class", "interpretation_call"):
+        if f in summary:
+            return f if _is_data_unavailable(summary.get(f)) else None
+    class_fields = [k for k in summary
+                    if k.endswith("_class") and isinstance(summary.get(k), str)]
+    if class_fields and all(_is_data_unavailable(summary[k]) for k in class_fields):
+        return class_fields[0]
     return None
 
 
@@ -207,9 +232,7 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
         outputs.append({
             "card_id": card_id,
             "summary": summary,
-            "interpretation_call": summary.get("selectivity_class")
-                or summary.get("class")
-                or summary.get("interpretation_call"),
+            "interpretation_call": _primary_class_value(summary),
         })
     return outputs
 
