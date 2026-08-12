@@ -27,6 +27,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
 from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -36,6 +37,14 @@ from orthogonality import score_orthogonality   # noqa: E402 — skill-local E7 
 SKILL_NAME = "surface-modality-fit"
 SKILL_VERSION = "1.1.0"   # sc-normal-celltype-expression — scRNA cell-type-resolved normal-tissue safety (sc_rna/normal)
 
+# VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
+# cards reachability.verdict_relevant_cards("surface_modality") derives — adc-tce-modality-fit
+# (fit_class) PLUS the safety/density/shed KILLER/downgrade cards (normal-tissue-liability,
+# sc-normal-celltype-expression, surface-abundance-density, shed-ectodomain-liability), which MOVE
+# the verdict via when_all_fired combination rungs. So the older per-card "no resolver rung → verdict
+# byte-stable" notes below are STALE for THOSE FOUR (accurate only for the genuinely inert enrichment
+# cards). --verdict-only reads exactly the verdict_relevant set (wired at __main__, derived not
+# hand-listed, so it can't drift from the resolver).
 CARDS = [
     "surface-topology-and-ptm",
     "surfaceome-family-classification",
@@ -293,6 +302,10 @@ if __name__ == "__main__":
         skill_name=SKILL_NAME,
         skill_version=SKILL_VERSION,
         cards=CARDS,
+        # --verdict-only lean set: the resolver-referenced cards (adc-tce-modality-fit + the
+        # safety/density/shed verdict-movers). DERIVED, not hand-listed — auto-tracks the resolver
+        # (a new verdict rung expands this set; the guard test pins verdict_relevant ⊆ CARDS).
+        verdict_cards=sorted(verdict_relevant_cards("surface_modality")),
         axis="surface_intrinsic",
         question=QUESTION,
         verdict_fn=_verdict,

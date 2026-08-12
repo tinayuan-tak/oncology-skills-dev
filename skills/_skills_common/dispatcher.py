@@ -151,6 +151,7 @@ def run_wired_skill(
     synthesize_fn: Optional[SynthesizeFn] = None,
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
     extra_axes: Optional[list[str]] = None,
+    verdict_cards: Optional[list[str]] = None,
     argv: Optional[list[str]] = None,
 ) -> int:
     """Run a wired compositional skill end-to-end.
@@ -185,6 +186,12 @@ def run_wired_skill(
             emitted package + its panorama block merged into the headline, but they never enter
             `fired` — the verdict spine is byte-identical with or without --subtypes. When None
             (every existing caller), --subtypes is inert: a complete no-op.
+        verdict_cards: OPTIONAL subset of `cards` that can MOVE the verdict — the resolver's
+            referenced cards, from reachability.verdict_relevant_cards(gate). When --verdict-only is
+            passed AND this is a non-empty SUBSET of `cards`, ONLY these cards are read: the verdict
+            is byte-identical (resolve_verdict_for_gate ignores fired rules no rung references) while
+            the verdict-inert enrichment reads are skipped. Default None ⇒ --verdict-only reads ALL
+            cards (a complete no-op). A guard test enforces verdict_cards ⊆ cards.
         argv: optional argv override (for tests / programmatic invocation).
 
     Returns:
@@ -220,6 +227,12 @@ def run_wired_skill(
                          "appends it to the package + headline. Does NOT affect the verdict (byte-stable "
                          "regardless). Distinct from --subtype (singular), which only steers synthesis "
                          "emphasis over already-computed strata.")
+    ap.add_argument("--verdict-only", action="store_true",
+                    help="FAST/lean mode: read ONLY the verdict-relevant cards (the resolver's "
+                         "referenced cards, passed by the skill as verdict_cards) and skip the "
+                         "verdict-inert enrichment reads + any --synthesize narration. The verdict "
+                         "spine (verdict + driving_rule_id) is byte-identical to a full run. No-op "
+                         "for a skill that declares no verdict_cards subset (reads all cards).")
     args = ap.parse_args(argv)
 
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
@@ -234,8 +247,23 @@ def run_wired_skill(
     # latency + liveness for EACH subskill's own run — not just compose-dashboard's package.
     _t0 = time.perf_counter()
 
-    # 1. Resolve cards via compose-dashboard live-readers
-    card_outputs = resolve_cards(cards, args.target, _indication)
+    # 1. Resolve cards via compose-dashboard live-readers. --verdict-only reads ONLY the
+    # verdict-relevant subset (verdict_cards) so enrichment reads are skipped; the verdict is
+    # byte-identical because resolve_verdict_for_gate ignores fired rules no resolver rung references.
+    # SAFETY: lean ONLY when verdict_cards is a non-empty SUBSET of cards; else read ALL (an
+    # absent-resolver / incomplete derivation returns empty and must never silently read nothing).
+    _lean = bool(args.verdict_only and verdict_cards and set(verdict_cards) <= set(cards))
+    if args.verdict_only and not _lean:
+        print("[dispatcher] --verdict-only: no proven verdict-card subset for this skill "
+              "(verdict_cards empty or not a subset of cards) — reading ALL cards (no-op).",
+              file=sys.stderr)
+    _cards_to_read = list(verdict_cards) if _lean else cards
+    if _lean:
+        args.synthesize = False   # verdict-only skips narration too
+        print(f"[dispatcher] --verdict-only: reading {len(_cards_to_read)}/{len(cards)} "
+              f"verdict-relevant cards (enrichment reads skipped; verdict byte-identical)",
+              file=sys.stderr)
+    card_outputs = resolve_cards(_cards_to_read, args.target, _indication)
     _read_secs = time.perf_counter() - _t0
     _compute_start = time.perf_counter()
 
