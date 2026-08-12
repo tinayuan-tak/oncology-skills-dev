@@ -538,12 +538,22 @@ def _run_sub_skills(target: str, indication: str,
 #
 # The overall_recommendation was historically 100% LLM-chosen (the LLM saw the
 # sub-verdicts as prompt text and picked nominate|hold|veto|insufficient_evidence).
-# A killer sub-verdict must FORCE the call, not merely suggest it. This gate
-# mirrors compose-dashboard/_synthesis.py's killer short-circuit (killers → not_viable
-# first, before any positive logic), reimplemented on target-profile's sub-verdict
-# tuples (the two engines take different inputs — card interpretation_calls vs.
-# skill verdict strings — so the pattern is copied, not the code; sharing them is
-# the separate two-engine-unification effort).
+# A killer sub-verdict must FORCE the call, not merely suggest it.
+#
+# This is the cross-gate NOMINATION gate — a DISTINCT layer from the 9 per-axis
+# verdict gates. It does NOT reimplement per-gate verdicts: each sub-skill already
+# resolves its own gate via the shared resolver, and target-profile INHERITS those
+# sub-verdicts (r["verdict"]); this gate only maps the (sub_skill, verdict) tuples to
+# a nominate/hold/veto action. That policy is itself declarative — it lives in
+# target-contracts/vocabularies/nomination_verdict_gate.yaml (there is no per-gate
+# resolver for "nomination"; this vocab is its home), loaded below with a conservative
+# hardcoded fallback-of-record.
+#
+# HISTORY: this gate's killer-short-circuit shape once echoed compose-dashboard's
+# _synthesis.py fit_level scorer. That second engine was removed in Phase D (#377) —
+# compose-dashboard now routes through the same shared resolver — so the "two composition
+# engines" that motivated the copied-not-shared pattern no longer exist; only this
+# higher-level nomination layer remains, and it is intentionally its own declarative gate.
 #
 # CURATED veto set (conservative): only genuine CROSS-TARGET vetoes force veto.
 # Modality-scoped killers (surface neither_viable, degrader expression killers)

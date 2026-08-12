@@ -51,9 +51,19 @@ end-to-end by `scripts/compose_dashboard.py`:
 - **Phase 2 — execute**: take a run_plan.yaml, invoke each card's method CLI (some methods are
   still iter-1 stubs — see `delegates_to`), apply interpretation_hints, emit per-card outputs
   validating against per-method output schemas. Implemented in `scripts/_execution.py`.
-- **Phase 3 — synthesize**: read per-card outputs + synthesis_directives from the
-  run_plan, apply modality_module.synthesis_emphasis, emit the `evidence_package.synthesis` block.
-  Implemented in `scripts/_synthesis.py`.
+- **Phase 3 — synthesize**: read per-card outputs, resolve each resolved-axis gate via the SHARED
+  declarative resolver (`_skills_common.resolve_verdict_for_gate` over `target-contracts/resolvers/<gate>.resolver.yaml`),
+  and emit the `evidence_package.synthesis` block with `primary_gate_verdict` + `additional_gate_verdicts`
+  as the verdict spine. The per-modality `modality_fit_assessment` (fit_level, built from
+  `modality_module.synthesis_emphasis` via `_build_signal_matrix`) is retained as an **optional lens**, NOT
+  the verdict. Implemented in `scripts/_synthesis.py`.
+
+  > **Phase-D convergence (2026-08-12, #375→#377):** this skill previously *reimplemented* the verdict
+  > as the per-modality `fit_level` scorer (a SECOND composition engine that never called the resolver).
+  > That reconstruction was deleted — compose-dashboard now shares the ONE resolver engine every standalone
+  > skill and target-profile already use, so a new evidence facet can no longer drift between two engines.
+  > `fit_level` survives only as a presentation lens. See `tests/test_engine_equivalence.py` for the pinned
+  > cross-engine correspondence.
 
 Each phase's output is independently validatable against a schema. The three phases are pipelined
 deterministically: same inputs → byte-identical outputs at every phase.

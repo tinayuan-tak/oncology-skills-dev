@@ -158,13 +158,19 @@ auditable `nomination.json` + a narrative-free `target_profile.md` with **no LLM
 The deterministic verdict spine is **byte-identical** to a full run (guarded by
 `skills/target-profile/tests/test_verdict_only.py`).
 
-**Two composition engines (convergence in progress — "Phase D").** The focused skills and
-`target-profile` share the single resolver spine above. `compose-dashboard`, the older iter-1
-orchestrator, does **not** yet call `resolve_verdict_for_gate` — it re-implements verdicts in
-`scripts/_synthesis.py` as a per-modality `fit_level` scorer. So the framework currently runs
-**two** verdict-composition engines. Converging `compose-dashboard` onto the shared resolver is
-in progress and **not complete**; treat the resolver spine as authoritative for focused-skill
-and `target-profile` verdicts.
+**One composition engine (Phase D — complete, 2026-08-12).** Every skill now computes verdicts
+through the single resolver spine above. The focused skills and `target-profile` always did;
+`compose-dashboard` — the older iter-1 orchestrator — used to *re-implement* verdicts in
+`scripts/_synthesis.py` as a per-modality `fit_level` scorer, a **second** engine that never called
+`resolve_verdict_for_gate`. Phase D deleted that reconstruction (#375 pinned the cross-engine
+equivalence, #377 did the swap): `compose-dashboard`'s Phase-3 synthesis now calls the shared
+resolver and emits `primary_gate_verdict` + `additional_gate_verdicts`, with the per-modality
+`fit_level` demoted to an optional presentation lens. Because there is one engine, a newly added
+evidence facet can no longer drift between two verdict paths.
+
+Productization (Phase D / D1): standalone subskills can emit the same `evidence_package` envelope
+`compose-dashboard` produces, via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
+(`assemble_evidence_package`) — the AgenticBoost "subskills-first" path.
 
 ---
 
