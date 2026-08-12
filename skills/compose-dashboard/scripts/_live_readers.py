@@ -802,6 +802,17 @@ def _dispatch_rna_protein_concordance_tumor(target: str, indication: str) -> Opt
     return mod.build_tumor_summary(target, indication)
 
 
+def _dispatch_sc_surface_concordance(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route sc-surface-rna-protein-concordance card to
+    methods/sc_surface_concordance/cli.py::build_summary.
+
+    Single-cell RNA vs SURFACE protein (CITE-seq ADT) concordance across cell types → rna_as_biomarker
+    (surface arm). Target-grain (concordance is a per-target property); indication accepted for the
+    contract, NOT consumed. The single-cell surface sibling of the cell-line + tumor concordance cards."""
+    mod = _import_method("sc_surface_concordance.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -1729,6 +1740,7 @@ CARD_DISPATCHERS = {
     "recommended-models": _dispatch_recommended_models,
     "cellline-rna-protein-concordance": _dispatch_rna_protein_concordance,
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
+    "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
