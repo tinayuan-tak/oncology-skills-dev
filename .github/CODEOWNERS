@@ -1,0 +1,17 @@
+# CODEOWNERS — INERT SCAFFOLD.
+#
+# Every line is commented out on purpose: an active CODEOWNERS with a non-existent team/user would
+# make PRs require review from an owner that can't approve, wedging merges. Uncomment + replace the
+# placeholder handles with real GitHub team/user handles to activate per-area review ownership.
+#
+# Syntax: <path-glob>  @org/team  @user
+#
+# Suggested ownership map for this repo (fill in real handles, then uncomment):
+#
+# *                                   @oneTakeda/PLACEHOLDER-comp-bio-onc
+# /skills/_skills_common/             @oneTakeda/PLACEHOLDER-framework-eng   # shared engine — highest blast radius
+# /skills/compose-dashboard/          @oneTakeda/PLACEHOLDER-framework-eng
+# /skills/target-profile/             @oneTakeda/PLACEHOLDER-framework-eng
+# /skills/tests/                      @oneTakeda/PLACEHOLDER-framework-eng   # cross-skill conformance guards
+# /.github/                           @oneTakeda/PLACEHOLDER-framework-eng
+# /docs/DEFINITION_OF_DONE.md         @oneTakeda/PLACEHOLDER-framework-eng
