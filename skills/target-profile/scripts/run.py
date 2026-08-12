@@ -305,6 +305,9 @@ SUB_SKILL_CARDS = {
         "ddr-deficiency-context",            # 2026-08-11 REVIEW FIX (facet-drop): DDR/HRD inert context
                                              # facet. In genomic-alteration-profile CARDS, composed under
                                              # no entry → dropped. VERDICT-INERT render facet (no rules).
+        "mutational-signature-context",      # 2026-08-12: per-indication mutagenic-process cohort facet
+                                             # (TCGA MC3 SBS). In genomic-alteration-profile CARDS →
+                                             # composer-consistency requires it here. VERDICT-INERT (no rules).
         "oncogenic-pathway-alteration",      # 2026-08-11 REVIEW FIX (facet-drop): oncogenic-pathway
                                              # alteration context. In genomic-alteration-profile CARDS,
                                              # composed under no entry → dropped. VERDICT-INERT render facet.

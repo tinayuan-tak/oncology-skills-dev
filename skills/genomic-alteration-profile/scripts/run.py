@@ -111,6 +111,10 @@ CARDS = [
     # WGD/prognosis + copy-number-noise caveats). ADDITIVE signal-only: feeds LLM/matrix + headline,
     # touches NO resolver rung (verdict spine byte-stable). Reads tcga_aneuploidy_burden live.
     "genomic-instability-state",
+    "mutational-signature-context",  # 2026-08-12: per-indication mutagenic-process cohort-context facet
+                                # (TCGA MC3 → SigProfilerAssignment COSMIC v3.3). VERDICT-INERT display
+                                # facet — PATIENT/tumour arm of mutagenic-process context (sibling of
+                                # ddr-deficiency-context + the model MMR/HRD arm of genomic-instability-state).
     "ddr-deficiency-context",   # Track PI (2026-08-09): per-indication DDR/HRD cohort-context facet
                                 # (PanCanAtlas DDR footprint, Knijnenburg 2018). VERDICT-INERT display
                                 # facet (sibling of genomic-instability-state) — surfaces the cohort HRD
@@ -428,6 +432,9 @@ def main() -> int:
         # The cohort HRD prior (hrd_enriched/intermediate/low) that frames the PARP1/HRD-blind axis.
         "ddr_context_class":             get_card_field(cards, "ddr-deficiency-context", "ddr_context_class"),
         "frac_hrd_high":                 get_card_field(cards, "ddr-deficiency-context", "frac_hrd_high"),
+        # PATIENT mutagenic-process context (TCGA MC3 SBS signatures) — verdict-inert cohort facet
+        "dominant_mutational_process":   get_card_field(cards, "mutational-signature-context", "dominant_process"),
+        "enriched_mutational_processes": get_card_field(cards, "mutational-signature-context", "enriched_processes"),
         # MODEL mutational-signature (DepMap SBS) — MMR-signature cross-validates MSI (independent signal);
         # cohort-level, verdict-inert. (SBS3-HRD is a weak proxy, kept in the card not the headline.)
         "model_mmr_signature_class":     get_card_field(cards, "genomic-instability-state", "model_mmr_signature_class"),

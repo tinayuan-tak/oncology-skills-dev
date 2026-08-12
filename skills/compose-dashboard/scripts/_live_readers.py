@@ -249,6 +249,19 @@ def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[d
     return mod.read_ddr_deficiency_context(target=target, indication=indication)
 
 
+def _dispatch_mutational_signature_context(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route mutational-signature-context card to methods/tcga_mc3_signatures.
+
+    INDICATION-level, target-INDEPENDENT (the mutagenic-process profile is a cohort phenotype) — the
+    `target` arg is accepted for dispatcher-signature uniformity but IGNORED. Reads the materialized
+    per-indication rollup (TCGA MC3 → SigProfilerAssignment COSMIC v3.3) → dominant_process +
+    per-process classes. DISPLAY facet, verdict-inert (no resolver rung); the PATIENT/tumour arm of
+    mutagenic-process context — sibling of _dispatch_ddr_deficiency_context (HRD footprint) and the
+    model-side MMR/HRD arm of _dispatch_genomic_instability_state."""
+    mod = _import_method("tcga_mc3_signatures")
+    return mod.read_mutational_signature_context(target=target, indication=indication)
+
+
 def _dispatch_oncogenic_pathway_alteration(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route oncogenic-pathway-alteration card to methods/oncogenic_pathway_alteration.
 
@@ -1715,6 +1728,7 @@ CARD_DISPATCHERS = {
     "alteration-role": _dispatch_alteration_role,
     "genomic-instability-state": _dispatch_genomic_instability_state,
     "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
+    "mutational-signature-context": _dispatch_mutational_signature_context,
     "oncogenic-pathway-alteration": _dispatch_oncogenic_pathway_alteration,
     "stemness-context": _dispatch_stemness_context,
     "target-development-level": _dispatch_target_development_level,

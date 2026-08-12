@@ -52,6 +52,7 @@ composition:
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
     - genomic-event-model-match              # M11 patient↔model genomic-event join (canonical P3); 2026-07-22
     - genomic-instability-state              # M7 aneuploidy/CIN burden (2026-08-06): INDICATION-level cohort context (target-independent); additive signal-only, verdict-inert
+    - mutational-signature-context           # 2026-08-12: per-indication mutagenic-process context (TCGA MC3 → SigProfilerAssignment COSMIC v3.3); INDICATION-level, target-independent; additive, verdict-inert (APOBEC/MMR/HRD/tobacco/UV/POLE); PATIENT arm, sibling of ddr-deficiency-context
     - ddr-deficiency-context                 # Track PI (2026-08-09): per-indication DDR/HRD cohort context (Knijnenburg 2018 DDR footprint); INDICATION-level, target-independent; additive, verdict-inert (frames the PARP1/HRD blind axis)
     - oncogenic-pathway-alteration           # Sanchez-Vega 2018 (2026-08-10): per-indication oncogenic-pathway ALTERATION freq; verdict-inert cohort context; complements PROGENy activity
     - mutation-drug-response                 # (in run.py CARDS; 2026-08-11 doc-drift fixed) mutation-stratified drug-
