@@ -220,7 +220,12 @@ INDICATION_TO_GTEX_TISSUE = {
     "NSCLC": "LUNG", "LUAD": "LUNG", "LUSC": "LUNG",
     "BRCA": "BREAST", "PAAD": "PANCREAS", "PDAC": "PANCREAS", "SKCM": "SKIN",
     "STAD": "STOMACH", "GC": "STOMACH", "PRAD": "PROSTATE", "OV": "OVARY", "KIRC": "KIDNEY",
-    "GBM": "BRAIN", "LGG": "BRAIN", "HNSC": None, "HNSCC": None,
+    "GBM": "BRAIN", "LGG": "BRAIN",
+    # HNSC/HNSCC intentionally have NO entry: GTEx has no head-and-neck track, so they use the
+    # squamous PROXY panel (INDICATION_TO_PROXY_NORMAL_TISSUES) — the documented "no true normal"
+    # convention. (Were explicitly mapped to None, which read as "has an entry" and made the proxy
+    # shadow a mislabeled matched channel. .get() returns None either way, so removal is behavior-
+    # preserving for the sole consumer and restores lockstep with the proxy-map guard.)
     "BLCA": "BLADDER", "LIHC": "LIVER", "CESC": "CERVIX_UTERI", "ESCA": "ESOPHAGUS",
 }
 

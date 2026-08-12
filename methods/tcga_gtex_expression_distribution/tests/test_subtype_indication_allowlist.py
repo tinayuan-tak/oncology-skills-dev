@@ -28,6 +28,9 @@ _VERIFIED_SHARDS = {
     "tcga-subgroup-assignments-nsclc-v1",
     "tcga-subgroup-assignments-esca-v1",
     "tcga-subgroup-assignments-paad-v1",
+    # SCLC subtype-presence vertical (#149): non-TCGA (George 2015 NAPY cohort). Added to the reader
+    # allowlist as a real, wired shard; the card applies_when now lists SCLC in lockstep.
+    "sclc-subgroup-assignments-v1",
 }
 
 
