@@ -1,0 +1,97 @@
+# Card-behavior matrix (#5) — the confirmed seed set.
+#
+# Each pair: target + indication (+ optional subgroup_spec). Each `expect` cell: a card + a `match`:
+#   match: [<class values>]  -> informative / measured_negative (observed real class must be in the set)
+#   match: data_unavailable  -> no shard / read-error / data_unavailable sentinel
+#   match: not_in_scope      -> subtype-gated card invoked WITHOUT a subgroup_spec
+# For subtype/panorama cards the observed "class" is synthetic: subtype_measured (>=1 measured
+# stratum) or subtype_no_signal (strata present, none measured). `expect` is a human label; `match`
+# is what the harness asserts. Oracle = external ground truth (OncoKB / DepMap / GTEx / gnomAD),
+# curated per cell, disjoint from the 55-target backtest — NEVER the framework's own verdict.
+#
+# `freeze: done` pairs are frozen (fixtures/<id>.yaml) + asserted offline. `freeze: pending` pairs
+# are enumerated but await freeze.py (live S3) — the harness skips them until a fixture exists.
+
+pairs:
+  # ---- VALIDATING VERTICAL (frozen + verified this session) ----
+  - id: kras_coadread
+    target: KRAS
+    indication: COADREAD
+    freeze: done
+    expect:
+      # `field` names the card's PRIMARY class explicitly — the dependency card also carries
+      # dep_control_position_class (a facet), and a heuristic "first *_class" would pick the wrong one.
+      - {card: pan-cancer-crispr-dependency-distribution, field: dependency_class, expect: informative,
+         match: [strongly_selective, broadly_dependent, lineage_selective, common_essential, pan_essential]}
+
+  - id: kras_coadread_subtypes
+    target: KRAS
+    indication: COADREAD
+    subgroup_spec: [MSI_H, MSS]
+    freeze: done
+    expect:
+      - {card: subgroup-stratified-dependency, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}
+      - {card: subgroup-stratified-mutation-frequency, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}
+
+  - id: kras_coadread_no_subtypes          # S10 not_in_scope: subtype cards excluded without a subgroup_spec
+    target: KRAS
+    indication: COADREAD
+    freeze: done
+    expect:
+      - {card: subgroup-stratified-dependency, expect: not_in_scope, match: not_in_scope}
+
+  - id: epcam_skcm_subtypes                # S9 indication-level data_unavailable: SKCM has no subtype shard
+    target: EPCAM
+    indication: SKCM
+    subgroup_spec: [MSI_H]
+    freeze: done
+    expect:
+      - {card: subgroup-stratified-dependency, expect: data_unavailable, match: data_unavailable}
+
+  # ---- FULL SEED SET (enumerated; freeze.py / nightly populate + validate) ----
+  # `field` on pending scalar cells is best-effort (the card's declared primary summary_field) and is
+  # verified/corrected at first freeze against the real emitted summary. Subtype cards use per_subgroup_metrics.
+  # Signal-rich, multi-family
+  - {id: erbb2_brca, target: ERBB2, indication: BRCA, freeze: pending, expect: [
+       {card: copy-number-distribution, field: copy_number_class, expect: informative, match: [recurrently_amplified, mixed]},
+       {card: adc-tce-modality-fit, field: modality_fit_class, expect: informative, match: [ADC_preferred, both_viable, TCE_preferred]}]}
+  - {id: egfr_luad, target: EGFR, indication: LUAD, freeze: pending, expect: [
+       {card: pan-cancer-crispr-dependency-distribution, field: dependency_class, expect: informative, match: [strongly_selective, lineage_selective, broadly_dependent]}]}
+  - {id: braf_skcm, target: BRAF, indication: SKCM, freeze: pending, expect: [
+       {card: mutation-type-counts, field: alteration_class, expect: informative, match: [recurrent_hotspot_driver, biomarker_stratified_dependency, recurrent_driver]}]}
+  - {id: kras_paad, target: KRAS, indication: PAAD, freeze: pending, expect: [
+       {card: immune-context, field: immune_context_class, expect: informative, match: [immune_cold, immune_intermediate, immune_hot]}]}
+  - {id: alk_nsclc, target: ALK, indication: NSCLC, freeze: pending, expect: [
+       {card: fusion-rearrangement-landscape, field: fusion_class, expect: informative, match: [recurrent_fusion, fusion_present]}]}
+  - {id: dll3_sclc, target: DLL3, indication: SCLC, freeze: pending, expect: [
+       {card: adc-tce-modality-fit, field: modality_fit_class, expect: informative, match: [TCE_preferred, both_viable, ADC_preferred]},
+       {card: mutation-type-counts, field: alteration_class, expect: measured_negative, match: [no_recurrent_alteration, passenger_only, not_a_driver]}]}
+  - {id: folr1_ov, target: FOLR1, indication: OV, freeze: pending, expect: [
+       {card: adc-tce-modality-fit, field: modality_fit_class, expect: informative, match: [ADC_preferred, both_viable]}]}
+  - {id: ceacam5_coadread, target: CEACAM5, indication: COADREAD, freeze: pending, expect: [
+       {card: pan-cancer-crispr-dependency-distribution, field: dependency_class, expect: measured_negative, match: [non_dependent, non_dependent_paralog_buffered]}]}
+  # Deliberate null / control
+  - {id: gapdh_coadread, target: GAPDH, indication: COADREAD, freeze: pending, expect: [
+       {card: tumor-vs-normal-selectivity, field: selectivity_class, expect: measured_negative, match: [not_selective, ubiquitous, selective_but_broadly_normal]}]}
+  - {id: tp53_brca, target: TP53, indication: BRCA, freeze: pending, expect: [
+       {card: surface-topology-and-ptm, field: surface_class, expect: measured_negative, match: [intracellular, non_surface, no_surface_evidence]}]}
+  - {id: or2t35_coadread, target: OR2T35, indication: COADREAD, freeze: pending, expect: [
+       {card: cellline-rna-distribution, field: expression_class, expect: measured_negative, match: [broadly_low_expression, not_expressed]}]}
+  - {id: epcam_thym, target: EPCAM, indication: THYM, freeze: pending, expect: [
+       {card: tumor-rna-vs-adjacent, expect: data_unavailable, match: data_unavailable}]}
+  # Subtype variation (S2-S8)
+  - {id: kras_coadread_cms, target: KRAS, indication: COADREAD, subgroup_spec: [CMS1, CMS2, CMS3, CMS4], freeze: pending, expect: [
+       {card: tumor-rna-distribution-by-subtype, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}]}
+  - {id: epcam_coadread_sidedness, target: EPCAM, indication: COADREAD, subgroup_spec: [left_sided, right_sided], freeze: pending, expect: [
+       {card: tumor-rna-distribution-by-subtype, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}]}
+  - {id: epcam_nsclc_histology, target: EPCAM, indication: NSCLC, subgroup_spec: [Adeno, SCC], freeze: pending, expect: [
+       {card: tumor-rna-distribution-by-subtype, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]},
+       {card: subgroup-stratified-dependency, field: per_subgroup_metrics, expect: data_unavailable, match: data_unavailable}]}   # no NSCLC dep shard
+  - {id: kras_nsclc_lot, target: KRAS, indication: NSCLC, subgroup_spec: [LOT_1L_only, LOT_2L, LOT_3Lplus], freeze: pending, expect: [
+       {card: subgroup-stratified-mutation-frequency, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}]}  # GENIE-BPC LOT (guards #353)
+  - {id: dll3_sclc_napy, target: DLL3, indication: SCLC, subgroup_spec: [SCLC_A, SCLC_N, SCLC_P, SCLC_Y], freeze: pending, expect: [
+       {card: tumor-rna-distribution-by-subtype, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}]}  # George-2015 NAPY universe
+  - {id: epcam_hnsc_hpv, target: EPCAM, indication: HNSC, subgroup_spec: [HPV_pos, HPV_neg], freeze: pending, expect: [
+       {card: tumor-rna-distribution-by-subtype, field: per_subgroup_metrics, expect: informative, match: [subtype_measured, subtype_no_signal]}]}
+  - {id: gapdh_coadread_subtypes, target: GAPDH, indication: COADREAD, subgroup_spec: [MSI_H, MSS], freeze: pending, expect: [
+       {card: subgroup-stratified-dependency, field: per_subgroup_metrics, expect: measured_negative, match: [subtype_measured, subtype_no_signal]}]}  # measured strata, non-selective

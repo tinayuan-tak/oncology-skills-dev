@@ -1,0 +1,56 @@
+subgroup-stratified-dependency:
+  _data_source: DepMap-26Q1 Chronos (subgroup-stratified)
+  cross_subgroup_delta_dependency: 0.5293
+  indication: COADREAD
+  max_subgroup_dependency: -0.6893
+  min_subgroup_dependency: -1.2186
+  n_subgroups_with_data: 2
+  per_subgroup_metrics:
+  - class: moderate_dependency
+    evidence_state: underpowered
+    median_chronos: -0.6893
+    n_strong_dependent: 6
+    source_cohort: DepMap-26Q1
+    stratum: MSI_H
+    subgroup_n: 17
+    subgroup_n_floor_met: false
+    subtype_defining_data: genomic
+  - class: strong_dependency
+    evidence_state: measured
+    median_chronos: -1.2186
+    n_strong_dependent: 42
+    source_cohort: DepMap-26Q1
+    stratum: MSS
+    subgroup_n: 71
+    subgroup_n_floor_met: true
+    subtype_defining_data: genomic
+  target: KRAS
+subgroup-stratified-mutation-frequency:
+  _data_source: tcga_mc3 per-sample MAF (subgroup-stratified)
+  cross_subgroup_delta_frequency: 0.099
+  indication: COADREAD
+  max_subgroup_frequency: 0.3907
+  min_subgroup_frequency: 0.2917
+  n_subgroups_with_data: 2
+  per_subgroup_metrics:
+  - class: recurrently_mutated
+    evidence_state: underpowered
+    hotspot_frequencies: []
+    n_samples_mutated: 7
+    overall_mutation_frequency: 0.2917
+    source_cohort: TCGA-MC3
+    stratum: MSI_H
+    subgroup_n: 24
+    subgroup_n_floor_met: false
+    subtype_defining_data: genomic
+  - class: recurrently_mutated
+    evidence_state: measured
+    hotspot_frequencies: []
+    n_samples_mutated: 59
+    overall_mutation_frequency: 0.3907
+    source_cohort: TCGA-MC3
+    stratum: MSS
+    subgroup_n: 151
+    subgroup_n_floor_met: true
+    subtype_defining_data: genomic
+  target: KRAS

@@ -1,0 +1,110 @@
+name: Card-Behavior Matrix (nightly live)
+
+# #5 card-behavior matrix. The offline test (skills/tests/card_behavior_matrix/) replays fixtures
+# frozen against live S3, and runs on every PR inside the normal skills-validate suite (credential-
+# less, deterministic). THIS workflow is the LIVE half: on a schedule it re-freezes the fixtures
+# against the real onc-compbio bucket + sibling repos and re-asserts the four-state matrix, catching
+# the class this matrix exists for — a card that stays REACHABLE but stops FIRING on real data
+# (silent data/shard/contract drift), plus the subgroup null-strata traps.
+#
+# CREDENTIAL GATING (honest-scaffold): the live freeze needs AWS creds, which no other workflow in
+# this repo uses (all PR CI self-skips live-S3). Until an OIDC role is provisioned as the repo secret
+# AWS_ROLE_TO_ASSUME, the freeze step is SKIPPED and the job simply re-verifies the COMMITTED fixtures
+# (green — same as the PR suite). Once the secret exists, the freeze runs live and the job goes red on
+# real drift. This keeps the workflow from false-reddening before the role is wired.
+
+on:
+  schedule:
+    - cron: "17 7 * * *"        # 07:17 UTC nightly (off the top-of-hour runner surge)
+  workflow_dispatch:            # manual re-freeze / drift check
+
+permissions:
+  id-token: write               # for OIDC assume-role (configure-aws-credentials)
+  contents: read
+
+jobs:
+  freeze-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAVE_AWS: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
+      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
+      DATA_CATALOG_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
+    steps:
+      - name: Checkout skills
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-claude-oncology-skills
+
+      - name: Checkout analysis-methods (sibling — editable pixi dep)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
+          ref: main
+          path: rnd-computational-biology-oncology-analysis-methods
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout target-contracts (sibling — editable pixi dep)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
+          ref: main
+          path: rnd-computational-biology-oncology-target-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout data-catalog (sibling — target_id_resolver editable pixi dep)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: main
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Set up pixi (installs the locked env incl. the editable siblings)
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          pixi-version: v0.70.2
+          cache: true
+          manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
+
+      - name: Configure AWS credentials (OIDC assume-role)
+        if: env.HAVE_AWS == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+
+      - name: Re-freeze fixtures against live S3
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run python skills/tests/card_behavior_matrix/freeze.py --all
+
+      - name: Report which fixtures drifted
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          if ! git diff --quiet -- skills/tests/card_behavior_matrix/fixtures/; then
+            echo "::warning title=card-behavior-matrix::live fixtures drifted vs committed — see diff below"
+            git --no-pager diff --stat -- skills/tests/card_behavior_matrix/fixtures/
+          else
+            echo "no fixture drift"
+          fi
+
+      - name: No-creds notice
+        if: env.HAVE_AWS != 'true'
+        run: echo "::warning title=card-behavior-matrix::AWS_ROLE_TO_ASSUME secret not set — skipping live freeze, verifying COMMITTED fixtures only. Provision the OIDC role to enable live drift detection."
+
+      # Assert the four-state matrix. When the freeze ran, this is against FRESH live data (drift →
+      # red). When it didn't, it re-verifies the committed fixtures (same as the PR suite).
+      - name: Assert card-behavior matrix (four-state)
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/tests/card_behavior_matrix/ -q --import-mode=importlib
+
+      - name: Upload refreshed fixtures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-behavior-matrix-fixtures
+          path: rnd-computational-biology-oncology-claude-oncology-skills/skills/tests/card_behavior_matrix/fixtures/
+          if-no-files-found: warn
