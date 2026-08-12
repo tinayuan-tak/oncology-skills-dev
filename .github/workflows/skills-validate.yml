@@ -103,23 +103,40 @@ jobs:
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tests/ -q --import-mode=importlib
 
-      # NON-BLOCKING coverage of the remaining skills. The BLOCKING gate is the four suites above
-      # (compose-dashboard = v2 orchestration engine, _skills_common = shared harness, target-profile =
-      # composed nomination skill, skills/tests = cross-skill invariant guards). Each remaining skill runs in its OWN pytest process — this is the
-      # Fix-1 change: many skills ship scripts/run.py, and batching them into a single `pytest skills/`
-      # process made `import run` bind to whichever skill loaded FIRST (sys.modules cache), so a later
-      # skill's test got the wrong run.py (`cannot import name _resistance_verdict/_snapshot from 'run'`).
-      # Per-skill invocation isolates each `run` (exactly like the blocking suites) and removes that
-      # order-dependent fragility. Still non-blocking: failures surface as ::warning:: without gating
-      # (promoting green skills to blocking is a follow-up). Known remaining: workflow-target-evaluation-onc
-      # imports a crc_comprehensive_analysis module not present in the repo (tracked separately, Fix 2).
-      - name: remaining skill suites (per-skill, non-blocking coverage)
-        continue-on-error: true
+      # BLOCKING-BY-DEFAULT coverage of the remaining skills (promoted from non-blocking 2026-08-12:
+      # every remaining per-skill suite is green locally under pixi except the denylisted skill below).
+      # The four suites above are their own BLOCKING steps (compose-dashboard = v2 orchestration engine,
+      # _skills_common = shared harness, target-profile = composed nomination skill, skills/tests =
+      # cross-skill invariant guards); this loop covers everything else. Each remaining skill runs in
+      # its OWN pytest process — the Fix-1 isolation: many skills ship scripts/run.py, and batching them
+      # into a single `pytest skills/` process made `import run` bind to whichever skill loaded FIRST
+      # (sys.modules cache), so a later skill's test got the wrong run.py (`cannot import name
+      # _resistance_verdict/_snapshot from 'run'`). Per-skill --import-mode=importlib isolates each `run`
+      # (exactly like the blocking suites) and removes that order-dependent fragility.
+      #
+      # BLOCKING SEMANTICS: a non-zero rc from any skill NOT in NON_BLOCKING_SKILLS FAILS the job (no
+      # `continue-on-error` on the step). Blocking-by-default is the right polarity because CI runs on
+      # the PR that ADDS or CHANGES a skill, so a newly-red skill is caught before merge — the opposite
+      # of an allowlist, which would silently ignore any brand-new skill's suite. Denylisted skills are
+      # knowingly red for a reason OUTSIDE this PR's control; their failure only emits a ::warning::.
+      # Live-S3 tests self-skip on the credential-less CI runner (conftest skip_if_no_data), so a skill
+      # that is green-or-skipped on CI stays green here.
+      - name: remaining skill suites (per-skill, blocking-by-default with denylist)
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         shell: bash
         run: |
           set +e   # a failing skill must NOT stop the loop — every remaining skill still runs
-          any_fail=0
+          # Skills knowingly red for a reason outside this PR's control. Each MUST carry a WHY.
+          # A denylisted skill's failure is downgraded to ::warning:: (does NOT gate the job).
+          NON_BLOCKING_SKILLS=(
+            workflow-target-evaluation-onc   # imports crc_comprehensive_analysis, not in repo — tracked Fix-2
+          )
+          is_nonblocking() {
+            local s="$1" n
+            for n in "${NON_BLOCKING_SKILLS[@]}"; do [ "$s" = "$n" ] && return 0; done
+            return 1
+          }
+          gate_fail=0
           for d in skills/*/tests; do
             skill=$(basename "$(dirname "$d")")
             # the three suites above are their own BLOCKING steps — don't double-run them here
@@ -129,7 +146,14 @@ jobs:
             pixi run pytest "$d" -q --import-mode=importlib
             rc=$?
             echo "::endgroup::"
-            [ "$rc" -ne 0 ] && { echo "::warning title=skills-validate::$skill suite failed (rc=$rc)"; any_fail=1; }
+            if [ "$rc" -ne 0 ]; then
+              if is_nonblocking "$skill"; then
+                echo "::warning title=skills-validate::$skill suite failed (rc=$rc) — non-blocking (denylisted, see NON_BLOCKING_SKILLS)"
+              else
+                echo "::error title=skills-validate::$skill suite failed (rc=$rc) — BLOCKING (green-by-default; fix it or add to NON_BLOCKING_SKILLS with a reason)"
+                gate_fail=1
+              fi
+            fi
           done
-          [ "$any_fail" -ne 0 ] && echo "NOTE: one or more non-blocking skill suites failed (see ::warning:: above)"
-          exit 0   # non-blocking coverage — report, never gate
+          [ "$gate_fail" -ne 0 ] && echo "One or more BLOCKING skill suites failed (see ::error:: above)"
+          exit "$gate_fail"   # blocking-by-default: green suites gate, denylisted ones only warn

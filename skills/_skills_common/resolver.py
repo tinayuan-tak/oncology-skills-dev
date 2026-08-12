@@ -7,10 +7,10 @@ those sub-skill verdicts (it calls each sub-skill's _verdict). Replaces the hand
 `_verdict()` if-chains — the framework's most opinionated dependency/precedence biology becomes a
 PR-reviewable ordered ladder instead of per-skill Python.
 
-NOTE (2026-08-12): compose-dashboard does NOT yet call this interpreter — it reimplements verdicts
-via its own per-modality fit_level scorer (compose-dashboard/scripts/_synthesis.py). Converging
-that path onto this resolver is the Phase D engine-unification work; until it lands, the
-"copied not shared" two-engine drift risk persists for the compose-dashboard path only.
+NOTE (2026-08-12): compose-dashboard now calls this interpreter too — Phase D (#377) CONVERGED its
+verdict path onto this resolver, which is the PRIMARY verdict; the former per-modality fit_level
+scorer (compose-dashboard/scripts/_synthesis.py) is demoted to a display lens. The "copied not
+shared" two-engine drift risk for the compose-dashboard path is resolved.
 
 GUARDRAIL (deliberately NOT Turing-complete — see resolver.schema.json): a spec may ONLY
 pattern-match over the SET of fired rule IDs — ordered precedence + when_fired /
