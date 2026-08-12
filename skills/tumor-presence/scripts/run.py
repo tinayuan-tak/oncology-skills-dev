@@ -513,8 +513,12 @@ def _headline(cards, fired, verdict_pair):
         "presence_verdict_by_modality": per_modality,
         "median_log2tpm_panel":     get_card_field(cards, "cellline-rna-distribution",
                                           "median_log2tpm_panel"),
+        # NOTE: the cell-line card emits `expression_class` (its primary call); `expression_call_class`
+        # is tumor-rna-vs-adjacent's field (read as tva_expression_call below). Reading it here
+        # silently returned None (get_card_field on an absent key) — a wrong-key drift caught by
+        # skills/tests/test_card_field_conformance.py. The emitted key name is unchanged.
         "expression_call_class":    get_card_field(cards, "cellline-rna-distribution",
-                                          "expression_call_class"),
+                                          "expression_class"),
         "tva_log2_fc":              get_card_field(cards, "tumor-rna-vs-adjacent", "log2_fc"),
         "tva_q_value":              get_card_field(cards, "tumor-rna-vs-adjacent", "q_value"),
         "tva_expression_call":      get_card_field(cards, "tumor-rna-vs-adjacent",
