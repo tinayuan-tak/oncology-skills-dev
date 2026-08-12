@@ -1523,28 +1523,34 @@ def _positive_tier(
 #
 # Bounded uncertainty WITHOUT probability. For each DECISION-RELEVANT axis (an axis whose verdicts the
 # nomination gate / positive tier / veto-suppressors actually read), run the single-rule flip scan
-# (flip_analysis) on that axis's resolver and measure how easily the call moves. Two fragilities:
-#   raw_flip_fragility      — fraction of verdict-movable rules whose toggle changes the verdict STRING
-#   decision_flip_fragility — fraction whose toggle changes the axis's DECISION ROLE (kill / positive /
-#                             contradiction / neutral). This is the honest one: a lineage_selective ->
-#                             selective_dependent flip changes the string but BOTH are `positive`, so
-#                             it is NOT decision-relevant (the round-1 KRAS anchor).
-# An axis the framework could not evidence this run (no signal / all cards missing) is maximally
-# uncertain by construction (fragility 1.0, reason=blind) — reusing the deciding-axis coverage rule.
-# target_index = WORST-CASE (max) decision-fragility over decision-relevant axes — mirroring the gate's
-# own max-over-action-ranks and the positive tier's worst-case philosophy (never a mean).
+# (flip_analysis) on that axis's resolver and measure how easily the call moves. Three fragilities:
+#   raw_flip_fragility            — fraction of verdict-movable rules whose toggle changes the STRING.
+#   decision_flip_fragility       — fraction whose toggle changes the axis's DECISION ROLE (kill /
+#                                   positive / contradiction / neutral). A lineage_selective ->
+#                                   selective_dependent flip changes the string but both are `positive`,
+#                                   so it is NOT a decision flip (the KRAS anchor).
+#   recommendation_flip_fragility — fraction whose toggle CROSSES THE KILL BOUNDARY (enters/leaves a
+#                                   gate action). These are the ONLY flips that can move
+#                                   overall_recommendation; positive<->contradiction<->neutral flips
+#                                   change CONFIDENCE, not the Go/No-Go.
+# TWO target-level indices (both worst-case/max over axes, never a mean — mirroring the gate's
+# max-over-action-ranks): target_index = worst CALL fragility (how solid each axis's call is;
+# informative); recommendation_fragility_index = worst RECOMMENDATION fragility, and this is what DRIVES
+# `contested`. An axis the framework could not evidence (no signal) is an EVIDENCE GAP not a fragile
+# verdict — tracked separately in blind_decision_axes (fragility None), never folded into either index.
 #
 # STRICTLY VERDICT-INERT: reads sub_results, never calls _gate_recommendation, never writes
 # overall_recommendation / confidence. Emitted as a nomination.json facet; it MAY set a categorical
 # `contested` flag (from a declarative threshold) that a reader/banner surfaces — the flag NEVER
 # changes the recommendation. `contested` is None when no threshold is configured (absence must not
-# fabricate a flag); the numeric target_index is emitted regardless.
+# fabricate a flag); the numeric indices are emitted regardless.
 _FRAGILITY_LEGEND = (
-    "Verdict FRAGILITY (flip-stability): the fraction of a gate's verdict-movable rules whose "
-    "single-rule toggle would change the DECISION ROLE of the call (kill / positive / contradiction). "
-    "0 = robust (no single plausible rule change flips it); higher = more fragile. A structural "
-    "sensitivity measure computed by re-running the deterministic resolver over perturbed fired-rule "
-    "sets — NOT a probability the target succeeds, and never summed or averaged."
+    "Verdict FRAGILITY (flip-stability): re-runs the deterministic resolver over single-rule-perturbed "
+    "fired sets. target_index = worst-case fraction of a gate's verdict-movable rules whose toggle "
+    "changes its DECISION ROLE (how solid each axis's CALL is). recommendation_fragility_index = worst "
+    "case whose toggle crosses the KILL boundary (how solid the GO/NO-GO is) — this drives `contested`. "
+    "0 = robust; higher = a call one plausible rule-change could flip. A structural sensitivity "
+    "measure — NOT a probability the target succeeds, and never summed or averaged."
 )
 
 
@@ -1627,7 +1633,8 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
                        | {s for (s, _v) in contra_set})
 
     per_axis: dict = {}
-    fragilities: list[float] = []
+    fragilities: list[float] = []           # worst-case CALL fragility (any decision-role change)
+    rec_fragilities: list[float] = []       # worst-case RECOMMENDATION fragility (kill-boundary crossing)
     blind_decision_axes: list[str] = []
     for short in sorted(decision_shorts):
         r = sub_results.get(short)
@@ -1660,40 +1667,62 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
             continue
 
         base_role = _decision_role(short, fa["base_verdict"], gate_map, pos_map, contra_set)
-        decision_flips = [
-            {"rule_id": f["rule_id"], "present": f["present"], "to_verdict": f["to_verdict"],
-             "to_role": _decision_role(short, f["to_verdict"], gate_map, pos_map, contra_set)}
-            for f in fa["flips"]
-            if _decision_role(short, f["to_verdict"], gate_map, pos_map, contra_set) != base_role
-        ]
+        base_kill = base_role.startswith("kill:")   # base verdict maps to a gate action (veto/hold)
+        decision_flips = []
+        n_rec_flips = 0
+        for f in fa["flips"]:
+            to_role = _decision_role(short, f["to_verdict"], gate_map, pos_map, contra_set)
+            if to_role == base_role:
+                continue                              # raw flip but same decision role (e.g. lineage↔selective)
+            # A RECOMMENDATION flip crosses the KILL boundary (enters/leaves a gate action) — the only
+            # flips that can move overall_recommendation. Role changes AMONG positive/contradiction/
+            # neutral change CONFIDENCE, not the Go/No-Go — so they are call-fragile, not recommendation-
+            # fragile (this is why KRAS, fragile only on the selectivity CONTRADICTION, is not contested).
+            rec = base_kill != to_role.startswith("kill:")
+            if rec:
+                n_rec_flips += 1
+            decision_flips.append({"rule_id": f["rule_id"], "present": f["present"],
+                                   "to_verdict": f["to_verdict"], "to_role": to_role,
+                                   "recommendation_flip": rec})
         n_rel = fa["n_relevant"]
         decision_fragility = (len(decision_flips) / n_rel) if n_rel else 0.0
+        rec_fragility = (n_rec_flips / n_rel) if n_rel else 0.0
         per_axis[short] = {
             "gate": gate, "flip_applicable": True, "has_signal": True, "coverage": coverage,
             "base_verdict": fa["base_verdict"], "base_driver": fa["base_driver"],
             "base_role": base_role, "n_relevant": n_rel,
             "raw_flip_fragility": round(fa["flip_fragility"], 4),
             "decision_flip_fragility": round(decision_fragility, 4),
+            "recommendation_flip_fragility": round(rec_fragility, 4),
             "decision_flips": decision_flips,
             "fragility": round(decision_fragility, 4),
         }
         fragilities.append(decision_fragility)
+        rec_fragilities.append(rec_fragility)
 
+    # target_index = worst-case CALL fragility (how solid is each axis's own call — informative).
+    # recommendation_fragility_index = worst-case fragility of the GO/NO-GO ACTION itself, and it is what
+    # DRIVES `contested` — a call can be fragile (selectivity discordant) while the recommendation is rock
+    # solid, and only the latter should raise a contested banner.
     target_index = round(max(fragilities), 4) if fragilities else None
+    recommendation_fragility_index = round(max(rec_fragilities), 4) if rec_fragilities else None
 
     ct = _load_contested_threshold(contracts_repo)
     contested = None
-    if ct is not None and target_index is not None:
-        contested = target_index >= ct["fragility_index_min"]
+    if ct is not None and recommendation_fragility_index is not None:
+        contested = recommendation_fragility_index >= ct["fragility_index_min"]
 
     facet = {
         "target_index": target_index,
+        "recommendation_fragility_index": recommendation_fragility_index,
         "contested": contested,
         "decision_relevant_axes": sorted(decision_shorts),
         "blind_decision_axes": blind_decision_axes,
         "per_axis": per_axis,
-        "_basis": "worst_case_decision_flip_over_resolver_referenced_rules (single-rule scan); "
-                  "blind axes tracked separately (coverage != fragility), never folded into the index",
+        "_basis": "target_index = worst-case DECISION-flip (any role change: how solid is each axis's "
+                  "call). recommendation_fragility_index = worst-case KILL-boundary-crossing flip (how "
+                  "solid the Go/No-Go ACTION is) and DRIVES `contested`. single-rule scan; blind axes "
+                  "tracked separately (coverage != fragility), never folded into either index.",
         "_legend": _FRAGILITY_LEGEND,
         "_contested_threshold": ct,
     }
@@ -1781,13 +1810,15 @@ _METRIC_LEGEND = {
     "ordinal_matrix": ("A gate x modality reprojection of the same signals into order-preserving "
                        "ordinals — NOT a calibrated score; never summed or averaged. Off-scale cells "
                        "(insufficient / not_applicable) are coverage gaps, not low scores."),
-    "verdict_fragility": ("Flip-stability of a gate's verdict (fragility facet): the fraction of the "
-                          "gate's verdict-movable rules whose single-rule toggle would change the "
-                          "DECISION ROLE of the call (kill / positive / contradiction). 0 = robust; "
-                          "higher = a call one plausible rule-change could flip. target_index is the "
-                          "worst-case over decision-relevant axes; a blind (un-evidenced) axis floors "
-                          "at 1.0. A structural sensitivity measure — NOT a probability the target "
-                          "succeeds, never summed or averaged, and it never moves the recommendation."),
+    "verdict_fragility": ("Flip-stability (fragility facet): re-runs the deterministic resolver over "
+                          "single-rule-perturbed fired sets. target_index = worst-case fraction of a "
+                          "gate's verdict-movable rules whose toggle changes the DECISION ROLE (how "
+                          "solid each axis's CALL is). recommendation_fragility_index = worst-case whose "
+                          "toggle crosses the KILL boundary (how solid the GO/NO-GO is) — this drives "
+                          "the `contested` banner. 0 = robust. Blind (un-evidenced) axes are a coverage "
+                          "gap tracked separately, not folded in. A structural sensitivity measure — NOT "
+                          "a probability the target succeeds, never summed/averaged, never moves the "
+                          "recommendation."),
 }
 
 
@@ -4199,6 +4230,12 @@ def main() -> int:
                          "a whole-cohort profile (backward-compatible default).")
     ap.add_argument("--modality", default=None,
                     help="OPTIONAL post-hoc modality lens.")
+    ap.add_argument("--release-pin", default=None,
+                    help="OPTIONAL data release_pin to STAMP into governance/provenance for "
+                         "reproducibility (parity with compose-dashboard). Pass-through only: "
+                         "target-profile reads live and does NOT auto-resolve the release — absent "
+                         "this flag the pin is recorded as 'unpinned' (honest, never fabricated). "
+                         "Auto-resolution is a deferred data-catalog follow-on.")
     ap.add_argument("--therapeutic-hypothesis", default=None,
                     help="OPTIONAL therapeutic hypothesis (line-of-therapy, "
                          "patient state, clinical goal). Reshapes LLM "
@@ -4468,12 +4505,24 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
 
+    # Governance / reproducibility (2026-08-12): record the data release_pin (pass-through; target-
+    # profile reads live and does NOT auto-resolve the release). Honest default 'unpinned'. This +
+    # the per-sub_verdict cards_used are the append-only eval-ledger precondition; auto
+    # release-resolution remains the deferred data-catalog follow-on.
+    governance = {
+        "data_mode": "live_latest",
+        "release_pin": args.release_pin or "unpinned",
+        "_note": ("target-profile reads live data; release auto-resolution is a deferred data-catalog "
+                  "follow-on, so release_pin is 'unpinned' unless supplied via --release-pin."),
+    }
+
     nomination = {
         "skill": SKILL_NAME,
         "skill_version": SKILL_VERSION,
         "target": args.target,
         "indication": args.indication,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "governance": governance,
         "invoked_lenses": invoked_lenses,
         "sub_verdicts": {
             short: {
@@ -4481,6 +4530,11 @@ def main() -> int:
                 "verdict": r["verdict"][0] if r["verdict"] else None,
                 "driving_rule_id": r["verdict"][1] if r["verdict"] else None,
                 "fired_rule_ids": [f["rule_id"] for f in r["fired"]],
+                # cards_used: the ACTUAL card set this sub-skill resolved this run (2026-08-12
+                # reproducibility fix). Previously only cards_MISSING was recorded, leaving the positive
+                # pulled set implicit in the static SUB_SKILL_CARDS map — insufficient to reproduce a run
+                # or key an eval ledger. Now the full set + the missing subset are both on the record.
+                "cards_used": [c["card_id"] for c in r["cards"]],
                 "cards_missing": [c["card_id"] for c in r["cards"] if c.get("_missing")],
             }
             for short, r in sub_results.items()
@@ -4518,6 +4572,7 @@ def main() -> int:
         "target": args.target,
         "indication": args.indication,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "governance": governance,
         "invoked_lenses": invoked_lenses,
         "sub_skills_ran": [s for s, _ in SUB_SKILLS],
         "recommendation_gate": recommendation_gate,

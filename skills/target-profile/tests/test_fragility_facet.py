@@ -4,11 +4,13 @@ Hermetic: builds a tiny fixture contracts repo (resolvers + nomination_verdict_g
 and drives run._fragility_facet against it, so the test is independent of live contracts content.
 
 Covers the load-bearing behaviours:
-  - raw vs DECISION flip fragility: a lineage_selective→selective_dependent toggle is a raw flip but
-    NOT a decision flip (both are `positive`) — the round-1 KRAS anchor.
-  - contested flag fires from the declarative threshold on a genuinely fragile axis, and is None when
-    no threshold is configured (never-fabricate).
-  - a blind (un-evidenced) decision axis is tracked separately, NOT folded into the flip index.
+  - raw vs DECISION flip: a lineage_selective→selective_dependent toggle is a raw flip but NOT a
+    decision flip (both are `positive`) — the round-1 KRAS anchor.
+  - RECOMMENDATION vs CALL fragility (2026-08-12 refinement): `contested` keys on
+    recommendation_fragility_index (flips crossing the KILL boundary — the only ones that can move the
+    Go/No-Go), NOT on target_index (any-role call fragility). So an axis that is call-fragile but whose
+    flips only touch confidence (KRAS selectivity: positive↔contradiction) is NOT contested.
+  - a blind (un-evidenced) decision axis is tracked separately, NOT folded into the indices.
   - VERDICT-INERT: the facet never mutates sub_results and never perturbs _gate_recommendation.
 """
 from __future__ import annotations
@@ -40,12 +42,21 @@ _SEL_SPEC = {
         {"when_fired": "sel-none", "verdict": "not_selective"},
     ],
 }
+# 2-rule KILL axis: one plausible toggle crosses the kill boundary => recommendation fragility 0.5.
+_SAFETY_SPEC = {
+    "default": "no_safety_concern",
+    "resolve": [
+        {"when_fired": "safety-killer", "verdict": "highly_constrained_safety_concern"},
+        {"when_fired": "safety-ok", "verdict": "no_safety_concern"},
+    ],
+}
 
 
 def _fixture_contracts(tmp_path: Path, with_threshold: bool = True) -> Path:
     (tmp_path / "resolvers").mkdir(parents=True, exist_ok=True)
     (tmp_path / "resolvers" / "dependency.resolver.yaml").write_text(yaml.safe_dump(_DEP_SPEC))
     (tmp_path / "resolvers" / "selectivity.resolver.yaml").write_text(yaml.safe_dump(_SEL_SPEC))
+    (tmp_path / "resolvers" / "safety.resolver.yaml").write_text(yaml.safe_dump(_SAFETY_SPEC))
     vocab = {
         "enum_id": "nomination_verdict_gate",
         "action_precedence": {"veto": 2, "hold": 1},
@@ -87,27 +98,44 @@ def test_raw_vs_decision_flip_kras_anchor(tmp_path):
     f = run._fragility_facet(sr, contracts_repo=c)
     ax = f["per_axis"]["dependency"]
     # raw flips: killer-add (→non_dependent) AND lineage-remove (→selective_dependent) = 2/3.
-    # decision flips: ONLY the killer-add crosses a role boundary (positive→kill); the
-    # lineage→selective toggle stays `positive`, so it is NOT a decision flip. = 1/3.
+    # decision flips: only the killer-add crosses a ROLE boundary (positive→kill); lineage→selective
+    # stays `positive`, so not a decision flip. = 1/3.
     assert ax["raw_flip_fragility"] == round(2 / 3, 4)
     assert ax["decision_flip_fragility"] == round(1 / 3, 4)
-    assert ax["decision_flip_fragility"] < ax["raw_flip_fragility"]
-    flipped_to = {df["to_verdict"] for df in ax["decision_flips"]}
-    assert flipped_to == {"non_dependent"}           # only the role-crossing flip
-    assert "selective_dependent" not in flipped_to   # the KRAS anchor: raw-but-not-decision
+    # the killer-add is ALSO a recommendation flip (crosses into a veto); it's the only one.
+    assert ax["recommendation_flip_fragility"] == round(1 / 3, 4)
+    killer = [df for df in ax["decision_flips"] if df["to_verdict"] == "non_dependent"]
+    assert killer and killer[0]["recommendation_flip"] is True and killer[0]["to_role"] == "kill:veto"
+    assert {df["to_verdict"] for df in ax["decision_flips"]} == {"non_dependent"}   # KRAS anchor
     assert f["target_index"] == round(1 / 3, 4)
-    assert f["contested"] is False                   # 0.333 < 0.5
+    assert f["recommendation_fragility_index"] == round(1 / 3, 4)
+    assert f["contested"] is False                                # 0.333 < 0.5
 
 
-def test_contested_true_on_fragile_axis(tmp_path):
+def test_contested_true_on_recommendation_fragile_axis(tmp_path):
     c = _fixture_contracts(tmp_path)
-    # selectivity is a 2-rule axis: removing sel-strong drops to not_selective (positive→contradiction),
-    # a single decision flip = 0.5 → meets the 0.5 threshold.
+    # safety is a 2-rule KILL axis: removing safety-killer drops to no_safety_concern (kill→neutral),
+    # a single kill-boundary-crossing flip = 0.5 → contested.
+    sr = _sr(safety=(["safety-killer"], ("highly_constrained_safety_concern", "safety-killer")))
+    f = run._fragility_facet(sr, contracts_repo=c)
+    assert f["per_axis"]["safety"]["recommendation_flip_fragility"] == 0.5
+    assert f["recommendation_fragility_index"] == 0.5
+    assert f["contested"] is True
+
+
+def test_call_fragile_but_recommendation_solid_not_contested(tmp_path):
+    """THE refinement: KRAS-like — the selectivity axis is call-fragile (its positive verdict flips to
+    a contradiction easily) but that only touches CONFIDENCE, never the Go/No-Go. So target_index is
+    high yet contested stays False."""
+    c = _fixture_contracts(tmp_path)
     sr = _sr(selectivity=(["sel-strong"], ("strong_tumor_selective", "sel-strong")))
     f = run._fragility_facet(sr, contracts_repo=c)
-    assert f["per_axis"]["selectivity"]["decision_flip_fragility"] == 0.5
+    ax = f["per_axis"]["selectivity"]
+    assert ax["decision_flip_fragility"] == 0.5          # call IS fragile (positive→contradiction)
+    assert ax["recommendation_flip_fragility"] == 0.0    # but crosses NO kill boundary
     assert f["target_index"] == 0.5
-    assert f["contested"] is True
+    assert f["recommendation_fragility_index"] == 0.0
+    assert f["contested"] is False                       # the whole point of the refinement
 
 
 def test_blind_axis_tracked_separately_not_in_index(tmp_path):
@@ -118,16 +146,17 @@ def test_blind_axis_tracked_separately_not_in_index(tmp_path):
     assert "safety" in f["blind_decision_axes"]
     assert f["per_axis"]["safety"]["fragility"] is None
     assert f["per_axis"]["safety"]["reason"] == "blind"
-    # target_index reflects only the measured dependency axis (1/3), NOT a blind 1.0 inflation.
+    # dependency base non_dependent(kill); removing the killer → insufficient(neutral) = 1 kill-cross /3.
     assert f["target_index"] == round(1 / 3, 4)
+    assert f["recommendation_fragility_index"] == round(1 / 3, 4)
 
 
 def test_no_contested_flag_without_threshold(tmp_path):
     c = _fixture_contracts(tmp_path, with_threshold=False)
-    sr = _sr(selectivity=(["sel-strong"], ("strong_tumor_selective", "sel-strong")))
+    sr = _sr(safety=(["safety-killer"], ("highly_constrained_safety_concern", "safety-killer")))
     f = run._fragility_facet(sr, contracts_repo=c)
-    assert f["target_index"] == 0.5          # the number is always emitted
-    assert f["contested"] is None            # but no flag without a configured threshold
+    assert f["recommendation_fragility_index"] == 0.5    # the number is always emitted
+    assert f["contested"] is None                        # but no flag without a configured threshold
     assert f["_contested_threshold"] is None
 
 
@@ -142,7 +171,6 @@ def test_verdict_inert(tmp_path):
     gate_after = run._gate_recommendation(sr, contracts_repo=c)
     assert sr == sr_before                    # no mutation of the input
     assert gate_before == gate_after          # the facet did not perturb the gate
-    # the facet is a facet, not a recommendation: it carries no overall_recommendation / value.
     assert "overall_recommendation" not in f
     assert "value" not in f
 
@@ -151,7 +179,7 @@ def test_short_to_gate_maps_to_real_resolvers():
     """Drift guard: every gate in _SHORT_TO_GATE must resolve to a real resolver with a non-empty
     verdict-movable rule set against the LIVE contracts. Catches the rename class that motivated the
     explicit map (short `tractability_sm` → gate `tractability_small_molecule`). Skips if the live
-    contracts checkout is unavailable (hermetic unit tests above still run)."""
+    contracts checkout is unavailable."""
     import os
     import pytest
     from _skills_common.reachability import resolver_referenced_rule_ids
@@ -163,5 +191,4 @@ def test_short_to_gate_maps_to_real_resolvers():
         pytest.skip("live target-contracts resolvers/ not available")
     for short, gate in run._SHORT_TO_GATE.items():
         rids = resolver_referenced_rule_ids(gate, contracts_repo=contracts)
-        assert rids, f"_SHORT_TO_GATE[{short!r}] -> {gate!r} has no resolver-referenced rules " \
-                     f"(renamed/missing resolver?)"
+        assert rids, f"_SHORT_TO_GATE[{short!r}] -> {gate!r} has no resolver-referenced rules"
