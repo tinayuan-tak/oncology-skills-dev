@@ -1118,6 +1118,56 @@ rules:
       RNA evidence to support the surface call, but measured protein remains the preferred anchor.
 
   # ============================================================================
+  # I' — sc-surface RNA-protein-concordance card (single-cell SURFACE arm)
+  # The single-cell surface sibling of Block I. rna_as_biomarker here is measured against the
+  # SURFACE antigen (CITE-seq ADT) across cell types — the exact quantity a biologic must reach,
+  # and the layer where RNA↔protein decoupling is WORST (trafficking/shedding/internalization).
+  # Same routing as Block I (adc/bite_tce/antibody), keyed on the sc-surface card_id (the tumor
+  # rule above will NOT fire for this card_id). Reported side-by-side with the tumor arm.
+  # ============================================================================
+
+  - rule_id: sc-surface-rna-poor-proxy-warning
+    when:
+      card_id: sc-surface-rna-protein-concordance
+      field: rna_as_biomarker
+      equals: poor_proxy
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Single-cell RNA is a POOR proxy for this target's SURFACE protein (ADT): the cell types with high
+      RNA are not the cell types with high surface antigen — the decoupling (trafficking, shedding,
+      internalization) that surface proteomics exposes and total-protein/bulk concordance misses. A
+      biologic (ADC/TCE/mAb) engages the surface antigen, so an scRNA-based surface-presence argument
+      cannot be trusted — surface protein must be measured directly (CITE-seq/flow/IHC) before the
+      antigen-presence claim. Warning (governance), not a killer: the RNA evidence is inadequate for the
+      surface decision, not the target unviable.
+
+  - rule_id: sc-surface-rna-adequate-proxy-supportive
+    when:
+      card_id: sc-surface-rna-protein-concordance
+      field: rna_as_biomarker
+      equals: adequate_proxy
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Single-cell RNA tracks the SURFACE antigen well for this target across cell types — scRNA-based
+      abundance/prevalence evidence is a trustworthy surrogate for the surface antigen-presence argument.
+      Secondary importance: it licenses the RNA evidence to support the surface call, but measured
+      surface protein remains the preferred anchor.
+
+  # ============================================================================
   # J — Tumor-vs-normal-selectivity card (P4 Tier-2, 2026-07-24)
   # selectivity_class is the tumor-vs-normal expression WINDOW. For biologics the
   # window is doubly critical: an ADC/TCE that binds normal tissue at the same
