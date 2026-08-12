@@ -85,7 +85,7 @@ outputs:
 caveats:
   - "Cohort-level mutagenic-process PRIOR, NOT a per-target or per-patient signature call. A target in an mmr_deficiency-enriched cohort is not thereby MSI-conditional; a validated signature-conditional target (e.g. WRN×MSI) is not made a dependency by this card — see the separate partner-conditional-dependency work."
   - "Per-sample refit against the full COSMIC catalog overfits onto artifact/unknown signatures; the card reports only aetiology-assigned signatures binned into process classes and aggregated per indication, which discards that noise. `clock` (SBS1/5) is a near-universal baseline and never counts as dominant/enriched."
-  - "v1 coverage = the framework's TCGA-mapped indications (COADREAD/NSCLC/GC/PAAD), reusing the sibling MC3 products' TSS→indication map; MC3 gives ~550-1000 samples/indication (well-powered). Indications outside that set return data_unavailable; pan-cancer expansion is a documented follow-up. GRCh37/hg19 coordinates (MC3-native)."
+  - "PAN-CANCER coverage: all 33 TCGA studies (ACC..UVM), via the authoritative PanCanAtlas TCGA-CDR (Liu 2018) barcode→cancer-type join (10,216 of 10,294 MC3 samples map). Product is keyed on the TCGA study code; the reader aliases framework indications → code(s) and pools sample-weighted (COADREAD=COAD+READ, NSCLC=LUAD+LUSC). Indications with no TCGA study (e.g. SCLC) return data_unavailable. GRCh37/hg19 coordinates (MC3-native)."
   - "VERDICT-INERT: drives no resolver rung. Cohort mutagenic-process context is a synthesis/render prior, not a nomination signal."
 
 measurement_type: mutational_signature_context
