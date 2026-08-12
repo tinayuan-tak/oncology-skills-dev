@@ -149,6 +149,19 @@ composition:
                                        # a driver's MUTANT subset (biologics handle on mutant patients); adc/bite_tce/antibody.
     - pathway_stratified_surface       # (2026-08-07, E4-A3) pathway/state-stratified surface window — antigen elevated in
                                        # a pathway-HIGH subset (hypoxia niche; biologics handle); adc/bite_tce/antibody.
+    # (backfill 2026-08-12) three enrichment cards (E5/E6-CD/Phase-3.3) landed in run.py CARDS around
+    # 2026-08-07 — each wired + READ + resolver-rule-fired — but their measurement_types were never added
+    # here, so test_cards_used_types_are_a_subset_of_pulled failed pre-existing (same class as
+    # rna_protein_concordance above). Matters more post-Phase-D (#377): compose now routes surface through
+    # the resolver, so the pull-intent for each rule's substrate must be declared.
+    - exon_window                      # (E5, 2026-08-07) modality-exon-window — exon-grain tumor-vs-essential window +
+                                       # within-gene exon heterogeneity (exon_window_class rules; SECONDARY, ADC-vs-TCE
+                                       # discriminator). Hypothesis-generating flag, not an isoform-identity call.
+    - cd_antigen_backbone              # (E6-CD, 2026-08-07) cd-antigen-backbone — class-level CD/IO clinical-precedent prior
+                                       # (HGNC gene-group-471; cd_antigen_backbone_class rules, SUPPORTIVE-only). adc/bite_tce/antibody.
+    - sc_normal_celltype_expression    # (Phase 3.3, 2026-08-07, PR #267) sc-normal-celltype-expression — a VERDICT-MOVER: its
+                                       # F5 rules feed the sc-normal-high-liability-bite-killer rung (bite/TCE foreclosure on
+                                       # essential normal cell-type expression). Wired + read (run.py:282-284).
   rules_scope:
     - all
   synthesis:
