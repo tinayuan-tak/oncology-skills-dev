@@ -221,6 +221,10 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
         f"  concordance:  {h.get('concordance_call')}   "
         f"(crispr-rnai-dependency-concordance: {_card_state('crispr-rnai-dependency-concordance')}) "
         "— do CRISPR + RNAi AGREE?",
+        f"  cross-consortium: {h.get('cross_consortium_class')}   "
+        f"(cross-consortium-dependency: {_card_state('cross-consortium-dependency')}) "
+        "— does an INDEPENDENT consortium (Sanger Project Score) corroborate the Broad Achilles call? "
+        "(stronger than same-ecosystem CRISPR×RNAi; concordant RAISES confidence, discordant is a caveat)",
         f"  lineage_selectivity: {h.get('lineage_selectivity')}   "
         f"(dependency-lineage-selectivity: {_card_state('dependency-lineage-selectivity')})",
         "",

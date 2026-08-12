@@ -202,41 +202,57 @@ _NON_CALL_VERDICTS = frozenset({
 })
 
 
-def _dependency_confidence_note(verdict: str, predictability_class: str | None) -> dict:
-    """Gate-C gap 1 (Option A): a CONFIDENCE ANNOTATION over the dependency verdict, derived
-    from dependency-predictability meta-evidence. NEVER changes the verdict or the resolver —
-    predictability answers "how omics-learnable is this dependency, and by what feature?", which
-    sharpens CONFIDENCE in a call, it is not itself a dependency call.
+# Confidence ladder (low→high) for the cross-consortium corroboration lift below.
+_CONFIDENCE_LADDER = ("unknown", "standard", "moderate", "high")
 
-    Returns {confidence, note} where confidence ∈ {high, moderate, standard, unknown}:
-      - only annotates when the verdict is an actual dependency call (_DEPENDENCY_CALL_VERDICTS);
-        otherwise `standard` with no meta-claim (nothing to be confident about).
-      - own_omics_driven  → high: the dependency is predictable from the target's OWN omics — a
-        biomarker-hypothesis-bearing call.
-      - context_or_driver_dependent → moderate: predictable, but from lineage/driver context (the
-        biomarker is the context, not the target).
-      - weakly_predictable / unpredictable → standard: the call stands on the genetic evidence
-        itself; predictability adds no biomarker handle (NOT a downgrade of the verdict).
-      - data_unavailable / None → unknown: predictability not computed (E5 v2 coverage gap)."""
+
+def _dependency_confidence_note(verdict: str, predictability_class: str | None,
+                                cross_consortium_class: str | None = None) -> dict:
+    """Gate-C gap 1 (Option A): a CONFIDENCE ANNOTATION over the dependency verdict. NEVER changes
+    the verdict or the resolver. Composed from TWO independent meta-signals:
+
+      1. dependency-predictability — "how omics-learnable is this dependency, and by what feature?"
+         (own_omics_driven→high, context_or_driver_dependent→moderate, weak/unpredictable→standard,
+         data_unavailable→unknown). Sets the BASE confidence.
+      2. cross-consortium-dependency (2026-08-12) — does an INDEPENDENT CRISPR consortium (Sanger
+         Project Score) corroborate the Broad Achilles call? Two distinct guide libraries + analysis
+         pipelines agreeing is stronger corroboration than same-ecosystem CRISPR×RNAi, so
+         `concordant_dependent` RAISES confidence (lifts a bare standard/unknown to moderate) and
+         `discordant` appends a caution caveat. NEVER a verdict downgrade — the resolver owns the
+         verdict; corroboration only tunes CONFIDENCE (the card's own role: corroboration discipline).
+
+    Returns {confidence, note} where confidence ∈ {high, moderate, standard, unknown}. Annotates only
+    on an actual dependency call (_DEPENDENCY_CALL_VERDICTS); otherwise `standard` with no meta-claim."""
     if verdict not in _DEPENDENCY_CALL_VERDICTS:
         return {"confidence": "standard",
                 "note": "Predictability annotation applies only to an actual dependency call."}
     pc = predictability_class
     if pc == "own_omics_driven":
-        return {"confidence": "high",
-                "note": "Dependency is predictable from the target's own omics "
-                        "(biomarker-hypothesis-bearing) — higher confidence in the call."}
-    if pc == "context_or_driver_dependent":
-        return {"confidence": "moderate",
-                "note": "Dependency is omics-predictable, but from lineage/driver context rather "
-                        "than the target's own features — the biomarker is the context."}
-    if pc in ("weakly_predictable", "unpredictable"):
-        return {"confidence": "standard",
-                "note": "Dependency is not well explained by omics — the call rests on the genetic "
-                        "evidence itself; no omics biomarker handle (not a verdict downgrade)."}
-    # data_unavailable or absent
-    return {"confidence": "unknown",
-            "note": "Predictability not computed for this target (E5 precompute coverage gap)."}
+        conf = "high"
+        note = ("Dependency is predictable from the target's own omics "
+                "(biomarker-hypothesis-bearing) — higher confidence in the call.")
+    elif pc == "context_or_driver_dependent":
+        conf = "moderate"
+        note = ("Dependency is omics-predictable, but from lineage/driver context rather "
+                "than the target's own features — the biomarker is the context.")
+    elif pc in ("weakly_predictable", "unpredictable"):
+        conf = "standard"
+        note = ("Dependency is not well explained by omics — the call rests on the genetic "
+                "evidence itself; no omics biomarker handle (not a verdict downgrade).")
+    else:  # data_unavailable or absent
+        conf = "unknown"
+        note = "Predictability not computed for this target (E5 precompute coverage gap)."
+
+    # Independent cross-consortium corroboration (Broad Achilles vs Sanger Project Score).
+    if cross_consortium_class == "concordant_dependent":
+        if _CONFIDENCE_LADDER.index(conf) < _CONFIDENCE_LADDER.index("moderate"):
+            conf = "moderate"   # independent-consortium replication is itself a confidence handle
+        note += (" Independently corroborated across consortia "
+                 "(Broad Achilles + Sanger Project Score agree).")
+    elif cross_consortium_class == "discordant":
+        note += (" CAUTION: an independent consortium (Sanger Project Score) does NOT corroborate "
+                 "the Broad dependency call — a confidence caveat, not a veto.")
+    return {"confidence": conf, "note": note}
 
 QUESTION = ("Is {target} a genetic dependency in {indication}, and how does "
             "the call hold up across CRISPR, RNAi, concordance, lineage-"
@@ -259,7 +275,8 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
-    confidence = _dependency_confidence_note(v, predictability_class)
+    cross_consortium_class = get_card_field(cards, "cross-consortium-dependency", "cross_consortium_class")
+    confidence = _dependency_confidence_note(v, predictability_class, cross_consortium_class)
     return {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
@@ -282,6 +299,11 @@ def _headline(cards, fired, verdict_pair):
         "predictability_class":     predictability_class,
         "pred_dominant_feature_class": get_card_field(cards, "dependency-predictability",
                                             "pred_dominant_feature_class"),
+        # Independent-consortium corroboration (Broad Achilles vs Sanger Project Score), 2026-08-12.
+        # Folded into dependency_confidence above (concordant_dependent RAISES confidence; discordant
+        # adds a caveat) AND surfaced here so the narrative can cite it. VERDICT-INERT — the card
+        # fires no resolver rung; it only tunes gate-C confidence (was computed but consumed by nothing).
+        "cross_consortium_class":   cross_consortium_class,
         "dependency_confidence":    confidence["confidence"],
         "dependency_confidence_note": confidence["note"],
         # Q4 patient↔model correspondence — model-backed-dependency corroboration (render facet):

@@ -87,3 +87,50 @@ def test_confidence_applies_to_veto_verdict_too():
     higher-confidence negative, so the annotation still applies (not just to positives)."""
     c = fr._dependency_confidence_note("non_dependent", "own_omics_driven")
     assert c["confidence"] == "high"
+
+
+# --- cross-consortium corroboration (2026-08-12): independent confidence axis --------------
+
+def test_concordant_consortium_lifts_bare_standard_to_moderate():
+    """concordant_dependent (Broad Achilles + Sanger Project Score agree) RAISES a bare
+    standard/unknown confidence to moderate — independent-consortium replication is itself a
+    confidence handle. The predictability base note is preserved."""
+    c = fr._dependency_confidence_note("selective_dependent", "unpredictable", "concordant_dependent")
+    assert c["confidence"] == "moderate"
+    assert "Independently corroborated across consortia" in c["note"]
+    assert "not a verdict downgrade" in c["note"]   # base predictability note preserved
+
+
+def test_concordant_consortium_lifts_unknown_to_moderate():
+    c = fr._dependency_confidence_note("concordant_dependent", "data_unavailable", "concordant_dependent")
+    assert c["confidence"] == "moderate"
+    assert "Independently corroborated" in c["note"]
+
+
+def test_concordant_consortium_never_exceeds_high():
+    """Already-high (own-omics) stays high + annotates — corroboration never pushes past the top."""
+    c = fr._dependency_confidence_note("concordant_dependent", "own_omics_driven", "concordant_dependent")
+    assert c["confidence"] == "high"
+    assert "Independently corroborated" in c["note"]
+
+
+def test_discordant_consortium_adds_caveat_no_downgrade():
+    """discordant is a confidence CAVEAT, never a downgrade — base level preserved, caution appended."""
+    base = fr._dependency_confidence_note("concordant_dependent", "context_or_driver_dependent")
+    c = fr._dependency_confidence_note("concordant_dependent", "context_or_driver_dependent", "discordant")
+    assert c["confidence"] == base["confidence"] == "moderate"
+    assert "CAUTION" in c["note"] and "does NOT corroborate" in c["note"]
+
+
+def test_no_corroboration_signal_is_backward_compatible():
+    """single_consortium_only / data_unavailable / None → identical to the 2-arg call (no change)."""
+    for cc in ("single_consortium_only", "data_unavailable", None):
+        assert (fr._dependency_confidence_note("selective_dependent", "unpredictable", cc)
+                == fr._dependency_confidence_note("selective_dependent", "unpredictable"))
+
+
+def test_corroboration_ignored_on_non_call_verdict():
+    """Even concordant corroboration cannot manufacture confidence on a non-call verdict."""
+    c = fr._dependency_confidence_note("insufficient", "own_omics_driven", "concordant_dependent")
+    assert c["confidence"] == "standard"
+    assert "actual dependency call" in c["note"]
