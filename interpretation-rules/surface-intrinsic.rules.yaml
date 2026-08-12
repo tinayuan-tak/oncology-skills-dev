@@ -1168,6 +1168,56 @@ rules:
       surface protein remains the preferred anchor.
 
   # ============================================================================
+  # I'' — Surface same-cell co-localization / AVIDITY card (bispecific AND-gate)
+  # samecell_avidity_class = whether the target co-expresses with a candidate partner on the SAME
+  # malignant cells. For an AND-gate bispecific (TCE / dual ADC / bispecific mAb) this is the
+  # avidity requirement bulk co-expression cannot establish. Routing is bispecific-modality:
+  # coordinated → a viable dual-targeting partner exists (supportive); mutually_exclusive → avidity
+  # FAILS despite bulk co-expression (opposing, the decision-relevant negative). independent /
+  # avidity_unconfirmed carry no signal (both antigens present but not same-cell coordinated).
+  # ============================================================================
+
+  - rule_id: samecell-coordinated-avidity-supportive
+    when:
+      card_id: surface-colocalization-avidity
+      field: samecell_avidity_class
+      equals: same_cell_coordinated
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The target co-expresses with a candidate partner antigen on the SAME malignant cells (same-cell
+      enrichment >= independence) — an AND-gate bispecific / dual-targeting agent has a viable partner,
+      the avidity requirement bulk pair co-expression cannot establish. Most important for bite_tce
+      (bispecific T-cell engagers depend on dual same-cell engagement); secondary for dual/biparatopic
+      ADC + bispecific mAb. Not a monospecific-target signal.
+
+  - rule_id: samecell-mutually-exclusive-avidity-opposing
+    when:
+      card_id: surface-colocalization-avidity
+      field: samecell_avidity_class
+      equals: same_cell_mutually_exclusive
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The target's best candidate partner is MUTUALLY EXCLUSIVE at single-cell resolution — the two
+      antigens are rarely on the same malignant cell (enrichment <= independence) despite bulk
+      co-expression. An AND-gate bispecific's avidity FAILS: it cannot engage both antigens on one cell.
+      The decision-relevant NEGATIVE that the bulk pair-scan misses. Opposing for the bispecific
+      modalities (important for bite_tce); does not veto a monospecific approach to the target.
+
+  # ============================================================================
   # J — Tumor-vs-normal-selectivity card (P4 Tier-2, 2026-07-24)
   # selectivity_class is the tumor-vs-normal expression WINDOW. For biologics the
   # window is doubly critical: an ADC/TCE that binds normal tissue at the same
