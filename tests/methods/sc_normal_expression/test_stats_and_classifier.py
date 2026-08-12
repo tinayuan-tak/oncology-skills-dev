@@ -270,21 +270,27 @@ def test_read_target_summary_gene_absent(monkeypatch):
 
 def test_tissues_for_indication_unions_matched_and_safety_essential():
     """tumor-matched tissue(s) UNION the always-on safety-essential tissues, de-duplicated."""
-    # COADREAD → colon + safety-essential
+    # Census-backed indications
     assert R.tissues_for_indication("COADREAD") == ["colon", "heart", "liver", "kidney", "bone_marrow"]
     assert R.tissues_for_indication("NSCLC") == ["lung", "heart", "liver", "kidney", "bone_marrow"]
+    # 3CA-backed indications added 2026-08-12
+    assert R.tissues_for_indication("PAAD") == ["pancreas", "heart", "liver", "kidney", "bone_marrow"]
+    assert R.tissues_for_indication("HNSC") == ["esophagus", "heart", "liver", "kidney", "bone_marrow"]
+    assert R.tissues_for_indication("STAD") == ["stomach", "heart", "liver", "kidney", "bone_marrow"]
     # Unknown indication → safety-essential only (never empty)
-    assert R.tissues_for_indication("PAAD") == ["heart", "liver", "kidney", "bone_marrow"]
     assert R.tissues_for_indication("UNKNOWN") == ["heart", "liver", "kidney", "bone_marrow"]
 
 
-def test_all_nine_tissues_have_tier1_products():
-    """All 9 emitted tissues route to a Tier-1 product key (hyphenated slugs for multi-word)."""
+def test_all_tissue_products_resolve():
+    """All wired tissues route to a Tier-1 product key (hyphenated slugs for multi-word tissues)."""
     for t in ["colon", "lung", "heart", "liver", "kidney", "stomach",
-              "bone_marrow", "skin", "small_intestine"]:
+              "bone_marrow", "skin", "small_intestine",
+              "brain", "esophagus", "pancreas", "ovary", "prostate_gland"]:
         assert t in R.TISSUE_TO_PRODUCT, f"{t} missing from TISSUE_TO_PRODUCT"
     assert R.TISSUE_TO_PRODUCT["bone_marrow"] == "sc-normal-celltype-expression-bone-marrow-v1"
     assert R.TISSUE_TO_PRODUCT["small_intestine"] == "sc-normal-celltype-expression-small-intestine-v1"
+    assert R.TISSUE_TO_PRODUCT["brain"] == "sc-normal-celltype-expression-brain-v1"
+    assert R.TISSUE_TO_PRODUCT["prostate_gland"] == "sc-normal-celltype-expression-prostate-gland-v1"
 
 
 # --- cli build_summary -------------------------------------------------------

@@ -25,13 +25,16 @@ from methods.catalog_query.read import s3_uri_for
 # LUSC has a DEDICATED cube (squamous-only malignant denominators) — distinct from the LUAD+LUSC-mixed
 # NSCLC umbrella. LUAD stays on the umbrella (no LUAD-specific cube). Adding an indication = emit its
 # cube (data-catalog) + one line here (keep in step with sc_tumor_expression_celltype.INDICATION_TO_PRODUCT).
+# 2026-08-12: PAAD + HNSC wired to 3CA cubes (paired with INDICATION_TO_PRODUCT extension above).
 INDICATION_TO_SAMECELL_MANIFEST = {
     "COADREAD": "sc-samecell-coexpr-coadread-v1",
     "COAD": "sc-samecell-coexpr-coadread-v1",
     "READ": "sc-samecell-coexpr-coadread-v1",
     "NSCLC": "sc-samecell-coexpr-nsclc-v1",
     "LUAD": "sc-samecell-coexpr-nsclc-v1",
-    "LUSC": "sc-samecell-coexpr-lusc-v1",   # dedicated squamous cube (was: nsclc umbrella)
+    "LUSC": "sc-samecell-coexpr-lusc-v1",              # dedicated squamous cube (was: nsclc umbrella)
+    "PAAD": "sc-samecell-coexpr-3ca-pancreas-v1",      # 3CA PDAC — 8 antigen pairs (MSLN/MUC1/EPCAM/ERBB2...)
+    "HNSC": "sc-samecell-coexpr-3ca-hnsc-v1",          # 3CA HNSCC — 10 squamous/H&N pairs (EGFR/TROP2/EPCAM/MET...)
 }
 
 # enrichment_vs_independence bands for the avidity call.

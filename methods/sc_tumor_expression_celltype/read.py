@@ -36,13 +36,17 @@ S3_BUCKET = "onc-compbio"
 # MATERIALIZED (size_bytes 450455052, md5 1ee88c68…, uploaded to its s3_uri). The reader does not
 # follow `supersedes`, so it silently read the stale, biased <25%-cohort subset. NSCLC stays on
 # its v1 (no v2 exists). Adding an indication = emit its product + one line here.
+# 2026-08-12: PAAD + HNSC wired to 3CA products (data-catalog #334–#340). Census has 0 HNSC malignant
+# cells; 3CA fills the gap via inferCNV/CNA-validated malignant call. STAD excluded — no 3CA bucket.
 INDICATION_TO_PRODUCT = {
     "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v2",
     "COAD": "sc-pseudobulk-donor-celltype-coadread-v2",
     "READ": "sc-pseudobulk-donor-celltype-coadread-v2",
     "NSCLC": "sc-pseudobulk-donor-celltype-nsclc-v1",
     "LUAD": "sc-pseudobulk-donor-celltype-nsclc-v1",
-    "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",   # dedicated squamous cube (was: nsclc umbrella)
+    "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",    # dedicated squamous cube (was: nsclc umbrella)
+    "PAAD": "sc-pseudobulk-tumor-3ca-pancreas-v1",     # 3CA PDAC — 6 studies / 344K cells (inferCNV malignant)
+    "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",         # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "compartment",

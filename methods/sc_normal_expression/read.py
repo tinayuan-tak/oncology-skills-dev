@@ -28,6 +28,8 @@ S3_BUCKET = "onc-compbio"
 # Only tissues with sc-normal-celltype-expression-{tissue}-v1 on S3 are listed.
 # Others → data_unavailable (honest capability ceiling, never a silent fall-back).
 # Keys are the hyphen-free tissue names; product IDs use hyphenated slugs.
+# 2026-08-12: brain (critical fix — in card since #298 but missing here), plus 4 new tissues
+# now on S3 (data-catalog PR #330 + the normal-tissue batch PRs #275–#286 + expansion set).
 TISSUE_TO_PRODUCT = {
     "colon":            "sc-normal-celltype-expression-colon-v1",
     "lung":             "sc-normal-celltype-expression-lung-v1",
@@ -38,6 +40,12 @@ TISSUE_TO_PRODUCT = {
     "bone_marrow":      "sc-normal-celltype-expression-bone-marrow-v1",
     "skin":             "sc-normal-celltype-expression-skin-v1",
     "small_intestine":  "sc-normal-celltype-expression-small-intestine-v1",
+    # Added 2026-08-12:
+    "brain":            "sc-normal-celltype-expression-brain-v1",           # always-on CNS safety (36M cells, 172 types)
+    "esophagus":        "sc-normal-celltype-expression-esophagus-v1",        # ESCA; squamous-normal proxy for HNSC
+    "pancreas":         "sc-normal-celltype-expression-pancreas-v1",         # PAAD normal comparator
+    "ovary":            "sc-normal-celltype-expression-ovary-v1",             # OV normal comparator
+    "prostate_gland":   "sc-normal-celltype-expression-prostate-gland-v1",   # PRAD normal comparator
 }
 
 # SAFETY-ESSENTIAL tissues queried for EVERY target regardless of indication. On-target
@@ -49,6 +57,9 @@ SAFETY_ESSENTIAL_TISSUES = ["heart", "liver", "kidney", "bone_marrow"]
 
 # indication → tumor-matched normal tissue(s). The matched tissue is queried IN ADDITION to the
 # always-on SAFETY_ESSENTIAL_TISSUES (see tissues_for_indication).
+# 2026-08-12: STAD/ESCA/PAAD/HNSC/OV/PRAD added as 3CA buckets land and new Tier-1 products are
+# on S3. HNSC maps to esophagus — the best available squamous-normal proxy (oral/pharyngeal
+# mucosa is not a distinct Census tissue_general; squamous esophagus is the closest lineage match).
 INDICATION_TO_TISSUES = {
     "COADREAD": ["colon"],
     "COAD":     ["colon"],
@@ -56,6 +67,12 @@ INDICATION_TO_TISSUES = {
     "NSCLC":    ["lung"],
     "LUAD":     ["lung"],
     "LUSC":     ["lung"],
+    "STAD":     ["stomach"],
+    "ESCA":     ["esophagus"],
+    "PAAD":     ["pancreas"],
+    "HNSC":     ["esophagus"],    # squamous-normal proxy (oral/pharyngeal mucosa absent from Census)
+    "OV":       ["ovary"],
+    "PRAD":     ["prostate_gland"],
 }
 
 

@@ -224,18 +224,20 @@ def test_assembler_gene_absent_from_product(monkeypatch):
 
 
 def test_indication_product_map_covers_v1_scope():
-    """Landed scope is COADREAD + NSCLC + LUSC (+ their sub-codes). PAAD/STAD must NOT resolve
-    (excluded — n=1 donor / no malignant-cell annotation). LUSC resolves its DEDICATED squamous
-    cube, not the NSCLC umbrella (see test_lusc_wiring.py for the full invariant)."""
+    """Census landed scope: COADREAD + NSCLC + LUSC (+ their sub-codes). 3CA extends to PAAD +
+    HNSC (2026-08-12). STAD must NOT resolve — no 3CA gastric bucket + Census labels gastric
+    tumor cells 'unknown'. LUSC resolves its DEDICATED squamous cube (see test_lusc_wiring.py)."""
     assert R._product_key("COADREAD") is not None
     assert R._product_key("NSCLC") is not None
     assert R._product_key("LUAD") is not None
     assert R._product_key("LUSC") is not None
-    # LUSC maps to its DEDICATED cube, not the NSCLC umbrella (map is the source of truth;
-    # _product_key resolves the map value to an S3 key, so assert on the map itself).
+    # LUSC maps to its DEDICATED cube, not the NSCLC umbrella.
     assert R.INDICATION_TO_PRODUCT["LUSC"] == "sc-pseudobulk-donor-celltype-lusc-v1"
     assert R.INDICATION_TO_PRODUCT["LUSC"] != R.INDICATION_TO_PRODUCT["NSCLC"]
-    assert R._product_key("PAAD") is None
+    # 3CA-backed indications added 2026-08-12
+    assert R.INDICATION_TO_PRODUCT["PAAD"] == "sc-pseudobulk-tumor-3ca-pancreas-v1"
+    assert R.INDICATION_TO_PRODUCT["HNSC"] == "sc-pseudobulk-tumor-3ca-hnsc-v1"
+    # STAD has no 3CA bucket — must remain data_unavailable
     assert R._product_key("STAD") is None
 
 
