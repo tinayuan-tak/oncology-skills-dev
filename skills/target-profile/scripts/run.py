@@ -48,6 +48,7 @@ from _skills_common import (
 )
 from _skills_common import ordinal_view
 from _skills_common.rules_loader import load_interpretation_rules
+from _skills_common.flip_analysis import flip_analysis
 
 SKILL_NAME = "target-profile"
 SKILL_VERSION = "1.0.0"
@@ -140,6 +141,26 @@ SUB_SKILLS = [
     ("surface-modality-fit",           "surface_modality"),    # split (biologics half)
     ("on-target-safety-liability",     "safety"),
 ]
+
+# Composed sub-skill SHORT name → resolver GATE name (resolvers/<gate>.resolver.yaml). Used by the
+# verdict-inert FRAGILITY facet to run the flip scan on each axis's own resolver. Most shorts equal
+# their gate; the two exceptions are explicit here: `tractability_sm`'s resolver is
+# `tractability_small_molecule`, and `expression` (tumor-presence) has NO resolver gate — presence is
+# verdict-inert for the nomination spine (no rung reads it), so it is intentionally absent and the
+# fragility facet treats it as flip-inapplicable, not robust. A guard test pins that every mapped gate
+# has a non-empty resolver_referenced_rule_ids and that the mapping matches each sub-skill's own
+# resolve_verdict_for_gate call.
+_SHORT_TO_GATE = {
+    "selectivity": "selectivity",
+    "dependency": "dependency",
+    "synthetic_lethal_partners": "synthetic_lethal_partners",
+    "mechanism": "mechanism",
+    "genomic_alteration": "genomic_alteration",
+    "differentiation": "differentiation",
+    "tractability_sm": "tractability_small_molecule",
+    "surface_modality": "surface_modality",
+    "safety": "safety",
+}
 
 # Card set for each sub-skill (must match SKILL.md composition.cards_used).
 # RESTRUCTURED 2026-07-14 — keys track the SUB_SKILLS renames above.
@@ -1495,6 +1516,189 @@ def _positive_tier(
     return tier, hits
 
 
+# --- Fragility facet (verdict-inert flip-stability; the quantitative "how solid is this call?") ---
+#
+# Bounded uncertainty WITHOUT probability. For each DECISION-RELEVANT axis (an axis whose verdicts the
+# nomination gate / positive tier / veto-suppressors actually read), run the single-rule flip scan
+# (flip_analysis) on that axis's resolver and measure how easily the call moves. Two fragilities:
+#   raw_flip_fragility      — fraction of verdict-movable rules whose toggle changes the verdict STRING
+#   decision_flip_fragility — fraction whose toggle changes the axis's DECISION ROLE (kill / positive /
+#                             contradiction / neutral). This is the honest one: a lineage_selective ->
+#                             selective_dependent flip changes the string but BOTH are `positive`, so
+#                             it is NOT decision-relevant (the round-1 KRAS anchor).
+# An axis the framework could not evidence this run (no signal / all cards missing) is maximally
+# uncertain by construction (fragility 1.0, reason=blind) — reusing the deciding-axis coverage rule.
+# target_index = WORST-CASE (max) decision-fragility over decision-relevant axes — mirroring the gate's
+# own max-over-action-ranks and the positive tier's worst-case philosophy (never a mean).
+#
+# STRICTLY VERDICT-INERT: reads sub_results, never calls _gate_recommendation, never writes
+# overall_recommendation / confidence. Emitted as a nomination.json facet; it MAY set a categorical
+# `contested` flag (from a declarative threshold) that a reader/banner surfaces — the flag NEVER
+# changes the recommendation. `contested` is None when no threshold is configured (absence must not
+# fabricate a flag); the numeric target_index is emitted regardless.
+_FRAGILITY_LEGEND = (
+    "Verdict FRAGILITY (flip-stability): the fraction of a gate's verdict-movable rules whose "
+    "single-rule toggle would change the DECISION ROLE of the call (kill / positive / contradiction). "
+    "0 = robust (no single plausible rule change flips it); higher = more fragile. A structural "
+    "sensitivity measure computed by re-running the deterministic resolver over perturbed fired-rule "
+    "sets — NOT a probability the target succeeds, and never summed or averaged."
+)
+
+
+def _load_contested_threshold(contracts_repo: Path | None = None) -> Optional[dict]:
+    """Load the optional `contested_threshold` stanza from the nomination-gate vocab, or None if
+    absent/malformed. NEVER-FABRICATE contract: absence → None → the facet emits contested=None (no
+    flag). A missing threshold can only make the facet emit LESS (no contested), never fabricate one;
+    and the flag is verdict-inert either way, so this is safe."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        ct = data.get("contested_threshold")
+        if isinstance(ct, dict) and isinstance(ct.get("fragility_index_min"), (int, float)):
+            return ct
+        return None
+    except Exception:  # noqa: BLE001 — absence/parse failure → no contested flag (verdict-inert)
+        return None
+
+
+def _decision_role(short: str, verdict: str,
+                   gate_map: dict, pos_map: dict, contra_set: set) -> str:
+    """The axis's role in the nomination decision for a given verdict: 'kill:<action>' /
+    'positive:<weight>' / 'contradiction' / 'neutral'. Pure lookup over the loaded vocab maps."""
+    if (short, verdict) in gate_map:
+        return f"kill:{gate_map[(short, verdict)]}"
+    if (short, verdict) in pos_map:
+        return f"positive:{pos_map[(short, verdict)]}"
+    if (short, verdict) in contra_set:
+        return "contradiction"
+    return "neutral"
+
+
+def _subgroup_flip_view(sub_results: dict) -> dict:
+    """Descriptive per-stratum heterogeneity view (only under --subtypes). Reports the POOLED
+    dependency verdict alongside the subtype panorama's per-stratum rows, so a reader can see when a
+    pooled call hides a stratified pattern ("pooled non_dependent, but stratum X shows a measured
+    dependency"). DESCRIPTIVE, not a re-resolved per-stratum verdict: it surfaces the panorama's own
+    per_subgroup_metrics (evidence_state + metric); the resolver-backed subtype call is
+    subtype_fit_verdict. (A full per-stratum re-resolution is the deferred Tier-1 heterogeneity work.)"""
+    dep = sub_results.get("dependency") or {}
+    dep_v = dep.get("verdict")
+    subtype_r = sub_results.get(SUBTYPE_SHORT) or {}
+    subtype_v = subtype_r.get("verdict")
+    rows = []
+    for rec in _first_card_per_subgroup(subtype_r, "subgroup-stratified-dependency"):
+        st = _subtype_stratum_key(rec)
+        if not st:
+            continue
+        rows.append({
+            "stratum": st,
+            "evidence_state": rec.get("evidence_state"),
+            "subgroup_n_floor_met": rec.get("subgroup_n_floor_met"),
+            "metric": {k: v for k, v in rec.items()
+                       if k not in ("stratum", "subgroup_id", "subgroup_label", "subgroup",
+                                    "subgroup_n", "subgroup_n_floor_met", "evidence_state",
+                                    "source_cohort") and v is not None},
+        })
+    return {
+        "pooled_dependency_verdict": dep_v[0] if dep_v else None,
+        "subtype_fit_verdict": subtype_v[0] if subtype_v else None,
+        "per_stratum_dependency": rows,
+        "_note": ("Descriptive per-stratum view (--subtypes): the subtype panorama's own "
+                  "per_subgroup_metrics beside the POOLED dependency verdict, to expose a stratified "
+                  "pattern the pooled call hides. NOT a re-resolved per-stratum verdict; the "
+                  "resolver-backed subtype call is subtype_fit_verdict."),
+    }
+
+
+def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
+                     contracts_repo: Path | None = None) -> dict:
+    """Verdict-inert flip-stability facet (see section header). Emitted in nomination.json; never
+    touches the verdict / gate / recommendation."""
+    gate_map, _gsrc = _load_gate_verdicts(contracts_repo)
+    pos_map, contra_set, _cfg, _psrc = _load_positive_signals(contracts_repo)
+    baseline, _covsrc = _load_gate_coverage(contracts_repo)
+
+    # Decision-relevant axes = every sub_skill short the gate / positive / contradiction vocab reads.
+    decision_shorts = ({s for (s, _v) in gate_map} | {s for (s, _v) in pos_map}
+                       | {s for (s, _v) in contra_set})
+
+    per_axis: dict = {}
+    fragilities: list[float] = []
+    blind_decision_axes: list[str] = []
+    for short in sorted(decision_shorts):
+        r = sub_results.get(short)
+        if r is None:
+            continue  # a decision-relevant axis not present this run (e.g. subtype_fit w/o --subtypes)
+        has_signal = _sub_result_has_signal(r)
+        coverage = _run_coverage_for_short(short, r, baseline)
+        gate = _SHORT_TO_GATE.get(short)
+
+        if not has_signal:
+            # An un-evidenced axis is an EVIDENCE GAP, not a fragile verdict (measured-vs-null
+            # discipline): it has no verdict to flip. Tracked separately, NOT folded into the flip
+            # index — coverage/blindness is the deciding-axis router's responsibility, not fragility's.
+            per_axis[short] = {"gate": gate, "flip_applicable": bool(gate), "has_signal": False,
+                               "coverage": coverage, "fragility": None, "reason": "blind"}
+            blind_decision_axes.append(short)
+            continue
+
+        if gate is None:
+            # decision-relevant but no resolver to flip (e.g. `expression` presence positive): it has
+            # signal but no flip scan, so it informs coverage, not the index.
+            per_axis[short] = {"gate": None, "flip_applicable": False, "has_signal": True,
+                               "coverage": coverage, "fragility": None, "reason": "no_resolver_gate"}
+            continue
+
+        fa = flip_analysis(r.get("fired") or [], gate, contracts_repo)
+        if fa is None:
+            per_axis[short] = {"gate": gate, "flip_applicable": False, "has_signal": True,
+                               "coverage": coverage, "fragility": None, "reason": "resolver_absent"}
+            continue
+
+        base_role = _decision_role(short, fa["base_verdict"], gate_map, pos_map, contra_set)
+        decision_flips = [
+            {"rule_id": f["rule_id"], "present": f["present"], "to_verdict": f["to_verdict"],
+             "to_role": _decision_role(short, f["to_verdict"], gate_map, pos_map, contra_set)}
+            for f in fa["flips"]
+            if _decision_role(short, f["to_verdict"], gate_map, pos_map, contra_set) != base_role
+        ]
+        n_rel = fa["n_relevant"]
+        decision_fragility = (len(decision_flips) / n_rel) if n_rel else 0.0
+        per_axis[short] = {
+            "gate": gate, "flip_applicable": True, "has_signal": True, "coverage": coverage,
+            "base_verdict": fa["base_verdict"], "base_driver": fa["base_driver"],
+            "base_role": base_role, "n_relevant": n_rel,
+            "raw_flip_fragility": round(fa["flip_fragility"], 4),
+            "decision_flip_fragility": round(decision_fragility, 4),
+            "decision_flips": decision_flips,
+            "fragility": round(decision_fragility, 4),
+        }
+        fragilities.append(decision_fragility)
+
+    target_index = round(max(fragilities), 4) if fragilities else None
+
+    ct = _load_contested_threshold(contracts_repo)
+    contested = None
+    if ct is not None and target_index is not None:
+        contested = target_index >= ct["fragility_index_min"]
+
+    facet = {
+        "target_index": target_index,
+        "contested": contested,
+        "decision_relevant_axes": sorted(decision_shorts),
+        "blind_decision_axes": blind_decision_axes,
+        "per_axis": per_axis,
+        "_basis": "worst_case_decision_flip_over_resolver_referenced_rules (single-rule scan); "
+                  "blind axes tracked separately (coverage != fragility), never folded into the index",
+        "_legend": _FRAGILITY_LEGEND,
+        "_contested_threshold": ct,
+    }
+    if subtypes:
+        facet["subgroup_flips"] = _subgroup_flip_view(sub_results)
+    return facet
+
+
 # --- LLM synthesis ----------------------------------------------------------
 
 _SYSTEM_PROMPT = (
@@ -1574,6 +1778,13 @@ _METRIC_LEGEND = {
     "ordinal_matrix": ("A gate x modality reprojection of the same signals into order-preserving "
                        "ordinals — NOT a calibrated score; never summed or averaged. Off-scale cells "
                        "(insufficient / not_applicable) are coverage gaps, not low scores."),
+    "verdict_fragility": ("Flip-stability of a gate's verdict (fragility facet): the fraction of the "
+                          "gate's verdict-movable rules whose single-rule toggle would change the "
+                          "DECISION ROLE of the call (kill / positive / contradiction). 0 = robust; "
+                          "higher = a call one plausible rule-change could flip. target_index is the "
+                          "worst-case over decision-relevant axes; a blind (un-evidenced) axis floors "
+                          "at 1.0. A structural sensitivity measure — NOT a probability the target "
+                          "succeeds, never summed or averaged, and it never moves the recommendation."),
 }
 
 
@@ -4061,6 +4272,14 @@ def main() -> int:
     # emitted in nomination.json. One-directional — informs confidence, never mints a nominate.
     subtype_facet = _subtype_facet(sub_results, indication=args.indication)
 
+    # Fragility facet (2026-08-12): verdict-inert flip-stability — the quantitative "how solid is this
+    # call?" scalar. Worst-case single-rule flip-fragility over the decision-relevant axes (+ a
+    # coverage floor for blind axes), computed by re-running the deterministic resolver over perturbed
+    # fired-rule sets. Like the other facets: computed BEFORE the prompt, emitted in nomination.json,
+    # and STRICTLY verdict-inert — it never calls the gate and never writes overall_recommendation /
+    # confidence. May set a categorical `contested` flag (declarative threshold) for the reader/banner.
+    fragility = _fragility_facet(sub_results, subtypes=subtypes)
+
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
     # surface-antigen over-emphasis for intracellular targets). Resolution NEVER raises — an
@@ -4275,6 +4494,11 @@ def main() -> int:
         # convergence (expression / dependency / mutation-frequency). A FACET (not a gate) — defines
         # patient-selection strata + informs confidence; never mints a nominate.
         "subtype_facet": subtype_facet,
+        # Fragility facet (verdict-inert flip-stability): worst-case single-rule flip-fragility over the
+        # decision-relevant axes + a `contested` flag (declarative threshold). A structural sensitivity
+        # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or
+        # moves a recommendation (target_index/contested touch neither the gate nor confidence).
+        "fragility": fragility,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
