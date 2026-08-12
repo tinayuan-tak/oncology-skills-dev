@@ -189,6 +189,7 @@ def test_ladder_empty_falls_through_to_estimate(monkeypatch):
     assert d["surface_density_class"] == "high"
 
 
+@pytest.mark.requires_data
 def test_committed_corpus_target_reads_grade_ab_live(monkeypatch):
     # integration: a real corpus target reads from the governed ladder, not the estimate.
     monkeypatch.undo()  # drop the autouse _no_ladder patch → use the real committed corpus
@@ -305,6 +306,7 @@ def test_no_transmembrane_non_gpi_stays_unsupported(monkeypatch):
     assert d["surface_density_class"] == "not_surface_density_whole_cell_estimate"
 
 
+@pytest.mark.requires_data
 def test_ladder_measurement_ignores_accessibility_gate(monkeypatch):
     # a ladder measurement is direct surface evidence -- the soft gate never touches it.
     monkeypatch.undo()

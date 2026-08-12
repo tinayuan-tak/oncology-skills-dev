@@ -7,6 +7,7 @@ network access. Real S3 pulls are exercised in operational runs, not CI.
 
 from pathlib import Path
 import subprocess
+import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -39,7 +40,7 @@ def test_genie_bpc_no_filter():
 def test_dry_run_depmap(tmp_path):
     """Dry-run prints the plan without pulling the MAF."""
     result = subprocess.run(
-        ["python", "-m", "scripts.prefetch_source_maf",
+        [sys.executable, "-m", "scripts.prefetch_source_maf",
          "--source", "depmap_somatic", "--indication", "COADREAD"],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=60,
         env={"PATH": "/opt/conda/bin:/usr/bin:/bin", "HOME": str(Path.home()),
@@ -146,7 +147,7 @@ def test_dry_run_genie_bpc_lot():
     through prefetch_genie_bpc_lot() and stop before pandas work.
     """
     result = subprocess.run(
-        ["python", "-m", "scripts.prefetch_source_maf",
+        [sys.executable, "-m", "scripts.prefetch_source_maf",
          "--source", "genie_bpc_lot", "--indication", "COADREAD"],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=60,
         env={"PATH": "/opt/conda/bin:/usr/bin:/bin", "HOME": str(Path.home()),

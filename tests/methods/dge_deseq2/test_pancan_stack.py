@@ -75,8 +75,14 @@ def _patch(monkeypatch):
         class S3FileSystem:  # noqa: N801
             def __init__(self, *a, **k): pass
 
-    monkeypatch.setitem(sys.modules, "pyarrow.parquet", _FakePq)
-    monkeypatch.setitem(sys.modules, "pyarrow.fs", _FakeFs)
+    # Patch the real module ATTRIBUTES, not sys.modules. The reader does `import pyarrow.parquet
+    # as pq`, and `import a.b as c` binds via getattr(a, "b") once the submodule is imported — so a
+    # sys.modules[...] = fake swap is silently bypassed whenever ANOTHER test imported pyarrow.parquet
+    # first (order-dependent: green locally, red in CI). setattr on the real modules intercepts every time.
+    import pyarrow.parquet as _pq
+    import pyarrow.fs as _fs
+    monkeypatch.setattr(_pq, "read_table", _FakePq.read_table)
+    monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)
 
 
 def test_union_schema_ucec_missing_cell_b_is_nan_filled(monkeypatch):
@@ -151,8 +157,14 @@ def _patch_reader(monkeypatch, rows):
         class S3FileSystem:  # noqa: N801
             def __init__(self, *a, **k): pass
 
-    monkeypatch.setitem(sys.modules, "pyarrow.parquet", _FakePq)
-    monkeypatch.setitem(sys.modules, "pyarrow.fs", _FakeFs)
+    # Patch the real module ATTRIBUTES, not sys.modules. The reader does `import pyarrow.parquet
+    # as pq`, and `import a.b as c` binds via getattr(a, "b") once the submodule is imported — so a
+    # sys.modules[...] = fake swap is silently bypassed whenever ANOTHER test imported pyarrow.parquet
+    # first (order-dependent: green locally, red in CI). setattr on the real modules intercepts every time.
+    import pyarrow.parquet as _pq
+    import pyarrow.fs as _fs
+    monkeypatch.setattr(_pq, "read_table", _FakePq.read_table)
+    monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)
 
 
 def test_rna_breadth_broadly_elevated(monkeypatch):

@@ -59,3 +59,18 @@ def pytest_runtest_makereport(item, call):
     if rep.when == "call" and rep.failed and _is_live_data_failure(call.excinfo):
         rep.outcome = "skipped"
         rep.wasxfail = "live data unavailable on credential-less runner"
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "requires_data: reads live S3 product data (e.g. drops its offline patches via "
+        "monkeypatch.undo(), or reads a governed corpus). Skipped when SKILLS_SKIP_LIVE_DATA is set "
+        "\u2014 the read degrades on a credential-less runner, so the assertion is then not a code "
+        "defect. Use this ONLY for tests that genuinely need data, never to paper over a stale patch.",
+    )
+
+
+def pytest_runtest_setup(item):
+    if os.environ.get("SKILLS_SKIP_LIVE_DATA") and item.get_closest_marker("requires_data"):
+        pytest.skip("requires live S3 data (SKILLS_SKIP_LIVE_DATA set)")

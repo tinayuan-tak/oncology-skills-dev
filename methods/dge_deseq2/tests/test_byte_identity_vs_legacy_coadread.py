@@ -30,13 +30,15 @@ Run in iter-1 execution:
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 
 SKILLS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills")
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Portable: was hardcoded to the author's checkout (never ran off that machine).
+METHODS_REPO = Path(__file__).resolve().parents[3]
 CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
 
 DETERMINISTIC_COLUMNS = ["gene_id", "log2FoldChange", "baseMean", "stat", "pvalue", "padj", "lfcSE"]
@@ -79,7 +81,7 @@ def test_dge_deseq2_byte_identity_vs_legacy_coadread(tmp_path):
     new_out.mkdir()
     new_parquet = new_out / "result.parquet"
     new_cmd = [
-        "python", "-m", "methods.dge_deseq2.cli",
+        sys.executable, "-m", "methods.dge_deseq2.cli",
         "--indication", "COADREAD",
         "--contrast", "tumor_vs_adjacent",
         "--release-pin", "2026-Q2",
@@ -119,7 +121,7 @@ def test_cli_dry_run_smoke():
     This is the minimal sanity check that does NOT require R env."""
     result = subprocess.run(
         [
-            "python", "-m", "methods.dge_deseq2.cli",
+            sys.executable, "-m", "methods.dge_deseq2.cli",
             "--indication", "COADREAD",
             "--contrast", "tumor_vs_adjacent",
             "--release-pin", "2026-Q2",

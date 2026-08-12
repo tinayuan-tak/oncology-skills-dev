@@ -15,6 +15,7 @@ Mirrors the Card 1 (depmap_chronos_distribution) test pattern. No S3 required.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -23,7 +24,12 @@ import yaml
 
 
 METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-CONTRACTS_ROOT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+# Portable: was hardcoded to the author's checkout, so the emitter's sys.path.insert(
+# contracts_root/"plot_styles") pointed at a missing dir in CI and `from takeda_palette import`
+# (unguarded on the SVG path) failed. target-contracts ships plot_styles/takeda_palette.py.
+CONTRACTS_ROOT = Path(os.environ.get("TARGET_CONTRACTS_ROOT")
+                      or Path(__file__).resolve().parents[3].parent
+                      / "rnd-computational-biology-oncology-target-contracts")
 
 
 def _build_synthetic_depmap_dir(target_dir: Path, n_cell_lines: int = 200) -> None:

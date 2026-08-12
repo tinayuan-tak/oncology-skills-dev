@@ -13,14 +13,18 @@ test_fusion_real_execution_synthetic: real CLI run against a synthetic NSCLC
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
 import yaml
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-CATALOG_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+# Portable repo roots: were hardcoded to the author's /home/sagemaker-user checkout, so these
+# subprocess tests FileNotFoundError'd (cwd) the moment they ran anywhere else — including CI.
+METHODS_REPO = Path(__file__).resolve().parents[3]
+CATALOG_REPO = Path(os.environ.get("DATA_CATALOG_ROOT")
+                    or METHODS_REPO.parent / "rnd-computational-biology-oncology-data-catalog")
 
 
 def test_dry_run_on_coadread_tcga():
@@ -28,7 +32,7 @@ def test_dry_run_on_coadread_tcga():
     catalog_path = CATALOG_REPO / "subgroup-catalogs" / "COADREAD" / "2026-Q2.yaml"
     result = subprocess.run(
         [
-            "python", "-m", "methods.subgroup_assigner_directly_tagged.cli",
+            sys.executable, "-m", "methods.subgroup_assigner_directly_tagged.cli",
             "--subgroup-catalog", str(catalog_path),
             "--data-source", "tcga",
             "--release-pin", "2026-Q2",
@@ -97,7 +101,7 @@ def test_real_execution_synthetic_tcga(tmp_path):
     out_dir = tmp_path / "sat_out"
     result = subprocess.run(
         [
-            "python", "-m", "methods.subgroup_assigner_directly_tagged.cli",
+            sys.executable, "-m", "methods.subgroup_assigner_directly_tagged.cli",
             "--subgroup-catalog", str(catalog_path),
             "--data-source", "tcga",
             "--release-pin", "2026-Q2",
@@ -258,7 +262,7 @@ def test_fusion_real_execution_synthetic(tmp_path):
     out_dir = tmp_path / "fusion_out"
     result = subprocess.run(
         [
-            "python", "-m", "methods.subgroup_assigner_directly_tagged.cli",
+            sys.executable, "-m", "methods.subgroup_assigner_directly_tagged.cli",
             "--subgroup-catalog", str(catalog_path),
             "--data-source", "tcga",
             "--release-pin", "test",
