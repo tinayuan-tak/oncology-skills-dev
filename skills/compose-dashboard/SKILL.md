@@ -3,8 +3,10 @@ name: compose-dashboard
 description: |
   Iter-1 skill that consumes a dashboard_spec (target-contracts/dashboards/*.dashboard_spec.yaml)
   and an invocation context (target, indication, subgroup_spec, data_mode, release_pin) and
-  produces a complete evidence_package.json + lockfile.yaml + validation_report.json in the
-  data-products repo. The central iter-1 orchestration deliverable.
+  produces a complete evidence_package.json (+ run_plan.yaml, dashboard.md, INDEX.md) in the
+  data-products repo; the validation_summary is embedded in evidence_package.governance (there is
+  no separate lockfile.yaml or validation_report.json — those were removed as phantom, see
+  tests/test_envelope_integrity.py). The central iter-1 orchestration deliverable.
 
   Use this skill when: a contributor or downstream consumer asks to "evaluate target X in indication Y"
   via the v2 framework. It will (1) resolve manifests per data_mode, (2) build the context object,

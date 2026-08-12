@@ -1,10 +1,16 @@
 """Shared declarative verdict-resolver interpreter (gap #5, 2026-07-20).
 
-ONE interpreter, evaluated by BOTH engines (target-profile + compose-dashboard), over a
-per-gate declarative spec (target-contracts/resolvers/<gate>.resolver.yaml). Replaces the
-hand-rolled `_verdict()` if-chains — the framework's most opinionated dependency/precedence
-biology becomes a PR-reviewable ordered ladder instead of per-skill Python, and the
-"copied not shared" two-engine drift risk disappears structurally (one implementation).
+ONE interpreter for the framework's verdict logic, over a per-gate declarative spec
+(target-contracts/resolvers/<gate>.resolver.yaml). Used by the standalone focused skills
+(run_wired_skill → _verdict → resolve_verdict_for_gate) AND by target-profile, which INHERITS
+those sub-skill verdicts (it calls each sub-skill's _verdict). Replaces the hand-rolled
+`_verdict()` if-chains — the framework's most opinionated dependency/precedence biology becomes a
+PR-reviewable ordered ladder instead of per-skill Python.
+
+NOTE (2026-08-12): compose-dashboard does NOT yet call this interpreter — it reimplements verdicts
+via its own per-modality fit_level scorer (compose-dashboard/scripts/_synthesis.py). Converging
+that path onto this resolver is the Phase D engine-unification work; until it lands, the
+"copied not shared" two-engine drift risk persists for the compose-dashboard path only.
 
 GUARDRAIL (deliberately NOT Turing-complete — see resolver.schema.json): a spec may ONLY
 pattern-match over the SET of fired rule IDs — ordered precedence + when_fired /
