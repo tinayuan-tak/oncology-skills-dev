@@ -43,17 +43,29 @@ def _tcga_case(barcode: str) -> str:
 @lru_cache(maxsize=1)
 def _load_purity_by_case() -> dict:
     """{case_barcode: purity} from ABSOLUTE abs_tables. One purity per case (last wins; consistent
-    within case). Empty on failure."""
+    within case).
+
+    Returns {} ONLY when the ABSOLUTE table is genuinely absent from the bucket (S3 404 /
+    NoSuchKey / NoSuchBucket) — a real coverage gap the caller surfaces as data_unavailable
+    ("ABSOLUTE purity table unavailable"). Any OTHER failure (missing dependency, absent/expired
+    credentials, throttling, a corrupt or schema-changed table) is an ENVIRONMENT break and is
+    RAISED, never masked as "no purity data": silently degrading a broken env to data_unavailable
+    is the bare-except trap that quietly kills an axis (cf. the missing-openpyxl env-mask bug class).
+    The parse is deliberately OUTSIDE the try so a schema drift on a PRESENT table fails loudly too."""
     import pandas as pd
+    from botocore.exceptions import ClientError
     try:
         raw = _boto3().get_object(Bucket=S3_BUCKET, Key=ABS_TABLES_KEY)["Body"].read()
-        df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["sample", "purity"])
-        df["purity"] = pd.to_numeric(df["purity"], errors="coerce")
-        df = df.dropna(subset=["sample", "purity"])
-        df["case"] = df["sample"].map(_tcga_case)
-        return dict(zip(df["case"], df["purity"]))
-    except Exception:  # noqa: BLE001
-        return {}
+    except ClientError as e:
+        code = str(e.response.get("Error", {}).get("Code", ""))
+        if code in ("NoSuchKey", "NoSuchBucket", "404"):
+            return {}          # genuine absence → typed no-data upstream
+        raise                  # 403 / AccessDenied / SlowDown / anything else = env break → fail loudly
+    df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["sample", "purity"])
+    df["purity"] = pd.to_numeric(df["purity"], errors="coerce")
+    df = df.dropna(subset=["sample", "purity"])
+    df["case"] = df["sample"].map(_tcga_case)
+    return dict(zip(df["case"], df["purity"]))
 
 
 def classify_purity_confound(pearson_r: Optional[float], pearson_p: Optional[float],
