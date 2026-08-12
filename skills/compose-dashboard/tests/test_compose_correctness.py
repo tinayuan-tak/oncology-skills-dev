@@ -102,6 +102,43 @@ def test_neither_viable_when_not_surface():
 
 
 # ---------------------------------------------------------------------------
+# E2b hardening (2026-08-12, adc-tce-modality-fit audit) — a COVERAGE GAP in EITHER required input
+# (surfaceome-family OR topology) must resolve to data_unavailable, NOT neither_viable. Regression:
+# tm_count/ec_length coalesce None→0, and the guard was `family_unavailable AND topology_unavailable`,
+# so a target with an available family but data_unavailable topology fell through tm_count==0 →
+# neither_viable — a coverage gap masquerading as a measured biologics no-go.
+# ---------------------------------------------------------------------------
+
+def test_topology_unavailable_is_data_unavailable_not_neither():
+    """Topology product data_unavailable (tm/ec None) + family AVAILABLE → data_unavailable, NOT
+    neither_viable. This is the demonstrated bug: without the `or` guard, tm_count coalesces to 0
+    and the target reads as a hard biologics no-go rather than 'we couldn't look'."""
+    topo = {"topology_class": "data_unavailable", "tm_pass_count": None,
+            "extracellular_residue_count": None}
+    result = _fit_class(topo, _family(is_surface=True))
+    assert result == "data_unavailable", (
+        f"topology data_unavailable + family available must be a coverage gap, got {result!r}")
+
+
+def test_family_unavailable_is_data_unavailable_not_neither():
+    """Symmetric case: family classification data_unavailable + topology available → data_unavailable.
+    Without the family call we don't know surface-ness, so is_surface defaults False and WOULD hit
+    neither_viable — a coverage gap, not a measured no."""
+    result = _fit_class(_topo(tm=1, ec=250),
+                        {"is_surface_protein": False, "family_class": "data_unavailable"})
+    assert result == "data_unavailable", f"family data_unavailable must be a coverage gap, got {result!r}"
+
+
+def test_both_products_available_measured_non_surface_still_neither():
+    """Guard against over-firing the `or`: when BOTH products are available and the family call is a
+    MEASURED non-surface (family_class present, is_surface False), the honest verdict is still
+    neither_viable — a measured no, distinct from data_unavailable."""
+    result = _fit_class(_topo(tm=0, ec=0), _family(is_surface=False))
+    assert result == "neither_viable", (
+        f"measured non-surface (both products present) must stay neither_viable, got {result!r}")
+
+
+# ---------------------------------------------------------------------------
 # GPI-anchor rescue (2026-08-09, modality-fit review M1) — TMbed 1D cannot see a GPI anchor, so a
 # GPI-anchored antigen reads tm_count==0 and WAS false-negatived to neither_viable despite being a
 # surface-displayed biologics target (FOLR1/Elahere approved ADC, MSLN, CD59). The curated UniProt

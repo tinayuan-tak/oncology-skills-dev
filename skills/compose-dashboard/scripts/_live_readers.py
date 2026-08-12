@@ -1303,7 +1303,15 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     # A GPI-anchored antigen is surface-accessible even at tm_count==0 (TMbed can't see the anchor).
     # It rescues the no_transmembrane false-negative ONLY when there is also a real bindable ECD.
     gpi_surface_accessible = is_gpi_anchored and is_surface and tm_count == 0 and ec_length >= 100
-    if family_unavailable and topology_unavailable:
+    # E2b hardening (2026-08-12, adc-tce-modality-fit audit): EITHER required input missing is a coverage
+    # gap, not a measured no-go — was `and` (both). fit_class fundamentally needs BOTH the surfaceome-family
+    # call (is_surface) and the topology product (tm_count/ec_length) to distinguish ADC vs TCE vs neither.
+    # When topology is data_unavailable, tm_count/ec_length coalesce to 0 (lines above), which would trip
+    # the `tm_count == 0` neither_viable branch below — a coverage gap masquerading as a measured
+    # no-transmembrane, the exact measured-vs-data_unavailable conflation the endocytosis/ubiquitination
+    # raw-reads guard against. The GPI rescue also depends on topology's ec_length (>=100), so it cannot
+    # fire when topology is unavailable; the data_unavailable check correctly precedes it.
+    if family_unavailable or topology_unavailable:
         fit_class = "data_unavailable"
     elif gpi_surface_accessible:
         # GPI branch: no cytoplasmic tail → endocytosis/turnover machinery absent. TCE + naked-antibody
