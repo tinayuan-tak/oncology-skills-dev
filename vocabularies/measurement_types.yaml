@@ -746,6 +746,30 @@ measurement_types:
       - {kind: dataset, source: cptac-rna-protein-matched-per-sample-v1, evidence_tier: measured}  # tumor arm (matched RNA+protein)
       - {kind: dataset, source: sc-cite-rna-protein-concordance-v1, evidence_tier: measured}  # single-cell SURFACE arm (CITE-seq ADT vs scRNA)
 
+  antigen_pair_coexpression:
+    claim: "Do two surface antigens co-express on the SAME malignant cells (same-cell avidity for an AND-gate bispecific / dual-targeting biologic)?"
+    # Single-cell same-cell coexpression from the sc-samecell-coexpr-* cubes. DISTINCT from bulk pair
+    # co-occurrence: two antigens can be high in a tumor SAMPLE yet sit on DIFFERENT cells — this
+    # confirms same-CELL co-expression (avidity), the exact requirement of an AND-gate bispecific.
+    # target_pair grain, read-side keyed on target (each pair carried under both members). Routes:
+    # bispecific modality lens — same_cell_coordinated → AND-gate viable (supportive);
+    # same_cell_mutually_exclusive → avidity FAILS despite bulk co-expression (opposing).
+    modality_relevance: [adc, bite_tce, antibody]
+    entity_grains: [target_indication, target_pair]
+    cards: [surface-colocalization-avidity]
+    multi_provider_policy: tier_dominant
+    providers:
+      # per-indication partitions of ONE logical provider (aggregate_sc_samecell_coexpr / the 3CA
+      # sibling); same claim/method at different indication grain values, mirroring
+      # sc_tumor_celltype_expression. Adding an indication = emit its cube (data-catalog) + one line here.
+      - {kind: dataset, source: sc-samecell-coexpr-coadread-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-nsclc-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-lusc-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-3ca-pancreas-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-3ca-hnsc-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-3ca-kidney-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-3ca-ovarian-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+
   normal_tissue_protein_breadth:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.

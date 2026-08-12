@@ -1,0 +1,69 @@
+# Card — SURFACE SAME-CELL CO-LOCALIZATION / AVIDITY (bispecific AND-gate)
+#
+# Does {target} co-express with a candidate partner antigen on the SAME malignant cells — the
+# same-cell avidity an AND-gate bispecific (TCE / dual ADC / bispecific mAb) actually requires?
+# Reads the single-cell same-cell coexpression cubes (sc-samecell-coexpr-{indication}-v1) via the
+# target-centric avidity reader (pair_selectivity_gate), which scans EVERY nominated pair involving
+# the target and returns the best-partner call.
+#
+# WHY THIS CARD EXISTS: the same-cell cubes + the avidity method existed but NO card consumed them —
+# a wired-but-orphaned capability (the bispecific-pair-scan avidity gap). Bulk pair co-expression is
+# NECESSARY BUT NOT SUFFICIENT: two antigens can each be high in a tumor SAMPLE yet sit on DIFFERENT
+# cells, so an AND-gate bispecific never engages both. This card confirms same-CELL co-expression.
+#
+# THE DECISION-RELEVANT NEGATIVE: same_cell_mutually_exclusive — the antigens are rarely on the same
+# cell (enrichment < independence) — means the bispecific avidity FAILS despite an encouraging bulk
+# read. same_cell_coordinated means a viable AND-gate partner exists.
+
+card_id: surface-colocalization-avidity
+version: 0.1.0
+question: "For {target.symbol} in {indication.label}, does any candidate partner antigen co-express on the SAME malignant cells (same-cell avidity for an AND-gate bispecific), or are the best partners mutually exclusive?"
+
+tier: indication   # the same-cell cube is per-indication (malignant compartment)
+
+applies_when:
+  # indications with a landed same-cell coexpr cube (INDICATION_TO_SAMECELL_MANIFEST in the method).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV']"
+
+required_inputs:
+  - product_id: sc-samecell-coexpr-coadread-v1
+  - product_id: sc-samecell-coexpr-nsclc-v1
+  - product_id: sc-samecell-coexpr-lusc-v1
+  - product_id: sc-samecell-coexpr-3ca-pancreas-v1
+  - product_id: sc-samecell-coexpr-3ca-hnsc-v1
+  - product_id: sc-samecell-coexpr-3ca-kidney-v1
+  - product_id: sc-samecell-coexpr-3ca-ovarian-v1
+
+methods:
+  - call: surface-colocalization-avidity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - samecell_avidity_class          # PRIMARY — best-partner call across the target's nominated pairs
+    - best_partner                    # the most avidity-supportive partner antigen
+    - best_enrichment_median          # cross-donor median enrichment_vs_independence for that partner
+    - best_both_fraction_median       # cross-donor median fraction of malignant cells expressing BOTH
+    - n_partners_tested               # candidate partners scanned for this target
+    - n_coordinated_partners          # partners with same_cell_coordinated
+  summary_fields_vocabulary:
+    samecell_avidity_class: [same_cell_coordinated, same_cell_independent, same_cell_mutually_exclusive, avidity_unconfirmed, data_unavailable]
+
+caveats:
+  - "Surfaces the same-cell avidity cubes (previously orphaned). Bulk pair co-expression is necessary but NOT sufficient — this confirms same-CELL co-expression (the AND-gate requirement). Reported as a bispecific/dual-targeting lens, not a monospecific-target signal."
+  - "Best-partner headline: same_cell_coordinated if ANY nominated partner co-expresses on the same malignant cells (enrichment_vs_independence >= 1.2). same_cell_mutually_exclusive (<= 0.8) is the decision-relevant NEGATIVE — avidity fails despite bulk co-expression."
+  - "Partners are the pairs the bulk pair-scan NOMINATED for the indication (not an exhaustive genome scan); a target with no nominated pair returns data_unavailable (not scanned), never a fabricated negative."
+  - "Cross-donor median over the malignant compartment (donor = replicate); pooled/pan-subtype malignant denominators for the 3CA indications (PAAD/HNSC/KIRC/OV)."
+
+measurement: sc_rna
+sample_context: tumor          # malignant cells (single-cell same-cell coexpression)
+
+# DATA_TO_SKILL_CONTRACT — antigen_pair_coexpression at the single-cell same-cell (avidity) grain.
+measurement_type: antigen_pair_coexpression
+# bispecific / dual-targeting modality lens. Declaration lands WITH its avidity rules
+# (feat/sc-surface-avidity-rules) — never declare a lens without a rule that carries it.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication, target_pair]
+schema_version: 1
