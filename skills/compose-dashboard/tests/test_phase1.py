@@ -62,9 +62,15 @@ def test_kras_coadread_no_modality_enumerates_plausible():
     expected_base_required = {
         "target-identity-summary", "tumor-rna-vs-adjacent",
         "dependency-lineage-selectivity", "mutation-hotspot-frequency",
-        "normal-tissue-liability", "clinical-precedent",
+        "normal-tissue-liability",
     }
     assert expected_base_required.issubset(cards), f"missing: {expected_base_required - cards}"
+    # clinical-precedent moved required_cards -> placeholder_cards (TC #310, 2026-08-12): it is
+    # status=placeholder_not_wired (no method/product), so it is no longer a required card and
+    # compose-dashboard does not run placeholder_cards. It must NOT be in to_run — guards against
+    # re-adding a non-wired card to required_cards.
+    assert "clinical-precedent" not in cards, \
+        "clinical-precedent is now a placeholder_card (TC #310) — must not be in to_run"
 
     # subgroup-stratified-expression should be admitted because subgroup_spec="all" != null
     assert "subgroup-stratified-expression" in cards
@@ -118,9 +124,14 @@ def test_trop2_coadread_surface_intrinsic_all_modalities():
     expected_base_required = {
         "target-identity-summary", "tumor-rna-vs-adjacent",
         "tumor-vs-normal-selectivity", "protein-surface-evidence",
-        "normal-tissue-liability", "antigen-prevalence", "clinical-precedent",
+        "normal-tissue-liability",
     }
     assert expected_base_required.issubset(cards), f"missing: {expected_base_required - cards}"
+    # antigen-prevalence + clinical-precedent moved required_cards -> placeholder_cards (TC #310,
+    # 2026-08-12): both status=placeholder_not_wired (no method/product), so no longer required and
+    # compose-dashboard does not run placeholder_cards. Must NOT be in to_run.
+    assert {"antigen-prevalence", "clinical-precedent"}.isdisjoint(cards), \
+        "antigen-prevalence/clinical-precedent are now placeholder_cards (TC #310) — must not be in to_run"
 
     # T2-adjacent (2026-08-11 review): this assertion was STALE. The ADC module used to add a
     # phantom `antigen-density-evidence` card (data_blocked → excluded), but that card never
