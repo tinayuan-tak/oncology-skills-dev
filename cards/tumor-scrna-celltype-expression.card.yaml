@@ -28,15 +28,19 @@ subgroup_stratification:
   rationale: "Per-cell subtype stratification needs a per-cell subtype label the donor-pseudobulk product does not carry (the emit aggregates per dataset_id x donor_id x compartment). Deferred to a later single-cell slice; this card stays at target_indication grain."
 
 applies_when:
-  # ONLY the indications whose CELLxGENE Census atlases carry a per-cell MALIGNANT annotation AND
-  # enough donors for the donor-is-replicate roll-up have a landed product (v1: COADREAD + NSCLC).
-  # Others are excluded at compose time (honest capability ceiling — the skill reads data_unavailable
-  # for any indication not listed, never a silent coarser fall-back).
-  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC']"
+  # ONLY the indications whose atlases carry a per-cell MALIGNANT annotation AND enough donors for
+  # the donor-is-replicate roll-up have a landed product. CELLxGENE Census: COADREAD (v2), NSCLC,
+  # LUSC. 3CA atlas (Gavish 2023): PAAD, HNSC. Others are excluded at compose time (honest
+  # capability ceiling — the skill reads data_unavailable for any indication not listed, never a
+  # silent coarser fall-back).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC']"
 
 required_inputs:
   - product_id: sc-pseudobulk-donor-celltype-coadread-v2     # COADREAD donor x compartment pseudobulk. v2 SUPERSEDES v1 (2026-08-11): 30 datasets / 749 donors / 828,819 CRC cells incl. Pelka 2021 (257K) — v1 silently dropped it via a `disease=='colorectal cancer'` filter (~75% of the cohort). The reader (analysis-methods sc_tumor_expression_celltype, AM#282) already reads v2; this aligns the card's declared provenance / lockfile substrate.
   - product_id: sc-pseudobulk-donor-celltype-nsclc-v1        # NSCLC (LUAD+LUSC+NSCLC-umbrella) donor x compartment pseudobulk (no v2 yet)
+  - product_id: sc-pseudobulk-donor-celltype-lusc-v1         # LUSC (Census) donor x compartment pseudobulk
+  - product_id: sc-pseudobulk-tumor-3ca-pancreas-v1          # PAAD (3CA atlas) tumor pseudobulk
+  - product_id: sc-pseudobulk-tumor-3ca-hnsc-v1              # HNSC (3CA atlas) tumor pseudobulk
 
 methods:
   - call: sc-tumor-expression-celltype
@@ -124,7 +128,7 @@ caveats:
   - "Single-cell donor pseudobulk from the CELLxGENE Census (filtered API query; see data-catalog sc-pseudobulk-donor-celltype-{indication} — COADREAD is v2, NSCLC is v1). The DONOR (dataset_id, donor_id) is the biological replicate; compartment statistics are cross-donor MEDIANS, so one large contributing atlas (e.g. Pelka's ~257K CRC cells in v2) cannot dominate."
   - "detection_fraction is single-cell-native (fraction of cells with UMI>0) and is NOT comparable to bulk TPM or the bulk cards' detectable-fraction; scRNA dropout under-detects lowly-expressed genes."
   - "compartment is a coarse L1 mapping over the Cell Ontology cell_type (malignant/immune/stromal/endothelial/epithelial_normal/other). The compartment token map is CRC-tuned; lineage-specific NORMAL epithelial cells in non-CRC indications may fall to `other`, but the malignant/immune/stromal/endothelial compartments that drive the presence call are lineage-agnostic."
-  - "v1 covers COADREAD + NSCLC (the indications with per-cell malignant annotation + donor replication in this Census release). Other indications resolve data_unavailable — an honest capability gap, not a measured negative."
+  - "Coverage: COADREAD (v2), NSCLC, and LUSC from the CELLxGENE Census (per-cell malignant annotation + donor replication); PAAD and HNSC from the 3CA atlas (Gavish 2023). Other indications resolve data_unavailable — an honest capability gap, not a measured negative."
   - "RNA detection does not imply protein presence; pair with the CPTAC protein cards for ADC/TCE decisions. The microenvironment-vs-intrinsic attribution here is a presence-axis readout; the ADC/TCE antigen-reality modality-gate interpretation is a deferred (P4) follow-up."
 
 measurement: sc_rna
