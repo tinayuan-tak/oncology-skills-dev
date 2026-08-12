@@ -281,7 +281,8 @@ def compose(
     # compose-dashboard owns its producer identity: it passes FRAMEWORK_VERSION + its own
     # generated_by ("skills/compose-dashboard@<sha>") so the extracted writer stays reusable.
     evidence_package = assemble_evidence_package(
-        run_plan=run_plan,
+        input_context=run_plan["input_context"],
+        dashboard_spec_ref=(run_plan["axis_resolution"].get("selected_base_dashboard") or "unresolved"),
         card_outputs=phase2_result["cards"],
         unavailable_cards=phase2_result.get("unavailable_cards", []),
         validation_summary=phase2_result["validation_summary"],

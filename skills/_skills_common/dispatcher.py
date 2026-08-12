@@ -136,6 +136,157 @@ def _apply_on_dependency_status(
     return surviving, skipped, caveats
 
 
+# ── D1b: opt-in evidence-package envelope emission for a focused subskill ──────────────
+# governance.data_mode is a CLOSED enum (latest_approved | pinned | exploratory). A subskill
+# envelope is exploratory-grade by construction (no concurrence, no manifest pinning yet), so a
+# free-form --data-mode value (default "live") is mapped to a schema-valid governance value;
+# recognized enum values pass through unchanged.
+_GOVERNANCE_DATA_MODE = {
+    "latest_approved": "latest_approved",
+    "pinned": "pinned",
+    "exploratory": "exploratory",
+}
+
+
+def _availability_state_for(card: dict) -> "tuple[str, str]":
+    """Map a resolve_cards `_missing` card to a schema-valid (availability_state, reason).
+
+    Mirrors the card_unavailable enum: an honest data_unavailable answer is `insufficient`
+    (looked, genuinely absent); dispatcher-None is `not_wired`; a live_read_error is
+    `read_error`; anything else is a `data_blocked` coverage gap.
+    """
+    reason = str(card.get("_missing_reason", "unavailable"))
+    if card.get("_data_unavailable"):
+        return "insufficient", reason
+    if reason == "dispatcher_returned_none":
+        return "not_wired", reason
+    if reason.startswith("live_read_error"):
+        return "read_error", reason
+    return "data_blocked", reason
+
+
+def _envelope_card_present(card: dict) -> dict:
+    """Normalize a subskill resolve_cards output into an evidence_package `card_present` entry.
+
+    resolve_cards emits a lean shape (card_id / summary / interpretation_call); the envelope
+    schema's card_present requires validation_state + provenance and forbids extra keys
+    (unevaluatedProperties: false), so we build a fresh, schema-shaped dict.
+    """
+    return {
+        "card_id": card["card_id"],
+        "card_version": card.get("card_version", "1.0.0"),
+        "validation_state": "pass",
+        "summary": card.get("summary", {}) or {},
+        "interpretation_call": card.get("interpretation_call") or "uninterpreted",
+        "caveats": card.get("caveats", []),
+        "provenance": card.get("provenance", {"method_calls": [], "input_manifest_ids": []}),
+    }
+
+
+def _emit_subskill_envelope(*, args, skill_name: str, skill_version: str,
+                            emitted_cards: list[dict], headline: dict,
+                            verdict_pair: "Optional[tuple[str, Optional[str]]]",
+                            fired: list[dict]) -> Path:
+    """Assemble + write evidence_package.json around a subskill's resolver verdict (D1b, opt-in).
+
+    PURELY ADDITIVE: consumes the already-computed decision outputs (emitted_cards, headline,
+    verdict_pair, fired) and writes a sibling evidence_package.json in args.out. Never touches
+    decision.json — the verdict spine is byte-identical whether or not --emit-envelope is set.
+    """
+    from .envelope import assemble_evidence_package
+    from .gitmeta import skills_repo_sha
+
+    _indication = args.indication if args.indication is not None else "PANCANCER"
+
+    # Verdict + driving rule: prefer the resolver-derived verdict_pair (verdict_fn output);
+    # otherwise read the decision headline dict (skills that carry the verdict there).
+    if verdict_pair:
+        verdict, driving_rule_id = verdict_pair
+    else:
+        verdict = headline.get("verdict", "insufficient")
+        driving_rule_id = headline.get("driving_rule_id")
+    verdict = verdict or "insufficient"
+    fired_rule_ids = sorted({f.get("rule_id") for f in fired if f.get("rule_id")})
+
+    # synthesis slot — verdict-shaped. Schema-minimal (required `headline` str 5-2000; extra keys
+    # allowed), so the resolver verdict rides in the headline plus structured sibling keys.
+    synthesis_block = {
+        "headline": f"{skill_name}: {verdict}" + (f" ({driving_rule_id})" if driving_rule_id else ""),
+        "caveats_summary": (
+            f"Exploratory subskill envelope emitted by {skill_name}@{skill_version} around its own "
+            f"deterministic resolver verdict; not a composed target-profile and not "
+            f"concurrence-reviewed. cards_missing={headline.get('cards_missing', [])}."
+        ),
+        "gate": skill_name,
+        "verdict": verdict,
+        "driving_rule_id": driving_rule_id,
+        "fired_rule_ids": fired_rule_ids,
+    }
+
+    # Split emitted cards into present (normalized) + reasoned absences (card_unavailable).
+    env_present: list[dict] = []
+    env_unavailable: list[dict] = []
+    for c in emitted_cards:
+        if c.get("_missing"):
+            state, reason = _availability_state_for(c)
+            env_unavailable.append({
+                "card_id": c["card_id"],
+                "card_version": c.get("card_version", "n/a"),
+                "availability_state": state,
+                "availability_reason": reason,
+            })
+        else:
+            env_present.append(_envelope_card_present(c))
+
+    # Resolve the foundational target-identity-summary card so context.target carries a real
+    # hgnc_id (schema requires >= 1). This is a SEPARATE read for the envelope's context block
+    # only — it is NOT added to decision.json. Best-effort: on failure the writer emits the
+    # hgnc_id=-1 sentinel (honest "identity not resolved") and the run still completes.
+    try:
+        for c in resolve_cards(["target-identity-summary"], args.target, _indication):
+            if not c.get("_missing"):
+                env_present.append(_envelope_card_present(c))
+    except Exception as e:  # noqa: BLE001 — identity read is best-effort; never break emit
+        print(f"[dispatcher] --emit-envelope: target-identity read failed ({type(e).__name__}); "
+              f"context.target.hgnc_id will be the unresolved sentinel.", file=sys.stderr)
+
+    input_context = {
+        "target_symbol": args.target,
+        "indication": _indication,
+        "subgroup_spec": None,
+        "data_mode": _GOVERNANCE_DATA_MODE.get(args.data_mode, "exploratory"),
+        "release_pin": args.release_pin,
+    }
+    validation_summary = {
+        "n_cards_attempted": len(emitted_cards),
+        "n_cards_passed": len(env_present),
+        "n_cards_passed_with_warnings": 0,
+        "n_cards_failed": len(env_unavailable),
+        "n_cards_excluded_by_applies_when": 0,
+    }
+    try:
+        # COMPOSE_SCRIPTS was added to sys.path by resolve_cards()'s dispatcher import above.
+        from compose_phase1 import FRAMEWORK_VERSION as _fv
+    except Exception:  # noqa: BLE001 — fall back to the iter-1 framework version
+        _fv = "2.0.0"
+
+    ep = assemble_evidence_package(
+        input_context=input_context,
+        dashboard_spec_ref=f"skill:{skill_name}",
+        card_outputs=env_present,
+        unavailable_cards=env_unavailable,
+        validation_summary=validation_summary,
+        synthesis_block=synthesis_block,
+        deterministic_timestamps=False,
+        framework_version=_fv,
+        generated_by=f"skills/{skill_name}@{skills_repo_sha()}",
+    )
+    out_path = Path(args.out) / "evidence_package.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(ep, indent=2, default=str))
+    return out_path
+
+
 def run_wired_skill(
     *,
     skill_name: str,
@@ -233,6 +384,21 @@ def run_wired_skill(
                          "verdict-inert enrichment reads + any --synthesize narration. The verdict "
                          "spine (verdict + driving_rule_id) is byte-identical to a full run. No-op "
                          "for a skill that declares no verdict_cards subset (reads all cards).")
+    ap.add_argument("--emit-envelope", action="store_true",
+                    help="OPT-IN (default OFF ⇒ complete no-op): ALSO write a governance-grade "
+                         "evidence_package.json envelope (beside decision.json) around THIS "
+                         "subskill's resolver verdict, via the shared _skills_common.envelope "
+                         "writer. PURELY ADDITIVE — decision.json is byte-identical whether or not "
+                         "this flag is set. The synthesis slot carries the verdict as its headline.")
+    ap.add_argument("--data-mode", default="live",
+                    help="Data-provenance posture, carried into the emitted envelope's "
+                         "input_context/governance ONLY (mapped to the governance data_mode enum; "
+                         "a subskill envelope is exploratory-grade). D1b does NOT implement manifest "
+                         "pinning / resolve_release — that is a data-catalog follow-on. Inert unless "
+                         "--emit-envelope is set.")
+    ap.add_argument("--release-pin", default=None,
+                    help="Optional catalog release pin, carried into the envelope governance block "
+                         "ONLY (no manifest resolution yet — follow-on). Inert unless --emit-envelope.")
     args = ap.parse_args(argv)
 
     # A target-intrinsic invocation (no --indication) passes a pan-cancer sentinel so the resolve_cards
@@ -447,6 +613,23 @@ def run_wired_skill(
     print(f"  tables: {len(written['tables'])}  figures: {len(written['figures'])}")
     if skipped_card_ids:
         print(f"  arch A4 skipped: {skipped_card_ids}")
+
+    # 10. OPT-IN evidence-package envelope (D1b). Default OFF ⇒ this whole block is skipped ⇒
+    # zero behavior change for every existing invocation. When set, assemble + write a sibling
+    # evidence_package.json around the verdict already computed above (decision.json untouched —
+    # byte-identical). A failure here degrades to a note; it must never break the deterministic run.
+    if args.emit_envelope:
+        try:
+            _ep_path = _emit_subskill_envelope(
+                args=args, skill_name=skill_name, skill_version=skill_version,
+                emitted_cards=emitted_cards, headline=headline,
+                verdict_pair=verdict_pair, fired=fired,
+            )
+            print(f"  emitted evidence_package.json → {_ep_path}")
+        except Exception as e:  # noqa: BLE001 — envelope is additive; never break the spine
+            print(f"[dispatcher] --emit-envelope: envelope emission failed "
+                  f"({type(e).__name__}: {e}); decision.json is unaffected.", file=sys.stderr)
+
     print()
     print(json.dumps(headline, indent=2, default=str))
     return 0

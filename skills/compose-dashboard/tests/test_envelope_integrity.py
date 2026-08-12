@@ -21,22 +21,20 @@ sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — for _skills_common
 from _skills_common.envelope import assemble_evidence_package  # noqa: E402
 
 
-def _minimal_run_plan() -> dict:
+def _minimal_input_context() -> dict:
     return {
-        "input_context": {
-            "target_symbol": "KRAS",
-            "indication": "COADREAD",
-            "data_mode": "latest_approved",
-            "release_pin": "26q1",
-            "subgroup_spec": None,
-        },
-        "axis_resolution": {"selected_base_dashboard": "intracellular-intrinsic-base"},
+        "target_symbol": "KRAS",
+        "indication": "COADREAD",
+        "data_mode": "latest_approved",
+        "release_pin": "26q1",
+        "subgroup_spec": None,
     }
 
 
 def _assemble(**kw) -> dict:
     return assemble_evidence_package(
-        run_plan=_minimal_run_plan(),
+        input_context=_minimal_input_context(),
+        dashboard_spec_ref="intracellular-intrinsic-base",
         card_outputs=kw.get("card_outputs", []),
         synthesis_block={"headline": "test", "caveats_summary": [], "modality_fit_assessment": []},
         validation_summary={"n_cards_attempted": 0, "n_cards_passed": 0,

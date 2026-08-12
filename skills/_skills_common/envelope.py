@@ -5,13 +5,21 @@ byte-preserving from compose-dashboard's `_assemble_evidence_package`, so that o
 subskills can emit the same governance-grade envelope shape without copying the
 assembly logic (the "copied not shared" drift that this Phase-D sweep is retiring).
 
-This function is DELIBERATELY pure: it takes phase outputs (run_plan, card_outputs,
+This function is DELIBERATELY pure: it takes phase outputs (input_context, card_outputs,
 validation_summary, synthesis_block) plus the caller's identity (framework_version,
-generated_by) and returns the envelope dict. It performs NO I/O, NO schema validation,
-NO git/SHA resolution, and reads NO repo roots — the caller owns provenance identity
-(`generated_by`) and version stamping (`framework_version`). This keeps the writer
-reusable across skills: each caller stamps its OWN `generated_by` (e.g.
+generated_by, dashboard_spec_ref) and returns the envelope dict. It performs NO I/O, NO
+schema validation, NO git/SHA resolution, and reads NO repo roots — the caller owns
+provenance identity (`generated_by`) and version stamping (`framework_version`). This keeps
+the writer reusable across skills: each caller stamps its OWN `generated_by` (e.g.
 `skills/<skill>@<sha>`) rather than inheriting compose-dashboard's.
+
+D1b (2026-08-12): the writer takes `input_context` + `dashboard_spec_ref` as EXPLICIT
+params instead of digging into a `run_plan` dict. A focused subskill (dispatcher.py
+run_wired_skill --emit-envelope) has no run_plan, so decoupling the writer from that
+compose-dashboard-only structure lets a subskill emit the same envelope around its own
+resolver verdict. compose-dashboard passes input_context=run_plan["input_context"] and
+dashboard_spec_ref=(run_plan["axis_resolution"].get("selected_base_dashboard") or
+"unresolved") — byte-identical to the previous run_plan-digging implementation.
 
 Byte-identity contract: for identical inputs this produces a byte-identical envelope
 to the previous in-line compose-dashboard implementation (proven by
@@ -25,17 +33,25 @@ from datetime import datetime, timezone
 
 
 def assemble_evidence_package(
-    run_plan: dict,
+    input_context: dict,
     card_outputs: list[dict],
     validation_summary: dict,
     synthesis_block: dict,
     deterministic_timestamps: bool,
     framework_version: str,
     generated_by: str,
+    dashboard_spec_ref: str,
     unavailable_cards: "list[dict] | None" = None,
 ) -> dict:
     """Build the evidence_package envelope from phase outputs.
 
+    `input_context` — the invocation binding: reads `target_symbol`, `indication`,
+        `data_mode`, and (optional) `release_pin` + `subgroup_spec`. compose-dashboard
+        passes run_plan["input_context"]; a subskill builds an equivalent dict.
+    `dashboard_spec_ref` — the dashboard/skill spec this package was composed against.
+        compose-dashboard passes its resolved base dashboard (or "unresolved"); a subskill
+        passes "skill:<skill_name>". Explicit param (D1b) so the writer no longer digs into
+        a run_plan["axis_resolution"] structure that only compose-dashboard has.
     `framework_version` — semver stamped into the envelope (e.g. "2.0.0").
     `generated_by` — producer identity + git sha (e.g. "skills/compose-dashboard@a1b2c3d").
         The caller owns this so the writer is reusable across skills.
@@ -44,7 +60,7 @@ def assemble_evidence_package(
     card_unavailable envelope entries so a consumer can see WHY a card is absent instead of
     an opaque n_cards_failed integer.
     """
-    ctx = run_plan["input_context"]
+    ctx = input_context
     target = ctx["target_symbol"]
     indication = ctx["indication"]
     data_mode = ctx["data_mode"]
@@ -147,7 +163,7 @@ def assemble_evidence_package(
         "generated_by": generated_by,
         "context": context_block,
         "governance": governance,
-        "dashboard_spec_ref": run_plan["axis_resolution"].get("selected_base_dashboard") or "unresolved",
+        "dashboard_spec_ref": dashboard_spec_ref,
         "cards": cards,
         "synthesis": synthesis_block,
         # 2026-08-10 REVIEW FIX (L4): the pointer said "renderings/dashboard.md" but main() writes

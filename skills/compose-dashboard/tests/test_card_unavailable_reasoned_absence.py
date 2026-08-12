@@ -35,14 +35,10 @@ CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT",
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 
 
-def _minimal_run_plan():
+def _minimal_input_context():
     return {
-        "input_context": {
-            "target_symbol": "KRAS", "indication": "COADREAD",
-            "data_mode": "pinned", "release_pin": "2026-Q2",
-        },
-        "axis_resolution": {"status": "resolved", "resolved_axis": "intracellular_intrinsic"},
-        "loaded_modality_modules": [],
+        "target_symbol": "KRAS", "indication": "COADREAD",
+        "data_mode": "pinned", "release_pin": "2026-Q2",
     }
 
 
@@ -53,7 +49,8 @@ def _synthesis_block():
 
 def _assemble(card_outputs, unavailable_cards):
     return assemble_evidence_package(
-        run_plan=_minimal_run_plan(),
+        input_context=_minimal_input_context(),
+        dashboard_spec_ref="intracellular_intrinsic",
         card_outputs=card_outputs,
         validation_summary={"n_cards_attempted": len(card_outputs), "n_cards_passed": 0,
                             "n_cards_passed_with_warnings": 0,
