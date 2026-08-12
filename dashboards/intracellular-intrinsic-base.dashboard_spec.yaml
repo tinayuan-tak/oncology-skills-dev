@@ -121,8 +121,8 @@ optional_cards:
 
 placeholder_cards:
   # Declared-but-not-yet-wired (card.status != wired) — surfaced for roadmap transparency, NOT required to
-  # produce. compose-dashboard emits availability_state=not_wired for these; validate_cards forbids a
-  # non-wired card in required_cards (so "required" keeps meaning "must produce").
+  # produce. compose-dashboard surfaces them in excluded_at_compose (exclusion_source=data_blocked_at_compose;
+  # SK#373); validate_cards forbids a non-wired card in required_cards (so "required" keeps meaning "must produce").
   - card_id: clinical-precedent
     version: ">=1.0.0,<2"        # status: placeholder_not_wired — literature-snapshot product not landed (iter-2 ChEMBL/CT.gov mirror)
 

@@ -124,7 +124,7 @@
     },
     "placeholder_cards": {
       "type": "array",
-      "description": "Declared-but-not-yet-wired cards (each carries card.status placeholder_not_wired or dormant_pending_data), surfaced here for roadmap transparency but NOT expected to produce output — compose-dashboard emits availability_state=not_wired / excluded_by_applies_when for them and validation does NOT count them as required. Distinct from required_cards (MUST produce) and optional_cards (produce when their `when` gate passes). This is the honest home for a forward-declared capability whose method/product has not landed; moving such a card OUT of required_cards keeps `required` meaning 'must produce'. validate_cards.py enforces: required_cards may only reference status=wired cards.",
+      "description": "Declared-but-not-yet-wired cards (each carries card.status placeholder_not_wired or dormant_pending_data), surfaced here for roadmap transparency but NOT expected to produce output — compose-dashboard surfaces them in excluded_at_compose (exclusion_source=data_blocked_at_compose; SK#373) and validation does NOT count them as required. Distinct from required_cards (MUST produce) and optional_cards (produce when their `when` gate passes). This is the honest home for a forward-declared capability whose method/product has not landed; moving such a card OUT of required_cards keeps `required` meaning 'must produce'. validate_cards.py enforces: required_cards may only reference status=wired cards.",
       "items": {"$ref": "#/$defs/card_reference"},
       "maxItems": 30
     },

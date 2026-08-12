@@ -5,7 +5,7 @@
 
 card_id: antigen-prevalence
 version: 1.0.0
-status: placeholder_not_wired   # no prevalence-aggregator method built yet; compose emits availability_state=not_wired. Belongs in placeholder_cards, not required_cards.
+status: placeholder_not_wired   # no prevalence-aggregator method built yet; compose surfaces it in excluded_at_compose (exclusion_source=data_blocked_at_compose). Belongs in placeholder_cards, not required_cards.
 question: "What fraction of {indication.label} tumors express {target.symbol} at clinically relevant levels?"
 
 tier: indication   # primary scope is indication-level prevalence; subtype-eligible (see below) once a per-sample reader ships
