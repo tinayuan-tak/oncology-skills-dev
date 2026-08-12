@@ -1223,15 +1223,31 @@ measurement_types:
     entity_grains: [target]
     cards: [sc-normal-celltype-expression]
     modality_relevance: [adc, bite_tce, antibody]
-    # tier_dominant: the CELLxGENE Census donor-pseudobulk is the single dominant provider of this
-    # claim; colon + lung are the same provider at different tissue shards (grain values, NOT distinct
-    # providers). kind: dataset (NOT derived_from): these are raw data-catalog Tier-1 aggregation
-    # products from the CELLxGENE Census query; derived_from inputs must be registered measurement_type
-    # keys — a manifest ID there is a dangling edge (Rule 4, same as sc_tumor_celltype_expression).
+    # tier_dominant: the CELLxGENE Census donor-pseudobulk is the SINGLE dominant provider of this
+    # claim. Its per-tissue shards (sc-normal-celltype-expression-{tissue}-v1) are GRAIN VALUES of that
+    # one provider, NOT distinct providers — so the entries below are REPRESENTATIVE exemplars, not an
+    # exhaustive list. ~18 tissue shards are landed in the data-catalog (heart/liver/kidney/bone-marrow/
+    # colon/lung/skin/stomach/pancreas/bladder-organ/prostate-gland/adrenal-gland/esophagus/ovary/
+    # spleen/uterus/small-intestine/large-intestine …); listing all of them here would (a) contradict the
+    # tier_dominant "shards aren't distinct providers" model and (b) create a maintenance treadmill on
+    # every new tissue landing. The AUTHORITATIVE, functional per-tissue selection is NOT this list — it
+    # lives in analysis-methods/methods/sc_normal_expression/read.py (TISSUE_TO_PRODUCT + the always-on
+    # SAFETY_ESSENTIAL_TISSUES [heart, liver, kidney, bone_marrow] + INDICATION_TO_TISSUES); the reader
+    # never consults this vocab. The exemplars below are chosen as the always-on safety-essential shards
+    # (the on-target-off-tumor tissues queried for EVERY target) plus colon+lung (indication-matched).
+    # kind: dataset (NOT derived_from): these are raw data-catalog Tier-1 aggregation products from the
+    # CELLxGENE Census query; derived_from inputs must be registered measurement_type keys — a manifest
+    # ID there is a dangling edge (Rule 4, same as sc_tumor_celltype_expression).
     multi_provider_policy: tier_dominant
     providers:
-      - {kind: dataset, source: sc-normal-celltype-expression-colon-v1, method: sc_normal_celltype_pseudobulk, evidence_tier: measured}   # + lung shard (same provider, different tissue)
-      - {kind: dataset, source: sc-normal-celltype-expression-lung-v1, method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+      # always-on safety-essential shards (read.py SAFETY_ESSENTIAL_TISSUES — queried for every target)
+      - {kind: dataset, source: sc-normal-celltype-expression-heart-v1,       method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+      - {kind: dataset, source: sc-normal-celltype-expression-liver-v1,       method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+      - {kind: dataset, source: sc-normal-celltype-expression-kidney-v1,      method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+      - {kind: dataset, source: sc-normal-celltype-expression-bone-marrow-v1, method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+      # indication-matched exemplars (representative; see read.py INDICATION_TO_TISSUES for the full map)
+      - {kind: dataset, source: sc-normal-celltype-expression-colon-v1,       method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
+      - {kind: dataset, source: sc-normal-celltype-expression-lung-v1,        method: sc_normal_celltype_pseudobulk, evidence_tier: measured}
 
 # ============================================================================
 # EXCLUDED — NOT a per-target measurement_type (Rule non-goal / appendix case 14):
