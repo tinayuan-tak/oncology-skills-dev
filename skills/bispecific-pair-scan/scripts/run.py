@@ -41,9 +41,11 @@ SKILL_VERSION = "1.0.0"
 CLINICAL_SEED_ANTIGENS = [
     "EPCAM", "CEACAM5", "ERBB2", "MET", "MSLN", "FOLR1", "TACSTD2", "MUC1", "MUC16",
     "CD19", "MS4A1", "CD22", "TNFRSF17", "GPRC5D", "DLL3", "CLDN18", "CLDN6", "NECTIN4",
-    "PSMA", "FOLH1", "GPC3", "PROM1", "CDH17", "CDH3", "EGFR", "MUC17", "STEAP1", "STEAP2",
+    # FOLH1 is the HGNC symbol for PSMA — list the gene ONCE, canonically (was "PSMA","FOLH1",
+    # which resolve to the same gene → a duplicate pair). MSLN also appeared twice below.
+    "FOLH1", "GPC3", "PROM1", "CDH17", "CDH3", "EGFR", "MUC17", "STEAP1", "STEAP2",
     "DPEP1", "GUCY2C", "LY6G6D", "CEACAM6", "ROR1", "ROR2", "FGFR2", "FGFR3", "LRRC15",
-    "MSLN", "SLC34A2", "TENB2",
+    "SLC34A2", "TENB2",
 ]
 
 GATE_CHOICES = ("AND", "OR", "NOT")

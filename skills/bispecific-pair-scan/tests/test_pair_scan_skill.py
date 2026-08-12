@@ -48,3 +48,13 @@ def test_gate_choices_are_and_or_not():
 def test_question_template_formats():
     q = bps.QUESTION.format(target="EPCAM", indication="COADREAD", gate="AND")
     assert "EPCAM" in q and "COADREAD" in q and "AND" in q
+
+
+def test_clinical_seed_set_has_no_duplicate_or_alias_genes():
+    # Bug-audit P7 / finding 15: MSLN appeared twice and PSMA/FOLH1 (same gene) were both listed,
+    # which double-scans the gene and emits a duplicate pair row.
+    seeds = bps.CLINICAL_SEED_ANTIGENS
+    dups = sorted({g for g in seeds if seeds.count(g) > 1})
+    assert not dups, f"duplicate seed antigens: {dups}"
+    assert not ("PSMA" in seeds and "FOLH1" in seeds), \
+        "PSMA is an alias of the HGNC symbol FOLH1 — list the gene once (FOLH1), not both"
