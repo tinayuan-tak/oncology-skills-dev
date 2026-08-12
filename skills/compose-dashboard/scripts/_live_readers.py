@@ -831,8 +831,11 @@ def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     WES-primary + WGS-fallback for the CELL-LINE arm (copy_number_class — verdict-driving, pan-cancer;
     indication not consumed by that path). MERGES a PATIENT-tumour CN cross-check (tcga_patient_cn,
     TCGA GISTIC, INDICATION-specific) — the two-function-merge pattern the genome-state + fusion cards
-    use. The patient_* fields are ADDITIVE/verdict-inert; they fire no rule (the CN verdict still rests
-    on the cell-line copy_number_class). Each arm degrades independently.
+    use. Of the merged patient_* fields the two have DIFFERENT verdict status: the ANY-gain
+    patient_copy_number_class is ADDITIVE/display-only (fires no rule), but patient_focal_cn_class
+    (high-level +2 / homdel -2) IS VERDICT-BEARING — it fires the CN-consensus rung
+    (cn-patient-focal-amplified/deleted-supportive), so the CN verdict rests on the cell-line
+    copy_number_class OR patient focal CN (see the REQUIRED note below). Each arm degrades independently.
     """
     cn_module = _import_method("depmap_cn_distribution")
     out = dict(cn_module.read_cn_distribution(target=target, indication=indication))
