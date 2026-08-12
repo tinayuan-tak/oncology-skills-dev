@@ -24,7 +24,7 @@ import pytest
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from scripts.render_markdown import render_evidence_package  # noqa: E402
+from scripts.render_markdown import render_evidence_package, _render_toc  # noqa: E402
 
 
 # ============================================================================
@@ -381,3 +381,26 @@ def test_cards_without_evidence_section_reconciles_reasoned_and_residual():
 def test_no_failed_no_section():
     from scripts.render_markdown import _render_failed_cards_section
     assert _render_failed_cards_section({"governance": {"validation_summary": {"n_cards_failed": 0}}}) == []
+
+
+# ============================================================================
+# TOC dangling-anchor regression (bug-audit P7 / finding 16): a Contents link
+# must appear only when its target section actually renders.
+# ============================================================================
+
+def test_toc_omits_modality_fit_link_when_no_assessment():
+    # render_evidence_package renders the Modality Fit section only `if fit:`; the TOC link must
+    # follow the same condition (was appended unconditionally -> dangling #modality-fit-assessment).
+    ep = {"cards": [], "governance": {"validation_summary": {"n_cards_failed": 0}}}
+    assert "(#modality-fit-assessment)" not in "\n".join(_render_toc(ep, []))
+    assert "(#modality-fit-assessment)" in "\n".join(_render_toc(ep, [{"modality": "ADC"}]))
+
+
+def test_toc_omits_cards_without_evidence_link_unless_cards_failed():
+    # _render_failed_cards_section returns [] unless n_cards_failed is truthy. A reasoned-absence
+    # card (availability_state) with n_cards_failed == 0 must NOT add the link (was dangling).
+    ep_absence = {"cards": [{"card_id": "x", "availability_state": "not_wired"}],
+                  "governance": {"validation_summary": {"n_cards_failed": 0}}}
+    assert "(#cards-without-evidence)" not in "\n".join(_render_toc(ep_absence, []))
+    ep_failed = {"cards": [], "governance": {"validation_summary": {"n_cards_failed": 2}}}
+    assert "(#cards-without-evidence)" in "\n".join(_render_toc(ep_failed, []))

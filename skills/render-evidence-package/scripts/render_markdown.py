@@ -203,7 +203,10 @@ def _render_modality_fit_table(fit: list[dict]) -> list[str]:
 def _render_toc(ep: dict, fit: list[dict]) -> list[str]:
     """Render a table of contents linking to each non-excluded card section + standard blocks."""
     sections = ["## Contents", ""]
-    sections.append("- [Modality Fit Assessment](#modality-fit-assessment)")
+    # Only link the Modality Fit section when it actually renders (render_evidence_package gates it
+    # on a non-empty `fit`); otherwise this was a dangling anchor for targets with no assessment.
+    if fit:
+        sections.append("- [Modality Fit Assessment](#modality-fit-assessment)")
     sections.append("- [Governance](#governance)")
     sections.append("- [Card Evidence](#card-evidence)")
     for card in ep.get("cards", []):
@@ -216,8 +219,11 @@ def _render_toc(ep: dict, fit: list[dict]) -> list[str]:
         anchor = cid.replace("_", "-")
         interp = card.get("interpretation_call", "")
         sections.append(f"  - [`{cid}`](#-{anchor}--{interp.lower().replace(' ', '-').replace('—', '').replace('--', '-')[:40]}) — _{interp}_")
-    if any(c.get("availability_state") for c in ep.get("cards", [])) or \
-            (ep.get("governance", {}).get("validation_summary", {}) or {}).get("n_cards_failed"):
+    # Link the Cards-Without-Evidence section only when it renders. _render_failed_cards_section
+    # returns [] unless n_cards_failed is truthy, so gating on availability_state alone produced a
+    # dangling anchor for a package with a reasoned-absence card but n_cards_failed == 0. (Those
+    # cards still render their own panels above, so nothing is lost from the TOC change.)
+    if ((ep.get("governance", {}) or {}).get("validation_summary", {}) or {}).get("n_cards_failed"):
         sections.append("- [Cards Without Evidence](#cards-without-evidence)")
     sections.append("- [Provenance Footer](#provenance-footer)")
     sections.append("")
