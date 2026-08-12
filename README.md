@@ -133,6 +133,41 @@ coverage gaps are visible in the catalog. See the per-skill status table below.
 
 ---
 
+## How verdicts are computed — one declarative spine
+
+Every focused question skill resolves its verdict the same way: the skill fires its rule
+subset, then calls `_skills_common/resolver.py::resolve_verdict_for_gate(fired, gate)`, which
+reads the gate's declarative rung ladder from `target-contracts/resolvers/<gate>.resolver.yaml`
+and returns `(verdict, driving_rule_id)`. The verdict spine is therefore deterministic and
+lives in the contracts repo, not in per-skill Python. `target-profile` does **not** recompute —
+it **inherits** each sub-skill's verdict and adds only the Tier-3 LLM narrative on top (stored
+in distinct schema slots; the audit spine is invariant even if narrative drifts).
+
+**Lean read path (`--verdict-only`).** `_skills_common/reachability.py::verdict_relevant_cards(gate)`
+derives the subset of cards whose rules the resolver actually references — the cards that can
+*move* the verdict; every other card a skill consumes is verdict-inert enrichment. `run_wired_skill`
+accepts a `verdict_cards` subset and, under `--verdict-only`, reads only those cards. This is
+**opt-in and safe-by-default**: a skill that declares no proven subset (or whose derivation is
+incomplete) reads **all** cards, so leaning can never change the verdict. `surface-modality-fit`
+is the first skill wired to the lean path.
+
+**`target-profile` fast modes.** `--verdict-only` (umbrella; implies `--no-synthesis` +
+`--no-figures`) skips the Bedrock synthesis tail *and* figure/panel rendering, emitting the
+auditable `nomination.json` + a narrative-free `target_profile.md` with **no LLM call**.
+`--no-synthesis` skips only the synthesis tail; `--no-figures` skips only figure/HTML rendering.
+The deterministic verdict spine is **byte-identical** to a full run (guarded by
+`skills/target-profile/tests/test_verdict_only.py`).
+
+**Two composition engines (convergence in progress — "Phase D").** The focused skills and
+`target-profile` share the single resolver spine above. `compose-dashboard`, the older iter-1
+orchestrator, does **not** yet call `resolve_verdict_for_gate` — it re-implements verdicts in
+`scripts/_synthesis.py` as a per-modality `fit_level` scorer. So the framework currently runs
+**two** verdict-composition engines. Converging `compose-dashboard` onto the shared resolver is
+in progress and **not complete**; treat the resolver spine as authoritative for focused-skill
+and `target-profile` verdicts.
+
+---
+
 ## Skill inventory
 
 ### Question-answering skills (one gate each)
@@ -290,8 +325,40 @@ pixi run python skills/target-profile/scripts/run.py \
     --gene MET --indication NSCLC
 ```
 
+Re-run the same profile as a fast, deterministic verdict-only pass (no Bedrock, no figures):
+
+```bash
+pixi run python skills/target-profile/scripts/run.py \
+    --gene MET --indication NSCLC --verdict-only
+```
+
 The repo-root `pixi.toml` carries the env for the v2 skills + batch pipeline. The retained
 v1 `analysis-*` / `workflow-*` skills carry their own isolated `pixi.toml`.
+
+---
+
+## Continuous integration
+
+`.github/workflows/skills-validate.yml` runs on every PR touching `skills/**` (or the pixi
+env / the workflow file itself). Because this repo editable-depends on three siblings, CI
+checks them out adjacent under the workspace — using the `CROSS_REPO_TOKEN` repo/org secret
+(a PAT or GitHub App token with `contents:read` on the siblings), falling back to the default
+`GITHUB_TOKEN` — so `pixi install --locked` resolves the `../` paths.
+
+**Blocking gate** — four suites must pass:
+
+- `skills/compose-dashboard/tests/` — the v2 orchestration spine
+- `skills/_skills_common/tests/` — the shared harness
+- `skills/target-profile/tests/` — the composed nomination skill
+- `skills/tests/` — the cross-skill invariant guards: Guard B (`CARDS ⊆ cards_used`),
+  composition-declarations, resolver-verdict-consumers, no-reference-drift, scope,
+  reviewer-driven-upgrades (this top-level dir is *not* matched by the per-skill
+  `skills/*/tests` glob, so these guards previously never ran in CI).
+
+**Non-blocking coverage** — the remaining per-skill suites each run in their own pytest
+process (isolating each `run.py` import) and report failures as `::warning::` without gating.
+Live-data tests self-skip when the `onc-compbio` S3 bucket is unreadable, so the suite is
+green on a credential-less runner.
 
 ---
 
