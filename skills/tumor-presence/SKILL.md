@@ -8,8 +8,9 @@ description: |
 
   VERDICT-BEARING (7 cards — feed the rank-ordered presence ladders):
     - cellline-rna-distribution           (cell-line RNA, pan-cancer TPM distribution)
-    - tumor-rna-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD
-                                         adjacent, else tumor-vs-GTEx fallback)
+    - tumor-rna-vs-adjacent      (tumor RNA-seq DEG vs paired-adjacent; COADREAD uses paired
+                                         tumor-adjacent, else the tumor-vs-adjacent cell of the
+                                         {indication}-dge-tumor-vs-normal-sensitivity product — NOT GTEx)
     - tumor-rna-distribution         (per-sample TUMOR RNA distribution; bulk_rna/tumor bucket.
                                          VERDICT-BEARING: its tumor-expression-* rules ARE in the
                                          bulk_rna ladder — verdicts tumor_broadly/moderately/
