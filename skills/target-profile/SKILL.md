@@ -136,6 +136,21 @@ composition:
   summary and argument prioritization to hypothesis-relevant evidence.
   Sub-verdicts unchanged.
 
+## Fast modes (deterministic spine, no LLM)
+
+The deterministic verdict spine — sub-verdicts, the recommendation gate, the positive tier, the
+deciding axis, the gate scorecard, and the biomarker/subtype facets — is computed independently
+of the Tier-3 LLM synthesis. These flags skip verdict-inert work and leave that spine
+**byte-identical** to a full run:
+
+- `--verdict-only` — umbrella fast mode (implies `--no-synthesis` + `--no-figures`). Emits
+  `nomination.json` + a narrative-free `target_profile.md` + `provenance.yaml` with **no Bedrock
+  call** and no figure/panel render. Use for CI, iteration, and re-runs where only the auditable
+  nomination is needed. `nomination.json` marks `llm_synthesis._synthesis_skipped: true`, and the
+  report shows a note in place of the narrative.
+- `--no-synthesis` — skip only the LLM synthesis tail (keep figures).
+- `--no-figures` — skip only figure/HTML rendering (keep synthesis).
+
 ## How Claude invokes this skill
 
 When called as `/target-profile`, Claude should:

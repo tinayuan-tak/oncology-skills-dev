@@ -420,6 +420,31 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     return ("subtype_specific_non_dependence", hit.get("rule_id"))
 
 
+def _skipped_synthesis_output() -> dict:
+    """Stub llm_output for --verdict-only/--no-synthesis (no Bedrock call).
+
+    The deterministic recommendation gate + positive-tier logic clamp into
+    overall_recommendation / confidence exactly as for a real (or degraded _synthesis_error)
+    narration, so the verdict spine is byte-identical. Renderers read
+    llm_output.get(section, {}).get("value", default) — absent narrative sections degrade to
+    empty; executive_summary carries a note so the report is self-explanatory, not blank.
+    """
+    return {
+        "_synthesis_skipped": True,
+        "executive_summary": {
+            "value": (
+                "_LLM synthesis skipped (--verdict-only). The deterministic verdict spine below — "
+                "gate scorecard, sub-verdicts, recommendation gate, positive tier, deciding axis — "
+                "is authoritative and byte-identical to a full run. Re-run without --verdict-only "
+                "for the narrative synthesis._"
+            ),
+            "_source": "synthesis_skipped",
+        },
+        "overall_recommendation": {"value": None, "_source": "synthesis_skipped"},
+        "confidence": {"value": None, "_source": "synthesis_skipped"},
+    }
+
+
 def _run_sub_skills(target: str, indication: str,
                     subtypes: Optional[list[str]] = None,
                     profile_timers: bool = False) -> dict:
@@ -3961,10 +3986,28 @@ def main() -> int:
                          "The deterministic verdict spine is byte-identical to a full run — figures "
                          "never feed the verdict. Use for fast iteration / re-runs; render later via "
                          "the deferred-render path. (Perf Stage 1, 2026-07-23.)")
+    ap.add_argument("--no-synthesis", action="store_true",
+                    help="Skip the Tier-3 Bedrock LLM synthesis (executive-summary / tension / "
+                         "recommendation narrative). The deterministic verdict spine — sub-verdicts, "
+                         "recommendation gate, positive tier, deciding axis, scorecard, facets — is "
+                         "computed independently of the LLM and stays byte-identical to a full run. "
+                         "nomination.json marks llm_synthesis._synthesis_skipped; the report shows a "
+                         "note in place of the narrative. Removes the serial, non-cacheable network tail.")
+    ap.add_argument("--verdict-only", action="store_true",
+                    help="Umbrella fast/CI/iteration mode: implies --no-synthesis AND --no-figures. "
+                         "Emits the deterministic nomination (nomination.json + a narrative-free "
+                         "target_profile.md + provenance) with no Bedrock call and no figure/panel "
+                         "render. The verdict spine is byte-identical to a full run.")
     ap.add_argument("--profile-timers", action="store_true",
                     help="Emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr "
                          "(instrumentation only; zero effect on artifacts). (Perf Stage 0.)")
     args = ap.parse_args()
+
+    # --verdict-only is the umbrella fast mode: skip BOTH the LLM synthesis tail and figure/panel
+    # rendering. Both are verdict-inert, so the deterministic spine is unaffected.
+    if args.verdict_only:
+        args.no_synthesis = True
+        args.no_figures = True
 
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -4016,30 +4059,39 @@ def main() -> int:
     from _skills_common.biology_axis import resolve_biology_axis
     axis_info = resolve_biology_axis(args.target)
 
-    # 2. LLM synthesis via Bedrock (structured tool_use).
-    print(f"[target-profile] Invoking Bedrock synthesis (biology_axis={axis_info['biology_axis']})...",
-          file=sys.stderr)
-    tool_schema = _build_synthesis_tool()
-    user_prompt = _build_user_prompt(
-        args.target, args.indication, sub_results,
-        modality=args.modality,
-        therapeutic_hypothesis=args.therapeutic_hypothesis,
-        ordinal_matrix=ordinal_matrix,
-        biomarker_facet=biomarker_facet,
-        subtype_facet=subtype_facet,
-        axis_info=axis_info,
-    )
-    llm_output = synthesize_structured(
-        system_prompt=_SYSTEM_PROMPT,
-        user_prompt=user_prompt,
-        tool_name="target_profile_synthesis",
-        tool_schema=tool_schema,
-    )
-    # Attach the deterministic cross-cutting metric legend (sibling key) so a non-computational
-    # reader has an accurate reference for the quantities cited across lenses — independent of the
-    # LLM's inline glosses. On a successful narration only (a degraded/error dict stays minimal).
-    if isinstance(llm_output, dict) and "_synthesis_error" not in llm_output:
-        llm_output.setdefault("metric_legend", _METRIC_LEGEND)
+    # 2. LLM synthesis via Bedrock (structured tool_use) — SKIPPED under --no-synthesis/--verdict-only.
+    # The deterministic spine (sub-verdicts, recommendation gate, positive tier, deciding axis,
+    # scorecard, facets) is computed independently below and is byte-identical whether or not
+    # synthesis runs, so the skipped path emits a stub the gate clamps into + the renderers degrade
+    # to a "synthesis skipped" note.
+    if args.no_synthesis:
+        llm_output = _skipped_synthesis_output()
+        print("[target-profile] --verdict-only/--no-synthesis: skipped Bedrock synthesis "
+              "(deterministic verdict spine is authoritative)", file=sys.stderr)
+    else:
+        print(f"[target-profile] Invoking Bedrock synthesis (biology_axis={axis_info['biology_axis']})...",
+              file=sys.stderr)
+        tool_schema = _build_synthesis_tool()
+        user_prompt = _build_user_prompt(
+            args.target, args.indication, sub_results,
+            modality=args.modality,
+            therapeutic_hypothesis=args.therapeutic_hypothesis,
+            ordinal_matrix=ordinal_matrix,
+            biomarker_facet=biomarker_facet,
+            subtype_facet=subtype_facet,
+            axis_info=axis_info,
+        )
+        llm_output = synthesize_structured(
+            system_prompt=_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            tool_name="target_profile_synthesis",
+            tool_schema=tool_schema,
+        )
+        # Attach the deterministic cross-cutting metric legend (sibling key) so a non-computational
+        # reader has an accurate reference for the quantities cited across lenses — independent of the
+        # LLM's inline glosses. On a successful narration only (a degraded/error dict stays minimal).
+        if isinstance(llm_output, dict) and "_synthesis_error" not in llm_output:
+            llm_output.setdefault("metric_legend", _METRIC_LEGEND)
 
     # 2b. Deterministic recommendation gate. A killer sub-verdict FORCES the
     # recommendation regardless of what the LLM chose — the auditable rule wins.
@@ -4118,23 +4170,29 @@ def main() -> int:
     figures_dir = args.out / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
     composite_png = figures_dir / "target_profile_at_a_glance.png"
-    try:
-        render_composite_panel(
-            out_path=composite_png,
-            target=args.target,
-            indication=args.indication,
-            sub_results=sub_results,
-            llm_output=llm_output,
-        )
-        composite_rel = f"figures/{composite_png.name}"
-        print(f"[target-profile] wrote {composite_png} (+ .svg companion)",
-              file=sys.stderr)
-    except Exception as e:
-        # Panel rendering must never block artefact emission. Log + continue
-        # with no image reference in the markdown.
-        composite_rel = None
-        print(f"[target-profile] WARN: composite panel render failed: {e}",
-              file=sys.stderr)
+    composite_rel = None
+    if args.verdict_only:
+        # --verdict-only: the "at a glance" panel is a matplotlib figure that also narrates the LLM
+        # recommendation — skip it with the rest of the figures. The md/html degrade to no-image.
+        print("[target-profile] --verdict-only: skipped composite panel render", file=sys.stderr)
+    else:
+        try:
+            render_composite_panel(
+                out_path=composite_png,
+                target=args.target,
+                indication=args.indication,
+                sub_results=sub_results,
+                llm_output=llm_output,
+            )
+            composite_rel = f"figures/{composite_png.name}"
+            print(f"[target-profile] wrote {composite_png} (+ .svg companion)",
+                  file=sys.stderr)
+        except Exception as e:
+            # Panel rendering must never block artefact emission. Log + continue
+            # with no image reference in the markdown.
+            composite_rel = None
+            print(f"[target-profile] WARN: composite panel render failed: {e}",
+                  file=sys.stderr)
 
     # 3a-bis. Produce per-card distribution figures (SVG + interactive .plotly.json) via the shared
     # figure registry. This is the dynamic-dashboard Phase B change: a run now PRODUCES the per-card
@@ -4238,9 +4296,10 @@ def main() -> int:
             "target_profile.md",
             "target_profile.html",
             "nomination.json",
+        ] + ([] if args.no_figures else [
             "figures/target_profile_at_a_glance.png",
             "figures/target_profile_at_a_glance.svg",
-        ],
+        ]),
     }
     (args.out / "provenance.yaml").write_text(yaml.safe_dump(provenance, sort_keys=False))
 
