@@ -3,11 +3,12 @@ name: target-profile
 description: |
   Composed target-profile skill: "Give me the full biology + tractability +
   mutation + prevalence picture of target X in indication Y, with narrative
-  synthesis." Fans out (sequentially, in-process) to the 9 wired
+  synthesis." Fans out (in parallel, in-process) to the 10 wired
   question-answering skills:
     - tumor-presence
     - tumor-selectivity
     - functional-requirement
+    - synthetic-lethal-partners         (SL co-dependency / combination discovery)
     - mechanism-and-pharmacology
     - genomic-alteration-profile        (SNV + copy-number + fusion [LIVE, additive])
     - differentiation-landscape
@@ -97,9 +98,11 @@ composition:
 
 ## What this skill does
 
-- Runs the 6 wired question-answering skills in parallel (all data-package
+- Runs the 10 wired question-answering skills in parallel (all data-package
   producers): tumor-presence, tumor-selectivity, functional-requirement,
-  mutation-profile, tractability-and-modality, patient-population-and-access.
+  synthetic-lethal-partners, mechanism-and-pharmacology, genomic-alteration-profile,
+  differentiation-landscape, tractability-small-molecule, surface-modality-fit,
+  on-target-safety-liability.
 - Collects each sub-verdict + fired rules + card summaries.
 - Invokes Bedrock (Opus by default via env `ANTHROPIC_MODEL`) with a
   structured tool_use forcing the LLM to emit:
