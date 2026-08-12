@@ -1,0 +1,93 @@
+# Card — MUTATIONAL-SIGNATURE (MUTAGENIC-PROCESS) COHORT CONTEXT  (pre-integrated companion facet)
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT context: which mutational PROCESSES shaped this cancer's TCGA
+# cohort — APOBEC, MMR-deficiency (MSI), HRD, tobacco, UV, POLE, clock? A per-INDICATION rollup of
+# per-sample COSMIC signature activities (TCGA MC3 v0.2.8 → SigProfilerAssignment, COSMIC v3.3). A
+# target maps in only as context ("which mutagenic processes dominate the indication I'm in?").
+#
+# RELATION TO SIBLINGS: this is the PATIENT/tumour arm of mutagenic-process context, broadened beyond
+# the MMR/HRD signatures that genomic-instability-state carries on the DepMap MODEL side and beyond
+# the HRD composite in ddr-deficiency-context. The three are independent cross-validations (patient
+# signatures vs model signatures vs HRD footprint), not duplicates.
+#
+# WHY IT MATTERS: mutagenic-process context frames mechanism + biomarker + combination hypotheses —
+# e.g. MMR-deficiency-enriched → immunotherapy/MSI context; APOBEC-enriched → APOBEC-driven evolution;
+# HRD-enriched → PARPi-relevant prior. It does NOT establish any of those as a target dependency
+# (that is separate, verdict-moving work — e.g. partner-conditional-dependency for WRN×MSI).
+#
+# Interpretation surface (dominant_process is PRIMARY; per-process *_class fields are the detail):
+#   dominant_process       → the highest-contribution non-baseline process (or no_dominant_process).
+#   <process>_class        → enriched (>=30% of cohort process-high) / intermediate (10-30%) /
+#                            rare (<10%) / data_unavailable (cohort < n=15 floor).
+#   enriched_processes     → comma-joined list of enriched non-baseline processes.
+#
+# DISPLAY facet — VERDICT-INERT. Surfaces the cohort mutagenic-process profile to render/LLM; touches
+# NO resolver rung.
+
+card_id: mutational-signature-context
+version: 1.0.0
+question: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the {indication.label} cohort, and which dominates?"
+
+tier: indication   # per-indication cohort property; target-independent. Never stratifies by target.
+
+applies_when:
+  - "true"   # any indication; data_unavailable-safe when not in the signature product
+
+required_inputs:
+  - product_id: tcga-mc3-mutational-signatures-per-indication-v1   # per-indication process rollup (MC3 → COSMIC v3.3)
+
+methods:
+  - call: tcga-mc3-signatures
+    args:
+      target: "{target.symbol}"        # accepted for signature; NOT consumed (per-indication class)
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - dominant_process                 # PRIMARY categorical (top non-baseline mutagenic process)
+    - enriched_processes               # comma-joined enriched non-baseline processes
+    - n_samples                        # MC3 samples in the indication cohort
+    - apobec_class                     # per-process cohort class (enriched/intermediate/rare/data_unavailable)
+    - mmr_deficiency_class
+    - hrd_class
+    - tobacco_class
+    - uv_class
+    - pole_class
+    - clock_class
+    - frac_apobec_high                 # fraction of cohort that is process-high (>=10% of its burden)
+    - frac_mmr_deficiency_high
+    - frac_hrd_high
+    - frac_tobacco_high
+    - frac_uv_high
+    - frac_pole_high
+
+  summary_fields_vocabulary:
+    dominant_process:
+      - apobec
+      - mmr_deficiency
+      - hrd
+      - tobacco
+      - uv
+      - pole
+      - no_dominant_process
+      - data_unavailable
+    apobec_class: &process_class [enriched, intermediate, rare, data_unavailable]
+    mmr_deficiency_class: *process_class
+    hrd_class: *process_class
+    tobacco_class: *process_class
+    uv_class: *process_class
+    pole_class: *process_class
+    clock_class: *process_class
+
+  # No dedicated figure: a verdict-inert cohort facet; its class fields render as text/table (avoids
+  # a cross-repo figure-emitter dependency). Add an emitter later if a visual is wanted.
+
+caveats:
+  - "Cohort-level mutagenic-process PRIOR, NOT a per-target or per-patient signature call. A target in an mmr_deficiency-enriched cohort is not thereby MSI-conditional; a validated signature-conditional target (e.g. WRN×MSI) is not made a dependency by this card — see the separate partner-conditional-dependency work."
+  - "Per-sample refit against the full COSMIC catalog overfits onto artifact/unknown signatures; the card reports only aetiology-assigned signatures binned into process classes and aggregated per indication, which discards that noise. `clock` (SBS1/5) is a near-universal baseline and never counts as dominant/enriched."
+  - "v1 coverage = the framework's TCGA-mapped indications (COADREAD/NSCLC/GC/PAAD), reusing the sibling MC3 products' TSS→indication map; MC3 gives ~550-1000 samples/indication (well-powered). Indications outside that set return data_unavailable; pan-cancer expansion is a documented follow-up. GRCh37/hg19 coordinates (MC3-native)."
+  - "VERDICT-INERT: drives no resolver rung. Cohort mutagenic-process context is a synthesis/render prior, not a nomination signal."
+
+measurement_type: mutational_signature_context
+entity_grains: [cohort]
+schema_version: 1

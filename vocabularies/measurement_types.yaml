@@ -340,6 +340,20 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [ddr_footprint_score], method: cohort_fraction, evidence_tier: measured}
 
+  mutational_signature_context:
+    claim: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the indication's cohort, and which dominates?"
+    # 2026-08-12: an INDICATION-level, target-INDEPENDENT PRE-INTEGRATED companion result — per-sample
+    # COSMIC v3.3 signature activities (TCGA MC3 v0.2.8 → SigProfilerAssignment) binned into mutagenic-
+    # process classes and rolled up to a per-indication cohort profile. DISPLAY facet — verdict-inert
+    # cohort mutagenic-process prior (frames mechanism/biomarker/combination hypotheses; does NOT
+    # establish a signature-conditional dependency — that is the separate partner_conditional_dependency
+    # type). The PATIENT/tumour arm; sibling of genomic_instability_state (DepMap model MMR/HRD arm) and
+    # ddr_deficiency_context (HRD footprint). No modality_relevance: cohort-genome context.
+    entity_grains: [cohort]
+    cards: [mutational-signature-context]
+    providers:
+      - {kind: dataset, source: tcga-mc3-public-v0-2-8, method: tcga_mc3_signatures, evidence_tier: measured}
+
   ddr_footprint_score:
     claim: "Per-sample DDR/HRD footprint scores (HRD_Score, mutSig3, PARPi7), the pre-integrated Knijnenburg 2018 result."
     # Track PI (2026-08-09): the per-sample DDR footprint INPUT to ddr_deficiency_context. Pre-integrated
