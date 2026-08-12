@@ -10,13 +10,14 @@ MMR/HRD to the full interpretable process set.
 Pipeline (all HTTPS/local — routes around the FTP-blocked SigProfiler genome download):
   1. MC3 MAF  --(SBS96 build: trinucleotide context vs Ensembl GRCh37 FASTA)-->  per-sample SBS96
   2. SBS96    --(SigProfilerAssignment.cosmic_fit, COSMIC v3.3 bundled)-->        per-sample activities
-  3. activities + sample-barcode TSS  --(this module: process-class binning + per-indication rollup)-->
-     per-INDICATION product (materialized; read grain = pre-aggregated → O(1) skill reads)
+  3. activities + TCGA-CDR barcode→type  --(this module: process-class binning + per-cancer rollup)-->
+     per-CANCER product (materialized; read grain = pre-aggregated → O(1) skill reads)
 
-Coverage (v1): the framework's TCGA-mapped indications (COADREAD/NSCLC/GC/PAAD), reusing the SAME
-TSS→project map as the sibling MC3 products (gdc_somatic_hotspot) for consistency. MC3 gives
-~550-1000 samples/indication — well-powered, unlike a PCAWG-only build. Pan-cancer expansion is a
-documented follow-up gated on a full TSS→project table.
+Coverage: PAN-CANCER — all 33 TCGA studies (ACC…UVM), via the authoritative PanCanAtlas TCGA-CDR
+(Liu 2018, already in the catalog) barcode→cancer-type join (10,216 of 10,294 MC3 samples map).
+The product is keyed on the TCGA study code (BRCA/LUAD/…); the reader (read.py) aliases framework
+indications → code(s) and pools sample-weighted (COADREAD=COAD+READ, NSCLC=LUAD+LUSC), mirroring
+pancanatlas_ddr_context. Indications with no TCGA study (e.g. SCLC) return data_unavailable.
 
 VERDICT-INERT: no resolver rung, no rescue. Surfaces the cohort mutagenic-process prior alongside
 the (separate) genomic-alteration verdict; it does NOT itself flip a verdict.
@@ -48,17 +49,12 @@ ENRICHED_FRAC = 0.30
 INTERMEDIATE_FRAC = 0.10
 MIN_COHORT_N = 15   # below → data_unavailable (underpowered cohort)
 
-# Reuse the sibling MC3 product's barcode→indication knowledge (single source of truth).
-try:
-    from methods.gdc_somatic_hotspot.cli import (
-        TSS_CODE_TO_TCGA_PROJECT, INDICATION_TO_TCGA_PROJECTS,
-    )
-except Exception:  # pragma: no cover - import-time convenience
-    TSS_CODE_TO_TCGA_PROJECT, INDICATION_TO_TCGA_PROJECTS = {}, {}
-
-_PROJECT_TO_INDICATION = {
-    proj: ind for ind, projs in INDICATION_TO_TCGA_PROJECTS.items() for proj in projs
-}
+# Barcode → TCGA study code (BRCA/LUAD/GBM/…) via the PanCanAtlas TCGA-CDR (Liu 2018), which is
+# already in the catalog. Authoritative per-patient cancer type — covers all 33 TCGA studies (10,216
+# of 10,294 MC3 samples map), so the product is PAN-CANCER keyed on the TCGA study code (mirroring
+# pancanatlas_ddr_context, whose reader aliases framework indications → codes + pools sample-weighted).
+_CLINICAL_MANIFEST_ID = "gdc-pancanatlas-clinical-2018"
+_CDR_FILENAME = "TCGA-CDR-SupplementalTableS1.xlsx"
 
 
 def _classify(n: int, frac_high: float) -> str:
@@ -71,13 +67,27 @@ def _classify(n: int, frac_high: float) -> str:
     return "rare"
 
 
-def _sample_to_indication(sample: str):
-    """TCGA sample barcode → framework indication via TSS code (2nd segment) → project → indication."""
-    parts = sample.split("-")
-    if len(parts) < 2:
-        return None
-    proj = TSS_CODE_TO_TCGA_PROJECT.get(parts[1])
-    return _PROJECT_TO_INDICATION.get(proj) if proj else None
+def _load_barcode_to_type() -> dict:
+    """Load the TCGA-CDR per-patient cancer-type map (3-segment patient barcode → TCGA study code).
+    Resolves the source S3 prefix from the catalog manifest (no hand-typed path that can drift)."""
+    import io
+    import subprocess
+    import pandas as pd
+    from methods.catalog_query.read import s3_uri_for
+
+    uri = s3_uri_for(_CLINICAL_MANIFEST_ID).rstrip("/") + "/" + _CDR_FILENAME
+    raw = subprocess.run(["aws", "s3", "cp", uri, "-"], capture_output=True, timeout=180).stdout
+    if not raw:
+        raise RuntimeError(f"could not load {_CDR_FILENAME} from {uri}")
+    cdr = pd.read_excel(io.BytesIO(raw))
+    return dict(zip(cdr["bcr_patient_barcode"].astype(str), cdr["type"].astype(str)))
+
+
+def _sample_to_cancer(sample: str, bc2type: dict):
+    """TCGA sample/aliquot barcode → TCGA study code, via the 3-segment patient barcode + CDR map."""
+    patient = "-".join(sample.split("-")[:3])
+    t = bc2type.get(patient)
+    return t if t and t != "nan" else None
 
 
 def build_per_indication_table(activities_path: str, indmap_path: str | None = None):
@@ -86,6 +96,7 @@ def build_per_indication_table(activities_path: str, indmap_path: str | None = N
     import numpy as np
     import pandas as pd
 
+    bc2type = _load_barcode_to_type()
     act = pd.read_csv(activities_path, sep="\t", index_col=0)
     act.index = [str(s) for s in act.index]
     burden = act.sum(axis=1)                        # per-sample total assigned SNV burden (for the gate)
@@ -102,7 +113,7 @@ def build_per_indication_table(activities_path: str, indmap_path: str | None = N
         if pr in HYPERMUTATION_PROCESSES:
             h = h & (burden >= HYPERMUTATOR_MIN_BURDEN)
         high[pr] = h
-    high["indication"] = [_sample_to_indication(s) for s in high.index]
+    high["indication"] = [_sample_to_cancer(s, bc2type) for s in high.index]  # TCGA study code
     rel_ind = rel.copy(); rel_ind["indication"] = high["indication"]
     high = high[high["indication"].notna()]
     rel_ind = rel_ind[rel_ind["indication"].notna()]
