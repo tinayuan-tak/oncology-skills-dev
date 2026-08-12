@@ -183,3 +183,27 @@ def test_gates_still_unchanged_by_v1_2_0():
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
     assert veto == {("dependency", "pan_essential_killer"),
                     ("dependency", "non_dependent")}
+
+
+# ---------------------------------------------------------------------------
+# Contested threshold (v1.4.0, 2026-08-12) — verdict-INERT fragility banner
+# ---------------------------------------------------------------------------
+
+def test_contested_threshold_well_formed_and_inert():
+    """The contested_threshold stanza feeds the target-profile FRAGILITY facet ONLY. It must be a
+    well-formed numeric knob in [0,1] and must NOT smuggle a verdict into the kill/positive spine —
+    it is a verdict-inert banner, so its keys must be disjoint from the gate/positive/contradiction
+    (sub_skill, verdict) space (it carries no sub_skill/verdict at all)."""
+    v = _load()
+    ct = v.get("contested_threshold")
+    assert isinstance(ct, dict), "contested_threshold must be a mapping"
+    fim = ct.get("fragility_index_min")
+    assert isinstance(fim, (int, float)) and 0.0 <= fim <= 1.0, \
+        "fragility_index_min must be a fraction in [0,1]"
+    # inert: it declares no (sub_skill, verdict) — it cannot participate in gate/positive resolution.
+    assert "sub_skill" not in ct and "verdict" not in ct
+
+    # v1.4.0 adds ONLY this stanza; the kill veto set stays byte-stable (regression guard).
+    veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
+    assert veto == {("dependency", "pan_essential_killer"),
+                    ("dependency", "non_dependent")}

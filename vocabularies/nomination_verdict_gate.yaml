@@ -26,7 +26,9 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.3.0   # 1.3.0 (2026-07-21): + target-intrinsic expression positive
+version: 1.4.0   # 1.4.0 (2026-08-12): + contested_threshold (verdict-INERT fragility banner; NEVER
+                 #   changes overall_recommendation/confidence). `gates`/positive/suppressor blocks
+                 #   unchanged. 1.3.0 (2026-07-21): + target-intrinsic expression positive
                  #   (expression:strongly_upregulated_in_tumor, SUPPORTIVE; broadly_high_expression stays
                  #   excluded — modality-scoped). `gates` (kills) unchanged. 1.2.0 (2026-07-17): +
                  #   modality-conditional veto suppression + genomic_alteration biomarker-stratified rescue
@@ -278,3 +280,35 @@ excluded_positive_modality_scoped:
   - {sub_skill: surface_modality, verdict: tce_favorable}
   - {sub_skill: expression,       verdict: broadly_high_expression}
   - {sub_skill: mechanism,        verdict: well_characterized}   # advisory network context only
+
+# ============================================================================
+# CONTESTED THRESHOLD (2026-08-12, v1.4.0) — verdict-INERT fragility banner.
+# ============================================================================
+# Consumed by the target-profile FRAGILITY facet (flip-stability), NOT by the
+# kill gate or positive tier. The facet re-runs the deterministic resolver over
+# single-rule-perturbed fired sets to measure how easily each decision-relevant
+# axis's verdict would flip its DECISION ROLE (kill / positive / contradiction);
+# target_index is the worst-case (0..1) over those axes. When target_index >=
+# fragility_index_min the facet sets a categorical `contested: true` flag that
+# the report surfaces as a banner ("this call is one plausible rule-change from
+# flipping").
+#
+# STRICTLY VERDICT-INERT — UNLIKE every other block in this file, this one NEVER
+# changes overall_recommendation or confidence. It only annotates robustness. It
+# is therefore NOT safety-critical in the veto sense.
+#
+# NEVER-FABRICATE CONTRACT (the inert-flag analog of the loaders' never-permissive
+# rule): if this stanza is absent/malformed the facet emits contested=None (no
+# flag). A missing threshold can only make the facet emit LESS (no banner), never
+# fabricate a contested banner — and because the flag is inert, its absence is
+# never a safety regression (contrast the kill `gates`, whose fallback is
+# conservative-and-complete so a missing file still fires vetoes).
+#
+# TUNABLE: fragility_index_min is a product-reviewable knob. 0.5 = at a typical
+# 2-rule axis, a single verdict-movable rule toggling the decision role flips the
+# call → contested. Raise it to flag only the most fragile calls; lower it to be
+# more cautious. Blind (un-evidenced) axes are a COVERAGE concern owned by the
+# deciding-axis router and are deliberately NOT folded into target_index, so this
+# threshold governs flip-stability only, not evidence gaps.
+contested_threshold:
+  fragility_index_min: 0.5
