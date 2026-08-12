@@ -40,6 +40,7 @@ bioconductor-apeglm = "*"        # dge_deseq2: lfcShrink() adaptive-prior shrink
 bioconductor-sva = "*"           # combat-seq batch correction
 bioconductor-msstatstmt = "*"    # cptac_protein_deg: CPTAC TMT protein DEG with plex-batch mixed model
 bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood)
+scikit-learn = ">=1.9.0,<2"
 
 [pypi-dependencies]
 # (target_id_resolver itself; installed as editable pip package once carved over)
