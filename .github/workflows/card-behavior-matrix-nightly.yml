@@ -1,6 +1,6 @@
-name: Nightly Live Drift (card-behavior matrix + target-intrinsic)
+name: Nightly Live Drift (card-behavior matrix + target-intrinsic + tumor-presence)
 
-# The LIVE half of the framework's offline drift guards. Two independent offline replays run
+# The LIVE half of the framework's offline drift guards. Three independent offline replays run
 # credential-less on every PR (in skills-validate); THIS scheduled workflow re-freezes their fixtures
 # against the real onc-compbio bucket + sibling repos and re-asserts them, catching drift the offline
 # replays cannot see because they read frozen snapshots:
@@ -10,6 +10,10 @@ name: Nightly Live Drift (card-behavior matrix + target-intrinsic)
 #      class: a card method renaming an output field makes the _HEADLINE_SPEC read resolve to None
 #      SILENTLY. The offline replay (test_target_intrinsic_replay.py) pins this against a FROZEN
 #      fixture; only a live re-freeze can catch the frozen snapshot itself going stale vs live readers.
+#   3. tumor-presence dossier (skills/tumor-presence/tests/) — same drift class PLUS the verdict path
+#      (a reader renaming a field a RULE keys on collapses presence_verdict to a false-negative). Its
+#      offline replay (test_tumor_presence_replay.py) pins EPCAM/COADREAD; tumor-presence has NO live
+#      golden, so this nightly re-freeze is its ONLY guard against the frozen snapshot going stale.
 #
 # CREDENTIAL GATING (honest-scaffold): the live freeze needs AWS creds, which no other workflow in
 # this repo uses (all PR CI self-skips live-S3). Until an OIDC role is provisioned as the repo secret
@@ -111,6 +115,22 @@ jobs:
             echo "no target-intrinsic fixture drift"
           fi
 
+      - name: Re-freeze tumor-presence EPCAM/COADREAD fixture against live S3
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run python skills/tumor-presence/tests/freeze_fixture.py
+
+      - name: Report whether the tumor-presence fixture drifted
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          if ! git diff --quiet -- skills/tumor-presence/tests/fixtures/; then
+            echo "::warning title=tumor-presence::live EPCAM/COADREAD fixture drifted vs committed — a reader field/value or fired-rule changed. See diff; refresh the committed fixture if intended."
+            git --no-pager diff --stat -- skills/tumor-presence/tests/fixtures/
+          else
+            echo "no tumor-presence fixture drift"
+          fi
+
       - name: No-creds notice
         if: env.HAVE_AWS != 'true'
         run: echo "::warning title=nightly-live-drift::AWS_ROLE_TO_ASSUME secret not set — skipping live freezes, verifying COMMITTED fixtures only. Provision the OIDC role to enable live drift detection."
@@ -128,6 +148,15 @@ jobs:
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/target-intrinsic/tests/ -q --import-mode=importlib
 
+      # Assert the tumor-presence dossier. When the re-freeze ran, the offline replay reads the FRESH
+      # fixture — drift → red via the verdict floor (presence_verdict must stay a measured-positive RNA
+      # call), the per-modality bucket floor, and the >=30 non-null headline floor. When creds are
+      # absent, this re-verifies the committed fixture (same as the PR suite). Unlike target-intrinsic,
+      # tumor-presence has NO live golden, so this re-freeze is its ONLY guard against snapshot staleness.
+      - name: Assert tumor-presence dossier (verdict + bucket + headline drift floors)
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/tumor-presence/tests/ -q --import-mode=importlib
+
       - name: Upload refreshed fixtures
         if: always()
         uses: actions/upload-artifact@v4
@@ -135,5 +164,6 @@ jobs:
           name: nightly-live-drift-fixtures
           path: |
             rnd-computational-biology-oncology-claude-oncology-skills/skills/tests/card_behavior_matrix/fixtures/
+            rnd-computational-biology-oncology-claude-oncology-skills/skills/tumor-presence/tests/fixtures/
             rnd-computational-biology-oncology-claude-oncology-skills/skills/target-intrinsic/tests/fixtures/
           if-no-files-found: warn
