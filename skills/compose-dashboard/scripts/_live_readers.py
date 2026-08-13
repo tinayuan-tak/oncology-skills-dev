@@ -837,6 +837,17 @@ def _dispatch_surface_colocalization_avidity(target: str, indication: str) -> Op
     return mod.build_summary(target, indication)
 
 
+def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route sc-surface-normal-safety card to
+    methods/sc_surface_normal_safety/cli.py::build_summary.
+
+    Normal-immune SURFACE-protein safety (CITE-seq ADT) → sc_surface_normal_class (single-cell
+    off-tumor floor). Target-grain (indication accepted, NOT consumed — the immune substrate is
+    indication-independent). Protein sibling of sc-normal-celltype-expression (RNA)."""
+    mod = _import_method("sc_surface_normal_safety.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
     methods/depmap_crispr_rnai_concordance/read.py.
@@ -1767,6 +1778,7 @@ CARD_DISPATCHERS = {
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
+    "sc-surface-normal-safety": _dispatch_sc_surface_normal_safety,
     "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
