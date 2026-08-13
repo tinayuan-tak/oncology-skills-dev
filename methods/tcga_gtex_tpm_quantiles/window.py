@@ -45,6 +45,14 @@ INDICATION_TO_TCGA_STUDIES = {
 # Essential normal organs (life-critical; on-target-off-tumor toxicity catastrophic). GTEx `group`
 # labels in the quantiles product. Mirrors the biologics repo's gtex_tissue_map essential set +
 # the framework's own hpa_normal_tissue_liability ESSENTIAL_TISSUES (same intent, GTEx vocabulary).
+#
+# BY DESIGN (2026-08-13 review, finding #1): this set is indication-INDEPENDENT and therefore INCLUDES
+# the tumour's own tissue of origin (e.g. LUNG for a LUAD target, LIVER for LIHC, BRAIN for GBM). That
+# is intentional, not a bug: the therapeutic-window ratio is the framework's ORIGIN-TISSUE ARBITER —
+# the sc-normal veto arm (sc_normal_expression) deliberately treats an origin-tissue hit as "on-tissue,
+# arbitrated by the therapeutic window", deferring the origin call HERE. An antigen highly expressed in
+# its own normal origin organ IS a real ADC/TCE toxicity concern (you cannot spare the origin organ),
+# so counting the origin toward the window is the correct conservative stance, not a false veto.
 ESSENTIAL_GTEX_TISSUES = frozenset({
     "ADRENAL_GLAND", "BLOOD", "BLOOD_VESSEL", "BONE_MARROW", "BRAIN", "HEART",
     "KIDNEY", "LIVER", "LUNG", "MUSCLE", "NERVE", "PANCREAS", "PITUITARY",

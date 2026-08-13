@@ -59,6 +59,12 @@ min_n   <- opts$`min-normals`
 # testable signal. Require ≥10 counts in ≥25% of samples (DESeq2 vignette's
 # independent-filtering spirit; stricter than the ≥3-sample floor so dispersion
 # fitting stays tractable at cohort scale). Also drop the smallest-group floor.
+# KNOWN TRADE-OFF (2026-08-13 review): the ≥10-counts-in-≥25%-of-samples floor is a perf/robustness
+# filter, but it also DROPS a bimodal subset-restricted antigen expressed in <25% of the combined
+# tumour+normal set (≈ a rare-subpopulation surface target) from that cell → it reads not_informative,
+# so this axis under-detects exactly the patient-subset antigens a per-sample percentile view (Q2 card)
+# is better suited to surface. Acceptable for the bulk selectivity call; noted so it is not mistaken
+# for a measured absence.
 prefilter <- function(mat) {
   min_samples <- max(3L, ceiling(0.25 * ncol(mat)))
   keep <- rowSums(mat >= 10) >= min_samples
@@ -264,7 +270,14 @@ dom_score <- rowSums(sig_lfc, na.rm = TRUE)
 dominant_direction <- ifelse(dom_score > 0, "up",
                        ifelse(dom_score < 0, "down", "none"))
 
-# cells_supporting = # cells significant AND in the dominant direction
+# cells_supporting = # cells significant AND in the dominant direction.
+# NOTE (2026-08-13 review): this counts cells A and B as TWO supporting votes, but they are the SAME
+# tumour-vs-adjacent comparison (A = raw, B = ComBat robustness re-run on the identical sample set) —
+# a robustness pair, NOT two independent comparators. So a gene significant in A+B alone reads
+# supporting=2, which clears the reader's `modest` tier (supporting_frac >= 2/3) WITHOUT any GTEx
+# (cell C) concurrence. Genuine cross-comparator agreement (adjacent family vs GTEx family) is exposed
+# downstream via _family_direction (dge_deseq2/read.py). cells_supporting is a robustness count, not an
+# independent-comparator count — documented in _classify_selectivity_from_sensitivity's KNOWN LIMITATIONS.
 dom_sign <- ifelse(dominant_direction == "up", 1,
              ifelse(dominant_direction == "down", -1, 0))
 supporting <- rowSums(sig_mat & (sign_mat == dom_sign), na.rm = TRUE)

@@ -762,6 +762,22 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
         pattern (adjacent 'normal' already over-expresses — e.g. CEACAM5/EPCAM in COADREAD). Rather
         than collapse a validated tumour antigen to neutral, defer to the population-normal comparator:
         classify `field_effect_tumor_selective` (a tumour-selective subclass, GTEx-anchored, flagged).
+
+    KNOWN LIMITATIONS (2026-08-13 review — documented, not silently fixed; a rescore needs a backtest):
+      * cells_supporting counts cells A and B as TWO supporting votes, but they are the SAME
+        tumour-vs-adjacent comparison (A = raw, B = ComBat robustness re-run — see 06_four_cell_driver.R),
+        NOT two independent comparators. So the `modest` tier (supporting_frac >= 2/3) can be cleared by
+        A+B alone WITHOUT any GTEx (cell C) concurrence — i.e. one distinct comparator, counted twice.
+        The genuine cross-comparator agreement (TCGA-adjacent family vs GTEx family) is exposed
+        separately via _family_direction / _ADJACENT_CELLS vs _GTEX_CELLS; a consumer wanting
+        independent-comparator corroboration should read that, not the raw cells_supporting count.
+      * `field_effect_tumor_selective` (FIX 2) rests on cell C (TCGA-tumour vs GTEx-population), which
+        carries a platform/batch confound (the reason cell D was retired) — it is GTEx-anchored and
+        FLAGGED, but a batch artefact flat in adjacent yet up vs GTEx can present as this class.
+      * Magnitude thresholds (modest raw_max_lfc >= 0.5 ~ 1.41-fold; strong >= 1.5 ~ 2.83-fold) are
+        the load-bearing discriminator because padj < 0.05 is near-universal at TCGA n (significance
+        != actionability). They are user-set (2026-08-07, ~30-gene backtest); no formal power/ROC
+        derivation — treat `modest` as a screen, not a decision.
     """
     if not row:
         return "data_unavailable"
