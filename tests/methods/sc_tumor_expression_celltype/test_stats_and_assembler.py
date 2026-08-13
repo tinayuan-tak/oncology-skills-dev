@@ -202,7 +202,7 @@ def test_assembler_full_path(monkeypatch):
     assert out["n_datasets"] == 2
     assert out["malignant_compartment_available"] is True
     assert "malignant" in out["compartment_detection"]
-    assert out["product_id"] == "sc-pseudobulk-donor-celltype-coadread-v2"  # M3: repointed to superseding v2
+    assert out["product_id"] == "sc-pseudobulk-tumor-crc-coadread-v1"  # 2026-08-13: repointed to the CRC core atlas (explicit malignant call)
 
 
 def test_assembler_no_product_for_indication(monkeypatch):

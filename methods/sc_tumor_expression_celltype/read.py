@@ -48,10 +48,18 @@ S3_BUCKET = "onc-compbio"
 # endometrial/GIST/peritoneal — no cancer_type filter, per the source manifest caveat); it serves a
 # pan-gynecologic presence readout, NOT an HGSOC-pure denominator. Malignant biology validated (FOLR1/
 # MSLN/MUC16/EPCAM/PAX8 high; CD70/CEACAM5 correctly absent).
+# 2026-08-13: COADREAD/COAD/READ repointed to the CRC core atlas (Marteau 2025; data-catalog #364/#365)
+# from the Census coadread-v2. The decisive upgrade is the EXPLICIT malignant annotation: the CRC atlas
+# ships a curated 'Cancer cell' label distinct from normal 'Epithelial cell', so the malignant-anchored
+# classifier reads a real malignant call — the Census cube derived compartments via compartment_of()
+# inference, which cannot cleanly separate malignant from normal colonic epithelium. CRC = 45 pooled
+# studies / 420 tumor-origin donors / 509,919 malignant cells (EPCAM malignant 0.89 / CEACAM5 0.76 /
+# PTPRC immune 0.73). Same pattern as the NSCLC→LuCA repoint. Superseded: coadread-v2 (Census, 749 donors
+# but inferred malignant compartment) — retained in the catalog, no longer read here.
 INDICATION_TO_PRODUCT = {
-    "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v2",
-    "COAD": "sc-pseudobulk-donor-celltype-coadread-v2",
-    "READ": "sc-pseudobulk-donor-celltype-coadread-v2",
+    "COADREAD": "sc-pseudobulk-tumor-crc-coadread-v1",   # CRC core atlas (Marteau 2025): explicit 'Cancer cell' malignant call
+    "COAD": "sc-pseudobulk-tumor-crc-coadread-v1",
+    "READ": "sc-pseudobulk-tumor-crc-coadread-v1",
     "NSCLC": "sc-pseudobulk-tumor-luca-nsclc-v1",      # LuCA (Salcher 2022): 193 tumor pts / 21 datasets (upgrade from Census nsclc-v1)
     "LUAD": "sc-pseudobulk-tumor-luca-nsclc-v1",
     "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",    # dedicated squamous cube (was: nsclc umbrella)

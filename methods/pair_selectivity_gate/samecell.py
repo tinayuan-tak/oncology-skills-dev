@@ -30,10 +30,14 @@ from methods.catalog_query.read import s3_uri_for
 # compartment (see INDICATION_TO_PRODUCT note); KIRC only (not KIRP/KICH).
 # 2026-08-12: OV wired to the 3CA ovarian cube (data-catalog #350). Pan-gynecologic pooled malignant
 # compartment (see INDICATION_TO_PRODUCT note). 10 ovarian pairs anchored on FOLR1/MSLN/MUC16/EPCAM.
+# 2026-08-13: COADREAD/COAD/READ repointed to the CRC core atlas cube (data-catalog #366) from the
+# Census coadread-v1 (paired with the INDICATION_TO_PRODUCT repoint — explicit 'Cancer cell' malignant
+# call). 12 CRC surface-target pairs (EPCAM/CEACAM5/GUCY2C/TACSTD2/CDH17/GPA33/EGFR/MET/CEACAM6);
+# 370 donors / 509,919 malignant cells. EPCAM:CEACAM5 both_fraction 0.71 (strong same-cell avidity).
 INDICATION_TO_SAMECELL_MANIFEST = {
-    "COADREAD": "sc-samecell-coexpr-coadread-v1",
-    "COAD": "sc-samecell-coexpr-coadread-v1",
-    "READ": "sc-samecell-coexpr-coadread-v1",
+    "COADREAD": "sc-samecell-coexpr-crc-coadread-v1",
+    "COAD": "sc-samecell-coexpr-crc-coadread-v1",
+    "READ": "sc-samecell-coexpr-crc-coadread-v1",
     "NSCLC": "sc-samecell-coexpr-luca-nsclc-v1",       # LuCA (Salcher 2022): 140 donors / 81,678 malignant
     "LUAD": "sc-samecell-coexpr-luca-nsclc-v1",        #   (was Census sc-samecell-coexpr-nsclc-v1; LuCA is
                                                        #    the richer NSCLC atlas — same 8 pairs, drop-in)

@@ -44,10 +44,28 @@ def test_luad_and_nsclc_stay_on_the_umbrella():
     assert SC.INDICATION_TO_SAMECELL_MANIFEST["NSCLC"] == "sc-samecell-coexpr-luca-nsclc-v1"
 
 
+def test_coadread_wired_to_crc_atlas():
+    # 2026-08-13: COADREAD/COAD/READ repointed from the Census coadread cubes to the CRC core atlas
+    # (Marteau 2025), which carries an EXPLICIT 'Cancer cell' malignant call (the Census cube inferred
+    # the malignant compartment via compartment_of, conflating malignant with normal colonic epithelium).
+    # Both maps must move together (same pattern as the NSCLC→LuCA repoint).
+    for code in ("COADREAD", "COAD", "READ"):
+        assert TSC.INDICATION_TO_PRODUCT[code] == "sc-pseudobulk-tumor-crc-coadread-v1"
+        assert SC.INDICATION_TO_SAMECELL_MANIFEST[code] == "sc-samecell-coexpr-crc-coadread-v1"
+
+
 def test_sc_maps_agree_on_every_indication():
     # The pseudobulk map and the same-cell map must cover the same indication codes — a code present
     # in one but not the other means an axis silently data_unavailable for that indication.
     assert set(TSC.INDICATION_TO_PRODUCT) == set(SC.INDICATION_TO_SAMECELL_MANIFEST)
+
+
+def test_crc_coadread_products_resolve_to_catalog_s3_uris():
+    from methods.catalog_query.read import s3_uri_for
+    assert s3_uri_for("sc-pseudobulk-tumor-crc-coadread-v1").endswith(
+        "sc-pseudobulk-tumor-crc-coadread-v1/sc_pseudobulk.parquet")
+    assert s3_uri_for("sc-samecell-coexpr-crc-coadread-v1").endswith(
+        "sc-samecell-coexpr-crc-coadread-v1/sc_samecell_coexpr.parquet")
 
 
 # ── resolution smoke (reads local catalog YAML, no network) ──────────────────
