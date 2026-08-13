@@ -74,6 +74,27 @@ def test_stad_has_no_product_no_3ca_bucket():
     assert "STAD" not in SC.INDICATION_TO_SAMECELL_MANIFEST
 
 
+def test_npc_3ca_registered_but_intentionally_not_wired():
+    # NPC (nasopharyngeal) 3CA products ARE registered (#340, alongside HNSC) but NPC is deliberately
+    # NOT wired into the indication maps. Reasons, pinned so the non-wiring reads as INTENT not
+    # oversight (mirrors the STAD / KIRP / KICH deliberate-absence guards): NPC is a biologically
+    # DISTINCT entity from HNSCC (EBV-driven) — the manifest emits it as its OWN reference product,
+    # explicitly "not an HNSCC substitute"; its malignant signal is THIN (Chen2020: 14 donors, 1
+    # study); and NPC is not a first-class indication code elsewhere in the framework, so nothing
+    # would request it. Promoting NPC to a wired indication is a separate full indication-vertical, not
+    # a map edit — until then it stays a registered-but-unwired distinct-entity reference.
+    assert "NPC" not in TSC.INDICATION_TO_PRODUCT
+    assert "NPC" not in SC.INDICATION_TO_SAMECELL_MANIFEST
+    # Registration IS complete: both NPC products resolve in the catalog (wiring is withheld, not the
+    # products). If someone wires NPC, the two asserts above flip and this guard fails — the prompt to
+    # do the full indication vertical (or update this rationale) rather than a silent one-line map add.
+    from methods.catalog_query.read import s3_uri_for
+    assert s3_uri_for("sc-pseudobulk-tumor-3ca-npc-v1").endswith(
+        "sc-pseudobulk-tumor-3ca-npc-v1/sc_pseudobulk.parquet")
+    assert s3_uri_for("sc-samecell-coexpr-3ca-npc-v1").endswith(
+        "sc-samecell-coexpr-3ca-npc-v1/sc_samecell_coexpr.parquet")
+
+
 def test_sc_maps_agree_on_all_indications():
     # Both maps must cover the SAME set of indication codes — a code in one but not the other
     # causes a silent data_unavailable on one axis (avidity unconfirmed / presence unknown).
