@@ -194,7 +194,7 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
                f"experimental_only={experimental_only})...", err=True)
     sl_pairs = _load_sl_pairs(target, experimental_only)
     if sl_pairs.empty:
-        _write_empty(out, "no SL pairs for the requested scope")
+        _write_empty(out, "no SL pairs for the requested scope", target_scope=(target or "ALL"))
         return
     partners = set(sl_pairs["partner"])
     click.echo(f"[arm_loss_sl_scan] {len(sl_pairs)} pairs, {len(partners)} distinct partners; "
@@ -214,31 +214,48 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
 
     out.parent.mkdir(parents=True, exist_ok=True)
     hits.to_parquet(out, index=False)
-    _write_sidecars(out, n_hits=len(hits), min_loss_freq=min_loss_freq, fdr_alpha=fdr_alpha)
+    _write_sidecars(out, hits, target_scope=(target or "ALL"),
+                    min_loss_freq=min_loss_freq, fdr_alpha=fdr_alpha,
+                    experimental_only=experimental_only)
     click.echo(f"[arm_loss_sl_scan] wrote {len(hits)} hits -> {out}", err=True)
 
 
-def _write_empty(out: Path, reason: str):
+def _write_empty(out: Path, reason: str, target_scope: str = "ALL"):
     import pandas as pd
     out.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(columns=SCAN_COLUMNS).to_parquet(out, index=False)
-    _write_sidecars(out, n_hits=0, note=reason)
+    empty = pd.DataFrame(columns=SCAN_COLUMNS)
+    empty.to_parquet(out, index=False)
+    _write_sidecars(out, empty, target_scope=target_scope, note=reason)
     click.echo(f"[arm_loss_sl_scan] {reason}: wrote 0-row scan -> {out}", err=True)
 
 
-def _write_sidecars(out: Path, n_hits: int, note: str = "", **params):
-    """input_manifest_ids federation sidecar (JSON) + a human caveats sidecar."""
+# top nominations carried in the sidecar so the eval-ledger row_from_scan reader is JSON-only
+# (target-contracts is bare-python: no parquet/pandas dependency).
+_SIDECAR_TOP_N = 50
+_SIDECAR_HIT_COLS = ["target", "indication", "sl_partner", "partner_arm",
+                     "arm_loss_freq", "q_value", "coloss_concordance"]
+
+
+def _write_sidecars(out: Path, hits, target_scope: str, note: str = "", **params):
+    """input_manifest_ids federation sidecar (JSON, self-describing) + a human caveats sidecar."""
+    top = hits.head(_SIDECAR_TOP_N)[_SIDECAR_HIT_COLS].to_dict("records") if len(hits) else []
+    nominated = sorted({(r["target"], r["indication"]) for r in
+                        hits[["target", "indication"]].to_dict("records")}) if len(hits) else []
     sidecar = out.with_suffix(".input_manifest_ids.json")
     payload = {
         "method": "arm_loss_sl_scan",
         "method_version": METHOD_VERSION,
-        "input_manifest_ids": INPUT_MANIFEST_IDS,
-        "n_hits": n_hits,
+        "input_manifest_ids": INPUT_MANIFEST_IDS,   # FEDERATION KEY -> data-product/discovery graph
+        "target_scope": target_scope,               # --target gene, or "ALL"
+        "indication_scope": "discovery",             # scans are cross-indication by construction
+        "n_hits": int(len(hits)),
+        "nominated_target_indications": [f"{t}|{i}" for t, i in nominated],
+        "top_hits": top,
         "parameters": params,
     }
     if note:
         payload["note"] = note
-    sidecar.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    sidecar.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str))
     caveats = [
         "DISCOVERY nomination scan, NOT a verdict input -- never feeds a resolver. It ranks "
         "(target, indication) candidates by arm-loss enrichment of an SL partner's arm.",
