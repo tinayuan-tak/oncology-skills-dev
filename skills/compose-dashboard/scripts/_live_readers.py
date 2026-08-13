@@ -737,21 +737,6 @@ def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     return out
 
 
-def _dispatch_mutation_drug_response(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route mutation-drug-response card (Card E3.drug) to
-    methods/depmap_mutation_drug_response/read.py.
-
-    The PHARMACOLOGICAL sibling of mutation-stratified-dependency: are cell lines carrying an
-    alteration in the target more SENSITIVE to a DRUG that targets it (PRISM Log2AUC), vs the
-    CRISPR-KO dependency the mutation-stratified card measures? Selects on-target PRISM compounds
-    (GeneSymbolOfTargets == target) and stratifies best-responder Log2AUC by mutation status.
-    Target-only; indication accepted for back-compat but not consumed (cell-panel drug response is
-    indication-independent, like the sibling stratified cards).
-    """
-    dr_module = _import_method("depmap_mutation_drug_response")
-    return dr_module.read_mutation_drug_response(target=target, indication=indication)
-
-
 # -----------------------------------------------------------------------------
 # RT1 fix-rollup 2026-07-09: dispatchers for the 11 new Phase D/E/F/G cards
 # from the Layer 6 skill graduations. Each dispatcher delegates to a method's
@@ -1360,7 +1345,6 @@ CARD_DISPATCHERS = {
     "expression-clinical-association": _dispatch_expression_clinical_association,
     "phospho-pathway-activity": _dispatch_phospho_pathway_activity,
     "copy-number-distribution": _dispatch_cn_distribution,
-    "mutation-drug-response": _dispatch_mutation_drug_response,
     # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
     "tahoe-drug-perturbation": _dispatch_tahoe_drug_perturbation,

@@ -1,13 +1,14 @@
 """T11 dispatcher collapse — every generic-routed card resolves to a real callable.
 
-After migrating 37 pure-passthrough dispatchers (their bespoke `_dispatch_*` deleted; their
+After migrating 38 pure-passthrough dispatchers (their bespoke `_dispatch_*` deleted; their
 card_specs now declare methods[].module + entrypoint), a card is routed by `_generic_dispatch`. This
 guards the collapse WITHOUT needing S3: for every card that is generic-routed (declares an entrypoint
 AND has no bespoke CARD_DISPATCHERS entry), the (module, entrypoint) must resolve to a real callable.
 
-Of the 41 pure-passthrough candidates, 4 were deliberately KEPT bespoke (see
-test_intentionally_kept_dispatchers): 3 are called INTERNALLY by composed dispatchers, and 1's method
-package does not re-export its entrypoint.
+Of the 41 pure-passthrough candidates, 3 are deliberately KEPT bespoke (see
+test_intentionally_kept_dispatchers): they are called INTERNALLY by composed dispatchers.
+(mutation-drug-response was the 4th until its method package re-exported its entrypoint in
+analysis-methods #309, which unblocked its collapse here.)
 
 Byte-equivalence rationale: `_generic_dispatch` calls `fn(target=target, indication=indication)` — the
 IDENTICAL call the deleted bespoke passthrough made (`mod = _import_method(M); return
@@ -71,18 +72,23 @@ def test_collapse_removed_the_passthrough_dispatchers():
 
 
 def test_intentionally_kept_dispatchers():
-    """4 of the 41 pure-passthrough candidates were deliberately NOT collapsed and must remain bespoke:
-      - signaling-network-mechanism, surfaceome-family-classification, structure-features-static are
-        called INTERNALLY by composed dispatchers (e.g. _dispatch_adc_tce_modality_fit), so deleting
-        them would NameError at runtime — the generic path only routes top-level card reads.
-      - mutation-drug-response's method package does not re-export its entrypoint
-        (methods/depmap_mutation_drug_response/__init__.py), so _import_method(pkg).<entrypoint> is not
-        package-accessible; both paths would AttributeError identically. Fix (add the __init__
-        re-export in analysis-methods, matching ppi_interactome) is a documented follow-on.
-    """
+    """3 of the 41 pure-passthrough candidates are deliberately NOT collapsed and must remain bespoke:
+    signaling-network-mechanism, surfaceome-family-classification, structure-features-static are
+    called INTERNALLY by composed dispatchers (e.g. _dispatch_adc_tce_modality_fit), so deleting them
+    would NameError at runtime — the generic path only routes top-level card reads.
+    (mutation-drug-response was kept until analysis-methods #309 re-exported its entrypoint; it is now
+    collapsed — see test_mutation_drug_response_now_collapsed.)"""
     for cid in ("signaling-network-mechanism", "surfaceome-family-classification",
-                "structure-features-static", "mutation-drug-response"):
+                "structure-features-static"):
         assert cid in lr.CARD_DISPATCHERS, f"{cid} must remain a bespoke dispatcher (kept-with-reason)"
+
+
+def test_mutation_drug_response_now_collapsed():
+    """mutation-drug-response is now generic-routed (bespoke dispatcher removed) — its method package
+    re-exports the entrypoint (analysis-methods #309), so _generic_dispatch resolves it to a callable."""
+    assert "mutation-drug-response" not in lr.CARD_DISPATCHERS
+    mod = lr._import_method("depmap_mutation_drug_response")
+    assert callable(getattr(mod, "read_mutation_drug_response", None))
 
 
 @pytest.mark.parametrize("card_id", _ROUTED)
