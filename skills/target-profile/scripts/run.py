@@ -4343,6 +4343,159 @@ def _emit_card_figures(sub_results: dict, figures_dir: Path,
     return by_card
 
 
+# --- Evidence-package emitter (--emit evidence-package) --------------------------------------
+# The MACHINE-facing sibling of nomination.json: a deterministic, LLM-free evidence_package.json
+# envelope (the same shape compose-dashboard emits), assembled from the Stage-1b per-sub-skill
+# CompositionResult carriers via the SHARED writer. Purely additive — selected by --emit; the
+# nomination path is untouched.
+
+def _deciding_short(deciding_axis: dict) -> Optional[str]:
+    """Map the deciding_axis block to the short whose gate is the envelope PRIMARY.
+
+    gate_fired  → the gate that won; positive_signal → the strongest positive dimension;
+    abstaining  → None (no primary; every gate block becomes `additional`)."""
+    if deciding_axis.get("basis") == "gate_fired":
+        return (deciding_axis.get("deciding_axis") or {}).get("short")
+    if deciding_axis.get("basis") == "positive_signal":
+        rows = deciding_axis.get("deciding_axes") or []
+        return rows[0].get("short") if rows else None
+    return None
+
+
+def _framework_version() -> str:
+    """The framework semver stamped into the envelope (distinct from SKILL_VERSION). Mirrors the
+    dispatcher's --emit-envelope fallback: read compose_phase1.FRAMEWORK_VERSION, else '2.0.0'."""
+    try:
+        from compose_phase1 import FRAMEWORK_VERSION  # type: ignore  # on sys.path via resolve_cards
+        return FRAMEWORK_VERSION
+    except Exception:  # noqa: BLE001
+        return "2.0.0"
+
+
+def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[str],
+                            recommendation_gate: dict, confidence_tier: dict,
+                            deciding_axis: dict, validation_summary: dict) -> Path:
+    """Assemble + write evidence_package.json around target-profile's composed verdict.
+
+    Reuses the shared normalizers (`_envelope_card_present`, `_availability_state_for`) and writer
+    (`assemble_evidence_package`) so the envelope is byte-shaped identically to compose-dashboard's.
+    The synthesis block is the SUPERSET shape (per product decision): target-profile's nomination
+    fields (recommendation_gate / confidence_tier / deciding_axis) AND a compose-dashboard-style
+    primary/additional split AND the full per-sub-skill sub_verdicts — all sourced from the
+    Stage-1b CompositionResult on each sub-skill (r["composition"]); NO re-resolution.
+    """
+    from _skills_common.envelope import assemble_evidence_package
+    from _skills_common.dispatcher import _envelope_card_present, _availability_state_for
+    from _skills_common.gitmeta import skills_repo_sha
+
+    # 1. Union the sub-skills' cards by card_id (a card may compose under >1 lens; keep first),
+    #    splitting present (normalized) vs reasoned-absence (card_unavailable).
+    seen: set = set()
+    env_present: list[dict] = []
+    env_unavailable: list[dict] = []
+    for r in sub_results.values():
+        for c in (r.get("cards") or []):
+            cid = c.get("card_id")
+            if not cid or cid in seen:
+                continue
+            seen.add(cid)
+            if c.get("_missing"):
+                state, reason = _availability_state_for(c)
+                env_unavailable.append({
+                    "card_id": cid, "card_version": c.get("card_version", "n/a"),
+                    "availability_state": state, "availability_reason": reason,
+                })
+            else:
+                env_present.append(_envelope_card_present(c))
+
+    # 2. Resolve target-identity-summary separately so context.target carries a real hgnc_id
+    #    (schema requires >= 1). Best-effort — on failure the writer emits the -1 sentinel.
+    try:
+        for c in resolve_cards(["target-identity-summary"], args.target, args.indication):
+            cid = c.get("card_id")
+            if not c.get("_missing") and cid and cid not in seen:
+                seen.add(cid)
+                env_present.append(_envelope_card_present(c))
+    except Exception as e:  # noqa: BLE001 — identity read is best-effort; never break emit
+        print(f"[target-profile] --emit evidence-package: target-identity read failed "
+              f"({type(e).__name__}); context.target.hgnc_id will be the unresolved sentinel.",
+              file=sys.stderr)
+
+    # 3. Synthesis block — SUPERSET. Per-short verdicts mirror nomination.json (verdict present even
+    #    for gateless shorts); the primary/additional split reads the gate blocks the Stage-1b
+    #    CompositionResult carries (gateless shorts contribute no block).
+    sub_verdicts: dict = {}
+    gate_blocks: dict = {}  # short -> primary_dict() (only shorts with a resolver gate)
+    for short, r in sub_results.items():
+        v = r.get("verdict")
+        comp = r.get("composition")
+        blk = comp.primary_dict() if comp is not None else None
+        sub_verdicts[short] = {
+            "gate": blk["gate"] if blk else None,
+            "verdict": v[0] if v else None,
+            "driving_rule_id": v[1] if v else None,
+            "fired_rule_ids": [f["rule_id"] for f in (r.get("fired") or [])],
+        }
+        if blk is not None:
+            gate_blocks[short] = blk
+
+    primary_short = _deciding_short(deciding_axis)
+    primary_block = gate_blocks.get(primary_short)
+    # additional = every other gate block, in SUB_SKILLS iteration order (deterministic)
+    additional_blocks = [b for s, b in gate_blocks.items() if s != primary_short]
+
+    recommendation = gate_action or "insufficient"
+    tier = confidence_tier.get("tier")
+    headline = (f"{args.target} in {args.indication}: {recommendation}"
+                + (f" ({tier} confidence)" if tier else ""))
+    synthesis_block = {
+        "headline": headline,
+        "caveats_summary": (
+            "Composed target-profile evidence envelope (--emit evidence-package): a deterministic "
+            "nomination gate over per-sub-skill resolver verdicts. LLM narrative intentionally "
+            "omitted (see nomination.json for the narrated form); not concurrence-reviewed."
+        ),
+        # nomination-shaped — target-profile's actual verdict model
+        "recommendation_gate": recommendation_gate,
+        "confidence_tier": confidence_tier,
+        "deciding_axis": deciding_axis,
+        # compose-dashboard-shaped — comparable to the other engine's envelopes
+        "primary_gate_verdict": primary_block,
+        "additional_gate_verdicts": additional_blocks,
+        # full per-sub-skill grouping
+        "sub_verdicts": sub_verdicts,
+    }
+
+    input_context = {
+        "target_symbol": args.target,
+        "indication": args.indication,
+        "subgroup_spec": None,
+        # The evidence_package schema's governance.data_mode enum is {latest_approved, pinned,
+        # exploratory} — target-profile's internal "live_latest" is not a member. A live, unpinned,
+        # non-concurrence-reviewed composed run IS exploratory (mirrors the dispatcher subskill
+        # emitter's _GOVERNANCE_DATA_MODE default). nomination.json keeps its own "live_latest"
+        # governance (that artifact is not bound to this schema).
+        "data_mode": "exploratory",
+        "release_pin": args.release_pin or "unpinned",
+    }
+    ep = assemble_evidence_package(
+        input_context=input_context,
+        dashboard_spec_ref="skill:target-profile",
+        card_outputs=env_present,
+        unavailable_cards=env_unavailable,
+        validation_summary=validation_summary,
+        synthesis_block=synthesis_block,
+        deterministic_timestamps=False,
+        framework_version=_framework_version(),
+        generated_by=f"skills/{SKILL_NAME}@{skills_repo_sha()}",
+    )
+    # target-profile reads live + has no target-level applies_when gating; keep its governance
+    # `_note` annotation off the envelope (it is a nomination.json/provenance detail).
+    out_path = args.out / "evidence_package.json"
+    out_path.write_text(json.dumps(ep, indent=2, default=str))
+    return out_path
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
@@ -4388,11 +4541,25 @@ def main() -> int:
     ap.add_argument("--profile-timers", action="store_true",
                     help="Emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr "
                          "(instrumentation only; zero effect on artifacts). (Perf Stage 0.)")
+    ap.add_argument("--emit", choices=["nomination", "evidence-package"], default="nomination",
+                    help="Output shape. 'nomination' (default) → nomination.json + target_profile.md "
+                         "+ provenance (the biologist-facing narrated profile). 'evidence-package' → "
+                         "a deterministic, LLM-free evidence_package.json envelope (the same machine-"
+                         "facing shape compose-dashboard emits), assembled from the SAME per-sub-skill "
+                         "verdict spine. evidence-package implies --no-synthesis + --no-figures and "
+                         "emits no nomination.json / md / html.")
     args = ap.parse_args()
 
     # --verdict-only is the umbrella fast mode: skip BOTH the LLM synthesis tail and figure/panel
     # rendering. Both are verdict-inert, so the deterministic spine is unaffected.
     if args.verdict_only:
+        args.no_synthesis = True
+        args.no_figures = True
+
+    # --emit evidence-package is a MACHINE artifact: deterministic + LLM-free by construction, and
+    # never renders the nomination-oriented md/html/figures. The deterministic verdict spine it reads
+    # (sub-verdicts, recommendation gate, deciding axis) is byte-identical to a nomination run.
+    if args.emit == "evidence-package":
         args.no_synthesis = True
         args.no_figures = True
 
@@ -4565,6 +4732,34 @@ def main() -> int:
     scorecard = _gate_scorecard(sub_results, deciding_axis)
     catalogue_rows = _catalogue_rows_from_sub_results(sub_results)
 
+    # 5-field validation_summary — the shared evidence-package writer's contract, composed from
+    # target-profile's card-read model (passed = card returned usable data; failed = absent/not-wired
+    # OR data_unavailable; passed_with_warnings + excluded_by_applies_when = 0: no method validation,
+    # no target-level applies_when gating). Computed HERE (before the emit branch) so the
+    # evidence-package emitter and the nomination path below share ONE construction.
+    _all_cards = [c for r in sub_results.values() for c in (r.get("cards") or [])]
+    _n_failed = sum(1 for c in _all_cards if c.get("_missing"))
+    validation_summary = {
+        "n_cards_attempted": len(_all_cards),
+        "n_cards_passed": len(_all_cards) - _n_failed,
+        "n_cards_passed_with_warnings": 0,
+        "n_cards_failed": _n_failed,
+        "n_cards_excluded_by_applies_when": 0,
+    }
+
+    # --emit evidence-package: emit the deterministic machine envelope from the verdict spine and
+    # RETURN, skipping every nomination-oriented render (composite panel / md / html / nomination.json
+    # / provenance). The spine it reads is byte-identical to a nomination run.
+    if args.emit == "evidence-package":
+        ep_path = _write_evidence_package(
+            args=args, sub_results=sub_results, gate_action=gate_action,
+            recommendation_gate=recommendation_gate, confidence_tier=confidence_tier,
+            deciding_axis=deciding_axis, validation_summary=validation_summary,
+        )
+        print(f"[target-profile] wrote {ep_path} (evidence-package; deterministic, LLM-free)")
+        print(f"Recommendation: {gate_action or '(no gate fired)'}")
+        return 0
+
     # 3a. Render composite panel PNG + SVG (Shape C — slide-drop artefact).
     figures_dir = args.out / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -4637,22 +4832,9 @@ def main() -> int:
 
     # Governance / reproducibility. Phase-D convergence (#9): build the governance block via the SHARED
     # _skills_common.build_governance so it can no longer drift from compose-dashboard's — same keys,
-    # same construction, one source. That requires the SAME 5-field validation_summary the shared
-    # evidence-package writer uses, composed here from target-profile's card-read model:
-    #   target-profile reads card SUMMARIES (not method-invoked/validated like compose-dashboard), so
-    #   passed = card returned usable data; failed = card absent (not wired) OR data_unavailable;
-    #   passed_with_warnings + excluded_by_applies_when are 0 (no method validation, no target-level
-    #   applies_when gating). Honest + schema-conformant. release_pin is a pass-through (target-profile
-    #   reads live and does not auto-resolve the release); honest default 'unpinned'.
-    _all_cards = [c for r in sub_results.values() for c in (r.get("cards") or [])]
-    _n_failed = sum(1 for c in _all_cards if c.get("_missing"))
-    validation_summary = {
-        "n_cards_attempted": len(_all_cards),
-        "n_cards_passed": len(_all_cards) - _n_failed,
-        "n_cards_passed_with_warnings": 0,
-        "n_cards_failed": _n_failed,
-        "n_cards_excluded_by_applies_when": 0,
-    }
+    # same construction, one source. Uses the 5-field validation_summary composed above (shared with
+    # the --emit evidence-package path). release_pin is a pass-through (target-profile reads live and
+    # does not auto-resolve the release); honest default 'unpinned'.
     governance = build_governance("live_latest", args.release_pin or "unpinned", validation_summary)
     # Additive target-profile annotation (does NOT alter the shared 3-key core → no schema drift):
     governance["_note"] = (

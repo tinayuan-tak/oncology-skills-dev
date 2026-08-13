@@ -121,12 +121,32 @@ composition:
 
 ## What this skill does NOT do
 
-- Does NOT run compose-dashboard's 16-card Macro pipeline. This is a
-  composed compositional skill, not Macro. Compose-dashboard remains
-  available for the full evidence_package.json artefact.
+- Does NOT run compose-dashboard's dashboard_spec-driven card dispatch. This is a
+  fan-out-over-sub-skills composer with a cross-gate nomination — a legitimately
+  distinct composition pattern. (It CAN now emit an `evidence_package.json`
+  envelope of its own composed verdict — see Output modes below — but does not
+  consume a dashboard_spec.)
 - Does NOT synthesize LLM output for the categorical spine — that stays
   deterministic (rule-fired). LLM only writes narrative + high-level
   recommendation.
+
+## Output modes (`--emit`)
+
+`--emit` selects the output shape over the SAME deterministic verdict spine:
+
+- `--emit nomination` (default) — the biologist-facing narrated profile:
+  `nomination.json` + `target_profile.md` + `target_profile.html` + `provenance.yaml`
+  (+ figures), with the Tier-3 LLM narrative.
+- `--emit evidence-package` — the machine-facing artifact: a deterministic, **LLM-free**
+  `evidence_package.json` envelope in the same shape compose-dashboard emits (validates
+  against `target-contracts/schemas/evidence_package.schema.json`). It implies
+  `--no-synthesis` + `--no-figures` and writes **no** nomination.json / md / html. Its
+  `synthesis` block is a SUPERSET: target-profile's nomination fields
+  (`recommendation_gate` / `confidence_tier` / `deciding_axis`) + a compose-dashboard-style
+  `primary_gate_verdict` + `additional_gate_verdicts` split + the full per-sub-skill
+  `sub_verdicts` — all sourced from each sub-skill's shared `CompositionResult`, with no
+  re-resolution. `governance.data_mode` is `exploratory` (live, unpinned, not
+  concurrence-reviewed).
 
 ## Optional lenses
 
@@ -169,6 +189,9 @@ When called as `/target-profile`, Claude should:
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
    Add `--modality <M>` and/or `--therapeutic-hypothesis "<text>"` if
-   supplied by the user.
+   supplied by the user. Add `--emit evidence-package` when the user wants the
+   machine-facing `evidence_package.json` envelope instead of the narrated profile
+   (deterministic, LLM-free — no `AWS_PROFILE`/Bedrock needed).
 4. Read `<OUT_DIR>/target_profile.md` and present the executive summary
-   inline; offer the full nomination.json for detail.
+   inline; offer the full nomination.json for detail. (For `--emit
+   evidence-package`, read `<OUT_DIR>/evidence_package.json`.)
