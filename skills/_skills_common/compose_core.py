@@ -143,3 +143,46 @@ def resolve_gate_spine(
         primary_gate_verdict=primary,
         additional_gate_verdicts=additional,
     )
+
+
+def subskill_composition(
+    *,
+    card_outputs: list[dict],
+    fired: list[dict],
+    gate: "str | None",
+    verdict_pair: "tuple[str, str | None] | None",
+) -> CompositionResult:
+    """Wrap a sub-skill's ALREADY-RESOLVED verdict into the shared type WITHOUT re-resolving.
+
+    target-profile (Stage 1b) fans out to standalone sub-skills whose ``_verdict`` / ``_snapshot``
+    each resolve their own gate via the shared resolver AND may apply post-resolver logic (vetoes,
+    downgrades) before returning the final ``(verdict, driving_rule_id)`` pair. This helper wraps
+    that FINAL pair so the sub-skill's post-processing is preserved — it deliberately does NOT call
+    ``resolve_verdict_for_gate`` again (that would drop the post-processing). Contrast
+    ``resolve_gate_spine``, which resolves from card_outputs and is used where the caller owns the
+    full resolution (compose-dashboard).
+
+    ``gate=None`` (a verdict-inert sub-skill with no resolver gate, e.g. tumor-presence) or
+    ``verdict_pair=None`` (a sub-skill exposing no verdict function) → an empty primary; the
+    fired-rule audit trail is still carried.
+
+    Note: ``fired_rule_ids`` here follows compose_core's sorted-set convention. target-profile's
+    nomination.json emits its own RAW-ordered fired list from ``r["fired"]`` separately (the two
+    conventions differ), so a byte-sensitive caller reads fired from its existing source, not here.
+    """
+    fired_ids = sorted({fr["rule_id"] for fr in fired if fr.get("rule_id")})
+    primary = None
+    if verdict_pair is not None and gate is not None:
+        verdict, driving = verdict_pair
+        primary = GateVerdict(
+            gate=gate,
+            verdict=verdict,
+            driving_rule_id=driving,
+            fired_rule_ids=fired_ids,
+        )
+    return CompositionResult(
+        card_outputs=card_outputs,
+        fired_rule_ids=fired_ids,
+        primary_gate_verdict=primary,
+        additional_gate_verdicts=[],
+    )

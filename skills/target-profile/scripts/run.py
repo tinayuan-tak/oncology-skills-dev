@@ -50,6 +50,7 @@ from _skills_common import ordinal_view
 from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.flip_analysis import flip_analysis
 from _skills_common.envelope import build_governance  # Phase-D convergence: single-source the governance block
+from _skills_common.compose_core import subskill_composition  # Stage 1b: typed sub-verdict carrier
 
 SKILL_NAME = "target-profile"
 SKILL_VERSION = "1.0.0"
@@ -512,6 +513,15 @@ def _run_sub_skills(target: str, indication: str,
             "cards": cards,
             "fired": fired,
             "verdict": verdict_pair,  # (str, driving_rule_id) or None
+            # Stage 1b: the SAME sub-verdict, carried in the shared CompositionResult type (the
+            # foundation the later --emit evidence-package stage consumes). ADDITIVE — wraps the
+            # already-decided verdict_pair (post-resolver logic preserved); verdict/fired/cards and
+            # the nomination emission are untouched, so output stays byte-identical. Gateless shorts
+            # (tumor-presence `expression`) → empty primary; the presence verdict stays in `verdict`.
+            "composition": subskill_composition(
+                card_outputs=cards, fired=fired,
+                gate=_SHORT_TO_GATE.get(short), verdict_pair=verdict_pair,
+            ),
         }
 
     # PERF Stage 2 (2026-07-23): the 10 sub-skills are GENUINELY INDEPENDENT (collect-then-synthesize;
@@ -549,12 +559,18 @@ def _run_sub_skills(target: str, indication: str,
         for axis in axes:
             sub_fired.extend(fired_rules(sub_cards, axis=axis,
                                          card_id_filter=SUBTYPE_CARDS))
+        subtype_verdict_pair = _subtype_verdict(sub_fired)
         results[SUBTYPE_SHORT] = {
             "skill_dir": None,             # not a directory sub-skill; composed inline
             "cards": sub_cards,
             "fired": sub_fired,
-            "verdict": _subtype_verdict(sub_fired),
+            "verdict": subtype_verdict_pair,
             "scope_subtypes": list(subtypes),
+            # Stage 1b: typed sub-verdict carrier (see _one_sub_skill). ADDITIVE.
+            "composition": subskill_composition(
+                card_outputs=sub_cards, fired=sub_fired,
+                gate=_SHORT_TO_GATE.get(SUBTYPE_SHORT), verdict_pair=subtype_verdict_pair,
+            ),
         }
     return results
 

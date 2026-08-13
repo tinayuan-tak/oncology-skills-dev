@@ -24,6 +24,7 @@ from _skills_common.compose_core import (  # noqa: E402
     CompositionResult,
     GateVerdict,
     resolve_gate_spine,
+    subskill_composition,
 )
 
 
@@ -101,3 +102,69 @@ def test_resolve_gate_spine_no_headline_gate_is_empty_and_resolver_free():
     assert res.primary_gate_verdict is None
     assert res.additional_gate_verdicts == []
     assert res.fired_rule_ids == []
+
+
+# ---------------------------------------------------------------------------
+# subskill_composition — target-profile's Stage-1b carrier: wrap an ALREADY-decided
+# verdict WITHOUT re-resolving (preserving each sub-skill's post-resolver logic).
+# ---------------------------------------------------------------------------
+
+
+def test_subskill_composition_gated_wraps_verdict_pair():
+    """A gated sub-skill's (verdict, driving_rule_id) pair becomes the primary GateVerdict.
+    fired_rule_ids follow compose_core's sorted-set convention (deduped + sorted)."""
+    fired = [{"rule_id": "r-b"}, {"rule_id": "r-a"}, {"rule_id": "r-b"}]  # unsorted + dup
+    comp = subskill_composition(
+        card_outputs=[{"card_id": "c1"}],
+        fired=fired,
+        gate="dependency",
+        verdict_pair=("selective_dependency", "dep-01"),
+    )
+    assert isinstance(comp, CompositionResult)
+    assert comp.fired_rule_ids == ["r-a", "r-b"]  # sorted + deduped
+    assert comp.primary_gate_verdict == GateVerdict(
+        gate="dependency",
+        verdict="selective_dependency",
+        driving_rule_id="dep-01",
+        fired_rule_ids=["r-a", "r-b"],
+    )
+    assert comp.additional_gate_verdicts == []
+    # the pair round-trips through the typed carrier
+    assert comp.primary_dict()["verdict"] == "selective_dependency"
+    assert comp.primary_dict()["driving_rule_id"] == "dep-01"
+
+
+def test_subskill_composition_gateless_has_no_primary():
+    """A verdict-inert sub-skill with no resolver gate (e.g. tumor-presence `expression`) →
+    empty primary; its presence verdict stays in the caller's own `verdict` field, not here."""
+    comp = subskill_composition(
+        card_outputs=[{"card_id": "c1"}],
+        fired=[{"rule_id": "r-a"}],
+        gate=None,
+        verdict_pair=("tumor_broadly_expressed", "expr-01"),
+    )
+    assert comp.primary_gate_verdict is None
+    assert comp.fired_rule_ids == ["r-a"]  # audit trail still carried
+
+
+def test_subskill_composition_no_verdict_fn():
+    """verdict_pair=None (sub-skill exposes no verdict function) → empty primary."""
+    comp = subskill_composition(
+        card_outputs=[], fired=[], gate="dependency", verdict_pair=None,
+    )
+    assert comp.primary_gate_verdict is None
+    assert comp.fired_rule_ids == []
+
+
+def test_subskill_composition_does_not_reresolve():
+    """subskill_composition must NOT consult a resolver — it wraps the FINAL pair verbatim, so a
+    sub-skill's post-resolver vetoes/downgrades survive. (contracts_root is never needed.)"""
+    comp = subskill_composition(
+        card_outputs=[{"card_id": "c1"}],
+        fired=[{"rule_id": "r-a"}],
+        gate="selectivity",
+        # a value NO resolver would emit — proves the pair is passed through untouched
+        verdict_pair=("POST_PROCESSED_SENTINEL", "veto-01"),
+    )
+    assert comp.primary_gate_verdict.verdict == "POST_PROCESSED_SENTINEL"
+    assert comp.primary_gate_verdict.driving_rule_id == "veto-01"
