@@ -48,6 +48,73 @@ def build_governance(data_mode: str, release_pin: str, validation_summary: dict)
     }
 
 
+def _load_catalog_resolver():
+    """Lazily import catalog_query.resolve_release + _family_of from the analysis-methods repo.
+    Returns (resolve_release, _family_of) or (None, None) if unavailable — governance enrichment is
+    best-effort and must NEVER block evidence-package emission."""
+    import os
+    import sys
+    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
+                           "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    if mrepo not in sys.path:
+        sys.path.insert(0, mrepo)
+    try:
+        from methods.catalog_query.read import resolve_release, _family_of
+        return resolve_release, _family_of
+    except Exception:  # noqa: BLE001 — no catalog helper → skip head/stale enrichment (digest still emits)
+        return None, None
+
+
+def resolved_release_governance(card_outputs, data_mode, release_pin,
+                                resolve_release=None, family_of=None) -> dict:
+    """Governance ENRICHMENT (2026-08-12): derive a release fingerprint from the manifests the run
+    ACTUALLY read (cards' provenance.input_manifest_ids), and resolve each data family's current
+    catalog HEAD via catalog_query.resolve_release.
+
+    Returns a dict merged into `governance`:
+      resolved_release_digest — sha256(sorted used manifest_ids)[:16]. The run's DATA FINGERPRINT: it
+        changes whenever the underlying releases change, so the eval-ledger cross-release TREND is
+        meaningful even when release_pin is 'unpinned' (target-profile/compose read live today).
+      resolved_releases — {family: {used:[...], head:<catalog head id>, is_stale:bool}}. is_stale=True
+        flags a run that read a SUPERSEDED release (drift from the catalog head).
+
+    Best-effort + fail-open: returns {} when the run read no manifests; the digest still emits if the
+    catalog helper is unavailable; a per-family resolution error degrades to head=None + an error note.
+    Never raises (governance must not block emission). `resolve_release`/`family_of` are injectable for
+    hermetic testing; otherwise lazily imported."""
+    used = sorted({m for c in card_outputs
+                   if not c.get("excluded_by_applies_when")
+                   for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])})
+    if not used:
+        return {}
+    import hashlib
+    out = {"resolved_release_digest": hashlib.sha256("\n".join(used).encode()).hexdigest()[:16]}
+    if resolve_release is None or family_of is None:
+        resolve_release, family_of = _load_catalog_resolver()
+    if resolve_release is None or family_of is None:
+        return out
+    mode = data_mode if data_mode in ("latest_approved", "pinned", "exploratory") else "latest_approved"
+    by_family: dict = {}
+    for m in used:
+        try:
+            by_family.setdefault(family_of(m), []).append(m)
+        except Exception:  # noqa: BLE001 — a malformed id must not sink the whole enrichment
+            continue
+    resolved: dict = {}
+    for fam, mids in sorted(by_family.items()):
+        entry = {"used": sorted(mids)}
+        try:
+            head = resolve_release(fam, mode, release_pin)
+            entry["head"] = head
+            entry["is_stale"] = head not in mids
+        except Exception as e:  # noqa: BLE001 — fail-loud resolver → record, don't crash the package
+            entry["head"] = None
+            entry["resolution_error"] = f"{type(e).__name__}: {e}"
+        resolved[fam] = entry
+    out["resolved_releases"] = resolved
+    return out
+
+
 def assemble_evidence_package(
     input_context: dict,
     card_outputs: list[dict],
@@ -92,6 +159,11 @@ def assemble_evidence_package(
     # omitting it drops the phantom "Lockfile:" markdown line cleanly. When a real lockfile
     # writer lands, repopulate this key and the field/rendering return automatically.
     governance = build_governance(data_mode, release_pin, validation_summary)
+    # Governance ENRICHMENT (2026-08-12): stamp a release fingerprint (resolved_release_digest) + the
+    # per-family catalog head + drift, derived from the manifests the run actually read. Best-effort —
+    # never blocks emission. Makes release_pin='unpinned' runs distinguishable across catalog releases
+    # (the eval-ledger cross-release trend keys on resolved_release_digest).
+    governance.update(resolved_release_governance(card_outputs, data_mode, release_pin))
 
     # Build context block — extract target identity from the target-identity-summary card if present
     target_identity_card = next(
