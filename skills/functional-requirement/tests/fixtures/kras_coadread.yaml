@@ -1,0 +1,505 @@
+abundance-dependency:
+  abundance_dependency_class: weak_protein_dependency_link
+  abundance_layer: protein_gygi_ms
+  indication: COADREAD
+  method_version: 0.1.0
+  n_dependent_models: 117
+  n_paired_models: 264
+  n_protein_detected_models: 312
+  protein_dependency_pearson_p: 4.3e-09
+  protein_dependency_pearson_r: -0.3515
+  protein_dependency_spearman_r: -0.3347
+  protein_panel_size: 375
+  release_pin: 26q1
+  rna_arm_card: expression-dependency-correlation
+  target: KRAS
+crispr-rnai-dependency-concordance:
+  concordance_class: moderately_concordant_non_dependent
+  fraction_agree: 0.7464028776978417
+  fraction_dependent_in_both: 0.2392086330935252
+  n_agree_dependent: 133
+  n_agree_non_dependent: 282
+  n_crispr_only: 982
+  n_crispr_only_dependent: 448
+  n_crispr_only_non_dependent: 534
+  n_disagree_crispr_dependent: 109
+  n_disagree_rnai_dependent: 32
+  n_in_both: 556
+  n_rnai_only: 145
+  n_rnai_only_dependent: 43
+  n_rnai_only_non_dependent: 102
+  n_total: 1683
+  per_line_concordance: __omitted_from_fixture__ (list, 1683 items)
+cross-consortium-dependency:
+  _method_version: 0.1.0
+  _source: Broad Achilles (CRISPRGeneEffect) vs Sanger Project Score (ScreenGeneEffect),
+    DepMap 26q1; verdict-inert cross-consortium corroboration
+  broad_frac_dependent: 0.4486
+  broad_median_chronos: -0.4574
+  broad_n_lines: 1538
+  cross_consortium_class: concordant_dependent
+  dependency_cut: -0.5
+  sanger_frac_dependent: 0.4744
+  sanger_median_chronos: -0.4779
+  sanger_n_lines: 1878
+  target: KRAS
+dependency-lineage-selectivity:
+  _per_lineage_records: __omitted_from_fixture__ (list, 26 items)
+  enriched_lineages:
+  - delta_vs_rest: -1.3825892359018326
+    effect_size: 0.7318158322256683
+    lineage: Pancreas
+    median_chronos: -1.828412413597107
+    n: 74
+    p_value: 1.0277700410632718e-26
+    q_value: 2.672202106764507e-25
+  - delta_vs_rest: -0.7306201159954071
+    effect_size: 0.5305956112852664
+    lineage: Bowel
+    median_chronos: -1.1771361231803894
+    n: 88
+    p_value: 2.9291555176400886e-17
+    q_value: 3.8079021729321153e-16
+  - delta_vs_rest: -0.5152623057365417
+    effect_size: 0.5026524235157328
+    lineage: Ampulla of Vater
+    median_chronos: -0.9713506102561951
+    n: 9
+    p_value: 0.0046208289975396095
+    q_value: 0.02402831078720597
+  enrichment_class: lineage_selective
+  lineage_omnibus_effect_size_class: large
+  lineage_omnibus_kruskal_h: 304.6101110635109
+  lineage_omnibus_p: 7.138282867646797e-50
+  lineage_variance_explained: 0.18578744921163515
+  median_chronos_panel: -0.45738519728183746
+  n_cell_lines_panel: 1538
+  n_enriched_lineages: 3
+  n_lineages_evaluated: 26
+  n_lineages_omnibus_tested: 26
+  per_lineage_stats: __omitted_from_fixture__ (list, 26 items)
+  which_lineages_separate:
+    highest: Kidney
+    lowest: Pancreas
+dependency-predictability:
+  delta_r2: 0.0232151597738266
+  model_agreement: concordant
+  pearson_r_rf: 0.6840511560440063
+  pearson_r_squared_rf: 0.4679259955883026
+  pearson_r_squared_rf_ci_hi: 0.5228469371795654
+  pearson_r_squared_rf_ci_lo: 0.41063281893730164
+  pearson_r_squared_xgb: 0.4447108209133148
+  pearson_r_xgb: 0.6668664216995239
+  per_lineage_predictability:
+  - lineage: Biliary Tract
+    n_cell_lines: 36
+    r2: 0.25628793239593506
+    top_feature: expr_MRPL48
+  - lineage: Lung
+    n_cell_lines: 141
+    r2: 0.11740624904632568
+    top_feature: expr_FOXA2
+  - lineage: Pancreas
+    n_cell_lines: 74
+    r2: 0.1149759516119957
+    top_feature: expr_CR2
+  - lineage: Uterus
+    n_cell_lines: 38
+    r2: 0.11078495532274246
+    top_feature: cn_ENSG00000258790
+  - lineage: Bowel
+    n_cell_lines: 88
+    r2: 0.10848071426153183
+    top_feature: expr_KRT83
+  - lineage: Kidney
+    n_cell_lines: 35
+    r2: 0.10408787429332733
+    top_feature: cn_CDKL3
+  - lineage: CNS/Brain
+    n_cell_lines: 167
+    r2: 0.08531929552555084
+    top_feature: expr_TSC22D1
+  - lineage: Bone
+    n_cell_lines: 79
+    r2: 0.04738173633813858
+    top_feature: cn_ARL17B
+  - lineage: Breast
+    n_cell_lines: 73
+    r2: 0.037328094244003296
+    top_feature: expr_TAS2R46
+  - lineage: Ovary/Fallopian Tube
+    n_cell_lines: 64
+    r2: 0.027945712208747864
+    top_feature: cn_ENSG00000285133
+  - lineage: Lymphoid
+    n_cell_lines: 135
+    r2: 0.025775622576475143
+    top_feature: expr_SULF2
+  - lineage: Myeloid
+    n_cell_lines: 69
+    r2: 0.016007808968424797
+    top_feature: cn_SPATA31G1
+  - lineage: Skin
+    n_cell_lines: 78
+    r2: 0.014149381779134274
+    top_feature: expr_CLK1
+  - lineage: Bladder/Urinary Tract
+    n_cell_lines: 34
+    r2: 0.012835857458412647
+    top_feature: cn_MYH13
+  - lineage: Peripheral Nervous System
+    n_cell_lines: 53
+    r2: 0.010585172101855278
+    top_feature: expr_CRYGD
+  - lineage: Esophagus/Stomach
+    n_cell_lines: 97
+    r2: 0.0014006695710122585
+    top_feature: expr_CTSE
+  - lineage: Head and Neck
+    n_cell_lines: 79
+    r2: 0.00016929509001784027
+    top_feature: cn_OR52E8
+  - lineage: Soft Tissue
+    n_cell_lines: 63
+    r2: 0.00013321843289304525
+    top_feature: cn_RASSF8
+  pred_dominant_feature: own_mut_hotspot
+  pred_dominant_feature_class: own_mut_hotspot
+  pred_n_cell_lines_evaluated: 1538
+  pred_top_features_rf:
+  - feature: own_mut_hotspot
+    feature_class: own_mut_hotspot
+    importance: 0.44054651260375977
+    rf_importance: 0.44054651260375977
+  - feature: lineage_Pancreas
+    feature_class: lineage
+    importance: 0.040919408202171326
+    rf_importance: 0.040919408202171326
+  - feature: expr_NRN1
+    feature_class: cross_gene_expression
+    importance: 0.031063875183463097
+    rf_importance: 0.031063875183463097
+  - feature: expr_MST1R
+    feature_class: cross_gene_expression
+    importance: 0.012820852920413017
+    rf_importance: 0.012820852920413017
+  - feature: cn_PLET1
+    feature_class: cross_gene_copy_number
+    importance: 0.008347991853952408
+    rf_importance: 0.008347991853952408
+  - feature: expr_GSTA4
+    feature_class: cross_gene_expression
+    importance: 0.00772290350869298
+    rf_importance: 0.00772290350869298
+  - feature: cn_BHLHE41
+    feature_class: cross_gene_copy_number
+    importance: 0.005689159967005253
+    rf_importance: 0.005689159967005253
+  - feature: expr_CACNA2D4
+    feature_class: cross_gene_expression
+    importance: 0.005645410157740116
+    rf_importance: 0.005645410157740116
+  - feature: cn_RASSF8
+    feature_class: cross_gene_copy_number
+    importance: 0.005480572581291199
+    rf_importance: 0.005480572581291199
+  - feature: expr_ZNF71
+    feature_class: cross_gene_expression
+    importance: 0.005286979489028454
+    rf_importance: 0.005286979489028454
+  pred_top_features_xgb:
+  - feature: own_mut_hotspot
+    feature_class: own_mut_hotspot
+    importance: 0.44054651260375977
+    rf_importance: 0.0
+  - feature: lineage_Pancreas
+    feature_class: lineage
+    importance: 0.040919408202171326
+    rf_importance: 0.0
+  - feature: expr_NRN1
+    feature_class: cross_gene_expression
+    importance: 0.031063875183463097
+    rf_importance: 0.0
+  - feature: expr_MST1R
+    feature_class: cross_gene_expression
+    importance: 0.012820852920413017
+    rf_importance: 0.0
+  - feature: cn_PLET1
+    feature_class: cross_gene_copy_number
+    importance: 0.008347991853952408
+    rf_importance: 0.0
+  - feature: expr_GSTA4
+    feature_class: cross_gene_expression
+    importance: 0.00772290350869298
+    rf_importance: 0.0
+  - feature: cn_BHLHE41
+    feature_class: cross_gene_copy_number
+    importance: 0.005689159967005253
+    rf_importance: 0.0
+  - feature: expr_CACNA2D4
+    feature_class: cross_gene_expression
+    importance: 0.005645410157740116
+    rf_importance: 0.0
+  - feature: cn_RASSF8
+    feature_class: cross_gene_copy_number
+    importance: 0.005480572581291199
+    rf_importance: 0.0
+  - feature: expr_ZNF71
+    feature_class: cross_gene_expression
+    importance: 0.005286979489028454
+    rf_importance: 0.0
+  predictability_class: own_omics_driven
+expression-dependency-correlation:
+  _merged_data_n_rows: 1465
+  _target_lineage: Bowel
+  chronos_at_high_expression: -0.5400183796882629
+  chronos_at_low_expression: -0.38349083065986633
+  chronos_iqr: 0.44121673703193665
+  correlation_class: weak_negative
+  delta_chronos_top_vs_bottom_quartile: -0.1565275490283966
+  mean_chronos: -0.6736536415825182
+  mean_tpm_logp1: 4.52901367433242
+  n_cell_lines_evaluated: 1465
+  pearson_p: 2.346814502735703e-11
+  pearson_r: -0.17341745898317354
+  spearman_p: 8.446827593324196e-14
+  spearman_r: -0.19330941709839392
+  top_lineages_by_dependence_high_expression:
+  - lineage: Pancreas
+    mean_chronos_high_expr: -2.1006531357765197
+    n_high_expr: 20
+  - lineage: Bowel
+    mean_chronos_high_expr: -1.342817771434784
+    n_high_expr: 20
+  - lineage: Ampulla of Vater
+    mean_chronos_high_expr: -1.3418899575869243
+    n_high_expr: 3
+  - lineage: Esophagus/Stomach
+    mean_chronos_high_expr: -1.1272402107715607
+    n_high_expr: 31
+  - lineage: Lung
+    mean_chronos_high_expr: -1.1106100320993435
+    n_high_expr: 42
+  tpm_iqr: 0.9879229068756104
+pan-cancer-crispr-dependency-distribution:
+  bimodality_coefficient: 0.7018767725114089
+  chronos_iqr: 0.44135478138923645
+  dep_control_method_version: 0.1.0
+  dep_control_negatives:
+    MYH2: -0.038
+    OR2T4: 0.018
+    OR51E2: 0.035
+    PRM1: 0.077
+  dep_control_non_essential_floor: -0.038
+  dep_control_pan_essential_ceiling: -1.499
+  dep_control_position: as/more essential than 0/6 pan-essential control(s); more
+    dependent than 4/4 non-essential control(s)
+  dep_control_position_class: between_controls
+  dep_control_position_context: 'DepMap 26q1 pan-panel median Chronos vs curated dependency
+    controls (dependency_controls v1.0.0; pan_essential_ceiling=-1.499; non_essential_floor=-0.038).
+    INVERTED: at/below the ceiling = pan-essential tox liability; between = selective
+    dependency window; at/above the floor = non-dependent.'
+  dep_control_positives:
+    EEF2: -2.741
+    PCNA: -2.978
+    PSMB2: -1.736
+    RPL3: -2.552
+    RPS11: -2.744
+    SF3B1: -1.499
+  dep_control_target_chronos: -0.457
+  dependency_class: strongly_selective
+  distribution_shape: bimodal_selective
+  fraction_moderately_dependent: 0.27243172951885564
+  fraction_non_essential: 0.5513654096228868
+  fraction_strongly_dependent: 0.17620286085825748
+  median_chronos_panel: -0.45738519728183746
+  n_cell_lines_evaluated: 1538
+  p25_chronos_panel: -0.7603878676891327
+  p5_chronos_panel: -2.1052489161491392
+  p75_chronos_panel: -0.31903308629989624
+  p95_chronos_panel: -0.13011508584022566
+  pan_essential_score: 0.17620286085825748
+  selectivity_index: 0.8547269867208117
+  top_dependent_lineages:
+  - fraction_of_dependent_tail: 0.2177121771217712
+    fraction_strongly_dependent: 0.7972972972972973
+    lineage: Pancreas
+    median_chronos: -1.828412413597107
+    n_in_lineage: 74
+  - fraction_of_dependent_tail: 0.17712177121771217
+    fraction_strongly_dependent: 0.5454545454545454
+    lineage: Bowel
+    median_chronos: -1.1771361231803894
+    n_in_lineage: 88
+  - fraction_of_dependent_tail: 0.014760147601476014
+    fraction_strongly_dependent: 0.4444444444444444
+    lineage: Ampulla of Vater
+    median_chronos: -0.9713506102561951
+    n_in_lineage: 9
+  - fraction_of_dependent_tail: 0.04428044280442804
+    fraction_strongly_dependent: 0.3333333333333333
+    lineage: Biliary Tract
+    median_chronos: -0.6513987183570862
+    n_in_lineage: 36
+  - fraction_of_dependent_tail: 0.01845018450184502
+    fraction_strongly_dependent: 0.3333333333333333
+    lineage: Eye
+    median_chronos: -0.45853087306022644
+    n_in_lineage: 15
+pan-cancer-rnai-dependency-distribution:
+  rnai_bimodality_coefficient: 0.6600419977489379
+  rnai_dep_score_iqr: 0.27069446444511414
+  rnai_dependency_class: strongly_selective
+  rnai_distribution_shape: bimodal_selective
+  rnai_fraction_moderately_dependent: 0.14122681883024252
+  rnai_fraction_non_dependent: 0.703281027104137
+  rnai_fraction_strongly_dependent: 0.15549215406562053
+  rnai_median_dep_score: -0.12177801132202148
+  rnai_n_cell_lines_evaluated: 701
+  rnai_p25_dep_score: -0.28755924105644226
+  rnai_p5_dep_score: -1.078443169593811
+  rnai_p75_dep_score: -0.016864776611328125
+  rnai_p95_dep_score: 0.1064956933259964
+  rnai_pan_essential_score: 0.15549215406562053
+  rnai_screens_contributing: []
+  rnai_selectivity_index: 0.9492457471045018
+  rnai_top_dependent_lineages:
+  - fraction_of_dependent_tail: 0.26605504587155965
+    fraction_strongly_dependent: 0.90625
+    lineage: Pancreas
+    median_dep_score: -0.7907249331474304
+    n_in_lineage: 32
+  - fraction_of_dependent_tail: 0.1743119266055046
+    fraction_strongly_dependent: 0.41304347826086957
+    lineage: Bowel
+    median_dep_score: -0.3354230672121048
+    n_in_lineage: 46
+  - fraction_of_dependent_tail: 0.10091743119266056
+    fraction_strongly_dependent: 0.22916666666666666
+    lineage: Esophagus/Stomach
+    median_dep_score: -0.167637400329113
+    n_in_lineage: 48
+  - fraction_of_dependent_tail: 0.06422018348623854
+    fraction_strongly_dependent: 0.19444444444444445
+    lineage: Lymphoid
+    median_dep_score: -0.1110510490834713
+    n_in_lineage: 36
+  - fraction_of_dependent_tail: 0.2018348623853211
+    fraction_strongly_dependent: 0.176
+    lineage: Lung
+    median_dep_score: -0.1714276224374771
+    n_in_lineage: 125
+paralog-buffering:
+  _data_source: depmap-paralog-buffering-per-gene-v1
+  _data_source_upstream: depmap-consortium-26q1-paralogs
+  functional_paralogs:
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.9739162820185921
+    median_dual_ko_effect: -1.0366939680278482
+    ohnolog: true
+    partner_gene_symbol: NRAS
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.7833939845831775
+    median_dual_ko_effect: -0.7787738882665434
+    ohnolog: true
+    partner_gene_symbol: HRAS
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.669557688804709
+    median_dual_ko_effect: -0.5989061316607995
+    ohnolog: true
+    partner_gene_symbol: RRAS2
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.6258798303410583
+    median_dual_ko_effect: -0.36679793420493934
+    ohnolog: true
+    partner_gene_symbol: REM2
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5945084901913608
+    median_dual_ko_effect: -0.5514717205129758
+    ohnolog: true
+    partner_gene_symbol: RRAD
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5690953313198381
+    median_dual_ko_effect: -0.6299014639386529
+    ohnolog: true
+    partner_gene_symbol: RALA
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5632032899077711
+    median_dual_ko_effect: -0.44093052639785324
+    ohnolog: true
+    partner_gene_symbol: ERAS
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5576882912557056
+    median_dual_ko_effect: -0.46047953772742795
+    ohnolog: true
+    partner_gene_symbol: MRAS
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5547123818441847
+    median_dual_ko_effect: -0.5483758975230608
+    ohnolog: true
+    partner_gene_symbol: REM1
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5172082827926323
+    median_dual_ko_effect: -0.44851111566474194
+    ohnolog: true
+    partner_gene_symbol: RRAS
+    single_ko_effect: -0.316174658448976
+  - buffering_class: strong
+    dep_delta_paired_vs_max_single: 0.5117860848729882
+    median_dual_ko_effect: -0.4228173625279397
+    ohnolog: true
+    partner_gene_symbol: GEM
+    single_ko_effect: -0.316174658448976
+  - buffering_class: partial
+    dep_delta_paired_vs_max_single: 0.498998781095658
+    median_dual_ko_effect: -0.4025303263262454
+    ohnolog: true
+    partner_gene_symbol: RALB
+    single_ko_effect: -0.316174658448976
+  method_version: 0.3.1
+  n_paralogs_annotated: 12
+  n_paralogs_functionally_buffering: 12
+  paralog_buffering_class: strong
+  strongest_paralog_delta: 0.9739162820185921
+  strongest_paralog_ohnolog: true
+  strongest_paralog_ohnolog_status: annotated
+  strongest_paralog_symbol: NRAS
+partner-conditional-dependency:
+  _note: target has no curated partner in partner_map.yaml; extend the map (SynLethDB
+    is the candidate-generation source).
+  partner_stratification_class: no_partner_mapped
+  target: KRAS
+prism-crispr-concordance:
+  best_spearman_r_crispr: 0.37176650762557983
+  best_spearman_r_rnai: 0.43833592534065247
+  crispr_prism_concordance_class: triangulated_target_engaged
+  dual_responders: __omitted_from_fixture__ (list, 20 items)
+  n_compounds_evaluated: 21
+  n_dual_responders: 20
+  per_compound_concordance: __omitted_from_fixture__ (list, 21 items)
+recommended-models:
+  correspondence_class: well_modeled_in_lineage
+  depmap_lineage: Bowel
+  indication: COADREAD
+  method_version: 0.1.0
+  n_lineage_models: 131
+  n_models_considered: 2446
+  n_patient_samples: 669
+  n_positive_models: 661
+  n_positive_models_in_lineage: 69
+  patient_iqr:
+  - 3.503473997116089
+  - 4.332714080810547
+  patient_median_log2tpm: 3.9716131687164307
+  recommended_models: __omitted_from_fixture__ (list, 15 items)
+  release_pin: 26q1
+  target: KRAS

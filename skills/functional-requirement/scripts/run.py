@@ -27,7 +27,12 @@ from _skills_common.synthesis_dependency import synthesize_dependency
 
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.3.1"   # 1.3.1 (2026-08-08): fix 2 headline field-name drift bugs — rnai_call read
+SKILL_VERSION = "1.4.0"   # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
+                          #        guard (test_functional_requirement_replay.py) + SKILL.md parity
+                          #        (rules_scope: -dependency-predictability [verdict-inert], +partner-conditional-
+                          #        dependency [verdict-bearing]; measurement_types += partner_conditional +
+                          #        cross_consortium; 11->13 card count). Verdict spine byte-stable.
+                          # 1.3.1 (2026-08-08): fix 2 headline field-name drift bugs — rnai_call read
                           #        `dependency_class` (card emits `rnai_dependency_class`) + lineage_selectivity
                           #        read `lineage_selectivity_class` (card emits `enrichment_class`); both were
                           #        silently None despite live data. Display-only — verdict spine byte-stable.
@@ -41,7 +46,15 @@ CARDS = [
     "pan-cancer-crispr-dependency-distribution",
     "pan-cancer-rnai-dependency-distribution",
     "crispr-rnai-dependency-concordance",
-    "dependency-lineage-selectivity",
+    "dependency-lineage-selectivity",           # TARGET-GRAIN by design (Decision 2A): enrichment_class
+                                                # =lineage_selective fires if ANY lineage is enriched, NOT
+                                                # necessarily the queried indication's lineage. So the
+                                                # lineage_selective VERDICT means "selective to some
+                                                # lineage", and the indication-MATCH is done in the LLM
+                                                # synthesis layer (per-indication lookup over
+                                                # per_lineage_stats), NOT the machine verdict (FR review #4,
+                                                # 2026-08-13). A future indication-conditioned verdict would
+                                                # be a grain change (needs a nomination-side decision).
     "paralog-buffering",                        # Layer 6d addition
     "partner-conditional-dependency",           # Track PC (2026-08-09) — VERDICT-BEARING synthetic-
                                                 # lethality rescue. Does dependency stratify by a

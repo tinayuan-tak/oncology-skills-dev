@@ -3,13 +3,13 @@ name: functional-requirement
 description: |
   Focused question skill: "Is target X a genetic dependency in indication
   Y, and how does the call hold up across CRISPR + RNAi + lineage context?"
-  Consumes 11 cards: 6 verdict-bearing (CRISPR + RNAi distributions,
-  CRISPR/RNAi concordance, lineage-selectivity, paralog-buffering, prism-crispr
-  chemical-genetic confirmation) resolved via the shared dependency resolver;
-  dependency-predictability as a CONFIDENCE annotation (not the verdict); and
-  4 verdict-inert biomarker-facet render cards (expression↔dependency,
-  abundance↔dependency, recommended-models, + the --subtypes-gated
-  subgroup-stratified-dependency panorama).
+  Consumes 13 cards: 7 verdict-bearing (CRISPR + RNAi distributions, CRISPR/RNAi
+  concordance, lineage-selectivity, paralog-buffering, prism-crispr chemical-genetic
+  confirmation, and partner-conditional-dependency [WRN×MSI-style SL rescue]) resolved
+  via the shared dependency resolver; dependency-predictability + cross-consortium-dependency
+  as CONFIDENCE annotations (not the verdict); and 4 verdict-inert biomarker-facet render
+  cards (expression↔dependency, abundance↔dependency, recommended-models, + the
+  --subtypes-gated subgroup-stratified-dependency panorama).
 
   Use for focused questions like "is KRAS a dependency in COADREAD?", "is
   MET essential across CRC cell lines?", "does the CRISPR and RNAi signal
@@ -21,7 +21,7 @@ description: |
   is modality-independent.
 
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -61,6 +61,8 @@ composition:
     - expression_dependency_correlation
     - abundance_dependency_correlation
     - patient_model_correspondence
+    - partner_conditional_dependency      # L3 parity fix (2026-08-13): partner-conditional-dependency was consumed but its measurement_type undeclared
+    - cross_consortium_dependency         # L3 parity fix (2026-08-13): cross-consortium-dependency (Broad↔Sanger) was consumed but undeclared
   rules_scope:
     - pan-cancer-crispr-dependency-distribution
     - pan-cancer-rnai-dependency-distribution
@@ -68,7 +70,9 @@ composition:
     - dependency-lineage-selectivity
     - paralog-buffering
     - prism-crispr-concordance
-    - dependency-predictability
+    - partner-conditional-dependency      # L3 fix (2026-08-13): VERDICT-BEARING (fires partner_conditional_dependent) — was omitted from rules_scope
+    # dependency-predictability REMOVED from rules_scope (L3 fix): it is verdict-INERT by design (a
+    # CONFIDENCE annotation, feeds NO resolver rung); listing it here contradicted the skill's own design.
   synthesis:
     - rule_engine
   output_shape:
