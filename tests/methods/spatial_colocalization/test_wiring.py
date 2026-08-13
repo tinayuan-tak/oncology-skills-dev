@@ -23,10 +23,16 @@ def test_coadread_wired_to_crc_cosmx():
         assert SC.INDICATION_TO_SPATIAL_COLOC[code] == "spatial-coloc-tumor-crc-coadread-v1"
 
 
-def test_product_resolves_to_catalog_s3_uri():
+def test_stad_wired_to_gastric_cosmx():
+    assert SC.INDICATION_TO_SPATIAL_COLOC["STAD"] == "spatial-coloc-tumor-stad-v1"
+
+
+def test_products_resolve_to_catalog_s3_uris():
     from methods.catalog_query.read import s3_uri_for
     assert s3_uri_for("spatial-coloc-tumor-crc-coadread-v1").endswith(
         "spatial-coloc-tumor-crc-coadread-v1/spatial_coloc.parquet")
+    assert s3_uri_for("spatial-coloc-tumor-stad-v1").endswith(
+        "spatial-coloc-tumor-stad-v1/spatial_coloc.parquet")
 
 
 def test_unmapped_indication_is_data_unavailable():
@@ -39,11 +45,19 @@ def test_unmapped_indication_is_data_unavailable():
 # ── neighbour-compartment mapping ────────────────────────────────────────────
 
 def test_neighbor_compartment_mapping():
+    # GSE303070 CosMx labels
     assert ST.compartment_of_neighbor("TCD8") == "immune"
     assert ST.compartment_of_neighbor("Macro") == "immune"
     assert ST.compartment_of_neighbor("Fibro") == "stromal"
     assert ST.compartment_of_neighbor("Endo") == "endothelial"
     assert ST.compartment_of_neighbor("Epi") == "epithelial_normal"
+    # GSE308624 gastric labels (incl. the source's 'Mocrophage' misspelling + SMC)
+    assert ST.compartment_of_neighbor("Mocrophage") == "immune"
+    assert ST.compartment_of_neighbor("SMC") == "stromal"
+    assert ST.compartment_of_neighbor("Fibroblast") == "stromal"
+    assert ST.compartment_of_neighbor("T_cell") == "immune"
+    assert ST.compartment_of_neighbor("B_cell") == "immune"
+    assert ST.compartment_of_neighbor("Endothelial") == "endothelial"
 
 
 # ── classifier (pure) ────────────────────────────────────────────────────────

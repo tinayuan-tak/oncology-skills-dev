@@ -10,7 +10,10 @@ neighbour compartment (vs the malignant baseline); < 1 = segregated.
 """
 from __future__ import annotations
 
-# Neighbour cell-type -> compartment (GSE303070 CosMx Manual_toplevel_pred labels + token fallback).
+# Neighbour cell-type -> compartment. Explicit labels from the landed spatial atlases + a token fallback.
+# GSE303070 CosMx (Manual_toplevel_pred): Macro/Mono/DC/Plasma/Granulo/B/ILC/TCD8/TCD4/Mast/TZBTB16/Tgd/NK,
+#   Fibro/Peri/SmoothMuscle/Schwann, Endo, Epi. GSE308624 gastric CosMx (cell_type): Cancer_cell (malignant),
+#   Fibroblast, SMC, B_cell, T_cell, Mocrophage (sic — misspelled in source), Endothelial, DC.
 _NEIGHBOR_COMPARTMENT = {
     "Macro": "immune", "Mono": "immune", "DC": "immune", "Plasma": "immune", "Granulo": "immune",
     "B": "immune", "ILC": "immune", "TCD8": "immune", "TCD4": "immune", "Mast": "immune",
@@ -18,6 +21,11 @@ _NEIGHBOR_COMPARTMENT = {
     "Fibro": "stromal", "Peri": "stromal", "SmoothMuscle": "stromal", "Schwann": "stromal",
     "Endo": "endothelial",
     "Epi": "epithelial_normal",
+    # GSE308624 gastric labels
+    "Fibroblast": "stromal", "SMC": "stromal",
+    "B_cell": "immune", "T_cell": "immune", "Mocrophage": "immune", "Macrophage": "immune",
+    "Plasma_cell": "immune",
+    "Endothelial": "endothelial",
 }
 _COORDINATED_MIN = 1.15      # per-compartment enrichment >= => spatially co-localized
 _SEGREGATED_MAX = 0.85       # <= => spatially segregated
