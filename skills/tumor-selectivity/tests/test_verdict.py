@@ -217,10 +217,13 @@ def test_headline_surfaces_purity_facet():
     assert h["purity_confound_class"] == "purity_independent"
 
 
-def test_deferred1_composed_path_composes_the_veto_card():
-    """DEFERRED-1: target-profile's SUB_SKILL_CARDS[tumor-selectivity] must include
-    modality-therapeutic-window, so the normal-breadth veto rule fires in the COMPOSED path
-    (card_id_filter) identically to standalone — else a broadly-normal gene nominates as selective."""
+def test_deferred1_composed_path_composes_ALL_veto_cards():
+    """DEFERRED-1 / F4 (2026-08-13): target-profile's SUB_SKILL_CARDS[tumor-selectivity] must include
+    EVERY normal-breadth veto card, so ALL three veto arms fire in the COMPOSED path (card_id_filter)
+    identically to standalone — else a broadly-normal gene nominates as selective. The prior guard
+    asserted only modality-therapeutic-window (2 of 3 arms, both keying that card); the sc-normal arm
+    (tvn-sc-normal-critical-organ-veto, keying sc-normal-celltype-expression) was UNGUARDED and could
+    silently drop from the selectivity lens (F4)."""
     import ast
     tp_run = (RUN_PY.parent.parent.parent / "target-profile" / "scripts" / "run.py").read_text()
     tree = ast.parse(tp_run)
@@ -236,9 +239,12 @@ def test_deferred1_composed_path_composes_the_veto_card():
         if isinstance(k, ast.Constant) and k.value == "tumor-selectivity":
             sel_cards = [e.value for e in v.elts if isinstance(e, ast.Constant)]
     assert sel_cards is not None
-    assert "modality-therapeutic-window" in sel_cards, (
-        "DEFERRED-1 regression: the veto card is not composed into the selectivity lens → the "
-        "normal-breadth veto cannot fire in target-profile (housekeeping FP resurrected).")
+    # Every card backing a normal-breadth veto arm must be composed into the selectivity lens.
+    for veto_card in ("modality-therapeutic-window", "sc-normal-celltype-expression"):
+        assert veto_card in sel_cards, (
+            f"DEFERRED-1/F4 regression: veto card {veto_card!r} is not composed into the selectivity "
+            f"lens → its normal-breadth veto arm cannot fire in target-profile (housekeeping FP "
+            f"resurrected for that arm).")
 
 
 # --- INC-4 (2026-08-08): axis-C absolute-density facet is VERDICT-INERT (a display facet, NOT a veto).

@@ -15,6 +15,13 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.resolver import resolve_verdict_for_gate
 from _skills_common.synthesis_selectivity import synthesize_selectivity
+# Normal-breadth VETO clamp — SINGLE-SOURCED in _skills_common.selectivity_veto (F1, 2026-08-13) so BOTH
+# this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
+# IDENTICAL clamp. Names re-exported here for the skill's own tests + local readability.
+from _skills_common.selectivity_veto import (  # noqa: F401
+    _AXIS_A_SELECTIVE, _NORMAL_BREADTH_VETO_RULES, _WINDOW_VETO_RULE,
+    _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE, apply_normal_breadth_veto,
+)
 
 
 SKILL_NAME = "tumor-selectivity"
@@ -67,24 +74,6 @@ CARDS = [
                                              # targets → unmeasured (abstain; absence != low density).
 ]
 
-# The axis-A "selective" verdicts the normal-breadth veto can downgrade (over-expressed, but the
-# conjunction with no therapeutic window makes them not a real target).
-_AXIS_A_SELECTIVE = frozenset({
-    "strong_tumor_selective", "modest_tumor_selective", "field_effect_tumor_selective",
-})
-_WINDOW_VETO_RULE = "tvn-no-therapeutic-window-veto"
-# DEFERRED-2 (2026-08-08): pan-normal companion veto. therapeutic_window is essential-organs-only;
-# full_normal_window is tumor ÷ worst of the FULL normal atlas — catches a gene broad across
-# NON-essential normals (TROP2/TACSTD2 salivary archetype) that clears the essential-organ window.
-_FULL_NORMAL_VETO_RULE = "tvn-no-full-normal-window-veto"
-# INC-3 (2026-08-08): cell-type-resolved axis-D veto — target highly detected in a safety-essential
-# cell type of a NON-origin critical organ (sc_normal_safety_essential_class == critical_organ_liability).
-_SC_NORMAL_VETO_RULE = "tvn-sc-normal-critical-organ-veto"
-# All normal-breadth veto rules — ANY firing downgrades a selective axis-A call (worst-case conjunction).
-# Precedence for the driving_rule LABEL when several fire: essential-organ window > pan-normal window >
-# sc-normal cell-type (bulk window vetoes are the longer-standing instruments; all yield the same verdict).
-_NORMAL_BREADTH_VETO_RULES = (_WINDOW_VETO_RULE, _FULL_NORMAL_VETO_RULE, _SC_NORMAL_VETO_RULE)
-
 QUESTION = ("How selectively is {target} expressed in {indication} tumor "
             "tissue, and how robust is that call across independent tumor-vs-"
             "normal comparators (TCGA-adjacent raw + ComBat, GTEx-population "
@@ -95,35 +84,26 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     """Tumor-vs-normal selectivity verdict — DELEGATES to the shared declarative
     resolver (gap #5, 2026-07-20). The if-chain that used to live here is now
     resolvers/selectivity.resolver.yaml (target-contracts), evaluated by the ONE
-    interpreter both engines call. Proven byte-for-byte equivalent to the former
-    if-chain by the golden-oracle test (test_resolver_flat_gates_oracle.py). A missing
-    spec raises (the resolver is now the source of truth — NO silent fallback to a stale
+    interpreter both engines call. The resolver mapping + the normal-breadth veto clamp are
+    guarded by tests/test_verdict.py (resolver-outcome mapping + all 3 veto arms) and
+    _skills_common/tests/test_compose_core.py (F1: resolve_gate_spine applies the same clamp);
+    the resolver spec itself is validated by target-contracts/validators/validate_resolvers.py.
+    A missing spec raises (the resolver is the source of truth — NO silent fallback to a stale
     copy, which would reintroduce the drift this refactor eliminates)."""
     result = resolve_verdict_for_gate(fired, "selectivity")
     if result is None:
         raise RuntimeError(
             "selectivity resolver spec missing (target-contracts/resolvers/"
             "selectivity.resolver.yaml) — the verdict source of truth is absent.")
-    # axis-B/E NORMAL-BREADTH VETO (conjunction redesign INC-1/2) — a DOCUMENTED post-resolver clamp
-    # (the resolver's when_fired is single-card; this veto is a 2-card conjunction). Best practice:
-    # tumor-vs-tissue-of-origin over-expression (axis A, the resolver verdict) is NECESSARY but NOT
-    # SUFFICIENT — a gene with NO therapeutic window vs the worst critical normal (housekeeping:
-    # GAPDH/ACTB/TUBB) is not a target regardless of its axis-A fold-change. When axis-A is selective
-    # AND the therapeutic-window veto rule fired (modality-therapeutic-window therapeutic_window_class
-    # == no_therapeutic_window), downgrade to selective_but_broadly_normal. One-directional: it can
-    # only DOWNGRADE a selective call, never upgrade — F1-safe.
+    # NORMAL-BREADTH VETO (INC-1/2 conjunction) — the resolver verdict (axis-A tumor-vs-origin
+    # over-expression) is NECESSARY but NOT SUFFICIENT: a gene with NO therapeutic window vs the worst
+    # critical normal (housekeeping GAPDH/ACTB, or the TROP2/TACSTD2 broadly-normal surface archetype)
+    # is not a target regardless of its fold-change. This post-resolver clamp downgrades a selective
+    # axis-A call to selective_but_broadly_normal when ANY normal-breadth veto fired. SINGLE-SOURCED in
+    # _skills_common.selectivity_veto (F1, 2026-08-13) so the compose-dashboard engine applies it too
+    # (it previously dropped the clamp, resolving raw via compose_core.resolve_gate_spine). One-directional.
     verdict, driving = result
-    # Worst-case conjunction: a selective axis-A call is downgraded if ANY normal-breadth veto fired —
-    # the essential-organ window veto (INC-1/2) OR the pan-normal window veto (DEFERRED-2). One-
-    # directional (only downgrades a selective call). driving_rule names the veto that fired (essential
-    # takes precedence in the label when both fire — it is the stricter critical-organ signal).
-    if verdict in _AXIS_A_SELECTIVE:
-        fired_ids = {r.get("rule_id") for r in fired}
-        # first veto in precedence order that fired names the downgrade (all yield the same verdict).
-        for veto_rule in _NORMAL_BREADTH_VETO_RULES:
-            if veto_rule in fired_ids:
-                return ("selective_but_broadly_normal", veto_rule)
-    return result
+    return apply_normal_breadth_veto(verdict, driving, fired)
 
 
 def _headline(cards, fired, verdict_pair):

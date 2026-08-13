@@ -21,7 +21,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.2.0
+  version: 1.7.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -56,7 +56,8 @@ composition:
   rules_scope:
     - tumor-vs-normal-selectivity
     - tumor-vs-normal-percentile-crossing
-    - modality-therapeutic-window            # the tvn-no-therapeutic-window-veto rule feeds the _verdict clamp
+    - modality-therapeutic-window            # tvn-no-therapeutic-window-veto + tvn-no-full-normal-window-veto feed the _verdict clamp
+    - sc-normal-celltype-expression          # F5 (2026-08-13): tvn-sc-normal-critical-organ-veto is verdict-DRIVING (3rd veto arm) — was omitted from rules_scope
   synthesis:
     - rule_engine
     - structured_llm    # 2026-08-05: opt-in --synthesize (selectivity-lens narrator, two-slot; verdict-inert)
@@ -89,9 +90,13 @@ composition:
   broadly expressed in normal tissue with no therapeutic window), it downgrades to
   `selective_but_broadly_normal`. This is a 2-card conjunction the single-rule resolver
   cannot express; it exists to stop a housekeeping-like gene passing as tumor-selective.
-  KNOWN LIMITATION (2026-08-08 review): this clamp is effective in the standalone skill
-  but currently inert inside the composed target-profile (the window card is scoped to a
-  different sub-skill lens there); the fix is tracked in the selectivity-conjunction plan.
+  ENGINE COVERAGE (2026-08-13 review): the clamp is applied in ALL THREE consumers — the
+  standalone skill (`_verdict`), the composed target-profile (fan-out calls that `_verdict`, and
+  all three veto cards are in `SUB_SKILL_CARDS[tumor-selectivity]`), and the compose-dashboard /
+  target-profile `--emit` engine (F1 fix: the clamp is single-sourced in
+  `_skills_common.selectivity_veto` and applied by `compose_core.resolve_gate_spine`). It is
+  one-directional (only downgrades) and a no-op unless a normal-breadth veto rule actually fired.
+  (The prior 2026-08-08 "inert inside composed target-profile" limitation is RESOLVED.)
 - Emits `decision.json` with:
   - `headline`: `selectivity_class`, `cells_supporting`, `dominant_direction`,
     `discordant`, `max_abs_log2fc`, the Axis-1 `selectivity_allgene_percentile*`

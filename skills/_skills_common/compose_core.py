@@ -107,6 +107,7 @@ def resolve_gate_spine(
     # Lazy import (skills/ dir already on sys.path via the caller's shim) — mirrors the
     # exact import the inline implementation used, so name resolution is identical.
     from _skills_common import fired_rules, resolve_verdict_for_gate
+    from _skills_common.selectivity_veto import SELECTIVITY_GATE, apply_normal_breadth_veto
 
     normed = [
         dict(c, _missing=True) if c.get("excluded_by_applies_when") else c
@@ -123,6 +124,15 @@ def resolve_gate_spine(
         if res is None:
             return None  # no resolver spec for this gate → skip (graceful)
         verdict, driving = res
+        # F1 (2026-08-13): apply the tumor-selectivity normal-breadth VETO clamp HERE too, so this
+        # shared path (compose-dashboard, target-profile --emit) matches the standalone skill's
+        # _verdict + the target-profile fan-out. The clamp is a POST-resolver conjunction the resolver
+        # grammar can't express; it previously lived only in tumor-selectivity/run.py, so this engine
+        # dropped it (a broadly-normal gene read strong_tumor_selective with no downgrade). No-op unless
+        # a normal-breadth veto rule fired AND the verdict is a selective axis-A class → non-veto
+        # targets are byte-unchanged.
+        if gate == SELECTIVITY_GATE:
+            verdict, driving = apply_normal_breadth_veto(verdict, driving, fired)
         return GateVerdict(
             gate=gate,
             verdict=verdict,

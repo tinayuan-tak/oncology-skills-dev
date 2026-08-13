@@ -168,3 +168,53 @@ def test_subskill_composition_does_not_reresolve():
     )
     assert comp.primary_gate_verdict.verdict == "POST_PROCESSED_SENTINEL"
     assert comp.primary_gate_verdict.driving_rule_id == "veto-01"
+
+
+# --- F1 (2026-08-13): the tumor-selectivity normal-breadth VETO now applies in the SHARED spine ----
+# (compose-dashboard / target-profile --emit) — previously the clamp lived only in the standalone
+# skill's _verdict, so this engine resolved raw and a broadly-normal gene read strong_tumor_selective.
+
+import pytest  # noqa: E402
+import _skills_common as _skc  # noqa: E402
+from _skills_common.selectivity_veto import apply_normal_breadth_veto  # noqa: E402
+
+
+def test_apply_normal_breadth_veto_downgrades_selective_on_any_arm():
+    fired = [{"rule_id": "tvn-no-full-normal-window-veto", "card_id": "modality-therapeutic-window"}]
+    assert apply_normal_breadth_veto("strong_tumor_selective", "tvn-strong-selective-supportive", fired) \
+        == ("selective_but_broadly_normal", "tvn-no-full-normal-window-veto")
+
+
+def test_apply_normal_breadth_veto_precedence_label_when_multiple_fire():
+    fired = [{"rule_id": "tvn-sc-normal-critical-organ-veto"},
+             {"rule_id": "tvn-no-therapeutic-window-veto"}]  # essential-window takes label precedence
+    assert apply_normal_breadth_veto("modest_tumor_selective", "x", fired) \
+        == ("selective_but_broadly_normal", "tvn-no-therapeutic-window-veto")
+
+
+def test_apply_normal_breadth_veto_noop_when_not_selective_or_no_veto():
+    veto = [{"rule_id": "tvn-no-therapeutic-window-veto"}]
+    # non-selective verdict is never downgraded
+    assert apply_normal_breadth_veto("not_selective", "r", veto) == ("not_selective", "r")
+    # selective but NO veto fired → unchanged
+    assert apply_normal_breadth_veto("strong_tumor_selective", "r", [{"rule_id": "other"}]) \
+        == ("strong_tumor_selective", "r")
+
+
+def test_resolve_gate_spine_applies_selectivity_veto(monkeypatch):
+    """The load-bearing F1 guard: resolve_gate_spine (the compose-dashboard / --emit path) must clamp a
+    selective selectivity verdict to selective_but_broadly_normal when a veto rule fired — matching the
+    standalone skill + target-profile fan-out. Monkeypatches the resolver + fired so it stays offline."""
+    veto_fired = [{"rule_id": "tvn-no-therapeutic-window-veto", "card_id": "modality-therapeutic-window"}]
+    monkeypatch.setattr(_skc, "fired_rules", lambda *a, **k: veto_fired)
+    monkeypatch.setattr(_skc, "resolve_verdict_for_gate",
+                        lambda fired, gate, **k: ("strong_tumor_selective", "tvn-strong-selective-supportive")
+                        if gate == "selectivity" else ("selective_dependency", "dep-01"))
+    cards = [{"card_id": "tumor-vs-normal-selectivity"}, {"card_id": "modality-therapeutic-window"}]
+    # selectivity gate → clamped
+    res = resolve_gate_spine(cards, headline_gate="selectivity", rules=[], contracts_root="/x")
+    assert res.primary_gate_verdict.verdict == "selective_but_broadly_normal"
+    assert res.primary_gate_verdict.driving_rule_id == "tvn-no-therapeutic-window-veto"
+    # NEGATIVE control: a DIFFERENT gate with the same fired set is NOT clamped (clamp is selectivity-only)
+    res2 = resolve_gate_spine(cards, headline_gate="dependency", rules=[], contracts_root="/x")
+    assert res2.primary_gate_verdict.verdict == "selective_dependency"
