@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """tumor-presence — expression/protein presence for a (target, indication).
 
-Consumes 13 wired cards in two tiers (see CARDS below + SKILL.md):
+Consumes 13 wired cards in three tiers (see CARDS below + SKILL.md). 7 + 4 + 2 = 13:
   VERDICT-BEARING (7, feed the presence ladders): cellline-rna-distribution (cell-line RNA),
     tumor-rna-vs-adjacent (tumor RNA), tumor-rna-distribution (per-sample tumor RNA — its
     tumor-expression-* rules ARE in the bulk_rna ladder; reclassified from display-only 2026-08-07),
     tumor-protein-abundance-cptac (tumor protein), cellline-protein-abundance (cell-line protein),
     tumor-elevation-breadth (pan-cancer target-grain),
     tumor-scrna-celltype-expression (single-cell per-compartment tumor presence — sc_rna/tumor).
-  DISPLAY-ONLY facets (4, feed NO resolver — verdict byte-stable):
-    tumor-rna-distribution-by-subtype, expression-purity-confound, cellline-rna-protein-concordance,
-    normal-tissue-liability (protein_ihc/normal SAFETY COMPARATOR — P8.3, closes the last named gap).
-  SAFETY COMPARATORS (2, verdict-inert — safety ruled by surface-modality-fit): normal-tissue-liability
-    (protein_ihc/normal — HPA IHC, P8.3), sc-normal-celltype-expression (sc_rna/normal — scRNA Phase 3.3).
+  DISPLAY-ONLY facets (4, feed NO ladder — verdict byte-stable): tumor-rna-distribution-by-subtype,
+    expression-purity-confound, cellline-rna-protein-concordance (cell-line RNA↔protein proxy),
+    rna-protein-concordance-tumor (CPTAC tumor RNA↔protein proxy — the tumor arm).
+  SAFETY COMPARATORS (2, verdict-inert; the safety VERDICT is owned by on-target-safety-liability, NOT
+    this skill): normal-tissue-liability (protein_ihc/normal — HPA IHC, P8.3),
+    sc-normal-celltype-expression (sc_rna/normal — scRNA Phase 3.3).
   (phospho-pathway-activity RE-HOMED 2026-08-05 → mechanism-and-pharmacology: an ACTIVITY /
    signaling-state readout, not a presence/abundance signal — it belongs with the mechanism lens.)
 Emits a data-package output tree with a rank-ordered presence verdict + per-(measurement,
@@ -20,10 +21,11 @@ sample_context) sub-verdicts across THREE measurement ladders (bulk_rna, bulk_pr
 
 W4d refactor (2026-07-09): calls the shared run_wired_skill dispatcher.
 Slice B3 (2026-07-21): + tumor-elevation-breadth (the target-grain tumor signal).
-Card roster grew 2->10 across the expression-extraction plan (Q1/Q5/Q8/Q9 + protein + breadth + subtype).
 sc_rna slice (2026-08-04): + tumor-scrna-celltype-expression — fills the sc_rna/tumor bucket that
   MODALITY_TAXONOMY.md named as an unbuilt gap (single-cell per-compartment presence + malignant-vs-
-  microenvironment attribution; a 3rd measurement ladder _SC_RNA_RANK). 10->11 cards.
+  microenvironment attribution; a 3rd measurement ladder _SC_RNA_RANK).
+Card roster reached 13 across the expression-extraction plan (Q1/Q5/Q8/Q9 + protein + breadth +
+  subtype + sc_rna/tumor + the two normal comparators).
 """
 
 from __future__ import annotations
@@ -39,9 +41,12 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.4.0"   # 2026-08-08 — graduate RNA→protein TUMOR concordance arm (rna-protein-concordance-tumor);
-                          # tumor rna_as_biomarker now the preferred input to bulk_rna_proxy_quality. Display-only,
-                          # presence verdict byte-stable. (1.3.0 = Phase 3.3 sc-normal sc_rna/normal comparator.)
+SKILL_VERSION = "1.5.0"   # 2026-08-13 — full-review verdict remediation (VERDICT-MOVING): H2 collapse now ranks
+                          # measured POSITIVES (any modality) above measured NEGATIVES (a cell-line-RNA killer no
+                          # longer buries a measured tumor-protein/sc positive); M3 not_informative sinks to the
+                          # collapse gap tier; M2 a resolved-but-flat CPTAC `ns` marks the bulk_protein_ms/tumor
+                          # bucket `measured` (protein_present_not_elevated) instead of data_unavailable.
+                          # (1.4.0 = RNA→protein TUMOR concordance arm; 1.3.0 = sc-normal comparator.)
 
 CARDS = [
     "cellline-rna-distribution",
@@ -299,25 +304,57 @@ _MEASUREMENT_RANK: dict[str, list[tuple[str, str]]] = {
 # not_detected killer) resolves to `data_unavailable` — silently discarding the measured
 # protein signal (the exact cross-modality-swallow the per-ladder C1 fix does NOT cover).
 #
-# Correct order: ALL measured rules first (expression measured, then protein measured, then
-# sc_rna measured — RNA stays the backbone so existing RNA-target verdicts are byte-stable), then
-# EVERY `data_unavailable` entry sinks to the bottom. A measured protein/sc call therefore always
-# outranks an expression coverage-gap, while an RNA target still resolves on its expression rule
-# first (measured expression precedes measured protein precedes measured sc_rna). sc_rna is appended
-# LAST among measured so a target firing BOTH a bulk rule and an sc rule keeps its old (bulk) verdict
-# (byte-stability); a target firing ONLY sc rules (COADREAD/NSCLC single-cell, no bulk) now resolves
-# instead of collapsing to insufficient.
-def _partition_measured(ladder: list[tuple[str, str]]) -> tuple[list, list]:
-    measured = [(rid, v) for rid, v in ladder if v != "data_unavailable"]
-    gap = [(rid, v) for rid, v in ladder if v == "data_unavailable"]
-    return measured, gap
+# Correct order has TWO subtleties beyond a naive concatenation:
+#
+# (A) COVERAGE GAPS SINK (original C1 fix): expression's data_unavailable rungs must NOT sit above
+#     protein rules, else a protein-only target (expression data_unavailable, CPTAC strong_up)
+#     collapses to data_unavailable, discarding the measured protein signal.
+#
+# (B) MEASURED POSITIVES OUTRANK MEASURED NEGATIVES ACROSS MODALITIES (H2 fix, 2026-08-13 full review):
+#     the prior collapse was _EXPR_MEASURED + _PROT_MEASURED + _SC_MEASURED, so the ENTIRE expression
+#     measured block — INCLUDING its killers/opposers (broadly_low_expression, the down reads) — sat
+#     above every protein/sc rung. A target broadly-LOW in DepMap cell-line RNA but strongly-UP in CPTAC
+#     tumor protein collapsed to broadly_low_expression: a FALSE-NEGATIVE presence headline that
+#     contradicted its own `bulk_protein_ms/tumor: measured` bucket. G5 fixed this WITHIN the RNA ladder;
+#     the modality-tier boundaries reintroduced the identical class across modalities. Fix: collapse as
+#     [all measured POSITIVES: expr, prot, sc] + [all measured NEGATIVES: expr, prot, sc] + [gaps], so a
+#     measured presence-positive in ANY modality outranks a measured presence-negative in another, while
+#     RNA stays the backbone WITHIN each tier (expr before prot before sc → byte-stable for positive-RNA
+#     targets). A measured negative still outranks a coverage gap.
+#     (`dominant:` on protein-strongly-up is a modality-GATE concept — small_molecule/degrader signals —
+#     NOT a presence-collapse concept; presence keeps RNA-backbone-first order among positives.)
+
+# Measured verdict strings that are PRESENCE-NEGATIVE (opposing / degrader-killer: the target is
+# down/absent, not present). Everything else measured is presence-positive-or-neutral (present, with a
+# caveat). Coverage gaps (data_unavailable) PLUS the tumor-vs-adjacent `not_informative` read sink to
+# the bottom — M3 fix: a flat/non-differential tumor-vs-adjacent result is a COVERAGE GAP (the rule's
+# own rationale), not a measured negative, so it must never mask a measured protein/sc positive.
+_MEASURED_NEGATIVE_VERDICTS = frozenset({
+    "modestly_downregulated_in_tumor", "strongly_downregulated_in_tumor", "broadly_low_expression",
+    "protein_modestly_downregulated", "protein_strongly_downregulated",
+    "protein_not_detected", "protein_broadly_low",
+})
+_COLLAPSE_GAP_VERDICTS = frozenset({"data_unavailable", "not_informative"})
 
 
-_EXPR_MEASURED, _EXPR_GAP = _partition_measured(_EXPRESSION_RANK)
-_PROT_MEASURED, _PROT_GAP = _partition_measured(_PROTEIN_RANK)
-_SC_MEASURED, _SC_GAP = _partition_measured(_SC_RNA_RANK)
+def _partition_measured(ladder: list[tuple[str, str]]) -> tuple[list, list, list]:
+    """Split a ladder into (presence-POSITIVE, presence-NEGATIVE, coverage-GAP) rungs, preserving
+    within-tier order. Positives = present (supportive/neutral-present); negatives = opposing/killer
+    measured reads; gaps = data_unavailable (+ not_informative, M3)."""
+    positives = [(rid, v) for rid, v in ladder
+                 if v not in _MEASURED_NEGATIVE_VERDICTS and v not in _COLLAPSE_GAP_VERDICTS]
+    negatives = [(rid, v) for rid, v in ladder if v in _MEASURED_NEGATIVE_VERDICTS]
+    gaps = [(rid, v) for rid, v in ladder if v in _COLLAPSE_GAP_VERDICTS]
+    return positives, negatives, gaps
+
+
+_EXPR_POS, _EXPR_NEG, _EXPR_GAP = _partition_measured(_EXPRESSION_RANK)
+_PROT_POS, _PROT_NEG, _PROT_GAP = _partition_measured(_PROTEIN_RANK)
+_SC_POS, _SC_NEG, _SC_GAP = _partition_measured(_SC_RNA_RANK)
 _VERDICT_RANK: list[tuple[str, str]] = (
-    _EXPR_MEASURED + _PROT_MEASURED + _SC_MEASURED + _EXPR_GAP + _PROT_GAP + _SC_GAP
+    _EXPR_POS + _PROT_POS + _SC_POS         # all measured POSITIVES (RNA backbone first)
+    + _EXPR_NEG + _PROT_NEG + _SC_NEG       # then all measured NEGATIVES
+    + _EXPR_GAP + _PROT_GAP + _SC_GAP       # then coverage gaps (incl. not_informative, M3)
 )
 
 
@@ -363,6 +400,17 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 _COMPARATOR_BUCKETS = {
     ("protein_ihc", "normal"): ("normal-tissue-liability", "normal_tissue_breadth_class"),
     ("sc_rna", "normal"):      ("sc-normal-celltype-expression", "sc_normal_expression_class"),
+}
+
+# M2 (2026-08-13 full review): (bucket) → (card_id, field, {raw_class: bucket_verdict}) for cards that
+# emit a MEASURED-PRESENT class that is deliberately UN-RULED (fires no rule, so cannot rank into a
+# ladder). Used by _per_modality_verdicts to mark such a bucket `measured` instead of data_unavailable
+# when the card resolved with one of these classes. tumor-protein-abundance-cptac.`ns` = protein
+# quantified but not tumor-elevated (present-but-flat); the CPTAC card is a tumor-vs-normal CONTRAST,
+# so `ns` means present in both, i.e. present in tumor without tumor-selective elevation.
+_MEASURED_UNRULED_PRESENT = {
+    ("bulk_protein_ms", "tumor"): ("tumor-protein-abundance-cptac", "protein_expression_class",
+                                   {"ns": "protein_present_not_elevated"}),
 }
 
 
@@ -431,11 +479,28 @@ def _per_modality_verdicts(fired: list[dict], cards: list[dict] | None = None) -
                         "verdict": v, "driving_rule_id": drv,
                         "evidence_state": "measured"}
         else:
-            # No card for this bucket in this skill (sc_rna/tumor), OR a tagged card produced no
-            # fired rule. Either way: not measured here.
+            # No card for this bucket in this skill, OR a tagged card produced no fired rule.
             out[key] = {"measurement": measurement, "sample_context": sample_context,
                         "verdict": "data_unavailable", "driving_rule_id": None,
                         "evidence_state": "data_unavailable"}
+
+        # M2 fix (2026-08-13 full review): rescue a resolved-but-UNRULED PRESENT read from a
+        # data_unavailable bucket. Some cards emit a measured-present class that fires NO rule by
+        # design — notably tumor-protein-abundance-cptac's `ns` (protein quantified, no significant
+        # tumor-vs-normal differential = present-but-not-elevated). `ns` stays deliberately un-ruled
+        # (the modality gate must not fire on the neutral null), but that left this bucket reading
+        # `data_unavailable` — conflating "measured, flat" with "not measured" — whenever the parallel
+        # breadth layer was also absent (its data_unavailable rung being the only fired rule). Here we
+        # detect the resolved-but-unruled present read directly off the card and mark the bucket
+        # `measured`, WITHOUT authoring a gate rule (no compose/target-profile golden churn).
+        if out[key]["verdict"] == "data_unavailable" and (measurement, sample_context) in _MEASURED_UNRULED_PRESENT:
+            card_id, field, class_map = _MEASURED_UNRULED_PRESENT[(measurement, sample_context)]
+            _present = {c["card_id"] for c in (cards or [])}
+            raw = get_card_field(cards, card_id, field) if card_id in _present else None
+            if raw in class_map:
+                out[key] = {"measurement": measurement, "sample_context": sample_context,
+                            "verdict": class_map[raw], "driving_rule_id": None,
+                            "evidence_state": "measured"}
     return out
 
 

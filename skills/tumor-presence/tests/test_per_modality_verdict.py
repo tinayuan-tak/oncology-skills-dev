@@ -548,3 +548,84 @@ def test_rna_tumor_elevation_breadth_surfaced_in_headline_G3():
     assert h["breadth_layer_concordance"] == "rna_only"
     # verdict-inert: the RNA-breadth facet never moves presence_verdict
     assert h["presence_verdict"] == "insufficient"
+
+
+# --- H2 / M3 / M2 full-review verdict regressions (2026-08-13) --------------
+
+def test_h2_measured_protein_positive_outranks_rna_killer():
+    """H2: a target broadly-LOW in cell-line RNA (a degrader-killer) but strongly-UP in tumor PROTEIN
+    must collapse to the measured protein positive, NOT the RNA killer — a false-negative before the
+    fix (the RNA killer sat above every protein rung)."""
+    fired = [_fr("expression-broadly-low-degrader-killer", "cellline-rna-distribution"),
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
+    verdict, drv = tp._verdict(fired)
+    assert verdict == "protein_strongly_upregulated", (
+        f"measured protein positive must outrank the cell-line-RNA killer; got {verdict!r}")
+    assert drv == "protein-strongly-up-supportive"
+
+
+def test_h2_measured_sc_positive_outranks_protein_killer():
+    """H2 (sc arm): a measured sc malignant-detected positive outranks a measured protein-not-detected
+    killer."""
+    fired = [_fr("protein-not-detected-degrader-killer", "tumor-protein-abundance-cptac"),
+             _fr("sc-expression-malignant-broadly-detected-supportive",
+                 "tumor-scrna-celltype-expression")]
+    verdict, _ = tp._verdict(fired)
+    assert verdict == "sc_malignant_detected"
+
+
+def test_h2_rna_positive_still_wins_over_protein_positive_bytestable():
+    """H2 byte-stability: among POSITIVES, RNA remains the backbone (expr before protein), so an
+    established positive-RNA verdict is unchanged."""
+    fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
+    verdict, _ = tp._verdict(fired)
+    assert verdict == "broadly_moderate_expression"
+
+
+def test_m3_not_informative_does_not_mask_protein_positive():
+    """M3: not_informative (a flat tumor-vs-adjacent COVERAGE gap) sinks below all measured, so it can
+    never bury a measured protein positive in the collapse."""
+    fired = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent"),
+             _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac")]
+    verdict, _ = tp._verdict(fired)
+    assert verdict == "protein_strongly_upregulated"
+
+
+def test_m3_not_informative_sinks_below_measured_negative():
+    """M3: not_informative also sinks below a measured NEGATIVE — a measured protein down-read is more
+    informative than a flat RNA differential."""
+    fired = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent"),
+             _fr("protein-strongly-down-opposing", "tumor-protein-abundance-cptac")]
+    verdict, _ = tp._verdict(fired)
+    assert verdict == "protein_strongly_downregulated"
+
+
+def test_m3_not_informative_alone_still_reported():
+    """M3 does not change the not_informative-ONLY case: with nothing measured to outrank it, the
+    collapse still surfaces not_informative (from the gap tier)."""
+    fired = [_fr("expression-call-not-informative-degrader-killer", "tumor-rna-vs-adjacent")]
+    verdict, _ = tp._verdict(fired)
+    assert verdict == "not_informative"
+
+
+def test_m2_resolved_but_flat_cptac_ns_bucket_is_measured():
+    """M2: a resolved-but-flat CPTAC `ns` (present, not tumor-elevated) marks the bulk_protein_ms/tumor
+    bucket `measured` (protein_present_not_elevated), NOT data_unavailable — 'measured, flat' must not
+    read as 'not measured'. `ns` fires no rule (deliberately un-ruled), so the bucket is rescued off the
+    resolved card directly."""
+    cards = [{"card_id": "tumor-protein-abundance-cptac",
+              "summary": {"protein_expression_class": "ns"}}]
+    pm = tp._per_modality_verdicts([], cards)      # ns fires nothing; no breadth either
+    b = pm["bulk_protein_ms/tumor"]
+    assert b["evidence_state"] == "measured", f"resolved ns must mark the bucket measured; got {b}"
+    assert b["verdict"] == "protein_present_not_elevated"
+
+
+def test_m2_no_resolved_cptac_stays_data_unavailable():
+    """M2 guard: with NO cptac card resolved (truly not measured), the bucket stays data_unavailable —
+    the rescue only fires on a genuinely resolved-but-unruled present read."""
+    pm = tp._per_modality_verdicts([], cards=[])
+    b = pm["bulk_protein_ms/tumor"]
+    assert b["evidence_state"] == "data_unavailable"
+    assert b["verdict"] == "data_unavailable"

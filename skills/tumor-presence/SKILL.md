@@ -105,9 +105,11 @@ composition:
     - rna_protein_concordance             # BOTH the cell-line arm (cellline-rna-protein-concordance) AND the tumor arm (rna-protein-concordance-tumor) — same measurement_type, different grain
     - sc_tumor_celltype_expression        # sc_rna slice (2026-08-04): single-cell per-compartment tumor presence
     - sc_normal_celltype_expression       # Phase 3.3: scRNA normal-tissue safety comparator (sc_rna/normal)
+    - normal_tissue_protein_breadth       # L3 parity fix (2026-08-13): normal-tissue-liability HPA-IHC comparator (protein_ihc/normal) — was omitted
   rules_scope:
     - cellline-rna-distribution
     - tumor-rna-vs-adjacent
+    - tumor-rna-distribution              # L3 parity fix (2026-08-13): tumor-expression-* rules → _EXPRESSION_RANK (VERDICT-BEARING) — was omitted
     - tumor-protein-abundance-cptac
     - cellline-protein-abundance
     - tumor-elevation-breadth
@@ -126,31 +128,44 @@ composition:
 
 ## What this skill does
 
-- Fetches the two expression cards via compose-dashboard live-reader
-  dispatchers. Reuses the exact same read path Macro uses — no drift.
-- Runs the expression-* rule subset (9 rules across the 2 cards) against
-  the summaries.
+- Fetches the 13 wired cards via the compose-dashboard live-reader dispatchers — the exact same
+  read path the composed engines use, so there is no computation drift.
+- Fires each card's rules on the `intracellular_intrinsic` axis across THREE measurement ladders
+  (`_EXPRESSION_RANK` / `_PROTEIN_RANK` / `_SC_RNA_RANK`, keyed by the card's `measurement`), then
+  emits BOTH a collapsed `presence_verdict` AND one sub-verdict per `(measurement, sample_context)`
+  bucket (`presence_verdict_by_modality`). The 4 display-only facets + 2 normal comparators feed no
+  ladder (verdict byte-stable).
 - Emits a data-package output tree with:
-  - `decision.json` — presence_verdict + fired rules
+  - `decision.json` — `presence_verdict` + `presence_verdict_by_modality` + fired rules + provenance
   - `summary.yaml` — per-card summary dicts
   - `tables/` — per-card summary_stats CSVs
   - `figures/` — populated per-card if a card emitter is wired
   - `provenance.yaml` — audit anchor including `invoked_lenses`
 
-## Verdict resolution (rank-ordered)
+## Verdict resolution (rank-ordered collapse)
 
-1. `expression-broadly-high-supportive` fires → `broadly_high_expression`
-2. `expression-strong-upregulation-supportive` fires → `strongly_upregulated_in_tumor`
-3. `expression-lineage-restricted-supportive` fires → `lineage_restricted`
-4. `expression-modest-upregulation-neutral` fires → `modestly_upregulated_in_tumor`
-5. `expression-broadly-moderate-neutral` fires → `broadly_moderate_expression`
-6. `expression-broadly-low-degrader-killer` fires → `broadly_low_expression`
-7. `expression-call-not-informative-degrader-killer` fires → `not_informative`
-8. `expression-data-unavailable-insufficient` fires → `data_unavailable`
-9. else → `insufficient`
+The collapsed `presence_verdict` is the highest-ranked fired rung of `_VERDICT_RANK`, built from the
+three measurement ladders (`run.py`) as:
 
-The `driving_rule_id` is captured in the headline so a reviewer can trace
-the verdict back to the exact rule in intracellular-intrinsic.rules.yaml.
+1. **all measured PRESENCE-POSITIVES** — expression, then protein, then sc_rna (RNA is the backbone,
+   so a positive-RNA target's verdict is byte-stable). Positives = present (supportive/neutral-present).
+2. **then all measured PRESENCE-NEGATIVES** — the opposing/killer reads (down-regulated, broadly-low,
+   protein-not-detected) across the same modality order. A measured positive in ANY modality therefore
+   outranks a measured negative in another (H2 fix, 2026-08-13) — a cell-line-RNA killer no longer
+   buries a measured tumor-protein/sc positive.
+3. **then coverage GAPS** — `data_unavailable` plus tumor-vs-adjacent `not_informative` (M3: a flat
+   read is a coverage gap, not a measured negative).
+4. else → `insufficient` (nothing fired).
+
+The per-`(measurement, sample_context)` buckets rank WITHIN each bucket using that measurement's ladder
+(they are NOT collapsed). `driving_rule_id` is captured in the headline so a reviewer can trace the
+verdict to the exact rule in `intracellular-intrinsic.rules.yaml`.
+
+NOTE (inline verdict, by design): tumor-presence resolves its verdict inline in `run.py` rather than via
+a `*.resolver.yaml` — the collapsed spine AND the per-bucket decomposition derive from the same ladders,
+which the resolver grammar (no grouping) cannot express. The ladder is frozen by
+`test_full_per_modality_golden_spine` + the G1/G2/G5/H2/M2/M3 regressions (the golden-oracle guard a
+resolver migration would otherwise provide).
 
 ## Per-(measurement, sample_context) sub-verdicts
 
