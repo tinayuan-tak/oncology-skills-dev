@@ -629,3 +629,53 @@ def test_m2_no_resolved_cptac_stays_data_unavailable():
     b = pm["bulk_protein_ms/tumor"]
     assert b["evidence_state"] == "data_unavailable"
     assert b["verdict"] == "data_unavailable"
+
+
+# --- LENS-DISCORDANCE flag (2026-08-13 multi-pair review) --------------------
+# Additive / verdict-inert legibility flag: True only when the collapsed headline is
+# cell-line-anchored AND the tumor-tissue RNA lens reads a strictly HIGHER presence tier
+# (the case where the one-word verdict UNDERSTATES tumor presence). presence_verdict itself
+# is byte-stable — these tests assert the flag, never a verdict change.
+
+def _lens_disc(fired):
+    v, drv = tp._verdict(fired)
+    return tp._headline_lens_discordance(drv, tp._per_modality_verdicts(fired))
+
+
+def test_discordant_when_cellline_moderate_but_tumor_broad():
+    """EPCAM/FOLR1/KRAS pattern: headline broadly_moderate off the cell-line lens, tumor
+    tissue reads tumor_broadly_expressed (tier 3 > 2) → flag the understatement."""
+    fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
+             _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
+    lens, discordant = _lens_disc(fired)
+    assert lens == "bulk_rna/cell_line"
+    assert discordant is True
+
+
+def test_not_discordant_when_both_lenses_broad():
+    """ERBB2/MET pattern: headline already broadly_high (tier 3); tumor tissue is not a
+    HIGHER tier, so the headline does not understate → no flag."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+             _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
+    lens, discordant = _lens_disc(fired)
+    assert lens == "bulk_rna/cell_line"
+    assert discordant is False
+
+
+def test_not_discordant_when_headline_is_tumor_anchored():
+    """CEACAM5 pattern: the headline already came from the TUMOR lens (strong upregulation),
+    so there is nothing to flag even though the cell-line lens is lineage_restricted."""
+    fired = [_fr("expression-lineage-restricted-supportive", "cellline-rna-distribution"),
+             _fr("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent")]
+    lens, discordant = _lens_disc(fired)
+    assert lens == "bulk_rna/tumor"
+    assert discordant is False
+
+
+def test_not_discordant_when_tumor_lens_unmeasured():
+    """Target-only query: cell-line measured, tumor bucket data_unavailable → no tumor tier
+    to compare, so the flag stays False (never fabricated off a missing lens)."""
+    fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution")]
+    lens, discordant = _lens_disc(fired)
+    assert lens == "bulk_rna/cell_line"
+    assert discordant is False

@@ -41,11 +41,16 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.5.0"   # 2026-08-13 — full-review verdict remediation (VERDICT-MOVING): H2 collapse now ranks
-                          # measured POSITIVES (any modality) above measured NEGATIVES (a cell-line-RNA killer no
-                          # longer buries a measured tumor-protein/sc positive); M3 not_informative sinks to the
-                          # collapse gap tier; M2 a resolved-but-flat CPTAC `ns` marks the bulk_protein_ms/tumor
-                          # bucket `measured` (protein_present_not_elevated) instead of data_unavailable.
+SKILL_VERSION = "1.6.0"   # 2026-08-13 — multi-pair review (ADDITIVE / verdict-inert): headline now carries
+                          # headline_lens + cell_line_vs_tumor_discordant + presence_interpretation_note so a
+                          # cell-line-anchored one-word verdict that UNDERSTATES tumor-tissue presence (EPCAM,
+                          # FOLR1, KRAS) is legible. Feeds no rule; presence_verdict byte-stable. (Ladder re-anchor
+                          # that would promote the tumor lens is a SEPARATE backtest-gated change.)
+                          # 1.5.0 = full-review verdict remediation (VERDICT-MOVING): H2 collapse ranks measured
+                          # POSITIVES (any modality) above measured NEGATIVES (a cell-line-RNA killer no longer
+                          # buries a measured tumor-protein/sc positive); M3 not_informative sinks to the collapse
+                          # gap tier; M2 a resolved-but-flat CPTAC `ns` marks the bulk_protein_ms/tumor bucket
+                          # `measured` (protein_present_not_elevated) instead of data_unavailable.
                           # (1.4.0 = RNA→protein TUMOR concordance arm; 1.3.0 = sc-normal comparator.)
 
 CARDS = [
@@ -551,9 +556,64 @@ def _bulk_rna_proxy_quality(per_modality: dict, rna_as_biomarker) -> str:
     return "proxy_untested"   # insufficient_paired_models / data_unavailable / None
 
 
+# Presence-TIER ordinal for the RNA-lens verdict vocab. Used ONLY to detect when the
+# collapsed headline UNDERSTATES the tumor-tissue lens. VERDICT-INERT: feeds no ladder,
+# never moves presence_verdict — surfaces an interpretation caveat only.
+#
+# WHY (2026-08-13 multi-pair review): the headline presence_verdict is byte-identical to the
+# bulk_rna/cell_line sub-verdict whenever a cell-line expression rule wins the collapsed
+# ladder — the cell-line rungs (broadly_high … broadly_moderate) rank ABOVE the tumor-lens
+# rungs by design, for byte-stability (see _EXPRESSION_RANK). For antigens that
+# DE-DIFFERENTIATE in 2D culture (EPCAM, FOLR1, CEACAM5), the pan-cancer cell-line median
+# collapses while the tumor tissue reads top-percentile, so the one-word headline underrates
+# the best tumor-selective antigens. This flag makes that discordance legible WITHOUT
+# re-ranking the ladder (the re-anchor is a separate, backtest-gated change). Consumers
+# should read presence_verdict_by_modality — not just presence_verdict — when the flag is set.
+_PRESENCE_TIER = {
+    "broadly_high_expression": 3, "strongly_upregulated_in_tumor": 3, "tumor_broadly_expressed": 3,
+    "broadly_moderate_expression": 2, "modestly_upregulated_in_tumor": 2, "tumor_moderately_expressed": 2,
+    "lineage_restricted": 1, "broadly_low_expression": 1, "tumor_sparsely_expressed": 1,
+}
+
+
+def _headline_lens_discordance(driving_rule_id: str | None, per_modality: dict):
+    """Which (measurement/sample_context) lens drove the collapsed headline, and does the
+    tumor-tissue RNA lens read a HIGHER presence tier than the cell-line lens that anchored
+    it? Returns (headline_lens_key_or_None, cell_line_vs_tumor_discordant_bool). The flag is
+    True only for the specific hazard "headline is cell-line-anchored AND tumor tissue reads
+    a strictly higher presence tier" — i.e. the one-word verdict understates tumor presence.
+    Additive / verdict-inert (never touches presence_verdict)."""
+    lens = None
+    if driving_rule_id is not None:
+        for key, b in (per_modality or {}).items():
+            if isinstance(b, dict) and b.get("driving_rule_id") == driving_rule_id:
+                lens = key
+                break
+    discordant = False
+    if lens == "bulk_rna/cell_line":
+        cl = (per_modality or {}).get("bulk_rna/cell_line") or {}
+        tv = (per_modality or {}).get("bulk_rna/tumor") or {}
+        if tv.get("evidence_state") == "measured":
+            cl_tier = _PRESENCE_TIER.get(cl.get("verdict"))
+            tumor_tier = _PRESENCE_TIER.get(tv.get("verdict"))
+            if cl_tier is not None and tumor_tier is not None and tumor_tier > cl_tier:
+                discordant = True
+    return lens, discordant
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     per_modality = _per_modality_verdicts(fired, cards)
+    # 2026-08-13 multi-pair review: legibility flag for the cell-line-anchored headline.
+    _headline_lens, _cl_tumor_discordant = _headline_lens_discordance(drv, per_modality)
+    _tumor_bucket = (per_modality or {}).get("bulk_rna/tumor") or {}
+    _presence_interpretation_note = (
+        ("presence_verdict inherits the pan-cancer cell-line RNA lens; the tumor-tissue lens "
+         f"reads a higher presence tier ({_tumor_bucket.get('verdict')}). Read "
+         "presence_verdict_by_modality['bulk_rna/tumor'] — the one-word headline understates "
+         "tumor-tissue presence for this target (typical of antigens that de-differentiate in "
+         "2D culture).")
+        if _cl_tumor_discordant else None)
     _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")
     # TUMOR-arm proxy quality (Q5 tumor, 2026-08-08 graduation). This is the number an RNA-based
     # presence claim IN A PATIENT rests on — bulk-tumor purity/stroma/post-transcriptional regulation
@@ -576,6 +636,16 @@ def _headline(cards, fired, verdict_pair):
         # data_unavailable`. sc_rna/tumor + protein_ihc/normal are explicit
         # data_unavailable — named gaps, not silence.
         "presence_verdict_by_modality": per_modality,
+        # LENS-DISCORDANCE facet (2026-08-13 multi-pair review) — additive / VERDICT-INERT.
+        # The collapsed presence_verdict inherits whichever lens won the ladder; `headline_lens`
+        # names it (e.g. bulk_rna/cell_line). `cell_line_vs_tumor_discordant` is True only when
+        # the headline is cell-line-anchored AND the tumor-tissue lens reads a strictly HIGHER
+        # presence tier — the case where the one-word verdict understates tumor presence (EPCAM,
+        # FOLR1, KRAS). `presence_interpretation_note` spells out the caveat for LLM/human readers.
+        # None of these feed a rule; presence_verdict is byte-stable.
+        "headline_lens":            _headline_lens,
+        "cell_line_vs_tumor_discordant": _cl_tumor_discordant,
+        "presence_interpretation_note": _presence_interpretation_note,
         "median_log2tpm_panel":     get_card_field(cards, "cellline-rna-distribution",
                                           "median_log2tpm_panel"),
         # NOTE: the cell-line card emits `expression_class` (its primary call); `expression_call_class`

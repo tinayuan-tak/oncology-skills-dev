@@ -63,7 +63,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 1.4.0
+  version: 1.6.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -190,6 +190,27 @@ per-cell `detection_fraction` and malignant-vs-microenvironment attribution
 / microenvironment_dominant / broadly_low / data_unavailable). Only
 `protein_ihc/normal` remains an unbuilt-substrate named gap.
 
+## Headline-lens discordance (read this before trusting the one-word verdict)
+
+The collapsed `presence_verdict` is byte-identical to whichever lens wins the ladder, and the
+cell-line RNA rungs (`broadly_high` … `broadly_moderate`) rank ABOVE the tumor-lens rungs by
+design (byte-stability). So for antigens that **de-differentiate in 2D culture** — EPCAM, FOLR1,
+CEACAM5 — the pan-cancer cell-line median collapses while the tumor tissue reads top-percentile,
+and the one-word headline UNDERSTATES tumor presence. The skill makes this legible with three
+ADDITIVE, verdict-inert headline fields (they feed no rule; `presence_verdict` is byte-stable):
+
+- **`headline_lens`** — the `measurement/sample_context` bucket whose `driving_rule_id` won the
+  collapsed verdict (e.g. `bulk_rna/cell_line`).
+- **`cell_line_vs_tumor_discordant`** — `true` ONLY when the headline is cell-line-anchored AND
+  the `bulk_rna/tumor` lens reads a strictly HIGHER presence tier (the understatement case).
+  Verified spread: `true` for EPCAM/FOLR1/KRAS-COADREAD; `false` for ERBB2/MET (both lenses broad)
+  and CEACAM5 (headline already tumor-anchored via strong upregulation).
+- **`presence_interpretation_note`** — a human/LLM-facing sentence spelled out when discordant.
+
+When `cell_line_vs_tumor_discordant` is `true`, read `presence_verdict_by_modality['bulk_rna/tumor']`,
+not just the headline word. (A future re-anchor that promotes the tumor lens in the ladder is a
+separate, backtest-gated change — this flag is the non-flipping interim.)
+
 ## What this skill does NOT do
 
 - Does NOT recompute the DGE — reads pre-computed derived products.
@@ -226,5 +247,8 @@ When called as `/tumor-presence`, Claude should:
    if the subtype is not among the computed strata, the narration says so rather than
    inventing a position.
 4. Read `<OUT_DIR>/decision.json`, present the headline (presence_verdict +
-   driving_rule_id + per-card summary highlights) inline. If `--synthesize` was used,
+   driving_rule_id + per-card summary highlights) inline. If
+   `cell_line_vs_tumor_discordant` is `true`, surface `presence_interpretation_note`
+   and the `bulk_rna/tumor` sub-verdict alongside the headline word — the one-word
+   verdict understates tumor-tissue presence in that case. If `--synthesize` was used,
    the `llm_synthesis` block carries the narration (tagged `_source: llm_synthesized`).
