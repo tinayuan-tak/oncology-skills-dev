@@ -394,13 +394,15 @@
     },
     "measurement": {
       "type": "string",
-      "description": "OPTIONAL. For expression-family cards only, names the measurement modality this card carries. Distinguishes bulk-population vs single-cell vs protein-imaging evidence so the skill layer can emit per-modality sub-verdicts (a target can be bulk-RNA-high but IHC-restricted, and the framework should surface that pattern, not average it away). Cards outside the expression family omit this field.",
+      "description": "OPTIONAL. For expression-family cards only, names the measurement modality this card carries. Distinguishes bulk-population vs single-cell vs protein-imaging vs in-situ spatial evidence so the skill layer can emit per-modality sub-verdicts (a target can be bulk-RNA-high but IHC-restricted, and the framework should surface that pattern, not average it away). spatial_transcriptomics / spatial_protein name in-situ SPATIAL evidence (imaging single-cell transcriptomics e.g. Xenium/CosMx/MERFISH, or region-level protein e.g. GeoMx) that additionally carries tissue-architecture / neighbourhood information. Cards outside the expression family omit this field.",
       "enum": [
         "bulk_rna",
         "bulk_protein_ms",
         "sc_rna",
         "sc_protein",
-        "protein_ihc"
+        "protein_ihc",
+        "spatial_transcriptomics",
+        "spatial_protein"
       ]
     },
     "sample_context": {
