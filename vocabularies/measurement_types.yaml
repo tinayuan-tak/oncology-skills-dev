@@ -784,6 +784,7 @@ measurement_types:
       # single-cell CosMx/Xenium/MERFISH). Adding an indication = emit its spatial-coloc product
       # (data-catalog) + one line here.
       - {kind: dataset, source: spatial-coloc-tumor-crc-coadread-v1, method: spatial_neighborhood, evidence_tier: measured}   # COADREAD — CosMx CRC atlas (GSE303070)
+      - {kind: dataset, source: spatial-coloc-tumor-stad-v1, method: spatial_neighborhood, evidence_tier: measured}   # STAD — CosMx gastric atlas (GSE308624); net-new indication
 
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"

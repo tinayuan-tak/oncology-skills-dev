@@ -25,10 +25,11 @@ tier: indication   # the spatial co-localization product is per-indication (mali
 
 applies_when:
   # indications with a landed spatial co-localization product (INDICATION_TO_SPATIAL_COLOC in the method).
-  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'STAD']"
 
 required_inputs:
   - product_id: spatial-coloc-tumor-crc-coadread-v1           # COADREAD — CosMx CRC atlas (GSE303070); imaging single-cell neighbourhood
+  - product_id: spatial-coloc-tumor-stad-v1                   # STAD — CosMx gastric atlas (GSE308624); net-new indication (Phase 2)
 
 methods:
   - call: spatial-tumor-normal-colocalization
