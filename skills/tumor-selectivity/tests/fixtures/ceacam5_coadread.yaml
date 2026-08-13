@@ -1,0 +1,124 @@
+expression-purity-confound:
+  cellular_source: unresolved_from_bulk
+  expression_purity_pearson_p: 0.85
+  expression_purity_pearson_r: -0.0083
+  expression_purity_spearman_r: -0.0146
+  indication: COADREAD
+  median_purity: 0.66
+  method_version: 0.1.0
+  n_expr_samples: 624
+  n_paired_samples: 529
+  purity_confound_class: purity_independent
+  purity_source: pancanatlas_absolute
+  target: CEACAM5
+modality-therapeutic-window:
+  full_normal_window_class: clean_full_normal_window
+  indication: COADREAD
+  max_essential_normal_organ: LUNG
+  max_essential_normal_tpm: 3.27
+  max_full_normal_organ: VAGINA
+  max_full_normal_tpm: 53.13
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_gtex_tissues: 31
+  target: CEACAM5
+  therapeutic_window_class: clean_window
+  tumor_studies:
+  - COAD
+  - READ
+  tumor_tpm: 2382.67
+  window_class: essential_tissue_liability
+  window_ratio_essential: 557.83
+  window_ratio_full_normal: 44.04
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: BEST4+ colonocyte
+  max_detection_fraction: 1.0
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 26
+  n_reliable_cell_types: 39
+  origin_tissues:
+  - colon
+  safety_essential_flags:
+    BEST4+ colonocyte: 1.0
+    BEST4+ enterocyte: 0.8376623376623377
+    colonocyte: 0.6231884057971014
+    early colonocyte: 0.8602150537634409
+    enterocyte: 0.48672566371681414
+    enterocyte of epithelium of large intestine: 0.7196969696969697
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: origin_tissue_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+surface-abundance-density:
+  _density_source: governed_ladder
+  _estimate_grade_d_class: high
+  absolute_copies_per_cell: 76000.0
+  absolute_density_class: high
+  absolute_density_grade: B
+  absolute_measurement_semantics: ABC
+  absolute_n_cell_line: 1
+  absolute_n_measurements: 1
+  absolute_n_patient: 0
+  absolute_record_partition: native_cell_line
+  absolute_reported_unit: ABC/cell
+  absolute_value_best: 76000.0
+  absolute_value_qualifier: exact_reported
+  density_evidence_level: B
+  density_floor_verdict: above_adc_high_payload_floor
+  estimated_copies_per_cell_lower: 51911.2
+  estimated_copies_per_cell_median: 622933.9
+  estimated_copies_per_cell_upper: 7475206.6
+  hpa_ihc_anchor_used: HPA enriched intensity in intestine
+  hpa_ihc_intensity_class: high
+  is_adc_high_payload_viable: true
+  is_tce_viable: true
+  method_version: 0.1.0
+  surface_density_class: high
+tumor-vs-normal-percentile-crossing:
+  distribution_overlap_tumor_normal: 0.24995908480900783
+  fraction_tumor_above_normal_p95: 0.757847533632287
+  fraction_tumor_above_normal_p99: 0.45590433482810166
+  matched_normal_tissue: COLON
+  method_version: 0.1.0
+  n_normal_samples: 822
+  n_tumor_samples: 669
+  normal_p95_log2tpm: 10.139770698547363
+  normal_p99_log2tpm: 11.127683858871459
+  selectivity_class: strongly_tumor_enriched
+  studies:
+  - COAD
+  - READ
+tumor-vs-normal-selectivity:
+  _data_source: coadread-dge-tumor-vs-normal-sensitivity-v1
+  _schema: v3_four_cell
+  cells_ran: 3.0
+  cells_supporting: 1.0
+  comparator_concordance: discordant
+  discordant: true
+  dominant_direction: up
+  log2fc_cell_a: -0.29638171269474695
+  log2fc_cell_b: -0.4947547724126842
+  log2fc_cell_c: 2.93726285793988
+  log2fc_cell_d: null
+  max_abs_log2fc: 2.93726285793988
+  n_adjacent: null
+  n_gtex_normal: null
+  n_tumor: null
+  q_value_cell_a: 0.04949321888028871
+  q_value_cell_b: 0.00248713998138326
+  q_value_cell_c: 1.2519221015702286e-110
+  q_value_cell_d: null
+  selectivity_allgene_percentile: 26.71842614929836
+  selectivity_allgene_percentile_cell_b: 22.811819912948856
+  selectivity_allgene_percentile_cell_c: 93.12785993766165
+  selectivity_allgene_percentile_class: mid
+  selectivity_allgene_percentile_context: coadread-dge-tumor-vs-normal-sensitivity-v1
+    metric=log2fc_A(tumor-vs-adjacent, primary)
+  selectivity_class: field_effect_tumor_selective
+  sig_all_cells: false
