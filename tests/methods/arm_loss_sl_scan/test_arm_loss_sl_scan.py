@@ -1,0 +1,111 @@
+"""Offline tests for arm_loss_sl_scan — pure core (sl_arm_scan) + gene_arm_map. No S3."""
+import pandas as pd
+import pytest
+
+from methods.arm_loss_sl_scan.scan import SCAN_COLUMNS, sl_arm_scan
+from methods.pancan_arm_cnv.read import gene_arm_map
+
+
+# --- fixtures --------------------------------------------------------------
+
+def _sl_pairs():
+    # T1 has two experimental partners: P1 on 3p, P2 on 5q; P3 on an UNMAPPED arm.
+    return pd.DataFrame([
+        {"target": "T1", "partner": "P1", "evidence_tier": "experimental", "has_experimental": True},
+        {"target": "T1", "partner": "P2", "evidence_tier": "experimental", "has_experimental": True},
+        {"target": "T1", "partner": "P3", "evidence_tier": "computational", "has_experimental": False},
+    ])
+
+
+def _gene_to_arm():
+    return {"P1": "3p", "P2": "5q"}  # P3 deliberately absent -> must be dropped
+
+
+def _arm_ind_freq():
+    # 3p strongly lost in KIRC (0.85), not in LUAD (0.10); 5q flat in KIRC (0.05).
+    return pd.DataFrame([
+        {"chromosome_arm": "3p", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.85, "gain_frequency": 0.0},
+        {"chromosome_arm": "3p", "indication": "LUAD", "n_samples": 100, "loss_frequency": 0.10, "gain_frequency": 0.0},
+        {"chromosome_arm": "5q", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.05, "gain_frequency": 0.0},
+    ])
+
+
+def _baseline():
+    return {"3p": 0.30, "5q": 0.10}
+
+
+# --- gene_arm_map ----------------------------------------------------------
+
+def test_gene_arm_map_parses_and_uppercases():
+    meta = pd.DataFrame({
+        "Gene Symbol": ["gene1", "GENE2", "GENE3"],
+        "Cytoband": ["3p21.1", "5q11.2", None],   # None -> dropped
+    })
+    m = gene_arm_map(meta)
+    assert m["GENE1"] == "3p"          # upper-cased key
+    assert m["GENE2"] == "5q"
+    assert "GENE3" not in m            # unparseable cytoband dropped
+
+
+def test_gene_arm_map_requires_columns():
+    with pytest.raises(KeyError):
+        gene_arm_map(pd.DataFrame({"Gene Symbol": ["X"]}))
+
+
+# --- sl_arm_scan -----------------------------------------------------------
+
+def test_scan_nominates_enriched_arm_only():
+    hits = sl_arm_scan(_sl_pairs(), _arm_ind_freq(), _baseline(), _gene_to_arm(),
+                       twohit_loss_freq={("P1", "KIRC"): 0.80},
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    assert list(hits.columns) == SCAN_COLUMNS
+    # Only 3p-in-KIRC clears BOTH the FDR and the 0.5 floor.
+    assert len(hits) == 1
+    row = hits.iloc[0]
+    assert (row["target"], row["sl_partner"], row["partner_arm"], row["indication"]) == ("T1", "P1", "3p", "KIRC")
+    assert row["q_value"] <= 0.05
+    assert row["arm_loss_freq"] == 0.85
+    assert row["coloss_concordance"] == "confirmed"   # twohit 0.80 >= floor
+    assert row["rank"] == 1
+
+
+def test_min_loss_freq_floor_drops_significant_but_low():
+    # Make LUAD 3p significant vs a tiny baseline, but keep it below the floor.
+    freq = pd.DataFrame([
+        {"chromosome_arm": "3p", "indication": "LUAD", "n_samples": 500, "loss_frequency": 0.15, "gain_frequency": 0.0},
+    ])
+    hits = sl_arm_scan(_sl_pairs(), freq, {"3p": 0.02}, _gene_to_arm(),
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    assert hits.empty            # 0.15 significant vs 0.02 baseline but < 0.5 floor
+
+
+def test_unmapped_partner_dropped_no_error():
+    # Only P3 (unmapped) as a pair -> no candidates, clean empty frame.
+    pairs = pd.DataFrame([{"target": "T1", "partner": "P3", "evidence_tier": "c", "has_experimental": False}])
+    hits = sl_arm_scan(pairs, _arm_ind_freq(), _baseline(), _gene_to_arm(),
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    assert hits.empty
+    assert list(hits.columns) == SCAN_COLUMNS
+
+
+def test_concordance_labels():
+    # arm_only (twohit below floor) and no_twohit_data (missing) branches.
+    hits = sl_arm_scan(_sl_pairs(), _arm_ind_freq(), _baseline(), _gene_to_arm(),
+                       twohit_loss_freq={("P1", "KIRC"): 0.05},   # below the 0.5 floor
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    assert hits.iloc[0]["coloss_concordance"] == "arm_only"
+
+    hits2 = sl_arm_scan(_sl_pairs(), _arm_ind_freq(), _baseline(), _gene_to_arm(),
+                        twohit_loss_freq={},                       # nothing for P1/KIRC
+                        min_loss_freq=0.5, fdr_alpha=0.05)
+    assert hits2.iloc[0]["coloss_concordance"] == "no_twohit_data"
+
+
+def test_robust_arm_yields_no_hit():
+    # Arm loss AT baseline -> not enriched -> no hit even above the floor.
+    freq = pd.DataFrame([
+        {"chromosome_arm": "3p", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.60, "gain_frequency": 0.0},
+    ])
+    hits = sl_arm_scan(_sl_pairs(), freq, {"3p": 0.60}, _gene_to_arm(),
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    assert hits.empty

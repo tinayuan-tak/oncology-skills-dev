@@ -99,3 +99,20 @@ def build_arm_indication_freq(arm_calls: pd.DataFrame, barcode_to_indication: di
     return pd.DataFrame(rows, columns=["chromosome_arm", "indication", "n_samples",
                                        "loss_frequency", "gain_frequency"]
                         ).sort_values(["chromosome_arm", "indication"]).reset_index(drop=True)
+
+
+def gene_arm_map(gistic_meta_df: pd.DataFrame) -> dict:
+    """Map gene symbol -> chromosome arm from the GISTIC meta columns ('Gene Symbol','Cytoband').
+
+    Cheap side-table (usecols=['Gene Symbol','Cytoband'] over the same all_thresholded matrix the
+    arm calls derive from) so a downstream scan can look up an SL partner's arm without a separate
+    coord/cytoband source. Genes on acrocentric/unparseable bands are dropped. Upper-cased keys
+    (HGNC symbols as in GISTIC). Last-wins on the rare duplicate symbol."""
+    if "Gene Symbol" not in gistic_meta_df.columns or "Cytoband" not in gistic_meta_df.columns:
+        raise KeyError("gistic_meta_df must have 'Gene Symbol' and 'Cytoband' columns")
+    out = {}
+    for sym, band in zip(gistic_meta_df["Gene Symbol"], gistic_meta_df["Cytoband"]):
+        arm = arm_of(band)
+        if arm is not None and isinstance(sym, str):
+            out[sym.strip().upper()] = arm
+    return out
