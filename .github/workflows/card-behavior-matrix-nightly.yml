@@ -1,4 +1,4 @@
-name: Nightly Live Drift (card-behavior matrix + target-intrinsic + tumor-presence)
+name: Nightly Live Drift (card-behavior matrix + target-intrinsic + tumor-presence + tumor-selectivity)
 
 # The LIVE half of the framework's offline drift guards. Three independent offline replays run
 # credential-less on every PR (in skills-validate); THIS scheduled workflow re-freezes their fixtures
@@ -14,6 +14,11 @@ name: Nightly Live Drift (card-behavior matrix + target-intrinsic + tumor-presen
 #      (a reader renaming a field a RULE keys on collapses presence_verdict to a false-negative). Its
 #      offline replay (test_tumor_presence_replay.py) pins EPCAM/COADREAD; tumor-presence has NO live
 #      golden, so this nightly re-freeze is its ONLY guard against the frozen snapshot going stale.
+#   4. tumor-selectivity dossier (skills/tumor-selectivity/tests/) — same verdict-path drift class.
+#      Its offline replay (test_selectivity_replay.py) pins CEACAM5/COADREAD (clean-selective, no veto)
+#      and TACSTD2/COADREAD (all three normal-breadth veto arms fire -> selective_but_broadly_normal).
+#      A veto-card reader drifting would silently un-fire the veto (TROP2 -> tumor_selective FALSE
+#      POSITIVE); only a live re-freeze catches the frozen snapshot itself going stale.
 #
 # CREDENTIAL GATING (honest-scaffold): the live freeze needs AWS creds, which no other workflow in
 # this repo uses (all PR CI self-skips live-S3). Until an OIDC role is provisioned as the repo secret
@@ -131,6 +136,24 @@ jobs:
             echo "no tumor-presence fixture drift"
           fi
 
+      - name: Re-freeze tumor-selectivity fixtures against live S3
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          pixi run python skills/tumor-selectivity/tests/freeze_fixture.py --target CEACAM5 --indication COADREAD
+          pixi run python skills/tumor-selectivity/tests/freeze_fixture.py --target TACSTD2 --indication COADREAD
+
+      - name: Report whether the tumor-selectivity fixtures drifted
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          if ! git diff --quiet -- skills/tumor-selectivity/tests/fixtures/; then
+            echo "::warning title=tumor-selectivity::live CEACAM5/TACSTD2 fixture drifted vs committed — a reader field/value or fired-rule (incl. a normal-breadth veto arm) changed. See diff; refresh the committed fixture if intended."
+            git --no-pager diff --stat -- skills/tumor-selectivity/tests/fixtures/
+          else
+            echo "no tumor-selectivity fixture drift"
+          fi
+
       - name: No-creds notice
         if: env.HAVE_AWS != 'true'
         run: echo "::warning title=nightly-live-drift::AWS_ROLE_TO_ASSUME secret not set — skipping live freezes, verifying COMMITTED fixtures only. Provision the OIDC role to enable live drift detection."
@@ -157,6 +180,15 @@ jobs:
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tumor-presence/tests/ -q --import-mode=importlib
 
+      # Assert the tumor-selectivity dossier. When the re-freeze ran, the offline replay reads the
+      # FRESH fixtures — drift -> red via the verdict floor (resolved selectivity_class must not
+      # collapse; CEACAM5 must stay selective with no false veto; TACSTD2 must stay downgraded by the
+      # normal-breadth veto) + the >=20 non-null headline floor. When creds are absent, this
+      # re-verifies the committed fixtures (same as the PR suite).
+      - name: Assert tumor-selectivity dossier (verdict collapse + veto + headline drift floors)
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/tumor-selectivity/tests/ -q --import-mode=importlib
+
       - name: Upload refreshed fixtures
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,5 +197,6 @@ jobs:
           path: |
             rnd-computational-biology-oncology-claude-oncology-skills/skills/tests/card_behavior_matrix/fixtures/
             rnd-computational-biology-oncology-claude-oncology-skills/skills/tumor-presence/tests/fixtures/
+            rnd-computational-biology-oncology-claude-oncology-skills/skills/tumor-selectivity/tests/fixtures/
             rnd-computational-biology-oncology-claude-oncology-skills/skills/target-intrinsic/tests/fixtures/
           if-no-files-found: warn
