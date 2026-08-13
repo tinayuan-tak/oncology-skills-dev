@@ -65,6 +65,41 @@ def _load_catalog_resolver():
         return None, None
 
 
+def _load_manifest_loader():
+    """Lazily import catalog_query.load_manifest (analysis-methods) for md5 content-fingerprinting.
+    (None) when unavailable — the content digest is best-effort and never blocks emission."""
+    import os
+    import sys
+    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
+                           "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    if mrepo not in sys.path:
+        sys.path.insert(0, mrepo)
+    try:
+        from methods.catalog_query.read import load_manifest
+        return load_manifest
+    except Exception:  # noqa: BLE001 — no loader → content digest omitted (id digest still emits)
+        return None
+
+
+def _manifest_content_md5(manifest: dict) -> "str | None":
+    """A content fingerprint for one manifest: the top-level `md5` for a single-file derived product,
+    else a stable hash over the sorted per-file md5s of a multi-file `files:` source manifest, else
+    None (no fingerprint available). This is what lets the content digest detect a same-id republish
+    (CLAUDE.md forbids silently changing a merged manifest's md5 — this makes such a change visible)."""
+    md5 = manifest.get("md5")
+    if isinstance(md5, str) and md5:
+        return md5
+    files = manifest.get("files")
+    if isinstance(files, list) and files:
+        import hashlib
+        per_file = sorted(
+            f.get("md5") for f in files if isinstance(f, dict) and f.get("md5")
+        )
+        if per_file:
+            return hashlib.sha256("\n".join(per_file).encode()).hexdigest()[:16]
+    return None
+
+
 def resolved_release_governance(card_outputs, data_mode, release_pin,
                                 resolve_release=None, family_of=None) -> dict:
     """Governance ENRICHMENT (2026-08-12): derive a release fingerprint from the manifests the run
@@ -113,6 +148,60 @@ def resolved_release_governance(card_outputs, data_mode, release_pin,
         resolved[fam] = entry
     out["resolved_releases"] = resolved
     return out
+
+
+def resolved_content_digest(card_outputs: list) -> "str | None":
+    """A CONTENT fingerprint over the manifests a run declared: sha256 of sorted
+    `manifest_id=<md5>` pairs. The id-based resolved_release_digest keys on manifest_id (version
+    rides the -vN suffix); this keys on each manifest's md5 content-fingerprint, so a same-id
+    republish (new bytes, unchanged id — which CLAUDE.md forbids doing silently) is detectable. The
+    strongest reproducibility anchor available, since there is no catalog-wide release to pin.
+
+    Best-effort: returns None if no manifests were declared or the catalog loader is unavailable.
+    Computed OUTSIDE resolved_release_governance ON PURPOSE — that function feeds the compose /
+    target-profile evidence envelope (byte-golden + engine-equivalence pinned), so it must stay
+    unchanged; the content digest is a subskill-decision.json enrichment only."""
+    used = sorted({m for c in card_outputs
+                   if not c.get("excluded_by_applies_when")
+                   for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])})
+    if not used:
+        return None
+    load_manifest = _load_manifest_loader()
+    if load_manifest is None:
+        return None
+    import hashlib
+    pairs = []
+    for m in used:
+        try:
+            cmd5 = _manifest_content_md5(load_manifest(m) or {})
+        except Exception:  # noqa: BLE001 — a missing/malformed manifest must not sink the digest
+            cmd5 = None
+        pairs.append(f"{m}={cmd5 or 'no-md5'}")
+    return hashlib.sha256("\n".join(pairs).encode()).hexdigest()[:16]
+
+
+def build_subskill_provenance(card_outputs: list, data_mode: str, release_pin: "str | None",
+                              skills_repo_sha: str,
+                              resolver_release_pin: "str | None" = None) -> dict:
+    """The run-level reproducibility block for a subskill's default decision.json / provenance.yaml.
+
+    Single-sourced HERE so the subskill default path records the same fingerprint the opt-in
+    evidence envelope does (both go through resolved_release_governance). Captures WHICH CODE
+    (skills_repo_sha), WHICH POSTURE (data_mode, release_pin, resolver_release_pin), and WHICH DATA
+    (resolved_release_digest + resolved_content_digest + per-family head/staleness from the manifests
+    the run declared). Best-effort — resolved_release_governance never raises."""
+    prov = {
+        "skills_repo_sha": skills_repo_sha,
+        "data_mode": data_mode,
+        "release_pin": release_pin or "unpinned",
+    }
+    if resolver_release_pin:
+        prov["resolver_release_pin"] = resolver_release_pin
+    prov.update(resolved_release_governance(card_outputs, data_mode, release_pin or "unpinned"))
+    _content = resolved_content_digest(card_outputs)
+    if _content:
+        prov["resolved_content_digest"] = _content
+    return prov
 
 
 def assemble_evidence_package(

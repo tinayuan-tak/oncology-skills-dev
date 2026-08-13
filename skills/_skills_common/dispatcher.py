@@ -523,13 +523,25 @@ def run_wired_skill(
     if subtype_result is not None:
         invoked_lenses["subtypes"] = subtype_result.get("scope_subtypes")
 
-    # 8. Compose decision.json
+    # 8. Compose decision.json — with the run-level PROVENANCE block (2026-08-13). resolve_cards now
+    # stamps each card with its declared input_manifest_ids, so the subskill default output records
+    # WHICH CODE + POSTURE + DATA produced it (skills sha, data_mode/release_pin, resolved_release +
+    # content digests, per-family drift) — reproducible/auditable without the opt-in envelope. Single-
+    # sourced via build_subskill_provenance (same digest the envelope uses). Best-effort; never raises.
+    from .envelope import build_subskill_provenance
+    from .gitmeta import skills_repo_sha
+    _identity = next((c for c in emitted_cards if c.get("card_id") == "target-identity-summary"), None)
+    _resolver_pin = (_identity.get("summary") or {}).get("resolver_release_pin") if _identity else None
+    provenance = build_subskill_provenance(
+        emitted_cards, args.data_mode, args.release_pin, skills_repo_sha(),
+        resolver_release_pin=_resolver_pin,
+    )
     decision = make_decision_json(
         skill_name=skill_name,
         target=args.target, indication=_indication,
         question=question.format(target=args.target, indication=_indication),
         card_outputs=emitted_cards, fired=fired,
-        headline=headline, modality_lenses=lenses,
+        headline=headline, modality_lenses=lenses, provenance=provenance,
     )
 
     # 8a. Per-subskill RUN-HEALTH record (observability; sibling key, never touches the spine).

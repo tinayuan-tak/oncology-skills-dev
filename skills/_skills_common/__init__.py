@@ -37,8 +37,11 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+
+import yaml
 
 from .rules_loader import (
     TARGET_CONTRACTS,
@@ -71,6 +74,27 @@ def _import_dispatcher():
         sys.path.insert(0, str(COMPOSE_SCRIPTS))
     from _live_readers import read_live_summary          # noqa: F401
     return read_live_summary
+
+
+@lru_cache(maxsize=512)
+def card_input_manifest_ids(card_id: str) -> tuple[str, ...]:
+    """The data-catalog manifest ids a card DECLARES as inputs — its `required_inputs[].product_id`
+    from the card_spec (target-contracts). This is the SAME declarative card->manifest mapping the
+    compose-dashboard path uses (_execution._provenance_input_manifests); reusing it here means the
+    subskill default path (decision.json) records the same real manifest ids as the composed engine.
+
+    Best-effort + fail-open: a missing/malformed card_spec or absent required_inputs → empty tuple
+    (provenance must never block a run). Returns a tuple so the @lru_cache result is immutable.
+    """
+    try:
+        path = TARGET_CONTRACTS / "cards" / f"{card_id}.card.yaml"
+        spec = yaml.safe_load(path.read_text()) or {}
+        return tuple(
+            ri["product_id"] for ri in (spec.get("required_inputs") or [])
+            if isinstance(ri, dict) and ri.get("product_id")
+        )
+    except Exception:  # noqa: BLE001 — provenance is best-effort; never break card resolution
+        return ()
 
 
 # --- Skill API -------------------------------------------------------------
@@ -187,8 +211,9 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
         # Synthetic stub per card — a well-formed but empty summary. Rules that need real
         # values simply don't fire (fired=[]); the point is that resolve→rules→verdict→
         # run_health executes without error, which is the "runs clean?" health signal.
-        return [{"card_id": cid, "summary": {}, "_missing": False,
-                 "_smoke": True} for cid in card_ids]
+        return [{"card_id": cid, "summary": {}, "_missing": False, "_smoke": True,
+                 "provenance": {"input_manifest_ids": list(card_input_manifest_ids(cid))}}
+                for cid in card_ids]
 
     read_live = _import_dispatcher()
     outputs: list[dict] = []
@@ -234,6 +259,13 @@ def resolve_cards(card_ids: list[str], target: str, indication: str,
             "summary": summary,
             "interpretation_call": _primary_class_value(summary),
         })
+    # PROVENANCE (2026-08-13): stamp each card_output with the manifest ids it DECLARES as inputs
+    # (card_spec.required_inputs[].product_id), so the subskill default path carries the same real
+    # per-card data provenance as the composed engine — the basis for the decision.json governance
+    # block + the resolved_release_digest. Applied to available AND missing cards: the digest is the
+    # run's DECLARED input set (stable across transient read misses), not only successful reads.
+    for o in outputs:
+        o["provenance"] = {"input_manifest_ids": list(card_input_manifest_ids(o["card_id"]))}
     return outputs
 
 
@@ -405,12 +437,17 @@ def make_decision_json(
     fired: list[dict],
     headline: dict,
     modality_lenses: Optional[dict] = None,
+    provenance: Optional[dict] = None,
 ) -> dict:
     """Return the decision artefact.
 
     Shape: biology-first. `fired` is the flat list of matched rules.
     `modality_lenses` is optional — a skill that wants to surface a
     modality projection includes it, others omit it.
+    `provenance` (optional) — the run-level reproducibility block (skills git sha, data_mode,
+    release_pin, resolved_release/content digests + per-family drift). Emitted as a top-level key so
+    the subskill default output is auditable + reproducible, not only the opt-in evidence envelope.
+    Each per-card entry also carries `input_manifest_ids` (the card_spec.required_inputs it read).
     """
     return {
         "skill": skill_name,
@@ -421,7 +458,8 @@ def make_decision_json(
         "headline": headline,
         "cards": [{"card_id": c["card_id"],
                    "summary": c["summary"],
-                   "_missing": c.get("_missing", False)}
+                   "_missing": c.get("_missing", False),
+                   "input_manifest_ids": (c.get("provenance") or {}).get("input_manifest_ids", [])}
                   for c in card_outputs],
         "fired_rules": [{"rule_id": r["rule_id"],
                          "card_id": r["card_id"],
@@ -430,6 +468,7 @@ def make_decision_json(
                          "dominant": r["dominant"],
                          "rationale_summary": r["rationale"].split("\n", 1)[0][:200]}
                         for r in fired],
+        **({"provenance": provenance} if provenance else {}),
         **({"modality_lenses": modality_lenses} if modality_lenses else {}),
     }
 

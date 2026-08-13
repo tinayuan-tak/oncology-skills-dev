@@ -152,6 +152,10 @@ def write_package(
         entry = {
             "card_id": c["card_id"],
             "data_source": s.get("_data_source"),
+            # DECLARED input manifest ids (card_spec.required_inputs), stamped by resolve_cards.
+            # Populated even for the many readers that never stamp `_data_source` themselves, so the
+            # audit anchor names real manifest ids for every card — not just the ~40% that stamp.
+            "input_manifest_ids": (c.get("provenance") or {}).get("input_manifest_ids", []),
             "_missing": bool(c.get("_missing")),   # match card_output + cards_missing key
         }
         if c.get("_missing_reason"):
@@ -166,6 +170,9 @@ def write_package(
         "indication": indication,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "invoked_lenses": invoked_lenses or {},
+        # run-level reproducibility block (skills sha, data_mode/release_pin, resolved digests +
+        # per-family drift) — mirrors decision.json['provenance'], single-sourced upstream.
+        "governance": (decision or {}).get("provenance", {}),
         "cards_resolved": [c["card_id"] for c in card_outputs],
         "cards_missing": [c["card_id"] for c in card_outputs
                           if c.get("_missing")],
