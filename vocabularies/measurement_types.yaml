@@ -127,7 +127,7 @@ measurement_types:
       # edges); a manifest ID there is a dangling edge (Rule 4, cf. the fusion_rearrangement fix).
       # ONE provider today (COADREAD product); the NSCLC product is the SAME provider/claim at a
       # second indication (a grain value within entity_grains, not a second provider).
-      - {kind: dataset, source: sc-pseudobulk-donor-celltype-coadread-v1, method: sc_celltype_pseudobulk, evidence_tier: measured}   # + sc-pseudobulk-donor-celltype-nsclc-v1 (same provider, NSCLC indication)
+      - {kind: dataset, source: sc-pseudobulk-tumor-crc-coadread-v1, method: sc_celltype_pseudobulk, evidence_tier: measured}   # COADREAD — CRC core atlas (Marteau 2025), explicit 'Cancer cell' malignant call; same provider at other indications (NSCLC->LuCA, etc.)
 
   tumor_vs_normal_selectivity:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
@@ -762,7 +762,7 @@ measurement_types:
       # per-indication partitions of ONE logical provider (aggregate_sc_samecell_coexpr / the 3CA
       # sibling); same claim/method at different indication grain values, mirroring
       # sc_tumor_celltype_expression. Adding an indication = emit its cube (data-catalog) + one line here.
-      - {kind: dataset, source: sc-samecell-coexpr-coadread-v1, method: sc_samecell_coexpr, evidence_tier: measured}
+      - {kind: dataset, source: sc-samecell-coexpr-crc-coadread-v1, method: sc_samecell_coexpr, evidence_tier: measured}   # COADREAD — CRC core atlas same-cell avidity (was Census sc-samecell-coexpr-coadread-v1)
       - {kind: dataset, source: sc-samecell-coexpr-nsclc-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-lusc-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-3ca-pancreas-v1, method: sc_samecell_coexpr, evidence_tier: measured}

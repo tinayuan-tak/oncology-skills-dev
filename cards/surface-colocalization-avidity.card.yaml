@@ -26,7 +26,7 @@ applies_when:
   - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV']"
 
 required_inputs:
-  - product_id: sc-samecell-coexpr-coadread-v1
+  - product_id: sc-samecell-coexpr-crc-coadread-v1           # COADREAD — CRC core atlas same-cell avidity (12 pairs / 370 donors / 509,819 malignant cells; reader repointed AM#312). Superseded: sc-samecell-coexpr-coadread-v1 (Census).
   - product_id: sc-samecell-coexpr-nsclc-v1
   - product_id: sc-samecell-coexpr-lusc-v1
   - product_id: sc-samecell-coexpr-3ca-pancreas-v1

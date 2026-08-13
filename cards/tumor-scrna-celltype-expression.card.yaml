@@ -41,7 +41,7 @@ applies_when:
   - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV']"
 
 required_inputs:
-  - product_id: sc-pseudobulk-donor-celltype-coadread-v2     # COADREAD donor x compartment pseudobulk. v2 SUPERSEDES v1 (2026-08-11): 30 datasets / 749 donors / 828,819 CRC cells incl. Pelka 2021 (257K) — v1 silently dropped it via a `disease=='colorectal cancer'` filter (~75% of the cohort). The reader (analysis-methods sc_tumor_expression_celltype, AM#282) already reads v2; this aligns the card's declared provenance / lockfile substrate.
+  - product_id: sc-pseudobulk-tumor-crc-coadread-v1          # COADREAD — CRC core atlas (Marteau 2025) tumor pseudobulk: 45 studies / 420 tumor-origin donors / 509,819 malignant cells, with an EXPLICIT 'Cancer cell' malignant call distinct from normal 'Epithelial cell' (the Census coadread-v2 inferred the malignant compartment via compartment_of, conflating malignant with normal colonic epithelium). Reader repointed AM#312 (same pattern as NSCLC->LuCA). Superseded: sc-pseudobulk-donor-celltype-coadread-v2 (Census, 749 donors, inferred malignant).
   - product_id: sc-pseudobulk-tumor-luca-nsclc-v1            # NSCLC/LUAD — LuCA (Salcher 2022) tumor pseudobulk: 193 tumor pts / 21 integrated datasets (upgrade from the smaller Census sc-pseudobulk-donor-celltype-nsclc-v1; reader repointed AM#310)
   - product_id: sc-pseudobulk-donor-celltype-lusc-v1         # LUSC (Census) donor x compartment pseudobulk
   - product_id: sc-pseudobulk-tumor-3ca-pancreas-v1          # PAAD (3CA atlas) tumor pseudobulk
