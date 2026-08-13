@@ -189,20 +189,42 @@ def test_classify_empty_summary_is_data_unavailable():
 
 def test_assembler_full_path(monkeypatch):
     import pandas as pd
+    # >= MIN_RELIABLE_DONORS (5) malignant donors so the malignant-anchored call is reliable (L1).
     rows = pd.DataFrame(_rows([
-        ("malignant", "dsA", "d1", 300, 0.8, 3.1),
-        ("malignant", "dsB", "d2", 250, 0.6, 2.8),
-        ("immune",    "dsA", "d1", 900, 0.1, 0.5),
-        ("stromal",   "dsB", "d2", 120, 0.05, 0.2),
+        ("malignant", "dsA", "d1", 300, 0.80, 3.1),
+        ("malignant", "dsA", "d2", 250, 0.60, 2.8),
+        ("malignant", "dsA", "d3", 280, 0.72, 3.0),
+        ("malignant", "dsB", "d4", 220, 0.66, 2.9),
+        ("malignant", "dsB", "d5", 260, 0.58, 2.7),
+        ("immune",    "dsA", "d1", 900, 0.10, 0.5),
+        ("stromal",   "dsB", "d4", 120, 0.05, 0.2),
     ]))
     monkeypatch.setattr(R, "read_gene_compartment_rows", lambda t, i: rows)
     out = R.read_sc_expression_presence("EPCAM", "COADREAD")
     assert out["sc_expression_class"] == "malignant_broadly_detected"
-    assert out["n_donor_groups"] == 2
+    assert out["n_donor_groups"] == 5
     assert out["n_datasets"] == 2
     assert out["malignant_compartment_available"] is True
+    assert out["malignant_n_donors"] == 5
     assert "malignant" in out["compartment_detection"]
     assert out["product_id"] == "sc-pseudobulk-tumor-crc-coadread-v1"  # 2026-08-13: repointed to the CRC core atlas (explicit malignant call)
+
+
+def test_malignant_call_abstains_below_donor_floor(monkeypatch):
+    """L1 regression: a malignant compartment measured in FEWER than MIN_RELIABLE_DONORS donors is an
+    unreliable presence call — it must abstain to data_unavailable, never emit a confident
+    malignant_broadly_detected off 1-2 donors. Mirrors the sibling sc_normal reader's donor floor."""
+    import pandas as pd
+    rows = pd.DataFrame(_rows([
+        ("malignant", "dsA", "d1", 300, 0.90, 3.4),   # only 2 malignant donors — below the floor
+        ("malignant", "dsB", "d2", 250, 0.85, 3.1),
+        ("immune",    "dsA", "d1", 900, 0.10, 0.5),
+    ]))
+    monkeypatch.setattr(R, "read_gene_compartment_rows", lambda t, i: rows)
+    out = R.read_sc_expression_presence("EPCAM", "COADREAD")
+    assert out["sc_expression_class"] == "data_unavailable", (
+        f"2 malignant donors (< MIN_RELIABLE_DONORS) must abstain; got {out['sc_expression_class']!r}")
+    assert out["malignant_n_donors"] == 2
 
 
 def test_assembler_no_product_for_indication(monkeypatch):

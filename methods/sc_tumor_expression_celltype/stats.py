@@ -29,6 +29,11 @@ BROADLY_LOW_MAX = 0.05                   # below this everywhere == effectively 
 # in the tumor SAMPLE but not tumor-cell-intrinsic (the sc-unique attribution the bulk cards can't make).
 MICROENVIRONMENT_COMPARTMENTS = ("immune", "stromal", "endothelial")
 
+# Minimum contributing DONORS (biological replicates) before a malignant-anchored presence call is
+# trustworthy. The cross-donor median can otherwise rest on 1-2 donors from a single atlas — a
+# false-confidence call. Mirrors the sibling sc_normal_expression reader's MIN_RELIABLE_DONORS=5 (L1).
+MIN_RELIABLE_DONORS = 5
+
 
 def compartment_summary(rows) -> dict:
     """Roll the per-(donor, compartment) pseudobulk rows up to ONE stat block per compartment,
@@ -189,6 +194,7 @@ def classify_sc_expression(comp_summary: dict,
             "malignant_detection_fraction": None,
             "malignant_abundance_log1p_cp10k": None,
             "malignant_compartment_available": False,
+            "malignant_n_donors": 0,
             "top_microenvironment_compartment": None,
             "top_microenvironment_detection_fraction": None,
             "n_compartments_measured": 0,
@@ -206,6 +212,7 @@ def classify_sc_expression(comp_summary: dict,
         "malignant_detection_fraction": (mal["median_detection_fraction"] if mal else None),
         "malignant_abundance_log1p_cp10k": (mal["median_abundance_log1p_cp10k"] if mal else None),
         "malignant_compartment_available": mal is not None,
+        "malignant_n_donors": (int(mal["n_donors"]) if mal else 0),
         "top_microenvironment_compartment": top_micro_comp,
         "top_microenvironment_detection_fraction": top_micro_det,
         "n_compartments_measured": len(comp_summary),
@@ -218,7 +225,10 @@ def classify_sc_expression(comp_summary: dict,
 
     # Malignant compartment absent → can't make a malignant-anchored call. v1 indications (COADREAD,
     # NSCLC) both carry it; this branch is the honest guard for any future indication that doesn't.
-    if mal is None:
+    # L1 fix: also abstain when the malignant compartment is measured in TOO FEW DONORS — a
+    # cross-donor median over 1-2 donors is not a reliable presence call (the sibling sc_normal reader
+    # already enforces this floor). Both are honest data_unavailable, never a coerced negative.
+    if mal is None or int(mal.get("n_donors", 0)) < MIN_RELIABLE_DONORS:
         base["sc_expression_class"] = "data_unavailable"
         return base
 

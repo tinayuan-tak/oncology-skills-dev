@@ -198,6 +198,16 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
 # up-dominant, supported by >=2 cells that ran, magnitude >=1.0, and NOT discordant.
 
 _RNA_STACKED_S3_URI = (f"s3://{S3_BUCKET}/{STACKED_PARQUET_KEY}")
+# The RNA "tumor-elevated in this indication" bar. NOTE (M4 — cross-modality bar asymmetry): this RNA
+# magnitude bar (|log2fc| >= 1.0, supported by >=2 concordant cells, no separate q-gate on magnitude)
+# is INTENTIONALLY DIFFERENT from the PROTEIN elevated bar in cptac_protein_deg/read.py (q < 0.05 AND
+# effect >= 0.5). The asymmetry is by assay, not oversight: bulk RNA-seq has a lower dynamic range and
+# the vintage-stable cells already encode direction+support, so a magnitude floor is the robust signal;
+# CPTAC TMT-MS is significance-gated. Consequence a consumer must know: when the tumor-elevation-breadth
+# card reports breadth_layer_concordance == "discordant", that can reflect this THRESHOLD asymmetry
+# (the stricter RNA magnitude bar), not necessarily a biological RNA-vs-protein disagreement. Do not
+# read "discordant" as "the biology conflicts". (The concordance label itself is derived skill-side in
+# compose-dashboard/_live_readers.py::_breadth_layer_concordance.)
 _RNA_ELEVATED_MIN_SUPPORTING = 2
 _RNA_ELEVATED_MIN_LOG2FC = 1.0
 

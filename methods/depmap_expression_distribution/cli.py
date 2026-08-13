@@ -328,7 +328,16 @@ def _classify_expression(frac_expressed: float, frac_highly: float,
             return "broadly_high"
         return "broadly_moderate"
     if lineage_restricted_min_fraction <= frac_expressed <= lineage_restricted_max_fraction:
-        return "lineage_restricted"
+        # M1 fix: only call it lineage_restricted when a lineage is ACTUALLY enriched — i.e. at least
+        # one lineage's expressed-fraction sits >=0.40 ABOVE the panel average (computed upstream as
+        # n_lineage_restricted). The class previously ignored n_lineage_restricted entirely and labeled
+        # ANY 10-70% pan-cancer detection as "lineage_restricted", implying patient-selection
+        # specificity that was never tested — a broad-but-mid gene (e.g. an epithelial antigen present
+        # across many lineages) is diffuse, not lineage-restricted. Mid-band detection with NO enriched
+        # lineage is broadly_moderate (real, patchy presence), not lineage specificity.
+        if n_lineage_restricted >= 1:
+            return "lineage_restricted"
+        return "broadly_moderate"
     if frac_expressed < lineage_restricted_min_fraction:
         return "broadly_low"
     return "broadly_moderate"   # 70-90% range fallback

@@ -216,8 +216,18 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         return _row_to_summary(row, matched_cohort=cohort,
                                allgene_percentile=pct, allgene_percentile_class=pct_class)
 
-    # Fallback: no indication or non-CPTAC indication → aggregate across
-    # all cohorts, return "best-effect" row (largest |effect_size|)
+    # A SUPPLIED but unmapped indication must NOT leak a different cohort's contrast. CPTAC is a
+    # PER-COHORT tumor-vs-normal differential; returning the most-extreme OTHER cohort as if it were
+    # the queried disease is a silent cross-indication data leak — e.g. NSCLC (absent from
+    # INDICATION_TO_CPTAC; only LUAD/LSCC are cohorts) previously returned OV/BRCA's contrast labeled
+    # as NSCLC. Honest posture: data_unavailable (no matching CPTAC cohort for this indication). The
+    # cross-cohort aggregate below is reserved for the indication-FREE (target-only / pan-cancer) call.
+    if indication:
+        return _empty(f"indication_not_in_cptac_{indication.upper().strip()}")
+
+    # Fallback (NO indication supplied — target-only / pan-cancer query): aggregate across all
+    # cohorts, return the "best-effect" row (largest |effect_size|). Never reached when an indication
+    # is supplied (that path is resolved or data_unavailable above).
     indices = gene_idx.get(sym, [])
     if not indices:
         return _empty("target_not_in_any_cptac_cohort")
@@ -411,6 +421,14 @@ def per_cohort_distribution_stats(target: str) -> list[dict]:
 # "Elevated" reuses the already-significance-gated per-cohort protein_expression_class: strong_up
 # (q<0.05, effect>=1.5) or modest_up (q<0.05, 0.5<=effect<1.5). No new statistics — a count over
 # the existing classes. Down/ns/data_unavailable cohorts are NOT elevated.
+#
+# NOTE (M4 — cross-modality bar asymmetry): this PROTEIN elevated bar (q<0.05 AND effect>=0.5) is
+# INTENTIONALLY DIFFERENT from the RNA elevated bar in dge_deseq2/derive_pancan_stack.py
+# (|log2fc|>=1.0, >=2 concordant cells, no magnitude q-gate). The two layers are fused into
+# breadth_layer_concordance skill-side; a "discordant" label can reflect this THRESHOLD asymmetry
+# (RNA carries a stricter magnitude floor; protein is significance-gated) rather than a biological
+# RNA-vs-protein disagreement. The asymmetry is by assay (TMT-MS vs bulk RNA-seq dynamic range), not
+# oversight. See the mirror note in derive_pancan_stack.py.
 
 _ELEVATED_CLASSES = frozenset({"strong_up", "modest_up"})
 

@@ -128,6 +128,7 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
         "malignant_detection_fraction": classed["malignant_detection_fraction"],
         "malignant_abundance_log1p_cp10k": classed["malignant_abundance_log1p_cp10k"],
         "malignant_compartment_available": classed["malignant_compartment_available"],
+        "malignant_n_donors": classed["malignant_n_donors"],   # L1: donors backing the malignant call (reliability floor = MIN_RELIABLE_DONORS)
         "top_microenvironment_compartment": classed["top_microenvironment_compartment"],
         "top_microenvironment_detection_fraction": classed["top_microenvironment_detection_fraction"],
         "n_compartments_measured": classed["n_compartments_measured"],
@@ -179,6 +180,7 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "malignant_detection_fraction": None,
         "malignant_abundance_log1p_cp10k": None,
         "malignant_compartment_available": False,
+        "malignant_n_donors": 0,
         "top_microenvironment_compartment": None,
         "top_microenvironment_detection_fraction": None,
         "n_compartments_measured": 0,

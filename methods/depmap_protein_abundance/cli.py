@@ -214,9 +214,26 @@ def _percentiles(values: list) -> dict:
     }
 
 
+def _quantile(values: list, q: float) -> Optional[float]:
+    """Linear-interpolated q-quantile of `values` (unsorted OK). None on empty input."""
+    if not values:
+        return None
+    s = sorted(values)
+    if len(s) == 1:
+        return s[0]
+    idx = q * (len(s) - 1)
+    lo = int(idx); frac = idx - lo
+    return s[lo] * (1 - frac) + s[min(lo + 1, len(s) - 1)] * frac
+
+
 def compute_summary(target: str, abundance_by_model: Optional[dict],
-                    lineage_by_model: dict, n_panel: Optional[int] = None) -> dict:
-    """Build the cellline-protein-abundance card summary."""
+                    lineage_by_model: dict, n_panel: Optional[int] = None,
+                    all_protein_medians: Optional[tuple] = None) -> dict:
+    """Build the cellline-protein-abundance card summary.
+
+    all_protein_medians: the PANEL-WIDE null — every protein's median abundance across the Gygi
+    matrix (from _all_protein_median_null). Required for the broadly_high class to be reachable
+    (see the high_cutoff note below). The reader passes it; unit tests may pass a synthetic vector."""
     if abundance_by_model is None:
         return {
             "protein_expression_class": "data_unavailable",
@@ -238,15 +255,17 @@ def compute_summary(target: str, abundance_by_model: Optional[dict],
     fraction_detected = (n_eval / denom) if denom else 0.0
     pcts = _percentiles(vals)
     median_abund = pcts.get("median")
-    # panel-relative high cutoff = the HIGH_ABUNDANCE_PERCENTILE of the panel.
-    high_cutoff = None
-    if vals:
-        hp = _percentiles(vals)
-        # HIGH_ABUNDANCE_PERCENTILE quantile of the detected distribution
-        s = sorted(vals)
-        idx = HIGH_ABUNDANCE_PERCENTILE * (len(s) - 1)
-        lo = int(idx); frac = idx - lo
-        high_cutoff = s[lo] * (1 - frac) + s[min(lo + 1, len(s) - 1)] * frac
+    # HIGH cutoff for the broadly_high class. This MUST be a PANEL-WIDE (all-protein) reference, not
+    # the target's OWN abundance spread. The prior code set high_cutoff = HIGH_ABUNDANCE_PERCENTILE
+    # quantile of `vals` (this protein's own per-cell-line values), so broadly_high required
+    # `median (p50) >= p70 of the same vector` — mathematically impossible, making broadly_high
+    # UNREACHABLE (H3): every uniformly-abundant protein collapsed to broadly_moderate. The correct
+    # question is "is this protein's median abundance in the top (1 - HIGH_ABUNDANCE_PERCENTILE) of
+    # ALL proteins' medians?" — the same all-protein null already used for the display percentile
+    # (target_allgene_percentile). When the null is unavailable (unit test / no matrix), high_cutoff
+    # stays None and broadly_high honestly cannot fire (no panel to be "high" relative to).
+    high_cutoff = (_quantile(list(all_protein_medians), HIGH_ABUNDANCE_PERCENTILE)
+                   if all_protein_medians else None)
 
     # per-lineage groupby
     by_lin: dict = {}
@@ -586,7 +605,11 @@ def load_and_classify(target: str, matrix_path=None, sidecar_path=None,
     if col is None:
         return compute_summary(target, None, {}, n_panel=panel_size)
     lineage = load_model_lineage(model_path=model_path)
-    return compute_summary(target, col, lineage, n_panel=panel_size)
+    # Pass the PANEL-WIDE all-protein median null so broadly_high is decided panel-relative (H3 fix):
+    # a protein is "broadly_high" when its median abundance is in the top (1-HIGH_ABUNDANCE_PERCENTILE)
+    # of ALL proteins, not relative to its own spread. Same cached null as the display percentile.
+    return compute_summary(target, col, lineage, n_panel=panel_size,
+                           all_protein_medians=_all_protein_median_null(matrix_path))
 
 
 def _main(argv=None):
