@@ -784,7 +784,8 @@ measurement_types:
     # v1 provider = the immune (PBMC) shard; HuBMAP solid-tissue CITE-seq shards join as the same
     # provider/claim at additional tissues (mirrors sc_tumor_celltype_expression's per-indication note).
     providers:
-      - {kind: dataset, source: sc-cite-surface-normal-immune-v1, method: sc_cite_surface, evidence_tier: measured}
+      - {kind: dataset, source: sc-cite-surface-normal-immune-v1, method: sc_cite_surface, evidence_tier: measured}       # peripheral immune (PBMC)
+      - {kind: dataset, source: sc-cite-surface-normal-bonemarrow-v1, method: sc_cite_surface, evidence_tier: measured}   # bone marrow (hematopoietic-progenitor compartment)
 
   normal_tissue_protein_breadth:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
