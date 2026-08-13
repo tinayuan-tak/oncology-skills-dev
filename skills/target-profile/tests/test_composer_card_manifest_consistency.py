@@ -34,6 +34,16 @@ WAIVED_COMPOSER_OMISSIONS: dict[tuple[str, str], str] = {
     # waiver was removed (the stale-waiver guard would otherwise fail). No waivers currently needed.
 }
 
+# REVERSE-direction waiver (2026-08-13, compose-core convergence final stage): a card DELIBERATELY
+# composed under a sub-skill's SUB_SKILL_CARDS entry even though it is NOT in that sub-skill's own
+# run.py CARDS — a cross-lens ADDITION (the card's rule is attributed to this gate's lens for firing,
+# though the standalone skill does not list the card). Currently EMPTY: today every composed card is
+# a home card of its entry (composer[dir] ⊆ own(dir).CARDS; the 5 multi-homed cards each compose under
+# a lens that DOES own them). Keep SMALL + reviewed — a new undocumented foreign card must FAIL rather
+# than silently join here.
+#   key = (sub_skill_dir, card_id) ; value = reason
+WAIVED_FOREIGN_COMPOSER_CARDS: dict[tuple[str, str], str] = {}
+
 
 def _literal_named(tree_body, name):
     for node in tree_body:
@@ -105,6 +115,48 @@ def test_waiver_entries_are_still_real_omissions():
         if card not in own or card in all_composed:
             stale.append((skill_dir, card))
     assert not stale, f"stale WAIVED_COMPOSER_OMISSIONS entries (no longer a real omission): {stale}"
+
+
+def test_composer_entry_composes_no_card_foreign_to_the_sub_skill():
+    """REVERSE of the drop guard (compose-core convergence final stage): a card composed under a
+    sub-skill's SUB_SKILL_CARDS entry must be a real card in that sub-skill's own run.py CARDS.
+
+    A composed card that is NOT a home card of its entry is a stale / typo'd / mis-attributed entry
+    — e.g. left behind after a card RENAME (the composer still names the old id), or a rule attributed
+    to a lens whose standalone skill never produces that card (so the fan-out's card_id_filter would
+    scope a rule to a card the sub-skill does not read). This closes the OTHER direction of the #80
+    silent-drift class. A DELIBERATE cross-lens attribution must be documented in
+    WAIVED_FOREIGN_COMPOSER_CARDS rather than pass silently. Holds today (composer[dir] ⊆ own(dir))."""
+    sub_skills, ssc = _composer_maps()
+    violations = []
+    for skill_dir, _short in sub_skills:
+        own = _sub_skill_cards(skill_dir)
+        if own is None:
+            continue
+        own_set = set(own)
+        for card in ssc.get(skill_dir, []):
+            if card in own_set:
+                continue
+            if (skill_dir, card) in WAIVED_FOREIGN_COMPOSER_CARDS:
+                continue
+            violations.append((skill_dir, card))
+    assert not violations, (
+        "cards composed under a SUB_SKILL_CARDS entry but NOT in that sub-skill's own run.py CARDS "
+        f"(stale / typo'd / mis-attributed): {violations}. Fix the entry, or — for a deliberate "
+        "cross-lens attribution — add a documented WAIVED_FOREIGN_COMPOSER_CARDS entry.")
+
+
+def test_foreign_composer_waivers_are_still_real():
+    """A WAIVED_FOREIGN_COMPOSER_CARDS entry that is now EITHER a home card of the sub-skill OR no
+    longer composed under that entry is stale — fail so it gets removed (mirrors the omission-waiver
+    staleness guard, keeping the waiver list from masking a later correct wiring)."""
+    _sub_skills, ssc = _composer_maps()
+    stale = []
+    for (skill_dir, card) in WAIVED_FOREIGN_COMPOSER_CARDS:
+        own = set(_sub_skill_cards(skill_dir) or [])
+        if card in own or card not in ssc.get(skill_dir, []):
+            stale.append((skill_dir, card))
+    assert not stale, f"stale WAIVED_FOREIGN_COMPOSER_CARDS entries: {stale}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
