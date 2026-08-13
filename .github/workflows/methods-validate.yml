@@ -44,10 +44,31 @@ jobs:
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
-      - name: Set up pixi (installs the locked env + editable siblings)
+      # Pre-install the pixi BINARY in a retried step, then let setup-pixi REUSE it from PATH (by NOT
+      # pinning pixi-version) rather than doing its own download. setup-pixi's binary download has
+      # intermittently failed with `socket hang up` (transient CDN blip); as a REQUIRED check that would
+      # wedge unrelated PRs behind a network flake. The env install + cache-save still run inside
+      # setup-pixi (its post-step is intact), so env caching is preserved — only the flaky binary fetch
+      # moves into a retryable shell step. The env is pinned by pixi.lock regardless of binary version.
+      - name: Install pixi binary (retried — hardens the transient download flake)
+        run: |
+          set -euo pipefail
+          export PIXI_VERSION=v0.70.2
+          for i in 1 2 3 4 5; do
+            if curl -fsSL https://pixi.sh/install.sh -o /tmp/pixi-install.sh; then
+              bash /tmp/pixi-install.sh && break
+            fi
+            echo "::warning::pixi binary install attempt $i failed; retrying in $((i * 10))s"
+            sleep $((i * 10))
+          done
+          "$HOME/.pixi/bin/pixi" --version
+          echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
+
+      - name: Set up pixi (installs the locked env + editable siblings; reuses the pre-installed binary)
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          pixi-version: v0.70.2
+          # pixi-version deliberately UNSET → setup-pixi uses the pre-installed pixi found on PATH (see
+          # the retried install step above) instead of downloading its own. Do NOT re-add pixi-version.
           manifest-path: rnd-computational-biology-oncology-analysis-methods/pixi.toml
 
       - name: methods + tests suite (offline; live-S3 tests self-skip)
