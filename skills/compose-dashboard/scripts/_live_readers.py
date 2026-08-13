@@ -695,6 +695,19 @@ def _dispatch_surface_colocalization_avidity(target: str, indication: str) -> Op
     return mod.build_summary(target, indication)
 
 
+def _dispatch_spatial_tumor_normal_colocalization(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route spatial-tumor-normal-colocalization card to
+    methods/spatial_colocalization/cli.py::build_summary.
+
+    In-situ SPATIAL neighbourhood (imaging single-cell; CosMx CRC atlas) → spatial_coloc_class: which
+    neighbour compartments (immune/stromal/endothelial/normal-epithelium) are spatially co-localized
+    with the target-positive malignant cells. immune_excluded = TCE liability; normal_epithelium_adjacent
+    = bystander margin. Indication-scoped (the product is per-indication). The tissue-architecture axis
+    dissociated tumor-scrna-celltype-expression / surface-colocalization-avidity are blind to."""
+    mod = _import_method("spatial_colocalization.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route sc-surface-normal-safety card to
     methods/sc_surface_normal_safety/cli.py::build_summary.
@@ -1339,6 +1352,7 @@ CARD_DISPATCHERS = {
     "rna-protein-concordance-tumor": _dispatch_rna_protein_concordance_tumor,
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
+    "spatial-tumor-normal-colocalization": _dispatch_spatial_tumor_normal_colocalization,   # in-situ spatial neighbourhood (CosMx CRC; immune_excluded / normal_epithelium_adjacent)
     "sc-surface-normal-safety": _dispatch_sc_surface_normal_safety,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
