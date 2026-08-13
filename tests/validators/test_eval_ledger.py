@@ -108,3 +108,30 @@ def test_committed_ledger_self_consistent():
     """The ledger committed in this repo must pass self-check (mirrors the framework_health CI gate)."""
     ok, errs = bel.self_check(bel.LEDGER_PATH, bel.INDEX_PATH)
     assert ok, errs
+
+
+def test_resolved_release_digest_propagates_to_row_and_trend():
+    """Governance release-fingerprint (2026-08-12): resolved_release_digest + resolved_releases drift
+    flow from an evidence_package's governance into the ledger row AND the by_target_indication trend
+    entry, and n_stale_families counts drifted families."""
+    ep = {
+        "framework_version": "2.0.0", "generated_at": "2026-08-12T00:00:00Z",
+        "context": {"target": {"symbol": "KRAS"}, "indication": {"oncotree_code": "COADREAD"}},
+        "governance": {
+            "data_mode": "latest_approved", "release_pin": "unpinned",
+            "resolved_release_digest": "abc123def4567890",
+            "resolved_releases": {
+                "depmap-chronos": {"used": ["depmap-chronos-25q4"], "head": "depmap-chronos-26q1",
+                                   "is_stale": True},
+                "tcga-mc3": {"used": ["tcga-mc3-v2"], "head": "tcga-mc3-v2", "is_stale": False},
+            },
+        },
+        "cards": [{"card_id": "c1", "validation_state": "pass", "interpretation_call": "informative",
+                   "provenance": {"input_manifest_ids": ["depmap-chronos-25q4", "tcga-mc3-v2"]}}],
+    }
+    row = bel.row_from_evidence_package(Path("ep.json"), ep)
+    assert row["resolved_release_digest"] == "abc123def4567890"
+    assert row["n_stale_families"] == 1                       # only depmap-chronos is stale
+    ix = bel.build_indexes([row])
+    trend = ix["by_target_indication"]["KRAS|COADREAD"][0]
+    assert trend["resolved_release_digest"] == "abc123def4567890"

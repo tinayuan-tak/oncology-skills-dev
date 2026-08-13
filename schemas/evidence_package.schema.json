@@ -94,6 +94,23 @@
           "type": "string",
           "description": "Catalog release_pin identifier (e.g., '2026-Q2')."
         },
+        "resolved_release_digest": {
+          "type": "string",
+          "description": "Governance enrichment (2026-08-12): sha256(sorted input_manifest_ids)[:16] — the run's DATA FINGERPRINT across every family it read. Changes when the underlying releases change, so it distinguishes runs across catalog releases even when release_pin is 'unpinned' (the eval-ledger cross-release trend keys on it)."
+        },
+        "resolved_releases": {
+          "type": "object",
+          "description": "Governance enrichment: per data-family, the manifests this run USED, the current catalog HEAD (via catalog_query.resolve_release), and an is_stale drift flag (True = the run read a superseded release). Best-effort; a family may carry resolution_error + head:null.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "used": {"type": "array", "items": {"type": "string"}},
+              "head": {"type": ["string", "null"]},
+              "is_stale": {"type": "boolean"},
+              "resolution_error": {"type": "string"}
+            }
+          }
+        },
         "lockfile_ref": {
           "type": "string",
           "description": "Relative path to lockfile.yaml within the package directory.",

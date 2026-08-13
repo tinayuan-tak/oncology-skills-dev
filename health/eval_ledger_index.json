@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-08-13T00:32:55.861837+00:00",
+  "built_at": "2026-08-13T12:55:11.746038+00:00",
   "by_rule_id": {
     "cn-broadly-neutral-neutral": [
       "KRAS|COADREAD|unpinned|1.0.0|target_profile"
@@ -69,6 +69,7 @@
         "generated_at": "2026-07-02T16:47:46Z",
         "recommendation": null,
         "release_pin": "unpinned",
+        "resolved_release_digest": null,
         "row_key": "BRAF|SKCM|unpinned|2.0.0|evidence_package",
         "source": "evidence_package"
       }
@@ -79,6 +80,7 @@
         "generated_at": "2026-07-02T16:46:57Z",
         "recommendation": null,
         "release_pin": "unpinned",
+        "resolved_release_digest": null,
         "row_key": "EGFR|LUAD|unpinned|2.0.0|evidence_package",
         "source": "evidence_package"
       }
@@ -89,6 +91,7 @@
         "generated_at": "2026-08-07T15:59:34Z",
         "recommendation": null,
         "release_pin": "unpinned",
+        "resolved_release_digest": null,
         "row_key": "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
         "source": "evidence_package"
       }
@@ -99,6 +102,7 @@
         "generated_at": "2026-07-14T04:33:07+00:00",
         "recommendation": "nominate",
         "release_pin": "unpinned",
+        "resolved_release_digest": null,
         "row_key": "KRAS|COADREAD|unpinned|1.0.0|target_profile",
         "source": "target_profile"
       },
@@ -107,6 +111,7 @@
         "generated_at": "2026-08-04T20:37:33Z",
         "recommendation": null,
         "release_pin": "unpinned",
+        "resolved_release_digest": null,
         "row_key": "KRAS|COADREAD|unpinned|2.0.0|evidence_package",
         "source": "evidence_package"
       }

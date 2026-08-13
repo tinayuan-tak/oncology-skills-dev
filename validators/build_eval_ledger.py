@@ -133,6 +133,11 @@ def row_from_evidence_package(path: Path, ep: dict) -> dict:
         "indication": (ctx.get("indication") or {}).get("oncotree_code"),
         "release_pin": gov.get("release_pin", "unpinned"),
         "data_mode": gov.get("data_mode"),
+        # Governance release fingerprint (2026-08-12): the run's DATA state, resolved from the
+        # manifests it read. Makes the cross-release trend meaningful when release_pin is 'unpinned'.
+        "resolved_release_digest": gov.get("resolved_release_digest"),
+        "n_stale_families": sum(1 for v in (gov.get("resolved_releases") or {}).values()
+                                if isinstance(v, dict) and v.get("is_stale")),
         "framework_version": ep.get("framework_version"),
         "generated_at": ep.get("generated_at"),
         # evidence_package synthesis is card-grain (headline/caveats/modality_fit) with no single
@@ -177,6 +182,8 @@ def build_indexes(rows: list[dict]) -> dict:
         ti = f"{r.get('target')}|{r.get('indication')}"
         by_ti.setdefault(ti, []).append({
             "release_pin": r.get("release_pin"), "source": r.get("source"),
+            # data fingerprint: distinguishes runs across catalog releases when release_pin is 'unpinned'
+            "resolved_release_digest": r.get("resolved_release_digest"),
             "recommendation": r.get("recommendation"),
             "contested": (r.get("fragility") or {}).get("contested"),
             "generated_at": r.get("generated_at"), "row_key": rk,
