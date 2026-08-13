@@ -66,9 +66,12 @@ def test_bh_matches_known_values():
 # ── no-op cases (byte-stable) ───────────────────────────────────────────────
 
 def test_single_class_fire_is_noop():
+    # G2: family_size now counts TESTED classes (both have a p), n_firing counts firing (1). Correction
+    # still requires >=2 FIRING → no-op, class unchanged.
     cards = [_mut("mutant_strongly_dependent", 1e-9), _cn("not_cn_stratified", 0.4)]
     prov = gap._apply_family_wise_fdr(cards)
-    assert prov["corrected"] is False and prov["family_size"] == 1 and prov["demoted"] == []
+    assert prov["corrected"] is False and prov["n_firing"] == 1 and prov["demoted"] == []
+    assert prov["family_size"] == 2   # 2 TESTED (G2 denominator), even though only 1 fired
     # class unchanged
     assert cards[0]["summary"]["mutation_stratification_class"] == "mutant_strongly_dependent"
 
@@ -76,7 +79,8 @@ def test_single_class_fire_is_noop():
 def test_zero_class_fire_is_noop():
     cards = [_mut("not_mutation_stratified", 0.5), _cn("not_cn_stratified", 0.6)]
     prov = gap._apply_family_wise_fdr(cards)
-    assert prov["corrected"] is False and prov["family_size"] == 0
+    assert prov["corrected"] is False and prov["n_firing"] == 0
+    assert prov["family_size"] == 2   # 2 TESTED (both emit a p), 0 firing
 
 
 # ── verdict-moving cases ────────────────────────────────────────────────────
@@ -158,3 +162,31 @@ def test_demotion_when_weak_p_not_top_rank():
     assert "fusion-stratified-dependency" in prov["demoted"]
     assert cards[2]["summary"]["fusion_stratification_class"] == "not_fusion_stratified"
     assert cards[2]["summary"]["_family_wise_fdr_demoted"] is True
+
+
+# ── G2 (2026-08-13): denominator = TESTED classes, not just firing ──────────────────────────────────
+
+def test_g2_denominator_counts_tested_not_just_firing():
+    """G2: two firing classes at p=0.03 with two more TESTED (non-firing) classes must be BH-corrected
+    against m=4 (all tested), not m=2 (firing subset). m=4 → q≈0.06 ≥ 0.05 → BOTH firing classes demote;
+    the old m=firing gave q≈0.03 < 0.05 → both survived (the under-correction bug)."""
+    cards = [
+        _mut("mutant_strongly_dependent", 0.03),          # firing
+        _cn("amplified_strongly_dependent", 0.03),        # firing
+        _fus("not_fusion_stratified", 0.90),              # tested, not firing
+        _ae("not_amp_expr_stratified", 0.90),             # tested, not firing
+    ]
+    prov = gap._apply_family_wise_fdr(cards)
+    assert prov["family_size"] == 4 and prov["n_firing"] == 2 and prov["corrected"] is True
+    # both firing classes demoted under m=4 (q≈0.06)
+    assert set(prov["demoted"]) == {"mutation-stratified-dependency", "copy-number-stratified-dependency"}
+    assert cards[0]["summary"]["mutation_stratification_class"] == "not_mutation_stratified"
+    assert cards[1]["summary"]["cn_stratification_class"] == "not_cn_stratified"
+
+
+def test_g2_two_firing_no_other_tested_matches_old_behavior():
+    """Byte-stability check: when there are NO non-firing tested classes, m=firing==tested, so the
+    corrected denominator is identical to the old behavior (2 strong classes at tiny p survive)."""
+    cards = [_mut("mutant_strongly_dependent", 1e-6), _cn("amplified_strongly_dependent", 1e-6)]
+    prov = gap._apply_family_wise_fdr(cards)
+    assert prov["family_size"] == 2 and prov["n_firing"] == 2 and prov["demoted"] == []

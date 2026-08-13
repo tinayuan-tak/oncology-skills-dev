@@ -51,6 +51,7 @@ from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.flip_analysis import flip_analysis
 from _skills_common.envelope import build_governance  # Phase-D convergence: single-source the governance block
 from _skills_common.compose_core import subskill_composition  # Stage 1b: typed sub-verdict carrier
+from _skills_common.card_preprocessors import preprocess_cards_for_gate  # G1: per-gate pre-fired_rules card correction (e.g. genomic FDR)
 
 SKILL_NAME = "target-profile"
 SKILL_VERSION = "1.0.0"
@@ -502,6 +503,12 @@ def _run_sub_skills(target: str, indication: str,
         if profile_timers:
             print(f"[perf] read  {short:26s} {time.perf_counter() - _t0:6.1f}s "
                   f"({len(SUB_SKILL_CARDS[skill_dir])} cards)", file=sys.stderr)
+        # G1 (2026-08-13): apply the sub-skill gate's registered CARD PREPROCESSOR (e.g. the
+        # genomic-alteration family-wise FDR) BEFORE firing, so the composed fan-out corrects the card
+        # summaries identically to the standalone skill's main(). Previously the FDR was standalone-only
+        # → this fan-out fired on un-corrected p-values and over-credited biomarker_stratified_dependency
+        # (the nomination veto-suppressor). No-op for gates with no registered preprocessor.
+        preprocess_cards_for_gate(cards, _SHORT_TO_GATE.get(short))
         fired: list[dict] = []
         for axis in axes:
             fired.extend(fired_rules(cards, axis=axis,

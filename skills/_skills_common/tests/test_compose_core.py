@@ -218,3 +218,42 @@ def test_resolve_gate_spine_applies_selectivity_veto(monkeypatch):
     # NEGATIVE control: a DIFFERENT gate with the same fired set is NOT clamped (clamp is selectivity-only)
     res2 = resolve_gate_spine(cards, headline_gate="dependency", rules=[], contracts_root="/x")
     assert res2.primary_gate_verdict.verdict == "selective_dependency"
+
+
+# --- G1 (2026-08-13): the genomic family-wise FDR now runs in the SHARED spine (compose-dashboard /
+# target-profile --emit) BEFORE fired_rules — previously it lived only in the skill's main() and both
+# composed paths bypassed it, over-crediting biomarker_stratified_dependency (the nomination veto-suppressor).
+
+def _gap_multiclass_cards():
+    return [
+        {"card_id": "mutation-stratified-dependency",
+         "summary": {"mutation_stratification_class": "mutant_strongly_dependent", "hotspot_mannwhitney_p": 0.03}},
+        {"card_id": "copy-number-stratified-dependency",
+         "summary": {"cn_stratification_class": "amplified_strongly_dependent", "cn_stratification_mannwhitney_p": 0.03}},
+        {"card_id": "fusion-stratified-dependency",
+         "summary": {"fusion_stratification_class": "not_fusion_stratified", "fusion_stratification_mannwhitney_p": 0.90}},
+        {"card_id": "amp-expr-stratified-dependency",
+         "summary": {"amp_expr_stratification_class": "not_amp_expr_stratified", "amp_expr_mannwhitney_p": 0.90}},
+    ]
+
+
+def test_resolve_gate_spine_applies_genomic_fdr(monkeypatch):
+    """G1: resolve_gate_spine must run the genomic family-wise FDR preprocessor BEFORE fired_rules for the
+    genomic_alteration gate, so compose-dashboard / target-profile --emit correct card summaries like the
+    standalone skill. Two firing classes at p=0.03 + two tested → m=4 → q≈0.06 → BOTH demote in place."""
+    monkeypatch.setattr(_skc, "fired_rules", lambda *a, **k: [])
+    monkeypatch.setattr(_skc, "resolve_verdict_for_gate", lambda *a, **k: None)
+    cards = _gap_multiclass_cards()
+    resolve_gate_spine(cards, headline_gate="genomic_alteration", rules=[], contracts_root="/x")
+    assert cards[0]["summary"]["mutation_stratification_class"] == "not_mutation_stratified"
+    assert cards[1]["summary"]["cn_stratification_class"] == "not_cn_stratified"
+
+
+def test_resolve_gate_spine_no_preprocess_for_unrelated_gate(monkeypatch):
+    """Negative control: a gate with no registered preprocessor leaves the cards untouched."""
+    monkeypatch.setattr(_skc, "fired_rules", lambda *a, **k: [])
+    monkeypatch.setattr(_skc, "resolve_verdict_for_gate", lambda *a, **k: None)
+    cards = _gap_multiclass_cards()
+    resolve_gate_spine(cards, headline_gate="dependency", rules=[], contracts_root="/x")
+    assert cards[0]["summary"]["mutation_stratification_class"] == "mutant_strongly_dependent"
+    assert cards[1]["summary"]["cn_stratification_class"] == "amplified_strongly_dependent"

@@ -108,11 +108,20 @@ def resolve_gate_spine(
     # exact import the inline implementation used, so name resolution is identical.
     from _skills_common import fired_rules, resolve_verdict_for_gate
     from _skills_common.selectivity_veto import SELECTIVITY_GATE, apply_normal_breadth_veto
+    from _skills_common.card_preprocessors import preprocess_cards_for_gate
 
     normed = [
         dict(c, _missing=True) if c.get("excluded_by_applies_when") else c
         for c in card_outputs
     ]
+    # G1 (2026-08-13): apply any registered per-gate CARD PREPROCESSOR (e.g. the genomic-alteration
+    # family-wise FDR) BEFORE fired_rules, so this shared path (compose-dashboard, target-profile
+    # --emit) corrects the card summaries identically to the standalone skill. Previously the FDR lived
+    # only in genomic-alteration's main() → this engine fired on un-corrected p-values → too liberal.
+    # A preprocessor mutates only its own gate's cards, so applying it before the shared fired_rules
+    # cannot perturb other gates. No-op for gates with no registered preprocessor.
+    for _g in ([headline_gate] if headline_gate else []) + list(additional_gates or []):
+        preprocess_cards_for_gate(normed, _g)
     surviving = [
         c["card_id"] for c in normed if c.get("card_id") and not c.get("_missing")
     ]
