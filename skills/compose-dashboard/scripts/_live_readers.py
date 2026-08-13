@@ -148,42 +148,6 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
     }
 
 
-def _dispatch_tumor_vs_normal_selectivity(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route tumor-vs-normal-selectivity card (v3 four-cell) to
-    methods/dge_deseq2/read.py:read_tumor_vs_normal_selectivity.
-
-    v3 primary path: reads `{indication}-dge-tumor-vs-normal-sensitivity-v1`
-    (four-cell DESeq2 output — cells A/B TCGA-adjacent ±ComBat, C/D GTEx
-    ±ComBat) and maps to the card v3 summary_fields shape with
-    cells_supporting / dominant_direction / discordant / sig_all_cells.
-
-    v2 fallback: if the sensitivity product isn't yet in S3 for this
-    indication (batch expansion pending), the reader falls back to the legacy
-    two-product path (tumor-vs-adjacent + tumor-vs-GTEx) reshaped into the
-    v3 envelope with cells_ran=2. Renderer + rules see the v3 shape either way.
-
-    Never returns None; missing everything → selectivity_class=data_unavailable.
-    """
-    dge_module = _import_method("dge_deseq2")
-    return dge_module.read_tumor_vs_normal_selectivity(target=target, indication=indication)
-
-
-def _dispatch_dependency_lineage_selectivity(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route dependency-lineage-selectivity card to methods/depmap_chronos/read.py."""
-    chronos_module = _import_method("depmap_chronos")
-    return chronos_module.read_lineage_selectivity(target=target, indication=indication)
-
-
-def _dispatch_mutation_hotspot_frequency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route mutation-hotspot-frequency card to methods/gdc_somatic_hotspot/read.py.
-
-    The aggregate Parquet is produced by `methods.gdc_somatic_hotspot.cli` (run once per
-    MC3 release per indication). The dispatcher doesn't know about MC3; the method does.
-    """
-    hotspot_module = _import_method("gdc_somatic_hotspot")
-    return hotspot_module.read_hotspot_summary(target=target, indication=indication)
-
-
 def _dispatch_alteration_role(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route alteration-role card to methods/driver_role_overlay/cli.py::build_summary.
 
@@ -235,56 +199,6 @@ def _dispatch_genomic_instability_state(target: str, indication: str) -> Optiona
                  "model_hrd_signature_present_fraction", "model_signature_context"),
                 "model_mmr_signature_class")
     return out
-
-
-def _dispatch_ddr_deficiency_context(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route ddr-deficiency-context card to methods/pancanatlas_ddr_context.
-
-    INDICATION-level, target-INDEPENDENT (HRD/DDR deficiency is a cohort phenotype) — the `target`
-    arg is accepted for dispatcher-signature uniformity but IGNORED. Reads the materialized
-    per-indication DDR/HRD rollup (PanCanAtlas DDR footprint, Knijnenburg 2018) → ddr_context_class.
-    DISPLAY facet, verdict-inert (no resolver rung); the cohort HRD prior that frames the PARP1/HRD
-    blind axis. Sibling of _dispatch_genomic_instability_state."""
-    mod = _import_method("pancanatlas_ddr_context")
-    return mod.read_ddr_deficiency_context(target=target, indication=indication)
-
-
-def _dispatch_mutational_signature_context(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route mutational-signature-context card to methods/tcga_mc3_signatures.
-
-    INDICATION-level, target-INDEPENDENT (the mutagenic-process profile is a cohort phenotype) — the
-    `target` arg is accepted for dispatcher-signature uniformity but IGNORED. Reads the materialized
-    per-indication rollup (TCGA MC3 → SigProfilerAssignment COSMIC v3.3) → dominant_process +
-    per-process classes. DISPLAY facet, verdict-inert (no resolver rung); the PATIENT/tumour arm of
-    mutagenic-process context — sibling of _dispatch_ddr_deficiency_context (HRD footprint) and the
-    model-side MMR/HRD arm of _dispatch_genomic_instability_state."""
-    mod = _import_method("tcga_mc3_signatures")
-    return mod.read_mutational_signature_context(target=target, indication=indication)
-
-
-def _dispatch_oncogenic_pathway_alteration(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route oncogenic-pathway-alteration card to methods/oncogenic_pathway_alteration.
-
-    INDICATION-level, target-INDEPENDENT (pathway alteration is a cohort phenotype). Reads the
-    per-(pathway x indication) alteration-frequency rollup (Sanchez-Vega 2018) + the target's own
-    pathway membership. DISPLAY facet, verdict-inert (sibling of pathway-activity-context)."""
-    mod = _import_method("oncogenic_pathway_alteration")
-    return mod.read_oncogenic_pathway_alteration(target=target, indication=indication)
-def _dispatch_stemness_context(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route stemness-context card to methods/stemness_index.
-
-    INDICATION-level, target-INDEPENDENT (tumor stemness is a cohort phenotype). Reads the per-indication
-    mRNAsi rollup (Malta 2018 signature, reimplemented on recount3) → cohort stemness class. DISPLAY
-    facet, verdict-inert (dedifferentiation/aggressiveness prognostic prior)."""
-    mod = _import_method("stemness_index")
-    return mod.read_stemness_index(target=target, indication=indication)
-def _dispatch_target_development_level(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route target-development-level card to methods/pharos_tdl.
-
-    TARGET-INTRINSIC (indication-independent). O(1) HGNC lookup on the Pharos/IDG TDL snapshot →
-    tdl_class (Tclin/Tchem/Tbio/Tdark) + family + novelty. DISPLAY facet, verdict-inert."""
-    mod = _import_method("pharos_tdl")
-    return mod.read_pharos_tdl(target=target, indication=indication)
 
 
 def _dispatch_variant_level_interpretation(target: str, indication: str) -> Optional[dict]:
@@ -512,18 +426,6 @@ def _dispatch_target_identity_summary(target: str, indication: str) -> Optional[
     }
 
 
-def _dispatch_expression_dependency_correlation(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route expression-dependency-correlation card (Card 4) to
-    methods/depmap_expression_dependency/read.py.
-
-    Card 4 asks whether a target's mRNA expression correlates with its own
-    Chronos dependency across cell lines (biomarker hypothesis). Reuses Card 1+2's
-    DepMap 26Q1 substrate + adds the TPMLogp1 matrix.
-    """
-    expr_module = _import_method("depmap_expression_dependency")
-    return expr_module.read_expression_dependency(target=target, indication=indication)
-
-
 def _dispatch_abundance_dependency(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route abundance-dependency card (Q7, protein arm) to
     methods/abundance_dependency/cli.py::build_summary.
@@ -555,17 +457,6 @@ def _dispatch_expression_clinical_association(target: str, indication: str) -> O
     return mod.build_summary(target, indication)
 
 
-def _dispatch_precog_prognostic(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route precog-prognostic-association card to methods/precog_prognostic.
-
-    Across 166 datasets (~18k patients), does target expression track overall survival (PRECOG
-    pan-cancer META-ANALYTIC meta-Z; Gentles 2015 + 2026 NAR)? POSITIVE meta-Z = high expr → worse OS.
-    TARGET-dependent (the meta-Z is gene-specific). The better-powered pan-cancer CORROBORATION of the
-    single-cohort expression-clinical-association card. DISPLAY facet — verdict-inert (no resolver rung)."""
-    mod = _import_method("precog_prognostic")
-    return mod.read_precog_prognostic(target=target, indication=indication)
-
-
 def _dispatch_phospho_pathway_activity(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route phospho-pathway-activity card (Q8) to
     methods/phospho_pathway_activity/cli.py::build_summary.
@@ -576,43 +467,10 @@ def _dispatch_phospho_pathway_activity(target: str, indication: str) -> Optional
     return mod.build_summary(target, indication)
 
 
-
-def _dispatch_pathway_activity_context(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route pathway-activity-context card to methods/progeny_pathway_activity.
-
-    INDICATION-level, target-INDEPENDENT (PROGENy pathway activity is a cohort phenotype). Reads the
-    materialized per-(pathway x indication) PROGENy activity rollup (Schubert 2018) and returns the
-    cohort's relatively-active/low pathways + the target's own pathway membership. DISPLAY facet,
-    verdict-inert (sibling of phospho-pathway-activity in the Mechanism space)."""
-    mod = _import_method("progeny_pathway_activity")
-    return mod.read_progeny_pathway_activity(target=target, indication=indication)
-
-
-def _dispatch_pan_cancer_dependency_distribution(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route pan-cancer-crispr-dependency-distribution card to
-    methods/depmap_chronos_distribution/read.py.
-
-    Iter-2 Card 1: this card is pan-cancer by definition (NOT lineage-filtered).
-    The indication parameter is accepted for dispatcher consistency but not consumed —
-    lineage-filtering is the sister card `lineage-specific-dependency`'s job.
-    """
-    dist_module = _import_method("depmap_chronos_distribution")
-    return dist_module.read_pan_cancer_distribution(target=target, indication=indication)
-
-
 # Card-id → dispatcher registry. Each dispatcher is a thin wrapper that:
 #   1. Resolves any framework-side context (manifest selection, indication-to-key mapping)
 #   2. Calls the corresponding method module from methods/
 #   3. Returns the method's summary dict unchanged
-def _dispatch_pan_cancer_rnai_dependency_distribution(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route pan-cancer-rnai-dependency-distribution card (Card E1b) to
-    methods/depmap_demeter_distribution/read.py.
-
-    RNAi sibling to the CRISPR Card E1a. Pan-cancer (NOT lineage-filtered); indication
-    accepted for dispatcher consistency but not consumed by the compute path.
-    """
-    rnai_module = _import_method("depmap_demeter_distribution")
-    return rnai_module.read_pan_cancer_rnai_distribution(target=target, indication=indication)
 
 
 def _dispatch_expression_distribution(target: str, indication: str) -> Optional[dict]:
@@ -848,29 +706,6 @@ def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional
     return mod.build_summary(target, indication)
 
 
-def _dispatch_crispr_rnai_dependency_concordance(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route crispr-rnai-dependency-concordance card (Card E1c, DERIVED) to
-    methods/depmap_crispr_rnai_concordance/read.py.
-
-    DERIVED CARD: this method composes the CRISPR + RNAi loaders. If either upstream
-    load fails, the read function returns _live_read_error and the concordance_class
-    is data_unavailable (preserves the framework's graceful-degradation contract).
-    """
-    concord_module = _import_method("depmap_crispr_rnai_concordance")
-    return concord_module.read_crispr_rnai_concordance(target=target, indication=indication)
-
-
-def _dispatch_mutation_type_counts(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route mutation-type-counts card (E4) to
-    methods/depmap_mutation_type_counts/read.py.
-
-    Cell-line cohort, variant-class resolution. Pan-cancer (indication accepted but
-    not consumed). Distinct from mutation-hotspot-frequency (TCGA-patient cohort).
-    """
-    mut_module = _import_method("depmap_mutation_type_counts")
-    return mut_module.read_mutation_type_counts(target=target, indication=indication)
-
-
 def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route copy-number-distribution card (E3.b) to methods/depmap_cn_distribution.
 
@@ -902,82 +737,6 @@ def _dispatch_cn_distribution(target: str, indication: str) -> Optional[dict]:
     return out
 
 
-def _dispatch_mutation_stratified_dependency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route mutation-stratified-dependency card (Card 3) to
-    methods/depmap_mutation_dependency/read.py.
-
-    Card 3 asks whether a target's dependency stratifies by ITS OWN mutation status
-    across the DepMap panel (oncogene-addiction biomarker hypothesis). Target-only;
-    indication accepted for back-compat but not consumed by the compute path.
-    """
-    mut_module = _import_method("depmap_mutation_dependency")
-    return mut_module.read_mutation_stratified_dependency(target=target, indication=indication)
-
-
-def _dispatch_cn_stratified_dependency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route copy-number-stratified-dependency card (Card E3.cn) to
-    methods/depmap_cn_dependency/read.py.
-
-    The copy-number analog of Card 3: does a target's dependency stratify by ITS OWN
-    amplification status (relative CN > 1.5) across the DepMap panel — the amplification-
-    addiction biomarker hypothesis (ERBB2/MYC-class)? Target-only; indication accepted for
-    back-compat but not consumed by the compute path.
-    """
-    cn_module = _import_method("depmap_cn_dependency")
-    return cn_module.read_cn_stratified_dependency(target=target, indication=indication)
-
-
-def _dispatch_partner_conditional_dependency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route partner-conditional-dependency card (Card C.pc) to
-    methods/depmap_partner_conditional_dependency/read.py.
-
-    The PARTNER-feature analog of Card 3 / Card E3.cn: does a target's dependency stratify by a
-    PARTNER gene's DEFICIENCY status (MSI-high signature OR partner LoF) across the DepMap panel —
-    the synthetic-lethality biomarker hypothesis (WRN×MSI-class)? Target-only; indication accepted
-    for back-compat but not consumed. Returns no_partner_mapped (abstains) for unmapped targets.
-    """
-    pc_module = _import_method("depmap_partner_conditional_dependency")
-    return pc_module.read_partner_conditional_dependency(target=target, indication=indication)
-
-
-
-def _dispatch_cross_consortium_dependency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route cross-consortium-dependency card to methods/cross_consortium_dependency.
-
-    Gate-C CORROBORATION: does Sanger Project Score agree with Broad Achilles on the dependency call?
-    Reads the landed DepMap Broad (CRISPRGeneEffect) + Sanger-inclusive (ScreenGeneEffect) Chronos.
-    tier: target; verdict-inert (raises C-confidence, never a killer)."""
-    mod = _import_method("cross_consortium_dependency")
-    return mod.read_cross_consortium_dependency(target=target, indication=indication)
-
-
-def _dispatch_fusion_stratified_dependency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route fusion-stratified-dependency card (Card E3.fus) to
-    methods/depmap_fusion_dependency/read.py.
-
-    The gene-fusion analog of Card 3 / Card E3.cn: does a target's dependency stratify by
-    whether the line carries a fusion INVOLVING the target (either partner) across the DepMap
-    panel — the fusion-addiction biomarker hypothesis (EWSR1-FLI1/BCR-ABL1-class, invisible to
-    the mutation + CN paths)? Target-only; indication accepted for back-compat but not consumed.
-    """
-    fus_module = _import_method("depmap_fusion_dependency")
-    return fus_module.read_fusion_stratified_dependency(target=target, indication=indication)
-
-
-def _dispatch_amp_expr_stratified_dependency(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route amp-expr-stratified-dependency card (Card E3.ae) to
-    methods/depmap_amp_expr_dependency/read.py.
-
-    The conjoint (amplification+overexpression) three-way analog of Card E3.cn: does a target's
-    dependency stratify by whether the line is BOTH amplified (relative CN > 1.5) AND high-expression
-    (top-tertile log2TPM) for the target — the amplification-DRIVEN overexpression-addiction hypothesis
-    (ERBB2/MYC/KRAS-amp, the amp→overexpression→dependency chain the CN-only path under-weights)?
-    Target-only; indication accepted for back-compat but not consumed.
-    """
-    ae_module = _import_method("depmap_amp_expr_dependency")
-    return ae_module.read_amp_expr_dependency(target=target, indication=indication)
-
-
 def _dispatch_mutation_drug_response(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route mutation-drug-response card (Card E3.drug) to
     methods/depmap_mutation_drug_response/read.py.
@@ -991,52 +750,6 @@ def _dispatch_mutation_drug_response(target: str, indication: str) -> Optional[d
     """
     dr_module = _import_method("depmap_mutation_drug_response")
     return dr_module.read_mutation_drug_response(target=target, indication=indication)
-
-
-def _dispatch_dependency_predictability(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route dependency-predictability card (E5) to
-    methods/depmap_predictability/read.py.
-
-    E5 is a THIN LOOKUP card: reads one row out of the frozen derived parquet
-    s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet
-    via pyarrow predicate pushdown. No sklearn at framework run-time.
-
-    The expensive RandomForest training lives in the sibling
-    methods/depmap_predictability_precompute/ — which runs as a batch job and
-    writes the parquet that this card reads. Target-only (pan-cancer); indication
-    accepted for the framework's dispatcher signature but NOT consumed.
-    """
-    pred_module = _import_method("depmap_predictability")
-    return pred_module.read_predictability(target=target, indication=indication)
-
-
-def _dispatch_prism_compound_activity(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route prism-compound-activity card (E6) to
-    methods/depmap_prism_activity/read.py.
-
-    E6 is a THIN LOOKUP card off the shared v4 derived parquet
-    s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/prism_activity_per_gene.parquet
-    (release_pin `prism-activity-v4`; parquet is shared with E7 crispr-concordance).
-    Sister precompute (methods/depmap_prism_precompute/) merges PRISM OncologyReference
-    25Q4 + Repurposing 24Q2 into a per-gene aggregate at batch time.
-    """
-    prism_module = _import_method("depmap_prism_activity")
-    return prism_module.read_prism_activity(target=target, indication=indication)
-
-
-def _dispatch_prism_crispr_concordance(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: route prism-crispr-concordance card (E7) to
-    methods/depmap_prism_crispr_concordance/read.py.
-
-    E7 is a THIN LOOKUP card sharing the v4 parquet with E6 but exposing the
-    per_compound_concordance + crispr_prism_concordance_class + dual_responders
-    fields for chemical-genetic-genetic triangulated engagement analysis.
-
-    Target-only (pan-cancer, correlation across full DepMap panel). indication
-    accepted for CARD_DISPATCHERS contract but NOT consumed.
-    """
-    concord_module = _import_method("depmap_prism_crispr_concordance")
-    return concord_module.read_prism_crispr_concordance(target=target, indication=indication)
 
 
 # -----------------------------------------------------------------------------
@@ -1058,22 +771,6 @@ def _dispatch_signaling_network_mechanism(target: str, indication: str) -> Optio
     Updated 2026-07-10 from single-source SIGNOR to composed 3-source output.
     """
     mod = _import_method("mechanism_composed")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_co_mutation_and_mutual_exclusivity(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: co-mutation-and-mutual-exclusivity card → panel-intersect
-    Fisher scan via methods/cooccurrence_fisher_pancohort/read.py.
-    """
-    mod = _import_method("cooccurrence_fisher_pancohort")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_protein_domains_class(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: protein-domains-class card → UniProt curated domain architecture + protein class
-    via methods/uniprot_protein_features/read.py. Target-intrinsic (indication ignored).
-    """
-    mod = _import_method("uniprot_protein_features")
     return mod.read_target_summary(target=target, indication=indication)
 
 
@@ -1109,17 +806,6 @@ def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[
 # module: ppi_interactome + entrypoint: read_target_summary in its card_spec, so the GENERIC
 # dispatcher (read_live_summary → _generic_dispatch) invokes it directly. No bespoke passthrough
 # function needed. This is the god-file-collapse pattern: pure passthroughs become card_spec data.
-
-
-def _dispatch_reactome_pathway_membership(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: reactome-pathway-membership card → Reactome pathway/geneset membership
-    via methods/reactome_pathway_context/read.py. Target-intrinsic (indication ignored); the
-    reader resolves HGNC→UniProt-AC via the Reactome resolver sidecar. Distinct from the
-    signaling-network-mechanism dispatcher (which uses reactome only as one enrichment input to
-    the COMPOSED mechanism output) — this exposes pathway MEMBERSHIP as its own card.
-    """
-    mod = _import_method("reactome_pathway_context")
-    return mod.read_target_summary(target=target, indication=indication)
 
 
 # _dispatch_gene_ontology_annotation REMOVED (T11, 2026-08-11): the gene-ontology-annotation card
@@ -1172,20 +858,6 @@ def _dispatch_structure_features_static(target: str, indication: str) -> Optiona
     """
     mod = _import_method("structure_features_static")
     return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_protein_surface_evidence(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: protein-surface-evidence card → CSPA wet-lab surface confirmation via
-    methods/cspa_surface_confirmation/read.py (the live-firing provider of the surface_confirmation
-    measurement_type — resolves the CSPA orphan, DATA_TO_SKILL_CONTRACT).
-
-    CSPA is the `measured` tier of surface_confirmation. Reads the derived per-UniProt-AC product +
-    resolver sidecar (cspa-surface-confirmation-per-uniprot-v1); resolves target→UniProt AC via the
-    sidecar. An absent target is an honest measured-negative (`not_surface`, measured_in_cspa=False),
-    NOT data_unavailable — so the surface-presence + safety gates read a trusted negative, not a gap.
-    """
-    mod = _import_method("cspa_surface_confirmation")
-    return mod.read_surface_confirmation(target=target, indication=indication)
 
 
 def _dispatch_surface_abundance_density(target: str, indication: str) -> Optional[dict]:
@@ -1446,22 +1118,6 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
     }
 
 
-def _dispatch_surfaceome_cohort_ranking(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: surfaceome-cohort-ranking card → per-indication whole-
-    surfaceome ranking via methods/surfaceome_cohort_ranking/read.py.
-    """
-    mod = _import_method("surfaceome_cohort_ranking")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_protein_presence_cptac(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: tumor-protein-abundance-cptac card → CPTAC protein tumor-vs-normal
-    DEG via methods/cptac_protein_deg/read.py.
-    """
-    mod = _import_method("cptac_protein_deg")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
 _BREADTH_ELEVATED_CLASSES = frozenset({"broadly_tumor_elevated", "multi_tumor_elevated",
                                        "single_tumor_elevated"})
 
@@ -1562,14 +1218,6 @@ def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[
     return merged
 
 
-def _dispatch_paralog_buffering(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: paralog-buffering card → DepMap PARIS + Sanger paralog fusion
-    via methods/depmap_paralog_aggregator/read.py.
-    """
-    mod = _import_method("depmap_paralog_aggregator")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
 def _dispatch_combo_crispr_screen(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: combo-crispr-screen card → methods/combo_drug_anchor/read.py
     ::combination_opportunities_for_gene. Drug-anchored CRISPR combination opportunities
@@ -1605,15 +1253,6 @@ def _dispatch_combinatorial_dependency(target: str, indication: str) -> Optional
     (target_pair grain; indication not consumed — the GI is a cell-line panel property)."""
     mod = _import_method("paralog_genetic_interaction.read")
     return mod.combinatorial_dependency_for_gene(target)
-
-
-def _dispatch_gnomad_lof_constraint(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: gnomad-lof-constraint card → gnomAD constraint table lookup.
-    The gnomAD constraint manifest is a simple per-gene TSV; a light method
-    read.py handles the load + row filter.
-    """
-    mod = _import_method("gnomad_constraint")
-    return mod.read_target_summary(target=target, indication=indication)
 
 
 def _dispatch_clinvar_pathogenicity(target: str, indication: str) -> Optional[dict]:
@@ -1665,58 +1304,6 @@ def _dispatch_target_safety_prioritisation(target: str, indication: str) -> Opti
     return mod.read_target_prioritisation(target, indication)
 
 
-def _dispatch_synthetic_lethal_partners(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: synthetic-lethal-partners card → curated SynLethDB SL-partner
-    annotation via methods/synleth_partner_lookup/read.py. Gate-C context-conditional
-    dependency: an experimentally-supported curated SL partner suppresses the pooled
-    non_dependent veto (SMARCA2←SMARCA4). Gene-level — indication accepted, not consumed.
-    """
-    mod = _import_method("synleth_partner_lookup")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_normal_tissue_liability(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: normal-tissue-liability card → HPA IHC normal-tissue footprint via
-    methods/hpa_normal_tissue_liability/read.py. The dominant biologics on-target-off-
-    tumor safety signal (TROP2/HER2-class normal-tissue tox). Gene-level — indication
-    accepted for contract, not consumed.
-    """
-    mod = _import_method("hpa_normal_tissue_liability")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_protein_abundance_celline(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: cellline-protein-abundance card → DepMap 26Q1 proteomics Gygi TMT MS
-    cell-line protein-abundance distribution via methods/depmap_protein_abundance/read.py.
-    The bulk_protein_ms x cell_line presence axis (protein twin of cellline-rna-distribution).
-    Protein-intrinsic — indication accepted for contract, not consumed.
-    """
-    mod = _import_method("depmap_protein_abundance")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_shed_ectodomain_liability(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: shed-ectodomain-liability card → curated serum-marker crosswalk
-    (target-contracts vocab) + HPA v25-1 secretome proxy via
-    methods/shed_ectodomain_liability/read.py. Gate-F surface-window no-go:
-    a shed circulating ectodomain is an antigen sink for antibody/ADC/TCE.
-    Protein-intrinsic — indication accepted for contract, not consumed.
-    """
-    mod = _import_method("shed_ectodomain_liability")
-    return mod.read_target_summary(target=target, indication=indication)
-
-
-def _dispatch_cd_antigen_backbone(target: str, indication: str) -> Optional[dict]:
-    """Dispatcher: cd-antigen-backbone card (E6-CD) → CD/immuno-oncology antigen-BACKBONE
-    clinical-precedent prior via methods/cd_antigen_backbone/read.py. Reads the landed
-    hgnc-gene-group-471 CD-molecule roster (CC0). A class-level tractability-precedent signal
-    (is the target on the antigen class that delivered approved biologics?), supportive-only.
-    Protein-intrinsic — indication accepted for the CARD_DISPATCHERS contract, not consumed.
-    """
-    mod = _import_method("cd_antigen_backbone")
-    return mod.read_cd_antigen_backbone(target=target, indication=indication)
-
-
 def _dispatch_immune_context(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: immune-context card -> tumor T-cell infiltration (EFFECTOR arm) via
     methods/immune_context. Merges the per-indication class (read_immune_context - v1, target-
@@ -1745,23 +1332,12 @@ def _dispatch_immune_context(target: str, indication: str) -> Optional[dict]:
 CARD_DISPATCHERS = {
     "target-identity-summary": _dispatch_target_identity_summary,
     "tumor-rna-vs-adjacent": _dispatch_expression_tumor_vs_adjacent,
-    "dependency-lineage-selectivity": _dispatch_dependency_lineage_selectivity,
-    "mutation-hotspot-frequency": _dispatch_mutation_hotspot_frequency,
     "alteration-role": _dispatch_alteration_role,
     "genomic-instability-state": _dispatch_genomic_instability_state,
-    "ddr-deficiency-context": _dispatch_ddr_deficiency_context,
-    "mutational-signature-context": _dispatch_mutational_signature_context,
-    "oncogenic-pathway-alteration": _dispatch_oncogenic_pathway_alteration,
-    "stemness-context": _dispatch_stemness_context,
-    "target-development-level": _dispatch_target_development_level,
     "variant-level-interpretation": _dispatch_variant_level_interpretation,
     "functional-gene-state": _dispatch_functional_gene_state,
     "genomic-event-model-match": _dispatch_genomic_event_model_match,
     "fusion-rearrangement-landscape": _dispatch_fusion_rearrangement_landscape,
-    "pan-cancer-crispr-dependency-distribution": _dispatch_pan_cancer_dependency_distribution,
-    "pan-cancer-rnai-dependency-distribution": _dispatch_pan_cancer_rnai_dependency_distribution,
-    "crispr-rnai-dependency-concordance": _dispatch_crispr_rnai_dependency_concordance,
-    "cross-consortium-dependency": _dispatch_cross_consortium_dependency,
     "cellline-rna-distribution": _dispatch_expression_distribution,
     "tumor-rna-distribution": _dispatch_tumor_expression_distribution,
     "tumor-rna-distribution-by-subtype": _dispatch_tumor_expression_distribution_subtype,
@@ -1779,63 +1355,37 @@ CARD_DISPATCHERS = {
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
     "sc-surface-normal-safety": _dispatch_sc_surface_normal_safety,
-    "expression-dependency-correlation": _dispatch_expression_dependency_correlation,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
     "expression-clinical-association": _dispatch_expression_clinical_association,
-    "precog-prognostic-association": _dispatch_precog_prognostic,   # PRECOG pan-cancer meta-Z corroboration of the single-cohort survival card
     "phospho-pathway-activity": _dispatch_phospho_pathway_activity,
-    "pathway-activity-context": _dispatch_pathway_activity_context,
     "copy-number-distribution": _dispatch_cn_distribution,
-    "mutation-type-counts": _dispatch_mutation_type_counts,
-    "mutation-stratified-dependency": _dispatch_mutation_stratified_dependency,
-    "copy-number-stratified-dependency": _dispatch_cn_stratified_dependency,
-    "partner-conditional-dependency": _dispatch_partner_conditional_dependency,
-    "fusion-stratified-dependency": _dispatch_fusion_stratified_dependency,
-    "amp-expr-stratified-dependency": _dispatch_amp_expr_stratified_dependency,
     "mutation-drug-response": _dispatch_mutation_drug_response,
-    "dependency-predictability": _dispatch_dependency_predictability,
-    "prism-compound-activity": _dispatch_prism_compound_activity,
-    "prism-crispr-concordance": _dispatch_prism_crispr_concordance,
-    "tumor-vs-normal-selectivity": _dispatch_tumor_vs_normal_selectivity,
     # RT1 fix-rollup 2026-07-09: 11 Phase D/E/F/G card dispatchers
     "signaling-network-mechanism": _dispatch_signaling_network_mechanism,
     "tahoe-drug-perturbation": _dispatch_tahoe_drug_perturbation,
-    "reactome-pathway-membership": _dispatch_reactome_pathway_membership,  # target-intrinsic pathway/geneset membership
     # gene-ontology-annotation + ppi-interactome REMOVED from CARD_DISPATCHERS (T11, 2026-08-11):
     # both now route through the GENERIC dispatcher via card_spec module/entrypoint declarations.
-    "protein-domains-class": _dispatch_protein_domains_class,  # target-intrinsic domain architecture + protein class
     "domain-modality-relevance": _dispatch_domain_modality_relevance,  # interpretive domain→modality (roadmap #3)
     "degradation-feasibility": _dispatch_degradation_feasibility,  # degrader-lens E3 slice 3 (UbiBrowser + precedent + location gate)
-    "co-mutation-and-mutual-exclusivity": _dispatch_co_mutation_and_mutual_exclusivity,
     "surface-topology-and-ptm": _dispatch_surface_topology_and_ptm,
     "surfaceome-family-classification": _dispatch_surfaceome_family_classification,
     "structure-features-static": _dispatch_structure_features_static,
-    "protein-surface-evidence": _dispatch_protein_surface_evidence,
     "surface-abundance-density": _dispatch_surface_abundance_density,
     "modality-therapeutic-window": _dispatch_modality_therapeutic_window,
     "modality-exon-window": _dispatch_exon_window,
     "pmhc-presentation": _dispatch_pmhc_presentation,
     "adc-tce-modality-fit": _dispatch_adc_tce_modality_fit,
-    "surfaceome-cohort-ranking": _dispatch_surfaceome_cohort_ranking,
-    "tumor-protein-abundance-cptac": _dispatch_protein_presence_cptac,
     "tumor-elevation-breadth": _dispatch_tumor_elevation_breadth,
-    "paralog-buffering": _dispatch_paralog_buffering,
     "combinatorial-dependency": _dispatch_combinatorial_dependency,
     "combo-crispr-screen": _dispatch_combo_crispr_screen,
     "resistance-emergence-signature": _dispatch_resistance_emergence_signature,
-    "gnomad-lof-constraint": _dispatch_gnomad_lof_constraint,
     "target-safety-prioritisation": _dispatch_target_safety_prioritisation,   # P5 Slice 1 (OT safety context)
     "gene-burden-safety": _dispatch_gene_burden_safety,                        # P5 Slice 2 (OT rare-variant burden, verdict-moving)
     "clingen-dosage": _dispatch_clingen_dosage,                                # P5 Slice 3 (ClinGen dosage sensitivity, verdict-moving)
     "mouse-ko-phenotype": _dispatch_mouse_ko_phenotype,                        # P5 Slice 4 (mouse-KO normal-physiology, developmental-guardrailed)
     "clinvar-pathogenicity-safety": _dispatch_clinvar_pathogenicity,           # P5 follow-on (ClinVar germline-pathogenic, verdict-moving)
-    "shed-ectodomain-liability": _dispatch_shed_ectodomain_liability,
-    "cd-antigen-backbone": _dispatch_cd_antigen_backbone,
     "immune-context": _dispatch_immune_context,
-    "cellline-protein-abundance": _dispatch_protein_abundance_celline,
-    "normal-tissue-liability": _dispatch_normal_tissue_liability,
-    "synthetic-lethal-partners": _dispatch_synthetic_lethal_partners,
     # NOTE: a pure-passthrough card needs NO entry here since T11 (#341) — read_live_summary falls
     # back to the generic dispatcher driven by the card_spec's `module`/`entrypoint`. Add a bespoke
     # _dispatch_* only for multi-method merges or non-standard readers. (Removed a stale Iter-1b

@@ -22,19 +22,39 @@ in methods/depmap_chronos_distribution/__init__.py) would have been caught by th
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
 
 from _live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
 
+_CONTRACTS = Path(os.environ.get(
+    "TARGET_CONTRACTS_ROOT",
+    "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+))
+
+
+def _is_wired(card_id: str) -> bool:
+    """A card is WIRED if it has a bespoke CARD_DISPATCHERS entry OR its card_spec declares a
+    methods[].entrypoint (routed by _generic_dispatch — the T11 collapse). Either resolves a live
+    reader; only a card with NEITHER is genuinely unwired."""
+    if card_id in CARD_DISPATCHERS:
+        return True
+    p = _CONTRACTS / "cards" / f"{card_id}.card.yaml"
+    if not p.exists():
+        return False
+    spec = yaml.safe_load(p.read_text()) or {}
+    return any(isinstance(m, dict) and m.get("entrypoint") for m in (spec.get("methods") or []))
+
 
 # === Per-card chain-trace assertions ===
-# Each tuple: (card_id, target, indication) — known to be in CARD_DISPATCHERS.
+# Each tuple: (card_id, target, indication) — known to be WIRED (bespoke dispatcher OR generic).
 
 CARDS_WITH_DISPATCHERS = [
     ("target-identity-summary", "KRAS", "COADREAD"),
@@ -59,10 +79,13 @@ CARDS_WITH_DISPATCHERS = [
 
 @pytest.mark.parametrize("card_id,target,indication", CARDS_WITH_DISPATCHERS)
 def test_dispatcher_registered(card_id, target, indication):
-    """Every card listed above must have a registered dispatcher in CARD_DISPATCHERS."""
-    assert card_id in CARD_DISPATCHERS, (
-        f"card_id {card_id!r} has no dispatcher registered in _live_readers.CARD_DISPATCHERS. "
-        f"If you added a card, also add its dispatcher entry."
+    """Every card listed above must be WIRED — a bespoke CARD_DISPATCHERS entry OR a card_spec
+    methods[].entrypoint routed by _generic_dispatch (T11 collapse). A card with neither is a
+    genuine wiring defect."""
+    assert _is_wired(card_id), (
+        f"card_id {card_id!r} is not wired: no _live_readers.CARD_DISPATCHERS entry AND no "
+        f"methods[].entrypoint in its card_spec. If you added a card, either add a bespoke dispatcher "
+        f"or declare module+entrypoint in the card_spec (generic dispatch)."
     )
 
 
