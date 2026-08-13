@@ -399,6 +399,7 @@
         "bulk_rna",
         "bulk_protein_ms",
         "sc_rna",
+        "sc_protein",
         "protein_ihc"
       ]
     },

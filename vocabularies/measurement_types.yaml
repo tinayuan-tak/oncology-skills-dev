@@ -770,6 +770,22 @@ measurement_types:
       - {kind: dataset, source: sc-samecell-coexpr-3ca-kidney-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-3ca-ovarian-v1, method: sc_samecell_coexpr, evidence_tier: measured}
 
+  sc_normal_surface_protein:
+    claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"
+    # The PROTEIN, single-cell sibling of sc_normal_celltype_expression (RNA) and the surface analogue
+    # of normal_tissue_protein_breadth (bulk HPA-IHC). Surface protein decouples from both RNA and total
+    # protein; a CD antigen displayed on resting T cells / hematopoietic subsets is a bulk-invisible
+    # TCE/ADC on-target/off-tumor hazard. Class keys on PEAK cross-cell-type mean-CLR (not positive
+    # fraction — ADT ambient spillover over-calls a >0 count). Routes: Safety (off-tumor floor).
+    modality_relevance: [adc, bite_tce, antibody]
+    entity_grains: [target]
+    cards: [sc-surface-normal-safety]
+    multi_provider_policy: tier_dominant
+    # v1 provider = the immune (PBMC) shard; HuBMAP solid-tissue CITE-seq shards join as the same
+    # provider/claim at additional tissues (mirrors sc_tumor_celltype_expression's per-indication note).
+    providers:
+      - {kind: dataset, source: sc-cite-surface-normal-immune-v1, method: sc_cite_surface, evidence_tier: measured}
+
   normal_tissue_protein_breadth:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
