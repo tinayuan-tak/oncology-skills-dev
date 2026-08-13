@@ -34,6 +34,8 @@ required_inputs:
 
 methods:
   - call: stemness-index
+    module: stemness_index
+    entrypoint: read_stemness_index
     args:
       target: "{target.symbol}"        # accepted for signature; NOT consumed (per-indication class)
       indication: "{indication}"

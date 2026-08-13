@@ -42,6 +42,8 @@ required_inputs:
 
 methods:
   - call: cptac-protein-deg
+    module: cptac_protein_deg
+    entrypoint: read_target_summary
     args:
       cohort: "{indication}"
       gene_symbol: "{target.symbol}"

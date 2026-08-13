@@ -35,6 +35,8 @@ methods:
   # dispatcher import). Was 'depmap-protein-abundance-distribution' (→ a non-existent module) — a
   # stale label the framework-health probe correctly flagged (2026-08-04).
   - call: depmap-protein-abundance
+    module: depmap_protein_abundance
+    entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
 

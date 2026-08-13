@@ -48,6 +48,8 @@ required_inputs:
 
 methods:
   - call: depmap-predictability
+    module: depmap_predictability
+    entrypoint: read_predictability
     args:
       target: "{target.symbol}"
       release_pin: "26q1-v2"

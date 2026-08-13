@@ -42,6 +42,8 @@ derived_from:
 
 methods:
   - call: depmap-crispr-rnai-concordance
+    module: depmap_crispr_rnai_concordance
+    entrypoint: read_crispr_rnai_concordance
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

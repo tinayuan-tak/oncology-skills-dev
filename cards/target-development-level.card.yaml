@@ -32,6 +32,8 @@ required_inputs:
 
 methods:
   - call: pharos-tdl
+    module: pharos_tdl
+    entrypoint: read_pharos_tdl
     args:
       target: "{target.symbol}"
 

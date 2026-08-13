@@ -32,6 +32,8 @@ required_inputs:
 
 methods:
   - call: depmap-mutation-type-counts
+    module: depmap_mutation_type_counts
+    entrypoint: read_mutation_type_counts
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

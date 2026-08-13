@@ -47,6 +47,8 @@ required_inputs:
 
 methods:
   - call: cooccurrence-fisher-pancohort
+    module: cooccurrence_fisher_pancohort
+    entrypoint: read_target_summary
     args:
       target_symbol: "{target.symbol}"
       panel_intersect_mode: strict

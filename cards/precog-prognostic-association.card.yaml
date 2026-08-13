@@ -35,6 +35,8 @@ required_inputs:
 
 methods:
   - call: precog-prognostic
+    module: precog_prognostic
+    entrypoint: read_precog_prognostic
     args:
       target: "{target.symbol}"
       indication: "{indication}"

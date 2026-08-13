@@ -24,6 +24,8 @@ required_inputs:
 
 methods:
   - call: surfaceome-cohort-ranking
+    module: surfaceome_cohort_ranking
+    entrypoint: read_target_summary
     args:
       indication: "{indication}"
       target: "{target.symbol}"

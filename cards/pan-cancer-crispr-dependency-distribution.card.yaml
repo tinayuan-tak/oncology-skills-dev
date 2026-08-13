@@ -36,6 +36,8 @@ required_inputs:
 
 methods:
   - call: depmap-chronos-distribution
+    module: depmap_chronos_distribution
+    entrypoint: read_pan_cancer_distribution
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

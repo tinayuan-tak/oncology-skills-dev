@@ -30,6 +30,8 @@ required_inputs:
 
 methods:
   - call: structure-features-static
+    module: structure_features_static
+    entrypoint: read_target_summary
     args:
       target_uniprot_ac: "{target.uniprot_canonical}"
 

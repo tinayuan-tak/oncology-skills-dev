@@ -29,6 +29,8 @@ derived_from:
 
 methods:
   - call: uniprot-protein-features
+    module: uniprot_protein_features
+    entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
 

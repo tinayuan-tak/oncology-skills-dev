@@ -34,6 +34,8 @@ required_inputs:
 
 methods:
   - call: surfaceome-family-fusion
+    module: surfaceome_family_fusion
+    entrypoint: read_target_summary
     args:
       target_uniprot_ac: "{target.uniprot_canonical}"
 

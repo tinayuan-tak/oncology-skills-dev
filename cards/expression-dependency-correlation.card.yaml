@@ -35,6 +35,8 @@ required_inputs:
 
 methods:
   - call: depmap-expression-dependency
+    module: depmap_expression_dependency
+    entrypoint: read_expression_dependency
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

@@ -53,6 +53,8 @@ required_inputs:
 
 methods:
   - call: depmap-partner-conditional
+    module: depmap_partner_conditional_dependency
+    entrypoint: read_partner_conditional_dependency
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

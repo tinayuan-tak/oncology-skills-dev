@@ -40,6 +40,8 @@ required_inputs:
 
 methods:
   - call: depmap-fusion-stratified
+    module: depmap_fusion_dependency
+    entrypoint: read_fusion_stratified_dependency
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

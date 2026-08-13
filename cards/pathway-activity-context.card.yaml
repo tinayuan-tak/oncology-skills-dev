@@ -37,6 +37,8 @@ required_inputs:
 
 methods:
   - call: progeny-pathway-activity
+    module: progeny_pathway_activity
+    entrypoint: read_progeny_pathway_activity
     args:
       target: "{target.symbol}"
       indication: "{indication}"

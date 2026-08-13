@@ -40,6 +40,8 @@ required_inputs:
 
 methods:
   - call: depmap-chronos
+    module: depmap_chronos
+    entrypoint: read_lineage_selectivity
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

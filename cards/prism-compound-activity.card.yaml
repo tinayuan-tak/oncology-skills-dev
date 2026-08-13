@@ -81,6 +81,8 @@ required_inputs:
 
 methods:
   - call: depmap-prism-activity
+    module: depmap_prism_activity
+    entrypoint: read_prism_activity
     args:
       target: "{target.symbol}"
       release_pin: "prism-activity-v4"

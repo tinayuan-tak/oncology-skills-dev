@@ -65,6 +65,8 @@ required_inputs:
 
 methods:
   - call: dge-tumor-vs-normal-selectivity
+    module: dge_deseq2
+    entrypoint: read_tumor_vs_normal_selectivity
     args:
       target: "{target.symbol}"
       indication: "{indication}"

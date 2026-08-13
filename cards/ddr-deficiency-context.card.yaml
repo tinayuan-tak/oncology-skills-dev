@@ -35,6 +35,8 @@ required_inputs:
 
 methods:
   - call: pancanatlas-ddr-context
+    module: pancanatlas_ddr_context
+    entrypoint: read_ddr_deficiency_context
     args:
       target: "{target.symbol}"        # accepted for signature; NOT consumed (per-indication class)
       indication: "{indication}"

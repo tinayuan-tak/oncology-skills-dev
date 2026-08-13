@@ -38,6 +38,8 @@ required_inputs:
 
 methods:
   - call: tcga-mc3-signatures
+    module: tcga_mc3_signatures
+    entrypoint: read_mutational_signature_context
     args:
       target: "{target.symbol}"        # accepted for signature; NOT consumed (per-indication class)
       indication: "{indication}"

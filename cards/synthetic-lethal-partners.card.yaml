@@ -44,6 +44,8 @@ required_inputs:
 
 methods:
   - call: synleth-partner-lookup
+    module: synleth_partner_lookup
+    entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
 

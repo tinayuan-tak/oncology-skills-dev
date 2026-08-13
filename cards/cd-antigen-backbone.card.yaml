@@ -27,6 +27,8 @@ required_inputs:
 
 methods:
   - call: cd-antigen-backbone
+    module: cd_antigen_backbone
+    entrypoint: read_cd_antigen_backbone
     args:
       target: "{target.symbol}"
 

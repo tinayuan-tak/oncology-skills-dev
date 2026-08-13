@@ -31,6 +31,8 @@ derived_from:
 
 methods:
   - call: reactome-pathway-context
+    module: reactome_pathway_context
+    entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
 

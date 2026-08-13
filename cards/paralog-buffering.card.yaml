@@ -39,6 +39,8 @@ required_inputs:
 
 methods:
   - call: depmap-paralog-aggregator
+    module: depmap_paralog_aggregator
+    entrypoint: read_target_summary
     args:
       target: "{target.symbol}"
 

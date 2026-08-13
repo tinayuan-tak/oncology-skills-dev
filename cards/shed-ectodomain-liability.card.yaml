@@ -76,6 +76,8 @@ required_inputs:
 
 methods:
   - call: shed-ectodomain-lookup
+    module: shed_ectodomain_liability
+    entrypoint: read_target_summary
     args:
       gene_symbol: "{target.symbol}"
 

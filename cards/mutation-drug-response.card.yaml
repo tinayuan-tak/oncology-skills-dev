@@ -44,6 +44,8 @@ required_inputs:
 
 methods:
   - call: depmap-mutation-drug-response
+    module: depmap_mutation_drug_response
+    entrypoint: read_mutation_drug_response
     args:
       target: "{target.symbol}"
       release_pin: "{release_pin}"

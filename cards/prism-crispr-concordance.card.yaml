@@ -73,6 +73,8 @@ required_inputs:
 
 methods:
   - call: depmap-prism-crispr-concordance
+    module: depmap_prism_crispr_concordance
+    entrypoint: read_prism_crispr_concordance
     args:
       target: "{target.symbol}"
       release_pin: "prism-activity-v4"

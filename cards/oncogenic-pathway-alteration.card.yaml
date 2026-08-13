@@ -33,6 +33,8 @@ required_inputs:
 
 methods:
   - call: oncogenic-pathway-alteration
+    module: oncogenic_pathway_alteration
+    entrypoint: read_oncogenic_pathway_alteration
     args:
       target: "{target.symbol}"
       indication: "{indication}"

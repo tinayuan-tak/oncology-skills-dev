@@ -34,6 +34,8 @@ required_inputs:
 
 methods:
   - call: gnomad-constraint-lookup
+    module: gnomad_constraint
+    entrypoint: read_target_summary
     args:
       gene_symbol: "{target.symbol}"
 

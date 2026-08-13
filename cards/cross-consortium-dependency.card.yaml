@@ -35,6 +35,8 @@ required_inputs:
 
 methods:
   - call: cross-consortium-dependency
+    module: cross_consortium_dependency
+    entrypoint: read_cross_consortium_dependency
     args:
       target: "{target.symbol}"
 
