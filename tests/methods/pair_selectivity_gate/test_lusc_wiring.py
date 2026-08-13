@@ -37,10 +37,11 @@ def test_lusc_samecell_map_points_to_dedicated_cube():
 def test_luad_and_nsclc_stay_on_the_umbrella():
     # LUAD has no dedicated cube → umbrella; NSCLC *is* the umbrella. Guard against an over-eager
     # split that would orphan LUAD queries.
-    assert TSC.INDICATION_TO_PRODUCT["LUAD"] == "sc-pseudobulk-donor-celltype-nsclc-v1"
-    assert TSC.INDICATION_TO_PRODUCT["NSCLC"] == "sc-pseudobulk-donor-celltype-nsclc-v1"
-    assert SC.INDICATION_TO_SAMECELL_MANIFEST["LUAD"] == "sc-samecell-coexpr-nsclc-v1"
-    assert SC.INDICATION_TO_SAMECELL_MANIFEST["NSCLC"] == "sc-samecell-coexpr-nsclc-v1"
+    # 2026-08-13: NSCLC/LUAD repointed from the Census umbrella to the richer LuCA atlas (both maps).
+    assert TSC.INDICATION_TO_PRODUCT["LUAD"] == "sc-pseudobulk-tumor-luca-nsclc-v1"
+    assert TSC.INDICATION_TO_PRODUCT["NSCLC"] == "sc-pseudobulk-tumor-luca-nsclc-v1"
+    assert SC.INDICATION_TO_SAMECELL_MANIFEST["LUAD"] == "sc-samecell-coexpr-luca-nsclc-v1"
+    assert SC.INDICATION_TO_SAMECELL_MANIFEST["NSCLC"] == "sc-samecell-coexpr-luca-nsclc-v1"
 
 
 def test_sc_maps_agree_on_every_indication():

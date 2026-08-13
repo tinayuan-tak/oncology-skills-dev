@@ -34,8 +34,9 @@ INDICATION_TO_SAMECELL_MANIFEST = {
     "COADREAD": "sc-samecell-coexpr-coadread-v1",
     "COAD": "sc-samecell-coexpr-coadread-v1",
     "READ": "sc-samecell-coexpr-coadread-v1",
-    "NSCLC": "sc-samecell-coexpr-nsclc-v1",
-    "LUAD": "sc-samecell-coexpr-nsclc-v1",
+    "NSCLC": "sc-samecell-coexpr-luca-nsclc-v1",       # LuCA (Salcher 2022): 140 donors / 81,678 malignant
+    "LUAD": "sc-samecell-coexpr-luca-nsclc-v1",        #   (was Census sc-samecell-coexpr-nsclc-v1; LuCA is
+                                                       #    the richer NSCLC atlas — same 8 pairs, drop-in)
     "LUSC": "sc-samecell-coexpr-lusc-v1",              # dedicated squamous cube (was: nsclc umbrella)
     "PAAD": "sc-samecell-coexpr-3ca-pancreas-v1",      # 3CA PDAC — 8 antigen pairs (MSLN/MUC1/EPCAM/ERBB2...)
     "HNSC": "sc-samecell-coexpr-3ca-hnsc-v1",          # 3CA HNSCC — 10 squamous/H&N pairs (EGFR/TROP2/EPCAM/MET...)

@@ -52,8 +52,8 @@ INDICATION_TO_PRODUCT = {
     "COADREAD": "sc-pseudobulk-donor-celltype-coadread-v2",
     "COAD": "sc-pseudobulk-donor-celltype-coadread-v2",
     "READ": "sc-pseudobulk-donor-celltype-coadread-v2",
-    "NSCLC": "sc-pseudobulk-donor-celltype-nsclc-v1",
-    "LUAD": "sc-pseudobulk-donor-celltype-nsclc-v1",
+    "NSCLC": "sc-pseudobulk-tumor-luca-nsclc-v1",      # LuCA (Salcher 2022): 193 tumor pts / 21 datasets (upgrade from Census nsclc-v1)
+    "LUAD": "sc-pseudobulk-tumor-luca-nsclc-v1",
     "LUSC": "sc-pseudobulk-donor-celltype-lusc-v1",    # dedicated squamous cube (was: nsclc umbrella)
     "PAAD": "sc-pseudobulk-tumor-3ca-pancreas-v1",     # 3CA PDAC — 6 studies / 344K cells (inferCNV malignant)
     "HNSC": "sc-pseudobulk-tumor-3ca-hnsc-v1",         # 3CA HNSCC — Kürten+Puram+Cillo; 0 Census HNSC malignant cells
