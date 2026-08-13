@@ -2,7 +2,12 @@
 import pandas as pd
 import pytest
 
-from methods.arm_loss_sl_scan.scan import SCAN_COLUMNS, sl_arm_scan
+from methods.arm_loss_sl_scan.scan import (
+    BYSTANDER_MAP_COLUMNS,
+    SCAN_COLUMNS,
+    bystander_map,
+    sl_arm_scan,
+)
 from methods.pancan_arm_cnv.read import gene_arm_map
 
 
@@ -139,3 +144,40 @@ def test_robust_arm_yields_no_hit():
     hits = sl_arm_scan(_sl_pairs(), freq, {"3p": 0.60}, _gene_to_arm(),
                        min_loss_freq=0.5, fdr_alpha=0.05)
     assert hits.empty
+
+
+# --- bystander_map (Paradigm-B re-grain) -----------------------------------
+
+def _two_context_pairs():
+    return pd.DataFrame([
+        {"target": "TA", "partner": "P1", "evidence_tier": "experimental", "has_experimental": True},
+        {"target": "TB", "partner": "P1", "evidence_tier": "experimental", "has_experimental": True},  # shares P1/3p
+        {"target": "TC", "partner": "P2", "evidence_tier": "experimental", "has_experimental": True},   # 5q
+    ])
+
+
+def test_bystander_map_regrains_and_dedups():
+    freq = pd.DataFrame([
+        {"chromosome_arm": "3p", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.80, "gain_frequency": 0.0},
+        {"chromosome_arm": "5q", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.60, "gain_frequency": 0.0},
+    ])
+    hits = sl_arm_scan(_two_context_pairs(), freq, {"3p": 0.20, "5q": 0.20}, _gene_to_arm(),
+                       arm_bystander={("3p", "KIRC"): 800.0, ("5q", "KIRC"): 100.0},
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    bmap = bystander_map(hits)
+    assert list(bmap.columns) == BYSTANDER_MAP_COLUMNS
+    # 3 nominations (TA/P1, TB/P1 on 3p; TC/P2 on 5q) collapse to 2 (arm, indication) contexts.
+    assert len(bmap) == 2
+    ctx3p = bmap[bmap.chromosome_arm == "3p"].iloc[0]
+    assert ctx3p["n_targets_nominated"] == 2          # TA + TB share the 3p/KIRC context
+    assert ctx3p["n_sl_partners"] == 1                # both via P1
+    assert ctx3p["sl_partners"] == ["P1"]
+    assert sorted(ctx3p["top_targets"]) == ["TA", "TB"]
+    # PARADIGM-B (bystander-POSITIVE): 3p (freq .80, sel 4.0, bystander 800) outranks 5q despite
+    # 5q being narrower — the rich bystander surface is rewarded, not penalized.
+    assert bmap.sort_values("rank").iloc[0]["chromosome_arm"] == "3p"
+    assert ctx3p["pb_discovery_value"] == round(0.80 * 4.0 * 800.0, 4)
+
+
+def test_bystander_map_empty_hits():
+    assert bystander_map(pd.DataFrame(columns=SCAN_COLUMNS)).empty

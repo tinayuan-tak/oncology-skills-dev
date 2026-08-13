@@ -29,7 +29,13 @@ from typing import Optional
 
 import click
 
-from methods.arm_loss_sl_scan.scan import METHOD_VERSION, SCAN_COLUMNS, sl_arm_scan
+from methods.arm_loss_sl_scan.scan import (
+    BYSTANDER_MAP_COLUMNS,
+    METHOD_VERSION,
+    SCAN_COLUMNS,
+    bystander_map,
+    sl_arm_scan,
+)
 from methods.pancan_arm_cnv.read import _patient_of, build_arm_indication_freq, gene_arm_map
 
 DEFAULT_AWS_PROFILE = "cbg"
@@ -200,8 +206,11 @@ def _pancan_baseline(arm_calls, barcode_to_indication) -> dict:
 @click.option("--min-loss-freq", type=float, default=0.20, show_default=True, help="Actionability floor on observed arm-loss frequency.")
 @click.option("--fdr-alpha", type=float, default=0.05, show_default=True, help="BH q-value cutoff.")
 @click.option("--experimental-only", is_flag=True, help="Keep only experimentally-supported SL pairs.")
+@click.option("--bystander-map-out", type=click.Path(path_type=Path), default=None,
+              help="Also write the Paradigm-B bystander map (per-(arm, indication) discovery "
+                   "contexts, bystander-positive ranking) to this parquet path.")
 @click.option("--aws-profile", default=DEFAULT_AWS_PROFILE, show_default=True)
-def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, aws_profile):
+def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, bystander_map_out, aws_profile):
     """Compose the SL -> arm-loss -> indication nomination scan and write parquet + a
     <out>.input_manifest_ids.json federation sidecar + a caveats sidecar."""
     import pandas as pd
@@ -238,6 +247,26 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
                     min_loss_freq=min_loss_freq, fdr_alpha=fdr_alpha,
                     experimental_only=experimental_only)
     click.echo(f"[arm_loss_sl_scan] wrote {len(hits)} hits -> {out}", err=True)
+
+    if bystander_map_out is not None:
+        bmap = bystander_map(hits)
+        bystander_map_out.parent.mkdir(parents=True, exist_ok=True)
+        bmap.to_parquet(bystander_map_out, index=False)
+        # federation sidecar for the map (same input_manifest_ids; distinct grain)
+        sc = bystander_map_out.with_suffix(".input_manifest_ids.json")
+        sc.write_text(json.dumps({
+            "method": "arm_loss_sl_scan_bystander_map",
+            "method_version": METHOD_VERSION,
+            "input_manifest_ids": INPUT_MANIFEST_IDS,
+            "target_scope": (target or "ALL"),
+            "indication_scope": "discovery",
+            "n_contexts": int(len(bmap)),
+            "grain": "chromosome_arm x indication",
+            "ranking": "pb_discovery_value (arm_loss_freq * selectivity * bystander_density)",
+            "parameters": {"min_loss_freq": min_loss_freq, "fdr_alpha": fdr_alpha,
+                           "experimental_only": experimental_only},
+        }, indent=2, sort_keys=True, default=str))
+        click.echo(f"[arm_loss_sl_scan] wrote {len(bmap)} bystander-map contexts -> {bystander_map_out}", err=True)
 
 
 def _write_empty(out: Path, reason: str, target_scope: str = "ALL"):

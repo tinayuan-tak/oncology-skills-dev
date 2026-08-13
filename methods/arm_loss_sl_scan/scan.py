@@ -212,3 +212,69 @@ def sl_arm_scan(
     df = df.sort_values(["discovery_value", "q_value"], ascending=[False, True]).reset_index(drop=True)
     df["rank"] = df.index + 1
     return df[SCAN_COLUMNS]
+
+
+# --- Paradigm-B BYSTANDER MAP --------------------------------------------------------------------
+
+BYSTANDER_MAP_COLUMNS = [
+    "chromosome_arm", "indication",
+    "arm_loss_freq", "arm_pancan_baseline", "selectivity", "bystander_density",
+    "n_samples", "q_value",
+    "n_sl_partners", "n_targets_nominated", "pb_discovery_value",
+    "sl_partners", "top_targets", "rank",
+]
+
+_MAP_TOP_TARGETS = 25
+
+
+def bystander_map(hits: pd.DataFrame, *, top_targets: int = _MAP_TOP_TARGETS) -> pd.DataFrame:
+    """Re-grain the per-(target, partner, arm, indication) nomination set UP to per-(arm, indication)
+    DISCOVERY CONTEXTS — the Paradigm-B "bystander map" (which selectively-lost arm-context is richest
+    for SL discovery, and which known SL-partner genes sit on it as the actionable starting surface).
+
+    Inverts the scan's question from "does my target's partner sit on a lost arm?" to "this arm is
+    selectively lost in this lineage — which co-lost gene should we test?" Collapses the redundant
+    same-arm nominations (every SL partner on a hot arm shares the identical arm evidence) into ONE
+    row per context. Ranked by the PARADIGM-B discovery_value (bystander-POSITIVE):
+
+        pb_discovery_value = arm_loss_freq * selectivity * bystander_density
+
+    i.e. a frequently + selectively lost arm with a RICH co-deleted surface scores highest — the
+    opposite direction from the per-nomination discovery_value (which downweights breadth to reward
+    target focality). Both live in the framework; see the module docstring. This v1 annotates the
+    surface with the KNOWN SL-partner genes present in `hits` (the actionable bystanders); the full
+    every-arm-gene surface + novel-anchor discovery is the stratified-essentiality follow-on.
+
+    Pure: takes the sl_arm_scan output DataFrame, returns the map DataFrame (S3-free)."""
+    if hits is None or len(hits) == 0:
+        return pd.DataFrame(columns=BYSTANDER_MAP_COLUMNS)
+
+    rows = []
+    for (arm, ind), g in hits.groupby(["partner_arm", "indication"]):
+        # context metrics are constant within (arm, indication); take the first row's values.
+        first = g.iloc[0]
+        loss_freq = float(first["arm_loss_freq"])
+        selectivity = float(first["selectivity"])
+        bys = first.get("bystander_density")
+        bys = float(bys) if (bys is not None and not pd.isna(bys)) else None
+        pb = round(loss_freq * selectivity * bys, 4) if bys is not None else round(loss_freq * selectivity, 4)
+        partners = sorted(g["sl_partner"].dropna().unique().tolist())
+        targets = sorted(g["target"].dropna().unique().tolist())
+        rows.append({
+            "chromosome_arm": arm, "indication": ind,
+            "arm_loss_freq": round(loss_freq, 4),
+            "arm_pancan_baseline": round(float(first["arm_pancan_baseline"]), 4),
+            "selectivity": round(selectivity, 3),
+            "bystander_density": (round(bys, 1) if bys is not None else None),
+            "n_samples": int(first["n_samples"]),
+            "q_value": float(first["q_value"]),
+            "n_sl_partners": len(partners),
+            "n_targets_nominated": len(targets),
+            "pb_discovery_value": pb,
+            "sl_partners": partners,
+            "top_targets": targets[:top_targets],
+        })
+    out = pd.DataFrame(rows)
+    out = out.sort_values(["pb_discovery_value", "q_value"], ascending=[False, True]).reset_index(drop=True)
+    out["rank"] = out.index + 1
+    return out[BYSTANDER_MAP_COLUMNS]
