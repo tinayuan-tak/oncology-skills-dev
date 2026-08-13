@@ -1,5 +1,103 @@
 {
-  "built_at": "2026-08-13T12:55:11.746038+00:00",
+  "built_at": "2026-08-13T16:51:27.333054+00:00",
+  "by_manifest_id": {
+    "coadread-dge-tumor-vs-normal-sensitivity-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "cptac-pdc-snapshot-2026-07-01": [
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "cptac-protein-tumor-vs-normal-per-cohort-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "cptac-rna-protein-matched-per-sample-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ],
+    "cspa-surface-confirmation-per-uniprot-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ],
+    "depmap-consortium-26q1": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "depmap-consortium-26q1-proteomics": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "depmap-consortium-26q1-rnai": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "depmap-predictability": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "depmap-prism-activity-v3": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "depmap-prism-activity-v4": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "dge-tumor-vs-adjacent": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package"
+    ],
+    "expression-rna-tumor-vs-adjacent": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "gdc-pancanatlas-cnv-2018": [
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "gdc-pancohort-somatic": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "gtex-tpm-recount3-long-v1": [
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "hpa-v25-1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "pancan-dge-tumor-vs-normal-v1": [
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "sc-pseudobulk-donor-celltype-coadread-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ],
+    "sc-pseudobulk-donor-celltype-nsclc-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ],
+    "surfaceome-family-classification-per-uniprot-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ],
+    "target-id-resolver-release": [
+      "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+      "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "tcga-gtex-tpm-tissue-quantiles-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ],
+    "tcga-tumor-tpm-recount3-long-v1": [
+      "KRAS|COADREAD|unpinned|2.0.0|evidence_package"
+    ],
+    "topology-predictions-tmbed-v1": [
+      "ERBB2|BRCA|unpinned|2.0.0|evidence_package"
+    ]
+  },
   "by_rule_id": {
     "cn-broadly-neutral-neutral": [
       "KRAS|COADREAD|unpinned|1.0.0|target_profile"
@@ -117,6 +215,7 @@
       }
     ]
   },
+  "n_manifests_indexed": 25,
   "n_rows": 5,
   "n_rules_indexed": 20,
   "n_target_indications": 4

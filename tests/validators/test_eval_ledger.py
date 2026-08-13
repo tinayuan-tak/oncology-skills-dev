@@ -47,6 +47,77 @@ def _mk_ep(root: Path, target, indication, manifests):
     (d / "evidence_package.json").write_text(json.dumps(ep))
 
 
+def _mk_scan(root: Path, target_scope, manifests, nominated, n_hits=1,
+            method="arm_loss_sl_scan"):
+    d = root / "scans" / f"{method}-{target_scope}"
+    d.mkdir(parents=True, exist_ok=True)
+    sc = {
+        "method": method, "method_version": "scan-0.1.0",
+        "input_manifest_ids": manifests,
+        "target_scope": target_scope, "indication_scope": "discovery",
+        "n_hits": n_hits,
+        "nominated_target_indications": nominated,
+        "top_hits": [], "parameters": {"min_loss_freq": 0.2, "fdr_alpha": 0.05},
+    }
+    (d / "arm_loss_sl.input_manifest_ids.json").write_text(json.dumps(sc))
+
+
+def test_row_from_scan_federates(tmp_path):
+    scans = tmp_path / "scans_root"
+    _mk_scan(scans, "KRAS", ["pancan-arm-cnv-per-sample-v1", "synlethdb-sl-partners-per-gene-v1"],
+             ["MTAP|LUAD", "STK11|LUAD"], n_hits=2)
+    rows = bel.build_rows({"scans": scans})
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["source"] == "arm_loss_sl_scan"
+    assert r["target"] == "KRAS" and r["indication"] == "discovery"
+    assert r["release_pin"] == "unpinned"
+    assert r["framework_version"] == "scan-0.1.0"
+    assert r["n_hits"] == 2
+    assert r["nominated_target_indications"] == ["MTAP|LUAD", "STK11|LUAD"]
+    # federation key is sorted + carries the shared products
+    assert r["input_manifest_ids"] == ["pancan-arm-cnv-per-sample-v1", "synlethdb-sl-partners-per-gene-v1"]
+    assert r["fired_rule_ids"] == []           # discovery scan: no resolver rules
+    # core fields non-empty so the row keys + self-checks cleanly
+    assert all(r.get(k) not in (None, "") for k in bel._ROW_CORE)
+
+
+def test_by_manifest_id_links_scan_and_eval(tmp_path):
+    """The discovery edge: an evidence_package and a scan that read the SAME product both appear
+    under by_manifest_id[that_product] — joining evaluation and discovery layers."""
+    products, scans = tmp_path / "products", tmp_path / "scans_root"
+    _mk_ep(products, "KRAS", "COADREAD", ["pancan-arm-cnv-per-sample-v1", "tcga-mc3"])
+    _mk_scan(scans, "ALL", ["pancan-arm-cnv-per-sample-v1", "synlethdb-sl-partners-per-gene-v1"],
+             ["MTAP|LUAD"])
+    rows = bel.build_rows({"products": products, "scans": scans})
+    ix = bel.build_indexes(rows)
+    shared = ix["by_manifest_id"]["pancan-arm-cnv-per-sample-v1"]
+    ep_key = bel.row_key(next(r for r in rows if r["source"] == "evidence_package"))
+    scan_key = bel.row_key(next(r for r in rows if r["source"] == "arm_loss_sl_scan"))
+    assert ep_key in shared and scan_key in shared      # both layers linked by the shared product
+    # products unique to one side map to only that side
+    assert ix["by_manifest_id"]["synlethdb-sl-partners-per-gene-v1"] == [scan_key]
+    assert ix["by_manifest_id"]["tcga-mc3"] == [ep_key]
+    assert ix["n_manifests_indexed"] == 3
+
+
+def test_self_check_validates_by_manifest_id(tmp_path):
+    products, scans = tmp_path / "products", tmp_path / "scans_root"
+    _mk_scan(scans, "ALL", ["m1"], ["X|Y"])
+    rows = bel.build_rows({"scans": scans})
+    ix = bel.build_indexes(rows)
+    lp, ip = tmp_path / "eval_ledger.jsonl", tmp_path / "eval_ledger_index.json"
+    lp.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
+    ip.write_text(json.dumps(ix))
+    ok, errs = bel.self_check(lp, ip)
+    assert ok, errs
+    bad = dict(ix)
+    bad["by_manifest_id"] = {"m1": ["GHOST|discovery|unpinned|scan-0.1.0|arm_loss_sl_scan"]}
+    ip.write_text(json.dumps(bad))
+    ok2, errs2 = bel.self_check(lp, ip)
+    assert not ok2 and any("by_manifest_id" in e and "unknown row" in e for e in errs2)
+
+
 def test_build_rows_normalizes_both_sources(tmp_path):
     skills, products = tmp_path / "skills", tmp_path / "products"
     _mk_nomination(skills, "KRAS", "COADREAD", "nominate",

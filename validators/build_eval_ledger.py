@@ -12,6 +12,12 @@ into one keyed row set + two reverse indexes:
                                           interpretation_call, and the union of `input_manifest_ids`
                                           (the FOREIGN KEY that federates this decision layer to the
                                           data-product / discovery graph).
+  - find-mode DISCOVERY scans `*.input_manifest_ids.json` — a portfolio-level nomination pass
+                                          (e.g. analysis-methods arm_loss_sl_scan): ONE row/scan
+                                          carrying its `input_manifest_ids` union +
+                                          `nominated_target_indications`. Its edge into the graph is
+                                          the new `by_manifest_id` index: a discovery scan and an
+                                          evaluation that read the SAME product are linked there.
 
 WHY (what a single re-run cannot reconstruct): cross-TARGET population structure ("which evaluated
 targets fired rule X"), cross-RELEASE trend ("did the verdict flip when the data updated?"),
@@ -52,9 +58,13 @@ _ROW_CORE = ("source", "target", "indication", "release_pin", "framework_version
 
 
 def _default_roots() -> dict[str, Path]:
+    products = SIBLINGS / "rnd-computational-biology-oncology-data-products"
     return {
         "skills": SIBLINGS / "rnd-computational-biology-oncology-claude-oncology-skills",
-        "products": SIBLINGS / "rnd-computational-biology-oncology-data-products",
+        "products": products,
+        # discovery-scan federation sidecars default to the data-products tree (where find-mode
+        # outputs are published alongside evidence packages); override with --scans-root.
+        "scans": products,
     }
 
 
@@ -150,6 +160,39 @@ def row_from_evidence_package(path: Path, ep: dict) -> dict:
     }
 
 
+def row_from_scan(path: Path, sc: dict) -> dict:
+    """Normalise a find-mode DISCOVERY scan's federation sidecar (e.g. arm_loss_sl_scan's
+    <out>.input_manifest_ids.json) into ONE ledger row.
+
+    A scan is a portfolio-level nomination pass, not a per-(target,indication) evaluation, so it
+    contributes a single row keyed by (target_scope, 'discovery', ...) rather than one row per hit
+    (which would flood the ledger). Its VALUE to the ledger is the `input_manifest_ids` union: the
+    by_manifest_id index then links this discovery scan to every EVALUATION that read the same data
+    products (the cumulative-KG discovery edge). `nominated_target_indications` carries the hit set
+    for downstream 'which un-evaluated neighbours did discovery surface?' queries. Sidecar-only
+    (JSON) so this reader stays dependency-free."""
+    return {
+        "source": sc.get("method") or "scan",
+        "artifact_path": _rel(path),
+        "target": sc.get("target_scope") or "ALL",          # scan scope, not a single target
+        "indication": sc.get("indication_scope") or "discovery",
+        "release_pin": "unpinned",                            # scans read live products
+        "data_mode": "live_latest",
+        "framework_version": sc.get("method_version"),
+        "generated_at": None,                                 # sidecar carries no wall-clock (byte-stable)
+        "recommendation": None,
+        "fragility": None,
+        "n_hits": sc.get("n_hits"),
+        "nominated_target_indications": sc.get("nominated_target_indications") or [],
+        "fired_rule_ids": [],                                 # discovery scan: no resolver rules
+        "input_manifest_ids": sorted(sc.get("input_manifest_ids") or []),  # FEDERATION KEY
+    }
+
+
+# Discovery-scan federation sidecars carry this marker key (distinguishes them from other JSON).
+_SCAN_SIDECAR_SUFFIX = ".input_manifest_ids.json"
+
+
 def build_rows(roots: dict[str, Path]) -> list[dict]:
     rows: list[dict] = []
     skills = roots.get("skills")
@@ -166,6 +209,16 @@ def build_rows(roots: dict[str, Path]) -> list[dict]:
                 rows.append(row_from_evidence_package(p, json.loads(p.read_text())))
             except (OSError, json.JSONDecodeError) as e:
                 print(f"  WARN: skip unreadable {p}: {e}", file=sys.stderr)
+    # Discovery-scan sidecars (find-mode products federating via input_manifest_ids).
+    scans = roots.get("scans")
+    if scans and scans.exists():
+        for p in sorted(scans.rglob(f"*{_SCAN_SIDECAR_SUFFIX}")):
+            try:
+                sc = json.loads(p.read_text())
+                if sc.get("method") and "input_manifest_ids" in sc:
+                    rows.append(row_from_scan(p, sc))
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"  WARN: skip unreadable {p}: {e}", file=sys.stderr)
     rows.sort(key=row_key)
     return rows
 
@@ -173,12 +226,19 @@ def build_rows(roots: dict[str, Path]) -> list[dict]:
 def build_indexes(rows: list[dict]) -> dict:
     by_rule: dict[str, list[str]] = {}
     by_ti: dict[str, list[dict]] = {}
+    by_manifest: dict[str, list[str]] = {}
     for r in rows:
         rk = row_key(r)
         for rid in r.get("fired_rule_ids", []):
             by_rule.setdefault(rid, [])
             if rk not in by_rule[rid]:
                 by_rule[rid].append(rk)
+        # input_manifest_ids -> rows that read the product (the FEDERATION / discovery-graph edge:
+        # joins evaluation rows and discovery-scan rows that share a data product).
+        for mid in r.get("input_manifest_ids", []):
+            by_manifest.setdefault(mid, [])
+            if rk not in by_manifest[mid]:
+                by_manifest[mid].append(rk)
         ti = f"{r.get('target')}|{r.get('indication')}"
         by_ti.setdefault(ti, []).append({
             "release_pin": r.get("release_pin"), "source": r.get("source"),
@@ -191,9 +251,12 @@ def build_indexes(rows: list[dict]) -> dict:
     return {
         "n_rows": len(rows),
         "n_rules_indexed": len(by_rule),
+        "n_manifests_indexed": len(by_manifest),
         "n_target_indications": len(by_ti),
         # rule_id -> eval rows that fired it (cross-target rule cohorts).
         "by_rule_id": {k: sorted(v) for k, v in sorted(by_rule.items())},
+        # manifest_id -> rows (evals + discovery scans) that read it (the data-product federation).
+        "by_manifest_id": {k: sorted(v) for k, v in sorted(by_manifest.items())},
         # (target|indication) -> verdict/contested per release+source (the cross-release trend view).
         "by_target_indication": {k: by_ti[k] for k in sorted(by_ti)},
     }
@@ -229,6 +292,10 @@ def self_check(ledger_path: Path, index_path: Path) -> tuple[bool, list[str]]:
         for rk in rks:
             if rk not in keys:
                 errs.append(f"[index] by_rule_id[{rid}] references unknown row {rk}")
+    for mid, rks in (index.get("by_manifest_id") or {}).items():
+        for rk in rks:
+            if rk not in keys:
+                errs.append(f"[index] by_manifest_id[{mid}] references unknown row {rk}")
     for ti, entries in (index.get("by_target_indication") or {}).items():
         for e in entries:
             if e.get("row_key") not in keys:
@@ -242,6 +309,9 @@ def _resolve_roots(args) -> dict[str, Path]:
         roots["skills"] = Path(args.skills_repo)
     if args.products_root:
         roots["products"] = Path(args.products_root)
+        roots["scans"] = Path(args.products_root)   # scans default to the products tree
+    if args.scans_root:
+        roots["scans"] = Path(args.scans_root)
     return roots
 
 
@@ -255,6 +325,9 @@ def main(argv=None) -> int:
                         "(no sibling-repo probes)")
     p.add_argument("--skills-repo", type=Path)
     p.add_argument("--products-root", type=Path)
+    p.add_argument("--scans-root", type=Path,
+                   help="root to scan for discovery-scan federation sidecars "
+                        "(*.input_manifest_ids.json); defaults to the products root")
     args = p.parse_args(argv)
 
     if args.self_check:
