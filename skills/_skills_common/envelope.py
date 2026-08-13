@@ -32,6 +32,22 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 
+def build_governance(data_mode: str, release_pin: str, validation_summary: dict) -> dict:
+    """The single source of the evidence-package `governance` block.
+
+    Both composition engines build governance HERE (compose-dashboard via assemble_evidence_package;
+    target-profile directly) so the block cannot drift between them — the Phase-D single-engine
+    invariant applied to governance. Keys mirror the evidence_package schema's governance object
+    (data_mode, release_pin, validation_summary); note we deliberately do NOT emit a lockfile_ref
+    (nothing writes a lockfile — see the L3 fix in assemble_evidence_package).
+    """
+    return {
+        "data_mode": data_mode,
+        "release_pin": release_pin,
+        "validation_summary": validation_summary,
+    }
+
+
 def assemble_evidence_package(
     input_context: dict,
     card_outputs: list[dict],
@@ -75,11 +91,7 @@ def assemble_evidence_package(
     # evidence_package schema and the renderer guards it (`if gov.get("lockfile_ref")`), so
     # omitting it drops the phantom "Lockfile:" markdown line cleanly. When a real lockfile
     # writer lands, repopulate this key and the field/rendering return automatically.
-    governance = {
-        "data_mode": data_mode,
-        "release_pin": release_pin,
-        "validation_summary": validation_summary,
-    }
+    governance = build_governance(data_mode, release_pin, validation_summary)
 
     # Build context block — extract target identity from the target-identity-summary card if present
     target_identity_card = next(

@@ -49,6 +49,7 @@ from _skills_common import (
 from _skills_common import ordinal_view
 from _skills_common.rules_loader import load_interpretation_rules
 from _skills_common.flip_analysis import flip_analysis
+from _skills_common.envelope import build_governance  # Phase-D convergence: single-source the governance block
 
 SKILL_NAME = "target-profile"
 SKILL_VERSION = "1.0.0"
@@ -4505,16 +4506,29 @@ def main() -> int:
     except Exception as e:  # noqa: BLE001
         print(f"[target-profile] WARN: HTML render failed: {e}", file=sys.stderr)
 
-    # Governance / reproducibility (2026-08-12): record the data release_pin (pass-through; target-
-    # profile reads live and does NOT auto-resolve the release). Honest default 'unpinned'. This +
-    # the per-sub_verdict cards_used are the append-only eval-ledger precondition; auto
-    # release-resolution remains the deferred data-catalog follow-on.
-    governance = {
-        "data_mode": "live_latest",
-        "release_pin": args.release_pin or "unpinned",
-        "_note": ("target-profile reads live data; release auto-resolution is a deferred data-catalog "
-                  "follow-on, so release_pin is 'unpinned' unless supplied via --release-pin."),
+    # Governance / reproducibility. Phase-D convergence (#9): build the governance block via the SHARED
+    # _skills_common.build_governance so it can no longer drift from compose-dashboard's — same keys,
+    # same construction, one source. That requires the SAME 5-field validation_summary the shared
+    # evidence-package writer uses, composed here from target-profile's card-read model:
+    #   target-profile reads card SUMMARIES (not method-invoked/validated like compose-dashboard), so
+    #   passed = card returned usable data; failed = card absent (not wired) OR data_unavailable;
+    #   passed_with_warnings + excluded_by_applies_when are 0 (no method validation, no target-level
+    #   applies_when gating). Honest + schema-conformant. release_pin is a pass-through (target-profile
+    #   reads live and does not auto-resolve the release); honest default 'unpinned'.
+    _all_cards = [c for r in sub_results.values() for c in (r.get("cards") or [])]
+    _n_failed = sum(1 for c in _all_cards if c.get("_missing"))
+    validation_summary = {
+        "n_cards_attempted": len(_all_cards),
+        "n_cards_passed": len(_all_cards) - _n_failed,
+        "n_cards_passed_with_warnings": 0,
+        "n_cards_failed": _n_failed,
+        "n_cards_excluded_by_applies_when": 0,
     }
+    governance = build_governance("live_latest", args.release_pin or "unpinned", validation_summary)
+    # Additive target-profile annotation (does NOT alter the shared 3-key core → no schema drift):
+    governance["_note"] = (
+        "target-profile reads live data; release auto-resolution is a deferred data-catalog "
+        "follow-on, so release_pin is 'unpinned' unless supplied via --release-pin.")
 
     nomination = {
         "skill": SKILL_NAME,
