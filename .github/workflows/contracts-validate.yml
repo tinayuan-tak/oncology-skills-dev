@@ -80,3 +80,10 @@ jobs:
       # suite that pins every shipped dashboard_spec.
       - name: Validate contract instances against schemas (dashboard_spec, etc.)
         run: python -m pytest tests/schemas/ -q
+
+      # Eval ledger (portfolio memory): unit tests + CI-safe self-check of the committed artifact
+      # (checkout-only, no sibling probes — mirrors the framework-health self-check gate).
+      - name: Eval ledger unit tests + committed-artifact self-check
+        run: |
+          python -m pytest tests/validators/test_eval_ledger.py -q
+          python validators/build_eval_ledger.py --self-check

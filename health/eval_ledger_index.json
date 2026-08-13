@@ -1,0 +1,118 @@
+{
+  "built_at": "2026-08-13T00:32:55.861837+00:00",
+  "by_rule_id": {
+    "cn-broadly-neutral-neutral": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "concordant-non-dependent-neutral": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "cooccurrence-both-patterns-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "e7-triangulated-target-engaged-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "expression-broadly-moderate-neutral": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "expression-call-not-informative-degrader-killer": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "has-cooccurring-driver-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "has-pd-marker-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "lineage-selective-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "mechanism-well-characterized-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "mut-missense-dominant-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "mutant-strongly-dependent-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "no-structure-coverage-neutral": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "not-surface-adc-killer": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "predictability-biomarker-hypothesis-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "prism-clinically-active-supportive-sm": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "prism-no-lineage-signal-neutral": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "rnai-strongly-selective-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "strongly-selective-supportive": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ],
+    "tvn-discordant-neutral-flagged": [
+      "KRAS|COADREAD|unpinned|1.0.0|target_profile"
+    ]
+  },
+  "by_target_indication": {
+    "BRAF|SKCM": [
+      {
+        "contested": null,
+        "generated_at": "2026-07-02T16:47:46Z",
+        "recommendation": null,
+        "release_pin": "unpinned",
+        "row_key": "BRAF|SKCM|unpinned|2.0.0|evidence_package",
+        "source": "evidence_package"
+      }
+    ],
+    "EGFR|LUAD": [
+      {
+        "contested": null,
+        "generated_at": "2026-07-02T16:46:57Z",
+        "recommendation": null,
+        "release_pin": "unpinned",
+        "row_key": "EGFR|LUAD|unpinned|2.0.0|evidence_package",
+        "source": "evidence_package"
+      }
+    ],
+    "ERBB2|BRCA": [
+      {
+        "contested": null,
+        "generated_at": "2026-08-07T15:59:34Z",
+        "recommendation": null,
+        "release_pin": "unpinned",
+        "row_key": "ERBB2|BRCA|unpinned|2.0.0|evidence_package",
+        "source": "evidence_package"
+      }
+    ],
+    "KRAS|COADREAD": [
+      {
+        "contested": null,
+        "generated_at": "2026-07-14T04:33:07+00:00",
+        "recommendation": "nominate",
+        "release_pin": "unpinned",
+        "row_key": "KRAS|COADREAD|unpinned|1.0.0|target_profile",
+        "source": "target_profile"
+      },
+      {
+        "contested": null,
+        "generated_at": "2026-08-04T20:37:33Z",
+        "recommendation": null,
+        "release_pin": "unpinned",
+        "row_key": "KRAS|COADREAD|unpinned|2.0.0|evidence_package",
+        "source": "evidence_package"
+      }
+    ]
+  },
+  "n_rows": 5,
+  "n_rules_indexed": 20,
+  "n_target_indications": 4
+}
