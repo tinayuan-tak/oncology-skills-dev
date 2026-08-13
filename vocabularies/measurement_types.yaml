@@ -770,6 +770,21 @@ measurement_types:
       - {kind: dataset, source: sc-samecell-coexpr-3ca-kidney-v1, method: sc_samecell_coexpr, evidence_tier: measured}
       - {kind: dataset, source: sc-samecell-coexpr-3ca-ovarian-v1, method: sc_samecell_coexpr, evidence_tier: measured}
 
+  spatial_colocalization:
+    claim: "For a target on malignant cells, which neighbour compartments (immune / stromal / endothelial / normal epithelium) are spatially CO-LOCALIZED with the target-positive malignant cells in situ — and is the target-high tumour immune-excluded or adjacent to normal epithelium?"
+    # in-situ SPATIAL neighbourhood — the tissue-architecture axis dissociated sc_tumor_celltype_expression
+    # discards. immune_excluded → TCE liability (opposing bite_tce); normal_epithelium_adjacent → bystander
+    # risk (opposing adc/bite_tce); immune_niche_colocalized → TCE-favourable context (supportive bite_tce).
+    modality_relevance: [adc, bite_tce, antibody]
+    entity_grains: [target_indication]
+    cards: [spatial-tumor-normal-colocalization]
+    multi_provider_policy: tier_dominant
+    providers:
+      # per-indication partitions of ONE logical provider (aggregate_spatial_neighborhood; imaging
+      # single-cell CosMx/Xenium/MERFISH). Adding an indication = emit its spatial-coloc product
+      # (data-catalog) + one line here.
+      - {kind: dataset, source: spatial-coloc-tumor-crc-coadread-v1, method: spatial_neighborhood, evidence_tier: measured}   # COADREAD — CosMx CRC atlas (GSE303070)
+
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"
     # The PROTEIN, single-cell sibling of sc_normal_celltype_expression (RNA) and the surface analogue

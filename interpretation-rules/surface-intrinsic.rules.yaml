@@ -1909,3 +1909,64 @@ rules:
       state-conditional presence argument; confirm subset antigen density before nomination.
       SURFACE-scoped. NB v1 = hypoxia in NSCLC where the high tertile is squamous-enriched (a histology
       confound documented on the card) — read as the hypoxic/squamous niche, not pure hypoxia.
+
+  # ── Block J — SPATIAL tumour–normal co-localization (in-situ neighbourhood) ────────────────────────
+  # spatial_coloc_class = the in-situ neighbourhood pattern of the target's MALIGNANT cells (imaging
+  # single-cell; spatial-tumor-normal-colocalization card). The tissue-architecture axis dissociated
+  # scRNA is blind to. immune_niche/stromal_niche/endothelial_niche_colocalized + no_spatial_preference
+  # + other_niche_colocalized emit nothing (neutral / measured-vs-null). Only the two decision-relevant
+  # negatives + the TCE-favourable positive carry a signal.
+  - rule_id: spatial-immune-excluded-tce-opposing
+    when:
+      card_id: spatial-tumor-normal-colocalization
+      field: spatial_coloc_class
+      equals: immune_excluded
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      The target-positive malignant cells are spatially DEPLETED of immune neighbours vs the malignant
+      baseline (in-situ enrichment <= 0.85) — the target marks immune-COLD / immune-excluded tumour
+      regions. A liability for bite_tce specifically: a bispecific T-cell engager needs effector T cells
+      in the immediate neighbourhood to lyse the tumour cell, and immune exclusion means they are not
+      there. Neutral for adc / antibody (payload / Fc-effector mechanisms do not require adjacent T cells).
+      SPATIAL-scoped; a modality-context lens, not a presence signal.
+
+  - rule_id: spatial-normal-epithelium-adjacent-opposing
+    when:
+      card_id: spatial-tumor-normal-colocalization
+      field: spatial_coloc_class
+      equals: normal_epithelium_adjacent
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+    rationale: |
+      The target-positive malignant cells spatially ABUT normal epithelium (in-situ enrichment for the
+      normal-epithelium neighbour compartment >= 1.15) — a bystander-tox geometry: an ADC payload or a
+      TCE engaging target-high tumour at the tumour–normal interface can damage the adjacent normal
+      epithelial layer. Opposing for adc + bite_tce (spatial bystander margin); neutral for antibody.
+      SPATIAL-scoped safety-margin flag; confirm the target's normal-epithelium expression before weighting.
+
+  - rule_id: spatial-immune-niche-colocalized-supportive
+    when:
+      card_id: spatial-tumor-normal-colocalization
+      field: spatial_coloc_class
+      equals: immune_niche_colocalized
+    signals:
+      adc: neutral
+      bite_tce: supportive
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      The target-positive malignant cells sit in an immune-RICH spatial niche (in-situ enrichment for the
+      immune neighbour compartment >= 1.15) — effector T cells are adjacent, a favourable context for a
+      bite_tce (the spatial converse of immune_excluded). Supportive/important for bite_tce; neutral for
+      adc / antibody. SPATIAL-scoped modality-context lens, not a monospecific presence signal.
