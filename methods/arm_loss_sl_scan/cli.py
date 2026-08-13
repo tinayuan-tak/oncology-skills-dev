@@ -118,7 +118,26 @@ def _load_arm_calls() -> "pd.DataFrame":
     import boto3
     obj = boto3.client("s3").get_object(Bucket=bucket, Key=key)
     return pd.read_parquet(BytesIO(obj["Body"].read()),
-                           columns=["sample_barcode", "chromosome_arm", "arm_call"])
+                           columns=["sample_barcode", "chromosome_arm", "arm_call",
+                                    "loss_frac", "n_genes"])
+
+
+def _arm_bystander(arm_calls, barcode_to_indication) -> dict:
+    """{(arm, indication): mean # arm genes co-lost in the LOSS-BEARING population}.
+
+    For samples with a loss call (arm_call == -1), the co-deleted gene count is loss_frac * n_genes
+    (fraction of the arm's genes lost x genes on the arm). Mean over lost samples per (arm, ind) =
+    the bystander_density: how broad the arm loss typically is when it occurs. Feeds discovery_value
+    (breadth penalty) + is emitted as a standalone column for the Paradigm-B re-weighting."""
+    df = arm_calls.copy()
+    df["indication"] = df["sample_barcode"].map(
+        lambda b: barcode_to_indication.get(b) or barcode_to_indication.get(_patient_of(b)))
+    lost = df[(df["indication"].notna()) & (df["arm_call"] == -1)].copy()
+    if lost.empty:
+        return {}
+    lost["codeleted"] = lost["loss_frac"].astype(float) * lost["n_genes"].astype(float)
+    return {(arm, ind): float(g["codeleted"].mean())
+            for (arm, ind), g in lost.groupby(["chromosome_arm", "indication"])}
 
 
 def _load_twohit_universe_and_loss(partners: set) -> "tuple":
@@ -206,10 +225,11 @@ def main(target, all_targets, out, min_loss_freq, fdr_alpha, experimental_only, 
 
     arm_ind_freq = build_arm_indication_freq(arm_calls, barcode_to_indication)
     baseline = _pancan_baseline(arm_calls, barcode_to_indication)
+    arm_bystander = _arm_bystander(arm_calls, barcode_to_indication)
 
     click.echo("[arm_loss_sl_scan] scanning...", err=True)
     hits = sl_arm_scan(sl_pairs, arm_ind_freq, baseline, gene_to_arm,
-                       twohit_loss_freq=twohit_loss_freq,
+                       twohit_loss_freq=twohit_loss_freq, arm_bystander=arm_bystander,
                        min_loss_freq=min_loss_freq, fdr_alpha=fdr_alpha)
 
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -233,7 +253,8 @@ def _write_empty(out: Path, reason: str, target_scope: str = "ALL"):
 # (target-contracts is bare-python: no parquet/pandas dependency).
 _SIDECAR_TOP_N = 50
 _SIDECAR_HIT_COLS = ["target", "indication", "sl_partner", "partner_arm",
-                     "arm_loss_freq", "q_value", "coloss_concordance"]
+                     "arm_loss_freq", "selectivity", "focality_ratio", "bystander_density",
+                     "discovery_value", "q_value", "coloss_concordance"]
 
 
 def _write_sidecars(out: Path, hits, target_scope: str, note: str = "", **params):
@@ -269,6 +290,12 @@ def _write_sidecars(out: Path, hits, target_scope: str, note: str = "", **params
         "Only the top_partners struct (<=20/gene, experimental-first) is scanned; deep-tail "
         "computational-only partners in sl_partner_symbols are not. The two-hit patient universe "
         "is altered-patients-only (~all TCGA), slightly deflating confirmation denominators.",
+        "RANKING (v0.2.0): hits are ordered by discovery_value = arm_loss_freq * selectivity * "
+        "focality_component / breadth_penalty. selectivity=freq/pancan-baseline (lineage-selective), "
+        "focality_ratio=partner gene-loss / arm-loss (TARGET-specific: the only lever that separates "
+        "same-arm nominations), bystander_density=mean # arm genes co-lost. This composite "
+        "DOWNWEIGHTS broadly-lost arms; the Paradigm-B view (rich bystander surface = MORE discovery "
+        "value) is the opposite direction -- recompute from the emitted components to rank that way.",
     ]
     out.with_suffix(".caveats.txt").write_text("\n\n".join(caveats))
 

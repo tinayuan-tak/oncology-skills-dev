@@ -21,21 +21,43 @@ one-sided against the PAN-CANCER arm-loss baseline (binomial, "is this arm lost 
 in this indication?"). p-values are Benjamini-Hochberg corrected across the full tested set. A hit
 must clear BOTH q <= fdr_alpha AND a min-frequency floor (a tiny-but-significant arm loss is not
 actionable). This is a DISCOVERY nomination scan, NOT a verdict input — it never feeds a resolver.
+
+DISCOVERY_VALUE (v0.2.0): at portfolio scale the raw q/floor set is inflated by SHARED arm-level
+signal — a broadly-lost arm co-deletes hundreds of genes, so every scanned SL partner on that arm
+gets the identical (arm, indication) evidence. To make the set rankable we emit the decomposed
+DISCOVERY components as first-class columns and one composite `discovery_value`:
+  - selectivity      = arm_loss_freq / pan-cancer baseline  (lineage-selective loss; per arm×ind)
+  - focality_ratio   = partner_twohit_loss_freq / arm_loss_freq  (TARGET-specific: is the SPECIFIC
+                       partner co-lost MORE than the arm average, or is it just a passenger? ~1 =
+                       passenger, >1 = focally co-selected. This is the only per-(target,partner)
+                       lever, so it is what actually de-duplicates same-arm nominations.)
+  - bystander_density= mean # arm genes co-lost in the loss-bearing population (per arm×ind).
+  - discovery_value  = arm_loss_freq * selectivity * focality_component / breadth_penalty.
+CONTESTED WEIGHTING (documented, not hidden): this composite DOWNWEIGHTS broad arms (breadth in the
+denominator) and rewards target-specific focality — the "sharpen the nomination set" reading. The
+user's Paradigm-B framing takes the OPPOSITE view (a rich bystander surface = MORE discovery value,
+since the true SL anchor may be any co-lost gene). Both readings are recomputable from the emitted
+components; only the composite's direction is a choice. Callers who prefer Paradigm B should rank by
+`bystander_density` (or arm_loss_freq * selectivity * bystander_density) instead.
 """
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import pandas as pd
 
-METHOD_VERSION = "scan-0.1.0"
+METHOD_VERSION = "scan-0.2.0"
+
+_FOCALITY_CAP = 5.0   # cap focality_ratio so a rare-but-deep partner homdel cannot dominate ranking
 
 # Output columns (stable; the eval-ledger row_from_scan reader keys on these).
 SCAN_COLUMNS = [
     "target", "sl_partner", "partner_arm", "indication",
-    "arm_loss_freq", "arm_pancan_baseline", "n_samples", "n_arm_lost",
+    "arm_loss_freq", "arm_pancan_baseline", "selectivity", "n_samples", "n_arm_lost",
     "binom_p", "q_value",
-    "partner_twohit_loss_freq", "coloss_concordance",
+    "partner_twohit_loss_freq", "focality_ratio", "bystander_density",
+    "discovery_value", "coloss_concordance",
     "evidence_tier", "has_experimental", "rank", "method_version",
 ]
 
@@ -72,12 +94,26 @@ def _bh_qvalues(pvals: list) -> list:
         return q
 
 
+def _discovery_value(loss_freq: float, selectivity: float,
+                     focality: Optional[float], bystander: Optional[float]) -> float:
+    """Composite ranking score: arm_loss_freq * selectivity * focality_component / breadth_penalty.
+
+    focality_component: min(focality_ratio, cap) when the partner has gene-level co-loss data (the
+      target-specific lever), else 1.0 (neutral — arm-level evidence only).
+    breadth_penalty: 1 + log10(bystander_density) when available (DOWNWEIGHTS broadly-lost arms),
+      else 1.0. See module docstring for the Paradigm-B alternative direction."""
+    foc = min(float(focality), _FOCALITY_CAP) if focality is not None else 1.0
+    breadth = 1.0 + math.log10(bystander) if (bystander is not None and bystander > 1) else 1.0
+    return round(loss_freq * selectivity * foc / breadth, 4)
+
+
 def sl_arm_scan(
     sl_pairs: pd.DataFrame,
     arm_ind_freq: pd.DataFrame,
     arm_pancan_baseline: dict,
     gene_to_arm: dict,
     twohit_loss_freq: Optional[dict] = None,
+    arm_bystander: Optional[dict] = None,
     *,
     min_loss_freq: float = 0.20,
     fdr_alpha: float = 0.05,
@@ -96,10 +132,13 @@ def sl_arm_scan(
                          per-patient co-loss CONFIRMATION column; missing -> NaN / 'no_twohit_data'.
     min_loss_freq:       actionability floor on the observed arm-loss frequency.
     fdr_alpha:           BH q-value cutoff.
+    arm_bystander:       optional {(arm, indication): mean # arm genes co-lost in the loss-bearing
+                         population} — the bystander_density column + breadth penalty; missing -> None.
     min_baseline_delta:  optional floor on (arm_loss_freq - pancan_baseline) to drop hits that are
                          significant only because n is large (default 0 = disabled).
     """
     twohit_loss_freq = twohit_loss_freq or {}
+    arm_bystander = arm_bystander or {}
     freq_lookup = {
         (r["chromosome_arm"], r["indication"]): (float(r["loss_frequency"]), int(r["n_samples"]))
         for _, r in arm_ind_freq.iterrows()
@@ -120,11 +159,20 @@ def sl_arm_scan(
                 continue
             k = int(round(loss_freq * n))
             p = _binom_greater_p(k, n, float(baseline))
+            tw = twohit_loss_freq.get((partner, ind))
+            bys = arm_bystander.get((arm, ind))
+            base = float(baseline) or 1e-9
+            selectivity = round(loss_freq / base, 3)
+            focality = round(float(tw) / loss_freq, 3) if (tw is not None and loss_freq > 0) else None
             candidates.append({
                 "target": target, "sl_partner": partner, "partner_arm": arm, "indication": ind,
                 "arm_loss_freq": round(loss_freq, 4), "arm_pancan_baseline": round(float(baseline), 4),
+                "selectivity": selectivity,
                 "n_samples": n, "n_arm_lost": k, "binom_p": p,
-                "partner_twohit_loss_freq": twohit_loss_freq.get((partner, ind)),
+                "partner_twohit_loss_freq": tw,
+                "focality_ratio": focality,
+                "bystander_density": (round(float(bys), 1) if bys is not None else None),
+                "discovery_value": _discovery_value(loss_freq, selectivity, focality, bys),
                 "evidence_tier": pair.get("evidence_tier"),
                 "has_experimental": bool(pair.get("has_experimental", False)),
             })
@@ -159,7 +207,8 @@ def sl_arm_scan(
         return pd.DataFrame(columns=SCAN_COLUMNS)
 
     df = pd.DataFrame(hits)
-    # rank: strongest enrichment first (lowest q, then highest observed loss frequency)
-    df = df.sort_values(["q_value", "arm_loss_freq"], ascending=[True, False]).reset_index(drop=True)
+    # rank by discovery_value (target-specificity-aware) desc; q_value breaks ties (all hits already
+    # clear the FDR + floor gates, so ranking is about PRIORITY within the surviving set).
+    df = df.sort_values(["discovery_value", "q_value"], ascending=[False, True]).reset_index(drop=True)
     df["rank"] = df.index + 1
     return df[SCAN_COLUMNS]

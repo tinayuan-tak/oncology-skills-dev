@@ -101,6 +101,36 @@ def test_concordance_labels():
     assert hits2.iloc[0]["coloss_concordance"] == "no_twohit_data"
 
 
+def test_discovery_components_emitted():
+    hits = sl_arm_scan(_sl_pairs(), _arm_ind_freq(), _baseline(), _gene_to_arm(),
+                       twohit_loss_freq={("P1", "KIRC"): 0.80},
+                       arm_bystander={("3p", "KIRC"): 100.0},
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    row = hits.iloc[0]
+    assert row["selectivity"] == round(0.85 / 0.30, 3)          # freq / pancan baseline
+    assert row["focality_ratio"] == round(0.80 / 0.85, 3)       # partner gene-loss / arm-loss
+    assert row["bystander_density"] == 100.0
+    # discovery_value = 0.85 * selectivity * min(focality,5) / (1+log10(100))
+    assert 0.70 < row["discovery_value"] < 0.80
+
+
+def test_discovery_value_ranks_focal_narrow_over_diffuse_broad():
+    # Two hits, SAME arm_loss_freq (0.60) and SAME selectivity (3.0). P1 on 3p is focal+narrow;
+    # P2 on 5q is a diffuse passenger on a broad arm. discovery_value must rank P1 first.
+    freq = pd.DataFrame([
+        {"chromosome_arm": "3p", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.60, "gain_frequency": 0.0},
+        {"chromosome_arm": "5q", "indication": "KIRC", "n_samples": 100, "loss_frequency": 0.60, "gain_frequency": 0.0},
+    ])
+    hits = sl_arm_scan(_sl_pairs(), freq, {"3p": 0.20, "5q": 0.20}, _gene_to_arm(),
+                       twohit_loss_freq={("P1", "KIRC"): 0.60, ("P2", "KIRC"): 0.30},
+                       arm_bystander={("3p", "KIRC"): 50.0, ("5q", "KIRC"): 500.0},
+                       min_loss_freq=0.5, fdr_alpha=0.05)
+    assert len(hits) == 2
+    top = hits.sort_values("rank").iloc[0]
+    assert top["sl_partner"] == "P1" and top["partner_arm"] == "3p"   # focal + narrow wins
+    assert top["discovery_value"] > hits[hits.sl_partner == "P2"].iloc[0]["discovery_value"]
+
+
 def test_robust_arm_yields_no_hit():
     # Arm loss AT baseline -> not enriched -> no hit even above the floor.
     freq = pd.DataFrame([
