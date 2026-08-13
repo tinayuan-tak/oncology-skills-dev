@@ -268,7 +268,16 @@ def compute_summary_stats(demeter_by_model: dict, model_metadata: dict,
     if frac_strong >= pan_essential_fraction:
         shape = "pan_essential"
     elif selective_min <= frac_strong <= selective_max:
-        shape = "bimodal_selective" if median_panel > moderate_threshold else "shifted_dependent"
+        # #3/#9 fix: require GENUINE bimodality (Sarle BC), NOT the median-proxy the CRISPR card
+        # rejected. BC unavailable (n<4) → fall back to median-shift routing.
+        bc = _bimodality_coefficient(scores)
+        summary["rnai_bimodality_coefficient"] = bc
+        if bc is not None and bc > BIMODALITY_COEFFICIENT_THRESHOLD:
+            shape = "bimodal_selective"
+        elif median_panel <= moderate_threshold:
+            shape = "shifted_dependent"
+        else:
+            shape = "non_essential"
     elif median_panel <= moderate_threshold and frac_strong > selective_max:
         shape = "shifted_dependent"
     else:
@@ -360,6 +369,30 @@ def compute_summary_stats(demeter_by_model: dict, model_metadata: dict,
 # 300 still only trips genuinely underpowered panels.
 RNAI_PAN_ESSENTIAL_MIN_PANEL_N = 300
 
+# FINDING #3/#9 (2026-08-13 review): the RNAi shape used a median-proxy for "bimodal" (median >
+# moderate → bimodal), the exact shortcut the CRISPR card rejected. Port CRISPR's Sarle bimodality
+# coefficient so `bimodal_selective` requires a GENUINE separated dependent mode, not a panel shift.
+BIMODALITY_COEFFICIENT_THRESHOLD = 5.0 / 9.0   # uniform ≈ 0.556; unimodal-normal ≈ 0.33; bimodal → 1.0
+
+
+def _bimodality_coefficient(scores) -> Optional[float]:
+    """Sarle's bimodality coefficient, BC = (g1²+1)/(g2 + 3·(n-1)²/((n-2)(n-3))). Mirrors the CRISPR
+    sibling (depmap_chronos_distribution._bimodality_coefficient). Returns None for n<4 or zero
+    variance → caller falls back to median-shift routing."""
+    import numpy as np
+    from scipy.stats import skew, kurtosis
+    x = np.asarray(scores, dtype=float)
+    x = x[~np.isnan(x)]
+    n = x.size
+    if n < 4 or float(np.std(x)) == 0.0:
+        return None
+    g1 = float(skew(x, bias=True))
+    g2 = float(kurtosis(x, fisher=True, bias=True))
+    denom = g2 + 3.0 * (n - 1) ** 2 / ((n - 2) * (n - 3))
+    if denom == 0:
+        return None
+    return (g1 ** 2 + 1.0) / denom
+
 
 def _classify_rnai_dependency(fraction_strongly_dependent: float,
                                median_dep_score: float,
@@ -385,10 +418,19 @@ def _classify_rnai_dependency(fraction_strongly_dependent: float,
                 and n_cell_lines_evaluated < RNAI_PAN_ESSENTIAL_MIN_PANEL_N):
             return "common_essential_underpowered"
         return "common_essential"
-    if selective_min <= fraction_strongly_dependent <= selective_max:
+    # #3 fix: strongly_selective requires GENUINE bimodality (distribution_shape), NOT merely the
+    # selective FRACTION band — mirrors the CRISPR classifier. A unimodal panel in the band is a shift
+    # (broadly_dependent) or a heavy tail (non_dependent), not a selective dependency. The prior
+    # band-only rule let a broadly-dependent RNAi panel read strongly_selective, which — combined with
+    # a CRISPR broadly_dependent — fired the selective_dependent verdict for a non-selective target.
+    if distribution_shape == "bimodal_selective":
         return "strongly_selective"
     if median_dep_score <= moderate_threshold and fraction_strongly_dependent > selective_max:
         return "broadly_dependent"
+    if distribution_shape == "shifted_dependent":
+        return "broadly_dependent"
+    if distribution_shape == "non_essential":
+        return "non_dependent"
     return "non_dependent"
 
 

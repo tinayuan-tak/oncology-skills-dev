@@ -423,9 +423,29 @@ def _classify_dependency(fraction_strongly_dependent: float,
             and median_chronos_panel <= -0.5):
         return "broadly_dependent"
     if distribution_shape == "shifted_dependent":
+        # KNOWN LIMITATION (finding #2, 2026-08-13 review): a gene strongly-dependent in 60-84% of ALL
+        # lineages is a BROAD-TOXICITY liability nearly as severe as a common-essential, but the
+        # pan-essential veto fires only at >= pan_essential_fraction (0.85), so this band reads as a
+        # clean `broadly_dependent` here with no toxicity caveat. By framework design that broad-tox
+        # concern is the ON-TARGET-SAFETY gate's responsibility (pan/broad-essentiality also routes to
+        # safety, not only Gate-C), so it is NOT re-flagged in the dependency verdict — but a consumer
+        # weighing broadly_dependent should cross-read the safety axis. Impact analysis (2026-08-13)
+        # confirmed the 0.60-0.85 band is sparse (real broad-tox genes are >= 0.85 = common_essential).
         return "broadly_dependent"
-    # Fallback: in-range but doesn't fit a clean shape (low confidence)
-    return "broadly_dependent"
+    # FINDING #1 fix (2026-08-13 review): a `non_essential` shape reaching here is IN the selective
+    # FRACTION band (selective_min..selective_max) but is unimodal with NO separated dependent mode AND
+    # the bulk is NOT median-dependent (median > -0.5) — a heavy tail, not a real dependency. It
+    # previously fell through to the `broadly_dependent` fallback, a POSITIVE over-call for a genuinely
+    # non-dependent distribution (e.g. 6% strongly-dependent, panel median +0.1). Impact analysis
+    # (2026-08-13, 15-target panel) confirmed real targets rarely occupy this band — they resolve via
+    # the <selective_min → non_dependent branch or the bimodal → strongly_selective branch first — so
+    # the blast radius is small; this removes the latent over-call.
+    if distribution_shape == "non_essential":
+        return "non_dependent"
+    # Fallback: with all four shapes (pan_essential/bimodal_selective/shifted_dependent/non_essential)
+    # handled above this is unreachable; default to the conservative non_dependent, NOT a positive
+    # broadly_dependent over-call, should a future shape value be added.
+    return "non_dependent"
 
 
 def emit_waterfall_plot(chronos_by_model: dict, model_metadata: dict,
