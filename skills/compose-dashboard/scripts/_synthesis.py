@@ -389,8 +389,8 @@ def _resolve_gate_verdicts(
     contracts_root,
 ) -> "tuple[dict | None, list[dict]]":
     """PRIMARY verdict engine — resolve the resolved-axis's gate(s) via the SHARED
-    declarative resolver (`resolve_verdict_for_gate`) over the SAME fired-rule set the
-    per-modality lens consumes.
+    composition spine (`_skills_common.compose_core.resolve_gate_spine`), the ONE code
+    path target-profile also resolves its sub-verdicts through (Stage 1 convergence).
 
     Returns (primary_block | None, [additional_blocks]). Each block is
     {gate, verdict, driving_rule_id, fired_rule_ids}. Primary is None when the axis has no
@@ -398,48 +398,31 @@ def _resolve_gate_verdicts(
     fit_level-derived headline — the same graceful-degradation seam resolve_verdict_for_gate
     already documents).
 
-    The fired-rule set is built IDENTICALLY to `_build_signal_matrix` (and the equivalence
-    golden's `_norm_for_matcher`): an applies_when-excluded card is normalized to `_missing`
-    so `fired_rules` skips it, and only surviving card_ids are matched.
+    The axis→gate routing (`AXIS_GATE_MAP`) is the only compose-dashboard-specific part;
+    the fired-rule normalization + per-gate resolution now lives in the shared spine, which
+    builds the fired set IDENTICALLY to `_build_signal_matrix` (and the equivalence golden's
+    `_norm_for_matcher`). Byte-identical to the former inline implementation.
     """
     mapping = AXIS_GATE_MAP.get(axis)
     if not mapping:
         return None, []
 
-    # Reach the shared matcher + resolver (same sys.path shim _load_interpretation_rules uses).
+    # Reach the shared spine (same sys.path shim _load_interpretation_rules uses).
     import sys
     from pathlib import Path
     skills_dir = Path(__file__).resolve().parent.parent.parent
     if str(skills_dir) not in sys.path:
         sys.path.insert(0, str(skills_dir))
-    from _skills_common import fired_rules, resolve_verdict_for_gate
+    from _skills_common.compose_core import resolve_gate_spine
 
-    normed = [dict(c, _missing=True) if c.get("excluded_by_applies_when") else c
-              for c in card_outputs]
-    surviving = [c["card_id"] for c in normed
-                 if c.get("card_id") and not c.get("_missing")]
-    fired = fired_rules(normed, axis="", card_id_filter=surviving, rules=tier2_rules or [])
-    fired_ids = sorted({fr["rule_id"] for fr in fired if fr.get("rule_id")})
-
-    def _block(gate: str) -> "dict | None":
-        res = resolve_verdict_for_gate(fired, gate, contracts_repo=contracts_root)
-        if res is None:
-            return None  # no resolver spec for this gate → skip (graceful)
-        verdict, driving = res
-        return {
-            "gate": gate,
-            "verdict": verdict,
-            "driving_rule_id": driving,
-            "fired_rule_ids": fired_ids,
-        }
-
-    primary = _block(mapping["headline"])
-    additional: list[dict] = []
-    for g in mapping["additional"]:
-        blk = _block(g)
-        if blk is not None:
-            additional.append(blk)
-    return primary, additional
+    result = resolve_gate_spine(
+        card_outputs,
+        headline_gate=mapping["headline"],
+        additional_gates=mapping["additional"],
+        rules=tier2_rules or [],
+        contracts_root=contracts_root,
+    )
+    return result.primary_dict(), result.additional_dicts()
 
 
 def _build_resolver_headline(
