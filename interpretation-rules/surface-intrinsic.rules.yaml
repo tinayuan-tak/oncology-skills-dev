@@ -1218,6 +1218,56 @@ rules:
       modalities (important for bite_tce); does not veto a monospecific approach to the target.
 
   # ============================================================================
+  # I''' — sc NORMAL SURFACE-PROTEIN safety card (single-cell off-tumor floor)
+  # sc_surface_normal_class = whether the target's SURFACE protein is displayed on normal immune cell
+  # types (CITE-seq). The surface off-tumor floor bulk GTEx/HPA misses: a CD antigen on resting T cells
+  # / hematopoietic subsets is a TCE/ADC killing hazard. high → opposing (safety caution);
+  # not_detected → supportive (favorable — antigen absent from normal immune surface, e.g. BCMA).
+  # moderate/low carry no signal (present but not a clear off-tumor floor).
+  # ============================================================================
+
+  - rule_id: sc-surface-high-normal-immune-safety-opposing
+    when:
+      card_id: sc-surface-normal-safety
+      field: sc_surface_normal_class
+      equals: high_surface_on_normal_immune
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The target's SURFACE protein is highly displayed on a normal immune cell type at single-cell
+      resolution — an on-target/off-tumor hazard bulk GTEx/HPA misses (a CD antigen on resting T cells
+      or a hematopoietic subset is a TCE/ADC killing liability, cf. CD19-TCE cytopenias). Opposing for
+      the biologic modalities; most important for bite_tce (CD3-recruited killing is on/off, so low-
+      density normal-cell display is a hazard) + adc (payload delivery to normal cells). Safety caution
+      (therapeutic-window governance), not a target killer.
+
+  - rule_id: sc-surface-absent-normal-immune-safety-supportive
+    when:
+      card_id: sc-surface-normal-safety
+      field: sc_surface_normal_class
+      equals: not_surface_detected_normal_immune
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's SURFACE protein is NOT detected on normal immune cell types (peak mean-CLR below the
+      cell's own protein average) — a favorable off-tumor-floor signal for the immune compartment (e.g.
+      BCMA reads not-detected on normal immune, consistent with its plasma-cell-restricted profile).
+      Supportive, secondary: it clears the immune-compartment surface floor, but normal SOLID tissue
+      (HuBMAP shard, pending) and the bulk IHC card remain the broader safety context.
+
+  # ============================================================================
   # J — Tumor-vs-normal-selectivity card (P4 Tier-2, 2026-07-24)
   # selectivity_class is the tumor-vs-normal expression WINDOW. For biologics the
   # window is doubly critical: an ADC/TCE that binds normal tissue at the same
