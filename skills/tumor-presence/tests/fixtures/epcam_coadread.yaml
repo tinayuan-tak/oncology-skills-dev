@@ -1,0 +1,585 @@
+cellline-protein-abundance:
+  allgene_percentile: 8.604077082337952
+  allgene_percentile_class: bottom_decile
+  allgene_percentile_context: depmap-proteomics-26q1 panel-wide metric=median_log2_abundance
+  fraction_detected: 1.0
+  log2_abundance_iqr: 3.48460614629843
+  median_log2_abundance_panel: -0.417446428676658
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 375
+  n_cell_lines_in_panel: 375
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 17
+  p25_log2_abundance_panel: -1.853593653010305
+  p5_log2_abundance_panel: -3.034790895044484
+  p75_log2_abundance_panel: 1.6310124932881251
+  p95_log2_abundance_panel: 3.5628947415394725
+  per_lineage_stats:
+  - lineage: Uterus
+    median_log2_abundance: 2.843494457282235
+    n: 14
+  - lineage: Prostate
+    median_log2_abundance: 2.69787984850802
+    n: 5
+  - lineage: Bowel
+    median_log2_abundance: 2.123727581427585
+    n: 30
+  - lineage: Esophagus/Stomach
+    median_log2_abundance: 1.523774141140555
+    n: 28
+  - lineage: Head and Neck
+    median_log2_abundance: 1.208653502399358
+    n: 10
+  - lineage: Pancreas
+    median_log2_abundance: 1.1600106332001952
+    n: 20
+  - lineage: Breast
+    median_log2_abundance: 0.8763686089389691
+    n: 30
+  - lineage: Ovary/Fallopian Tube
+    median_log2_abundance: 0.354642007138897
+    n: 17
+  - lineage: Lung
+    median_log2_abundance: -0.007243345079615
+    n: 76
+  - lineage: Liver
+    median_log2_abundance: -0.451974942160559
+    n: 14
+  - lineage: Bladder/Urinary Tract
+    median_log2_abundance: -0.999671398633522
+    n: 11
+  - lineage: Lymphoid
+    median_log2_abundance: -1.551912433393355
+    n: 24
+  - lineage: Bone
+    median_log2_abundance: -1.5730648919763
+    n: 7
+  - lineage: Myeloid
+    median_log2_abundance: -1.8690937364456701
+    n: 16
+  - lineage: Skin
+    median_log2_abundance: -1.96905378891852
+    n: 33
+  - lineage: Kidney
+    median_log2_abundance: -2.02993126608299
+    n: 15
+  - lineage: CNS/Brain
+    median_log2_abundance: -2.3833283782191304
+    n: 14
+  protein_effect_size: -0.417446428676658
+  protein_expression_class: broadly_moderate
+cellline-rna-distribution:
+  allgene_percentile: 52.54228591918945
+  allgene_percentile_class: mid
+  allgene_percentile_context: DepMap 26q1 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q1-v1;
+    rank 9120/19215)
+  coefficient_of_variation: 1.6460286952394432
+  control_negatives:
+    ACTB: 99.82
+    GAPDH: 99.92
+    GYPA: 8.76
+    PRM1: 8.76
+    SFTPC: 8.76
+  control_negatives_excluded_lineage_conflict: []
+  control_percentile_source: allgene-depmap-rank-26q1-v1
+  control_position: above 3/4 positive control(s); above 3/5 negative control(s)
+  control_position_class: within_positives
+  control_position_context: DepMap pan-cancer panel vs curated controls (tumor_presence_controls
+    v1.0.0; allgene-depmap-rank-26q1-v1)
+  control_position_method_version: 0.1.0
+  control_positives:
+    CEACAM5: 29.57
+    EPCAM: 52.54
+    ERBB2: 77.51
+    MSLN: 32.61
+  control_target_class: mid
+  control_target_percentile: 52.54228591918945
+  distribution_pattern: bimodal
+  dominant_isoform: ENST00000263735.9
+  dominant_isoform_fraction: 0.8354172838162768
+  expression_class: lineage_restricted
+  fraction_expressed: 0.6308258381030254
+  fraction_highly_expressed: 0.4345870809484873
+  fraction_not_expressed: 0.36917416189697466
+  isoform_context: "EPCAM: median dominant-isoform fraction 0.84 across 1741 DepMap\
+    \ cell lines (3 expressed isoforms median; top ENST00000263735.9) \u2014 MODEL\
+    \ isoform-expression, verdict-inert."
+  isoform_expression_class: single_isoform_dominant
+  isoform_n_models: 1741
+  log2tpm_iqr: 7.910967767238617
+  median_log2tpm_panel: 2.513846755027771
+  n_cell_lines_evaluated: 2446
+  n_expressed_isoforms: 3
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 28
+  p25_log2tpm_panel: 0.5268953442573547
+  p5_log2tpm_panel: 0.0
+  p75_log2tpm_panel: 8.437863111495972
+  p95_log2tpm_panel: 9.973004817962646
+  per_lineage_stats:
+  - fraction_expressed: 0.9847328244274809
+    lineage: Bowel
+    median_log2tpm: 9.860517501831055
+    n: 131
+  - fraction_expressed: 1.0
+    lineage: Ampulla of Vater
+    median_log2tpm: 9.652131080627441
+    n: 9
+  - fraction_expressed: 0.9710982658959537
+    lineage: Esophagus/Stomach
+    median_log2tpm: 9.102128028869629
+    n: 173
+  - fraction_expressed: 0.9829059829059829
+    lineage: Pancreas
+    median_log2tpm: 8.957148551940918
+    n: 117
+  - fraction_expressed: 0.9259259259259259
+    lineage: Biliary Tract
+    median_log2tpm: 8.301942348480225
+    n: 54
+  - fraction_expressed: 0.9
+    lineage: Uterus
+    median_log2tpm: 8.231476306915283
+    n: 50
+  - fraction_expressed: 0.968
+    lineage: Lung
+    median_log2tpm: 8.192328453063965
+    n: 250
+  - fraction_expressed: 0.9090909090909091
+    lineage: Ovary/Fallopian Tube
+    median_log2tpm: 8.177485942840576
+    n: 88
+  - fraction_expressed: 0.954954954954955
+    lineage: Breast
+    median_log2tpm: 8.035970687866211
+    n: 111
+  - fraction_expressed: 1.0
+    lineage: Prostate
+    median_log2tpm: 7.923583030700684
+    n: 31
+  - fraction_expressed: 0.9090909090909091
+    lineage: Testis
+    median_log2tpm: 7.4007768630981445
+    n: 11
+  - fraction_expressed: 0.9459459459459459
+    lineage: Bladder/Urinary Tract
+    median_log2tpm: 7.219952583312988
+    n: 37
+  - fraction_expressed: 1.0
+    lineage: Cervix
+    median_log2tpm: 7.199525356292725
+    n: 21
+  - fraction_expressed: 0.974025974025974
+    lineage: Head and Neck
+    median_log2tpm: 6.791592597961426
+    n: 77
+  - fraction_expressed: 0.7704918032786885
+    lineage: Kidney
+    median_log2tpm: 2.9928154945373535
+    n: 61
+  - fraction_expressed: 0.75
+    lineage: Thyroid
+    median_log2tpm: 2.5665040016174316
+    n: 24
+  - fraction_expressed: 0.8571428571428571
+    lineage: Liver
+    median_log2tpm: 2.43900990486145
+    n: 28
+  - fraction_expressed: 0.45454545454545453
+    lineage: Pleura
+    median_log2tpm: 0.8247152864933014
+    n: 22
+  - fraction_expressed: 0.3918918918918919
+    lineage: Peripheral Nervous System
+    median_log2tpm: 0.8220874965190887
+    n: 74
+  - fraction_expressed: 0.35555555555555557
+    lineage: Fibroblast
+    median_log2tpm: 0.7486553192138672
+    n: 45
+cellline-rna-protein-concordance:
+  method_version: 0.1.0
+  n_paired_models: 370
+  protein_detection_fraction: 0.1533
+  release_pin: 26q1
+  rna_as_biomarker: adequate_proxy
+  rna_expressed_fraction: 0.7919
+  rna_high_protein_low_fraction: 0.0717
+  rna_protein_r: 0.8581
+  rna_protein_spearman: 0.8289
+  target: EPCAM
+expression-purity-confound:
+  cellular_source: unresolved_from_bulk
+  expression_purity_pearson_p: 0.0029
+  expression_purity_pearson_r: 0.1293
+  expression_purity_spearman_r: 0.1235
+  indication: COADREAD
+  median_purity: 0.66
+  method_version: 0.1.0
+  n_expr_samples: 624
+  n_paired_samples: 529
+  purity_confound_class: purity_independent
+  purity_source: pancanatlas_absolute
+  target: EPCAM
+normal-tissue-liability:
+  essential_tissue_flag: absent
+  essential_tissues_flagged: []
+  hpa_tissue_distribution: Detected in many
+  hpa_tissue_specificity: Tissue enhanced
+  method_version: 0.1.0
+  n_essential_tissues_with_expression: 0
+  n_specific_tissues: 1
+  normal_tissue_breadth_class: broad_normal_expression
+  safety_tissue_flags:
+  - gi_tract
+  - broad
+  specific_tissues:
+  - intensity: 20770505.4
+    tissue: intestine
+rna-protein-concordance-tumor:
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_paired_tumors: 96
+  rna_as_biomarker: partial_proxy
+  rna_protein_r: 0.4564
+  rna_protein_spearman: 0.4259
+  substrate: cptac_tumor
+  target: EPCAM
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: BEST4+ colonocyte
+  max_detection_fraction: 1.0
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 83
+  n_reliable_cell_types: 231
+  origin_tissues:
+  - colon
+  safety_essential_flags:
+    BEST4+ colonocyte: 1.0
+    BEST4+ enterocyte: 0.9038785834738617
+    colonocyte: 0.8839773116488916
+    early colonocyte: 1.0
+    enteric neuron: 0.06666666666666667
+    enterocyte: 0.9103448275862069
+    enterocyte of epithelium of large intestine: 0.9326870469838862
+    erythroid progenitor cell: 0.5232112668375416
+    hematopoietic stem cell: 0.07407407407407407
+    inhibitory motor neuron: 0.05714285714285714
+    interneuron: 0.05555555555555555
+    kidney collecting duct alpha-intercalated cell: 0.5567767868358247
+    kidney collecting duct cell: 0.8913043478260869
+    kidney collecting duct intercalated cell: 0.8222222222222222
+    kidney collecting duct principal cell: 0.915129151291513
+    kidney loop of Henle ascending limb epithelial cell: 0.0931174089068826
+    kidney loop of Henle cortical thick ascending limb epithelial cell: 0.9411764705882353
+    kidney loop of Henle descending limb epithelial cell: 0.2632472826086957
+    kidney loop of Henle epithelial cell: 0.6139853083191371
+    kidney loop of Henle thick ascending limb epithelial cell: 0.5256410256410257
+    kidney loop of Henle thin ascending limb epithelial cell: 0.625
+    kidney loop of Henle thin descending limb epithelial cell: 0.40625
+    megakaryocyte-erythroid progenitor cell: 0.11437908496732026
+    neuron: 0.1575757575757576
+    primary sensory neuron (sensu Teleostei): 0.15384615384615385
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+tumor-elevation-breadth:
+  breadth_layer_concordance: concordant
+  cohorts_tested:
+  - BRCA
+  - CCRCC
+  - COAD
+  - HNSCC
+  - LSCC
+  - LUAD
+  - OV
+  - PDAC
+  - UCEC
+  fraction_elevated: 0.4444444444444444
+  indications_tested:
+  - ACC
+  - BLCA
+  - BRCA
+  - CESC
+  - COAD
+  - ESCA
+  - GBM
+  - HNSC
+  - KICH
+  - KIRC
+  - KIRP
+  - LGG
+  - LIHC
+  - LUAD
+  - LUSC
+  - OV
+  - PAAD
+  - PCPG
+  - PRAD
+  - READ
+  - SKCM
+  - STAD
+  - TGCT
+  - THCA
+  - UCEC
+  - UCS
+  median_effect_across_elevated: 1.023427338047685
+  most_elevated_cohorts:
+  - cohort: BRCA
+    protein_bh_q_value: 1.8281384279526e-06
+    protein_effect_size: 1.49302245241575
+    protein_expression_class: modest_up
+  - cohort: OV
+    protein_bh_q_value: 6.3060989839218105e-09
+    protein_effect_size: 1.06650227974172
+    protein_expression_class: modest_up
+  - cohort: UCEC
+    protein_bh_q_value: 1.10443547548488e-19
+    protein_effect_size: 0.98035239635365
+    protein_expression_class: modest_up
+  - cohort: LUAD
+    protein_bh_q_value: 1.6008459515127202e-14
+    protein_effect_size: 0.501480915392834
+    protein_expression_class: modest_up
+  n_cohorts_elevated: 4
+  n_cohorts_tested: 9
+  rna_fraction_elevated: 0.38461538461538464
+  rna_median_max_log2fc_across_elevated: 3.4538837543087313
+  rna_most_elevated_indications:
+  - cells_supporting: 2.0
+    dominant_direction: up
+    indication: UCEC
+    max_abs_log2fc: 7.890113307568212
+  - cells_supporting: 2.0
+    dominant_direction: up
+    indication: ESCA
+    max_abs_log2fc: 5.67481018916275
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: BRCA
+    max_abs_log2fc: 4.6131064463933225
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: BLCA
+    max_abs_log2fc: 3.6787412233062624
+  - cells_supporting: 2.0
+    dominant_direction: up
+    indication: STAD
+    max_abs_log2fc: 3.5167175786352605
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: PRAD
+    max_abs_log2fc: 3.3910499299822026
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: LUAD
+    max_abs_log2fc: 3.1710895158181702
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: LUSC
+    max_abs_log2fc: 2.2001357684147913
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: COAD
+    max_abs_log2fc: 2.0452431561956175
+  - cells_supporting: 2.0
+    dominant_direction: up
+    indication: THCA
+    max_abs_log2fc: 1.434281941417379
+  rna_n_indications_elevated: 10
+  rna_n_indications_tested: 26
+  rna_tumor_elevation_breadth_class: multi_tumor_elevated
+  tumor_elevation_breadth_class: multi_tumor_elevated
+tumor-protein-abundance-cptac:
+  _data_source: cptac-protein-tumor-vs-normal-per-cohort-v1
+  allgene_percentile: 58.283904017255324
+  allgene_percentile_class: mid
+  allgene_percentile_context: cptac-protein-tumor-vs-normal cohort=COAD metric=protein_effect_size
+  cohort: COAD
+  method_version: 1.0.0
+  n_normal_samples: 100
+  n_tumor_samples: 97
+  protein_bh_q_value: 0.303219701368917
+  protein_effect_size: 0.0647570698633509
+  protein_expression_class: ns
+  protein_median_log2_normal: -0.127199268351409
+  protein_median_log2_tumor: -0.0352202843037901
+  protein_p_value: 0.265245705336061
+  stat_test_used: msstatstmt_limma_ebayes_moderated
+tumor-rna-distribution:
+  allgene_percentile: 99.74150466918945
+  allgene_percentile_by_study:
+    COAD: 99.74
+    READ: 99.74
+  allgene_percentile_class: top_1pct
+  allgene_percentile_context: tcga_tumor:COAD,READ all-gene median rank (allgene-tumor-rank-v1;
+    mean of 2 study null(s))
+  assignment_manifest: tcga-subgroup-assignments-coadread-v1
+  coefficient_of_variation: 0.4019734844748852
+  control_negatives:
+    ACTB: 99.94
+    GAPDH: 99.9
+    GYPA: 18.0
+    PRM1: 18.0
+    SFTPC: 18.0
+  control_negatives_excluded_lineage_conflict: []
+  control_percentile_source: allgene-tumor-rank-v1
+  control_position: above 3/4 positive control(s); above 3/5 negative control(s)
+  control_position_class: within_positives
+  control_position_context: tumor:COAD,READ vs curated controls (tumor_presence_controls
+    v1.0.0; indication_normal_tissue=Colon; allgene-tumor-rank-v1)
+  control_position_method_version: 0.1.0
+  control_positives:
+    CEACAM5: 99.91
+    EPCAM: 99.74
+    ERBB2: 94.28
+    MSLN: 89.29
+  control_target_class: top_1pct
+  control_target_percentile: 99.74150466918945
+  detectable_fraction: 1.0
+  distribution_overlap_tumor_normal: 0.27958168308729664
+  distribution_pattern: continuous
+  dominant_event_splice_type: AD
+  fraction_tumor_above_normal_p95: 0.7369207772795217
+  fraction_tumor_above_normal_p99: 0.5082212257100149
+  high_fraction: 0.9970104633781763
+  matched_normal_tissue: COLON
+  max_event_psi_std: 0.005997728292516515
+  max_log2tpm: 11.041440963745117
+  median_event_psi_std: 0.0029094697156249777
+  median_log2tpm: 9.622452735900879
+  method_version: 0.1.0
+  min_log2tpm: 4.459277629852295
+  moderate_fraction: 1.0
+  n_normal_samples: 822
+  n_splice_events: 4
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 14
+  n_tumor_samples: 669
+  n_tumor_shifted_events: 0
+  n_variable_events: 0
+  normal_p95_log2tpm: 9.236587429046631
+  normal_p99_log2tpm: 9.613868045806885
+  p95_log2tpm: 10.38471279144287
+  p99_log2tpm: 10.686274604797365
+  splicing_context: "EPCAM in COADREAD: 4 splice events, max PSI std 0.01 across 630\
+    \ tumours (0 variable; 0 tumour-shifted vs matched normal) \u2014 PATIENT alternative-splicing,\
+    \ verdict-inert."
+  splicing_dysregulation_class: stable
+  spotlight_subtype: null
+  studies:
+  - COAD
+  - READ
+  subtype_axis_available: true
+  subtype_signals_nonuniform: []
+  tumor_expression_class: broadly_high
+tumor-rna-distribution-by-subtype:
+  assignment_manifest: tcga-subgroup-assignments-coadread-v1
+  indication: COADREAD
+  matched_normal_tissue: COLON
+  method_version: 0.1.0
+  n_subtypes_clearing_normal_window: 13
+  n_subtypes_clearing_proxy_window_by_tissue: null
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 14
+  n_subtypes_restricted: 0
+  normal_comparator_type: matched
+  per_subgroup_metrics: __omitted_from_fixture__ (list, 14 items)
+  proxy_normal_tissues: []
+  spotlight_subtype: null
+  subtype_axis_available: true
+  subtype_effect_size_class: negligible
+  subtype_omnibus_kruskal_h: 122.53445638261005
+  subtype_omnibus_p: 6.347854534495807e-20
+  subtype_stratification_class: pan_subtype_uniform
+  subtype_variance_explained: 0.05605652834319859
+  target: EPCAM
+  which_subtypes_separate:
+    highest: CMS2
+    lowest: MSI_H
+tumor-rna-vs-adjacent:
+  _data_s3_uri: s3://onc-compbio/data-catalog/derived/COADREAD-dge/df06320/tumor_vs_adjacent.parquet
+  _data_source: coadread-dge-df06320
+  adjacent_mean_tpm: null
+  allgene_percentile: 25.442356143754886
+  allgene_percentile_class: mid
+  allgene_percentile_context: coadread-dge-df06320 metric=log2FoldChange
+  base_mean: 40704.55729340963
+  expression_call_class: not_informative
+  is_actionable_provider_call: false
+  is_significant_provider_call: true
+  is_upregulated_provider_call: false
+  log2_fc: -0.3620304616558291
+  n_adjacent: 51
+  n_tumor: 624
+  q_value: 1.2282737206350781e-06
+  tumor_mean_tpm: null
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k: 0.08195480353691999
+  caf_compartment_available: true
+  caf_detection_fraction: 0.09090909090909091
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    endothelial: 0.14124293785310735
+    epithelial_normal: 0.875342674383186
+    immune: 0.09636018487949818
+    malignant: 0.8735745541598638
+    other: 0.6373626373626373
+    stromal: 0.09090909090909091
+  indication: COADREAD
+  malignant_abundance_log1p_cp10k: 2.0949868146122643
+  malignant_compartment_available: true
+  malignant_detection_fraction: 0.8735745541598638
+  method_version: 0.1.0
+  n_compartments_measured: 6
+  n_datasets: 30
+  n_donor_groups: 749
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 2.0949868146122643
+    median_detection_fraction: 0.8735745541598638
+    n_cells_total: 68474
+    n_donors: 92
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.08195480353691999
+    median_detection_fraction: 0.09090909090909091
+    n_cells_total: 20973
+    n_donors: 161
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.12357600341947542
+    median_detection_fraction: 0.09636018487949818
+    n_cells_total: 460997
+    n_donors: 658
+  - compartment: endothelial
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.13184039583061374
+    median_detection_fraction: 0.14124293785310735
+    n_cells_total: 15683
+    n_donors: 158
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 2.4197058565688856
+    median_detection_fraction: 0.875342674383186
+    n_cells_total: 37324
+    n_donors: 206
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 1.4272212166341567
+    median_detection_fraction: 0.6373626373626373
+    n_cells_total: 225368
+    n_donors: 388
+  product_id: sc-pseudobulk-donor-celltype-coadread-v2
+  sc_expression_class: malignant_broadly_detected
+  tce_homogeneity_class: homogeneous
+  top_microenvironment_compartment: endothelial
+  top_microenvironment_detection_fraction: 0.14124293785310735
