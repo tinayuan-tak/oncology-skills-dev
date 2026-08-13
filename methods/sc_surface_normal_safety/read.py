@@ -21,8 +21,14 @@ import pandas as pd
 from methods.catalog_query.read import bucket_key_for
 
 DEFAULT_AWS_PROFILE = "cbg"
-MANIFEST_ID = "sc-cite-surface-normal-immune-v1"
-S3_BUCKET, PAYLOAD_KEY = bucket_key_for(MANIFEST_ID)
+# Normal surface-protein shards, unioned across compartments (peripheral immune + bone marrow).
+# The class is the PEAK across ALL shards' cell types (an antigen displayed in EITHER compartment is
+# an off-tumor floor). compartment_scope distinguishes them in each row. Add a shard = one line here.
+MANIFEST_IDS = [
+    "sc-cite-surface-normal-immune-v1",       # Hao 2021 PBMC (peripheral immune)
+    "sc-cite-surface-normal-bonemarrow-v1",   # NeurIPS 2021 BMMC (hematopoietic-progenitor compartment)
+]
+_PRODUCTS = [(mid, *bucket_key_for(mid)) for mid in MANIFEST_IDS]
 
 _PARQUET_COLS = ["gene_symbol", "hgnc_id", "adt_proteins", "cell_type", "compartment_scope",
                  "n_cells", "n_donors", "adt_mean_clr_median", "adt_positive_fraction_median"]
@@ -47,16 +53,25 @@ def _s3fs():
 
 
 def read_gene_rows(target: str) -> Optional[pd.DataFrame]:
-    """Per-(cell_type) surface rows for one gene. None = product not on S3; empty = gene absent."""
-    try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=_s3fs(),
-                            filters=[("gene_symbol", "==", str(target).strip().upper())],
-                            columns=_PARQUET_COLS)
-        return tbl.to_pandas()
-    except FileNotFoundError:
+    """Per-(cell_type) surface rows for one gene, UNIONED across all normal-surface shards
+    (immune + bone marrow). None = NO shard readable on S3 (coverage gap); empty DataFrame = gene
+    absent from every present shard (not surface-profiled)."""
+    gene = str(target).strip().upper()
+    frames, any_present = [], False
+    fs_ = _s3fs()
+    for _mid, bucket, key in _PRODUCTS:
+        try:
+            tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs_,
+                                filters=[("gene_symbol", "==", gene)], columns=_PARQUET_COLS)
+            any_present = True
+            frames.append(tbl.to_pandas())
+        except FileNotFoundError:
+            continue          # this shard not on S3 yet — treat as coverage gap for that shard only
+        except Exception:  # noqa: BLE001
+            continue
+    if not any_present:
         return None
-    except Exception:  # noqa: BLE001
-        return None
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=_PARQUET_COLS)
 
 
 def _classify(peak_clr: float) -> str:
@@ -81,7 +96,8 @@ def read_sc_surface_normal_safety(target: str, indication: Optional[str] = None)
     the immune substrate is indication-independent). Primary `sc_surface_normal_class`."""
     rows = read_gene_rows(target)
     if rows is None:
-        return _data_unavailable(target, note=f"{MANIFEST_ID} not readable on S3 (coverage gap, not a safety pass).")
+        return _data_unavailable(target, note="no normal-surface shard readable on S3 "
+                                              f"({', '.join(MANIFEST_IDS)}) — coverage gap, not a safety pass.")
     if rows.empty:
         return _data_unavailable(target, note=f"{target} not surface-profiled by ADT in the immune panel "
                                               f"(not measured; not a safety pass).")
@@ -97,4 +113,5 @@ def read_sc_surface_normal_safety(target: str, indication: Optional[str] = None)
         "max_positive_fraction": round(float(top["adt_positive_fraction_median"]), 4),
         "n_celltypes_surface_displaying": n_display,       # cell types with mean-CLR >= 1.0 (broad off-tumor breadth)
         "n_cell_types_assessed": int(len(rows)),
+        "compartments_assessed": sorted(rows["compartment_scope"].astype(str).unique().tolist()),
     }
