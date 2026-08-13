@@ -1732,6 +1732,115 @@ def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
     return facet
 
 
+def _find_card_summary(sub_results: dict, card_id: str) -> dict:
+    """First matching card's summary dict across all sub-results (source-short-agnostic), or {}."""
+    for r in sub_results.values():
+        for c in (r.get("cards") or []):
+            if c.get("card_id") == card_id:
+                return c.get("summary") or {}
+    return {}
+
+
+def _cv(vals: list) -> "Optional[float]":
+    """Coefficient of variation (population stdev / |mean|) over >=2 numerics; None otherwise."""
+    xs = [v for v in vals if isinstance(v, (int, float))]
+    if len(xs) < 2:
+        return None
+    import statistics
+    m = statistics.mean(xs)
+    return (statistics.pstdev(xs) / abs(m)) if m != 0 else None
+
+
+def _norm_entropy(labels: list) -> "Optional[float]":
+    """Shannon entropy of a label multiset, normalized to 0..1 by log(#distinct); None if <2 labels."""
+    xs = [x for x in labels if x]
+    if len(xs) < 2:
+        return None
+    import math
+    from collections import Counter
+    counts = Counter(xs)
+    if len(counts) < 2:
+        return 0.0
+    n = len(xs)
+    h = -sum((c / n) * math.log(c / n) for c in counts.values())
+    return h / math.log(len(counts))
+
+
+# --- Heterogeneity facet (verdict-inert; cross-stratum / -comparator / -modality DISPERSION) --------
+#
+# Companion to fragility: fragility asks "how easily does the CALL move?"; heterogeneity asks "does a
+# single pooled verdict HIDE a split?" — a target strong in some strata/comparators/assays and absent
+# in others. NARROW by design (round-2 review): dispersion is only computable where the underlying
+# MULTI-VALUE data survives — the tumor-vs-normal four-cell (always), CRISPR-vs-RNAi fraction_agree
+# (always), and the per-molecular-subtype dependency panorama (ONLY under --subtypes; not pulled
+# otherwise). Most pooled cards carry no per-value array, so a GENERAL cross-cohort dispersion is
+# deliberately NOT attempted (needs method-layer plumbing). heterogeneity_index = worst-case over the
+# available NORMALIZED (0..1) signals. STRICTLY VERDICT-INERT: emitted in nomination.json; never
+# touches overall_recommendation / confidence.
+_HETEROGENEITY_LEGEND = (
+    "Cross-context HETEROGENEITY (dispersion): does a pooled verdict hide a split? Worst-case over the "
+    "available normalized signals — tumor-vs-normal comparator disagreement (four-cell), CRISPR-vs-RNAi "
+    "modality disagreement (1-fraction_agree), and (only under --subtypes) per-subtype dependency "
+    "spread (class entropy / metric CV over floor-cleared strata). 0 = uniform; higher = a stratified "
+    "opportunity the pooled call hides. NOT a probability; never summed or averaged."
+)
+
+
+def _heterogeneity_facet(sub_results: dict, subtypes: "Optional[list[str]]" = None) -> dict:
+    """Verdict-inert cross-context dispersion facet (see section header). Emitted in nomination.json;
+    never touches the verdict / gate / recommendation."""
+    sources: dict = {}
+    signals: list = []
+
+    # (1) tumor-vs-normal four-cell comparator dispersion
+    sel = _find_card_summary(sub_results, "tumor-vs-normal-selectivity")
+    ran, sup = sel.get("cells_ran"), sel.get("cells_supporting")
+    if isinstance(ran, (int, float)) and ran and isinstance(sup, (int, float)):
+        unsupported = 1.0 - (sup / ran)
+        disc = bool(sel.get("discordant"))
+        logs_cv = _cv([sel.get("log2fc_cell_a"), sel.get("log2fc_cell_b"), sel.get("log2fc_cell_c")])
+        disp = 1.0 if disc else round(unsupported, 4)   # an explicit discordant read is maximal dispersion
+        sources["selectivity_comparators"] = {
+            "cells_ran": ran, "cells_supporting": sup, "unsupported_fraction": round(unsupported, 4),
+            "discordant": disc, "log2fc_cv": round(logs_cv, 4) if logs_cv is not None else None,
+            "dispersion": disp}
+        signals.append(disp)
+
+    # (2) CRISPR-vs-RNAi modality dispersion
+    conc = _find_card_summary(sub_results, "crispr-rnai-dependency-concordance")
+    fa = conc.get("fraction_agree")
+    if isinstance(fa, (int, float)):
+        disp = round(1.0 - fa, 4)
+        sources["modality_crispr_rnai"] = {"fraction_agree": round(fa, 4), "dispersion": disp}
+        signals.append(disp)
+
+    # (3) per-molecular-subtype dependency spread — only when --subtypes scoped (panorama present)
+    if subtypes:
+        rows = _first_card_per_subgroup(sub_results.get(SUBTYPE_SHORT) or {},
+                                        "subgroup-stratified-dependency")
+        measured = [r for r in rows
+                    if r.get("evidence_state") == "measured" and r.get("subgroup_n_floor_met")]
+        if len(measured) >= 2:
+            metric_cv = _cv([r.get("median_chronos") for r in measured])
+            ent = _norm_entropy([r.get("dependency_class") or r.get("_dependency_class") for r in measured])
+            disp = ent if ent is not None else (min(metric_cv, 1.0) if metric_cv is not None else None)
+            sources["subtype_strata"] = {
+                "n_measured_strata": len(measured),
+                "class_entropy": round(ent, 4) if ent is not None else None,
+                "metric_cv": round(metric_cv, 4) if metric_cv is not None else None,
+                "dispersion": round(disp, 4) if disp is not None else None}
+            if disp is not None:
+                signals.append(disp)
+
+    return {
+        "heterogeneity_index": round(max(signals), 4) if signals else None,
+        "sources": sources,
+        "_basis": "worst_case over available normalized cross-context dispersion signals "
+                  "(selectivity four-cell / crispr-rnai concordance / subtype strata [--subtypes only])",
+        "_legend": _HETEROGENEITY_LEGEND,
+    }
+
+
 # --- LLM synthesis ----------------------------------------------------------
 
 _SYSTEM_PROMPT = (
@@ -4320,6 +4429,10 @@ def main() -> int:
     # and STRICTLY verdict-inert — it never calls the gate and never writes overall_recommendation /
     # confidence. May set a categorical `contested` flag (declarative threshold) for the reader/banner.
     fragility = _fragility_facet(sub_results, subtypes=subtypes)
+    # Heterogeneity facet (2026-08-12): verdict-inert cross-context DISPERSION — does a pooled
+    # verdict hide a split across comparators / assays / molecular subtypes? Companion to fragility;
+    # never touches the recommendation.
+    heterogeneity = _heterogeneity_facet(sub_results, subtypes=subtypes)
 
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
@@ -4570,6 +4683,9 @@ def main() -> int:
         # measure ("how solid is this call?"), NOT a probability — informs the reader, never mints or
         # moves a recommendation (target_index/contested touch neither the gate nor confidence).
         "fragility": fragility,
+        # Heterogeneity facet (verdict-inert): cross-context dispersion (comparator / modality /
+        # subtype). A stratified-opportunity signal the pooled verdict hides; never moves the call.
+        "heterogeneity": heterogeneity,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
