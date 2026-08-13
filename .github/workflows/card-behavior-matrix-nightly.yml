@@ -1,17 +1,21 @@
-name: Card-Behavior Matrix (nightly live)
+name: Nightly Live Drift (card-behavior matrix + target-intrinsic)
 
-# #5 card-behavior matrix. The offline test (skills/tests/card_behavior_matrix/) replays fixtures
-# frozen against live S3, and runs on every PR inside the normal skills-validate suite (credential-
-# less, deterministic). THIS workflow is the LIVE half: on a schedule it re-freezes the fixtures
-# against the real onc-compbio bucket + sibling repos and re-asserts the four-state matrix, catching
-# the class this matrix exists for — a card that stays REACHABLE but stops FIRING on real data
-# (silent data/shard/contract drift), plus the subgroup null-strata traps.
+# The LIVE half of the framework's offline drift guards. Two independent offline replays run
+# credential-less on every PR (in skills-validate); THIS scheduled workflow re-freezes their fixtures
+# against the real onc-compbio bucket + sibling repos and re-asserts them, catching drift the offline
+# replays cannot see because they read frozen snapshots:
+#   1. #5 card-behavior matrix (skills/tests/card_behavior_matrix/) — a card that stays REACHABLE but
+#      stops FIRING on real data (silent data/shard/contract drift) + subgroup null-strata traps.
+#   2. target-intrinsic dossier (skills/target-intrinsic/tests/) — the reader-real-field-names bug
+#      class: a card method renaming an output field makes the _HEADLINE_SPEC read resolve to None
+#      SILENTLY. The offline replay (test_target_intrinsic_replay.py) pins this against a FROZEN
+#      fixture; only a live re-freeze can catch the frozen snapshot itself going stale vs live readers.
 #
 # CREDENTIAL GATING (honest-scaffold): the live freeze needs AWS creds, which no other workflow in
 # this repo uses (all PR CI self-skips live-S3). Until an OIDC role is provisioned as the repo secret
-# AWS_ROLE_TO_ASSUME, the freeze step is SKIPPED and the job simply re-verifies the COMMITTED fixtures
-# (green — same as the PR suite). Once the secret exists, the freeze runs live and the job goes red on
-# real drift. This keeps the workflow from false-reddening before the role is wired.
+# AWS_ROLE_TO_ASSUME, the freeze steps are SKIPPED and the job simply re-verifies the COMMITTED
+# fixtures (green — same as the PR suite). Once the secret exists, the freezes run live and the job
+# goes red on real drift. This keeps the workflow from false-reddening before the role is wired.
 
 on:
   schedule:
@@ -91,9 +95,25 @@ jobs:
             echo "no fixture drift"
           fi
 
+      - name: Re-freeze target-intrinsic EGFR fixture against live S3
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run python skills/target-intrinsic/tests/freeze_fixture.py
+
+      - name: Report whether the target-intrinsic fixture drifted
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: |
+          if ! git diff --quiet -- skills/target-intrinsic/tests/fixtures/; then
+            echo "::warning title=target-intrinsic::live EGFR fixture drifted vs committed — a reader field/value changed. See diff; refresh the committed fixture if intended."
+            git --no-pager diff --stat -- skills/target-intrinsic/tests/fixtures/
+          else
+            echo "no target-intrinsic fixture drift"
+          fi
+
       - name: No-creds notice
         if: env.HAVE_AWS != 'true'
-        run: echo "::warning title=card-behavior-matrix::AWS_ROLE_TO_ASSUME secret not set — skipping live freeze, verifying COMMITTED fixtures only. Provision the OIDC role to enable live drift detection."
+        run: echo "::warning title=nightly-live-drift::AWS_ROLE_TO_ASSUME secret not set — skipping live freezes, verifying COMMITTED fixtures only. Provision the OIDC role to enable live drift detection."
 
       # Assert the four-state matrix. When the freeze ran, this is against FRESH live data (drift →
       # red). When it didn't, it re-verifies the committed fixtures (same as the PR suite).
@@ -101,10 +121,19 @@ jobs:
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tests/card_behavior_matrix/ -q --import-mode=importlib
 
+      # Assert the target-intrinsic dossier. When the re-freeze ran, the offline replay now reads the
+      # FRESH fixture (drift → red via the >=12 headline drift floor); the live golden also runs
+      # end-to-end. When creds are absent, this re-verifies the committed fixture (same as the PR suite).
+      - name: Assert target-intrinsic dossier (drift floor + live golden)
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest skills/target-intrinsic/tests/ -q --import-mode=importlib
+
       - name: Upload refreshed fixtures
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: card-behavior-matrix-fixtures
-          path: rnd-computational-biology-oncology-claude-oncology-skills/skills/tests/card_behavior_matrix/fixtures/
+          name: nightly-live-drift-fixtures
+          path: |
+            rnd-computational-biology-oncology-claude-oncology-skills/skills/tests/card_behavior_matrix/fixtures/
+            rnd-computational-biology-oncology-claude-oncology-skills/skills/target-intrinsic/tests/fixtures/
           if-no-files-found: warn
