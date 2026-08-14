@@ -1,0 +1,113 @@
+expression-purity-confound:
+  cellular_source: unresolved_from_bulk
+  expression_purity_pearson_p: 0.167
+  expression_purity_pearson_r: -0.0602
+  expression_purity_spearman_r: -0.0543
+  indication: COADREAD
+  median_purity: 0.66
+  method_version: 0.1.0
+  n_expr_samples: 624
+  n_paired_samples: 529
+  purity_confound_class: purity_independent
+  purity_source: pancanatlas_absolute
+  target: TACSTD2
+modality-therapeutic-window:
+  full_normal_window_class: no_full_normal_window
+  indication: COADREAD
+  max_essential_normal_organ: LUNG
+  max_essential_normal_tpm: 94.74
+  max_full_normal_organ: SALIVARY_GLAND
+  max_full_normal_tpm: 508.6
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_gtex_tissues: 31
+  target: TACSTD2
+  therapeutic_window_class: no_therapeutic_window
+  tumor_studies:
+  - COAD
+  - READ
+  tumor_tpm: 9.86
+  window_class: essential_tissue_liability
+  window_ratio_essential: 0.11
+  window_ratio_full_normal: 0.02
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: papillary tips cell
+  max_detection_fraction: 0.9661016949152542
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 22
+  n_reliable_cell_types: 89
+  origin_tissues:
+  - colon
+  safety_essential_flags:
+    kidney collecting duct alpha-intercalated cell: 0.05971945674462836
+    kidney collecting duct cell: 0.7049689440993789
+    kidney collecting duct intercalated cell: 0.30392156862745096
+    kidney collecting duct principal cell: 0.6764705882352942
+    kidney loop of Henle cortical thick ascending limb epithelial cell: 0.5357142857142857
+    kidney loop of Henle descending limb epithelial cell: 0.05337837837837838
+    kidney loop of Henle epithelial cell: 0.2608695652173913
+    kidney loop of Henle thick ascending limb epithelial cell: 0.29605263157894735
+    kidney loop of Henle thin ascending limb epithelial cell: 0.7049180327868853
+    kidney loop of Henle thin descending limb epithelial cell: 0.4203305068985038
+    neuron: 0.05660754074463332
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+surface-abundance-density:
+  _tier2_estimate_error: 'ModuleNotFoundError: No module named ''percentile_null'''
+  absolute_copies_per_cell: 90000.0
+  absolute_density_class: high
+  absolute_density_grade: B
+  absolute_measurement_semantics: molecules
+  absolute_n_measurements: 1
+  density_floor_verdict: above_adc_high_payload_floor
+  surface_density_class: unmeasured
+tumor-vs-normal-percentile-crossing:
+  distribution_overlap_tumor_normal: 0.27940711160573034
+  fraction_tumor_above_normal_p95: 0.7623318385650224
+  fraction_tumor_above_normal_p99: 0.6322869955156951
+  matched_normal_tissue: COLON
+  method_version: 0.1.0
+  n_normal_samples: 822
+  n_tumor_samples: 669
+  normal_p95_log2tpm: 2.1716635942459104
+  normal_p99_log2tpm: 2.824663367271421
+  selectivity_class: strongly_tumor_enriched
+  studies:
+  - COAD
+  - READ
+tumor-vs-normal-selectivity:
+  _data_source: coadread-dge-tumor-vs-normal-sensitivity-v1
+  _schema: v3_four_cell
+  cells_ran: 3.0
+  cells_supporting: 3.0
+  comparator_concordance: concordant
+  discordant: false
+  dominant_direction: up
+  log2fc_cell_a: 5.017518713226957
+  log2fc_cell_b: 4.789289388634044
+  log2fc_cell_c: 4.752928086795125
+  log2fc_cell_d: null
+  max_abs_log2fc: 5.017518713226957
+  n_adjacent: null
+  n_gtex_normal: null
+  n_tumor: null
+  q_value_cell_a: 1.2501046333935446e-68
+  q_value_cell_b: 4.869845426447331e-79
+  q_value_cell_c: 0.0
+  q_value_cell_d: null
+  selectivity_allgene_percentile: 98.56443885698754
+  selectivity_allgene_percentile_cell_b: 98.5973204570185
+  selectivity_allgene_percentile_cell_c: 98.09171695735792
+  selectivity_allgene_percentile_class: top_decile
+  selectivity_allgene_percentile_context: coadread-dge-tumor-vs-normal-sensitivity-v1
+    metric=log2fc_A(tumor-vs-adjacent, primary)
+  selectivity_class: strong_tumor_selective
+  sig_all_cells: true
