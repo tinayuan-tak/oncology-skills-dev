@@ -1,0 +1,46 @@
+combo-crispr-screen:
+  _data_source: depmap-drug-anchor-combination-per-target-v1
+  anchor_drug: MRTX1133
+  anchor_mechanism: KRAS-G12D inhibitor
+  combination_context: "KRAS inhibition (MRTX1133): ROBUST combination opportunity\
+    \ with PTPN11 \u2014 KO becomes more essential under inhibition (mean shift -0.70,\
+    \ significant in 5/6 models). A co-targeting hypothesis to pursue."
+  combination_opportunity_class: strong_combination_opportunity
+  method_version: 0.1.0
+  n_co_targets: 169
+  strongest_co_target: PTPN11
+  strongest_co_target_class: robust_combination
+  strongest_co_target_shift: -0.7003371856394401
+  top_co_targets: __omitted_from_fixture__ (list, 20 items)
+resistance-emergence-signature:
+  _data_source: depmap-drug-anchor-resistance-per-target-v1
+  anchor_drug: MRTX1133
+  anchor_mechanism: KRAS-G12D inhibitor
+  method_version: 0.1.0
+  n_resistance_mediators: 409
+  resistance_context: "KRAS inhibition (MRTX1133): ROBUST resistance-mediator signal\
+    \ \u2014 KO of NF1 RESCUES the cell under inhibition (mean shift +0.84, significant\
+    \ in 5/6 models), so NF1 loss is a candidate resistance route to monitor."
+  resistance_emergence_class: strong_resistance_signal
+  strongest_mediator: NF1
+  strongest_mediator_class: robust_resistance_mediator
+  strongest_mediator_shift: 0.8404102202567278
+  tahoe_adaptation_class: induced_resistance_programs
+  tahoe_adaptation_note: "KRAS inhibition (Tahoe): INDUCES the oxidative_stress resistance\
+    \ program (e.g. HMOX1 +1.048). A transcriptional-adaptation hypothesis (verdict-inert)\
+    \ \u2014 weaker than the DepMap genetic-rescue signal; read as candidate adaptive\
+    \ resistance to monitor."
+  tahoe_induced_programs:
+  - genes_induced:
+    - gene: HMOX1
+      median_log2fc: 1.048
+    max_induction: 1.048
+    program: oxidative_stress
+  - genes_induced:
+    - gene: ABCB1
+      median_log2fc: 0.983
+    - gene: ABCG2
+      median_log2fc: 0.715
+    max_induction: 0.983
+    program: efflux
+  top_resistance_mediators: __omitted_from_fixture__ (list, 20 items)
