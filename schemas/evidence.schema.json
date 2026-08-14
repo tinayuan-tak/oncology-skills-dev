@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/core-artifacts-schema/evidence.schema.json",
   "title": "Core Artifact: evidence.json",
-  "description": "Contract for a single evidence artifact in s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json. Produced ONCE by a batch/ job (compute), read MANY times by skills (retrieval). This is the lingua franca consumed by AgenticBoost and the knowledge graph. Refines omics_evidence.rna_expression from workflow-target-evaluation-onc/reference/evidence_extraction_schema.yaml. Indication uses literal AACR OncoTree codes (e.g. COADREAD, LUAD, NSCLC, PAAD, STAD) for direct cross-reference to GENIE/cBioPortal/TCGA without a translation layer. Subtype defaults to 'all' for unstratified analyses.",
+  "description": "Contract for a single evidence artifact in s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json. Produced ONCE by a batch/ job (compute), read MANY times by skills (retrieval). This is the lingua franca consumed by AgenticBoost and the knowledge graph. Refines omics_evidence.rna_expression from the v1 evidence-extraction schema. Indication uses literal AACR OncoTree codes (e.g. COADREAD, LUAD, NSCLC, PAAD, STAD) for direct cross-reference to GENIE/cBioPortal/TCGA without a translation layer. Subtype defaults to 'all' for unstratified analyses.",
   "type": "object",
   "required": ["gene", "indication", "subtype", "dimension", "computed_date", "provenance", "result", "summary", "confidence", "label"],
   "additionalProperties": false,
