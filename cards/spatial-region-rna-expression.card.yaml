@@ -1,0 +1,59 @@
+# Card — SPATIAL REGION-RNA EXPRESSION (in-situ, by tumour compartment)
+#
+# For {target} in {indication}, what is the MEASURED, spatially-resolved RNA expression (NanoString
+# GeoMx DSP Whole Transcriptome Atlas) in the TUMOUR compartment vs the microenvironment (TME)? Reads the
+# region-RNA product (spatial-region-rna-{indication}-v1) via the spatial_region_rna method.
+#
+# WHY THIS CARD EXISTS: the dissociated scRNA products (LuCA/CRC/3CA pseudobulk) lose tissue architecture;
+# the imaging single-cell co-localization products recover architecture but at a targeted gene panel; the
+# region-PROTEIN card measures protein but only for the antibody panel. This card adds a MEASURED, whole-
+# transcriptome RNA signal resolved to the tumour vs TME compartment — a compartment-level tumour-vs-
+# microenvironment expression contrast for ANY gene, at region resolution. It is a distinct, RNA-grade
+# claim: it does NOT establish surface-protein display (that is the region-PROTEIN / Axis-3 job), so its
+# signal is a corroborating PRESENCE/localization argument, not a surface-abundance verdict.
+
+card_id: spatial-region-rna-expression
+version: 0.1.0
+question: "For {target.symbol} in {indication.label}, is the target's RNA measured in-situ in the TUMOUR compartment (GeoMx DSP WTA), and is it enriched in tumour vs the microenvironment?"
+
+tier: indication   # the region-RNA product is per-indication
+
+applies_when:
+  # indications with a landed spatial region-RNA product (INDICATION_TO_REGION_RNA in the method).
+  - "context.indication in ['HNSC']"
+
+required_inputs:
+  - product_id: spatial-region-rna-hnsc-v1                  # HNSC — GeoMx DSP Whole Transcriptome Atlas (GSE290057)
+
+methods:
+  - call: spatial-region-rna-expression
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - spatial_rna_class               # PRIMARY — tumour-compartment RNA readout
+    - tumour_abundance_lcpm           # cross-donor median normalized log-scale expression in the TUMOUR compartment
+    - tme_abundance_lcpm              # ... in the TME compartment
+    - tumour_vs_tme_delta             # tumour - TME (log-scale); >0 tumour-enriched, <0 TME-enriched
+    - detected_tumour
+    - n_donors
+  summary_fields_vocabulary:
+    spatial_rna_class: [tumour_enriched_rna, tme_enriched_rna, tumour_present_no_compartment_preference, data_unavailable]
+
+caveats:
+  - "MEASURED in-situ RNA (NanoString GeoMx DSP Whole Transcriptome Atlas), region-level (ROI = segmented TUMOUR vs TME region), NOT single-cell and NOT protein. RNA enrichment is a PRESENCE/localization argument, NOT a surface-protein-display claim — it corroborates, but does not substitute for, the region-PROTEIN (spatial-surface-protein-abundance) and Axis-3 (surface-abundance-density) surface readouts."
+  - "spatial_rna_class: tumour_enriched_rna = RNA concentrated in the tumour compartment (measured localization argument); tme_enriched_rna = concentrated in the microenvironment (a tumour-SPECIFICITY caveat — e.g. stromal COL1A1 / endothelial PECAM1 / immune PTPRC); tumour_present_no_compartment_preference = detected, |tumour-TME| < 0.5 log-scale."
+  - "Cross-donor median over the indication's GeoMx WTA cohort (donor = replicate). HNSC seed only (GSE290057, 61 patients, ~18.7k genes — the WTA companion to the GSE288406 protein series)."
+  - "Whole-transcriptome: a target returns data_unavailable only when its gene symbol is absent from the deposited matrix (never a fabricated negative). Unlike the antibody-named protein panel, the RNA row axis is HGNC symbols, so panel coverage is genome-wide."
+
+measurement: spatial_transcriptomics
+sample_context: tumor
+
+measurement_type: spatial_region_rna
+# modality-agnostic RNA-presence-by-compartment lens (measured in-situ RNA). Declaration lands WITH its
+# rules (this branch).
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1

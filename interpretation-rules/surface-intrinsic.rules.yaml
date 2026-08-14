@@ -2011,3 +2011,50 @@ rules:
       caveat for a tumour-directed biologic. Opposing (secondary) across modalities as an in-situ
       specificity flag; confirm the target's tumour-cell vs TME attribution before nomination.
       SPATIAL-scoped.
+
+  # ── Block L — SPATIAL region-RNA expression (in-situ, by tumour compartment) ──────────────────────
+  # spatial_rna_class = MEASURED in-situ RNA (GeoMx DSP Whole Transcriptome Atlas) in the TUMOUR compartment
+  # vs TME (spatial-region-rna-expression card). RNA is a PRESENCE/localization proxy, NOT a surface-protein
+  # claim — signals are deliberately SECONDARY (corroborating), weaker than the region-PROTEIN Block-K.
+  # tumour_present_no_compartment_preference + data_unavailable emit nothing (measured-vs-null).
+  - rule_id: spatial-rna-tumour-enriched-supportive
+    when:
+      card_id: spatial-region-rna-expression
+      field: spatial_rna_class
+      equals: tumour_enriched_rna
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's RNA is MEASURED in situ (GeoMx DSP WTA) and CONCENTRATED in the tumour compartment vs
+      the microenvironment (tumour - TME >= 0.5 log-scale) — a measured, region-resolved tumour-compartment
+      localization argument that dissociated scRNA (no architecture) cannot establish. Supportive but
+      SECONDARY across adc / bite_tce / antibody: RNA enrichment corroborates target PRESENCE/localization
+      but does NOT establish surface-protein display — confirm on the region-PROTEIN (Block K) / Axis-3
+      surface readouts before treating as a surface argument. SPATIAL-scoped.
+
+  - rule_id: spatial-rna-tme-enriched-specificity-caveat
+    when:
+      card_id: spatial-region-rna-expression
+      field: spatial_rna_class
+      equals: tme_enriched_rna
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's RNA is MEASURED higher in the microenvironment (TME) than the tumour compartment
+      (tumour - TME <= -0.5 log-scale) — expression is concentrated on stromal / immune / vascular cells
+      rather than tumour cells (the COL1A1-stroma / PECAM1-endothelium / PTPRC-immune archetype), a
+      tumour-SPECIFICITY caveat for a tumour-directed biologic. Opposing (secondary) across modalities as
+      an in-situ, RNA-grade specificity flag; confirm the target's tumour-cell vs TME attribution before
+      nomination. SPATIAL-scoped.

@@ -811,6 +811,22 @@ measurement_types:
       - {kind: dataset, source: spatial-surface-protein-hnsc-v1, method: spatial_region_protein, evidence_tier: measured}   # HNSC — GeoMx DSP 580-protein (GSE288406)
       - {kind: dataset, source: spatial-surface-protein-nsclc-v1, method: spatial_region_protein, evidence_tier: measured}  # NSCLC (adeno+squamous) — GeoMx DSP 68-plex IO panel (GSE221322)
 
+  spatial_region_rna:
+    claim: "What is the MEASURED, spatially-resolved RNA expression (GeoMx DSP Whole Transcriptome Atlas) of the target in the TUMOUR compartment vs the microenvironment (TME) — is the target RNA tumour-enriched or TME-enriched?"
+    # region-level MEASURED RNA (NanoString GeoMx DSP WTA), NOT single-cell and NOT protein. A distinct
+    # claim from spatial_surface_protein (antibody signal) and from the dissociated scRNA products (no
+    # architecture). tumour_enriched_rna -> measured tumour-compartment localization (corroborating
+    # presence, RNA-grade); tme_enriched_rna -> tumour-specificity caveat (opposing). RNA enrichment does
+    # NOT establish surface display — a weaker, corroborating lens than the protein/density cards.
+    modality_relevance: [adc, bite_tce, antibody]
+    entity_grains: [target_indication]
+    cards: [spatial-region-rna-expression]
+    multi_provider_policy: tier_dominant
+    providers:
+      # per-indication GeoMx DSP WTA products (aggregate_spatial_region_rna). Adding an indication =
+      # emit its spatial-region-rna product (data-catalog) + one line here.
+      - {kind: dataset, source: spatial-region-rna-hnsc-v1, method: spatial_region_rna, evidence_tier: measured}   # HNSC — GeoMx DSP Whole Transcriptome Atlas (GSE290057)
+
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"
     # The PROTEIN, single-cell sibling of sc_normal_celltype_expression (RNA) and the surface analogue
