@@ -609,16 +609,21 @@ def test_m3_not_informative_alone_still_reported():
     assert verdict == "not_informative"
 
 
-def test_m2_resolved_but_flat_cptac_ns_bucket_is_measured():
-    """M2: a resolved-but-flat CPTAC `ns` (present, not tumor-elevated) marks the bulk_protein_ms/tumor
+import pytest as _pytest  # noqa: E402
+
+
+@_pytest.mark.parametrize("flat_class", ["not_significant", "small_effect", "ns"])
+def test_m2_resolved_but_flat_cptac_bucket_is_measured(flat_class):
+    """M2: a resolved-but-flat CPTAC class (present, not tumor-elevated) marks the bulk_protein_ms/tumor
     bucket `measured` (protein_present_not_elevated), NOT data_unavailable — 'measured, flat' must not
-    read as 'not measured'. `ns` fires no rule (deliberately un-ruled), so the bucket is rescued off the
-    resolved card directly."""
+    read as 'not measured'. These classes fire no rule (deliberately un-ruled), so the bucket is rescued
+    off the resolved card directly. 2026-08-14: covers the split vocab (not_significant / small_effect)
+    AND the legacy `ns` backward-compat key."""
     cards = [{"card_id": "tumor-protein-abundance-cptac",
-              "summary": {"protein_expression_class": "ns"}}]
-    pm = tp._per_modality_verdicts([], cards)      # ns fires nothing; no breadth either
+              "summary": {"protein_expression_class": flat_class}}]
+    pm = tp._per_modality_verdicts([], cards)      # fires nothing; no breadth either
     b = pm["bulk_protein_ms/tumor"]
-    assert b["evidence_state"] == "measured", f"resolved ns must mark the bucket measured; got {b}"
+    assert b["evidence_state"] == "measured", f"resolved {flat_class} must mark the bucket measured; got {b}"
     assert b["verdict"] == "protein_present_not_elevated"
 
 

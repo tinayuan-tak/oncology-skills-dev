@@ -410,12 +410,21 @@ _COMPARATOR_BUCKETS = {
 # M2 (2026-08-13 full review): (bucket) → (card_id, field, {raw_class: bucket_verdict}) for cards that
 # emit a MEASURED-PRESENT class that is deliberately UN-RULED (fires no rule, so cannot rank into a
 # ladder). Used by _per_modality_verdicts to mark such a bucket `measured` instead of data_unavailable
-# when the card resolved with one of these classes. tumor-protein-abundance-cptac.`ns` = protein
-# quantified but not tumor-elevated (present-but-flat); the CPTAC card is a tumor-vs-normal CONTRAST,
-# so `ns` means present in both, i.e. present in tumor without tumor-selective elevation.
+# when the card resolved with one of these classes. tumor-protein-abundance-cptac's flat classes =
+# protein quantified but not tumor-elevated (present-but-flat); the CPTAC card is a tumor-vs-normal
+# CONTRAST, so a flat class means present in both, i.e. present in tumor without tumor-selective
+# elevation.
+#
+# 2026-08-14 (finding #5, AM cptac_protein_deg ns-split): the former single `ns` was split into
+# `not_significant` (q>=0.05) + `small_effect` (q<0.05, |logfc|<=0.5). BOTH mean present-but-flat, so
+# both map to protein_present_not_elevated. `ns` is kept as a BACKWARD-COMPAT key so this rescue works
+# regardless of the AM-vs-skills merge order (and against any not-yet-refrozen fixture); it becomes
+# dead once every consumer emits the split vocab and can be dropped in a later cleanup.
 _MEASURED_UNRULED_PRESENT = {
     ("bulk_protein_ms", "tumor"): ("tumor-protein-abundance-cptac", "protein_expression_class",
-                                   {"ns": "protein_present_not_elevated"}),
+                                   {"ns": "protein_present_not_elevated",            # legacy (pre-split)
+                                    "not_significant": "protein_present_not_elevated",
+                                    "small_effect": "protein_present_not_elevated"}),
 }
 
 
