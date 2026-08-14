@@ -1,0 +1,147 @@
+co-mutation-and-mutual-exclusivity:
+  _data_source: pancohort-cooccurrence-fisher-v1
+  cooccurrence_class: strong_cooccurring
+  has_cooccurring_driver: true
+  has_mutually_exclusive_driver: false
+  method_version: 0.1.0
+  n_pairs_panel_intersect_eligible: 1195
+  n_pairs_per_source_only: 2744
+  n_significant_cooccurring: 907
+  n_significant_mutually_exclusive: 0
+  top_cooccurring:
+  - bh_q_value: 0.0
+    log2_odds_ratio: 1.9928024097400547
+    partner_gene_symbol: ALK
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 2.319466009072463
+    partner_gene_symbol: APC
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 2.0872726029360913
+    partner_gene_symbol: AR
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 1.7883482754276172
+    partner_gene_symbol: ARID1A
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 2.044869490566126
+    partner_gene_symbol: ARID1B
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 1.9689721690733117
+    partner_gene_symbol: ATR
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 1.7698864895402742
+    partner_gene_symbol: BRCA2
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 2.0063223106743338
+    partner_gene_symbol: CARD11
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 2.1362898987650274
+    partner_gene_symbol: CDK12
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.0
+    log2_odds_ratio: 1.9045475894333206
+    partner_gene_symbol: CIC
+    pooled_eligible: false
+    source: genie_v19
+  top_mutually_exclusive:
+  - bh_q_value: 0.242420933019822
+    log2_odds_ratio: -1.2688789891334709
+    partner_gene_symbol: IRF8
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.3308411806585277
+    log2_odds_ratio: -0.5566900412726016
+    partner_gene_symbol: TNFRSF14
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.33810547275711633
+    log2_odds_ratio: -0.436154408457627
+    partner_gene_symbol: MYD88
+    pooled_eligible: true
+    source: genie_v19
+  - bh_q_value: 0.404992327095152
+    log2_odds_ratio: -0.5397512493074615
+    partner_gene_symbol: PIM1
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.41133299742252755
+    log2_odds_ratio: -0.7203649624856474
+    partner_gene_symbol: STAT6
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.41757487603311744
+    log2_odds_ratio: -0.9394632758169141
+    partner_gene_symbol: TBL1XR1
+    pooled_eligible: false
+    source: genie_v19
+  - bh_q_value: 0.49038139880141124
+    log2_odds_ratio: -0.8217668015398354
+    partner_gene_symbol: SETD1B
+    pooled_eligible: false
+    source: genie_v19
+expression-clinical-association:
+  endpoint: OS
+  high_expr_hazard_direction: -1
+  indication: COADREAD
+  logrank_chi2: 1.149
+  logrank_p: 0.284
+  median_ostime_high_days: 670.5
+  median_ostime_low_days: 613.5
+  median_split_log2tpm: 1.9761
+  method_version: 0.1.0
+  n_events: 127
+  n_high_expr: 310
+  n_low_expr: 310
+  n_patients: 620
+  survival_association_class: no_survival_association
+  survival_source: pancanatlas_tcga_cdr
+  target: FBXW7
+precog-prognostic-association:
+  _caveat: "meta-analytic across 166 heterogeneous datasets (platforms/cohorts vary);\
+    \ UNADJUSTED univariate survival association, hypothesis-generating not a clinical\
+    \ claim. INDICATION IS AN APPROXIMATION \u2014 see precog_source_column."
+  _method_version: 0.1.0
+  _source: PRECOG pan-cancer prognostic meta-Z (Gentles 2015 Nat Med + 2026 NAR).
+    POSITIVE meta-Z = high expression -> WORSE overall survival. Verdict-inert; meta-analytic
+    corroboration of the single-cohort expression-clinical-association.
+  indication: COADREAD
+  meta_z: -0.786
+  meta_z_significance_cut: 1.96
+  n_precog_datasets: 166 datasets / ~18k patients (pan-cancer meta-analysis)
+  pan_cancer_meta_z: -2.8562
+  pan_cancer_prognostic_class: expression_high_better_survival
+  precog_indication_approx: true
+  precog_source_column: Colon_cancer
+  prognostic_class: no_prognostic_association
+  target: FBXW7
+stemness-context:
+  _caveat: reimplemented per-sample scores (Malta method applied to recount3), NOT
+    the published per-sample table (which is not distributed).
+  _method_version: 0.1.0
+  _source: Malta 2018 mRNAsi signature, REIMPLEMENTED on recount3 (Spearman+pan-cancer
+    min-max); verdict-inert cohort context
+  indication: COADREAD
+  median_mrnasi: 0.509
+  n_samples: 669
+  pan_cancer_median_mrnasi: 0.3688
+  pan_cancer_q3_mrnasi: 0.449
+  pooled_from:
+  - COAD
+  - READ
+  stemness_class: stem_high

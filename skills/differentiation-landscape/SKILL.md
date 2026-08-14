@@ -24,7 +24,7 @@ description: |
   artifactual mutual-exclusivity signals for panel-absent genes.
 
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -40,13 +40,18 @@ composition:
     # excluded from the runtime card set (commercial-data licensing unresolved) and
     # never reach run.py CARDS; see NOTE below. (Trimmed 2026-08-05 to match run.py.)
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
-  # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent is pulled.
-  # expression_clinical_association (Q11) is an ADDITIVE render facet (verdict-inert — feeds no resolver).
+  # yet (licensing-blocked placeholder), so it's absent here; clinical_precedent is a data-blocked
+  # future-intent (its clinical-precedent card is licensing-blocked and NOT in cards_used — kept as a
+  # declared roadmap pull). expression_clinical_association (Q11) is an ADDITIVE render facet
+  # (verdict-inert). 2026-08-14 review: added stemness_context — the stemness-context card (Malta 2018,
+  # added 2026-08-10) is in cards_used but its type was omitted here. test_differentiation_measurement_types.py
+  # now enforces every used card's type is declared so this cannot silently re-drift.
   measurement_types_pulled:
-    - mutation_cooccurrence
-    - clinical_precedent
-    - expression_clinical_association
-    - precog_prognostic_association   # PRECOG pan-cancer meta-Z corroboration (verdict-inert render facet)
+    - mutation_cooccurrence               # co-mutation-and-mutual-exclusivity (verdict-driving)
+    - stemness_context                    # stemness-context (Malta 2018 mRNAsi; verdict-inert)
+    - expression_clinical_association     # expression-clinical-association (Q11; verdict-inert render facet)
+    - precog_prognostic_association       # precog-prognostic-association (PRECOG pan-cancer meta-Z; verdict-inert)
+    - clinical_precedent                  # data-blocked future-intent (clinical-precedent card licensing-blocked; NOT in cards_used)
   rules_scope:
     - co-mutation-and-mutual-exclusivity
   synthesis:

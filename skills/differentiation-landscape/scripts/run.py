@@ -22,7 +22,7 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.2.0"
+SKILL_VERSION = "1.3.0"
 
 CARDS = [
     "co-mutation-and-mutual-exclusivity",
