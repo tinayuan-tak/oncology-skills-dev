@@ -1,0 +1,57 @@
+synthetic-lethal-partners:
+  best_evidence_tier: experimental
+  has_experimental_partner: true
+  method_version: read-0.1.0
+  n_experimental_partners: 1
+  sl_partner_class: has_experimental_sl_partner
+  sl_partner_count: 8
+  sl_partner_symbols:
+  - ALK
+  - BLM
+  - DDR2
+  - EGFR
+  - FGFR1
+  - JAK2
+  - MUS81
+  - SMARCA4
+  top_partners:
+  - cell_line: HELA;PC9;TBD
+    evidence_tier: experimental
+    partner: SMARCA4
+    partner_entrez: '6597'
+    pubmed_id: null
+  - cell_line: null
+    evidence_tier: computational
+    partner: BLM
+    partner_entrez: '641'
+    pubmed_id: '24104479'
+  - cell_line: null
+    evidence_tier: computational
+    partner: ALK
+    partner_entrez: '238'
+    pubmed_id: '23872584'
+  - cell_line: null
+    evidence_tier: computational
+    partner: FGFR1
+    partner_entrez: '2260'
+    pubmed_id: '23872584'
+  - cell_line: null
+    evidence_tier: computational
+    partner: MUS81
+    partner_entrez: '80198'
+    pubmed_id: '24104479'
+  - cell_line: null
+    evidence_tier: computational
+    partner: JAK2
+    partner_entrez: '3717'
+    pubmed_id: '25171417'
+  - cell_line: null
+    evidence_tier: computational
+    partner: DDR2
+    partner_entrez: '4921'
+    pubmed_id: '23872584'
+  - cell_line: null
+    evidence_tier: computational
+    partner: EGFR
+    partner_entrez: '1956'
+    pubmed_id: '23872584'

@@ -1,0 +1,27 @@
+synthetic-lethal-partners:
+  best_evidence_tier: other
+  has_experimental_partner: false
+  method_version: read-0.1.0
+  n_experimental_partners: 0
+  sl_partner_class: has_computational_sl_partner
+  sl_partner_count: 3
+  sl_partner_symbols:
+  - PARP1
+  - PARP2
+  - STAG2
+  top_partners:
+  - cell_line: null
+    evidence_tier: other
+    partner: PARP2
+    partner_entrez: '10038'
+    pubmed_id: '23333522'
+  - cell_line: null
+    evidence_tier: other
+    partner: PARP1
+    partner_entrez: '142'
+    pubmed_id: '22412391'
+  - cell_line: null
+    evidence_tier: computational
+    partner: STAG2
+    partner_entrez: '10735'
+    pubmed_id: '28430577'
