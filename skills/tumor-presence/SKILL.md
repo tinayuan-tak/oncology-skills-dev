@@ -241,6 +241,19 @@ When called as `/tumor-presence`, Claude should:
    Add `--synthesize` if the user wants an LLM narration of the read (optional; needs
    Bedrock access — degrades to a note under `llm_synthesis` if unavailable, leaving the
    deterministic verdict intact).
+   NOTE (synthesis env): `--synthesize` requires an interpreter with `anthropic[bedrock]`
+   AND `BEDROCK_AWS_PROFILE` set to a Bedrock-entitled profile (e.g. `cmp-dev`), which is a
+   DIFFERENT account from the `cbg` profile used for the S3 card reads (the LLM layer resolves
+   the Bedrock profile's frozen creds internally — `AnthropicBedrock` does not honor
+   `AWS_PROFILE`). The DEFAULT pixi env does NOT include `anthropic`, so running
+   `pixi run python3 run.py --synthesize` under the default env SILENTLY DEGRADES:
+   `llm_synthesis` becomes a `_synthesis_error` note and the run still exits 0 (the
+   deterministic spine is unaffected — two-slot design). Invoke with an interpreter that has
+   `anthropic[bedrock]` installed and both profiles available, e.g.:
+   ```
+   export AWS_PROFILE=cbg BEDROCK_AWS_PROFILE=cmp-dev && \
+   python3 .../tumor-presence/scripts/run.py --target <T> --indication <I> --out <D> --synthesize
+   ```
    Add `--subtype <SUBTYPE>` (with `--synthesize`) if the user asks about a specific
    molecular subtype (e.g. `--subtype MSI_H`): the narration foregrounds that stratum's
    position in addition to the across-subtype omnibus. Emphasis-only — no spine change;
