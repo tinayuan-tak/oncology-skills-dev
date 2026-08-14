@@ -64,6 +64,19 @@ def test_products_resolve_to_catalog_s3_uris():
         "spatial-coloc-tumor-stad-v1/spatial_coloc.parquet")
 
 
+def test_product_ids_normalizes_str_and_list():
+    # a map value may be a single product id (str) or a list (multiple datasets per indication)
+    assert SC._product_ids("COADREAD") == ["spatial-coloc-tumor-crc-coadread-v1"]  # str -> [str]
+    assert SC._product_ids("KIRC") == []                                           # unmapped -> []
+    # list values are returned as-is (simulate a multi-dataset indication)
+    orig = SC.INDICATION_TO_SPATIAL_COLOC.get("PAAD")
+    try:
+        SC.INDICATION_TO_SPATIAL_COLOC["PAAD"] = ["a-v1", "b-v1"]
+        assert SC._product_ids("PAAD") == ["a-v1", "b-v1"]
+    finally:
+        SC.INDICATION_TO_SPATIAL_COLOC["PAAD"] = orig
+
+
 def test_unmapped_indication_is_data_unavailable():
     # KIRC is out of iDAS and has no spatial product → _product_key None → data_unavailable (no network).
     out = SC.read_spatial_colocalization("EPCAM", "KIRC")

@@ -14,8 +14,6 @@ on onc-compbio).
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from . import stats as _stats
 from methods.catalog_query.read import bucket_key_for
 
@@ -41,31 +39,40 @@ _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "neighbor_cell_type",
                  "n_malignant_cells", "target_pos_fraction", "adjacency_fraction", "enrichment_vs_random"]
 
 
-def _product_key(indication: str) -> Optional[str]:
-    prod = INDICATION_TO_SPATIAL_COLOC.get(str(indication).upper().strip())
-    if not prod:
-        return None
-    return bucket_key_for(prod)[1]           # resolved from the product manifest (single source of truth)
+def _product_ids(indication: str) -> list:
+    """The spatial-coloc product id(s) for an indication. A map value may be a single product id (str)
+    OR a list of product ids (multiple datasets for the indication, merged at read time). Returns [] if
+    the indication has no landed product."""
+    v = INDICATION_TO_SPATIAL_COLOC.get(str(indication).upper().strip())
+    if not v:
+        return []
+    return [v] if isinstance(v, str) else list(v)
 
 
 def read_target_neighbor_rows(target: str, indication: str):
-    """Per-(donor, neighbor_cell_type) rows for one target gene in one indication's spatial product.
-
-    Returns a pandas DataFrame (possibly empty) with _PARQUET_COLS. Empty (0 rows) when the gene is
-    absent from the panel, None when the indication has no landed product — the caller distinguishes
-    'no product' (None) from 'gene not on panel' (empty)."""
-    key = _product_key(indication)
-    if key is None:
+    """Per-(dataset, donor, neighbor_cell_type) rows for one target across ALL of an indication's spatial
+    products (multiple datasets are concatenated — donors pool across datasets, and compartment roll-up
+    happens downstream). Returns a DataFrame (possibly empty), or None when the indication has no landed
+    product — the caller distinguishes 'no product' (None) from 'gene not on any panel' (empty)."""
+    prods = _product_ids(indication)
+    if not prods:
         return None
+    import pandas as pd
     import pyarrow.fs as fs
     import pyarrow.parquet as pq
     s3fs = fs.S3FileSystem(region="us-east-1")
     filters = [("gene_symbol", "==", str(target).upper().strip())]
-    try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
-    except FileNotFoundError:
+    frames = []
+    for prod in prods:
+        key = bucket_key_for(prod)[1]        # resolved from the product manifest (single source of truth)
+        try:
+            tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
+        except FileNotFoundError:
+            continue                         # a listed product not yet on S3 — skip, don't fail the read
+        frames.append(tbl.to_pandas())
+    if not frames:
         return None
-    return tbl.to_pandas()
+    return pd.concat(frames, ignore_index=True)
 
 
 def read_spatial_colocalization(target: str, indication: str) -> dict:
