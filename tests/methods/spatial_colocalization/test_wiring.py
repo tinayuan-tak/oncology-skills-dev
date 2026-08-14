@@ -27,6 +27,19 @@ def test_stad_wired_to_gastric_cosmx():
     assert SC.INDICATION_TO_SPATIAL_COLOC["STAD"] == "spatial-coloc-tumor-stad-v1"
 
 
+def test_paad_wired_to_pdac_xenium():
+    assert SC.INDICATION_TO_SPATIAL_COLOC["PAAD"] == "spatial-coloc-tumor-paad-v1"
+
+
+def test_paad_caf_variants_map_to_stromal():
+    # GSE280634 CAF-variant labels tokenize to a single glued token; must resolve to stromal (explicit dict)
+    assert ST.compartment_of_neighbor("myCAF") == "stromal"
+    assert ST.compartment_of_neighbor("iCAF") == "stromal"
+    assert ST.compartment_of_neighbor("Smooth muscle") == "stromal"
+    assert ST.compartment_of_neighbor("B, Plasma cell") == "immune"
+    assert ST.compartment_of_neighbor("Epithelial (ADM-like)") == "epithelial_normal"
+
+
 def test_products_resolve_to_catalog_s3_uris():
     from methods.catalog_query.read import s3_uri_for
     assert s3_uri_for("spatial-coloc-tumor-crc-coadread-v1").endswith(

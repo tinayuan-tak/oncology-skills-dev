@@ -28,6 +28,12 @@ _NEIGHBOR_COMPARTMENT = {
     "B_cell": "immune", "T_cell": "immune", "Mocrophage": "immune", "Macrophage": "immune",
     "Plasma_cell": "immune",
     "Endothelial": "endothelial",
+    # GSE280634 PDAC Xenium labels (CAF variants tokenize to a single glued token the fallback misses;
+    # 'Epithelial (ADM-like)' = acinar-to-ductal metaplasia = normal-ish epithelium)
+    "myCAF": "stromal", "iCAF": "stromal", "apCAF": "stromal",
+    "Smooth muscle": "stromal", "Proliferative fibroblast": "stromal",
+    "T cell": "immune", "Mast cell": "immune", "B, Plasma cell": "immune",
+    "Epithelial (ADM-like)": "epithelial_normal",
 }
 _COORDINATED_MIN = 1.15      # per-compartment enrichment >= => spatially co-localized
 _SEGREGATED_MAX = 0.85       # <= => spatially segregated

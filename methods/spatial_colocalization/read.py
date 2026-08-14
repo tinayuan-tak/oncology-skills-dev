@@ -30,6 +30,7 @@ INDICATION_TO_SPATIAL_COLOC = {
     "COAD": "spatial-coloc-tumor-crc-coadread-v1",
     "READ": "spatial-coloc-tumor-crc-coadread-v1",
     "STAD": "spatial-coloc-tumor-stad-v1",     # gastric — CosMx (GSE308624); net-new indication (Phase 2)
+    "PAAD": "spatial-coloc-tumor-paad-v1",     # pancreatic — Xenium (GSE280634); GI facet (Phase 4)
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "neighbor_cell_type",
