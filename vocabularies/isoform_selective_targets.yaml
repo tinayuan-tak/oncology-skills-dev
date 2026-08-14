@@ -36,7 +36,7 @@
 #     provide the cleanest structured statement; the primary lit citation
 #     is the authoritative pointer for scientific defensibility.
 
-version: 1.0.0
+version: 1.1.0   # 2026-08-14: + oncotree_codes / pan_applicable per entry → indication-scoped suppression
 snapshot_date: "2026-07-08"
 curator: ryan.abo@takeda.com
 
@@ -70,6 +70,10 @@ entries:
   ERBB2:
     dominant_isoform: p95HER2 (611-CTF, 100/95 kDa)
     variant_type: proteolytic_cleavage_product
+    # oncotree_codes (2026-08-14, indication-scope): OncoTree codes where the dominant alt isoform is
+    # clinically established (from tumor_context). Consumers gate the modality-fit SUPPRESSION on
+    # membership — off-context the isoform is rare/absent, so the gene-level fit_class stands (annotated).
+    oncotree_codes: [BRCA, STAD]
     tumor_context:
       - indication: gastric_cancer
         prevalence_note: "Constitutively-active p95HER2 detected in ~30% of HER2+ gastric tumors; ADC epitope absent in the cleaved fragment"
@@ -97,6 +101,7 @@ entries:
   AR:
     dominant_isoform: AR-V7 (androgen-receptor splice variant 7)
     variant_type: splice_variant
+    oncotree_codes: [PRAD]
     tumor_context:
       - indication: metastatic_castration_resistant_prostate_cancer
         prevalence_note: "AR-V7 detected in ~30-40% of mCRPC after progression on abiraterone/enzalutamide; predicts anti-androgen resistance"
@@ -120,6 +125,7 @@ entries:
   MET:
     dominant_isoform: MET exon 14 skipping (METex14)
     variant_type: splice_variant
+    oncotree_codes: [LUAD, LUSC, NSCLC]
     tumor_context:
       - indication: non_small_cell_lung_cancer
         prevalence_note: "METex14 detected in ~3-4% of NSCLC (higher in older, non-smoker adenocarcinoma); FDA-approved biomarker for capmatinib + tepotinib"
@@ -155,6 +161,7 @@ entries:
   EGFR:
     dominant_isoform: EGFRvIII (variant III, exon 2-7 deletion)
     variant_type: exon_deletion
+    oncotree_codes: [GBM, GBMLGG, DIFG]
     tumor_context:
       - indication: glioblastoma
         prevalence_note: "EGFRvIII detected in ~30% of EGFR-amplified glioblastoma; also GBM-restricted (rare in other tumors)"
@@ -184,6 +191,7 @@ entries:
   BRAF:
     dominant_isoform: BRAF fusions (KIAA1549-BRAF, AGK-BRAF, others)
     variant_type: gene_fusion
+    oncotree_codes: [LGG, DIFG, PLGG, GBMLGG]
     tumor_context:
       - indication: pediatric_low_grade_glioma
         prevalence_note: "KIAA1549-BRAF fusion in ~70% of pilocytic astrocytoma; also in adult melanoma-rare + spitzoid neoplasms"
@@ -209,6 +217,7 @@ entries:
   MDM2:
     dominant_isoform: MDM2 splice variants (MDM2-A, MDM2-B, others)
     variant_type: splice_variant
+    oncotree_codes: [LIPO, DDLS, WDLS, MLPS, SARC]
     tumor_context:
       - indication: liposarcoma
         prevalence_note: "MDM2-A/B splice variants enriched in high-grade sarcomas; alter the p53-binding N-terminal domain"
@@ -233,6 +242,7 @@ entries:
   CD19:
     dominant_isoform: CD19 exon 2 skipping / delΔex2
     variant_type: acquired_resistance_splice_variant
+    oncotree_codes: [BALL, LNM, DLBCL]
     tumor_context:
       - indication: b_cell_acute_lymphoblastic_leukemia
         prevalence_note: "CD19-Δex2 isoform enriched at relapse post CD19-CAR-T (blinatumomab / tisagenlecleucel); antigen-loss escape mechanism"
@@ -258,6 +268,11 @@ entries:
   FGFR2:
     dominant_isoform: FGFR2 IIIb vs IIIc + intracellular fusions (FGFR2-BICC1, FGFR2-AHCYL1)
     variant_type: mixed_splice_variant_and_fusion
+    # pan_applicable: the IIIb/IIIc ectodomain-splice choice is a PAN-EPITHELIAL isoform axis (not one
+    # indication), so the suppression stays indication-agnostic here by design. oncotree_codes lists the
+    # anchor context; pan_applicable=true makes the scope gate always-in-context for this entry.
+    oncotree_codes: [CHOL]
+    pan_applicable: true
     tumor_context:
       - indication: intrahepatic_cholangiocarcinoma
         prevalence_note: "FGFR2 fusions detected in ~10-15% of iCCA; FDA-approved biomarker for pemigatinib + futibatinib"

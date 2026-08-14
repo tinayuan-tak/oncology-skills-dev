@@ -51,7 +51,8 @@ outputs:
     - is_tce_topology_favorable                   # bool — biology-only signal
     - endocytosis_confidence                      # 'high' | 'moderate' | 'low' | 'unmeasured'
     - surface_family_class                        # from surfaceome-family-classification
-    - isoform_selective_suppressed                # bool — TRUE if letter grades were suppressed
+    - isoform_selective_suppressed                # bool — TRUE if letter grades were suppressed (in-context isoform)
+    - isoform_selective_offcontext                # bool — 2026-08-14: gene HAS a curated dominant alt isoform but NOT in this indication → fit_class NOT suppressed, caveat only
     - method_version
 
     # ============= LENS-CONDITIONAL: modality (ARCH A2) =============
