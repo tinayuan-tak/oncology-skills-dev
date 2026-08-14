@@ -35,7 +35,7 @@ from orthogonality import score_orthogonality   # noqa: E402 — skill-local E7 
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.1.0"   # sc-normal-celltype-expression — scRNA cell-type-resolved normal-tissue safety (sc_rna/normal)
+SKILL_VERSION = "1.2.0"   # sc-normal-celltype-expression — scRNA cell-type-resolved normal-tissue safety (sc_rna/normal)
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
 # cards reachability.verdict_relevant_cards("surface_modality") derives — adc-tce-modality-fit

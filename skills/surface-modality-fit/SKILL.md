@@ -45,7 +45,7 @@ description: |
   target TCE-viable topologically?"
 
 metadata:
-  version: 1.0.0
+  version: 1.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

@@ -1,0 +1,475 @@
+adc-tce-modality-fit:
+  _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
+  endocytosis_confidence: clinically_internalizing
+  fit_class: isoform_dependent_undefined
+  fit_rationale: tm_count=1, ec_length=630, endo_motif_hc=unmeasured, n_ubiq=unmeasured
+  gpi_surface_rescued: false
+  is_adc_topology_favorable: true
+  is_gpi_anchored: false
+  is_tce_topology_favorable: true
+  isoform_selective_suppressed: true
+  structure_epitope_context:
+    alphafold_confidence_class: moderate
+    disordered_fraction: 0.2454
+    hotspot_pocket_adjacency_call: adjacent
+  surface_family_class: kinase_surface
+cd-antigen-backbone:
+  _data_source: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08
+  cd_antigen_backbone_class: cd_antigen
+  cd_gene_groups:
+  - CD molecules
+  - Minor histocompatibility antigens
+  - Erb-b2 receptor tyrosine kinases
+  - MicroRNA protein coding host genes
+  cd_number: CD340
+  cd_roster_uniprot: P04626
+  established_io_precedent: false
+  method_version: 1.0.0
+  on_cd_roster: true
+  target: ERBB2
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: dispersed_neutral
+  cn_fraction_deep_deletion: 0.0024
+  cn_fraction_focal_amplification: 0.0528
+  cn_fraction_high_amplification: 0.0232
+  cn_fraction_neutral: 0.4344
+  cn_fraction_shallow_amplification: 0.3296
+  cn_fraction_shallow_deletion: 0.1576
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.17891214787960052
+  cn_median_panel: 1.0444565415382385
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.9890874475240707
+  cn_p5_panel: 0.7614267498254776
+  cn_p75_panel: 1.1679995954036713
+  cn_p95_panel: 1.6438536822795866
+  cn_recurrent_amplification_score: 0.076
+  cn_recurrent_deletion_score: 0.16
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 0.34
+    fraction_of_amp_tail: 0.17894736842105263
+    lineage: Breast
+    median_cn: 1.0853577256202698
+    n_in_lineage: 50
+  - fraction_focal_amplified: 0.2247191011235955
+    fraction_of_amp_tail: 0.21052631578947367
+    lineage: Esophagus/Stomach
+    median_cn: 1.0733287334442139
+    n_in_lineage: 89
+  - fraction_focal_amplified: 0.16666666666666666
+    fraction_of_amp_tail: 0.010526315789473684
+    lineage: Testis
+    median_cn: 0.8407631516456604
+    n_in_lineage: 6
+  - fraction_focal_amplified: 0.15384615384615385
+    fraction_of_amp_tail: 0.021052631578947368
+    lineage: Biliary Tract
+    median_cn: 1.2067593336105347
+    n_in_lineage: 13
+  - fraction_focal_amplified: 0.15151515151515152
+    fraction_of_amp_tail: 0.05263157894736842
+    lineage: Peripheral Nervous System
+    median_cn: 1.0509922504425049
+    n_in_lineage: 33
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.6666666666666666
+    fraction_of_del_tail: 0.02
+    lineage: Testis
+    median_cn: 0.8407631516456604
+    n_in_lineage: 6
+  - fraction_deleted: 0.32
+    fraction_of_del_tail: 0.08
+    lineage: Breast
+    median_cn: 1.0853577256202698
+    n_in_lineage: 50
+  - fraction_deleted: 0.2982456140350877
+    fraction_of_del_tail: 0.085
+    lineage: Bone
+    median_cn: 0.9868283271789551
+    n_in_lineage: 57
+  - fraction_deleted: 0.2911392405063291
+    fraction_of_del_tail: 0.115
+    lineage: CNS/Brain
+    median_cn: 1.0427201986312866
+    n_in_lineage: 79
+  - fraction_deleted: 0.2619047619047619
+    fraction_of_del_tail: 0.055
+    lineage: Ovary/Fallopian Tube
+    median_cn: 1.036881148815155
+    n_in_lineage: 42
+  copy_number_class: broadly_neutral
+  patient_amplified_fraction: 0.2533783783783784
+  patient_cn_context: "COADREAD: 25% of 592 TCGA GISTIC samples amplify ERBB2 (3%\
+    \ high-level +2), 11% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check\
+    \ to the DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: recurrently_amplified
+  patient_deleted_fraction: 0.11317567567567567
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.033783783783783786
+  patient_homdel_fraction: 0.0
+modality-exon-window:
+  best_exon_id: ENSE00002705233
+  best_exon_max_essential_tpm: 270.64
+  best_exon_tumor_tpm: 161.49
+  best_exon_window_ratio: 0.6
+  exon_heterogeneity_log2: 1.24
+  exon_window_class: essential_exon_liability
+  indication: COADREAD
+  median_exon_tumor_log2tpm: 6.1
+  method_version: 1.1.0
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_exons: 73
+  target: ERBB2
+  tumor_studies:
+  - COAD
+  - READ
+modality-therapeutic-window:
+  full_normal_window_class: no_full_normal_window
+  indication: COADREAD
+  max_essential_normal_organ: NERVE
+  max_essential_normal_tpm: 67.68
+  max_full_normal_organ: NERVE
+  max_full_normal_tpm: 67.68
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_gtex_tissues: 31
+  target: ERBB2
+  therapeutic_window_class: no_therapeutic_window
+  tumor_studies:
+  - COAD
+  - READ
+  tumor_tpm: 45.51
+  window_class: essential_tissue_liability
+  window_ratio_essential: 0.68
+  window_ratio_full_normal: 0.68
+mutation-stratified-surface:
+  _data_source: mutation-stratified-surface-window-v1
+  delta_log2: null
+  driver_gene: KRAS
+  indication: COADREAD
+  method_version: 0.1.0
+  mutant_stratified_surface_class: not_in_product
+  mutation_stratified_context: '''ERBB2'' not in the mutation-stratified surface product
+    for KRAS/COADREAD (coverage gap; v1 covers KRAS/NSCLC only).'
+  n_mutant: null
+  n_wt: null
+  q_value: null
+normal-tissue-liability:
+  essential_tissue_flag: absent
+  essential_tissues_flagged: []
+  hpa_tissue_distribution: Detected in many
+  hpa_tissue_specificity: Tissue enriched
+  method_version: 0.1.0
+  n_essential_tissues_with_expression: 0
+  n_specific_tissues: 1
+  normal_tissue_breadth_class: broad_normal_expression
+  safety_tissue_flags:
+  - broad
+  specific_tissues:
+  - intensity: 8296603.9
+    tissue: lymphoid tissue
+pathway-stratified-surface:
+  _data_source: pathway-stratified-surface-window-v1
+  delta_log2: null
+  indication: COADREAD
+  method_version: 0.1.0
+  n_high: null
+  n_low: null
+  pathway_stratified_context: '''ERBB2'' not in the pathway-stratified surface product
+    for HALLMARK_HYPOXIA/COADREAD (coverage gap; v1 covers HALLMARK_HYPOXIA/NSCLC
+    only).'
+  pathway_stratified_surface_class: not_in_product
+  q_value: null
+  signature: HALLMARK_HYPOXIA
+pmhc-presentation:
+  _data_source: hla-ligand-atlas-presentation-per-protein-v1
+  hla_class: HLA-I+II
+  method_version: 1.0.0
+  n_normal_tissues_presented: 14
+  n_presented_peptides: 10
+  n_strong_binder_peptides: 8
+  n_weak_binder_peptides: 0
+  normal_tissues_presented: Adrenal gland;Cerebellum;Esophagus;Kidney;Lung;Lymph node;Prostate;Skin;Testis;Thymus;Thyroid;Tongue;Trachea;Uterus
+  pmhc_presentation_class: intermediate_presentation
+  uniprot_ac: P04626
+protein-surface-evidence:
+  _data_source: cspa-surface-confirmation-per-uniprot-v1
+  cspa_category: 1 - high confidence
+  evidence_tier: measured
+  hpa_if_plasma_membrane: true
+  hpa_if_reliability: Enhanced
+  hpa_if_surface_class: plasma_membrane_main
+  measured_in_cspa: true
+  method_version: 0.2.0
+  n_celllines_detected: 14
+  surface_confirmation_class: confirmed_high
+  surface_multimodal_support: corroborated_surface
+  uniprot_ac: P04626
+rna-protein-concordance-tumor:
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_paired_tumors: 96
+  rna_as_biomarker: poor_proxy
+  rna_protein_r: 0.3068
+  rna_protein_spearman: 0.2958
+  substrate: cptac_tumor
+  target: ERBB2
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: nephron tubule epithelial cell
+  max_detection_fraction: 0.7442178940961655
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 57
+  n_reliable_cell_types: 251
+  origin_tissues:
+  - colon
+  safety_essential_flags:
+    BEST4+ colonocyte: 0.4243421052631579
+    BEST4+ enterocyte: 0.2782462057335582
+    cardiac muscle cell: 0.16337017507756801
+    cardiac neuron: 0.05263157894736842
+    colonocyte: 0.35443037974683544
+    early colonocyte: 0.6951219512195121
+    enteric neuron: 0.16326530612244897
+    enterocyte: 0.2813089993706734
+    enterocyte of epithelium of large intestine: 0.3691292517006802
+    fetal cardiomyocyte: 0.06358381502890173
+    hepatocyte: 0.06278026905829596
+    interneuron: 0.14285714285714285
+    kidney collecting duct alpha-intercalated cell: 0.3748569139194139
+    kidney collecting duct cell: 0.4190503432494279
+    kidney collecting duct intercalated cell: 0.5
+    kidney collecting duct principal cell: 0.6073194856577646
+    kidney loop of Henle ascending limb epithelial cell: 0.1651821862348178
+    kidney loop of Henle cortical thick ascending limb epithelial cell: 0.5806451612903226
+    kidney loop of Henle descending limb epithelial cell: 0.06858108108108107
+    kidney loop of Henle epithelial cell: 0.349802371541502
+    kidney loop of Henle thick ascending limb epithelial cell: 0.3937007874015748
+    kidney loop of Henle thin ascending limb epithelial cell: 0.4444444444444444
+    kidney loop of Henle thin descending limb epithelial cell: 0.38414634146341464
+    midzonal region hepatocyte: 0.054093567251461985
+    neuron: 0.08860759493670886
+    ventricular cardiac muscle cell: 0.1111111111111111
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+shed-ectodomain-liability:
+  hpa_secretome_location: null
+  measured_shed_class: not_on_secreted_panel
+  media_mean_npx: null
+  media_n_lines_detected: null
+  media_panel_high_npx: 1.358
+  media_uniprot: P04626
+  method_version: 0.2.0
+  serum_marker: serum HER2/neu ECD (clinical, distinct from p95HER2 intracellular
+    fragment)
+  shed_evidence_tier: clinical
+  shed_liability_class: clinically_shed
+  shed_product: shed HER2 extracellular domain (HER2-ECD / p105 soluble ECD)
+  shedding_protease: ADAM10
+  source_citation: 'Codony-Servat J et al. 1999. Cleavage of the HER2 ectodomain is
+    a pervanadate-activable process inhibited by TIMP-1 in breast cancer cells. Cancer
+    Res 59(6):1196-201.
+
+    '
+structure-features-static:
+  _data_source: pdb-alphafold-structure-features-per-uniprot-v1
+  _ligandability_source: structure-ligandability-per-protein-v1
+  alphafold_confidence_class: moderate
+  alphafold_plddt_mean: 73.983
+  alphafold_plddt_min: 22.91
+  alphafold_plddt_min_domain: 40.84
+  disordered_fraction: 0.2454
+  has_annotated_binding_site: true
+  has_cryptic_site: false
+  has_druggable_pocket: true
+  has_experimental_cocrystal: true
+  has_virtual_screen_hit: true
+  hotspot_pocket_adjacency_call: adjacent
+  is_foldable: true
+  ligandability_disorder_class: partially_disordered
+  method_version: 0.2.0
+  mutation_hotspot_in_druggable_pocket: true
+  n_domains_low_plddt: 6
+  n_ligandability_axes: 4
+  pdb_best_method: X-ray diffraction
+  pdb_best_resolution_angstrom: 1.25
+  pdb_coverage_class: strong
+  pdb_ids_available:
+  - 1MFG
+  - 1MFL
+  - 1MW4
+  - 1N8Z
+  - 1QR1
+  - 1S78
+  - 2A91
+  - 2JWA
+  - 2KS1
+  - 2L4K
+  - 2N2A
+  - 3BE1
+  - 3H3B
+  - 3MZW
+  - 3N85
+  - 3PP0
+  - 3RCD
+  - 3WLW
+  - 3WSQ
+  - 4GFU
+  - 4HRL
+  - 4HRM
+  - 4HRN
+  - 4NND
+  - 5K33
+  - 5KWG
+  - 5MY6
+  - 5O4G
+  - 5OB4
+  - 5TQS
+  - 6ATT
+  - 6BGT
+  - 6J71
+  - 6LBX
+  - 6OGE
+  - 7JXH
+  - 7MN5
+  - 7MN6
+  - 7MN8
+  - 7PCD
+  - 7QVK
+  - 8FFJ
+  - 8HGO
+  - 8HGP
+  - 8JYQ
+  - 8JYR
+  - 8PWH
+  - 8Q6J
+  - 8U4K
+  - 8U4L
+  - 8U8X
+  - 8VB5
+  - 8VQD
+  - 8VQE
+  - 9IUT
+  - 9L1S
+  - 9MTE
+  - 9MTX
+  - 9QBF
+  - 9QBG
+  - 9QBH
+  - 9T3R
+  - 9T3S
+  structural_ligandability_class: experimental_ligandable
+surface-abundance-density:
+  _tier2_estimate_error: 'ModuleNotFoundError: No module named ''percentile_null'''
+  absolute_copies_per_cell: 46523.0
+  absolute_density_class: high
+  absolute_density_grade: B-
+  absolute_measurement_semantics: fluorophore_equivalent_proxy
+  absolute_n_measurements: 1
+  density_floor_verdict: above_adc_high_payload_floor
+  surface_density_class: unmeasured
+surface-topology-and-ptm:
+  _ptm_coverage: data_unavailable
+  ecd_engineerability_class: large_ecd
+  ecd_orientation: outside
+  endocytosis_motif_count: null
+  endocytosis_motif_count_high_confidence: null
+  endocytosis_motif_types: []
+  extracellular_residue_count: 630
+  has_tm_beta: false
+  isoform_selective_dominant_isoform: p95HER2 (611-CTF, 100/95 kDa)
+  isoform_selective_warning: true
+  method_version: read-0.1.0
+  n_glycosylation_sites: null
+  n_ubiquitination_sites: null
+  signal_peptide_length: 21
+  signal_peptide_present: true
+  tm_pass_count: 1
+  tmbed_model_version: 1.0.2
+  topology_class: single_pass_type_1
+  topology_summary: SP|TM-alpha|ECD-outside
+  vocabulary_version_isoform: 1.0.0
+surfaceome-family-classification:
+  _data_source: surfaceome-family-classification-per-uniprot-v1
+  family_class: kinase_surface
+  fusion_provenance:
+  - surfy:surface
+  - hpa:surface,CD_molecule
+  - uniprot_ec:2.7.10.1
+  hpa_protein_class_verbatim: Cancer-related genes, CD markers, Disease related genes,
+    Enzymes, FDA approved drug targets, Human disease related genes, Plasma proteins,
+    Predicted intracellular proteins, Predicted membrane proteins, Transporters
+  is_surface_protein: true
+  method_version: 0.1.0
+  source_hpa_plasma_membrane: true
+  source_iuphar_family: ''
+  source_surfy_positive: true
+  source_uniprot_ec_number: 2.7.10.1
+  surface_protein_family: Kinase
+  surfaceome_confidence_score: 1.0
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k: 0.06505
+  caf_compartment_available: true
+  caf_detection_fraction: 0.08333
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.1
+    immune: 0.00646
+    malignant: 0.41304
+    other: 0.03636
+    stromal: 0.08333
+  indication: COADREAD
+  malignant_abundance_log1p_cp10k: 0.23413
+  malignant_compartment_available: true
+  malignant_detection_fraction: 0.41304
+  malignant_n_donors: 365
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 46
+  n_donor_groups: 452
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.23413
+    median_detection_fraction: 0.41304
+    n_cells_total: 509546
+    n_donors: 365
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.06505
+    median_detection_fraction: 0.08333
+    n_cells_total: 136696
+    n_donors: 278
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.00673
+    median_detection_fraction: 0.00646
+    n_cells_total: 1105545
+    n_donors: 387
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.11401
+    median_detection_fraction: 0.1
+    n_cells_total: 2943
+    n_donors: 51
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.05351
+    median_detection_fraction: 0.03636
+    n_cells_total: 14467
+    n_donors: 149
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: malignant_subset_detected
+  tce_homogeneity_class: moderately_homogeneous
+  top_microenvironment_compartment: stromal
+  top_microenvironment_detection_fraction: 0.08333

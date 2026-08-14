@@ -1,0 +1,376 @@
+adc-tce-modality-fit:
+  _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
+  endocytosis_confidence: clinically_internalizing
+  fit_class: both_viable
+  fit_rationale: tm_count=1, ec_length=246, endo_motif_hc=unmeasured, n_ubiq=unmeasured
+  gpi_surface_rescued: false
+  is_adc_topology_favorable: true
+  is_gpi_anchored: false
+  is_tce_topology_favorable: true
+  isoform_selective_suppressed: false
+  structure_epitope_context:
+    alphafold_confidence_class: moderate
+    disordered_fraction: 0.0867
+    hotspot_pocket_adjacency_call: no_hotspots_annotated
+  surface_family_class: other_surface
+cd-antigen-backbone:
+  _data_source: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08
+  cd_antigen_backbone_class: not_cd_antigen
+  cd_gene_groups: null
+  cd_number: null
+  cd_roster_uniprot: null
+  established_io_precedent: false
+  method_version: 1.0.0
+  on_cd_roster: false
+  target: TACSTD2
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: del_dominant
+  cn_fraction_deep_deletion: 0.0032
+  cn_fraction_focal_amplification: 0.0288
+  cn_fraction_high_amplification: 0.0008
+  cn_fraction_neutral: 0.48
+  cn_fraction_shallow_amplification: 0.284
+  cn_fraction_shallow_deletion: 0.2032
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.15502981841564178
+  cn_median_panel: 1.0221422910690308
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.9500800520181656
+  cn_p5_panel: 0.6942148268222809
+  cn_p75_panel: 1.1051098704338074
+  cn_p95_panel: 1.4003372192382812
+  cn_recurrent_amplification_score: 0.029599999999999998
+  cn_recurrent_deletion_score: 0.2064
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 0.5
+    fraction_of_amp_tail: 0.08108108108108109
+    lineage: Testis
+    median_cn: 1.3518412113189697
+    n_in_lineage: 6
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.38461538461538464
+    fraction_of_del_tail: 0.01937984496124031
+    lineage: Biliary Tract
+    median_cn: 0.9766178131103516
+    n_in_lineage: 13
+  - fraction_deleted: 0.375
+    fraction_of_del_tail: 0.06976744186046512
+    lineage: Pancreas
+    median_cn: 0.9894813001155853
+    n_in_lineage: 48
+  - fraction_deleted: 0.3728813559322034
+    fraction_of_del_tail: 0.08527131782945736
+    lineage: Bowel
+    median_cn: 0.9630202054977417
+    n_in_lineage: 59
+  - fraction_deleted: 0.35294117647058826
+    fraction_of_del_tail: 0.023255813953488372
+    lineage: Liver
+    median_cn: 1.0007739067077637
+    n_in_lineage: 17
+  - fraction_deleted: 0.3258426966292135
+    fraction_of_del_tail: 0.1124031007751938
+    lineage: Esophagus/Stomach
+    median_cn: 1.0334811210632324
+    n_in_lineage: 89
+  copy_number_class: recurrently_deleted
+  patient_amplified_fraction: 0.033783783783783786
+  patient_cn_context: "COADREAD: 3% of 592 TCGA GISTIC samples amplify TACSTD2 (0%\
+    \ high-level +2), 29% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check\
+    \ to the DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: recurrently_deleted
+  patient_deleted_fraction: 0.28716216216216217
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.0
+  patient_homdel_fraction: 0.0
+modality-exon-window:
+  best_exon_id: ENSE00001454677
+  best_exon_max_essential_tpm: 94.74
+  best_exon_tumor_tpm: 9.86
+  best_exon_window_ratio: 0.11
+  exon_heterogeneity_log2: 0.0
+  exon_window_class: essential_exon_liability
+  indication: COADREAD
+  median_exon_tumor_log2tpm: 3.44
+  method_version: 1.1.0
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_exons: 1
+  target: TACSTD2
+  tumor_studies:
+  - COAD
+  - READ
+modality-therapeutic-window:
+  full_normal_window_class: no_full_normal_window
+  indication: COADREAD
+  max_essential_normal_organ: LUNG
+  max_essential_normal_tpm: 94.74
+  max_full_normal_organ: SALIVARY_GLAND
+  max_full_normal_tpm: 508.6
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_gtex_tissues: 31
+  target: TACSTD2
+  therapeutic_window_class: no_therapeutic_window
+  tumor_studies:
+  - COAD
+  - READ
+  tumor_tpm: 9.86
+  window_class: essential_tissue_liability
+  window_ratio_essential: 0.11
+  window_ratio_full_normal: 0.02
+mutation-stratified-surface:
+  _data_source: mutation-stratified-surface-window-v1
+  delta_log2: null
+  driver_gene: KRAS
+  indication: COADREAD
+  method_version: 0.1.0
+  mutant_stratified_surface_class: not_in_product
+  mutation_stratified_context: '''TACSTD2'' not in the mutation-stratified surface
+    product for KRAS/COADREAD (coverage gap; v1 covers KRAS/NSCLC only).'
+  n_mutant: null
+  n_wt: null
+  q_value: null
+normal-tissue-liability:
+  essential_tissue_flag: present
+  essential_tissues_flagged:
+  - lung
+  hpa_tissue_distribution: Detected in many
+  hpa_tissue_specificity: Tissue enhanced
+  method_version: 0.1.0
+  n_essential_tissues_with_expression: 1
+  n_specific_tissues: 2
+  normal_tissue_breadth_class: broad_normal_expression
+  safety_tissue_flags:
+  - essential_tissue
+  - broad
+  specific_tissues:
+  - intensity: 22139708.2
+    tissue: lung
+  - intensity: 23989590.1
+    tissue: salivary gland
+pathway-stratified-surface:
+  _data_source: pathway-stratified-surface-window-v1
+  delta_log2: null
+  indication: COADREAD
+  method_version: 0.1.0
+  n_high: null
+  n_low: null
+  pathway_stratified_context: '''TACSTD2'' not in the pathway-stratified surface product
+    for HALLMARK_HYPOXIA/COADREAD (coverage gap; v1 covers HALLMARK_HYPOXIA/NSCLC
+    only).'
+  pathway_stratified_surface_class: not_in_product
+  q_value: null
+  signature: HALLMARK_HYPOXIA
+pmhc-presentation:
+  _data_source: hla-ligand-atlas-presentation-per-protein-v1
+  hla_class: HLA-I+II
+  method_version: 1.0.0
+  n_normal_tissues_presented: 10
+  n_presented_peptides: 35
+  n_strong_binder_peptides: 22
+  n_weak_binder_peptides: 8
+  normal_tissues_presented: Bladder;Brain;Esophagus;Kidney;Lung;Lymph node;Skin;Thymus;Tongue;Trachea
+  pmhc_presentation_class: intermediate_presentation
+  uniprot_ac: P09758
+protein-surface-evidence:
+  _data_source: cspa-surface-confirmation-per-uniprot-v1
+  cspa_category: 1 - high confidence
+  evidence_tier: measured
+  hpa_if_plasma_membrane: true
+  hpa_if_reliability: Supported
+  hpa_if_surface_class: plasma_membrane_main
+  measured_in_cspa: true
+  method_version: 0.2.0
+  n_celllines_detected: 3
+  surface_confirmation_class: confirmed_high
+  surface_multimodal_support: corroborated_surface
+  uniprot_ac: P09758
+rna-protein-concordance-tumor:
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_paired_tumors: 50
+  rna_as_biomarker: adequate_proxy
+  rna_protein_r: 0.9051
+  rna_protein_spearman: 0.886
+  substrate: cptac_tumor
+  target: TACSTD2
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: papillary tips cell
+  max_detection_fraction: 0.9661016949152542
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 22
+  n_reliable_cell_types: 89
+  origin_tissues:
+  - colon
+  safety_essential_flags:
+    kidney collecting duct alpha-intercalated cell: 0.05971945674462836
+    kidney collecting duct cell: 0.7049689440993789
+    kidney collecting duct intercalated cell: 0.30392156862745096
+    kidney collecting duct principal cell: 0.6764705882352942
+    kidney loop of Henle cortical thick ascending limb epithelial cell: 0.5357142857142857
+    kidney loop of Henle descending limb epithelial cell: 0.05337837837837838
+    kidney loop of Henle epithelial cell: 0.2608695652173913
+    kidney loop of Henle thick ascending limb epithelial cell: 0.29605263157894735
+    kidney loop of Henle thin ascending limb epithelial cell: 0.7049180327868853
+    kidney loop of Henle thin descending limb epithelial cell: 0.4203305068985038
+    neuron: 0.05660754074463332
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+shed-ectodomain-liability:
+  hpa_secretome_location: null
+  measured_shed_class: not_on_secreted_panel
+  media_mean_npx: null
+  media_n_lines_detected: null
+  media_panel_high_npx: 1.358
+  media_uniprot: P09758
+  method_version: 0.2.0
+  serum_marker: null
+  shed_evidence_tier: none
+  shed_liability_class: not_shed_membrane_retained
+  shed_product: null
+  shedding_protease: null
+  source_citation: null
+structure-features-static:
+  _data_source: pdb-alphafold-structure-features-per-uniprot-v1
+  _ligandability_source: structure-ligandability-per-protein-v1
+  alphafold_confidence_class: moderate
+  alphafold_plddt_mean: 82.684
+  alphafold_plddt_min: 31.61
+  alphafold_plddt_min_domain: 31.61
+  disordered_fraction: 0.0867
+  has_annotated_binding_site: false
+  has_cryptic_site: false
+  has_druggable_pocket: true
+  has_experimental_cocrystal: true
+  has_virtual_screen_hit: false
+  hotspot_pocket_adjacency_call: no_hotspots_annotated
+  is_foldable: true
+  ligandability_disorder_class: mostly_ordered
+  method_version: 0.2.0
+  mutation_hotspot_in_druggable_pocket: false
+  n_domains_low_plddt: 2
+  n_ligandability_axes: 2
+  pdb_best_method: X-ray diffraction
+  pdb_best_resolution_angstrom: 1.56
+  pdb_coverage_class: strong
+  pdb_ids_available:
+  - 2MAE
+  - 2MVK
+  - 2MVL
+  - 7E5M
+  - 7E5N
+  - 7PEE
+  - 9PI9
+  structural_ligandability_class: experimental_ligandable
+surface-abundance-density:
+  _tier2_estimate_error: 'ModuleNotFoundError: No module named ''percentile_null'''
+  absolute_copies_per_cell: 90000.0
+  absolute_density_class: high
+  absolute_density_grade: B
+  absolute_measurement_semantics: molecules
+  absolute_n_measurements: 1
+  density_floor_verdict: above_adc_high_payload_floor
+  surface_density_class: unmeasured
+surface-topology-and-ptm:
+  _ptm_coverage: data_unavailable
+  ecd_engineerability_class: large_ecd
+  ecd_orientation: outside
+  endocytosis_motif_count: null
+  endocytosis_motif_count_high_confidence: null
+  endocytosis_motif_types: []
+  extracellular_residue_count: 246
+  has_tm_beta: false
+  isoform_selective_dominant_isoform: null
+  isoform_selective_warning: false
+  method_version: read-0.1.0
+  n_glycosylation_sites: null
+  n_ubiquitination_sites: null
+  signal_peptide_length: 29
+  signal_peptide_present: true
+  tm_pass_count: 1
+  tmbed_model_version: 1.0.2
+  topology_class: single_pass_type_1
+  topology_summary: SP|TM-alpha|ECD-outside
+surfaceome-family-classification:
+  _data_source: surfaceome-family-classification-per-uniprot-v1
+  family_class: other_surface
+  fusion_provenance:
+  - surfy:surface
+  - hpa:surface
+  hpa_protein_class_verbatim: Disease related genes, FDA approved drug targets, Human
+    disease related genes, Predicted membrane proteins
+  is_surface_protein: true
+  method_version: 0.1.0
+  source_hpa_plasma_membrane: true
+  source_iuphar_family: ''
+  source_surfy_positive: true
+  source_uniprot_ec_number: ''
+  surface_protein_family: Other
+  surfaceome_confidence_score: 1.0
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k: 0.038335
+  caf_compartment_available: true
+  caf_detection_fraction: 0.047950000000000007
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.17272500000000002
+    immune: 0.00313
+    malignant: 0.113615
+    other: 0.01985
+    stromal: 0.047950000000000007
+  indication: COADREAD
+  malignant_abundance_log1p_cp10k: 0.072635
+  malignant_compartment_available: true
+  malignant_detection_fraction: 0.113615
+  malignant_n_donors: 350
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 44
+  n_donor_groups: 430
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.072635
+    median_detection_fraction: 0.113615
+    n_cells_total: 503126
+    n_donors: 350
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.038335
+    median_detection_fraction: 0.047950000000000007
+    n_cells_total: 133651
+    n_donors: 262
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.00349
+    median_detection_fraction: 0.00313
+    n_cells_total: 1046159
+    n_donors: 339
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.138705
+    median_detection_fraction: 0.17272500000000002
+    n_cells_total: 1629
+    n_donors: 26
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.024730000000000002
+    median_detection_fraction: 0.01985
+    n_cells_total: 4666
+    n_donors: 48
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: malignant_subset_detected
+  tce_homogeneity_class: heterogeneous
+  top_microenvironment_compartment: stromal
+  top_microenvironment_detection_fraction: 0.047950000000000007

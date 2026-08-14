@@ -1,0 +1,392 @@
+adc-tce-modality-fit:
+  _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
+  endocytosis_confidence: clinically_internalizing
+  fit_class: both_viable
+  fit_rationale: tm_count=1, ec_length=654, endo_motif_hc=unmeasured, n_ubiq=unmeasured
+  gpi_surface_rescued: false
+  is_adc_topology_favorable: true
+  is_gpi_anchored: true
+  is_tce_topology_favorable: true
+  isoform_selective_suppressed: false
+  structure_epitope_context:
+    alphafold_confidence_class: moderate
+    disordered_fraction: 0.0812
+    hotspot_pocket_adjacency_call: no_hotspots_annotated
+  surface_family_class: cd_molecule
+cd-antigen-backbone:
+  _data_source: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08
+  cd_antigen_backbone_class: cd_antigen
+  cd_gene_groups:
+  - CD molecules
+  - V-set domain containing
+  - I-set domain containing
+  - CEA cell adhesion molecule family
+  cd_number: CD66e
+  cd_roster_uniprot: P06731
+  established_io_precedent: false
+  method_version: 1.0.0
+  on_cd_roster: true
+  target: CEACAM5
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: del_dominant
+  cn_fraction_deep_deletion: 0.0048
+  cn_fraction_focal_amplification: 0.0456
+  cn_fraction_high_amplification: 0.0008
+  cn_fraction_neutral: 0.4488
+  cn_fraction_shallow_amplification: 0.3016
+  cn_fraction_shallow_deletion: 0.1984
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.1583060473203659
+  cn_median_panel: 1.0377860069274902
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.9589445143938065
+  cn_p5_panel: 0.7259477347135543
+  cn_p75_panel: 1.1172505617141724
+  cn_p95_panel: 1.4840707838535308
+  cn_recurrent_amplification_score: 0.046400000000000004
+  cn_recurrent_deletion_score: 0.2032
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 0.13636363636363635
+    fraction_of_amp_tail: 0.05172413793103448
+    lineage: Bladder/Urinary Tract
+    median_cn: 0.9835914075374603
+    n_in_lineage: 22
+  - fraction_focal_amplified: 0.125
+    fraction_of_amp_tail: 0.034482758620689655
+    lineage: Cervix
+    median_cn: 1.140478253364563
+    n_in_lineage: 16
+  - fraction_focal_amplified: 0.11904761904761904
+    fraction_of_amp_tail: 0.08620689655172414
+    lineage: Ovary/Fallopian Tube
+    median_cn: 1.0521716475486755
+    n_in_lineage: 42
+  - fraction_focal_amplified: 0.10416666666666667
+    fraction_of_amp_tail: 0.08620689655172414
+    lineage: Pancreas
+    median_cn: 0.9968968629837036
+    n_in_lineage: 48
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.8333333333333334
+    fraction_of_del_tail: 0.01968503937007874
+    lineage: Testis
+    median_cn: 0.8307786583900452
+    n_in_lineage: 6
+  - fraction_deleted: 0.4782608695652174
+    fraction_of_del_tail: 0.08661417322834646
+    lineage: Head and Neck
+    median_cn: 0.9309078454971313
+    n_in_lineage: 46
+  - fraction_deleted: 0.375
+    fraction_of_del_tail: 0.07086614173228346
+    lineage: Pancreas
+    median_cn: 0.9968968629837036
+    n_in_lineage: 48
+  - fraction_deleted: 0.375
+    fraction_of_del_tail: 0.011811023622047244
+    lineage: Prostate
+    median_cn: 0.9949767887592316
+    n_in_lineage: 8
+  - fraction_deleted: 0.3595505617977528
+    fraction_of_del_tail: 0.12598425196850394
+    lineage: Esophagus/Stomach
+    median_cn: 1.0378291606903076
+    n_in_lineage: 89
+  copy_number_class: recurrently_deleted
+  patient_amplified_fraction: 0.21114864864864866
+  patient_cn_context: "COADREAD: 21% of 592 TCGA GISTIC samples amplify CEACAM5 (1%\
+    \ high-level +2), 9% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check\
+    \ to the DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: recurrently_amplified
+  patient_deleted_fraction: 0.08614864864864864
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.005067567567567568
+  patient_homdel_fraction: 0.0
+modality-exon-window:
+  best_exon_id: ENSE00001561479
+  best_exon_max_essential_tpm: 6.75
+  best_exon_tumor_tpm: 3844.4
+  best_exon_window_ratio: 496.27
+  exon_heterogeneity_log2: 0.59
+  exon_window_class: essential_exon_liability
+  indication: COADREAD
+  median_exon_tumor_log2tpm: 11.31
+  method_version: 1.1.0
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_exons: 25
+  target: CEACAM5
+  tumor_studies:
+  - COAD
+  - READ
+modality-therapeutic-window:
+  full_normal_window_class: clean_full_normal_window
+  indication: COADREAD
+  max_essential_normal_organ: LUNG
+  max_essential_normal_tpm: 3.27
+  max_full_normal_organ: VAGINA
+  max_full_normal_tpm: 53.13
+  modality: bite_tce
+  modality_tier_threshold_tpm: 1.0
+  n_gtex_tissues: 31
+  target: CEACAM5
+  therapeutic_window_class: clean_window
+  tumor_studies:
+  - COAD
+  - READ
+  tumor_tpm: 2382.67
+  window_class: essential_tissue_liability
+  window_ratio_essential: 557.83
+  window_ratio_full_normal: 44.04
+mutation-stratified-surface:
+  _data_source: mutation-stratified-surface-window-v1
+  delta_log2: null
+  driver_gene: KRAS
+  indication: COADREAD
+  method_version: 0.1.0
+  mutant_stratified_surface_class: not_in_product
+  mutation_stratified_context: '''CEACAM5'' not in the mutation-stratified surface
+    product for KRAS/COADREAD (coverage gap; v1 covers KRAS/NSCLC only).'
+  n_mutant: null
+  n_wt: null
+  q_value: null
+normal-tissue-liability:
+  essential_tissue_flag: absent
+  essential_tissues_flagged: []
+  hpa_tissue_distribution: Detected in many
+  hpa_tissue_specificity: Group enriched
+  method_version: 0.1.0
+  n_essential_tissues_with_expression: 0
+  n_specific_tissues: 2
+  normal_tissue_breadth_class: broad_normal_expression
+  safety_tissue_flags:
+  - gi_tract
+  - broad
+  specific_tissues:
+  - intensity: 49432922.2
+    tissue: intestine
+  - intensity: 22804857.5
+    tissue: skin
+pathway-stratified-surface:
+  _data_source: pathway-stratified-surface-window-v1
+  delta_log2: null
+  indication: COADREAD
+  method_version: 0.1.0
+  n_high: null
+  n_low: null
+  pathway_stratified_context: '''CEACAM5'' not in the pathway-stratified surface product
+    for HALLMARK_HYPOXIA/COADREAD (coverage gap; v1 covers HALLMARK_HYPOXIA/NSCLC
+    only).'
+  pathway_stratified_surface_class: not_in_product
+  q_value: null
+  signature: HALLMARK_HYPOXIA
+pmhc-presentation:
+  _data_source: hla-ligand-atlas-presentation-per-protein-v1
+  hla_class: HLA-I+II
+  method_version: 1.0.0
+  n_normal_tissues_presented: 13
+  n_presented_peptides: 20
+  n_strong_binder_peptides: 16
+  n_weak_binder_peptides: 2
+  normal_tissues_presented: Bone marrow;Brain;Colon;Esophagus;Heart;Kidney;Lung;Lymph
+    node;Pancreas;Spleen;Thymus;Tongue;Trachea
+  pmhc_presentation_class: intermediate_presentation
+  uniprot_ac: P06731
+protein-surface-evidence:
+  _data_note: '''CEACAM5'' not in the CSPA high-confidence surfaceome master (measured-absent
+    in the 41-cell-line panel, not a coverage gap)'
+  _data_source: cspa-surface-confirmation-per-uniprot-v1
+  cspa_category: null
+  evidence_tier: measured
+  hpa_if_plasma_membrane: true
+  hpa_if_reliability: Supported
+  hpa_if_surface_class: plasma_membrane_main
+  measured_in_cspa: false
+  method_version: 0.2.0
+  n_celllines_detected: 0
+  surface_confirmation_class: not_surface
+  surface_multimodal_support: discordant
+  uniprot_ac: null
+rna-protein-concordance-tumor:
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_paired_tumors: 96
+  rna_as_biomarker: partial_proxy
+  rna_protein_r: 0.4083
+  rna_protein_spearman: 0.364
+  substrate: cptac_tumor
+  target: CEACAM5
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: BEST4+ colonocyte
+  max_detection_fraction: 1.0
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 26
+  n_reliable_cell_types: 39
+  origin_tissues:
+  - colon
+  safety_essential_flags:
+    BEST4+ colonocyte: 1.0
+    BEST4+ enterocyte: 0.8376623376623377
+    colonocyte: 0.6231884057971014
+    early colonocyte: 0.8602150537634409
+    enterocyte: 0.48672566371681414
+    enterocyte of epithelium of large intestine: 0.7196969696969697
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_safety_essential_class: origin_tissue_liability
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+shed-ectodomain-liability:
+  hpa_secretome_location: null
+  measured_shed_class: not_on_secreted_panel
+  media_mean_npx: null
+  media_n_lines_detected: null
+  media_panel_high_npx: 1.358
+  media_uniprot: P06731
+  method_version: 0.2.0
+  serum_marker: CEA (FDA-established colorectal + multi-carcinoma serum marker)
+  shed_evidence_tier: clinical
+  shed_liability_class: clinically_shed
+  shed_product: soluble CEA (carcinoembryonic antigen, GPI-cleaved / shed)
+  shedding_protease: GPI-anchor cleavage + sheddase release
+  source_citation: "Gazzah A et al. 2022. Safety, PK and antitumor activity of tusamitamab\
+    \ ravtansine (anti-CEACAM5 ADC) \u2014 shed CEA context. (representative)\n"
+structure-features-static:
+  _data_source: pdb-alphafold-structure-features-per-uniprot-v1
+  _ligandability_source: structure-ligandability-per-protein-v1
+  alphafold_confidence_class: moderate
+  alphafold_plddt_mean: 87.134
+  alphafold_plddt_min: 29.41
+  alphafold_plddt_min_domain: 59.22
+  disordered_fraction: 0.0812
+  has_annotated_binding_site: false
+  has_cryptic_site: false
+  has_druggable_pocket: true
+  has_experimental_cocrystal: true
+  has_virtual_screen_hit: true
+  hotspot_pocket_adjacency_call: no_hotspots_annotated
+  is_foldable: true
+  ligandability_disorder_class: mostly_ordered
+  method_version: 0.2.0
+  mutation_hotspot_in_druggable_pocket: false
+  n_domains_low_plddt: 4
+  n_ligandability_axes: 3
+  pdb_best_method: X-ray diffraction
+  pdb_best_resolution_angstrom: 1.95
+  pdb_coverage_class: strong
+  pdb_ids_available:
+  - 1E07
+  - 2QSQ
+  - 2QST
+  - 2VER
+  - 8BW0
+  - 9U93
+  structural_ligandability_class: experimental_ligandable
+surface-abundance-density:
+  _tier2_estimate_error: 'ModuleNotFoundError: No module named ''percentile_null'''
+  absolute_copies_per_cell: 76000.0
+  absolute_density_class: high
+  absolute_density_grade: B
+  absolute_measurement_semantics: ABC
+  absolute_n_measurements: 1
+  density_floor_verdict: above_adc_high_payload_floor
+  surface_density_class: unmeasured
+surface-topology-and-ptm:
+  _ptm_coverage: data_unavailable
+  ecd_engineerability_class: large_ecd
+  ecd_orientation: outside
+  endocytosis_motif_count: null
+  endocytosis_motif_count_high_confidence: null
+  endocytosis_motif_types: []
+  extracellular_residue_count: 654
+  has_tm_beta: false
+  isoform_selective_dominant_isoform: null
+  isoform_selective_warning: false
+  method_version: read-0.1.0
+  n_glycosylation_sites: null
+  n_ubiquitination_sites: null
+  signal_peptide_length: 33
+  signal_peptide_present: true
+  tm_pass_count: 1
+  tmbed_model_version: 1.0.2
+  topology_class: single_pass_type_1
+  topology_summary: SP|TM-alpha|ECD-outside
+surfaceome-family-classification:
+  _data_source: surfaceome-family-classification-per-uniprot-v1
+  family_class: cd_molecule
+  fusion_provenance:
+  - surfy:surface
+  - hpa:surface,CD_molecule
+  hpa_protein_class_verbatim: Cancer-related genes, CD markers, Plasma proteins, Predicted
+    intracellular proteins, Predicted membrane proteins
+  is_surface_protein: true
+  method_version: 0.1.0
+  source_hpa_plasma_membrane: true
+  source_iuphar_family: ''
+  source_surfy_positive: true
+  source_uniprot_ec_number: ''
+  surface_protein_family: CD_molecule
+  surfaceome_confidence_score: 1.0
+tumor-scrna-celltype-expression:
+  caf_abundance_log1p_cp10k: 0.02986
+  caf_compartment_available: true
+  caf_detection_fraction: 0.033475000000000005
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.16129
+    immune: 0.01941
+    malignant: 0.75617
+    other: 0.03306
+    stromal: 0.033475000000000005
+  indication: COADREAD
+  malignant_abundance_log1p_cp10k: 1.38485
+  malignant_compartment_available: true
+  malignant_detection_fraction: 0.75617
+  malignant_n_donors: 371
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 45
+  n_donor_groups: 446
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 1.38485
+    median_detection_fraction: 0.75617
+    n_cells_total: 504408
+    n_donors: 371
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.02986
+    median_detection_fraction: 0.033475000000000005
+    n_cells_total: 131998
+    n_donors: 240
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.02115
+    median_detection_fraction: 0.01941
+    n_cells_total: 1092178
+    n_donors: 397
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.20989
+    median_detection_fraction: 0.16129
+    n_cells_total: 2984
+    n_donors: 53
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.061485
+    median_detection_fraction: 0.03306
+    n_cells_total: 12872
+    n_donors: 134
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: malignant_broadly_detected
+  tce_homogeneity_class: homogeneous
+  top_microenvironment_compartment: stromal
+  top_microenvironment_detection_fraction: 0.033475000000000005
