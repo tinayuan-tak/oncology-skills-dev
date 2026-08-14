@@ -12,22 +12,25 @@ from methods.spatial_surface_protein import read as SP   # noqa: E402
 from methods.spatial_surface_protein import stats as ST   # noqa: E402
 
 
-def test_hnsc_wired_to_geomx_protein():
-    assert SP.INDICATION_TO_SURFACE_PROTEIN["HNSC"] == "spatial-surface-protein-hnsc-v1"
+def test_hnsc_fallback_chain_order():
+    # HNSC is a within-indication FALLBACK CHAIN: primary 580-plex first, then the IO panel that rescues
+    # the surface/IO targets the un-crosswalked 580-plex drops.
+    assert SP.INDICATION_TO_SURFACE_PROTEIN["HNSC"] == [
+        "spatial-surface-protein-hnsc-v1", "spatial-surface-protein-hnsc-gse200601-v1"]
+    assert SP._products("HNSC")[0] == "spatial-surface-protein-hnsc-v1"   # primary wins
 
 
 def test_nsclc_histologies_wired_to_geomx_protein():
-    # all three lung histologies share the one NSCLC GeoMx IO-panel product (GSE221322)
+    # all three lung histologies share the one NSCLC GeoMx IO-panel product (GSE221322), single-element chain
     for code in ("NSCLC", "LUAD", "LUSC"):
-        assert SP.INDICATION_TO_SURFACE_PROTEIN[code] == "spatial-surface-protein-nsclc-v1"
+        assert SP.INDICATION_TO_SURFACE_PROTEIN[code] == ["spatial-surface-protein-nsclc-v1"]
 
 
 def test_product_resolves_to_catalog_s3_uri():
     from methods.catalog_query.read import s3_uri_for
-    assert s3_uri_for("spatial-surface-protein-hnsc-v1").endswith(
-        "spatial-surface-protein-hnsc-v1/spatial_surface_protein.parquet")
-    assert s3_uri_for("spatial-surface-protein-nsclc-v1").endswith(
-        "spatial-surface-protein-nsclc-v1/spatial_surface_protein.parquet")
+    for pid in ("spatial-surface-protein-hnsc-v1", "spatial-surface-protein-hnsc-gse200601-v1",
+                "spatial-surface-protein-nsclc-v1"):
+        assert s3_uri_for(pid).endswith(f"{pid}/spatial_surface_protein.parquet")
 
 
 def test_unmapped_indication_is_data_unavailable():
