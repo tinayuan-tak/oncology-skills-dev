@@ -1,0 +1,287 @@
+pathway-activity-context:
+  _method_version: 0.1.0
+  _source: PROGENy (Schubert 2018, Apache-2.0); verdict-inert cohort pathway-activity
+    context
+  indication: COADREAD
+  n_pathways_profiled: 14
+  pathway_activity_class: relatively_high
+  per_pathway:
+  - activity_z: 1.5627
+    median_activity: 0.3515
+    n_samples: 669.0
+    pathway: MAPK
+    relative_class: relatively_high
+  - activity_z: 0.897
+    median_activity: 3.2623
+    n_samples: 669.0
+    pathway: TNFa
+    relative_class: average
+  - activity_z: 0.8067
+    median_activity: -1.7576
+    n_samples: 669.0
+    pathway: PI3K
+    relative_class: average
+  - activity_z: 0.3916
+    median_activity: 2.7665
+    n_samples: 669.0
+    pathway: EGFR
+    relative_class: average
+  - activity_z: 0.3168
+    median_activity: 0.5404
+    n_samples: 669.0
+    pathway: VEGF
+    relative_class: average
+  - activity_z: 0.0688
+    median_activity: -1.7264
+    n_samples: 669.0
+    pathway: WNT
+    relative_class: average
+  - activity_z: -0.0385
+    median_activity: 2.1983
+    n_samples: 669.0
+    pathway: TGFb
+    relative_class: average
+  - activity_z: -0.2322
+    median_activity: -1.2281
+    n_samples: 669.0
+    pathway: Estrogen
+    relative_class: average
+  - activity_z: -0.2662
+    median_activity: -2.4806
+    n_samples: 669.0
+    pathway: Trail
+    relative_class: average
+  - activity_z: -0.3623
+    median_activity: -2.4562
+    n_samples: 669.0
+    pathway: NFkB
+    relative_class: average
+  - activity_z: -0.3882
+    median_activity: -0.8281
+    n_samples: 669.0
+    pathway: Androgen
+    relative_class: average
+  - activity_z: -0.5101
+    median_activity: 2.5949
+    n_samples: 669.0
+    pathway: JAK-STAT
+    relative_class: average
+  - activity_z: -0.5383
+    median_activity: 4.1711
+    n_samples: 669.0
+    pathway: Hypoxia
+    relative_class: average
+  - activity_z: -0.8767
+    median_activity: -3.9303
+    n_samples: 669.0
+    pathway: p53
+    relative_class: average
+  pooled_from:
+  - COAD
+  - READ
+  relatively_high_pathways:
+  - MAPK
+  relatively_low_pathways: []
+  target_pathway_membership: []
+phospho-pathway-activity:
+  _data_note: CEACAM5 has no phosphosites in the CPTAC coad phospho panel
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_phosphosites: 0
+  n_tumors: 198
+  phospho_activity_class: not_phosphoprotein
+  substrate: cptac_phosphoproteomics_bcm
+  target: CEACAM5
+signaling-network-mechanism:
+  _data_source: "mechanism-composed (composed card; no direct S3 product \u2014 see\
+    \ sources_wired)"
+  coessentiality_context:
+    data_available: false
+    method_version: 0.1.0
+    n_cell_lines: 0
+    n_partners: 0
+    source_note: DepMap 26Q1 CRISPR Chronos pan-cancer co-essentiality (1,538 cell
+      lines)
+    substrate_uri: s3://onc-compbio/data-catalog/derived/depmap-coessentiality-26q1-v1/coessentiality_edges.parquet
+    top_partners: []
+  downstream_effectors: []
+  has_actionable_moa: true
+  has_pd_marker: false
+  high_confidence_edges_count: 0
+  kinome_atlas_predictions:
+    downstream_predicted_substrates: []
+    n_downstream_predicted_substrates: 0
+    n_upstream_predicted_kinases: 0
+    network_class: data_unavailable
+    source_note: "Kinome-atlas edges are PREDICTIONS from PWM specificity models (Johnson\
+      \ 2023 + Yaron-Barir 2024 Nature). Distinct from curated SIGNOR/CollecTri/Reactome\
+      \ edges \u2014 weight lower in Tier-3 synthesis. Runtime filter: percentile\
+      \ >= 95."
+    upstream_predicted_kinases: []
+  moa_classes_present:
+  - upstream_transcriptional_activator
+  moa_ontology_unmapped_fraction: 0.0
+  moa_ontology_version: 1.0.0
+  n_downstream_effectors: 0
+  n_upstream_regulators: 7
+  network_class: partial
+  pd_marker_classes_present: []
+  reactome_pathway_context:
+    is_signaling: false
+    pathway_class: partial
+    pathway_count: 5
+    top_level_pathways:
+    - Hemostasis
+    - Metabolism of proteins
+  source_counts:
+    collectri: 7
+    depmap_coessentiality: 0
+    kinome_atlas_prediction: 0
+    reactome: 5
+    signor: 0
+  sources_wired:
+  - collectri
+  - reactome
+  upstream_regulators: __omitted_from_fixture__ (list, 7 items)
+tahoe-drug-perturbation:
+  _data_source: tahoe-drug-perturbation-per-gene-v1
+  method_version: 0.1.0
+  n_cancer_lines: 49
+  n_perturbing_drugs: 379
+  n_strong_movers: 21
+  perturbation_context: "CEACAM5: perturbed by 379 drugs across 49 cancer lines (Tahoe\
+    \ single-cell). Most SUPPRESSED by Homoharringtonine (median log2FC -2.0754, 37\
+    \ lines). Most INDUCED by Dinaciclib (median log2FC 2.2005, 44 lines). MECHANISM\
+    \ / MoA facet (verdict-inert) \u2014 a transcriptional-response signal, NOT dependency."
+  strongest_mover_drug: Homoharringtonine
+  strongest_mover_log2fc: -2.0754
+  tahoe_perturbation_class: bidirectionally_perturbed
+  top_inducing_drugs:
+  - direction: induces
+    drug: Dinaciclib
+    median_log2FoldChange: 2.2005
+    n_cancer_lines: 44
+    n_observations: 85
+    n_significant_strict: 73
+  - direction: induces
+    drug: Docetaxel (Trihydrate)
+    median_log2FoldChange: 1.3466
+    n_cancer_lines: 30
+    n_observations: 37
+    n_significant_strict: 27
+  - direction: induces
+    drug: Darolutamide
+    median_log2FoldChange: 1.2827
+    n_cancer_lines: 35
+    n_observations: 55
+    n_significant_strict: 31
+  - direction: induces
+    drug: Vitamin K4
+    median_log2FoldChange: 1.2798
+    n_cancer_lines: 33
+    n_observations: 53
+    n_significant_strict: 29
+  - direction: induces
+    drug: Verteporfin
+    median_log2FoldChange: 1.2627
+    n_cancer_lines: 33
+    n_observations: 52
+    n_significant_strict: 27
+  - direction: induces
+    drug: Tazarotene
+    median_log2FoldChange: 1.2572
+    n_cancer_lines: 42
+    n_observations: 79
+    n_significant_strict: 49
+  - direction: induces
+    drug: Artemether
+    median_log2FoldChange: 1.1278
+    n_cancer_lines: 33
+    n_observations: 58
+    n_significant_strict: 34
+  - direction: induces
+    drug: Erythromycin
+    median_log2FoldChange: 1.1256
+    n_cancer_lines: 32
+    n_observations: 49
+    n_significant_strict: 30
+  - direction: induces
+    drug: Oxaprozin
+    median_log2FoldChange: 1.1204
+    n_cancer_lines: 33
+    n_observations: 53
+    n_significant_strict: 28
+  - direction: induces
+    drug: Dexmedetomidine
+    median_log2FoldChange: 1.0741
+    n_cancer_lines: 20
+    n_observations: 25
+    n_significant_strict: 12
+  - direction: induces
+    drug: Estrone sulfate (potassium)
+    median_log2FoldChange: 1.0722
+    n_cancer_lines: 31
+    n_observations: 43
+    n_significant_strict: 25
+  - direction: induces
+    drug: Larotrectinib
+    median_log2FoldChange: 1.0597
+    n_cancer_lines: 37
+    n_observations: 83
+    n_significant_strict: 55
+  - direction: induces
+    drug: Bicalutamide
+    median_log2FoldChange: 1.0335
+    n_cancer_lines: 31
+    n_observations: 49
+    n_significant_strict: 21
+  top_suppressing_drugs:
+  - direction: suppresses
+    drug: Homoharringtonine
+    median_log2FoldChange: -2.0754
+    n_cancer_lines: 37
+    n_observations: 89
+    n_significant_strict: 64
+  - direction: suppresses
+    drug: Harringtonine
+    median_log2FoldChange: -1.792
+    n_cancer_lines: 33
+    n_observations: 52
+    n_significant_strict: 34
+  - direction: suppresses
+    drug: Panobinostat
+    median_log2FoldChange: -1.4789
+    n_cancer_lines: 32
+    n_observations: 64
+    n_significant_strict: 39
+  - direction: suppresses
+    drug: TAK-733
+    median_log2FoldChange: -1.2012
+    n_cancer_lines: 27
+    n_observations: 54
+    n_significant_strict: 34
+  - direction: suppresses
+    drug: NG25
+    median_log2FoldChange: -1.1463
+    n_cancer_lines: 25
+    n_observations: 49
+    n_significant_strict: 34
+  - direction: suppresses
+    drug: Triamcinolone
+    median_log2FoldChange: -1.0959
+    n_cancer_lines: 31
+    n_observations: 67
+    n_significant_strict: 48
+  - direction: suppresses
+    drug: Trametinib (DMSO_TF solvate)
+    median_log2FoldChange: -1.0436
+    n_cancer_lines: 26
+    n_observations: 40
+    n_significant_strict: 24
+  - direction: suppresses
+    drug: Belinostat
+    median_log2FoldChange: -1.0278
+    n_cancer_lines: 29
+    n_observations: 48
+    n_significant_strict: 29

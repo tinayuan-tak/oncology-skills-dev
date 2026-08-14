@@ -28,7 +28,7 @@ from _skills_common.resolver import resolve_verdict_for_gate
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.4.0"                       # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
+SKILL_VERSION = "1.5.0"                       # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
 
 CARDS = [
     "signaling-network-mechanism",

@@ -18,7 +18,7 @@ description: |
   hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
@@ -40,11 +40,15 @@ composition:
                                         # ACTIVITY / signaling-state readout (CPTAC phosphoproteomics),
                                         # a mechanism signal not a presence one. DISPLAY-ONLY facet —
                                         # feeds NO resolver (mechanism_verdict byte-stable).
-  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled.
+  # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims pulled, ONE per card in cards_used.
+  # 2026-08-14 review: added pathway_activity_context — the pathway-activity-context card (PROGENy,
+  # added 2026-08-10) was in cards_used but its type was omitted here. test_mechanism_measurement_types.py
+  # now enforces every used card's type is declared so this cannot silently re-drift.
   measurement_types_pulled:
-    - signaling_network_mechanism
-    - tahoe_drug_perturbation
-    - phospho_pathway_activity
+    - signaling_network_mechanism            # signaling-network-mechanism
+    - tahoe_drug_perturbation                # tahoe-drug-perturbation
+    - phospho_pathway_activity               # phospho-pathway-activity
+    - pathway_activity_context               # pathway-activity-context (PROGENy)
   rules_scope:
     - all
   synthesis:

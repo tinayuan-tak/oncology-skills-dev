@@ -1,0 +1,304 @@
+pathway-activity-context:
+  _method_version: 0.1.0
+  _source: PROGENy (Schubert 2018, Apache-2.0); verdict-inert cohort pathway-activity
+    context
+  indication: COADREAD
+  n_pathways_profiled: 14
+  pathway_activity_class: relatively_high
+  per_pathway:
+  - activity_z: 1.5627
+    median_activity: 0.3515
+    n_samples: 669.0
+    pathway: MAPK
+    relative_class: relatively_high
+  - activity_z: 0.897
+    median_activity: 3.2623
+    n_samples: 669.0
+    pathway: TNFa
+    relative_class: average
+  - activity_z: 0.8067
+    median_activity: -1.7576
+    n_samples: 669.0
+    pathway: PI3K
+    relative_class: average
+  - activity_z: 0.3916
+    median_activity: 2.7665
+    n_samples: 669.0
+    pathway: EGFR
+    relative_class: average
+  - activity_z: 0.3168
+    median_activity: 0.5404
+    n_samples: 669.0
+    pathway: VEGF
+    relative_class: average
+  - activity_z: 0.0688
+    median_activity: -1.7264
+    n_samples: 669.0
+    pathway: WNT
+    relative_class: average
+  - activity_z: -0.0385
+    median_activity: 2.1983
+    n_samples: 669.0
+    pathway: TGFb
+    relative_class: average
+  - activity_z: -0.2322
+    median_activity: -1.2281
+    n_samples: 669.0
+    pathway: Estrogen
+    relative_class: average
+  - activity_z: -0.2662
+    median_activity: -2.4806
+    n_samples: 669.0
+    pathway: Trail
+    relative_class: average
+  - activity_z: -0.3623
+    median_activity: -2.4562
+    n_samples: 669.0
+    pathway: NFkB
+    relative_class: average
+  - activity_z: -0.3882
+    median_activity: -0.8281
+    n_samples: 669.0
+    pathway: Androgen
+    relative_class: average
+  - activity_z: -0.5101
+    median_activity: 2.5949
+    n_samples: 669.0
+    pathway: JAK-STAT
+    relative_class: average
+  - activity_z: -0.5383
+    median_activity: 4.1711
+    n_samples: 669.0
+    pathway: Hypoxia
+    relative_class: average
+  - activity_z: -0.8767
+    median_activity: -3.9303
+    n_samples: 669.0
+    pathway: p53
+    relative_class: average
+  pooled_from:
+  - COAD
+  - READ
+  relatively_high_pathways:
+  - MAPK
+  relatively_low_pathways: []
+  target_pathway_membership: []
+phospho-pathway-activity:
+  _data_source: cptac-phospho-per-site-per-cohort-v1
+  cptac_cohort: coad
+  indication: COADREAD
+  max_site_detection_fraction: 0.9545
+  method_version: 0.1.0
+  n_phosphosites: 20
+  n_phosphosites_frequent: 3
+  n_tumors: 198
+  phospho_activity_class: phospho_present
+  phospho_exceeds_abundance: false
+  substrate: cptac_phosphoproteomics_bcm
+  target: EGFR
+  top_phosphosites:
+  - detection_fraction: 0.955
+    phospho_minus_protein: -0.469
+    site: NP_001333828.1:t648
+  - detection_fraction: 0.773
+    phospho_minus_protein: -0.446
+    site: NP_001333828.1:s1121
+  - detection_fraction: 0.545
+    phospho_minus_protein: 0.016
+    site: NP_001333828.1:s1019
+  - detection_fraction: 0.409
+    phospho_minus_protein: -0.263
+    site: NP_001333828.1:s946
+  - detection_fraction: 0.364
+    phospho_minus_protein: -0.56
+    site: NP_001333828.1:y1127
+  top_site_phospho_minus_protein: -0.4691
+signaling-network-mechanism:
+  _data_source: "mechanism-composed (composed card; no direct S3 product \u2014 see\
+    \ sources_wired)"
+  coessentiality_context:
+    data_available: true
+    method_version: 0.1.0
+    n_cell_lines: 1538
+    n_partners: 25
+    source_note: DepMap 26Q1 CRISPR Chronos pan-cancer co-essentiality (1,538 cell
+      lines)
+    substrate_uri: s3://onc-compbio/data-catalog/derived/depmap-coessentiality-26q1-v1/coessentiality_edges.parquet
+    top_partners:
+    - abs_rank: 1
+      direction: co-essential
+      pearson_r: 0.4279
+      symbol: GRB2
+    - abs_rank: 2
+      direction: co-essential
+      pearson_r: 0.4194
+      symbol: GAB1
+    - abs_rank: 3
+      direction: co-essential
+      pearson_r: 0.4113
+      symbol: SHC1
+    - abs_rank: 4
+      direction: co-essential
+      pearson_r: 0.3785
+      symbol: ITGB1
+    - abs_rank: 5
+      direction: anti-correlated
+      pearson_r: -0.3528
+      symbol: CDS2
+    - abs_rank: 6
+      direction: co-essential
+      pearson_r: 0.3526
+      symbol: ARHGEF7
+    - abs_rank: 7
+      direction: co-essential
+      pearson_r: 0.3372
+      symbol: ITGA3
+    - abs_rank: 8
+      direction: co-essential
+      pearson_r: 0.3354
+      symbol: KLF5
+    - abs_rank: 9
+      direction: co-essential
+      pearson_r: 0.3278
+      symbol: PTPN11
+    - abs_rank: 10
+      direction: co-essential
+      pearson_r: 0.3244
+      symbol: TP63
+    - abs_rank: 11
+      direction: co-essential
+      pearson_r: 0.3153
+      symbol: ANKRD49
+    - abs_rank: 12
+      direction: co-essential
+      pearson_r: 0.3118
+      symbol: FERMT1
+    - abs_rank: 13
+      direction: co-essential
+      pearson_r: 0.3109
+      symbol: GRK2
+    - abs_rank: 14
+      direction: co-essential
+      pearson_r: 0.2951
+      symbol: GAREM1
+    - abs_rank: 15
+      direction: co-essential
+      pearson_r: 0.2943
+      symbol: GMPPB
+    - abs_rank: 16
+      direction: co-essential
+      pearson_r: 0.2937
+      symbol: LANCL2
+    - abs_rank: 17
+      direction: anti-correlated
+      pearson_r: -0.2722
+      symbol: GPX4
+    - abs_rank: 18
+      direction: anti-correlated
+      pearson_r: -0.2675
+      symbol: PCF11
+    - abs_rank: 19
+      direction: anti-correlated
+      pearson_r: -0.2674
+      symbol: ATP1B3
+    - abs_rank: 20
+      direction: anti-correlated
+      pearson_r: -0.2671
+      symbol: CDAN1
+    - abs_rank: 21
+      direction: co-essential
+      pearson_r: 0.2649
+      symbol: MPI
+    - abs_rank: 22
+      direction: co-essential
+      pearson_r: 0.2637
+      symbol: STXBP3
+    - abs_rank: 23
+      direction: co-essential
+      pearson_r: 0.2624
+      symbol: WTAP
+    - abs_rank: 24
+      direction: anti-correlated
+      pearson_r: -0.2623
+      symbol: SEPSECS
+    - abs_rank: 25
+      direction: anti-correlated
+      pearson_r: -0.2618
+      symbol: CBFB
+  downstream_effectors: __omitted_from_fixture__ (list, 74 items)
+  has_actionable_moa: true
+  has_pd_marker: true
+  high_confidence_edges_count: 4
+  kinome_atlas_predictions: __omitted_from_fixture__ (dict, 6 items)
+  moa_classes_present:
+  - molecular_glue_disruptor
+  - unmapped
+  - upstream_dub_modulation
+  - upstream_inhibitor
+  - upstream_kinase_modulation
+  - upstream_ppase_modulation
+  - upstream_stimulator
+  - upstream_transcriptional_activator
+  - upstream_transcriptional_modulation
+  - upstream_transcriptional_repressor
+  - upstream_ubl_modulation
+  moa_ontology_unmapped_fraction: 0.04220779220779221
+  moa_ontology_version: 1.0.0
+  n_downstream_effectors: 74
+  n_upstream_regulators: 147
+  network_class: well_characterized
+  pd_marker_classes_present:
+  - downstream_activation_readout
+  - downstream_pd_kinase
+  - downstream_pd_marker
+  - transcriptional_pd_marker
+  reactome_pathway_context:
+    is_signaling: true
+    pathway_class: well_annotated
+    pathway_count: 82
+    top_level_pathways:
+    - Developmental Biology
+    - Disease
+    - Gene expression (Transcription)
+    - Signal Transduction
+    - Vesicle-mediated transport
+  source_counts:
+    collectri: 90
+    depmap_coessentiality: 25
+    kinome_atlas_prediction: 855
+    reactome: 82
+    signor: 218
+  sources_wired:
+  - signor
+  - collectri
+  - reactome
+  - kinome_atlas_prediction
+  - depmap_coessentiality
+  upstream_regulators: __omitted_from_fixture__ (list, 147 items)
+tahoe-drug-perturbation:
+  _data_source: tahoe-drug-perturbation-per-gene-v1
+  method_version: 0.1.0
+  n_cancer_lines: 49
+  n_perturbing_drugs: 379
+  n_strong_movers: 2
+  perturbation_context: "EGFR: perturbed by 379 drugs across 49 cancer lines (Tahoe\
+    \ single-cell). Most SUPPRESSED by Panobinostat (median log2FC -1.7403, 48 lines).\
+    \ MECHANISM / MoA facet (verdict-inert) \u2014 a transcriptional-response signal,\
+    \ NOT dependency."
+  strongest_mover_drug: Panobinostat
+  strongest_mover_log2fc: -1.7403
+  tahoe_perturbation_class: drug_suppressed
+  top_inducing_drugs: []
+  top_suppressing_drugs:
+  - direction: suppresses
+    drug: Panobinostat
+    median_log2FoldChange: -1.7403
+    n_cancer_lines: 48
+    n_observations: 136
+    n_significant_strict: 128
+  - direction: suppresses
+    drug: Dinaciclib
+    median_log2FoldChange: -1.082
+    n_cancer_lines: 43
+    n_observations: 103
+    n_significant_strict: 88
