@@ -1,0 +1,521 @@
+degradation-feasibility:
+  _data_source: ubibrowser-v3-human + curated-precedent
+  degradability_context: "BRAF: natural E3 substrate (3 curated E3s: FBXW7, ITCH,\
+    \ RNF149) \u2014 ubiquitination-competent; a positive degradability prior (no\
+    \ drug precedent yet)."
+  degradability_feasibility_class: ubiquitination_substrate
+  degrader_precedent: false
+  degrader_precedent_examples: []
+  degrader_precedent_modality: null
+  degrader_recruited_e3: null
+  e3_ligases_literature:
+  - FBXW7
+  - ITCH
+  - RNF149
+  e3_substrate_evidence: literature
+  e3_types_literature:
+  - F-box
+  - HECT
+  - RING
+  method_version: 0.1.0
+  n_e3_ligases_literature: 3
+  n_e3_predicted_confident: 98
+  surface_location_excluded: false
+dependency-predictability:
+  delta_r2: 0.07550691068172455
+  model_agreement: concordant
+  pearson_r_rf: 0.6999973654747009
+  pearson_r_squared_rf: 0.4899962842464447
+  pearson_r_squared_rf_ci_hi: 0.5622678995132446
+  pearson_r_squared_rf_ci_lo: 0.41575589776039124
+  pearson_r_squared_xgb: 0.41448935866355896
+  pearson_r_xgb: 0.6438084840774536
+  per_lineage_predictability:
+  - lineage: Skin
+    n_cell_lines: 78
+    r2: 0.3604516088962555
+    top_feature: expr_SLC5A9
+  - lineage: Uterus
+    n_cell_lines: 38
+    r2: 0.19041670858860016
+    top_feature: expr_CNGB3
+  - lineage: Bowel
+    n_cell_lines: 88
+    r2: 0.14613725244998932
+    top_feature: own_mut_hotspot
+  - lineage: Soft Tissue
+    n_cell_lines: 63
+    r2: 0.1169596016407013
+    top_feature: cn_TRPC7
+  - lineage: Kidney
+    n_cell_lines: 35
+    r2: 0.07555535435676575
+    top_feature: expr_LCT
+  - lineage: Head and Neck
+    n_cell_lines: 79
+    r2: 0.06166042387485504
+    top_feature: cn_TDRD9
+  - lineage: Peripheral Nervous System
+    n_cell_lines: 53
+    r2: 0.035953667014837265
+    top_feature: cn_SAP18
+  - lineage: CNS/Brain
+    n_cell_lines: 167
+    r2: 0.03296487033367157
+    top_feature: expr_INPP5D
+  - lineage: Ovary/Fallopian Tube
+    n_cell_lines: 64
+    r2: 0.02670367620885372
+    top_feature: expr_FBXO6
+  - lineage: Lymphoid
+    n_cell_lines: 135
+    r2: 0.024752864614129066
+    top_feature: expr_RBM39
+  - lineage: Lung
+    n_cell_lines: 141
+    r2: 0.008918358013033867
+    top_feature: expr_MON1A
+  - lineage: Bone
+    n_cell_lines: 79
+    r2: 0.004219484515488148
+    top_feature: expr_USP13
+  - lineage: Esophagus/Stomach
+    n_cell_lines: 97
+    r2: 0.00367092527449131
+    top_feature: arm_chr17q
+  - lineage: Pancreas
+    n_cell_lines: 74
+    r2: 0.0031526910606771708
+    top_feature: cn_ENSG00000264058
+  - lineage: Breast
+    n_cell_lines: 73
+    r2: 0.000995068927295506
+    top_feature: expr_SLC45A2
+  - lineage: Myeloid
+    n_cell_lines: 69
+    r2: 0.0009409923222847283
+    top_feature: cn_KRT76
+  - lineage: Bladder/Urinary Tract
+    n_cell_lines: 34
+    r2: 6.3645647969678976e-06
+    top_feature: cn_WDR19
+  - lineage: Biliary Tract
+    n_cell_lines: 36
+    r2: 3.953465238737408e-06
+    top_feature: expr_PIDD1
+  pred_dominant_feature: own_mut_hotspot
+  pred_dominant_feature_class: own_mut_hotspot
+  pred_n_cell_lines_evaluated: 1538
+  pred_top_features_rf:
+  - feature: own_mut_hotspot
+    feature_class: own_mut_hotspot
+    importance: 0.3344031274318695
+    rf_importance: 0.3344031274318695
+  - feature: molsig_SBS7a
+    feature_class: mol_signature
+    importance: 0.09625635296106339
+    rf_importance: 0.09625635296106339
+  - feature: expr_CPN1
+    feature_class: cross_gene_expression
+    importance: 0.0448358878493309
+    rf_importance: 0.0448358878493309
+  - feature: expr_FARP2
+    feature_class: cross_gene_expression
+    importance: 0.03951837867498398
+    rf_importance: 0.03951837867498398
+  - feature: molsig_SBS67
+    feature_class: mol_signature
+    importance: 0.03337504342198372
+    rf_importance: 0.03337504342198372
+  - feature: expr_BIN3
+    feature_class: cross_gene_expression
+    importance: 0.02963782288134098
+    rf_importance: 0.02963782288134098
+  - feature: expr_SOX10
+    feature_class: cross_gene_expression
+    importance: 0.01704937405884266
+    rf_importance: 0.01704937405884266
+  - feature: fusion_RP11-500M10.1
+    feature_class: fusion
+    importance: 0.015418291091918945
+    rf_importance: 0.015418291091918945
+  - feature: expr_SPACA3
+    feature_class: cross_gene_expression
+    importance: 0.015257191844284534
+    rf_importance: 0.015257191844284534
+  - feature: expr_OR5J2
+    feature_class: cross_gene_expression
+    importance: 0.012005461379885674
+    rf_importance: 0.012005461379885674
+  pred_top_features_xgb:
+  - feature: own_mut_hotspot
+    feature_class: own_mut_hotspot
+    importance: 0.3344031274318695
+    rf_importance: 0.0
+  - feature: molsig_SBS7a
+    feature_class: mol_signature
+    importance: 0.09625635296106339
+    rf_importance: 0.0
+  - feature: expr_CPN1
+    feature_class: cross_gene_expression
+    importance: 0.0448358878493309
+    rf_importance: 0.0
+  - feature: expr_FARP2
+    feature_class: cross_gene_expression
+    importance: 0.03951837867498398
+    rf_importance: 0.0
+  - feature: molsig_SBS67
+    feature_class: mol_signature
+    importance: 0.03337504342198372
+    rf_importance: 0.0
+  - feature: expr_BIN3
+    feature_class: cross_gene_expression
+    importance: 0.02963782288134098
+    rf_importance: 0.0
+  - feature: expr_SOX10
+    feature_class: cross_gene_expression
+    importance: 0.01704937405884266
+    rf_importance: 0.0
+  - feature: fusion_RP11-500M10.1
+    feature_class: fusion
+    importance: 0.015418291091918945
+    rf_importance: 0.0
+  - feature: expr_SPACA3
+    feature_class: cross_gene_expression
+    importance: 0.015257191844284534
+    rf_importance: 0.0
+  - feature: expr_OR5J2
+    feature_class: cross_gene_expression
+    importance: 0.012005461379885674
+    rf_importance: 0.0
+  predictability_class: own_omics_driven
+known-drug-tractability:
+  _data_source: dgidb-drug-gene-per-gene-v1
+  druggability_tier: clinically_actionable
+  gene_categories: CLINICALLY ACTIONABLE|DRUG RESISTANCE|DRUGGABLE GENOME|ENZYME|KINASE|SERINE
+    THREONINE KINASE
+  has_approved_drug: true
+  is_clinically_actionable: true
+  is_druggable_genome: true
+  known_drug_context: "BRAF: 194 approved-drug interaction(s) of 424 total (344 antineoplastic)\
+    \ in DGIdb \u2014 a drug against this target is approved (known-drug tractability\
+    \ demonstrated). Categories: CLINICALLY ACTIONABLE|DRUG RESISTANCE|DRUGGABLE GENOME|ENZYME|KINASE|SERINE\
+    \ THREONINE KINASE."
+  known_drug_tractability_class: approved_drug_tractable
+  method_version: 0.1.0
+  n_antineoplastic_interactions: 344
+  n_approved_drug_interactions: 194
+  n_drug_interactions: 424
+measured-potency-tractability:
+  _data_source: chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1
+  best_measured_potency_neglog_m: 10.7
+  bindingdb_best_p_affinity: 10.699
+  bindingdb_n_potent_ligands: 11644
+  chembl_best_pchembl: 10.7
+  chembl_max_clinical_phase: 4.0
+  chembl_n_potent_ligands: 8619
+  measured_bioactivity_class: potent_measured_ligand
+  measured_potency_context: "BRAF: a POTENT measured small-molecule ligand exists\
+    \ (best 10.7 -log10 M, <= 1 uM) (ChEMBL/BindingDB). A real sub-micromolar chemical\
+    \ start point \u2014 stronger than a predicted pocket or a bare drug catalogue\
+    \ entry."
+  method_version: 0.1.0
+prism-compound-activity:
+  highest_clinical_phase: phase_1_plus
+  median_log2auc_across_compounds: -0.09357847273349762
+  n_compounds_targeting: 22
+  per_lineage_activity: __omitted_from_fixture__ (list, 26 items)
+  prism_activity_class: clinical_precedent_only
+  prism_lineage_selectivity: lineage_selective
+  top_compounds:
+  - best_responder_lfc: -6.327066421508789
+    compound_id: PRC-002742986-871-53
+    drug_name: AVUTOMETINIB
+    median_log2auc: -0.6077955961227417
+    metric_source: log2auc
+    moa: inhibitor of BRAF, CRAF (RAF1), and MEK1 (MAP2K1)
+    n_annotated_targets: 3
+    n_lines_screened: 849
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -6.3496246337890625
+    compound_id: PRC-002938558-664-44
+    drug_name: BELVARAFENIB
+    median_log2auc: -0.29280978441238403
+    metric_source: log2auc
+    moa: inhibitor of BRAF, BRAF p.V600E, and CRAF (RAF1)
+    n_annotated_targets: 2
+    n_lines_screened: 837
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -6.757282733917236
+    compound_id: PRC-007945869-180-52
+    drug_name: ENCORAFENIB
+    median_log2auc: -0.15233032405376434
+    metric_source: log2auc
+    moa: inhibitor of BRAF
+    n_annotated_targets: 1
+    n_lines_screened: 814
+    polyselective: false
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -6.258707523345947
+    compound_id: PRC-007277785-989-76
+    drug_name: NAPORAFENIB
+    median_log2auc: -0.11443041265010834
+    metric_source: log2auc
+    moa: inhibitor of BRAF, BRAF p.V600E, and CRAF (RAF1)
+    n_annotated_targets: 2
+    n_lines_screened: 843
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -6.631375312805176
+    compound_id: PRC-009441357-158-96
+    drug_name: PLIXORAFENIB
+    median_log2auc: -0.0727265402674675
+    metric_source: log2auc
+    moa: inhibitor of BRAF, BRAF-V600E, and CRAF (RAF1)
+    n_annotated_targets: 2
+    n_lines_screened: 818
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+prism-crispr-concordance:
+  best_spearman_r_crispr: 0.22436702251434326
+  best_spearman_r_rnai: 0.2454971820116043
+  crispr_prism_concordance_class: mixed_engagement
+  dual_responders: __omitted_from_fixture__ (list, 20 items)
+  n_compounds_evaluated: 9
+  n_dual_responders: 20
+  per_compound_concordance:
+  - compound_id: PRC-000323635-836-07
+    drug_name: PRC-000323635-836-07
+    metric_used: lfc
+    n_intersected_crispr: 684
+    n_intersected_rnai: 479
+    spearman_r_crispr: 0.07622979581356049
+    spearman_r_rnai: 0.12581214308738708
+  - compound_id: PRC-002128424-628-50
+    drug_name: PRC-002128424-628-50
+    metric_used: lfc
+    n_intersected_crispr: 716
+    n_intersected_rnai: 490
+    spearman_r_crispr: 0.1678212434053421
+    spearman_r_rnai: 0.14307409524917603
+  - compound_id: PRC-002742986-871-53
+    drug_name: AVUTOMETINIB
+    metric_used: lfc
+    n_intersected_crispr: 709
+    n_intersected_rnai: 484
+    spearman_r_crispr: 0.1896040439605713
+    spearman_r_rnai: 0.2429335117340088
+  - compound_id: PRC-002938558-664-44
+    drug_name: BELVARAFENIB
+    metric_used: lfc
+    n_intersected_crispr: 709
+    n_intersected_rnai: 487
+    spearman_r_crispr: 0.22436702251434326
+    spearman_r_rnai: 0.2454971820116043
+  - compound_id: PRC-005624543-480-71
+    drug_name: PRC-005624543-480-71
+    metric_used: lfc
+    n_intersected_crispr: 715
+    n_intersected_rnai: 489
+    spearman_r_crispr: 0.0759771317243576
+    spearman_r_rnai: 0.17141954600811005
+  - compound_id: PRC-007277785-989-76
+    drug_name: NAPORAFENIB
+    metric_used: lfc
+    n_intersected_crispr: 709
+    n_intersected_rnai: 487
+    spearman_r_crispr: 0.08216216415166855
+    spearman_r_rnai: 0.18131685256958008
+  - compound_id: PRC-007945869-180-52
+    drug_name: ENCORAFENIB
+    metric_used: lfc
+    n_intersected_crispr: 699
+    n_intersected_rnai: 486
+    spearman_r_crispr: 0.13007767498493195
+    spearman_r_rnai: 0.21592730283737183
+  - compound_id: PRC-009441357-158-96
+    drug_name: PLIXORAFENIB
+    metric_used: lfc
+    n_intersected_crispr: 709
+    n_intersected_rnai: 487
+    spearman_r_crispr: 0.10398710519075394
+    spearman_r_rnai: 0.20308656990528107
+  - compound_id: PRC-009990173-077-39
+    drug_name: PRC-009990173-077-39
+    metric_used: lfc
+    n_intersected_crispr: 702
+    n_intersected_rnai: 478
+    spearman_r_crispr: 0.1942043900489807
+    spearman_r_rnai: 0.18975980579853058
+structure-features-static:
+  _data_source: pdb-alphafold-structure-features-per-uniprot-v1
+  _ligandability_source: structure-ligandability-per-protein-v1
+  alphafold_confidence_class: low
+  alphafold_plddt_mean: 66.39
+  alphafold_plddt_min: 23.34
+  alphafold_plddt_min_domain: 33.12
+  disordered_fraction: 0.3864
+  has_annotated_binding_site: true
+  has_cryptic_site: true
+  has_druggable_pocket: true
+  has_experimental_cocrystal: true
+  has_virtual_screen_hit: false
+  hotspot_pocket_adjacency_call: adjacent
+  is_foldable: true
+  ligandability_disorder_class: partially_disordered
+  method_version: 0.2.0
+  mutation_hotspot_in_druggable_pocket: true
+  n_domains_low_plddt: 6
+  n_ligandability_axes: 4
+  pdb_best_method: X-ray diffraction
+  pdb_best_resolution_angstrom: 1.5
+  pdb_coverage_class: strong
+  pdb_ids_available:
+  - 1UWH
+  - 1UWJ
+  - 2FB8
+  - 2L05
+  - 3C4C
+  - 3D4Q
+  - 3IDP
+  - 3II5
+  - 3NY5
+  - 3OG7
+  - 3PPJ
+  - 3PPK
+  - 3PRF
+  - 3PRI
+  - 3PSB
+  - 3PSD
+  - 3Q4C
+  - 3Q96
+  - 3SKC
+  - 3TV4
+  - 3TV6
+  - 4CQE
+  - 4DBN
+  - 4E26
+  - 4E4X
+  - 4EHE
+  - 4EHG
+  - 4FC0
+  - 4FK3
+  - 4G9C
+  - 4G9R
+  - 4H58
+  - 4JVG
+  - 4KSP
+  - 4KSQ
+  - 4MBJ
+  - 4MNE
+  - 4MNF
+  - 4PP7
+  - 4R5Y
+  - 4RZV
+  - 4RZW
+  - 4WO5
+  - 4XV1
+  - 4XV2
+  - 4XV3
+  - 4XV9
+  - 4YHT
+  - 5C9C
+  - 5CSW
+  - 5CSX
+  - 5CT7
+  - 5FD2
+  - 5HI2
+  - 5HID
+  - 5HIE
+  - 5ITA
+  - 5J17
+  - 5J18
+  - 5J2R
+  - 5JRQ
+  - 5JSM
+  - 5JT2
+  - 5VAL
+  - 5VAM
+  - 5VR3
+  - 5VYK
+  - 6B8U
+  - 6CAD
+  - 6N0P
+  - 6N0Q
+  - 6NSQ
+  - 6NYB
+  - 6P3D
+  - 6P7G
+  - 6PP9
+  - 6Q0J
+  - 6Q0K
+  - 6Q0T
+  - 6U2G
+  - 6U2H
+  - 6UAN
+  - 6UUO
+  - 6V2U
+  - 6V2W
+  - 6V34
+  - 6XAG
+  - 6XFP
+  - 6XLO
+  - 7K0V
+  - 7M0T
+  - 7M0U
+  - 7M0V
+  - 7M0W
+  - 7M0X
+  - 7M0Y
+  - 7M0Z
+  - 7MFD
+  - 7MFE
+  - 7MFF
+  - 7P3V
+  - 7SHV
+  - 7ZR0
+  - 7ZR5
+  - 7ZR6
+  - 8C7X
+  - 8C7Y
+  - 8DGS
+  - 8DGT
+  - 8F7O
+  - 8F7P
+  - 8JNA
+  - 8JNB
+  - 8QQG
+  - 8VSO
+  - 8VYO
+  - 8VYP
+  - 8VYQ
+  - 8VYR
+  - 8VYS
+  - 8VYU
+  - 8VYV
+  - 8VYW
+  - 9AXX
+  - 9AXY
+  - 9BFB
+  - 9BP8
+  - 9ECU
+  - 9EW6
+  - 9F35
+  - 9O2Z
+  - 9RTQ
+  - 9RTR
+  - 9RTS
+  - 9TWB
+  structural_ligandability_class: experimental_ligandable

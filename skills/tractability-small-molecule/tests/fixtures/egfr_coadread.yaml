@@ -1,0 +1,336 @@
+degradation-feasibility:
+  _data_source: ubibrowser-v3-human + curated-precedent
+  degradability_context: "EGFR: kinase_surface protein \u2014 outside cytoplasmic-E3\
+    \ reach, so a classic intracellular PROTAC/molecular-glue cannot engage it (an\
+    \ ADC/TCE surface modality applies instead; an extracellular-degrader modality\
+    \ such as LYTAC/AbTAC is the exception)."
+  degradability_feasibility_class: unfavorable_location
+  degrader_precedent: false
+  degrader_precedent_examples: []
+  degrader_precedent_modality: null
+  degrader_recruited_e3: null
+  e3_ligases_literature:
+  - CBL
+  - CBLB
+  - CBLC
+  - CGRRF1
+  - ITCH
+  - NEDD4
+  - RNF115
+  - RNF126
+  - RNF144A
+  - SMURF2
+  - SOCS5
+  - WWP1
+  - ZNRF1
+  e3_substrate_evidence: literature
+  e3_types_literature:
+  - HECT
+  - Other
+  - RING
+  - SINGLE_OTHER
+  - SOCS_VHL_BC-box
+  method_version: 0.1.0
+  n_e3_ligases_literature: 13
+  n_e3_predicted_confident: 258
+  surface_location_excluded: true
+dependency-predictability:
+  delta_r2: 0.0022790306247770786
+  model_agreement: concordant
+  pearson_r_rf: 0.5889945030212402
+  pearson_r_squared_rf: 0.34691452980041504
+  pearson_r_squared_rf_ci_hi: 0.3917604386806488
+  pearson_r_squared_rf_ci_lo: 0.3019210696220398
+  pearson_r_squared_xgb: 0.3446354866027832
+  pearson_r_xgb: 0.5870566368103027
+  per_lineage_predictability:
+  - lineage: Bone
+    n_cell_lines: 79
+    r2: 0.4630712568759918
+    top_feature: expr_SRGN
+  - lineage: Breast
+    n_cell_lines: 73
+    r2: 0.24815446138381958
+    top_feature: expr_SNORC
+  - lineage: CNS/Brain
+    n_cell_lines: 167
+    r2: 0.2003093659877777
+    top_feature: expr_ETV4
+  - lineage: Skin
+    n_cell_lines: 78
+    r2: 0.1398426592350006
+    top_feature: expr_POMGNT2
+  - lineage: Head and Neck
+    n_cell_lines: 79
+    r2: 0.10769212245941162
+    top_feature: cn_RPL15
+  - lineage: Bowel
+    n_cell_lines: 88
+    r2: 0.08731184899806976
+    top_feature: expr_SH3BGRL2
+  - lineage: Uterus
+    n_cell_lines: 38
+    r2: 0.08580305427312851
+    top_feature: expr_SETMAR
+  - lineage: Esophagus/Stomach
+    n_cell_lines: 97
+    r2: 0.06396480649709702
+    top_feature: expr_IFI27
+  - lineage: Lung
+    n_cell_lines: 141
+    r2: 0.057790547609329224
+    top_feature: expr_LIPA
+  - lineage: Lymphoid
+    n_cell_lines: 135
+    r2: 0.03812609612941742
+    top_feature: cn_ST8SIA4
+  - lineage: Pancreas
+    n_cell_lines: 74
+    r2: 0.033649325370788574
+    top_feature: expr_RAB19
+  - lineage: Soft Tissue
+    n_cell_lines: 63
+    r2: 0.02796144410967827
+    top_feature: expr_PIGP
+  - lineage: Ovary/Fallopian Tube
+    n_cell_lines: 64
+    r2: 0.01898028701543808
+    top_feature: expr_ARHGEF25
+  - lineage: Myeloid
+    n_cell_lines: 69
+    r2: 0.01739099994301796
+    top_feature: expr_STRBP
+  - lineage: Biliary Tract
+    n_cell_lines: 36
+    r2: 0.010858656838536263
+    top_feature: expr_POU5F1
+  - lineage: Kidney
+    n_cell_lines: 35
+    r2: 0.008913380093872547
+    top_feature: expr_APBB1IP
+  - lineage: Bladder/Urinary Tract
+    n_cell_lines: 34
+    r2: 0.002852445235475898
+    top_feature: expr_DNMBP
+  - lineage: Peripheral Nervous System
+    n_cell_lines: 53
+    r2: 4.109270594199188e-05
+    top_feature: cn_FNDC1
+  pred_dominant_feature: expr_C1orf116
+  pred_dominant_feature_class: cross_gene_expression
+  pred_n_cell_lines_evaluated: 1538
+  pred_top_features_rf:
+  - feature: expr_C1orf116
+    feature_class: cross_gene_expression
+    importance: 0.12178252637386322
+    rf_importance: 0.12178252637386322
+  - feature: expr_UQCRHL
+    feature_class: cross_gene_expression
+    importance: 0.03671613708138466
+    rf_importance: 0.03671613708138466
+  - feature: paralog_dep_SHC1
+    feature_class: paralog_dep
+    importance: 0.027318933978676796
+    rf_importance: 0.027318933978676796
+  - feature: lineage_Head and Neck
+    feature_class: lineage
+    importance: 0.026180529966950417
+    rf_importance: 0.026180529966950417
+  - feature: expr_TTC22
+    feature_class: cross_gene_expression
+    importance: 0.024277379736304283
+    rf_importance: 0.024277379736304283
+  - feature: expr_GJB3
+    feature_class: cross_gene_expression
+    importance: 0.0183359757065773
+    rf_importance: 0.0183359757065773
+  - feature: expr_TMPRSS4
+    feature_class: cross_gene_expression
+    importance: 0.01680777780711651
+    rf_importance: 0.01680777780711651
+  - feature: expr_FGFBP1
+    feature_class: cross_gene_expression
+    importance: 0.015149949118494987
+    rf_importance: 0.015149949118494987
+  - feature: expr_LCN2
+    feature_class: cross_gene_expression
+    importance: 0.01508645061403513
+    rf_importance: 0.01508645061403513
+  - feature: expr_ITGB6
+    feature_class: cross_gene_expression
+    importance: 0.013274150900542736
+    rf_importance: 0.013274150900542736
+  pred_top_features_xgb:
+  - feature: expr_C1orf116
+    feature_class: cross_gene_expression
+    importance: 0.12178252637386322
+    rf_importance: 0.0
+  - feature: expr_UQCRHL
+    feature_class: cross_gene_expression
+    importance: 0.03671613708138466
+    rf_importance: 0.0
+  - feature: paralog_dep_SHC1
+    feature_class: paralog_dep
+    importance: 0.027318933978676796
+    rf_importance: 0.0
+  - feature: lineage_Head and Neck
+    feature_class: lineage
+    importance: 0.026180529966950417
+    rf_importance: 0.0
+  - feature: expr_TTC22
+    feature_class: cross_gene_expression
+    importance: 0.024277379736304283
+    rf_importance: 0.0
+  - feature: expr_GJB3
+    feature_class: cross_gene_expression
+    importance: 0.0183359757065773
+    rf_importance: 0.0
+  - feature: expr_TMPRSS4
+    feature_class: cross_gene_expression
+    importance: 0.01680777780711651
+    rf_importance: 0.0
+  - feature: expr_FGFBP1
+    feature_class: cross_gene_expression
+    importance: 0.015149949118494987
+    rf_importance: 0.0
+  - feature: expr_LCN2
+    feature_class: cross_gene_expression
+    importance: 0.01508645061403513
+    rf_importance: 0.0
+  - feature: expr_ITGB6
+    feature_class: cross_gene_expression
+    importance: 0.013274150900542736
+    rf_importance: 0.0
+  predictability_class: weakly_predictable
+known-drug-tractability:
+  _data_source: dgidb-drug-gene-per-gene-v1
+  druggability_tier: clinically_actionable
+  gene_categories: CELL SURFACE|CLINICALLY ACTIONABLE|DRUG RESISTANCE|DRUGGABLE GENOME|KINASE|TYROSINE
+    KINASE
+  has_approved_drug: true
+  is_clinically_actionable: true
+  is_druggable_genome: true
+  known_drug_context: "EGFR: 217 approved-drug interaction(s) of 549 total (311 antineoplastic)\
+    \ in DGIdb \u2014 a drug against this target is approved (known-drug tractability\
+    \ demonstrated). Categories: CELL SURFACE|CLINICALLY ACTIONABLE|DRUG RESISTANCE|DRUGGABLE\
+    \ GENOME|KINASE|TYROSINE KINASE."
+  known_drug_tractability_class: approved_drug_tractable
+  method_version: 0.1.0
+  n_antineoplastic_interactions: 311
+  n_approved_drug_interactions: 217
+  n_drug_interactions: 549
+measured-potency-tractability:
+  _data_source: chembl-bioactivity-per-protein-v1 + bindingdb-affinity-per-protein-v1
+  best_measured_potency_neglog_m: 11.699
+  bindingdb_best_p_affinity: 11.699
+  bindingdb_n_potent_ligands: 22078
+  chembl_best_pchembl: 11.0
+  chembl_max_clinical_phase: 4.0
+  chembl_n_potent_ligands: 16683
+  measured_bioactivity_class: potent_measured_ligand
+  measured_potency_context: "EGFR: a POTENT measured small-molecule ligand exists\
+    \ (best 11.7 -log10 M, <= 1 uM) (ChEMBL/BindingDB). A real sub-micromolar chemical\
+    \ start point \u2014 stronger than a predicted pocket or a bare drug catalogue\
+    \ entry."
+  method_version: 0.1.0
+prism-compound-activity:
+  highest_clinical_phase: phase_1_plus
+  median_log2auc_across_compounds: -0.07906319200992584
+  n_compounds_targeting: 66
+  per_lineage_activity: __omitted_from_fixture__ (list, 26 items)
+  prism_activity_class: clinical_precedent_only
+  prism_lineage_selectivity: lineage_selective
+  top_compounds:
+  - best_responder_lfc: -7.98002290725708
+    compound_id: PRC-003901668-239-02
+    drug_name: AFATINIB
+    median_log2auc: -0.378042995929718
+    metric_source: log2auc
+    moa: inhibitor of EGFR, ERBB2, and ERBB4
+    n_annotated_targets: 3
+    n_lines_screened: 849
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -8.567298889160156
+    compound_id: PRC-008582467-171-28
+    drug_name: NERATINIB
+    median_log2auc: -0.3422849178314209
+    metric_source: log2auc
+    moa: inhibitor of EGFR and ERBB2
+    n_annotated_targets: 2
+    n_lines_screened: 842
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -7.416506767272949
+    compound_id: PRC-004263460-544-44
+    drug_name: LAPATINIB
+    median_log2auc: -0.2579595446586609
+    metric_source: log2auc
+    moa: inhibitor of EGFR and ERBB2
+    n_annotated_targets: 2
+    n_lines_screened: 857
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -6.624330520629883
+    compound_id: PRC-009071266-909-83
+    drug_name: PYROTINIB
+    median_log2auc: -0.2215823084115982
+    metric_source: log2auc
+    moa: inhibitor of EGFR, ERBB2, and ERBB4
+    n_annotated_targets: 3
+    n_lines_screened: 826
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+  - best_responder_lfc: -7.265820026397705
+    compound_id: PRC-002133166-396-34
+    drug_name: ERLOTINIB
+    median_log2auc: -0.16569769382476807
+    metric_source: log2auc
+    moa: inhibitor of EGFR and ERBB2
+    n_annotated_targets: 2
+    n_lines_screened: 809
+    polyselective: true
+    prioritized: true
+    single_dose_lfc: null
+    source_release: oncref-25q4
+prism-crispr-concordance:
+  best_spearman_r_crispr: 0.339442640542984
+  best_spearman_r_rnai: 0.34461936354637146
+  crispr_prism_concordance_class: triangulated_target_engaged
+  dual_responders: __omitted_from_fixture__ (list, 20 items)
+  n_compounds_evaluated: 18
+  n_dual_responders: 20
+  per_compound_concordance: __omitted_from_fixture__ (list, 18 items)
+structure-features-static:
+  _data_source: pdb-alphafold-structure-features-per-uniprot-v1
+  _ligandability_source: structure-ligandability-per-protein-v1
+  alphafold_confidence_class: moderate
+  alphafold_plddt_mean: 75.95
+  alphafold_plddt_min: 23.81
+  alphafold_plddt_min_domain: 36.69
+  disordered_fraction: 0.2281
+  has_annotated_binding_site: true
+  has_cryptic_site: true
+  has_druggable_pocket: true
+  has_experimental_cocrystal: true
+  has_virtual_screen_hit: true
+  hotspot_pocket_adjacency_call: adjacent
+  is_foldable: true
+  ligandability_disorder_class: partially_disordered
+  method_version: 0.2.0
+  mutation_hotspot_in_druggable_pocket: true
+  n_domains_low_plddt: 7
+  n_ligandability_axes: 5
+  pdb_best_method: X-ray diffraction
+  pdb_best_resolution_angstrom: 1.07
+  pdb_coverage_class: strong
+  pdb_ids_available: __omitted_from_fixture__ (list, 391 items)
+  structural_ligandability_class: experimental_ligandable
