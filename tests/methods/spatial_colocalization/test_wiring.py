@@ -31,6 +31,17 @@ def test_paad_wired_to_pdac_xenium():
     assert SC.INDICATION_TO_SPATIAL_COLOC["PAAD"] == "spatial-coloc-tumor-paad-v1"
 
 
+def test_hnsc_wired_to_xenium_inferred():
+    assert SC.INDICATION_TO_SPATIAL_COLOC["HNSC"] == "spatial-coloc-tumor-hnsc-v1"
+
+
+def test_inferred_compartment_labels_self_map():
+    # mode-C products emit compartment labels directly; they must map to themselves.
+    for c in ("immune", "stromal", "endothelial"):
+        assert ST.compartment_of_neighbor(c) == c
+    assert ST.compartment_of_neighbor("other") == "other"
+
+
 def test_paad_caf_variants_map_to_stromal():
     # GSE280634 CAF-variant labels tokenize to a single glued token; must resolve to stromal (explicit dict)
     assert ST.compartment_of_neighbor("myCAF") == "stromal"
