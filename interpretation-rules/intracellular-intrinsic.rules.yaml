@@ -645,9 +645,14 @@ rules:
       shallow-amp fraction ~0.32 but focal-amp fraction <0.11). The focal-vs-arm
       distinction lives in the ADDITIVE patient_focal_cn_class field (GISTIC
       indication-specific focal call), NOT in this pan-cancer relative-CN class.
-      A symmetric focal-driver recalibration (either +shallow-amp or -shallow-del)
-      is verdict-moving and is deferred to a CN-methods backtest — see the
-      asymmetry note in analysis-methods/methods/depmap_cn_distribution/cli.py.
+      A 2026-08-14 focal-driver backtest VALIDATED keeping these thresholds: adding
+      shallow-amp raised amp-recall 2/6→6/6 but collapsed neutral-specificity 3/4→0/4
+      (shallow gain is genome-wide background — mutation-only KRAS/BRAF/PIK3CA all
+      carry shallow-amp ~0.34-0.40), and focal_amp alone doesn't separate drivers
+      (ERBB2 focal 0.053 < KRAS 0.111). The real amp-driver signal belongs to
+      patient_focal_cn_class + the copy-number-stratified-dependency card, NOT this
+      classifier — see the backtest note in
+      analysis-methods/methods/depmap_cn_distribution/cli.py. Do NOT re-tune these bands.
 
   - rule_id: cn-recurrently-deleted-supportive
     when:
