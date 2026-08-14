@@ -19,8 +19,11 @@ from methods.spatial_colocalization import stats as ST   # noqa: E402
 # ── wiring invariants (no S3) ────────────────────────────────────────────────
 
 def test_coadread_wired_to_crc_cosmx():
+    # COADREAD now carries the CosMx lead + a Xenium depth cohort (list value); the lead must be present.
     for code in ("COADREAD", "COAD", "READ"):
-        assert SC.INDICATION_TO_SPATIAL_COLOC[code] == "spatial-coloc-tumor-crc-coadread-v1"
+        prods = SC._product_ids(code)
+        assert "spatial-coloc-tumor-crc-coadread-v1" in prods
+        assert "spatial-coloc-tumor-crc-gse335552-v1" in prods
 
 
 def test_stad_wired_to_gastric_cosmx():
@@ -28,7 +31,9 @@ def test_stad_wired_to_gastric_cosmx():
 
 
 def test_paad_wired_to_pdac_xenium():
-    assert SC.INDICATION_TO_SPATIAL_COLOC["PAAD"] == "spatial-coloc-tumor-paad-v1"
+    prods = SC._product_ids("PAAD")
+    assert "spatial-coloc-tumor-paad-v1" in prods          # measured lead
+    assert "spatial-coloc-tumor-paad-gse313662-v1" in prods  # inferred depth cohort
 
 
 def test_hnsc_wired_to_xenium_inferred():
@@ -36,8 +41,24 @@ def test_hnsc_wired_to_xenium_inferred():
 
 
 def test_nsclc_histologies_wired_to_lung_product():
+    # all three histologies share the same lung product list (lead + depth cohort)
     for code in ("NSCLC", "LUAD", "LUSC"):
-        assert SC.INDICATION_TO_SPATIAL_COLOC[code] == "spatial-coloc-tumor-nsclc-v1"
+        prods = SC._product_ids(code)
+        assert "spatial-coloc-tumor-nsclc-v1" in prods
+        assert "spatial-coloc-tumor-nsclc-gse319755-v1" in prods
+
+
+def test_tier_dominant_partition_measured_vs_inferred():
+    # tier_dominant: the author-curated leads are measured; the mode-C depth cohorts are inferred. The
+    # reader reads measured first and only falls back to inferred — it never pools the two (Rule 5).
+    assert SC._tier_of("spatial-coloc-tumor-crc-coadread-v1") == "measured"   # CosMx CRC atlas lead
+    assert SC._tier_of("spatial-coloc-tumor-paad-v1") == "measured"           # Xenium PDAC atlas lead
+    assert SC._tier_of("spatial-coloc-tumor-crc-gse335552-v1") == "inferred"  # mode-C depth
+    assert SC._tier_of("spatial-coloc-tumor-paad-gse313662-v1") == "inferred"
+    # a mixed indication resolves BOTH tiers; a pure-inferred indication resolves only inferred
+    assert {SC._tier_of(p) for p in SC._product_ids("PAAD")} == {"measured", "inferred"}
+    assert {SC._tier_of(p) for p in SC._product_ids("NSCLC")} == {"inferred"}
+    assert {SC._tier_of(p) for p in SC._product_ids("COADREAD")} == {"measured", "inferred"}
 
 
 def test_inferred_compartment_labels_self_map():
@@ -66,8 +87,8 @@ def test_products_resolve_to_catalog_s3_uris():
 
 def test_product_ids_normalizes_str_and_list():
     # a map value may be a single product id (str) or a list (multiple datasets per indication)
-    assert SC._product_ids("COADREAD") == ["spatial-coloc-tumor-crc-coadread-v1"]  # str -> [str]
-    assert SC._product_ids("KIRC") == []                                           # unmapped -> []
+    assert SC._product_ids("STAD") == ["spatial-coloc-tumor-stad-v1"]  # str value -> [str]
+    assert SC._product_ids("KIRC") == []                              # unmapped -> []
     # list values are returned as-is (simulate a multi-dataset indication)
     orig = SC.INDICATION_TO_SPATIAL_COLOC.get("PAAD")
     try:
