@@ -18,10 +18,14 @@ from methods.catalog_query.read import bucket_key_for
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 
-# indication -> landed spatial region-protein product (GeoMx DSP). HNSC = GSE288406 (Phase 3 pilot).
-# Adding an indication = emit its spatial-surface-protein product (data-catalog) + one line here.
+# indication -> landed spatial region-protein product (GeoMx DSP). HNSC = GSE288406 (580-plex, Phase 3
+# pilot); NSCLC = GSE221322 (68-plex IO panel) covering all three lung histologies. Adding an indication
+# = emit its spatial-surface-protein product (data-catalog) + one line here.
 INDICATION_TO_SURFACE_PROTEIN = {
     "HNSC": "spatial-surface-protein-hnsc-v1",
+    "NSCLC": "spatial-surface-protein-nsclc-v1",   # lung — GeoMx IO panel (GSE221322)
+    "LUAD": "spatial-surface-protein-nsclc-v1",     # covered by the NSCLC product (both histologies)
+    "LUSC": "spatial-surface-protein-nsclc-v1",
 }
 
 _PARQUET_COLS = ["gene_symbol", "donor_id", "compartment", "abundance_lcpm", "detected"]

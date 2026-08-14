@@ -16,10 +16,18 @@ def test_hnsc_wired_to_geomx_protein():
     assert SP.INDICATION_TO_SURFACE_PROTEIN["HNSC"] == "spatial-surface-protein-hnsc-v1"
 
 
+def test_nsclc_histologies_wired_to_geomx_protein():
+    # all three lung histologies share the one NSCLC GeoMx IO-panel product (GSE221322)
+    for code in ("NSCLC", "LUAD", "LUSC"):
+        assert SP.INDICATION_TO_SURFACE_PROTEIN[code] == "spatial-surface-protein-nsclc-v1"
+
+
 def test_product_resolves_to_catalog_s3_uri():
     from methods.catalog_query.read import s3_uri_for
     assert s3_uri_for("spatial-surface-protein-hnsc-v1").endswith(
         "spatial-surface-protein-hnsc-v1/spatial_surface_protein.parquet")
+    assert s3_uri_for("spatial-surface-protein-nsclc-v1").endswith(
+        "spatial-surface-protein-nsclc-v1/spatial_surface_protein.parquet")
 
 
 def test_unmapped_indication_is_data_unavailable():
