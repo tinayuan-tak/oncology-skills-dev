@@ -189,6 +189,10 @@ def _headline(cards, fired, verdict_pair):
         # (e.g. EGFRvIII when querying LUAD). In-context, the verdict is isoform_dependent_undefined and
         # this is False. Verdict-inert (annotation only).
         "isoform_selective_offcontext":   get_card_field(cards, "adc-tce-modality-fit", "isoform_selective_offcontext"),
+        # Mechanism-aware caveat (2026-08-14): in-context isoform whose mechanism does NOT ablate the
+        # ectodomain epitope (METex14 intracellular / EGFRvIII neoepitope / CD19 acquired-resistance /
+        # FGFR2 isoform-specific) — fit_class stands, mechanism surfaced. None when not applicable.
+        "isoform_mechanism_caveat":       get_card_field(cards, "adc-tce-modality-fit", "isoform_mechanism_caveat"),
         "topology_class":                 get_card_field(cards, "surface-topology-and-ptm", "topology_class"),
         "family_class":                   get_card_field(cards, "surfaceome-family-classification", "family_class"),
         "hotspot_pocket_adjacency_call":  get_card_field(cards, "structure-features-static",

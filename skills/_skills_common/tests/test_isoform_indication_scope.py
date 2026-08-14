@@ -19,11 +19,12 @@ if str(SKILLS) not in sys.path:
 from _skills_common.isoform_selective_targets import IsoformWarning  # noqa: E402
 
 
-def _w(codes=(), pan=False):
+def _w(codes=(), pan=False, impact=""):
     return IsoformWarning(
         target_symbol="X", dominant_isoform="iso", variant_type="v", warning_severity="high",
         caveat="", warning_conditional_on=None, primary_source_doi="", primary_source_citation="",
-        vocabulary_version="1.1.0", oncotree_codes=tuple(codes), pan_applicable=pan)
+        vocabulary_version="1.2.0", oncotree_codes=tuple(codes), pan_applicable=pan,
+        modality_epitope_impact=impact)
 
 
 def test_in_context_indication_suppresses():
@@ -56,3 +57,24 @@ def test_backward_compat_missing_codes_is_in_context():
     prior always-suppress behavior so the fix is safe against either merge order."""
     assert _w(codes=()).applies_in_indication("LUAD") is True
     assert _w(codes=()).applies_in_indication(None) is True
+
+
+# --- Stage 2: mechanism-aware suppression (suppresses_adc_epitope) ---
+
+def test_only_ectodomain_ablating_suppresses():
+    """Only a mechanism that removes the extracellular antibody epitope (p95HER2) blanks the fit_class."""
+    assert _w(impact="ectodomain_ablating").suppresses_adc_epitope() is True
+
+
+def test_non_ablating_mechanisms_do_not_suppress():
+    """METex14 (intracellular), EGFRvIII (neoepitope), CD19 delΔex2 (acquired resistance), FGFR2
+    IIIb/IIIc (isoform-specific), and intracellular targets leave the surface epitope targetable."""
+    for impact in ("ectodomain_intact", "neoepitope", "resistance_acquired",
+                   "ectodomain_isoform_specific", "intracellular"):
+        assert _w(impact=impact).suppresses_adc_epitope() is False, impact
+
+
+def test_backward_compat_missing_impact_suppresses():
+    """A pre-v1.2.0 vocab entry (no modality_epitope_impact) defaults to suppress — preserving the
+    Stage-1 in-context always-suppress behavior so the fix is safe against either merge order."""
+    assert _w(impact="").suppresses_adc_epitope() is True

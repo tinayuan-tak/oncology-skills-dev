@@ -70,6 +70,24 @@ class IsoformWarning:
     vocabulary_version: str
     oncotree_codes: tuple = ()       # indication-scope (vocab v1.1.0): OncoTree codes where the isoform dominates
     pan_applicable: bool = False     # entry's isoform axis is indication-agnostic (e.g. FGFR2 IIIb/IIIc pan-epithelial)
+    modality_epitope_impact: str = ""  # mechanism (vocab v1.2.0): ectodomain_ablating | ectodomain_intact | neoepitope | resistance_acquired | ectodomain_isoform_specific | intracellular
+
+    def suppresses_adc_epitope(self) -> bool:
+        """Does the dominant alt isoform ABLATE the extracellular antibody epitope? (2026-08-14 fix)
+
+        Only an ectodomain-ablating isoform (p95HER2 — the N-terminal ectodomain is proteolytically
+        removed) justifies blanking the biologics fit_class. Other in-context mechanisms leave the
+        surface epitope targetable and must NOT suppress the verdict:
+          ectodomain_intact  — isoform change is intracellular (METex14 juxtamembrane degron)
+          neoepitope         — creates a targetable tumor-specific ectodomain (EGFRvIII / depatux-m)
+          resistance_acquired— epitope loss is post-therapy acquired, not upfront (CD19 delΔex2)
+          ectodomain_isoform_specific — antibody epitope is isoform-dependent (FGFR2 IIIb/IIIc)
+          intracellular      — target is not a surface antigen at all (AR/BRAF/MDM2)
+        BACKWARD-COMPATIBLE: an entry with no modality_epitope_impact (pre-v1.2.0 vocab) returns True —
+        preserving the Stage-1 in-context always-suppress behavior, so either merge order is safe."""
+        if not self.modality_epitope_impact:
+            return True
+        return self.modality_epitope_impact == "ectodomain_ablating"
 
     def applies_in_indication(self, indication: Optional[str]) -> bool:
         """Is the dominant alt isoform clinically established in THIS indication? (2026-08-14 fix)
@@ -186,4 +204,5 @@ def check_target(target_symbol: str) -> Optional[IsoformWarning]:
         vocabulary_version=str(vocab.get("version", "unknown")),
         oncotree_codes=tuple(entry.get("oncotree_codes") or ()),
         pan_applicable=bool(entry.get("pan_applicable", False)),
+        modality_epitope_impact=str(entry.get("modality_epitope_impact", "")),
     )

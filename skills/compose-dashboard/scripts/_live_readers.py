@@ -863,11 +863,19 @@ def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional
             # blanks fit_class to isoform_dependent_undefined. In-context → suppress as before.
             out["isoform_selective_dominant_isoform"] = warning.dominant_isoform
             out["vocabulary_version_isoform"] = warning.vocabulary_version
-            if warning.applies_in_indication(indication):
-                out["isoform_selective_warning"] = True          # suppresses fit_class (in-context)
-            else:
-                out["isoform_selective_offcontext"] = True       # annotation only — fit_class preserved
+            if not warning.applies_in_indication(indication):
+                out["isoform_selective_offcontext"] = True       # off-context: annotation only — fit_class preserved
                 out["isoform_selective_offcontext_indication"] = indication
+            elif warning.suppresses_adc_epitope():
+                # MECHANISM-AWARE (2026-08-14): in-context AND the isoform ABLATES the extracellular
+                # epitope (p95HER2) → suppress fit_class to isoform_dependent_undefined (the antibody
+                # target is genuinely lost).
+                out["isoform_selective_warning"] = True
+            else:
+                # In-context but the mechanism does NOT ablate the surface epitope (METex14 intracellular,
+                # EGFRvIII neoepitope, CD19 acquired-resistance, FGFR2 isoform-specific) → keep fit_class,
+                # surface the mechanism as a caveat rather than blanking the verdict.
+                out["isoform_mechanism_caveat"] = warning.modality_epitope_impact
     except Exception:  # noqa: BLE001 — vocab unreadable → leave the product's default (no false warning)
         pass
     return out
@@ -1141,6 +1149,10 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         # Off-context annotation (2026-08-14 indication-scope): gene has a curated dominant alt isoform
         # but NOT in this indication — fit_class preserved, caveat surfaced (not a verdict suppression).
         "isoform_selective_offcontext": bool(topology.get("isoform_selective_offcontext")),
+        # Mechanism caveat (2026-08-14 mechanism-aware): in-context isoform whose mechanism does NOT
+        # ablate the ectodomain epitope (ectodomain_intact / neoepitope / resistance_acquired / …) —
+        # fit_class preserved, the mechanism surfaced instead of blanking the verdict. None otherwise.
+        "isoform_mechanism_caveat": topology.get("isoform_mechanism_caveat"),
         # structure-features-static passthrough (honors the card's derived_from) — carried for
         # display + a future ECD-epitope-quality rule; does NOT feed fit_class today. Empty/None
         # when the structure product is unavailable (the reader returns 'no_structure').
