@@ -89,3 +89,55 @@ def test_concrete_id_as_family_is_accepted():
     # pick any manifest whose id == its own family (no version siblings)
     concrete = next(m for m in idx.manifests if _family_of(m) == m)
     assert resolve_release(concrete, "latest_approved") == concrete
+
+
+# --- product_id resolution (2026-08-14) --------------------------------------
+# A card that reads an indication-dispatched product declares the stable products.yaml product_id,
+# not a per-indication manifest id, so provenance stamps the product_id. resolve_release must map a
+# product_id (matching no manifest-id family and no concrete id) to the head among the manifests that
+# carry it (idx.consumers reverse index) rather than failing loud — the drift-guard for the tumor-
+# presence provenance warning: input_manifest_ids=['expression-rna-tumor-vs-adjacent'] used to raise
+# ReleaseResolutionError because that string is a product_id, not a manifest family.
+
+def _a_product_id_with_manifests() -> tuple[str, list[str]]:
+    """Return (product_id, [manifest_ids...]) for a product carried by >=1 manifest, or skip."""
+    idx = load_catalog()
+    by_product: dict[str, list[str]] = {}
+    for mid, pids in idx.consumers.items():
+        for pid in (pids or []):
+            by_product.setdefault(pid, []).append(mid)
+    # a product_id that is NOT itself a manifest-id family (the interesting case)
+    for pid in sorted(by_product):
+        members = [m for m in idx.manifests if _family_of(m) == pid]
+        if not members and pid not in idx.manifests:
+            return pid, sorted(by_product[pid])
+    pytest.skip("no product_id distinct from a manifest-id family found in the catalog")
+
+
+def test_product_id_resolves_to_a_carrying_manifest():
+    """A product_id resolves to one of the manifests that declare it (via idx.consumers), instead of
+    raising ReleaseResolutionError. This is the fix for provenance release-resolution on cards that
+    declare a product_id rather than a concrete manifest id."""
+    pid, manifests = _a_product_id_with_manifests()
+    resolved = resolve_release(pid, "latest_approved")
+    assert resolved in manifests, (
+        f"product_id {pid!r} resolved to {resolved!r}, not among its carrying manifests {manifests}")
+
+
+def test_expression_rna_tumor_vs_adjacent_product_id_resolves():
+    """The exact case from the tumor-presence provenance warning: the product_id
+    'expression-rna-tumor-vs-adjacent' (declared by the tumor-rna-vs-adjacent card) must resolve to a
+    manifest carrying it, not raise. Skips if the product is not in this catalog checkout."""
+    idx = load_catalog()
+    pid = "expression-rna-tumor-vs-adjacent"
+    carriers = sorted(mid for mid, pids in idx.consumers.items() if pid in (pids or []))
+    if not carriers:
+        pytest.skip(f"{pid!r} not carried by any manifest in this catalog checkout")
+    assert resolve_release(pid, "latest_approved") in carriers
+
+
+def test_unknown_string_still_fails_loud():
+    """A string that is neither a manifest-id family, a concrete id, nor a product_id still raises —
+    the product_id fallback must not swallow genuinely-unresolvable inputs."""
+    with pytest.raises(ReleaseResolutionError):
+        resolve_release("definitely-not-a-product-or-family-xyz", "latest_approved")

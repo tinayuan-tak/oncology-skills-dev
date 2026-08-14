@@ -194,6 +194,13 @@ def resolve_release(
 ) -> str:
     """Resolve a logical product `family` + `data_mode` (+ `release_pin`) to a concrete manifest_id.
 
+    `family` is normally a manifest-id family (the id with its `-v<N>`/`-<release>` suffix stripped),
+    but it may also be a concrete manifest id (single-release product) or a **product_id** from
+    target-contracts/vocabularies/products.yaml. The product_id path exists because a card that reads
+    an indication-dispatched product declares the stable product_id rather than a per-indication
+    manifest id; when `family` matches no manifest-id family and no concrete id, it is resolved via the
+    reverse product->manifest index (idx.consumers) to the head among the manifests carrying it.
+
     data_mode:
       - "pinned":         requires release_pin; resolves to the exact sibling for that pin. The
                           candidate ids tried are `f"{family}-{release_pin}"` and
@@ -214,10 +221,22 @@ def resolve_release(
         # family may already BE a concrete id (single-release product) — accept it as-is.
         if family in idx.manifests:
             return family
-        raise ReleaseResolutionError(
-            f"No manifest in family {family!r} (data_mode={data_mode!r}). "
-            f"Known families are the id-prefixes under manifests/{{sources,derived}}/."
-        )
+        # `family` may be a PRODUCT_ID (products.yaml registry id) rather than a manifest-id
+        # family. A card that reads an indication-DISPATCHED product declares the stable
+        # product_id (it cannot name one manifest statically — e.g. COADREAD reads the paired-
+        # adjacent DGE manifest, other indications read the {ind}-dge-tumor-vs-normal-sensitivity
+        # sibling), so provenance stamps the product_id. Map it to the manifest(s) carrying it
+        # (idx.consumers: manifest_id -> [product_id, ...]) and resolve the head among THOSE, so
+        # provenance-release resolution works for product-id-declared cards too. Purely additive:
+        # only reached when the string matches no manifest-id family and no concrete manifest id.
+        members = sorted(mid for mid, pids in idx.consumers.items()
+                         if family in (pids or []))
+        if not members:
+            raise ReleaseResolutionError(
+                f"No manifest in family {family!r} (data_mode={data_mode!r}). "
+                f"Known families are the id-prefixes under manifests/{{sources,derived}}/, or a "
+                f"product_id from target-contracts/vocabularies/products.yaml."
+            )
 
     def _pinned(pin: str) -> Optional[str]:
         for cand in (f"{family}-{pin}", f"{family}-{pin}-v1"):
@@ -244,9 +263,15 @@ def resolve_release(
         # fall through to head resolution when the pin doesn't resolve (exploratory is permissive)
 
     if data_mode in ("latest_approved", "exploratory"):
+        # A supersedes edge is in-family either by the id-prefix family match OR (when resolving a
+        # product_id) by pointing at one of the product's own manifests — the product_id will never
+        # equal _family_of(a manifest id), so the membership test is what makes head resolution honor
+        # supersedes within a product's manifest set.
+        _member_set = set(members)
         superseded = {
             rec.supersedes for rec in idx.manifests.values()
-            if rec.supersedes and _family_of(rec.supersedes) == family
+            if rec.supersedes and (_family_of(rec.supersedes) == family
+                                   or rec.supersedes in _member_set)
         }
         head = sorted(m for m in members if m not in superseded)
         if not head:
