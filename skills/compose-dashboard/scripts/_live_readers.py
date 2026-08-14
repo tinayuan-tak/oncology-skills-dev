@@ -731,6 +731,20 @@ def _dispatch_spatial_surface_protein_abundance(target: str, indication: str) ->
     return mod.build_summary(target, indication)
 
 
+def _dispatch_spatial_region_rna_expression(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route spatial-region-rna-expression card to
+    methods/spatial_region_rna/cli.py::build_summary.
+
+    MEASURED in-situ region RNA (NanoString GeoMx DSP Whole Transcriptome Atlas) in the TUMOUR compartment
+    vs the TME → spatial_rna_class: tumour_enriched_rna (measured tumour-compartment localization) /
+    tme_enriched_rna (tumour-specificity caveat) / no-preference. Region-level, whole-transcriptome RNA —
+    a corroborating PRESENCE/localization proxy (RNA-grade, secondary), distinct from BOTH the region
+    PROTEIN card (antibody signal) and the dissociated scRNA products (no tissue architecture).
+    Indication-scoped."""
+    mod = _import_method("spatial_region_rna.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route sc-surface-normal-safety card to
     methods/sc_surface_normal_safety/cli.py::build_summary.
@@ -1403,6 +1417,7 @@ CARD_DISPATCHERS = {
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
     "spatial-tumor-normal-colocalization": _dispatch_spatial_tumor_normal_colocalization,   # in-situ spatial neighbourhood (CosMx CRC; immune_excluded / normal_epithelium_adjacent)
     "spatial-surface-protein-abundance": _dispatch_spatial_surface_protein_abundance,       # in-situ region PROTEIN (GeoMx DSP; tumour_enriched / tme_enriched)
+    "spatial-region-rna-expression": _dispatch_spatial_region_rna_expression,               # in-situ region RNA (GeoMx DSP WTA; tumour_enriched_rna / tme_enriched_rna; corroborating presence)
     "sc-surface-normal-safety": _dispatch_sc_surface_normal_safety,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
