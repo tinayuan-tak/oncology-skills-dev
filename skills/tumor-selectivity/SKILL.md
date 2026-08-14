@@ -21,7 +21,7 @@ description: |
   + discordant flag) is modality-independent.
 
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -50,9 +50,18 @@ composition:
                                              # facet, verdict byte-stable. Declared here 2026-08-11 (doc-drift fixed).
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. tumor_vs_normal_selectivity is
   # the efficacy-window framing (distinct from safety's normal_tissue_breadth — Rule 1 discriminator b).
+  # DATA_TO_SKILL_CONTRACT Rule 3 — one per card in cards_used. 2026-08-14 review (framework-wide
+  # measurement_types parity guard): completed from 2 → 6; the Q2 percentile-crossing corroboration,
+  # the sc-normal veto arm, and the two additive context cards (purity-confound, surface-density) were
+  # in cards_used but their types were undeclared. test_measurement_types_resolver.py::
+  # test_every_used_card_type_is_declared_framework_wide now enforces this for all gate-views.
   measurement_types_pulled:
-    - tumor_vs_normal_selectivity
-    - modality_window                        # the normal-breadth veto instrument (modality-therapeutic-window)
+    - tumor_vs_normal_selectivity            # tumor-vs-normal-selectivity (verdict-driving)
+    - tumor_vs_normal_percentile_crossing    # tumor-vs-normal-percentile-crossing (Q2 corroboration)
+    - modality_window                        # modality-therapeutic-window (the normal-breadth veto instrument)
+    - sc_normal_celltype_expression          # sc-normal-celltype-expression (INC-3 sc-normal veto arm)
+    - expression_purity_confound             # expression-purity-confound (additive caveat)
+    - surface_density                        # surface-abundance-density (INC-4 additive)
   rules_scope:
     - tumor-vs-normal-selectivity
     - tumor-vs-normal-percentile-crossing
