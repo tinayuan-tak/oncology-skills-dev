@@ -133,7 +133,8 @@ SUB_SKILLS = [
     ("tumor-presence",                 "expression"),
     ("tumor-selectivity",              "selectivity"),
     ("functional-requirement",         "dependency"),
-    ("synthetic-lethal-partners",      "synthetic_lethal_partners"),  # gate-C SL veto-suppressor input
+    ("synthetic-lethal-partners",      "synthetic_lethal_partners"),  # gate-C SL veto-suppressor input (curated SynLethDB)
+    ("combinatorial-dependency",       "combinatorial_dependency"),   # MEASURED dual-KO SL complement (DepMap ParalogV2 + published GI). ADDITIVE: self-contained inline verdict, NO resolver gate → absent from _SHORT_TO_GATE (like `expression`), so it is surfaced in sub_verdicts + the LLM synthesis but does NOT drive the nomination spine (recommendation byte-stable). Thickens the single-source SynLethDB SL axis (2026-08-14 consolidation-fidelity follow-up).
     ("mechanism-and-pharmacology",     "mechanism"),
     ("genomic-alteration-profile",     "genomic_alteration"),  # reframed from mutation-profile
     ("differentiation-landscape",      "differentiation"),
@@ -259,6 +260,10 @@ SUB_SKILL_CARDS = {
     ],
     "synthetic-lethal-partners": [
         "synthetic-lethal-partners",
+    ],
+    "combinatorial-dependency": [
+        "combinatorial-dependency",      # DepMap ParalogV2 dual-KO GI + published corroboration
+                                         # (Dede/in4mer/Horlbeck). Matches the skill's SKILL.md cards_used.
     ],
     "mechanism-and-pharmacology": [
         "signaling-network-mechanism",
@@ -489,7 +494,13 @@ def _run_sub_skills(target: str, indication: str,
     # (no cross-contamination) and card-correct regardless of which file a
     # card's rules live in. (Fixed 2026-07-14 when the tractability split first
     # made a surface-only sub-skill a peer in the composer.)
-    axes = ("intracellular_intrinsic", "surface_intrinsic")
+    # Rule AXES fired per sub-skill (card_id_filter scopes each to its own cards). combinatorial_dependency
+    # (2026-08-14) is a DEDICATED axis — the combinatorial-dependency skill's rules live in
+    # combinatorial-dependency.rules.yaml on their own axis, isolated from the shared ladder. Without it
+    # here the fan-out fired NO combinatorial rules → the axis always resolved `insufficient` in the
+    # composed profile (a hollow composition) while the standalone skill read constitutive/context. Other
+    # sub-skills lack the combinatorial-dependency card, so this axis is a no-op for them (card_id_filter).
+    axes = ("intracellular_intrinsic", "surface_intrinsic", "combinatorial_dependency")
 
     def _one_sub_skill(skill_dir: str, short: str) -> tuple[str, dict]:
         """Compute one sub-skill's (cards, fired, verdict). Pure over (target, indication) +

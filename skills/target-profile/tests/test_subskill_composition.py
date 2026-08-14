@@ -99,12 +99,13 @@ def test_gateless_expression_has_no_primary_but_keeps_verdict(monkeypatch):
 def test_attach_is_byte_additive_raw_fired_untouched(monkeypatch):
     """The nomination emits fired_rule_ids as [f["rule_id"] for f in r["fired"]] — RAW order,
     dups kept — NOT the sorted set on the carrier. Prove the attach did not disturb r["fired"]
-    (2 axes × the fake list) and that the two conventions genuinely differ."""
+    (fan-out axes × the fake list) and that the two conventions genuinely differ.
+    2026-08-14: fan-out fires 3 axes now (+combinatorial_dependency) → 3× the per-axis fake list."""
     _install_fakes(monkeypatch)
     results = tp._run_sub_skills("KRAS", "COADREAD")
 
     r = results["selectivity"]
     raw_emitted = [f["rule_id"] for f in r["fired"]]          # what nomination.json writes
-    assert raw_emitted == ["r-b", "r-a", "r-b", "r-b", "r-a", "r-b"]  # 2 axes, order + dups kept
+    assert raw_emitted == ["r-b", "r-a", "r-b"] * 3           # 3 fan-out axes, order + dups kept
     assert raw_emitted != r["composition"].fired_rule_ids     # sorted-set convention differs
     assert r["composition"].fired_rule_ids == ["r-a", "r-b"]

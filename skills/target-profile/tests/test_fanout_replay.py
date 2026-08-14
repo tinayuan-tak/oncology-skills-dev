@@ -112,14 +112,16 @@ TACSTD2 = ("tacstd2_coadread", "TACSTD2", "COADREAD")
 KRAS = ("kras_coadread", "KRAS", "COADREAD")
 
 
-def test_fanout_covers_all_ten_sub_skills():
-    """Sanity: the fan-out drives all 10 sub-skills (a regression that dropped a sub-skill from
-    SUB_SKILLS would shrink this)."""
+def test_fanout_covers_all_sub_skills():
+    """Sanity: the fan-out drives every SUB_SKILLS axis (a regression that dropped one would shrink
+    this). 2026-08-14: 10 -> 11 with combinatorial_dependency (measured dual-KO SL complement, added
+    to SUB_SKILLS as an ADDITIVE non-gate axis). Pinned to len(SUB_SKILLS) so it tracks future adds."""
     v = _fan_out(*TACSTD2)
-    assert len(v) == 10, f"fan-out produced {len(v)} sub-results, expected 10: {sorted(v)}"
+    assert len(v) == len(_TP.SUB_SKILLS), (
+        f"fan-out produced {len(v)} sub-results, expected {len(_TP.SUB_SKILLS)}: {sorted(v)}")
     for short in ("expression", "selectivity", "dependency", "genomic_alteration", "safety",
                   "surface_modality", "tractability_sm", "mechanism", "differentiation",
-                  "synthetic_lethal_partners"):
+                  "synthetic_lethal_partners", "combinatorial_dependency"):
         assert short in v, f"sub-skill {short!r} missing from the fan-out results"
 
 
