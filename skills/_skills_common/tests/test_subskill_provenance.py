@@ -109,6 +109,52 @@ def test_content_digest_none_when_no_manifests():
     assert resolved_content_digest([_card("c1", [])]) is None
 
 
+# ── (B) honest is_stale for product-id-declared families (SUBSKILL-only) ─────
+# A card declares its inputs as products.yaml product_ids, so a family whose `used` ids are all
+# product_ids (not concrete manifest ids) had is_stale = (head not in used) = trivially True even when
+# the run read the current head. build_subskill_provenance now marks such staleness INDETERMINATE
+# rather than falsely True. Subskill-only: compose-dashboard does not route through this function, so
+# the byte-golden resolved_release_governance output for the composed envelope is unchanged.
+
+def _catalog_available() -> bool:
+    from _skills_common.envelope import _known_manifest_ids
+    return _known_manifest_ids() is not None
+
+
+def test_is_stale_indeterminate_for_product_id_declared_family():
+    if not _catalog_available():
+        pytest.skip("catalog resolver unavailable")
+    from _skills_common.envelope import _known_manifest_ids
+    pid = "expression-rna-tumor-vs-adjacent"       # a product_id, not a manifest id
+    if pid in _known_manifest_ids():
+        pytest.skip(f"{pid} is itself a manifest id here — not the product-id case")
+    p = build_subskill_provenance([_card("tumor-rna-vs-adjacent", [pid])],
+                                  "latest_approved", None, "deadbee")
+    entry = (p.get("resolved_releases") or {}).get(pid)
+    if entry is None or entry.get("head") is None:
+        pytest.skip(f"{pid} did not resolve in this catalog checkout")
+    assert entry["is_stale"] is None, f"product-id family must be indeterminate, got {entry}"
+    assert entry.get("stale_indeterminate") == "product_id_declared_not_concrete_manifest"
+    # the resolution itself still names the correct OUTPUT manifest head (not an error)
+    assert entry["head"]
+
+
+def test_is_stale_stays_boolean_for_concrete_manifest_family():
+    """The refinement touches ONLY product-id families — a concrete manifest id keeps a real bool
+    is_stale and carries no stale_indeterminate marker."""
+    if not _catalog_available():
+        pytest.skip("catalog resolver unavailable")
+    from _skills_common.envelope import _known_manifest_ids
+    known = _known_manifest_ids()
+    concrete = "tcga-tumor-tpm-recount3-long-v1"
+    if concrete not in known:
+        concrete = sorted(known)[0]                # any real concrete manifest id
+    p = build_subskill_provenance([_card("c", [concrete])], "latest_approved", None, "deadbee")
+    entry = next(iter((p.get("resolved_releases") or {}).values()), {})
+    assert isinstance(entry.get("is_stale"), bool), f"concrete family must keep a bool, got {entry}"
+    assert "stale_indeterminate" not in entry
+
+
 # ── REGRESSION GUARD: shared envelope governance must not gain the content digest ──
 
 def test_resolved_release_governance_has_no_content_digest():

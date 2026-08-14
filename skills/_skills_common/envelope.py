@@ -81,6 +81,23 @@ def _load_manifest_loader():
         return None
 
 
+def _known_manifest_ids() -> "set | None":
+    """The set of concrete manifest ids in the catalog, or None if the catalog is unavailable.
+    Used ONLY to tell a concrete-manifest `used` id from a product_id (declared input) when deciding
+    whether staleness is knowable. Best-effort; load_catalog is lru_cached in catalog_query."""
+    import os
+    import sys
+    mrepo = os.environ.get("ANALYSIS_METHODS_ROOT",
+                           "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    if mrepo not in sys.path:
+        sys.path.insert(0, mrepo)
+    try:
+        from methods.catalog_query.read import load_catalog
+        return set(load_catalog().manifests)
+    except Exception:  # noqa: BLE001 — no catalog → skip the indeterminate-staleness refinement
+        return None
+
+
 def _manifest_content_md5(manifest: dict) -> "str | None":
     """A content fingerprint for one manifest: the top-level `md5` for a single-file derived product,
     else a stable hash over the sorted per-file md5s of a multi-file `files:` source manifest, else
@@ -198,6 +215,24 @@ def build_subskill_provenance(card_outputs: list, data_mode: str, release_pin: "
     if resolver_release_pin:
         prov["resolver_release_pin"] = resolver_release_pin
     prov.update(resolved_release_governance(card_outputs, data_mode, release_pin or "unpinned"))
+    # (B, 2026-08-14) HONEST STALENESS for product-id-declared families — SUBSKILL-ONLY. Cards declare
+    # their inputs as products.yaml product_ids (card_spec.required_inputs[].product_id), so a family
+    # whose `used` ids are all product_ids (not concrete manifest ids) has is_stale = (head not in used)
+    # = trivially True even when the run read the current head — a false 'stale' signal. We cannot know
+    # the concrete release read from a product_id alone (that needs a reader-side stamp of the resolved
+    # manifest id), so mark staleness INDETERMINATE rather than falsely True. Done HERE, not in the
+    # shared resolved_release_governance, because that function feeds compose-dashboard's byte-golden
+    # evidence envelope; build_subskill_provenance is on the subskill decision.json path ONLY.
+    rr = prov.get("resolved_releases")
+    if isinstance(rr, dict) and rr:
+        known = _known_manifest_ids()
+        if known is not None:
+            for entry in rr.values():
+                used = entry.get("used") or []
+                # every declared id for this family is a product_id, not a concrete manifest id
+                if used and not any(u in known for u in used) and entry.get("head") is not None:
+                    entry["is_stale"] = None
+                    entry["stale_indeterminate"] = "product_id_declared_not_concrete_manifest"
     _content = resolved_content_digest(card_outputs)
     if _content:
         prov["resolved_content_digest"] = _content
