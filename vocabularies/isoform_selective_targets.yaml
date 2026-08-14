@@ -36,7 +36,8 @@
 #     provide the cleanest structured statement; the primary lit citation
 #     is the authoritative pointer for scientific defensibility.
 
-version: 1.1.0   # 2026-08-14: + oncotree_codes / pan_applicable per entry → indication-scoped suppression
+version: 1.2.0   # 2026-08-14: + modality_epitope_impact per entry → mechanism-aware suppression (only ectodomain_ablating blanks fit_class)
+# 1.1.0: + oncotree_codes / pan_applicable per entry → indication-scoped suppression
 snapshot_date: "2026-07-08"
 curator: ryan.abo@takeda.com
 
@@ -74,6 +75,11 @@ entries:
     # clinically established (from tumor_context). Consumers gate the modality-fit SUPPRESSION on
     # membership — off-context the isoform is rare/absent, so the gene-level fit_class stands (annotated).
     oncotree_codes: [BRCA, STAD]
+    # modality_epitope_impact (2026-08-14, mechanism-aware suppression): does the dominant alt isoform
+    # ABLATE the extracellular antibody epitope? Only 'ectodomain_ablating' suppresses the biologics
+    # fit_class; other mechanisms keep the fit_class + a mechanism caveat (see consumer). p95HER2 is a
+    # proteolytic cleavage that removes the N-terminal trastuzumab ectodomain → epitope genuinely lost.
+    modality_epitope_impact: ectodomain_ablating
     tumor_context:
       - indication: gastric_cancer
         prevalence_note: "Constitutively-active p95HER2 detected in ~30% of HER2+ gastric tumors; ADC epitope absent in the cleaved fragment"
@@ -102,6 +108,7 @@ entries:
     dominant_isoform: AR-V7 (androgen-receptor splice variant 7)
     variant_type: splice_variant
     oncotree_codes: [PRAD]
+    modality_epitope_impact: intracellular       # AR is a nuclear receptor — not a surface antigen (biologics moot)
     tumor_context:
       - indication: metastatic_castration_resistant_prostate_cancer
         prevalence_note: "AR-V7 detected in ~30-40% of mCRPC after progression on abiraterone/enzalutamide; predicts anti-androgen resistance"
@@ -126,6 +133,7 @@ entries:
     dominant_isoform: MET exon 14 skipping (METex14)
     variant_type: splice_variant
     oncotree_codes: [LUAD, LUSC, NSCLC]
+    modality_epitope_impact: ectodomain_intact   # METex14 skips the INTRACELLULAR juxtamembrane degron; the ectodomain (telisotuzumab epitope) is intact
     tumor_context:
       - indication: non_small_cell_lung_cancer
         prevalence_note: "METex14 detected in ~3-4% of NSCLC (higher in older, non-smoker adenocarcinoma); FDA-approved biomarker for capmatinib + tepotinib"
@@ -162,6 +170,7 @@ entries:
     dominant_isoform: EGFRvIII (variant III, exon 2-7 deletion)
     variant_type: exon_deletion
     oncotree_codes: [GBM, GBMLGG, DIFG]
+    modality_epitope_impact: neoepitope          # EGFRvIII deletes extracellular exons 2-7 but CREATES a tumor-specific junctional neoepitope (depatux-m, CAR-T); WT ectodomain co-present
     tumor_context:
       - indication: glioblastoma
         prevalence_note: "EGFRvIII detected in ~30% of EGFR-amplified glioblastoma; also GBM-restricted (rare in other tumors)"
@@ -192,6 +201,7 @@ entries:
     dominant_isoform: BRAF fusions (KIAA1549-BRAF, AGK-BRAF, others)
     variant_type: gene_fusion
     oncotree_codes: [LGG, DIFG, PLGG, GBMLGG]
+    modality_epitope_impact: intracellular       # BRAF is an intracellular kinase — not a surface antigen (biologics moot)
     tumor_context:
       - indication: pediatric_low_grade_glioma
         prevalence_note: "KIAA1549-BRAF fusion in ~70% of pilocytic astrocytoma; also in adult melanoma-rare + spitzoid neoplasms"
@@ -218,6 +228,7 @@ entries:
     dominant_isoform: MDM2 splice variants (MDM2-A, MDM2-B, others)
     variant_type: splice_variant
     oncotree_codes: [LIPO, DDLS, WDLS, MLPS, SARC]
+    modality_epitope_impact: intracellular       # MDM2 is an intracellular E3 ligase — not a surface antigen (biologics moot)
     tumor_context:
       - indication: liposarcoma
         prevalence_note: "MDM2-A/B splice variants enriched in high-grade sarcomas; alter the p53-binding N-terminal domain"
@@ -243,6 +254,7 @@ entries:
     dominant_isoform: CD19 exon 2 skipping / delΔex2
     variant_type: acquired_resistance_splice_variant
     oncotree_codes: [BALL, LNM, DLBCL]
+    modality_epitope_impact: resistance_acquired  # CD19 delΔex2 loses the FMC63 epitope but only as ACQUIRED resistance post-CAR/blinatumomab — upfront CD19 is fully targetable (resistance-monitoring caveat, not upfront suppression)
     tumor_context:
       - indication: b_cell_acute_lymphoblastic_leukemia
         prevalence_note: "CD19-Δex2 isoform enriched at relapse post CD19-CAR-T (blinatumomab / tisagenlecleucel); antigen-loss escape mechanism"
@@ -273,6 +285,7 @@ entries:
     # anchor context; pan_applicable=true makes the scope gate always-in-context for this entry.
     oncotree_codes: [CHOL]
     pan_applicable: true
+    modality_epitope_impact: ectodomain_isoform_specific  # FGFR2 IIIb/IIIc is an ectodomain Ig-III splice (antibody epitope depends on isoform); intracellular fusions don't affect surface — annotate, don't blank
     tumor_context:
       - indication: intrahepatic_cholangiocarcinoma
         prevalence_note: "FGFR2 fusions detected in ~10-15% of iCCA; FDA-approved biomarker for pemigatinib + futibatinib"
