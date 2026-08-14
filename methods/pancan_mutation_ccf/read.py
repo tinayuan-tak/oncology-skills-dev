@@ -47,8 +47,15 @@ def _load_product(product_path: "Optional[str]" = None):
         return None
 
 
-def read_clonality(gene: str, indication: str, product_path: "Optional[str]" = None) -> dict:
-    """Per-(gene, indication) clonality summary for the target-clonality card. VERDICT-INERT signal."""
+def read_clonality(gene: "Optional[str]" = None, indication: "Optional[str]" = None,
+                   product_path: "Optional[str]" = None, *, target: "Optional[str]" = None) -> dict:
+    """Per-(gene, indication) clonality summary for the target-clonality card. VERDICT-INERT signal.
+
+    Accepts `target` as an alias for `gene` to satisfy the compose-dashboard generic-dispatch contract
+    (_live_readers._generic_dispatch calls every reader as fn(target=, indication=), where `target` is
+    the gene symbol). Without this the card silently errored to data_unavailable in every live
+    composition (2026-08-14 fix)."""
+    gene = gene or target
     df = _load_product(product_path)
     if df is None or df.empty:
         return dict(_UNAVAILABLE, _missing_reason="no clonality product materialized/reachable")

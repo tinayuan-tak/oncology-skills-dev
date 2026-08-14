@@ -48,3 +48,11 @@ def test_unmaterialized_indication_is_data_unavailable(tmp_path):
     r = read_clonality("APC", "XXXX", str(tmp_path / "nope.parquet"))
     assert r["clonality_class"] == "data_unavailable"
     assert "no clonality product" in r["_missing_reason"]
+
+
+def test_generic_dispatch_contract_accepts_target_as_gene(tmp_path):
+    """_generic_dispatch calls fn(target=, indication=) where target IS the gene symbol. Without the
+    target->gene alias the target-clonality card silently errored to data_unavailable in live comps."""
+    r = read_clonality(target="APC", indication="COADREAD", product_path=_fixture(tmp_path))
+    assert r["clonality_class"] != "data_unavailable"
+    assert r["n_mutant_samples"] > 0

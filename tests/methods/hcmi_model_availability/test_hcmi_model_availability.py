@@ -90,3 +90,13 @@ def test_hcmi_gi_heavy_composition_biology_gate():
     assert by["COADREAD"]["model_availability_class"] == "deep_model_coverage"
     # COADREAD is the deepest-covered (GI-heavy cohort)
     assert by["COADREAD"]["n_patient_derived_models"] == max(r["n_patient_derived_models"] for r in rows)
+
+
+# ── generic-dispatch contract (2026-08-14): compose-dashboard calls fn(target=, indication=) ──────────
+def test_generic_dispatch_contract_accepts_target_kwarg(product):
+    """_live_readers._generic_dispatch calls every reader as fn(target=, indication=). The reader must
+    accept target (ignored — model availability is target-independent) or the card silently errors to
+    data_unavailable in live compositions."""
+    r = read_model_availability(target="KRAS", indication="COADREAD", product_path=product)
+    assert r["model_availability_class"] == "deep_model_coverage"
+    assert r["n_patient_derived_models"] == 209

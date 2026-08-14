@@ -46,8 +46,13 @@ def _load_product(product_path: "Optional[str]" = None):
         return None
 
 
-def read_model_availability(indication: str, product_path: "Optional[str]" = None) -> dict:
-    """Per-indication HCMI patient-derived model-availability summary. VERDICT-INERT translational signal."""
+def read_model_availability(indication: "Optional[str]" = None, product_path: "Optional[str]" = None,
+                            *, target: "Optional[str]" = None) -> dict:
+    """Per-indication HCMI patient-derived model-availability summary. VERDICT-INERT translational signal.
+
+    `target` is accepted (and IGNORED) to satisfy the compose-dashboard generic-dispatch contract
+    (_live_readers._generic_dispatch calls every reader as fn(target=, indication=)): model
+    availability is INDICATION-level / target-INDEPENDENT, so the target symbol is irrelevant here."""
     df = _load_product(product_path)
     if df is None or df.empty:
         return dict(_UNAVAILABLE, _missing_reason="no HCMI model-availability product materialized/reachable")
