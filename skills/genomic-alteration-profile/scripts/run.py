@@ -136,6 +136,12 @@ CARDS = [
     # and which confer therapy resistance (EGFR T790M→TKIs, BRAF V600E→cetuximab). ADDITIVE
     # signal-only: feeds LLM/matrix + headline, touches NO resolver rung (verdict spine byte-stable).
     "variant-level-interpretation",
+    # Mutation CLONALITY / truncality (scientific-gap #2, 2026-08-14): is the target's driver mutation
+    # TRUNCAL (clonal — durable) or SUBCLONAL (relapse-prone)? ccf from MC3 VAF x PanCanAtlas ABSOLUTE
+    # purity (pancan-mutation-clonality-per-gene-v1). ADDITIVE signal-only: feeds LLM/matrix + headline,
+    # touches NO resolver rung (verdict spine byte-stable). A subclonal-driver downgrade is a later
+    # verdict-moving step gated by a backtest.
+    "target-clonality",
 ]
 
 # SUBTYPE axis (2026-08-05 hardening) — kept OUT of the scalar CARDS list ON PURPOSE.
@@ -420,6 +426,11 @@ def main() -> int:
         # Allele-count / biallelic-inactivation axis (M6, functional_gene_state) — signal-only,
         # does NOT feed the verdict (additive; the resolver spine is byte-stable).
         "functional_state_class":        get_card_field(cards, "functional-gene-state", "functional_state_class"),
+        # Mutation CLONALITY / truncality (#2) — is the driver TRUNCAL (durable) or SUBCLONAL (relapse-prone)?
+        # ccf from MC3 VAF x ABSOLUTE purity; verdict-inert durability facet for the LLM/matrix/headline.
+        "clonality_class":               get_card_field(cards, "target-clonality", "clonality_class"),
+        "clonal_fraction":               get_card_field(cards, "target-clonality", "clonal_fraction"),
+        "clonality_n_mutant_samples":    get_card_field(cards, "target-clonality", "n_mutant_samples"),
         # Patient↔model genomic-event correspondence (M11) — signal-only, does NOT feed the verdict.
         "event_correspondence_class":    get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
         # Genome-instability / aneuploidy burden (M7) — INDICATION cohort context, target-independent.

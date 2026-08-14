@@ -4,10 +4,10 @@ description: |
   Focused question skill: "How is target X genomically altered in indication Y
   — by SNV/indel (recurrent driver, biomarker-stratified dependency, or
   passenger), by copy-number (amplification/deletion), or a mix — and which
-  alteration class drives?" Consumes 17 cards: 7 verdict-driving (3 SNV/indel +
+  alteration class drives?" Consumes 18 cards: 7 verdict-driving (3 SNV/indel +
   copy-number-distribution + 3 stratified-dependency siblings [cn/fusion/amp-expr]
   + alteration-role), the mutation-hotspot-frequency recurrence facet, a LIVE
-  fusion-rearrangement landscape (tcga-fusion-consensus-v1), and 7 additive
+  fusion-rearrangement landscape (tcga-fusion-consensus-v1), and 8 additive
   signal-only layers (drug-response, variant-level, allele-count, patient↔model
   match, + 3 indication-level cohort-context facets). Emits a data-package output
   tree with a multi-class genomic-alteration verdict.
@@ -52,6 +52,7 @@ composition:
     # are NOT in rules_scope and the verdict spine is byte-stable):
     - fusion-rearrangement-landscape         # LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller consensus); additive signal-only
     - variant-level-interpretation           # CIViC per-variant oncogenicity + resistance alleles; additive signal-only
+    - target-clonality                       # scientific-gap #2 (2026-08-14): mutation clonality/truncality (ccf from MC3 VAF x ABSOLUTE purity); durability/resistance facet, additive signal-only
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
     - genomic-event-model-match              # M11 patient↔model genomic-event join (canonical P3); 2026-07-22
     - genomic-instability-state              # M7 aneuploidy/CIN burden (2026-08-06): INDICATION-level cohort context (target-independent); additive signal-only, verdict-inert
@@ -83,6 +84,7 @@ composition:
     - mutation_drug_response                 # mutation-drug-response
     - fusion_rearrangement                   # fusion-rearrangement-landscape
     - variant_level_interpretation           # variant-level-interpretation
+    - mutation_clonality                     # target-clonality (#2: ccf-based truncality; verdict-inert)
     - functional_gene_state                  # functional-gene-state
     - genomic_event_model_match              # genomic-event-model-match
     - genomic_instability_state              # genomic-instability-state (indication-level cohort context)

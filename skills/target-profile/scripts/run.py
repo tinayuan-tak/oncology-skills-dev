@@ -316,6 +316,9 @@ SUB_SKILL_CARDS = {
         "oncogenic-pathway-alteration",      # 2026-08-11 REVIEW FIX (facet-drop): oncogenic-pathway
                                              # alteration context. In genomic-alteration-profile CARDS,
                                              # composed under no entry → dropped. VERDICT-INERT render facet.
+        "target-clonality",                  # scientific-gap #2 (2026-08-14): mutation clonality/truncality
+                                             # (ccf). In genomic-alteration-profile CARDS →
+                                             # composer-consistency requires it here. VERDICT-INERT (no rules).
     ],
     "differentiation-landscape": [
         "co-mutation-and-mutual-exclusivity",
