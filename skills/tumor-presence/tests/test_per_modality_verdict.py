@@ -647,14 +647,20 @@ def _lens_disc(fired):
     return tp._headline_lens_discordance(drv, tp._per_modality_verdicts(fired))
 
 
-def test_discordant_when_cellline_moderate_but_tumor_broad():
-    """EPCAM/FOLR1/KRAS pattern: headline broadly_moderate off the cell-line lens, tumor
-    tissue reads tumor_broadly_expressed (tier 3 > 2) → flag the understatement."""
+def test_reanchor_resolves_the_cellline_moderate_but_tumor_broad_case():
+    """EPCAM/FOLR1/KRAS pattern (cell-line broadly_moderate + tumor broadly-expressed). BEFORE the F
+    re-anchor the collapsed headline inherited the CELL-LINE lens (broadly_moderate) and the
+    cell_line_vs_tumor_discordant flag fired to warn the one-word verdict understated tumor presence.
+    AFTER the re-anchor the TUMOR lens wins the headline (tumor_broadly_expressed), so the case is now
+    tumor-anchored and the flag is silent — the ladder now FIXES what the flag only FLAGGED. The flag
+    thus becomes a standing invariant guard (a True here would mean the ladder regressed)."""
     fired = [_fr("expression-broadly-moderate-neutral", "cellline-rna-distribution"),
              _fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
+    v, _ = tp._verdict(fired)
     lens, discordant = _lens_disc(fired)
-    assert lens == "bulk_rna/cell_line"
-    assert discordant is True
+    assert v == "tumor_broadly_expressed"      # re-anchor: tumor lens drives the headline
+    assert lens == "bulk_rna/tumor"
+    assert discordant is False                  # nothing to flag — the headline reflects tumor tissue
 
 
 def test_not_discordant_when_both_lenses_broad():

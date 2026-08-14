@@ -63,7 +63,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 1.6.0
+  version: 1.7.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -190,26 +190,31 @@ per-cell `detection_fraction` and malignant-vs-microenvironment attribution
 / microenvironment_dominant / broadly_low / data_unavailable). Only
 `protein_ihc/normal` remains an unbuilt-substrate named gap.
 
-## Headline-lens discordance (read this before trusting the one-word verdict)
+## Headline-lens: tumor tissue outranks the pan-cancer cell-line proxy (v1.7.0 re-anchor)
 
-The collapsed `presence_verdict` is byte-identical to whichever lens wins the ladder, and the
-cell-line RNA rungs (`broadly_high` … `broadly_moderate`) rank ABOVE the tumor-lens rungs by
-design (byte-stability). So for antigens that **de-differentiate in 2D culture** — EPCAM, FOLR1,
-CEACAM5 — the pan-cancer cell-line median collapses while the tumor tissue reads top-percentile,
-and the one-word headline UNDERSTATES tumor presence. The skill makes this legible with three
-ADDITIVE, verdict-inert headline fields (they feed no rule; `presence_verdict` is byte-stable):
+The collapsed `presence_verdict` is the first rung that fires in `_EXPRESSION_RANK`. As of v1.7.0
+the **TUMOR-tissue rungs outrank the pan-cancer CELL-LINE distribution rungs** (`tumor_broadly_expressed`
+/ `tumor_moderately_expressed` sit above the cell-line `lineage_restricted` + `broadly_moderate`).
+Rationale: for antigens that **de-differentiate in 2D culture** (EPCAM, FOLR1, CDH17, TACSTD2 …) the
+pan-cancer cell-line median collapses while the tumor tissue reads top-percentile — pre-1.7.0 the
+one-word headline inherited the cell-line proxy and UNDERSTATED tumor presence. Cell-line `broadly_high`
+is kept at the top (when both lenses agree the verdict is unchanged), and a per-indication
+`tumor_sparsely_expressed` (NEUTRAL) stays below the cell-line positives. Backtest (43 pairs across 10
+indications): 23 flips, all → `tumor_broadly_expressed`, zero dangerous flips.
+
+The verdict-inert lens fields remain (they feed no rule):
+- **`cell_line_vs_tumor_discordant`** — after the re-anchor this is a STANDING INVARIANT GUARD: it should
+  be `False` for every target (the tumor lens now wins the headline whenever it out-tiers cell-line). A
+  `True` value would signal the ladder regressed. Pre-1.7.0 it was the non-flipping interim that made the
+  understatement legible before this fix landed.
 
 - **`headline_lens`** — the `measurement/sample_context` bucket whose `driving_rule_id` won the
-  collapsed verdict (e.g. `bulk_rna/cell_line`).
-- **`cell_line_vs_tumor_discordant`** — `true` ONLY when the headline is cell-line-anchored AND
-  the `bulk_rna/tumor` lens reads a strictly HIGHER presence tier (the understatement case).
-  Verified spread: `true` for EPCAM/FOLR1/KRAS-COADREAD; `false` for ERBB2/MET (both lenses broad)
-  and CEACAM5 (headline already tumor-anchored via strong upregulation).
-- **`presence_interpretation_note`** — a human/LLM-facing sentence spelled out when discordant.
+  collapsed verdict (e.g. `bulk_rna/tumor` for a de-differentiating antigen post-re-anchor).
+- **`presence_interpretation_note`** — a human/LLM-facing sentence, populated only in the (now
+  guard-only) discordant case.
 
-When `cell_line_vs_tumor_discordant` is `true`, read `presence_verdict_by_modality['bulk_rna/tumor']`,
-not just the headline word. (A future re-anchor that promotes the tumor lens in the ladder is a
-separate, backtest-gated change — this flag is the non-flipping interim.)
+Always consult `presence_verdict_by_modality` for the per-lens breakdown; the collapsed headline is a
+roll-up and the tumor vs cell-line vs protein vs single-cell lenses each carry distinct evidence.
 
 ## What this skill does NOT do
 

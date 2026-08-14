@@ -41,7 +41,13 @@ from _skills_common import get_card_field
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.6.0"   # 2026-08-13 — multi-pair review (ADDITIVE / verdict-inert): headline now carries
+SKILL_VERSION = "1.7.0"   # 2026-08-14 — F RE-ANCHOR (VERDICT-MOVING, backtest-gated): _EXPRESSION_RANK now
+                          # ranks the TUMOR-tissue lens above the pan-cancer CELL-LINE proxy for the headline,
+                          # so de-differentiating antigens (EPCAM/FOLR1/CDH17/TACSTD2 …) read tumor_broadly_expressed
+                          # instead of the understated cell-line broadly_moderate/lineage_restricted. 43-pair backtest:
+                          # 23 flips, ALL → tumor_broadly_expressed, zero dangerous flips; cell_line_vs_tumor_discordant
+                          # (1.6.0) is now a standing invariant guard (normally False). See CHANGES_PLAN F.
+                          # 1.6.0 — multi-pair review (ADDITIVE / verdict-inert): headline now carries
                           # headline_lens + cell_line_vs_tumor_discordant + presence_interpretation_note so a
                           # cell-line-anchored one-word verdict that UNDERSTATES tumor-tissue presence (EPCAM,
                           # FOLR1, KRAS) is legible. Feeds no rule; presence_verdict byte-stable. (Ladder re-anchor
@@ -198,25 +204,28 @@ QUESTION = ("Is {target} expressed in {indication} tumor tissue, and how "
 # 2026-07-20; regression introduced when the protein cards were added to CARDS +
 # CARD_MODALITY in the per-modality refactor without teaching the ladder their rules).
 _EXPRESSION_RANK: list[tuple[str, str]] = [
-    ("expression-broadly-high-supportive",              "broadly_high_expression"),
-    ("expression-strong-upregulation-supportive",       "strongly_upregulated_in_tumor"),
-    ("expression-lineage-restricted-supportive",        "lineage_restricted"),
-    ("expression-modest-upregulation-neutral",          "modestly_upregulated_in_tumor"),
-    ("expression-broadly-moderate-neutral",             "broadly_moderate_expression"),
-    # ── Per-sample TUMOR RNA (tumor-rna-distribution) + the tumor-vs-adjacent DOWN reads ──
-    # APPENDED 2026-08-04 (Finding B): these tumor-context rules were emitted by live cards but were
-    # NOT in the ladder, so the bulk_rna/tumor bucket resolved `insufficient` even with real tumor-RNA
-    # data (verified: EGFR/COADREAD, tumor median log2TPM 3.28 on 669 samples → insufficient). They
-    # rank BELOW the pre-existing PRESENCE-POSITIVE cell-line rules (broadly_high … broadly_moderate)
-    # so an established cell-line-present verdict is byte-stable, but ABOVE the expression KILLERS
-    # (see the G5 block below). Presence semantics: absolute tumor presence (broadly_expressed)
-    # outranks the differential DOWN reads — a target modestly lower than adjacent normal is still
-    # PRESENT (the down signal is a selectivity concern for the modality lens, not an absence).
-    # tumor-expression-broadly-low is NEUTRAL not a killer (per-INDICATION low cannot kill a
-    # target-wide nomination — the card's own rationale).
-    ("tumor-expression-broadly-high-supportive",        "tumor_broadly_expressed"),
-    ("tumor-expression-broadly-moderate-neutral",       "tumor_moderately_expressed"),
-    ("tumor-expression-broadly-low-neutral",            "tumor_sparsely_expressed"),
+    # F RE-ANCHOR (2026-08-14 multi-pair review, VERDICT-MOVING — see backtest): the collapsed headline
+    # inherits whichever rung fires first, and the pan-cancer CELL-LINE distribution rungs used to sit
+    # ABOVE the disease-relevant TUMOR-TISSUE rungs (chosen for byte-stability). For antigens that
+    # de-differentiate in 2D culture (EPCAM, FOLR1, KRAS/COADREAD) the cell-line median collapses to
+    # broadly_moderate/lineage_restricted while the TUMOR reads broadly_expressed — so the one-word
+    # verdict UNDERSTATED tumor presence (the cell_line_vs_tumor_discordant flag, PR#413, made this
+    # legible; this re-anchor fixes the verdict itself). Principle: the TUMOR-tissue lens outranks the
+    # pan-cancer cell-line PROXY for the presence headline.
+    #   • tumor_broadly_expressed / tumor_moderately_expressed PROMOTED above the cell-line
+    #     lineage_restricted + broadly_moderate rungs.
+    #   • cell-line broadly_high KEPT at the top: when both lenses read high (MET, ERBB2) the verdict
+    #     is unchanged — no gratuitous churn.
+    #   • tumor_sparsely_expressed stays BELOW the cell-line positives (a per-indication sparse read is
+    #     NEUTRAL and must not outrank a supportive cell-line-present signal).
+    ("expression-broadly-high-supportive",              "broadly_high_expression"),      # cell-line high (both-high agree → unchanged)
+    ("expression-strong-upregulation-supportive",       "strongly_upregulated_in_tumor"), # tumor-vs-adjacent
+    ("tumor-expression-broadly-high-supportive",        "tumor_broadly_expressed"),       # TUMOR tissue — PROMOTED above cell-line moderate/restricted
+    ("expression-modest-upregulation-neutral",          "modestly_upregulated_in_tumor"), # tumor-vs-adjacent
+    ("tumor-expression-broadly-moderate-neutral",       "tumor_moderately_expressed"),    # TUMOR tissue — PROMOTED
+    ("expression-lineage-restricted-supportive",        "lineage_restricted"),            # cell-line PROXY — demoted below tumor tissue
+    ("expression-broadly-moderate-neutral",             "broadly_moderate_expression"),   # cell-line PROXY — demoted below tumor tissue
+    ("tumor-expression-broadly-low-neutral",            "tumor_sparsely_expressed"),      # per-indication sparse (NEUTRAL) — stays below cell-line positives
     ("expression-modest-downregulation-opposing",       "modestly_downregulated_in_tumor"),
     ("expression-strong-downregulation-degrader-killer", "strongly_downregulated_in_tumor"),
     # ── Cell-line / differential EXPRESSION KILLERS rank BELOW every direct tumor-present read ──
