@@ -10,3 +10,11 @@ Validated 2026-08-14: ccf ordering reproduces known clonal architecture (TP53 0.
 approximation (local CN=2, multiplicity=1) suffices for the clonal/subclonal CLASSIFICATION; local-CN
 + multiplicity refinement (abs_segtabs) is a v2 → evidence_tier=inferred_diploid.
 """
+
+# Re-export the card read-entrypoint at package level so generic-dispatch resolution
+# (compose-dashboard test_generic_dispatch_migrated: getattr(import_module(module), entrypoint))
+# resolves `pancan_mutation_ccf.read_clonality` — the target-clonality card's declared method call.
+# Mirrors the sibling convention (e.g. gdc_somatic_hotspot re-exports read_hotspot_summary).
+from .read import read_clonality
+
+__all__ = ["read_clonality"]
