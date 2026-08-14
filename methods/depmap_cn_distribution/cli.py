@@ -275,8 +275,21 @@ def compute_summary_stats(cn_by_model: dict, model_metadata: dict,
     frac_focal_amp = float(np.mean((cn_arr > FOCAL_AMP) & (cn_arr <= HIGH_AMP)))
     frac_high_amp = float(np.mean(cn_arr > HIGH_AMP))
 
-    fraction_recurrent_amp = frac_focal_amp + frac_high_amp   # focal + high
-    fraction_recurrent_del = frac_deep_del + frac_shallow_del
+    # ASYMMETRY (known, pre-recalibration — see copy-number-distribution.card.yaml
+    # + intracellular-intrinsic.rules.yaml cn-recurrently-*-supportive rationales):
+    # the amp score counts ONLY focal/high gain (>1.5) while the del score counts
+    # hemizygous/shallow loss (0.5-0.92) alongside deep loss. Both are compared to
+    # the same recurrent_threshold in _classify_cn, so del fires more readily (on
+    # arm-level/hemizygous loss) and amp under-calls (focal-amp targets with mostly
+    # shallow gains read broadly_neutral — measured for ERBB2/CCND1 on COADREAD).
+    # A symmetric focal-driver recalibration (+shallow-amp OR -shallow-del) is
+    # VERDICT-MOVING: on the COADREAD panel, excluding shallow-del would flip 6/7
+    # recurrently_deleted TSGs (SMAD4/APC/PTEN/TP53/RB1/STK11, deep<0.20) to neutral;
+    # including shallow-amp would surface ERBB2/CCND1 but cascade APC/STK11 into
+    # 'mixed'. DEFER any threshold change to a focal-driver backtest vs a curated
+    # known-driver set; do NOT flip these bands without one.
+    fraction_recurrent_amp = frac_focal_amp + frac_high_amp   # focal + high (excludes shallow)
+    fraction_recurrent_del = frac_deep_del + frac_shallow_del  # deep + shallow (hemizygous)
 
     median_cn = float(np.median(cn_arr))
     iqr = float(np.percentile(cn_arr, 75) - np.percentile(cn_arr, 25))
