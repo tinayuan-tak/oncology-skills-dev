@@ -786,6 +786,7 @@ measurement_types:
       - {kind: dataset, source: spatial-coloc-tumor-crc-coadread-v1, method: spatial_neighborhood, evidence_tier: measured}   # COADREAD — CosMx CRC atlas (GSE303070)
       - {kind: dataset, source: spatial-coloc-tumor-stad-v1, method: spatial_neighborhood, evidence_tier: measured}   # STAD — CosMx gastric atlas (GSE308624); net-new indication
       - {kind: dataset, source: spatial-coloc-tumor-paad-v1, method: spatial_neighborhood, evidence_tier: measured}   # PAAD — Xenium PDAC atlas (GSE280634); GI facet (Phase 4)
+      - {kind: dataset, source: spatial-coloc-tumor-hnsc-v1, method: spatial_neighborhood, evidence_tier: inferred}   # HNSC — Xenium (GSE300147); INFERRED compartments (mode C) -> evidence_tier inferred, not measured
 
   spatial_surface_protein:
     claim: "What is the MEASURED in-situ PROTEIN abundance (GeoMx DSP) of the target in the TUMOUR compartment vs the microenvironment (TME) — is the target protein tumour-enriched or TME-enriched?"
