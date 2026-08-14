@@ -29,6 +29,7 @@ INDICATION_TO_REGION_RNA = {
     "LUAD": "spatial-region-rna-nsclc-v1",     # covered by the NSCLC product (both histologies)
     "LUSC": "spatial-region-rna-nsclc-v1",
     "COADREAD": "spatial-region-rna-coadread-v1",   # colorectal — GeoMx WTA (GSE281413); PanCK/CD45/Vimentin segments
+    "PAAD": "spatial-region-rna-paad-v1",           # pancreatic — GeoMx WTA (GSE199102 Broad hPDAC); Epithelial/Immune/CAF segments
 }
 
 _PARQUET_COLS = ["gene_symbol", "donor_id", "compartment", "abundance_lcpm", "detected"]

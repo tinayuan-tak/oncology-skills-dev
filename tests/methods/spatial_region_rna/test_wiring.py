@@ -34,6 +34,10 @@ def test_coadread_wired_to_geomx_wta():
     assert RR.INDICATION_TO_REGION_RNA["COADREAD"] == "spatial-region-rna-coadread-v1"
 
 
+def test_paad_wired_to_geomx_wta():
+    assert RR.INDICATION_TO_REGION_RNA["PAAD"] == "spatial-region-rna-paad-v1"
+
+
 def test_unmapped_indication_is_data_unavailable():
     out = RR.read_spatial_region_rna("EGFR", "STAD")   # no region-RNA product for STAD
     assert out["spatial_rna_class"] == "data_unavailable"
