@@ -826,6 +826,7 @@ measurement_types:
       # per-indication GeoMx DSP WTA products (aggregate_spatial_region_rna). Adding an indication =
       # emit its spatial-region-rna product (data-catalog) + one line here.
       - {kind: dataset, source: spatial-region-rna-hnsc-v1, method: spatial_region_rna, evidence_tier: measured}   # HNSC — GeoMx DSP Whole Transcriptome Atlas (GSE290057)
+      - {kind: dataset, source: spatial-region-rna-nsclc-v1, method: spatial_region_rna, evidence_tier: measured}  # NSCLC (adeno+squamous) — GeoMx DSP Cancer Transcriptome Atlas (GSE174743)
 
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"

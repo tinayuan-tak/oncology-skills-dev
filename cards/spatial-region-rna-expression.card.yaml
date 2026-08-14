@@ -20,10 +20,12 @@ tier: indication   # the region-RNA product is per-indication
 
 applies_when:
   # indications with a landed spatial region-RNA product (INDICATION_TO_REGION_RNA in the method).
-  - "context.indication in ['HNSC']"
+  # NSCLC/LUAD/LUSC all resolve to the one NSCLC product (both histologies), mirroring the method map.
+  - "context.indication in ['HNSC', 'NSCLC', 'LUAD', 'LUSC']"
 
 required_inputs:
   - product_id: spatial-region-rna-hnsc-v1                  # HNSC — GeoMx DSP Whole Transcriptome Atlas (GSE290057)
+  - product_id: spatial-region-rna-nsclc-v1                 # NSCLC (adeno+squamous) — GeoMx DSP Cancer Transcriptome Atlas (GSE174743)
 
 methods:
   - call: spatial-region-rna-expression
@@ -45,8 +47,8 @@ outputs:
 caveats:
   - "MEASURED in-situ RNA (NanoString GeoMx DSP Whole Transcriptome Atlas), region-level (ROI = segmented TUMOUR vs TME region), NOT single-cell and NOT protein. RNA enrichment is a PRESENCE/localization argument, NOT a surface-protein-display claim — it corroborates, but does not substitute for, the region-PROTEIN (spatial-surface-protein-abundance) and Axis-3 (surface-abundance-density) surface readouts."
   - "spatial_rna_class: tumour_enriched_rna = RNA concentrated in the tumour compartment (measured localization argument); tme_enriched_rna = concentrated in the microenvironment (a tumour-SPECIFICITY caveat — e.g. stromal COL1A1 / endothelial PECAM1 / immune PTPRC); tumour_present_no_compartment_preference = detected, |tumour-TME| < 0.5 log-scale."
-  - "Cross-donor median over the indication's GeoMx WTA cohort (donor = replicate). HNSC seed only (GSE290057, 61 patients, ~18.7k genes — the WTA companion to the GSE288406 protein series)."
-  - "Whole-transcriptome: a target returns data_unavailable only when its gene symbol is absent from the deposited matrix (never a fabricated negative). Unlike the antibody-named protein panel, the RNA row axis is HGNC symbols, so panel coverage is genome-wide."
+  - "Cross-donor median over the indication's GeoMx RNA cohort (donor = replicate). Cohorts: HNSC (GSE290057, 61 patients, ~18.7k-gene WTA — the companion to the GSE288406 protein series) and NSCLC/LUAD/LUSC (GSE174743, 5 patients, ~1.7k-gene Cancer Transcriptome Atlas — a small, TARGETED panel, so coverage is NOT genome-wide there)."
+  - "Panel coverage varies by cohort: the HNSC deposit is a whole-transcriptome atlas (~18.7k genes, genome-wide); the NSCLC deposit is a ~1.7k-gene TARGETED panel. A target returns data_unavailable when its gene symbol is absent from the deposited matrix (never a fabricated negative) — for NSCLC this includes any off-panel gene."
 
 measurement: spatial_transcriptomics
 sample_context: tumor
