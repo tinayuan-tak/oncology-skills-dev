@@ -10,6 +10,8 @@ neighbour compartment (vs the malignant baseline); < 1 = segregated.
 """
 from __future__ import annotations
 
+import re
+
 # Neighbour cell-type -> compartment. Explicit labels from the landed spatial atlases + a token fallback.
 # GSE303070 CosMx (Manual_toplevel_pred): Macro/Mono/DC/Plasma/Granulo/B/ILC/TCD8/TCD4/Mast/TZBTB16/Tgd/NK,
 #   Fibro/Peri/SmoothMuscle/Schwann, Endo, Epi. GSE308624 gastric CosMx (cell_type): Cancer_cell (malignant),
@@ -31,20 +33,42 @@ _COORDINATED_MIN = 1.15      # per-compartment enrichment >= => spatially co-loc
 _SEGREGATED_MAX = 0.85       # <= => spatially segregated
 _COMPARTMENT_ORDER = ["immune", "stromal", "endothelial", "epithelial_normal", "other"]
 
+# TOKEN-based fallback vocabularies (matched against WHOLE tokens of the label, never substrings — a
+# substring fallback misroutes 'Basal'/'Tuft'/'Tumor' to immune via a bare 'T'/'B'. Tokens are the
+# label split on non-alphanumerics + lowercased; single-letter tokens t/b/nk are matched as tokens
+# only, so 'T_cell'->{t,cell}->immune but 'Basal'->{basal}->epithelial_normal).
+_IMMUNE_TOKENS = {"t", "b", "nk", "nkt", "tcd4", "tcd8", "tgd", "treg", "tcell", "bcell", "cd4", "cd8",
+                  "cd3", "macro", "macrophage", "mocrophage", "mono", "monocyte", "dc", "pdc", "cdc",
+                  "plasma", "plasmablast", "granulo", "granulocyte", "mast", "ilc", "neutrophil",
+                  "basophil", "eosinophil", "mdsc", "lymphocyte", "lymphoid", "myeloid", "leukocyte",
+                  "immune", "tam", "tumb", "tzbtb16", "microglia", "kupffer", "langerhans"}
+_STROMAL_TOKENS = {"fibro", "fibroblast", "caf", "peri", "pericyte", "smc", "muscle", "smoothmuscle",
+                   "schwann", "stellate", "stroma", "stromal", "myofibroblast", "mesenchymal", "myocyte"}
+_ENDO_TOKENS = {"endo", "endothelial", "endothelium", "vascular", "lymphatic", "vessel", "vec", "lec"}
+_EPI_NORMAL_TOKENS = {"epi", "epithelial", "epithelium", "enterocyte", "goblet", "tuft", "paneth",
+                      "club", "ciliated", "basal", "hepatocyte", "acinar", "ductal", "secretory",
+                      "squamous", "keratinocyte", "melanocyte", "pneumocyte", "alveolar", "colonocyte",
+                      "enteroendocrine", "mucous", "parietal", "chief", "foveolar", "urothelial"}
+
 
 def compartment_of_neighbor(cell_type: str) -> str:
+    """Map a neighbour cell-type label to a compartment. Explicit atlas labels win; otherwise a
+    TOKEN-based fallback (whole-token match, NOT substring — 'Basal'/'Tuft' must not read as immune).
+    Unknown -> 'other' (never guessed into immune/stromal)."""
     ct = str(cell_type)
     if ct in _NEIGHBOR_COMPARTMENT:
         return _NEIGHBOR_COMPARTMENT[ct]
+    toks = {t for t in re.split(r"[^A-Za-z0-9]+", ct.lower()) if t}
     low = ct.lower()
-    if low.startswith("epi"):
-        return "epithelial_normal"
-    if low.startswith("endo"):
+    # endothelial + stromal first (they contain glued forms like 'SmoothMuscle'); then immune; then epi.
+    if toks & _ENDO_TOKENS or low.startswith("endo"):
         return "endothelial"
-    if any(k in low for k in ("fibro", "peri", "muscle", "schwann", "stell")):
+    if toks & _STROMAL_TOKENS or any(s in low for s in ("fibro", "muscle", "pericyte", "schwann", "stellate")):
         return "stromal"
-    if any(k in ct for k in ("T", "B", "NK", "Macro", "Mono", "DC", "Plasma", "Mast", "ILC", "Granulo")):
+    if toks & _IMMUNE_TOKENS:
         return "immune"
+    if toks & _EPI_NORMAL_TOKENS or low.startswith("epi"):
+        return "epithelial_normal"
     return "other"
 
 

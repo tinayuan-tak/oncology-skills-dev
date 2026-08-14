@@ -60,6 +60,25 @@ def test_neighbor_compartment_mapping():
     assert ST.compartment_of_neighbor("Endothelial") == "endothelial"
 
 
+def test_token_fallback_does_not_misroute_epithelial_to_immune():
+    # REGRESSION: the old substring fallback read 'Basal'/'Tuft'/'Tumor' as immune via a bare 'T'/'B'.
+    # Token matching must route these to epithelial_normal / other, NOT immune.
+    assert ST.compartment_of_neighbor("Basal") == "epithelial_normal"
+    assert ST.compartment_of_neighbor("Tuft") == "epithelial_normal"
+    assert ST.compartment_of_neighbor("Goblet") == "epithelial_normal"
+    assert ST.compartment_of_neighbor("Enterocyte") == "epithelial_normal"
+    assert ST.compartment_of_neighbor("Tumor") != "immune"          # not misrouted
+
+
+def test_token_fallback_catches_unmapped_immune_and_stromal():
+    assert ST.compartment_of_neighbor("Neutrophil") == "immune"     # was 'other' under substring fallback
+    assert ST.compartment_of_neighbor("Basophil") == "immune"
+    assert ST.compartment_of_neighbor("CAF") == "stromal"
+    assert ST.compartment_of_neighbor("Pericyte") == "stromal"
+    assert ST.compartment_of_neighbor("Lymphatic endothelial") == "endothelial"
+    assert ST.compartment_of_neighbor("Neuron") == "other"          # genuinely unknown -> other, not guessed
+
+
 # ── classifier (pure) ────────────────────────────────────────────────────────
 
 def _rows(spec):
