@@ -30,8 +30,12 @@ def test_product_resolves_to_catalog_s3_uri():
         "spatial-region-rna-nsclc-v1/spatial_region_rna.parquet")
 
 
+def test_coadread_wired_to_geomx_wta():
+    assert RR.INDICATION_TO_REGION_RNA["COADREAD"] == "spatial-region-rna-coadread-v1"
+
+
 def test_unmapped_indication_is_data_unavailable():
-    out = RR.read_spatial_region_rna("EGFR", "COADREAD")   # no region-RNA product for COADREAD yet
+    out = RR.read_spatial_region_rna("EGFR", "STAD")   # no region-RNA product for STAD
     assert out["spatial_rna_class"] == "data_unavailable"
     assert out["product_id"] is None
 

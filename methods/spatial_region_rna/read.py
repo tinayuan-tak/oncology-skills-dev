@@ -28,6 +28,7 @@ INDICATION_TO_REGION_RNA = {
     "NSCLC": "spatial-region-rna-nsclc-v1",   # lung — GeoMx Cancer Transcriptome Atlas (GSE174743)
     "LUAD": "spatial-region-rna-nsclc-v1",     # covered by the NSCLC product (both histologies)
     "LUSC": "spatial-region-rna-nsclc-v1",
+    "COADREAD": "spatial-region-rna-coadread-v1",   # colorectal — GeoMx WTA (GSE281413); PanCK/CD45/Vimentin segments
 }
 
 _PARQUET_COLS = ["gene_symbol", "donor_id", "compartment", "abundance_lcpm", "detected"]
