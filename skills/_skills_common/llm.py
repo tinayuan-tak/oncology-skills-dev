@@ -13,12 +13,10 @@ Every LLM call from a compositional skill must:
   4. Rerunning with identical inputs must produce identical `_prompt_hash`
      so drift between LLM outputs is detectable.
 
-The reference implementation of the tool-use + double-validation pattern
-lives in `skills/workflow-target-evaluation-onc/scripts/integrated_report/
-synthesize_facts.py`. This module reuses that skill's Bedrock client
-factory verbatim (single source of truth for auth + corporate-CA
-handling), and defines a `synthesize_structured()` helper that packages
-the tool-use call + provenance-tag stamping.
+The Bedrock client factory (auth + corporate-CA handling + the framework model pin)
+lives in `_skills_common.bedrock_client` (extracted 2026-08-14 from the deprecated
+workflow-target-evaluation-onc skill). This module defines a `synthesize_structured()`
+helper that packages the tool-use call + provenance-tag stamping around that client.
 """
 
 from __future__ import annotations
@@ -26,13 +24,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
-WORKFLOW_SCRIPTS = SKILLS_DIR / "workflow-target-evaluation-onc" / "scripts"
 
 
 BEDROCK_AWS_PROFILE = os.environ.get("BEDROCK_AWS_PROFILE", "cmp-dev")
@@ -90,15 +86,13 @@ def _bedrock_profile():
 
 
 def _import_bedrock_client():
-    """Load the reference Bedrock client from workflow-target-evaluation-onc.
+    """Load the shared Bedrock client from _skills_common.bedrock_client.
 
     Kept lazy so skills that don't invoke LLM synthesis don't pay import
     cost for the anthropic SDK. Raises ImportError with a clear message if
-    the workflow skill or its dependencies aren't available.
+    the anthropic[bedrock] extra isn't installed (surfaced by get_bedrock_client).
     """
-    if str(WORKFLOW_SCRIPTS) not in sys.path:
-        sys.path.insert(0, str(WORKFLOW_SCRIPTS))
-    from integrated_report.bedrock_client import (          # noqa: F401
+    from _skills_common.bedrock_client import (             # noqa: F401
         get_bedrock_client, ModelConfig, BedrockAuthError,
     )
     return get_bedrock_client, ModelConfig, BedrockAuthError

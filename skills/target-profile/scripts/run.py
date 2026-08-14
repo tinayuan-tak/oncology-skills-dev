@@ -62,10 +62,7 @@ def _framework_model_version() -> str | None:
     source-of-truth constant in the bedrock client. Graceful None on import failure —
     provenance simply omits it rather than crashing the run (conservative fallback)."""
     try:
-        wf = (Path(__file__).resolve().parent.parent.parent
-              / "workflow-target-evaluation-onc" / "scripts" / "integrated_report")
-        sys.path.insert(0, str(wf))
-        from bedrock_client import FRAMEWORK_MODEL_VERSION  # type: ignore
+        from _skills_common.bedrock_client import FRAMEWORK_MODEL_VERSION
         return FRAMEWORK_MODEL_VERSION
     except Exception:  # noqa: BLE001
         return None
