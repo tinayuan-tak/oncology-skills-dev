@@ -844,6 +844,7 @@ measurement_types:
       - {kind: dataset, source: spatial-region-rna-hnsc-v1, method: spatial_region_rna, evidence_tier: measured}   # HNSC — GeoMx DSP Whole Transcriptome Atlas (GSE290057)
       - {kind: dataset, source: spatial-region-rna-nsclc-v1, method: spatial_region_rna, evidence_tier: measured}  # NSCLC (adeno+squamous) — GeoMx DSP Cancer Transcriptome Atlas (GSE174743)
       - {kind: dataset, source: spatial-region-rna-coadread-v1, method: spatial_region_rna, evidence_tier: measured}  # COADREAD — GeoMx DSP WTA (GSE281413); first GI region-RNA
+      - {kind: dataset, source: spatial-region-rna-paad-v1, method: spatial_region_rna, evidence_tier: measured}  # PAAD — GeoMx DSP WTA (GSE199102 Broad hPDAC)
 
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"

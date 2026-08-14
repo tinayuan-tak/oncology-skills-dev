@@ -21,12 +21,13 @@ tier: indication   # the region-RNA product is per-indication
 applies_when:
   # indications with a landed spatial region-RNA product (INDICATION_TO_REGION_RNA in the method).
   # NSCLC/LUAD/LUSC all resolve to the one NSCLC product (both histologies), mirroring the method map.
-  - "context.indication in ['HNSC', 'NSCLC', 'LUAD', 'LUSC', 'COADREAD']"
+  - "context.indication in ['HNSC', 'NSCLC', 'LUAD', 'LUSC', 'COADREAD', 'PAAD']"
 
 required_inputs:
   - product_id: spatial-region-rna-hnsc-v1                  # HNSC — GeoMx DSP Whole Transcriptome Atlas (GSE290057)
   - product_id: spatial-region-rna-nsclc-v1                 # NSCLC (adeno+squamous) — GeoMx DSP Cancer Transcriptome Atlas (GSE174743)
   - product_id: spatial-region-rna-coadread-v1              # COADREAD — GeoMx DSP WTA (GSE281413); PanCK/CD45/Vimentin segments
+  - product_id: spatial-region-rna-paad-v1                  # PAAD — GeoMx DSP WTA (GSE199102 Broad hPDAC); Epithelial/Immune/CAF segments
 
 methods:
   - call: spatial-region-rna-expression
