@@ -119,6 +119,11 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
             "log2_fc": None, "q_value": None,
             "tumor_mean_tpm": None, "adjacent_mean_tpm": None,
             "n_tumor": None, "n_adjacent": None,
+            # NOTE: deliberately NO descriptive_stats_unavailable flag on this TOTAL no-data branch —
+            # the whole read is absent (log2_fc=None + _data_note), so the flag would be redundant AND
+            # would break the skip_if_no_data guard, which keys "no data" on `_data_note present AND all
+            # non-underscore fields None`. The flag's job is to mark the sensitivity-SUCCESS case
+            # (verdict present, descriptive means/n NOT carried) — see that branch below.
             "_data_note": (f"no tumor-vs-adjacent product for {target!r} in "
                            f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"),
         }
@@ -142,6 +147,12 @@ def _dispatch_expression_tumor_vs_adjacent(target: str, indication: str) -> Opti
         "expression_call_class": _classify(log2_fc, q_value),
         "tumor_mean_tpm": None, "adjacent_mean_tpm": None,   # not carried by sensitivity product
         "n_tumor": None, "n_adjacent": None,
+        # 2026-08-13 multi-pair review (finding #3-adjacent): the sensitivity product carries only the
+        # log2_fc/q verdict fields, NOT the tumor/adjacent descriptive means + sample counts (structurally
+        # None above). Flag that gap EXPLICITLY so a downstream reader treats absent means/n as "not
+        # carried by this product" rather than silently reading them as zero/missing. The verdict
+        # (log2_fc/q/expression_call_class) is unaffected — this only marks the descriptive-stats gap.
+        "descriptive_stats_unavailable": True,
         "cells_ran": sen.get("cells_ran"),
         "dominant_direction": sen.get("dominant_direction"),
         "_data_source": sen.get("_data_source"),

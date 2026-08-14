@@ -148,6 +148,21 @@ _GOVERNANCE_DATA_MODE = {
 }
 
 
+def _provenance_warnings(provenance: dict) -> list:
+    """run_health observability (2026-08-13 multi-pair review, finding #4): surface any per-family
+    catalog-head resolution failure that resolved_release_governance recorded fail-open in
+    provenance.resolved_releases[<fam>].resolution_error. Previously that error lived ONLY in the
+    provenance block, so run_health reported status='ok' for a run whose DGE family failed to resolve
+    (seen live on MET-LUAD, CEACAM5-LUAD). Returns a sorted-by-family list of {family, error}; empty
+    when clean. Does NOT flip run_health.status — a head-resolution failure is a GOVERNANCE gap, not a
+    missing verdict card, so it is reported as a distinct signal."""
+    return [
+        {"family": fam, "error": entry["resolution_error"]}
+        for fam, entry in sorted(((provenance or {}).get("resolved_releases") or {}).items())
+        if isinstance(entry, dict) and entry.get("resolution_error")
+    ]
+
+
 def _availability_state_for(card: dict) -> "tuple[str, str]":
     """Map a resolve_cards `_missing` card to a schema-valid (availability_state, reason).
 
@@ -550,6 +565,16 @@ def run_wired_skill(
     # never 'error' — the ABSENCE of a fresh run_health is itself the error signal downstream.)
     _cards_missing = [c["card_id"] for c in card_outputs if c.get("_missing")]
     _cards_fired_ids = sorted({f.get("card_id") for f in fired if f.get("card_id")})
+    # PROVENANCE WARNINGS (2026-08-13 multi-pair review, finding #4): resolved_release_governance
+    # records a per-family catalog-head resolution failure fail-open in
+    # provenance.resolved_releases[<fam>].resolution_error (it must never sink emission). That error
+    # was previously observable ONLY in the provenance block — run_health never read it, so a run
+    # whose DGE family failed to resolve its catalog head still reported status='ok' (seen live on
+    # MET-LUAD, CEACAM5-LUAD). Surface it here as a DISTINCT signal. NOTE: this does NOT flip `status`
+    # — a head-resolution failure is a GOVERNANCE/reproducibility gap, not a missing verdict card (the
+    # verdict cards resolved), so overloading the card-completeness `status` would be less honest.
+    # A consumer wanting full integrity checks BOTH status and provenance_warnings.
+    _prov_warnings = _provenance_warnings(provenance)
     decision["run_health"] = {
         "skill_name": skill_name,
         "skill_version": skill_version,
@@ -560,6 +585,7 @@ def run_wired_skill(
         "cards_fired": _cards_fired_ids,
         "cards_missing": sorted(_cards_missing),
         "cards_skipped_a4": sorted(skipped_card_ids),
+        "provenance_warnings": _prov_warnings,
         "read_secs": round(_read_secs, 4),
         "compute_secs": round(time.perf_counter() - _compute_start, 4),
         # total is stamped at the very end (below) so it includes synthesis + write.

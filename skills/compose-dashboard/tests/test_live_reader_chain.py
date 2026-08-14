@@ -249,6 +249,39 @@ def test_non_coadread_emits_expression_call_class(log2fc, q, expected):
     assert r["log2_fc"] == log2fc
 
 
+def test_non_coadread_flags_descriptive_stats_unavailable():
+    """finding #3-adjacent (2026-08-13): the sensitivity product carries no tumor/adjacent means + n,
+    so the sensitivity path must flag descriptive_stats_unavailable=True (means/n stay None). This
+    makes the descriptive-stats gap explicit rather than silently reading None as zero/missing."""
+    fake_dge = _mock.MagicMock()
+    fake_dge.read_tumor_vs_normal_sensitivity_gene_row.return_value = {
+        "log2fc_cell_a": 2.1, "q_value_cell_a": 1e-4, "cells_ran": 4,
+        "dominant_direction": "up", "_data_source": "luad-dge-tumor-vs-normal-sensitivity-v1",
+    }
+    fake_dge.read._classify_expression_call = _lr._import_method("dge_deseq2").read._classify_expression_call
+    with _mock.patch.object(_lr, "_import_method", return_value=fake_dge):
+        r = _lr._dispatch_expression_tumor_vs_adjacent("EGFR", "LUAD")
+    assert r["descriptive_stats_unavailable"] is True
+    assert r["tumor_mean_tpm"] is None and r["n_tumor"] is None
+    # the verdict fields are unaffected by the flag
+    assert r["log2_fc"] == 2.1 and r["expression_call_class"] == "strong_upregulation"
+
+
+def test_non_coadread_absent_product_has_no_descriptive_stats_flag():
+    """When the sensitivity product is genuinely absent (reader returns None), the n/a payload is the
+    total no-data dict (log2_fc None + _data_note) and deliberately carries NO
+    descriptive_stats_unavailable flag — the flag marks the verdict-present-but-means-missing case, and
+    adding a non-None non-underscore field here would break the skip_if_no_data no-data guard."""
+    fake_dge = _mock.MagicMock()
+    fake_dge.read_tumor_vs_normal_sensitivity_gene_row.return_value = None
+    with _mock.patch.object(_lr, "_import_method", return_value=fake_dge):
+        r = _lr._dispatch_expression_tumor_vs_adjacent("NOPE", "LUAD")
+    assert "descriptive_stats_unavailable" not in r
+    assert r["log2_fc"] is None and r["_data_note"]
+    # the no-data guard invariant: _data_note present AND every non-underscore field is None
+    assert all(v is None for k, v in r.items() if not k.startswith("_"))
+
+
 # === Drift guard: every card a shipped skill lists in its CARDS roster must have a dispatcher ===
 #
 # The bug this catches (2026-08-07, PR #267): sc-normal-celltype-expression was added to the
