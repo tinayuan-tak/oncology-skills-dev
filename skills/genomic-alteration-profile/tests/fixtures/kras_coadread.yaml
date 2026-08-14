@@ -1,0 +1,914 @@
+alteration-role:
+  alteration_role: direct_driver_gof
+  functional_direction: activating
+  indication: COADREAD
+  intogen_cancer_types:
+  - COADREAD
+  - COAD
+  - READ
+  intogen_max_pct_samples: 0.447
+  intogen_min_qvalue: 2.25e-51
+  intogen_role: Act
+  intogen_scope: indication
+  method_version: 0.1.0
+  oncokb_gene_type: ONCOGENE
+  sources:
+  - oncokb
+  - intogen
+  target: KRAS
+amp-expr-stratified-dependency:
+  _cn_assay_used: wes
+  _uncomputable: false
+  amp_expr_effect_size: 0.6217948717948718
+  amp_expr_mannwhitney_p: 4.00899149930044e-11
+  amp_expr_mannwhitney_q: 4.00899149930044e-11
+  amp_expr_mannwhitney_q_reverse: 0.9999999999601609
+  amp_expr_stratification_class: amplified_overexpressed_strongly_dependent
+  amplification_threshold_relative_cn: 2.0
+  delta_chronos_amp_expr_vs_rest: -1.2112930715084076
+  evidence_scope: pan_lineage_evidence_only
+  high_expression_log2tpm_threshold: 4.785555839538574
+  lineage_context_divergent: false
+  lineage_evidence_scope_reason: within-lineage underpowered even mut-vs-pan-WT (COADREAD);
+    pan-DepMap
+  median_chronos_amp_expr: -1.6279293298721313
+  median_chronos_comparator: -0.41663625836372375
+  n_amplified_overexpressed: 39
+  n_cell_lines_evaluated: 607
+  n_comparator: 568
+copy-number-distribution:
+  cn_assay_used: wes
+  cn_distribution_shape: bimodal_mixed
+  cn_fraction_deep_deletion: 0.0032
+  cn_fraction_focal_amplification: 0.1112
+  cn_fraction_high_amplification: 0.0168
+  cn_fraction_neutral: 0.3848
+  cn_fraction_shallow_amplification: 0.3376
+  cn_fraction_shallow_deletion: 0.1464
+  cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
+  cn_iqr: 0.25731441378593445
+  cn_median_panel: 1.056258499622345
+  cn_n_cell_lines_evaluated: 1250
+  cn_p25_panel: 0.9923801422119141
+  cn_p5_panel: 0.7493900239467621
+  cn_p75_panel: 1.2496945559978485
+  cn_p95_panel: 2.2621068239212034
+  cn_recurrent_amplification_score: 0.128
+  cn_recurrent_deletion_score: 0.1496
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 1.0
+    fraction_of_amp_tail: 0.0375
+    lineage: Testis
+    median_cn: 2.209706664085388
+    n_in_lineage: 6
+  - fraction_focal_amplified: 0.46153846153846156
+    fraction_of_amp_tail: 0.0375
+    lineage: Biliary Tract
+    median_cn: 1.3415650129318237
+    n_in_lineage: 13
+  - fraction_focal_amplified: 0.3333333333333333
+    fraction_of_amp_tail: 0.1
+    lineage: Pancreas
+    median_cn: 1.245349109172821
+    n_in_lineage: 48
+  - fraction_focal_amplified: 0.21621621621621623
+    fraction_of_amp_tail: 0.25
+    lineage: Lung
+    median_cn: 1.1245735883712769
+    n_in_lineage: 185
+  - fraction_focal_amplified: 0.20224719101123595
+    fraction_of_amp_tail: 0.1125
+    lineage: Esophagus/Stomach
+    median_cn: 1.1147992610931396
+    n_in_lineage: 89
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.2857142857142857
+    fraction_of_del_tail: 0.03208556149732621
+    lineage: Thyroid
+    median_cn: 1.0399974584579468
+    n_in_lineage: 21
+  - fraction_deleted: 0.26582278481012656
+    fraction_of_del_tail: 0.11229946524064172
+    lineage: CNS/Brain
+    median_cn: 1.004984974861145
+    n_in_lineage: 79
+  - fraction_deleted: 0.25
+    fraction_of_del_tail: 0.0213903743315508
+    lineage: Cervix
+    median_cn: 1.0079513490200043
+    n_in_lineage: 16
+  - fraction_deleted: 0.25
+    fraction_of_del_tail: 0.0106951871657754
+    lineage: Prostate
+    median_cn: 1.0123732686042786
+    n_in_lineage: 8
+  - fraction_deleted: 0.24
+    fraction_of_del_tail: 0.06417112299465241
+    lineage: Breast
+    median_cn: 1.0839793682098389
+    n_in_lineage: 50
+  copy_number_class: broadly_neutral
+  patient_amplified_fraction: 0.22635135135135134
+  patient_cn_context: "COADREAD: 23% of 592 TCGA GISTIC samples amplify KRAS (1% high-level\
+    \ +2), 11% deleted (0% homdel) \u2014 PATIENT tumour CN, the cross-check to the\
+    \ DepMap cell-line copy_number_class. Cohort-level, verdict-inert."
+  patient_copy_number_class: recurrently_amplified
+  patient_deleted_fraction: 0.11486486486486487
+  patient_focal_cn_class: focal_neutral
+  patient_high_amp_fraction: 0.010135135135135136
+  patient_homdel_fraction: 0.0016891891891891893
+copy-number-stratified-dependency:
+  _cn_assay_used: wes
+  _uncomputable: false
+  amplification_threshold_relative_cn: 2.0
+  cn_stratification_class: amplified_moderately_dependent
+  cn_stratification_effect_size: 0.5998575498575498
+  cn_stratification_mannwhitney_p: 8.731352996681872e-12
+  cn_stratification_mannwhitney_q: 8.731352996681872e-12
+  cn_stratification_mannwhitney_q_reverse: 0.9999999999913164
+  delta_chronos_amplified_vs_neutral: -1.2174844592809677
+  evidence_scope: pan_lineage_evidence_only
+  lineage_context_divergent: false
+  lineage_evidence_scope_reason: "within-lineage underpowered even mut-vs-pan-WT (COADREAD);\
+    \ pan-DepMap (strong\u2192moderate: not indication-confirmed)"
+  median_chronos_amplified: -1.6279293298721313
+  median_chronos_neutral: -0.41044487059116364
+  n_amplified: 45
+  n_cell_lines_evaluated: 669
+  n_neutral: 624
+  pan_lineage_raw_cn_stratification_class: amplified_strongly_dependent
+ddr-deficiency-context:
+  _method_version: 0.1.0
+  _source: pancanatlas-ddr (Knijnenburg 2018); verdict-inert cohort context
+  ddr_context_class: hrd_low
+  frac_hrd_high: 0.0175
+  hrd_high_cut: 42.0
+  indication: COADREAD
+  median_hrd_score: 11.291
+  n_samples: 457
+  pooled_from:
+  - COAD
+  - READ
+functional-gene-state:
+  functional_state_class: sporadic_biallelic_inactivation
+  indication: COADREAD
+  method_version: 0.1.0
+  model:
+    _arm: model
+    cn_source: depmap_omicscngenewgs_relative
+    fraction_any_alteration: 0.17513069454817026
+    fraction_biallelic: 0.0038346825734980826
+    loh_note: genome_wide_only_not_per_gene
+    n_determinable: 2347
+    n_samples: 2678
+    state_counts:
+      biallelic+epigenetic: 0
+      biallelic-genetic: 9
+      epigenetic: 1
+      monoallelic: 128
+      uncertain: 331
+      wt: 2209
+  patient:
+    _arm: patient
+    _read_path: two_hit_product_v1
+    cn_source: gistic_thresholded_per_gene
+    fraction_any_alteration: 0.4421553090332805
+    fraction_biallelic: 0.05476190476190476
+    fraction_mutated: 0.3692551505546751
+    indication: COADREAD
+    loh_source: pancanatlas_absolute_point_in_interval
+    methylation_source: pancanatlas_hm450_promoter_v1
+    n_determinable: 420
+    n_mutated: 233
+    n_samples: 631
+    state_counts:
+      biallelic+epigenetic: 0
+      biallelic-genetic: 23
+      epigenetic: 0
+      monoallelic: 45
+      uncertain: 211
+      wt: 352
+    tcga_projects:
+    - COAD
+    - READ
+  target: KRAS
+  vocabulary_phase: genetic_epigenetic_full_phase2b
+fusion-rearrangement-landscape:
+  _data_note: target_not_fused_in_indication
+  _data_source: tcga-fusion-consensus-v1
+  fusion_class: no_recurrent_fusion
+  fusion_frequency: null
+  genie_sv_context: among 487 SV-covered genes in COADREAD (GENIE data_sv, coverage-corrected
+    denominator)
+  genie_sv_frequency: 0.0002991504128275697
+  genie_sv_recurrence_class: mid
+  genie_sv_recurrence_percentile: 51.02669404517454
+  genie_sv_recurrent_partners: []
+  method_version: 0.3.0
+  n_samples_with_fusion: 0
+  n_sv_covered: 16714
+  n_sv_samples: 5
+  recurrent_partners: []
+fusion-stratified-dependency:
+  _uncomputable: false
+  delta_chronos_fusion_positive_vs_negative: -0.5457298159599304
+  evidence_scope: pan_lineage_evidence_only
+  fusion_stratification_class: fusion_positive_moderately_dependent
+  fusion_stratification_effect_size: 0.542278534697556
+  fusion_stratification_mannwhitney_p: 0.0003758700125258325
+  fusion_stratification_mannwhitney_q: 0.0003758700125258325
+  fusion_stratification_mannwhitney_q_reverse: 0.9996250278421459
+  lineage_context_divergent: false
+  lineage_evidence_scope_reason: "within-lineage underpowered even mut-vs-pan-WT (COADREAD);\
+    \ pan-DepMap (strong\u2192moderate: not indication-confirmed)"
+  median_chronos_fusion_negative: -0.4576318860054016
+  median_chronos_fusion_positive: -1.003361701965332
+  n_cell_lines_evaluated: 1464
+  n_fusion_negative: 1451
+  n_fusion_positive: 13
+  pan_lineage_raw_fusion_stratification_class: fusion_positive_strongly_dependent
+genomic-event-model-match:
+  dependency_available: true
+  depmap_lineage: Bowel
+  event_correspondence_class: event_matched_dependent_in_lineage
+  functional_direction: activating
+  indication: COADREAD
+  match_mode: mutation_presence
+  matched_models: __omitted_from_fixture__ (list, 15 items)
+  method_version: 0.1.0
+  n_event_matched: 340
+  n_event_matched_in_lineage: 61
+  n_matched_dependent: 217
+  n_matched_dependent_in_lineage: 43
+  n_models_considered: 2678
+  n_patient_samples: 631
+  patient_event_fraction: 0.3693
+  patient_event_state: activating_mutation
+  patient_functional_state_class: sporadic_biallelic_inactivation
+  release_pin: 26q1
+  target: KRAS
+genomic-instability-state:
+  _data_source: gdc-pancanatlas-cnv-2018
+  aneuploidy_burden_class: highly_aneuploid
+  aneuploidy_burden_context: 'COADREAD: median 0.40 of the genome CN-altered across
+    593 PanCanAtlas samples (per-sample seg-based frac_altered; genome-wide CIN burden,
+    target-independent)'
+  median_fraction_genome_altered: 0.4035396161970229
+  median_ploidy: 2.23
+  median_purity: 0.67
+  method_version: 0.1.0
+  model_hrd_signature_present_fraction: 0.0
+  model_mmr_signature_class: mmr_signature_enriched
+  model_mmr_signature_high_fraction: 0.20869565217391303
+  model_msi_class: msi_high_enriched
+  model_msi_context: "COADREAD: 22% of 136 DepMap Bowel cell lines are MSI-high (MSIsensor2\
+    \ MSIScore >= 20); MODEL-cohort property, target-independent \u2014 the all-lineage\
+    \ complement to the CRC+STAD-only patient labels."
+  model_msi_high_fraction: 0.22058823529411764
+  model_signature_context: "COADREAD: 21% of 115 DepMap Bowel cell lines are MMR-signature-high\
+    \ (MMR SBS >= 20% of burden \u2014 cross-validates MSI); 0% carry an HRD signature\
+    \ (SBS3 >= 10%, a WEAK PARP-sensitivity proxy \u2014 a real HRD/genomic-scar score\
+    \ is deferred). MODEL-cohort, target-independent."
+  msi_class: msi_intermediate
+  msi_context: 'COADREAD: 14% MSI-high (38/275 evaluable TCGA marker-paper samples;
+    44 MSI-L, 193 MSS); cohort-level, target-independent. MSI patient-labels are CRC
+    + STAD only.'
+  msi_high_fraction: 0.13818181818181818
+  n_model_msi_high: 30
+  n_msi_high: 38
+  n_samples: 593
+  n_wgd_samples: 267
+  p25_fraction_genome_altered: 0.1540650822567544
+  p75_fraction_genome_altered: 0.6471909532891685
+  wgd_class: wgd_intermediate
+  wgd_context: 'COADREAD: 44% of 611 PanCanAtlas ABSOLUTE samples carry >=1 whole-genome
+    doubling (median ploidy 2.2); cohort-level, target-independent genome-state context'
+  wgd_fraction: 0.4369885433715221
+mutation-drug-response:
+  _uncomputable: false
+  aggregate_metric: best
+  delta_log2auc_mut_vs_wt: -0.4604804973036394
+  drug_response_base_rate: 0.8124293785310734
+  drug_response_effect_size: 0.5604307296689168
+  drug_response_mannwhitney_p: 4.973303526270419e-28
+  drug_response_mannwhitney_q: 4.973303526270419e-28
+  drug_response_mannwhitney_q_reverse: 1.0
+  drug_response_ppv: 0.9477124183006536
+  drug_response_ppv_lift: 1.1665166762115138
+  drug_response_sensitivity: 0.20166898470097358
+  drug_response_specificity: 0.9518072289156626
+  drug_response_stratification_class: mutant_strongly_drug_sensitive
+  median_log2auc_mutant: -1.17017917991103
+  median_log2auc_wildtype: -0.7096986826073906
+  n_mutant: 153
+  n_on_target_compounds: 23
+  n_wildtype: 732
+  on_target_compounds:
+  - moa: inhibitor of the KRAS-SOS1 interaction
+    name: BAY-293
+  - moa: inhibitor of KRAS
+    name: BI-2865
+  - moa: inhibitor of KRAS p.G12C
+    name: GARSORASIB
+  - moa: VHL-based PROTAC degrader of KRAS p.G12C
+    name: LC-2
+  - moa: inhibitor of KRAS p.G12C
+    name: ARS-1620
+  - moa: inhibitor of KRAS p.G12C
+    name: ADAGRASIB
+  - moa: inhibitor of KRAS p.G12C
+    name: OPNURASIB
+  - moa: inhibitor of the KRAS-SOS1 interaction
+    name: RMC-0331
+  - moa: less active enantiomer of KRAS p.G12C inhibitor ARS-1620
+    name: ARS-1630
+  - moa: inhibitor of KRAS p.G12D
+    name: MRTX-1133
+  - moa: RAS-effector PPI inhibitor
+    name: RAS INHIBITOR ABD-7
+  - moa: inhibitor of KRAS
+    name: BI-2852
+  - moa: inhibitor of KRAS p.G12C
+    name: ARS-853
+  - moa: inhibitor of KRAS p.G12C
+    name: SOTORASIB
+  - moa: covalent tri-complex inhibitor of active-state KRAS p.G12C
+    name: ELIRONRASIB
+  - moa: inhibitor of KRAS
+    name: BI-2493
+  - moa: reversible tri-complex inhibitor of active-state KRAS, NRAS and HRAS
+    name: DARAXONRASIB
+  - moa: reversible tri-complex inhibitor of active-state KRAS, NRAS and HRAS
+    name: RMC-7977
+  - moa: inhibitor of the KRAS-SOS1 interaction
+    name: BI-3406
+  - moa: inhibitor of KRAS p.G12C
+    name: MRTX-1257
+mutation-hotspot-frequency:
+  _aggregate_path: /home/sagemaker-user/data-products-cache/gdc_hotspots/coadread_mc3_hotspots.parquet
+  _co_occurrence_note: co-occurrence + mutual-exclusivity analysis is iter-2 work
+  _data_source: /home/sagemaker-user/data-products-cache/gdc_hotspots/coadread_mc3_hotspots.parquet
+  driver_recurrence_class: top_1pct
+  driver_recurrence_context: among genes with >=1 non-synonymous mutation in COADREAD
+    (TCGA-MC3 aggregate, n_genes=18471)
+  driver_recurrence_percentile: 99.98105137783553
+  genie_driver_recurrence_class: top_1pct
+  genie_driver_recurrence_percentile: 99.47833065810593
+  genie_mutation_frequency: 0.4350493350493351
+  genie_recurrence_context: among 1246 panel-covered genes in COADREAD (GENIE registry,
+    coverage-corrected denominator)
+  hotspot_frequencies:
+  - frequency: 0.10912343470483005
+    n_samples: 61
+    protein_change: p.G12D
+  - frequency: 0.09302325581395349
+    n_samples: 52
+    protein_change: p.G12V
+  - frequency: 0.07155635062611806
+    n_samples: 40
+    protein_change: p.G13D
+  - frequency: 0.03041144901610018
+    n_samples: 17
+    protein_change: p.G12C
+  - frequency: 0.028622540250447227
+    n_samples: 16
+    protein_change: p.A146T
+  n_samples_in_indication: 559
+  n_samples_mutated: 235
+  overall_mutation_frequency: 0.4203935599284436
+  top_cooccurring_genes: []
+  top_mutually_exclusive_genes: []
+mutation-stratified-dependency:
+  _damaging_by_model:
+    ACH-000007: false
+    ACH-000009: false
+    ACH-000202: false
+    ACH-000249: false
+    ACH-000252: false
+    ACH-000253: false
+    ACH-000286: false
+    ACH-000296: false
+    ACH-000350: false
+    ACH-000381: false
+    ACH-000403: false
+    ACH-000421: false
+    ACH-000467: false
+    ACH-000470: false
+    ACH-000489: false
+    ACH-000491: false
+    ACH-000501: false
+    ACH-000532: false
+    ACH-000552: false
+    ACH-000565: false
+    ACH-000651: false
+    ACH-000683: false
+    ACH-000722: false
+    ACH-000798: false
+    ACH-000820: false
+    ACH-000926: false
+    ACH-000935: false
+    ACH-000943: false
+    ACH-000950: false
+    ACH-000957: false
+    ACH-000958: false
+    ACH-000959: false
+    ACH-000963: false
+    ACH-000969: false
+    ACH-000970: false
+    ACH-000971: false
+    ACH-000985: false
+    ACH-000986: false
+    ACH-000991: false
+    ACH-000997: false
+    ACH-001039: false
+    ACH-001061: false
+    ACH-001081: false
+    ACH-001345: false
+    ACH-001399: false
+    ACH-001454: false
+    ACH-001458: false
+    ACH-001459: false
+    ACH-001460: false
+    ACH-001461: false
+    ACH-001786: false
+    ACH-002022: false
+    ACH-002024: false
+    ACH-002025: false
+    ACH-002233: false
+    ACH-002530: false
+    ACH-002535: false
+    ACH-002538: false
+    ACH-002654: false
+    ACH-002659: false
+    ACH-002660: false
+    ACH-002662: false
+    ACH-002664: false
+    ACH-002669: false
+    ACH-002839: false
+    ACH-002841: false
+    ACH-003332: false
+    ACH-003334: false
+    ACH-003337: false
+    ACH-003345: false
+    ACH-003346: false
+    ACH-003348: false
+    ACH-003364: false
+    ACH-003377: false
+    ACH-003383: false
+    ACH-003386: false
+    ACH-003387: false
+    ACH-003388: false
+    ACH-003390: false
+    ACH-003391: false
+    ACH-003399: false
+    ACH-003400: false
+    ACH-003401: false
+    ACH-003402: false
+    ACH-003722: false
+    ACH-003724: false
+    ACH-003853: false
+    ACH-003855: false
+  _hotspot_by_model:
+    ACH-000007: true
+    ACH-000009: false
+    ACH-000202: false
+    ACH-000249: true
+    ACH-000252: true
+    ACH-000253: false
+    ACH-000286: true
+    ACH-000296: false
+    ACH-000350: true
+    ACH-000381: true
+    ACH-000403: true
+    ACH-000421: true
+    ACH-000467: true
+    ACH-000470: true
+    ACH-000489: true
+    ACH-000491: false
+    ACH-000501: true
+    ACH-000532: true
+    ACH-000552: false
+    ACH-000565: true
+    ACH-000651: true
+    ACH-000683: false
+    ACH-000722: false
+    ACH-000798: true
+    ACH-000820: true
+    ACH-000926: false
+    ACH-000935: false
+    ACH-000943: false
+    ACH-000950: true
+    ACH-000957: true
+    ACH-000958: false
+    ACH-000959: false
+    ACH-000963: false
+    ACH-000969: false
+    ACH-000970: false
+    ACH-000971: true
+    ACH-000985: false
+    ACH-000986: false
+    ACH-000991: true
+    ACH-000997: true
+    ACH-001039: false
+    ACH-001061: true
+    ACH-001081: true
+    ACH-001345: true
+    ACH-001399: true
+    ACH-001454: false
+    ACH-001458: false
+    ACH-001459: true
+    ACH-001460: true
+    ACH-001461: false
+    ACH-001786: false
+    ACH-002022: false
+    ACH-002024: true
+    ACH-002025: true
+    ACH-002233: false
+    ACH-002530: false
+    ACH-002535: true
+    ACH-002538: false
+    ACH-002654: true
+    ACH-002659: false
+    ACH-002660: true
+    ACH-002662: false
+    ACH-002664: true
+    ACH-002669: false
+    ACH-002839: false
+    ACH-002841: false
+    ACH-003332: true
+    ACH-003334: false
+    ACH-003337: true
+    ACH-003345: false
+    ACH-003346: false
+    ACH-003348: false
+    ACH-003364: true
+    ACH-003377: false
+    ACH-003383: true
+    ACH-003386: false
+    ACH-003387: false
+    ACH-003388: true
+    ACH-003390: true
+    ACH-003391: true
+    ACH-003399: true
+    ACH-003400: true
+    ACH-003401: false
+    ACH-003402: false
+    ACH-003722: false
+    ACH-003724: false
+    ACH-003853: false
+    ACH-003855: false
+  _uncomputable_tiers: []
+  any_mannwhitney_q: 1.2467439493977978e-10
+  any_mannwhitney_q_reverse: 0.9999999998818927
+  damaging_effect_size: null
+  damaging_mannwhitney_p: null
+  damaging_mannwhitney_q: null
+  damaging_mannwhitney_q_reverse: null
+  delta_chronos_any_mut_vs_wt: -1.142296850681305
+  delta_chronos_damaging_mut_vs_wt: null
+  delta_chronos_hotspot_mut_vs_wt: -1.142296850681305
+  evidence_scope: within_indication
+  hotspot_dependency_base_rate: 0.8181818181818182
+  hotspot_dependency_ppv: 1.0
+  hotspot_dependency_ppv_lift: 1.222222222222222
+  hotspot_dependency_sensitivity: 0.5972222222222222
+  hotspot_dependency_specificity: 1.0
+  hotspot_effect_size: 0.7839793281653746
+  hotspot_gate_note: null
+  hotspot_mannwhitney_p: 1.2467439493977978e-10
+  hotspot_mannwhitney_q: 1.2467439493977978e-10
+  hotspot_mannwhitney_q_reverse: 0.9999999998818927
+  lineage_context_divergent: false
+  lineage_evidence_scope_reason: within-lineage split cleared the floor (COADREAD)
+  median_chronos_damaging_mutant: null
+  median_chronos_damaging_wildtype: -1.1771361231803894
+  median_chronos_hotspot_mutant: -1.7287354469299316
+  median_chronos_hotspot_wildtype: -0.5864385962486267
+  mutation_stratification_class: mutant_strongly_dependent
+  n_any_mutant: 43
+  n_any_wildtype: 45
+  n_cell_lines_evaluated: 88
+  n_damaging_mutant: 0
+  n_damaging_wildtype: 88
+  n_hotspot_mutant: 43
+  n_hotspot_wildtype: 45
+  pan_lineage_mutation_stratification_class: mutant_strongly_dependent
+  per_hotspot_stats: []
+  stratification_direction: forward_mutant_dependent
+mutation-type-counts:
+  mut_dominant_mutation_class: missense
+  mut_fraction_inframe_indel: 0.029177718832891247
+  mut_fraction_lof: 0.015915119363395226
+  mut_fraction_missense: 0.9549071618037135
+  mut_mutation_rate: 0.13666915608663183
+  mut_n_cell_lines_mutated: 366
+  mut_n_cell_lines_total: 2678
+  mut_n_frameshift: 3
+  mut_n_inframe_indel: 11
+  mut_n_missense: 360
+  mut_n_nonsense: 2
+  mut_n_other: 0
+  mut_n_splice: 1
+  mut_n_synonymous: 0
+  mut_per_class_counts:
+  - n: 360
+    variant_class: missense
+  - n: 11
+    variant_class: inframe_indel
+  - n: 3
+    variant_class: frameshift
+  - n: 2
+    variant_class: nonsense
+  - n: 1
+    variant_class: splice
+  mut_top_mutated_lineages:
+  - by_class:
+      missense: 109
+    lineage: Pancreas
+    n_mutated_lines: 107
+    n_observations: 109
+  - by_class:
+      inframe_indel: 1
+      missense: 65
+    lineage: Bowel
+    n_mutated_lines: 65
+    n_observations: 66
+  - by_class:
+      frameshift: 1
+      missense: 57
+      nonsense: 1
+    lineage: Lung
+    n_mutated_lines: 57
+    n_observations: 59
+  - by_class:
+      inframe_indel: 2
+      missense: 30
+    lineage: Lymphoid
+    n_mutated_lines: 31
+    n_observations: 32
+  - by_class:
+      frameshift: 1
+      missense: 17
+      splice: 1
+    lineage: Esophagus/Stomach
+    n_mutated_lines: 19
+    n_observations: 19
+  - by_class:
+      missense: 17
+    lineage: Biliary Tract
+    n_mutated_lines: 17
+    n_observations: 17
+  - by_class:
+      missense: 15
+    lineage: Ovary/Fallopian Tube
+    n_mutated_lines: 15
+    n_observations: 15
+  - by_class:
+      inframe_indel: 1
+      missense: 10
+    lineage: Myeloid
+    n_mutated_lines: 11
+    n_observations: 11
+  - by_class:
+      missense: 11
+    lineage: Uterus
+    n_mutated_lines: 11
+    n_observations: 11
+  - by_class:
+      missense: 6
+    lineage: CNS/Brain
+    n_mutated_lines: 6
+    n_observations: 6
+  mut_total_mutations: 377
+  mutation_landscape_class: missense_dominant
+mutational-signature-context:
+  _method_version: 0.1.0
+  _source: "TCGA MC3 v0.2.8 \u2192 SigProfilerAssignment COSMIC v3.3 (pan-cancer,\
+    \ 33 TCGA studies via TCGA-CDR); verdict-inert cohort context"
+  apobec_class: rare
+  clock_class: enriched
+  dominant_process: mmr_deficiency
+  enriched_processes: none
+  frac_apobec_high: 0.0018
+  frac_clock_high: 0.8759
+  frac_hrd_high: 0.0126
+  frac_mmr_deficiency_high: 0.1187
+  frac_pole_high: 0.0216
+  frac_tobacco_high: 0.0036
+  frac_uv_high: 0.0036
+  hrd_class: rare
+  indication: COADREAD
+  mmr_deficiency_class: intermediate
+  n_samples: 556
+  pole_class: rare
+  pooled_from:
+  - COAD
+  - READ
+  tobacco_class: rare
+  uv_class: rare
+oncogenic-pathway-alteration:
+  _method_version: 0.1.0
+  _source: Sanchez-Vega 2018 Cell (oncogenic-pathway alteration); verdict-inert cohort
+    context
+  frequently_altered_pathways:
+  - Cell Cycle
+  - RTK RAS
+  - TP53
+  - WNT
+  indication: COADREAD
+  n_pathways_profiled: 10
+  oncogenic_pathway_class: frequently_altered
+  per_pathway:
+  - frac_altered: 0.9129
+    n_samples: 459.0
+    pathway: WNT
+    pathway_alteration_class: frequently_altered
+  - frac_altered: 0.7407
+    n_samples: 459.0
+    pathway: RTK RAS
+    pathway_alteration_class: frequently_altered
+  - frac_altered: 0.7016
+    n_samples: 459.0
+    pathway: TP53
+    pathway_alteration_class: frequently_altered
+  - frac_altered: 0.5464
+    n_samples: 459.0
+    pathway: Cell Cycle
+    pathway_alteration_class: frequently_altered
+  - frac_altered: 0.4052
+    n_samples: 459.0
+    pathway: PI3K
+    pathway_alteration_class: occasionally_altered
+  - frac_altered: 0.3203
+    n_samples: 459.0
+    pathway: NOTCH
+    pathway_alteration_class: occasionally_altered
+  - frac_altered: 0.2919
+    n_samples: 459.0
+    pathway: TGF-Beta
+    pathway_alteration_class: occasionally_altered
+  - frac_altered: 0.2331
+    n_samples: 459.0
+    pathway: MYC
+    pathway_alteration_class: occasionally_altered
+  - frac_altered: 0.1699
+    n_samples: 459.0
+    pathway: HIPPO
+    pathway_alteration_class: occasionally_altered
+  - frac_altered: 0.0131
+    n_samples: 459.0
+    pathway: NRF2
+    pathway_alteration_class: rarely_altered
+  pooled_from:
+  - COAD
+  - READ
+  target_pathway_alteration:
+  - frac_altered: 0.7407
+    pathway: RTK RAS
+    pathway_alteration_class: frequently_altered
+  target_pathway_membership:
+  - RTK RAS
+variant-level-interpretation:
+  civic_interpretation_context: '29 single-variant CIViC profiles for KRAS: 13 oncogenic/likely,
+    23 with resistance annotation'
+  civic_variant_class: likely_oncogenic
+  has_oncogenic_variant: true
+  n_interpreted_variants: 29
+  oncogenic_variants:
+  - n_evidence: 45
+    oncogenicity_class: likely_oncogenic
+    variant: Mutation
+  - n_evidence: 21
+    oncogenicity_class: likely_oncogenic
+    variant: G12D
+  - n_evidence: 18
+    oncogenicity_class: likely_oncogenic
+    variant: G12C
+  - n_evidence: 14
+    oncogenicity_class: likely_oncogenic
+    variant: G13D
+  - n_evidence: 13
+    oncogenicity_class: likely_oncogenic
+    variant: G12/G13
+  - n_evidence: 12
+    oncogenicity_class: likely_oncogenic
+    variant: G12V
+  - n_evidence: 11
+    oncogenicity_class: likely_oncogenic
+    variant: Exon 2 Mutation
+  - n_evidence: 4
+    oncogenicity_class: likely_oncogenic
+    variant: A146T
+  - n_evidence: 3
+    oncogenicity_class: likely_oncogenic
+    variant: Amplification
+  - n_evidence: 3
+    oncogenicity_class: likely_oncogenic
+    variant: Q61H
+  resistance_variant_count: 23
+  resistance_variants:
+  - n_evidence: 12
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Dabrafenib
+    - Gefitinib
+    - Melphalan
+    - Panitumumab
+    - Panitumumab,Cetuximab
+    - Regorafenib Anhydrous
+    - Vemurafenib
+    variant: G12D
+  - n_evidence: 11
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Cetuximab,Panitumumab
+    - Panitumumab
+    - Pictilisib
+    - Regorafenib Anhydrous
+    variant: G13D
+  - n_evidence: 11
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Cetuximab,Chemotherapy
+    - Cetuximab,Panitumumab
+    - Chemotherapy,Bevacizumab
+    - Docetaxel,Selumetinib
+    - Erlotinib
+    - Gefitinib,Erlotinib
+    - Ixazomib
+    - MEK Inhibitor RO4987655
+    - Vemurafenib,Dabrafenib
+    variant: Mutation
+  - n_evidence: 9
+    resistance_class: known_resistance
+    therapies:
+    - Bevacizumab
+    - Cetuximab
+    - Cetuximab,Panitumumab
+    - Chemotherapy,Cetuximab
+    - Erlotinib,Gefitinib
+    - Irinotecan
+    - Oxaliplatin
+    - Panitumumab
+    - Trametinib,Gemcitabine
+    variant: G12/G13
+  - n_evidence: 9
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Cetuximab,Panitumumab
+    - Erlotinib,Gefitinib
+    - Gefitinib
+    - Melphalan
+    - Regorafenib Anhydrous
+    variant: G12A
+  - n_evidence: 8
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab,Chemotherapy
+    - Gefitinib
+    - Gefitinib,Erlotinib
+    - Melphalan
+    - Panitumumab
+    - Regorafenib Anhydrous
+    variant: G12C
+  - n_evidence: 8
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Cetuximab,Panitumumab
+    - Gefitinib
+    - Melphalan
+    - Panitumumab
+    - Regorafenib Anhydrous
+    variant: G12S
+  - n_evidence: 8
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Cetuximab,Panitumumab
+    - Crizotinib
+    - Gefitinib
+    - Panitumumab
+    - Regorafenib Anhydrous
+    variant: G12V
+  - n_evidence: 5
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Epidermal Growth Factor Receptor Tyrosine Kinase Inhibitor
+    - Erlotinib
+    - Gemcitabine,Erlotinib
+    variant: Exon 2 Mutation
+  - n_evidence: 4
+    resistance_class: known_resistance
+    therapies:
+    - Cetuximab
+    - Cetuximab,Chemotherapy
+    - Panitumumab
+    - Regorafenib Anhydrous
+    variant: G12R
+  strongest_oncogenicity_class: likely_oncogenic

@@ -170,10 +170,14 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     (gap #5 conversion, 2026-07-22). The former inline multi-axis if-chain (SNV/indel priority ×
     copy-number, combined into multi_class_driver) now lives in
     resolvers/genomic_alteration.resolver.yaml (target-contracts), evaluated by the ONE interpreter
-    both engines call. Proven byte-for-byte equivalent to the former if-chain across all 256 (2^8)
-    fired-set combinations by the pre-swap oracle + frozen in the golden snapshot. A missing spec
-    raises (the resolver is the source of truth — NO silent fallback to a stale copy, which would
-    reintroduce the drift this refactor eliminates)."""
+    both engines call. The original swap was proven byte-for-byte equivalent to the former if-chain by
+    the pre-swap oracle over the then-enumerated SNV×CN fired-set combinations and frozen in the golden
+    snapshot. NOTE (2026-08-13): the resolver has since grown rungs the original 2^8 oracle did NOT span
+    — the confirmed_driver family (§0, alteration-role), the biomarker_stratified_dependency siblings
+    (§2b/2c/2d: cn/fusion/amp-expr), and the recurrent_fusion_driver rung — so the 256-combination figure
+    is historical, not the current combinatorial coverage. The resolver YAML remains the single source of
+    truth; a missing spec raises (NO silent fallback to a stale copy, which would reintroduce the drift
+    this refactor eliminates)."""
     result = resolve_verdict_for_gate(fired, "genomic_alteration")
     if result is None:
         raise RuntimeError(

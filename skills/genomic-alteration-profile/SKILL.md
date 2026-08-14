@@ -4,10 +4,13 @@ description: |
   Focused question skill: "How is target X genomically altered in indication Y
   — by SNV/indel (recurrent driver, biomarker-stratified dependency, or
   passenger), by copy-number (amplification/deletion), or a mix — and which
-  alteration class drives?" Consumes 3 mutation cards + copy-number-distribution
-  + a LIVE fusion-rearrangement landscape (tcga-fusion-consensus-v1) + additive
-  role/allele-count/patient-model/subtype layers. Emits a data-package output tree
-  with a multi-class genomic-alteration verdict.
+  alteration class drives?" Consumes 17 cards: 7 verdict-driving (3 SNV/indel +
+  copy-number-distribution + 3 stratified-dependency siblings [cn/fusion/amp-expr]
+  + alteration-role), the mutation-hotspot-frequency recurrence facet, a LIVE
+  fusion-rearrangement landscape (tcga-fusion-consensus-v1), and 7 additive
+  signal-only layers (drug-response, variant-level, allele-count, patient↔model
+  match, + 3 indication-level cohort-context facets). Emits a data-package output
+  tree with a multi-class genomic-alteration verdict.
 
   REFRAMED 2026-07-14 from `mutation-profile` (SNV/indel only). The
   copy-number-distribution card + its 11 rules already existed but were never
@@ -23,7 +26,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 2.1.1
+  version: 2.2.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -58,20 +61,34 @@ composition:
     - mutation-drug-response                 # (in run.py CARDS; 2026-08-11 doc-drift fixed) mutation-stratified drug-
                                              # response (delta log2AUC on-target compounds); additive signal-only, verdict-inert
     - subgroup-stratified-mutation-frequency # SUBTYPE axis (2026-08-05): per-stratum mutation frequency (MSI/MSS/sidedness/LoT); tier:subtype, DESCRIPTIVE panorama (emits no verdict — display facet like tumor-presence's by-subtype card); applies only when subgroup_spec is set
-  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. mutation-type-counts and
-  # mutation-hotspot-frequency are DISTINCT types (variant-class spectrum vs cohort recurrence);
-  # fusion_rearrangement is LIVE (tcga-fusion-consensus-v1). alteration_role + functional_gene_state
-  # + genomic_event_model_match + subgroup-stratified-mutation-frequency are the additive
-  # role / allele-count / patient↔model-match / subtype-panorama layers (all signal-only, no resolver rung).
+  # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, one per
+  # distinct card measurement_type (mutation-hotspot-frequency + subgroup-stratified-mutation-frequency
+  # share mutation_hotspot_frequency → listed once). Every entry is registered in
+  # target-contracts/vocabularies/measurement_types.yaml. 2026-08-13 review (G7/G8): completed from 8
+  # → 17 — the 3 stratified-dependency siblings (cn/fusion/amp_expr), the drug-response biomarker, and
+  # the 5 cohort-context/variant layers (instability, mutational-signature, DDR, oncogenic-pathway,
+  # variant-level) were pulled by cards_used but never declared here. test_genomic_measurement_types.py
+  # now enforces parity so this cannot silently re-drift.
   measurement_types_pulled:
-    - mutation_variant_class_spectrum
-    - mutation_stratified_dependency
-    - mutation_hotspot_frequency
-    - copy_number_alteration
-    - fusion_rearrangement
-    - alteration_role
-    - functional_gene_state
-    - genomic_event_model_match
+    # verdict-driving axes
+    - mutation_variant_class_spectrum        # mutation-type-counts
+    - mutation_stratified_dependency         # mutation-stratified-dependency
+    - copy_number_alteration                 # copy-number-distribution
+    - cn_stratified_dependency               # copy-number-stratified-dependency (resolver §2b)
+    - fusion_stratified_dependency           # fusion-stratified-dependency (resolver §2c)
+    - amp_expr_stratified_dependency         # amp-expr-stratified-dependency (resolver §2d)
+    - alteration_role                        # alteration-role (resolver §0 confirmed_driver)
+    # composed + headline, additive signal-only (no resolver rung)
+    - mutation_hotspot_frequency             # mutation-hotspot-frequency + subgroup-stratified-mutation-frequency
+    - mutation_drug_response                 # mutation-drug-response
+    - fusion_rearrangement                   # fusion-rearrangement-landscape
+    - variant_level_interpretation           # variant-level-interpretation
+    - functional_gene_state                  # functional-gene-state
+    - genomic_event_model_match              # genomic-event-model-match
+    - genomic_instability_state              # genomic-instability-state (indication-level cohort context)
+    - mutational_signature_context           # mutational-signature-context (indication-level cohort context)
+    - ddr_deficiency_context                 # ddr-deficiency-context (indication-level cohort context)
+    - oncogenic_pathway_alteration           # oncogenic-pathway-alteration (indication-level cohort context)
   # rules_scope = cards whose rules actually enter the genomic_alteration resolver. NOTE
   # (2026-08-05): mutation-hotspot-frequency was listed here but fires ZERO rules — its
   # overall_mutation_frequency is display-only (headline), never a verdict input. Dropped to
