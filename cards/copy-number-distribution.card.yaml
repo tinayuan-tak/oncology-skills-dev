@@ -23,6 +23,20 @@
 #   CN > 4     = high-level amplification
 # (per DepMap portal docs + Mermel et al GISTIC2 conventions for relative-CN matrices)
 #
+# ASYMMETRY + FOCAL-VS-ARM CAVEAT (known, pre-recalibration):
+#   The recurrent-DELETION score counts BOTH deep (<0.5, biallelic) AND shallow
+#   (0.5-0.92, hemizygous/one-copy) loss, while the recurrent-AMPLIFICATION score
+#   counts ONLY focal/high gain (>1.5) and EXCLUDES shallow gain (1.07-1.5). Both
+#   are compared to the same >=20% recurrence threshold, so the del side fires more
+#   readily (on hemizygous/arm-level loss) and the amp side under-calls (focal-amp
+#   targets with mostly shallow gains — e.g. ERBB2/CCND1 on COADREAD — read
+#   broadly_neutral). copy_number_class is therefore a pan-cancer relative-CN class,
+#   NOT a focal-vs-arm call. The focal-vs-arm distinction lives in the ADDITIVE
+#   patient_focal_cn_class (GISTIC, indication-specific); the biallelic-LoF signal
+#   lives in cn_homozygous_deletion_recurrent / the deep-del fraction. A symmetric
+#   focal-driver recalibration is verdict-moving and deferred to a CN-methods
+#   backtest (see analysis-methods/methods/depmap_cn_distribution/cli.py).
+#
 # Data source: dmc-26q1/OmicsCNGeneMC_WES.csv. Matrix shape: cell-line-rows ×
 # gene-columns (similar to CRISPR matrix); first physical column is
 # ModelConditionID, second is IsDefaultEntryForMC. Bridge to ModelID requires

@@ -631,11 +631,23 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Recurrent focal amplification across the panel (>=20% of lines). The CN axis
+      Recurrent amplification across the panel (>=20% of lines). The CN axis
       is plausibly driving target activity in a subset of contexts. Supportive
       across modalities; degrader programs can leverage amplification-elevated
       protein abundance, small-molecule programs can leverage oncogene-addiction
       patterns at amplified loci (e.g. MYC amp in HCC).
+      ASYMMETRY CAVEAT (known, pre-recalibration): the amplification score counts
+      only FOCAL/high-level gain (relative CN > 1.5), whereas the deletion score
+      (cn-recurrently-deleted-supportive) counts hemizygous/shallow loss down to
+      0.92. A focal-amp target whose gains are predominantly SHALLOW (1.07-1.5,
+      one-copy) can therefore read broadly_neutral here — an amp-side FALSE
+      NEGATIVE (observed for ERBB2 / CCND1 on the COADREAD cell-line panel, where
+      shallow-amp fraction ~0.32 but focal-amp fraction <0.11). The focal-vs-arm
+      distinction lives in the ADDITIVE patient_focal_cn_class field (GISTIC
+      indication-specific focal call), NOT in this pan-cancer relative-CN class.
+      A symmetric focal-driver recalibration (either +shallow-amp or -shallow-del)
+      is verdict-moving and is deferred to a CN-methods backtest — see the
+      asymmetry note in analysis-methods/methods/depmap_cn_distribution/cli.py.
 
   - rule_id: cn-recurrently-deleted-supportive
     when:
@@ -647,10 +659,22 @@ rules:
       degrader: supportive
     rationale: |
       Recurrent deletion across the panel (>=20% of lines). For tumor-suppressor
-      targets, deletion is the canonical loss-of-function event; the framework
-      treats it as supportive (the deletion creates a context the program might
-      exploit, e.g. synthetic-lethal partner targeting). NOT a killer on its own
-      — interpretation requires the dependency cards as orthogonal evidence.
+      targets, deletion is a loss-of-function event; the framework treats it as
+      supportive (the deletion creates a context the program might exploit, e.g.
+      synthetic-lethal partner targeting). NOT a killer on its own — interpretation
+      requires the dependency cards as orthogonal evidence.
+      MAGNITUDE CAVEAT (known, pre-recalibration): the deletion score counts BOTH
+      homozygous/deep loss (relative CN < 0.5, the canonical biallelic LoF) AND
+      hemizygous/shallow loss (0.5-0.92, one-copy — often arm-level passenger). So
+      recurrently_deleted spans arm-level hemizygous loss through focal homozygous
+      deletion, and the class alone does NOT establish biallelic LoF. On the
+      COADREAD panel, 6 of 7 recurrently_deleted TSGs (SMAD4/APC/PTEN/TP53/RB1/
+      STK11) have deep-del fraction < 0.20 — i.e. the call rests on shallow loss;
+      only CDKN2A is genuinely deep. Read the biallelic signal from
+      cn_homozygous_deletion_recurrent / the deep-del fraction, and the focal-vs-arm
+      signal from the ADDITIVE patient_focal_cn_class (GISTIC), not from this class.
+      Note the deletion band (down to 0.92) is more permissive than the
+      amplification band (>1.5) — see cn-recurrently-amplified-supportive.
 
   - rule_id: cn-mixed-neutral
     when:
