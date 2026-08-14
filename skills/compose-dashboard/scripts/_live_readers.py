@@ -719,6 +719,18 @@ def _dispatch_spatial_tumor_normal_colocalization(target: str, indication: str) 
     return mod.build_summary(target, indication)
 
 
+def _dispatch_spatial_surface_protein_abundance(target: str, indication: str) -> Optional[dict]:
+    """Dispatcher: route spatial-surface-protein-abundance card to
+    methods/spatial_surface_protein/cli.py::build_summary.
+
+    MEASURED in-situ region PROTEIN (NanoString GeoMx DSP) in the TUMOUR compartment vs the TME →
+    spatial_protein_class: tumour_enriched_protein (measured presence) / tme_enriched_protein
+    (tumour-specificity caveat) / no-preference. Region-level, NOT copies/cell — a distinct measured
+    claim from the bulk-CPTAC×HPA Axis-3 surface-abundance-density estimate. Indication-scoped."""
+    mod = _import_method("spatial_surface_protein.cli")
+    return mod.build_summary(target, indication)
+
+
 def _dispatch_sc_surface_normal_safety(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: route sc-surface-normal-safety card to
     methods/sc_surface_normal_safety/cli.py::build_summary.
@@ -1364,6 +1376,7 @@ CARD_DISPATCHERS = {
     "sc-surface-rna-protein-concordance": _dispatch_sc_surface_concordance,
     "surface-colocalization-avidity": _dispatch_surface_colocalization_avidity,
     "spatial-tumor-normal-colocalization": _dispatch_spatial_tumor_normal_colocalization,   # in-situ spatial neighbourhood (CosMx CRC; immune_excluded / normal_epithelium_adjacent)
+    "spatial-surface-protein-abundance": _dispatch_spatial_surface_protein_abundance,       # in-situ region PROTEIN (GeoMx DSP; tumour_enriched / tme_enriched)
     "sc-surface-normal-safety": _dispatch_sc_surface_normal_safety,
     "abundance-dependency": _dispatch_abundance_dependency,
     "expression-purity-confound": _dispatch_expression_purity_confound,
