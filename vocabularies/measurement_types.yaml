@@ -809,6 +809,7 @@ measurement_types:
       # per-indication GeoMx DSP protein products (aggregate_spatial_region_protein). Adding an indication
       # = emit its spatial-surface-protein product (data-catalog) + one line here.
       - {kind: dataset, source: spatial-surface-protein-hnsc-v1, method: spatial_region_protein, evidence_tier: measured}   # HNSC — GeoMx DSP 580-protein (GSE288406)
+      - {kind: dataset, source: spatial-surface-protein-nsclc-v1, method: spatial_region_protein, evidence_tier: measured}  # NSCLC (adeno+squamous) — GeoMx DSP 68-plex IO panel (GSE221322)
 
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"
