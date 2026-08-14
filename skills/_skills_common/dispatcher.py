@@ -163,6 +163,56 @@ def _provenance_warnings(provenance: dict) -> list:
     ]
 
 
+def _rule_polarity(rule_id: "Optional[str]") -> str:
+    """Coarse role/polarity of a fired rule from its rule_id suffix vocabulary.
+    positive = -supportive; negative = -killer / -veto / -opposing; else neutral
+    (-neutral / -insufficient / -warning / -flagged / -conditional / -context / -unavailable)."""
+    r = (rule_id or "").lower()
+    if "supportive" in r:
+        return "positive"
+    if "killer" in r or "veto" in r or "opposing" in r:
+        return "negative"
+    return "neutral"
+
+
+def _consolidation_fidelity(fired: list, driving_rule_id: "Optional[str]") -> dict:
+    """Verdict-inert observability (2026-08-14 consolidation-fidelity diagnostic): does the SINGLE
+    collapsed verdict MASK a polarity conflict among the fired rules?
+
+    A skill collapses N cards → one verdict + one driving_rule_id. That is correct when the verdict is
+    a faithful summary, but lossy when the collapse buries genuinely conflicting evidence (the
+    tumor-presence cell-line-vs-tumor anchor, the isoform-suppression veto, the genomic multi-class
+    collapse were all this). This block makes the collapse's fidelity legible WITHOUT changing the
+    verdict:
+      discordant           — the fired rules span BOTH a positive and a negative role
+      masked_conflict      — the DRIVING rule's polarity is opposite to >=1 OTHER fired rule that was
+                             overruled (the headline says + while a - fired, or vice versa)
+      overruled_opposing_rules — those dropped opposite-polarity rule_ids (what a reader would miss)
+      single_card_passthrough  — the verdict rests on a single contributing card (no integration)
+    A consumer seeing masked_conflict=true should read the per-card / per-modality decomposition, not
+    just the one-word verdict. Never feeds a rule; the verdict spine is untouched."""
+    ids = [f.get("rule_id") for f in fired if isinstance(f, dict) and f.get("rule_id")]
+    cards = sorted({f.get("card_id") for f in fired if isinstance(f, dict) and f.get("card_id")})
+    pol = {rid: _rule_polarity(rid) for rid in ids}
+    roles = set(pol.values())
+    drv_pol = _rule_polarity(driving_rule_id)
+    overruled_opp = sorted(
+        rid for rid in ids if rid != driving_rule_id
+        and ((drv_pol == "positive" and pol[rid] == "negative")
+             or (drv_pol == "negative" and pol[rid] == "positive"))
+    )
+    return {
+        "discordant": ("positive" in roles) and ("negative" in roles),
+        "masked_conflict": bool(overruled_opp),
+        "driving_role": drv_pol,
+        "overruled_opposing_rules": overruled_opp,
+        "roles_present": sorted(roles),
+        "n_rules_fired": len(ids),
+        "n_cards_contributing": len(cards),
+        "single_card_passthrough": len(cards) <= 1,
+    }
+
+
 def _availability_state_for(card: dict) -> "tuple[str, str]":
     """Map a resolve_cards `_missing` card to a schema-valid (availability_state, reason).
 
@@ -590,6 +640,13 @@ def run_wired_skill(
         "compute_secs": round(time.perf_counter() - _compute_start, 4),
         # total is stamped at the very end (below) so it includes synthesis + write.
     }
+
+    # 8a-ii. CONSOLIDATION FIDELITY (2026-08-14): does the single collapsed verdict mask a polarity
+    # conflict among the fired rules? Sibling key, verdict-inert (never touches the spine). Lets any
+    # consumer detect over-consolidation generically — masked_conflict=true means "read the per-card /
+    # per-modality decomposition, not just the one-word verdict."
+    decision["consolidation"] = _consolidation_fidelity(
+        fired, verdict_pair[1] if verdict_pair else None)
 
     # 8b. OPT-IN LLM synthesis (two-slot design). Attaches a provenance-tagged narration
     # as a SIBLING key decision['llm_synthesis'] AFTER the deterministic decision is composed,
