@@ -19,11 +19,15 @@ from methods.catalog_query.read import bucket_key_for
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
 
-# indication -> landed spatial region-RNA product (GeoMx DSP WTA). HNSC = GSE290057 (Whole Transcriptome
-# Atlas, the WTA companion to the HNSC 580-plex region-PROTEIN product). Adding an indication = emit its
-# spatial-region-rna product (data-catalog) + one line here.
+# indication -> landed spatial region-RNA product (GeoMx DSP). HNSC = GSE290057 (Whole Transcriptome
+# Atlas, the WTA companion to the HNSC 580-plex region-PROTEIN product); NSCLC = GSE174743 (Cancer
+# Transcriptome Atlas, ~1.7k-gene targeted panel) covering all three lung histologies. Adding an indication
+# = emit its spatial-region-rna product (data-catalog) + one line here.
 INDICATION_TO_REGION_RNA = {
     "HNSC": "spatial-region-rna-hnsc-v1",
+    "NSCLC": "spatial-region-rna-nsclc-v1",   # lung — GeoMx Cancer Transcriptome Atlas (GSE174743)
+    "LUAD": "spatial-region-rna-nsclc-v1",     # covered by the NSCLC product (both histologies)
+    "LUSC": "spatial-region-rna-nsclc-v1",
 }
 
 _PARQUET_COLS = ["gene_symbol", "donor_id", "compartment", "abundance_lcpm", "detected"]
