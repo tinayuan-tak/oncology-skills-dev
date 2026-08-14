@@ -2973,10 +2973,14 @@ rules:
       (missing from tumor + normal MS, or CPTAC cohort n < min). Coverage
       gap, not opposing evidence.
 
-  # NOTE: protein_expression_class = 'ns' is deliberately un-ruled. A
-  # not-significant protein differential is neither supportive nor opposing
-  # for a presence call — it's the neutral null we don't want to fire on.
-  # Same discipline as expression_class = 'broadly_moderate' (see above).
+  # NOTE: the flat protein_expression_class values are deliberately un-ruled. A protein differential
+  # that is not significant (or significant but small) is neither supportive nor opposing for a
+  # presence call — it's the neutral null we don't want to fire on. Same discipline as
+  # expression_class = 'broadly_moderate' (see above).
+  # 2026-08-14 (cptac_protein_deg ns-split): the former single 'ns' was split into 'not_significant'
+  # (q >= 0.05) + 'small_effect' (q < 0.05, |logfc| <= 0.5). BOTH remain un-ruled here. The
+  # tumor-presence M2 rescue (skills) still marks the bulk_protein_ms/tumor bucket measured
+  # (protein_present_not_elevated) off either value — present-but-flat, not "not measured".
 
   # ============================================================================
   # E3b — Protein abundance distribution (Card E3b: cellline-protein-abundance)
