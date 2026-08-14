@@ -1,18 +1,22 @@
 """pancan_mutation_ccf.read — card-side reader for the per-(gene, indication) clonality product.
 
-The aggregator (cli.py) materializes per-indication clonality parquets (one row per mutated gene);
-this returns the per-(gene, indication) summary the target-clonality card consumes. Graceful
-data_unavailable when the gene is not recurrently mutated in-indication (below MIN_MUTANT_SAMPLES →
-not in the product) or the product is not materialized for the indication.
+Reads the MATERIALIZED combined clonality table (one row per (indication, gene); the standard
+single-payload derived-schema shape mirroring genie-registry-per-sample-maf-v1 / precog) and returns
+the per-(gene, indication) summary the target-clonality card consumes. Genuinely TARGET-dependent, so
+both `gene` and `indication` filter. Graceful data_unavailable when the gene is not recurrently mutated
+in-indication (below the aggregator's MIN_MUTANT_SAMPLES floor → not in the product) or the product /
+indication is absent. Mirrors precog_prognostic.read's S3-resolve pattern (aws s3 cp → pandas).
 """
 from __future__ import annotations
 
+import io
+import os
+import subprocess
 from functools import lru_cache
-from pathlib import Path
 from typing import Optional
 
-# Per-indication materialized clonality product (mirrors gdc_somatic_hotspot's per-indication cache).
-DEFAULT_CACHE = Path.home() / ".cache" / "framework-pancan-clonality"
+_DERIVED_S3 = ("s3://onc-compbio/data-catalog/derived/"
+               "pancan-mutation-clonality-per-gene-v1/pancan_mutation_clonality_per_gene.parquet")
 
 _UNAVAILABLE = {
     "clonality_class": "data_unavailable",
@@ -23,29 +27,45 @@ _UNAVAILABLE = {
 }
 
 
-@lru_cache(maxsize=32)
-def _load_indication_table(indication: str, product_path: "Optional[str]" = None):
+def _ensure_aws_profile() -> None:
+    os.environ.setdefault("AWS_PROFILE", "cbg")
+
+
+@lru_cache(maxsize=2)
+def _load_product(product_path: "Optional[str]" = None):
+    """Load the combined clonality product (local product_path override for tests, else S3)."""
     import pandas as pd
-    path = Path(product_path) if product_path else (DEFAULT_CACHE / f"{indication}-clonality.parquet")
-    if not path.exists():
+    if product_path:
+        from pathlib import Path
+        return pd.read_parquet(product_path) if Path(product_path).exists() else None
+    _ensure_aws_profile()
+    try:
+        raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"],
+                             capture_output=True, timeout=120).stdout
+        return pd.read_parquet(io.BytesIO(raw)) if raw else None
+    except Exception:  # noqa: BLE001 — product unreachable → data_unavailable, never raise into the card
         return None
-    return pd.read_parquet(path)
 
 
 def read_clonality(gene: str, indication: str, product_path: "Optional[str]" = None) -> dict:
     """Per-(gene, indication) clonality summary for the target-clonality card. VERDICT-INERT signal."""
-    df = _load_indication_table(indication, product_path)
+    df = _load_product(product_path)
     if df is None or df.empty:
-        return dict(_UNAVAILABLE, _missing_reason=f"no clonality product materialized for {indication}")
-    hit = df[df["gene_symbol"] == gene]
+        return dict(_UNAVAILABLE, _missing_reason="no clonality product materialized/reachable")
+    hit = df[(df["gene_symbol"] == gene) & (df["indication"] == indication)]
     if hit.empty:
         return dict(_UNAVAILABLE,
-                    _missing_reason=f"{gene} not recurrently mutated in {indication} (below floor)")
+                    _missing_reason=f"{gene} not recurrently mutated in {indication} (below floor) "
+                                    f"or indication not materialized")
     row = hit.iloc[0]
+
+    def _f(v):
+        return None if v is None or (isinstance(v, float) and v != v) else float(v)   # NaN-safe
+
     return {
         "clonality_class": row["clonality_class"],
-        "clonal_fraction": None if row["clonal_fraction"] is None else float(row["clonal_fraction"]),
-        "median_ccf": None if row["median_ccf"] is None else float(row["median_ccf"]),
+        "clonal_fraction": _f(row["clonal_fraction"]),
+        "median_ccf": _f(row["median_ccf"]),
         "n_mutant_samples": int(row["n_mutant_samples"]),
         "evidence_tier": row["evidence_tier"],
     }
