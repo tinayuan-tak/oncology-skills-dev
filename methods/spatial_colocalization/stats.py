@@ -129,10 +129,12 @@ def classify_spatial_coloc(nsum: dict, rows) -> dict:
     per_compartment = {c: {"enrichment": _median(comp_enr[c]),
                            "adjacency_fraction": round(comp_adj.get(c, 0.0), 5)}
                        for c in comp_enr}
-    # top-enriched compartment across ALL neighbour compartments (epithelial_normal included, so the
-    # safety-margin "adjacent to normal epithelium" case falls out of the same ranking).
+    # top-enriched compartment for the headline — over the MEANINGFUL compartments (immune / stromal /
+    # endothelial / epithelial_normal). 'other' (a marker-inference catch-all for poorly-typed cells,
+    # esp. in mode-C products) is EXCLUDED from the headline ranking so it never masks a real signal
+    # (e.g. an immune_excluded call); it stays in per_compartment for transparency.
     ranked = sorted(((c, per_compartment[c]["enrichment"]) for c in per_compartment
-                     if per_compartment[c]["enrichment"] is not None),
+                     if per_compartment[c]["enrichment"] is not None and c not in ("other", "malignant")),
                     key=lambda kv: kv[1], reverse=True)
     top_c, top_v = (ranked[0] if ranked else (None, None))
     _CLASS = {"immune": "immune_niche_colocalized", "stromal": "stromal_niche_colocalized",

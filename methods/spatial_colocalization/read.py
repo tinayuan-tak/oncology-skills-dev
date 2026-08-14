@@ -32,6 +32,9 @@ INDICATION_TO_SPATIAL_COLOC = {
     "STAD": "spatial-coloc-tumor-stad-v1",     # gastric — CosMx (GSE308624); net-new indication (Phase 2)
     "PAAD": "spatial-coloc-tumor-paad-v1",     # pancreatic — Xenium (GSE280634); GI facet (Phase 4)
     "HNSC": "spatial-coloc-tumor-hnsc-v1",     # head&neck — Xenium (GSE300147); INFERRED compartments (mode C, lower tier)
+    "NSCLC": "spatial-coloc-tumor-nsclc-v1",   # lung — Xenium-5K (GSE311609); adeno+squamous; INFERRED (mode C)
+    "LUAD": "spatial-coloc-tumor-nsclc-v1",    # covered by the NSCLC product (both histologies)
+    "LUSC": "spatial-coloc-tumor-nsclc-v1",
 }
 
 _PARQUET_COLS = ["gene_symbol", "dataset_id", "donor_id", "neighbor_cell_type",

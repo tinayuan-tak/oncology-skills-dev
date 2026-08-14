@@ -35,6 +35,11 @@ def test_hnsc_wired_to_xenium_inferred():
     assert SC.INDICATION_TO_SPATIAL_COLOC["HNSC"] == "spatial-coloc-tumor-hnsc-v1"
 
 
+def test_nsclc_histologies_wired_to_lung_product():
+    for code in ("NSCLC", "LUAD", "LUSC"):
+        assert SC.INDICATION_TO_SPATIAL_COLOC[code] == "spatial-coloc-tumor-nsclc-v1"
+
+
 def test_inferred_compartment_labels_self_map():
     # mode-C products emit compartment labels directly; they must map to themselves.
     for c in ("immune", "stromal", "endothelial"):
@@ -60,8 +65,8 @@ def test_products_resolve_to_catalog_s3_uris():
 
 
 def test_unmapped_indication_is_data_unavailable():
-    # NSCLC has no spatial product yet → _product_key None → data_unavailable (no network hit).
-    out = SC.read_spatial_colocalization("EPCAM", "NSCLC")
+    # KIRC is out of iDAS and has no spatial product → _product_key None → data_unavailable (no network).
+    out = SC.read_spatial_colocalization("EPCAM", "KIRC")
     assert out["spatial_coloc_class"] == "data_unavailable"
     assert out["product_id"] is None
 
@@ -142,6 +147,17 @@ def test_classify_immune_excluded():
 
 def test_classify_empty_is_data_unavailable():
     assert ST.classify_spatial_coloc({}, [])["spatial_coloc_class"] == "data_unavailable"
+
+
+def test_other_compartment_excluded_from_headline():
+    # 'other' (marker-inference catch-all) must NOT be the headline even when top-enriched; an immune
+    # depletion underneath must surface as immune_excluded (regression: NSCLC EPCAM was masked to
+    # other_niche_colocalized by an enriched 'other' compartment).
+    rows = _rows([("d1", "s1", "other", 1.4, 0.3), ("d1", "s1", "Macro", 0.7, 0.05),
+                  ("d2", "s1", "other", 1.5, 0.3), ("d2", "s1", "TCD8", 0.75, 0.04)])
+    c = ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)
+    assert c["spatial_coloc_class"] == "immune_excluded"
+    assert c["top_enriched_compartment"] != "other"
 
 
 def test_cross_donor_median_not_dominated_by_one_donor():
