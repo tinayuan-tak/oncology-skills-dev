@@ -1,0 +1,57 @@
+# Card — TARGET MUTATION CLONALITY / TRUNCALITY (is the target's driver mutation clonal, or subclonal?)
+#
+# The DURABILITY / RESISTANCE axis the framework lacked. A target whose driver alteration is TRUNCAL
+# (clonal — present in ~all tumor cells) is a more durable target: complete inhibition can affect the
+# whole tumor. A predominantly SUBCLONAL driver (a later, heterogeneous event) predicts relapse — the
+# untargeted clones persist. This card reports, per (target x indication), the fraction of mutant
+# tumors in which the target's mutation is clonal.
+#
+# METHOD: cancer-cell-fraction (ccf) from TCGA-MC3 VAF corrected for tumor purity (PanCanAtlas ABSOLUTE
+# per-sample purity) — ccf = VAF * (purity*CN + 2*(1-purity)) / (purity*multiplicity). v1 uses the
+# DIPLOID approximation (CN=2, multiplicity=1), validated 2026-08-14 to reproduce known clonal
+# architecture: COADREAD's Vogelstein truncal founders APC/TP53/KRAS resolve predominantly_clonal
+# (clonal_fraction 0.92-0.95), passengers lower; pan-cancer TP53 0.91 > KRAS/BRAF ~0.80 > ARID1A 0.67.
+# Local allele-specific CN + multiplicity estimation (abs_segtabs) is the v2 refinement; the
+# clonal/subclonal CLASS is robust to the diploid approximation → evidence_tier=inferred_diploid.
+#
+# ROLE — verdict-INERT durability/heterogeneity facet (v1). Reaches the LLM/matrix/headline; drives NO
+# resolver rung. A predominantly-subclonal driver DOWNGRADING nomination confidence is a later,
+# verdict-moving step gated by a backtest (the framework's discipline for verdict-moving changes).
+# Genuinely TARGET-dependent (the ccf is specific to THIS gene's mutations), so `target` is consumed.
+#
+# ZERO new ingestion: MC3 (tcga-mc3-public-v0-2-8) + PanCanAtlas ABSOLUTE (gdc-pancanatlas-cnv-2018)
+# were both already in the catalog; this is a published-substrate DERIVATION.
+
+card_id: target-clonality
+version: 1.0.0
+question: "In {indication.label}, is {target.symbol}'s driver mutation CLONAL (truncal, durable) or SUBCLONAL (relapse-prone)?"
+
+tier: indication   # per-(target x indication); the clonality is target-specific but read for an indication
+
+applies_when:
+  - "true"   # any target/indication; data_unavailable-safe when the gene is not recurrently mutated in-indication
+
+required_inputs:
+  - product_id: pancan-mutation-clonality-per-gene-v1   # per-(gene x indication) MC3xABSOLUTE clonality
+
+methods:
+  - call: pancan-mutation-ccf
+    module: pancan_mutation_ccf
+    entrypoint: read_clonality
+    args:
+      gene: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - clonality_class                     # PRIMARY categorical (durability signal)
+    - clonal_fraction                     # fraction of mutant tumors where the mutation is clonal (ccf>=0.8)
+    - median_ccf                          # median cancer-cell-fraction across mutant tumors
+    - n_mutant_samples                    # denominator (mutant tumors with an ABSOLUTE purity call)
+    - evidence_tier                       # inferred_diploid (v1: CN=2, multiplicity=1; local-CN = v2)
+  summary_fields_vocabulary:
+    clonality_class: [predominantly_clonal, mixed_clonality, predominantly_subclonal, insufficient, data_unavailable]
+
+# No `thresholds:` block — verdict-INERT facet (no rule/predicate reads clonality_class). The clonal
+# ccf cut (>=0.8) and the class thresholds (>=0.7 clonal / >=0.4 mixed) are applied in the method and
+# documented above; a future verdict-moving promotion would add rules + a resolver rung behind a backtest.

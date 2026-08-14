@@ -1099,6 +1099,17 @@ measurement_types:
     providers:
       - {kind: dataset, source: precog-prognostic-meta-z-per-indication-v1, evidence_tier: measured}
 
+  mutation_clonality:
+    claim: "In-indication, is target's driver mutation CLONAL (truncal, durable) or SUBCLONAL (relapse-prone)?"
+    # ccf (TCGA-MC3 VAF corrected for PanCanAtlas ABSOLUTE tumor purity) per (gene x indication);
+    # clonal_fraction = fraction of mutant tumors where the mutation is clonal (ccf>=0.8). The
+    # durability/heterogeneity axis. Verdict-INERT facet (v1); biology axis, no modality facet.
+    # evidence_tier=inferred_diploid (v1 CN=2/mult=1; local-CN refinement = v2).
+    entity_grains: [target_indication]
+    cards: [target-clonality]
+    providers:
+      - {kind: dataset, source: pancan-mutation-clonality-per-gene-v1, evidence_tier: inferred}
+
   mutation_stratified_dependency:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
