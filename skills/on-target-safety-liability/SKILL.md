@@ -22,7 +22,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -43,17 +43,37 @@ composition:
     - gene-burden-safety               # P5: gene-burden safety signal
     # NOTE: protein-surface-evidence was DROPPED from this skill — re-homed to
     # surface-modality-fit (LIVE there as surface_confirmation via the CSPA reader).
-  # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. normal_tissue_protein_breadth is
-  # the safety-framed normal-tissue type (distinct from selectivity's tumor_vs_normal). surface_
-  # confirmation is pulled-but-data-blocked (its card needs the CSPA/HPA reader) — a visible-gap state.
+  # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, ONE per
+  # card in cards_used. Every entry is registered in target-contracts/vocabularies/measurement_types.yaml.
+  # 2026-08-14 review (S2): corrected from a 4-entry list that had DRIFTED — it declared
+  # `normal_tissue_protein_breadth` (WRONG: the GTEx card's real type is normal_tissue_rna_breadth —
+  # GTEx is RNA) and `surface_confirmation` (SPURIOUS: that type belonged to protein-surface-evidence,
+  # which was DROPPED from this skill and re-homed to surface-modality-fit — see cards_used note), and
+  # OMITTED the 5 P5 human-genetics/prioritisation types. test_safety_measurement_types.py now enforces
+  # every used card's type is declared so this cannot silently re-drift.
   measurement_types_pulled:
-    - gnomad_lof_constraint
-    - normal_tissue_protein_breadth
-    - surface_confirmation
-    - alteration_role                  # mechanism-conditioning input (mutant-selective downgrade)
+    - gnomad_lof_constraint                    # gnomad-lof-constraint
+    - target_safety_prioritisation             # target-safety-prioritisation
+    - normal_tissue_rna_breadth                # normal-tissue-liability-gtex (GTEx = RNA)
+    - alteration_role                          # alteration-role — mechanism-conditioning (mutant-selective downgrade)
+    - clinvar_germline_pathogenicity_safety    # clinvar-pathogenicity-safety
+    - mouse_ko_phenotype_safety                # mouse-ko-phenotype
+    - dosage_sensitivity_safety                # clingen-dosage
+    - human_genetic_safety                     # gene-burden-safety
+  # rules_scope = the CARDS whose rules enter the safety resolver (convention: card-ids, matching
+  # the sibling skills). 2026-08-14 review (S3): completed from 2 entries — it listed the
+  # gnomad-lof-constraint card + the activating-driver-role-safety-context RULE-id (inconsistent),
+  # but OMITTED the 4 P5 human-genetics warning legs (gene-burden / clingen-dosage / mouse-ko /
+  # clinvar), each of which fires a resolver rung (the human_genetics_safety_concern HOLD + its
+  # mutant-selective *_mechanism_mismatch downgrade). alteration-role is listed for the downgrade.
+  # target-safety-prioritisation + normal-tissue-liability-gtex are ADDITIVE (no resolver rung) — not here.
   rules_scope:
-    - gnomad-lof-constraint
-    - activating-driver-role-safety-context   # mutant-selective conditioning (2026-07-23)
+    - gnomad-lof-constraint            # highly/moderately/tolerant/data-unavailable constraint rungs
+    - gene-burden-safety               # gene-burden-lof-safety-warning
+    - clingen-dosage                   # clingen-dominant-loss-safety-warning
+    - mouse-ko-phenotype               # mouse-ko-lethal-safety-warning
+    - clinvar-pathogenicity-safety     # clinvar-germline-pathogenic-safety-warning
+    - alteration-role                  # activating-driver-role-safety-context → mutant-selective downgrade (2026-07-23)
   synthesis:
     - rule_engine
   output_shape:

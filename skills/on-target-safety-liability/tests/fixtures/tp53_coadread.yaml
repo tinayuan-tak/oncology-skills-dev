@@ -1,0 +1,144 @@
+alteration-role:
+  alteration_role: direct_driver_lof
+  functional_direction: loss_of_function
+  indication: COADREAD
+  intogen_cancer_types:
+  - COADREAD
+  - COAD
+  - READ
+  intogen_max_pct_samples: 0.7778
+  intogen_min_qvalue: 2.17e-50
+  intogen_role: LoF
+  intogen_scope: indication
+  method_version: 0.1.0
+  oncokb_gene_type: TSG
+  sources:
+  - oncokb
+  - intogen
+  target: TP53
+clingen-dosage:
+  allelic_requirements:
+  - AD
+  dosage_sensitivity_class: autosomal_dominant_loss
+  ensembl_gene_id: ENSG00000141510
+  germline_inheritance_mode: dominant
+  inheritance_allelic_requirements:
+  - AD
+  method_version: 0.1.0
+  n_autosomal_dominant: 1
+  n_autosomal_recessive: 0
+  n_high_confidence: 1
+  n_total_rows: 1
+  source: opentargets-26-06/evidence_clingen
+  target: TP53
+  top_confidence: Definitive
+  top_disease: Li-Fraumeni syndrome
+clinvar-pathogenicity-safety:
+  clinvar_pathogenic_class: germline_pathogenic
+  ensembl_gene_id: ENSG00000141510
+  method_version: 0.1.0
+  n_pathogenic_germline: 3160
+  n_pathogenic_germline_confident: 2501
+  n_pathogenic_somatic: 0
+  n_rows: 9979
+  source: opentargets-26-06/evidence_eva
+  target: TP53
+  top_disease: Hereditary cancer-predisposing syndrome
+gene-burden-safety:
+  burden_safety_class: lof_risk_phenotype
+  direction_on_target: LoF
+  directions:
+  - risk
+  ensembl_gene_id: ENSG00000141510
+  method_version: 0.1.0
+  min_pvalue: 1.77e-25
+  n_protect: 0
+  n_risk: 40
+  n_significant: 40
+  n_total_rows: 40
+  pvalue_cutoff: 1.0e-06
+  source: opentargets-26-06/evidence_gene_burden
+  target: TP53
+  top_ancestry: .nan
+  top_disease: Leukemia
+  top_statistical_method: LOF + missense0.8 (MAF<0.1%)
+gnomad-lof-constraint:
+  constraint_class: highly_constrained
+  exp_hom_lof_count: 0.00012724
+  exp_lof_count: 46.473
+  gene_length_bp: null
+  human_ko_context: "TP53: no observed homozygous LoF in gnomAD v2.1.1 AND the gene\
+    \ is LoF-constrained \u2014 consistent with essentiality (the signal is the constraint,\
+    \ not the zero count)."
+  human_ko_observed_class: constrained_no_ko
+  loeuf_score: 0.41836
+  method_version: 0.3.0
+  mis_z_score: 1.1216
+  obs_hom_lof_count: 0
+  obs_lof_count: 12
+  pli_score: 0.9996
+  syn_z_score: 0.65083
+mouse-ko-phenotype:
+  ensembl_gene_id: ENSG00000141510
+  evidence_tier: inferred
+  ko_phenotype_class: lethal_ko
+  lethal_stages:
+  - adult
+  - developmental
+  - unspecified
+  method_version: 0.1.0
+  n_adult_lethal: 2
+  n_developmental_lethal: 6
+  n_lethal: 9
+  n_rows: 250
+  organ_classes:
+  - cardiovascular system phenotype
+  - digestive/alimentary phenotype
+  - endocrine/exocrine gland phenotype
+  - hematopoietic system phenotype
+  - immune system phenotype
+  - liver/biliary system phenotype
+  - nervous system phenotype
+  - renal/urinary system phenotype
+  - respiratory system phenotype
+  source: opentargets-26-06/mouse_phenotype
+  target: TP53
+  top_lethal_label: postnatal lethality, incomplete penetrance
+normal-tissue-liability-gtex:
+  critical_organ_argmax: NERVE
+  critical_organ_max: 4.268
+  highest_tissue: SKIN
+  highest_tissue_median: 4.7338
+  liability_class: broadly_expressed_normal
+  method_version: 0.1.0
+  n_tissues_detectable: 31
+  n_tissues_high: 0
+  n_tissues_tested: 31
+  tissue_breadth_fraction: 1.0
+target-safety-prioritisation:
+  _encoding_note: OT-normalized prioritisation scores (~[-1,1], higher=more favorable);
+    NOT raw facts. Authoritative per-fact reads live in the dedicated cards.
+  ensembl_gene_id: ENSG00000141510
+  genetic_constraint_band: unfavorable
+  has_safety_event_band: unfavorable
+  method_version: 0.1.0
+  mouse_ko_score_band: unfavorable
+  ot_scores:
+    celltypeSpecificity: -0.6725
+    geneticConstraint: -0.7412
+    hasHighQualityChemicalProbes: null
+    hasLigand: 1.0
+    hasPocket: 0.0
+    hasSafetyEvent: -1.0
+    hasSmallMoleculeBinder: 1.0
+    hasTEP: null
+    isCancerDriverGene: -1.0
+    isInMembrane: 0.0
+    isSecreted: 0.0
+    maxClinicalStage: 0.7
+    mouseKOScore: -0.9871
+    paralogMaxIdentityPercentage: 0.0
+    tissueSpecificity: -0.3236
+  prioritisation_status: scored
+  source: opentargets-26-06/target_prioritisation
+  target: TP53

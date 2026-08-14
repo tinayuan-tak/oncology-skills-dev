@@ -1,0 +1,133 @@
+alteration-role:
+  alteration_role: direct_driver_gof
+  functional_direction: activating
+  indication: COADREAD
+  intogen_cancer_types:
+  - COADREAD
+  - COAD
+  - READ
+  intogen_max_pct_samples: 0.096
+  intogen_min_qvalue: 8.33e-49
+  intogen_role: Act
+  intogen_scope: indication
+  method_version: 0.1.0
+  oncokb_gene_type: ONCOGENE
+  sources:
+  - oncokb
+  - intogen
+  target: BRAF
+clingen-dosage:
+  allelic_requirements:
+  - AD
+  dosage_sensitivity_class: autosomal_dominant_loss
+  ensembl_gene_id: ENSG00000157764
+  germline_inheritance_mode: dominant
+  inheritance_allelic_requirements:
+  - AD
+  method_version: 0.1.0
+  n_autosomal_dominant: 1
+  n_autosomal_recessive: 0
+  n_high_confidence: 1
+  n_total_rows: 4
+  source: opentargets-26-06/evidence_clingen
+  target: BRAF
+  top_confidence: Definitive
+  top_disease: cardiofaciocutaneous syndrome
+clinvar-pathogenicity-safety:
+  clinvar_pathogenic_class: germline_pathogenic
+  ensembl_gene_id: ENSG00000157764
+  method_version: 0.1.0
+  n_pathogenic_germline: 333
+  n_pathogenic_germline_confident: 240
+  n_pathogenic_somatic: 0
+  n_rows: 2229
+  source: opentargets-26-06/evidence_eva
+  target: BRAF
+  top_disease: Cardio-facio-cutaneous syndrome
+gene-burden-safety:
+  _note: ENSG00000157764 has no rare-variant burden rows in OT 26.06
+  burden_safety_class: no_burden_signal
+  ensembl_gene_id: ENSG00000157764
+  method_version: 0.1.0
+  n_total_rows: 0
+  pvalue_cutoff: 1.0e-06
+  source: opentargets-26-06/evidence_gene_burden
+  target: BRAF
+gnomad-lof-constraint:
+  constraint_class: highly_constrained
+  exp_hom_lof_count: 7.1573e-05
+  exp_lof_count: 104.59
+  gene_length_bp: null
+  human_ko_context: "BRAF: no observed homozygous LoF in gnomAD v2.1.1 AND the gene\
+    \ is LoF-constrained \u2014 consistent with essentiality (the signal is the constraint,\
+    \ not the zero count)."
+  human_ko_observed_class: constrained_no_ko
+  loeuf_score: 0.23234
+  method_version: 0.3.0
+  mis_z_score: 5.5203
+  obs_hom_lof_count: 0
+  obs_lof_count: 16
+  pli_score: 1.0
+  syn_z_score: 1.0195
+mouse-ko-phenotype:
+  ensembl_gene_id: ENSG00000157764
+  evidence_tier: inferred
+  ko_phenotype_class: lethal_ko
+  lethal_stages:
+  - adult
+  - developmental
+  method_version: 0.1.0
+  n_adult_lethal: 1
+  n_developmental_lethal: 2
+  n_lethal: 3
+  n_rows: 77
+  organ_classes:
+  - cardiovascular system phenotype
+  - digestive/alimentary phenotype
+  - endocrine/exocrine gland phenotype
+  - hematopoietic system phenotype
+  - immune system phenotype
+  - nervous system phenotype
+  - renal/urinary system phenotype
+  - respiratory system phenotype
+  source: opentargets-26-06/mouse_phenotype
+  target: BRAF
+  top_lethal_label: postnatal lethality, incomplete penetrance
+normal-tissue-liability-gtex:
+  critical_organ_argmax: BONE_MARROW
+  critical_organ_max: 3.8948
+  highest_tissue: TESTIS
+  highest_tissue_median: 4.0293
+  liability_class: broadly_expressed_normal
+  method_version: 0.1.0
+  n_tissues_detectable: 31
+  n_tissues_high: 0
+  n_tissues_tested: 31
+  tissue_breadth_fraction: 1.0
+target-safety-prioritisation:
+  _encoding_note: OT-normalized prioritisation scores (~[-1,1], higher=more favorable);
+    NOT raw facts. Authoritative per-fact reads live in the dedicated cards.
+  ensembl_gene_id: ENSG00000157764
+  genetic_constraint_band: unfavorable
+  has_safety_event_band: unfavorable
+  method_version: 0.1.0
+  mouse_ko_score_band: unfavorable
+  ot_scores:
+    celltypeSpecificity: -0.6084
+    geneticConstraint: -0.9324
+    hasHighQualityChemicalProbes: 1.0
+    hasLigand: 1.0
+    hasPocket: 1.0
+    hasSafetyEvent: -1.0
+    hasSmallMoleculeBinder: 1.0
+    hasTEP: null
+    isCancerDriverGene: -1.0
+    isInMembrane: 1.0
+    isSecreted: 0.0
+    maxClinicalStage: 1.0
+    mouseKOScore: -0.9693
+    paralogMaxIdentityPercentage: 0.0
+    tissueSpecificity: -0.5343
+  prioritisation_status: scored
+  source: opentargets-26-06/target_prioritisation
+  target: BRAF
