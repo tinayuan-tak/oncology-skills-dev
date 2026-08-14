@@ -1970,3 +1970,44 @@ rules:
       immune neighbour compartment >= 1.15) — effector T cells are adjacent, a favourable context for a
       bite_tce (the spatial converse of immune_excluded). Supportive/important for bite_tce; neutral for
       adc / antibody. SPATIAL-scoped modality-context lens, not a monospecific presence signal.
+
+  # ── Block K — SPATIAL region-PROTEIN abundance (in-situ, by tumour compartment) ───────────────────
+  # spatial_protein_class = MEASURED in-situ protein (GeoMx DSP) in the TUMOUR compartment vs TME
+  # (spatial-surface-protein-abundance card). tumour_present_no_compartment_preference + data_unavailable
+  # emit nothing (measured-vs-null). The two decision-relevant calls carry a signal.
+  - rule_id: spatial-protein-tumour-enriched-supportive
+    when:
+      card_id: spatial-surface-protein-abundance
+      field: spatial_protein_class
+      equals: tumour_enriched_protein
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      The target's protein is MEASURED in situ (GeoMx DSP) and CONCENTRATED in the tumour compartment vs
+      the microenvironment (tumour - TME >= 0.5 log-CPM) — an orthogonal, protein-grade presence argument
+      that the bulk-CPTAC×HPA copies/cell estimate (Axis-3) cannot establish in situ. Supportive across
+      adc / bite_tce / antibody as a measured tumour-compartment surface-presence signal. SPATIAL-scoped;
+      complements (does not replace) the Axis-3 density estimate.
+
+  - rule_id: spatial-protein-tme-enriched-specificity-caveat
+    when:
+      card_id: spatial-surface-protein-abundance
+      field: spatial_protein_class
+      equals: tme_enriched_protein
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's protein is MEASURED higher in the microenvironment (TME) than the tumour compartment
+      (tumour - TME <= -0.5 log-CPM) — the protein is concentrated on stromal / immune / vascular cells
+      rather than tumour cells (the CD34-endothelial / CD68-macrophage archetype), a tumour-SPECIFICITY
+      caveat for a tumour-directed biologic. Opposing (secondary) across modalities as an in-situ
+      specificity flag; confirm the target's tumour-cell vs TME attribution before nomination.
+      SPATIAL-scoped.

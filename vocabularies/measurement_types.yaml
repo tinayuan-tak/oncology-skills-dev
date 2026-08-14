@@ -786,6 +786,20 @@ measurement_types:
       - {kind: dataset, source: spatial-coloc-tumor-crc-coadread-v1, method: spatial_neighborhood, evidence_tier: measured}   # COADREAD — CosMx CRC atlas (GSE303070)
       - {kind: dataset, source: spatial-coloc-tumor-stad-v1, method: spatial_neighborhood, evidence_tier: measured}   # STAD — CosMx gastric atlas (GSE308624); net-new indication
 
+  spatial_surface_protein:
+    claim: "What is the MEASURED in-situ PROTEIN abundance (GeoMx DSP) of the target in the TUMOUR compartment vs the microenvironment (TME) — is the target protein tumour-enriched or TME-enriched?"
+    # region-level MEASURED protein (NanoString GeoMx DSP), NOT absolute copies/cell — a distinct claim
+    # from surface_density (bulk CPTAC×HPA estimate). tumour_enriched_protein -> measured presence
+    # (supportive); tme_enriched_protein -> tumour-specificity caveat (opposing).
+    modality_relevance: [adc, bite_tce, antibody]
+    entity_grains: [target_indication]
+    cards: [spatial-surface-protein-abundance]
+    multi_provider_policy: tier_dominant
+    providers:
+      # per-indication GeoMx DSP protein products (aggregate_spatial_region_protein). Adding an indication
+      # = emit its spatial-surface-protein product (data-catalog) + one line here.
+      - {kind: dataset, source: spatial-surface-protein-hnsc-v1, method: spatial_region_protein, evidence_tier: measured}   # HNSC — GeoMx DSP 580-protein (GSE288406)
+
   sc_normal_surface_protein:
     claim: "Is target's SURFACE protein displayed on normal cell types at single-cell resolution (off-tumor safety), and how broadly?"
     # The PROTEIN, single-cell sibling of sc_normal_celltype_expression (RNA) and the surface analogue
