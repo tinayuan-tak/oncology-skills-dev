@@ -198,8 +198,9 @@ def resolve_release(
     but it may also be a concrete manifest id (single-release product) or a **product_id** from
     target-contracts/vocabularies/products.yaml. The product_id path exists because a card that reads
     an indication-dispatched product declares the stable product_id rather than a per-indication
-    manifest id; when `family` matches no manifest-id family and no concrete id, it is resolved via the
-    reverse product->manifest index (idx.consumers) to the head among the manifests carrying it.
+    manifest id; when `family` matches no manifest-id family and no concrete id, it is resolved to the
+    head among the manifests whose own `product_id:` field equals it (the product's OUTPUT manifests) —
+    NOT via idx.consumers, which is the product's INPUT sources.
 
     data_mode:
       - "pinned":         requires release_pin; resolves to the exact sibling for that pin. The
@@ -225,12 +226,17 @@ def resolve_release(
         # family. A card that reads an indication-DISPATCHED product declares the stable
         # product_id (it cannot name one manifest statically — e.g. COADREAD reads the paired-
         # adjacent DGE manifest, other indications read the {ind}-dge-tumor-vs-normal-sensitivity
-        # sibling), so provenance stamps the product_id. Map it to the manifest(s) carrying it
-        # (idx.consumers: manifest_id -> [product_id, ...]) and resolve the head among THOSE, so
-        # provenance-release resolution works for product-id-declared cards too. Purely additive:
-        # only reached when the string matches no manifest-id family and no concrete manifest id.
-        members = sorted(mid for mid, pids in idx.consumers.items()
-                         if family in (pids or []))
+        # sibling), so provenance stamps the product_id. Resolve it to the manifest(s) whose OWN
+        # `product_id:` field equals it — i.e. the product's OUTPUT manifest(s) — and take the head
+        # among THOSE. NOTE: this keys on the manifest's product_id field, NOT idx.consumers
+        # (which is products.yaml `sources` — a product's INPUT manifests; resolving there would
+        # wrongly return the upstream raw source, e.g. a TCGA GDC release, not the derived product).
+        # Purely additive: only reached when the string matches no manifest-id family and no
+        # concrete manifest id.
+        def _declares_product(rec) -> bool:
+            v = rec.raw.get("product_id")
+            return v == family or (isinstance(v, list) and family in v)
+        members = sorted(mid for mid, rec in idx.manifests.items() if _declares_product(rec))
         if not members:
             raise ReleaseResolutionError(
                 f"No manifest in family {family!r} (data_mode={data_mode!r}). "

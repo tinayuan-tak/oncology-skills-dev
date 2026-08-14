@@ -94,46 +94,60 @@ def test_concrete_id_as_family_is_accepted():
 # --- product_id resolution (2026-08-14) --------------------------------------
 # A card that reads an indication-dispatched product declares the stable products.yaml product_id,
 # not a per-indication manifest id, so provenance stamps the product_id. resolve_release must map a
-# product_id (matching no manifest-id family and no concrete id) to the head among the manifests that
-# carry it (idx.consumers reverse index) rather than failing loud — the drift-guard for the tumor-
-# presence provenance warning: input_manifest_ids=['expression-rna-tumor-vs-adjacent'] used to raise
-# ReleaseResolutionError because that string is a product_id, not a manifest family.
+# product_id (matching no manifest-id family and no concrete id) to the head among the OUTPUT
+# manifests whose own `product_id:` field equals it — NOT via idx.consumers, which lists a product's
+# INPUT sources (resolving there wrongly returns the upstream raw source, e.g. a TCGA GDC release).
+# Drift-guard for the tumor-presence provenance warning:
+# input_manifest_ids=['expression-rna-tumor-vs-adjacent'] used to raise ReleaseResolutionError.
 
-def _a_product_id_with_manifests() -> tuple[str, list[str]]:
-    """Return (product_id, [manifest_ids...]) for a product carried by >=1 manifest, or skip."""
+def _output_manifests_for(idx, pid: str) -> list[str]:
+    """Manifests whose OWN product_id field == pid (the product's output manifests)."""
+    def _declares(rec):
+        v = rec.raw.get("product_id")
+        return v == pid or (isinstance(v, list) and pid in v)
+    return sorted(m for m, rec in idx.manifests.items() if _declares(rec))
+
+
+def _a_product_id_with_output_manifest() -> tuple[str, list[str]]:
+    """Return (product_id, [output_manifest_ids...]) for a product with >=1 OUTPUT manifest whose
+    product_id is not itself a manifest-id family/concrete id, or skip."""
     idx = load_catalog()
-    by_product: dict[str, list[str]] = {}
-    for mid, pids in idx.consumers.items():
-        for pid in (pids or []):
-            by_product.setdefault(pid, []).append(mid)
-    # a product_id that is NOT itself a manifest-id family (the interesting case)
-    for pid in sorted(by_product):
+    seen: dict[str, list[str]] = {}
+    for mid, rec in idx.manifests.items():
+        v = rec.raw.get("product_id")
+        for pid in ([v] if isinstance(v, str) else (v or [])):
+            seen.setdefault(pid, []).append(mid)
+    for pid in sorted(seen):
         members = [m for m in idx.manifests if _family_of(m) == pid]
         if not members and pid not in idx.manifests:
-            return pid, sorted(by_product[pid])
-    pytest.skip("no product_id distinct from a manifest-id family found in the catalog")
+            return pid, sorted(seen[pid])
+    pytest.skip("no product_id (distinct from a manifest-id family) declared by any manifest")
 
 
-def test_product_id_resolves_to_a_carrying_manifest():
-    """A product_id resolves to one of the manifests that declare it (via idx.consumers), instead of
-    raising ReleaseResolutionError. This is the fix for provenance release-resolution on cards that
-    declare a product_id rather than a concrete manifest id."""
-    pid, manifests = _a_product_id_with_manifests()
+def test_product_id_resolves_to_its_output_manifest():
+    """A product_id resolves to a manifest whose OWN product_id field declares it (the output
+    artifact), instead of raising ReleaseResolutionError or resolving to an input source."""
+    pid, output_manifests = _a_product_id_with_output_manifest()
     resolved = resolve_release(pid, "latest_approved")
-    assert resolved in manifests, (
-        f"product_id {pid!r} resolved to {resolved!r}, not among its carrying manifests {manifests}")
+    assert resolved in output_manifests, (
+        f"product_id {pid!r} resolved to {resolved!r}, not among its OUTPUT manifests {output_manifests}")
 
 
-def test_expression_rna_tumor_vs_adjacent_product_id_resolves():
-    """The exact case from the tumor-presence provenance warning: the product_id
-    'expression-rna-tumor-vs-adjacent' (declared by the tumor-rna-vs-adjacent card) must resolve to a
-    manifest carrying it, not raise. Skips if the product is not in this catalog checkout."""
+def test_expression_rna_tumor_vs_adjacent_resolves_to_dge_output_not_source():
+    """The exact tumor-presence provenance-warning case: product_id 'expression-rna-tumor-vs-adjacent'
+    must resolve to the DGE OUTPUT manifest (which carries product_id in its own field, e.g.
+    coadread-dge-*), NOT to a products.yaml source input (e.g. a tcga-gdc-* raw release). Skips if the
+    product declares no output manifest in this catalog checkout."""
     idx = load_catalog()
     pid = "expression-rna-tumor-vs-adjacent"
-    carriers = sorted(mid for mid, pids in idx.consumers.items() if pid in (pids or []))
-    if not carriers:
-        pytest.skip(f"{pid!r} not carried by any manifest in this catalog checkout")
-    assert resolve_release(pid, "latest_approved") in carriers
+    outputs = _output_manifests_for(idx, pid)
+    if not outputs:
+        pytest.skip(f"{pid!r} declared by no manifest in this catalog checkout")
+    resolved = resolve_release(pid, "latest_approved")
+    assert resolved in outputs, f"expected a DGE output manifest {outputs}, got {resolved!r}"
+    assert not resolved.startswith("tcga-gdc-"), (
+        f"resolved to an upstream SOURCE {resolved!r}, not the product output — regression of the "
+        f"idx.consumers (input-sources) bug.")
 
 
 def test_unknown_string_still_fails_loud():
