@@ -144,3 +144,66 @@ def test_envelope_is_llm_free(tmp_path, monkeypatch):
     for marker in ("_model_id", "_prompt_hash", "llm_synthesized"):
         assert marker not in blob, f"unexpected LLM marker {marker!r} in evidence-package"
     assert ep["generated_by"].startswith("skills/target-profile@")
+
+
+# ── the two previously-UNCOVERED branches (2026-08-14 critical-issues sweep) ──────────────────────
+
+def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok):
+    """Drive _write_evidence_package with configurable gate_action + whether target-identity resolves.
+    Returns the parsed envelope (raises SystemExit if the emitter's schema validation fails)."""
+    if identity_ok:
+        monkeypatch.setattr(tp, "resolve_cards",
+                            lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)])
+    else:
+        # identity read yields a _missing card → assemble emits the hgnc_id=-1 unresolved sentinel
+        monkeypatch.setattr(tp, "resolve_cards",
+                            lambda card_ids, target, indication, **kw: [
+                                {"card_id": "target-identity-summary", "_missing": True,
+                                 "_missing_reason": "identity read failed (test)"}])
+    sub_results = {
+        "expression": _sub("tumor-rna-distribution", "expr-01", None,
+                           ("tumor_broadly_expressed", "expr-01")),
+        "dependency": _sub("pan-cancer-crispr-dependency-distribution", "dep-01", "dependency",
+                           ("selective_dependency", "dep-01")),
+    }
+    args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)
+    ep_path = tp._write_evidence_package(
+        args=args, sub_results=sub_results, gate_action=gate_action,
+        recommendation_gate={"fired": bool(gate_action)},
+        confidence_tier={"tier": "strong"},
+        deciding_axis={"basis": "gate_fired",
+                       "deciding_axis": {"short": "dependency", "gate": "dependency"}, "routing": "x"},
+        validation_summary={"n_cards_attempted": 2, "n_cards_passed": 2,
+                            "n_cards_passed_with_warnings": 0, "n_cards_failed": 0,
+                            "n_cards_excluded_by_applies_when": 0},
+    )
+    return json.loads(Path(ep_path).read_text())
+
+
+def test_no_killer_recommendation_is_coherent_not_insufficient(tmp_path, monkeypatch):
+    """FINDING #2: when no killer gate fires (gate_action=None) for a positive target, the
+    evidence-package headline must NOT read 'insufficient (strong confidence)' (incoherent + machine-
+    misleading — it disagrees with the same run's nomination.json). It should carry the honest neutral
+    'no_deterministic_kill' term instead."""
+    ep = _emit(tmp_path, monkeypatch, gate_action=None, identity_ok=True)
+    headline = ep["synthesis"]["headline"]
+    assert "no_deterministic_kill" in headline, f"headline={headline!r}"
+    assert "insufficient" not in headline, (
+        f"headline still mislabels a no-killer positive as 'insufficient': {headline!r}")
+
+
+def test_failed_identity_fails_schema_validation_loudly(tmp_path, monkeypatch):
+    """FINDING #1: when target-identity fails to resolve, assemble emits hgnc_id=-1 (schema requires
+    >= 1) ON PURPOSE as a validation tripwire. The emitter must now VALIDATE and fail LOUD (SystemExit)
+    rather than silently persist a schema-invalid governance artifact + return success. Also assert the
+    -1 sentinel really is what the schema rejects (guards the tripwire itself)."""
+    import pytest
+    with pytest.raises(SystemExit) as exc:
+        _emit(tmp_path, monkeypatch, gate_action="veto", identity_ok=False)
+    assert exc.value.code == 1
+    # the invalid envelope is still written for inspection — confirm it carries the -1 sentinel and
+    # that the schema validator flags exactly that (the tripwire is real, not incidental).
+    ep = json.loads((tmp_path / "evidence_package.json").read_text())
+    assert ep["context"]["target"]["hgnc_id"] == -1
+    errs = tp._validate_evidence_package(ep, CONTRACTS)
+    assert any("hgnc_id" in e for e in errs), f"expected an hgnc_id schema error, got: {errs}"

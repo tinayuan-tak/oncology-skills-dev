@@ -771,7 +771,12 @@ def _gate_recommendation(
     hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo)
     if not hits:
         return None, [], suppressions
-    forced = max((h["action"] for h in hits), key=lambda a: _GATE_ACTION_RANK[a])
+    # .get(a, 0): an action outside {veto, hold} (a vocab typo or a new action a product owner adds —
+    # the module comment explicitly invites editing this vocab "without a code change") must NOT crash
+    # the run with a KeyError, which would defeat the "gate never crashes the run" contract. Unknown
+    # actions rank LOWEST (0) so a real veto/hold always wins; the target-contracts CI test
+    # (test_every_gate_well_formed) is the primary guard — this is defense-in-depth.
+    forced = max((h["action"] for h in hits), key=lambda a: _GATE_ACTION_RANK.get(a, 0))
     return forced, hits, suppressions
 
 
@@ -4376,6 +4381,31 @@ def _framework_version() -> str:
         return "2.0.0"
 
 
+def _validate_evidence_package(ep: dict, contracts_root: Path) -> list[str]:
+    """Validate an evidence_package against evidence_package.schema.json — the SAME check
+    compose-dashboard applies to its envelope (compose_dashboard.py::_validate_evidence_package).
+    target-profile's --emit path historically SKIPPED this, so a schema-invalid governance artifact
+    was silently persisted + reported as success — most notably the `hgnc_id=-1` unresolved-identity
+    sentinel that assemble_evidence_package emits ON PURPOSE to FAIL validation (envelope.py) but which
+    only fails if someone actually validates. Returns a list of human-readable error strings (empty =
+    valid). Graceful-skip (returns []) if jsonschema or the schema file is unreachable — never let the
+    validator itself break an emit. FUTURE: consolidate this + compose-dashboard's identical copy into
+    _skills_common.envelope beside assemble_evidence_package."""
+    try:
+        from jsonschema import Draft202012Validator
+    except Exception:  # noqa: BLE001 — jsonschema absent (isolated env) → skip, don't crash emit
+        return []
+    schema_path = contracts_root / "schemas" / "evidence_package.schema.json"
+    if not schema_path.exists():
+        return []
+    schema = json.loads(schema_path.read_text())
+    errors = []
+    for e in Draft202012Validator(schema).iter_errors(ep):
+        path_str = ".".join(str(p) for p in e.absolute_path) or "<root>"
+        errors.append(f"[{path_str}] {e.message}")
+    return errors
+
+
 def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[str],
                             recommendation_gate: dict, confidence_tier: dict,
                             deciding_axis: dict, validation_summary: dict) -> Path:
@@ -4448,7 +4478,12 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     # additional = every other gate block, in SUB_SKILLS iteration order (deterministic)
     additional_blocks = [b for s, b in gate_blocks.items() if s != primary_short]
 
-    recommendation = gate_action or "insufficient"
+    # gate_action is None when NO killer gate (veto/hold) fired. That is NOT "insufficient evidence" —
+    # it means "no deterministic kill; the nominate/advance decision belongs to the narrative synthesis
+    # (see nomination.json)". Labeling it "insufficient" mislabeled a strong POSITIVE target (a machine
+    # consumer reading synthesis.headline saw "insufficient (strong confidence)" — incoherent, and it
+    # disagreed with the same run's nomination.json). Use an honest neutral term for the no-kill case.
+    recommendation = gate_action or "no_deterministic_kill"
     tier = confidence_tier.get("tier")
     headline = (f"{args.target} in {args.indication}: {recommendation}"
                 + (f" ({tier} confidence)" if tier else ""))
@@ -4497,6 +4532,19 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
     # `_note` annotation off the envelope (it is a nomination.json/provenance detail).
     out_path = args.out / "evidence_package.json"
     out_path.write_text(json.dumps(ep, indent=2, default=str))
+    # Validate the emitted envelope against evidence_package.schema.json — the sibling engine
+    # (compose-dashboard) does this; target-profile must too, else a schema-invalid governance
+    # artifact (e.g. hgnc_id=-1 when target-identity failed to resolve) is silently persisted and
+    # reported as success. Fail LOUD: the file is written for inspection, but a non-zero exit + the
+    # error list stop it being mistaken for a valid governance-grade package.
+    schema_errors = _validate_evidence_package(ep, _CONTRACTS_REPO)
+    if schema_errors:
+        print(f"[target-profile] --emit evidence-package: envelope FAILED evidence_package.schema "
+              f"validation ({len(schema_errors)} error(s)) — NOT a governance-grade artifact "
+              f"(written to {out_path} for inspection):", file=sys.stderr)
+        for e in schema_errors[:20]:
+            print(f"    - {e}", file=sys.stderr)
+        raise SystemExit(1)
     return out_path
 
 
