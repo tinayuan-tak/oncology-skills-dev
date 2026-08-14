@@ -1866,6 +1866,92 @@ def _heterogeneity_facet(sub_results: dict, subtypes: "Optional[list[str]]" = No
     }
 
 
+# --- Addressable-population facet (patient-population layer, reconstructed as composition) ----------
+_ADDRESSABLE_POPULATION_LEGEND = (
+    "Estimated fraction of the indication addressable by the target's SELECTION BASIS. For an "
+    "alteration-stratified / mutation-driver target the addressable population is the in-indication "
+    "PREVALENCE of the defining SNV/indel (coverage-correct GENIE preferred — ~35x the MC3 sample "
+    "count; MC3 fallback); for a broad (unstratified) dependency it is biomarker_unrestricted (the "
+    "indication itself); a CN/fusion-defined subgroup is not_estimated_this_axis (SNV frequency is the "
+    "wrong denominator — CN/fusion prevalence is a v2 extension). VERDICT-INERT: population-sizing "
+    "context beside the nomination, never a gate input."
+)
+
+# clinical addressable-population tiers by alteration prevalence
+def _addressable_population_class(freq: "float | None") -> "str | None":
+    if not isinstance(freq, (int, float)):
+        return None
+    if freq >= 0.20:
+        return "broad"            # e.g. KRAS/TP53 in COADREAD (~40%)
+    if freq >= 0.05:
+        return "common"
+    if freq >= 0.01:
+        return "uncommon"
+    if freq >= 0.001:
+        return "rare"
+    return "ultra_rare"
+
+# genomic verdicts whose actionability is TIED TO AN SNV/indel ALTERATION → population = its prevalence
+_SNV_SELECTION_VERDICTS = frozenset({
+    "biomarker_stratified_dependency", "moderate_biomarker_dependency", "confirmed_driver",
+    "multi_class_driver", "missense_dominant_pattern", "lof_dominant_pattern", "drug_response_biomarker",
+})
+_CN_FUSION_SELECTION_VERDICTS = frozenset({
+    "recurrent_amplification_driver", "recurrent_deletion_driver", "recurrent_fusion_driver",
+})
+_NON_DEPENDENT = frozenset({"non_dependent", "insufficient", "data_unavailable", ""})
+
+
+def _addressable_population_facet(sub_results: dict) -> dict:
+    """VERDICT-INERT addressable-population facet — joins the target's SELECTION BASIS (what defines the
+    treatable subgroup, from the genomic + dependency verdicts) to the in-indication PREVALENCE of that
+    basis (from mutation-hotspot-frequency: genie_mutation_frequency preferred, overall_mutation_frequency
+    fallback). Reconstructs the deleted patient-population-and-access layer as a composition over signals
+    already on the fan-out. Emitted in nomination.json + the synthesis prompt; never touches the gate."""
+    gen = (sub_results.get("genomic_alteration") or {}).get("verdict")
+    gen_verdict = gen[0] if gen else None
+    dep = (sub_results.get("dependency") or {}).get("verdict")
+    dep_verdict = dep[0] if dep else None
+
+    hf = _find_card_summary(sub_results, "mutation-hotspot-frequency")
+    genie_freq = hf.get("genie_mutation_frequency")
+    mc3_freq = hf.get("overall_mutation_frequency")
+    n_samples = hf.get("n_samples_in_indication")
+    freq, source = ((genie_freq, "genie") if isinstance(genie_freq, (int, float))
+                    else (mc3_freq, "tcga_mc3") if isinstance(mc3_freq, (int, float))
+                    else (None, None))
+
+    if gen_verdict in _SNV_SELECTION_VERDICTS:
+        basis = "snv_indel_stratified"
+        pop_class = _addressable_population_class(freq)
+        note = None
+    elif gen_verdict in _CN_FUSION_SELECTION_VERDICTS:
+        basis = "copy_number_or_fusion_stratified"
+        pop_class, freq, source = "not_estimated_this_axis", None, None
+        note = ("addressable population is defined by a CN/fusion event; SNV frequency is inapplicable "
+                "— CN/fusion prevalence (copy-number-distribution / fusion cards) is a v2 extension")
+    elif dep_verdict and dep_verdict not in _NON_DEPENDENT:
+        basis = "biomarker_unrestricted"
+        pop_class = "biomarker_unrestricted"
+        note = ("a broad dependency with no alteration-defined selection biomarker; the addressable "
+                "population is the indication itself")
+    else:
+        basis = "undetermined"
+        pop_class = None
+        note = ("no alteration-selection verdict and no positive dependency to anchor an "
+                "addressable-population estimate")
+
+    return {
+        "addressable_population_class": pop_class,
+        "selection_basis": basis,
+        "biomarker_prevalence": round(freq, 4) if isinstance(freq, (int, float)) else None,
+        "prevalence_source": source,
+        "n_samples_in_indication": n_samples,
+        "_note": note,
+        "_legend": _ADDRESSABLE_POPULATION_LEGEND,
+    }
+
+
 # --- LLM synthesis ----------------------------------------------------------
 
 _SYSTEM_PROMPT = (
@@ -4668,6 +4754,7 @@ def main() -> int:
     # verdict hide a split across comparators / assays / molecular subtypes? Companion to fragility;
     # never touches the recommendation.
     heterogeneity = _heterogeneity_facet(sub_results, subtypes=subtypes)
+    addressable_population = _addressable_population_facet(sub_results)
 
     # Biology-axis EMPHASIS STEER (2026-08-05): resolve the target's curated biology_axis +
     # plausible modalities so synthesis foregrounds the modalities the biology supports (fixes
@@ -4936,6 +5023,7 @@ def main() -> int:
         # Heterogeneity facet (verdict-inert): cross-context dispersion (comparator / modality /
         # subtype). A stratified-opportunity signal the pooled verdict hides; never moves the call.
         "heterogeneity": heterogeneity,
+        "addressable_population": addressable_population,
         # Per-card figures produced this run (SVG + interactive .plotly.json siblings), keyed by
         # card_id, paths relative to figures/. The dynamic HTML renderer (Phase B PR-2) embeds the
         # `dynamic: True` Plotly specs; falls back to the SVG otherwise.
