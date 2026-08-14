@@ -45,7 +45,7 @@ from _skills_common.card_preprocessors import (  # noqa: F401
 )
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.1.1"      # 2.0.0 reframed from mutation-profile; 2.1.0 (2026-08-05): subtype panorama + driver-recurrence percentile + opt-in synthesis
+SKILL_VERSION = "2.3.0"      # 2.3.0 (2026-08-14): + genomic_alteration_by_class per-class decomposition (additive/verdict-inert). 2.0.0 reframed from mutation-profile; 2.1.0 (2026-08-05): subtype panorama + driver-recurrence percentile + opt-in synthesis
 
 CARDS = [
     # SNV / indel (mutation)
@@ -186,6 +186,62 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return result
 
 
+# Per-ALTERATION-CLASS decomposition (2026-08-14 consolidation-fidelity follow-up). The
+# genomic_alteration_profile verdict COLLAPSES three heterogeneous alteration classes (SNV/indel,
+# copy-number, fusion) into one multi_class scalar — the clearest "collapse across heterogeneous
+# dimensions" case the consolidation diagnostic found. This map reorganizes the ALREADY-computed
+# per-card class fields into a first-class per-class breakdown, mirroring tumor-presence's
+# presence_verdict_by_modality. ADDITIVE / verdict-inert: reuses fields already read in the headline,
+# touches NO resolver rung — the collapsed genomic_alteration_profile stays byte-stable.
+#   class -> (primary "verdict" field, {supporting_field_name: (card_id, field)})
+_ALTERATION_CLASS_FIELDS: dict[str, tuple] = {
+    "snv_indel": (
+        ("mutation-type-counts", "mutation_landscape_class"),
+        {"recurrence_class": ("mutation-hotspot-frequency", "driver_recurrence_class"),
+         "stratified_dependency_class": ("mutation-stratified-dependency", "mutation_stratification_class")},
+    ),
+    "copy_number": (
+        ("copy-number-distribution", "copy_number_class"),
+        {"patient_class": ("copy-number-distribution", "patient_copy_number_class"),
+         "stratified_dependency_class": ("copy-number-stratified-dependency", "cn_stratification_class"),
+         "amp_expr_dependency_class": ("amp-expr-stratified-dependency", "amp_expr_stratification_class")},
+    ),
+    "fusion": (
+        ("fusion-rearrangement-landscape", "fusion_class"),
+        {"stratified_dependency_class": ("fusion-stratified-dependency", "fusion_stratification_class"),
+         "genie_sv_recurrence_class": ("fusion-rearrangement-landscape", "genie_sv_recurrence_class")},
+    ),
+}
+
+
+def _genomic_alteration_by_class(cards) -> dict:
+    """Per-alteration-class breakdown: {class: {verdict, evidence_state, <supporting fields>}}.
+
+    `verdict` is that class's OWN primary card call (the SNV landscape / CN distribution / fusion
+    recurrence) — NOT a re-derived call, so it cannot drift from the cards. `evidence_state` is
+    `measured` when the primary field resolved, else `data_unavailable` (a NAMED gap, never a
+    fabricated negative). Lets a consumer see WHICH alteration class carries the signal instead of
+    only the collapsed multi_class verdict."""
+    # get_card_field RAISES on an absent card_id (typo-guard), so only read cards that resolved this
+    # run — else fall back to None (a NAMED data_unavailable gap). Mirrors tumor-presence _per_modality.
+    present = {c.get("card_id") for c in (cards or [])}
+
+    def _field(card_id, field):
+        return get_card_field(cards, card_id, field) if card_id in present else None
+
+    out: dict[str, dict] = {}
+    for cls, (primary, supporting) in _ALTERATION_CLASS_FIELDS.items():
+        pval = _field(*primary)
+        entry = {
+            "verdict": pval,
+            "evidence_state": "data_unavailable" if pval in (None, "data_unavailable") else "measured",
+        }
+        for name, (card_id, field) in supporting.items():
+            entry[name] = _field(card_id, field)
+        out[cls] = entry
+    return out
+
+
 def _resolve_subtype_panorama(target: str, indication: str,
                               subtypes: list[str]) -> dict:
     """DESCRIPTIVE subtype panorama — resolve subgroup-stratified-mutation-frequency
@@ -269,6 +325,12 @@ def main() -> int:
     headline = {
         "genomic_alteration_profile":    verdict,
         "driving_rule_id":               driving_rule,
+        # Per-alteration-class decomposition (2026-08-14 consolidation-fidelity follow-up): the
+        # collapsed verdict above fuses SNV/indel + copy-number + fusion into one multi_class scalar;
+        # this surfaces the per-class breakdown (each class's own primary call + evidence_state + its
+        # stratified-dependency sibling) so a consumer sees WHICH class drives, not just the roll-up.
+        # ADDITIVE / verdict-inert (reuses already-read fields; genomic_alteration_profile byte-stable).
+        "genomic_alteration_by_class":   _genomic_alteration_by_class(cards),
         # Family-wise FDR provenance (deferred-a): when >=2 stratified-dependency classes fired, their
         # p-values were BH-corrected jointly; any class with family-wise q >= 0.05 was demoted (its rule
         # suppressed) so a multi-class call is not over-credited by uncorrected multiplicity.

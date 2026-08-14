@@ -26,7 +26,7 @@ description: |
   --modality flag.
 
 metadata:
-  version: 2.2.0
+  version: 2.3.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -129,6 +129,13 @@ composition:
   - `headline`: `genomic_alteration_profile` verdict + `driving_rule_id`, plus
     the mutation landscape/stratification classes, mutation frequency, and the
     `copy_number_class`.
+  - `genomic_alteration_by_class` (2026-08-14): the PER-ALTERATION-CLASS decomposition of the
+    collapsed multi_class verdict — `{snv_indel, copy_number, fusion}` → each class's own primary
+    call (`verdict`) + `evidence_state` (measured / data_unavailable) + its stratified-dependency
+    sibling. Mirrors tumor-presence's `presence_verdict_by_modality`: lets a consumer see WHICH class
+    drives (e.g. ERBB2/BRCA → the collapsed `biomarker_stratified_dependency` decomposes to
+    copy_number `amplified_strongly_dependent`, not SNV). ADDITIVE / verdict-inert — reuses fields
+    already in the headline; `genomic_alteration_profile` is byte-stable.
   - `fired_rules`: which mutation + copy-number rules matched.
 
 ## Verdict resolution (multi-class)
