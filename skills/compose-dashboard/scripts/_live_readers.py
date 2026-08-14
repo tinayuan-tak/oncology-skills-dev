@@ -857,9 +857,17 @@ def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional
         from _skills_common.isoform_selective_targets import check_target
         warning = check_target(target.upper().strip())
         if warning is not None:
-            out["isoform_selective_warning"] = True
+            # INDICATION-SCOPE (2026-08-14): the suppression must fire only where the dominant alt
+            # isoform is the clinical reality. Off-context (EGFRvIII outside GBM, METex14 outside NSCLC)
+            # the gene-level fit_class stands — we surface the caveat WITHOUT setting the warning that
+            # blanks fit_class to isoform_dependent_undefined. In-context → suppress as before.
             out["isoform_selective_dominant_isoform"] = warning.dominant_isoform
             out["vocabulary_version_isoform"] = warning.vocabulary_version
+            if warning.applies_in_indication(indication):
+                out["isoform_selective_warning"] = True          # suppresses fit_class (in-context)
+            else:
+                out["isoform_selective_offcontext"] = True       # annotation only — fit_class preserved
+                out["isoform_selective_offcontext_indication"] = indication
     except Exception:  # noqa: BLE001 — vocab unreadable → leave the product's default (no false warning)
         pass
     return out
@@ -1103,7 +1111,10 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         else:
             fit_class = "modality_ambiguous"
 
-    # Isoform-selective A3 suppression check
+    # Isoform-selective A3 suppression check — now INDICATION-SCOPED at the topology dispatcher
+    # (2026-08-14): isoform_selective_warning is set ONLY in-context, so a gene with a dominant alt
+    # isoform in a DIFFERENT indication (EGFRvIII in LUAD, METex14 in COADREAD) no longer has its
+    # fit_class blanked — the computed categorical stands and the off-context caveat is passed through.
     if topology.get("isoform_selective_warning"):
         fit_class = "isoform_dependent_undefined"
 
@@ -1127,6 +1138,9 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
         "is_tce_topology_favorable": tm_count >= 1 and ec_length >= 100,
         "surface_family_class": family.get("family_class"),
         "isoform_selective_suppressed": bool(topology.get("isoform_selective_warning")),
+        # Off-context annotation (2026-08-14 indication-scope): gene has a curated dominant alt isoform
+        # but NOT in this indication — fit_class preserved, caveat surfaced (not a verdict suppression).
+        "isoform_selective_offcontext": bool(topology.get("isoform_selective_offcontext")),
         # structure-features-static passthrough (honors the card's derived_from) — carried for
         # display + a future ECD-epitope-quality rule; does NOT feed fit_class today. Empty/None
         # when the structure product is unavailable (the reader returns 'no_structure').

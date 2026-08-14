@@ -68,6 +68,20 @@ class IsoformWarning:
     primary_source_doi: str
     primary_source_citation: str
     vocabulary_version: str
+    oncotree_codes: tuple = ()       # indication-scope (vocab v1.1.0): OncoTree codes where the isoform dominates
+    pan_applicable: bool = False     # entry's isoform axis is indication-agnostic (e.g. FGFR2 IIIb/IIIc pan-epithelial)
+
+    def applies_in_indication(self, indication: Optional[str]) -> bool:
+        """Is the dominant alt isoform clinically established in THIS indication? (2026-08-14 fix)
+
+        The modality-fit suppression should fire only where the isoform is the clinical reality — off-
+        context (e.g. EGFRvIII outside GBM, METex14 outside NSCLC) the gene-level fit_class stands.
+        BACKWARD-COMPATIBLE: an entry with no scope metadata (pre-v1.1.0 vocab) OR pan_applicable=True
+        returns True — preserving the prior always-suppress behavior, so this is safe against either
+        merge order (vocab-first or skills-first)."""
+        if self.pan_applicable or not self.oncotree_codes:
+            return True
+        return str(indication or "").upper().strip() in {c.upper() for c in self.oncotree_codes}
 
     def formatted_message(self, template_target_ref: Optional[str] = None) -> str:
         """Human-readable message for downstream surfaces (warnings list,
@@ -170,4 +184,6 @@ def check_target(target_symbol: str) -> Optional[IsoformWarning]:
         primary_source_doi=str(entry.get("primary_source_doi", "")),
         primary_source_citation=str(entry.get("primary_source_citation", "")).strip(),
         vocabulary_version=str(vocab.get("version", "unknown")),
+        oncotree_codes=tuple(entry.get("oncotree_codes") or ()),
+        pan_applicable=bool(entry.get("pan_applicable", False)),
     )

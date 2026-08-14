@@ -183,6 +183,12 @@ def _headline(cards, fired, verdict_pair):
         "surface_modality_verdict":       v,
         "driving_rule_id":                drv,
         "fit_class":                      get_card_field(cards, "adc-tce-modality-fit", "fit_class"),
+        # Isoform-selective indication-scope (2026-08-14): TRUE when the target has a curated dominant
+        # alt isoform but NOT in THIS indication — the fit_class is NOT suppressed (stands on merit), and
+        # this flag surfaces the caveat so a reader knows an isoform consideration exists off-context
+        # (e.g. EGFRvIII when querying LUAD). In-context, the verdict is isoform_dependent_undefined and
+        # this is False. Verdict-inert (annotation only).
+        "isoform_selective_offcontext":   get_card_field(cards, "adc-tce-modality-fit", "isoform_selective_offcontext"),
         "topology_class":                 get_card_field(cards, "surface-topology-and-ptm", "topology_class"),
         "family_class":                   get_card_field(cards, "surfaceome-family-classification", "family_class"),
         "hotspot_pocket_adjacency_call":  get_card_field(cards, "structure-features-static",
