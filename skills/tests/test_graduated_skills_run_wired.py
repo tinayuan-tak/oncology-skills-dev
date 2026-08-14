@@ -40,7 +40,7 @@ from _skills_common.composition_schema import validate_skill_md, STATUSES
 
 # Skills to verify. Excludes non-compositional legacy skills that predate
 # the composition contract (compose-dashboard, query-target-evidence,
-# render-evidence-package, workflow-target-evaluation-onc). Excludes the
+# render-evidence-package). Excludes the
 # target-profile composed skill which has its own more elaborate LLM-
 # synthesis pipeline test.
 _ALWAYS_WIRED = [

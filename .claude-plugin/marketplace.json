@@ -16,7 +16,6 @@
         "email": "ming-ju.tsai@takeda.com"
       },
       "skills": [
-        "./skills/workflow-target-evaluation-onc",
         "./skills/analysis-bulk-rna-crc",
         "./skills/analysis-bulk-rna-nsclc",
         "./skills/analysis-protein-crc",

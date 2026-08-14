@@ -129,7 +129,8 @@ jobs:
           # Skills knowingly red for a reason outside this PR's control. Each MUST carry a WHY.
           # A denylisted skill's failure is downgraded to ::warning:: (does NOT gate the job).
           NON_BLOCKING_SKILLS=(
-            workflow-target-evaluation-onc   # imports crc_comprehensive_analysis, not in repo — tracked Fix-2
+            # (none — workflow-target-evaluation-onc retired 2026-08-14; add a skill here only
+            #  with a WHY when it is knowingly red for a reason outside a PR's control)
           )
           is_nonblocking() {
             local s="$1" n

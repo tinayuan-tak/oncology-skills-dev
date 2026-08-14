@@ -29,8 +29,7 @@ repo-root/
 │   │   ├── nsclc_comprehensive_analysis.py
 │   │   └── pixi.toml
 │   ├── analysis-protein-crc/
-│   ├── analysis-protein-nsclc/
-│   └── workflow-target-evaluation-onc/
+│   └── analysis-protein-nsclc/
 ├── docs/
 └── README.md
 ```
@@ -192,7 +191,6 @@ Track which version of oncology skills are in ai-sci:
 | analysis-bulk-rna-nsclc | dev@{commit} | - | Not integrated |
 | analysis-protein-crc | - | - | Planned |
 | analysis-protein-nsclc | - | - | Planned |
-| workflow-target-evaluation-onc | dev@{commit} | - | Not integrated |
 
 ## S3 Data Access Pattern
 

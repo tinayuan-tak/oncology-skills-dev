@@ -9,8 +9,8 @@ ship — the test fails so a reviewer catches the drift in PR.
 Skills exempt from this check:
   - `_skills_common/` — internal package, not a skill
   - `tests/` — this directory
-  - Non-compositional skills (workflow-target-evaluation-onc, query-target-
-    evidence, compose-dashboard, render-evidence-package) are exempted by
+  - Non-compositional skills (query-target-evidence, compose-dashboard,
+    render-evidence-package) are exempted by
     the SKILLS_TO_CHECK explicit inclusion list — extend when a skill is
     refactored to declare composition.
 """

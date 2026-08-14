@@ -206,7 +206,6 @@ Productization (Phase D / D1): standalone subskills can emit the same `evidence_
 | [`compose-dashboard`](skills/compose-dashboard/) | — | Consumes a `dashboard_spec` (from `target-contracts`) + invocation context (target, indication, subgroup, data_mode, release_pin) and produces `evidence_package.json` (+ `run_plan.yaml`, `dashboard.md`, `INDEX.md`) in the `data-products` repo; the validation summary is embedded in `evidence_package.governance` (there is no separate `lockfile.yaml` / `validation_report.json`). All three phases (compose → execute → synthesize) are implemented. |
 | [`render-evidence-package`](skills/render-evidence-package/) | — | Renders an `evidence_package.json` to Stage-1 static markdown (exec summary, per-card panels, governance + provenance blocks). Invoked automatically by `compose-dashboard`. |
 | [`query-target-evidence`](skills/query-target-evidence/) | 2.0.0 | **Retrieval-only.** Reads a stored `evidence.json` from `core-artifacts/`, validates + checks staleness, returns. If an artifact is missing it names the batch job that produces it — it never triggers compute. |
-| [`workflow-target-evaluation-onc`](skills/workflow-target-evaluation-onc/) | 1.0.0 | The v1-lineage end-to-end orchestrator (risk assessment → multi-omics → ScholarEval → PDF), retained on this branch for parity during the v2 transition. |
 
 ### Developer & utility skills
 
