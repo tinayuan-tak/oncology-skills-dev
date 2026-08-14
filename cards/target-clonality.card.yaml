@@ -52,6 +52,13 @@ outputs:
   summary_fields_vocabulary:
     clonality_class: [predominantly_clonal, mixed_clonality, predominantly_subclonal, insufficient, data_unavailable]
 
+caveats:
+  - "INFERRED (evidence_tier=inferred_diploid): cancer-cell fraction uses the v1 DIPLOID approximation (CN=2, multiplicity=1) of the purity-corrected VAF. The clonal/subclonal CLASS is robust to this approximation (validated against known clonal architecture), but the absolute ccf is not allele-specific; local CN + multiplicity estimation is the v2 refinement."
+  - "VERDICT-INERT durability/heterogeneity facet (v1): reaches the LLM / matrix / headline but drives NO resolver rung. A predominantly-subclonal driver DOWNGRADING nomination confidence is a later, verdict-moving step gated by a backtest."
+  - "data_unavailable / insufficient when the gene is not recurrently mutated in-indication (fewer than 10 mutant tumors with an ABSOLUTE purity call) — never a fabricated clonality call. Covers only the TSS-mapped indications on the product (COADREAD / PAAD / NSCLC / GC)."
+
 # No `thresholds:` block — verdict-INERT facet (no rule/predicate reads clonality_class). The clonal
 # ccf cut (>=0.8) and the class thresholds (>=0.7 clonal / >=0.4 mixed) are applied in the method and
 # documented above; a future verdict-moving promotion would add rules + a resolver rung behind a backtest.
+
+schema_version: 1
