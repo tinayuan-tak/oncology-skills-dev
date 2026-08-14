@@ -86,6 +86,21 @@ resolve:
 
   # (1) MULTI-CLASS: any mut-driver AND any cn-driver. Cross-product, mut-priority order.
   #     driving_rule = the mut rule (matches the inline `return "multi_class_driver", mut_rule`).
+  #
+  #     SHADOWED-DEAD NOTE (2026-08-14 critical-issues sweep): the FOUR rungs whose when_all_fired
+  #     includes `mutant-strongly-dependent-supportive` or `mutant-moderately-dependent-supportive`
+  #     (the two cn-recurrently pairs at the head of this block + the two cn-patient-focal pairs in the
+  #     patient-focal twins below) are UNREACHABLE under the N1 precedence hoist (2026-08-11): the
+  #     standalone stratified-dependency rungs at L47/L52 (biomarker_stratified_dependency /
+  #     moderate_biomarker_dependency, `when_fired: mutant-*-dependent-supportive`) sit ABOVE this
+  #     block, and their condition is a strict SUBSET of these when_all_fired rungs — so first-match
+  #     resolves the biomarker verdict FIRST whenever the mut-dependency rule fires, and these
+  #     multi_class rungs can never win. This is INTENDED (N1: the biomarker verdict is the gate's
+  #     veto-suppressor + dominant positive; multi_class_driver carries zero nomination weight), so the
+  #     rungs are retained-but-inert rather than deleted (deletion is verdict-byte-stable but a separate
+  #     change). The mut-lof/mut-missense variant-class multi_class rungs below are NOT shadowed (their
+  #     rules appear in no earlier rung) and remain reachable — a dually-ALTERED gene with NO co-firing
+  #     dependency still reads multi_class_driver as designed.
   - {verdict: multi_class_driver, when_all_fired: [mutant-strongly-dependent-supportive, cn-recurrently-amplified-supportive], driving_rule: mutant-strongly-dependent-supportive}
   - {verdict: multi_class_driver, when_all_fired: [mutant-strongly-dependent-supportive, cn-recurrently-deleted-supportive], driving_rule: mutant-strongly-dependent-supportive}
   - {verdict: multi_class_driver, when_all_fired: [mutant-moderately-dependent-supportive, cn-recurrently-amplified-supportive], driving_rule: mutant-moderately-dependent-supportive}
