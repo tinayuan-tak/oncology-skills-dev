@@ -49,7 +49,7 @@ _BROAD = [
     _row("BRCA", "EGFR", "strong_up", 2.0),
     _row("LUAD", "EGFR", "strong_up", 1.6),
     _row("COAD", "EGFR", "modest_up", 0.8),
-    _row("OV", "EGFR", "ns", 0.1, q=0.3),
+    _row("OV", "EGFR", "not_significant", 0.1, q=0.3),
 ]
 
 
@@ -70,7 +70,7 @@ def test_broadly_tumor_elevated(monkeypatch):
 def test_multi_tumor_elevated(monkeypatch):
     # 2 elevated of 5 → n_elev 2 (>=2) but fraction 0.4 (<0.5) → multi, not broadly
     rows = [_row("BRCA", "MET", "strong_up", 2.0), _row("LUAD", "MET", "modest_up", 0.7),
-            _row("COAD", "MET", "ns", 0.1, q=0.4), _row("OV", "MET", "ns", 0.0, q=0.9),
+            _row("COAD", "MET", "not_significant", 0.1, q=0.4), _row("OV", "MET", "not_significant", 0.0, q=0.9),
             _row("GBM", "MET", "strong_down", -1.7)]
     _patch(monkeypatch, rows)
     b = r.read_tumor_elevation_breadth("MET")
@@ -80,7 +80,7 @@ def test_multi_tumor_elevated(monkeypatch):
 
 
 def test_single_tumor_elevated(monkeypatch):
-    rows = [_row("BRCA", "X", "strong_up", 2.0), _row("LUAD", "X", "ns", 0.1, q=0.4)]
+    rows = [_row("BRCA", "X", "strong_up", 2.0), _row("LUAD", "X", "not_significant", 0.1, q=0.4)]
     _patch(monkeypatch, rows)
     b = r.read_tumor_elevation_breadth("X")
     assert b["tumor_elevation_breadth_class"] == "single_tumor_elevated"
@@ -89,7 +89,7 @@ def test_single_tumor_elevated(monkeypatch):
 
 
 def test_not_tumor_elevated_when_tested_but_none_elevated(monkeypatch):
-    rows = [_row("BRCA", "Y", "ns", 0.1, q=0.5), _row("LUAD", "Y", "strong_down", -2.0)]
+    rows = [_row("BRCA", "Y", "not_significant", 0.1, q=0.5), _row("LUAD", "Y", "strong_down", -2.0)]
     _patch(monkeypatch, rows)
     b = r.read_tumor_elevation_breadth("Y")
     assert b["tumor_elevation_breadth_class"] == "not_tumor_elevated"
@@ -112,7 +112,7 @@ def test_absent_target_is_data_unavailable(monkeypatch):
 def test_median_effect_even_count(monkeypatch):
     # 2 elevated → even count → average of the two effects
     rows = [_row("BRCA", "Z", "strong_up", 2.0), _row("LUAD", "Z", "modest_up", 1.0),
-            _row("COAD", "Z", "ns", 0.1, q=0.4)]
+            _row("COAD", "Z", "not_significant", 0.1, q=0.4)]
     _patch(monkeypatch, rows)
     b = r.read_tumor_elevation_breadth("Z")
     assert b["n_cohorts_elevated"] == 2

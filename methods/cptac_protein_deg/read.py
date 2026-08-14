@@ -146,7 +146,7 @@ def _row_to_summary(row: dict, matched_cohort: str,
                     allgene_percentile_class: str = "data_unavailable") -> dict:
     return {
         "cohort": matched_cohort,
-        "protein_expression_class": row.get("protein_expression_class", "ns"),
+        "protein_expression_class": row.get("protein_expression_class", "not_significant"),
         "protein_effect_size": row.get("protein_effect_size"),
         # All-gene percentile null (additive, display + companion categorical): where the
         # target's protein_effect_size falls among ALL genes tested in THIS cohort.

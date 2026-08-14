@@ -73,7 +73,7 @@ def test_tissue_specific_anchor_high_and_tce_viable(monkeypatch):
 
 def test_tissue_specific_tertiles(monkeypatch):
     # below p33 (8.05e5) → low; between p33 and p66 → medium
-    _patch_cptac(monkeypatch, cls="ns", effect=0.0)
+    _patch_cptac(monkeypatch, cls="not_significant", effect=0.0)
     _patch_hpa(monkeypatch, breadth="broad_normal_expression",
                specific=[{"tissue": "intestine", "intensity": 5.0e5}])
     assert r.read_abundance_density_summary("X", "COAD")["hpa_ihc_intensity_class"] == "low"
@@ -85,7 +85,7 @@ def test_tissue_specific_tertiles(monkeypatch):
 def test_breadth_only_anchor_widens_band(monkeypatch):
     # BRCA tissue-of-origin is NOT in HPA's enriched vocab → breadth-only medium anchor, factor *1.6.
     _patch_hpa(monkeypatch, breadth="broad_normal_expression", specific=[])
-    _patch_cptac(monkeypatch, cls="ns", effect=0.5, cohort="BRCA")
+    _patch_cptac(monkeypatch, cls="not_significant", effect=0.5, cohort="BRCA")
     d = r.read_abundance_density_summary("ERBB2", "BRCA")
     assert d["_anchor_strength"] == "breadth_only"
     assert d["hpa_ihc_intensity_class"] == "medium"
@@ -133,7 +133,7 @@ def test_low_anchor_straddles_tce_threshold(monkeypatch):
 
 def test_not_detected_maps_very_low(monkeypatch):
     _patch_hpa(monkeypatch, breadth="not_detected_in_normal", specific=[])
-    _patch_cptac(monkeypatch, cls="ns", effect=0.0)
+    _patch_cptac(monkeypatch, cls="not_significant", effect=0.0)
     d = r.read_abundance_density_summary("X", "COAD")
     assert d["hpa_ihc_intensity_class"] == "not_detected"
     # center 3e2, shift 1 → 300/cell → very_low? no: 100 <= 300 < 1000 → low
@@ -323,7 +323,7 @@ def test_nonfinite_cptac_log2fc_does_not_produce_inf(monkeypatch):
     import math
     _patch_topology(monkeypatch, topology_class="multi_pass", ecd_orientation="outside")  # STEAP1 is 6-TM
     _patch_hpa(monkeypatch, breadth="broad_normal_expression", specific=[])   # medium anchor, center 3e4
-    _patch_cptac(monkeypatch, cls="ns", effect=float("inf"))
+    _patch_cptac(monkeypatch, cls="not_significant", effect=float("inf"))
     d = r.read_abundance_density_summary("STEAP1", "PRAD")
     assert d["estimated_copies_per_cell_median"] is not None
     assert math.isfinite(d["estimated_copies_per_cell_median"])

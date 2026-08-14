@@ -25,7 +25,8 @@ Output schema (per row):
     protein_effect_size_pooled_sd       float
     protein_p_value                     float  — MSstatsTMT groupComparisonTMT (limma-eBayes moderated t)
     protein_bh_q_value                  float
-    protein_expression_class            str    — 'strong_up' | 'modest_up' | 'ns' | 'modest_down' | 'strong_down' | 'not_detected'
+    protein_expression_class            str    — 'strong_up' | 'modest_up' | 'small_effect' | 'not_significant' | 'modest_down' | 'strong_down' | 'not_detected' | 'data_unavailable'
+                                                 (2026-08-14: former 'ns' split into 'not_significant' [q>=0.05] + 'small_effect' [q<0.05, |logfc|<=0.5])
     stat_test_used                      str    — 'msstatstmt_limma_ebayes_moderated' | 'skipped_low_n'
     method_version                      str
 

@@ -28,15 +28,25 @@ import pyarrow.parquet as pq
 
 CPTAC_COHORTS = ["BRCA", "CCRCC", "COAD", "GBM", "HNSCC", "LSCC", "LUAD", "OV", "PDAC", "UCEC"]
 
-METHOD_VERSION = "1.0.0"
+METHOD_VERSION = "1.1.0"   # 2026-08-14: protein_expression_class 'ns' split → not_significant + small_effect
 STAT_TEST_USED = "msstatstmt_limma_ebayes_moderated"
 
 
 def classify(logfc: float, q: float) -> str:
+    # 2026-08-14 multi-pair review (finding #5): the former single `ns` bucket conflated TWO
+    # distinct outcomes — "tested, not statistically significant" (q >= 0.05) and "significant but
+    # effect too small to class up/down" (q < 0.05, |logfc| <= 0.5). That effect-size-vs-significance
+    # ambiguity mislead readers (a `small_effect` percentile was misread as abundance). Split them:
+    #   not_significant — q >= 0.05 (or stats unestimable), i.e. no significant tumor-vs-normal delta
+    #   small_effect    — q < 0.05 but |logfc| <= 0.5, i.e. significant yet biologically small
+    # VERDICT-SAFE: their UNION is exactly the old `ns` set; neither is in _ELEVATED_CLASSES
+    # ({strong_up, modest_up}), so breadth/coverage rollups (which key on the elevated set /
+    # data_unavailable, never on the literal `ns`) are unchanged. The tumor-presence M2 rescue maps
+    # BOTH to protein_present_not_elevated (present-but-flat), preserving that behavior too.
     if pd.isna(logfc) or pd.isna(q):
-        return "ns"
+        return "not_significant"
     if q >= 0.05:
-        return "ns"
+        return "not_significant"
     if logfc > 1.5:
         return "strong_up"
     if logfc > 0.5:
@@ -45,7 +55,7 @@ def classify(logfc: float, q: float) -> str:
         return "strong_down"
     if logfc < -0.5:
         return "modest_down"
-    return "ns"
+    return "small_effect"
 
 
 def load_uniprot_map(path: Path | None) -> dict[str, str]:
