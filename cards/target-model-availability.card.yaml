@@ -1,0 +1,66 @@
+# Card — PATIENT-DERIVED MODEL AVAILABILITY (how many HCMI models exist to preclinically validate here?)
+#
+# The TRANSLATIONAL-BRIDGE axis the framework lacked (scientific-gap #1, lighter-v1). A nomination is
+# only actionable if it can be preclinically validated — and validation needs patient-derived model
+# systems (organoids / next-generation cancer models) for the indication. This card reports, per
+# indication, how many HCMI (Human Cancer Models Initiative) patient-derived models exist — a
+# "can I validate a target here?" signal that was previously invisible to the framework.
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT (v1): model availability is a property of the INDICATION's model
+# coverage, not of any specific target — so this card consumes only {indication}, not {target}. The
+# genotype-MATCHED v2 (does an available model carry THIS target's alteration? — a target-dependent
+# signal) joins the HCMI WXS aliquot MAFs on top of this crosswalk and is the follow-up.
+#
+# METHOD: walk the 805 HCMI-CMDC DR45 case ClinicalData JSONs, crosswalk (GDC primary_site +
+# disease_type) -> framework indication (conservative, adenocarcinoma histologies only), count DISTINCT
+# patient-derived models per indication. Validated 2026-08-14 (live biology-gate): 376/805 models map to
+# the 4 TSS-core indications — COADREAD 209 (deep) / PAAD 115 (deep) / NSCLC 27 (moderate) / GC 25
+# (moderate); COADREAD deepest, consistent with HCMI's documented GI/colorectal-heavy composition.
+#
+# ROLE — verdict-INERT translational cohort-context facet (v1). Reaches the LLM/matrix/headline; drives
+# NO resolver rung. Model-availability DOWNGRADING a nomination's translational confidence (or the
+# genotype-matched v2 gating it) is a later, verdict-moving step gated by a backtest.
+#
+# ZERO new ingestion: HCMI-CMDC DR45 (hcmi-cmdc-dr45-0) was already in the catalog; this is a
+# published-substrate DERIVATION.
+
+card_id: target-model-availability
+version: 1.0.0
+question: "In {indication.label}, how many patient-derived (HCMI) models exist to preclinically validate a nominated target?"
+
+tier: indication   # indication-level, target-INDEPENDENT cohort context (model coverage is a property of the indication)
+
+applies_when:
+  - "true"   # any target/indication; data_unavailable-safe when the indication is not in the HCMI crosswalk
+
+required_inputs:
+  - product_id: hcmi-model-availability-per-indication-v1   # per-indication distinct-model counts
+
+methods:
+  - call: hcmi-model-availability
+    module: hcmi_model_availability
+    entrypoint: read_model_availability
+    args:
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - model_availability_class            # PRIMARY categorical (translational coverage signal)
+    - n_patient_derived_models            # count of distinct HCMI patient-derived models for this indication
+    - primary_site_breakdown              # provenance: which GDC histologies mapped in
+    - source                              # source release tag (HCMI-CMDC-DR45)
+  summary_fields_vocabulary:
+    model_availability_class: [deep_model_coverage, moderate_model_coverage, sparse_model_coverage, data_unavailable]
+
+caveats:
+  - "INDICATION-LEVEL / TARGET-INDEPENDENT (v1): this is model coverage for the INDICATION, not for the specific target. The genotype-MATCHED signal (does an available model carry THIS target's alteration?) is the v2 refinement (HCMI WXS MAF join)."
+  - "VERDICT-INERT translational cohort-context facet (v1): reaches the LLM / matrix / headline but drives NO resolver rung. Model-availability gating nomination confidence is a later, verdict-moving step gated by a backtest."
+  - "data_unavailable when the indication is not in the HCMI (primary_site, disease_type) crosswalk — never a fabricated count. Covers only the TSS-mapped indications materialized on the product (COADREAD / PAAD / NSCLC / GC); the crosswalk is conservative (adenocarcinoma histologies only), so a mis-histology model is left unmapped rather than mis-assigned."
+
+# No `thresholds:` block — verdict-INERT facet (no rule/predicate reads model_availability_class). The
+# class thresholds (deep >=50 / moderate >=15) are applied in the method and documented above; a future
+# verdict-moving promotion would add rules + a resolver rung behind a backtest.
+
+measurement_type: model_availability   # cohort-grain, target-independent translational context (DATA_TO_SKILL_CONTRACT Rule 1)
+
+schema_version: 1

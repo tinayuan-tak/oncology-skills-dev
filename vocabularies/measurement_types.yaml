@@ -340,6 +340,21 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [ddr_footprint_score], method: cohort_fraction, evidence_tier: measured}
 
+  model_availability:
+    claim: "How many patient-derived (HCMI) models exist for the indication to preclinically validate a nomination?"
+    # Scientific-gap #1 (translational bridge, lighter-v1, 2026-08-14): an INDICATION-level,
+    # target-INDEPENDENT translational-readiness cohort context — the 805 HCMI-CMDC DR45 case
+    # ClinicalData JSONs crosswalked (GDC primary_site + disease_type -> framework indication) to a
+    # per-indication DISTINCT-model count + model_availability_class {deep >=50 / moderate 15-49 /
+    # sparse <15}. DISPLAY facet — verdict-inert translational prior ("can I validate a target here?").
+    # Sibling of ddr_deficiency_context / genomic_instability_state (cohort-grain, target-independent).
+    # The genotype-MATCHED signal (does an available model carry THIS target's alteration?) is a
+    # separate target-dependent type (HCMI WXS MAF join = v2). No modality_relevance: cohort context.
+    entity_grains: [cohort]
+    cards: [target-model-availability]
+    providers:
+      - {kind: dataset, source: hcmi-model-availability-per-indication-v1, evidence_tier: measured}
+
   mutational_signature_context:
     claim: "Which mutational processes (APOBEC / MMR-deficiency / HRD / tobacco / UV / POLE / clock) shaped the indication's cohort, and which dominates?"
     # 2026-08-12: an INDICATION-level, target-INDEPENDENT PRE-INTEGRATED companion result — per-sample
