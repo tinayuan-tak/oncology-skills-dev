@@ -56,6 +56,11 @@ LINEAGE_RESTRICTED_MIN = 0.10
 LINEAGE_RESTRICTED_MAX = 0.70
 HIGH_ABUNDANCE_PERCENTILE = 0.70   # panel-relative "high" cutoff
 MIN_LINEAGE_SIZE = 5
+# Middle-band (LOW..BROADLY detection) disambiguation: a protein is genuinely
+# lineage_restricted only if its detected lines CLUSTER in a minority of lineages;
+# a protein detected at a moderate rate ACROSS many lineages is broadly_moderate.
+LINEAGE_CONCENTRATION_MAX_LINEAGES = 3   # detected in <= this many lineages → concentrated
+LINEAGE_CONCENTRATION_TOP_SHARE = 0.50   # one lineage holds >= this share of detected lines → concentrated
 
 
 def _ensure_aws_profile():
@@ -183,8 +188,11 @@ def classify_protein_abundance(fraction_detected: float,
 
     - broadly_low:        detected in < LOW_DETECTION_FRACTION of the panel (MS-absent)
     - broadly_high:       detected in > BROADLY_DETECTED_FRACTION AND median >= panel high cutoff
-    - broadly_moderate:   detected in > BROADLY_DETECTED_FRACTION but not high
-    - lineage_restricted: LINEAGE_RESTRICTED_MIN <= detection <= LINEAGE_RESTRICTED_MAX
+    - broadly_moderate:   detected broadly (> BROADLY_DETECTED_FRACTION and not high), OR
+                          detected in the middle band but spread across many lineages
+    - lineage_restricted: middle-band detection CONCENTRATED in a minority of lineages
+                          (consulting per_lineage — a moderate pan-lineage detection rate is
+                          broadly_moderate, NOT lineage_restricted)
     - data_unavailable:   handled upstream (protein absent from matrix)
     """
     f = fraction_detected
@@ -194,10 +202,33 @@ def classify_protein_abundance(fraction_detected: float,
         if high_cutoff is not None and median_abundance is not None and median_abundance >= high_cutoff:
             return "broadly_high"
         return "broadly_moderate"
-    # middle band → lineage-restricted candidate
+    # middle band → lineage_restricted ONLY if the detected signal clusters in a few lineages;
+    # a moderate detection rate spread across many lineages is broadly_moderate, not restricted.
     if LINEAGE_RESTRICTED_MIN <= f <= LINEAGE_RESTRICTED_MAX:
-        return "lineage_restricted"
+        if _is_lineage_concentrated(per_lineage):
+            return "lineage_restricted"
+        return "broadly_moderate"
     return "broadly_moderate"
+
+
+def _is_lineage_concentrated(per_lineage: list) -> bool:
+    """Is the detected-line footprint concentrated in a minority of lineages?
+
+    per_lineage entries carry {'lineage', 'n', ...} where n = detected lines in that lineage
+    (lineages below MIN_LINEAGE_SIZE detected lines are already dropped upstream). Concentrated
+    iff detection spans few lineages OR one lineage dominates the detected lines. With no
+    per-lineage breakdown (unit tests / no model table) fall back to the historical
+    middle-band label (lineage_restricted) so existing behavior is preserved.
+    """
+    if not per_lineage:
+        return True
+    total = sum(d.get("n", 0) for d in per_lineage)
+    if total <= 0:
+        return True
+    if len(per_lineage) <= LINEAGE_CONCENTRATION_MAX_LINEAGES:
+        return True
+    top_share = max(d.get("n", 0) for d in per_lineage) / total
+    return top_share >= LINEAGE_CONCENTRATION_TOP_SHARE
 
 
 def _percentiles(values: list) -> dict:
@@ -478,7 +509,7 @@ def emit_plot_data_protein(abundance_by_model: dict, lineage_by_model: dict,
 INDICATION_LINEAGE = {
     "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "LUAD": "Lung", "LUSC": "Lung",
     "NSCLC": "Lung", "BRCA": "Breast", "PAAD": "Pancreas", "PDAC": "Pancreas", "SKCM": "Skin",
-    "STAD": "Stomach", "PRAD": "Prostate", "OV": "Ovary", "KIRC": "Kidney", "GBM": "CNS/Brain",
+    "STAD": "Esophagus/Stomach", "PRAD": "Prostate", "OV": "Ovary", "KIRC": "Kidney", "GBM": "CNS/Brain",
     "LGG": "CNS/Brain", "HNSC": "Head and Neck", "BLCA": "Bladder/Urinary Tract", "LIHC": "Liver",
     "ESCA": "Esophagus/Stomach", "CESC": "Cervix",
 }

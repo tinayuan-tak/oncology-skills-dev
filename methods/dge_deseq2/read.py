@@ -581,6 +581,14 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
             "sig_all_cells": supporting == 2,
             "discordant": any_up and any_down,
             "max_abs_log2fc": max(abs(v) for v in lfcs),
+            # Per-cell LFC/q keys the classifier needs: _classify_selectivity_from_sensitivity
+            # reads log2fc_cell_a / log2fc_cell_c for its RAW-comparator magnitude gates
+            # (>=1.5 strong / >=0.5 modest) and log2fc_cell_c for the field-effect branch.
+            # Without them raw_max_lfc collapses to 0.0 and every fallback call degrades to
+            # not_informative/discordant. Cell A = TCGA-adjacent, cell C = GTEx (see docstring).
+            "log2fc_cell_a": lfc_a, "q_value_cell_a": q_a,
+            "log2fc_cell_b": None,  "q_value_cell_b": None,
+            "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c,
         }
 
     return {

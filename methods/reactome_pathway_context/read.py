@@ -79,16 +79,17 @@ def _ensure_cached(s3_key: str, cache_filename: str) -> Path:
 
 
 @lru_cache(maxsize=1)
-def _load_uniprot_to_reactome() -> dict:
+def _load_uniprot_to_reactome(uniprot2reactome_path: Optional[str] = None) -> dict:
     """UniProt-AC → list of {pathway_id, pathway_name, evidence_code, url,
     organism} dicts. Filtered to Homo sapiens.
 
     UniProt2Reactome_All_Levels.txt format (tab-separated, no header):
         UniProtAC  R-HSA-NNNNNNN  URL  PathwayName  EvidenceCode  Organism
+
+    `uniprot2reactome_path` (test fixture / warm cache) is read directly instead of S3.
     """
-    path = _ensure_cached(
-        UNIPROT_TO_REACTOME_S3_KEY, "UniProt2Reactome_All_Levels.txt"
-    )
+    path = (Path(uniprot2reactome_path) if uniprot2reactome_path
+            else _ensure_cached(UNIPROT_TO_REACTOME_S3_KEY, "UniProt2Reactome_All_Levels.txt"))
     result: dict[str, list[dict]] = {}
     with path.open("r", encoding="utf-8") as f:
         for raw in f:
@@ -108,15 +109,19 @@ def _load_uniprot_to_reactome() -> dict:
 
 
 @lru_cache(maxsize=1)
-def _load_pathway_hierarchy() -> tuple[dict, dict]:
+def _load_pathway_hierarchy(pathways_path: Optional[str] = None,
+                            relations_path: Optional[str] = None) -> tuple[dict, dict]:
     """Return (pathway_id → name map, child → parent map).
 
     ReactomePathways.txt format (tab-separated):
         PathwayID  PathwayName  Organism
     ReactomePathwaysRelation.txt format (tab-separated):
         ParentID  ChildID
+
+    `pathways_path` / `relations_path` (test fixture / warm cache) are read directly instead of S3.
     """
-    pathways_path = _ensure_cached(PATHWAYS_S3_KEY, "ReactomePathways.txt")
+    pathways_path = (Path(pathways_path) if pathways_path
+                     else _ensure_cached(PATHWAYS_S3_KEY, "ReactomePathways.txt"))
     id_to_name: dict[str, str] = {}
     with pathways_path.open("r", encoding="utf-8") as f:
         for raw in f:
@@ -127,9 +132,8 @@ def _load_pathway_hierarchy() -> tuple[dict, dict]:
             if organism.strip() == "Homo sapiens":
                 id_to_name[pid.strip()] = name.strip()
 
-    relations_path = _ensure_cached(
-        PATHWAYS_RELATION_S3_KEY, "ReactomePathwaysRelation.txt"
-    )
+    relations_path = (Path(relations_path) if relations_path
+                      else _ensure_cached(PATHWAYS_RELATION_S3_KEY, "ReactomePathwaysRelation.txt"))
     child_to_parent: dict[str, str] = {}
     with relations_path.open("r", encoding="utf-8") as f:
         for raw in f:
@@ -155,7 +159,7 @@ def _walk_to_top(pid: str, child_to_parent: dict) -> str:
     return current
 
 
-def _hgnc_to_uniprot_ac(target: str) -> Optional[str]:
+def _hgnc_to_uniprot_ac(target: str, sidecar_path: Optional[str] = None) -> Optional[str]:
     """Resolve HGNC gene symbol → primary UniProt accession.
 
     iter-1 uses the framework's identifier resolver (if available) or a
@@ -182,7 +186,7 @@ def _hgnc_to_uniprot_ac(target: str) -> Optional[str]:
     if _UNIPROT_AC_RE.match(target):
         return target
     # Otherwise, treat as HGNC symbol and look up crosswalk.
-    return _hgnc_symbol_to_uniprot_ac_cached(target)
+    return _hgnc_symbol_to_uniprot_ac_cached(target, sidecar_path)
 
 
 # The RESOLVER SIDECAR shipped alongside the Reactome source (produced by target_id_resolver at
@@ -194,7 +198,7 @@ _, REACTOME_RESOLVER_SIDECAR_S3_KEY = sidecar_bucket_key_for(REACTOME_SOURCE_MAN
 
 
 @lru_cache(maxsize=1)
-def _load_hgnc_uniprot_crosswalk() -> dict:
+def _load_hgnc_uniprot_crosswalk(sidecar_path: Optional[str] = None) -> dict:
     """HGNC symbol (UPPER) → primary UniProt-AC, from the Reactome resolver sidecar on S3.
 
     Reads the target_id_resolver sidecar (hgnc_primary_symbol_at_resolution → native_row_key)
@@ -202,15 +206,16 @@ def _load_hgnc_uniprot_crosswalk() -> dict:
     hardcoded map, never a source symbol column). Delegates to the shared resolver-sidecar loader,
     which RAISES on read failure instead of silently returning {} — an empty crosswalk would fail
     EVERY target (data_unavailable framework-wide). The live-read seam turns a raise into an honest
-    per-card _live_read_error."""
+    per-card _live_read_error. `sidecar_path` (test fixture / warm cache) is read directly."""
     from methods.target_id_sidecar import read_resolver_sidecar_map
     return read_resolver_sidecar_map(
         S3_BUCKET, REACTOME_RESOLVER_SIDECAR_S3_KEY,
-        "hgnc_primary_symbol_at_resolution", "native_row_key")
+        "hgnc_primary_symbol_at_resolution", "native_row_key",
+        local_path=sidecar_path)
 
 
-def _hgnc_symbol_to_uniprot_ac_cached(symbol: str) -> Optional[str]:
-    return _load_hgnc_uniprot_crosswalk().get(symbol.upper())
+def _hgnc_symbol_to_uniprot_ac_cached(symbol: str, sidecar_path: Optional[str] = None) -> Optional[str]:
+    return _load_hgnc_uniprot_crosswalk(sidecar_path).get(symbol.upper())
 
 
 def _classify_top_level(pathway_name: str) -> str:
@@ -224,13 +229,20 @@ def _classify_top_level(pathway_name: str) -> str:
     return pathway_name.strip()  # fallback: preserve verbatim
 
 
-def read_target_summary(target: str, indication: str = None) -> dict:
+def read_target_summary(target: str, indication: str = None, *,
+                        uniprot2reactome_path: Optional[str] = None,
+                        pathways_path: Optional[str] = None,
+                        relations_path: Optional[str] = None,
+                        sidecar_path: Optional[str] = None) -> dict:
     """Per-target Reactome pathway-context summary.
 
     Args:
         target: HGNC gene symbol OR UniProt accession
         indication: unused (Reactome is indication-agnostic; accepted for
             dispatcher signature consistency)
+        uniprot2reactome_path / pathways_path / relations_path / sidecar_path:
+            optional local-file overrides (test fixtures / warm cache) that
+            bypass the S3 reads — the same seam the sibling readers expose.
 
     Returns:
         dict with pathway-context annotation:
@@ -240,17 +252,17 @@ def read_target_summary(target: str, indication: str = None) -> dict:
           - is_signaling (bool)
           - pathway_class ('well_annotated' | 'partial' | 'sparse' | 'data_unavailable')
     """
-    uac = _hgnc_to_uniprot_ac(target)
+    uac = _hgnc_to_uniprot_ac(target, sidecar_path)
     if uac is None:
         return _empty_result("target_symbol_not_resolvable")
 
     try:
-        uniprot_map = _load_uniprot_to_reactome()
+        uniprot_map = _load_uniprot_to_reactome(uniprot2reactome_path)
         pathways = uniprot_map.get(uac, [])
         if not pathways:
             return _empty_result("target_not_in_reactome_human")
 
-        id_to_name, child_to_parent = _load_pathway_hierarchy()
+        id_to_name, child_to_parent = _load_pathway_hierarchy(pathways_path, relations_path)
 
         # Compute top-level rollup per pathway
         top_level_ids: set[str] = set()

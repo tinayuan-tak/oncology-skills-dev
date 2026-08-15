@@ -8,14 +8,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-# indication → DepMap OncotreeLineage (mirrors depmap_expression_dependency.cli.INDICATION_LINEAGE).
-INDICATION_TO_DEPMAP_LINEAGE = {
-    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel",
-    "PDAC": "Pancreas", "PAAD": "Pancreas", "NSCLC": "Lung", "LUAD": "Lung", "LUSC": "Lung",
-    "SCLC": "Lung", "GC": "Stomach", "STAD": "Stomach", "BRCA": "Breast", "SKCM": "Skin",
-    "PRAD": "Prostate", "OV": "Ovary/Fallopian Tube", "KIRC": "Kidney", "HNSC": "Head and Neck",
-    "BLCA": "Bladder/Urinary Tract", "LIHC": "Liver", "ESCA": "Esophagus/Stomach",
-}
+# indication → DepMap OncotreeLineage. SINGLE SOURCE: import the canonical map from
+# depmap_chronos.read rather than forking it here. The prior local fork mapped GC/STAD →
+# "Stomach", a lineage that does NOT exist in DepMap 26Q1 Model.csv (the real value is
+# "Esophagus/Stomach"), so gastric within-lineage scoping silently matched zero models.
+from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE  # noqa: E402
 
 # Chronos dependency cutoffs (DepMap convention): <= -0.5 dependent; >= -0.2 not-dependent.
 DEPENDENT_CHRONOS = -0.5

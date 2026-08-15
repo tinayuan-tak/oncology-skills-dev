@@ -268,7 +268,7 @@ def compute_correlation_summary(
 
     INDICATION_LINEAGE = {
         "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-        "SCLC": "Lung", "GC": "Stomach",
+        "SCLC": "Lung", "GC": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
     }
     target_lineage = INDICATION_LINEAGE.get(indication, "")
 
@@ -396,7 +396,7 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
     df = pd.DataFrame(merged_data)
 
     INDICATION_LINEAGE = {"COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-                          "SCLC": "Lung", "GC": "Stomach"}
+                          "SCLC": "Lung", "GC": "Esophagus/Stomach"}  # no "Stomach" lineage in 26Q1
     target_lineage = INDICATION_LINEAGE.get(indication, "")
 
     fig, ax = plt.subplots(figsize=style["FIGSIZE_DOUBLE_COLUMN"])
@@ -511,7 +511,7 @@ def emit_lineage_stratified_scatter(merged_data: list, target_symbol: str,
     df = pd.DataFrame(merged_data)
 
     INDICATION_LINEAGE = {"COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-                          "SCLC": "Lung", "GC": "Stomach"}
+                          "SCLC": "Lung", "GC": "Esophagus/Stomach"}  # no "Stomach" lineage in 26Q1
     target_lineage = INDICATION_LINEAGE.get(indication, "")
 
     if df.empty:

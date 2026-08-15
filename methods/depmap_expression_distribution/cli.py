@@ -484,7 +484,8 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
 # indication-relevant cell-line view IS its lineage). Mirrors depmap_chronos.INDICATION_LINEAGE.
 INDICATION_LINEAGE = {
     "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "PDAC": "Pancreas", "PAAD": "Pancreas",
-    "NSCLC": "Lung", "LUAD": "Lung", "LUSC": "Lung", "SCLC": "Lung", "GC": "Stomach", "STAD": "Stomach",
+    "NSCLC": "Lung", "LUAD": "Lung", "LUSC": "Lung", "SCLC": "Lung",
+    "GC": "Esophagus/Stomach", "STAD": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
     "BRCA": "Breast", "OV": "Ovary/Fallopian Tube", "GBM": "CNS/Brain", "HNSCC": "Head and Neck",
 }
 

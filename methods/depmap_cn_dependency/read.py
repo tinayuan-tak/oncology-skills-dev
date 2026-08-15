@@ -77,10 +77,15 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
 
     def _compute(mut_models, wt_models):
         # amplified (cn>focal) = the "mutant" arm → mut_models; neutral = WT arm → wt_models.
-        from methods.depmap_cn_dependency.cli import FOCAL_AMP
+        # MUST use FOCAL_AMP_HIGH (2.0) — the SAME focal HIGH-level cut compute_cn_stratification
+        # applies (cli.py `focal_amp=FOCAL_AMP_HIGH`) to build its amplified vector. Using the
+        # shallow FOCAL_AMP (1.5) here misroutes shallow-gain lines (1.5–2.0) into the amplified
+        # arm, so they are dropped from the pan-WT comparator scope while the kernel still counts
+        # them as neutral → an inconsistent, biased delta_chronos.
+        from methods.depmap_cn_dependency.cli import FOCAL_AMP_HIGH
 
         def _keep(m):
-            arm = mut_models if cn_by_model.get(m, 0) > FOCAL_AMP else wt_models
+            arm = mut_models if cn_by_model.get(m, 0) > FOCAL_AMP_HIGH else wt_models
             return arm is None or m in arm
         c = {m: v for m, v in chronos_by_model.items() if _keep(m)}
         cn = {m: v for m, v in cn_by_model.items() if m in c}

@@ -165,7 +165,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
 # NOT used by compute_lineage_summary anymore — the method's output is target-only.
 INDICATION_LINEAGE = {
     "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-    "SCLC": "Lung", "GC": "Stomach",
+    "SCLC": "Lung", "GC": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
 }
 
 
