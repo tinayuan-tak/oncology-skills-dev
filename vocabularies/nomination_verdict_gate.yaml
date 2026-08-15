@@ -86,7 +86,7 @@ gates:
       addressable with a mutant-selective modality (indeed the resolver
       DOWNGRADES this to wt_human_genetics_mechanism_mismatch, ungated, when an
       activating-driver context co-fires — exactly like the gnomAD path).
-    driving_rule_ids: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, mouse-ko-lethal-safety-warning]
+    driving_rule_ids: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
 
   - sub_skill: subtype_fit              # subtype-panorama sub-verdict (2026-07-17)
     verdict: subtype_specific_non_dependence
@@ -266,8 +266,11 @@ positive_signals:
 positive_signals_modality_scoped:
   - {sub_skill: surface_modality, verdict: both_viable,               weight: dominant,   when_modality_in: [adc, bite_tce, antibody]}
   - {sub_skill: surface_modality, verdict: adc_preferred_tce_unsafe,  weight: dominant,   when_modality_in: [adc, antibody]}
-  - {sub_skill: surface_modality, verdict: TCE_preferred,             weight: dominant,   when_modality_in: [bite_tce, antibody]}
-  - {sub_skill: surface_modality, verdict: ADC_preferred,             weight: dominant,   when_modality_in: [adc, antibody]}
+  # R1-casing (2026-08-15): the surface_modality resolver EMITS lowercase `tce_preferred`/`adc_preferred`
+  # (surface_modality.resolver.yaml:61-63); the gate loader matches verdicts case-sensitively, so the
+  # prior TitleCase `TCE_preferred`/`ADC_preferred` here never matched — these two positives were DEAD.
+  - {sub_skill: surface_modality, verdict: tce_preferred,             weight: dominant,   when_modality_in: [bite_tce, antibody]}
+  - {sub_skill: surface_modality, verdict: adc_preferred,             weight: dominant,   when_modality_in: [adc, antibody]}
 
 # An OPPOSING MEASURED verdict on a positive-eligible axis blocks `strong`. NOTE:
 # insufficient / data_unavailable / not_informative are NOT contradictions — absence

@@ -77,7 +77,7 @@ def _load_yaml(path: Path) -> dict:
 def _build_card_index(cards_dir: Path) -> dict[str, dict]:
     """Load every *.card.yaml in cards_dir, index by card_id. Reused across rules."""
     idx = {}
-    for card_path in sorted(cards_dir.glob("*.card.yaml")):
+    for card_path in sorted(cards_dir.rglob("*.card.yaml")):   # recursive — parity with validate_cards.py (C2)
         try:
             spec = _load_yaml(card_path)
         except Exception as e:

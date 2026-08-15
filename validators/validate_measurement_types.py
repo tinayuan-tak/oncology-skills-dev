@@ -55,7 +55,7 @@ def _known_card_ids(cards_dir: Path) -> set[str] | None:
     if not cards_dir.exists():
         return None
     ids = set()
-    for p in cards_dir.glob("*.card.yaml"):
+    for p in cards_dir.rglob("*.card.yaml"):   # recursive — parity with validate_cards.py (C2)
         try:
             spec = yaml.safe_load(p.read_text()) or {}
         except yaml.YAMLError:
@@ -64,6 +64,23 @@ def _known_card_ids(cards_dir: Path) -> set[str] | None:
         if cid:
             ids.add(cid)
     return ids
+
+
+def _card_measurement_types(cards_dir: Path) -> dict[str, str | None] | None:
+    """{card_id -> declared measurement_type (or None if the card omits it)} across cards/.
+    None (whole map) when cards/ is absent. Backs the C4 reverse back-ref check."""
+    if not cards_dir.exists():
+        return None
+    out: dict[str, str | None] = {}
+    for p in cards_dir.rglob("*.card.yaml"):
+        try:
+            spec = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        cid = spec.get("card_id")
+        if cid:
+            out[cid] = spec.get("measurement_type")
+    return out
 
 
 def _has_cycle(types: dict) -> list[str]:
@@ -121,6 +138,7 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
         return r
     keys = set(types)
     known_cards = _known_card_ids(cards_dir) if cards_dir else None
+    card_mt = _card_measurement_types(cards_dir) if cards_dir else None
 
     for name, spec in types.items():
         if not isinstance(spec, dict):
@@ -169,6 +187,30 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
             for cid in spec.get("cards") or []:
                 if cid not in known_cards:
                     r.err(f"[{name}] cards back-ref `{cid}` has no cards/{cid}.card.yaml")
+                elif card_mt is not None:
+                    # C4 Arm 2 (registry -> card): a card the registry lists as a view of `name` MUST
+                    # declare measurement_type == name. A listed card that declares NONE or a DIFFERENT
+                    # type is a one-sided drift (the registry migrated, the card didn't, or the back-ref
+                    # is wrong). One-way membership checks let this pass silently.
+                    declared = card_mt.get(cid)
+                    if declared != name:
+                        r.err(f"[{name}] cards back-ref `{cid}` declares "
+                              f"measurement_type={declared!r} (expected `{name}`) — the registry lists it "
+                              f"as a view of `{name}` but the card disagrees. Set the card's "
+                              f"measurement_type or fix the back-ref.")
+
+    # C4 Arm 1 (card -> registry): every card whose measurement_type is a registered type MUST appear in
+    # that type's `cards:` list (skip un-migrated cards that declare no measurement_type — nothing to
+    # check). Symmetric to Arm 2; catches a migrated card the registry forgot to back-reference.
+    if card_mt is not None:
+        for cid, mt in card_mt.items():
+            if mt is None or mt not in types:
+                continue
+            listed = types[mt].get("cards") or []
+            if cid not in listed:
+                r.err(f"[{mt}] card `{cid}` declares measurement_type `{mt}` but is NOT in "
+                      f"`{mt}.cards` — add it to the type's back-ref list (Rule 2 concordance is "
+                      f"bidirectional).")
 
     cyclic = _has_cycle(types)
     if cyclic:

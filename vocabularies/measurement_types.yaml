@@ -91,7 +91,7 @@ measurement_types:
     # cards (cohort median) can't produce. Distinct from tumor_vs_adjacent_expression (a contrast)
     # and from cell_line_rna_expression (DepMap cell lines). Q1 of the expression profiling spec.
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (needs TCGA UUID↔barcode bridge)
-    cards: [tumor-rna-distribution]
+    cards: [tumor-rna-distribution, tumor-rna-distribution-by-subtype]   # pooled (target_indication) + subtype sibling (target_subtype, LIVE)
     # tier_dominant, NOT surface_discordance: the claim is the TUMOR distribution; TCGA is the
     # dominant provider of it. GTEx is auxiliary — it supplies ONLY the matched-normal p95 OVERLAY
     # context fields (fraction_tumor_above_normal_p95), never a competing view of the distribution.

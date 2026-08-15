@@ -49,7 +49,7 @@
     },
     "derived_from": {
       "type": "array",
-      "description": "OPTIONAL. Declares this card as a DERIVED card whose method reads upstream cards' outputs (instead of, or in addition to, raw data products). Each entry names an upstream card_id. The reachability validator uses this list to verify the upstream cards exist and emit the fields this card reads.",
+      "description": "OPTIONAL. Declares this card as a DERIVED card whose method reads upstream cards' outputs (instead of, or in addition to, raw data products). Each entry names an upstream card_id. A cross-reference validator (validators/validate_cards.py::validate_derived_from_refs) uses this list to verify every referenced card_id resolves to a live card (or to a historical alias `from`->`to` in vocabularies/card_id_aliases.yaml). NOTE: the stronger 'emits the fields this card reads' field-level reachability check is NOT yet implemented — this list is verified for card EXISTENCE only.",
       "items": {
         "type": "object",
         "required": ["card_id"],

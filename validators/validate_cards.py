@@ -177,6 +177,52 @@ def _modality_relevant_types() -> Optional[set[str]]:
             if isinstance(entry, dict) and entry.get('modality_relevance')}
 
 
+_CARD_ID_ALIASES_PATH = (Path(__file__).resolve().parent.parent / 'vocabularies'
+                         / 'card_id_aliases.yaml')
+
+
+@functools.lru_cache(maxsize=1)
+def _card_id_aliases() -> dict[str, str]:
+    """Map historical card_id -> current card_id from vocabularies/card_id_aliases.yaml
+    (the forward-rename+alias convention — a card_id is a data contract, so a renamed card
+    keeps an append-only alias so stored evidence packages still resolve). Returns {} when the
+    file is absent/unparseable (graceful-skip — never a false failure in an isolated checkout).
+    Consumed by the derived_from existence cross-check so a card that legitimately points at a
+    since-renamed upstream still resolves."""
+    if not _CARD_ID_ALIASES_PATH.exists():
+        return {}
+    try:
+        with _CARD_ID_ALIASES_PATH.open() as f:
+            doc = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return {}
+    out: dict[str, str] = {}
+    for entry in (doc.get('aliases') or []):
+        if isinstance(entry, dict) and entry.get('from') and entry.get('to'):
+            out[entry['from']] = entry['to']
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def _measurement_type_entity_grains() -> Optional[dict[str, set[str]]]:
+    """{measurement_type -> set(entity_grains)} from vocabularies/measurement_types.yaml — the
+    per-type CAPABILITY CEILING (Rule 5). Returns None when the vocab is absent (graceful-skip).
+    Backs the entity_grains ceiling check (C5): a card must not advertise a grain its declared
+    measurement_type's substrate cannot emit."""
+    if not _MEASUREMENT_TYPES_PATH.exists():
+        return None
+    try:
+        with _MEASUREMENT_TYPES_PATH.open() as f:
+            doc = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return None
+    types = doc.get('measurement_types')
+    if not isinstance(types, dict):
+        return None
+    return {name: set(entry.get('entity_grains') or [])
+            for name, entry in types.items() if isinstance(entry, dict)}
+
+
 @functools.lru_cache(maxsize=1)
 def _registered_figure_emitters() -> Optional[set[str]]:
     """Parse the card_id keys registered in CARD_FIGURE_EMITTERS. Returns None if the
@@ -513,6 +559,41 @@ def _grain_and_tier_check(spec: dict, report: ValidationReport) -> None:
         )
 
 
+def _blocked_subtype_status_check(spec: dict, report: ValidationReport) -> None:
+    """C3 (status-honesty, 2026-08-15) — a `tier: subtype` card whose subgroup_stratification is
+    `blocked_needs_per_sample_reader` cannot be LIVE and MUST declare an explicit non-`wired` top-level
+    status.
+
+    WHY the `tier: subtype` conjunct (verified against the tree, not the naive predicate): the top-level
+    `status` field DEFAULTS to `wired` when omitted (schema), and the required-cards gate treats a
+    defaulted/`wired` card as 'must produce'. For a `tier: subtype` card the per-subgroup PANORAMA *is*
+    the card's entire identity — if that stratification is blocked, the card produces nothing, so a
+    defaulted-wired status is a false liveness claim. But `blocked_needs_per_sample_reader` ALSO appears
+    on `tier: indication` POOLED cards (tumor-rna-vs-adjacent, tumor-vs-normal-selectivity,
+    tumor-protein-abundance-cptac, ...) where it flags only that the *optional* subgroup FEATURE is
+    blocked — those cards are genuinely live and are correctly in required_cards. Keying C3 on the
+    subgroup status ALONE would force those live cards non-wired and break the required-cards gate, so the
+    check is scoped to `tier: subtype` (identity-is-the-panorama) cards only.
+    """
+    if spec.get('tier') != 'subtype':
+        return
+    strat = spec.get('subgroup_stratification') or {}
+    if strat.get('status') != 'blocked_needs_per_sample_reader':
+        return
+    card_id = spec.get('card_id', '<unknown>')
+    # status DEFAULTS to `wired` when omitted (schema) — both omitted and explicit `wired` are the defect.
+    status = spec.get('status')
+    if status is None or status == 'wired':
+        report.add_error(
+            f'BLOCKED_SUBTYPE_STATUS: card `{card_id}` is `tier: subtype` with '
+            f'subgroup_stratification.status: blocked_needs_per_sample_reader — its per-subgroup panorama '
+            f'(the card\'s entire identity) cannot be produced, so it is NOT live. A subtype-tier card '
+            f'that cannot emit its panorama MUST declare an explicit non-`wired` top-level status '
+            f'(dormant_pending_data / placeholder_not_wired); omitting it defaults to `wired`, which '
+            f'falsely claims the card produces and lets the required-cards gate treat it as must-produce.'
+        )
+
+
 def _figure_emission_check(spec: dict, report: ValidationReport) -> None:
     """Viz-coverage (2026-07-20): a card declaring a figure must be backed by a
     method that emits it. render-evidence-package only embeds a pre-existing figure
@@ -589,6 +670,29 @@ def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
             f'type (per the concordance test, Rule 2) or fix the name — the pull resolver matches '
             f'gates to providers by this key, so an unregistered type is invisible to every gate.'
         )
+        return
+
+    # C5 (entity_grains CEILING, Rule 5): a card may not advertise an entity_grain its measurement_type's
+    # substrate cannot emit. The type declares the capability ceiling; a card SELECTS a grain within it.
+    # A grain above the ceiling is a real defect — the runtime query would return an honest data_unavailable
+    # for that grain, so promising it on the card is a false capability claim. Only checked when BOTH the
+    # card AND the type declare entity_grains (migration-safe: an un-migrated card/type is skipped). Graceful-
+    # skip when the vocab is unreadable.
+    card_grains = spec.get('entity_grains')
+    type_grains_map = _measurement_type_entity_grains()
+    if card_grains and type_grains_map is not None:
+        ceiling = type_grains_map.get(mtype)
+        if ceiling:
+            over = set(card_grains) - ceiling
+            if over:
+                report.add_error(
+                    f'ENTITY_GRAINS_CEILING: card `{card_id}` advertises entity_grain(s) {sorted(over)} '
+                    f'that its measurement_type `{mtype}` cannot emit (type ceiling = {sorted(ceiling)}, '
+                    f'Rule 5). A card must SELECT a grain within its substrate\'s ceiling — advertising a '
+                    f'coarser/finer grain the substrate can\'t produce is a false capability claim (the '
+                    f'runtime returns data_unavailable for it). Drop the grain or widen the type\'s '
+                    f'entity_grains in vocabularies/measurement_types.yaml.'
+                )
 
 
 # sample_context (2026-07-21) is ORTHOGONAL to measurement, but must be CONSISTENT with the card's
@@ -728,6 +832,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _interpretation_summary_field_check(spec, report)
         _composed_card_semantics_check(spec, report)
         _grain_and_tier_check(spec, report)
+        _blocked_subtype_status_check(spec, report)
         _figure_emission_check(spec, report)
         _measurement_type_check(spec, report)
         _sample_context_check(spec, report)
@@ -754,6 +859,52 @@ def _format_report(report: ValidationReport) -> str:
     if report.ok and not report.warnings:
         lines.append(f'    [OK]')
     return '\n'.join(lines)
+
+
+def validate_derived_from_refs(cards_dir: Path) -> list[str]:
+    """C1 (composed-card reachability, 2026-08-15): every `derived_from[].card_id` on every card MUST
+    resolve to a LIVE card_id in cards/, OR to a historical alias (`from` -> `to` in
+    vocabularies/card_id_aliases.yaml whose `to` is a live card). A derived_from pointing at a card that
+    does not exist (typo, deleted, or renamed-without-alias) is an ERROR — a composed card whose upstream
+    is unresolvable is dead at compose time (the method has no card to read). This is the existence half
+    of the reachability check the schema advertises; the field-level 'emits the fields this card reads'
+    half remains unimplemented (schema description down-scoped to match). Directory-level (needs the full
+    card set + the alias map). No-op on an empty/absent dir."""
+    cards_dir = Path(cards_dir)
+    live: set[str] = set()
+    derived_edges: list[tuple[str, str]] = []   # (referencing_card_id, upstream_card_id)
+    for p in sorted(cards_dir.rglob('*.card.yaml')):
+        try:
+            doc = yaml.safe_load(p.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        cid = doc.get('card_id')
+        if cid:
+            live.add(cid)
+        for entry in (doc.get('derived_from') or []):
+            up = (entry or {}).get('card_id') if isinstance(entry, dict) else None
+            if up:
+                derived_edges.append((cid or p.name, up))
+    aliases = _card_id_aliases()
+    problems: list[str] = []
+    for referencing, upstream in derived_edges:
+        if upstream in live:
+            continue
+        # alias resolution: an old id is acceptable iff it maps to a live card
+        aliased_to = aliases.get(upstream)
+        if aliased_to is not None and aliased_to in live:
+            continue
+        if aliased_to is not None:
+            problems.append(
+                f"[ERROR] card '{referencing}': derived_from references '{upstream}', a historical alias "
+                f"whose target '{aliased_to}' is not a live card in cards/ (stale alias — fix the alias "
+                f"target or the reference).")
+        else:
+            problems.append(
+                f"[ERROR] card '{referencing}': derived_from references '{upstream}' which is neither a "
+                f"live card_id in cards/ nor a historical alias in vocabularies/card_id_aliases.yaml "
+                f"(unresolvable upstream — a composed card cannot read a card that does not exist).")
+    return problems
 
 
 def validate_dashboard_required_cards(cards_dir: Path) -> list[str]:
@@ -887,12 +1038,13 @@ def main(argv: list[str] | None = None) -> int:
     # Dashboard required_cards ↔ card.status cross-check (2026-08-12): a non-wired card in required_cards
     # is an error (belongs in placeholder_cards). Runs only for a directory target (needs the card set).
     dashboard_problems = (validate_dashboard_required_cards(target)
-                          + validate_modality_module_card_refs(target)) if target.is_dir() else []
+                          + validate_modality_module_card_refs(target)
+                          + validate_derived_from_refs(target)) if target.is_dir() else []
     dash_errors = [p for p in dashboard_problems if p.startswith('[ERROR]')]
     dash_warnings = [p for p in dashboard_problems if p.startswith('[WARNING]')]
     if dashboard_problems:
         print()
-        print('Dashboard required_cards <-> card.status cross-check:')
+        print('Cross-card checks (required_cards<->status, modality-module refs, derived_from reachability):')
         for p in dashboard_problems:
             print(f'  {p}')
 

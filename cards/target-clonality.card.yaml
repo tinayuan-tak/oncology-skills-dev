@@ -61,4 +61,8 @@ caveats:
 # ccf cut (>=0.8) and the class thresholds (>=0.7 clonal / >=0.4 mixed) are applied in the method and
 # documented above; a future verdict-moving promotion would add rules + a resolver rung behind a backtest.
 
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `mutation_clonality` at target_indication grain. The
+# mutation_clonality registry entry already back-references this card; declaring the type here closes
+# the concordance loop (validate_measurement_types C4 reverse-check).
+measurement_type: mutation_clonality
 schema_version: 1

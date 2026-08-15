@@ -207,3 +207,57 @@ def test_contested_threshold_well_formed_and_inert():
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
     assert veto == {("dependency", "pan_essential_killer"),
                     ("dependency", "non_dependent")}
+
+
+# ---------------------------------------------------------------------------
+# R1-casing (2026-08-15) — modality-scoped surface positives must match the
+# surface_modality resolver's EMITTED (lowercase) verdicts, else the case-
+# sensitive gate loader never matches them (the entries would be dead).
+# ---------------------------------------------------------------------------
+
+def _resolver_surface_verdicts() -> set[str]:
+    rp = REPO / "resolvers" / "surface_modality.resolver.yaml"
+    doc = yaml.safe_load(rp.read_text())
+    out = set()
+    for rung in doc.get("resolve", []) or []:
+        if isinstance(rung, dict) and rung.get("verdict"):
+            out.add(rung["verdict"])
+    return out
+
+
+def test_modality_scoped_positive_verdicts_match_resolver_casing():
+    v = _load()
+    block = v.get("positive_signals_modality_scoped")
+    assert isinstance(block, list) and block
+    resolver_verdicts = _resolver_surface_verdicts()
+    assert resolver_verdicts, "could not parse surface_modality resolver verdicts"
+    for p in block:
+        assert p["sub_skill"] == "surface_modality"
+        # every referenced verdict must be one the resolver actually emits (case-sensitive) — a
+        # TitleCase drift (TCE_preferred/ADC_preferred) would be a DEAD entry the loader never matches.
+        assert p["verdict"] in resolver_verdicts, (
+            f"modality-scoped positive verdict {p['verdict']!r} is not emitted by the "
+            f"surface_modality resolver {sorted(resolver_verdicts)} — casing/name drift makes it dead")
+        assert p["verdict"] == p["verdict"].lower(), \
+            f"surface verdicts are emitted lowercase; {p['verdict']!r} is mis-cased"
+
+
+# ---------------------------------------------------------------------------
+# R2 (2026-08-15) — human_genetics_safety_concern driving_rule_ids provenance
+# completeness: must cite EVERY rule the safety resolver lists in the verdict's
+# when_any_fired set (ClinVar was missing).
+# ---------------------------------------------------------------------------
+
+def test_human_genetics_driving_rules_match_resolver_when_any():
+    v = _load()
+    gate = next(g for g in v["gates"]
+                if g["sub_skill"] == "safety" and g["verdict"] == "human_genetics_safety_concern")
+    gate_rules = set(gate["driving_rule_ids"])
+    assert "clinvar-germline-pathogenic-safety-warning" in gate_rules
+    # cross-check against the resolver's when_any_fired for the same verdict
+    resolver = yaml.safe_load((REPO / "resolvers" / "safety.resolver.yaml").read_text())
+    rungs = resolver.get("resolve", [])
+    hg = next(r for r in rungs if r.get("verdict") == "human_genetics_safety_concern")
+    assert set(hg["when_any_fired"]) == gate_rules, (
+        f"gate driving_rule_ids {sorted(gate_rules)} must equal the resolver's when_any_fired "
+        f"{sorted(hg['when_any_fired'])} for full provenance")

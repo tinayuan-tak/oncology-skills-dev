@@ -262,3 +262,55 @@ def test_card_modality_signals_reads_real_rules():
     # surface-topology-and-ptm has surface rules (e.g. no-transmembrane-adc-killer emits adc)
     if "surface-topology-and-ptm" in m:
         assert m["surface-topology-and-ptm"] & {"adc", "bite_tce", "antibody"}
+
+
+# ---------- entity_grains ceiling check (C5, 2026-08-15) ----------
+# A card may not advertise an entity_grain its measurement_type's substrate cannot emit (Rule 5). Only
+# checked when BOTH card and type declare entity_grains (migration-safe). _measurement_type_entity_grains
+# is monkeypatched for hermeticity.
+
+def _grain_setup(monkeypatch, ceiling):
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"toy_type"})
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: set())
+    monkeypatch.setattr(VC, "_measurement_type_entity_grains", lambda: {"toy_type": set(ceiling)})
+
+
+def test_grain_over_ceiling_is_error(tmp_path, monkeypatch):
+    _grain_setup(monkeypatch, {"target_indication"})
+    card = _base_card(measurement_type="toy_type", entity_grains=["target_indication", "target_subtype"])
+    report = _validate(tmp_path, card)
+    assert not report.ok
+    assert "ENTITY_GRAINS_CEILING" in _errs(report)
+    assert "target_subtype" in _errs(report)
+
+
+def test_grain_within_ceiling_is_clean(tmp_path, monkeypatch):
+    _grain_setup(monkeypatch, {"target_indication", "target_subtype"})
+    card = _base_card(measurement_type="toy_type", entity_grains=["target_indication"])
+    report = _validate(tmp_path, card)
+    assert report.ok, _errs(report)
+    assert "ENTITY_GRAINS_CEILING" not in _errs(report)
+
+
+def test_grain_check_skips_when_type_declares_no_grains(tmp_path, monkeypatch):
+    _grain_setup(monkeypatch, set())  # type ceiling empty -> nothing to enforce
+    card = _base_card(measurement_type="toy_type", entity_grains=["anything_here"])
+    report = _validate(tmp_path, card)
+    assert "ENTITY_GRAINS_CEILING" not in _errs(report)
+
+
+def test_grain_check_graceful_skip_when_vocab_absent(tmp_path, monkeypatch):
+    monkeypatch.setattr(VC, "_registered_measurement_types", lambda: {"toy_type"})
+    monkeypatch.setattr(VC, "_modality_relevant_types", lambda: set())
+    monkeypatch.setattr(VC, "_measurement_type_entity_grains", lambda: None)
+    card = _base_card(measurement_type="toy_type", entity_grains=["target_indication"])
+    report = _validate(tmp_path, card)
+    assert "ENTITY_GRAINS_CEILING" not in _errs(report)
+
+
+def test_real_cards_respect_entity_grains_ceiling():
+    """Regression guard: no shipped card advertises a grain outside its measurement_type's ceiling."""
+    reports = VC.validate_directory(REPO / "cards")
+    offenders = [r.card_path for r in reports
+                 if any("ENTITY_GRAINS_CEILING" in e for e in r.errors)]
+    assert not offenders, f"cards breaching the entity_grains ceiling: {offenders}"

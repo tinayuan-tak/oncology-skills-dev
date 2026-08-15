@@ -9,6 +9,15 @@ question: "How does {target.symbol} expression vary across molecular subgroups i
 
 tier: subtype
 
+# NOT LIVE (2026-08-15, C3): this subtype-tier card's entire identity is the per-subgroup expression
+# panorama, and that panorama is blocked (subgroup_stratification.status below) until a per-sample
+# stratified expression reader ships — so the card produces nothing today. An OMITTED top-level status
+# defaults to `wired` (schema), which would falsely claim the card is live and let the required-cards
+# gate treat it as must-produce; declaring it dormant_pending_data is the honest state (the dge-deseq2
+# method exists but is gated off pending the per-sample stratified reader). It lives in optional_cards,
+# never required_cards, in every dashboard_spec.
+status: dormant_pending_data
+
 # BLOCKED (2026-07-16): the biology genuinely varies by subgroup (filter 1 met),
 # but the bound method `dge-deseq2` returns an aggregate log2FC computed across the
 # whole cohort at emit time (filter 2 FAILS). There is no per-sample expression
