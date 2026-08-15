@@ -33,7 +33,8 @@ S3_BUCKET = "onc-compbio"
 _CRC = ["spatial-coloc-tumor-crc-coadread-v1",   # COADREAD lead — CosMx CRC atlas (GSE303070; measured)
         "spatial-coloc-tumor-crc-gse335552-v1"]  # + depth — Xenium CRC liver-mets (GSE335552; inferred, met-site)
 _PAAD = ["spatial-coloc-tumor-paad-v1",          # PAAD lead — Xenium PDAC atlas (GSE280634; measured)
-         "spatial-coloc-tumor-paad-gse313662-v1"]# + depth — Xenium PDAC 5K, 6 donors (GSE313662; inferred)
+         "spatial-coloc-tumor-paad-gse313662-v1", # + depth — Xenium PDAC 5K, 6 donors (GSE313662; inferred)
+         "spatial-coloc-tumor-paad-gse310352-v1"] # + depth — CosMx PDAC, 7 slides (GSE310352; inferred)
 _NSCLC = ["spatial-coloc-tumor-nsclc-v1",        # NSCLC lead — Xenium-5K (GSE311609; inferred)
           "spatial-coloc-tumor-nsclc-gse319755-v1"]  # + depth — Xenium NSCLC multi-region (GSE319755; inferred)
 INDICATION_TO_SPATIAL_COLOC = {
@@ -54,6 +55,7 @@ _INFERRED_PRODUCTS = frozenset({
     "spatial-coloc-tumor-nsclc-v1",          # Xenium-5K NSCLC (GSE311609); pure-inferred indication
     "spatial-coloc-tumor-nsclc-gse319755-v1",# Xenium NSCLC multi-region depth (GSE319755)
     "spatial-coloc-tumor-paad-gse313662-v1", # Xenium PDAC 5K depth (GSE313662)
+    "spatial-coloc-tumor-paad-gse310352-v1", # CosMx PDAC depth (GSE310352; mode-C inference on CSV->h5ad)
     "spatial-coloc-tumor-crc-gse335552-v1",  # Xenium CRC liver-mets depth (GSE335552)
 })
 

@@ -33,7 +33,9 @@ def test_stad_wired_to_gastric_cosmx():
 def test_paad_wired_to_pdac_xenium():
     prods = SC._product_ids("PAAD")
     assert "spatial-coloc-tumor-paad-v1" in prods          # measured lead
-    assert "spatial-coloc-tumor-paad-gse313662-v1" in prods  # inferred depth cohort
+    assert "spatial-coloc-tumor-paad-gse313662-v1" in prods  # inferred depth cohort (Xenium)
+    assert "spatial-coloc-tumor-paad-gse310352-v1" in prods  # inferred depth cohort (CosMx GSE310352)
+    assert SC._tier_of("spatial-coloc-tumor-paad-gse310352-v1") == "inferred"
 
 
 def test_hnsc_wired_to_xenium_inferred():
