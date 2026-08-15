@@ -1624,12 +1624,14 @@ rules:
   # ============================================================================
   # Genotype × PRISM drug-response (Log2AUC) — "are mutant lines more SENSITIVE to a DRUG that targets
   # this gene?" — the pharmacological sibling of mutation-stratified-dependency (which is CRISPR-KO
-  # dependency). ADDITIVE render facet — feeds NO resolver ladder (dependency/genomic verdict spine
-  # byte-stable). Signals are small_molecule-only (a drug-response biomarker is an SM patient-selection
-  # signal). Deliberately NOT fired as biomarker_stratified_dependency: drug-sensitivity != KO-dependency
-  # (a KO removes noncatalytic scaffolding a small molecule leaves intact); conflating them would
-  # over-credit the genetic verdict with pharmacological evidence. A distinct verdict rung is a
-  # deliberate later step.
+  # dependency). Signals are small_molecule-only (a drug-response biomarker is an SM patient-selection
+  # signal). VERDICT-DRIVING on the GENOMIC gate (2026-08-15 doc-parity fix — the "distinct verdict
+  # rung" the old comment deferred HAS since landed): the STRONG rule below fires the genomic_alteration
+  # resolver's drug_response_biomarker rung (genomic_alteration.resolver.yaml §2d-drug); the moderate
+  # class stays signal-only. It remains OUT of the DEPENDENCY spine (that stays byte-stable) —
+  # deliberately NOT fired as biomarker_stratified_dependency: drug-sensitivity != KO-dependency (a KO
+  # removes noncatalytic scaffolding a small molecule leaves intact), so a DISTINCT verdict
+  # (drug_response_biomarker, never conflated with biomarker_stratified_dependency) is emitted instead.
   - rule_id: mutation-drug-response-strongly-sensitive-supportive
     when:
       card_id: mutation-drug-response
