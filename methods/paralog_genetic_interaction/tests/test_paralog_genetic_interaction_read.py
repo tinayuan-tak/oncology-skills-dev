@@ -62,7 +62,10 @@ def test_read_failure_is_data_unavailable_with_breadcrumb(monkeypatch):
     monkeypatch.setattr(pq, "read_table", _boom)
     out = r.combinatorial_dependency_for_gene("CDK4")
     assert out["combinatorial_dependency_class"] == "data_unavailable"
-    assert out.get("_live_read_error") == "paralog_genetic_interaction_read_failed"
+    # transient failure is DISTINGUISHED from genuine-absence and carries the real cause
+    breadcrumb = str(out.get("_live_read_error", ""))
+    assert "transient" in breadcrumb
+    assert "expired STS credentials" in breadcrumb
 
 
 def test_transient_failure_not_permanently_cached(monkeypatch):

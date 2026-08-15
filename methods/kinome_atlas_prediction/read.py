@@ -128,9 +128,18 @@ def _load_atlas_indexed():
             path,
             filters=[('percentile', '>=', RUNTIME_PERCENTILE_THRESHOLD)],
         )
-    except Exception:
+    except Exception as e:
         import pandas as pd
-        return pd.DataFrame(), {}, {}
+        from methods.target_id_sidecar import is_definitively_absent
+        # The atlas S3 fetch is already discriminated upstream in _ensure_derived_cached (latches
+        # data_unavailable only on a definitive 404/NoSuchKey). Here `path` is a LOCAL cached parquet:
+        # a genuinely-missing file (FileNotFoundError) is honest absence -> empty. A CORRUPT parquet or
+        # a broken-env failure (pyarrow/pandas parse/import error) is NOT absence -> re-raise so the
+        # live-read seam surfaces a _live_read_error instead of a silent empty index (and lru_cache
+        # never latches the empty).
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return pd.DataFrame(), {}, {}
+        raise
 
     if df.empty:
         return df, {}, {}

@@ -89,8 +89,16 @@ def _read_e3_substrate(target: str) -> Optional[dict]:
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("gene_symbol", "=", (target or "").strip().upper())])
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # GENUINE absence (NoSuchKey/404 or pyarrow FileNotFoundError, or 0 rows below) is NEUTRAL for
+        # degradability — a target simply not in UbiBrowser is NOT disqualifying -> None. But a
+        # TRANSIENT/creds/broken-env failure must NOT be swallowed: silently dropping the e3-substrate
+        # signal downgrades a real `ubiquitination_substrate` positive to `plausible_untested`. Re-raise
+        # so the live-read seam surfaces a _live_read_error (honest error status), not a masked downgrade.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     if tbl.num_rows == 0:
         return None
     return tbl.to_pylist()[0]

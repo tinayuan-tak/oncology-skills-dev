@@ -69,7 +69,10 @@ def test_read_failure_is_data_unavailable_with_breadcrumb(monkeypatch):
     monkeypatch.setattr(pq, "read_table", _boom)
     out = r.resistance_mediators_for_gene("KRAS", include_tahoe_adaptation=False)
     assert out["resistance_emergence_class"] == "data_unavailable"
-    assert out.get("_live_read_error") == "resistance_emergence_read_failed"
+    # transient failure is DISTINGUISHED from genuine-absence and carries the real cause
+    breadcrumb = str(out.get("_live_read_error", ""))
+    assert "transient" in breadcrumb
+    assert "expired STS credentials" in breadcrumb
 
 
 def test_transient_failure_not_permanently_cached(monkeypatch):

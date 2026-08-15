@@ -37,8 +37,11 @@ _ROWS_CACHE: dict = {}
 
 
 def _read_rows(target: str) -> Optional[tuple]:
-    """Pushdown-read combination rows for one inhibited_target. None on read failure (NOT cached);
-    empty tuple if the target has no anchor screen (cached). Successful reads are cached."""
+    """Pushdown-read combination rows for one inhibited_target. Returns None on a GENUINE no-object
+    (NoSuchKey/404) and RAISES on transient/creds/broken-env (neither cached, so a later call
+    retries); empty tuple if the target has no anchor screen (cached). Successful reads are cached.
+    The public `combination_opportunities_for_gene` catches the transient raise at its boundary and
+    degrades to data_unavailable + a cause-accurate breadcrumb (never propagates)."""
     sym = (target or "").strip().upper()
     if sym in _ROWS_CACHE:
         return _ROWS_CACHE[sym]
@@ -51,8 +54,15 @@ def _read_rows(target: str) -> Optional[tuple]:
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("inhibited_target", "=", sym)])
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # A GENUINELY absent product object (NoSuchKey/404 or pyarrow FileNotFoundError) -> None (NOT
+        # cached) -> caller emits data_unavailable with its generic read-failed breadcrumb (unchanged).
+        # A transient/creds/broken-env failure is NOT absence -> re-raise so the live-read seam records
+        # the REAL cause instead of a generic no-object; not cached, so a later call still retries.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     result = tuple() if tbl.num_rows == 0 else tuple(tbl.to_pylist())
     _ROWS_CACHE[sym] = result
     return result
@@ -104,7 +114,20 @@ def _rank(rows: tuple, top_n: int = 20) -> list:
 def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None) -> dict:
     """Per-target drug-anchored combination-opportunity summary. rows injectable for tests."""
     sym = (target or "").strip().upper()
-    data = rows if rows is not None else _read_rows(sym)
+    read_error = None
+    if rows is not None:
+        data = rows
+    else:
+        try:
+            data = _read_rows(sym)   # None = genuine no-object (NoSuchKey/404); raises on transient
+        except Exception as e:  # noqa: BLE001 — graceful boundary: never propagate a read blip
+            # This reader ALREADY owns the honest "read failure -> data_unavailable + breadcrumb"
+            # contract; propagating a transient S3/creds/broken-env exception past the public boundary
+            # would crash the whole skill run on a blip (worse than a graceful data_unavailable). The
+            # refinement over the old blanket masking is that the breadcrumb now names the true cause;
+            # _read_rows does not cache a failed load, so a later call still retries.
+            data = None
+            read_error = f"combo_drug_anchor transient/creds/broken-env read failure: {e}"
     klass = _classify(data)
     partners = _rank(data, top_n=20) if data else []
     strongest = partners[0] if partners else None
@@ -127,7 +150,8 @@ def combination_opportunities_for_gene(target: str, rows: Optional[tuple] = None
     # surface a breadcrumb so it is never mistaken for a benign coverage gap (mirrors exon_window /
     # cd_antigen_backbone). NOT cached upstream, so a later call retries.
     if klass == "data_unavailable":
-        out["_live_read_error"] = "combo_drug_anchor_read_failed"
+        out["_live_read_error"] = read_error or (
+            "combo_drug_anchor genuine no-object (NoSuchKey/404): drug-anchor combination product absent")
     return out
 
 

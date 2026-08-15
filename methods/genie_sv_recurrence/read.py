@@ -59,8 +59,14 @@ def _load_sv():
     s3 = _boto3_client()
     try:
         body = s3.get_object(Bucket=S3_BUCKET, Key=SV_KEY)["Body"].read()
-    except Exception:
-        return None
+    except Exception as e:
+        from methods.target_id_sidecar import is_definitively_absent
+        # Mirror the sibling GENIE readers: a genuine NoSuchKey/404 (or FileNotFoundError) on the SV
+        # feed -> None -> caller emits data_unavailable (unchanged). A transient/creds/broken-env
+        # failure is NOT absence -> re-raise so the live-read seam tags _live_read_error.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     df = pd.read_csv(io.BytesIO(body), sep="\t", dtype=str,
                      usecols=lambda c: c in ("Sample_Id", "Site1_Hugo_Symbol", "Site2_Hugo_Symbol"))
     df = df.rename(columns={"Sample_Id": "sample_id",

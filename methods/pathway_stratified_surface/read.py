@@ -39,8 +39,15 @@ def _read_row(target: str, signature: str, indication: str) -> Optional[dict]:
                             filters=[("gene_symbol", "=", (target or "").strip().upper()),
                                      ("signature", "=", signature),
                                      ("indication", "=", indication)])
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # GENUINE absence (NoSuchKey/404 or pyarrow FileNotFoundError), like the 0-row case below,
+        # -> None -> caller emits not_in_product (coverage gap, unchanged). A transient/creds/broken-
+        # env failure is NOT absence -> re-raise so the live-read seam surfaces an honest
+        # _live_read_error instead of a masked coverage gap.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     if tbl.num_rows == 0:
         return None
     return tbl.to_pylist()[0]

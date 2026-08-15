@@ -117,8 +117,15 @@ def _cohort_n_tumors(cohort: str, product_path: Optional[str] = None) -> Optiona
         if tbl.num_rows == 0:
             return None
         return int(tbl.column("n_tumors_cohort")[0].as_py())
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Mirror _read_gene_sites (Stage-1): a GENUINELY missing product (NoSuchKey/404, or pyarrow
+        # FileNotFoundError on a missing local/S3 object) -> None (caller distinguishes
+        # not_phosphoprotein vs data_unavailable, unchanged). A transient/creds/broken-env failure is
+        # NOT absence -> re-raise so the live-read seam tags _live_read_error instead of a dead axis.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
 
 
 def read_phospho_pathway_activity(target: str, indication: str,

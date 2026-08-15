@@ -50,7 +50,13 @@ def test_no_anchor_screen_is_coverage_gap_not_negative():
     assert "coverage gap" in r["combination_context"].lower()
 
 
-def test_read_failure_is_data_unavailable():
+def test_read_failure_is_data_unavailable(monkeypatch):
+    # GENUINE absence: the reader returns None on NoSuchKey/404 -> data_unavailable (unchanged).
+    # (A transient/creds read failure now RE-RAISES instead of masking — see
+    # tests/methods/combo_drug_anchor/test_read_rows_absence.py.) rows=None here means "read live",
+    # so monkeypatch the reader to the genuine-absence result to keep this test hermetic.
+    import methods.combo_drug_anchor.read as _m
+    monkeypatch.setattr(_m, "_read_rows", lambda target: None)
     r = combination_opportunities_for_gene("KRAS", rows=None)
     assert r["combination_opportunity_class"] == "data_unavailable"
 

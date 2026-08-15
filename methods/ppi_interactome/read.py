@@ -143,7 +143,14 @@ def _biogrid_physical_for(symbol: str, product_path: Optional[str] = None) -> Op
                                 filesystem=fs.S3FileSystem(region="us-east-1"),
                                 filters=[("gene_symbol", "==", symbol)],
                                 columns=["partner_symbol", "n_publications", "n_experiments"])
-    except Exception:  # noqa: BLE001 — product missing/unreadable → BioGRID leg absent
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # GENUINE absence (NoSuchKey/404 or pyarrow FileNotFoundError on a missing local/S3 object)
+        # -> None -> the BioGRID leg is simply absent (the other PPI legs still report). A transient/
+        # creds/broken-env failure is NOT absence -> re-raise so the live-read seam surfaces an honest
+        # _live_read_error rather than a silently dropped leg.
+        if not is_definitively_absent(e) and not isinstance(e, FileNotFoundError):
+            raise
         return None
     d = tbl.to_pandas()
     out = [{"partner": p, "n_publications": int(npub), "n_experiments": int(nexp)}

@@ -32,7 +32,12 @@ def test_pathway_high_down():
     assert s["pathway_stratified_surface_class"] == "pathway_high_down_surface"
 
 
-def test_not_in_product_is_coverage_gap():
+def test_not_in_product_is_coverage_gap(monkeypatch):
+    # GENUINE absence: the reader returns None on NoSuchKey/404 -> not_in_product (coverage gap,
+    # unchanged). A transient/creds read failure now RE-RAISES instead of masking — see
+    # test_read_row_absence.py. row=None means "read live", so monkeypatch the reader to stay hermetic.
+    import methods.pathway_stratified_surface.read as _m
+    monkeypatch.setattr(_m, "_read_row", lambda *a, **k: None)
     s = read_pathway_stratified_surface("CD19", signature="HALLMARK_INFLAMMATORY_RESPONSE",
                                         indication="DLBCL", row=None)
     assert s["pathway_stratified_surface_class"] == "not_in_product"

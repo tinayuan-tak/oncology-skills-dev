@@ -82,8 +82,13 @@ def test_absent_gene_is_coverage_gap_not_negative():
     assert "coverage gap" in r["combinatorial_context"]
 
 
-def test_read_failure_is_data_unavailable_not_negative():
-    # None = read/S3 failure (distinct from empty = screened-but-absent)
+def test_read_failure_is_data_unavailable_not_negative(monkeypatch):
+    # GENUINE absence: the reader returns None on NoSuchKey/404 -> data_unavailable (NOT a negative
+    # interaction; distinct from empty = screened-but-absent -> no_paralog_screened). A transient/creds
+    # read failure now RE-RAISES instead of masking — see test_absence_discipline.py. summary_rows=None
+    # means "read live", so monkeypatch the reader to the genuine-absence result to stay hermetic.
+    import methods.paralog_genetic_interaction.read as _m
+    monkeypatch.setattr(_m, "_read_summary_rows", lambda target: None)
     r = combinatorial_dependency_for_gene("SOMEGENE", summary_rows=None)
     assert r["combinatorial_dependency_class"] == "data_unavailable"
 

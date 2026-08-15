@@ -67,22 +67,46 @@ def _barcode_to_patient(sample: str) -> str:
 
 @lru_cache(maxsize=1)
 def _load_sample_cancer_types() -> dict:
-    """{patient_barcode: cancer_type} from merged_sample_quality_annotations. Empty on failure."""
+    """{patient_barcode: cancer_type} from merged_sample_quality_annotations — the SHARED barcode→
+    cancer-type crosswalk that gates EVERY gene's indication join here and in tcga_aneuploidy_burden.
+
+    A crosswalk either loads or it does NOT (ref methods/target_id_sidecar.read_resolver_sidecar_map):
+      * transient / creds / broken-env failure (throttle, ExpiredToken, missing pandas) -> re-raise so
+        the live-read seam surfaces an honest _live_read_error rather than collapsing the join;
+      * a well-formed read that yields an EMPTY map -> raise too, because returning {} would silently
+        collapse every gene's join to "no samples" (the null-strata bug class — mirrors the
+        empty-crosswalk guard);
+      * ONLY a genuine NoSuchKey/404 on the annotation object is a real absence -> {}.
+    """
     import pandas as pd
+    from methods.target_id_sidecar import is_definitively_absent
     try:
         raw = _s3_read_bytes(SAMPLE_ANNOT_KEY)
         df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["patient_barcode", "cancer type"], dtype=str)
         df = df.dropna(subset=["patient_barcode", "cancer type"])
-        return dict(zip(df["patient_barcode"], df["cancer type"]))
-    except Exception:  # noqa: BLE001
-        return {}
+        out = dict(zip(df["patient_barcode"], df["cancer type"]))
+    except Exception as e:  # noqa: BLE001
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return {}
+        raise
+    if not out:
+        raise ValueError(
+            f"sample→cancer-type crosswalk s3://{S3_BUCKET}/{SAMPLE_ANNOT_KEY} produced an EMPTY map "
+            "(well-formed read, no usable barcode→cancer-type pairs) — a broken/empty product, NOT a "
+            "data gap; returning {} here would silently collapse every gene's indication join.")
+    return out
 
 
 @lru_cache(maxsize=256)
 def _read_gistic_gene(target: str) -> tuple:
     """GISTIC discrete CN for ONE gene: tuple of (aliquot_barcode, int_value). The file is gene-rows;
-    we scan for the target row and drop the meta columns. Cached per gene. Empty on failure."""
+    we scan for the target row and drop the meta columns. Cached per gene.
+
+    Empty tuple ONLY for genuine absence: a gene not present in the GISTIC calls (empty row), or a
+    NoSuchKey/404 on the 589 MB TSV object. A transient / creds / broken-env failure on that read is
+    NOT absence -> re-raise so the live-read seam surfaces an honest _live_read_error."""
     import pandas as pd
+    from methods.target_id_sidecar import is_definitively_absent
     try:
         raw = _s3_read_bytes(GISTIC_KEY)
         df = pd.read_csv(io.BytesIO(raw), sep="\t", low_memory=False)
@@ -93,8 +117,10 @@ def _read_gistic_gene(target: str) -> tuple:
         vals = row.iloc[0].drop(labels=[c for c in meta if c in row.columns])
         return tuple((str(k), int(v)) for k, v in vals.items()
                      if str(v) not in ("nan", "") and str(v).lstrip("-").isdigit())
-    except Exception:  # noqa: BLE001
-        return tuple()
+    except Exception as e:  # noqa: BLE001
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return tuple()
+        raise
 
 
 def _classify(amp_frac: float, del_frac: float) -> str:

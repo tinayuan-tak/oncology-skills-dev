@@ -65,8 +65,11 @@ def test_plausible_untested_when_intracellular_no_evidence():
     assert "NOT" in out["degradability_context"]
 
 
-def test_data_unavailable_when_no_signal_at_all():
-    # no row AND no surface class → genuinely nothing to reason from
+def test_data_unavailable_when_no_signal_at_all(monkeypatch):
+    # no row AND no surface class → genuinely nothing to reason from. e3_row=None means "read live",
+    # so monkeypatch the reader to its GENUINE-absence result (None on NoSuchKey/404). A transient/
+    # creds read failure now RE-RAISES instead of downgrading — see test_e3_absence_discipline.py.
+    monkeypatch.setattr(r, "_read_e3_substrate", lambda sym: None)
     out = r.degradation_feasibility_for_gene("NOPE", surface_family_class=None,
                                              e3_row=None, precedent={})
     assert out["degradability_feasibility_class"] == "data_unavailable"

@@ -44,7 +44,12 @@ def _read_rows(target: str) -> Optional[tuple]:
 
     Self-target rows are NOT dropped here — the raw row count is what distinguishes "no anchor
     screen" (0 raw rows) from "screened but no non-self mediator" (raw rows exist, all self). The
-    self-target drop happens at summary time so that distinction survives."""
+    self-target drop happens at summary time so that distinction survives.
+
+    Returns None on a GENUINE no-object (NoSuchKey/404) and RAISES on transient/creds/broken-env
+    (neither cached, so a later call retries). The public `resistance_mediators_for_gene` catches the
+    transient raise at its boundary and degrades to data_unavailable + a cause-accurate breadcrumb
+    (never propagates)."""
     sym = (target or "").strip().upper()
     if sym in _ROWS_CACHE:
         return _ROWS_CACHE[sym]
@@ -57,8 +62,15 @@ def _read_rows(target: str) -> Optional[tuple]:
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("inhibited_target", "=", sym)])
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # A GENUINELY absent product object (NoSuchKey/404 or pyarrow FileNotFoundError) -> None (NOT
+        # cached) -> caller emits data_unavailable with its generic read-failed breadcrumb (unchanged).
+        # A transient/creds/broken-env failure is NOT absence -> re-raise so the live-read seam records
+        # the REAL cause instead of a generic no-object; not cached, so a later call still retries.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     result = tuple(tbl.to_pylist())
     _ROWS_CACHE[sym] = result
     return result
@@ -130,7 +142,19 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     resistance-associated survival programs the anchor drug INDUCES). It never changes the primary
     class — a secondary lens, weaker causal claim."""
     sym = (target or "").strip().upper()
-    raw = rows if rows is not None else _read_rows(sym)
+    read_error = None
+    if rows is not None:
+        raw = rows
+    else:
+        try:
+            raw = _read_rows(sym)   # None = genuine no-object (NoSuchKey/404); raises on transient
+        except Exception as e:  # noqa: BLE001 — graceful boundary: never propagate a read blip
+            # This reader ALREADY owns the honest "read failure -> data_unavailable + breadcrumb"
+            # contract; propagating a transient S3/creds/broken-env exception past the public boundary
+            # would crash the whole skill run on a blip. The refinement is that the breadcrumb now
+            # names the true cause; _read_rows does not cache a failed load, so a later call retries.
+            raw = None
+            read_error = f"resistance_emergence transient/creds/broken-env read failure: {e}"
     non_self = _drop_self_target(raw) if raw else raw
     klass = _classify(raw, non_self or tuple())
     mediators = _rank(non_self, top_n=20) if non_self else []
@@ -155,7 +179,8 @@ def resistance_mediators_for_gene(target: str, rows: Optional[tuple] = None,
     # surface a breadcrumb so it is never mistaken for a benign coverage gap (mirrors
     # combo_drug_anchor). NOT cached upstream, so a later call retries.
     if klass == "data_unavailable":
-        out["_live_read_error"] = "resistance_emergence_read_failed"
+        out["_live_read_error"] = read_error or (
+            "resistance_emergence genuine no-object (NoSuchKey/404): resistance product absent")
 
     # ORTHOGONAL VERDICT-INERT sub-signal: Tahoe transcriptional-adaptation (which resistance
     # programs the anchor drug INDUCES). Attached as facet fields; NEVER alters resistance_emergence_

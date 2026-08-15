@@ -62,7 +62,10 @@ def test_read_failure_is_data_unavailable_with_breadcrumb(monkeypatch):
     monkeypatch.setattr(pq, "read_table", _boom)
     out = r.combination_opportunities_for_gene("KRAS")
     assert out["combination_opportunity_class"] == "data_unavailable"
-    assert out.get("_live_read_error") == "combo_drug_anchor_read_failed"
+    # transient failure is DISTINGUISHED from genuine-absence and carries the real cause
+    breadcrumb = str(out.get("_live_read_error", ""))
+    assert "transient" in breadcrumb
+    assert "expired STS credentials" in breadcrumb
 
 
 def test_transient_failure_not_permanently_cached(monkeypatch):

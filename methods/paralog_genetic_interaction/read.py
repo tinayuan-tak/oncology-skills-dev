@@ -66,9 +66,12 @@ def _bucket_keys():
 
 
 def _read_summary_rows(target: str) -> Optional[tuple]:
-    """Pushdown-read summary rows for one target_gene. None on read failure (NOT cached — so a
-    later call retries); empty tuple if the gene is absent from the library (cached). Successful
-    reads are cached in _SUMMARY_CACHE. Returns a tuple of dicts."""
+    """Pushdown-read summary rows for one target_gene. Returns None on a GENUINE no-object
+    (NoSuchKey/404) and RAISES on transient/creds/broken-env (neither cached, so a later call
+    retries); empty tuple if the gene is absent from the library (cached). Successful reads are
+    cached in _SUMMARY_CACHE. The public `combinatorial_dependency_for_gene` catches the transient
+    raise at its boundary and degrades to data_unavailable + a cause-accurate breadcrumb. Returns a
+    tuple of dicts."""
     sym = (target or "").strip().upper()
     if sym in _SUMMARY_CACHE:
         return _SUMMARY_CACHE[sym]
@@ -80,8 +83,14 @@ def _read_summary_rows(target: str) -> Optional[tuple]:
             f"{bucket}/{summary_key}", filesystem=fs.S3FileSystem(),
             filters=[("target_gene", "=", sym)],
         )
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Genuine NoSuchKey/404 (or pyarrow FileNotFoundError) on the summary object -> None (NOT
+        # cached) -> caller emits data_unavailable (unchanged). A transient/creds/broken-env failure is
+        # NOT absence -> re-raise so the live-read seam tags _live_read_error; not cached, later retries.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     result = tuple() if tbl.num_rows == 0 else tuple(tbl.to_pylist())
     _SUMMARY_CACHE[sym] = result
     return result
@@ -89,7 +98,9 @@ def _read_summary_rows(target: str) -> Optional[tuple]:
 
 def _read_pair_lines(target: str, partner: str) -> Optional[list]:
     """Per-line GI rows for a specific (target, partner) pair — for the lineage breakdown.
-    None on read failure; [] if the pair is absent."""
+    Returns None on a GENUINE no-object (NoSuchKey/404) and RAISES on transient/creds/broken-env;
+    [] if the pair is absent. The public `lineage_breakdown_for_pair` catches the transient raise at
+    its boundary and degrades to a data_unavailable status + breadcrumb (never propagates)."""
     try:
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
@@ -99,8 +110,14 @@ def _read_pair_lines(target: str, partner: str) -> Optional[list]:
             filters=[("target_gene", "=", (target or "").strip().upper()),
                      ("partner_gene", "=", (partner or "").strip().upper())],
         )
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Genuine NoSuchKey/404 (or pyarrow FileNotFoundError) on the per-line object -> None ->
+        # caller treats as absent (unchanged). A transient/creds/broken-env failure is NOT absence ->
+        # re-raise so the live-read seam surfaces an honest _live_read_error instead of a dead axis.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     return tbl.to_pylist()
 
 
@@ -194,7 +211,20 @@ def _rank_partners(summary_rows: tuple, top_n: int = 20) -> list:
 def combinatorial_dependency_for_gene(target: str, summary_rows: Optional[tuple] = None) -> dict:
     """Per-target combinatorial-KO genetic-interaction summary. summary_rows injectable for tests."""
     sym = (target or "").strip().upper()
-    rows = summary_rows if summary_rows is not None else _read_summary_rows(sym)
+    read_error = None
+    if summary_rows is not None:
+        rows = summary_rows
+    else:
+        try:
+            rows = _read_summary_rows(sym)   # None = genuine no-object; raises on transient
+        except Exception as e:  # noqa: BLE001 — graceful boundary: never propagate a read blip
+            # This reader ALREADY owns the honest "read failure -> data_unavailable + breadcrumb"
+            # contract; propagating a transient S3/creds/broken-env exception past the public boundary
+            # would crash the whole skill run on a blip. The refinement is that the breadcrumb now
+            # names the true cause; _read_summary_rows does not cache a failed load, so a later call
+            # retries.
+            rows = None
+            read_error = f"paralog_genetic_interaction transient/creds/broken-env read failure: {e}"
     klass = _classify(rows)
     partners = _rank_partners(rows, top_n=20) if rows else []
     strongest = partners[0] if partners else None
@@ -218,14 +248,19 @@ def combinatorial_dependency_for_gene(target: str, summary_rows: Optional[tuple]
     # failure — surface a breadcrumb so it is never mistaken for a benign coverage gap (mirrors
     # exon_window / cd_antigen_backbone). NOT cached upstream, so a later call retries.
     if klass == "data_unavailable":
-        out["_live_read_error"] = "paralog_genetic_interaction_read_failed"
+        out["_live_read_error"] = read_error or (
+            "paralog_genetic_interaction genuine no-object (NoSuchKey/404): paralog GI product absent")
     return out
 
 
 def lineage_breakdown_for_pair(target: str, partner: str) -> dict:
     """Per-lineage GI breakdown for a specific pair — surfaces genotype/lineage-conditional SL
     that a pan-line summary hides (the SMARCA2/4 lesson)."""
-    lines = _read_pair_lines(target, partner)
+    try:
+        lines = _read_pair_lines(target, partner)   # None = genuine no-object; raises on transient
+    except Exception as e:  # noqa: BLE001 — graceful boundary: never propagate a read blip
+        return {"status": "data_unavailable", "pair": f"{target}/{partner}",
+                "_live_read_error": f"paralog_genetic_interaction transient/creds/broken-env read failure: {e}"}
     if lines is None:
         return {"status": "data_unavailable", "pair": f"{target}/{partner}"}
     if not lines:

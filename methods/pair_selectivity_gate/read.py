@@ -71,8 +71,14 @@ def _frac_by_group(gene_a: str, gene_b: str, gate: str, source: str) -> Optional
     group_col = "study" if source == "tumor" else "tissue"
     try:
         uri = s3_uri_for(manifest)
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Genuine NoSuchKey/404 (or FileNotFoundError) resolving the product URI -> None (caller emits
+        # data_unavailable, unchanged). A transient/creds/broken-env/config-resolution failure is NOT
+        # absence -> re-raise so the live-read seam surfaces an honest _live_read_error.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     a, b = gene_a.upper().strip(), gene_b.upper().strip()
     sql = f"""
       WITH g AS (
@@ -88,8 +94,17 @@ def _frac_by_group(gene_a: str, gene_b: str, gate: str, source: str) -> Optional
     """
     try:
         df = _con().execute(sql).df()
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # DuckDB httpfs surfaces a GENUINELY missing S3 parquet as an IO error whose message carries
+        # "NoSuchKey"/"404" (not a botocore ClientError) — treat that as genuine absence -> None
+        # (data_unavailable, unchanged). A creds error (403/AccessDenied), throttle, broken-env, or a
+        # SQL fault is NOT absence -> re-raise so the seam records an honest _live_read_error.
+        msg = str(e)
+        if (is_definitively_absent(e) or isinstance(e, FileNotFoundError)
+                or "NoSuchKey" in msg or "404" in msg):
+            return None
+        raise
     return {str(r.grp): float(r.pos_frac) for r in df.itertuples()}
 
 

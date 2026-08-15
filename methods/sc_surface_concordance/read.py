@@ -52,7 +52,13 @@ def read_gene_rows(target: str) -> Optional[pd.DataFrame]:
         return tbl.to_pandas()
     except FileNotFoundError:
         return None
-    except Exception:  # noqa: BLE001 — any read failure is a coverage gap, not a crash
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # A genuine NoSuchKey/404 (product not on S3) is an honest coverage gap -> None (caller emits
+        # data_unavailable, unchanged). A transient/creds/broken-env failure is NOT a coverage gap ->
+        # re-raise so the live-read seam surfaces an honest _live_read_error rather than a masked gap.
+        if not is_definitively_absent(e):
+            raise
         return None
 
 
