@@ -48,8 +48,17 @@ def _read_dgidb_row(target: str) -> Optional[dict]:
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("gene_symbol", "=", (target or "").strip().upper())])
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # A GENUINELY absent object (NoSuchKey/404, or pyarrow/s3fs FileNotFoundError) means the
+        # DGIdb product truly has no row for this gene -> None -> _classify(None) ->
+        # no_known_drug_evidence, the honest coverage-gap class (unchanged semantics; a gene absent
+        # from DGIdb legitimately has no known drug). A transient/creds/broken-env failure (throttle,
+        # expired token, missing pyarrow) is NOT absence -> re-raise so the live-read seam surfaces an
+        # honest _live_read_error, never a false "no_known_drug_evidence" for a live gene.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     if tbl.num_rows == 0:
         return None
     return tbl.to_pylist()[0]

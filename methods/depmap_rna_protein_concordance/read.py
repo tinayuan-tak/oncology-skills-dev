@@ -140,8 +140,15 @@ def _read_matched_cohort(cohort: str):
         tbl = pq.read_table(f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs,
                             filters=[("cohort", "==", cohort)])
         return tbl.to_pandas()
-    except Exception:  # noqa: BLE001
-        return pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"])
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # Only a GENUINELY missing object (NoSuchKey/404, or s3fs/pyarrow FileNotFoundError) is data
+        # absence -> empty frame (unchanged data_unavailable). A transient/creds/broken-env failure is
+        # NOT absence -> re-raise so it surfaces as an honest _live_read_error, never a silent empty
+        # cohort (which would read as "no matched tumors" and dead-axe the concordance verdict).
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"])
+        raise
 
 
 def read_tumor_rna_protein_concordance(target: str, indication: str) -> dict:

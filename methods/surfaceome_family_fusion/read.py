@@ -93,12 +93,14 @@ def _load_indexed():
     if path is None:
         import pandas as pd
         return pd.DataFrame(), {}, {}
-    try:
-        import pandas as pd
-        df = pd.read_parquet(path)
-    except Exception:
-        import pandas as pd
-        return pd.DataFrame(), {}, {}
+    import pandas as pd
+    # LOCAL cache read — S3 absence (404/NoSuchKey) is latched in _ensure_derived_cached (path=None
+    # above -> honest data_unavailable). A failure reading a PRESENT file is broken-env (missing
+    # pyarrow) or a corrupt/partial cache, NOT data absence -> PROPAGATE (honest _live_read_error at
+    # the live-read seam), never mask as an empty frame. @lru_cache does not memoize the raise, so
+    # this also avoids the poison-on-failure the old return-empty caused (mirrors cptac_protein_deg /
+    # surface_antigen_density_ladder).
+    df = pd.read_parquet(path)
     if df.empty:
         return df, {}, {}
 
@@ -118,10 +120,9 @@ def _load_indexed():
 
 
 def read_target_summary(target: str, indication: str = None) -> dict:
-    try:
-        df, gene_idx, ac_idx = _load_indexed()
-    except Exception as e:
-        return _empty(f"surfaceome_family_load_failed: {type(e).__name__}: {e}")
+    # Let broken-env/corrupt-cache propagate from _load_indexed (honest _live_read_error) instead of
+    # re-swallowing to _empty. Genuine absent product -> empty df below -> _empty (data_unavailable).
+    df, gene_idx, ac_idx = _load_indexed()
     if df is None or df.empty:
         return _empty("surfaceome_family_data_unavailable")
 

@@ -86,8 +86,16 @@ def _read_gene_sites(gene: str, cohort: str, product_path: Optional[str] = None)
             tbl = pq.read_table(f"{S3_BUCKET}/{PHOSPHO_PRODUCT_KEY}",
                                 filesystem=fs.S3FileSystem(region="us-east-1"),
                                 filters=flt, columns=cols)
-    except Exception:  # noqa: BLE001 — product unreadable → caller emits data_unavailable
-        return None
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        # A GENUINELY missing product (NoSuchKey/404, or pyarrow FileNotFoundError for a missing
+        # local/S3 object) -> None -> caller emits data_unavailable (unchanged). A transient/creds/
+        # broken-env failure is NOT absence -> re-raise so the live-read seam tags _live_read_error.
+        # The caller therefore no longer double-tags _live_read_error on None (that path is now
+        # genuine-absence only); the transient error is surfaced solely via this raise.
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     return tbl.to_pandas()
 
 
@@ -127,10 +135,13 @@ def read_phospho_pathway_activity(target: str, indication: str,
         return base
     base["cptac_cohort"] = cohort
 
+    # _read_gene_sites now returns None ONLY on GENUINE absence (NoSuchKey/404) — a transient/broken-
+    # env failure re-raises and is surfaced as _live_read_error by the live-read seam. So None here is
+    # honest data_unavailable (unchanged verdict), NOT a masked read error — no double-handling.
     df = _read_gene_sites(sym, cohort, product_path)
     if df is None:
         base.update({"phospho_activity_class": "data_unavailable",
-                     "_live_read_error": "phospho_product_read_failed"})
+                     "_data_note": f"phospho product genuinely absent (NoSuchKey/404) for cohort {cohort}"})
         return base
 
     # cohort tumor count: from the gene's own rows if present, else a cohort probe so a

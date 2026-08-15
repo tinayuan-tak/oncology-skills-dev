@@ -12,6 +12,7 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from methods.dgidb_drug_gene import read as dgidb  # noqa: E402
 from methods.dgidb_drug_gene.read import known_drug_tractability_for_gene  # noqa: E402
 
 
@@ -58,7 +59,12 @@ def test_category_only():
     assert s["known_drug_tractability_class"] == "category_only"
 
 
-def test_absent_is_coverage_gap_not_undruggable():
+def test_absent_is_coverage_gap_not_undruggable(monkeypatch):
+    # Simulate a gene GENUINELY absent from DGIdb (the reader returns None on a real 404 / empty
+    # rollup). Must stay hermetic (no live S3): passing dgidb_row=None triggers a real _read_dgidb_row,
+    # so we stub it to the genuine-absence sentinel. (Burndown P1: _read_dgidb_row now re-raises a
+    # transient/creds failure instead of masking it as None, so a live read here would surface that.)
+    monkeypatch.setattr(dgidb, "_read_dgidb_row", lambda *_a, **_k: None)
     s = known_drug_tractability_for_gene("NOTAGENE", dgidb_row=None)
     assert s["known_drug_tractability_class"] == "no_known_drug_evidence"
     assert s["has_approved_drug"] is False

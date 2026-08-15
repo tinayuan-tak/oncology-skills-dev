@@ -114,12 +114,15 @@ def _load_indexed():
         import pandas as pd
         return pd.DataFrame(), {}, {}
 
-    try:
-        import pandas as pd
-        df = pd.read_parquet(path)
-    except Exception:
-        import pandas as pd
-        return pd.DataFrame(), {}, {}
+    import pandas as pd
+    # `path` is the LOCAL cache that _ensure_derived_cached already fetched — the S3 absence
+    # (404/NoSuchKey) is latched THERE, returning path=None above (honest data_unavailable). A
+    # failure to read a PRESENT local file is broken-env (missing pyarrow) or a corrupt/partial
+    # cache — NOT data absence — so it must PROPAGATE (surfaces as an honest _live_read_error at
+    # the compose-dashboard live-read seam), never be masked as an empty frame. @lru_cache does
+    # not memoize an exception, so a raise here also avoids the poison-on-failure the old
+    # return-empty caused (a cached empty result would have dead-axed the process for its lifetime).
+    df = pd.read_parquet(path)
 
     if df.empty:
         return df, {}, {}
@@ -192,10 +195,11 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             indication. Otherwise return the largest-|effect_size| row
             across cohorts.
     """
-    try:
-        df, cohort_gene_idx, gene_idx = _load_indexed()
-    except Exception as e:
-        return _empty(f"cptac_load_failed: {type(e).__name__}: {e}")
+    # Do NOT wrap _load_indexed in a broad except -> _empty: a broken-env / corrupt-cache failure
+    # would then be re-swallowed as data_unavailable, defeating the raise-on-broken-env discipline
+    # in _load_indexed. Let it propagate to the live-read seam (honest _live_read_error). A genuine
+    # absent product still yields an empty df below -> _empty (unchanged data_unavailable).
+    df, cohort_gene_idx, gene_idx = _load_indexed()
     if df is None or df.empty:
         return _empty("cptac_data_unavailable")
 
@@ -261,10 +265,9 @@ def read_all_cohorts(target: str) -> list[dict]:
     honest cross-cohort view: one record per cohort the target was tested in, sorted by effect size
     descending. Reused by (a) the per-cohort figure emitter, (b) the pan-cancer tumor_elevation_breadth
     measurement_type (Part 2). Empty list when the target is absent / product unavailable."""
-    try:
-        df, _cohort_gene_idx, gene_idx = _load_indexed()
-    except Exception:
-        return []
+    # Propagate broken-env/corrupt-cache from _load_indexed (honest _live_read_error) rather than
+    # re-swallowing to []. Genuine absent product -> empty df -> [] (unchanged data_unavailable).
+    df, _cohort_gene_idx, gene_idx = _load_indexed()
     if df is None or df.empty:
         return []
     indices = gene_idx.get(target.upper().strip(), [])
