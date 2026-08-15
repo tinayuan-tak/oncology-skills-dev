@@ -271,10 +271,15 @@ def compose(
     # Phase 3 — synthesize
     # EG4 (iter-2): pass contracts_root so synthesis can read each card_spec's
     # interpretation_hints[i].dominant declarations for dominant-signal-plus-confirmation scoring.
+    # O1 fix (2026-08-15, safety fail-open): thread phase-2's reasoned-absence stubs
+    # (read_error / not_wired) into synthesis so a modality killer-veto card that CRASHED
+    # or is UNWIRED blocks the modality (non-concludable) instead of silently evaluating
+    # fired=False and letting positive primary cards score it viable.
     synthesis_block = synthesize(
         run_plan=run_plan,
         card_outputs=phase2_result["cards"],
         contracts_root=contracts_root,
+        unavailable_cards=phase2_result.get("unavailable_cards", []),
     )
 
     # Final — assemble evidence_package (shared writer in _skills_common/envelope.py).

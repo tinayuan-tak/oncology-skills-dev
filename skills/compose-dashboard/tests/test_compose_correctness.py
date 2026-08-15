@@ -429,3 +429,111 @@ def test_three_noninformative_calls_still_trigger_insufficient():
     headline = _build_headline("KRAS", "COADREAD", fit_assessment, card_outputs)
     assert "Insufficient evidence" in headline
     assert "3 cards returned non-informative calls" in headline
+
+
+# ---------------------------------------------------------------------------
+# O1 (2026-08-15 safety fail-open) — a modality killer-veto card that CRASHED
+# (availability_state read_error) or is UNWIRED (not_wired) is ABSENT from
+# card_outputs, so its killer predicate would silently evaluate `card is None ->
+# fired=False` and positive primary cards would score the modality VIABLE. An
+# unavailable safety veto must instead mark the modality NON-CONCLUDABLE — a
+# read_error / not_wired safety veto is never a pass.
+# ---------------------------------------------------------------------------
+
+def _run_plan_with_killer(modality: str, primary_cards: list[str], veto_card_id: str,
+                          veto_message: str = "ESSENTIAL TISSUE LIABILITY") -> dict:
+    """Minimal run_plan with one modality module carrying a killer condition on veto_card_id.
+    resolved_axis='target-profile' is NOT in AXIS_GATE_MAP, so synthesis uses the fit_level lens
+    path (not the resolver headline) — the exact path this fix hardens."""
+    return {
+        "axis_resolution": {"status": "resolved", "resolved_axis": "target-profile"},
+        "input_context": {"target_symbol": "GENE", "indication": "NSCLC"},
+        "loaded_modality_modules": [{
+            "modality": modality,
+            "synthesis_emphasis": {
+                "primary_cards": primary_cards,
+                "secondary_cards": [],
+                "modality_killer_conditions": [{
+                    "card_id": veto_card_id,
+                    "predicate_type": "warning_id_fires",
+                    "predicate_value": "essential_normal_tissue",
+                    "message": veto_message,
+                }],
+            },
+        }],
+    }
+
+
+def _positive_card(card_id: str) -> dict:
+    # "strong protein surface evidence" is in _synthesis.POSITIVE_CALLS
+    return _card_out(card_id, "strong protein surface evidence")
+
+
+def test_killer_veto_card_read_error_marks_modality_non_concludable():
+    """CORE O1 fix: two positive primary cards would score the modality 'strong', but the
+    killer-veto (safety) card CRASHED (read_error) and is absent from card_outputs. The modality
+    must be NON-CONCLUDABLE, never viable."""
+    run_plan = _run_plan_with_killer(
+        "bite_tce", ["surface-density-a", "surface-density-b"],
+        veto_card_id="tvn-sc-normal-critical-organ")
+    cards = [_positive_card("surface-density-a"), _positive_card("surface-density-b")]
+    unavailable = [{"card_id": "tvn-sc-normal-critical-organ",
+                    "availability_state": "read_error",
+                    "availability_reason": "boom: reader crash"}]
+    result = synthesize(run_plan, cards, contracts_root=None, unavailable_cards=unavailable)
+    fit = result["modality_fit_assessment"][0]
+    assert fit["fit_level"] == "non_concludable", (
+        f"read_error safety veto must block the modality, got {fit['fit_level']!r}")
+    assert fit["fit_level"] not in ("strong", "moderate", "weak"), "must not read as viable"
+    assert fit["non_concludable_reasons"], "must record the blocked reason"
+    assert "tvn-sc-normal-critical-organ" in result["caveats_summary"]
+    assert "read_error" in result["caveats_summary"]
+
+
+def test_killer_veto_card_read_error_without_fix_would_have_been_viable():
+    """Explicit negative control: the SAME positive primaries WITHOUT any unavailable veto card
+    score 'strong'. Proves the block above is caused by the unavailable safety card, not the
+    fixture being weak."""
+    run_plan = _run_plan_with_killer(
+        "bite_tce", ["surface-density-a", "surface-density-b"],
+        veto_card_id="tvn-sc-normal-critical-organ")
+    cards = [_positive_card("surface-density-a"), _positive_card("surface-density-b")]
+    # No unavailable cards at all → killer condition sees an absent card (card is None -> not fired),
+    # so positives score it viable. This is the PRE-FIX behavior (still correct here: nothing signals
+    # the card was un-readable). The fix only bites when the card is a known reasoned-absence.
+    result = synthesize(run_plan, cards, contracts_root=None, unavailable_cards=[])
+    fit = result["modality_fit_assessment"][0]
+    assert fit["fit_level"] == "strong"
+
+
+def test_killer_veto_card_not_wired_marks_modality_non_concludable():
+    """The not_wired variant (dispatcher returned None): same block — an unwired safety veto is
+    never a pass."""
+    run_plan = _run_plan_with_killer(
+        "bite_tce", ["surface-density-a", "surface-density-b"], veto_card_id="safety-veto")
+    cards = [_positive_card("surface-density-a"), _positive_card("surface-density-b")]
+    unavailable = [{"card_id": "safety-veto", "availability_state": "not_wired",
+                    "availability_reason": "dispatcher_returned_none"}]
+    result = synthesize(run_plan, cards, contracts_root=None, unavailable_cards=unavailable)
+    fit = result["modality_fit_assessment"][0]
+    assert fit["fit_level"] == "non_concludable"
+    assert "not_wired" in result["caveats_summary"]
+
+
+def test_present_clear_killer_card_does_not_block_modality():
+    """Byte-stability guard: when the killer-veto card IS present and its predicate does NOT fire,
+    positive primary cards still score the modality viable. The fix bites ONLY on unavailable
+    veto cards, never on cleanly-read ones."""
+    run_plan = _run_plan_with_killer(
+        "bite_tce", ["surface-density-a", "surface-density-b"], veto_card_id="safety-veto")
+    cards = [
+        _positive_card("surface-density-a"),
+        _positive_card("surface-density-b"),
+        {"card_id": "safety-veto", "interpretation_call": "low normal-tissue liability",
+         "excluded_by_applies_when": False, "summary": {}, "warning_ids": []},
+    ]
+    result = synthesize(run_plan, cards, contracts_root=None, unavailable_cards=[])
+    fit = next(f for f in result["modality_fit_assessment"] if f["modality"] == "bite_tce")
+    assert fit["fit_level"] == "strong", (
+        f"clear veto + positives should be viable, got {fit['fit_level']!r}")
+    assert not fit["non_concludable_reasons"]

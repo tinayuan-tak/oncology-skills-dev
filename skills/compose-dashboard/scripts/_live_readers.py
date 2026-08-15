@@ -1528,7 +1528,7 @@ def read_live_summary(card_id: str, target: str, indication: str,
         # data-driven path. If the card_spec's method declares a `module` + `entrypoint`, invoke it
         # directly, so a new pure-passthrough card needs NO hand-written _dispatch_* function. Returns
         # None only when the card has no generic wiring either (genuinely unwired → caller stubs/fails).
-        return _generic_dispatch(card_id, target, indication)
+        return _generic_dispatch(card_id, target, indication, data_context=_dctx)
     try:
         # T4: forward data_context ONLY to dispatchers whose signature declares it (release-aware
         # readers); single-release dispatchers keep the (target, indication) signature untouched.
@@ -1546,7 +1546,8 @@ def read_live_summary(card_id: str, target: str, indication: str,
         return {"_live_read_error": str(e)}
 
 
-def _generic_dispatch(card_id: str, target: str, indication: str) -> Optional[dict]:
+def _generic_dispatch(card_id: str, target: str, indication: str,
+                      data_context: Optional[dict] = None) -> Optional[dict]:
     """Data-driven dispatch (T11): resolve (module, entrypoint) from the card_spec's first method
     and call it as fn(target=, indication=). This collapses the ~30 pure-passthrough dispatchers
     (mod = _import_method(X); return mod.read_Y(target=, indication=)) into card_spec data, so a new
@@ -1554,7 +1555,14 @@ def _generic_dispatch(card_id: str, target: str, indication: str) -> Optional[di
 
     Only used as a FALLBACK when no bespoke CARD_DISPATCHERS entry exists — every hand-written
     dispatcher (multi-method merges, positional-arg readers, .cli quirks) is unaffected. Returns
-    None when the card has no method with an `entrypoint` declared (genuinely unwired)."""
+    None when the card has no method with an `entrypoint` declared (genuinely unwired).
+
+    M3 fix (2026-08-15): forward release-pin context to the entrypoint the SAME way the bespoke
+    path does — by INTROSPECTING the entrypoint signature and passing `data_context` and/or
+    `release_pin` only when the reader declares them (or accepts **kwargs). Before this fix the
+    generic path always called fn(target=, indication=), so a release-pinned generic-routed card
+    silently read the DEFAULT release (the pin never reached the data-access layer). Readers that
+    declare neither are called with just (target, indication) — byte-stable with the pre-fix path."""
     import yaml
     card_path = _TARGET_CONTRACTS_ROOT / "cards" / f"{card_id}.card.yaml"
     if not card_path.exists():
@@ -1572,9 +1580,29 @@ def _generic_dispatch(card_id: str, target: str, indication: str) -> Optional[di
     entrypoint = method["entrypoint"]
     if not module_path:
         return None
+    _dctx = data_context or {}
     try:
         mod = _import_method(module_path)
         fn = getattr(mod, entrypoint)
-        return fn(target=target, indication=indication)
+        # Introspect the entrypoint signature and forward release-pin context ONLY when declared
+        # (mirror of the bespoke path's data_context forwarding). A TypeError raised INSIDE the
+        # reader still propagates (caught below as a structured error) — we never blanket-retry.
+        kwargs = {"target": target, "indication": indication}
+        import inspect
+        try:
+            params = inspect.signature(fn).parameters
+            accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in params.values())
+            if _dctx and (accepts_var_kw or "data_context" in params):
+                kwargs["data_context"] = _dctx
+            if accepts_var_kw or "release_pin" in params:
+                # Only pass a real pin — a None pin is the default-release read, so omit it to
+                # keep the call byte-identical to the pre-fix fn(target=, indication=) invocation.
+                pin = _dctx.get("release_pin")
+                if pin is not None:
+                    kwargs["release_pin"] = pin
+        except (ValueError, TypeError):
+            # signature() can fail on some builtins/C callables — fall back to the legacy call.
+            kwargs = {"target": target, "indication": indication}
+        return fn(**kwargs)
     except Exception as e:  # noqa: BLE001 — surface as the structured error sentinel, like bespoke path
         return {"_live_read_error": str(e)}

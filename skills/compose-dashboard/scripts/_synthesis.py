@@ -139,6 +139,7 @@ def synthesize(
     run_plan: dict,
     card_outputs: list[dict],
     contracts_root: "Path | None" = None,
+    unavailable_cards: "list[dict] | None" = None,
 ) -> dict:
     """Produce the synthesis block for an evidence_package.
 
@@ -153,6 +154,18 @@ def synthesize(
     BEFORE falling back to ratio-based scoring (current iter-1b behavior). Backward-compatible:
     contracts_root=None falls back to pure ratio-based scoring; cards without dominant_calls
     declarations land in the same ratio bucket they did pre-EG4.
+
+    O1 fix (2026-08-15, safety fail-open): `unavailable_cards` is phase-2's list of
+    reasoned-absence stubs (availability_state read_error / not_wired) — cards that CRASHED
+    or are UNWIRED and therefore are absent from `card_outputs` / `card_outputs_by_id`.
+    Before this fix, a modality_killer_condition whose card was unavailable hit
+    `card is None -> fired=False` in `_check_killer_conditions`, so the veto silently did NOT
+    fire and positive primary cards could still score the modality viable — a safety card that
+    could not be read reading as a green pass. Now the killer-check reports such conditions as
+    BLOCKED (not fired-false): the modality is marked NON-CONCLUDABLE (fit_level
+    `non_concludable`, positive scoring suppressed) with a data-blocked caveat. A read_error /
+    not_wired safety veto is never a pass. `None`/`[]` (no unavailable cards) is byte-stable
+    with the pre-fix behavior.
     """
     # Special cases: axis unresolved or no loaded modules → minimal synthesis
     axis_status = run_plan.get("axis_resolution", {}).get("status")
@@ -197,6 +210,20 @@ def synthesize(
     # predicates over the full card output, not just substring-match against calls.
     card_outputs_by_id = {c["card_id"]: c for c in card_outputs}
 
+    # O1 fix (2026-08-15, safety fail-open): phase-2's reasoned-absence stubs (read_error /
+    # not_wired). A killer-veto card here is ABSENT from card_outputs_by_id, so its predicate
+    # would silently evaluate `card is None -> fired=False` — the veto never fires and positive
+    # primary cards score the modality viable. Thread the unavailable stubs into the killer-check
+    # so a killer condition on an un-read card BLOCKS (non-concludable), never falls through to
+    # a green pass. Keyed by card_id → the stub (carries availability_state for the caveat).
+    unavailable_by_id = {
+        c["card_id"]: c for c in (unavailable_cards or []) if c.get("card_id")
+    }
+
+    # Data-blocked caveats accumulated across modalities (killer-veto card unavailable) —
+    # surfaced in the caveats_summary so a consumer sees WHY a modality was non-concludable.
+    data_blocked_caveats: list[str] = []
+
     # Per-modality fit assessment
     fit_assessment = []
     for module in loaded_modules:
@@ -206,8 +233,15 @@ def synthesize(
         secondary_cards = emphasis.get("secondary_cards", []) or []
         killer_conditions = emphasis.get("modality_killer_conditions", []) or []
 
-        # Check killer conditions first (C1 fix: structured predicate evaluator)
-        killers_hit = _check_killer_conditions(killer_conditions, card_outputs_by_id, excluded_cards)
+        # Check killer conditions first (C1 fix: structured predicate evaluator).
+        # O1 fix: killer_blocked = killer conditions whose veto card could not be read
+        # (read_error / not_wired) — these BLOCK the modality (non-concludable) instead of
+        # silently evaluating fired=False on the absent card.
+        killers_hit, killer_blocked = _check_killer_conditions(
+            killer_conditions, card_outputs_by_id, excluded_cards, unavailable_by_id
+        )
+        if killer_blocked:
+            data_blocked_caveats.extend(f"[{modality}] {m}" for m in killer_blocked)
 
         # Score primary cards
         primary_positive = sum(
@@ -285,6 +319,12 @@ def synthesize(
 
         if killers_hit:
             fit_level = "not_viable"
+        elif killer_blocked:
+            # O1 fix (safety fail-open): a killer-veto card could NOT be read (read_error /
+            # not_wired). The veto is neither confirmed-fired nor confirmed-clear, so the
+            # modality is NON-CONCLUDABLE — positive primary cards must NOT score it viable.
+            # A read_error / not_wired safety veto is never a pass.
+            fit_level = "non_concludable"
         elif dominant_hits and not primary_contradictions:
             # Dominant-signal-plus-confirmation rule: at least one primary card emitted a
             # decisive call AND no primary card actively contradicts. Strong fit regardless
@@ -307,6 +347,10 @@ def synthesize(
         rationale_parts = []
         if killers_hit:
             rationale_parts.append("killer condition(s) hit: " + "; ".join(killers_hit))
+        elif killer_blocked:
+            rationale_parts.append(
+                "NON-CONCLUDABLE — killer-veto card unavailable: " + "; ".join(killer_blocked)
+            )
         else:
             rationale_parts.append(
                 f"{primary_positive}/{primary_total_in_scope} primary cards positive "
@@ -327,6 +371,9 @@ def synthesize(
             "primary_cards_total": primary_total_original,
             "dominant_hits": [{"card_id": cid, "call": call} for cid, call in dominant_hits],
             "killer_conditions_hit": killers_hit,
+            # O1 fix: killer-veto cards that could not be read (read_error / not_wired). When
+            # non-empty the modality is non_concludable (safety veto is un-assessable, never a pass).
+            "non_concludable_reasons": killer_blocked,
             "rationale": "; ".join(rationale_parts),
             # Tier-3 traceability — which Tier-2 rules contributed to this modality's
             # fit_level. Per the LLM-advisory protocol: a stakeholder disagreeing with
@@ -337,8 +384,12 @@ def synthesize(
             "tier2_killer_signals": tier2_killer_signals,
         })
 
-    # Sort by fit_level: strong > moderate > weak > insufficient_evidence > not_viable
-    fit_priority = {"strong": 0, "moderate": 1, "weak": 2, "insufficient_evidence": 3, "not_viable": 4}
+    # Sort by fit_level: strong > moderate > weak > insufficient_evidence > non_concludable > not_viable.
+    # non_concludable (O1: killer-veto card unavailable) ranks below the positive/neutral levels so it
+    # is never chosen as a viable headline over a genuinely-assessable modality, and above not_viable
+    # (a confirmed veto is a more definite negative than an un-assessable one).
+    fit_priority = {"strong": 0, "moderate": 1, "weak": 2, "insufficient_evidence": 3,
+                    "non_concludable": 4, "not_viable": 5}
     fit_assessment.sort(key=lambda x: fit_priority.get(x["fit_level"], 99))
 
     target = run_plan["input_context"]["target_symbol"]
@@ -362,8 +413,11 @@ def synthesize(
     else:
         headline = _build_headline(target, indication, fit_assessment, card_outputs)
 
-    # Aggregate caveats
-    caveats_summary = _build_caveats_summary(run_plan, card_outputs, contracts_root)
+    # Aggregate caveats. O1 fix: prepend the data-blocked caveats for any modality whose
+    # killer-veto card was unavailable so a consumer sees WHY it is non-concludable.
+    caveats_summary = _build_caveats_summary(
+        run_plan, card_outputs, contracts_root, extra_caveats=data_blocked_caveats
+    )
 
     synthesis: dict = {
         "headline": headline,
@@ -456,7 +510,8 @@ def _check_killer_conditions(
     killer_conditions: list,
     card_outputs_by_id: dict,
     excluded_cards: set,
-) -> list[str]:
+    unavailable_by_id: "dict | None" = None,
+) -> "tuple[list[str], list[str]]":
     """Check each killer_condition predicate against card outputs.
 
     Iter-1b post-adversarial-review (C1): structured DSL replaces free-prose strings.
@@ -475,9 +530,22 @@ def _check_killer_conditions(
     Backward-compat: if a condition is a plain string (legacy format), best-effort
     substring match for graceful degradation — but emit a warning to surface the drift.
 
-    Returns: list of message strings (one per fired condition) — surfaced in synthesis output.
+    O1 fix (2026-08-15, safety fail-open): `unavailable_by_id` maps card_id → the phase-2
+    reasoned-absence stub (availability_state read_error / not_wired) for cards that CRASHED
+    or are UNWIRED. Such a card is ABSENT from `card_outputs_by_id`, so its killer predicate
+    would silently evaluate `card is None -> fired=False` and the veto would never fire. When
+    a killer condition's `card_id` is unavailable we DO NOT evaluate the predicate; instead we
+    report it as BLOCKED — the caller marks the modality non-concludable. A read_error /
+    not_wired safety veto is never a pass.
+
+    Returns: (triggered_messages, blocked_messages).
+      triggered_messages — one message per killer condition that genuinely FIRED (veto).
+      blocked_messages   — one message per killer condition whose veto card was UNAVAILABLE
+                           (read_error / not_wired) and thus could not be assessed.
     """
+    unavailable_by_id = unavailable_by_id or {}
     triggered_messages = []
+    blocked_messages = []
 
     for cond in killer_conditions:
         # Backward-compat: legacy free-prose string format
@@ -494,6 +562,16 @@ def _check_killer_conditions(
 
         if not card_id or not predicate_type:
             continue  # malformed entry; skip silently (schema validation catches this)
+
+        # O1 fix: the killer-veto card could not be read (crashed / unwired). Do NOT let the
+        # predicate silently evaluate fired=False on the absent card — block the modality.
+        if card_id in unavailable_by_id:
+            state = unavailable_by_id[card_id].get("availability_state", "unavailable")
+            blocked_messages.append(
+                f"safety veto card {card_id} unavailable ({state}) — modality cannot be "
+                f"assessed (killer condition: {message})"
+            )
+            continue
 
         card = card_outputs_by_id.get(card_id)
 
@@ -523,7 +601,7 @@ def _check_killer_conditions(
         if fired:
             triggered_messages.append(message)
 
-    return triggered_messages
+    return triggered_messages, blocked_messages
 
 
 def _build_headline(target: str, indication: str, fit_assessment: list[dict],
@@ -564,6 +642,16 @@ def _build_headline(target: str, indication: str, fit_assessment: list[dict],
                 f"No viable modality identified for {target} in {indication}; "
                 f"all {len(fit_assessment)} evaluated modalities hit killer conditions."
             )
+    # O1 fix (safety fail-open): the strongest reachable modality is non-concludable because a
+    # killer-veto (safety) card could not be read. Report the data-blocked state honestly — the
+    # target must NOT read as viable when its veto card errored.
+    if best["fit_level"] == "non_concludable":
+        reasons = best.get("non_concludable_reasons", []) or []
+        detail = f" {'; '.join(reasons)}" if reasons else ""
+        return (
+            f"Modality fit for {target} in {indication} is NON-CONCLUDABLE: the "
+            f"{best['modality']} killer-veto (safety) card could not be read.{detail}"
+        )
 
     # Strongest-evidence text: cite the actual finding(s) that drove the fit_level,
     # not the dashboard's decision-question label. For "strong" via dominant signal,
@@ -588,6 +676,9 @@ def _format_strongest_evidence(best: dict, card_outputs: list[dict]) -> str:
     if best["fit_level"] == "not_viable":
         killers = best.get("killer_conditions_hit", [])
         return f"Killer condition(s) hit: {'; '.join(killers)}." if killers else "Killer condition(s) hit."
+    if best["fit_level"] == "non_concludable":
+        reasons = best.get("non_concludable_reasons", []) or []
+        return f"Non-concludable: {'; '.join(reasons)}." if reasons else "Non-concludable: killer-veto card unavailable."
     if best["fit_level"] == "insufficient_evidence":
         return "Insufficient primary-card coverage in scope."
 
@@ -625,10 +716,17 @@ def _format_strongest_evidence(best: dict, card_outputs: list[dict]) -> str:
 
 
 def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
-                            contracts_root=None) -> str:
+                            contracts_root=None,
+                            extra_caveats: "list[str] | None" = None) -> str:
     """Aggregate modality_specific_caveats from loaded modules + card-level caveats common
-    across multiple cards. Iter-1b: deterministic concatenation; LLM dedup is iter-2."""
+    across multiple cards. Iter-1b: deterministic concatenation; LLM dedup is iter-2.
+
+    O1 fix (2026-08-15): `extra_caveats` (data-blocked / non-concludable caveats produced in
+    synthesize when a modality's killer-veto card was unavailable) lead the summary so the
+    safety-blocked state is the first thing a consumer reads. Empty/None → byte-stable."""
     caveats_parts = []
+    if extra_caveats:
+        caveats_parts.extend(extra_caveats)
 
     # Modality-specific caveats from each loaded module.
     # T7 fix (2026-08-11 engineering review): this loop was a no-op `pass`, so the docstring's
