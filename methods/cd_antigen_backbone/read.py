@@ -63,7 +63,15 @@ def _load_roster(members_path: Optional[str] = None) -> dict:
             key = f"{prefix}{MEMBERS_FILE}"
             body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
             doc = json.loads(body)
-    except Exception:  # absence-discipline: exempt -- empty roster → caller read_cd_antigen_backbone emits _live_read_error breadcrumb (not a silent dead axis)
+    except Exception as e:
+        # Genuine object-absence (S3 404/NoSuchKey, or a missing local members.json) → {} (the caller
+        # emits an honest _live_read_error breadcrumb). A transient/creds/broken-env failure is
+        # RE-RAISED — not masked as an empty roster that @lru_cache would then memoize process-wide
+        # (one blip would pin EVERY target to "roster unreadable" for the whole process, defeating the
+        # caller's per-call breadcrumb). lru_cache never memoizes a raise, so the next call retries.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return {}
     out = {}
     for rec in _extract_records(doc):

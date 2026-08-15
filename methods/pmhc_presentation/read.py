@@ -33,17 +33,26 @@ def _read_parquet(bucket, key):
 
 @lru_cache(maxsize=1)
 def _symbol_to_ac() -> dict:
-    """UPPER(HGNC symbol) → uniprot_id, from the resolver sidecar. {} if unreadable (AC-direct still works)."""
+    """UPPER(HGNC symbol) → uniprot_id, from the resolver sidecar. {} iff GENUINELY absent (AC-direct
+    still works). A transient/creds/broken-env failure is RE-RAISED — not masked as an empty map that
+    @lru_cache would then memoize process-wide (one blip → every symbol unresolvable for the process)."""
+    from methods.target_id_sidecar import is_definitively_absent
     try:
         df = _read_parquet(S3_BUCKET, SIDECAR_KEY).to_pandas()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return {}
     # sidecar schema (target_resolution): hgnc_primary_symbol_at_resolution → uniprot_canonical
     # (exact column names — this is a stable materialized product, not a heuristic target).
     sym_col = "hgnc_primary_symbol_at_resolution"
     ac_col = "uniprot_canonical"
     if sym_col not in df.columns or ac_col not in df.columns:
-        return {}
+        # A present sidecar missing its expected columns is schema drift on a broken/misdescribed
+        # product, NOT a data gap — raise (do not memoize an empty map). Mirrors read_resolver_sidecar_map.
+        raise ValueError(
+            f"pMHC resolver sidecar s3://{S3_BUCKET}/{SIDECAR_KEY} missing expected columns "
+            f"{sym_col!r}/{ac_col!r} (present: {list(df.columns)[:10]}) — schema drift")
     out = {}
     for sym, ac in zip(df[sym_col], df[ac_col]):
         if sym is not None and ac is not None and str(sym).strip() and str(sym) != "nan":
@@ -67,15 +76,21 @@ def _looks_like_ac(s: str) -> bool:
 
 @lru_cache(maxsize=512)
 def _row_for_ac(ac: str) -> Optional[dict]:
-    """The atlas row for a UniProt AC (pushdown), or None if absent (weak-negative)."""
+    """The atlas row for a UniProt AC (pushdown): None if the AC is absent (weak-negative), or the
+    "UNREADABLE" sentinel iff the product is GENUINELY absent (404 / NoSuchKey / missing object →
+    data_unavailable). A transient/creds/broken-env failure is RE-RAISED, so @lru_cache does NOT
+    memoize the failure — otherwise one blip would pin this AC to UNREADABLE for the whole process."""
+    from methods.target_id_sidecar import is_definitively_absent
     try:
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
         s3fs = fs.S3FileSystem(region="us-east-1")
         tbl = pq.read_table(f"{S3_BUCKET}/{PAYLOAD_KEY}", filesystem=s3fs,
                             filters=[("uniprot_id", "==", ac)])
-    except Exception:  # noqa: BLE001
-        return "UNREADABLE"   # sentinel: distinguish product-unreadable from absent-protein
+    except Exception as e:  # noqa: BLE001
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
+        return "UNREADABLE"   # genuine product absence → data_unavailable (stable; memoization ok)
     df = tbl.to_pandas()
     if df.empty:
         return None

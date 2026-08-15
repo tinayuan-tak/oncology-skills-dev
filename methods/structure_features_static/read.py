@@ -85,20 +85,23 @@ def _ensure_derived_cached() -> Optional[Path]:
             _DERIVED_STATUS = True
             return CACHE_PARQUET
         except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 /
-            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
-            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
-            # False on the definitive case — that safely short-circuits every
-            # later call in the process. For a transient error, LEAVE
-            # _DERIVED_STATUS = None so a subsequent call retries instead of
-            # poisoning the whole process with a false data_unavailable.
+            # Distinguish "genuinely not published yet" (a definitive 404 / NoSuchKey) from a
+            # TRANSIENT failure (expired creds, AccessDenied, network blip, throttling). Latch
+            # _DERIVED_STATUS = False + return None ONLY on the definitive case — genuine absence →
+            # honest, process-stable data_unavailable. For a TRANSIENT error, RAISE: the outer
+            # @lru_cache on _load_structure_indexed would otherwise memoize an EMPTY index off one
+            # blip and poison the whole process (the None-latch "retry" never re-fired because lru
+            # never re-invoked this). lru_cache never memoizes a raise, so the next call retries.
+            # (403/AccessDenied dropped from "definitive" per RD8 — it is almost always transient.)
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            definitive = (code in ("404", "NoSuchKey")
+                          or e.__class__.__name__ in ("NoSuchKey", "404")
+                          or isinstance(e, FileNotFoundError))
             if definitive:
                 _DERIVED_STATUS = False
-            return None
+                return None
+            raise
     return None
 
 
@@ -112,10 +115,15 @@ def _index_by_symbol_and_ac(path, ac_col: str) -> dict:
     try:
         import pandas as pd
         df = pd.read_parquet(path)
-    except ImportError:
-        raise  # broken env — never mask as an empty index
-    except Exception:  # absence-discipline: exempt -- S3 disciplined upstream; this reads a LOCAL cached parquet only, a corrupt/partial cache degrades to empty (ImportError already re-raised above)
-        return {}
+    except FileNotFoundError:
+        return {}          # cache file vanished between the exists() check and the read (race) — absent
+    except Exception:
+        # A broken env (missing pandas/pyarrow) or a corrupt/partial cache is NOT data absence —
+        # PROPAGATE (honest _live_read_error at the live-read seam; @lru_cache does not memoize the
+        # raise, so it is retried). NB: this handler was previously `# absence-discipline: exempt`
+        # ("S3 disciplined upstream") — that exemption was WRONG: the outer lru DEFEATED it by
+        # memoizing the empty {} off a single corrupt/transient read, so it is now disciplined.
+        raise
     if df.empty:
         return {}
     idx: dict[str, dict] = {}
@@ -154,13 +162,19 @@ def _ensure_ligand_cached() -> Optional[Path]:
             _LIGAND_STATUS = True
             return CACHE_LIGAND_PARQUET
         except Exception as e:
+            # Same transient-vs-definitive discipline as _ensure_derived_cached: latch False + return
+            # None ONLY on genuine absence (404/NoSuchKey); RAISE on transient/creds/broken-env so the
+            # outer @lru_cache on _load_ligandability_indexed does not memoize an empty index off one
+            # blip (would poison the SM-ligandability call process-wide). 403 is NOT definitive (RD8).
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+            definitive = (code in ("404", "NoSuchKey")
+                          or e.__class__.__name__ in ("NoSuchKey", "404")
+                          or isinstance(e, FileNotFoundError))
             if definitive:
                 _LIGAND_STATUS = False
-            return None
+                return None
+            raise
     return None
 
 
@@ -178,10 +192,10 @@ def _ligandability_fields(target: str) -> dict:
     target is absent, returns the honest coverage-gap defaults (insufficient_evidence) —
     NEVER a false negative. Additive: these fields sit alongside the hotspot-adjacency
     fields and do not alter them."""
-    try:
-        idx = _load_ligandability_indexed()
-    except Exception:
-        idx = {}
+    # _load_ligandability_indexed raises on transient/broken-env (→ honest _live_read_error, NOT
+    # memoized by its lru); returns {} on genuine absence. Let the transient propagate — masking it
+    # as {} here would silently degrade the SM-ligandability call to insufficient_evidence.
+    idx = _load_ligandability_indexed()
     if not idx:
         return _empty_ligandability("structure_ligandability_unavailable")
     row = idx.get(target.upper().strip()) or idx.get(target.strip())
@@ -232,20 +246,18 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         to no_structure / insufficient_evidence (an honest coverage gap, never a false
         negative), while the other leg still populates.
     """
-    # Hotspot-adjacency leg (LIVE: pdb-alphafold-structure-features-per-uniprot-v1;
-    # degrades to no_structure only on a read failure or a target absent from the product).
-    try:
-        idx = _load_structure_indexed()
-    except Exception as e:
-        base = _empty_result(f"structure_load_failed: {type(e).__name__}: {e}")
+    # Hotspot-adjacency leg (LIVE: pdb-alphafold-structure-features-per-uniprot-v1). _load_structure_
+    # indexed RAISES on transient/broken-env (→ honest _live_read_error at the live-read seam, NOT
+    # memoized by its lru) and returns {} on genuine absence — so let a transient propagate rather
+    # than mask it as a false no_structure. Genuine absence / target-not-present degrade honestly.
+    idx = _load_structure_indexed()
+    if not idx:
+        base = _empty_result("structure_data_unavailable")
     else:
-        if not idx:
-            base = _empty_result("structure_data_unavailable")
-        else:
-            target_up = target.upper().strip()
-            row = idx.get(target_up) or idx.get(target.strip())
-            base = _empty_result("target_not_in_structure_features") if row is None \
-                else _hotspot_summary(row)
+        target_up = target.upper().strip()
+        row = idx.get(target_up) or idx.get(target.strip())
+        base = _empty_result("target_not_in_structure_features") if row is None \
+            else _hotspot_summary(row)
     # LIVE ligandability leg (always merged; independent of the hotspot product).
     base.update(_ligandability_fields(target))
     return base

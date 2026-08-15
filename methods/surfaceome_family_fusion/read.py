@@ -37,8 +37,10 @@ _DERIVED_STATUS: Optional[bool] = None
 
 
 def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads);
+    # a bare boto3.Session(...).client("s3") had NO retry backoff (mirrors uniprot_gpi_anchor).
+    from methods.target_id_sidecar import s3_client
+    return s3_client()
 
 
 def _ensure_derived_cached() -> Optional[Path]:
@@ -56,24 +58,23 @@ def _ensure_derived_cached() -> Optional[Path]:
             _DERIVED_STATUS = True
             return CACHE_PARQUET
         except Exception as e:
-            # Distinguish "genuinely not published yet" (a definitive 404 /
-            # NoSuchKey / access-denied) from a TRANSIENT failure (expired
-            # creds, network blip, throttling). Only latch _DERIVED_STATUS =
-            # False on the definitive case — that safely short-circuits every
-            # later call in the process. For a transient error, LEAVE
-            # _DERIVED_STATUS = None so a subsequent call retries instead of
-            # poisoning the whole process with a false data_unavailable.
+            # Distinguish "genuinely not published yet" (a definitive 404 / NoSuchKey) from a
+            # TRANSIENT failure (expired creds, 403/AccessDenied, network blip, throttling). Latch
+            # _DERIVED_STATUS = False + return None ONLY on a genuine object-absence — honest,
+            # process-stable data_unavailable. 403/AccessDenied is NOT definitive (almost always a
+            # transient creds blip). For any TRANSIENT / broken-env failure, RAISE: the outer
+            # @lru_cache on _load_indexed would otherwise memoize EMPTY frames (path=None → the
+            # `return pd.DataFrame(), {}, {}` branch) off one blip and poison the whole batch — the
+            # exact bug this fix closes. lru_cache never memoizes a raise, so the next call retries.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            # Latch process-wide ONLY on a genuine object-absence (404 / NoSuchKey). 403 /
-            # AccessDenied is NOT definitive: it is almost always a TRANSIENT creds blip (expired
-            # token, un-refreshed role) — latching it would poison the whole batch with a false
-            # data_unavailable. Mirrors surface_antigen_density_ladder (latches on 404/NoSuchKey only).
             definitive = (code in ("404", "NoSuchKey")
-                          or e.__class__.__name__ in ("NoSuchKey", "404"))
+                          or e.__class__.__name__ in ("NoSuchKey", "404")
+                          or isinstance(e, FileNotFoundError))
             if definitive:
                 _DERIVED_STATUS = False
-            return None
+                return None
+            raise
     return None
 
 

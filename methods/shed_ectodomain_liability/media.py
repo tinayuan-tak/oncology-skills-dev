@@ -103,7 +103,14 @@ def _load_idmap(idmap_path: Optional[str] = None) -> dict:
             bucket, key = _s3_bucket_key(IDMAP_FILENAME)
             body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
             idm = pd.read_csv(io.BytesIO(body))
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine object-absence (S3 404/NoSuchKey, or a missing local id map) → {} (target then
+        # reads not_on_secreted_panel, non-informative). A transient/creds/broken-env failure is
+        # RE-RAISED — not masked as an empty map that @lru_cache would memoize process-wide (one blip
+        # → every gene silently not_on_secreted_panel for the whole process). Raise → not memoized.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return {}
     out = {}
     for uni, sym in zip(idm["UniprotID"], idm["Symbol"]):
