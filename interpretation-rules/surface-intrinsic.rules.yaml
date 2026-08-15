@@ -1217,6 +1217,78 @@ rules:
       The decision-relevant NEGATIVE that the bulk pair-scan misses. Opposing for the bispecific
       modalities (important for bite_tce); does not veto a monospecific approach to the target.
 
+  # ----------------------------------------------------------------------------
+  # window_verdict = the SELECTIVITY WINDOW: tumor same-cell engagement AND normal-tissue
+  # selectivity, combined. The safety complement to samecell_avidity_class (which is tumor-only):
+  # it reads the pan-tissue normal same-cell cube sc-samecell-coexpr-normal-v1 and asks whether
+  # any well-powered normal cell type co-expresses BOTH antigens on the same cell. COMPLEMENTARY,
+  # not a replacement — samecell_avidity_class carries "is there a tumor partner"; window_verdict
+  # adds "and is it selective vs normal". no_window is the safety negative neither bulk nor
+  # tumor-only avidity can express.
+  # ----------------------------------------------------------------------------
+
+  - rule_id: selectivity-window-open-supportive
+    when:
+      card_id: surface-colocalization-avidity
+      field: window_verdict
+      equals: window_open
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The best AND-gate partner co-expresses with the target on the SAME malignant cells (tumor
+      coordinated, both-fraction >= TAU) AND no well-powered normal cell type co-expresses both on
+      the same cell (normal selectivity_clean over the >=3-donor/>=10-cell support floor). The
+      avidity AND-gate has a partner that is both engageable in tumor and selective against normal —
+      the full window a tumor-intrinsic bispecific needs. Most important for bite_tce; the normal
+      side is an RNA-level lower bound on risk, so a clean window is necessary, not sufficient.
+
+  - rule_id: selectivity-window-normal-liability-opposing
+    when:
+      card_id: surface-colocalization-avidity
+      field: window_verdict
+      equals: no_window
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The best tumor AND-gate partner FAILS the normal selectivity gate: a well-powered normal cell
+      type co-expresses BOTH antigens on the same cell (normal_liability_locus names the driving
+      tissue / cell_type). An avidity bispecific tuned to co-engage both antigens will also engage
+      that normal cell — the on-target/off-tumor safety negative that bulk pair-scans and tumor-only
+      same-cell avidity both miss. Opposing for the bispecific modalities (important for bite_tce);
+      does not veto a monospecific approach to the target.
+
+  - rule_id: selectivity-window-unproven-insufficient
+    when:
+      card_id: surface-colocalization-avidity
+      field: window_verdict
+      equals: selectivity_unproven
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      Tumor engagement is coordinated, but NO normal (tissue, cell_type) group clears the support
+      floor (>=3 donors & >=10 cells) for the pair — the normal selectivity gate is under-powered,
+      not clean. Absence of a measurable normal liability under thin coverage is NOT evidence of
+      safety, so this is a coverage gap (insufficient), never a fabricated pass. Resolve by adding
+      normal-atlas coverage for the driving tissue rather than reading it as selectivity.
+
   # ============================================================================
   # I''' — sc NORMAL SURFACE-PROTEIN safety card (single-cell off-tumor floor)
   # sc_surface_normal_class = whether the target's SURFACE protein is displayed on normal immune cell

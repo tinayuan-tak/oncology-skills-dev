@@ -33,6 +33,7 @@ required_inputs:
   - product_id: sc-samecell-coexpr-3ca-hnsc-v1
   - product_id: sc-samecell-coexpr-3ca-kidney-v1
   - product_id: sc-samecell-coexpr-3ca-ovarian-v1
+  - product_id: sc-samecell-coexpr-normal-v1                  # NORMAL selectivity gate (pan-tissue, 19 tissues / 46 pairs / 318 donors). The SAFETY half of the AND-gate: does any well-powered normal cell type co-express BOTH antigens on the same cell? Previously orphaned (read by no card); wired via pair_selectivity_gate.window (method PR analysis-methods#351). Order-insensitive pair match; support floor >=3 donors & >=10 cells.
 
 methods:
   - call: surface-colocalization-avidity
@@ -48,14 +49,23 @@ outputs:
     - best_both_fraction_median       # cross-donor median fraction of malignant cells expressing BOTH
     - n_partners_tested               # candidate partners scanned for this target
     - n_coordinated_partners          # partners with same_cell_coordinated
+    # --- tumor-vs-normal SELECTIVITY WINDOW (the safety complement; normal gate now wired) ---
+    - window_verdict                  # best-partner AND-gate verdict combining tumor engagement + normal selectivity
+    - window_best_partner             # the partner giving the most viable window (by verdict, then margin)
+    - selectivity_margin              # tumor_both_fraction - normal_max_both_fraction for that partner (higher = more selective)
+    - n_window_open                   # partners clearing the full AND-gate (tumor coordinated + normal selectivity_clean)
+    - normal_liability_locus          # (tissue, cell_type) driving normal co-positivity for the best partner, when a liability exists
   summary_fields_vocabulary:
     samecell_avidity_class: [same_cell_coordinated, same_cell_independent, same_cell_mutually_exclusive, avidity_unconfirmed, data_unavailable]
+    window_verdict: [window_open, window_marginal, no_window, selectivity_unproven, insufficient_tumor_engagement, data_unavailable]
 
 caveats:
   - "Surfaces the same-cell avidity cubes (previously orphaned). Bulk pair co-expression is necessary but NOT sufficient — this confirms same-CELL co-expression (the AND-gate requirement). Reported as a bispecific/dual-targeting lens, not a monospecific-target signal."
   - "Best-partner headline: same_cell_coordinated if ANY nominated partner co-expresses on the same malignant cells (enrichment_vs_independence >= 1.2). same_cell_mutually_exclusive (<= 0.8) is the decision-relevant NEGATIVE — avidity fails despite bulk co-expression."
   - "Partners are the pairs the bulk pair-scan NOMINATED for the indication (not an exhaustive genome scan); a target with no nominated pair returns data_unavailable (not scanned), never a fabricated negative."
   - "Cross-donor median over the malignant compartment (donor = replicate); pooled/pan-subtype malignant denominators for the 3CA indications (PAAD/HNSC/KIRC/OV)."
+  - "SELECTIVITY WINDOW (window_verdict): the AND-gate is a CONTRAST — tumor same-cell co-positivity (high) vs normal same-cell co-positivity (~0). window_open = tumor coordinated AND no well-powered normal cell type co-expresses both; no_window = a normal cell type DOES (the SAFETY negative bulk + tumor-only avidity both miss)."
+  - "selectivity_unproven = normal coverage too thin to clear (>=3 donors & >=10 cells) — conservatively NOT a pass. normal_max_both is a LOWER BOUND on risk (scRNA dropout biases co-detection down), so a clean window is necessary, not sufficient; absence in the Census atlases is not proof of absence in the body. Protein-level tumor co-positivity (tumor CITE-seq) remains a standing gap."
 
 measurement: sc_rna
 sample_context: tumor          # malignant cells (single-cell same-cell coexpression)
