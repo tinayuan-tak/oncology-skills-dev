@@ -33,10 +33,18 @@ from typing import Optional
 
 PRODUCT_MANIFEST_ID = "depmap-paralog-genetic-interaction-per-pair-v1"
 SUMMARY_FILENAME = "paralog_gi_per_pair_summary.parquet"
-METHOD_VERSION = "0.1.0"
+METHOD_VERSION = "0.2.0"
 
-# Verdict thresholds mirror the product's interaction_class (carried raw so the card can re-threshold).
-STRONG_GI = -0.5
+# Reader-authoritative GI thresholds. The product carries the raw effect fields (mean_gi,
+# frac_lines_strong_gi, min_gi) precisely so the card can re-threshold — this reader now does so
+# rather than trusting the product's baked `interaction_class` convenience column (see _partner_class
+# for the over-call bug that column had). Chronos scale; NEGATIVE GI = synthetic-lethal / buffering.
+STRONG_GI = -0.5                    # a "strong" synthetic-lethal / buffering LINE (per-line bar)
+CONSTITUTIVE_MEAN = -0.25          # mean-GI floor for a broad additive-negative interaction
+FRAC_STRONG_CONSTITUTIVE = 0.4     # ...AND a MAJORITY-ish of lines strongly buffered — the specificity gate
+SUPPRESSIVE_MEAN = 0.25            # positive GI / masking
+CONTEXT_FRAC = 0.10                # minority-of-lines fraction hinting conditional SL
+CONTEXT_MIN = -1.0                 # a single very-strong line hints conditional SL
 
 # Caches ONLY successful summary reads (a hit or a definitive empty tuple()), keyed by UPPER(target).
 # A transient read failure returns None WITHOUT caching, so a later call retries — an @lru_cache over
@@ -96,20 +104,60 @@ def _read_pair_lines(target: str, partner: str) -> Optional[list]:
     return tbl.to_pylist()
 
 
+def _partner_class(r: dict) -> Optional[str]:
+    """Reader-authoritative re-classification of ONE partner row from its RAW GI effect fields.
+
+    Supersedes the product's baked `interaction_class` convenience column. That column keyed
+    `constitutive_buffering` on `mean_gi <= -0.25 AND one-sample-t p < 0.05` — but at the screen's n
+    (~278 lines) the t-test vs 0 is significant (p < 1e-40) for ANY tiny consistent offset, so the
+    p-gate was INERT and classification collapsed to the single -0.25 mean cutoff. That over-called
+    `constitutive` on weak, family-wide additive GI against non-paralog partners: ZAP70 (a SYK-family
+    T/NK kinase) scored as the top "constitutive" partner for BOTH EGFR and ERBB2, and FLT3's call
+    rested on a flat RTK-family plateau (FGFR1/PDGFRA/RET, all frac_strong ~0.2) while its true
+    class-III paralog KIT read weakest — the signature of a generic two-kinase-KO additive effect, not
+    paralog buffering.
+
+    We re-gate on EFFECT: a CONSTITUTIVE (broad) buffering interaction must show a strong per-line SL
+    effect in a MAJORITY-ish of lines (frac_lines_strong_gi >= FRAC_STRONG_CONSTITUTIVE), not merely a
+    small mean shift. On the validated positive control MARK2/MARK3 frac_strong = 0.58 (survives as
+    constitutive); the over-called artifacts sit at 0.19-0.29 and demote to context_buffering — a
+    minority-of-lines, conditional signal, which is the honest description. The inert p-gate is dropped
+    (effect size, not significance-at-large-n, is the right discriminator here).
+
+    Falls back to the baked `interaction_class` only when the raw effect fields are absent (an older
+    product build), so the reader degrades gracefully rather than mis-classifying to no_interaction.
+    """
+    mean_gi = r.get("mean_gi")
+    if mean_gi is None:  # pre-raw-field product build — trust the baked convenience label
+        return r.get("interaction_class")
+    frac_strong = r.get("frac_lines_strong_gi") or 0.0
+    min_gi = r.get("min_gi")
+    if mean_gi <= CONSTITUTIVE_MEAN and frac_strong >= FRAC_STRONG_CONSTITUTIVE:
+        return "constitutive_buffering"
+    if mean_gi >= SUPPRESSIVE_MEAN:
+        return "suppressive"
+    if frac_strong >= CONTEXT_FRAC or (min_gi is not None and min_gi < CONTEXT_MIN):
+        return "context_buffering"
+    return "no_interaction"
+
+
 def _classify(summary_rows: Optional[tuple]) -> str:
     """Map a target's summary rows -> combinatorial_dependency_class (strongest partner wins).
 
-      strong_synthetic_lethal   >=1 partner with interaction_class 'constitutive_buffering'
+      strong_synthetic_lethal   >=1 partner re-classifying to 'constitutive_buffering'
       context_synthetic_lethal  else, >=1 partner 'context_buffering'
       suppressive_interaction   else, >=1 partner 'suppressive'
       no_interaction            partners screened, none interacting
       no_paralog_screened       gene absent from the paralog library (coverage gap — measured-vs-null)
+
+    Per-partner class is re-derived from raw effect fields by _partner_class (reader-authoritative),
+    NOT read from the product's baked `interaction_class` column.
     """
     if summary_rows is None:
         return "data_unavailable"
     if len(summary_rows) == 0:
         return "no_paralog_screened"
-    classes = {r.get("interaction_class") for r in summary_rows}
+    classes = {_partner_class(r) for r in summary_rows}
     if "constitutive_buffering" in classes:
         return "strong_synthetic_lethal"
     if "context_buffering" in classes:
@@ -135,7 +183,10 @@ def _rank_partners(summary_rows: tuple, top_n: int = 20) -> list:
             "min_gi": r.get("min_gi"),
             "min_gi_lineage": r.get("min_gi_lineage"),
             "n_lineages_strong": int(r.get("n_lineages_strong") or 0),
-            "interaction_class": r.get("interaction_class"),
+            # reader-authoritative re-classification (frac_strong-gated); the product's baked label is
+            # preserved as interaction_class_product so a reclassification is auditable, not silent.
+            "interaction_class": _partner_class(r),
+            "interaction_class_product": r.get("interaction_class"),
         })
     return out
 
@@ -217,14 +268,15 @@ def _context(sym: str, klass: str, strongest: Optional[dict], n_screened: int) -
     pg, mg, ic = s.get("partner_gene"), s.get("mean_gi"), s.get("interaction_class")
     frac = s.get("frac_lines_strong_gi")
     minlin = s.get("min_gi_lineage")
+    mg_str = f"{mg:.3f}" if mg is not None else "n/a"  # null-safe: a degenerate row must not crash the read
     if klass == "strong_synthetic_lethal":
         return (f"{sym}: constitutive synthetic-lethal / buffering interaction with {pg} "
-                f"(mean GI {mg:.3f} across cell lines) — the pair is required together broadly.")
+                f"(mean GI {mg_str} across cell lines) — the pair is required together broadly.")
     if klass == "context_synthetic_lethal":
-        return (f"{sym}: CONTEXT-dependent synthetic-lethal interaction with {pg} (mean GI {mg:.3f}; "
+        return (f"{sym}: CONTEXT-dependent synthetic-lethal interaction with {pg} (mean GI {mg_str}; "
                 f"~{(frac or 0)*100:.0f}% of lines show strong buffering, strongest in {minlin}) — "
                 f"the dependency is conditional (lineage / genotype), not broad. Check the lineage breakdown.")
     if klass == "suppressive_interaction":
-        return (f"{sym}: suppressive (positive-GI) interaction with {pg} (mean GI {mg:.3f}) — "
+        return (f"{sym}: suppressive (positive-GI) interaction with {pg} (mean GI {mg_str}) — "
                 f"co-loss is LESS lethal than additive (masking/epistasis).")
     return None
