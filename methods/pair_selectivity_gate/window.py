@@ -15,11 +15,17 @@ Verdicts:
   window_marginal                tumor coordinated & both>=TAU ; normal borderline
   no_window                      tumor coordinated & both>=TAU ; normal_liability (a normal cell co-expresses both)
   selectivity_unproven           tumor coordinated & both>=TAU ; normal under_powered (thin coverage — NOT a pass)
-  insufficient_tumor_engagement  tumor both<TAU or not coordinated (avidity gate won't co-engage the tumor)
+  insufficient_tumor_engagement  tumor both<TAU (avidity gate can't co-engage the tumor)
   data_unavailable               a required cube is unreadable
 
-Policy (set 2026-08-13): TAU=0.30; window_open REQUIRES same-cell coordination (enrichment>=1.2),
-not mere co-presence. under_powered normal is conservatively NOT a pass.
+Policy (updated 2026-08-15 per #357, Option A — supersedes the 2026-08-13 coordination policy):
+TAU=0.30; tumor engagement gates on ABSOLUTE same-cell co-presence (both_fraction >= TAU), NOT
+enrichment-coordination. Rationale: enrichment is degenerate at saturation — two ~ubiquitous
+antigens on malignant cells give enrichment ~1.0 (independent) despite high both_fraction, so the
+prior "REQUIRES coordination" gate mislabelled high-co-presence pairs (e.g. EPCAM:CEACAM5 in
+COADREAD, both=0.71) as insufficient_tumor_engagement when the real driver was the NORMAL gate.
+Coordination is retained as a REPORTED flag (tumor_coordinated), not a hard gate, so the signal is
+not lost. under_powered normal is conservatively NOT a pass.
 """
 from __future__ import annotations
 
@@ -40,11 +46,15 @@ _VERDICT_RANK = {
 
 
 def _tumor_engages(tumor: dict) -> bool:
-    """Tumor axis passes iff coordinated same-cell co-expression at >= TAU (avidity-gate biology:
-    the two antigens must cluster on the SAME malignant cells, not merely both be common)."""
+    """Tumor axis passes iff the pair co-expresses on >= TAU of the SAME malignant cells
+    (absolute co-presence — what an AND-gate binder actually needs to engage the tumor).
+
+    Option A (#357): gates on both_fraction only. Coordination (enrichment >= 1.2) is NO LONGER a
+    hard gate — it is degenerate at saturation (ubiquitous antigens -> enrichment ~1.0 despite high
+    both_fraction) and requiring it mis-attributed the failure of high-co-presence pairs to the
+    tumor side. Coordination is surfaced separately as `tumor_coordinated` for downstream nuance."""
     both = tumor.get("samecell_both_fraction_median")
-    return (both is not None and both >= TUMOR_ENGAGEMENT_MIN
-            and tumor.get("samecell_avidity_call") == _COORDINATED_CALL)
+    return both is not None and both >= TUMOR_ENGAGEMENT_MIN
 
 
 def pair_selectivity_window(target: str, partner: str, indication: str) -> dict:
@@ -64,6 +74,7 @@ def pair_selectivity_window(target: str, partner: str, indication: str) -> dict:
             "selectivity_margin": margin,
             "tumor_both_fraction": t_both,
             "tumor_avidity_call": tumor.get("samecell_avidity_call"),
+            "tumor_coordinated": tumor.get("samecell_avidity_call") == _COORDINATED_CALL,  # reported, not gated (#357)
             "normal_max_both_fraction": n_both,
             "normal_liability_locus": normal.get("normal_liability_locus"),
             "support_floor": normal.get("support_floor"),

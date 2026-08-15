@@ -56,10 +56,26 @@ def test_insufficient_tumor_below_tau(monkeypatch):
     assert W.pair_selectivity_window("FOLR1", "MSLN", "OV")["window_verdict"] == "insufficient_tumor_engagement"
 
 
-def test_insufficient_tumor_not_coordinated(monkeypatch):
-    # both >= TAU but avidity is independent (not coordinated) -> avidity gate won't co-engage
+def test_engages_on_copresence_even_if_not_coordinated(monkeypatch):
+    # Option A (#357): both >= TAU engages the tumor even when avidity is independent (enrichment is
+    # degenerate at saturation). Clean normal -> window_open; coordination reported, not gated.
     _patch(monkeypatch, _tumor(0.60, call="same_cell_independent"), _normal("selectivity_clean", 0.0))
-    assert W.pair_selectivity_window("FOLR1", "MSLN", "OV")["window_verdict"] == "insufficient_tumor_engagement"
+    r = W.pair_selectivity_window("FOLR1", "MSLN", "OV")
+    assert r["window_verdict"] == "window_open"
+    assert r["tumor_coordinated"] is False
+
+
+def test_saturation_pair_attributes_failure_to_normal_not_tumor(monkeypatch):
+    # #357 live case (EPCAM:CEACAM5 in COADREAD): ubiquitous antigens -> high both_fraction (0.71) but
+    # enrichment ~1.0 (independent), AND a well-powered normal wall (colon BEST4+ colonocyte @ 1.0).
+    # Under Option A the failure attributes to the NORMAL gate (no_window), NOT the tumor side.
+    locus = {"tissue": "colon", "cell_type": "BEST4+ colonocyte", "both_fraction_median": 1.0}
+    _patch(monkeypatch, _tumor(0.71, call="same_cell_independent"),
+           _normal("normal_liability", 1.0, locus))
+    r = W.pair_selectivity_window("EPCAM", "CEACAM5", "COADREAD")
+    assert r["window_verdict"] == "no_window"
+    assert r["tumor_coordinated"] is False
+    assert r["normal_liability_locus"]["cell_type"] == "BEST4+ colonocyte"
 
 
 def test_tau_boundary_inclusive(monkeypatch):
