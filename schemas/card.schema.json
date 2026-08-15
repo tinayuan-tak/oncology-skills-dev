@@ -97,7 +97,7 @@
         }
       },
       "minItems": 0,
-      "maxItems": 10
+      "maxItems": 20
     },
     "methods": {
       "type": "array",
