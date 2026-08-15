@@ -258,6 +258,17 @@ positive_signals:
   # DISTINCT verdict from the CRISPR biomarker — the two are never conflated (drug-sensitivity != KO-dep).
   - {sub_skill: genomic_alteration, verdict: drug_response_biomarker,          weight: supportive}
 
+# Modality-scoped positives (2026-08-14): under an EXPLICIT biologics modality, a
+# favorable surface-modality verdict IS a target positive — symmetric to
+# modality_scoped_veto_suppression (which lifts the dependency veto for the same
+# modalities). In DEFAULT biology-first mode these do NOT apply (surface stays
+# excluded per excluded_positive_modality_scoped), preserving the F-symmetry.
+positive_signals_modality_scoped:
+  - {sub_skill: surface_modality, verdict: both_viable,               weight: dominant,   when_modality_in: [adc, bite_tce, antibody]}
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_unsafe,  weight: dominant,   when_modality_in: [adc, antibody]}
+  - {sub_skill: surface_modality, verdict: TCE_preferred,             weight: dominant,   when_modality_in: [bite_tce, antibody]}
+  - {sub_skill: surface_modality, verdict: ADC_preferred,             weight: dominant,   when_modality_in: [adc, antibody]}
+
 # An OPPOSING MEASURED verdict on a positive-eligible axis blocks `strong`. NOTE:
 # insufficient / data_unavailable / not_informative are NOT contradictions — absence
 # of measurement is not opposing evidence (measured-vs-null discipline).
@@ -275,6 +286,8 @@ positive_tier_config:
 
 # Documented exclusions from the positive set (symmetric to excluded_modality_scoped
 # for kills) — so a future edit doesn't "helpfully" add a modality-scoped positive.
+# NOTE: this documents DEFAULT-mode exclusion only; positive_signals_modality_scoped
+# above RE-ENABLES surface positives under an explicit biologics modality.
 excluded_positive_modality_scoped:
   - {sub_skill: surface_modality, verdict: adc_favorable}
   - {sub_skill: surface_modality, verdict: tce_favorable}
