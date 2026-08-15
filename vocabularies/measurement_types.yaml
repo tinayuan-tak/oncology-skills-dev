@@ -802,6 +802,7 @@ measurement_types:
       # lead for that indication answers first and the inferred depth cohort is consulted only as a
       # fallback (target off the measured panel, or a pure-inferred indication) — never pooled/averaged.
       - {kind: dataset, source: spatial-coloc-tumor-crc-coadread-v1, method: spatial_neighborhood, evidence_tier: measured}   # COADREAD — CosMx CRC atlas (GSE303070)
+      - {kind: dataset, source: spatial-coloc-tumor-crc-gse280318-v1, method: spatial_neighborhood, evidence_tier: measured}   # COADREAD depth — Visium HD 8µm, author decon (GSE280318); matched normal-adjacent
       - {kind: dataset, source: spatial-coloc-tumor-stad-v1, method: spatial_neighborhood, evidence_tier: measured}   # STAD — CosMx gastric atlas (GSE308624); net-new indication
       - {kind: dataset, source: spatial-coloc-tumor-paad-v1, method: spatial_neighborhood, evidence_tier: measured}   # PAAD — Xenium PDAC atlas (GSE280634); GI facet (Phase 4)
       - {kind: dataset, source: spatial-coloc-tumor-hnsc-v1, method: spatial_neighborhood, evidence_tier: inferred}   # HNSC — Xenium (GSE300147); INFERRED compartments (mode C) -> evidence_tier inferred, not measured
