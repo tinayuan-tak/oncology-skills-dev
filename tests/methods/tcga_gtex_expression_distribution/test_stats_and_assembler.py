@@ -203,11 +203,16 @@ def _fake_assignments(rows):
 
 
 def _wire_subtype(monkeypatch, *, pooled_vals, bridged_rows, assignment_rows):
-    """Wire the three substrate hops the landscape assembler calls, all offline:
+    """Wire the substrate hops the landscape assembler calls, all offline:
     pooled distribution, the case-bridged per-sample frame, and the assignment shard."""
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: pooled_vals)
     monkeypatch.setattr(R, "read_tumor_samples_with_case",
                         lambda t, i: pd.DataFrame(bridged_rows, columns=["case", "log2_tpm"]))
+    # The assembler also calls read_normal_samples (GTEx). Mock it to genuine-absence (empty) so the
+    # subtype tests stay OFFLINE — they must not depend on a live GTEx S3 read. (Previously this hop
+    # silently returned empty via a broad except that MASKED a creds/AccessDenied failure; that mask
+    # was removed, so the read now propagates and the offline test must mock it explicitly.)
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([], None))
     # patch load_assignments + compute_join_coverage where the assembler imports them
     import methods.subgroup_common.loaders as _loaders
     import methods.subgroup_common.scoping as _scoping
@@ -328,6 +333,11 @@ def test_cli_emits_full_bar(tmp_path, monkeypatch):
     cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8] * 5)
     monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0, 1.2, 0.8] * 5, "COLON"))
+    # build_summary also computes the subtype landscape (read_tumor_samples_with_case → GTEx/TCGA
+    # long product). This test does not exercise subtypes; mock the case-bridged read to an empty
+    # frame so it stays OFFLINE (the removed broad-except no longer masks the live read's AccessDenied).
+    monkeypatch.setattr(R, "read_tumor_samples_with_case",
+                        lambda t, i: pd.DataFrame(columns=["case", "log2_tpm"]))
     summary = cli.build_summary("KRAS", "COADREAD")
     assert summary["tumor_expression_class"] == "broadly_high"
     assert summary["fraction_tumor_above_normal_p95"] == pytest.approx(1.0)  # tumor >> normal
@@ -348,7 +358,6 @@ def test_cli_pooled_carries_rollup_not_full_landscape(monkeypatch):
     Cramming all strata into the pooled card overflows the synthesis prompt char-cap (measured)."""
     import importlib
     cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
-    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0] * 10, "COLON"))
     # HI enriched (~4.0) vs LO depleted (~0.5) vs MID uniform (~2.0); pooled median ~2.0.
     _wire_subtype(monkeypatch, pooled_vals=[4.0] * 40 + [2.0] * 40 + [0.5] * 40,
                   bridged_rows=[(f"a{i}", 4.0) for i in range(40)] + [(f"m{i}", 2.0) for i in range(40)]
@@ -356,6 +365,9 @@ def test_cli_pooled_carries_rollup_not_full_landscape(monkeypatch):
                   assignment_rows=[(f"a{i}", "HI", True) for i in range(40)]
                                   + [(f"m{i}", "MID", True) for i in range(40)]
                                   + [(f"b{i}", "LO", True) for i in range(40)])
+    # set AFTER _wire_subtype (which defaults read_normal_samples to empty) so the matched-normal
+    # value this test asserts on ("COLON") wins.
+    monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0] * 10, "COLON"))
     summary = cli.build_summary("X", "COADREAD")
     assert summary["subtype_axis_available"] is True
     assert summary["n_subtypes_measured"] == 3

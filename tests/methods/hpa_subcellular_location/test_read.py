@@ -8,6 +8,7 @@ REPO = Path(__file__).resolve().parents[3]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
+from methods.hpa_subcellular_location import read as _hpa_read  # noqa: E402
 from methods.hpa_subcellular_location.read import read_surface_if_location  # noqa: E402
 
 
@@ -34,7 +35,11 @@ def test_intracellular_only_is_measured_non_surface():
     assert s["is_plasma_membrane"] is False
 
 
-def test_absent_is_coverage_gap_not_non_surface():
+def test_absent_is_coverage_gap_not_non_surface(monkeypatch):
+    # GENUINE absence: the per-gene HPA row reader finds no row (product read OK, gene not present).
+    # Mock _read_hpa_row → None so the test stays hermetic (no S3); a live read here would surface a
+    # creds/AccessDenied error now that the broad except no longer masks transient failures as absence.
+    monkeypatch.setattr(_hpa_read, "_read_hpa_row", lambda sym: None)
     s = read_surface_if_location("NOTAGENE", hpa_row=None)
     assert s["surface_if_location_class"] == "location_unavailable"
     assert s["is_plasma_membrane"] is False

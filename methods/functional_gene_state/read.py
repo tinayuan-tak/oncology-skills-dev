@@ -104,7 +104,10 @@ def _load_sample_cancer_types() -> dict:
         df = df.dropna(subset=["patient_barcode", "cancer type"])
         # one cancer type per patient (they're consistent within patient); last wins is fine.
         return dict(zip(df["patient_barcode"], df["cancer type"]))
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 
@@ -131,7 +134,10 @@ def _read_mc3_gene(target: str):
                (df["Variant_Classification"].isin(_NONSYN))].copy()
         g["Start_Position"] = pd.to_numeric(g["Start_Position"], errors="coerce")
         return g
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return None
 
 
@@ -147,7 +153,10 @@ def _read_absolute_segments():
         for c in ("Chromosome", "Start", "End", "LOH", "Homozygous_deletion"):
             df[c] = pd.to_numeric(df[c], errors="coerce")
         return df
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return None
 
 
@@ -169,7 +178,10 @@ def _read_gistic_gene(target: str) -> dict:
         vals = row.iloc[0].drop(labels=[c for c in meta if c in row.columns])
         return {str(k): int(v) for k, v in vals.items()
                 if str(v) not in ("nan", "") and str(v).lstrip("-").isdigit()}
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 
@@ -212,7 +224,15 @@ def _read_two_hit_evidence(target: str):
         table = pq.read_table(path, filesystem=s3,
                               filters=[("gene_symbol", "=", target.upper())])
         return tuple(table.to_pylist())
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Product GENUINELY absent (not built / NoSuchKey → FileNotFoundError or 404) → None so the
+        # caller falls back to the live MC3+ABSOLUTE+GISTIC read (the intended redundancy). A
+        # transient-S3 / creds / broken-env error must NOT masquerade as "product absent" — re-raise
+        # it (the live fallback would likely hit the same infra issue, and its own readers now enforce
+        # the same discipline, so an honest _live_read_error is correct).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return None
 
 
@@ -403,21 +423,50 @@ def _abs_sample_key(mc3_barcode: str, segs) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 @lru_cache(maxsize=1)
 def _load_ccle_colname_to_model_id() -> dict:
-    """{CCLE_column_name_upper: ModelID} from DepMap Model.csv.
+    """{RRBS_column_key_upper: ModelID} from DepMap Model.csv.
 
-    RRBS columns are CELLLINENAME_TISSUE (e.g. 'DMS53_LUNG'). Model.csv has
-    CellLineName (e.g. 'DMS53') and ModelID (e.g. 'ACH-000001'). We build
-    CELLLINENAME_upper → ModelID so RRBS columns can be resolved to ModelIDs.
-    Returns empty dict on failure (data_unavailable-safe).
+    RRBS columns are CCLE-style CELLLINE_TISSUE names (e.g. 'DMS53_LUNG',
+    'NCIH2126_LUNG', '1321N1_CENTRAL_NERVOUS_SYSTEM'). The correct Model.csv bridge
+    key is therefore CCLEName (the CELLLINE_TISSUE form, e.g. 'DMS53_LUNG') matched
+    against the FULL column — mirroring the validated depmap_demeter_distribution bridge
+    (cli.py:208). This map keys on BOTH forms so _read_model_methylation resolves either:
+      - CCLEName.upper()            → ModelID  (matches the FULL RRBS column; primary)
+      - StrippedCellLineName.upper() → ModelID (matches col.split('_')[0]; fallback)
+
+    The PRIOR implementation keyed on CellLineName (the PUNCTUATED display name, e.g.
+    'NCI-H2126', 'DMS 53') and was looked up against col.split('_')[0] (the alnum
+    fragment, e.g. 'NCIH2126') — these NEVER matched for punctuated names, so most cell
+    lines were silently unmapped and methylation-silenced TSGs were under-called
+    biallelic/epigenetic. Returns empty dict on GENUINE absence (data_unavailable-safe).
     """
     import pandas as pd
     try:
         raw = _s3_read_bytes(DEPMAP_MODEL_KEY)
-        df = pd.read_csv(io.BytesIO(raw), usecols=["ModelID", "CellLineName"])
-        return {str(row.CellLineName).upper(): str(row.ModelID)
-                for row in df.itertuples(index=False)
-                if pd.notna(row.CellLineName) and pd.notna(row.ModelID)}
-    except Exception:  # noqa: BLE001
+        hdr = pd.read_csv(io.BytesIO(raw), nrows=0)
+        want = [c for c in ("ModelID", "CCLEName", "StrippedCellLineName") if c in hdr.columns]
+        df = pd.read_csv(io.BytesIO(raw), usecols=want)
+        out: dict = {}
+        for row in df.itertuples(index=False):
+            model_id = getattr(row, "ModelID", None)
+            if not (pd.notna(model_id)):
+                continue
+            model_id = str(model_id)
+            # PRIMARY: full CELLLINE_TISSUE name (matches the full RRBS column verbatim).
+            ccle = getattr(row, "CCLEName", None)
+            if pd.notna(ccle) and str(ccle).strip():
+                out[str(ccle).upper()] = model_id
+            # FALLBACK: stripped alnum name (matches col.split('_')[0]).
+            stripped = getattr(row, "StrippedCellLineName", None)
+            if pd.notna(stripped) and str(stripped).strip():
+                out.setdefault(str(stripped).upper(), model_id)
+        return out
+    except Exception as e:  # noqa: BLE001
+        # Genuine 404/NoSuchKey → honest empty (methylation arm degrades to unavailable). A
+        # transient/creds/broken-env error must NOT be masked as an empty bridge (would silently
+        # unmap every cell line) — re-raise (lru_cache never memoizes the raise, so it is retried).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 
@@ -448,7 +497,12 @@ def _read_model_methylation(target: str) -> dict:
         raw_bytes = _s3_read_bytes(CCLE_RRBS_KEY)
         with gzip.GzipFile(fileobj=io.BytesIO(raw_bytes)) as gz:
             df = pd.read_csv(gz, sep="\t", dtype=str)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine 404/NoSuchKey → honest empty (no RRBS methylation for this target). A transient/
+        # creds/broken-env error must NOT be masked as "no methylation" — re-raise it.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
     gene_rows = df[df["locus_id"].str.startswith(gene_prefix, na=False)]
@@ -466,9 +520,12 @@ def _read_model_methylation(target: str) -> dict:
     for col, val in min_beta.items():
         if pd.isna(val):
             continue
-        # col = 'CELLLINENAME_TISSUE'; strip tissue suffix to get cell-line name
-        cell_line = col.split("_")[0].upper()
-        model_id = col_to_model.get(cell_line)
+        # col = 'CELLLINE_TISSUE' (CCLE-style). Resolve against CCLEName via the FULL column first
+        # (the correct bridge — mirrors depmap_demeter_distribution), then fall back to the stripped
+        # alnum name (col.split('_')[0]) against StrippedCellLineName. The prior code used ONLY the
+        # split-fragment against the punctuated display name, which never matched punctuated lines.
+        model_id = (col_to_model.get(col.upper())
+                    or col_to_model.get(col.split("_")[0].upper()))
         if model_id:
             out[model_id] = bool(val > _RRBS_METH_THRESHOLD)
     return out
@@ -498,7 +555,13 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
         sub = df[df["is_promoter_methylated"].notna()]
         return {str(row.patient_barcode): bool(row.is_promoter_methylated)
                 for row in sub.itertuples(index=False)}
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # HM450 product genuinely absent (Phase-2b not yet landed → NoSuchKey/404) → honest {} so the
+        # patient arm degrades to genetic-only. A transient/creds/broken-env error must NOT be masked
+        # as "no methylation" (would silently drop epigenetic upgrades) — re-raise it.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 
@@ -523,8 +586,15 @@ def _read_depmap_matrix_column(matrix_filename: str, target: str):
         from methods.depmap_common import parquet as _dp
         df = _dp.get_matrix_column_by_model_id(parquet_name, target)
         return df  # None if the gene is absent from the matrix (a real "no data" answer)
-    except Exception:  # noqa: BLE001
-        return None  # product unreachable → live CSV fallback
+    except Exception as e:  # noqa: BLE001
+        # Parquet product GENUINELY absent (unregistered / NoSuchKey → FileNotFoundError or 404) →
+        # None so the caller falls back to the raw-CSV read (the intended redundancy). A transient/
+        # creds/broken-env error must NOT masquerade as "product unreachable" — re-raise it (the CSV
+        # fallback reads the same backend and its own reader now enforces the same discipline).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
+        return None  # product genuinely absent → live CSV fallback
 
 
 def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
@@ -550,7 +620,10 @@ def _read_depmap_mut_matrix(matrix_filename: str, target: str) -> dict:
             return {}
         df = pd.read_csv(io.BytesIO(raw), usecols=["ModelID", gene_col])
         return {str(m): bool(v) for m, v in zip(df["ModelID"], df[gene_col]) if pd.notna(v)}
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 
@@ -574,7 +647,10 @@ def _read_depmap_cn(target: str) -> dict:
             return {}
         df = pd.read_csv(io.BytesIO(raw), usecols=["ModelID", gene_col])
         return {str(m): float(v) for m, v in zip(df["ModelID"], df[gene_col]) if pd.notna(v)}
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 

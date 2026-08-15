@@ -65,7 +65,11 @@ def _ensure_derived_cached() -> Optional[Path]:
             # poisoning the whole process with a false data_unavailable.
             resp = getattr(e, "response", None)
             code = resp.get("Error", {}).get("Code") if isinstance(resp, dict) else None
-            definitive = (code in ("404", "NoSuchKey", "403", "AccessDenied")
+            # Latch process-wide ONLY on a genuine object-absence (404 / NoSuchKey). 403 /
+            # AccessDenied is NOT definitive: it is almost always a TRANSIENT creds blip (expired
+            # token, un-refreshed role) — latching it would poison the whole batch with a false
+            # data_unavailable. Mirrors surface_antigen_density_ladder (latches on 404/NoSuchKey only).
+            definitive = (code in ("404", "NoSuchKey")
                           or e.__class__.__name__ in ("NoSuchKey", "404"))
             if definitive:
                 _DERIVED_STATUS = False

@@ -312,7 +312,13 @@ def _read_gene(which: str, target: str):
             columns=cols,
         )
         return tbl.to_pandas()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine object-absence (NoSuchKey/404) → honest empty (data_unavailable). A broken-env /
+        # transient-S3 (throttle/timeout) / creds error must NOT be masked as "gene not expressed" —
+        # re-raise so the live-read seam surfaces _live_read_error instead of a silent dead axis.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return pd.DataFrame(columns=cols)
 
 

@@ -146,7 +146,7 @@ def _no_compound_summary(target: str, reason: str) -> dict:
 @click.command()
 @click.option("--target", required=True)
 @click.option("--indication", required=True)
-@click.option("--release-pin", default="dmc-26q1")
+@click.option("--release-pin", default="26q1")
 @click.option("--out", required=True, type=click.Path())
 @click.option("--aggregate", default="best", type=click.Choice(["best", "median"]))
 def main(target, indication, release_pin, out, aggregate) -> int:

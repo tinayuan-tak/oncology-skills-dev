@@ -120,10 +120,16 @@ def resolve_accession(target: str, sidecar_path=None) -> Optional[str]:
     sym = target.strip().upper()
     col = "hgnc_primary_symbol_at_resolution"
     if col not in df.columns or "native_row_key" not in df.columns:
-        return None
+        # SCHEMA DRIFT (or a mis-described/unreadable sidecar), NOT a genuine symbol-absence: a
+        # well-formed sidecar always carries these columns. Returning None here would silently mask a
+        # broken product as "symbol not resolvable" for EVERY target. Raise so the read.py dispatcher
+        # surfaces an honest _live_read_error instead of a framework-wide silent data_unavailable.
+        raise ValueError(
+            f"Gygi target_resolution sidecar s3://{S3_BUCKET}/{SIDECAR_KEY} missing expected columns "
+            f"{col!r}/'native_row_key' (present: {list(df.columns)[:10]}) — schema drift")
     hit = df[df[col].astype(str).str.upper() == sym]
     if not len(hit):
-        return None
+        return None  # symbol not in a WELL-FORMED sidecar → genuine data_unavailable (honest None)
     val = hit.iloc[0]["native_row_key"]
     return str(val) if val is not None and str(val) != "nan" else None
 

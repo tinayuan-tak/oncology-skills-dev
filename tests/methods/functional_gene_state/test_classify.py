@@ -292,3 +292,57 @@ def test_patient_methylation_graceful_degradation():
     assert counts["wt"] == 1      # P-A: neutral, no mutation → wt
     assert counts["monoallelic"] == 1  # P-B: single-copy loss, no mutation → monoallelic
     assert result["methylation_source"] is None
+
+
+# ── M1: CCLE RRBS column → ModelID join (punctuated display names must resolve) ─────────────────
+import gzip  # noqa: E402
+import io  # noqa: E402
+import pandas as pd  # noqa: E402
+import methods.functional_gene_state.read as _fgs_read  # noqa: E402
+
+# A Model.csv whose display CellLineName is PUNCTUATED ("NCI-H2126", "DMS 53"); the RRBS columns are
+# the CCLE-style CELLLINE_TISSUE form ("NCIH2126_LUNG"). The prior code keyed the bridge on the
+# punctuated CellLineName and looked it up with col.split("_")[0] ("NCIH2126") → never matched.
+_MODEL_CSV = (
+    "ModelID,CellLineName,StrippedCellLineName,CCLEName,OncotreeLineage\n"
+    "ACH-000001,NCI-H2126,NCIH2126,NCIH2126_LUNG,Lung\n"
+    "ACH-000002,DMS 53,DMS53,DMS53_LUNG,Lung\n"
+)
+_RRBS_TSV = (
+    "locus_id\tCpG_sites_hg19\tavg_coverage\tNCIH2126_LUNG\tDMS53_LUNG\n"
+    "TP53_17_7571720_7572720\t12\t30\t0.85\t0.05\n"
+)
+
+
+def _fake_s3_read_bytes(key: str) -> bytes:
+    if key == _fgs_read.DEPMAP_MODEL_KEY:
+        return _MODEL_CSV.encode()
+    if key == _fgs_read.CCLE_RRBS_KEY:
+        buf = io.BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
+            gz.write(_RRBS_TSV.encode())
+        return buf.getvalue()
+    raise AssertionError(f"unexpected key {key}")
+
+
+def test_ccle_colname_bridge_resolves_punctuated_names(monkeypatch):
+    monkeypatch.setattr(_fgs_read, "_s3_read_bytes", _fake_s3_read_bytes)
+    _fgs_read._load_ccle_colname_to_model_id.cache_clear()
+    m = _fgs_read._load_ccle_colname_to_model_id()
+    # PRIMARY: full CCLE-style column resolves.
+    assert m["NCIH2126_LUNG"] == "ACH-000001"
+    assert m["DMS53_LUNG"] == "ACH-000002"
+    # FALLBACK: the stripped alnum fragment (col.split("_")[0]) also resolves.
+    assert m["NCIH2126"] == "ACH-000001"
+    assert m["DMS53"] == "ACH-000002"
+    _fgs_read._load_ccle_colname_to_model_id.cache_clear()
+
+
+def test_read_model_methylation_maps_column_to_model_id(monkeypatch):
+    """End-to-end: a punctuated-name cell line's RRBS column maps to its ModelID and thresholds
+    correctly. Directly exercises the M1 fix (other tests monkeypatch _read_model_methylation whole)."""
+    monkeypatch.setattr(_fgs_read, "_s3_read_bytes", _fake_s3_read_bytes)
+    _fgs_read._load_ccle_colname_to_model_id.cache_clear()
+    out = _fgs_read._read_model_methylation("TP53")
+    assert out == {"ACH-000001": True, "ACH-000002": False}  # 0.85 > 0.30 methylated; 0.05 not
+    _fgs_read._load_ccle_colname_to_model_id.cache_clear()

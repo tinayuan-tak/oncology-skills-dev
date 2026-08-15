@@ -650,7 +650,14 @@ def read_tumor_vs_gtex_gene_row(target: str, indication: str) -> Optional[dict]:
         path = _s3_uri_to_path(s3_uri)
         table = pq.read_table(path, filesystem=s3fs,
                                 filters=[("gene_symbol", "=", target)])
-    except Exception:
+    except Exception as e:
+        # Genuine absence only (no landed manifest / missing object → FileNotFoundError, or
+        # NoSuchKey/404) → None. A transient-S3 / creds / broken-env error must NOT be masked as
+        # "product absent" — re-raise it so the caller does not silently degrade (RD3: keeps
+        # read_tumor_vs_normal_selectivity from falling back v3→legacy-v2 on a transient failure).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return None
     if table.num_rows == 0:
         return None
@@ -695,7 +702,14 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
         path = _s3_uri_to_path(s3_uri)
         table = pq.read_table(path, filesystem=s3fs,
                               filters=[("gene_symbol", "=", target)])
-    except Exception:
+    except Exception as e:
+        # Genuine absence only (no landed manifest / missing object → FileNotFoundError, or
+        # NoSuchKey/404) → None. A transient-S3 / creds / broken-env error must NOT be masked as
+        # "product absent" — re-raise it so read_tumor_vs_normal_selectivity does not silently fall
+        # back v3→legacy-v2 on a transient failure (RD3).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return None
     if table.num_rows == 0:
         return None

@@ -57,9 +57,15 @@ def _boto3():
     return boto3.Session().client("s3")
 
 
+# Module-level breadcrumb: set to a short token when a loader hit a NON-absent (transient/creds/
+# broken-env) error, so read_alteration_role can surface it. A genuine 404/NoSuchKey leaves it None
+# (honest data_unavailable — the object simply isn't there).
+_live_read_error: Optional[str] = None
+
+
 @lru_cache(maxsize=1)
 def _load_oncokb_roles() -> dict:
-    """{hugoSymbol: geneType} from the OncoKB cancer-gene-list JSON. Empty on failure."""
+    """{hugoSymbol: geneType} from the OncoKB cancer-gene-list JSON. Empty on GENUINE absence only."""
     try:
         obj = _boto3().get_object(Bucket=S3_BUCKET, Key=ONCOKB_KEY)
         data = json.loads(obj["Body"].read())
@@ -70,7 +76,15 @@ def _load_oncokb_roles() -> dict:
             if sym:
                 out[sym] = r.get("geneType") or "NEITHER"
         return out
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine 404/NoSuchKey → honest empty. A transient/creds/broken-env error must NOT be masked
+        # as an empty role map (would silently strip driver-role evidence for every target) — record a
+        # breadcrumb + re-raise (lru_cache never memoizes the raise, so it is retried).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            global _live_read_error
+            _live_read_error = f"oncokb_load_failed:{type(e).__name__}"
+            raise
         return {}
 
 
@@ -89,7 +103,15 @@ def _load_intogen_compendium():
         df["QVALUE_COMBINATION"] = pd.to_numeric(df["QVALUE_COMBINATION"], errors="coerce")
         df["%_SAMPLES_COHORT"] = pd.to_numeric(df["%_SAMPLES_COHORT"], errors="coerce")
         return df
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine 404/NoSuchKey → honest empty. A transient/creds/broken-env error must NOT be masked
+        # as an empty compendium (would silently strip indication-scoped driver evidence) — record a
+        # breadcrumb + re-raise (lru_cache never memoizes the raise, so it is retried).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            global _live_read_error
+            _live_read_error = f"intogen_load_failed:{type(e).__name__}"
+            raise
         return pd.DataFrame(columns=["SYMBOL", "CANCER_TYPE", "ROLE", "QVALUE_COMBINATION",
                                      "%_SAMPLES_COHORT", "IS_DRIVER"])
 

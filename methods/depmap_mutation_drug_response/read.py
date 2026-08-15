@@ -21,8 +21,13 @@ import os
 from typing import Optional
 
 # Single-source release-pin → PRISM OncRef source prefix (mirrors depmap_prism_precompute v3).
+# NOTE the pin is the DepMap pin (default "26q1"): it resolves the DepMap mutation-matrix PARQUET
+# product (depmap-{pin}-parquet-v1) in load_mutation_data. It was previously "dmc-26q1", which
+# resolves depmap-dmc-26q1-parquet-v1 (UNREGISTERED) → the parquet tier failed → every call fell
+# back to the slow full-CSV mutation read. PRISM itself uses its own independent 25q4 release
+# regardless of the pin (any unknown pin → the "default" entry below), so the ModelID join is stable.
 _PRISM_RELEASES = {
-    "dmc-26q1": {
+    "26q1": {
         "source_prefix": "data-catalog/sources/depmap-consortium/prism-oncref-dmc-25q4",
         "compound_list": "PRISMOncologyReferenceLumCompoundList.csv",
         "log2auc_matrix": "PRISMOncologyReferenceLumLog2AUCMatrix.csv",
@@ -149,7 +154,7 @@ def _median(vals: list) -> float:
 
 
 def read_mutation_drug_response(target: str, indication: Optional[str] = None,
-                                release_pin: str = "dmc-26q1", aggregate: str = "best") -> dict:
+                                release_pin: str = "26q1", aggregate: str = "best") -> dict:
     """Card entry point: genotype × PRISM drug-response biomarker for target.
 
     Selects on-target PRISM compounds (GeneSymbolOfTargets == target), builds the per-ModelID

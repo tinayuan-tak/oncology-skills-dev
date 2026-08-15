@@ -27,12 +27,14 @@ def _ensure_aws_profile() -> None:
     os.environ.setdefault("AWS_PROFILE", DEFAULT_AWS_PROFILE)
 
 
-def read_amp_expr_dependency(target: str, indication: Optional[str] = None) -> dict:
+def read_amp_expr_dependency(target: str, indication: Optional[str] = None,
+                             release_pin: str = "26q1") -> dict:
     """Compute amplification+overexpression conjoint-stratified dependency for target across the panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only, like
-    the mutation/CN/fusion stratified siblings). Returns the card's summary_fields, or a dict with
-    _live_read_error when data is unreachable.
+    the mutation/CN/fusion stratified siblings). `release_pin` selects the DepMap release and is
+    threaded into all three loaders (was previously hardcoded to "26q1", so the arg was ignored).
+    Returns the card's summary_fields, or a dict with _live_read_error when data is unreachable.
     """
     _ensure_aws_profile()
     METHODS_REPO = Path(__file__).resolve().parent.parent.parent
@@ -45,7 +47,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None) -> d
 
     # 1. Chronos
     chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(
-        release_pin="26q1", target_symbol=target
+        release_pin=release_pin, target_symbol=target
     )
     if chronos_errs:
         return {
@@ -63,7 +65,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None) -> d
 
     # 2. Relative CN (bridged ModelConditionID -> ModelID by load_cn_files)
     cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(
-        release_pin="26q1", target_symbol=target
+        release_pin=release_pin, target_symbol=target
     )
     if cn_errs or not cn_by_model:
         return {
@@ -76,7 +78,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None) -> d
 
     # 3. log2TPM expression
     tpm_by_model, _tpm_meta, tpm_errs = excli.load_expression_files(
-        release_pin="26q1", target_symbol=target
+        release_pin=release_pin, target_symbol=target
     )
     if tpm_errs or not tpm_by_model:
         return {

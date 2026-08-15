@@ -42,17 +42,25 @@ def _read_parquet(path_or_none, bucket, key):
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     _ensure_aws_profile()
-    import boto3
-    body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
+    # batch reads), mirroring uniprot_protein_features — a bare boto3.client had NO retry backoff.
+    from methods.target_id_sidecar import s3_client
+    body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
 
 @lru_cache(maxsize=1)
 def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str] = None):
-    """Build (gpi_acs:set, gpi_note_by_ac:dict, symbol_to_ac:dict). None if payload unavailable."""
+    """Build (gpi_acs:set, gpi_note_by_ac:dict, symbol_to_ac:dict). None if payload GENUINELY absent."""
     try:
         payload = _read_parquet(payload_path, S3_BUCKET, PAYLOAD_KEY)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine 404/NoSuchKey → None (honest data_unavailable). A transient-S3 / creds / broken-env
+        # error must NOT be masked as "product unavailable" (would silently flip every GPI target to
+        # is_gpi_anchored=None) — re-raise (lru_cache never memoizes the raise, so it is retried).
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return None
     gpi_acs = set()
     gpi_note_by_ac = {}
@@ -69,8 +77,12 @@ def _load_indexed(payload_path: Optional[str] = None, sidecar_path: Optional[str
             for sym, ac in zip(sc[sym_col].values, sc["native_row_key"].values):
                 if isinstance(sym, str) and sym.strip() and isinstance(ac, str):
                     symbol_to_ac[sym.strip().upper()] = ac.strip()
-    except Exception:  # noqa: BLE001 — sidecar optional at read time; AC lookups still work
-        pass
+    except Exception as e:  # noqa: BLE001 — sidecar genuinely-absent: AC lookups still work.
+        # A transient/creds/broken-env failure must NOT be masked (would drop symbol→AC for the whole
+        # batch AND poison the lru_cache with a partial index) — re-raise it.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
     return gpi_acs, gpi_note_by_ac, symbol_to_ac
 
 

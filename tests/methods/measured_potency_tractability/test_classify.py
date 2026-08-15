@@ -75,3 +75,45 @@ def test_series_threshold_boundary():
     assert POTENT_SERIES_MIN == 10
     assert classify_measured_bioactivity({"best_pchembl": 7.0, "n_potent_ligands": 10}, None) == "potent_measured_ligand"
     assert classify_measured_bioactivity({"best_pchembl": 7.0, "n_potent_ligands": 9}, None) == "weak_measured_ligand"
+
+
+# ── RD1: a TRANSIENT load failure must NOT poison the lru_cache (must be retried) ───────────────
+import pytest  # noqa: E402
+import pandas as pd  # noqa: E402
+import methods.measured_potency_tractability.read as _R  # noqa: E402
+
+
+def test_transient_load_raises_and_is_not_cached(monkeypatch):
+    """A transient (non-absent) load error must PROPAGATE and NOT be memoized by @lru_cache, so the
+    next target in a batch retries instead of inheriting a poisoned None. Regression for RD1."""
+    _R._load_indexed.cache_clear()
+    calls = {"n": 0}
+
+    def flaky(path_or_none, bucket, key):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient S3 throttle")   # non-absent → must propagate
+        return pd.DataFrame([{"uniprot_id": "P00533", "best_pchembl": 7.5, "n_potent_ligands": 40}])
+
+    monkeypatch.setattr(_R, "_read_parquet", flaky)
+    with pytest.raises(RuntimeError):
+        _R._load_indexed()
+    # the raised load was NOT cached → this call re-enters _read_parquet and succeeds.
+    idx = _R._load_indexed()
+    assert idx is not None and idx[0] is not None
+    _R._load_indexed.cache_clear()
+
+
+def test_genuine_absence_returns_none_not_raise(monkeypatch):
+    """A definitive NoSuchKey (product genuinely absent) → None (honest data_unavailable), not a raise."""
+    from botocore.exceptions import ClientError
+    _R._load_indexed.cache_clear()
+
+    def absent(path_or_none, bucket, key):
+        raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
+
+    monkeypatch.setattr(_R, "_read_parquet", absent)
+    chembl_idx, bdb_idx = _R._load_indexed()
+    assert chembl_idx is None and bdb_idx is None
+    assert _R._lookup(chembl_idx, "EGFR") is None    # None-safe lookup → data_unavailable downstream
+    _R._load_indexed.cache_clear()

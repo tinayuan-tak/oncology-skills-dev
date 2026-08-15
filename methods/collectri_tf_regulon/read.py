@@ -255,6 +255,12 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         edges, total, unmapped = _compute_edges_for_target(target)
         return _aggregate_edges_to_summary(edges, total, unmapped)
     except Exception as e:
+        # Genuine product-absence (NoSuchKey/404 or FileNotFoundError) → honest data_unavailable. A
+        # transient/creds/broken-env error must NOT be masked as an empty regulon — re-raise it so the
+        # live-read seam surfaces _live_read_error instead of a silent dead axis.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return {
             "network_class": "data_unavailable",
             "n_upstream_regulators": 0,

@@ -306,6 +306,53 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
     )
 
 
+def _cohort_samples_path(data_source: str, indication: str) -> Path | None:
+    """Companion FULL-cohort sample list produced alongside the prefetched MAF.
+
+    The prefetch step (scripts/prefetch_source_maf.py) computes the indication cohort
+    (`keep_samples` from data_clinical_sample.txt CANCER_TYPE / lineage) but historically
+    wrote only the mutation-bearing MAF rows. When it ALSO emits this companion parquet
+    (a `sample_id` column, optionally source_native_id / patient_id for the full cohort
+    INCLUDING fully-WT tumors), we use it as the WT/negation-stratum denominator. Convention:
+    `{indication}-cohort-samples.parquet` in the same cache dir as the MAF."""
+    dir_slug = {"tcga": "framework-gdc-pancohort-somatic",
+                "genie": "framework-genie-public-v19",
+                "depmap": "framework-depmap-26q1"}.get(data_source)
+    if not dir_slug:
+        return None
+    p = cache_root() / dir_slug / f"{indication.lower()}-cohort-samples.parquet"
+    return p if p.exists() else None
+
+
+def _load_cohort_samples(data_source: str, indication: str, sample_id_col: str,
+                         native_id_col: str, patient_id_col: str | None):
+    """Full-cohort sample frame (INCLUDING zero-mutation tumors) from the companion file, or None.
+
+    Returns a DataFrame with [sample_id_col, native_id_col, (patient_id_col)] deduped on
+    sample_id_col, normalizing whatever id columns the companion file carries. None when the
+    companion file is absent (caller then falls back to MAF-present samples + a WARNING)."""
+    path = _cohort_samples_path(data_source, indication)
+    if path is None:
+        return None
+    df = pd.read_parquet(path)
+    # normalize to the id columns the stratum evaluator expects.
+    if sample_id_col not in df.columns:
+        for alt in ("sample_id", "SAMPLE_ID", "ModelID", "Tumor_Sample_Barcode"):
+            if alt in df.columns:
+                df = df.rename(columns={alt: sample_id_col})
+                break
+    if sample_id_col not in df.columns:
+        return None  # companion file lacks a usable sample id — ignore it (fall back + WARN)
+    if native_id_col not in df.columns:
+        df[native_id_col] = df[sample_id_col]
+    cols = [sample_id_col, native_id_col]
+    if patient_id_col:
+        if patient_id_col not in df.columns:
+            df[patient_id_col] = None
+        cols = [sample_id_col, patient_id_col, native_id_col]
+    return df[cols].drop_duplicates(subset=[sample_id_col])
+
+
 # ---------- Stratum evaluation ---------------------------------------------
 
 def _evaluate_stratum_maf(
@@ -471,14 +518,38 @@ def main(subgroup_catalog: Path, data_source: str, release_pin: str,
 
     click.echo(f"  loaded {len(maf):,} MAF rows")
 
-    # Derive the cohort (all_samples) from unique sample_ids in MAF
-    if patient_id_col and patient_id_col in maf.columns:
-        all_samples = maf[[sample_id_col, patient_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+    # Derive the cohort (all_samples) — the WT/negation-stratum DENOMINATOR. Prefer the FULL cohort
+    # (companion cohort-samples file, which includes fully-WT tumors); else fall back to MAF-present
+    # samples. The MAF-only denominator UNDER-COUNTS WT strata: a tumor with zero MAF rows (fully WT
+    # for every gene in the panel) is absent from the MAF entirely, so it never contributes a WT-side
+    # row — inflating mutant fractions in the verdict-inert panorama/subtype rules.
+    cohort = _load_cohort_samples(data_source, indication, sample_id_col, native_id_col, patient_id_col)
+    if cohort is not None:
+        # union with any MAF-present samples not in the cohort file (belt-and-suspenders), so a
+        # mutated sample is never dropped from the denominator.
+        if patient_id_col and patient_id_col in maf.columns:
+            maf_samples = maf[[sample_id_col, patient_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+        else:
+            maf_samples = maf[[sample_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+            if patient_id_col:
+                maf_samples[patient_id_col] = None
+        extra = maf_samples[~maf_samples[sample_id_col].isin(set(cohort[sample_id_col]))]
+        all_samples = pd.concat([cohort, extra], ignore_index=True).drop_duplicates(subset=[sample_id_col])
+        click.echo(f"  cohort samples: {len(all_samples):,} (full cohort incl. WT tumors)")
     else:
-        all_samples = maf[[sample_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
-        if patient_id_col:
-            all_samples[patient_id_col] = None
-    click.echo(f"  cohort samples: {len(all_samples):,}")
+        if patient_id_col and patient_id_col in maf.columns:
+            all_samples = maf[[sample_id_col, patient_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+        else:
+            all_samples = maf[[sample_id_col, native_id_col]].drop_duplicates(subset=[sample_id_col])
+            if patient_id_col:
+                all_samples[patient_id_col] = None
+        click.echo(f"  cohort samples: {len(all_samples):,}")
+        click.echo(
+            "  WARNING: cohort denominator drawn from MAF-PRESENT samples only (no companion "
+            f"{indication.lower()}-cohort-samples.parquet found). Fully-WT tumors (zero MAF rows) are "
+            "under-counted in WT/negation strata → mutant fractions may be inflated. Emit the "
+            "companion cohort-samples file from the prefetch step for an exact denominator.",
+            err=True)
 
     # ============ Evaluate strata ============
     per_stratum_dfs = []

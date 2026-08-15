@@ -56,17 +56,28 @@ def _read_parquet(path_or_none, bucket, key):
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
     _ensure_aws_profile()
-    import boto3
-    body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling on
+    # batch reads — the failure mode that silently dropped cards on full dossier runs).
+    from methods.target_id_sidecar import s3_client
+    body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
 
 def _index_product(manifest_id: str, payload_path=None, sidecar_path=None):
-    """Return (row_by_ac: dict, symbol_to_ac: dict) for a UniProt-keyed product. None if unavailable."""
+    """Return (row_by_ac: dict, symbol_to_ac: dict) for a UniProt-keyed product. None if unavailable.
+
+    Definitive-vs-transient discipline: a genuine NoSuchKey/404 (product absent) returns None →
+    honest data_unavailable. A broken-env / transient-S3 (throttle/timeout) / creds error RE-RAISES
+    so the live-read seam surfaces an honest _live_read_error rather than a silent dead axis — and,
+    critically, so the @lru_cache on _load_indexed does NOT memoize a poisoned None (lru_cache does
+    not cache exceptions, so a raised transient failure is retried on the next target in the batch)."""
     try:
         bucket, pkey = bucket_key_for(manifest_id)
         payload = _read_parquet(payload_path, bucket, pkey)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return None
     row_by_ac = {}
     for rec in payload.to_dict("records"):
@@ -81,8 +92,12 @@ def _index_product(manifest_id: str, payload_path=None, sidecar_path=None):
             for sym, ac in zip(sc["hgnc_primary_symbol_at_resolution"].values, sc["native_row_key"].values):
                 if isinstance(sym, str) and sym.strip() and isinstance(ac, str):
                     symbol_to_ac[sym.strip().upper()] = ac.strip()
-    except Exception:  # noqa: BLE001 — sidecar optional; AC lookups still work
-        pass
+    except Exception as e:  # noqa: BLE001 — sidecar genuinely-absent: AC lookups still work.
+        # A transient/creds/broken-env failure must NOT be masked (would silently drop symbol→AC
+        # for the whole batch AND poison the lru_cache with a partial index) — re-raise it.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
     return row_by_ac, symbol_to_ac
 
 

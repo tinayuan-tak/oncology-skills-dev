@@ -36,7 +36,12 @@ def _read_hpa_row(target: str) -> Optional[dict]:
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("gene_symbol", "=", (target or "").strip().upper())])
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine product-absence (FileNotFoundError / NoSuchKey / 404) → None (location_unavailable).
+        # A transient/creds/broken-env error must NOT be masked as "gene absent" — re-raise it.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return None
     if tbl.num_rows == 0:
         return None

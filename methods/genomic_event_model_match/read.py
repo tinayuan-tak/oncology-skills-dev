@@ -116,7 +116,12 @@ def read_genomic_event_model_match(target: str, indication: str, release_pin: st
     try:
         from methods.driver_role_overlay.read import read_alteration_role
         functional_direction = (read_alteration_role(sym, indication) or {}).get("functional_direction")
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Genuine absence of the driver-role product → no direction hint (default match mode). A
+        # transient/creds/broken-env error must NOT be masked into a silent mode-flip — re-raise.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         functional_direction = None
 
     # 1) patient event to match (M6 patient arm), direction-aware

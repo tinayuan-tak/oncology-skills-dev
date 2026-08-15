@@ -11,7 +11,6 @@ Reuses the canonical dge_deseq2 INDICATION_TO_TCGA_STUDIES map (no new indicatio
 from __future__ import annotations
 
 import sys
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -65,14 +64,26 @@ def _ensure_cached() -> Optional[Path]:
         return None
 
 
-@lru_cache(maxsize=1)
+_CIBERSORT_FRAME_CACHE = None   # holds the loaded DataFrame ONLY after a successful read
+
+
 def _cibersort_frame():
-    """The full CIBERSORT table (cached in-process). None if unreadable."""
+    """The full CIBERSORT table (cached in-process). None if unreadable.
+
+    Caches ONLY a successful load — never memoizes a None. A prior @lru_cache(maxsize=1) here
+    memoized the None returned on a TRANSIENT failure, so a single creds/network blip on the first
+    call poisoned the whole process (every later call short-circuited to data_unavailable even though
+    _ensure_cached itself would have retried). Manual caching keeps the successful-read fast-path
+    while letting a transient failure retry on the next call."""
+    global _CIBERSORT_FRAME_CACHE
+    if _CIBERSORT_FRAME_CACHE is not None:
+        return _CIBERSORT_FRAME_CACHE
     path = _ensure_cached()
     if path is None:
         return None
     import pandas as pd
-    return pd.read_csv(path, sep="\t")
+    _CIBERSORT_FRAME_CACHE = pd.read_csv(path, sep="\t")
+    return _CIBERSORT_FRAME_CACHE
 
 
 def read_immune_context(indication: str) -> dict:
