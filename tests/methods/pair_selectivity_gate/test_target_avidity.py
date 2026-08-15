@@ -14,7 +14,18 @@ if str(REPO) not in sys.path:
 pd = pytest.importorskip("pandas")
 
 from methods.pair_selectivity_gate import samecell as S  # noqa: E402
+from methods.pair_selectivity_gate import normal as N  # noqa: E402
 from methods.pair_selectivity_gate import cli as C  # noqa: E402
+
+
+def _normal_cube_clean():
+    # EPCAM:CEACAM5 in ONE well-powered (tissue, cell_type) group: 3 donors x 100 cells, ~0 co-expr
+    # -> passes the >=3-donor/>=10-cell support floor, normal_max_both ~0 -> selectivity_clean.
+    rows = [{"gene_a": "CEACAM5", "gene_b": "EPCAM", "tissue": "colon",
+             "cell_type": "enterocyte", "dataset_id": "nd", "donor_id": d,
+             "n_cells": 100, "both_fraction": 0.0, "enrichment_vs_independence": None}
+            for d in ("n1", "n2", "n3")]
+    return pd.DataFrame(rows)
 
 
 def _cube():
@@ -64,6 +75,42 @@ def test_target_absent_from_all_pairs(monkeypatch):
 
 def test_cli_build_summary_stamps_version(monkeypatch):
     monkeypatch.setattr(S, "_read_cube", lambda m: _cube())
+    monkeypatch.setattr(N, "_read_normal_cube", lambda m=None: _normal_cube_clean())
     s = C.build_summary("EPCAM", "COADREAD")
     assert s["method_version"] == C.METHOD_VERSION
     assert s["samecell_avidity_class"] == "same_cell_coordinated"
+
+
+def test_cli_build_summary_surfaces_selectivity_window(monkeypatch):
+    # Tumor: EPCAM:CEACAM5 coordinated at both=0.55 (>=TAU). Normal: CEACAM5:EPCAM ~0 in a
+    # well-powered colon enterocyte group -> selectivity_clean. Combined -> window_open.
+    monkeypatch.setattr(S, "_read_cube", lambda m: _cube())
+    monkeypatch.setattr(N, "_read_normal_cube", lambda m=None: _normal_cube_clean())
+    s = C.build_summary("EPCAM", "COADREAD")
+    # the tumor-avidity fields the existing rules read are untouched
+    assert s["samecell_avidity_class"] == "same_cell_coordinated"
+    assert s["best_partner"] == "CEACAM5"
+    # the NEW selectivity-window fields (the previously-orphaned normal gate, now wired)
+    assert s["window_verdict"] == "window_open"
+    assert s["window_best_partner"] == "CEACAM5"
+    assert s["selectivity_margin"] == 0.55        # tumor_both 0.55 - normal_max_both 0.0
+    assert s["n_window_open"] == 1
+    assert s["_window"]["_evidence_tier"] == "single_cell_measured"
+
+
+def test_cli_build_summary_no_window_on_normal_liability(monkeypatch):
+    # Same tumor coordination, but the normal cube now shows CEACAM5:EPCAM co-expressed on a
+    # well-powered normal cell type -> normal_liability -> no_window (the SAFETY negative the
+    # tumor-only avidity class cannot express).
+    def _liable(m=None):
+        rows = [{"gene_a": "CEACAM5", "gene_b": "EPCAM", "tissue": "colon",
+                 "cell_type": "enterocyte", "dataset_id": "nd", "donor_id": d,
+                 "n_cells": 100, "both_fraction": 0.40, "enrichment_vs_independence": 1.5}
+                for d in ("n1", "n2", "n3")]
+        return pd.DataFrame(rows)
+    monkeypatch.setattr(S, "_read_cube", lambda m: _cube())
+    monkeypatch.setattr(N, "_read_normal_cube", _liable)
+    s = C.build_summary("EPCAM", "COADREAD")
+    assert s["samecell_avidity_class"] == "same_cell_coordinated"   # tumor axis still coordinated
+    assert s["window_verdict"] == "no_window"                       # but normal liability closes it
+    assert s["normal_liability_locus"]["tissue"] == "colon"
