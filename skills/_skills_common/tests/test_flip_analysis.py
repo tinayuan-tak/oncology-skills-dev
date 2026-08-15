@@ -64,6 +64,33 @@ def test_none_when_resolver_absent(tmp_path):
     assert flip_analysis([{"rule_id": "x"}], "no_such_gate", contracts_repo=tmp_path) is None
 
 
+_SEL_SPEC = {
+    "default": "not_selective",
+    "resolve": [
+        {"when_fired": "sel-strong", "verdict": "strong_tumor_selective"},
+    ],
+}
+
+
+def test_selectivity_gate_applies_normal_breadth_veto(tmp_path):
+    """O3: for the SELECTIVITY gate, flip_analysis applies the shared normal-breadth veto clamp, so the
+    base_verdict reflects the POST-veto call the run adopts. Firing sel-strong (→ strong_tumor_selective
+    pure) alongside a veto rule must yield base_verdict=selective_but_broadly_normal."""
+    _write_resolver(tmp_path, "selectivity", _SEL_SPEC)
+    fired = [{"rule_id": "sel-strong"}, {"rule_id": "tvn-no-therapeutic-window-veto"}]
+    fa = flip_analysis(fired, "selectivity", contracts_repo=tmp_path)
+    assert fa["base_verdict"] == "selective_but_broadly_normal"
+
+
+def test_non_selectivity_gate_ignores_veto_rule(tmp_path):
+    """The clamp is SELECTIVITY-gate-scoped: a veto rule id in fired must NOT alter any other gate's
+    base_verdict (the veto rule is not even a resolver rung there)."""
+    _write_resolver(tmp_path, "g", _KILLER_SPEC)
+    fired = [{"rule_id": "killer-rule"}, {"rule_id": "tvn-no-therapeutic-window-veto"}]
+    fa = flip_analysis(fired, "g", contracts_repo=tmp_path)
+    assert fa["base_verdict"] == "the_killer"   # unchanged by the (selectivity-only) clamp
+
+
 def test_deterministic(tmp_path):
     _write_resolver(tmp_path, "g", _KILLER_SPEC)
     fired = [{"rule_id": "killer-rule"}]

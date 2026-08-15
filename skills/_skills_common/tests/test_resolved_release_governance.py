@@ -84,6 +84,67 @@ def test_fail_open_on_resolver_error():
     assert fam["head"] is None and "catalog exploded" in fam["resolution_error"]
 
 
+# ── O4: honest is_stale for product-id-declared families on the ENVELOPE path ──────────────────────
+# The card provenance declares products.yaml product_ids (not concrete manifest ids), so is_stale =
+# (head not in used) is trivially True even when the run read the head. The refinement (opt-in via
+# refine_product_id_staleness) makes staleness honest. On the schema-bound evidence_package envelope,
+# governance.resolved_releases[*].is_stale is typed `boolean`, so the refinement OMITS is_stale (dropping
+# the false True) + adds a stale_indeterminate marker — NOT is_stale=None (which would fail schema).
+
+import _skills_common.envelope as _env  # noqa: E402
+
+
+def test_refine_off_by_default_keeps_false_stale_for_product_id_family(monkeypatch):
+    """DEFAULT (refine=False) — compose-dashboard's byte-golden path — is UNCHANGED: a product-id
+    family still carries a boolean is_stale (the trivially-True value), no stale_indeterminate."""
+    monkeypatch.setattr(_env, "_known_manifest_ids", lambda: {"coadread-dge-df06320"})
+    g = resolved_release_governance(
+        [_card("c", ["expression-rna-tumor-vs-adjacent"])], "latest_approved", None,
+        resolve_release=lambda f, m, p: "coadread-dge-df06320", family_of=_fam)
+    entry = next(iter(g["resolved_releases"].values()))
+    assert entry["is_stale"] is True                     # unchanged (false-stale preserved for byte-golden)
+    assert "stale_indeterminate" not in entry
+
+
+def test_refine_marks_product_id_family_indeterminate_schema_safe(monkeypatch):
+    """OPT-IN (refine=True) — target-profile's --emit path: the product-id family's is_stale is OMITTED
+    (schema-safe; the schema types it boolean) and a stale_indeterminate marker is added."""
+    monkeypatch.setattr(_env, "_known_manifest_ids", lambda: {"coadread-dge-df06320"})
+    g = resolved_release_governance(
+        [_card("c", ["expression-rna-tumor-vs-adjacent"])], "latest_approved", None,
+        resolve_release=lambda f, m, p: "coadread-dge-df06320", family_of=_fam,
+        refine_product_id_staleness=True)
+    entry = next(iter(g["resolved_releases"].values()))
+    assert "is_stale" not in entry, f"is_stale must be OMITTED (not None) on the schema-bound envelope: {entry}"
+    assert entry["stale_indeterminate"] == "product_id_declared_not_concrete_manifest"
+    assert entry["head"] == "coadread-dge-df06320"       # resolution itself still names the head
+
+
+def test_refine_leaves_concrete_manifest_family_boolean(monkeypatch):
+    """The refinement touches ONLY product-id families — a concrete manifest id keeps a real bool
+    is_stale even under refine=True."""
+    monkeypatch.setattr(_env, "_known_manifest_ids", lambda: {"depmap-chronos-26q1"})
+    g = resolved_release_governance(
+        [_card("c", ["depmap-chronos-26q1"])], "latest_approved", None,
+        resolve_release=lambda f, m, p: "depmap-chronos-26q1", family_of=_fam,
+        refine_product_id_staleness=True)
+    entry = g["resolved_releases"]["depmap-chronos"]
+    assert entry["is_stale"] is False
+    assert "stale_indeterminate" not in entry
+
+
+def test_refine_noop_when_catalog_unavailable(monkeypatch):
+    """No catalog (_known_manifest_ids None) → cannot distinguish product_id from manifest id → refine
+    is a no-op, is_stale stays boolean (fail-open)."""
+    monkeypatch.setattr(_env, "_known_manifest_ids", lambda: None)
+    g = resolved_release_governance(
+        [_card("c", ["expression-rna-tumor-vs-adjacent"])], "latest_approved", None,
+        resolve_release=lambda f, m, p: "coadread-dge-df06320", family_of=_fam,
+        refine_product_id_staleness=True)
+    entry = next(iter(g["resolved_releases"].values()))
+    assert isinstance(entry["is_stale"], bool)
+
+
 def test_digest_only_when_catalog_helper_unavailable():
     """If no resolver is injected AND the lazy import fails, the digest still emits (fingerprint is
     computable without the catalog) but resolved_releases is omitted. We simulate 'unavailable' by

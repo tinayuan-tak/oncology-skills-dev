@@ -117,8 +117,37 @@ def _manifest_content_md5(manifest: dict) -> "str | None":
     return None
 
 
+def _refine_product_id_staleness(resolved: dict) -> None:
+    """Rewrite in-place the `is_stale` flag for product-id-declared families to be HONEST.
+
+    Cards declare their inputs as products.yaml product_ids (card_spec.required_inputs[].product_id),
+    so a family whose `used` ids are ALL product_ids (not concrete manifest ids) has
+    is_stale = (head not in used) = trivially True even when the run read the current head — a false
+    'stale' signal. We cannot know the concrete release read from a product_id alone (that needs a
+    reader-side stamp of the resolved manifest id), so staleness is INDETERMINATE, not True.
+
+    SCHEMA-SAFE REPRESENTATION (O4, 2026-08-15): this runs on the evidence_package ENVELOPE path
+    (assemble_evidence_package), whose governance.resolved_releases[*].is_stale is schema-typed
+    `boolean` — so we OMIT is_stale (dropping the false True) and add a `stale_indeterminate` marker
+    (an allowed additional property) rather than setting is_stale=None (which would fail schema
+    validation and trip target-profile's --emit SystemExit). This differs, by necessity, from the
+    subskill decision.json path (build_subskill_provenance), which is NOT schema-bound and keeps
+    is_stale=None; both encode the same intent (no false stale). Requires the catalog to distinguish a
+    product_id from a concrete manifest id; a no-op when the catalog is unavailable."""
+    known = _known_manifest_ids()
+    if known is None:
+        return
+    for entry in resolved.values():
+        used = entry.get("used") or []
+        # every declared id for this family is a product_id, not a concrete manifest id
+        if used and not any(u in known for u in used) and entry.get("head") is not None:
+            entry.pop("is_stale", None)
+            entry["stale_indeterminate"] = "product_id_declared_not_concrete_manifest"
+
+
 def resolved_release_governance(card_outputs, data_mode, release_pin,
-                                resolve_release=None, family_of=None) -> dict:
+                                resolve_release=None, family_of=None,
+                                refine_product_id_staleness: bool = False) -> dict:
     """Governance ENRICHMENT (2026-08-12): derive a release fingerprint from the manifests the run
     ACTUALLY read (cards' provenance.input_manifest_ids), and resolve each data family's current
     catalog HEAD via catalog_query.resolve_release.
@@ -133,7 +162,13 @@ def resolved_release_governance(card_outputs, data_mode, release_pin,
     Best-effort + fail-open: returns {} when the run read no manifests; the digest still emits if the
     catalog helper is unavailable; a per-family resolution error degrades to head=None + an error note.
     Never raises (governance must not block emission). `resolve_release`/`family_of` are injectable for
-    hermetic testing; otherwise lazily imported."""
+    hermetic testing; otherwise lazily imported.
+
+    `refine_product_id_staleness` (O4, 2026-08-15): when True, families whose `used` ids are all
+    products.yaml product_ids get an HONEST-staleness rewrite (see _refine_product_id_staleness) —
+    the false-True is_stale is dropped and a stale_indeterminate marker is added. DEFAULT FALSE so the
+    compose-dashboard byte-golden envelope is unchanged (only target-profile's --emit envelope opts in,
+    via assemble_evidence_package)."""
     used = sorted({m for c in card_outputs
                    if not c.get("excluded_by_applies_when")
                    for m in ((c.get("provenance") or {}).get("input_manifest_ids") or [])})
@@ -164,6 +199,8 @@ def resolved_release_governance(card_outputs, data_mode, release_pin,
             entry["resolution_error"] = f"{type(e).__name__}: {e}"
         resolved[fam] = entry
     out["resolved_releases"] = resolved
+    if refine_product_id_staleness:
+        _refine_product_id_staleness(resolved)
     return out
 
 
@@ -249,6 +286,7 @@ def assemble_evidence_package(
     generated_by: str,
     dashboard_spec_ref: str,
     unavailable_cards: "list[dict] | None" = None,
+    refine_product_id_staleness: bool = False,
 ) -> dict:
     """Build the evidence_package envelope from phase outputs.
 
@@ -266,6 +304,11 @@ def assemble_evidence_package(
     collected by phase-2 separately from the synthesis-input card_outputs; emitted as
     card_unavailable envelope entries so a consumer can see WHY a card is absent instead of
     an opaque n_cards_failed integer.
+
+    `refine_product_id_staleness` (O4, 2026-08-15): forwarded to resolved_release_governance so a
+    caller reading product-id-declared cards (target-profile's --emit) emits HONEST staleness
+    (indeterminate, not false-True) for those families. DEFAULT FALSE — compose-dashboard leaves it
+    off so its byte-golden envelope is unchanged.
     """
     ctx = input_context
     target = ctx["target_symbol"]
@@ -287,7 +330,9 @@ def assemble_evidence_package(
     # per-family catalog head + drift, derived from the manifests the run actually read. Best-effort —
     # never blocks emission. Makes release_pin='unpinned' runs distinguishable across catalog releases
     # (the eval-ledger cross-release trend keys on resolved_release_digest).
-    governance.update(resolved_release_governance(card_outputs, data_mode, release_pin))
+    governance.update(resolved_release_governance(
+        card_outputs, data_mode, release_pin,
+        refine_product_id_staleness=refine_product_id_staleness))
 
     # Build context block — extract target identity from the target-identity-summary card if present
     target_identity_card = next(

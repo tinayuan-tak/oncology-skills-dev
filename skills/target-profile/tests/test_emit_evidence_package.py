@@ -180,6 +180,49 @@ def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok):
     return json.loads(Path(ep_path).read_text())
 
 
+def test_validation_summary_dedupes_multi_homed_cards(tmp_path, monkeypatch):
+    """O2 (2026-08-15): a card composing under >1 sub-skill lens must be counted ONCE in
+    validation_summary — the raw union double-counted it (inflated n_cards_attempted). The counts must
+    equal the DEDUPED payload the evidence-package `cards` array carries."""
+    shared = {"card_id": "shared-multi-homed", "summary": {"x": 1},
+              "interpretation_call": "informative",
+              "provenance": {"method_calls": [], "input_manifest_ids": []}}
+    missing = {"card_id": "gone", "_missing": True}
+    sub_results = {
+        "dependency": {"cards": [dict(shared), {"card_id": "dep-only", "summary": {}, "_missing": False,
+                                                "interpretation_call": "informative",
+                                                "provenance": {"method_calls": [], "input_manifest_ids": []}}]},
+        # `shared-multi-homed` composes AGAIN under a second lens + a missing card
+        "selectivity": {"cards": [dict(shared), dict(missing)]},
+    }
+    vs = tp._validation_summary_from_sub_results(sub_results)
+    # distinct card_ids: shared-multi-homed, dep-only, gone == 3 (NOT 4 — shared counted once)
+    assert vs["n_cards_attempted"] == 3, vs
+    assert vs["n_cards_failed"] == 1                      # only `gone`
+    assert vs["n_cards_passed"] == 2
+    assert vs["n_cards_passed_with_warnings"] == 0
+    assert vs["n_cards_excluded_by_applies_when"] == 0
+
+    # And the count matches the emitted payload's deduped cards array (present + unavailable).
+    monkeypatch.setattr(tp, "resolve_cards",
+                        lambda card_ids, target, indication, **kw: [
+                            {"card_id": "target-identity-summary", "_missing": True}])
+    args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)
+    try:
+        tp._write_evidence_package(
+            args=args, sub_results=sub_results, gate_action="veto",
+            recommendation_gate={"fired": True}, confidence_tier={"tier": "low"},
+            deciding_axis={"basis": "gate_fired",
+                           "deciding_axis": {"short": "dependency", "gate": "dependency"}, "routing": "x"},
+            validation_summary=vs)
+    except SystemExit:
+        pass  # identity unresolved → hgnc_id=-1 schema tripwire; we only need the written payload
+    ep = json.loads((tmp_path / "evidence_package.json").read_text())
+    payload_cards = {c["card_id"] for c in ep["cards"] if c.get("card_id") != "target-identity-summary"}
+    assert payload_cards == {"shared-multi-homed", "dep-only", "gone"}
+    assert vs["n_cards_attempted"] == len(payload_cards)
+
+
 def test_no_killer_recommendation_is_coherent_not_insufficient(tmp_path, monkeypatch):
     """FINDING #2: when no killer gate fires (gate_action=None) for a positive target, the
     evidence-package headline must NOT read 'insufficient (strong confidence)' (incoherent + machine-

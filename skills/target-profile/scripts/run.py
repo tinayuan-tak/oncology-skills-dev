@@ -4523,6 +4523,37 @@ def _validate_evidence_package(ep: dict, contracts_root: Path) -> list[str]:
     return errors
 
 
+def _validation_summary_from_sub_results(sub_results: dict) -> dict:
+    """The 5-field validation_summary, computed over the card union DEDUPED by card_id.
+
+    O2 (2026-08-15): a card can compose under >1 sub-skill lens (~5 multi-homed cards), so the raw
+    cross-sub-skill card union double-counts them (~85 vs ~77 distinct) — inflating
+    n_cards_attempted/passed/failed relative to the emitted evidence-package payload. That payload's
+    `cards` array is deduped first-occurrence-per-card_id (skipping card_id-less entries) by
+    _write_evidence_package; the governance counts must reflect the SAME deduped union, so the
+    evidence-package governance AND nomination.json governance agree with what was actually emitted.
+    (passed_with_warnings + excluded_by_applies_when stay 0: target-profile does no method validation
+    and no target-level applies_when gating.)"""
+    seen: set = set()
+    deduped: list[dict] = []
+    for r in sub_results.values():
+        for c in (r.get("cards") or []):
+            cid = c.get("card_id")
+            if not cid or cid in seen:
+                continue
+            seen.add(cid)
+            deduped.append(c)
+    n_failed = sum(1 for c in deduped if c.get("_missing"))
+    validation_summary = {
+        "n_cards_attempted": len(deduped),
+        "n_cards_passed": len(deduped) - n_failed,
+        "n_cards_passed_with_warnings": 0,
+        "n_cards_failed": n_failed,
+        "n_cards_excluded_by_applies_when": 0,
+    }
+    return validation_summary
+
+
 def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[str],
                             recommendation_gate: dict, confidence_tier: dict,
                             deciding_axis: dict, validation_summary: dict) -> Path:
@@ -4644,6 +4675,12 @@ def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[st
         deterministic_timestamps=False,
         framework_version=_framework_version(),
         generated_by=f"skills/{SKILL_NAME}@{skills_repo_sha()}",
+        # O4 (2026-08-15): target-profile cards declare their inputs as products.yaml product_ids
+        # (resolve_cards stamps card_input_manifest_ids), so a product-id family's is_stale was
+        # trivially True (head — a concrete manifest id — is never == a product_id). Opt into the
+        # honest-staleness refinement so those families report indeterminate, not false-stale. Kept
+        # OFF for compose-dashboard (its envelope byte-golden is unchanged).
+        refine_product_id_staleness=True,
     )
     # target-profile reads live + has no target-level applies_when gating; keep its governance
     # `_note` annotation off the envelope (it is a nomination.json/provenance detail).
@@ -4907,15 +4944,7 @@ def main() -> int:
     # OR data_unavailable; passed_with_warnings + excluded_by_applies_when = 0: no method validation,
     # no target-level applies_when gating). Computed HERE (before the emit branch) so the
     # evidence-package emitter and the nomination path below share ONE construction.
-    _all_cards = [c for r in sub_results.values() for c in (r.get("cards") or [])]
-    _n_failed = sum(1 for c in _all_cards if c.get("_missing"))
-    validation_summary = {
-        "n_cards_attempted": len(_all_cards),
-        "n_cards_passed": len(_all_cards) - _n_failed,
-        "n_cards_passed_with_warnings": 0,
-        "n_cards_failed": _n_failed,
-        "n_cards_excluded_by_applies_when": 0,
-    }
+    validation_summary = _validation_summary_from_sub_results(sub_results)
 
     # --emit evidence-package: emit the deterministic machine envelope from the verdict spine and
     # RETURN, skipping every nomination-oriented render (composite panel / md / html / nomination.json

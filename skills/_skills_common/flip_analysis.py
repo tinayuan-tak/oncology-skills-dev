@@ -23,6 +23,7 @@ from pathlib import Path
 
 from .resolver import load_resolver, resolve_verdict
 from .reachability import resolver_referenced_rule_ids
+from .selectivity_veto import SELECTIVITY_GATE, apply_normal_breadth_veto
 
 
 def flip_analysis(fired: list[dict], gate: str,
@@ -48,7 +49,22 @@ def flip_analysis(fired: list[dict], gate: str,
     if spec is None:
         return None
     relevant = sorted(resolver_referenced_rule_ids(gate, contracts_repo))
-    base_verdict, base_driver = resolve_verdict(fired, spec)
+
+    def _resolve(fired_set: list[dict]) -> tuple:
+        """Resolve one fired-set to a verdict. For the SELECTIVITY gate this applies the shared
+        normal-breadth veto clamp (selectivity_veto.apply_normal_breadth_veto) — the exact
+        POST-resolver downgrade the run itself adopts (skill _verdict + compose resolve_gate_spine)
+        — so the flip facet reflects the ADOPTED verdict, not the pre-veto pure-resolver call. Without
+        this, a normal-breadth-vetoed target reported base_verdict=strong_tumor_selective in its
+        fragility facet while the run downgraded it to selective_but_broadly_normal (O3). The clamp is
+        a no-op unless a veto rule is in fired_set AND the pure verdict is a selective axis-A class, so
+        every other gate — and any selectivity target without a firing veto — is byte-unchanged."""
+        v, d = resolve_verdict(fired_set, spec)
+        if gate == SELECTIVITY_GATE:
+            v, d = apply_normal_breadth_veto(v, d, fired_set)
+        return v, d
+
+    base_verdict, base_driver = _resolve(fired)
     fired_ids = {r["rule_id"] for r in fired}
 
     flips: list[dict] = []
@@ -59,7 +75,7 @@ def flip_analysis(fired: list[dict], gate: str,
         else:
             toggled = fired + [{"rule_id": rid}]
             present = False
-        v, _ = resolve_verdict(toggled, spec)
+        v, _ = _resolve(toggled)
         if v != base_verdict:
             flips.append({"rule_id": rid, "present": present, "to_verdict": v})
 

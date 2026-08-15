@@ -138,6 +138,37 @@ def test_call_fragile_but_recommendation_solid_not_contested(tmp_path):
     assert f["contested"] is False                       # the whole point of the refinement
 
 
+def test_selectivity_veto_reflected_in_fragility_base_verdict(tmp_path):
+    """O3 (2026-08-15): for a normal-breadth-VETOED selectivity target, the fragility facet's
+    base_verdict must reflect the POST-veto verdict the run actually adopted
+    (selective_but_broadly_normal), NOT the pre-veto pure-resolver call (strong_tumor_selective).
+
+    The pure resolver has no veto rung (the clamp is post-resolver, in selectivity_veto), so before the
+    fix flip_analysis reported the pre-veto verdict. Here we fire sel-strong AND a normal-breadth veto
+    rule; the adopted sub-skill verdict is selective_but_broadly_normal, and per_axis base_verdict must
+    equal it."""
+    c = _fixture_contracts(tmp_path)
+    veto_rule = "tvn-no-therapeutic-window-veto"
+    sr = _sr(selectivity=(["sel-strong", veto_rule],
+                          ("selective_but_broadly_normal", veto_rule)))
+    f = run._fragility_facet(sr, contracts_repo=c)
+    ax = f["per_axis"]["selectivity"]
+    adopted = sr["selectivity"]["verdict"][0]
+    assert ax["base_verdict"] == "selective_but_broadly_normal", (
+        f"fragility base_verdict={ax['base_verdict']!r} — expected the POST-veto adopted verdict "
+        f"(pre-veto leak: reported strong_tumor_selective for a broadly-normal target).")
+    assert ax["base_verdict"] == adopted, "facet base_verdict must match the adopted sub-skill verdict"
+
+
+def test_selectivity_without_veto_unchanged(tmp_path):
+    """Guard the no-op contract: a selectivity target with NO veto rule fired is byte-unchanged by the
+    O3 clamp (base stays strong_tumor_selective)."""
+    c = _fixture_contracts(tmp_path)
+    sr = _sr(selectivity=(["sel-strong"], ("strong_tumor_selective", "sel-strong")))
+    f = run._fragility_facet(sr, contracts_repo=c)
+    assert f["per_axis"]["selectivity"]["base_verdict"] == "strong_tumor_selective"
+
+
 def test_blind_axis_tracked_separately_not_in_index(tmp_path):
     c = _fixture_contracts(tmp_path)
     sr = _sr(dependency=(["non-dependent-killer"], ("non_dependent", "non-dependent-killer")),
