@@ -1497,10 +1497,18 @@ _CONFIDENCE_RANK = {"insufficient": 0, "low": 1, "medium": 2, "high": 3}
 _TIER_TO_CONFIDENCE = {"strong": "high", "moderate": "medium"}
 
 
-def _load_positive_signals(contracts_repo: Path | None = None) -> tuple[dict, set, dict, str]:
+def _load_positive_signals(
+    contracts_repo: Path | None = None, modality: str | None = None
+) -> tuple[dict, set, dict, str]:
     """Load the positive-tier policy. Returns
     (positive_map: {(short,verdict): weight}, contradiction_set: {(short,verdict)},
-     config: dict, source). EMPTY-on-failure (never permissive)."""
+     config: dict, source). EMPTY-on-failure (never permissive).
+
+    MODALITY-SCOPED POSITIVES: when `modality` is an explicit biologics modality,
+    favorable surface_modality verdicts listed under `positive_signals_modality_scoped`
+    (whose `when_modality_in` contains `modality`) are ADDED to the positive map —
+    symmetric to `modality_scoped_veto_suppression`. In default mode (modality=None)
+    these do NOT apply (surface stays excluded), so pos_map is identical to before."""
     repo = contracts_repo or _CONTRACTS_REPO
     path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
     try:
@@ -1510,6 +1518,11 @@ def _load_positive_signals(contracts_repo: Path | None = None) -> tuple[dict, se
         cfg = data["positive_tier_config"]
         if not pos:
             raise ValueError("empty positive_signals")
+        # Modality-scoped positives (backward-compatible: missing key → no-op).
+        if modality is not None:
+            for entry in data.get("positive_signals_modality_scoped", []):
+                if modality in entry.get("when_modality_in", []):
+                    pos[(entry["sub_skill"], entry["verdict"])] = entry["weight"]
         return pos, contra, cfg, "vocab"
     except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no positive tier)
         print(f"[target-profile] WARN: could not load positive_signals vocab "
@@ -1519,7 +1532,7 @@ def _load_positive_signals(contracts_repo: Path | None = None) -> tuple[dict, se
 
 
 def _positive_tier(
-    sub_results: dict, contracts_repo: Path | None = None
+    sub_results: dict, contracts_repo: Path | None = None, modality: str | None = None
 ) -> tuple[Optional[str], list[dict]]:
     """Deterministic confidence tier from graded positive sub-verdicts.
 
@@ -1530,7 +1543,7 @@ def _positive_tier(
     positive-eligible axis) blocks `strong`. insufficient/data_unavailable are NOT
     contradictions (measured-vs-null).
     """
-    pos_map, contra_set, cfg, _src = _load_positive_signals(contracts_repo)
+    pos_map, contra_set, cfg, _src = _load_positive_signals(contracts_repo, modality=modality)
     if not pos_map:
         return None, []
     hits: list[dict] = []
@@ -1661,11 +1674,13 @@ def _subgroup_flip_view(sub_results: dict) -> dict:
 
 
 def _fragility_facet(sub_results: dict, subtypes: Optional[list[str]] = None,
-                     contracts_repo: Path | None = None) -> dict:
+                     contracts_repo: Path | None = None, modality: str | None = None) -> dict:
     """Verdict-inert flip-stability facet (see section header). Emitted in nomination.json; never
-    touches the verdict / gate / recommendation."""
+    touches the verdict / gate / recommendation. `modality` is threaded so the decision-relevant
+    axis set includes modality-scoped surface positives under an explicit biologics modality —
+    keeping the fragility scan consistent with what the gate/positive tier actually reads."""
     gate_map, _gsrc = _load_gate_verdicts(contracts_repo)
-    pos_map, contra_set, _cfg, _psrc = _load_positive_signals(contracts_repo)
+    pos_map, contra_set, _cfg, _psrc = _load_positive_signals(contracts_repo, modality=modality)
     baseline, _covsrc = _load_gate_coverage(contracts_repo)
 
     # Decision-relevant axes = every sub_skill short the gate / positive / contradiction vocab reads.
@@ -2541,13 +2556,15 @@ _COVERAGE_GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_impleme
 
 
 def _gate_scorecard(sub_results: dict, deciding_axis: Optional[dict] = None,
-                    contracts_repo: Path | None = None) -> list[dict]:
+                    contracts_repo: Path | None = None, modality: str | None = None) -> list[dict]:
     """Build the 8-gate scorecard rows. Rows come from the gate_coverage REGISTRY (not from
     iterating sub_results), so gates we're blind on this run still render as greyed rows. Status
-    reuses the nomination-gate policy so it cannot diverge from the deterministic verdict."""
+    reuses the nomination-gate policy so it cannot diverge from the deterministic verdict.
+    `modality` is threaded so a modality-scoped surface positive classifies as `supportive`
+    (not `coverage_gap`) under an explicit biologics modality — consistent with the gate."""
     baseline, _ = _load_gate_coverage(contracts_repo)
     kill_map, _ = _load_gate_verdicts(contracts_repo)          # {(short,verdict): action}
-    positive_map, contradictions, _, _ = _load_positive_signals(contracts_repo)
+    positive_map, contradictions, _, _ = _load_positive_signals(contracts_repo, modality=modality)
     deciding_short = None
     if deciding_axis and deciding_axis.get("basis") == "gate_fired":
         deciding_short = (deciding_axis.get("deciding_axis") or {}).get("short")
@@ -4763,7 +4780,7 @@ def main() -> int:
     # fired-rule sets. Like the other facets: computed BEFORE the prompt, emitted in nomination.json,
     # and STRICTLY verdict-inert — it never calls the gate and never writes overall_recommendation /
     # confidence. May set a categorical `contested` flag (declarative threshold) for the reader/banner.
-    fragility = _fragility_facet(sub_results, subtypes=subtypes)
+    fragility = _fragility_facet(sub_results, subtypes=subtypes, modality=args.modality)
     # Heterogeneity facet (2026-08-12): verdict-inert cross-context DISPERSION — does a pooled
     # verdict hide a split across comparators / assays / molecular subtypes? Companion to fragility;
     # never touches the recommendation.
@@ -4849,7 +4866,7 @@ def main() -> int:
         # NO kill fired → the positive tier may raise a deterministic confidence
         # FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches
         # ONLY `confidence`, never `overall_recommendation` (never forces nominate).
-        tier, pos_hits = _positive_tier(sub_results)
+        tier, pos_hits = _positive_tier(sub_results, modality=args.modality)
         confidence_tier = {"tier": tier, "hits": pos_hits}
         if tier:
             floor = _TIER_TO_CONFIDENCE[tier]  # strong→high, moderate→medium
@@ -4882,7 +4899,7 @@ def main() -> int:
 
     # Gate scorecard (deterministic, top-of-report): 8-gate rows from the gate registry, 4-state
     # status reusing the nomination-gate policy. Also emitted in nomination.json.
-    scorecard = _gate_scorecard(sub_results, deciding_axis)
+    scorecard = _gate_scorecard(sub_results, deciding_axis, modality=args.modality)
     catalogue_rows = _catalogue_rows_from_sub_results(sub_results)
 
     # 5-field validation_summary — the shared evidence-package writer's contract, composed from
