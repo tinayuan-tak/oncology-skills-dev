@@ -206,3 +206,54 @@ def test_rna_breadth_absent_target_data_unavailable(monkeypatch):
     b = d.read_rna_tumor_elevation_breadth("GHOST")
     assert b["rna_tumor_elevation_breadth_class"] == "data_unavailable"
     assert b["n_indications_tested"] == 0 and b["indications_tested"] == []
+
+
+# --- M2 FIX: breadth magnitude gates on cells A/C ONLY, never the cell-B-inflated max_abs_log2fc ---
+
+def _ac_split_row(ind, gene, a, c, b, *, supporting=3.0, cells_ran=3.0):
+    """A stacked row with independent A/B/C log2fc, and max_abs_log2fc set the way the R producer
+    builds it: max(|A|,|B|,|C|) over ALL ran cells (INCLUDING cell B). Lets a test drive the case
+    where cell B inflates max_abs_log2fc above the bar while cells A/C are below it."""
+    return {"indication": ind, "gene_symbol": gene, "cells_ran": cells_ran,
+            "cells_supporting": supporting, "dominant_direction": "up",
+            "sig_all_cells": True, "discordant": False,
+            "log2fc_A": a, "padj_A": 1e-6, "log2fc_B": b, "padj_B": 1e-6,
+            "log2fc_C": c, "padj_C": 1e-6,
+            "max_abs_log2fc": max(abs(a), abs(b), abs(c)),
+            "cell_b_semantics": "combat_seq_tcga_tss"}
+
+
+def test_ac_max_log2fc_ignores_cell_b():
+    # cell B huge, cells A/C small -> A/C magnitude reflects A/C only (the GAPDH ComBat pattern)
+    row = _ac_split_row("ESCA", "PPIA", a=0.79, c=0.47, b=4.66)
+    assert d._rna_ac_max_log2fc(row) == 0.79
+    # NaN cell B contributes nothing; absent cells -> 0.0
+    row_nan_b = _ac_split_row("UCEC", "X", a=1.2, c=0.3, b=float("nan"))
+    assert d._rna_ac_max_log2fc(row_nan_b) == 1.2
+    assert d._rna_ac_max_log2fc({"gene_symbol": "Y"}) == 0.0
+
+
+def test_rna_breadth_gene_elevated_only_via_cell_b_is_not_counted(monkeypatch):
+    """REGRESSION (M2): a passenger elevated ONLY through an inflated ComBat cell B (A/C both < 1.0,
+    B >> 1.0) must NOT count toward breadth. Pre-fix it did (max_abs_log2fc read cell B); post-fix
+    the A/C-only magnitude gate drops it. Three such indications flip broadly -> not-elevated here."""
+    rows = [_ac_split_row("ESCA", "PPIA", a=0.79, c=0.47, b=4.66),   # A/C < 1.0, B inflated
+            _ac_split_row("KIRC", "PPIA", a=0.40, c=0.16, b=1.07),
+            _ac_split_row("PRAD", "PPIA", a=0.53, c=0.81, b=1.09)]
+    _patch_reader(monkeypatch, rows)
+    b = d.read_rna_tumor_elevation_breadth("PPIA")
+    assert b["n_indications_tested"] == 3
+    assert b["n_indications_elevated"] == 0
+    assert b["rna_tumor_elevation_breadth_class"] == "not_tumor_elevated"
+
+
+def test_rna_breadth_ac_elevated_gene_still_counted(monkeypatch):
+    """A gene genuinely elevated on cells A and/or C (>= 1.0) stays counted — the fix only strips
+    cell-B-only elevation, it must not introduce false-negatives on real A/C-elevated antigens."""
+    rows = [_ac_split_row("BRCA", "EPCAM", a=2.4, c=2.1, b=0.1),     # strong on A/C, B flat
+            _ac_split_row("LUAD", "EPCAM", a=0.2, c=1.6, b=0.3),     # C carries it
+            _ac_split_row("OV",   "EPCAM", a=1.3, c=0.4, b=0.0)]     # A carries it
+    _patch_reader(monkeypatch, rows)
+    b = d.read_rna_tumor_elevation_breadth("EPCAM")
+    assert b["n_indications_elevated"] == 3
+    assert b["rna_tumor_elevation_breadth_class"] == "broadly_tumor_elevated"

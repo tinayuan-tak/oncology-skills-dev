@@ -191,11 +191,25 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
 # ranking over targets.
 #
 # THE VINTAGE-STABLE PREDICATE (load-bearing): "elevated" keys off dominant_direction +
-# cells_supporting + max_abs_log2fc — the signals that mean the SAME thing in every cell-B vintage
-# (cells A/C are identical across vintages). It deliberately does NOT use cell B (log2fc_B/padj_B),
-# which is design-comparison in COADREAD, ComBat-TSS in 24 indications, and ABSENT in UCEC. Using
-# cell B would silently mis-score across vintages. A gene is elevated in an indication iff it is
-# up-dominant, supported by >=2 cells that ran, magnitude >=1.0, and NOT discordant.
+# cells_supporting + an A/C-ONLY magnitude — the signals that mean the SAME thing in every cell-B
+# vintage (cells A/C are identical across vintages). It deliberately does NOT use cell B
+# (log2fc_B/padj_B), which is design-comparison in COADREAD, ComBat-TSS in 24 indications, and ABSENT
+# in UCEC. A gene is elevated in an indication iff it is up-dominant, supported by >=2 cells that ran,
+# magnitude >=1.0, and NOT discordant.
+#
+# M2 FIX (2026-08-15): the magnitude gate previously read the `max_abs_log2fc` column, but that column
+# is built in steps/06_four_cell_driver.R as apply(abs(lfc_mat),1,max) over ALL ran cells INCLUDING
+# cell B — so the "NEVER uses cell B" guarantee above was silently violated: a gene elevated only via
+# an inflated/sign-flipped ComBat cell B (the documented GAPDH COADREAD B=4.8 vs A=1.0/C=1.5 pattern)
+# scored as tumor-elevated. The gate now recomputes magnitude from cells A + C ONLY
+# (max(|log2fc_A|,|log2fc_C|)), mirroring the sibling selectivity classifier's FIX 1
+# (read.py::classify_selectivity, raw_max_lfc over log2fc_cell_a/c). Backtested on the real
+# materialized pancan-dge-tumor-vs-normal-v1 (38004 genes) before shipping: strictly monotone
+# (A/C-max <= all-cells-max, so breadth can only DROP, never rise — 0 up-flips), 1000 genes flip
+# verdict downward, ALL housekeeping/passenger-like (the 61 losing `broadly` are ribosomal/glycolytic/
+# pseudogenes); 82 validated onco/antigen targets (EPCAM/MSLN/ERBB2/FOLR1/TACSTD2/CEACAM5/NECTIN4/
+# CD70/DLL3/...) unchanged — 0 dangerous false-negatives. The `max_abs_log2fc` column is retained in
+# the stacked product (secondary magnitude signal for forest plots); breadth just no longer gates on it.
 
 _RNA_STACKED_S3_URI = (f"s3://{S3_BUCKET}/{STACKED_PARQUET_KEY}")
 # The RNA "tumor-elevated in this indication" bar. NOTE (M4 — cross-modality bar asymmetry): this RNA
@@ -212,15 +226,29 @@ _RNA_ELEVATED_MIN_SUPPORTING = 2
 _RNA_ELEVATED_MIN_LOG2FC = 1.0
 
 
+def _rna_ac_max_log2fc(row: dict) -> float:
+    """Vintage-stable magnitude: max(|log2fc_A|, |log2fc_C|) over cells A (TCGA-adjacent-raw) and
+    C (GTEx-raw) ONLY — the cells identical across every cell-B vintage. Mirrors the selectivity
+    classifier's FIX 1 (read.py raw_max_lfc). NaN/absent cells contribute nothing; empty -> 0.0."""
+    vals = []
+    for k in ("log2fc_A", "log2fc_C"):
+        v = row.get(k)
+        if isinstance(v, (int, float)) and v == v:  # not None, not NaN
+            vals.append(abs(v))
+    return max(vals) if vals else 0.0
+
+
 def _rna_row_is_elevated(row: dict) -> bool:
-    """Vintage-stable 'tumor-elevated in this indication' predicate. NEVER uses cell B."""
+    """Vintage-stable 'tumor-elevated in this indication' predicate. NEVER uses cell B (see the
+    M2 FIX note above: the magnitude gate now recomputes from cells A/C only, not max_abs_log2fc,
+    which was built over all cells including the ComBat cell B)."""
     if row.get("discordant"):
         return False
     if row.get("dominant_direction") != "up":
         return False
     supporting = row.get("cells_supporting") or 0
-    max_lfc = row.get("max_abs_log2fc") or 0.0
-    return supporting >= _RNA_ELEVATED_MIN_SUPPORTING and max_lfc >= _RNA_ELEVATED_MIN_LOG2FC
+    ac_max_lfc = _rna_ac_max_log2fc(row)
+    return supporting >= _RNA_ELEVATED_MIN_SUPPORTING and ac_max_lfc >= _RNA_ELEVATED_MIN_LOG2FC
 
 
 @lru_cache(maxsize=64)
