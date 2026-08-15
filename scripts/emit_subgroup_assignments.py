@@ -6,7 +6,7 @@ For a single (data_source × indication) shard:
      (directly_tagged | maf_filter | classifier) against the subgroup catalog.
   2. Compute MD5 of the resulting assignments.parquet.
   3. Upload assignments.parquet + manifest.yaml to
-     s3://onc-compbio/derived/subgroup-assignments/{indication}/{source}/{release_pin}/
+     s3://onc-compbio/data-catalog/derived/subgroup-assignments/{indication}/{source}/{release_pin}/
      with x-amz-meta-md5 metadata stamping.
   4. Emit a derived-manifest stub YAML at data-catalog/manifests/derived/
      ready for one-branch-one-manifest PR.
@@ -33,8 +33,16 @@ Assigner-per-source mapping (declarative; drives which method to invoke):
     depmap_omics_inferred -> subgroup_assigner_directly_tagged (data-source=depmap)
     depmap_somatic        -> subgroup_assigner_maf_filter      (data-source=depmap)
     depmap_expression     -> subgroup_assigner_classifier      (data-source=depmap)
-    beataml_maf           -> subgroup_assigner_maf_filter      (custom MAF loader)
-    target_aml_maf        -> subgroup_assigner_maf_filter      (custom MAF loader)
+    beataml_maf           -> subgroup_assigner_maf_filter      (NO distinct loader yet — raises)
+    target_aml_maf        -> subgroup_assigner_maf_filter      (NO distinct loader yet — raises)
+
+NOTE (duplicate-identity guard): the maf_filter CLI only accepts
+--data-source in {tcga, depmap, genie}. beataml_maf / target_aml_maf have no
+distinct MAF loader, so routing them to "tcga" would load the SAME TCGA-AML MAF
+as tcga_maf and emit three AML manifests with byte-identical assignments under
+three distinct product-ids. Until a real BeatAML / TARGET-AML MAF loader lands
+in methods/subgroup_assigner_maf_filter (with its own --data-source), these two
+sources FAIL LOUDLY instead of silently shipping duplicate-identity products.
 
 Batch driver (scripts/run_subgroup_batch.sh) iterates over the 20-shard matrix
 and calls this script once per shard.
@@ -65,9 +73,22 @@ SOURCE_TO_ASSIGNER = {
     "depmap_omics_inferred": ("subgroup_assigner_directly_tagged", "depmap"),
     "depmap_somatic":        ("subgroup_assigner_maf_filter",      "depmap"),
     "depmap_expression":     ("subgroup_assigner_classifier",      "depmap"),
-    "beataml_maf":           ("subgroup_assigner_maf_filter",      "tcga"),
-    "target_aml_maf":        ("subgroup_assigner_maf_filter",      "tcga"),
+    # beataml_maf / target_aml_maf: data_source_arg is intentionally None — the
+    # maf_filter CLI has no loader for these AML adjunct cohorts (see
+    # _SOURCES_WITHOUT_DISTINCT_LOADER + _invoke_assigner). Routing them to "tcga"
+    # would emit duplicate-identity manifests, so they fail loud before invocation.
+    "beataml_maf":           ("subgroup_assigner_maf_filter",      None),
+    "target_aml_maf":        ("subgroup_assigner_maf_filter",      None),
 }
+
+# Sources declared in the shard matrix that DO NOT yet have a distinct, real MAF
+# loader in methods/subgroup_assigner_maf_filter (the CLI accepts --data-source in
+# {tcga, depmap, genie} only). Emitting them would either crash the assigner (no
+# such data-source) or, if force-routed to "tcga", ship a manifest whose
+# assignments are byte-identical to the tcga_maf shard for the same indication —
+# three AML product-ids resolving to ONE underlying MAF. We fail loud until a real
+# loader lands, rather than silently emit duplicate-identity products.
+_SOURCES_WITHOUT_DISTINCT_LOADER = frozenset({"beataml_maf", "target_aml_maf"})
 
 SourceKey = Literal[
     "tcga_marker_paper", "tcga_maf",
@@ -115,7 +136,7 @@ class ShardSpec:
     def s3_uri_base(self) -> str:
         """S3 URI base prefix for uploads."""
         return (
-            f"s3://onc-compbio/derived/subgroup-assignments/"
+            f"s3://onc-compbio/data-catalog/derived/subgroup-assignments/"
             f"{self.indication.lower()}/{self.source}/{self.release_pin.lower()}"
         )
 
@@ -142,6 +163,16 @@ def _invoke_assigner(shard: ShardSpec, dry_run: bool) -> tuple[Path, Path]:
     """
     if shard.source not in SOURCE_TO_ASSIGNER:
         raise ValueError(f"Unknown source: {shard.source!r}. Valid: {list(SOURCE_TO_ASSIGNER)}")
+    if shard.source in _SOURCES_WITHOUT_DISTINCT_LOADER:
+        raise NotImplementedError(
+            f"Source {shard.source!r} has no distinct MAF loader. The maf_filter CLI accepts "
+            f"--data-source in {{tcga, depmap, genie}} only; routing {shard.source!r} to 'tcga' "
+            f"would load the SAME {shard.indication} TCGA MAF as the tcga_maf shard and emit "
+            f"manifest {shard.derived_manifest_id!r} with byte-identical assignments — a "
+            f"duplicate-identity product masquerading under a distinct product-id. Add a real "
+            f"BeatAML / TARGET-AML MAF loader (with its own --data-source) to "
+            f"methods/subgroup_assigner_maf_filter before emitting this shard."
+        )
     method_module, data_source_arg = SOURCE_TO_ASSIGNER[shard.source]
 
     shard.out_dir.mkdir(parents=True, exist_ok=True)

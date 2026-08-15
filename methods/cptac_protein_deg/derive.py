@@ -96,9 +96,21 @@ def stage_02(work_dir: Path, cohorts: list[str], parallel: int, min_normal: int)
             print(f"[derive] stage 02 {c}: {'OK' if ok else 'FAIL'} ({secs:.1f}s)",
                   file=sys.stderr, flush=True)
     n_ok = sum(1 for _, _, ok in results if ok)
+    failed = sorted(c for c, _, ok in results if not ok)
     print(f"[derive] stage 02 summary: {n_ok}/{len(cohorts)} OK", file=sys.stderr)
-    if n_ok < 3:
-        raise RuntimeError(f"stage 02: too few cohorts succeeded ({n_ok}/{len(cohorts)})")
+    # Require EVERY requested cohort to succeed. Previously the gate only tripped at
+    # n_ok < 3, so 3-9 of 10 cohorts could fail silently and still ship a product with
+    # no record of which cohorts are present — a downstream reader can't tell a genuinely
+    # 10-cohort product from one silently missing (e.g.) UCEC + OV + GBM. Fail loud with
+    # the failed roster instead. (A deliberate subset run is still explicit via --cohort.)
+    if n_ok != len(cohorts):
+        raise RuntimeError(
+            f"stage 02: {n_ok}/{len(cohorts)} cohorts succeeded — failed cohorts: {failed}. "
+            f"Every requested cohort must succeed before pooling (stage 03), else the product "
+            f"would silently omit cohorts with no record of which are present. Re-run the failed "
+            f"cohorts (e.g. --cohort {failed[0] if failed else '<COHORT>'}) or drop them from the "
+            f"requested set explicitly."
+        )
 
 
 def stage_03(work_dir: Path, out_parquet: Path, uniprot_map: Path | None) -> None:

@@ -120,6 +120,59 @@ def all_indications() -> list[str]:
     return sorted(_INDICATION_CELL_B_SEMANTICS)
 
 
+_SENSITIVITY_SUFFIX = "-dge-tumor-vs-normal-sensitivity-v1"
+
+
+def list_published_sensitivity_indications(s3fs=None) -> set[str]:
+    """List the published ``{indication}-dge-tumor-vs-normal-sensitivity-v1/`` product prefixes
+    under ``s3://onc-compbio/data-catalog/derived/`` and return the set of indication codes
+    (upper-case). ``s3fs`` is injectable for testing; defaults to a real pyarrow S3FileSystem."""
+    import pyarrow.fs as pafs
+
+    _ensure_aws_profile()
+    if s3fs is None:
+        s3fs = pafs.S3FileSystem()
+    base = f"{S3_BUCKET}/data-catalog/derived"
+    selector = pafs.FileSelector(base, recursive=False, allow_not_found=True)
+    inds: set[str] = set()
+    for info in s3fs.get_file_info(selector):
+        name = info.base_name  # last path segment = the product-dir name
+        if name.endswith(_SENSITIVITY_SUFFIX):
+            inds.add(name[: -len(_SENSITIVITY_SUFFIX)].upper())
+    return inds
+
+
+def assert_roster_matches_published(published: set[str] | None = None, s3fs=None) -> None:
+    """Assert the hard-coded ``_INDICATION_CELL_B_SEMANTICS`` roster matches the set of published
+    sensitivity products. Raises on drift.
+
+    Without this, the stack roster is a static 27-key dict: a NEW sensitivity product that lands on
+    S3 is silently omitted from the stack (``build_stack`` iterates ``all_indications()``), so the
+    breadth reader keeps reporting ``n_indications_tested`` over the stale 27 and UNDER-counts
+    ``fraction_elevated``. We cannot auto-derive the roster wholesale because each indication's
+    ``cell_b_semantics`` vintage is ground-truthed from its manifest ``git_commit`` (see the module
+    docstring) — so a newly-published product must force a maintainer to add it here with the correct
+    vintage. This assertion is that forcing function: it fails loud on either a published-but-unmapped
+    indication or a mapped-but-unpublished one."""
+    if published is None:
+        published = list_published_sensitivity_indications(s3fs=s3fs)
+    declared = set(_INDICATION_CELL_B_SEMANTICS)
+    unmapped = published - declared    # published on S3 but missing from the vintage map
+    unpublished = declared - published  # in the vintage map but no published product
+    if unmapped or unpublished:
+        raise RuntimeError(
+            "pancan-dge stack roster drift vs published "
+            f"*{_SENSITIVITY_SUFFIX} prefixes: "
+            f"published-but-unmapped={sorted(unmapped)} "
+            "(add each to _INDICATION_CELL_B_SEMANTICS with its ground-truthed cell_b_semantics "
+            "vintage before rebuilding the stack); "
+            f"mapped-but-unpublished={sorted(unpublished)} "
+            "(remove from the map or restore the product). The vintage map must stay in sync with "
+            "the published sensitivity products so the RNA breadth reader's n_indications_tested is "
+            "not stale."
+        )
+
+
 def build_stack(indications: list[str] | None = None):
     """Read each per-indication sensitivity parquet and concat into the stacked frame.
 
@@ -132,6 +185,12 @@ def build_stack(indications: list[str] | None = None):
     import pyarrow.parquet as pq
 
     _ensure_aws_profile()
+    # Full-roster build (no explicit subset): verify the hard-coded vintage map still matches the
+    # published sensitivity products, so a newly-landed indication can't be silently dropped from the
+    # stack (which would leave the breadth reader's n_indications_tested stale). An explicit subset
+    # (indications=...) is a deliberate partial/test build and skips the drift check.
+    if indications is None:
+        assert_roster_matches_published()
     inds = indications or all_indications()
     s3 = pafs.S3FileSystem()
     frames = []

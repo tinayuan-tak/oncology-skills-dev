@@ -34,7 +34,7 @@ def test_shardspec_coadread_marker_paper():
     )
     assert shard.derived_manifest_id == "tcga-marker-paper-subgroup-assignments-coadread-v1"
     assert shard.s3_uri_base == (
-        "s3://onc-compbio/derived/subgroup-assignments/coadread/tcga_marker_paper/2026-q2"
+        "s3://onc-compbio/data-catalog/derived/subgroup-assignments/coadread/tcga_marker_paper/2026-q2"
     )
     assert shard.out_dir == Path("/tmp/run/COADREAD/tcga_marker_paper")
 
@@ -152,6 +152,52 @@ def test_sclc_only_uses_classifier():
     assert classifier_config == "sclc-napy-2026-q3.yaml"
 
 
+# ---------- Product-identity guards (sweep2 fixes 1 + 2) ----------
+
+def test_s3_uri_base_is_under_data_catalog_prefix():
+    """Fix 1: uploads MUST live under s3://onc-compbio/data-catalog/derived/ (on-convention with
+    the other 91 derived products) — NOT the off-convention s3://onc-compbio/derived/ that no
+    catalog reader resolves."""
+    from scripts.emit_subgroup_assignments import ShardSpec
+
+    shard = ShardSpec(
+        source="tcga_maf", indication="NSCLC", release_pin="2026-Q3",
+        catalog_repo=Path("/tmp/data-catalog"), run_dir=Path("/tmp/run"),
+    )
+    assert shard.s3_uri_base.startswith("s3://onc-compbio/data-catalog/derived/")
+    assert "onc-compbio/derived/" not in shard.s3_uri_base
+
+
+@pytest.mark.parametrize("source", ["beataml_maf", "target_aml_maf"])
+def test_aml_adjunct_sources_fail_loud(source, tmp_path):
+    """Fix 2: beataml_maf / target_aml_maf have no distinct MAF loader; the assigner would load the
+    SAME TCGA-AML MAF as tcga_maf and emit a duplicate-identity manifest. They must raise, not
+    silently emit."""
+    from scripts.emit_subgroup_assignments import ShardSpec, _invoke_assigner
+
+    shard = ShardSpec(
+        source=source, indication="AML", release_pin="2026-Q3",
+        catalog_repo=tmp_path, run_dir=tmp_path / "run",
+    )
+    with pytest.raises(NotImplementedError) as exc:
+        _invoke_assigner(shard, dry_run=True)
+    assert "duplicate-identity" in str(exc.value)
+    # The failing manifest id is named so the operator knows exactly which shard to remove/fix.
+    assert shard.derived_manifest_id in str(exc.value)
+
+
+def test_aml_adjunct_sources_have_no_data_source_arg():
+    """Fix 2: the SOURCE_TO_ASSIGNER data_source_arg for the adjunct sources is None (not 'tcga'),
+    so the mapping itself no longer misrepresents them as loadable TCGA shards."""
+    from scripts.emit_subgroup_assignments import (
+        SOURCE_TO_ASSIGNER, _SOURCES_WITHOUT_DISTINCT_LOADER,
+    )
+
+    assert _SOURCES_WITHOUT_DISTINCT_LOADER == {"beataml_maf", "target_aml_maf"}
+    for s in _SOURCES_WITHOUT_DISTINCT_LOADER:
+        assert SOURCE_TO_ASSIGNER[s][1] is None
+
+
 # ---------- CLI dry-run ----------
 
 def test_cli_dry_run_prints_plan(monkeypatch, tmp_path):
@@ -185,7 +231,7 @@ def test_cli_dry_run_prints_plan(monkeypatch, tmp_path):
     # Shard identity printed
     assert "tcga_marker_paper × COADREAD" in result.stderr
     # Expected S3 URI
-    assert "s3://onc-compbio/derived/subgroup-assignments/coadread/tcga_marker_paper/2026-q2" in result.stderr
+    assert "s3://onc-compbio/data-catalog/derived/subgroup-assignments/coadread/tcga_marker_paper/2026-q2" in result.stderr
     # Derived-manifest id
     assert "tcga-marker-paper-subgroup-assignments-coadread-v1" in result.stderr
     # Would-invoke assigner

@@ -145,6 +145,11 @@ def build_and_write(tsv_path=None, out_path=None):
     df = load_sl_pairs(tsv_path)
     records = build_partner_index(df)
     out_df = pd.DataFrame.from_records(records)
+    # Sort by gene_symbol before write: the runtime reader does a gene_symbol point-lookup
+    # (see read.py docstring), so a gene-sorted product lets pyarrow predicate pushdown prune
+    # to ~1 row-group per gene instead of scanning the whole parquet. Written unsorted until now.
+    if "gene_symbol" in out_df.columns:
+        out_df = out_df.sort_values("gene_symbol", kind="mergesort").reset_index(drop=True)
     if out_path is not None:
         out_df.to_parquet(out_path, index=False)
     return out_df

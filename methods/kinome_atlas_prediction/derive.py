@@ -272,6 +272,15 @@ def derive_kinome_atlas_long(
     print(combined['percentile'].describe().to_string())
     print()
 
+    # Sort by percentile DESCENDING before write so the runtime reader's
+    # filters=[('percentile','>=',95)] pushdown actually prunes row-groups: with an
+    # unsorted product every row-group spans the full [90,100] range and pyarrow must
+    # scan them all. Descending order clusters the high-percentile edges into the first
+    # row-groups, so the >=95 predicate skips the tail. (kind='mergesort' = stable.)
+    combined = combined.sort_values(
+        "percentile", ascending=False, kind="mergesort"
+    ).reset_index(drop=True)
+
     out_parquet.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
     combined.to_parquet(

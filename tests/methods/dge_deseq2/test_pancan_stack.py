@@ -257,3 +257,66 @@ def test_rna_breadth_ac_elevated_gene_still_counted(monkeypatch):
     b = d.read_rna_tumor_elevation_breadth("EPCAM")
     assert b["n_indications_elevated"] == 3
     assert b["rna_tumor_elevation_breadth_class"] == "broadly_tumor_elevated"
+
+
+# --- sweep2 Fix 4: roster drift-guard vs published sensitivity products ----------------------
+# The stack roster is a static 27-key dict. If a NEW sensitivity product lands on S3 but nobody
+# updates _INDICATION_CELL_B_SEMANTICS, build_stack silently omits it and the breadth reader keeps
+# reporting n_indications_tested over the stale 27 (under-counting fraction_elevated). The build must
+# fail loud on drift instead. cell_b_semantics can't be auto-derived (it's per-manifest git_commit),
+# so the guard forces a maintainer to add the new indication with its correct vintage.
+
+
+class _FakeInfo:
+    def __init__(self, base_name): self.base_name = base_name
+
+
+def _fake_s3fs(dir_names):
+    class _FS:
+        def get_file_info(self, selector):
+            return [_FakeInfo(n) for n in dir_names]
+    return _FS()
+
+
+def test_list_published_extracts_sensitivity_indications():
+    fs = _fake_s3fs([
+        "coadread-dge-tumor-vs-normal-sensitivity-v1",
+        "luad-dge-tumor-vs-normal-sensitivity-v1",
+        "some-other-derived-product-v1",            # ignored (wrong suffix)
+        "kinome-atlas-long-edges-v1",               # ignored
+    ])
+    inds = d.list_published_sensitivity_indications(s3fs=fs)
+    assert inds == {"COADREAD", "LUAD"}
+
+
+def test_roster_matches_published_no_drift_passes():
+    # published set exactly equals the declared 27-key map → no raise
+    published = set(d._INDICATION_CELL_B_SEMANTICS)
+    d.assert_roster_matches_published(published=published)
+
+
+def test_roster_drift_published_but_unmapped_raises():
+    published = set(d._INDICATION_CELL_B_SEMANTICS) | {"NEWIND"}
+    with pytest.raises(RuntimeError) as exc:
+        d.assert_roster_matches_published(published=published)
+    assert "NEWIND" in str(exc.value)
+    assert "published-but-unmapped" in str(exc.value)
+
+
+def test_roster_drift_mapped_but_unpublished_raises():
+    published = set(d._INDICATION_CELL_B_SEMANTICS) - {"UCEC"}
+    with pytest.raises(RuntimeError) as exc:
+        d.assert_roster_matches_published(published=published)
+    assert "UCEC" in str(exc.value)
+    assert "mapped-but-unpublished" in str(exc.value)
+
+
+def test_build_stack_with_explicit_subset_skips_drift_check(monkeypatch):
+    """An explicit indications=[...] subset build is a deliberate partial/test build — it must NOT
+    trigger the S3-listing drift check (only the full-roster build does)."""
+    _patch(monkeypatch)
+    called = {"n": 0}
+    monkeypatch.setattr(d, "assert_roster_matches_published",
+                        lambda *a, **k: called.__setitem__("n", called["n"] + 1))
+    d.build_stack(["COADREAD", "LUAD"])
+    assert called["n"] == 0

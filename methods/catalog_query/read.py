@@ -181,8 +181,22 @@ def _family_of(manifest_id: str) -> str:
     releases are new SIBLINGS (ids never renamed), so the family is the stable join key.
     Strips trailing `-v<N>` and a trailing release token if present (e.g. `-26q1`)."""
     mid = re.sub(r"-v\d+$", "", manifest_id)                 # drop -v2
-    mid = re.sub(r"-\d{2}q\d$", "", mid, flags=re.IGNORECASE)  # drop -26q1 style release token
+    mid = re.sub(r"-\d{2}q\d+$", "", mid, flags=re.IGNORECASE)  # drop -26q1 / -26q10 release token
     return mid
+
+
+def _version_key(manifest_id: str) -> tuple:
+    """Natural-order sort key for picking the HEAD among family siblings.
+
+    A plain `sorted(...)[-1]` is LEXICAL, which mis-orders exactly the tokens that
+    distinguish sibling releases: `-v10` sorts BEFORE `-v9` ('1' < '9'), and a release
+    token like `26q10` sorts before `26q2`. That silently returns an OLDER manifest as
+    the "latest" head. This key splits the id into alternating text / digit-run chunks and
+    compares digit runs as ints, so `foo-v10` > `foo-v9` and `bar-26q10` > `bar-26q2`.
+    Each chunk is emitted as a (type_flag, value) pair (0=int, 1=str) so positions never
+    compare int-vs-str; sibling ids share structure, so aligned positions are same-type."""
+    parts = [p for p in re.split(r"(\d+)", manifest_id) if p != ""]
+    return tuple((0, int(p)) if p.isdigit() else (1, p.lower()) for p in parts)
 
 
 def resolve_release(
@@ -248,7 +262,7 @@ def resolve_release(
         for cand in (f"{family}-{pin}", f"{family}-{pin}-v1"):
             if cand in idx.manifests:
                 return cand
-        hits = sorted(m for m in members if pin.lower() in m.lower())
+        hits = sorted((m for m in members if pin.lower() in m.lower()), key=_version_key)
         return hits[-1] if hits else None
 
     if data_mode == "pinned":
@@ -279,10 +293,11 @@ def resolve_release(
             if rec.supersedes and (_family_of(rec.supersedes) == family
                                    or rec.supersedes in _member_set)
         }
-        head = sorted(m for m in members if m not in superseded)
+        # Version-aware sort (NOT lexical): `-v10` must beat `-v9`, `26q10` must beat `26q2`.
+        head = sorted((m for m in members if m not in superseded), key=_version_key)
         if not head:
             # every member is superseded (dangling chain) — fall back to all members.
-            head = sorted(members)
+            head = sorted(members, key=_version_key)
         return head[-1]
 
     raise ReleaseResolutionError(
