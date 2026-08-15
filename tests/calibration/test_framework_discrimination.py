@@ -41,6 +41,18 @@ def test_headline_metrics_pinned(metrics):
     assert len(metrics["silent_false_negatives"]) == 12
     # blind on the deciding axis for the large majority of known targets
     assert metrics["blind_rate"] >= 0.7
+
+
+def test_silent_fn_split_by_outcome_trust(metrics):
+    """The 12 silent-FNs are NOT 12 drug losses: only 5 have an approved-drug outcome (unambiguous),
+    the other 7 are advanced/active PROGRAM-STATUS entries whose target quality is unvalidated
+    (e.g. MARK2/3, which never beat YAP/TAZ efficacy). The harness must report them separately so the
+    'would veto a drug' headline — and the regression floor — key off the drug-backed subset only."""
+    sfn_by = metrics["silent_false_negatives_by_outcome"]
+    assert set(sfn_by["positive_approved"]) == {"PARP1", "BCL2", "XPO1", "PSMB5", "CDK4_6"}
+    assert len(sfn_by["advanced_active"]) == 7
+    # the two subsets partition the total, no leakage into negative_declined
+    assert len(sfn_by["positive_approved"]) + len(sfn_by["advanced_active"]) == len(metrics["silent_false_negatives"])
     # home-turf engine: approved-drug deciding-axis capture is very low
     assert metrics["approved_deciding_axis_capture_rate"] <= 0.1
 
