@@ -46,6 +46,14 @@ TISSUE_TO_PRODUCT = {
     "pancreas":         "sc-normal-celltype-expression-pancreas-v1",         # PAAD normal comparator
     "ovary":            "sc-normal-celltype-expression-ovary-v1",             # OV normal comparator
     "prostate_gland":   "sc-normal-celltype-expression-prostate-gland-v1",   # PRAD normal comparator
+    # Added 2026-08-15: complete the map to all 19 landed normal-tissue shards so the card's
+    # required_inputs can honestly declare the full atlas (readable via tissues_for_indication /
+    # future indication maps; not yet in any indication's always-on scan set).
+    "adrenal_gland":    "sc-normal-celltype-expression-adrenal-gland-v1",
+    "bladder_organ":    "sc-normal-celltype-expression-bladder-organ-v1",
+    "large_intestine":  "sc-normal-celltype-expression-large-intestine-v1",
+    "spleen":           "sc-normal-celltype-expression-spleen-v1",
+    "uterus":           "sc-normal-celltype-expression-uterus-v1",
 }
 
 # SAFETY-ESSENTIAL tissues queried for EVERY target regardless of indication. On-target

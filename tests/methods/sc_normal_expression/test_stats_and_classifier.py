@@ -285,12 +285,16 @@ def test_all_tissue_products_resolve():
     """All wired tissues route to a Tier-1 product key (hyphenated slugs for multi-word tissues)."""
     for t in ["colon", "lung", "heart", "liver", "kidney", "stomach",
               "bone_marrow", "skin", "small_intestine",
-              "brain", "esophagus", "pancreas", "ovary", "prostate_gland"]:
+              "brain", "esophagus", "pancreas", "ovary", "prostate_gland",
+              # 2026-08-15: the map now covers all 19 landed normal-tissue shards
+              "adrenal_gland", "bladder_organ", "large_intestine", "spleen", "uterus"]:
         assert t in R.TISSUE_TO_PRODUCT, f"{t} missing from TISSUE_TO_PRODUCT"
+    assert len(R.TISSUE_TO_PRODUCT) == 19   # all landed normal-tissue shards are reachable
     assert R.TISSUE_TO_PRODUCT["bone_marrow"] == "sc-normal-celltype-expression-bone-marrow-v1"
     assert R.TISSUE_TO_PRODUCT["small_intestine"] == "sc-normal-celltype-expression-small-intestine-v1"
     assert R.TISSUE_TO_PRODUCT["brain"] == "sc-normal-celltype-expression-brain-v1"
     assert R.TISSUE_TO_PRODUCT["prostate_gland"] == "sc-normal-celltype-expression-prostate-gland-v1"
+    assert R.TISSUE_TO_PRODUCT["large_intestine"] == "sc-normal-celltype-expression-large-intestine-v1"
 
 
 # --- cli build_summary -------------------------------------------------------
