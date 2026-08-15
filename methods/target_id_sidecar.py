@@ -30,18 +30,41 @@ _BAD_VALUES = {"", "nan", "none", "null", "na", "<na>"}
 
 
 def s3_client(profile: Optional[str] = None):
-    """boto3 s3 client with AWS_PROFILE=cbg and an ADAPTIVE-retry Config.
+    """boto3 s3 client with a preferred AWS profile (default `cbg`) and an ADAPTIVE-retry Config.
 
     The retry Config absorbs transient throttling (SlowDown / 503 / RequestTimeout) — the batch-read
     failure mode that silently dropped ~5/19 cards on a full target-intrinsic run (EGFR, 2026-08-11):
     near-concurrent per-card S3 reads got throttled, the readers' bare excepts converted the throttle
     into `data_unavailable`, and a quarter of the dossier vanished with no diagnostic. Adaptive mode
-    adds client-side rate-limiting on top of standard retries."""
+    adds client-side rate-limiting on top of standard retries.
+
+    PROFILE FALLBACK (2026-08-15): `cbg` is a developer SSO profile — it does NOT exist in CI, prod,
+    or on an instance-role host. The reader-hardening burndown routed several readers (uniprot_gpi_anchor,
+    cspa_surface_confirmation, surfaceome_family_fusion, ...) from a bare `boto3.client("s3")` (which
+    used the ambient credential chain) onto this helper; that surfaced a latent break where an UNMOCKED
+    live read in a non-`cbg` environment raised `ProfileNotFound` instead of using ambient creds — first
+    caught by the skills compose-dashboard CI. So: try the preferred profile, but if it is not configured
+    fall back to the default credential chain (env / OIDC / instance role), exactly as the bare client
+    it replaced did. An explicitly-passed `profile=` still raises if missing (caller asked for it)."""
     import boto3
+    from botocore.exceptions import ProfileNotFound
     from botocore.config import Config
-    prof = profile or os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
     cfg = Config(retries={"max_attempts": 8, "mode": "adaptive"})
-    return boto3.Session(profile_name=prof).client("s3", config=cfg)
+    prof = profile or os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+    try:
+        return boto3.Session(profile_name=prof).client("s3", config=cfg)
+    except ProfileNotFound:
+        if profile is not None:
+            raise  # caller explicitly demanded this profile — do not silently substitute
+        # Preferred/default profile absent (CI / prod / instance-role): use the ambient chain.
+        # A bare Session() still reads AWS_PROFILE from the env, so strip a bad value first
+        # (restored after) — otherwise the fallback re-raises the same ProfileNotFound.
+        saved = os.environ.pop("AWS_PROFILE", None)
+        try:
+            return boto3.Session().client("s3", config=cfg)
+        finally:
+            if saved is not None:
+                os.environ["AWS_PROFILE"] = saved
 
 
 def is_definitively_absent(exc: BaseException) -> bool:
