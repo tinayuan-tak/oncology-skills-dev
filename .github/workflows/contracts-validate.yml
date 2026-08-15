@@ -74,6 +74,14 @@ jobs:
       - name: Validate resolvers (dangling-rung / rule-id reachability)
         run: python validators/validate_resolvers.py --resolvers resolvers/ --rules interpretation-rules/
 
+      # R1-class guard (2026-08-15): validate_verdict_tokens.py checks that every verdict token
+      # referenced by the nomination gate policy (gates / positive_signals /
+      # positive_signals_modality_scoped) matches CASE-EXACT a verdict its sub-skill's resolver
+      # actually emits — so a mis-cased/typo'd/stale token (the dead `ADC_preferred` vs
+      # emitted `adc_preferred`) fails CI instead of silently never firing.
+      - name: Validate nomination-gate verdict tokens (resolver consistency)
+        run: python validators/validate_verdict_tokens.py --gate vocabularies/nomination_verdict_gate.yaml --resolvers resolvers/
+
       # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
       # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
       # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test
