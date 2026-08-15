@@ -19,7 +19,8 @@
 #
 # GUARDRAIL: pattern-match over fired rule IDs only — no arithmetic (labels live in the cards).
 gate: genomic_alteration
-version: 1.2.0   # 2026-08-11: N1 precedence fix (stratified-dependency FIRST; see head of resolve:). Was 1.1.0 T1.1 rename (recurrent_{missense,lof}_driver → *_dominant_pattern),
+version: 1.3.0   # 2026-08-15: Sweep-2 item B — measured-vs-null guard on the passenger fallback (no-mutations × CN-unavailable → insufficient, not passenger_pattern; see rung 4-guard). Verdict-inert to nominations, golden byte-stable.
+                #             1.2.0 (2026-08-11): N1 precedence fix (stratified-dependency FIRST; see head of resolve:). Was 1.1.0 T1.1 rename (recurrent_{missense,lof}_driver → *_dominant_pattern),
                 #             T1.3 + recurrent_fusion_driver (fusion-landscape mode-gap), T2.4 precedence-by-strength
 description: |
   Multi-class genomic-alteration verdict. SNV/indel axis primary (strongest therapeutic signals),
@@ -182,6 +183,30 @@ resolve:
   #      a line-poor tissue) collapsed to passenger/insufficient despite clear patient recurrence
   #      (EWSR1-FLI1, BCR-ABL1, EML4-ALK) — the exact gap the ERBB2/MYC CN reframe fixed for amplification.
   - {verdict: recurrent_fusion_driver,         when_fired: fusion-landscape-recurrent-driver-supportive}
+
+  # (4-guard) MEASURED-vs-NULL admissibility guard for the passenger fallback (Sweep-2 item B,
+  #      2026-08-15). `passenger_pattern` (below) is a SUBSTANTIVE "not a driver" statement, but its
+  #      trigger `mut-no-mutations-neutral` fires on a RARELY-MUTATED gene (<5 mutated lines) whose own
+  #      rule rationale states it "adds no signal — other threads (dependency, expression, COPY NUMBER)
+  #      carry the call." When the copy-number axis is ALSO not measured (copy-number-distribution reads
+  #      data_unavailable → `cn-data-unavailable-insufficient` fires), collapsing to passenger_pattern
+  #      asserts "not a driver" from a DOUBLE data-gap — the exact mutation-only failure mode the
+  #      2026-07-14 amplification reframe was built to kill (an amp-driven gene with unmeasured CN, e.g.
+  #      an oncogene absent from the DepMap CN matrix, would read a substantive passenger). The engine has
+  #      no negation predicate, so the guard is precedence: when a CN-unavailable signal co-fires with the
+  #      no-mutations neutral, resolve to `insufficient` (an HONEST coverage gap) instead of passenger_pattern.
+  #      Placed ABOVE the passenger rung so first-match intercepts. NARROW by design: it fires ONLY on the
+  #      no-mutations × CN-unavailable co-fire — a MEASURED-neutral CN (broadly_neutral) + no mutations
+  #      still reads passenger_pattern (that IS an informative not-a-driver call; see the copy-number card
+  #      design note), and any real driver/dependency/fusion rung above still wins first-match. Verdict-
+  #      inert to nominations: passenger_pattern and insufficient are BOTH zero-weight in
+  #      nomination_verdict_gate.yaml (neither gates, suppresses, nor scores a positive) and the genomic
+  #      replay drift-guard already treats them as the SAME collapsed state — this only sharpens the
+  #      verdict STRING from a false "not a driver" to an honest "insufficient" + names the CN gap as the
+  #      provenance anchor. `insufficient` is the resolver's existing default token (no new verdict). The
+  #      new rung's condition includes `cn-data-unavailable-insufficient`, which the resolver golden's
+  #      enumerated rule-set does not span, so all existing enumerated combos stay byte-identical.
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient}
 
   # (4) FALLBACK: mutation axis said something non-driver (mixed / passenger), no cn.
   - {verdict: mixed_pattern,      when_fired: mut-mixed-neutral}
