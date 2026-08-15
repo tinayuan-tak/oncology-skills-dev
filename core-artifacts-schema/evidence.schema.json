@@ -35,7 +35,7 @@
     },
     "dimension": {
       "type": "string",
-      "description": "Analysis dimension (12 dimensions per the v2 spec's Dimension Inventory; expression-protein retained for backward compatibility with v1 outputs).",
+      "description": "Analysis dimension (12 dimensions per the v2 spec's Dimension Inventory; expression-protein retained for backward compatibility with v1 outputs). NOTE: single-cell and spatial evidence are intentionally NOT enumerated here — they are carried by the target-contracts CARD layer (cards/*.card.yaml; e.g. measurement_types sc_normal_celltype_expression, antigen_pair_coexpression, spatial_colocalization), joined to data-catalog derived products via each derived manifest's measurement_type field. Do NOT infer single-cell/spatial coverage from this enum — consult the card layer + measurement_type. See data-catalog specs/single-cell-layer-2026-Q3.md.",
       "enum": [
         "expression-rna", "expression-protein", "dependency", "mutation-profile",
         "survival", "safety", "target-biology", "literature",
