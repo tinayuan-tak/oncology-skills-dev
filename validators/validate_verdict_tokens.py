@@ -21,11 +21,17 @@ keyed by (sub_skill, verdict), must exist CASE-EXACT among the set of verdicts t
 corresponding sub_skill's resolver can emit (resolvers/<gate>.resolver.yaml — the union
 of every `resolve[].verdict` plus the explicit `default`).
 
-SCOPE — only the three blocks above are enforced. They are the blocks whose (sub_skill,
-verdict) tuples the target-profile gate loader matches against LIVE sub-verdicts to force
-an action / raise a confidence tier; a mis-token there silently under-fires (misses a veto
-or a positive). The other blocks (excluded_*, veto_suppressors, positive_contradictions,
-contested_threshold) are deliberately out of scope for this first cut.
+SCOPE — the three ACTIONABLE blocks above PLUS the two `excluded_*` documentation blocks
+(`excluded_modality_scoped`, `excluded_positive_modality_scoped`) are enforced. The
+actionable trio's tuples the target-profile gate loader matches against LIVE sub-verdicts
+to force an action / raise a confidence tier; a mis-token there silently under-fires
+(misses a veto or a positive). The `excluded_*` blocks DOCUMENT which modality-scoped
+verdicts must NOT be treated as kills/positives in default mode — a stale token there is an
+INERT guard that silently documents nothing real (the 2026-08-15 bug: the block carried
+`adc_favorable`/`tce_favorable`, which surface_modality.resolver.yaml never emits — it emits
+`adc_preferred`/`tce_preferred`; extending the check to these blocks catches exactly that).
+The remaining blocks (veto_suppressors, positive_contradictions, contested_threshold) stay
+out of scope.
 
 SUB_SKILL → RESOLVER MAPPING — discovered from each resolver's own `gate:` field (the
 resolver names itself). Most sub_skill shorts equal their resolver gate; the ONE documented
@@ -51,7 +57,15 @@ import yaml
 # The three ACTIONABLE gate blocks whose (sub_skill, verdict) tuples the target-profile
 # gate loader matches against live sub-verdicts. A mis-cased/typo'd/stale verdict in any
 # of these silently under-fires (misses a veto or a positive) — the R1-class bug.
-ENFORCED_BLOCKS = ("gates", "positive_signals", "positive_signals_modality_scoped")
+ACTIONABLE_BLOCKS = ("gates", "positive_signals", "positive_signals_modality_scoped")
+
+# The two DOCUMENTATION blocks: modality-scoped verdicts that must NOT be treated as
+# kills/positives in default mode. A stale token here is an INERT guard (2026-08-15 bug #2:
+# adc_favorable/tce_favorable were never emitted). Enforced identically — case-exact against
+# the resolver's emitted set — so the exclusion always references a real verdict.
+EXCLUSION_BLOCKS = ("excluded_modality_scoped", "excluded_positive_modality_scoped")
+
+ENFORCED_BLOCKS = ACTIONABLE_BLOCKS + EXCLUSION_BLOCKS
 
 # sub_skill short → resolver gate name, for the shorts that do NOT equal their gate.
 # The one documented exception (mirrors _SHORT_TO_GATE in the target-profile run.py):
@@ -142,9 +156,12 @@ def validate_verdict_tokens(gate_spec: dict,
             casing_hit = next((e for e in verdict_set if e.lower() == str(verd).lower()), None)
             hint = (f" (case mismatch — resolver emits `{casing_hit}`)" if casing_hit
                     else f" (resolver emits: {sorted(verdict_set)})")
+            consequence = ("documents a verdict the resolver never emits — INERT guard"
+                           if block in EXCLUSION_BLOCKS
+                           else "the gate entry can NEVER fire")
             report.add_error(
                 f"UNMATCHED_VERDICT [{block}]: (sub_skill={sub!r}, verdict={verd!r}) is not "
-                f"emitted CASE-EXACT by resolver `{gate}` — the gate entry can NEVER fire{hint}.")
+                f"emitted CASE-EXACT by resolver `{gate}` — {consequence}{hint}.")
     for sub in sorted(report.unchecked_subskills):
         report.add_warning(
             f"UNCHECKED sub_skill `{sub}`: no resolver emits its verdicts (advisory-only axis) — "

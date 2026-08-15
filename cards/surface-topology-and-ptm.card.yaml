@@ -58,6 +58,11 @@ outputs:
     - vocabulary_version_isoform                 # string; pin for reproducibility
 
   summary_fields_vocabulary:
+    # bool field keyed by isoform-selective-warning-modality-suppression (equals: 'true'). String vocab
+    # (schema requires strings); rule engine + validator coerce bool<->'true'/'false' (ENFORCED 2026-08-15).
+    isoform_selective_warning:
+      - 'true'
+      - 'false'
     topology_class:
       - single_pass_type_1                       # signal peptide + 1 TM + ECD-outside (N-term extracellular)
       - single_pass_type_2                       # no signal peptide + 1 TM + ECD-outside (C-term extracellular)

@@ -123,3 +123,46 @@ def test_tractability_sm_alias_resolves():
     assert VT.resolver_gate_for_subskill("tractability_sm", _EMITTED) == "tractability_small_molecule"
     assert VT.resolver_gate_for_subskill("surface_modality", _EMITTED) == "surface_modality"
     assert VT.resolver_gate_for_subskill("subtype_fit", _EMITTED) is None
+
+
+# --- (b4) exclusion blocks are now enforced (fix #5, 2026-08-15) — would have caught bug #2 ---
+
+def test_exclusion_blocks_are_enforced():
+    # The two excluded_* documentation blocks are in the enforced set.
+    assert "excluded_positive_modality_scoped" in VT.ENFORCED_BLOCKS
+    assert "excluded_modality_scoped" in VT.ENFORCED_BLOCKS
+
+
+def test_stale_excluded_positive_token_is_flagged():
+    # The EXACT 2026-08-15 bug #2: the excluded_positive block carried adc_favorable/
+    # tce_favorable, which surface_modality.resolver.yaml never emits (it emits
+    # adc_preferred/tce_preferred). Before this fix that inert guard passed silently.
+    gate_spec = {
+        "excluded_positive_modality_scoped": [
+            {"sub_skill": "surface_modality", "verdict": "adc_favorable"},   # stale — never emitted
+            {"sub_skill": "surface_modality", "verdict": "adc_preferred"},   # real
+        ],
+    }
+    report = VT.validate_verdict_tokens(gate_spec, _EMITTED)
+    assert not report.ok
+    # Exactly one error — the stale adc_favorable — phrased as an inert guard.
+    assert len(report.errors) == 1, report.errors
+    err = report.errors[0]
+    assert "UNMATCHED_VERDICT" in err and "verdict='adc_favorable'" in err and "INERT guard" in err
+    # The real token in the same block did NOT produce an error of its own.
+    assert not any("verdict='adc_preferred'" in e for e in report.errors)
+
+
+def test_valid_exclusion_tokens_pass():
+    gate_spec = {
+        "excluded_modality_scoped": [
+            {"sub_skill": "surface_modality", "verdict": "neither_viable"},  # real
+        ],
+        "excluded_positive_modality_scoped": [
+            {"sub_skill": "surface_modality", "verdict": "tce_preferred"},   # real
+            {"sub_skill": "mechanism", "verdict": "well_characterized"},     # real
+        ],
+    }
+    report = VT.validate_verdict_tokens(gate_spec, _EMITTED)
+    assert report.ok, report.errors
+    assert report.checked_count == 3

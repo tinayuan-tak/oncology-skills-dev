@@ -67,6 +67,11 @@ outputs:
     - method_version
 
   summary_fields_vocabulary:
+    # bool field keyed by has-cooccurring-driver-supportive (equals: 'true'). String vocab (schema
+    # requires strings); rule engine + validator coerce bool<->'true'/'false' (ENFORCED 2026-08-15).
+    has_cooccurring_driver:
+      - 'true'
+      - 'false'
     cooccurrence_class:
       - strong_cooccurring
       - modest_cooccurring

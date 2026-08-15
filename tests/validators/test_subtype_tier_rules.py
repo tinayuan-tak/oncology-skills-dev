@@ -125,6 +125,71 @@ def test_shipped_rules_files_validate_clean():
         assert rep.ok, f"{path.name}: {rep.errors}"
 
 
+# ---------------------------------------------------------------------------
+# Enforced summary_fields_vocabulary (fix #4, 2026-08-15) — a rule that COMPARES
+# a scalar field (equals/in) requires the emitting card to declare that field's
+# value vocabulary, else it is a HARD ERROR (was a warning). Bool operands
+# ('true'/'false') coerce against string vocab via _values_equal (engine parity).
+# ---------------------------------------------------------------------------
+
+def _scalar_rule(card_id: str, field: str, equals) -> dict:
+    return {
+        "rule_id": "t-scalar",
+        "when": {"card_id": card_id, "field": field, "equals": equals},
+        "signals": {"small_molecule": "supportive"},
+    }
+
+
+def test_values_equal_coerces_bool_and_string():
+    # mirrors the engine's _rule_values_equal: bool <-> lowercase 'true'/'false'.
+    assert V._values_equal("true", "true")          # exact
+    assert V._values_equal("true", True)            # str vocab vs bool operand
+    assert V._values_equal(True, "true")            # bool vocab vs str operand
+    assert V._values_equal("false", False)
+    assert not V._values_equal("true", "yes")       # genuine drift still fails
+    assert not V._values_equal("BRAF", "braf")      # string comparison stays case-sensitive
+
+
+def test_shipped_bool_field_rule_passes_with_declared_vocab(tmp_path):
+    # The real bool field: card declares ['true','false'] string vocab, rule uses equals: 'true'.
+    rep = V.validate_rules_file(
+        _rules_file(tmp_path, _scalar_rule("structure-features-static",
+                                           "mutation_hotspot_in_druggable_pocket", "true")),
+        CARDS)
+    assert rep.ok, rep.errors
+    # And enforcement means NO residual warning about unverifiable vocab.
+    assert not any("summary_fields_vocabulary" in w for w in rep.warnings)
+
+
+def test_undeclared_scalar_vocab_is_hard_error(tmp_path):
+    # A rule comparing a field whose card declares NO vocabulary for it must ERROR.
+    # cspa_category is a real summary_field on protein-surface-evidence with no vocab declared.
+    rep = V.validate_rules_file(
+        _rules_file(tmp_path, _scalar_rule("protein-surface-evidence", "cspa_category", "foo")),
+        CARDS)
+    assert not rep.ok
+    assert any("summary_fields_vocabulary" in e and "cspa_category" in e for e in rep.errors)
+
+
+def test_enum_drift_against_declared_vocab_is_error(tmp_path):
+    # protein-surface-evidence now declares surface_confirmation_class vocab; a drifted
+    # token (the old positive spelling the rules could never match) must be flagged.
+    rep = V.validate_rules_file(
+        _rules_file(tmp_path, _scalar_rule("protein-surface-evidence",
+                                           "surface_confirmation_class", "confirmed")),
+        CARDS)
+    assert not rep.ok
+    assert any("NOT producible" in e and "surface_confirmation_class" in e for e in rep.errors)
+
+
+def test_declared_enum_value_passes(tmp_path):
+    rep = V.validate_rules_file(
+        _rules_file(tmp_path, _scalar_rule("protein-surface-evidence",
+                                           "surface_confirmation_class", "cell_surface_confirmed")),
+        CARDS)
+    assert rep.ok, rep.errors
+
+
 def test_shipped_subtype_rule_present():
     """The subtype-non-dependence-opposing rule exists in the intracellular file
     and carries the floor pin + metadata (regression against silent removal)."""

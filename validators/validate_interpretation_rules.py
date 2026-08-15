@@ -14,9 +14,13 @@ Three checks per rule:
       - The card_spec's outputs.summary_fields list must include `field`.
       - OR (legacy/transition) the card_spec's interpretation_hints[].call values
         must include `value` when field == "interpretation_call".
-      - During the pure-data transition, cards may not yet declare value vocabularies
-        in their summary_fields. The validator emits a WARNING (not an error) in that
-        case so refactor work can proceed incrementally.
+      - ENFORCED (2026-08-15): if a rule COMPARES a field against a scalar operand
+        (equals/in), the emitting card MUST declare outputs.summary_fields_vocabulary
+        for that field — otherwise it is a hard ERROR (an enum/type drift would
+        silently turn the rule into a dead branch). Bool operands (`equals: 'true'`)
+        are matched against string vocab ('true'/'false') via _values_equal, which
+        mirrors the runtime engine's bool<->string coercion. Rules with no equality/
+        membership operand (threshold/exists predicates) still only WARN.
 
 Killer-message hygiene check:
   (4) Any rule emitting a `killer` signal must carry a non-empty `killer_message`
@@ -87,6 +91,29 @@ def _build_card_index(cards_dir: Path) -> dict[str, dict]:
         if card_id:
             idx[card_id] = spec
     return idx
+
+
+def _values_equal(producible, operand) -> bool:
+    """Does a card-producible vocabulary value satisfy a rule's equals/in operand?
+
+    Mirrors the runtime engine's skills/_skills_common._rule_values_equal EXACTLY,
+    so the validator's reachability check matches what actually fires: tolerant ONLY
+    of the bool-vs-string mismatch between a reader's native value and the rule YAML's
+    string operand (`equals: 'true'`). `producible` is a declared vocab entry (schema
+    forces these to be strings); `operand` is the rule's equals/in value (a YAML string
+    OR a bare bool). Everything else stays STRICT — string-vs-string is CASE-SENSITIVE.
+    """
+    if producible == operand:
+        return True
+
+    def _bool_as_str(b: bool) -> str:
+        return "true" if b else "false"
+
+    if isinstance(producible, bool) and isinstance(operand, str):
+        return _bool_as_str(producible) == operand.strip().lower()
+    if isinstance(operand, bool) and isinstance(producible, str):
+        return producible.strip().lower() == _bool_as_str(operand)
+    return False
 
 
 def _producible_values_for_field(card_spec: dict, field_name: str) -> Optional[set[str]]:
@@ -261,15 +288,34 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
         else:
             producible = _producible_values_for_field(card_spec, field_name)
             if producible is None:
-                # Card hasn't declared its value vocabulary yet (transition state)
-                report.warnings.append(
-                    f"[{rule_id}] cannot verify value reachability for field={field_name!r} "
-                    f"on card={card_id!r} — card_spec declares no value vocabulary. "
-                    f"After card refactors land, add outputs.summary_fields_vocabulary to enforce."
-                )
+                if values:
+                    # HARDENING (2026-08-15): a rule that COMPARES a field against a
+                    # scalar operand (equals/in) REQUIRES the emitting card to declare
+                    # outputs.summary_fields_vocabulary.<field> — otherwise an enum/type
+                    # drift (e.g. surface_confirmation_class renamed under the rule, or a
+                    # bool field whose spelling drifts) silently turns the rule into a dead
+                    # branch. Previously a warning; now a hard error so the card↔rule
+                    # contract is CI-ENFORCED, not merely advisory. To resolve, declare the
+                    # field's value vocabulary on the card (strings; bool fields as
+                    # 'true'/'false' — the engine + _values_equal coerce native bools).
+                    report.errors.append(
+                        f"[{rule_id}] compares field={field_name!r} on card={card_id!r} "
+                        f"against {values!r} (equals/in) but the card declares no "
+                        f"outputs.summary_fields_vocabulary.{field_name} — value reachability "
+                        f"cannot be verified. Declare the field's value vocabulary so enum/type "
+                        f"drift fails CI."
+                    )
+                else:
+                    # No equality/membership operand to check (e.g. a threshold/exists
+                    # predicate); vocab is not required — keep advisory.
+                    report.warnings.append(
+                        f"[{rule_id}] cannot verify value reachability for field={field_name!r} "
+                        f"on card={card_id!r} — card_spec declares no value vocabulary. "
+                        f"After card refactors land, add outputs.summary_fields_vocabulary to enforce."
+                    )
             else:
                 for v in values:
-                    if v not in producible:
+                    if not any(_values_equal(p, v) for p in producible):
                         report.errors.append(
                             f"[{rule_id}] value={v!r} for field={field_name!r} on "
                             f"card={card_id!r} is NOT producible. "

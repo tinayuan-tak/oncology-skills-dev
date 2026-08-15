@@ -40,7 +40,7 @@ methods:
 
 outputs:
   summary_fields:
-    - surface_confirmation_class               # confirmed_high / confirmed / not_surface / data_unavailable (CSPA-driven; verdict field)
+    - surface_confirmation_class               # cell_surface_confirmed / not_surface / data_unavailable (CSPA-driven; verdict field — matches the tokens the cspa_surface_confirmation reader + surface-intrinsic rules key on)
     - cspa_category                            # CSPA high-confidence category
     - n_celllines_detected                     # # cell lines with wet-lab CSPA detection
     - measured_in_cspa                         # True / False (honest measured-negative) / None
@@ -54,6 +54,16 @@ outputs:
     - hpa_if_plasma_membrane                   # bool — HPA IF places the protein at the plasma membrane
     - hpa_if_reliability                       # HPA IF reliability tier (Enhanced > Supported > Approved > Uncertain)
     - surface_multimodal_support               # corroborated_surface / discordant / cspa_only / hpa_if_only / single_modality_negative / insufficient
+  summary_fields_vocabulary:
+    # ENFORCED binding (2026-08-15): the exhaustive enum the cspa_surface_confirmation reader emits for
+    # the verdict field. Both consuming rules (surface-intrinsic.rules.yaml protein-surface-confirmed-
+    # supportive / protein-not-surface-opposing) key on these tokens; declaring the vocab makes the
+    # card↔reader↔rule contract validator-ENFORCED (a future enum drift is a hard CI error, not a warning
+    # that silently leaves the positive rule dead — the failure mode this card's 2026-08-04 note describes).
+    surface_confirmation_class:
+      - cell_surface_confirmed                 # CSPA wet-lab measured on the extracellular surface (positive verdict)
+      - not_surface                            # measured-negative: absent from the CSPA high-confidence surfaceome
+      - data_unavailable                       # target not resolvable to a CSPA UniProt AC (abstain)
   figure: protein_evidence_summary_panel
   plot_data: per_subcellular_location_evidence
 

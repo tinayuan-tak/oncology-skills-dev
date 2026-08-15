@@ -56,6 +56,11 @@ outputs:
     - moa_ontology_unmapped_fraction        # float — fraction of edges that fell to 'unmapped' class
 
   summary_fields_vocabulary:
+    # bool field keyed by has-pd-marker-supportive (equals: 'true'). String vocab (schema requires
+    # strings); rule engine + validator coerce bool<->'true'/'false' (ENFORCED 2026-08-15).
+    has_pd_marker:
+      - 'true'
+      - 'false'
     network_class:
       - well_characterized
       - partial

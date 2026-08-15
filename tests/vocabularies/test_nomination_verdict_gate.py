@@ -113,8 +113,15 @@ def test_positives_only_from_cross_target_axes():
     assert expr_pos <= {"strongly_upregulated_in_tumor"}, \
         f"only the target-intrinsic expression verdict may be a positive; got {expr_pos}"
     excl = {(e["sub_skill"], e["verdict"]) for e in v["excluded_positive_modality_scoped"]}
-    # the modality-scoped/advisory positives are explicitly documented as excluded
-    assert ("surface_modality", "adc_favorable") in excl
+    # the modality-scoped/advisory positives are explicitly documented as excluded.
+    # 2026-08-15: the surface_modality tokens must be the ones the resolver ACTUALLY
+    # emits (adc_preferred/tce_preferred) — the former adc_favorable/tce_favorable were
+    # never emitted, so the guard was inert. Assert the real tokens AND that the stale
+    # spellings are gone (prevents this assertion silently going vacuous again).
+    assert ("surface_modality", "adc_preferred") in excl
+    assert ("surface_modality", "tce_preferred") in excl
+    assert ("surface_modality", "adc_favorable") not in excl
+    assert ("surface_modality", "tce_favorable") not in excl
     assert ("mechanism", "well_characterized") in excl
     assert ("expression", "broadly_high_expression") in excl   # modality-scoped expression stays OUT
     # and the excluded modality-scoped verdict must NOT also appear as a positive (no contradiction)

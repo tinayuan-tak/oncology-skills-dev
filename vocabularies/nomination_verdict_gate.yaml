@@ -309,8 +309,12 @@ positive_tier_config:
 # NOTE: this documents DEFAULT-mode exclusion only; positive_signals_modality_scoped
 # above RE-ENABLES surface positives under an explicit biologics modality.
 excluded_positive_modality_scoped:
-  - {sub_skill: surface_modality, verdict: adc_favorable}
-  - {sub_skill: surface_modality, verdict: tce_favorable}
+  # 2026-08-15: reconciled to the tokens the surface_modality resolver ACTUALLY emits
+  # (surface_modality.resolver.yaml:61-65 → adc_preferred / tce_preferred / both_viable).
+  # The former adc_favorable/tce_favorable were never emitted, so this guard was INERT
+  # against the real positives it is meant to document as default-mode exclusions.
+  - {sub_skill: surface_modality, verdict: adc_preferred}
+  - {sub_skill: surface_modality, verdict: tce_preferred}
   - {sub_skill: expression,       verdict: broadly_high_expression}
   - {sub_skill: mechanism,        verdict: well_characterized}   # advisory network context only
 

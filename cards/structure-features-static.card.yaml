@@ -67,6 +67,12 @@ outputs:
     - method_version
 
   summary_fields_vocabulary:
+    # bool field keyed by hotspot-in-druggable-pocket-sm-supportive-e8 (equals: 'true'). Declared as
+    # strings (schema requires string vocab items); the rule engine + the validator coerce bool<->'true'/
+    # 'false', so a serialized native-bool reader value still matches (ENFORCED 2026-08-15).
+    mutation_hotspot_in_druggable_pocket:
+      - 'true'
+      - 'false'
     hotspot_pocket_adjacency_call:
       - adjacent
       - distant
