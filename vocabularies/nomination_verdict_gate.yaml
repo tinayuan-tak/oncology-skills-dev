@@ -286,6 +286,23 @@ positive_contradictions:
 positive_tier_config:
   min_dimensions_for_strong: 2    # analog of compose-dashboard MIN_IN_SCOPE_FOR_STRONG
   require_dominant_for_strong: true
+  # min_dimensions_for_strong counts INDEPENDENT lines of evidence. Some positive axes are NOT
+  # independent — they are two reads of the same underlying measurement, so counting both toward the
+  # "2 dimensions" bar double-counts one line. Each group below collapses to ONE dimension for the
+  # min_dimensions_for_strong test (weights/has_dominant are unaffected; a genuinely independent third
+  # axis still lifts a grouped target to strong). Missing key → no grouping (backward-compatible).
+  #
+  # expression + selectivity: `expression:strongly_upregulated_in_tumor` (tumor-vs-adjacent card) and
+  # `selectivity:strong/modest_tumor_selective` (tumor-vs-normal card) are BOTH the tumor-vs-normal RNA
+  # contrast — selectivity is essentially the contrasted form of the same upregulation. Counting them
+  # as 2 dimensions manufactured a `strong` tier for HTR1D/COADREAD (2026-08-15 calibration review): a
+  # DECLINED serotonin-GPCR whose only positives were these two hits — relative RNA up from a near-zero
+  # normal-colon baseline, INTERNALLY contradicted at the protein level inside the selectivity axis
+  # itself (ihc-not-detected-killer in colon, ~300 copies/cell, 3.84x narrow window). One RNA line, not
+  # two. (Follow-on, NOT here: protein IHC-not-detected should also DOWNGRADE strong_tumor_selective in
+  # the selectivity resolver — that addresses the RNA-vs-protein contradiction directly.)
+  correlated_dimension_groups:
+    - [expression, selectivity]
 
 # Documented exclusions from the positive set (symmetric to excluded_modality_scoped
 # for kills) — so a future edit doesn't "helpfully" add a modality-scoped positive.
