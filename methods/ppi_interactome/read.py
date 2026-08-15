@@ -121,7 +121,7 @@ def _string_edges_from_product(symbol: str, product_path: Optional[str] = None) 
                                 filesystem=fs.S3FileSystem(region="us-east-1"),
                                 filters=[("gene_symbol", "==", symbol)],
                                 columns=["partner_symbol", "combined_score"])
-    except Exception:  # noqa: BLE001 — product missing/unreadable → signal fallback to the stream path
+    except Exception:  # absence-discipline: exempt -- product missing/unreadable → benign fallback to the STRING full-links stream path (byte-identical output), not a dead axis
         return None
     d = tbl.to_pandas()
     return [{"partner": p, "combined_score": int(s)}

@@ -166,8 +166,11 @@ def _load_seg_scores():
     try:
         raw = _s3_read_bytes(SEG_SCORES_KEY)
         return pd.read_csv(io.BytesIO(raw), sep="\t")
-    except Exception:  # noqa: BLE001
-        return pd.DataFrame()
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return pd.DataFrame()   # genuine object-absence → honest empty (verdict-inert)
+        raise                       # broken-env / transient / creds → honest _live_read_error
 
 
 @lru_cache(maxsize=1)
@@ -178,8 +181,11 @@ def _load_absolute():
     try:
         raw = _s3_read_bytes(ABSOLUTE_KEY)
         return pd.read_csv(io.BytesIO(raw), sep="\t")
-    except Exception:  # noqa: BLE001
-        return pd.DataFrame()
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return pd.DataFrame()   # genuine object-absence → honest empty (verdict-inert)
+        raise                       # broken-env / transient / creds → honest _live_read_error
 
 
 @lru_cache(maxsize=1)
@@ -195,8 +201,11 @@ def _load_absolute_segtabs():
             usecols=["Sample", "Chromosome", "Start", "End", "Length",
                      "Modal_HSCN_1", "Modal_HSCN_2", "LOH"],
         )
-    except Exception:  # noqa: BLE001
-        return pd.DataFrame()
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return pd.DataFrame()   # genuine object-absence → honest empty (verdict-inert)
+        raise                       # broken-env / transient / creds → honest _live_read_error
 
 
 def hrd_score_for_indication(indication: str) -> dict:
@@ -337,8 +346,11 @@ def _load_msi_labels(key: str, column: str) -> tuple:
         if column not in df.columns:
             return tuple()
         return tuple(df[column].dropna().astype(str))
-    except Exception:  # noqa: BLE001
-        return tuple()
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return tuple()          # genuine object-absence → honest empty (verdict-inert)
+        raise                       # broken-env / transient / creds → honest _live_read_error
 
 
 def _classify_msi(msi_high_fraction: Optional[float]) -> str:
@@ -418,8 +430,11 @@ def _load_model_msi_by_lineage():
         sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_GLOBAL_SIGNATURES_KEY)))
         model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)),
                             usecols=["ModelID", "OncotreeLineage"])
-    except Exception:  # noqa: BLE001
-        return {}
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return {}               # genuine object-absence → honest empty (verdict-inert)
+        raise                       # broken-env / transient / creds → honest _live_read_error
     if "MSIScore" not in sig.columns or "ModelID" not in sig.columns:
         return {}
     sig = sig.dropna(subset=["MSIScore"]).drop_duplicates(subset=["ModelID"])  # one row per model
@@ -485,8 +500,11 @@ def _load_model_signatures_by_lineage():
         sig = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_SIGNATURE_MATRIX_KEY)))
         model = pd.read_csv(io.BytesIO(_s3_read_bytes(DEPMAP_MODEL_KEY)),
                             usecols=["ModelID", "OncotreeLineage"])
-    except Exception:  # noqa: BLE001
-        return {}
+    except Exception as e:  # noqa: BLE001
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return {}               # genuine object-absence → honest empty (verdict-inert)
+        raise                       # broken-env / transient / creds → honest _live_read_error
     sbs = [c for c in sig.columns if c.startswith("SBS")]
     if not sbs or "ModelID" not in sig.columns:
         return {}

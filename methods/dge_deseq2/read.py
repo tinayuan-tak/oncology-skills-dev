@@ -69,7 +69,7 @@ def _allgene_log2fc_null(manifest_id: str, column: str = "log2FoldChange") -> tu
         s3 = fs.S3FileSystem()
         table = pq.read_table(path, filesystem=s3, columns=[column])
         return tuple(v for v in table[column].to_pylist() if v is not None)
-    except Exception:
+    except Exception:  # absence-discipline: exempt -- deliberate percentile-null; empty→percentile None, verdict comes from the sibling cell (additive context, verdict-inert)
         return tuple()
 
 
@@ -99,7 +99,7 @@ def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
         s3 = fs.S3FileSystem()
         table = pq.read_table(path, filesystem=s3, columns=[column])
         return tuple(v for v in table[column].to_pylist() if v is not None)
-    except Exception:
+    except Exception:  # absence-discipline: exempt -- deliberate per-cell percentile-null; empty→percentile None, selectivity verdict comes from the sibling cells (additive context, verdict-inert)
         return tuple()
 
 

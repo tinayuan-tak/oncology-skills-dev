@@ -277,8 +277,12 @@ def _load_brca_pam50_from_curated() -> "pd.DataFrame | None":
         return None
     try:
         cur = pd.read_csv(fallback)
+    except FileNotFoundError:
+        return None                        # race: file vanished after the exists() check → null-strata
     except Exception:  # noqa: BLE001
-        return None
+        # the curated CSV EXISTS (checked above) — a parse failure is corruption, not a data gap;
+        # surface it rather than silently collapsing every BRCA patient to a null PAM50 stratum.
+        raise
     id_col = "pan.samplesID" if "pan.samplesID" in cur.columns else cur.columns[0]
     brca = cur[cur["cancer.type"].astype(str).str.upper().str.contains("BRCA", na=False)].copy()
     brca["pam50_subtype"] = brca["Subtype_Selected"].map(_BRCA_PAM50_DECODE)

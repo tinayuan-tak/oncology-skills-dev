@@ -49,7 +49,12 @@ def _enst_to_gene() -> dict:
     _ensure_aws_profile()
     try:
         raw = _boto3().get_object(Bucket=S3_BUCKET, Key=GENCODE_GTF_KEY)["Body"].read()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # build-time GENCODE crosswalk: broken-env/transient/creds must surface (an empty crosswalk
+        # silently mis-materializes every gene) — re-raise; only genuine object-absence → {}.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return {}
     out: dict = {}
     with gzip.open(io.BytesIO(raw), "rt") as fh:
@@ -88,7 +93,12 @@ def _read_from_product(target: str) -> Optional[dict]:
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("gene_symbol", "=", (target or "").strip().upper())])
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # genuine object-absence → None (data_unavailable; no live fallback). Broken-env/transient/
+        # creds must NOT be masked as a coverage gap — re-raise → honest _live_read_error.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return None
     if tbl.num_rows == 0:
         return None

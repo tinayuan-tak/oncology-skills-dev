@@ -272,42 +272,15 @@ _BASELINE_REASON = (
     "pre-existing RD-class residual beyond PR #354; broad except over an S3-read path returns "
     "empty without definitive-vs-transient discrimination; tracked for burndown (see PR)."
 )
-_BASELINE_RESIDUALS: dict[str, str] = {key: _BASELINE_REASON for key in (
-    "cd_antigen_backbone/read.py::_load_roster",
-    "cptac_protein_deg/read.py::read_per_sample",
-    "depmap_isoform_expression/read.py::_enst_to_gene",
-    "depmap_isoform_expression/read.py::_read_from_product",
-    "depmap_paralog_aggregator/cli.py::_ensure_ensembl_cached",
-    "depmap_paralog_aggregator/cli.py::_ensure_ensembl_id_map_cached",
-    "depmap_paralog_aggregator/read.py::_derived_parquet_uri",
-    "dge_deseq2/read.py::_allgene_log2fc_null",
-    "dge_deseq2/read.py::_sensitivity_cell_null",
-    "genie_panel_recurrence/read.py::_load_genie_maf",
-    "hcmi_model_availability/cli.py::_read_one",
-    "hcmi_model_availability/read.py::_load_product",
-    "pancan_mutation_ccf/read.py::_load_product",
-    "ppi_interactome/read.py::_string_edges_from_product",
-    "signor_mechanism_network/read.py::_read_from_derived_parquet",
-    "signor_mechanism_network/read.py::_try_load_derived_parquet_from_s3",
-    "structure_features_static/read.py::_index_by_symbol_and_ac",
-    "subgroup_assigner_directly_tagged/cli.py::_load_brca_pam50_from_curated",
-    "tahoe_drug_perturbation/cli.py::fetch_gene_rows",
-    "tcga_aneuploidy_burden/read.py::_load_absolute",
-    "tcga_aneuploidy_burden/read.py::_load_absolute_segtabs",
-    "tcga_aneuploidy_burden/read.py::_load_model_msi_by_lineage",
-    "tcga_aneuploidy_burden/read.py::_load_model_signatures_by_lineage",
-    "tcga_aneuploidy_burden/read.py::_load_msi_labels",
-    "tcga_aneuploidy_burden/read.py::_load_seg_scores",
-    "tcga_fusion_consensus/read.py::_load_consensus",
-    "tcga_fusion_consensus/read.py::_load_coverage",
-    "tcga_gtex_expression_distribution/read.py::_load_sidecar",
-    "tcga_gtex_tpm_quantiles/read.py::read_pan_cancer_by_tissue",
-    "tcga_patient_cn/read.py::_read_from_product",
-    "tcga_spliceseq_psi/read.py::_open_tissue",
-    "tcga_spliceseq_psi/read.py::_read_from_product",
-    "uniprot_protein_features/read.py::_interpro_domains_for",
-    "uniprot_protein_features/read.py::_load_interpro_symbol_map",
-)}
+# BURN-DOWN COMPLETE (2026-08-15, PR fix/burndown-p3-masking, Stage 3 of 3). All 55 pre-existing
+# residuals surfaced by this lint (PR #356 baseline) have been RESOLVED across Stages 1 (#359),
+# 2 (#360), and 3 (this PR's final 34 P3 handlers): each was either FIXED with the
+# is_definitively_absent (+FileNotFoundError) discipline over a local/S3 read, or annotated
+# `# absence-discipline: exempt -- <reason>` where genuinely benign (fallback-to-another-path,
+# breadcrumb-already-surfaced, build-time materialization, or verdict-inert/descriptive). The lint
+# now ratchets against a CLEAN baseline — the only remaining allowlisted handler is the DEFERRED
+# cooccurrence_fisher_pancohort entry above (blocked on an active registry collision).
+_BASELINE_RESIDUALS: dict[str, str] = {}
 
 _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}
 

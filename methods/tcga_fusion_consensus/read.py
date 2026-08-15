@@ -106,7 +106,13 @@ def _load_consensus():
         return pd.DataFrame()
     try:
         return pd.read_parquet(path)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Local cached-parquet parse (S3 already latched definitive-vs-transient in
+        # _ensure_derived_cached). Corrupt cache / broken env must surface — re-raise; genuine
+        # object-absence → empty.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return pd.DataFrame()
 
 
@@ -147,7 +153,13 @@ def _load_coverage():
         return pd.DataFrame()
     try:
         return pd.read_parquet(path)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Local cached-parquet parse (S3 already latched definitive-vs-transient in
+        # _ensure_coverage_cached). Corrupt cache / broken env must surface — re-raise; genuine
+        # object-absence → empty.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return pd.DataFrame()
 
 

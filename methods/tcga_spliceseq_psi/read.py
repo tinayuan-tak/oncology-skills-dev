@@ -92,7 +92,12 @@ def _read_from_product(target: str, indication: str) -> Optional[dict]:
             f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
             filters=[("gene_symbol", "=", (target or "").strip().upper()),
                      ("indication", "=", (indication or "").strip().upper())])
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # genuine object-absence → None (data_unavailable; no live fallback for this display facet).
+        # Broken-env/transient/creds must NOT be masked as a coverage gap — re-raise → _live_read_error.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return None
     if tbl.num_rows == 0:
         return None
@@ -268,7 +273,7 @@ def _open_tissue(tissue: str, local_dir: Optional[str]):
         key = f"{SPLICESEQ_SOURCE_PREFIX}/{_snapshot_dir()}/PSI_download_{tissue}.zip"
         try:
             raw = _boto3().get_object(Bucket=S3_BUCKET, Key=key)["Body"].read()
-        except Exception:  # noqa: BLE001
+        except Exception:  # absence-discipline: exempt -- build-time per-tissue materialization; a missing/unreadable tissue zip is skipped by the aggregator (build_spliceseq_table), not a card-facing read
             return None
     zf = zipfile.ZipFile(io.BytesIO(raw))
     inner = next(n for n in zf.namelist() if n.startswith(f"PSI_download_{tissue}"))

@@ -54,7 +54,13 @@ def _load_genie_maf(indication: str):
     from methods.catalog_query.read import bucket_key_for  # resolver helper (Stage-1 adoption)
     try:
         bucket, key = bucket_key_for(GENIE_MAF_MANIFEST)
-    except Exception:
+    except Exception as e:
+        # A genuinely-missing manifest → None (data_unavailable). A broken resolver / broken env must
+        # NOT be masked as a coverage gap — re-raise so the seam surfaces _live_read_error. (The pq
+        # read below is already hardened with its own discriminant.)
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return None
     import pyarrow.parquet as pq
     import pyarrow.fs as fs

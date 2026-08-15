@@ -83,7 +83,7 @@ def _read_one(key: str):
         mid = (d.get("SubjectData") or {}).get("submitter_id")
         ent = (d.get("GDC Clinical Data Entities") or [{}])[0]
         return (mid, ent.get("primary_site"), ent.get("disease_type"))
-    except Exception:  # noqa: BLE001 — a single unreadable case is skipped, never aborts the aggregate
+    except Exception:  # absence-discipline: exempt -- build-time batch; a single unreadable case is skipped (COUNTED + WARNed by aggregate_model_availability so throttling can't silently undercount)
         return None
 
 
@@ -94,10 +94,19 @@ def aggregate_model_availability(max_workers: int = 24) -> list:
     s3 = boto3.client("s3")
     keys = _list_case_jsons(s3)
     rows = []
+    n_unreadable = 0                       # _read_one returned None = a read/parse FAILURE (not a genuine no-model-id case)
     with cf.ThreadPoolExecutor(max_workers=max_workers) as ex:
         for r in ex.map(_read_one, keys):
-            if r and r[0]:
+            if r is None:
+                n_unreadable += 1
+                continue
+            if r[0]:
                 rows.append(r)
+    if n_unreadable:
+        import sys as _sys
+        print(f"WARNING: {n_unreadable}/{len(keys)} HCMI case JSONs were unreadable/unparseable and "
+              f"were SKIPPED — if this is S3 throttling (not genuine gaps) the per-indication model "
+              f"counts UNDERCOUNT. Re-run to confirm stability.", file=_sys.stderr)
     per = defaultdict(lambda: {"models": set(), "sites": Counter()})
     for mid, ps, dt in rows:
         ind = crosswalk_indication(ps, dt)

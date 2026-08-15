@@ -72,7 +72,7 @@ def _ensure_ensembl_cached() -> Path | None:
         click.echo(f"  Downloading Ensembl compara paralog subtypes (~188 MB)...", err=True)
         s3.download_file(S3_BUCKET, ENSEMBL_PARALOG_S3_KEY, str(ENSEMBL_CACHE_TSV))
         return ENSEMBL_CACHE_TSV
-    except Exception as e:
+    except Exception as e:  # absence-discipline: exempt -- build-time OPTIONAL ohnolog enrichment; failure WARNs to stderr + skips (not a silent card-facing gap)
         click.echo(f"  WARNING: Ensembl paralog cache failed: {e} — ohnolog annotation skipped",
                    err=True)
         return None
@@ -89,7 +89,7 @@ def _ensure_ensembl_id_map_cached() -> Path | None:
         click.echo("  Downloading Ensembl gene-ID -> HGNC-symbol map...", err=True)
         s3.download_file(_S3_BUCKET_IDMAP, ENSEMBL_ID_MAP_S3_KEY, str(ENSEMBL_ID_MAP_CACHE_TSV))
         return ENSEMBL_ID_MAP_CACHE_TSV
-    except Exception as e:
+    except Exception as e:  # absence-discipline: exempt -- build-time OPTIONAL ohnolog enrichment; failure WARNs to stderr + skips (not a silent card-facing gap)
         click.echo(f"  WARNING: Ensembl id-map cache failed: {e} — ohnolog annotation skipped",
                    err=True)
         return None

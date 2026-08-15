@@ -255,7 +255,7 @@ def _derived_parquet_uri() -> Optional[str]:
     try:
         from methods.catalog_query.read import s3_uri_for
         return s3_uri_for(DERIVED_PRODUCT_MANIFEST_ID)
-    except Exception:  # noqa: BLE001
+    except Exception:  # absence-discipline: exempt -- manifest unresolvable → reader falls back to raw-CSV recompute (benign fallback, not a dead axis)
         return None
 
 

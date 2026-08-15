@@ -374,7 +374,13 @@ def _load_sidecar():
         df = pq.read_table(str(path), columns=["sample_id", "submitter_id"]).to_pandas()
         df["case"] = df["submitter_id"].map(_tcga_case)
         return df
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Local cached-parquet read (S3 already latched definitive-vs-transient in
+        # _ensure_sidecar_cached). Corrupt cache / broken env must surface — re-raise; only genuine
+        # object-absence → empty sidecar.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return pd.DataFrame(columns=["sample_id", "submitter_id", "case"])
 
 

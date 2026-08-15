@@ -89,7 +89,7 @@ def _try_load_derived_parquet_from_s3() -> Optional[str]:
         s3 = _boto3_client()
         s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
         return str(CACHE_PARQUET)
-    except Exception:
+    except Exception:  # absence-discipline: exempt -- S3 derived-parquet prefetch; failure → benign fallback to inline SIGNOR-TSV compute (read_target_summary Path 2), not a dead axis
         return None
 
 
@@ -357,7 +357,7 @@ def _read_from_derived_parquet(target: str) -> Optional[dict]:
         unmapped = sum(1 for e in stripped if e.get("moa_class") == "unmapped")
         # read from the derived product → stamp it as the source (honest per-path provenance)
         return _aggregate_edges_to_summary(stripped, total, unmapped, data_source=DERIVED_MANIFEST_ID)
-    except Exception:
+    except Exception:  # absence-discipline: exempt -- derived-parquet read failure → benign fallback to inline SIGNOR-TSV compute (read_target_summary Path 2), not a dead axis
         return None
 
 

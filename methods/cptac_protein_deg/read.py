@@ -333,7 +333,13 @@ def read_per_sample(target: str):
         sym = target.upper().strip()
         tbl = pq.read_table(str(path), filters=[("gene_symbol", "==", sym)])
         return tbl.to_pandas()
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        # Local cached-parquet read (S3 already latched definitive-vs-transient in
+        # _ensure_per_sample_cached). A corrupt cached file / broken env (missing pyarrow) must NOT
+        # be masked as "target absent" — re-raise so the live-read seam surfaces _live_read_error.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         import pandas as pd
         return pd.DataFrame(columns=["gene_symbol", "cohort", "aliquot_submitter_id",
                                      "sample_type", "condition", "log2_ratio"])

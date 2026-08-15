@@ -42,7 +42,13 @@ def _load_product(product_path: "Optional[str]" = None):
         raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"],
                              capture_output=True, timeout=120).stdout
         return pd.read_parquet(io.BytesIO(raw)) if raw else None
-    except Exception:  # noqa: BLE001 — product unreachable → data_unavailable, never raise into the card
+    except Exception as e:  # noqa: BLE001
+        # descriptive-inert model-availability product. A genuine absence surfaces above as empty
+        # stdout (→ None); the except only catches broken-env (missing pandas) / corrupt parquet /
+        # subprocess timeout — those must surface, not be masked as data_unavailable. Re-raise.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return None
 
 

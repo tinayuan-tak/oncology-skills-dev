@@ -114,7 +114,7 @@ def _index_by_symbol_and_ac(path, ac_col: str) -> dict:
         df = pd.read_parquet(path)
     except ImportError:
         raise  # broken env — never mask as an empty index
-    except Exception:  # noqa: BLE001 — a corrupt/partial cached parquet degrades to empty (honest gap)
+    except Exception:  # absence-discipline: exempt -- S3 disciplined upstream; this reads a LOCAL cached parquet only, a corrupt/partial cache degrades to empty (ImportError already re-raised above)
         return {}
     if df.empty:
         return {}

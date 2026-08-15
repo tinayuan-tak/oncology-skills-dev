@@ -208,7 +208,7 @@ def _read_from_product(target: str, indication: str) -> Optional[dict]:
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=fs.S3FileSystem(),
                             filters=[("gene_symbol", "=", (target or "").strip().upper()),
                                      ("indication", "=", str(indication or "").upper().strip())])
-    except Exception:  # noqa: BLE001 — product absent/unreadable → live fallback
+    except Exception:  # absence-discipline: exempt -- product absent/unreadable → benign live-TSV fallback in read_patient_cn (_read_gistic_gene), not a dead axis
         return None
     if tbl.num_rows == 0:
         return None

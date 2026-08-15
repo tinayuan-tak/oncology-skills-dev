@@ -120,7 +120,13 @@ def read_pan_cancer_by_tissue(target: str):
             filters = [("gene_symbol", "==", target.upper().strip())]
         tbl = pq.read_table(str(path), filters=filters)
         return tbl.to_pandas()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        # Local cached-parquet read (S3 already latched definitive-vs-transient in _ensure_cached).
+        # Corrupt cache / broken env (missing pyarrow) must surface — re-raise; only genuine
+        # object-absence → empty distribution.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         import pandas as pd
         return pd.DataFrame(columns=cols)
 

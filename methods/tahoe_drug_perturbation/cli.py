@@ -50,7 +50,7 @@ def fetch_gene_rows(target: str):
         bucket, key = bucket_key_for(PRODUCT_MANIFEST_ID)
         tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(),
                             filters=[("gene_name", "=", (target or "").strip())])
-    except Exception:  # noqa: BLE001
+    except Exception:  # absence-discipline: exempt -- None → compute_summary emits _live_read_error breadcrumb (tahoe_drug_perturbation_read_failed), not a silent dead axis
         return None
     return tbl.to_pandas()
 

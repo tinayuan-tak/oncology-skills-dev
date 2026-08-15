@@ -106,7 +106,12 @@ def _load_interpro_symbol_map(sidecar_path: Optional[str] = None) -> dict:
             local_path=sidecar_path)
     except ImportError:
         raise                              # broken env — never mask
-    except Exception:  # noqa: BLE001 — InterPro is the FALLBACK layer; degrade quietly if unreachable
+    except Exception as e:  # noqa: BLE001 — InterPro is the FALLBACK layer; degrade only on genuine absence
+        # read_resolver_sidecar_map already RAISES on schema-drift / empty-crosswalk; here we swallow
+        # ONLY a genuine object-absence (NoSuchKey) and re-raise transient/creds → _live_read_error.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not is_definitively_absent(e):
+            raise
         return {}
 
 
@@ -127,7 +132,12 @@ def _interpro_domains_for(ac: str, interpro_path: Optional[str] = None) -> Optio
             tbl = pq.read_table(f"{S3_BUCKET}/{INTERPRO_KEY}",
                                 filesystem=fs.S3FileSystem(region="us-east-1"),
                                 filters=flt, columns=cols)
-    except Exception:  # noqa: BLE001 — product unreadable → interpro layer unavailable
+    except Exception as e:  # noqa: BLE001
+        # additive InterPro layer. Genuine object-absence → None (interpro unavailable, distinct from
+        # "no domains"). Broken-env/transient/creds must surface — re-raise → _live_read_error.
+        from methods.target_id_sidecar import is_definitively_absent
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return None
     d = tbl.to_pandas()
     # order by start (NaN/None last) so the architecture reads N→C-terminal
