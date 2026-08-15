@@ -1,0 +1,103 @@
+adc-tce-modality-fit:
+  _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
+  endocytosis_confidence: unmeasured
+  fit_class: both_viable
+  fit_rationale: tm_count=1, ec_length=464, endo_motif_hc=unmeasured, n_ubiq=unmeasured
+  gpi_surface_rescued: false
+  is_adc_topology_favorable: true
+  is_gpi_anchored: false
+  is_tce_topology_favorable: true
+  isoform_mechanism_caveat: null
+  isoform_selective_offcontext: false
+  isoform_selective_suppressed: false
+  structure_epitope_context:
+    alphafold_confidence_class: low
+    disordered_fraction: 0.2751
+    hotspot_pocket_adjacency_call: no_hotspots_annotated
+  surface_family_class: other_surface
+mutation-type-counts:
+  mut_dominant_mutation_class: missense
+  mut_fraction_inframe_indel: 0.0
+  mut_fraction_lof: 0.1509433962264151
+  mut_fraction_missense: 0.8490566037735849
+  mut_mutation_rate: 0.020164301717699777
+  mut_n_cell_lines_mutated: 54
+  mut_n_cell_lines_total: 2678
+  mut_n_frameshift: 3
+  mut_n_inframe_indel: 0
+  mut_n_missense: 45
+  mut_n_nonsense: 3
+  mut_n_other: 1
+  mut_n_splice: 2
+  mut_n_synonymous: 0
+  mut_per_class_counts:
+  - n: 45
+    variant_class: missense
+  - n: 3
+    variant_class: nonsense
+  - n: 3
+    variant_class: frameshift
+  - n: 2
+    variant_class: splice
+  - n: 1
+    variant_class: other
+  mut_top_mutated_lineages:
+  - by_class:
+      frameshift: 1
+      missense: 6
+      nonsense: 1
+      other: 1
+    lineage: Lung
+    n_mutated_lines: 9
+    n_observations: 9
+  - by_class:
+      missense: 9
+    lineage: Bowel
+    n_mutated_lines: 9
+    n_observations: 9
+  - by_class:
+      missense: 5
+      splice: 2
+    lineage: Lymphoid
+    n_mutated_lines: 7
+    n_observations: 7
+  - by_class:
+      frameshift: 1
+      missense: 5
+    lineage: CNS/Brain
+    n_mutated_lines: 6
+    n_observations: 6
+  - by_class:
+      missense: 4
+    lineage: Uterus
+    n_mutated_lines: 4
+    n_observations: 4
+  - by_class:
+      missense: 2
+      nonsense: 1
+    lineage: Skin
+    n_mutated_lines: 3
+    n_observations: 3
+  - by_class:
+      frameshift: 1
+      missense: 1
+    lineage: Bone
+    n_mutated_lines: 2
+    n_observations: 2
+  - by_class:
+      missense: 2
+    lineage: Breast
+    n_mutated_lines: 2
+    n_observations: 2
+  - by_class:
+      missense: 2
+    lineage: Esophagus/Stomach
+    n_mutated_lines: 2
+    n_observations: 2
+  - by_class:
+      missense: 1
+    lineage: Kidney
+    n_mutated_lines: 1
+    n_observations: 1
+  mut_total_mutations: 54
+  mutation_landscape_class: missense_dominant

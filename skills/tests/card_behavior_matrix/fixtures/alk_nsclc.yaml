@@ -1,0 +1,40 @@
+fusion-rearrangement-landscape:
+  _data_source: tcga-fusion-consensus-v1
+  _min_callers: 2
+  _n_events_total: 15
+  fusion_class: recurrent_fusion_driver
+  fusion_frequency: 0.004212299915754001
+  genie_sv_context: among 612 SV-covered genes in NSCLC (GENIE data_sv, coverage-corrected
+    denominator)
+  genie_sv_frequency: 0.026450686897683002
+  genie_sv_recurrence_class: top_1pct
+  genie_sv_recurrence_percentile: 99.91830065359477
+  genie_sv_recurrent_partners:
+  - n_samples: 642
+    partner: EML4
+  - n_samples: 10
+    partner: HIP1
+  - n_samples: 6
+    partner: KIF5B
+  - n_samples: 6
+    partner: SLC8A1
+  - n_samples: 6
+    partner: STRN
+  - n_samples: 5
+    partner: CLIP4
+  - n_samples: 5
+    partner: CLTC
+  - n_samples: 4
+    partner: BCL11A
+  - n_samples: 3
+    partner: DNAH6
+  - n_samples: 3
+    partner: NUMA1
+  method_version: 0.3.0
+  n_assayed_in_tissue: 1187
+  n_samples_with_fusion: 5
+  n_sv_covered: 29262
+  n_sv_samples: 774
+  recurrent_partners:
+  - n_samples: 5
+    partner: EML4

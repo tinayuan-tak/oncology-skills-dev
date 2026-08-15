@@ -24,7 +24,13 @@ import pytest
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from scripts.render_markdown import render_evidence_package, _render_toc  # noqa: E402
+from scripts.render_markdown import (  # noqa: E402
+    render_evidence_package,
+    _render_toc,
+    _fmt_evidence_cell,
+    _render_modality_fit_table,
+    FIT_ICONS,
+)
 
 
 # ============================================================================
@@ -404,3 +410,57 @@ def test_toc_omits_cards_without_evidence_link_unless_cards_failed():
     assert "(#cards-without-evidence)" not in "\n".join(_render_toc(ep_absence, []))
     ep_failed = {"cards": [], "governance": {"validation_summary": {"n_cards_failed": 2}}}
     assert "(#cards-without-evidence)" in "\n".join(_render_toc(ep_failed, []))
+
+
+# ============================================================================
+# O1 (#447): non_concludable fit_level must NOT render as a green "dominant positive"
+# ============================================================================
+
+def _non_concludable_entry() -> dict:
+    """A modality whose safety veto could not be assessed (killer-veto card read_error /
+    not_wired) but which still has positive primary cards + a dominant hit. The renderer must
+    reflect the un-assessable state, NOT the green dominant-positive cell."""
+    return {
+        "modality": "bite_tce",
+        "fit_level": "non_concludable",
+        "headline_decision_question": "Is a T-cell engager viable?",
+        "primary_cards_positive_count": 3,
+        "primary_cards_in_scope": 3,
+        "primary_cards_total": 4,
+        "dominant_hits": [{"card_id": "surface-topology-and-ptm", "call": "single_pass"}],
+        "killer_conditions_hit": [],
+        "non_concludable_reasons": ["normal-tissue-liability (read_error)"],
+    }
+
+
+def test_non_concludable_evidence_cell_does_not_render_dominant_positive():
+    cell = _fmt_evidence_cell(_non_concludable_entry())
+    assert "Non-concludable" in cell
+    assert "killer-veto card unavailable" in cell
+    assert "normal-tissue-liability" in cell
+    # MUST NOT fall through to the green dominant/positive phrasing
+    assert "dominant positive" not in cell
+    assert "sufficient" not in cell
+
+
+def test_non_concludable_has_icon_and_renders_in_table():
+    assert "non_concludable" in FIT_ICONS
+    assert FIT_ICONS["non_concludable"] != "🟢"   # never a green pass
+    fit = [_non_concludable_entry(),
+           {"modality": "adc", "fit_level": "strong", "headline_decision_question": "",
+            "primary_cards_positive_count": 3, "primary_cards_in_scope": 3,
+            "primary_cards_total": 3, "dominant_hits": [{"card_id": "x", "call": "y"}],
+            "killer_conditions_hit": []}]
+    md = "\n".join(_render_modality_fit_table(fit))
+    assert "non_concludable" in md
+    assert "Non-concludable — killer-veto card unavailable" in md
+    # the non_concludable row must not carry the green dominant-positive evidence phrasing
+    nc_row = [ln for ln in md.splitlines() if "bite_tce" in ln][0]
+    assert "dominant positive" not in nc_row
+
+
+def test_non_concludable_single_modality_inline_summary_is_not_green():
+    md = "\n".join(_render_modality_fit_table([_non_concludable_entry()]))
+    assert "Non-concludable — killer-veto card unavailable" in md
+    assert "🟢" not in md
+    assert "dominant positive" not in md

@@ -27,6 +27,7 @@ Synthesis algorithm:
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 
@@ -243,11 +244,14 @@ def synthesize(
         if killer_blocked:
             data_blocked_caveats.extend(f"[{modality}] {m}" for m in killer_blocked)
 
-        # Score primary cards
-        primary_positive = sum(
-            1 for c in primary_cards
-            if card_call_map.get(c, "") in POSITIVE_CALLS
-        )
+        # Score primary cards.
+        # B-fix (2026-08-15, data-products emitter): primary_positive MUST be computed from the
+        # DETERMINISTIC signal (a fired supportive Tier-2 rule for THIS modality, or a legacy
+        # POSITIVE_CALLS interpretation_call) — NOT from interpretation_call alone. In biology-first
+        # mode cards emit interpretation_call="uninterpreted", so the old POSITIVE_CALLS-only count was
+        # structurally 0 for every surface package (→ "weak, 0/5" even when multiple primary cards fired
+        # supportive surface signals). The per-card supportive determination is done inside the loop
+        # below (positive_primary_ids); primary_positive + positive_ratio are finalized AFTER it.
         primary_excluded = sum(1 for c in primary_cards if c in excluded_cards)
         primary_total_in_scope = len(primary_cards) - primary_excluded
 
@@ -260,7 +264,6 @@ def synthesize(
         # and the 1 remaining card is positive.
         primary_total_original = len(primary_cards)
         MIN_IN_SCOPE_FOR_STRONG = 2
-        positive_ratio_vs_original = primary_positive / max(primary_total_original, 1)
 
         # EG4 (iter-2): check for dominant-signal pattern. If ANY primary card emits a
         # call declared as dominant in its card_spec, AND no primary card emits a
@@ -280,12 +283,17 @@ def synthesize(
         primary_contradictions = []
         tier2_killer_signals = []   # per-modality killer signals from Tier-2 rules
         fired_rule_ids = set()       # traceability: which rules contributed to this modality's fit
+        # B-fix: primary cards with a DETERMINISTIC positive signal for THIS modality (a supportive
+        # Tier-2 rule fired, or a legacy POSITIVE_CALLS interpretation_call). Drives primary_positive.
+        positive_primary_ids: set = set()
 
         for card_id in primary_cards:
             call = card_call_map.get(card_id, "")
             # --- Tier-2 path ---
             tier2_signals = _signals_for_card_modality(tier2_signal_matrix, card_id, modality)
             if tier2_signals:
+                if any(e["signal"] == "supportive" for e in tier2_signals):
+                    positive_primary_ids.add(card_id)      # supportive (dominant or not) = a positive primary
                 for entry in tier2_signals:
                     fired_rule_ids.add(entry["rule_id"])
                     sig = entry["signal"]
@@ -303,11 +311,18 @@ def synthesize(
                 # check — the signal matrix is authoritative.
                 continue
             # --- Legacy path (no Tier-2 match for this card) ---
+            if call in POSITIVE_CALLS:
+                positive_primary_ids.add(card_id)          # legacy normative positive interpretation_call
             dominant_set = dominant_calls_by_card.get(card_id, set())
             if call in dominant_set:
                 dominant_hits.append((card_id, call))
             elif call in NOT_INFORMATIVE_CALLS:
                 primary_contradictions.append((card_id, call))
+
+        # B-fix: finalize primary_positive + ratio from the deterministic supportive set (computed in
+        # the loop above), NOT from interpretation_call membership alone.
+        primary_positive = len(positive_primary_ids)
+        positive_ratio_vs_original = primary_positive / max(primary_total_original, 1)
 
         # Merge Tier-2 killer signals into the killers_hit list (string messages)
         # so the existing fit_level → "not_viable" gate fires uniformly.
@@ -715,6 +730,29 @@ def _format_strongest_evidence(best: dict, card_outputs: list[dict]) -> str:
     return f"{positive}/{in_scope} primary positive."
 
 
+_CAVEAT_TOKEN_RE = re.compile(r"\{([^{}]+)\}")
+
+
+def _interpolate_tokens(template: str, mapping: dict) -> str:
+    """Fill `{token}` placeholders in a card warning/caveat message against `mapping`.
+
+    C-fix (2026-08-15, data-products emitter): card warning_predicate messages carry template
+    tokens ({target.symbol}, {shed_product}, {serum_marker}, {media_mean_npx}, ...) filled from
+    the target context + the card's own emitted summary. _build_caveats_summary appended these
+    messages VERBATIM, so caveats_summary leaked raw tokens (e.g. "{target.symbol} has a
+    clinically-established shed ectodomain ({shed_product}; ...)"). Interpolate here.
+
+    Safe by construction: an unknown / unresolved (None) token is left intact rather than raising
+    or blanking — a missing summary field must not corrupt the whole summary string. Dotted keys
+    (target.symbol) are treated as literal map keys (str.format cannot, since it would attribute-
+    access), so no KeyError/AttributeError path exists."""
+    def _sub(m):
+        key = m.group(1).strip()
+        val = mapping.get(key)
+        return str(val) if val is not None else m.group(0)
+    return _CAVEAT_TOKEN_RE.sub(_sub, template)
+
+
 def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
                             contracts_root=None,
                             extra_caveats: "list[str] | None" = None) -> str:
@@ -727,6 +765,12 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
     caveats_parts = []
     if extra_caveats:
         caveats_parts.extend(extra_caveats)
+
+    # C-fix (data-products emitter): context for interpolating card warning-message tokens
+    # ({target.symbol}, and per-card summary fields like {shed_product}) when aggregating below.
+    _ctx = run_plan.get("input_context", {}) or {}
+    _target_symbol = _ctx.get("target_symbol")
+    _indication = _ctx.get("indication")
 
     # Modality-specific caveats from each loaded module.
     # T7 fix (2026-08-11 engineering review): this loop was a no-op `pass`, so the docstring's
@@ -798,10 +842,16 @@ def _build_caveats_summary(run_plan: dict, card_outputs: list[dict],
             predicates = {p["warning_id"]: p.get("message", "")
                           for p in card_spec.get("warning_predicates", []) or []
                           if "warning_id" in p}
+            # C-fix: interpolate the message template against the target context + THIS card's
+            # emitted summary (the source of {shed_product}, {serum_marker}, {media_mean_npx}, …)
+            # so caveats_summary carries rendered text, not raw {target.symbol}/{shed_product} tokens.
+            _token_map = {"target.symbol": _target_symbol, "target": _target_symbol,
+                          "indication": _indication, **(c.get("summary") or {})}
             for w in c["warning_ids"]:
                 msg = predicates.get(w, "")
                 if msg:
-                    warning_messages_per_card.setdefault((c["card_id"], w), msg)
+                    warning_messages_per_card.setdefault(
+                        (c["card_id"], w), _interpolate_tokens(msg, _token_map))
 
     if warning_messages_per_card:
         for (card_id, warning_id), msg in warning_messages_per_card.items():

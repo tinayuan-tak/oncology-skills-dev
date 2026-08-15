@@ -1,0 +1,127 @@
+cellline-rna-distribution:
+  allgene_percentile: 8.763986587524414
+  allgene_percentile_class: bottom_decile
+  allgene_percentile_context: DepMap 26q1 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q1-v1;
+    rank 15849/19215)
+  coefficient_of_variation: 12.65341290057702
+  control_negatives:
+    ACTB: 99.82
+    GAPDH: 99.92
+    GYPA: 8.76
+    PRM1: 8.76
+    SFTPC: 8.76
+  control_negatives_excluded_lineage_conflict: []
+  control_percentile_source: allgene-depmap-rank-26q1-v1
+  control_position: above 0/4 positive control(s); above 3/5 negative control(s)
+  control_position_class: above_negatives_below_positives
+  control_position_context: DepMap pan-cancer panel vs curated controls (tumor_presence_controls
+    v1.0.0; allgene-depmap-rank-26q1-v1)
+  control_position_method_version: 0.1.0
+  control_positives:
+    CEACAM5: 29.57
+    EPCAM: 52.54
+    ERBB2: 77.51
+    MSLN: 32.61
+  control_target_class: bottom_decile
+  control_target_percentile: 8.763986587524414
+  distribution_pattern: continuous
+  dominant_isoform: null
+  dominant_isoform_fraction: null
+  expression_class: broadly_low
+  fraction_expressed: 0.0
+  fraction_highly_expressed: 0.0
+  fraction_not_expressed: 1.0
+  isoform_context: null
+  isoform_expression_class: data_unavailable
+  isoform_n_models: 0
+  log2tpm_iqr: 0.0
+  median_log2tpm_panel: 0.0
+  n_cell_lines_evaluated: 2446
+  n_expressed_isoforms: null
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 28
+  p25_log2tpm_panel: 0.0
+  p5_log2tpm_panel: 0.0
+  p75_log2tpm_panel: 0.0
+  p95_log2tpm_panel: 0.0
+  per_lineage_stats:
+  - fraction_expressed: 0.0
+    lineage: Ampulla of Vater
+    median_log2tpm: 0.0
+    n: 9
+  - fraction_expressed: 0.0
+    lineage: Biliary Tract
+    median_log2tpm: 0.0
+    n: 54
+  - fraction_expressed: 0.0
+    lineage: Bladder/Urinary Tract
+    median_log2tpm: 0.0
+    n: 37
+  - fraction_expressed: 0.0
+    lineage: Bone
+    median_log2tpm: 0.0
+    n: 101
+  - fraction_expressed: 0.0
+    lineage: Bowel
+    median_log2tpm: 0.0
+    n: 131
+  - fraction_expressed: 0.0
+    lineage: Breast
+    median_log2tpm: 0.0
+    n: 111
+  - fraction_expressed: 0.0
+    lineage: CNS/Brain
+    median_log2tpm: 0.0
+    n: 265
+  - fraction_expressed: 0.0
+    lineage: Cervix
+    median_log2tpm: 0.0
+    n: 21
+  - fraction_expressed: 0.0
+    lineage: Esophagus/Stomach
+    median_log2tpm: 0.0
+    n: 173
+  - fraction_expressed: 0.0
+    lineage: Eye
+    median_log2tpm: 0.0
+    n: 28
+  - fraction_expressed: 0.0
+    lineage: Fibroblast
+    median_log2tpm: 0.0
+    n: 45
+  - fraction_expressed: 0.0
+    lineage: Head and Neck
+    median_log2tpm: 0.0
+    n: 77
+  - fraction_expressed: 0.0
+    lineage: Kidney
+    median_log2tpm: 0.0
+    n: 61
+  - fraction_expressed: 0.0
+    lineage: Liver
+    median_log2tpm: 0.0
+    n: 28
+  - fraction_expressed: 0.0
+    lineage: Lung
+    median_log2tpm: 0.0
+    n: 250
+  - fraction_expressed: 0.0
+    lineage: Lymphoid
+    median_log2tpm: 0.0
+    n: 262
+  - fraction_expressed: 0.0
+    lineage: Muscle
+    median_log2tpm: 0.0
+    n: 5
+  - fraction_expressed: 0.0
+    lineage: Myeloid
+    median_log2tpm: 0.0
+    n: 95
+  - fraction_expressed: 0.0
+    lineage: Ovary/Fallopian Tube
+    median_log2tpm: 0.0
+    n: 88
+  - fraction_expressed: 0.0
+    lineage: Pancreas
+    median_log2tpm: 0.0
+    n: 117

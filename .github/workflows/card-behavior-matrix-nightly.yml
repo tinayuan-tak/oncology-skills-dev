@@ -100,6 +100,7 @@ jobs:
           if ! git diff --quiet -- skills/tests/card_behavior_matrix/fixtures/; then
             echo "::warning title=card-behavior-matrix::live fixtures drifted vs committed — see diff below"
             git --no-pager diff --stat -- skills/tests/card_behavior_matrix/fixtures/
+            echo "DRIFT_DETECTED=true" >> "$GITHUB_ENV"
           else
             echo "no fixture drift"
           fi
@@ -116,6 +117,7 @@ jobs:
           if ! git diff --quiet -- skills/target-intrinsic/tests/fixtures/; then
             echo "::warning title=target-intrinsic::live EGFR fixture drifted vs committed — a reader field/value changed. See diff; refresh the committed fixture if intended."
             git --no-pager diff --stat -- skills/target-intrinsic/tests/fixtures/
+            echo "DRIFT_DETECTED=true" >> "$GITHUB_ENV"
           else
             echo "no target-intrinsic fixture drift"
           fi
@@ -132,6 +134,7 @@ jobs:
           if ! git diff --quiet -- skills/tumor-presence/tests/fixtures/; then
             echo "::warning title=tumor-presence::live EPCAM/COADREAD fixture drifted vs committed — a reader field/value or fired-rule changed. See diff; refresh the committed fixture if intended."
             git --no-pager diff --stat -- skills/tumor-presence/tests/fixtures/
+            echo "DRIFT_DETECTED=true" >> "$GITHUB_ENV"
           else
             echo "no tumor-presence fixture drift"
           fi
@@ -150,6 +153,7 @@ jobs:
           if ! git diff --quiet -- skills/tumor-selectivity/tests/fixtures/; then
             echo "::warning title=tumor-selectivity::live CEACAM5/TACSTD2 fixture drifted vs committed — a reader field/value or fired-rule (incl. a normal-breadth veto arm) changed. See diff; refresh the committed fixture if intended."
             git --no-pager diff --stat -- skills/tumor-selectivity/tests/fixtures/
+            echo "DRIFT_DETECTED=true" >> "$GITHUB_ENV"
           else
             echo "no tumor-selectivity fixture drift"
           fi
@@ -188,6 +192,21 @@ jobs:
       - name: Assert tumor-selectivity dossier (verdict collapse + veto + headline drift floors)
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tumor-selectivity/tests/ -q --import-mode=importlib
+
+      # FAIL the nightly on ANY live drift (was warning-only, so benign within-match drift accumulated
+      # silently — the assert steps above only catch drift that violates a four-state / verdict floor).
+      # Runs after every re-freeze + assert + the artifact-producing steps, and is gated on always() so a
+      # red assert above still lets this surface the drift set. Placed BEFORE upload so the refreshed
+      # fixtures are still archived (upload is if: always()). No-op when creds are absent (no re-freeze →
+      # no drift possible; DRIFT_DETECTED unset).
+      - name: Fail on any live fixture drift
+        if: always() && env.HAVE_AWS == 'true'
+        run: |
+          if [ "${DRIFT_DETECTED:-false}" = "true" ]; then
+            echo "::error title=nightly-live-drift::one or more live fixtures drifted vs committed — a reader field/value or fired-rule changed. Download the nightly-live-drift-fixtures artifact, review, and either commit the refreshed fixtures (intended) or fix the reader (regression). Failing the nightly so the drift is not silently ignored."
+            exit 1
+          fi
+          echo "no live drift across any dossier — nightly green"
 
       - name: Upload refreshed fixtures
         if: always()

@@ -542,7 +542,24 @@ def run_wired_skill(
 
     # 6. Headline (optional callback; default is a minimal skeleton)
     if headline_fn:
-        headline = headline_fn(card_outputs, fired, verdict_pair)
+        # In lean (--verdict-only) mode card_outputs holds ONLY the verdict-relevant subset,
+        # but a skill's headline_fn may read ENRICHMENT cards for display sub-keys via
+        # get_card_field (which now RAISES on an absent card_id — surface-modality-fit is the
+        # one skill that does both). Hand the headline placeholder entries for the SKIPPED
+        # enrichment cards so those fields null-fill (get_card_field's documented key-absent
+        # → None behavior) instead of crashing before decision.json is written. The
+        # placeholders are NOT added to card_outputs, so cards_available / cards_missing /
+        # emitted_cards / n_cards_resolved AND the verdict spine stay byte-identical to what
+        # lean mode would otherwise emit.
+        if _lean:
+            _read_ids = {c["card_id"] for c in card_outputs}
+            _headline_cards = card_outputs + [
+                {"card_id": cid, "summary": {}, "_missing": True}
+                for cid in cards if cid not in _read_ids
+            ]
+        else:
+            _headline_cards = card_outputs
+        headline = headline_fn(_headline_cards, fired, verdict_pair)
     else:
         headline = {
             "verdict": verdict_pair[0] if verdict_pair else "insufficient",

@@ -81,16 +81,21 @@ CARDS = [
     # Genotype × DRUG-RESPONSE (Thread 4, 2026-08-09) — the PHARMACOLOGICAL sibling of the stratified-
     # dependency cards above. Are lines carrying an alteration in the target more SENSITIVE to a DRUG
     # that TARGETS it (PRISM Log2AUC), vs the CRISPR-KO dependency the mutation-stratified card measures?
-    # ADDITIVE signal-only: its small_molecule rules reach the LLM/matrix + headline, touch NO resolver
-    # rung (verdict spine byte-stable). Deliberately NOT fired as biomarker_stratified_dependency:
-    # drug-sensitivity != KO-dependency. Live: BRAF→mutant_strongly_drug_sensitive (vemurafenib q=4.8e-11);
+    # VERDICT-DRIVING (2026-08-15 doc-parity fix — was mis-labeled "additive signal-only / no resolver
+    # rung"): the STRONG class (drug_response_stratification_class==mutant_strongly_drug_sensitive) fires
+    # mutation-drug-response-strongly-sensitive-supportive → the drug_response_biomarker rung (resolver
+    # §2d-drug); the moderate class stays a signal-only facet. The verdict is DELIBERATELY a DISTINCT
+    # drug_response_biomarker (never conflated with biomarker_stratified_dependency — drug-sensitivity !=
+    # KO-dependency). Live: BRAF→mutant_strongly_drug_sensitive (vemurafenib q=4.8e-11);
     # KRAS→sensitive (G12C/G12D-inhibitor era); EGFR→not_stratified (honest cell-panel negative).
     "mutation-drug-response",
     # Fusion / rearrangement — LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller
     # consensus). fusion_class {recurrent_fusion_driver|sporadic_fusion|no_recurrent_fusion|
-    # data_unavailable}. ADDITIVE signal-only: reaches the LLM/matrix + headline, touches NO
-    # resolver rung (the genomic verdict spine stays byte-stable). Recurrent-fusion driver
-    # corroborates the genomic alteration call; graceful data_unavailable for TCGA-absent targets.
+    # data_unavailable}. VERDICT-DRIVING (2026-08-15 doc-parity fix — was mis-labeled "additive
+    # signal-only / no resolver rung"): fusion_class==recurrent_fusion_driver fires
+    # fusion-landscape-recurrent-driver-supportive → the recurrent_fusion_driver rung (resolver §3c,
+    # the fusion analog of recurrent focal amplification). Non-recurrent classes stay narrative-only;
+    # graceful data_unavailable for TCGA-absent targets.
     "fusion-rearrangement-landscape",
     # Typed driver-ROLE call (OncoKB × IntOGen) — the functional-role layer on the descriptive
     # cards above (frequency ≠ function). VERDICT-DRIVING: its alteration-role-gof-driver-supportive /
@@ -411,7 +416,8 @@ def main() -> int:
         # Fusion / rearrangement axis — LIVE (tcga-fusion-consensus-v1). fusion_class is the TCGA
         # 3-caller-consensus verdict (deep, 33 tissues); the genie_sv_* fields are the pan-cohort
         # BREADTH complement (GENIE 271k panel tumors, coverage-correct — genie-sv-recurrence-v1,
-        # 2026-08-06). All DISPLAY facets: the fusion axis touches NO resolver rung (spine byte-stable).
+        # 2026-08-06). fusion_class IS verdict-driving (recurrent_fusion_driver → resolver §3c rung,
+        # doc-parity fix 2026-08-15); the genie_sv_* breadth fields are display-only facets.
         "fusion_class":                  get_card_field(cards, "fusion-rearrangement-landscape",
                                               "fusion_class"),
         "genie_sv_recurrence_class":     get_card_field(cards, "fusion-rearrangement-landscape",

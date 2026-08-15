@@ -133,7 +133,11 @@ def _render_refusal_page(ep: dict) -> list[str]:
 
 
 FIT_ICONS = {"strong": "🟢", "moderate": "🟡", "weak": "🟠",
-              "insufficient_evidence": "⚪", "not_viable": "🔴"}
+              "insufficient_evidence": "⚪", "not_viable": "🔴",
+              # O1 (#447): a killer-veto card could not be read (read_error / not_wired), so the
+              # safety veto is neither confirmed-fired nor confirmed-clear. The modality is
+              # un-assessable — a data-blocked ⚪, NOT a green pass, even if primaries are positive.
+              "non_concludable": "⚪"}
 
 # Resolver-verdict vocabulary → icon (Phase-D Stage 2). Covers the surface_modality,
 # tractability_small_molecule, dependency, genomic_alteration and selectivity gate
@@ -214,6 +218,14 @@ def _fmt_evidence_cell(entry: dict) -> str:
     positive = entry.get("primary_cards_positive_count", 0)
     in_scope = entry.get("primary_cards_in_scope", 0)
     total = entry.get("primary_cards_total", in_scope)
+    # O1 (#447): a non_concludable modality's safety veto could not be assessed (killer-veto card
+    # read_error / not_wired). This MUST short-circuit BEFORE the dominant/positive branches —
+    # otherwise a non_concludable modality with positive primaries renders "N dominant positive
+    # (sufficient)" green, silently defeating the fail-open safety fix in the human-facing table.
+    if entry.get("fit_level") == "non_concludable":
+        reasons = entry.get("non_concludable_reasons", []) or []
+        detail = f" ({'; '.join(str(r) for r in reasons)})" if reasons else ""
+        return f"Non-concludable — killer-veto card unavailable{detail}"
     if dominant:
         n = len(dominant)
         return f"**{n} dominant positive** (sufficient) — {positive}/{in_scope} of {total} total"

@@ -12,7 +12,9 @@ C5 — _parse_existing_index path cell format is [`path`](path/) — the parser
 """
 from __future__ import annotations
 
+import contextlib
 import sys
+import unittest.mock as mock
 from pathlib import Path
 import textwrap
 
@@ -21,9 +23,37 @@ import pytest
 SKILL_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
 
-from _live_readers import _dispatch_adc_tce_modality_fit  # noqa: E402
+import _live_readers  # noqa: E402
+from _live_readers import _dispatch_adc_tce_modality_fit, _import_method  # noqa: E402
 from compose_dashboard import _parse_existing_index  # noqa: E402
 from _synthesis import synthesize, _build_headline  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# HERMETICITY (2026-08-15): _dispatch_adc_tce_modality_fit performs FOUR live reads —
+# _dispatch_surface_topology_and_ptm, _dispatch_surfaceome_family_classification,
+# _dispatch_structure_features_static, AND methods.uniprot_gpi_anchor.read_gpi_anchor.
+# The fit_class tests below only ever cared about topology+family; the gpi read had been
+# left UNMOCKED and "passed" solely because the methods reader used to swallow a no-creds
+# error to an empty dict (`... or {}`). Reader hardening now RE-RAISES creds/transient
+# errors, so the unmocked read raises NoCredentialsError in a creds-less CI and the tests
+# failed. This context manager mocks EVERY live read so no S3/creds access happens; gpi
+# defaults to {} (no anchor) — exactly the empty result the swallowed-error path used to
+# yield, so the fit_class assertions are unchanged.
+# ---------------------------------------------------------------------------
+
+@contextlib.contextmanager
+def _mock_modality_upstream(topology: dict, family: dict | None = None, *, gpi: dict | None = None):
+    gpi_mod = _import_method("uniprot_gpi_anchor")  # also guarantees methods repo is on sys.path
+    with mock.patch.object(_live_readers, "_dispatch_surface_topology_and_ptm",
+                           return_value=topology), \
+         mock.patch.object(_live_readers, "_dispatch_surfaceome_family_classification",
+                           return_value=(family if family is not None else _family())), \
+         mock.patch.object(_live_readers, "_dispatch_structure_features_static",
+                           return_value={}), \
+         mock.patch.object(gpi_mod, "read_gpi_anchor",
+                           return_value=({} if gpi is None else gpi)):
+        yield
 
 
 # ---------------------------------------------------------------------------
@@ -45,11 +75,7 @@ def _topo(tm=1, ec=200, endo_hc=None, n_ubiq=None) -> dict:
 def _fit(topology: dict, family: dict | None = None, target: str = "GENE") -> dict:
     """Full dispatcher return (not just fit_class) — for asserting endocytosis_confidence etc.
     `target` lets a test pass a curated internalizing-antigen symbol (B1 Rank-2)."""
-    import unittest.mock as mock
-    with mock.patch("_live_readers._dispatch_surface_topology_and_ptm", return_value=topology), \
-         mock.patch("_live_readers._dispatch_surfaceome_family_classification",
-                    return_value=(family or _family())), \
-         mock.patch("_live_readers._dispatch_structure_features_static", return_value={}):
+    with _mock_modality_upstream(topology, family):
         return _dispatch_adc_tce_modality_fit(target, "NSCLC")
 
 def _family(is_surface=True) -> dict:
@@ -58,13 +84,7 @@ def _family(is_surface=True) -> dict:
 
 def _fit_class(topology: dict, family: dict | None = None) -> str:
     """Extract fit_class by patching _dispatch_surface_topology_and_ptm etc."""
-    import unittest.mock as mock
-    with mock.patch("_live_readers._dispatch_surface_topology_and_ptm",
-                    return_value=topology), \
-         mock.patch("_live_readers._dispatch_surfaceome_family_classification",
-                    return_value=(family or _family())), \
-         mock.patch("_live_readers._dispatch_structure_features_static",
-                    return_value={}):
+    with _mock_modality_upstream(topology, family):
         return _dispatch_adc_tce_modality_fit("GENE", "NSCLC")["fit_class"]
 
 
@@ -147,13 +167,8 @@ def test_both_products_available_measured_non_surface_still_neither():
 
 def _fit_gpi(topology, *, is_gpi, is_surface=True, target="GENE"):
     """fit_class with read_gpi_anchor patched to a chosen is_gpi_anchored."""
-    import unittest.mock as mock
-    import methods.uniprot_gpi_anchor as gpi_mod
-    with mock.patch("_live_readers._dispatch_surface_topology_and_ptm", return_value=topology), \
-         mock.patch("_live_readers._dispatch_surfaceome_family_classification",
-                    return_value=_family(is_surface=is_surface)), \
-         mock.patch("_live_readers._dispatch_structure_features_static", return_value={}), \
-         mock.patch.object(gpi_mod, "read_gpi_anchor", return_value={"is_gpi_anchored": is_gpi}):
+    with _mock_modality_upstream(topology, _family(is_surface=is_surface),
+                                 gpi={"is_gpi_anchored": is_gpi}):
         return _dispatch_adc_tce_modality_fit(target, "NSCLC")
 
 

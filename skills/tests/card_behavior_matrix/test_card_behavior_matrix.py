@@ -96,3 +96,28 @@ def test_matrix_is_nonvacuous():
     # guard against a silently-empty run (all fixtures missing) reading as green
     frozen_pairs = [p["id"] for p in _MATRIX["pairs"] if (_FIXTURES / f"{p['id']}.yaml").exists()]
     assert frozen_pairs, "no pairs frozen — freeze.py must run (live S3) before this gate is meaningful"
+
+
+# The negative CONTROLS + canonical POSITIVES are the whole point of the matrix: a ≥1-fixture floor
+# let them be silently `continue`'d (never run), so a dead reader on ANY of them read green. Require
+# these specific pairs to carry a fixture — a missing one FAILS (not skips), making the gap visible.
+_REQUIRED_PAIRS = {
+    # negative controls
+    "gapdh_coadread", "or2t35_coadread",
+    # canonical positives
+    "dll3_sclc", "folr1_ov", "erbb2_brca", "alk_nsclc", "ceacam5_coadread",
+}
+
+
+def test_control_and_canonical_pairs_have_fixtures():
+    declared = {p["id"] for p in _MATRIX["pairs"]}
+    # the required set must actually be declared in the matrix (guards a rename drifting the floor)
+    missing_from_matrix = _REQUIRED_PAIRS - declared
+    assert not missing_from_matrix, (
+        f"required control/canonical pairs not declared in matrix.yaml: {sorted(missing_from_matrix)}")
+    missing_fixtures = sorted(
+        pid for pid in _REQUIRED_PAIRS if not (_FIXTURES / f"{pid}.yaml").exists())
+    assert not missing_fixtures, (
+        f"required control/canonical pairs lack a frozen fixture: {missing_fixtures}. "
+        f"Run freeze.py (live S3) for them — these negative controls + canonical positives MUST run "
+        f"(a missing fixture would silently skip the exact silent-death guard the matrix exists for).")

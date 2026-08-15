@@ -1,0 +1,65 @@
+pan-cancer-crispr-dependency-distribution:
+  bimodality_coefficient: 0.15992733621532712
+  chronos_iqr: 0.13738700654357672
+  dep_control_method_version: 0.1.0
+  dep_control_negatives:
+    MYH2: -0.038
+    OR2T4: 0.018
+    OR51E2: 0.035
+    PRM1: 0.077
+  dep_control_non_essential_floor: -0.038
+  dep_control_pan_essential_ceiling: -1.499
+  dep_control_position: as/more essential than 0/6 pan-essential control(s); more
+    dependent than 2/4 non-essential control(s)
+  dep_control_position_class: non_dependent_near_negatives
+  dep_control_position_context: 'DepMap 26q1 pan-panel median Chronos vs curated dependency
+    controls (dependency_controls v1.0.0; pan_essential_ceiling=-1.499; non_essential_floor=-0.038).
+    INVERTED: at/below the ceiling = pan-essential tox liability; between = selective
+    dependency window; at/above the floor = non-dependent.'
+  dep_control_positives:
+    EEF2: -2.741
+    PCNA: -2.978
+    PSMB2: -1.736
+    RPL3: -2.552
+    RPS11: -2.744
+    SF3B1: -1.499
+  dep_control_target_chronos: 0.034
+  dependency_class: non_dependent
+  distribution_shape: non_essential
+  fraction_moderately_dependent: 0.0019505851755526658
+  fraction_non_essential: 0.9980494148244473
+  fraction_strongly_dependent: 0.0
+  median_chronos_panel: 0.03374837897717953
+  n_cell_lines_evaluated: 1538
+  p25_chronos_panel: -0.03734020050615072
+  p5_chronos_panel: -0.14983308538794518
+  p75_chronos_panel: 0.100046806037426
+  p95_chronos_panel: 0.20175674855709075
+  pan_essential_score: 0.0
+  selectivity_index: 0.0
+  top_dependent_lineages:
+  - fraction_of_dependent_tail: 0.0
+    fraction_strongly_dependent: 0.0
+    lineage: Ampulla of Vater
+    median_chronos: 0.04950012266635895
+    n_in_lineage: 9
+  - fraction_of_dependent_tail: 0.0
+    fraction_strongly_dependent: 0.0
+    lineage: Biliary Tract
+    median_chronos: 0.03274540230631828
+    n_in_lineage: 36
+  - fraction_of_dependent_tail: 0.0
+    fraction_strongly_dependent: 0.0
+    lineage: Bladder/Urinary Tract
+    median_chronos: 0.002722885081311688
+    n_in_lineage: 34
+  - fraction_of_dependent_tail: 0.0
+    fraction_strongly_dependent: 0.0
+    lineage: Bone
+    median_chronos: 0.025822073221206665
+    n_in_lineage: 79
+  - fraction_of_dependent_tail: 0.0
+    fraction_strongly_dependent: 0.0
+    lineage: Bowel
+    median_chronos: 0.07204300910234451
+    n_in_lineage: 88

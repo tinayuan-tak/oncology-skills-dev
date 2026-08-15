@@ -32,13 +32,29 @@ def test_clinical_seed_set_is_nonempty_and_has_known_antigens():
 
 
 def test_run_scan_degrades_to_unavailable_on_method_error(monkeypatch):
-    # force the method import path to fail → empty ranked list, honest data_unavailable, no crash
-    monkeypatch.setattr(bps, "_run_scan", bps._run_scan)  # keep real fn; break the import within it
-    # simplest: call the real _run_scan but with an unimportable method (COMPOSE_SCRIPTS present but
-    # method absent) is hard to force here; instead assert the shape contract on an empty result.
-    scan = {"target": "X", "indication": "COADREAD", "gate": "AND", "n_partners_scanned": 3,
-            "n_pairs_scored": 0, "ranked_pairs": [], "load_error": "boom"}
-    assert scan["n_pairs_scored"] == 0  # sanity of the contract the headline branches on
+    # Force the METHOD-import resolution inside the REAL _run_scan to raise (mirrors an unimportable
+    # analysis-methods repo / broken COMPOSE_SCRIPTS path), then assert the real _run_scan degrades to
+    # an honest empty/data_unavailable contract instead of crashing. (Was a tautology: it monkeypatched
+    # _run_scan to itself and asserted a hand-built literal, testing nothing.)
+    import types
+    fake_live_readers = types.ModuleType("_live_readers")
+
+    def _boom(method_name):
+        raise ImportError(f"forced-test-failure: cannot import method {method_name}")
+
+    fake_live_readers._import_method = _boom
+    # _run_scan does `from _live_readers import _import_method` then calls it — the injected module makes
+    # that call raise, exercising the broad-except degrade path.
+    monkeypatch.setitem(sys.modules, "_live_readers", fake_live_readers)
+
+    scan = bps._run_scan("EPCAM", ["CEACAM5", "ERBB2", "DLL3"], "COADREAD", "AND")
+
+    assert scan["n_pairs_scored"] == 0, "a method-import failure must yield 0 scored pairs (data_unavailable)"
+    assert scan["ranked_pairs"] == [], "no fabricated pairs on a degrade"
+    assert scan["load_error"] and "forced-test-failure" in scan["load_error"], (
+        f"the real load_error must carry the raised failure, got {scan['load_error']!r}")
+    # the partner count is still honestly reported (the input, not a scored result)
+    assert scan["n_partners_scanned"] == 3
 
 
 def test_gate_choices_are_and_or_not():

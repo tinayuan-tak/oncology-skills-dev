@@ -48,9 +48,13 @@ composition:
                                              # mut/cn driver rule. (2026-08-08 review: was mis-filed below as
                                              # "additive / no resolver rung" — it is NOT additive.)
     - mutation-hotspot-frequency             # composed + headline, but fires ZERO rules (display-only recurrence); NOT in rules_scope
+    # VERDICT-DRIVING landscape/pharmacological rungs (2026-08-15 doc-parity fix: these WERE mis-filed
+    # below as "additive signal-only / no resolver rung" — they DO enter the genomic_alteration resolver):
+    - fusion-rearrangement-landscape         # LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller consensus).
+                                             # VERDICT-DRIVING: fusion_class==recurrent_fusion_driver fires the
+                                             # recurrent_fusion_driver rung (resolver §3c). In rules_scope.
     # ADDITIVE signal-only layers (feed the LLM/matrix + headline; fire NO resolver rung, so they
     # are NOT in rules_scope and the verdict spine is byte-stable):
-    - fusion-rearrangement-landscape         # LIVE 2026-07-23 (tcga-fusion-consensus-v1, pan-TCGA 3-caller consensus); additive signal-only
     - variant-level-interpretation           # CIViC per-variant oncogenicity + resistance alleles; additive signal-only
     - target-clonality                       # scientific-gap #2 (2026-08-14): mutation clonality/truncality (ccf from MC3 VAF x ABSOLUTE purity); durability/resistance facet, additive signal-only
     - functional-gene-state                  # M6 allele-count / biallelic two-hit state; 2026-07-22
@@ -59,8 +63,10 @@ composition:
     - mutational-signature-context           # 2026-08-12: per-indication mutagenic-process context (TCGA MC3 → SigProfilerAssignment COSMIC v3.3); INDICATION-level, target-independent; additive, verdict-inert (APOBEC/MMR/HRD/tobacco/UV/POLE); PATIENT arm, sibling of ddr-deficiency-context
     - ddr-deficiency-context                 # Track PI (2026-08-09): per-indication DDR/HRD cohort context (Knijnenburg 2018 DDR footprint); INDICATION-level, target-independent; additive, verdict-inert (frames the PARP1/HRD blind axis)
     - oncogenic-pathway-alteration           # Sanchez-Vega 2018 (2026-08-10): per-indication oncogenic-pathway ALTERATION freq; verdict-inert cohort context; complements PROGENy activity
-    - mutation-drug-response                 # (in run.py CARDS; 2026-08-11 doc-drift fixed) mutation-stratified drug-
-                                             # response (delta log2AUC on-target compounds); additive signal-only, verdict-inert
+    - mutation-drug-response                 # (in run.py CARDS) mutation-stratified drug-response (delta log2AUC on-target
+                                             # compounds). VERDICT-DRIVING (2026-08-15 doc-parity fix): the STRONG class
+                                             # (mutant_strongly_drug_sensitive) fires the drug_response_biomarker rung
+                                             # (resolver §2d-drug); the moderate class stays signal-only. In rules_scope.
     - subgroup-stratified-mutation-frequency # SUBTYPE axis (2026-08-05): per-stratum mutation frequency (MSI/MSS/sidedness/LoT); tier:subtype, DESCRIPTIVE panorama (emits no verdict — display facet like tumor-presence's by-subtype card); applies only when subgroup_spec is set
   # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, one per
   # distinct card measurement_type (mutation-hotspot-frequency + subgroup-stratified-mutation-frequency
@@ -79,10 +85,11 @@ composition:
     - fusion_stratified_dependency           # fusion-stratified-dependency (resolver §2c)
     - amp_expr_stratified_dependency         # amp-expr-stratified-dependency (resolver §2d)
     - alteration_role                        # alteration-role (resolver §0 confirmed_driver)
-    # composed + headline, additive signal-only (no resolver rung)
-    - mutation_hotspot_frequency             # mutation-hotspot-frequency + subgroup-stratified-mutation-frequency
-    - mutation_drug_response                 # mutation-drug-response
-    - fusion_rearrangement                   # fusion-rearrangement-landscape
+    # composed + headline. mutation_drug_response + fusion_rearrangement ARE verdict-driving
+    # (resolver §2d-drug / §3c — 2026-08-15 doc-parity fix); the rest are additive signal-only.
+    - mutation_hotspot_frequency             # mutation-hotspot-frequency + subgroup-stratified-mutation-frequency (display-only)
+    - mutation_drug_response                 # mutation-drug-response (VERDICT-DRIVING: strong class → drug_response_biomarker)
+    - fusion_rearrangement                   # fusion-rearrangement-landscape (VERDICT-DRIVING: recurrent_fusion_driver rung)
     - variant_level_interpretation           # variant-level-interpretation
     - mutation_clonality                     # target-clonality (#2: ccf-based truncality; verdict-inert)
     - functional_gene_state                  # functional-gene-state
@@ -95,9 +102,13 @@ composition:
   # (2026-08-05): mutation-hotspot-frequency was listed here but fires ZERO rules — its
   # overall_mutation_frequency is display-only (headline), never a verdict input. Dropped to
   # match reality (see ALT-3: a driver-recurrence percentile is the intended way to make
-  # frequency verdict-relevant). fusion-rearrangement-landscape + the additive layers are NOT here.
+  # frequency verdict-relevant).
   # (2026-08-08 review: added the 3 stratified-dependency cards — resolver §2b/2c/2d — and
   # alteration-role — resolver §0 confirmed_driver — which DO enter the resolver but were omitted.)
+  # (2026-08-15 doc-parity fix: added fusion-rearrangement-landscape [resolver §3c
+  # recurrent_fusion_driver] + mutation-drug-response [resolver §2d-drug drug_response_biomarker,
+  # STRONG class only] — both fire when_fired rungs in genomic_alteration.resolver.yaml but were
+  # mis-documented as additive signal-only.)
   rules_scope:
     - mutation-type-counts
     - mutation-stratified-dependency
@@ -106,6 +117,11 @@ composition:
     - fusion-stratified-dependency
     - amp-expr-stratified-dependency
     - alteration-role
+    - fusion-rearrangement-landscape         # resolver §3c: fusion_class==recurrent_fusion_driver fires
+                                             # fusion-landscape-recurrent-driver-supportive → recurrent_fusion_driver
+    - mutation-drug-response                 # resolver §2d-drug: drug_response_stratification_class==
+                                             # mutant_strongly_drug_sensitive fires mutation-drug-response-strongly-
+                                             # sensitive-supportive → drug_response_biomarker (STRONG class only)
   synthesis:
     - rule_engine
     - structured_llm    # 2026-08-05: opt-in --synthesize (genomic-alteration-lens narrator, two-slot; verdict-inert)
@@ -124,9 +140,11 @@ composition:
 - Fetches the SNV/indel cards (mutation-type-counts, mutation-stratified-
   dependency, mutation-hotspot-frequency) + copy-number-distribution via the
   compose-dashboard live-reader dispatchers. Fusion-rearrangement-landscape is
-  LIVE (tcga-fusion-consensus-v1, 3-caller TCGA consensus) + composed as an
-  ADDITIVE signal-only layer (reaches the headline/LLM, fires no resolver rung).
-- Fires the `mut-*` / `mutant-*` / `cn-*` rules (fusion is NOT in rules_scope).
+  LIVE (tcga-fusion-consensus-v1, 3-caller TCGA consensus); a recurrent_fusion_driver
+  fusion_class fires the `recurrent_fusion_driver` resolver rung (§3c) — so it IS
+  verdict-driving (in rules_scope), not merely additive.
+- Fires the `mut-*` / `mutant-*` / `cn-*` / `fusion-landscape-*` /
+  `mutation-drug-response-*` rules.
 - Emits `decision.json` with:
   - `headline`: `genomic_alteration_profile` verdict + `driving_rule_id`, plus
     the mutation landscape/stratification classes, mutation frequency, and the
@@ -174,17 +192,19 @@ a modifier so amplification/deletion-driven targets aren't collapsed to passenge
   already existed; this reframe is the first skill to compose them).
 - **Fusion / rearrangement** — LIVE (`fusion-rearrangement-landscape` card,
   backed by `tcga-fusion-consensus-v1`: TumorFusions/PRADA + Gao 2018 +
-  cBioPortal-TCGA-SV, 3-caller consensus). ADDITIVE signal-only: reaches the
-  headline + LLM narrative + evidence matrix but fires no resolver rung, so the
-  deterministic verdict spine is byte-stable. TCGA-only, presence-not-frequency
-  (denominator is a fast-follow). GENIE-SV breadth is a future additive source.
+  cBioPortal-TCGA-SV, 3-caller consensus). VERDICT-DRIVING: a `recurrent_fusion_driver`
+  fusion_class fires the `recurrent_fusion_driver` resolver rung (§3c, the fusion analog
+  of recurrent focal amplification) — so it CAN set the deterministic verdict (it is in
+  rules_scope). Non-recurrent fusion classes stay narrative-only. TCGA-only,
+  presence-not-frequency (denominator is a fast-follow). GENIE-SV breadth is a future source.
 
 ## What this skill does NOT do
 
 - Doesn't recompute alteration calls. Reads existing DepMap 26Q1 + TCGA MC3
   sources via existing dispatchers.
-- Doesn't fold fusion into the deterministic verdict (fusion is composed but
-  additive signal-only — it informs the narrative, not the resolver rung).
+- Doesn't fold NON-recurrent fusion classes into the deterministic verdict — only a
+  `recurrent_fusion_driver` fusion_class sets the verdict (resolver §3c); other fusion
+  classes inform the narrative only.
 
 ## How Claude invokes this skill
 

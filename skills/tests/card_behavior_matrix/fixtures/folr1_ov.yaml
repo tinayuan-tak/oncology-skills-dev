@@ -1,0 +1,18 @@
+adc-tce-modality-fit:
+  _data_source: adc-tce-modality-fit (composed card; no direct S3 product)
+  endocytosis_confidence: clinically_internalizing
+  fit_class: both_viable
+  fit_rationale: tm_count=0, ec_length=234, endo_motif_hc=unmeasured, n_ubiq=unmeasured,
+    GPI-anchored (TMbed-invisible surface antigen rescued)
+  gpi_surface_rescued: true
+  is_adc_topology_favorable: false
+  is_gpi_anchored: true
+  is_tce_topology_favorable: false
+  isoform_mechanism_caveat: null
+  isoform_selective_offcontext: false
+  isoform_selective_suppressed: false
+  structure_epitope_context:
+    alphafold_confidence_class: high
+    disordered_fraction: 0.0
+    hotspot_pocket_adjacency_call: no_hotspots_annotated
+  surface_family_class: transporter

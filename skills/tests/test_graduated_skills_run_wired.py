@@ -257,11 +257,81 @@ def test_wired_skill_fires_on_reference_target(skill_name: str, tmp_path):
     # A real verdict = at least one verdict field holds a non-sentinel value.
     has_real_verdict = any(v not in SENTINELS for v in verdict_fields.values())
 
-    # With real card data present, EITHER a rule fired OR a real (non-sentinel)
-    # verdict was emitted. Both being absent = the decision-layer collapse.
+    # Distinguish "insufficient live data -> SKIP" from "sufficient live data,
+    # decision layer collapsed -> FAIL" (this guard's own docstring item 5:
+    # scaffold state -> SKIP). A 0-rules / null-verdict outcome is only a real
+    # decision-layer bug if the environment actually supplied VERDICT-DRIVING
+    # data -- i.e. at least one VERDICT-BEARING card resolved to an INFORMATIVE
+    # (non-absence) class value.
+    #
+    # Why this matters now: the reader-hardening burndown (analysis-methods) made
+    # readers RE-RAISE creds/transient errors instead of masking them to
+    # data_unavailable, so a creds-limited CI runner leaves every S3-backed
+    # verdict-bearing card `_missing`. What still resolves is a card that reads a
+    # BUNDLED resource -- e.g. partner-conditional-dependency reads a curated
+    # partner_map.yaml and resolves to the not-applicable token "no_partner_mapped"
+    # for a target outside its map (KRAS), in BOTH creds-full and creds-less runs.
+    # That resolution is NOT evidence verdict-driving data was available, so it
+    # must not, by itself, keep the guard out of the SKIP path. With full
+    # credentials the S3-backed cards resolve to real class values and the skill
+    # fires, so the guard keeps its teeth whenever verdict-driving data IS present.
+    #
+    # The verdict-bearing card set is the skill's OWN composition.rules_scope (the
+    # card_ids whose rules enter the resolver -- validated elsewhere to be a subset
+    # of cards_used). The ["all"] wildcard (tractability-small-molecule,
+    # mechanism-and-pharmacology) declares every consumed card in scope -> fall
+    # back to cards_used (conservative: never loses teeth). "no_partner_mapped" is
+    # the one documented not-applicable class token among these skills' bundled
+    # conditional cards; it is matched EXACTLY (not by pattern) so a genuine
+    # "no_*" verdict can never be silently swallowed.
+    comp = validate_skill_md(skill_md)
+    rules_scope = set(comp.rules_scope)
+    verdict_bearing = (
+        set(comp.cards_used) if "all" in rules_scope
+        else (rules_scope & set(comp.cards_used))
+    )
+    if not verdict_bearing:
+        # Defensive: a skill with no declarable rules_scope -> treat every
+        # consumed card as verdict-bearing so the guard never loses teeth.
+        verdict_bearing = {(c.get("card_id") or c.get("id")) for c in cards}
+    absence_class_values = set(SENTINELS) | {"", "no_partner_mapped"}
+
+    def _card_has_informative_verdict_data(card: dict) -> bool:
+        """A resolved card carries verdict-driving data iff at least one of its
+        `*_class`/`*_verdict` summary fields holds a non-absence value (mirrors
+        the headline verdict extraction above, applied to the card summary)."""
+        summary = card.get("summary") or {}
+        class_vals = [
+            v for k, v in summary.items()
+            if (k.endswith("_class") or k.endswith("_verdict"))
+        ]
+        return any(
+            isinstance(v, str) and v not in absence_class_values for v in class_vals
+        )
+
+    vb_informative = [
+        c for c in available
+        if (c.get("card_id") or c.get("id")) in verdict_bearing
+        and _card_has_informative_verdict_data(c)
+    ]
+
+    if not fired and not has_real_verdict and not vb_informative:
+        pytest.skip(
+            f"{skill_name}: no VERDICT-BEARING card resolved INFORMATIVE data on "
+            f"KRAS/COADREAD ({len(available)} card(s) resolved; verdict-bearing "
+            f"set={sorted(verdict_bearing)}). Insufficient live card data in this "
+            f"environment -- scaffold/creds-less state (guard docstring item 5); "
+            f"the drift-guard requires >=1 verdict-bearing card to resolve a real "
+            f"(non-absence) class value before it can assert a decision-layer "
+            f"collapse."
+        )
+
+    # With verdict-driving data present, EITHER a rule fired OR a real
+    # (non-sentinel) verdict was emitted. Both being absent = the collapse.
     assert fired or has_real_verdict, (
-        f"{skill_name}: gathered {len(available)} card(s) with real data on "
-        f"KRAS/COADREAD but fired 0 rules and all verdict fields are sentinels "
+        f"{skill_name}: gathered {len(vb_informative)} verdict-bearing card(s) with "
+        f"real data on KRAS/COADREAD but fired 0 rules and all verdict fields are "
+        f"sentinels "
         f"({verdict_fields}). This is a decision-layer collapse (real data -> "
         f"null verdict), not a data gap. Check for (a) rule categorical-"
         f"coverage holes for the emitted class value, (b) a bool-vs-string "

@@ -19,6 +19,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import _live_readers as lr  # noqa: E402
+from conftest import skip_if_no_data  # noqa: E402  (T10: live-S3 skip guard)
 
 _CONTRACTS = Path(os.environ.get(
     "TARGET_CONTRACTS_ROOT",
@@ -46,15 +47,24 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_generic_dispatch_resolves_wired_card():
-    r = lr.read_live_summary("ppi-interactome", "KRAS", "COADREAD")
+    # LIVE read (reads the ppi-interactome S3 product). skip_if_no_data skips — never fails —
+    # when creds/data are unavailable (e.g. skills CI has no AWS creds); the reader now re-raises
+    # NoCredentialsError instead of masking it, so an unguarded read would hard-fail. (2026-08-15)
+    r = skip_if_no_data(lambda: lr.read_live_summary("ppi-interactome", "KRAS", "COADREAD"))
     assert r is not None, "generic dispatch returned None for a module+entrypoint card"
 
 
 def test_generic_matches_direct_method_call():
     """The generic path must produce byte-identical output to calling the method directly (the old
-    bespoke dispatcher's behavior) — proving the collapse is behavior-preserving."""
-    direct = lr._import_method("ppi_interactome").read_target_summary(target="KRAS", indication="COADREAD")
-    generic = lr.read_live_summary("ppi-interactome", "KRAS", "COADREAD")
+    bespoke dispatcher's behavior) — proving the collapse is behavior-preserving.
+
+    Genuinely-LIVE: compares two real reads of the ppi-interactome product. Cannot be mocked
+    hermetic (that would make the equivalence tautological), so it self-skips creds/data-less
+    via skip_if_no_data (2026-08-15) — the reader re-raises NoCredentialsError, which would
+    otherwise hard-fail in a creds-less CI."""
+    direct = skip_if_no_data(
+        lambda: lr._import_method("ppi_interactome").read_target_summary(target="KRAS", indication="COADREAD"))
+    generic = skip_if_no_data(lambda: lr.read_live_summary("ppi-interactome", "KRAS", "COADREAD"))
     assert generic == direct
 
 
@@ -66,5 +76,5 @@ def test_unwired_card_still_returns_none():
 
 def test_generic_dispatch_direct_helper():
     """_generic_dispatch resolves module+entrypoint from the card_spec directly."""
-    r = lr._generic_dispatch("ppi-interactome", "KRAS", "COADREAD")
+    r = skip_if_no_data(lambda: lr._generic_dispatch("ppi-interactome", "KRAS", "COADREAD"))
     assert r is not None and isinstance(r, dict)

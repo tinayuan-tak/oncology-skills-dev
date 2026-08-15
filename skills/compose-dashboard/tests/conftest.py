@@ -18,6 +18,9 @@ _S3_ACCESS_MARKERS = (
     "nocredentials", "unable to locate credentials",
     "forbidden", "403",
     "expiredtoken", "invalidaccesskeyid",
+    # a missing/empty AWS_PROFILE (e.g. `AWS_PROFILE=` in a creds-less CI shell) surfaces as
+    # ProfileNotFound before any request — an environment condition, not a code regression.
+    "profilenotfound",
 )
 
 
