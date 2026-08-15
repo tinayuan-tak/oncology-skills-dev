@@ -19,11 +19,23 @@ from methods.spatial_colocalization import stats as ST   # noqa: E402
 # ── wiring invariants (no S3) ────────────────────────────────────────────────
 
 def test_coadread_wired_to_crc_cosmx():
-    # COADREAD now carries the CosMx lead + a Xenium depth cohort (list value); the lead must be present.
+    # COADREAD carries the CosMx lead + depth cohorts (Visium HD measured + Xenium inferred).
     for code in ("COADREAD", "COAD", "READ"):
         prods = SC._product_ids(code)
         assert "spatial-coloc-tumor-crc-coadread-v1" in prods
-        assert "spatial-coloc-tumor-crc-gse335552-v1" in prods
+        assert "spatial-coloc-tumor-crc-gse280318-v1" in prods   # Visium HD depth (MEASURED)
+        assert "spatial-coloc-tumor-crc-gse335552-v1" in prods   # Xenium liver-mets depth (inferred)
+    # the Visium HD cohort is author-labelled -> measured tier (NOT in _INFERRED_PRODUCTS)
+    assert SC._tier_of("spatial-coloc-tumor-crc-gse280318-v1") == "measured"
+
+
+def test_visiumhd_fine_labels_map_to_compartments():
+    # GSE280318 DeconvolutionLabel1 labels the token fallback misses/misroutes -> explicit dict
+    assert ST.compartment_of_neighbor("vSM") == "stromal"
+    assert ST.compartment_of_neighbor("Proliferating Macrophages") == "immune"
+    assert ST.compartment_of_neighbor("mRegDC") == "immune"
+    assert ST.compartment_of_neighbor("Neuroendocrine") == "epithelial_normal"
+    assert ST.compartment_of_neighbor("Goblet") == "epithelial_normal"   # via fallback, safety-margin signal
 
 
 def test_stad_wired_to_gastric_cosmx():

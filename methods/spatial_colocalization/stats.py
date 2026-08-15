@@ -34,6 +34,11 @@ _NEIGHBOR_COMPARTMENT = {
     "Smooth muscle": "stromal", "Proliferative fibroblast": "stromal",
     "T cell": "immune", "Mast cell": "immune", "B, Plasma cell": "immune",
     "Epithelial (ADM-like)": "epithelial_normal",
+    # GSE280318 Visium HD COADREAD DeconvolutionLabel1 (fine labels the token fallback misses/misroutes)
+    "vSM": "stromal", "SM Stress Response": "stromal", "Vascular Fibroblast": "stromal",
+    "Adipocyte": "stromal", "Unknown III (SM)": "stromal",
+    "Proliferating Macrophages": "immune", "Proliferating Immune II": "immune", "mRegDC": "immune",
+    "Neuroendocrine": "epithelial_normal", "Enteric Glial": "other",
 }
 _COORDINATED_MIN = 1.15      # per-compartment enrichment >= => spatially co-localized
 _SEGREGATED_MAX = 0.85       # <= => spatially segregated

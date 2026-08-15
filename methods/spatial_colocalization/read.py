@@ -31,6 +31,7 @@ S3_BUCKET = "onc-compbio"
 # target (target off every measured panel, or the indication is pure-inferred). Adding a dataset = emit
 # its spatial-coloc product (data-catalog), append it here, and (if mode-C) list it in _INFERRED_PRODUCTS.
 _CRC = ["spatial-coloc-tumor-crc-coadread-v1",   # COADREAD lead — CosMx CRC atlas (GSE303070; measured)
+        "spatial-coloc-tumor-crc-gse280318-v1",  # + depth — Visium HD 8µm, author decon labels (GSE280318; MEASURED)
         "spatial-coloc-tumor-crc-gse335552-v1"]  # + depth — Xenium CRC liver-mets (GSE335552; inferred, met-site)
 _PAAD = ["spatial-coloc-tumor-paad-v1",          # PAAD lead — Xenium PDAC atlas (GSE280634; measured)
          "spatial-coloc-tumor-paad-gse313662-v1", # + depth — Xenium PDAC 5K, 6 donors (GSE313662; inferred)
