@@ -808,6 +808,7 @@ measurement_types:
       - {kind: dataset, source: spatial-coloc-tumor-nsclc-v1, method: spatial_neighborhood, evidence_tier: inferred}   # NSCLC — Xenium-5K (GSE311609); INFERRED compartments (mode C); lung/thoracic gap
       # batch-A DEPTH cohorts (mode-C inferred; deepen an existing indication under tier_dominant fallback)
       - {kind: dataset, source: spatial-coloc-tumor-paad-gse313662-v1, method: spatial_neighborhood, evidence_tier: inferred}   # PAAD depth — Xenium PDAC 5K (GSE313662)
+      - {kind: dataset, source: spatial-coloc-tumor-paad-gse310352-v1, method: spatial_neighborhood, evidence_tier: inferred}   # PAAD depth — CosMx PDAC classical->basal (GSE310352)
       - {kind: dataset, source: spatial-coloc-tumor-nsclc-gse319755-v1, method: spatial_neighborhood, evidence_tier: inferred}  # NSCLC depth — Xenium multi-region (GSE319755)
       - {kind: dataset, source: spatial-coloc-tumor-crc-gse335552-v1, method: spatial_neighborhood, evidence_tier: inferred}    # COADREAD depth — Xenium CRC liver-mets (GSE335552)
 
