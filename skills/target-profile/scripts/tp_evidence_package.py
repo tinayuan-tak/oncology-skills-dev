@@ -1,0 +1,345 @@
+"""target-profile — --emit evidence-package writer + card-figure emission + governance validation."""
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import importlib.util
+import json
+import os
+import re
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+
+import yaml
+
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+
+from _skills_common import resolve_cards
+from tp_common import SKILLS_DIR, SKILL_NAME, _CONTRACTS_REPO
+
+
+
+
+def _catalogue_rows_from_sub_results(sub_results: dict) -> list[dict]:
+    """Distill a manifest→consumers lineage table from the per-card provenance already in the run.
+    Envelope-only (no live catalog read → keeps the renderer a pure projection)."""
+    # Data source per card lives in summary['_data_source'] (the human-readable manifest/
+    # product label the provenance-trace section also reads) — NOT a top-level card['provenance']
+    # key, which card_outputs never carry, so this used to always return [] and the "Data
+    # catalogue" section was dead on every run.
+    by_source: dict[str, set] = {}
+    for short, r in sub_results.items():
+        for c in r.get("cards") or []:
+            if not isinstance(c, dict):
+                continue
+            src = (c.get("summary") or {}).get("_data_source")
+            if src:
+                by_source.setdefault(str(src), set()).add(short)
+    return [{"manifest_id": m, "consumed_by": sorted(v)} for m, v in sorted(by_source.items())]
+
+
+def _load_figure_registry():
+    """Import compose-dashboard's figure-emission registry (emit_figures_for_card).
+
+    Both engines share ONE figure registry (the gap-#5 one-source-many-consumers lesson): the same
+    per-card emitters that draw compose-dashboard's SVGs + Plotly specs draw them for target-profile.
+    Graceful None on import failure — a run without per-card figures still emits every other artifact.
+    """
+    try:
+        fe_dir = SKILLS_DIR / "compose-dashboard" / "scripts"
+        if str(fe_dir) not in sys.path:
+            sys.path.insert(0, str(fe_dir))
+        import _figure_emitters  # type: ignore
+        return _figure_emitters
+    except Exception as e:  # noqa: BLE001
+        print(f"[target-profile] WARN: figure registry unavailable: {e}", file=sys.stderr)
+        return None
+
+
+def _emit_card_figures(sub_results: dict, figures_dir: Path,
+                       target: str, indication: str) -> dict:
+    """Produce each card's distribution figures (SVG + interactive .plotly.json) by invoking the
+    shared figure registry per card, writing into figures_dir/cards/<card_id>/.
+
+    This is what makes a target-profile RUN produce the per-card charts the dynamic dashboard embeds
+    — previously the run was rules/summary-only and only the composite panel was drawn. Returns a
+    map {card_id: [figure_descriptor, ...]} (paths relative to figures_dir) for the renderer to
+    embed; the `dynamic: True` descriptors are the Plotly specs, the rest are SVGs. Best-effort:
+    a card with no registered emitter or a data-blocked summary simply contributes nothing.
+    """
+    fe = _load_figure_registry()
+    if fe is None:
+        return {}
+    by_card: dict[str, list] = {}
+    seen: set[str] = set()
+    for r in sub_results.values():
+        for c in r.get("cards") or []:
+            if not isinstance(c, dict):
+                continue
+            card_id = c.get("card_id")
+            if not card_id or card_id in seen or c.get("_missing"):
+                continue
+            seen.add(card_id)
+            try:
+                figs = fe.emit_figures_for_card(
+                    card_id, c.get("summary") or {}, figures_dir, target, indication)
+            except Exception as e:  # noqa: BLE001 — figure emission never blocks the run
+                print(f"[target-profile] WARN: figure emit failed for {card_id}: {e}",
+                      file=sys.stderr)
+                figs = []
+            if figs:
+                by_card[card_id] = figs
+    n_plotly = sum(1 for figs in by_card.values() for f in figs if f.get("dynamic"))
+    print(f"[target-profile] per-card figures: {len(by_card)} cards, "
+          f"{n_plotly} interactive Plotly specs", file=sys.stderr)
+    return by_card
+
+
+# --- Evidence-package emitter (--emit evidence-package) --------------------------------------
+# The MACHINE-facing sibling of nomination.json: a deterministic, LLM-free evidence_package.json
+# envelope (the same shape compose-dashboard emits), assembled from the Stage-1b per-sub-skill
+# CompositionResult carriers via the SHARED writer. Purely additive — selected by --emit; the
+# nomination path is untouched.
+
+def _deciding_short(deciding_axis: dict) -> Optional[str]:
+    """Map the deciding_axis block to the short whose gate is the envelope PRIMARY.
+
+    gate_fired  → the gate that won; positive_signal → the strongest positive dimension;
+    abstaining  → None (no primary; every gate block becomes `additional`)."""
+    if deciding_axis.get("basis") == "gate_fired":
+        return (deciding_axis.get("deciding_axis") or {}).get("short")
+    if deciding_axis.get("basis") == "positive_signal":
+        rows = deciding_axis.get("deciding_axes") or []
+        return rows[0].get("short") if rows else None
+    return None
+
+
+def _framework_version() -> str:
+    """The framework semver stamped into the envelope (distinct from SKILL_VERSION). Mirrors the
+    dispatcher's --emit-envelope fallback: read compose_phase1.FRAMEWORK_VERSION, else '2.0.0'."""
+    try:
+        from compose_phase1 import FRAMEWORK_VERSION  # type: ignore  # on sys.path via resolve_cards
+        return FRAMEWORK_VERSION
+    except Exception:  # noqa: BLE001
+        return "2.0.0"
+
+
+def _validate_evidence_package(ep: dict, contracts_root: Path) -> list[str]:
+    """Validate an evidence_package against evidence_package.schema.json — the SAME check
+    compose-dashboard applies to its envelope (compose_dashboard.py::_validate_evidence_package).
+    target-profile's --emit path historically SKIPPED this, so a schema-invalid governance artifact
+    was silently persisted + reported as success — most notably the `hgnc_id=-1` unresolved-identity
+    sentinel that assemble_evidence_package emits ON PURPOSE to FAIL validation (envelope.py) but which
+    only fails if someone actually validates. Returns a list of human-readable error strings (empty =
+    valid). Graceful-skip (returns []) if jsonschema or the schema file is unreachable — never let the
+    validator itself break an emit. FUTURE: consolidate this + compose-dashboard's identical copy into
+    _skills_common.envelope beside assemble_evidence_package."""
+    try:
+        from jsonschema import Draft202012Validator
+    except Exception:  # noqa: BLE001 — jsonschema absent (isolated env) → skip, don't crash emit
+        return []
+    schema_path = contracts_root / "schemas" / "evidence_package.schema.json"
+    if not schema_path.exists():
+        return []
+    schema = json.loads(schema_path.read_text())
+    errors = []
+    for e in Draft202012Validator(schema).iter_errors(ep):
+        path_str = ".".join(str(p) for p in e.absolute_path) or "<root>"
+        errors.append(f"[{path_str}] {e.message}")
+    return errors
+
+
+def _validation_summary_from_sub_results(sub_results: dict) -> dict:
+    """The 5-field validation_summary, computed over the card union DEDUPED by card_id.
+
+    O2 (2026-08-15): a card can compose under >1 sub-skill lens (~5 multi-homed cards), so the raw
+    cross-sub-skill card union double-counts them (~85 vs ~77 distinct) — inflating
+    n_cards_attempted/passed/failed relative to the emitted evidence-package payload. That payload's
+    `cards` array is deduped first-occurrence-per-card_id (skipping card_id-less entries) by
+    _write_evidence_package; the governance counts must reflect the SAME deduped union, so the
+    evidence-package governance AND nomination.json governance agree with what was actually emitted.
+    (passed_with_warnings + excluded_by_applies_when stay 0: target-profile does no method validation
+    and no target-level applies_when gating.)"""
+    seen: set = set()
+    deduped: list[dict] = []
+    for r in sub_results.values():
+        for c in (r.get("cards") or []):
+            cid = c.get("card_id")
+            if not cid or cid in seen:
+                continue
+            seen.add(cid)
+            deduped.append(c)
+    n_failed = sum(1 for c in deduped if c.get("_missing"))
+    validation_summary = {
+        "n_cards_attempted": len(deduped),
+        "n_cards_passed": len(deduped) - n_failed,
+        "n_cards_passed_with_warnings": 0,
+        "n_cards_failed": n_failed,
+        "n_cards_excluded_by_applies_when": 0,
+    }
+    return validation_summary
+
+
+def _write_evidence_package(*, args, sub_results: dict, gate_action: Optional[str],
+                            recommendation_gate: dict, confidence_tier: dict,
+                            deciding_axis: dict, validation_summary: dict) -> Path:
+    """Assemble + write evidence_package.json around target-profile's composed verdict.
+
+    Reuses the shared normalizers (`_envelope_card_present`, `_availability_state_for`) and writer
+    (`assemble_evidence_package`) so the envelope is byte-shaped identically to compose-dashboard's.
+    The synthesis block is the SUPERSET shape (per product decision): target-profile's nomination
+    fields (recommendation_gate / confidence_tier / deciding_axis) AND a compose-dashboard-style
+    primary/additional split AND the full per-sub-skill sub_verdicts — all sourced from the
+    Stage-1b CompositionResult on each sub-skill (r["composition"]); NO re-resolution.
+    """
+    from _skills_common.envelope import assemble_evidence_package
+    from _skills_common.dispatcher import _envelope_card_present, _availability_state_for
+    from _skills_common.gitmeta import skills_repo_sha
+
+    # 1. Union the sub-skills' cards by card_id (a card may compose under >1 lens; keep first),
+    #    splitting present (normalized) vs reasoned-absence (card_unavailable).
+    seen: set = set()
+    env_present: list[dict] = []
+    env_unavailable: list[dict] = []
+    for r in sub_results.values():
+        for c in (r.get("cards") or []):
+            cid = c.get("card_id")
+            if not cid or cid in seen:
+                continue
+            seen.add(cid)
+            if c.get("_missing"):
+                state, reason = _availability_state_for(c)
+                env_unavailable.append({
+                    "card_id": cid, "card_version": c.get("card_version", "n/a"),
+                    "availability_state": state, "availability_reason": reason,
+                })
+            else:
+                env_present.append(_envelope_card_present(c))
+
+    # 2. Resolve target-identity-summary separately so context.target carries a real hgnc_id
+    #    (schema requires >= 1). Best-effort — on failure the writer emits the -1 sentinel.
+    try:
+        for c in resolve_cards(["target-identity-summary"], args.target, args.indication):
+            cid = c.get("card_id")
+            if not c.get("_missing") and cid and cid not in seen:
+                seen.add(cid)
+                env_present.append(_envelope_card_present(c))
+    except Exception as e:  # noqa: BLE001 — identity read is best-effort; never break emit
+        print(f"[target-profile] --emit evidence-package: target-identity read failed "
+              f"({type(e).__name__}); context.target.hgnc_id will be the unresolved sentinel.",
+              file=sys.stderr)
+
+    # 3. Synthesis block — SUPERSET. Per-short verdicts mirror nomination.json (verdict present even
+    #    for gateless shorts); the primary/additional split reads the gate blocks the Stage-1b
+    #    CompositionResult carries (gateless shorts contribute no block).
+    sub_verdicts: dict = {}
+    gate_blocks: dict = {}  # short -> primary_dict() (only shorts with a resolver gate)
+    for short, r in sub_results.items():
+        v = r.get("verdict")
+        comp = r.get("composition")
+        blk = comp.primary_dict() if comp is not None else None
+        sub_verdicts[short] = {
+            "gate": blk["gate"] if blk else None,
+            "verdict": v[0] if v else None,
+            "driving_rule_id": v[1] if v else None,
+            "fired_rule_ids": [f["rule_id"] for f in (r.get("fired") or [])],
+        }
+        if blk is not None:
+            gate_blocks[short] = blk
+
+    primary_short = _deciding_short(deciding_axis)
+    primary_block = gate_blocks.get(primary_short)
+    # additional = every other gate block, in SUB_SKILLS iteration order (deterministic)
+    additional_blocks = [b for s, b in gate_blocks.items() if s != primary_short]
+
+    # gate_action is None when NO killer gate (veto/hold) fired. That is NOT "insufficient evidence" —
+    # it means "no deterministic kill; the nominate/advance decision belongs to the narrative synthesis
+    # (see nomination.json)". Labeling it "insufficient" mislabeled a strong POSITIVE target (a machine
+    # consumer reading synthesis.headline saw "insufficient (strong confidence)" — incoherent, and it
+    # disagreed with the same run's nomination.json). Use an honest neutral term for the no-kill case.
+    recommendation = gate_action or "no_deterministic_kill"
+    tier = confidence_tier.get("tier")
+    headline = (f"{args.target} in {args.indication}: {recommendation}"
+                + (f" ({tier} confidence)" if tier else ""))
+    synthesis_block = {
+        "headline": headline,
+        "caveats_summary": (
+            "Composed target-profile evidence envelope (--emit evidence-package): a deterministic "
+            "nomination gate over per-sub-skill resolver verdicts. LLM narrative intentionally "
+            "omitted (see nomination.json for the narrated form); not concurrence-reviewed."
+        ),
+        # nomination-shaped — target-profile's actual verdict model
+        "recommendation_gate": recommendation_gate,
+        "confidence_tier": confidence_tier,
+        "deciding_axis": deciding_axis,
+        # compose-dashboard-shaped — comparable to the other engine's envelopes
+        "primary_gate_verdict": primary_block,
+        "additional_gate_verdicts": additional_blocks,
+        # full per-sub-skill grouping
+        "sub_verdicts": sub_verdicts,
+    }
+
+    input_context = {
+        "target_symbol": args.target,
+        "indication": args.indication,
+        "subgroup_spec": None,
+        # The evidence_package schema's governance.data_mode enum is {latest_approved, pinned,
+        # exploratory} — target-profile's internal "live_latest" is not a member. A live, unpinned,
+        # non-concurrence-reviewed composed run IS exploratory (mirrors the dispatcher subskill
+        # emitter's _GOVERNANCE_DATA_MODE default). nomination.json keeps its own "live_latest"
+        # governance (that artifact is not bound to this schema).
+        "data_mode": "exploratory",
+        "release_pin": args.release_pin or "unpinned",
+    }
+    ep = assemble_evidence_package(
+        input_context=input_context,
+        dashboard_spec_ref="skill:target-profile",
+        card_outputs=env_present,
+        unavailable_cards=env_unavailable,
+        validation_summary=validation_summary,
+        synthesis_block=synthesis_block,
+        deterministic_timestamps=False,
+        framework_version=_framework_version(),
+        generated_by=f"skills/{SKILL_NAME}@{skills_repo_sha()}",
+        # O4 (2026-08-15): target-profile cards declare their inputs as products.yaml product_ids
+        # (resolve_cards stamps card_input_manifest_ids), so a product-id family's is_stale was
+        # trivially True (head — a concrete manifest id — is never == a product_id). Opt into the
+        # honest-staleness refinement so those families report indeterminate, not false-stale. Kept
+        # OFF for compose-dashboard (its envelope byte-golden is unchanged).
+        refine_product_id_staleness=True,
+    )
+    # target-profile reads live + has no target-level applies_when gating; keep its governance
+    # `_note` annotation off the envelope (it is a nomination.json/provenance detail).
+    out_path = args.out / "evidence_package.json"
+    out_path.write_text(json.dumps(ep, indent=2, default=str))
+    # Validate the emitted envelope against evidence_package.schema.json — the sibling engine
+    # (compose-dashboard) does this; target-profile must too, else a schema-invalid governance
+    # artifact (e.g. hgnc_id=-1 when target-identity failed to resolve) is silently persisted and
+    # reported as success. Fail LOUD: the file is written for inspection, but a non-zero exit + the
+    # error list stop it being mistaken for a valid governance-grade package.
+    schema_errors = _validate_evidence_package(ep, _CONTRACTS_REPO)
+    if schema_errors:
+        print(f"[target-profile] --emit evidence-package: envelope FAILED evidence_package.schema "
+              f"validation ({len(schema_errors)} error(s)) — NOT a governance-grade artifact "
+              f"(written to {out_path} for inspection):", file=sys.stderr)
+        for e in schema_errors[:20]:
+            print(f"    - {e}", file=sys.stderr)
+        raise SystemExit(1)
+    return out_path
+
+
+__all__ = [
+    '_catalogue_rows_from_sub_results',
+    '_deciding_short',
+    '_emit_card_figures',
+    '_framework_version',
+    '_load_figure_registry',
+    '_validate_evidence_package',
+    '_validation_summary_from_sub_results',
+    '_write_evidence_package',
+]

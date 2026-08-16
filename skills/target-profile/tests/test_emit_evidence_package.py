@@ -43,6 +43,9 @@ def _load_run_module():
 
 
 tp = _load_run_module()
+# _write_evidence_package (and its resolve_cards call) moved to tp_evidence_package in the
+# 2026-08-16 god-module split; patch resolve_cards there so it is intercepted in that namespace.
+import tp_evidence_package  # noqa: E402
 
 _IDENTITY_CARD = {
     "card_id": "target-identity-summary",
@@ -69,7 +72,7 @@ def _sub(card_id, fired_id, gate, verdict_pair):
 
 def _build_ep(tmp_path, monkeypatch):
     # target-identity is read separately by the emitter — return a resolved card so hgnc_id >= 1.
-    monkeypatch.setattr(tp, "resolve_cards",
+    monkeypatch.setattr(tp_evidence_package, "resolve_cards",
                         lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)])
     sub_results = {
         "expression": _sub("tumor-rna-distribution", "expr-01", None,
@@ -152,11 +155,11 @@ def _emit(tmp_path, monkeypatch, *, gate_action, identity_ok):
     """Drive _write_evidence_package with configurable gate_action + whether target-identity resolves.
     Returns the parsed envelope (raises SystemExit if the emitter's schema validation fails)."""
     if identity_ok:
-        monkeypatch.setattr(tp, "resolve_cards",
+        monkeypatch.setattr(tp_evidence_package, "resolve_cards",
                             lambda card_ids, target, indication, **kw: [dict(_IDENTITY_CARD)])
     else:
         # identity read yields a _missing card → assemble emits the hgnc_id=-1 unresolved sentinel
-        monkeypatch.setattr(tp, "resolve_cards",
+        monkeypatch.setattr(tp_evidence_package, "resolve_cards",
                             lambda card_ids, target, indication, **kw: [
                                 {"card_id": "target-identity-summary", "_missing": True,
                                  "_missing_reason": "identity read failed (test)"}])
@@ -204,7 +207,7 @@ def test_validation_summary_dedupes_multi_homed_cards(tmp_path, monkeypatch):
     assert vs["n_cards_excluded_by_applies_when"] == 0
 
     # And the count matches the emitted payload's deduped cards array (present + unavailable).
-    monkeypatch.setattr(tp, "resolve_cards",
+    monkeypatch.setattr(tp_evidence_package, "resolve_cards",
                         lambda card_ids, target, indication, **kw: [
                             {"card_id": "target-identity-summary", "_missing": True}])
     args = SimpleNamespace(target="KRAS", indication="COADREAD", release_pin=None, out=tmp_path)

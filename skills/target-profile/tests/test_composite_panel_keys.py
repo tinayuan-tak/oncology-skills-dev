@@ -18,7 +18,8 @@ import importlib.util
 from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parents[2]           # .../skills
-COMPOSER = SKILLS / "target-profile" / "scripts" / "run.py"
+# SUB_SKILLS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
+COMPOSER = SKILLS / "target-profile" / "scripts" / "tp_fanout.py"
 PANEL = SKILLS / "_skills_common" / "composite_panel.py"
 
 # sub_keys that are panel-synthetic, not composer short names (rendered from llm_output / empty).

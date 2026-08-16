@@ -23,6 +23,9 @@ def _load():
 
 
 tp = _load()
+# _emit_card_figures + _load_figure_registry moved to tp_evidence_package (2026-08-16 god-module
+# split); patch the registry loader there so _emit_card_figures resolves the fake in its own namespace.
+import tp_evidence_package  # noqa: E402
 
 
 def _sub_results():
@@ -61,7 +64,7 @@ class _StubRegistry:
 
 def test_emit_card_figures_one_call_per_distinct_nonmissing_card(monkeypatch, tmp_path):
     stub = _StubRegistry()
-    monkeypatch.setattr(tp, "_load_figure_registry", lambda: stub)
+    monkeypatch.setattr(tp_evidence_package, "_load_figure_registry", lambda: stub)
     by_card = tp._emit_card_figures(_sub_results(), tmp_path, "KRAS", "COADREAD")
     # 3 distinct non-missing cards; the _missing one skipped, the duplicate not re-called
     assert sorted(stub.calls) == [
@@ -75,7 +78,7 @@ def test_emit_card_figures_one_call_per_distinct_nonmissing_card(monkeypatch, tm
 
 def test_emit_card_figures_map_carries_plotly_and_svg_descriptors(monkeypatch, tmp_path):
     stub = _StubRegistry()
-    monkeypatch.setattr(tp, "_load_figure_registry", lambda: stub)
+    monkeypatch.setattr(tp_evidence_package, "_load_figure_registry", lambda: stub)
     by_card = tp._emit_card_figures(_sub_results(), tmp_path, "KRAS", "COADREAD")
     figs = by_card["cellline-rna-distribution"]
     assert any(f.get("dynamic") for f in figs)                # a Plotly spec is present
@@ -83,7 +86,7 @@ def test_emit_card_figures_map_carries_plotly_and_svg_descriptors(monkeypatch, t
 
 
 def test_emit_card_figures_graceful_when_registry_unavailable(monkeypatch, tmp_path):
-    monkeypatch.setattr(tp, "_load_figure_registry", lambda: None)
+    monkeypatch.setattr(tp_evidence_package, "_load_figure_registry", lambda: None)
     assert tp._emit_card_figures(_sub_results(), tmp_path, "KRAS", "COADREAD") == {}
 
 
@@ -91,6 +94,6 @@ def test_emit_card_figures_swallows_per_card_emit_errors(monkeypatch, tmp_path):
     class _Boom:
         def emit_figures_for_card(self, *a):
             raise RuntimeError("method blew up")
-    monkeypatch.setattr(tp, "_load_figure_registry", lambda: _Boom())
+    monkeypatch.setattr(tp_evidence_package, "_load_figure_registry", lambda: _Boom())
     # one bad card must not sink the whole run — returns an empty map, no raise
     assert tp._emit_card_figures(_sub_results(), tmp_path, "KRAS", "COADREAD") == {}

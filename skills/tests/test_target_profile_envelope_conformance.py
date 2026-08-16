@@ -21,6 +21,9 @@ from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parent.parent
 TP_RUN = SKILLS / "target-profile" / "scripts" / "run.py"
+# The validation_summary literal moved out of run.py into tp_evidence_package.py in the 2026-08-16
+# god-module split (build_governance is still CALLED from run.py's main(), so TP_RUN stays correct there).
+TP_EVIDENCE = SKILLS / "target-profile" / "scripts" / "tp_evidence_package.py"
 ENVELOPE = SKILLS / "_skills_common" / "envelope.py"
 
 # The reproducibility spine every governance block MUST carry. release_pin is the eval-ledger federation
@@ -82,8 +85,8 @@ def test_target_profile_governance_is_single_sourced():
 def test_target_profile_validation_summary_matches_the_schema_shape():
     # The validation_summary target-profile feeds the shared builder must carry exactly the 5 schema
     # fields (evidence_package governance.validation_summary; unevaluatedProperties:false).
-    keys = _last_dict_literal_keys(TP_RUN, "validation_summary")
-    assert keys is not None, f"no `validation_summary = {{...}}` literal found in {TP_RUN}"
+    keys = _last_dict_literal_keys(TP_EVIDENCE, "validation_summary")
+    assert keys is not None, f"no `validation_summary = {{...}}` literal found in {TP_EVIDENCE}"
     assert keys == _VALIDATION_SUMMARY_KEYS, (
         f"target-profile validation_summary keys {keys} != schema {_VALIDATION_SUMMARY_KEYS}")
 

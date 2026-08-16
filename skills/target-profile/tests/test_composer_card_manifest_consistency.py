@@ -21,7 +21,8 @@ from pathlib import Path
 import pytest
 
 SKILLS = Path(__file__).resolve().parents[2]           # .../skills
-COMPOSER = SKILLS / "target-profile" / "scripts" / "run.py"
+# SUB_SKILLS / SUB_SKILL_CARDS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
+COMPOSER = SKILLS / "target-profile" / "scripts" / "tp_fanout.py"
 
 # Cards a sub-skill lists in its run.py CARDS but which the composer DELIBERATELY does not compose
 # under that sub-skill. Each entry needs a reason. Keep this SMALL and reviewed — it's the "known

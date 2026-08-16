@@ -225,7 +225,8 @@ def test_deferred1_composed_path_composes_ALL_veto_cards():
     (tvn-sc-normal-critical-organ-veto, keying sc-normal-celltype-expression) was UNGUARDED and could
     silently drop from the selectivity lens (F4)."""
     import ast
-    tp_run = (RUN_PY.parent.parent.parent / "target-profile" / "scripts" / "run.py").read_text()
+    # SUB_SKILL_CARDS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
+    tp_run = (RUN_PY.parent.parent.parent / "target-profile" / "scripts" / "tp_fanout.py").read_text()
     tree = ast.parse(tp_run)
     ssc = None
     for node in ast.walk(tree):

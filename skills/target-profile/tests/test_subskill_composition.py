@@ -36,6 +36,10 @@ def _load_run_module():
 
 
 tp = _load_run_module()
+# The fan-out (_run_sub_skills + its resolve_cards/fired_rules/_load_sub_skill_verdict_fn boundary)
+# lives in tp_fanout after the 2026-08-16 god-module split; monkeypatch it there so the patch is
+# resolved in the same namespace _run_sub_skills looks the names up in (run.py only re-exports them).
+import tp_fanout  # noqa: E402
 
 # A deliberately UNSORTED, DUPLICATED fired list — so we can tell the raw emission convention
 # (list order, dups kept) apart from compose_core's sorted-set fired_rule_ids.
@@ -44,16 +48,16 @@ _FAKE_CARDS = [{"card_id": "c-present"}, {"card_id": "c-missing", "_missing": Tr
 
 
 def _install_fakes(monkeypatch):
-    monkeypatch.setattr(tp, "_prewarm_sub_skill_imports", lambda: None)
-    monkeypatch.setattr(tp, "resolve_cards",
+    monkeypatch.setattr(tp_fanout, "_prewarm_sub_skill_imports", lambda: None)
+    monkeypatch.setattr(tp_fanout, "resolve_cards",
                         lambda cards, target, indication, **kw: list(_FAKE_CARDS))
-    monkeypatch.setattr(tp, "fired_rules",
+    monkeypatch.setattr(tp_fanout, "fired_rules",
                         lambda cards, axis, card_id_filter, **kw: list(_FAKE_FIRED))
     # every sub-skill "resolves" to a fixed pair whose verdict encodes its short, so we can
     # assert the pair rode through untouched (a value no real resolver would emit).
     def _fake_loader(short_dir):
         return lambda fired: (f"verdict::{short_dir}", "drv-01")
-    monkeypatch.setattr(tp, "_load_sub_skill_verdict_fn", _fake_loader)
+    monkeypatch.setattr(tp_fanout, "_load_sub_skill_verdict_fn", _fake_loader)
 
 
 def test_every_sub_skill_carries_a_composition(monkeypatch):
