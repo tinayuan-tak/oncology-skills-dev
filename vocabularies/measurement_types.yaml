@@ -1009,6 +1009,35 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [crispr_lof_dependency, rnai_lof_dependency], method: concordance, evidence_tier: measured}
 
+  pathway_node_leverage:
+    # WS3 (cross-evidence, 2026-08-16). A COMPARATIVE claim: every other type asks "is target
+    # dependent/altered/tractable?"; this asks "given the biology, is target the best NODE to hit
+    # within its neighbourhood, or is it dominated by a more-dependent / more-tractable member?"
+    # (the MARK2/3-vs-YAP/TAZ motivating case). It IS a per-target property (target-anchored: is THIS
+    # target dominated within its own complex/pathway), NOT a ranking OVER targets — so it belongs in
+    # the per-target skills, unlike the surfaceome-cohort-ranking non-goal.
+    #
+    # derived_from crispr_lof_dependency: the verdict is a comparison of the target's Chronos vs its
+    # neighbours' Chronos (the type->type DAG edge, Rule 4). The neighbourhood-definition inputs
+    # (CORUM co-complex membership, MSigDB C5 GO:BP gene sets) and the tractability-yield input
+    # (Pharos TDL) are node-set LENS + annotation sources, NOT per-target measurement_types — they
+    # are auxiliary to the comparison, so they are not `inputs:` DAG edges (documented here instead).
+    #
+    # evidence_tier: inferred — this is a DERIVED comparison layered on curated membership + a
+    # heuristic tractability rank, and is DepMap-Chronos-correlated with the dependency cards. The
+    # inferred tier is the machine home for the spec's SOFT invariant: it must never fire a
+    # measured-strength killer and never raises certainty (a differentiation-axis context annotation,
+    # not a nomination gate). Single provider -> no multi_provider_policy.
+    #
+    # NO modality_relevance: node-leverage is modality-independent (biology-first). Its
+    # tractability-yield leg uses Pharos TDL, but the verdict routes to the differentiation axis, not
+    # to a modality-fit gate — so cards of this type are not required to declare modality_relevance.
+    claim: "Given the biology, is target the best NODE to hit within its complex / pathway neighbourhood, or is it dominated by a more-dependent / more-tractable member (lineage-scoped, common-essential-excluded)?"
+    entity_grains: [target, target_lineage]   # target_lineage = the indication-lineage-scoped DepMap cohort; target = pan-lineage fallback
+    cards: [pathway-node-leverage]
+    providers:
+      - {kind: derived_from, inputs: [crispr_lof_dependency], method: pathway_node_leverage, evidence_tier: inferred}
+
   target_safety_prioritisation:
     # P5 Slice 1 (2026-07-24) — Open Targets 26.06 engineered target-prioritisation scores as
     # safety-ORIENTING CONTEXT. Verdict-inert (no resolver reference, no warning); NOT modality-
