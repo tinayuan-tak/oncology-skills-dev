@@ -561,6 +561,25 @@ rules:
       needs stronger orthogonal evidence (isogenic amplification models). Live example: ERBB2 (delta -0.41,
       SHARPER than the CN-only -0.31 — the conditioning on overexpression works), MYC (delta -0.26).
 
+  - rule_id: amp-expr-indication-scoped-context
+    when:
+      card_id: amp-expr-stratified-dependency
+      field: evidence_scope
+      in: [within_indication, within_indication_mut_vs_pan_wt]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Indication-scope GATE for the amp-expr biomarker verdict (redesign Stage 3a). The amp-expr
+      stratified-dependency signal can be computed from PAN-LINEAGE evidence only
+      (evidence_scope=pan_lineage_evidence_only / pan_no_indication) when the indication has too few
+      amplified+overexpressed lines. A pan-lineage signal is NOT an indication-level biomarker — the
+      audit found MARK2/PAAD promoted to moderate_biomarker_dependency off a pan-lineage amp-expr signal
+      (n=7 across DepMap, not PAAD-scoped). The genomic resolver's §0 amp-expr biomarker rungs now require
+      this rule (when_all_fired), so only INDICATION-scoped amp-expr evidence earns a biomarker verdict;
+      pan-lineage-only amp-expr falls through to the driver/pattern rungs. Neutral: scope context, not a
+      biology call. (Mutation-stratified veto-suppressor rescues — EGFR/IDH1/FLT3 — are UNAFFECTED.)
+
   - rule_id: wt-strongly-dependent-neutral
     when:
       card_id: mutation-stratified-dependency

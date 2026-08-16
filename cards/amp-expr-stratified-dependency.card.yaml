@@ -74,6 +74,7 @@ outputs:
       - not_amp_expr_stratified                       # no significant conjoint-vs-rest difference
       - insufficient_amp_expr_rate                    # <min conjoint cells OR too few lines to define the tertile
       - data_unavailable
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by amp-expr-indication-scoped-context (Stage 3a): only indication-scoped evidence earns a biomarker verdict
 
   figures:
     - id: amp_expr_vs_rest_strip
