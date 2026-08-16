@@ -48,10 +48,9 @@ in that directory. Trivial in-scope edits may use the primary checkout.
 
 ## Branch & PR discipline
 
-This repo has an existing branching convention in
-[DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md):
-`main → dev → feature/*` on this repo, `main → feature/*` on the
-sibling `ai-sci-claude-skills` repo. That guideline STILL APPLIES and
+Feature work branches off the long-lived `v2-architecture` integration branch
+via a per-workstream worktree and merges back by PR (see
+[DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) for the full flow). This
 composes with the coordination ritual above.
 
 - **Approved branch prefixes**: `feat/`, `fix/`, `chore/`, `feature/`

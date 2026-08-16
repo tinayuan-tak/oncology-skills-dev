@@ -1,221 +1,106 @@
-# Oncology Skills Development & Integration Guidelines
+# Oncology Skills — Development Guidelines
 
 ## Overview
 
-This document defines the workflow for developing oncology Claude Code skills in the `rnd-computational-biology-oncology-claude-oncology-skills` repository and integrating them into the `ai-sci-claude-skills` production repository.
+This repository is the active development home for the oncology **target-evaluation
+and profiling** Claude Code skills. The long-lived integration branch is
+`v2-architecture` (not `main`); all feature work branches off it and merges back via
+PR. This document describes the current (v2) layout, skill anatomy, and the
+branch / test / data-access conventions. It supersedes the earlier v1 guidelines,
+which described an `ai-sci-claude-skills` sync flow and a per-skill `pixi.toml`
+layout that no longer exist.
 
-## Repository Roles
-
-| Repository | Purpose | Branch Strategy |
-|------------|---------|-----------------|
-| `rnd-computational-biology-oncology-claude-oncology-skills` | Development, testing, iteration | `main` → `dev` → `feature/*` |
-| `ai-sci-claude-skills` | Production skills, shared across teams | `main` → `feature/*` (PR-based) |
-
-## Directory Structure
-
-Both repos use the same structure for easy integration:
+## Repository layout
 
 ```
 repo-root/
 ├── skills/
-│   ├── analysis-bulk-rna-crc/
-│   │   ├── SKILL.md
-│   │   ├── README.md
-│   │   ├── crc_comprehensive_analysis.py
-│   │   └── pixi.toml
-│   ├── analysis-bulk-rna-nsclc/
-│   │   ├── SKILL.md
-│   │   ├── README.md
-│   │   ├── nsclc_comprehensive_analysis.py
-│   │   └── pixi.toml
-│   ├── analysis-protein-crc/
-│   └── analysis-protein-nsclc/
-├── docs/
-└── README.md
+│   ├── _skills_common/          # shared harness: dispatcher, resolver, synthesis,
+│   │                            #   write_package, provenance, card accessors, …
+│   ├── <skill-name>/
+│   │   ├── SKILL.md             # skill definition + frontmatter (required)
+│   │   ├── scripts/run.py       # entrypoint (most skills delegate to run_wired_skill)
+│   │   └── tests/               # per-skill pytest suite
+│   └── tests/                   # cross-skill invariant guards
+├── core-artifacts-schema/       # shared JSON schemas for emitted artifacts
+├── docs/                        # design notes, scope reviews
+├── batch/, configs/, notebooks/, libs/
+├── pixi.toml / pixi.lock        # ONE environment for the whole repo
+└── .github/workflows/           # CI (skills-validate.yml — required check)
 ```
 
-## Naming Conventions
+There is a **single repo-level `pixi` environment** (`pixi.toml` at the root); skills
+do not carry their own `pixi.toml`. The three sibling framework repos
+(`analysis-methods`, `target-contracts`, and the `target_id_resolver` lib in
+`data-catalog`) are declared as editable path dependencies.
 
-Follow `ai-sci-claude-skills` naming taxonomy:
+## Skill anatomy
 
-| Pattern | Example | Description |
-|---------|---------|-------------|
-| `analysis-{method}-{disease}` | `analysis-bulk-rna-crc` | Data analysis skills |
-| `workflow-{name}-{domain}` | `workflow-target-evaluation-onc` | Multi-step workflows |
+Most skills are a single `skills/<name>/scripts/run.py` that routes through the shared
+harness `_skills_common.dispatcher.run_wired_skill(...)` — argument parsing, card
+resolution, rule firing, packaging, provenance, and synthesis dispatch are all
+single-sourced there. Verdict logic is expressed as a **declarative resolver spec**
+(`target-contracts/resolvers/<gate>.resolver.yaml`) evaluated by one interpreter
+(`_skills_common.resolver`); a skill's `_verdict` delegates via
+`resolve_or_raise(fired, "<gate>")` rather than hand-rolling an if-chain.
 
-**Skill file naming:**
-- `SKILL.md` - Skill definition (required, follows ai-sci template)
-- `README.md` - Human documentation
-- `{descriptive_name}.py` - Main script
-- `pixi.toml` - Dependencies
+- **Biology-first output.** The primary output (verdict + driving `rule_id`) is
+  modality-independent; modality is a post-hoc lens (optional `--modality`).
+- **Honest absence.** A card read but with no usable value emits `DATA_UNAVAILABLE`
+  (a decision-useful measured-null), distinct from a card never wired.
+- **`SKILL.md` frontmatter** — `name`, `description` (with trigger phrases),
+  `metadata` (version, owner). Skills registered in the plugin are listed in
+  `.claude-plugin/marketplace.json`; keep that list in sync with the skills present.
 
-## Development Workflow
+## Branch & PR discipline
 
-### Phase 1: Feature Development (oncology repo)
+Work in a **per-workstream git worktree** cut off `v2-architecture`. Do not develop
+directly in the primary checkout (parallel sessions share one index — worktrees give
+structural isolation).
 
 ```bash
-# 1. Start from dev branch
-cd /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills
-git checkout dev
-git pull origin dev
+# create an isolated worktree + branch (writes .claude/branch-scope, prints a registry stub)
+~/.claude/git-hooks/new-worktree claude-oncology-skills <prefix>/<name> --scope skills/
 
-# 2. Create feature branch
-git checkout -b feature/{feature-name}
+# ... edit in the printed /tmp/wt/... directory, then:
+git add -A && git commit -m "..."
+git push -u origin <prefix>/<name>          # pre-push nudges you to open a PR
+gh pr create --base v2-architecture --fill  # draft is fine
 
-# 3. Develop and test
-# ... make changes ...
-pixi install
-pixi run python {script}.py --genes TNFRSF12A
-
-# 4. Commit changes
-git add .
-git commit -m "Add {feature description}"
-
-# 5. Push feature branch
-git push -u origin feature/{feature-name}
-
-# 6. Merge to dev (after testing)
-git checkout dev
-git merge feature/{feature-name}
-git push origin dev
-
-# 7. Delete feature branch (optional)
-git branch -d feature/{feature-name}
+# land when CI is green (enables auto-merge; prunes worktree + branch after merge):
+~/.claude/git-hooks/land-pr <pr#> --repo claude-oncology-skills
 ```
 
-### Phase 2: Integration to ai-sci
+- **Approved branch prefixes:** `feat/`, `fix/`, `chore/`, `feature/` (enforced by
+  `.claude/hooks/pre-commit`).
+- **Base branch:** `v2-architecture` (this repo's `default_base`).
+- **One workstream per branch;** draft PR on first push.
+- CI (`skills-validate.yml`) is a **required status check** on `v2-architecture`, so a
+  PR merges only when `pytest` (plus CodeQL) is green.
+
+## Testing
+
+Run under `pixi` (the repo environment), per-skill with importlib isolation — this is
+how CI runs it, and it avoids `import run` collisions across skills that each ship a
+`scripts/run.py`:
 
 ```bash
-# 1. Create feature branch in ai-sci
-cd /Users/eta3879/tools/ai-sci-claude-skills
-git checkout main
-git pull origin main
-git checkout -b feature/oncology-{skill-name}
-
-# 2. Copy validated skill from oncology repo
-cp -r /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/skills/analysis-bulk-rna-crc \
-      skills/
-
-# 3. Validate against ai-sci standards
-# - Check SKILL.md frontmatter
-# - Check pixi.toml format
-# - Run any ai-sci validation scripts
-
-# 4. Commit and push
-git add skills/analysis-bulk-rna-crc/
-git commit -m "Add analysis-bulk-rna-crc skill from oncology repo"
-git push -u origin feature/oncology-{skill-name}
-
-# 5. Create PR for review
-gh pr create --title "Add oncology bulk RNA CRC analysis skill" \
-  --body "Integrates validated skill from oncology-skills repo"
+pixi run pytest skills/<skill-name>/tests/ -q --import-mode=importlib
+pixi run pytest skills/_skills_common/tests/ -q     # shared harness
+pixi run pytest skills/tests/ -q --import-mode=importlib   # cross-skill guards
 ```
 
-## SKILL.md Template
+Before opening a PR: run the touched skill's suite, the `_skills_common` suite, and —
+for changes to shared verdict / resolver / synthesis code — `target-profile/tests/`
+and the cross-skill guards.
 
-All skills must use this frontmatter format (from ai-sci standards):
+## Data access
 
-```yaml
----
-name: analysis-bulk-rna-crc
-description: |
-  Comprehensive CRC bulk RNA-seq analysis with TCGA, GTEx, CCLE, and Tempus data.
-  Trigger phrases: "analyze CRC expression", "CRC bulk RNA", "colorectal cancer gene"
-metadata:
-  version: "1.0.0"
-  owner: ming-ju.tsai@takeda.com
-  requires_preflight: false
-  environment:
-    - AWS_PROFILE=cbg (for S3 access)
----
-```
-
-## Sync Procedures
-
-### Bug Fix in Oncology Repo
-
-```bash
-# 1. Fix in oncology repo (feature branch → dev)
-cd /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills
-git checkout -b fix/{bug-description}
-# ... fix bug ...
-git commit -m "Fix {bug description}"
-git checkout dev && git merge fix/{bug-description}
-
-# 2. Copy fix to ai-sci (if already integrated)
-cd /Users/eta3879/tools/ai-sci-claude-skills
-git checkout -b fix/oncology-{bug-description}
-cp /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills/skills/{skill}/{file} \
-   skills/{skill}/{file}
-git commit -m "Fix {bug description} in oncology skill"
-# Create PR
-```
-
-### New Feature Addition
-
-```bash
-# 1. Develop fully in oncology repo first
-# 2. Test thoroughly
-# 3. Only then copy to ai-sci via PR
-```
-
-### ai-sci Standard Update
-
-When ai-sci updates its standards (SKILL.md template, pixi.toml format, etc.):
-
-```bash
-# 1. Update oncology repo to match
-cd /Users/eta3879/tools/rnd-computational-biology-oncology-claude-oncology-skills
-git checkout -b chore/update-ai-sci-standards
-# ... update SKILL.md files, pixi.toml, etc. ...
-git commit -m "Update to ai-sci standards v{X.X}"
-```
-
-## Checklist: Before Integration to ai-sci
-
-- [ ] Skill tested with real data in oncology repo
-- [ ] SKILL.md follows ai-sci template
-- [ ] pixi.toml includes all dependencies
-- [ ] No hardcoded local paths (use S3 or configurable paths)
-- [ ] README.md documents usage
-- [ ] Python syntax validated (`python -m py_compile {script}.py`)
-- [ ] Naming follows ai-sci taxonomy
-
-## Version Tracking
-
-Track which version of oncology skills are in ai-sci:
-
-| Skill | Oncology Repo Version | ai-sci Version | Last Sync Date |
-|-------|----------------------|----------------|----------------|
-| analysis-bulk-rna-crc | dev@{commit} | - | Not integrated |
-| analysis-bulk-rna-nsclc | dev@{commit} | - | Not integrated |
-| analysis-protein-crc | - | - | Planned |
-| analysis-protein-nsclc | - | - | Planned |
-
-## S3 Data Access Pattern
-
-All skills use boto3/s3fs for S3 access (not AWS CLI subprocess):
-
-```python
-import boto3
-import s3fs
-from botocore.exceptions import ClientError
-
-AWS_PROFILE = 'cbg'
-
-def get_s3_client():
-    """Get boto3 S3 client with profile credentials."""
-    session = boto3.Session(profile_name=AWS_PROFILE)
-    return session.client('s3', verify=False)
-
-def download_s3_file(s3_path, local_path):
-    """Download file from S3 if not already cached."""
-    if os.path.exists(local_path):
-        return local_path
-    bucket, key = parse_s3_uri(s3_path)
-    get_s3_client().download_file(bucket, key, local_path)
-    return local_path
-```
+Skills read **derived products** (gene-sorted parquet) with **predicate pushdown** via
+the `methods/<name>/read.py` readers in the `analysis-methods` repo, resolving dataset
+locations through the data-catalog manifests and the **target-id resolver** sidecar.
+Do not add ad-hoc `boto3` / `s3fs` download code or `verify=False` clients in skills —
+data access is single-sourced through the readers and the catalog.
 
 ## Contact
 

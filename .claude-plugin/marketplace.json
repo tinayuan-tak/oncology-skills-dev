@@ -8,23 +8,37 @@
   "plugins": [
     {
       "name": "oncology-skills",
-      "description": "Claude Code plugin bundling oncology target evaluation and RNA-seq analysis skills",
-      "version": "1.7.5",
+      "description": "Claude Code plugin bundling oncology target-evaluation and profiling skills",
+      "version": "1.7.6",
       "source": "./",
       "author": {
         "name": "Ming-Ju Tsai",
         "email": "ming-ju.tsai@takeda.com"
       },
       "skills": [
-        "./skills/analysis-bulk-rna-crc",
-        "./skills/analysis-bulk-rna-nsclc",
-        "./skills/analysis-protein-crc",
-        "./skills/analysis-protein-nsclc",
-        "./skills/analysis-sc-rna-crc",
-        "./skills/analysis-sc-rna-nsclc",
-        "./skills/query-target-evidence",
+        "./skills/bispecific-pair-scan",
+        "./skills/catalog-query",
+        "./skills/combinatorial-dependency",
+        "./skills/combo-and-resistance",
         "./skills/compose-dashboard",
-        "./skills/render-evidence-package"
+        "./skills/differentiation-landscape",
+        "./skills/example-gallery",
+        "./skills/functional-requirement",
+        "./skills/genomic-alteration-profile",
+        "./skills/immune-context",
+        "./skills/mechanism-and-pharmacology",
+        "./skills/on-target-safety-liability",
+        "./skills/query-target-evidence",
+        "./skills/render-evidence-package",
+        "./skills/surface-modality-fit",
+        "./skills/surfaceome-cohort-ranking",
+        "./skills/synthetic-lethal-partners",
+        "./skills/target-intrinsic",
+        "./skills/target-profile",
+        "./skills/tractability-small-molecule",
+        "./skills/translational-readiness",
+        "./skills/tumor-presence",
+        "./skills/tumor-selectivity"
       ]
     }
   ]
