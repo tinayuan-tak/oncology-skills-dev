@@ -83,7 +83,7 @@ indications:
     oncotree_code: STAD
     tcga_studies: [TCGA-STAD]
     gdc_project_ids: [TCGA-STAD]
-    depmap_lineage: Stomach
+    depmap_lineage: Esophagus/Stomach  # DepMap 26Q1 has NO "Stomach" lineage — gastric + esophageal are merged into "Esophagus/Stomach"; disambiguate STAD vs ESCA via depmap_oncotree_lineage below (mirrors ESCA)
     depmap_oncotree_lineage: Stomach_Adenocarcinoma
     cptac_cohort: null  # Verify PDC has a STAD cohort at Phase 2
     gtex_normal_tissue: Stomach
