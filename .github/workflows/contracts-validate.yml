@@ -95,3 +95,13 @@ jobs:
         run: |
           python -m pytest tests/validators/test_eval_ledger.py -q
           python validators/build_eval_ledger.py --self-check
+
+      # 2026-08-16 (cleanup follow-up): these three validators were fully built but gated by NO
+      # workflow — the same drift-risk the T9b step above fixed for validate_resolvers.py. Wire
+      # their suites so subgroup-assignment / coverage-matrix / framework-discrimination contract
+      # checks actually run on a PR.
+      - name: Validate subgroup assignments + coverage matrix
+        run: python -m pytest tests/validators/test_subgroup_assignments_and_coverage.py -q
+
+      - name: Framework-discrimination calibration
+        run: python -m pytest tests/calibration/test_framework_discrimination.py -q
