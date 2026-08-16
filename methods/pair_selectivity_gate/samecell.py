@@ -58,8 +58,13 @@ def _read_cube(manifest_id: str):
     """The full same-cell cube for an indication (small — per donor×pair). None if unreadable."""
     try:
         uri = s3_uri_for(manifest_id)
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        # manifest not registered (FileNotFoundError from load_manifest) → cube not landed
+        # (data_unavailable). Re-raise broken-env / transient so it isn't a silent dead axis.
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     try:
         import pyarrow.parquet as pq
         import pyarrow.fs as fs
@@ -67,8 +72,14 @@ def _read_cube(manifest_id: str):
         # uri is s3://bucket/key → strip scheme for pyarrow fs
         path = uri.replace("s3://", "")
         return pq.read_table(path, filesystem=s3fs).to_pandas()
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        # absence discipline: swallow ONLY genuine absence (cube not landed) as data_unavailable;
+        # re-raise broken-env / transient / creds so it surfaces as a live-read error, not a silent
+        # avidity dead-axis (the RD bug class — see tests/test_reader_absence_discipline.py).
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
 
 
 def _avidity_call(enrichment: Optional[float], both_fraction: Optional[float]) -> str:

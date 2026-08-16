@@ -14,7 +14,9 @@ errors so the live-read seam surfaces an honest ``_live_read_error`` instead of 
 
 WHAT THIS LINT ENFORCES
 -----------------------
-Statically (via ``ast``, never regex) scan every ``methods/*/read.py`` and ``methods/*/cli.py``.
+Statically (via ``ast``, never regex) scan every ``methods/*/*.py`` — the reader/CLI entrypoints
+AND the one-level helper modules they call (``derive.py``, ``loader.py``, ``pull.py``, ``*.py``),
+since a masking handler in a helper is just as much a silent dead axis as one in ``read.py``.
 Flag an ``except`` handler as a VIOLATION when ALL of the following hold:
 
   1. it is a BROAD catch — bare ``except:`` or ``except Exception[/BaseException] [as e]:``
@@ -223,7 +225,7 @@ def find_violations() -> list[str]:
     root = _methods_root()
     assert root.is_dir(), f"methods/ not found at {root}"
     violations: list[str] = []
-    for rel in sorted(root.glob("*/read.py")) + sorted(root.glob("*/cli.py")):
+    for rel in sorted(root.glob("*/*.py")):
         source = rel.read_text()
         source_lines = source.splitlines()
         tree = ast.parse(source, filename=str(rel))
@@ -280,7 +282,33 @@ _BASELINE_REASON = (
 # breadcrumb-already-surfaced, build-time materialization, or verdict-inert/descriptive). The lint
 # now ratchets against a CLEAN baseline — the only remaining allowlisted handler is the DEFERRED
 # cooccurrence_fisher_pancohort entry above (blocked on an active registry collision).
-_BASELINE_RESIDUALS: dict[str, str] = {}
+#
+# GLOB WIDENED (2026-08-16): find_violations() now scans methods/*/*.py, not just */read.py + */cli.py
+# — a masking handler in a one-level HELPER module (pull.py / lookup.py / <name>.py) is just as much a
+# silent dead axis, but was previously invisible to this ratchet. Widening surfaced 6 helper-file
+# residuals below. The 2 verdict-contributing HIGH-danger handlers (pair_selectivity_gate same-cell +
+# normal cubes) were FIXED in this PR; the remaining 6 are recorded here for a follow-up burndown.
+_BASELINE_RESIDUALS: dict[str, str] = {
+    "allgene_percentile_precompute/lookup.py::_depmap_row":
+        "broad except over a gene-filtered pushdown read of the DepMap all-gene rank product "
+        "returns None; render-path percentile lookup. RD-class residual newly surfaced by the "
+        "*/*.py glob; burndown follow-up (convert to is_definitively_absent + FileNotFoundError).",
+    "allgene_percentile_precompute/lookup.py::_tumor_rows":
+        "broad except over a pushdown read of the tumor all-gene rank product returns (); "
+        "render-path percentile lookup. RD-class residual; burndown follow-up.",
+    "immune_context/antigen_conditioned.py::_antigen_tpm_by_uuid_study":
+        "broad except masks catalog RESOLUTION (s3_uri_for) → None; the pq.read itself is "
+        "unguarded (propagates). Low danger (resolution only), but a transient catalog read is "
+        "masked; burndown follow-up.",
+    "resistance_emergence/tahoe_adaptation.py::_fetch_program_rows":
+        "broad except over an S3 pushdown read of the Tahoe resistance-program product returns "
+        "None. RD-class residual; burndown follow-up.",
+    "structure_features_static/pull.py::_load_domains":
+        "DEFERRED — structure_features_static/ is in the scope of active PR #364 "
+        "(fix/sweep2-lru-of-failure); fix there to avoid a collision, not in this glob-widening PR.",
+    "structure_features_static/pull.py::_load_hotspots":
+        "DEFERRED — see _load_domains: fix under active PR #364, not here.",
+}
 
 _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}
 

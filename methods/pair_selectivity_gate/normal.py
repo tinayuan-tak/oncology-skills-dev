@@ -43,15 +43,26 @@ def _read_normal_cube(manifest_id: str = NORMAL_SAMECELL_MANIFEST):
     """The pan-tissue normal same-cell cube. None if unreadable (cube not landed / no creds)."""
     try:
         uri = s3_uri_for(manifest_id)
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        # manifest not registered (FileNotFoundError from load_manifest) → cube not landed
+        # (data_unavailable). Re-raise broken-env / transient so it isn't a silent dead axis.
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
     try:
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
         s3fs = fs.S3FileSystem(region="us-east-1")
         return pq.read_table(uri.replace("s3://", ""), filesystem=s3fs).to_pandas()
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001
+        # absence discipline: genuine absence (cube not landed) → None (data_unavailable);
+        # broken-env / transient / creds → re-raise (honest live-read error, not a silent
+        # selectivity dead-axis). See tests/test_reader_absence_discipline.py.
+        from methods.target_id_sidecar import is_definitively_absent
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return None
+        raise
 
 
 def _selectivity_class(normal_max_both) -> str:
