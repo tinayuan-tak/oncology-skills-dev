@@ -27,6 +27,7 @@ run.py::_headline emits (feedback_synthesis_reader_real_field_names).
 from __future__ import annotations
 
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+from _skills_common.synthesis import make_card_state
 
 from typing import Optional
 
@@ -187,12 +188,7 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     present_ids = {c["card_id"] for c in card_list}
     missing = {c["card_id"] for c in card_list if c.get("_missing")}
 
-    def _card_state(card_id: str) -> str:
-        if card_id in missing:
-            return "DATA_UNAVAILABLE (measured, no usable value)"
-        if card_id not in present_ids:
-            return "not present in this run"
-        return "measured"
+    _card_state = make_card_state(present_ids, missing)
 
     lines = [
         f"TARGET: {target}    INDICATION: {indication}",

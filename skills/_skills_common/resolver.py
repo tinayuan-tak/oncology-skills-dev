@@ -86,3 +86,23 @@ def resolve_verdict_for_gate(fired: list[dict], gate: str,
     if spec is None:
         return None
     return resolve_verdict(fired, spec)
+
+
+def resolve_or_raise(fired: list[dict], gate: str,
+                     contracts_repo: Path | None = None) -> tuple[str, str | None]:
+    """The standard skill `_verdict` body: resolve a gate's verdict from the shared
+    declarative resolver, raising if the spec is absent.
+
+    The resolver YAML (target-contracts/resolvers/<gate>.resolver.yaml) is the single
+    source of truth, so a missing spec is a HARD error — never a silent fallback to a
+    stale in-code copy, which would reintroduce the verdict drift this design eliminates.
+
+    Returns (verdict, driving_rule_id). Raises RuntimeError if no spec exists for `gate`.
+    """
+    result = resolve_verdict_for_gate(fired, gate, contracts_repo)
+    if result is None:
+        raise RuntimeError(
+            f"{gate} resolver spec missing "
+            f"(target-contracts/resolvers/{gate}.resolver.yaml) "
+            "— the verdict source of truth is absent.")
+    return result

@@ -233,15 +233,17 @@ def _resolver_rule_ids(gate: str) -> set[str]:
 
 
 def _gate_from_run_py(skill_dir: str) -> str | None:
-    """The gate string a sub-skill passes to resolve_verdict_for_gate(fired, "<gate>"), or None if the
-    skill has an inline verdict (never calls the resolver). Parsed via ast — no live reads."""
+    """The gate string a sub-skill passes to the shared resolver, or None if the skill has an
+    inline verdict (never calls the resolver). Parsed via ast — no live reads. Recognizes both
+    the low-level resolve_verdict_for_gate(fired, "<gate>") and the raise-on-missing wrapper
+    resolve_or_raise(fired, "<gate>") that most skills' _verdict now delegates to."""
     rp = SKILLS / skill_dir / "scripts" / "run.py"
     if not rp.exists():
         return None
     for node in ast.walk(ast.parse(rp.read_text())):
         if (
             isinstance(node, ast.Call)
-            and getattr(node.func, "id", None) == "resolve_verdict_for_gate"
+            and getattr(node.func, "id", None) in ("resolve_verdict_for_gate", "resolve_or_raise")
             and len(node.args) >= 2
             and isinstance(node.args[1], ast.Constant)
             and isinstance(node.args[1].value, str)

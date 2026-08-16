@@ -29,6 +29,7 @@ from __future__ import annotations
 from typing import Optional
 
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE as _EVIDENCE_ONLY_DIRECTIVE
+from _skills_common.synthesis import make_card_state
 
 SYNTHESIS_TOOL_NAME = "emit_dependency_synthesis"
 SYNTHESIS_TOOL_SCHEMA = {
@@ -195,12 +196,7 @@ def build_user_prompt(decision: dict, subtype_query: Optional[str] = None) -> st
     present_ids = {c["card_id"] for c in card_list}
     missing = {c["card_id"] for c in card_list if c.get("_missing")}
 
-    def _card_state(card_id: str) -> str:
-        if card_id in missing:
-            return "DATA_UNAVAILABLE (measured, no usable value)"
-        if card_id not in present_ids:
-            return "not present in this run"
-        return "measured"
+    _card_state = make_card_state(present_ids, missing)
 
     # Axis-2 control-benchmark + Axis-3 lineage-omnibus live in the two distribution/lineage card
     # summaries (display-only fields the readers now emit).

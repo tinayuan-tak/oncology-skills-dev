@@ -49,7 +49,7 @@ from .rules_loader import (
     filter_rules_by_card_ids,
 )
 from .write_package import write_package
-from .resolver import resolve_verdict, resolve_verdict_for_gate, load_resolver  # noqa: F401
+from .resolver import resolve_verdict, resolve_verdict_for_gate, resolve_or_raise, load_resolver  # noqa: F401
 from .composition_schema import (
     Composition,
     CompositionError,
@@ -488,6 +488,17 @@ def get_card_field(cards: list[dict], card_id: str, key: str):
             f"(available: {sorted(card_by_id)}). Check for a typo in the caller."
         )
     return (card_by_id[card_id].get("summary") or {}).get(key)
+
+
+def card_summary(cards: list[dict], card_id: str) -> dict:
+    """Return a card's `summary` dict by card_id, or {} if the card is absent or has no
+    summary. The graceful sibling of get_card_field: skills that tolerate a missing card
+    (a card not resolved in this run) get an empty dict rather than a raise.
+    """
+    for c in cards:
+        if c.get("card_id") == card_id:
+            return c.get("summary") or {}
+    return {}
 
 
 def write_decision(decision: dict, out_dir: Path) -> Path:

@@ -30,6 +30,7 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
+from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
 
 
@@ -106,10 +107,7 @@ def _resistance_verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 def _headline(cards, fired, verdict_pair):
     def _summary(cid):
-        for c in cards:
-            if c.get("card_id") == cid:
-                return c.get("summary") or {}
-        return {}
+        return card_summary(cards, cid)  # shared helper (_skills_common)
 
     # combination half
     s = _summary("combo-crispr-screen")

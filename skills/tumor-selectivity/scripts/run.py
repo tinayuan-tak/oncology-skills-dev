@@ -12,8 +12,9 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
+from _skills_common import card_summary
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_selectivity import synthesize_selectivity
 # Normal-breadth VETO clamp — SINGLE-SOURCED in _skills_common.selectivity_veto (F1, 2026-08-13) so BOTH
 # this standalone skill AND the compose-dashboard engine (compose_core.resolve_gate_spine) apply the
@@ -90,11 +91,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the resolver spec itself is validated by target-contracts/validators/validate_resolvers.py.
     A missing spec raises (the resolver is the source of truth — NO silent fallback to a stale
     copy, which would reintroduce the drift this refactor eliminates)."""
-    result = resolve_verdict_for_gate(fired, "selectivity")
-    if result is None:
-        raise RuntimeError(
-            "selectivity resolver spec missing (target-contracts/resolvers/"
-            "selectivity.resolver.yaml) — the verdict source of truth is absent.")
+    result = resolve_or_raise(fired, "selectivity")
     # NORMAL-BREADTH VETO (INC-1/2 conjunction) — the resolver verdict (axis-A tumor-vs-origin
     # over-expression) is NECESSARY but NOT SUFFICIENT: a gene with NO therapeutic window vs the worst
     # critical normal (housekeeping GAPDH/ACTB, or the TROP2/TACSTD2 broadly-normal surface archetype)
@@ -110,10 +107,7 @@ def _headline(cards, fired, verdict_pair):
     # id-lookup (NOT cards[0]) — robust to card order now that a 2nd card (Q2 percentile-crossing)
     # composes into this skill. Each card's summary is fetched by its card_id.
     def _summary(cid):
-        for c in cards:
-            if c.get("card_id") == cid:
-                return c.get("summary") or {}
-        return {}
+        return card_summary(cards, cid)  # shared helper (_skills_common)
     tvn = _summary("tumor-vs-normal-selectivity")
     pcx = _summary("tumor-vs-normal-percentile-crossing")   # Q2 per-sample corroboration
     # RESOLVED verdict from _verdict (includes the normal-breadth veto downgrade). Prior to 2026-08-08

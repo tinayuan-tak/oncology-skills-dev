@@ -37,7 +37,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_tractability_sm import synthesize_tractability_sm
 
 
@@ -70,13 +70,7 @@ def _snapshot(fired: list[dict]) -> tuple[str, str | None]:
     which enumerates every rule combination against the retained _snapshot_legacy_oracle). A missing spec
     raises (the resolver is the source of truth — no silent fallback to a stale copy, which would
     reintroduce drift). Mirrors surface-modality-fit's _verdict."""
-    result = resolve_verdict_for_gate(fired, "tractability_small_molecule")
-    if result is None:
-        raise RuntimeError(
-            "tractability_small_molecule resolver spec missing "
-            "(target-contracts/resolvers/tractability_small_molecule.resolver.yaml) "
-            "— the verdict source of truth is absent.")
-    return result
+    return resolve_or_raise(fired, "tractability_small_molecule")
 
 
 def _snapshot_legacy_oracle(fired: list[dict]) -> tuple[str, str | None]:

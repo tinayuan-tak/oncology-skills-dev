@@ -175,6 +175,21 @@ def _fmt(v, nd=1):
 # measured-negative-vs-data_unavailable distinction the narration must preserve).
 
 
+def make_card_state(present_ids: set, missing: set):
+    """Return a `card_state(card_id) -> str` classifier for the per-lens synthesis prompts:
+    DATA_UNAVAILABLE for a measured-but-empty card, "not present in this run" for a card not
+    resolved in this run, else "measured". Shared by the lens modules
+    (synthesis_dependency / _surface_modality / _tractability_sm) so the identical three-state
+    closure is not re-defined per lens."""
+    def card_state(card_id: str) -> str:
+        if card_id in missing:
+            return "DATA_UNAVAILABLE (measured, no usable value)"
+        if card_id not in present_ids:
+            return "not present in this run"
+        return "measured"
+    return card_state
+
+
 def _card_line(cards: dict, missing: set, present_ids: set, card_id: str, fields: list) -> str:
     """Render one card's decision-useful fields, or its honest absence. Distinguishes THREE
     states (the measured-gap doctrine): a card READ but data_unavailable (DATA_UNAVAILABLE —

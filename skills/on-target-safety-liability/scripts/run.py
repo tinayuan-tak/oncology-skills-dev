@@ -16,7 +16,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "on-target-safety-liability"
@@ -94,12 +94,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
-    result = resolve_verdict_for_gate(fired, "safety")
-    if result is None:
-        raise RuntimeError(
-            "safety resolver spec missing (target-contracts/resolvers/safety.resolver.yaml) "
-            "— the verdict source of truth is absent.")
-    return result
+    return resolve_or_raise(fired, "safety")
 
 # The mutant-selective DOWNGRADE verdicts — a WT-constraint / human-genetics concern that is
 # largely nullified for an allele-selective mechanism. Every such verdict must carry the

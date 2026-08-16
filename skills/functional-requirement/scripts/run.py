@@ -22,7 +22,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field, resolve_cards
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 from _skills_common.synthesis_dependency import synthesize_dependency
 
 
@@ -278,12 +278,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
-    result = resolve_verdict_for_gate(fired, "dependency")
-    if result is None:
-        raise RuntimeError(
-            "dependency resolver spec missing (target-contracts/resolvers/dependency.resolver.yaml) "
-            "— the verdict source of truth is absent.")
-    return result
+    return resolve_or_raise(fired, "dependency")
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)

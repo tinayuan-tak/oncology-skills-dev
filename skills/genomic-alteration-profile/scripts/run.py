@@ -35,7 +35,7 @@ from _skills_common import (
     resolve_cards, fired_rules, modality_lens,
     make_decision_json, write_package, get_card_field,
 )
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 # G1/G2 (2026-08-13): the family-wise FDR is SINGLE-SOURCED in _skills_common.card_preprocessors so ALL
 # three resolution paths apply it (standalone main() here, target-profile fan-out, compose-dashboard
 # resolve_gate_spine) — it previously lived only in main() and both composed paths bypassed it. The
@@ -189,12 +189,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     is historical, not the current combinatorial coverage. The resolver YAML remains the single source of
     truth; a missing spec raises (NO silent fallback to a stale copy, which would reintroduce the drift
     this refactor eliminates)."""
-    result = resolve_verdict_for_gate(fired, "genomic_alteration")
-    if result is None:
-        raise RuntimeError(
-            "genomic_alteration resolver spec missing (target-contracts/resolvers/"
-            "genomic_alteration.resolver.yaml) — the verdict source of truth is absent.")
-    return result
+    return resolve_or_raise(fired, "genomic_alteration")
 
 
 # Per-ALTERATION-CLASS decomposition (2026-08-14 consolidation-fidelity follow-up). The

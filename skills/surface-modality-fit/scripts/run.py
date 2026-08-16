@@ -26,7 +26,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.synthesis_surface_modality import synthesize_surface_modality
 
@@ -170,12 +170,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
-    result = resolve_verdict_for_gate(fired, "surface_modality")
-    if result is None:
-        raise RuntimeError(
-            "surface_modality resolver spec missing (target-contracts/resolvers/surface_modality.resolver.yaml) "
-            "— the verdict source of truth is absent.")
-    return result
+    return resolve_or_raise(fired, "surface_modality")
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)

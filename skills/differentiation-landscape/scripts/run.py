@@ -18,7 +18,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common import get_card_field
-from _skills_common.resolver import resolve_verdict_for_gate
+from _skills_common.resolver import resolve_or_raise
 
 
 SKILL_NAME = "differentiation-landscape"
@@ -61,12 +61,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     evaluated by the ONE interpreter both engines call. Proven byte-for-byte equivalent to
     the former if-chain by the golden-oracle test. A missing spec raises (the resolver is
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
-    result = resolve_verdict_for_gate(fired, "differentiation")
-    if result is None:
-        raise RuntimeError(
-            "differentiation resolver spec missing (target-contracts/resolvers/differentiation.resolver.yaml) "
-            "— the verdict source of truth is absent.")
-    return result
+    return resolve_or_raise(fired, "differentiation")
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
