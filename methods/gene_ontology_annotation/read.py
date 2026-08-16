@@ -50,11 +50,7 @@ def _ensure_aws_profile():
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
-def _boto3_client():
-    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads,
-    # the failure mode that silently dropped cards on a full dossier run — 2026-08-11)
-    from methods.target_id_sidecar import s3_client
-    return s3_client()
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 @lru_cache(maxsize=1)

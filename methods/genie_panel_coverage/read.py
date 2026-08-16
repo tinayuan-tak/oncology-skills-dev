@@ -41,9 +41,7 @@ def _ensure_aws_profile():
         os.environ["AWS_PROFILE"] = DEFAULT_AWS_PROFILE
 
 
-def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _parse_gene_panel_file(text: str) -> list[str]:

@@ -246,9 +246,7 @@ INDICATION_TO_PROXY_NORMAL_TISSUES = {
 }
 
 
-def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_sidecar_cached() -> Optional[Path]:

@@ -40,10 +40,7 @@ CACHE_CSV = CACHE_DIR / "ParalogGeneEffect.csv"
 _PARALOG_STATUS: Optional[bool] = None
 
 
-def _boto3_client():
-    # shared client: AWS_PROFILE=cbg + adaptive-retry Config (absorbs transient S3 throttling)
-    from methods.target_id_sidecar import s3_client
-    return s3_client()
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_paralog_cached() -> Optional[Path]:

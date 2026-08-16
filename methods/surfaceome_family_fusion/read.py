@@ -36,11 +36,7 @@ CACHE_PARQUET = CACHE_DIR / "surfaceome_family.parquet"
 _DERIVED_STATUS: Optional[bool] = None
 
 
-def _boto3_client():
-    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads);
-    # a bare boto3.Session(...).client("s3") had NO retry backoff (mirrors uniprot_gpi_anchor).
-    from methods.target_id_sidecar import s3_client
-    return s3_client()
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_derived_cached() -> Optional[Path]:

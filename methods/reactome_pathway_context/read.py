@@ -60,11 +60,7 @@ _TOP_LEVEL_HINT_STRINGS = {
 }
 
 
-def _boto3_client():
-    """AWS_PROFILE=cbg boto3 s3 client with an adaptive-retry Config (absorbs transient throttling on
-    batch reads — the failure mode that silently dropped dossier cards, 2026-08-11)."""
-    from methods.target_id_sidecar import s3_client
-    return s3_client()
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_cached(s3_key: str, cache_filename: str) -> Path:

@@ -59,9 +59,7 @@ _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
-def _boto3_client():
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_cached() -> Optional[Path]:

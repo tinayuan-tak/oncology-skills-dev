@@ -65,19 +65,7 @@ CACHE_TSV = CACHE_DIR / "SIGNOR_Jul2026_release.txt"
 CACHE_PARQUET = CACHE_DIR / "signor_mechanism_network.parquet"
 
 
-def _boto3_client():
-    """Return a boto3 s3 client with AWS_PROFILE=cbg explicitly.
-
-    Uses explicit Session(profile_name=...) rather than os.environ mutation
-    because setdefault() no-ops when AWS_PROFILE is already set to
-    Developer-Dev by the SSO login, and boto3.Session caches credentials
-    at construction time — a mid-process env-var change doesn't propagate.
-    See feedback_compose_dashboard_aws_profile memory: live mode requires
-    explicit AWS_PROFILE=cbg; default cmp-dev/Developer-Dev roles lack
-    GetObject on the onc-compbio bucket.
-    """
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _try_load_derived_parquet_from_s3() -> Optional[str]:

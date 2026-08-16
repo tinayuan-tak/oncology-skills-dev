@@ -48,15 +48,7 @@ CACHE_DIR = Path.home() / ".cache" / "framework-collectri"
 CACHE_CSV = CACHE_DIR / "CollecTRI.csv"
 
 
-def _boto3_client():
-    """Return a boto3 s3 client with AWS_PROFILE=cbg explicitly pinned.
-
-    Same discipline as signor_mechanism_network.read._boto3_client — the
-    default SSO role (Developer-Dev) lacks GetObject on onc-compbio;
-    setdefault() no-ops if AWS_PROFILE is already set to something else.
-    """
-    import boto3
-    return boto3.Session(profile_name=DEFAULT_AWS_PROFILE).client("s3")
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_collectri_cached() -> Path:

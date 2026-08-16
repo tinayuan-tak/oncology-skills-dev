@@ -64,10 +64,7 @@ _DERIVED_STATUS: Optional[bool] = None  # negative cache (hotspot-adjacency prod
 _LIGAND_STATUS: Optional[bool] = None   # negative cache (ligandability product)
 
 
-def _boto3_client():
-    # shared client carries an adaptive-retry Config (absorbs transient S3 throttling on batch reads)
-    from methods.target_id_sidecar import s3_client
-    return s3_client()
+from methods.target_id_sidecar import s3_client as _boto3_client
 
 
 def _ensure_derived_cached() -> Optional[Path]:
