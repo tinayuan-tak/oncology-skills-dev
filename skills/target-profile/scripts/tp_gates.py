@@ -63,9 +63,84 @@ _FALLBACK_GATE_VERDICTS: dict[tuple[str, str], str] = {
     ("dependency", "pan_essential_killer"): "veto",   # non-selective essentiality — no window
     ("dependency", "non_dependent"): "veto",          # no dependency at all
     ("safety", "highly_constrained_safety_concern"): "hold",  # concern → hold, not veto
+    # 2026-08-16: the fallback must be conservative-AND-COMPLETE — it must mirror the ENTIRE
+    # gates block, not just the veto arms, so a missing/unparseable vocab still fires every
+    # HOLD too (a missing policy silently dropping the human-genetics or subtype hold would be a
+    # fail-open). These two were previously vocab-only.
+    ("safety", "human_genetics_safety_concern"): "hold",       # P5 human-genetics WT-loss concern
+    ("subtype_fit", "subtype_specific_non_dependence"): "hold",  # queried subtype has no dependency
 }
 # Precedence when multiple gates fire: veto dominates hold.
 _GATE_ACTION_RANK = {"veto": 2, "hold": 1}
+
+# --- Fail-closed, gate-complete guard (roadmap §6.6, invariant 6) -----------
+#
+# The GATING (recommendation-forcing) axes: the sub-skills that can force
+# overall_recommendation via a `gates` veto/hold. An UNKNOWN / RENAMED / MALFORMED
+# verdict on one of THESE axes previously returned None → a SILENT PERMISSIVE PASS
+# (the fail-open). Instead, such a verdict now routes to the axis's LEAST-PERMISSIVE
+# action (never None), loudly recorded. Hardcoded (not derived from the loaded vocab)
+# so a degraded/missing vocab cannot shrink the gating-axis set and re-open the hole.
+_GATING_AXES: frozenset[str] = frozenset({"dependency", "safety", "subtype_fit"})
+
+# The COMPLETE recognized verdict vocabulary each gating axis can legitimately emit
+# (mirrors resolvers/{dependency,safety}.resolver.yaml + the subtype panorama). A verdict
+# on a gating axis OUTSIDE this set is treated as unrecognized (a possible renamed kill) and
+# fails CLOSED. This is the "hardcoded complete fallback": if a resolver adds a genuinely NEW
+# benign verdict without this set being updated, the gate OVER-clamps (least-permissive) —
+# the SAFE direction (loud, never silent) — and the regression fixtures catch it immediately.
+_RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
+    "dependency": frozenset({
+        "pan_essential_killer", "non_dependent",                      # the two vetoes
+        "concordant_dependent", "lineage_selective", "selective_dependent",
+        "chemical_genetic_confirmed_dependent", "partner_conditional_dependent",
+        "discordant", "broadly_dependent",                            # contradictions
+        "non_dependent_paralog_buffered",                             # veto-rescue (benign)
+        "insufficient", "insufficient_underpowered",
+        "insufficient_underpowered_pan_essential",                    # admissibility guards
+    }),
+    "safety": frozenset({
+        "highly_constrained_safety_concern", "human_genetics_safety_concern",  # the two holds
+        "wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch",
+        "tolerant_reduced_safety_risk", "moderately_constrained_safety",
+        "data_unavailable", "insufficient",
+    }),
+    "subtype_fit": frozenset({
+        "subtype_specific_non_dependence",                            # the hold
+        "insufficient",
+    }),
+}
+
+# The LEAST-PERMISSIVE forced action per gating axis, applied when that axis emits an
+# unrecognized / malformed verdict. dependency's floor is veto (it owns the two vetoes);
+# safety + subtype are hold. Never None.
+_GATING_AXIS_FAILCLOSED_ACTION: dict[str, str] = {
+    "dependency": "veto", "safety": "hold", "subtype_fit": "hold",
+}
+
+
+# The complete kill_capable_verdicts registry FALLBACK (mirrors target-contracts
+# vocabularies/nomination_verdict_gate.yaml). {(sub_skill, verdict): disposition}, disposition
+# ∈ {gated, excluded_modality_scoped, contradiction}. Used to iterate the COMPLETE declared kill
+# set for the hard_gates status block; conservative-and-complete on load failure (never empty).
+_FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
+    ("dependency", "pan_essential_killer"): "gated",
+    ("dependency", "non_dependent"): "gated",
+    ("dependency", "discordant"): "contradiction",
+    ("dependency", "broadly_dependent"): "contradiction",
+    ("safety", "highly_constrained_safety_concern"): "gated",
+    ("safety", "human_genetics_safety_concern"): "gated",
+    ("subtype_fit", "subtype_specific_non_dependence"): "gated",
+    ("selectivity", "not_selective"): "contradiction",
+    ("selectivity", "discordant_across_comparators"): "contradiction",
+    ("surface_modality", "neither_viable"): "excluded_modality_scoped",
+    ("surface_modality", "adc_preferred_tce_unsafe"): "excluded_modality_scoped",
+    ("surface_modality", "tce_unsafe_normal_liability"): "excluded_modality_scoped",
+    ("surface_modality", "shed_dominant_opposed"): "excluded_modality_scoped",
+    ("tractability_sm", "structurally_intractable"): "excluded_modality_scoped",
+    ("tractability_sm", "chemically_unhit"): "contradiction",
+    ("tractability_sm", "discordant"): "contradiction",
+}
 
 
 def _load_gate_verdicts(contracts_repo: Path | None = None) -> tuple[dict[tuple[str, str], str], str]:
@@ -91,6 +166,36 @@ def _load_gate_verdicts(contracts_repo: Path | None = None) -> tuple[dict[tuple[
               f"({type(e).__name__}: {e}); using hardcoded conservative fallback.",
               file=sys.stderr)
         return dict(_FALLBACK_GATE_VERDICTS), "fallback"
+
+
+def _load_kill_capable_verdicts(
+    contracts_repo: Path | None = None,
+) -> tuple[dict[tuple[str, str], str], str]:
+    """Load the COMPLETE kill_capable_verdicts registry (roadmap §6.6) from the vocab.
+    Returns ({(sub_skill, verdict): disposition}, source), disposition ∈
+    {gated, excluded_modality_scoped, contradiction}.
+
+    SAFETY CONTRACT (mirrors _load_gate_verdicts): on ANY failure this returns the
+    conservative-and-complete hardcoded fallback + "fallback" and warns — never an empty
+    map (a missing registry must not shrink the declared kill set the hard_gates block
+    iterates)."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        reg = data["kill_capable_verdicts"]
+        mapping: dict[tuple[str, str], str] = {}
+        for sub_skill, entries in reg.items():
+            for e in entries:
+                mapping[(sub_skill, e["verdict"])] = e["disposition"]
+        if not mapping:
+            raise ValueError("empty kill_capable_verdicts")
+        return mapping, "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → conservative-and-complete fallback
+        print(f"[target-profile] WARN: could not load kill_capable_verdicts registry "
+              f"({type(e).__name__}: {e}); using hardcoded complete fallback.",
+              file=sys.stderr)
+        return dict(_FALLBACK_KILL_CAPABLE_VERDICTS), "fallback"
 
 
 # Biologics modalities for which the dependency veto is INFORMATIVE-only (a
@@ -149,7 +254,13 @@ def _suppressed_gate_hits(
     if not ctx_supps and not msvs:
         return hits, []
 
-    present = {(short, (r.get("verdict") or [None])[0]) for short, r in sub_results.items()}
+    # Build the present-verdict set for suppressor matching. Defensive against a MALFORMED
+    # verdict (a bare string, a dict): only a WELL-FORMED (verdict, ...) tuple can be a
+    # suppressor trigger, and a garbled verdict must not crash the gate (fail-closed discipline —
+    # the malformed sub-verdict already routed to least-permissive upstream).
+    def _first(v):
+        return v[0] if isinstance(v, (list, tuple)) and len(v) >= 1 and isinstance(v[0], str) else None
+    present = {(short, _first(r.get("verdict"))) for short, r in sub_results.items()}
     survivors: list[dict] = []
     suppressions: list[dict] = []
     for h in hits:
@@ -200,7 +311,24 @@ def _gate_recommendation(
     hits: list[dict] = []
     for short, r in sub_results.items():
         v = r.get("verdict")
+        # An ABSENT/empty verdict is a coverage gap (the axis did not measure), NOT a kill —
+        # never fail-closed on it (that would veto every target an axis was blind on). Skip.
         if not v:
+            continue
+        # FAIL-CLOSED (§6.6): a MALFORMED verdict tuple on a veto-capable (gating) axis is NOT a
+        # silent continue — a garbled sub-verdict on dependency/safety/subtype could be masking a
+        # kill. Route to the axis's least-permissive action; never None.
+        well_formed = isinstance(v, (list, tuple)) and len(v) >= 1 and isinstance(v[0], str)
+        if not well_formed:
+            if short in _GATING_AXES:
+                fc = _GATING_AXIS_FAILCLOSED_ACTION[short]
+                hits.append({"short": short, "verdict": "<malformed>",
+                             "action": fc, "driving_rule_id": None,
+                             "policy_source": policy_source,
+                             "_fail_closed": True, "fail_closed_reason": "malformed_verdict"})
+                print(f"[target-profile] recommendation GATE fail-closed: malformed verdict "
+                      f"{v!r} on gating axis '{short}' → forced least-permissive '{fc}'.",
+                      file=sys.stderr)
             continue
         verdict_str, driving_rule_id = v[0], (v[1] if len(v) > 1 else None)
         action = gate_verdicts.get((short, verdict_str))
@@ -208,6 +336,21 @@ def _gate_recommendation(
             hits.append({"short": short, "verdict": verdict_str,
                          "action": action, "driving_rule_id": driving_rule_id,
                          "policy_source": policy_source})
+            continue
+        # No gate action matched. FAIL-CLOSED (§6.6): on a gating axis, an UNRECOGNIZED verdict
+        # token (renamed kill, unknown enum) is NOT a silent permissive pass — if the token is not
+        # in the axis's complete recognized vocabulary it may be a renamed veto, so route to the
+        # axis's least-permissive action. Recognized-but-non-gating verdicts (positives, neutrals,
+        # insufficient) fall through exactly as before (no forced action).
+        if short in _GATING_AXES and verdict_str not in _RECOGNIZED_GATING_VERDICTS.get(short, frozenset()):
+            fc = _GATING_AXIS_FAILCLOSED_ACTION[short]
+            hits.append({"short": short, "verdict": verdict_str,
+                         "action": fc, "driving_rule_id": driving_rule_id,
+                         "policy_source": policy_source,
+                         "_fail_closed": True, "fail_closed_reason": "unrecognized_verdict"})
+            print(f"[target-profile] recommendation GATE fail-closed: unrecognized verdict "
+                  f"'{verdict_str}' on veto-capable axis '{short}' (not in recognized set) → "
+                  f"forced least-permissive '{fc}' (never a silent pass).", file=sys.stderr)
     # v1.2.0: apply veto suppression (context-escape + modality-scoped) before
     # resolving the forced action. A suppressed veto does not force — but is recorded.
     hits, suppressions = _suppressed_gate_hits(hits, sub_results, modality, contracts_repo)
@@ -220,6 +363,64 @@ def _gate_recommendation(
     # (test_every_gate_well_formed) is the primary guard — this is defense-in-depth.
     forced = max((h["action"] for h in hits), key=lambda a: _GATE_ACTION_RANK.get(a, 0))
     return forced, hits, suppressions
+
+
+def _hard_gates_status(
+    sub_results: dict, hits: list[dict], suppressions: list[dict],
+    contracts_repo: Path | None = None,
+) -> list[dict]:
+    """Build the COMPLETE-declared-set hard-gate status block (roadmap §6.6, gate-complete
+    ceiling). Iterates EVERY kill-capable verdict declared in the target-contracts
+    kill_capable_verdicts registry (hardcoded complete fallback on load failure) and reports,
+    per (sub_skill, verdict), its status THIS run — so the full hard-gate set is legible and a
+    kill is never silently absent from the audit. Purely additive: reads the already-resolved
+    gate state, forces nothing.
+
+    Per-entry status:
+      fired      — a `gated` verdict matched the live sub-verdict and forced the recommendation
+                   (includes fail-closed clamps).
+      suppressed — a `gated` verdict matched but a veto suppressor lifted it (recorded).
+      excluded   — an `excluded_modality_scoped` verdict matched live (a modality-local
+                   foreclosure that deliberately did NOT blanket-veto).
+      opposing   — a `contradiction` verdict matched live (opposing measured evidence; blocks
+                   `strong`, not a veto).
+      blind      — the axis produced NO verdict this run (coverage gap — could not evaluate).
+      latent     — the axis WAS evaluated but did not emit this kill verdict (declared, dormant).
+    """
+    registry, source = _load_kill_capable_verdicts(contracts_repo)
+    fired_pairs = {(h["short"], h["verdict"]) for h in hits}
+    suppressed_pairs = {(s["short"], s["verdict"]) for s in suppressions}
+
+    def _live_verdict(short: str):
+        r = sub_results.get(short)
+        if not r:
+            return None, True  # axis absent → blind
+        v = r.get("verdict")
+        if not (isinstance(v, (list, tuple)) and len(v) >= 1 and isinstance(v[0], str)):
+            return None, True  # absent/malformed → blind (the fail-closed hit carries the force)
+        return v[0], False
+
+    rows: list[dict] = []
+    for (short, verdict), disposition in sorted(registry.items()):
+        live, blind = _live_verdict(short)
+        matched = (live == verdict)
+        if (short, verdict) in fired_pairs:
+            status = "fired"
+        elif (short, verdict) in suppressed_pairs:
+            status = "suppressed"
+        elif blind:
+            status = "blind"
+        elif matched and disposition == "excluded_modality_scoped":
+            status = "excluded"
+        elif matched and disposition == "contradiction":
+            status = "opposing"
+        elif matched and disposition == "gated":
+            status = "fired"   # gated + matched but not in hits (defensive; normally in hits)
+        else:
+            status = "latent"
+        rows.append({"short": short, "verdict": verdict, "disposition": disposition,
+                     "status": status, "live_verdict": live, "policy_source": source})
+    return rows
 
 
 # --- Deciding-axis router (L / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 3) -----
@@ -498,15 +699,21 @@ __all__ = [
     '_COVERAGE_GAP_VERDICTS',
     '_COVERAGE_RANK',
     '_FALLBACK_GATE_VERDICTS',
+    '_FALLBACK_KILL_CAPABLE_VERDICTS',
     '_GATE_ACTION_RANK',
+    '_GATING_AXES',
+    '_GATING_AXIS_FAILCLOSED_ACTION',
+    '_RECOGNIZED_GATING_VERDICTS',
     '_SCORECARD_STATUS_ORDER',
     '_TIER_TO_CONFIDENCE',
     '_V2_GATE_LISTS',
     '_flatten_gate_coverage',
     '_gate_recommendation',
     '_gate_scorecard',
+    '_hard_gates_status',
     '_load_gate_coverage',
     '_load_gate_verdicts',
+    '_load_kill_capable_verdicts',
     '_load_positive_signals',
     '_load_veto_suppressors',
     '_positive_tier',

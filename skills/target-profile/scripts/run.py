@@ -51,7 +51,8 @@ from tp_fanout import *              # noqa: F401,F403
 from tp_fanout import SUB_SKILLS, _run_sub_skills, _skipped_synthesis_output
 from tp_gates import *               # noqa: F401,F403
 from tp_gates import (               # names main() calls directly
-    _CONFIDENCE_RANK, _TIER_TO_CONFIDENCE, _gate_recommendation, _gate_scorecard, _positive_tier,
+    _CONFIDENCE_RANK, _TIER_TO_CONFIDENCE, _gate_recommendation, _gate_scorecard,
+    _hard_gates_status, _positive_tier,
 )
 from tp_facets import *              # noqa: F401,F403
 from tp_facets import (
@@ -276,6 +277,10 @@ def main() -> int:
         print(f"[target-profile] recommendation GATE fired: forced '{gate_action}' "
               f"(LLM said '{llm_value}') via {[h['short']+':'+h['verdict'] for h in gate_hits]}",
               file=sys.stderr)
+        if any(h.get("_fail_closed") for h in gate_hits):
+            print("[target-profile] NOTE: recommendation was FAIL-CLOSED (an unrecognized/malformed "
+                  "verdict on a veto-capable axis routed to least-permissive — never a silent pass).",
+                  file=sys.stderr)
     else:
         # NO kill fired → the positive tier may raise a deterministic confidence
         # FLOOR. F1-safe: this branch is unreachable when a kill fired; it touches
@@ -299,6 +304,12 @@ def main() -> int:
             print(f"[target-profile] positive tier: {tier} "
                   f"(dims={sorted({h['short'] for h in pos_hits})}); "
                   f"confidence floor {floor}", file=sys.stderr)
+
+    # Gate-complete ceiling (§6.6): attach the COMPLETE declared hard-gate set with per-gate
+    # fired/suppressed/excluded/blind status. Additive — reads the resolved gate state, forces
+    # nothing; flows into nomination.json + evidence_package via recommendation_gate.
+    recommendation_gate["hard_gates"] = _hard_gates_status(
+        sub_results, gate_hits, gate_suppressions)
 
     # Deciding-axis router (L): name the load-bearing gate + whether the framework can
     # evidence it. Reports (never predicts): a fired gate is the deciding axis; on abstention,

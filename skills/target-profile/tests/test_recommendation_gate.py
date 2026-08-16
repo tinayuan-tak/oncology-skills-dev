@@ -215,9 +215,13 @@ def test_subtype_hold_loses_to_dependency_veto():
 
 
 def test_no_subtype_key_is_backward_compatible():
-    """A whole-cohort run (no subtype_fit sub-result) behaves exactly as before."""
-    subs = {"dependency": {"verdict": ("dependent", "r")},
-            "safety": {"verdict": ("ok", "r")}}
+    """A whole-cohort run (no subtype_fit sub-result) behaves exactly as before. Uses REAL
+    recognized-but-non-gating verdicts (a positive dependency + a neutral safety band): neither
+    forces a gate → None. (The former placeholder tokens `dependent`/`ok` were not real resolver
+    verdicts; post fail-closed hardening an unrecognized token on a veto-capable axis is clamped,
+    so the intent — 'no gate fires' — is expressed with real benign verdicts.)"""
+    subs = {"dependency": {"verdict": ("concordant_dependent", "r")},
+            "safety": {"verdict": ("moderately_constrained_safety", "r")}}
     forced, _, _sup = tp._gate_recommendation(subs)
     assert forced is None
 
