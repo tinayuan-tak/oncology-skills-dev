@@ -35,6 +35,14 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
 
+# Canonical indication → DepMap OncotreeLineage map (single source of truth in
+# depmap_chronos.cli). Imported here as INDICATION_LINEAGE — do NOT re-fork it
+# (guarded by tests/methods/depmap_chronos/test_lineage_map_single_source.py).
+# NB: the prior in-module fork carried "OV": "Ovary", a value that does NOT exist
+# in DepMap 26Q1 Model.csv (the real lineage is "Ovary/Fallopian Tube"), so the
+# ovarian highlight never matched — the canonical map corrects this.
+from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as INDICATION_LINEAGE
+
 METHOD_VERSION = "0.1.0"
 
 # bucket + source-dir prefixes resolved from the data-catalog manifests (single
@@ -504,17 +512,6 @@ def emit_plot_data_protein(abundance_by_model: dict, lineage_by_model: dict,
     return out_file
 
 
-# Indication → DepMap OncotreeLineage (mirrors depmap_expression_distribution.INDICATION_LINEAGE) —
-# DepMap has no per-indication axis, so the indication-relevant cell-line signal IS its lineage.
-INDICATION_LINEAGE = {
-    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "LUAD": "Lung", "LUSC": "Lung",
-    "NSCLC": "Lung", "BRCA": "Breast", "PAAD": "Pancreas", "PDAC": "Pancreas", "SKCM": "Skin",
-    "STAD": "Esophagus/Stomach", "PRAD": "Prostate", "OV": "Ovary", "KIRC": "Kidney", "GBM": "CNS/Brain",
-    "LGG": "CNS/Brain", "HNSC": "Head and Neck", "BLCA": "Bladder/Urinary Tract", "LIHC": "Liver",
-    "ESCA": "Esophagus/Stomach", "CESC": "Cervix",
-}
-
-
 def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_symbol: str,
                       summary: dict, out_dir: Path,
                       target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
@@ -604,7 +601,7 @@ def emit_plotly_specs(abundance_by_model: dict, lineage_by_model: dict, target_s
             by_lineage.setdefault(lg, []).append(v)
         lins2 = [(lg, lv) for lg, lv in by_lineage.items() if len(lv) >= 5]
         lins2.sort(key=lambda lv: float(np.median(lv[1])))   # ascending → highest median at top
-        target_lineage = INDICATION_LINEAGE.get((indication or "").upper()) if indication else None
+        target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip()) if indication else None
         fig = go.Figure()
         for lg, lv in lins2:
             is_target = (lg == target_lineage)

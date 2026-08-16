@@ -40,6 +40,11 @@ import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
+# Canonical indication → DepMap OncotreeLineage map (single source of truth in
+# depmap_chronos.cli). Imported here as INDICATION_LINEAGE — do NOT re-fork it
+# (guarded by tests/methods/depmap_chronos/test_lineage_map_single_source.py).
+from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as INDICATION_LINEAGE
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -266,11 +271,7 @@ def compute_correlation_summary(
     import pandas as pd
     from scipy import stats
 
-    INDICATION_LINEAGE = {
-        "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-        "SCLC": "Lung", "GC": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
-    }
-    target_lineage = INDICATION_LINEAGE.get(indication, "")
+    target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip(), "")
 
     # Join Chronos + TPM on ModelID, attach lineage
     rows = []
@@ -395,9 +396,7 @@ def emit_scatter_regression_plot(merged_data: list, target_symbol: str,
     style = _setup_plot_style(contracts_root)
     df = pd.DataFrame(merged_data)
 
-    INDICATION_LINEAGE = {"COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-                          "SCLC": "Lung", "GC": "Esophagus/Stomach"}  # no "Stomach" lineage in 26Q1
-    target_lineage = INDICATION_LINEAGE.get(indication, "")
+    target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip(), "")
 
     fig, ax = plt.subplots(figsize=style["FIGSIZE_DOUBLE_COLUMN"])
 
@@ -510,9 +509,7 @@ def emit_lineage_stratified_scatter(merged_data: list, target_symbol: str,
     style = _setup_plot_style(contracts_root)
     df = pd.DataFrame(merged_data)
 
-    INDICATION_LINEAGE = {"COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-                          "SCLC": "Lung", "GC": "Esophagus/Stomach"}  # no "Stomach" lineage in 26Q1
-    target_lineage = INDICATION_LINEAGE.get(indication, "")
+    target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip(), "")
 
     if df.empty:
         fig, ax = plt.subplots(figsize=style["FIGSIZE_DOUBLE_COLUMN_TALL"])
@@ -661,7 +658,7 @@ def build_merged_data(chronos_by_model: dict, tpm_by_model: dict,
 @click.command()
 @click.option("--target", required=True)
 @click.option("--indication", required=True,
-              type=click.Choice(["COADREAD", "PDAC", "NSCLC", "SCLC", "GC"]))
+              type=click.Choice(sorted(INDICATION_LINEAGE)))  # validated against the canonical map — no silent unmapped fallback
 @click.option("--release-pin", default="26q1")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
 @click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path),

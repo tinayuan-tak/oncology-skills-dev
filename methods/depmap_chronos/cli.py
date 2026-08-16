@@ -159,17 +159,41 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
     return chronos_by_model, model_metadata, load_errors
 
 
-# Indication → DepMap OncotreeLineage map. Module-level constant: used by the
-# figure emitters (which highlight the target lineage at render time) AND by
-# downstream synthesis code that needs the same mapping for indication-context.
-# NOT used by compute_lineage_summary anymore — the method's output is target-only.
+# ============================================================================
+# CANONICAL indication → DepMap OncotreeLineage map — SINGLE SOURCE OF TRUTH.
+# ============================================================================
+# The one authoritative framework-indication → DepMap 26Q1 OncotreeLineage
+# crosswalk. Every value is a REAL lineage in DepMap 26Q1 Model.csv (34 non-null
+# OncotreeLineage categories; verified live 2026-08-16). It lives HERE (the leaf
+# module — cli.py imports nothing from read.py) and is re-exported by
+# depmap_chronos.read as INDICATION_TO_DEPMAP_LINEAGE (the SAME object, no fork)
+# and imported by the 4 stratified-dependency readers, the 3 sibling depmap
+# display CLIs, and pathway_node_leverage. Do NOT re-fork this literal in another
+# module — alias-import it (guarded by
+# tests/methods/depmap_chronos/test_lineage_map_single_source.py).
+#
+# Used by the figure emitters (highlight the target lineage at render time) + the
+# indication-conditioned stratified-dependency ladder. NOT consumed by
+# compute_lineage_summary — that method's output is target-only.
+#
+# History: the original GC/STAD → "Stomach" was a LATENT BUG (DepMap 26Q1 has NO
+# "Stomach" lineage; the real merged value is "Esophagus/Stomach") — corrected in
+# #365; consolidated from 6 forks to this single source + full framework coverage
+# (heme AML/CML + defensive MELANOMA alias) in the lineage-scoping residual
+# consolidation (2026-08-16).
 INDICATION_LINEAGE = {
-    "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
-    "SCLC": "Lung", "GC": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
-    "PAAD": "Pancreas",   # OncoTree/TCGA code for pancreatic adenocarcinoma (alias of the disease-abbrev PDAC key
-                          # above). The framework passes indication codes like PAAD; without this, every pancreatic
-                          # target silently fell back to pan-lineage. A fuller code crosswalk is the broader
-                          # indication-vocabulary-fragmentation follow-up; PAAD is the confirmed live gap.
+    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel",
+    "LUAD": "Lung", "LUSC": "Lung", "NSCLC": "Lung", "SCLC": "Lung",
+    "BRCA": "Breast", "PAAD": "Pancreas", "PDAC": "Pancreas",
+    "SKCM": "Skin", "MELANOMA": "Skin",              # MELANOMA aliases SKCM (defensive)
+    "STAD": "Esophagus/Stomach", "ESCA": "Esophagus/Stomach",
+    "GC": "Esophagus/Stomach",                       # was "Stomach" (nonexistent lineage) — fixed
+    "PRAD": "Prostate", "OV": "Ovary/Fallopian Tube", "KIRC": "Kidney",
+    "GBM": "CNS/Brain", "LGG": "CNS/Brain", "HNSC": "Head and Neck",
+    "BLCA": "Bladder/Urinary Tract", "LIHC": "Liver", "UCEC": "Uterus",
+    "CESC": "Cervix",
+    "LAML": "Myeloid", "AML": "Myeloid", "CML": "Myeloid",   # heme (LAML=TCGA code; AML/CML=framework codes)
+    "DLBC": "Lymphoid",
 }
 
 
@@ -628,7 +652,7 @@ def emit_manifest(target: str, indication: str, release_pin: str, summary: dict,
 @click.command()
 @click.option("--target", required=True)
 @click.option("--indication", required=True,
-              type=click.Choice(["COADREAD", "PDAC", "NSCLC", "SCLC", "GC"]))
+              type=click.Choice(sorted(INDICATION_LINEAGE)))  # validated against the canonical map — no silent unmapped fallback
 @click.option("--release-pin", default="26q1")
 @click.option("--strong-dependency-threshold", type=float, default=-1.0)
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path),
@@ -666,7 +690,7 @@ def main(target, indication, release_pin, strong_dependency_threshold,
     # Resolve target_lineage from the indication → lineage map (figure emitters need
     # it for indication-context highlighting). The method's data product is
     # target-only; this is a render-time concern.
-    target_lineage = INDICATION_LINEAGE.get(indication, "")
+    target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip(), "")
 
     with (out / "summary.json").open("w") as f:
         json.dump(summary, f, indent=2, default=str)

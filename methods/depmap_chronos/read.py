@@ -39,28 +39,16 @@ DEFAULT_CHRONOS_PARQUET = (
     Path.home() / ".cache" / "framework-depmap-26q1-parquet" / "CRISPRGeneEffect.parquet"
 )
 
-# Indication → OncotreeLineage mapping (DepMap Model.csv categorical).
-# Mirrors cli.compute_lineage_summary's INDICATION_LINEAGE; kept here for back-compat
-# imports (some tests reference INDICATION_TO_DEPMAP_LINEAGE directly).
-# framework indication → DepMap OncotreeLineage. Every value is a REAL lineage in DepMap 26Q1
-# Model.csv (verified 2026-08-08). Extended from the original 5 entries to the full framework
-# indication set for the indication-conditioned stratified-dependency ladder (T2.0) — the shared
-# map, reused (NOT forked) by depmap_chronos lineage-selectivity + the 4 stratified-dependency
-# methods. NOTE the original "GC": "Stomach" was a LATENT BUG (no such lineage; the real value is
-# "Esophagus/Stomach") — corrected here. Indications whose within-lineage line count is thin
-# (PRAD 32 / LIHC 29 / CESC 26) still map correctly; the ladder's floor routes them to the
-# pan-lineage fallback rather than a mismatch.
-INDICATION_TO_DEPMAP_LINEAGE = {
-    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel",
-    "LUAD": "Lung", "LUSC": "Lung", "NSCLC": "Lung", "SCLC": "Lung",
-    "BRCA": "Breast", "PAAD": "Pancreas", "PDAC": "Pancreas",
-    "SKCM": "Skin", "STAD": "Esophagus/Stomach", "ESCA": "Esophagus/Stomach",
-    "GC": "Esophagus/Stomach",                       # was "Stomach" (nonexistent lineage) — fixed
-    "PRAD": "Prostate", "OV": "Ovary/Fallopian Tube", "KIRC": "Kidney",
-    "GBM": "CNS/Brain", "LGG": "CNS/Brain", "HNSC": "Head and Neck",
-    "BLCA": "Bladder/Urinary Tract", "LIHC": "Liver", "UCEC": "Uterus",
-    "CESC": "Cervix", "LAML": "Myeloid", "DLBC": "Lymphoid",
-}
+# Indication → DepMap OncotreeLineage mapping — the CANONICAL, single-source map.
+# It is DEFINED as a literal in cli.py (the leaf module) and re-exported here as the
+# SAME object (not a copy/fork), so `depmap_chronos.read.INDICATION_TO_DEPMAP_LINEAGE`
+# stays the stable import name used by the 4 stratified-dependency readers + the
+# lineage_ladder, while `depmap_chronos.cli.INDICATION_LINEAGE` is the identical object
+# the display CLIs + pathway_node_leverage import. Single-sourcing is guarded by
+# tests/methods/depmap_chronos/test_lineage_map_single_source.py. `_cli` is already
+# imported above, so this is a plain re-export (no circular import — cli imports
+# nothing from read).
+INDICATION_TO_DEPMAP_LINEAGE = _cli.INDICATION_LINEAGE
 
 
 def _ensure_aws_profile():

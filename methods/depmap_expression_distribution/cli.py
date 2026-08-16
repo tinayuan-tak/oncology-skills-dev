@@ -28,6 +28,11 @@ import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
+# Canonical indication → DepMap OncotreeLineage map (single source of truth in
+# depmap_chronos.cli). Imported here as INDICATION_LINEAGE — do NOT re-fork it
+# (guarded by tests/methods/depmap_chronos/test_lineage_map_single_source.py).
+from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as INDICATION_LINEAGE
+
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
@@ -480,16 +485,6 @@ def emit_lineage_strip(tpm_by_model: dict, model_metadata: dict, target_symbol: 
     return out_path
 
 
-# Indication → DepMap OncotreeLineage (cell lines are LINEAGE-keyed, not indication-keyed — the
-# indication-relevant cell-line view IS its lineage). Mirrors depmap_chronos.INDICATION_LINEAGE.
-INDICATION_LINEAGE = {
-    "COADREAD": "Bowel", "COAD": "Bowel", "READ": "Bowel", "PDAC": "Pancreas", "PAAD": "Pancreas",
-    "NSCLC": "Lung", "LUAD": "Lung", "LUSC": "Lung", "SCLC": "Lung",
-    "GC": "Esophagus/Stomach", "STAD": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
-    "BRCA": "Breast", "OV": "Ovary/Fallopian Tube", "GBM": "CNS/Brain", "HNSCC": "Head and Neck",
-}
-
-
 def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: str,
                       summary: dict, out_dir: Path, target_contracts_dir: Path,
                       indication: str = None) -> list:
@@ -587,7 +582,7 @@ def emit_plotly_specs(tpm_by_model: dict, model_metadata: dict, target_symbol: s
         # horizontal box plot (Plotly renders the last category topmost) — matches the SVG's semantics.
         lins = [(lg, vals) for lg, vals in by_lineage.items() if len(vals) >= 5]
         lins.sort(key=lambda lv: float(np.median(lv[1])))
-        target_lineage = INDICATION_LINEAGE.get((indication or "").upper()) if indication else None
+        target_lineage = INDICATION_LINEAGE.get((indication or "").upper().strip()) if indication else None
         fig = go.Figure()
         for lg, vals in lins:
             is_target = (lg == target_lineage)
