@@ -1,0 +1,91 @@
+"""Pure-logic acceptance tests for pathway_node_leverage._classify — no S3 / no live data.
+
+Guards the load-bearing INVARIANTS of the comparative node-leverage verdict (spec §2/§4), at the
+LOGIC level rather than tuning to any single live example (the node-set is inherently noisy; the
+verdict RULE is what must be pinned):
+
+  1. TRACTABILITY-YIELD (the invariant the reviewer asked to guard): a target dominated on dependency
+     by a LESS-tractable node is NOT down-ranked to `dominated_node` — it reads
+     `dominated_but_tractability_edge` (the target is the tractable entry point). Only a stronger
+     AND >=-as-tractable node yields `dominated_node`.
+  2. NOISE-SEPARATION: a nominally-stronger node within MIN_SEP median-Chronos is treated as
+     indistinguishable (not counted as stronger).
+  3. dominant / weak / not-screenable base cases.
+
+Plus a coverage-regression guard on the INDICATION_LINEAGE map (PAAD must resolve to the Pancreas
+DepMap lineage — the confirmed gap that silently forced pancreatic targets to pan-lineage).
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+REPO = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO))
+
+import methods.pathway_node_leverage.cli as C  # noqa: E402
+
+
+def _stats(rows):
+    """Build a stats DataFrame matching what _stats() emits, sorted by median_chronos (as _stats does).
+    rows: list of (gene, median_chronos, tdl). frac_dependent/n are filled with placeholders; trank is
+    derived from tdl exactly as _stats does."""
+    df = pd.DataFrame(
+        [{"gene": g, "median_chronos": m, "frac_dependent": 0.2, "n": 100, "tdl": tdl,
+          "trank": C._TDL_RANK.get(tdl, 9)} for g, m, tdl in rows]
+    )
+    return df.sort_values("median_chronos").reset_index(drop=True)
+
+
+def test_tractability_edge_not_downranked():
+    # target dependent (below floor), Tclin; a STRONGER but UNDRUGGABLE (Tdark) competitor exists.
+    stats = _stats([("TGT", -0.8, "Tclin"), ("STRONGER_UNDRUGGABLE", -1.2, "Tdark")])
+    out = C._classify("TGT", stats)
+    assert out["verdict"] == "dominated_but_tractability_edge", out
+    assert out["n_stronger"] == 1
+    assert out["n_stronger_tractable"] == 0            # the stronger node is LESS tractable -> no edge lost
+
+
+def test_dominated_node_when_stronger_is_at_least_as_tractable():
+    # same, but the stronger competitor is ALSO Tclin (>= as tractable) -> genuinely dominated.
+    stats = _stats([("TGT", -0.8, "Tclin"), ("STRONGER_DRUGGABLE", -1.2, "Tclin")])
+    out = C._classify("TGT", stats)
+    assert out["verdict"] == "dominated_node", out
+    assert out["n_stronger_tractable"] == 1
+    assert out["dominant_competitors"][0]["gene"] == "STRONGER_DRUGGABLE"
+
+
+def test_dominant_node_when_target_is_strongest():
+    stats = _stats([("TGT", -1.1, "Tchem"), ("WEAKER", -0.3, "Tclin")])
+    out = C._classify("TGT", stats)
+    assert out["verdict"] == "dominant_node", out
+    assert out["n_stronger"] == 0
+
+
+def test_noise_separation_gate():
+    # competitor is nominally more-dependent but WITHIN MIN_SEP -> not counted as stronger.
+    stats = _stats([("TGT", -0.8, "Tchem"), ("NEAR", -0.8 - (C.MIN_SEP / 2), "Tclin")])
+    out = C._classify("TGT", stats)
+    assert out["n_stronger"] == 0
+    assert out["verdict"] == "dominant_node", out      # target below floor + nothing separably stronger
+
+
+def test_weak_and_uncontested_above_floor():
+    # target ABOVE the dependency floor and nothing dominates it.
+    stats = _stats([("TGT", -0.2, "Tchem"), ("ALSO_WEAK", -0.1, "Tclin")])
+    out = C._classify("TGT", stats)
+    assert out["verdict"] == "weak_and_uncontested", out
+
+
+def test_target_not_screenable_when_absent():
+    stats = _stats([("OTHER", -1.0, "Tclin")])
+    out = C._classify("TGT", stats)
+    assert out["verdict"] == "target_not_screenable", out
+
+
+def test_paad_maps_to_pancreas_lineage():
+    from methods.depmap_chronos.cli import INDICATION_LINEAGE
+    assert INDICATION_LINEAGE.get("PAAD") == "Pancreas"
+    assert INDICATION_LINEAGE.get("PDAC") == "Pancreas"     # disease-abbrev alias still present

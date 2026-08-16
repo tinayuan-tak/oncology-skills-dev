@@ -8,9 +8,16 @@ YAP/TAZ motivating case). SOFT, verdict-INERT context: never a killer, never rai
 DepMap-Chronos-derived, correlated with the dependency cards). Feeds the differentiation axis.
 
 Node-set is a LENS (precision/recall gradient); this module implements two, all sources pinned:
-  - complex : CORUM 5.3 co-complex members            (tightest; "wrong subunit?")
-  - pathway : MSigDB C5 GO:BP gene set                 (functional; high recall / noisy)
-Deferred (spec §7): curated-pathway (C2.CP Reactome/KEGG), PPI (STRING/BioGRID), directed acts-through.
+  - complex : CORUM 5.3 co-complex members            (tightest; "wrong subunit?"; robust)
+  - pathway : MSigDB C2.CP curated canonical pathway PREFERRED (Reactome/KEGG/WP/BioCarta/PID),
+              MSigDB C5 GO:BP fallback                 (functional; high recall / NOISY heuristic)
+Deferred (spec §7): PPI (STRING/BioGRID), directed acts-through.
+
+PATHWAY-LENS SELECTION IS HEURISTIC (panel-validated, not exact): gene<->gene-set membership is
+many-to-many, so no auto-selector is clean across targets. We prefer curated C2.CP over GO:BP and the
+smallest set within a size band (avoids niche sets like GOBP_RESPONSE_TO_IONOMYCIN AND generic
+machinery); the selected set NAME is surfaced so the consumer can judge relevance. The complex lens is
+the mechanistically trustworthy one. Do NOT tune this selector to a single motivating example.
 
 Corrections (spec §2, each validated on live data): common-essential exclusion (else VCP/AARS1 crown
 themselves); tractability-yield via Pharos TDL (a druggable dominated node beats an undruggable
@@ -46,13 +53,32 @@ _SRC_TDL = "data-catalog/sources/pharos-idg-tcrd/snapshot-2026-08-10/pharos_tdl_
 _SRC_CORUM = "data-catalog/sources/corum/release-5.3-snapshot-2026-07-14/corum_complete.json"
 _SRC_MSIGDB_ZIP = ("data-catalog/sources/msigdb/human-v2026-1-hs/"
                    "msigdb_v2026.1.Hs_files_to_download_locally.zip")
-_MSIGDB_GMT_IN_ZIP = ("msigdb_v2026.1.Hs_files_to_download_locally/msigdb_v2026.1.Hs_GMTs/"
-                      "c5.go.bp.v2026.1.Hs.symbols.gmt")
+_MSIGDB_GMT_DIR = "msigdb_v2026.1.Hs_files_to_download_locally/msigdb_v2026.1.Hs_GMTs/"
+# Pathway-lens gene-set collections, in spec-§3 PRECEDENCE order (curated first, functional second):
+#   C2.CP  = curated canonical pathways (Reactome / KEGG / WikiPathways / BioCarta / PID) — tightest
+#   C5.GOBP = GO biological-process gene sets — higher recall, noisier (peripheral regulators)
+_MSIGDB_GMT_C2CP = _MSIGDB_GMT_DIR + "c2.cp.v2026.1.Hs.symbols.gmt"
+_MSIGDB_GMT_C5BP = _MSIGDB_GMT_DIR + "c5.go.bp.v2026.1.Hs.symbols.gmt"
 _BUCKET = "onc-compbio"
 
 DEP_FLOOR = -0.5          # a node must clear this median Chronos to be dependency-relevant
 MIN_SEP = 0.15           # min median-Chronos separation to call one node stronger (vs screen noise)
 MIN_COHORT = 15          # min lineage cell lines before we trust lineage-scoped medians; else pan-lineage
+# Pathway node-set size band. A gene sits in MANY gene sets; the smallest containing set is almost always
+# a niche/incidental one (e.g. CDK4 -> GOBP_RESPONSE_TO_IONOMYCIN), and the largest is generic machinery.
+# Prefer the smallest set WITHIN [MIN,MAX] as a coarse "specific-but-not-niche" heuristic. This is a
+# HEURISTIC, not a correctness guarantee — pathway-lens set-selection is inherently noisy (many-to-many
+# gene<->set membership); the CORUM complex lens is the mechanistically robust one. Validated on a
+# diverse target panel (CDK4/KRAS/EGFR/BRAF/MET/SMARCA4/TP53/AURKA): the band+curated-preference is
+# materially less noisy than smallest-overall, but still imperfect — hence the pathway-lens caveat.
+MIN_PATHWAY_SET = 15
+MAX_PATHWAY_SET = 200
+# MSigDB C2.CP subfamilies that are DISEASE-PERTURBATION cascades (host-pathogen signaling, oncogenic
+# variant activation), NOT canonical "same signaling cassette" neighbourhoods — exclude by name prefix
+# so a RAS-pathway target lands on KEGG_MEDICUS_REFERENCE_..._RAS_ERK_SIGNALING rather than
+# KEGG_MEDICUS_PATHOGEN_HBV_.... Panel-validated (KRAS/EGFR/BRAF improve; nothing else regresses).
+# This is a principled subfamily exclusion, not per-target tuning.
+_PATHWAY_SET_EXCLUDE_PREFIXES = ("KEGG_MEDICUS_PATHOGEN", "KEGG_MEDICUS_VARIANT")
 _TDL_RANK = {"Tclin": 0, "Tchem": 1, "Tbio": 2, "Tdark": 3}
 
 
@@ -92,17 +118,28 @@ def _corum() -> list:
     return json.loads(_get(_SRC_CORUM))
 
 
-@lru_cache(maxsize=1)
-def _go_bp_gmt() -> dict:
-    """gene_set_name -> [member symbols], from the MSigDB C5 GO:BP GMT inside the pinned bundle zip."""
+def _parse_gmt(gmt_in_zip: str) -> dict:
+    """gene_set_name -> [member symbols], from a named GMT inside the pinned MSigDB bundle zip."""
     zf = zipfile.ZipFile(io.BytesIO(_get(_SRC_MSIGDB_ZIP)))
     out = {}
-    with zf.open(_MSIGDB_GMT_IN_ZIP) as fh:
+    with zf.open(gmt_in_zip) as fh:
         for line in io.TextIOWrapper(fh, "utf-8"):
             f = line.rstrip("\n").split("\t")
             if len(f) > 2:
                 out[f[0]] = f[2:]
     return out
+
+
+@lru_cache(maxsize=1)
+def _c2cp_gmt() -> dict:
+    """MSigDB C2.CP curated canonical pathways (Reactome/KEGG/WikiPathways/BioCarta/PID)."""
+    return _parse_gmt(_MSIGDB_GMT_C2CP)
+
+
+@lru_cache(maxsize=1)
+def _go_bp_gmt() -> dict:
+    """MSigDB C5 GO:BP biological-process gene sets."""
+    return _parse_gmt(_MSIGDB_GMT_C5BP)
 
 
 # --- node-set lenses --------------------------------------------------------------------------------
@@ -118,11 +155,29 @@ def _complex_node_sets(target: str) -> list:
     return out
 
 
+def _select_in_band(gmt: dict, target: str) -> Optional[tuple]:
+    """Smallest gene set containing `target` whose size is within [MIN,MAX] (specific-but-not-niche).
+    Falls back to the smallest containing set of ANY size only if none lands in the band (so a target
+    that lives only in tiny/huge sets still gets a node-set rather than nothing). Returns (name, members)
+    or None if the target is in no set of this collection."""
+    hits = [(name, members) for name, members in gmt.items()
+            if target in members and not name.startswith(_PATHWAY_SET_EXCLUDE_PREFIXES)]
+    if not hits:
+        return None
+    in_band = [h for h in hits if MIN_PATHWAY_SET <= len(h[1]) <= MAX_PATHWAY_SET]
+    pool = in_band or hits
+    return min(pool, key=lambda x: len(x[1]))
+
+
 def _pathway_node_sets(target: str) -> list:
-    gmt = _go_bp_gmt()
-    hits = [(name, members) for name, members in gmt.items() if target in members]
-    hits.sort(key=lambda x: len(x[1]))            # specificity: smallest (most-specific) set first
-    return [{"name": n, "members": m} for n, m in hits[:1]]   # most-specific containing set
+    """The single pathway node-set for the target, per spec §3 precedence: prefer a CURATED canonical
+    pathway (MSigDB C2.CP: Reactome/KEGG/WikiPathways/BioCarta/PID), fall back to the functional GO:BP
+    collection. Within each collection, pick the smallest set inside the size band (see MIN/MAX_PATHWAY_SET
+    — the old 'smallest overall' grabbed niche/incidental sets like GOBP_RESPONSE_TO_IONOMYCIN). HEURISTIC:
+    pathway-lens membership is many-to-many and noisy; the returned node-set's NAME is surfaced so the
+    consumer can judge relevance, and the complex (CORUM) lens remains the mechanistically robust one."""
+    sel = _select_in_band(_c2cp_gmt(), target) or _select_in_band(_go_bp_gmt(), target)
+    return [{"name": sel[0], "members": sel[1]}] if sel else []
 
 
 # --- lineage-scoped comparison ----------------------------------------------------------------------
@@ -216,6 +271,10 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
         "lenses": lenses,
         "_method_version": METHOD_VERSION,
         "_caveats": ["SOFT context: no veto, never raises certainty",
-                     "paralog/combinatorial not corrected (TODO)",
+                     "complex (CORUM) lens is the robust one; pathway-lens node-set selection is a "
+                     "HEURISTIC (C2.CP-preferred, size-banded) over many-to-many gene<->set membership "
+                     "— judge the selected node_set NAME for relevance",
+                     "paralog/combinatorial not corrected (TODO): a paralog-mediated node relationship "
+                     "(e.g. a target whose PARALOG sits in the effector pathway) is not captured here",
                      "no directed acts-through check — undirected membership cannot ground direction (TODO)"],
     }

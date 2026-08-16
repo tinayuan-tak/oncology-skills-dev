@@ -166,6 +166,10 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
 INDICATION_LINEAGE = {
     "COADREAD": "Bowel", "PDAC": "Pancreas", "NSCLC": "Lung",
     "SCLC": "Lung", "GC": "Esophagus/Stomach",   # DepMap 26Q1 has no "Stomach" lineage
+    "PAAD": "Pancreas",   # OncoTree/TCGA code for pancreatic adenocarcinoma (alias of the disease-abbrev PDAC key
+                          # above). The framework passes indication codes like PAAD; without this, every pancreatic
+                          # target silently fell back to pan-lineage. A fuller code crosswalk is the broader
+                          # indication-vocabulary-fragmentation follow-up; PAAD is the confirmed live gap.
 }
 
 
