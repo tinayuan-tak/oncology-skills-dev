@@ -280,6 +280,66 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     the source of truth — no silent fallback to a stale copy, which would reintroduce drift)."""
     return resolve_or_raise(fired, "dependency")
 
+# ── (strength, certainty) emission — Step 3 reference axis (CERTAINTY_MODEL.md dependency worked
+#    example). ADDITIVE + verdict-inert: computed from the crispr card's numeric provenance the
+#    verdict already consumed; never alters dependency_verdict. certainty needs NO outcome labels.
+_DEP_STRONG_POS = {"strongly_dependent", "broadly_dependent", "concordant_dependent",
+                   "chemical_genetic_confirmed_dependent"}
+_DEP_MOD_POS = {"lineage_selective", "selective_dependent", "partner_conditional_dependent"}
+_DEP_NEG = {"non_dependent", "non_dependent_paralog_buffered", "discordant"}
+_DEP_INSUFF = {"insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential", None}
+_ORD = {"low": 0, "medium": 1, "high": 2}
+_UNKNOWN_MASS = {"high": 0.1, "medium": 0.4, "low": 0.7}
+
+
+def _dependency_strength(verdict) -> str:
+    """Signed graded strength from the verdict (magnitude of the dependency signal)."""
+    if verdict in _DEP_STRONG_POS:
+        return "strong_positive"
+    if verdict in _DEP_MOD_POS:
+        return "moderate_positive"
+    if verdict == "pan_essential_killer":
+        return "broad_nonselective"   # strong magnitude, low SELECTIVE value (routes to tox)
+    if verdict in _DEP_NEG:
+        return "negative"
+    return "none"
+
+
+def _coverage_from_n(n) -> str:
+    if not isinstance(n, (int, float)):
+        return "low"
+    return "high" if n >= 20 else ("medium" if n >= 5 else "low")
+
+
+def _corroboration_from_concordance(concordance_call) -> str:
+    c = str(concordance_call or "")
+    if "concordant" in c:
+        return "high"
+    if "discordant" in c:
+        return "low"
+    return "medium"   # single-assay / unknown
+
+
+def _dependency_strength_certainty(cards, verdict, concordance_call) -> dict:
+    """(strength, certainty{coverage, corroboration, weakest-link level, unknown_mass}) for the
+    dependency axis. coverage = n_cell_lines power; corroboration = CRISPR<->RNAi concordance."""
+    n = get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "n_cell_lines_evaluated")
+    frac = get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "fraction_strongly_dependent")
+    coverage = _coverage_from_n(n)
+    corroboration = _corroboration_from_concordance(concordance_call)
+    level = min((coverage, corroboration), key=lambda c: _ORD[c])   # weakest-link
+    if verdict in _DEP_INSUFF:
+        level = "low"
+    return {
+        "strength": _dependency_strength(verdict),
+        "certainty": {"level": level, "coverage": coverage, "corroboration": corroboration,
+                      "unknown_mass": _UNKNOWN_MASS[level]},
+        "provenance": {"n_cell_lines_evaluated": n, "fraction_strongly_dependent": frac,
+                       "concordance_call": concordance_call},
+        "_model_ref": "CERTAINTY_MODEL.md#dependency",
+    }
+
+
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
     predictability_class = get_card_field(cards, "dependency-predictability", "predictability_class")
@@ -288,6 +348,11 @@ def _headline(cards, fired, verdict_pair):
     return {
         "dependency_verdict":       v,
         "driving_rule_id":          drv,
+        # (strength, certainty) — Step-3 reference axis (CERTAINTY_MODEL.md). ADDITIVE + verdict-inert.
+        "strength_certainty":       _dependency_strength_certainty(
+                                        cards, v,
+                                        get_card_field(cards, "crispr-rnai-dependency-concordance",
+                                                       "concordance_class")),
         "crispr_call":              get_card_field(cards, "pan-cancer-crispr-dependency-distribution",
                                           "dependency_class"),
         "rnai_call":                get_card_field(cards, "pan-cancer-rnai-dependency-distribution",
