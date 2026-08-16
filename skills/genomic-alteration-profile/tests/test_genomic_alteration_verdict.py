@@ -84,8 +84,12 @@ def test_precedence_by_strength_strong_cn_over_moderate_mut():
 # --- multi-class ----------------------------------------------------------
 
 def test_both_axes_drive_is_multi_class():
+    # #380 Stage-1: multi_class_driver requires an alteration-role DRIVER co-signal, not variant
+    # SHAPE alone (a missense+CN passenger with no driver role → missense_dominant_pattern, the
+    # CEACAM5 fix). A genuine dually-altered DRIVER therefore includes the role rule.
     assert _v("mut-missense-dominant-supportive",
-              "cn-recurrently-amplified-supportive")[0] == "multi_class_driver"
+              "cn-recurrently-amplified-supportive",
+              "alteration-role-gof-driver-supportive")[0] == "multi_class_driver"
 
 
 # --- deliberate NON-drivers (documented fall-through — the C exhaustiveness pins) --

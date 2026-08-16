@@ -3494,7 +3494,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3506,7 +3506,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3554,7 +3554,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3566,7 +3566,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3610,7 +3610,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3622,7 +3622,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3674,7 +3674,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3686,7 +3686,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3734,7 +3734,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3746,7 +3746,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3790,7 +3790,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3802,7 +3802,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3850,7 +3850,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3862,7 +3862,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3910,7 +3910,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -3922,7 +3922,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4034,7 +4034,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4046,7 +4046,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4094,7 +4094,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4106,7 +4106,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4150,7 +4150,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4162,7 +4162,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4214,7 +4214,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4226,7 +4226,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4274,7 +4274,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4286,7 +4286,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4330,7 +4330,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4342,7 +4342,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4390,7 +4390,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4402,7 +4402,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4450,7 +4450,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4462,7 +4462,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "confirmed_driver",
+    "multi_class_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-lof-driver-neutral,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4570,7 +4570,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4582,7 +4582,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4630,7 +4630,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4642,7 +4642,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4686,7 +4686,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4698,7 +4698,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4750,7 +4750,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4762,7 +4762,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4810,7 +4810,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4822,7 +4822,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4866,7 +4866,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4878,7 +4878,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4926,7 +4926,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4938,7 +4938,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-amplified-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4986,7 +4986,7 @@
     "cn-recurrently-deleted-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "lof_dominant_pattern",
     "mut-lof-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -4998,7 +4998,7 @@
     "mutant-strongly-dependent-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "missense_dominant_pattern",
     "mut-missense-dominant-supportive"
    ],
    "cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
@@ -5174,243 +5174,243 @@
     null
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,clinvar-germline-pathogenic-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clingen-dominant-loss-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clingen-dominant-loss-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
-    "mouse-ko-lethal-safety-warning"
+    "human_genetics_safety_concern",
+    "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
-    "mouse-ko-lethal-safety-warning"
+    "human_genetics_safety_concern",
+    "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
-    "mouse-ko-lethal-safety-warning"
+    "human_genetics_safety_concern",
+    "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
-    "mouse-ko-lethal-safety-warning"
+    "human_genetics_safety_concern",
+    "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,clinvar-germline-pathogenic-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "clinvar-germline-pathogenic-safety-warning"
    ],
    "activating-driver-role-safety-context,constraint-data-unavailable-insufficient": [
@@ -5418,55 +5418,55 @@
     "constraint-data-unavailable-insufficient"
    ],
    "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,constraint-data-unavailable-insufficient,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "mouse-ko-lethal-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,gene-burden-lof-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "gene-burden-lof-safety-warning"
    ],
    "activating-driver-role-safety-context,highly-constrained-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,highly-constrained-safety-warning,mouse-ko-lethal-safety-warning": [
-    "wt_constraint_mechanism_mismatch",
+    "highly_constrained_safety_concern",
     "highly-constrained-safety-warning"
    ],
    "activating-driver-role-safety-context,moderately-constrained-safety-neutral": [
@@ -5474,15 +5474,15 @@
     "moderately-constrained-safety-neutral"
    ],
    "activating-driver-role-safety-context,moderately-constrained-safety-neutral,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "mouse-ko-lethal-safety-warning"
    ],
    "activating-driver-role-safety-context,mouse-ko-lethal-safety-warning": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "mouse-ko-lethal-safety-warning"
    ],
    "activating-driver-role-safety-context,mouse-ko-lethal-safety-warning,tolerant-safety-supportive": [
-    "wt_human_genetics_mechanism_mismatch",
+    "human_genetics_safety_concern",
     "mouse-ko-lethal-safety-warning"
    ],
    "activating-driver-role-safety-context,tolerant-safety-supportive": [
