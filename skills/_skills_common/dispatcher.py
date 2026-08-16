@@ -244,7 +244,11 @@ def _envelope_card_present(card: dict) -> dict:
         "summary": card.get("summary", {}) or {},
         "interpretation_call": card.get("interpretation_call") or "uninterpreted",
         "caveats": card.get("caveats", []),
-        "provenance": card.get("provenance", {"method_calls": [], "input_manifest_ids": []}),
+        # Merge the schema-required keys into whatever provenance the card carries — a subskill
+        # card that emits a provenance dict WITHOUT method_calls was passing through incomplete
+        # and failing evidence_package.schema card_present validation for EVERY card (target-profile
+        # --emit evidence-package). Defaults first, card values override.
+        "provenance": {**{"method_calls": [], "input_manifest_ids": []}, **(card.get("provenance") or {})},
     }
 
 

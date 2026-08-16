@@ -385,7 +385,7 @@ def assemble_evidence_package(
                 "summary": c.get("summary", {}),
                 "interpretation_call": c.get("interpretation_call", "uninterpreted"),
                 "caveats": c.get("caveats", []),
-                "provenance": c.get("provenance", {"method_calls": [], "input_manifest_ids": []}),
+                "provenance": {**{"method_calls": [], "input_manifest_ids": []}, **(c.get("provenance") or {})},
             }
             if c.get("warning_ids"):
                 entry["warning_ids"] = c["warning_ids"]
