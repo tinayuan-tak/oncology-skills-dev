@@ -1562,7 +1562,16 @@ def _positive_tier(
                          "driving_rule_id": v[1] if len(v) > 1 else None})
     if not hits:
         return None, []
-    n_dims = len({h["short"] for h in hits})
+    # n_dims counts INDEPENDENT lines of evidence. correlated_dimension_groups (vocab) collapse
+    # axes that are two reads of the same measurement to ONE dimension for the min_dimensions test —
+    # e.g. expression+selectivity are both the tumor-vs-normal RNA contrast, so counting both
+    # double-counted one line (the HTR1D would-be-strong FP). A short not in any group is its own
+    # dimension; missing key → no grouping (backward-compatible). Weights/has_dominant are unaffected.
+    _short_to_group = {}
+    for _i, _grp in enumerate(cfg.get("correlated_dimension_groups", []) or []):
+        for _s in _grp:
+            _short_to_group[_s] = f"__corr_group_{_i}"
+    n_dims = len({_short_to_group.get(h["short"], h["short"]) for h in hits})
     has_dominant = any(h["weight"] == "dominant" for h in hits)
     min_dims = cfg.get("min_dimensions_for_strong", 2)
     require_dom = cfg.get("require_dominant_for_strong", True)

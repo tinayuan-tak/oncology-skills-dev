@@ -288,6 +288,32 @@ def test_kras_pattern_no_kill_and_strong_tier():
     assert tier == "strong"
 
 
+def test_correlated_expression_selectivity_count_as_one_dim():
+    """HTR1D regression (2026-08-15): expression:strongly_upregulated_in_tumor +
+    selectivity:strong_tumor_selective are the SAME tumor-vs-normal RNA contrast → collapse to ONE
+    dimension (correlated_dimension_groups), so on their own they cap at `moderate`, NOT `strong`.
+    Prevents a declined RNA-only target manufacturing a strong tier from one line counted twice."""
+    subs = {
+        "expression":  {"verdict": ("strongly_upregulated_in_tumor", "expression-strong-upregulation-supportive")},
+        "selectivity": {"verdict": ("strong_tumor_selective", "tvn-strong-selective-supportive")},  # dominant
+    }
+    tier, hits = tp._positive_tier(subs)
+    assert len(hits) == 2, "both hits are still recorded (weights unaffected)"
+    assert tier == "moderate", "correlated RNA pair collapses to 1 dimension → not strong"
+
+
+def test_correlated_group_plus_independent_dim_reaches_strong():
+    """A genuinely INDEPENDENT third axis lifts a grouped target back to strong: expression+selectivity
+    (1 collapsed dim) + genomic_alteration:biomarker_stratified_dependency (independent dominant) = 2."""
+    subs = {
+        "expression":        {"verdict": ("strongly_upregulated_in_tumor", "r")},
+        "selectivity":       {"verdict": ("strong_tumor_selective", "r")},              # dominant, RNA group
+        "genomic_alteration":{"verdict": ("biomarker_stratified_dependency", "r")},     # dominant, independent
+    }
+    tier, _ = tp._positive_tier(subs)
+    assert tier == "strong"
+
+
 def test_positive_tier_excludes_modality_scoped():
     """surface/expression/mechanism verdicts are NOT positive-eligible even if 'good'."""
     subs = {"surface_modality": {"verdict": ("adc_favorable", "r")},
