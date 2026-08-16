@@ -18,6 +18,12 @@ rot:
   5. Card back-references (a type's `cards:` list) name real cards/*.card.yaml files (catches a
      renamed/deleted card leaving a dangling registry ref) — skipped gracefully if cards/ absent.
   6. The DAG is acyclic (a derived type cannot transitively derive from itself).
+  7. evidence_substrate (OPTIONAL, 2026-08-16, cross-evidence roadmap invariant 8) — if a type
+     declares one, it must be a key in the top-level `evidence_substrates` controlled vocab, AND a
+     DERIVED type's declared substrate must appear among the substrates of its (transitive)
+     derived_from inputs (you cannot claim a shared substrate your lineage does not touch — the
+     "no conflicting substrate within a derived_from chain" rule). Dataset-kind types may declare
+     any vocab substrate (they assert their own raw substrate). Descriptive-only: it feeds no gate.
 
 Usage:
   python validate_measurement_types.py --vocab vocabularies/measurement_types.yaml --cards cards/
@@ -83,6 +89,34 @@ def _card_measurement_types(cards_dir: Path) -> dict[str, str | None] | None:
     return out
 
 
+def _derived_inputs(spec: dict) -> list[str]:
+    """The union of `inputs` across a type's derived_from providers (empty for dataset-only types)."""
+    out: list[str] = []
+    for p in spec.get("providers", []) or []:
+        if p.get("kind") == "derived_from":
+            out.extend(p.get("inputs", []) or [])
+    return out
+
+
+def _transitive_input_substrates(name: str, types: dict, _seen: set | None = None) -> set[str]:
+    """The set of `evidence_substrate` slugs declared anywhere in `name`'s transitive derived_from
+    input closure (NOT including `name`'s own declared substrate). Acyclicity is checked separately;
+    `_seen` guards against a cycle sending this into infinite recursion."""
+    _seen = _seen if _seen is not None else set()
+    subs: set[str] = set()
+    for inp in _derived_inputs(types.get(name) or {}):
+        if inp in _seen or inp not in types:
+            continue
+        _seen.add(inp)
+        ispec = types[inp]
+        sub = ispec.get("evidence_substrate")
+        if sub:
+            subs.add(sub)
+        # an untagged intermediate derived type still forwards its own inputs' substrates
+        subs |= _transitive_input_substrates(inp, types, _seen)
+    return subs
+
+
 def _has_cycle(types: dict) -> list[str]:
     """Return a list of type keys involved in a derived_from cycle (empty if acyclic)."""
     # edges: type -> set(input types) via derived_from providers
@@ -132,6 +166,15 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
     grain_vocab = set(doc.get("entity_grain_vocabulary") or {})
     if not grain_vocab:
         r.err("MISSING: entity_grain_vocabulary is empty or absent")
+
+    # evidence_substrates: OPTIONAL controlled vocab (roadmap invariant 8). Absent → the substrate
+    # feature is simply unused; declaring one on a type without the vocab block is an error.
+    substrate_block = doc.get("evidence_substrates")
+    if substrate_block is not None and not isinstance(substrate_block, dict):
+        r.err("YAML_SHAPE: evidence_substrates must be a mapping of slug -> {description}")
+        substrate_block = None
+    substrate_vocab = set(substrate_block or {})
+
     types = doc.get("measurement_types")
     if not isinstance(types, dict) or not types:
         r.err("MISSING: measurement_types is empty or absent")
@@ -181,6 +224,21 @@ def validate(vocab_path: Path, cards_dir: Path | None) -> Report:
                               f"measurement_type (dangling DAG edge, Rule 4)")
             elif kind != "dataset":
                 r.err(f"[{name}] provider #{i} kind `{kind}` must be `dataset` or `derived_from`")
+
+        # evidence_substrate (OPTIONAL): must be a vocab key; a derived type cannot claim a
+        # substrate absent from its input lineage (Rule 7 — independence-before-certainty).
+        substrate = spec.get("evidence_substrate")
+        if substrate is not None:
+            if not isinstance(substrate, str) or substrate not in substrate_vocab:
+                r.err(f"[{name}] evidence_substrate `{substrate}` is not a key in the "
+                      f"`evidence_substrates` controlled vocab {sorted(substrate_vocab)}")
+            elif any(p.get("kind") == "derived_from" for p in providers):
+                lineage_subs = _transitive_input_substrates(name, types)
+                if substrate not in lineage_subs:
+                    r.err(f"[{name}] declares evidence_substrate `{substrate}` but no derived_from "
+                          f"input carries it (lineage substrates: {sorted(lineage_subs) or 'none'}) — "
+                          f"a derived type inherits its dominant input's substrate; it cannot invent "
+                          f"one its lineage does not touch (Rule 7).")
 
         # Card back-refs resolve (only when cards/ is available)
         if known_cards is not None:

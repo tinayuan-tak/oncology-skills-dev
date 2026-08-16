@@ -212,6 +212,16 @@
       "properties": {
         "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
         "card_version": {"type": "string"},
+        "measurement_type": {
+          "type": "string",
+          "description": "OPTIONAL (2026-08-16, cross-evidence roadmap invariant 8). The card's IDENTITY — the single per-target-entity CLAIM it measures, a key in target-contracts/vocabularies/measurement_types.yaml (e.g. crispr_lof_dependency, tumor_vs_normal_selectivity). Stamped by the emitting skill (resolved from the registry's card back-refs) so a cross-evidence integrator can group cards by claim without re-deriving it from card_id. Additive + backward-compatible; the default byte-golden envelope omits it.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "evidence_substrate": {
+          "type": "string",
+          "description": "OPTIONAL (2026-08-16, independence-before-certainty). The shared underlying RAW DATA PRODUCT this card's measurement_type is computed from — a key in measurement_types.yaml's `evidence_substrates` vocab (e.g. recount3_tcga_gtex_bulk_rna, depmap_crispr_chronos). Two present cards sharing an evidence_substrate are NOT independent corroboration: their agreement is a correlated re-read of the SAME measurements (the HTR1D expression<->selectivity double-count), so the integrator must not count them twice toward certainty. Absent = genuinely-independent singleton (the common case). Additive; the default byte-golden envelope omits it.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
         "validation_state": {
           "type": "string",
           "enum": ["pass", "passed_with_warnings"],
@@ -269,6 +279,11 @@
             "input_manifest_ids": {
               "type": "array",
               "items": {"type": "string"}
+            },
+            "required_product_ids": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "OPTIONAL (2026-08-16, cross-evidence roadmap invariant 8). The products.yaml product_ids the card DECLARES as inputs (card_spec.required_inputs[].product_id) — the STABLE, release-independent declared-input identity, coarser than input_manifest_ids (which pins a concrete release). Surfaced so a cross-evidence integrator can detect shared underlying products across cards at the declared-input grain, complementing the coarser evidence_substrate. Additive; the default byte-golden envelope omits it."
             },
             "canonical_decision_refs": {
               "type": "array",

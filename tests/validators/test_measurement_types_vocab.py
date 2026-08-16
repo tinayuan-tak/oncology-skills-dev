@@ -130,3 +130,72 @@ def test_dangling_card_backref_fails(tmp_path):
     (tmp_path / "cards").mkdir()
     r = VM.validate(_write(tmp_path, doc), tmp_path / "cards")
     assert not r.ok and "back-ref" in _errs(r)
+
+
+# ---------- evidence_substrate (Rule 7, independence-before-certainty) ----------
+
+def test_unknown_evidence_substrate_fails(tmp_path):
+    doc = _base_doc()
+    doc["evidence_substrates"] = {"real_substrate": {"description": "d"}}
+    doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "not_a_real_substrate"
+    r = VM.validate(_write(tmp_path, doc), None)
+    assert not r.ok and "not a key in the" in _errs(r) and "evidence_substrates" in _errs(r)
+
+
+def test_dataset_type_declares_valid_substrate_passes(tmp_path):
+    """A dataset-kind base type may declare any vocab substrate — it asserts its own raw substrate."""
+    doc = _base_doc()
+    doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"}}
+    doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"
+    r = VM.validate(_write(tmp_path, doc), None)
+    assert r.ok, _errs(r)
+
+
+def test_derived_type_inherits_input_substrate_passes(tmp_path):
+    """A derived type whose declared substrate IS carried by a derived_from input is valid."""
+    doc = _base_doc(strat={
+        "claim": "mutation-stratified dependency",
+        "entity_grains": ["target"],
+        "evidence_substrate": "depmap_crispr_chronos",
+        "providers": [{"kind": "derived_from", "inputs": ["crispr_lof_dependency"],
+                       "method": "stratified", "evidence_tier": "measured"}],
+    })
+    doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"}}
+    doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"
+    r = VM.validate(_write(tmp_path, doc), None)
+    assert r.ok, _errs(r)
+
+
+def test_derived_type_invents_substrate_absent_from_lineage_fails(tmp_path):
+    """A derived type cannot claim a substrate none of its inputs carry (Rule 7)."""
+    doc = _base_doc(strat={
+        "claim": "stratified dependency claiming a substrate its lineage does not touch",
+        "entity_grains": ["target"],
+        "evidence_substrate": "recount3_tcga_gtex_bulk_rna",
+        "providers": [{"kind": "derived_from", "inputs": ["crispr_lof_dependency"],
+                       "method": "stratified", "evidence_tier": "measured"}],
+    })
+    doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"},
+                                  "recount3_tcga_gtex_bulk_rna": {"description": "d"}}
+    doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"
+    r = VM.validate(_write(tmp_path, doc), None)
+    assert not r.ok and "no derived_from input carries it" in _errs(r)
+
+
+def test_derived_type_transitive_substrate_inheritance_passes(tmp_path):
+    """Substrate inheritance walks the transitive input closure through an untagged intermediate."""
+    doc = _base_doc(
+        mid={"claim": "intermediate derived, untagged",
+             "entity_grains": ["target"],
+             "providers": [{"kind": "derived_from", "inputs": ["crispr_lof_dependency"],
+                            "method": "m", "evidence_tier": "measured"}]},
+        leaf={"claim": "leaf derived, inherits through the untagged intermediate",
+              "entity_grains": ["target"],
+              "evidence_substrate": "depmap_crispr_chronos",
+              "providers": [{"kind": "derived_from", "inputs": ["mid"],
+                             "method": "m", "evidence_tier": "measured"}]},
+    )
+    doc["evidence_substrates"] = {"depmap_crispr_chronos": {"description": "d"}}
+    doc["measurement_types"]["crispr_lof_dependency"]["evidence_substrate"] = "depmap_crispr_chronos"
+    r = VM.validate(_write(tmp_path, doc), None)
+    assert r.ok, _errs(r)

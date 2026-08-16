@@ -60,6 +60,64 @@ entity_grain_vocabulary:
 evidence_tiers: [measured, inferred, estimated]   # mandatory per provider
 
 # ============================================================================
+# EVIDENCE SUBSTRATES — the shared-DATA-PRODUCT vocabulary (2026-08-16, cross-evidence
+# roadmap invariant 8 "independence before certainty" / CROSS_EVIDENCE_INTEGRATION_ROADMAP.md §2).
+# ============================================================================
+# A measurement_type's OPTIONAL `evidence_substrate: <slug>` names the underlying RAW DATA
+# the type is (transitively) computed FROM. Two types sharing a substrate are NOT mutually
+# independent: when they AGREE, that agreement is a correlated re-read of the SAME measurements,
+# not independent corroboration — so a cross-evidence integrator must NOT count them twice toward
+# certainty (the HTR1D trap: `tumor-rna-vs-adjacent` [expression] and `tumor-vs-normal-selectivity`
+# [selectivity] are two statistics on the SAME recount3 TCGA+GTEx tumor/normal counts).
+#
+# This is DELIBERATELY COARSER than provenance.input_manifest_ids (which is too fine — every
+# release/pin is a distinct id) and coarser than `providers[].source` (a per-derived-product id).
+# The substrate is the shared RAW measurement platform, grounded in the derived_from DAG + the
+# products' catalog `sources`/`derived_from` lineage (data-catalog). A type whose evidence is
+# genuinely its own independent measurement carries NO substrate (implicit singleton — the common
+# case). Only known correlated CLUSTERS are tagged.
+#
+# INHERITANCE (derived types): a derived_from type inherits its DOMINANT input's substrate (the
+# input carrying the measured SIGNAL, not the partition key) — e.g. the mutation/cn/fusion
+# stratified-dependency siblings are `depmap_crispr_chronos` because the Chronos dependency IS the
+# signal (the alteration status only PARTITIONS it). A derived type that genuinely FUSES distinct
+# substrates as corroborating-but-independent layers (e.g. crispr_rnai_concordance, rna_protein_
+# concordance, chemical_genetic_concordance, tumor_elevation_breadth) carries NO substrate — its
+# value IS the cross-substrate agreement, so it is not a double-count.
+#
+# VALIDATION (validators/validate_measurement_types.py): a declared substrate must be a key here,
+# and a DERIVED type's declared substrate must appear among the substrates of its derived_from
+# inputs (you cannot claim a substrate your lineage does not touch — the "no conflicting substrate
+# within a derived_from chain" rule).
+#
+# NOTE (verdict-inertness): this field is DESCRIPTIVE metadata for the integrator only. It does NOT
+# feed any gate/resolver today; the hand-coded `correlated_dimension_groups` in
+# nomination_verdict_gate.yaml is INTENTIONALLY left as-is (the data-driven flip is a follow-on).
+evidence_substrates:
+  recount3_tcga_gtex_bulk_rna:
+    description: >-
+      recount3-harmonized TCGA tumor + GTEx / TCGA-adjacent normal BULK RNA-seq counts
+      (data-catalog substrate recount3-tcga-gtex-2023-01-04). EVERY tumor-vs-normal RNA CONTRAST
+      (DESeq2 dge-tumor-vs-normal-sensitivity family) and per-sample tumor RNA DISTRIBUTION /
+      percentile-crossing (tcga-tumor-tpm-recount3-long-v1 + gtex-tpm-recount3-long-v1) is a
+      different statistic computed from these SAME counts. They co-vary by construction — the
+      HTR1D expression<->selectivity collapse. NOT the DepMap cell-line RNA (a different platform)
+      and NOT protein (CPTAC/Gygi — orthogonal layers whose disagreement is diagnostic).
+  depmap_crispr_chronos:
+    description: >-
+      DepMap 26Q1 genome-wide single-gene CRISPR-KO Chronos LOF dependency screens
+      (data-catalog source depmap-consortium-26q1). The pan-cancer dependency distribution,
+      lineage-selectivity, predictability, the alteration-stratified dependency siblings
+      (mutation/cn/fusion/amp-expr/partner-conditional — the Chronos effect is the SIGNAL, the
+      alteration only PARTITIONS it), the expression/abundance<->dependency correlations, and
+      pathway-node-leverage are ALL Chronos-derived comparisons — correlated re-reads that must
+      never independently raise certainty (roadmap invariant 8: "node-leverage and any Chronos-
+      correlated axis never raise certainty"). DISTINCT substrates (kept independent ON PURPOSE):
+      DEMETER2 RNAi (depmap-consortium-26q1-rnai — the orthogonal LOF assay crispr_rnai_concordance
+      trusts), the ParalogV2 dual-KO GI screens (paralog_buffering / combinatorial_ko_dependency),
+      and the drug-anchor screens (drug_anchored_combination / drug_anchored_resistance).
+
+# ============================================================================
 # DATASET types — a source+method measures the claim directly.
 # ============================================================================
 measurement_types:
@@ -80,6 +138,7 @@ measurement_types:
 
   tumor_vs_adjacent_expression:
     claim: "Is target RNA upregulated in tumor vs matched adjacent normal (presence framing)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # DESeq2 contrast on the recount3 tumor+normal counts — SAME data as tumor_vs_normal_selectivity (HTR1D expr<->sel double-count)
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked (needs per-sample reader)
     cards: [tumor-rna-vs-adjacent, subgroup-stratified-expression]
     providers:
@@ -87,6 +146,7 @@ measurement_types:
 
   tumor_expression_distribution:
     claim: "How does target RNA DISTRIBUTE across an indication's tumors (per-sample: median, fraction detectable/high, shape continuous|bimodal|long_tail)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # tcga-tumor-tpm-recount3-long + gtex-tpm-recount3-long — same recount3 counts the tumor/normal contrasts read
     # Presence/abundance DISTRIBUTION framing — the per-sample tumor distribution the aggregate
     # cards (cohort median) can't produce. Distinct from tumor_vs_adjacent_expression (a contrast)
     # and from cell_line_rna_expression (DepMap cell lines). Q1 of the expression profiling spec.
@@ -134,6 +194,7 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "How robustly tumor-selective is target across four tumor-vs-normal comparators (efficacy-window framing)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # coadread-dge-tumor-vs-normal-sensitivity — recount3 substrate; the selectivity HALF of the HTR1D expr<->sel collapse
     # Rule 1 discriminator (b): distinct from normal_tissue_*_breadth — same tumor-vs-normal biology,
     # but pulled by Selectivity (efficacy window), not Safety (off-tumor floor).
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
@@ -143,6 +204,7 @@ measurement_types:
 
   antigen_expressing_prevalence:
     claim: "What fraction of tumors express target above a clinically relevant level (patient-selection prevalence)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # reads the SAME dge-tumor-vs-adjacent product as tumor_vs_adjacent_expression (recount3 substrate)
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
     cards: [antigen-prevalence]
     providers:
@@ -186,6 +248,7 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule, degrader]
     claim: "What is the shape of CRISPR (Chronos) LOF dependency on target, incl. lineage and molecular-subgroup slices?"
+    evidence_substrate: depmap_crispr_chronos   # the base genome-wide Chronos screen — the substrate the derived dependency cluster inherits
     entity_grains: [target, target_lineage, target_subtype]   # target_subtype LIVE (subgroup-stratified-dependency binds a per-sample reader)
     cards: [pan-cancer-crispr-dependency-distribution, dependency-lineage-selectivity, subgroup-stratified-dependency]
     providers:
@@ -203,6 +266,7 @@ measurement_types:
 
   dependency_predictability:
     claim: "Can target's Chronos dependency be predicted from omics (biomarker-anchored / context-driven / unpredictable)?"
+    evidence_substrate: depmap_crispr_chronos   # a model OF the Chronos dependency — Chronos-derived, a CONFIDENCE annotation not an independent verdict
     # Registered but pulled by no gate today (mirror of the CSPA case, Rule 3): a first-class
     # visible 'no-puller' state, not a dead end.
     entity_grains: [target, target_lineage]
@@ -683,6 +747,7 @@ measurement_types:
 
   normal_tissue_rna_breadth:
     claim: "In how many adult tissues is target RNA-expressed (target-selection therapeutic-window count)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # dominant provider gtex-tpm-recount3-long — the GTEx normal arm shared with the tumor/normal contrasts (the HPA adjunct is not yet landed)
     # Distinct from normal_tissue_protein_breadth: RNA-breadth for selection vs protein-IHC for
     # safety — different layer AND different gate (Rule 1 discriminators (a) and (b) both fire).
     entity_grains: [target]
@@ -699,6 +764,7 @@ measurement_types:
 
   tumor_vs_normal_percentile_crossing:
     claim: "What fraction of an indication's tumors express target above the Nth percentile of matched normal (per-sample selectivity)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # per-sample crossing on the recount3 tcga (tumor) + gtex (normal) matrices — same substrate, Q2 corroboration of the selectivity call
     # Q2 of the expression spec. Rule 1 discriminator: SELECTIVITY (Gate B), like tumor_vs_normal_selectivity,
     # but the PER-SAMPLE percentile-crossing on directly-comparable recount3 matrices — NOT the aggregate
     # log2FC (dge-deseq2) and NOT presence (tumor_expression_distribution, Gate A). The headline enrichment
@@ -1033,6 +1099,7 @@ measurement_types:
     # tractability-yield leg uses Pharos TDL, but the verdict routes to the differentiation axis, not
     # to a modality-fit gate — so cards of this type are not required to declare modality_relevance.
     claim: "Given the biology, is target the best NODE to hit within its complex / pathway neighbourhood, or is it dominated by a more-dependent / more-tractable member (lineage-scoped, common-essential-excluded)?"
+    evidence_substrate: depmap_crispr_chronos   # the target's Chronos vs its neighbours' Chronos — the MOTIVATING case for invariant 8 (never raises certainty; the membership/tractability legs are auxiliary lenses, not a distinct substrate)
     entity_grains: [target, target_lineage]   # target_lineage = the indication-lineage-scoped DepMap cohort; target = pan-lineage fallback
     cards: [pathway-node-leverage]
     providers:
@@ -1071,6 +1138,7 @@ measurement_types:
 
   expression_dependency_correlation:
     claim: "Does target's mRNA expression correlate with its own dependency (expression-as-biomarker)?"
+    evidence_substrate: depmap_crispr_chronos   # dominant input = crispr_lof_dependency (Chronos IS the signal; cell_line_rna is the correlate); the correlation shares the Chronos data
     # Comparison-is-the-claim → derived (appendix case 7 logic), even though single-dataset-sourced
     # and the card does not self-declare derived_from.
     entity_grains: [target, target_lineage]
@@ -1080,6 +1148,7 @@ measurement_types:
 
   abundance_dependency_correlation:
     claim: "Does target's PROTEIN abundance correlate with its own dependency (protein-as-biomarker-of-dependency)?"
+    evidence_substrate: depmap_crispr_chronos   # dominant input = crispr_lof_dependency (Chronos IS the signal; cell_line_protein is the correlate)
     # Q7 PROTEIN arm — the sibling of expression_dependency_correlation (RNA arm). Same comparison-is-
     # the-claim derived shape, on Gygi-MS protein instead of mRNA. Reported ALONGSIDE the RNA arm; the
     # DISAGREEMENT (protein→dep strong while RNA→dep weak, or vice versa) picks preferred_assay in the
@@ -1164,6 +1233,7 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule, degrader]
     claim: "Is target dependency stratified by target's own mutation status (oncogene-addiction biomarker)?"
+    evidence_substrate: depmap_crispr_chronos   # Chronos dependency is the SIGNAL; mutation_status only PARTITIONS it
     entity_grains: [target]
     cards: [mutation-stratified-dependency]
     providers:
@@ -1186,6 +1256,7 @@ measurement_types:
     # the per-line relative-CN input. Closes the amplification-driven-oncogene gap (ERBB2/MYC).
     modality_relevance: [small_molecule, degrader]
     claim: "Is target dependency stratified by target's own copy-number amplification status (amplification-addiction biomarker)?"
+    evidence_substrate: depmap_crispr_chronos   # Chronos dependency is the SIGNAL; copy_number_alteration only PARTITIONS it
     entity_grains: [target]
     cards: [copy-number-stratified-dependency]
     providers:
@@ -1199,6 +1270,7 @@ measurement_types:
     # the fusion-driven-oncogene gap (EWSR1-FLI1, BCR-ABL1) that mutation + CN both miss.
     modality_relevance: [small_molecule, degrader]
     claim: "Is target dependency stratified by whether the line carries a fusion involving the target (fusion-addiction biomarker)?"
+    evidence_substrate: depmap_crispr_chronos   # Chronos dependency is the SIGNAL; fusion_status only PARTITIONS it
     entity_grains: [target]
     cards: [fusion-stratified-dependency]
     providers:
@@ -1216,6 +1288,7 @@ measurement_types:
     # partner-SL != own-oncogene addiction (mirrors the drug_response_biomarker separation).
     modality_relevance: [small_molecule, degrader]
     claim: "Is target dependency stratified by a partner gene's deficiency status (synthetic-lethality biomarker)?"
+    evidence_substrate: depmap_crispr_chronos   # Chronos dependency is the SIGNAL; the partner's deficiency status only PARTITIONS it (WRN x MSI)
     entity_grains: [target]
     cards: [partner-conditional-dependency]
     providers:
@@ -1230,6 +1303,7 @@ measurement_types:
     # adds cell_line_rna_expression (the overexpression term) to the CN×Chronos join.
     modality_relevance: [small_molecule, degrader]
     claim: "Is target dependency stratified by whether the line is both amplified and high-expression for the target (amplification-driven overexpression-addiction)?"
+    evidence_substrate: depmap_crispr_chronos   # Chronos dependency is the SIGNAL; copy_number + cell_line_rna form the conjoint PARTITION
     entity_grains: [target]
     cards: [amp-expr-stratified-dependency]
     providers:
