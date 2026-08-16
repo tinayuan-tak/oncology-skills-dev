@@ -2853,6 +2853,26 @@ rules:
   # feedback_wt_essentiality_mechanism_conditioning. NOTE the nullification assumes an allele-SELECTIVE
   # modality; a pan-target degrader / WT-hitting inhibitor would re-expose the concern (the resolver
   # verdict + card caveat state this conditionality).
+  - rule_id: oncogene-role-safety-context
+    when:
+      card_id: alteration-role
+      field: oncokb_gene_type
+      equals: ONCOGENE
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Role-agreement GATE for the mutant-selective GoF safety downgrade. activating-driver-role-safety-
+      context fires on functional_direction=activating, which a spurious intOGen 'Act' label can set even
+      for a TUMOR SUPPRESSOR (e.g. SMARCA2: oncokb_gene_type=TSG yet functional_direction=activating).
+      Downgrading a TSG's WT-loss safety concern is wrong — a TSG is not drugged by a mutant-selective
+      activator that spares WT. The safety resolver's GROUP-1 downgrades require BOTH this rule AND
+      activating-driver-role-safety-context (when_all_fired), so only a genuine GoF ONCOGENE earns the
+      WT-constraint mechanism-mismatch downgrade. Neutral signals: mechanism context, not a biology call.
+      KNOWN GAP (follow-up): does not yet exclude amplification-driven oncogenes (e.g. ERBB2), where a
+      drug hits WT protein so the mutant-selective-sparing logic also fails — needs a mutation-driven-GoF
+      signal the alteration-role card does not currently carry.
+
   - rule_id: activating-driver-role-safety-context
     when:
       card_id: alteration-role

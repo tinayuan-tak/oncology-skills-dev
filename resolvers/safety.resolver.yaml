@@ -27,20 +27,20 @@ resolve:
 
   # gnomAD (2026-07-23) — UNCHANGED, must remain the first downgrade rung (golden byte-stability).
   - verdict: wt_constraint_mechanism_mismatch
-    when_all_fired: [highly-constrained-safety-warning, activating-driver-role-safety-context]
+    when_all_fired: [highly-constrained-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context]
     driving_rule: highly-constrained-safety-warning
   # P5 (2026-07-24) — parallel downgrades for the human-genetics warnings.
   - verdict: wt_human_genetics_mechanism_mismatch
-    when_all_fired: [gene-burden-lof-safety-warning, activating-driver-role-safety-context]
+    when_all_fired: [gene-burden-lof-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context]
     driving_rule: gene-burden-lof-safety-warning
   - verdict: wt_human_genetics_mechanism_mismatch
-    when_all_fired: [clingen-dominant-loss-safety-warning, activating-driver-role-safety-context]
+    when_all_fired: [clingen-dominant-loss-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context]
     driving_rule: clingen-dominant-loss-safety-warning
   - verdict: wt_human_genetics_mechanism_mismatch
-    when_all_fired: [mouse-ko-lethal-safety-warning, activating-driver-role-safety-context]
+    when_all_fired: [mouse-ko-lethal-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context]
     driving_rule: mouse-ko-lethal-safety-warning
   - verdict: wt_human_genetics_mechanism_mismatch
-    when_all_fired: [clinvar-germline-pathogenic-safety-warning, activating-driver-role-safety-context]
+    when_all_fired: [clinvar-germline-pathogenic-safety-warning, activating-driver-role-safety-context, oncogene-role-safety-context]
     driving_rule: clinvar-germline-pathogenic-safety-warning
 
   # ── GROUP 2a: the DOMINANT gnomAD signal — a strongly LoF-constrained gene is the top raw concern.

@@ -52,6 +52,7 @@ outputs:
   summary_fields_vocabulary:
     alteration_role: [direct_driver_gof, direct_driver_lof, predictive_biomarker, passenger, data_unavailable]
     functional_direction: [activating, loss_of_function, ambiguous]
+    oncokb_gene_type: [ONCOGENE, TSG, ONCOGENE_AND_TSG, NEITHER, INSUFFICIENT]   # OncoKB geneType backbone (null when gene absent from OncoKB); consumed by oncogene-role-safety-context
   figure: alteration_role_evidence_card      # compact role call + OncoKB/IntOGen evidence panel
 
 thresholds:
