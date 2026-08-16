@@ -305,13 +305,6 @@ def _call_live_reader(read_fn, card_id: str, target: str, indication: str,
     return read_fn(card_id, target, indication, **kwargs)
 
 
-def _invoke_method_live(plan_entry: dict, target: str, indication: str) -> Optional[dict]:
-    """Deprecated in favor of _read_live_summary. Kept for backward compatibility
-    with earlier execution_mode='live' callers expecting None on no-live-reader."""
-    card_id = plan_entry.get("card_id", "")
-    return _read_live_summary(card_id, plan_entry.get("_target", ""), plan_entry.get("_indication", ""))
-
-
 def _evaluate_interpretation_hints(card_spec: dict, summary: dict, thresholds: dict) -> str:
     """Iterate interpretation_hints in order; return the `call` of the first matching predicate.
     Returns "uninterpreted" if no hint matches."""

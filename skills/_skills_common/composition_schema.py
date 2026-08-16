@@ -7,9 +7,8 @@ navigation surfaces. This module defines the allowed enum values and
 validates a parsed `composition` block. Skills missing required fields or
 using invalid enum values raise CompositionError at load-time.
 
-See docs/skill-composition.md (TODO) for the canonical field reference. In
-the interim, the plan file at ~/.claude/plans/deep-foraging-thompson.md §2
-is the authoritative spec.
+The allowed enum values and required fields defined in this module are the
+canonical field reference for the `composition` block.
 """
 
 from __future__ import annotations

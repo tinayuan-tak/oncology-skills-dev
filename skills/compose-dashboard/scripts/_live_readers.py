@@ -848,12 +848,6 @@ def _dispatch_degradation_feasibility(target: str, indication: str) -> Optional[
 # dispatcher invokes it directly. See _generic_dispatch.
 
 
-def _dispatch_signaling_network_mechanism_composed(target: str, indication: str) -> Optional[dict]:
-    """Alias for the ADC/TCE composed card's derived_from resolution.
-    (Unused as a card-registered dispatcher; kept for symmetry.)"""
-    return _dispatch_signaling_network_mechanism(target, indication)
-
-
 def _dispatch_surface_topology_and_ptm(target: str, indication: str) -> Optional[dict]:
     """Dispatcher: surface-topology-and-ptm card → TMbed topology + UniProt PTM
     + AlphaFold pLDDT + motif regex via methods/topology_predictions_tmbed/read.py.
