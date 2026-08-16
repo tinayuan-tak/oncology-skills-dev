@@ -1805,8 +1805,21 @@ def _find_card_summary(sub_results: dict, card_id: str) -> dict:
 
 
 def _cv(vals: list) -> "Optional[float]":
-    """Coefficient of variation (population stdev / |mean|) over >=2 numerics; None otherwise."""
-    xs = [v for v in vals if isinstance(v, (int, float))]
+    """Coefficient of variation (population stdev / |mean|) over >=2 numerics; None otherwise.
+
+    Values are coerced to Python float: numpy.float64 passes isinstance(v, float) (it
+    subclasses float) but breaks statistics.mean/pstdev in py3.12 with
+    "'float' object has no attribute 'numerator'". bool and NaN are excluded.
+    """
+    import math
+    xs = []
+    for v in vals:
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            continue
+        fv = float(v)
+        if math.isnan(fv):
+            continue
+        xs.append(fv)
     if len(xs) < 2:
         return None
     import statistics
