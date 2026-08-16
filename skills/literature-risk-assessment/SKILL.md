@@ -1,0 +1,105 @@
+---
+name: literature-risk-assessment
+description: |
+  Retrieval-grounded 6-dimension literature RISK assessment for a (target, indication):
+  Biological / Druggability / Translational / Clinical / Safety / Commercial, each rated
+  LOW / MEDIUM / HIGH / not_assessed with a cited justification.
+
+  Emits, per dimension, BOTH an INTERPRETATION (the context read — "what the literature
+  knows about this axis's state") AND a RISK grade ("what could kill it"). This is the
+  general grounded context+risk primitive: the context/risk role runs on ANY axis (anchored
+  to the deterministic verdict, never overriding it); the verdict role is reserved for blind
+  axes (surface/SL/cell-state) in the sibling agents.
+
+  CONTEXT-TIER ONLY — never a card, rule, sub-verdict, or nomination-gate input
+  (RISK_ASSESSMENT_INTEGRATION.md, decided 2026-07-17). as-of-DATE literature context a
+  human reads, NOT a verdict.
+
+  REVIVES the deprecated workflow-target-evaluation-onc 6-dim assessment, RE-HOMED into
+  the grounded-agent layer with the fixes that decision record required:
+  - RETRIEVAL-GROUNDED, not memory-cited: real PubMed E-utilities search (Stage 0) feeds
+    the model; the model cites ONLY retrieved PMIDs, enforced by a hard containment guard
+    (a cited PMID outside the retrieved set is dropped as confabulated). This is the fix for
+    the surface-pilot finding that LLMs confabulate PMIDs from memory (~6/9 wrong).
+  - ANCHORED overlap dimensions: biological/druggability/safety consume the deterministic
+    sub-verdicts (via an optional evidence-package) and must stay consistent — literature
+    that contradicts is FLAGGED (contradicts_deterministic), never a silent override.
+    clinical/commercial/translational are pure literature (no primary-data source).
+  - null != MEDIUM: a dimension with no relevant retrieved abstracts is `not_assessed`,
+    never a fabricated middle score.
+  - REPRODUCIBILITY ENVELOPE: the retrieved corpus (PMIDs + query + mindate/maxdate) and the
+    model pin + prompt_hash are stored as the pinned artifact (temp-0 is impossible on the
+    framework model, so the sampled output IS the pin).
+
+  Question this skill answers:
+  For {target} in {indication}, what are the six drug-discovery risk dimensions, each graded
+  with cited (retrieved, real) literature — and where does that literature agree with or
+  contradict the framework's computed verdicts?
+
+metadata:
+  version: 0.1.0
+  owner: ryan.abo@takeda.com
+  requires_preflight: true       # needs Bedrock (BEDROCK_AWS_PROFILE) + network (NCBI E-utilities)
+  tier: context                  # NOT a verdict/gate producer — synthesis-context only
+  environment:
+    - BEDROCK_AWS_PROFILE=cmp-dev
+  model_pins:
+    synthesis_model: us.anthropic.claude-opus-4-8
+
+composition:
+  data_mode: live_read            # live PubMed E-utilities retrieval. Literature is UNPINNABLE-grade
+                                  # (citable_in_nominations: false, enforced in the skill output, not via data_mode)
+  phase: [C, D, F, G, J]          # cross-cutting literature context spanning the pillars its 6 risk
+                                  # dimensions touch: biological(C), mechanism(D), druggability(F),
+                                  # safety(G), translational(J). clinical/commercial have no biology phase.
+  cards_used: []                  # consumes NO cards; retrieves literature. Optionally READS an
+                                  # evidence_package (sub_verdicts) to anchor overlap dimensions.
+  rules_scope: []                 # fires NO rules — context-tier, descriptive risk read (no verdict spine)
+  synthesis: [structured_llm]     # 6-dim risk read via Bedrock forced tool-use over retrieved abstracts
+  output_shape: [data_package]    # risk_assessment.json
+  steps_covered: [1, 2, 6]        # retrieve → assess → report (descriptive context, mirrors target-intrinsic)
+  produces:
+    - risk_assessment.json        # 6-dim {risk_level, justification, cited_pmids, anchor, corpus pin}
+  status: wired
+---
+
+# literature-risk-assessment
+
+## What this skill does
+
+Runs a 3-stage retrieval-grounded pipeline per (target, indication):
+
+1. **Retrieve (Stage 0):** six per-dimension PubMed E-utilities searches (`pubmed_search.py`,
+   no LLM) → real abstracts (PMID + title + abstract). Date-boundable (`--mindate/--maxdate`)
+   for a pinnable corpus.
+2. **Assess (Stage 1):** for each dimension, the framework-pinned model rates
+   LOW/MEDIUM/HIGH/not_assessed over ONLY the retrieved abstracts, citing ONLY their PMIDs.
+   Overlap dimensions also receive the deterministic sub-verdict to anchor to.
+3. **Guard:** cited PMIDs are validated ⊆ the retrieved set; any outside are dropped and
+   recorded in `confabulated_dropped` (must be empty with retrieval-grounding).
+
+## What this skill does NOT do
+
+- Does NOT produce a card, rule, sub-verdict, or nomination-gate input. Its output is
+  synthesis-context; the deterministic gate stays literature-blind
+  (RISK_ASSESSMENT_INTEGRATION.md §4).
+- Does NOT let the model emit PMIDs from memory (the confabulation failure mode).
+- Does NOT score absence of evidence as MEDIUM (null → `not_assessed`).
+
+## Invocation
+
+```
+BEDROCK_AWS_PROFILE=cmp-dev python3 skills/literature-risk-assessment/scripts/run.py \
+  --target FOLR1 --indication "ovarian cancer" \
+  --evidence-package <optional evidence_package.json for anchoring> \
+  --mindate 2015 --maxdate 2026 \
+  --out <dir>
+```
+
+## The one verdict-affecting ramp (NOT enabled here)
+
+Per RISK_ASSESSMENT_INTEGRATION.md §5, the ONLY defensible future gate-affecting use is a
+`clinical_validation` NO-GO (a well-powered mechanistic de-validation in the exact indication),
+behind five preconditions (corpus pin, determinism, null≠MEDIUM, drop commercial/translational,
+staleness TTL). This skill implements the corpus-pin + null≠MEDIUM preconditions but stays
+context-tier; enabling the ramp is a separate, reviewed decision.
