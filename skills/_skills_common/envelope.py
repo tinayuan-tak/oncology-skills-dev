@@ -276,6 +276,33 @@ def build_subskill_provenance(card_outputs: list, data_mode: str, release_pin: "
     return prov
 
 
+def _stamp_evidence_substrate(entry: dict) -> None:
+    """Stamp (measurement_type, evidence_substrate, provenance.required_product_ids) onto a
+    card_present entry IN PLACE (cross-evidence roadmap invariant 8). Best-effort + fail-open: any
+    unresolved key is omitted and a skills-only / registry-unreachable checkout is a silent no-op —
+    provenance enrichment must never block or crash evidence-package emission."""
+    card_id = entry.get("card_id")
+    if not card_id:
+        return
+    try:
+        from .measurement_types import substrate_for_card
+        mt, substrate = substrate_for_card(card_id)
+        if mt:
+            entry["measurement_type"] = mt
+        if substrate:
+            entry["evidence_substrate"] = substrate
+    except Exception:  # noqa: BLE001 — registry read is best-effort
+        pass
+    try:
+        from . import card_input_manifest_ids
+        req = list(card_input_manifest_ids(card_id))
+        if req:
+            prov = entry.setdefault("provenance", {"method_calls": [], "input_manifest_ids": []})
+            prov["required_product_ids"] = req
+    except Exception:  # noqa: BLE001 — card-spec read is best-effort
+        pass
+
+
 def assemble_evidence_package(
     input_context: dict,
     card_outputs: list[dict],
@@ -287,6 +314,7 @@ def assemble_evidence_package(
     dashboard_spec_ref: str,
     unavailable_cards: "list[dict] | None" = None,
     refine_product_id_staleness: bool = False,
+    stamp_evidence_substrate: bool = False,
 ) -> dict:
     """Build the evidence_package envelope from phase outputs.
 
@@ -309,7 +337,18 @@ def assemble_evidence_package(
     caller reading product-id-declared cards (target-profile's --emit) emits HONEST staleness
     (indeterminate, not false-True) for those families. DEFAULT FALSE — compose-dashboard leaves it
     off so its byte-golden envelope is unchanged.
-    """
+
+    `stamp_evidence_substrate` (2026-08-16, cross-evidence roadmap invariant 8 — "independence before
+    certainty"): when True, each present card_present entry is stamped with its `measurement_type` +
+    `evidence_substrate` (resolved from the measurement_types registry's `cards:` back-refs +
+    `evidence_substrates` vocab) and its provenance carries the DECLARED `required_product_ids`
+    (card_spec.required_inputs[].product_id). This lets a cross-evidence integrator detect which cards
+    share an underlying data product and NOT count correlated evidence twice toward certainty (the
+    HTR1D expression<->selectivity double-count). DEFAULT FALSE so every existing caller
+    (compose-dashboard byte-golden, target-profile --emit, subskill --emit-envelope) is byte-identical
+    AND keeps validating against the un-updated evidence_package.schema until the target-contracts
+    substrate schema (the sibling PR) lands. Best-effort: unresolved type/substrate keys are simply
+    omitted; a skills-only checkout stamps nothing and never raises."""
     ctx = input_context
     target = ctx["target_symbol"]
     indication = ctx["indication"]
@@ -391,6 +430,8 @@ def assemble_evidence_package(
                 entry["warning_ids"] = c["warning_ids"]
             if c.get("figures"):
                 entry["figures"] = c["figures"]
+            if stamp_evidence_substrate:
+                _stamp_evidence_substrate(entry)
             cards.append(entry)
 
     # Append reasoned-absence entries (F, 2026-07-20): the card_unavailable envelope variant.

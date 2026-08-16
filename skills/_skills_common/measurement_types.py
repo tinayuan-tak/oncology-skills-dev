@@ -140,3 +140,51 @@ def resolve_pull(type_key: str) -> PullResolution:
 def resolve_pulled_types(pulled: list[str]) -> list[PullResolution]:
     """Resolve a gate's full `measurement_types_pulled` list. Order-preserving."""
     return [resolve_pull(t) for t in pulled]
+
+
+# --- evidence-substrate resolution (cross-evidence roadmap invariant 8) -----------------------
+# The read-side companion of the registry's OPTIONAL `evidence_substrate: <slug>` per type + the
+# `evidence_substrates:` controlled vocab. Lets an emitting skill stamp each evidence_package card
+# entry with (measurement_type, evidence_substrate) so a cross-evidence integrator can detect which
+# cards share underlying data products and NOT double-count correlated evidence toward certainty (the
+# HTR1D expression<->selectivity trap). All helpers are best-effort: None/empty when the registry is
+# unreachable (a skills-only checkout) or the card/type is untagged — never raise.
+
+@lru_cache(maxsize=1)
+def _card_to_type_map() -> dict:
+    """{card_id -> measurement_type} from the registry's per-type `cards:` back-refs.
+    Empty dict if the registry is unreachable. (A card_id can appear under exactly one type — the
+    registry validator enforces that concordance, so last-writer-wins here is a non-issue.)"""
+    doc = _load_registry()
+    if not doc:
+        return {}
+    out: dict = {}
+    for mt, spec in (doc.get("measurement_types") or {}).items():
+        for cid in ((spec or {}).get("cards") or []):
+            out[cid] = mt
+    return out
+
+
+def card_measurement_type(card_id: str) -> Optional[str]:
+    """The measurement_type a card is a view of (via the registry `cards:` back-ref), or None."""
+    return _card_to_type_map().get(card_id)
+
+
+def evidence_substrate_of(type_key: str) -> Optional[str]:
+    """The `evidence_substrate` slug declared on a measurement_type, or None (untagged/unreachable)."""
+    doc = _load_registry()
+    if not doc:
+        return None
+    return ((doc.get("measurement_types") or {}).get(type_key) or {}).get("evidence_substrate")
+
+
+def substrate_for_card(card_id: str) -> "tuple[Optional[str], Optional[str]]":
+    """(measurement_type, evidence_substrate) for a card_id — both best-effort, either may be None.
+
+    measurement_type is None when the card is not back-referenced by any registered type (e.g. an
+    un-migrated card); evidence_substrate is None when the resolved type carries no substrate tag
+    (the genuinely-independent singleton case)."""
+    mt = card_measurement_type(card_id)
+    if mt is None:
+        return None, None
+    return mt, evidence_substrate_of(mt)
