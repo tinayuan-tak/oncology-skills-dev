@@ -165,11 +165,3 @@ def symbol_to_ensembl(target: str) -> Optional[str]:
         return t
     s2e, _ = _sidecar_maps()
     return s2e.get(t.upper())
-
-
-def ensembl_to_symbol(ensembl_gene_id: str) -> Optional[str]:
-    """Reverse lookup: ensembl_gene_id -> HGNC primary symbol (None if unresolvable)."""
-    if not ensembl_gene_id:
-        return None
-    _, e2s = _sidecar_maps()
-    return e2s.get(ensembl_gene_id.strip())
