@@ -9,9 +9,7 @@ maps in only as "which indication am I in". Verdict-INERT: no resolver rung.
 """
 from __future__ import annotations
 
-import io
 import os
-import subprocess
 from typing import Optional
 
 from . import cli as _cli
@@ -32,13 +30,10 @@ def _ensure_aws_profile() -> None:
 
 
 def _load_product():
-    import pandas as pd
+    # No dev-build fallback: an unreachable/empty product raises (RuntimeError), never a silent empty.
+    from methods.derived_product import load_materialized_product
     _ensure_aws_profile()
-    raw = subprocess.run(["aws", "s3", "cp", _resolve_derived_uri(), "-"],
-                         capture_output=True, timeout=120).stdout
-    if not raw:
-        raise RuntimeError(f"could not load materialized product {DERIVED_MANIFEST_ID}")
-    return pd.read_parquet(io.BytesIO(raw))
+    return load_materialized_product(_resolve_derived_uri())
 
 
 # Framework indication → TCGA study code(s). The product is keyed on TCGA study codes (33 cancers);

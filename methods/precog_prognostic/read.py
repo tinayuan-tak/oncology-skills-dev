@@ -11,9 +11,7 @@ single-cohort expression-clinical-association card.
 """
 from __future__ import annotations
 
-import io
 import os
-import subprocess
 from typing import Optional
 
 from . import cli as _cli
@@ -30,15 +28,10 @@ def _ensure_aws_profile() -> None:
 
 
 def _load_product():
-    import pandas as pd
+    from methods.derived_product import load_materialized_product
     _ensure_aws_profile()
-    try:
-        raw = subprocess.run(["aws", "s3", "cp", _DERIVED_S3, "-"], capture_output=True, timeout=120).stdout
-        if raw:
-            return pd.read_parquet(io.BytesIO(raw))
-    except Exception:
-        pass
-    return _cli.build_long_table()   # dev fallback (re-reads the source matrix)
+    # dev fallback (re-reads the source matrix) if the materialized product is unreachable
+    return load_materialized_product(_DERIVED_S3, dev_build=_cli.build_long_table)
 
 
 def read_precog_prognostic(target: Optional[str] = None, indication: Optional[str] = None) -> dict:

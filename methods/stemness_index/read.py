@@ -8,9 +8,7 @@ Target-INDEPENDENT cohort context (tier: indication). Verdict-INERT: no resolver
 """
 from __future__ import annotations
 
-import io
 import os
-import subprocess
 from typing import Optional
 
 from . import cli as _cli
@@ -36,15 +34,10 @@ def _ensure_aws_profile() -> None:
 
 
 def _load_product():
-    import pandas as pd
+    from methods.derived_product import load_materialized_product
     _ensure_aws_profile()
-    try:
-        raw = subprocess.run(["aws", "s3", "cp", _resolve_derived_uri(), "-"], capture_output=True, timeout=120).stdout
-        if raw:
-            return pd.read_parquet(io.BytesIO(raw))
-    except Exception:
-        pass
-    return _cli.build_per_indication_table()   # dev fallback (slow: rescores from source)
+    # dev fallback (slow: rescores from source) if the materialized product is unreachable
+    return load_materialized_product(_resolve_derived_uri(), dev_build=_cli.build_per_indication_table)
 
 
 def read_stemness_index(target: Optional[str] = None, indication: Optional[str] = None) -> dict:

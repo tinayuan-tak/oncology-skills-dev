@@ -10,9 +10,7 @@ only as "which indication am I in". Verdict-INERT: no resolver rung.
 """
 from __future__ import annotations
 
-import io
 import os
-import subprocess
 from typing import Optional
 
 from . import cli as _cli
@@ -45,17 +43,10 @@ def _ensure_aws_profile() -> None:
 
 def _load_product():
     """Load the materialized per-indication product (S3), else live-build fallback."""
-    import pandas as pd
+    from methods.derived_product import load_materialized_product
     _ensure_aws_profile()
-    try:
-        raw = subprocess.run(["aws", "s3", "cp", _resolve_derived_uri(), "-"],
-                             capture_output=True, timeout=120).stdout
-        if raw:
-            return pd.read_parquet(io.BytesIO(raw))
-    except Exception:
-        pass
-    # dev fallback: recompute live from source (slower; ~6s)
-    return _cli.build_per_indication_table()
+    # dev fallback: recompute live from source (slower; ~6s) if the product is unreachable
+    return load_materialized_product(_resolve_derived_uri(), dev_build=_cli.build_per_indication_table)
 
 
 def _combine_rows(rows) -> dict:
