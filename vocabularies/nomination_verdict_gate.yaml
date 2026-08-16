@@ -26,7 +26,14 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.4.0   # 1.4.0 (2026-08-12): + contested_threshold (verdict-INERT fragility banner; NEVER
+version: 1.5.0   # 1.5.0 (2026-08-16): + kill_capable_verdicts registry (roadmap §6.6 fail-closed, gate-
+                 #   complete). Per-resolver enumeration of EVERY verdict with negative decision semantics,
+                 #   each tagged disposition ∈ {gated, excluded_modality_scoped, contradiction}. Forces every
+                 #   kill verdict to be EXPLICITLY classified (a completeness CI test fails if a kill verdict
+                 #   is unclassified or renamed out of its resolver). Adds NO new veto/hold — the `gates` block
+                 #   (2 vetoes + 3 holds) is byte-stable; the registry only makes the COMPLETE kill set legible
+                 #   so the skills gate can iterate it (never fail-open on a silently-ignored kill).
+                 # 1.4.0 (2026-08-12): + contested_threshold (verdict-INERT fragility banner; NEVER
                  #   changes overall_recommendation/confidence). `gates`/positive/suppressor blocks
                  #   unchanged. 1.3.0 (2026-07-21): + target-intrinsic expression positive
                  #   (expression:strongly_upregulated_in_tumor, SUPPORTIVE; broadly_high_expression stays
@@ -116,6 +123,84 @@ excluded_modality_scoped:
     verdict: broadly_low_expression
   - sub_skill: expression
     verdict: not_informative
+  # v1.5.0: the remaining surface + SM modality-scoped KILLERS, now EXPLICITLY excluded
+  # (previously silently ignored — the §6.6 fail-open). Each forecloses a MODALITY, not
+  # the target, so — exactly like neither_viable — it must NOT force a blanket veto:
+  #   surface adc_preferred_tce_unsafe      → TCE unsafe (normal liability); ADC still viable
+  #                                            (also a modality-scoped POSITIVE for adc/antibody below)
+  #   surface tce_unsafe_normal_liability   → TCE unsafe; other modalities unaffected
+  #   surface shed_dominant_opposed         → shed antigen opposes surface-directed biologics; SM/degrader ok
+  #   tractability_sm structurally_intractable → NO small-molecule pocket; a biologic/degrader may still work
+  # Listing them here (not in `gates`) preserves the KRAS×COADREAD golden and the 2-veto set while
+  # making the disposition auditable instead of a silent no-op.
+  - sub_skill: surface_modality
+    verdict: adc_preferred_tce_unsafe
+  - sub_skill: surface_modality
+    verdict: tce_unsafe_normal_liability
+  - sub_skill: surface_modality
+    verdict: shed_dominant_opposed
+  - sub_skill: tractability_sm
+    verdict: structurally_intractable
+
+# ============================================================================
+# KILL-CAPABLE VERDICT REGISTRY (2026-08-16, v1.5.0) — fail-closed, gate-complete (§6.6).
+# ============================================================================
+# The COMPLETE, per-resolver enumeration of every emitted verdict with NEGATIVE decision
+# semantics (kill / veto / hold / opposing). Its purpose is NOT to add vetoes — the active
+# veto set stays exactly the two cross-target killers — but to force EVERY kill verdict to
+# be EXPLICITLY classified, so a kill can never be silently ignored (the §6.6 fail-open) and
+# a rename can never silently disable one.
+#
+# Each entry carries a `disposition` naming WHERE the verdict is classified elsewhere in
+# this file:
+#   gated                    — forces overall_recommendation via `gates` (veto or hold).
+#   excluded_modality_scoped — forecloses a MODALITY, not the target; in
+#                              `excluded_modality_scoped`; deliberately NOT a blanket veto
+#                              (the KRAS×COADREAD golden). Foreclosure is real but modality-local.
+#   contradiction            — opposing MEASURED evidence; in `positive_contradictions`;
+#                              blocks the `strong` confidence tier and renders as scorecard
+#                              `opposing`; deliberately NOT a blanket veto.
+#
+# COMPLETENESS CI (tests/vocabularies/test_kill_capable_completeness.py):
+#   (1) every entry's disposition MATCHES its actual classification block (gated↔gates,
+#       excluded_modality_scoped↔excluded_modality_scoped, contradiction↔positive_contradictions);
+#   (2) every resolver-backed entry is EMITTED case-exact by its resolver (a rename that
+#       orphans a kill fails CI) — reuses validators/validate_verdict_tokens.emitted_verdicts_by_gate;
+#   (3) COVERAGE: every negative-classification pair (gates ∪ excluded_modality_scoped ∪
+#       positive_contradictions) whose sub_skill has a resolver MUST appear here — so a newly
+#       classified kill (or a resolver that starts emitting a classified verdict) can never be
+#       omitted from this registry.
+# The skills-side gate loader (claude-oncology-skills target-profile/tp_gates.py) reads this
+# registry (with a hardcoded complete fallback) to iterate the full declared kill set and to
+# emit the per-gate `hard_gates` status block.
+#
+# NOTE on sub_skill names: these are the target-profile SUB-SKILL shorts (the keys of
+# sub_results), NOT resolver filenames. The one alias is tractability_sm →
+# tractability_small_molecule.resolver.yaml. subtype_fit is advisory-per-resolver (no resolver
+# file); its single kill verdict is verified against the gates block only.
+kill_capable_verdicts:
+  dependency:
+    - {verdict: pan_essential_killer,             disposition: gated}          # veto
+    - {verdict: non_dependent,                    disposition: gated}          # veto
+    - {verdict: discordant,                       disposition: contradiction}
+    - {verdict: broadly_dependent,                disposition: contradiction}
+  safety:
+    - {verdict: highly_constrained_safety_concern, disposition: gated}         # hold
+    - {verdict: human_genetics_safety_concern,     disposition: gated}         # hold
+  subtype_fit:
+    - {verdict: subtype_specific_non_dependence,   disposition: gated}         # hold (no resolver; gates-checked)
+  selectivity:
+    - {verdict: not_selective,                    disposition: contradiction}
+    - {verdict: discordant_across_comparators,    disposition: contradiction}
+  surface_modality:
+    - {verdict: neither_viable,                   disposition: excluded_modality_scoped}
+    - {verdict: adc_preferred_tce_unsafe,         disposition: excluded_modality_scoped}
+    - {verdict: tce_unsafe_normal_liability,      disposition: excluded_modality_scoped}
+    - {verdict: shed_dominant_opposed,            disposition: excluded_modality_scoped}
+  tractability_sm:
+    - {verdict: structurally_intractable,         disposition: excluded_modality_scoped}
+    - {verdict: chemically_unhit,                 disposition: contradiction}
+    - {verdict: discordant,                       disposition: contradiction}
 
 # ============================================================================
 # VETO SUPPRESSION (2026-07-17, v1.2.0) — backtest-driven gate-C correction.
