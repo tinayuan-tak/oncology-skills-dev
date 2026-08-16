@@ -143,8 +143,17 @@ covers the long tail — but grounded, not free.
 Eight worked scenarios (FOLR1, STEAP1, ADAR1, KRAS, PARP1, XPO1, CLDN18.2×LRRC15,
 HIF2A) yield seven load-bearing rules:
 
-1. **Deploy by coverage state** — agents run on blind / un-formalized axes only, never
-   the validated lane (KRAS gets no judgment agent).
+1. **Role-differentiated deployment by coverage state** (REVISED 2026-08-15 — supersedes the
+   earlier "blind-axes only" rule). A grounded agent has two roles, and only the second is
+   unsafe on a well-covered axis:
+   - **Context / risk role — runs on EVERY axis.** Retrieve literature (containment-guarded,
+     cite-or-abstain) and emit a per-axis *interpretation* (what is known) + *risk* read,
+     **anchored to the deterministic verdict and never overriding it** — the audit spine is
+     untouched. This is the general primitive (see `literature-risk-assessment` skill).
+   - **Verdict role — blind axes ONLY.** The agent supplies/arbitrates the axis verdict
+     (surface / SL / cell-state). KRAS-dependency gets a context/risk read but NO verdict
+     agent — the deterministic call stands.
+   Cost discipline: batch axes into fewer calls; the containment guard is mandatory.
 2. **Un-formalized ≠ unmeasured** — agents fix un-formalized axes (surface judgment, SL
    context); a missing *measurement* (co-localization, density) must be wired first, or
    the agent confabulates a relation (CLDN18.2×LRRC15 avidity failure).
