@@ -98,6 +98,63 @@ def test_agent_contradiction_edge_unsurfaced_is_flagged():
     assert hc.coherence_violations(clauses2, conv, edges, [], present, out_of_scope=set()) == {}
 
 
+def test_edge_contradiction_surfaced_via_dimension_member_cards_is_credited():
+    """WS6-surfaced FALSE POSITIVE: an edge names the DIMENSION 'safety', but the LLM surfaces the
+    safety tension by citing safety's underlying CARDS (gnomad-lof-constraint, ...), not the bare
+    'safety' token. The detector must credit that card-grain surfacing against the dimension-grain
+    edge — else it false-fires and blocks promotion of clear positives (KRAS/ERBB2/BRAF)."""
+    conv = {"dependency": "lineage_selective", "safety": "wt_constraint_mechanism_mismatch"}
+    edges = [{"type": "tensions_with", "from_dimension": "safety",
+              "to_dimension": "dependency-lineage-selectivity",
+              "citations": ["safety", "dependency-lineage-selectivity"]}]
+    present = {"dependency_lineage_selectivity", "safety"}
+    clauses = {"causal_rationale": {"support": ["dependency-lineage-selectivity"], "surfaced": []}}
+    # safety surfaced ONLY via its member cards in a principal tension (not the 'safety' token)
+    tensions = [{"statement": "Safety mismatch: highly_constrained, narrow window",
+                 "citations": ["gnomad-lof-constraint", "normal-tissue-liability-gtex",
+                               "clingen-dosage", "mouse-ko-phenotype"]}]
+    assert hc.coherence_violations(clauses, conv, edges, tensions, present,
+                                   out_of_scope=set()) == {}
+    # sanity: with NO surfacing tension at all, it STILL fires (teeth preserved)
+    v = hc.coherence_violations(clauses, conv, edges, [], present, out_of_scope=set())
+    assert any(x["type"] == "edge_contradiction_unsurfaced" for x in v["causal_rationale"])
+
+
+def test_negative_dimension_surfaced_via_member_card_tension_is_credited():
+    """Same grain fix for check (a): a measured-negative DIMENSION cited as support is surfaced when
+    any of its member cards appears in a tension."""
+    conv = {"safety": "highly_constrained_safety_concern"}
+    clauses = {"causal_rationale": {"support": ["safety"], "surfaced": []}}
+    present = {"safety"}
+    tensions = [{"statement": "constraint", "citations": ["gnomad-lof-constraint"]}]
+    assert hc.coherence_violations(clauses, conv, [], tensions, present, out_of_scope=set()) == {}
+
+
+def test_dimension_cards_matches_spine():
+    """DRIFT GUARD: DIMENSION_CARDS must mirror the authoritative target-profile
+    SUB_SKILL_CARDS ∘ SUB_SKILLS (skill_dir → short). If the spine composition changes, this fails so
+    the mirrored crosswalk is updated in lockstep. Skips if target-profile is not importable."""
+    import sys
+    from pathlib import Path
+    tp_scripts = Path(hc.__file__).resolve().parents[2] / "target-profile" / "scripts"
+    if not tp_scripts.exists():
+        import pytest; pytest.skip("target-profile scripts not present")
+    sys.path.insert(0, str(tp_scripts))
+    sys.path.insert(0, str(tp_scripts.parents[1]))  # skills/ for _skills_common
+    try:
+        import tp_fanout as f
+    except Exception as e:  # noqa: BLE001 — env without spine deps → skip, don't fail
+        import pytest; pytest.skip(f"tp_fanout not importable: {e}")
+    s2s = dict(f.SUB_SKILLS)
+    spine = {}
+    for skill_dir, cards in f.SUB_SKILL_CARDS.items():
+        spine.setdefault(s2s.get(skill_dir, skill_dir), set()).update(cards)
+    ours = {k: set(v) for k, v in hc.DIMENSION_CARDS.items()}
+    assert ours == spine, (f"DIMENSION_CARDS drift from SUB_SKILL_CARDS: "
+                           f"missing={ {k: spine[k]-ours.get(k,set()) for k in spine if spine[k]-ours.get(k,set())} } "
+                           f"extra={ {k: ours[k]-spine.get(k,set()) for k in ours if ours[k]-spine.get(k,set())} }")
+
+
 # =============================== (c) INTRINSIC SL-vs-no_partner (the task example) =================
 def test_intrinsic_sl_without_mapped_partner_flagged_even_when_uncited():
     """The exact skeptic-found class: a clause rests on the SL/combination strategy while

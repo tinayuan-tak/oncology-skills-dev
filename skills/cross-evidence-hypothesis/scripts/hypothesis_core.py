@@ -33,6 +33,76 @@ SAFETY_HOLD = {"human_genetics_safety_concern", "moderately_constrained_safety",
 # Safety hard-kill tokens (kept for the hard_gates-ABSENT fallback path only).
 SAFETY_KILL = {"intolerant_lof_killer", "highly_constrained_safety_concern"}
 
+# DIMENSION → member card_ids crosswalk (bridges a GRAIN MISMATCH in coherence detection).
+# A `contradicts`/`tensions_with` edge names a sub-verdict DIMENSION (e.g. "safety"), but the LLM
+# routinely surfaces that dimension's tension by citing the dimension's underlying CARDS
+# (gnomad-lof-constraint, clingen-dosage, ...) rather than the bare dimension token. Without this map
+# the surfacing check can't see that a card-grain tension surfaces a dimension-grain contradiction, so
+# it FALSE-fires `edge_contradiction_unsurfaced` and blocks promotion (WS6-surfaced: KRAS/ERBB2/BRAF
+# demoted conditional_on_biomarker → advanceable_flagged despite surfacing the safety tension).
+# Authoritative source = target-profile SUB_SKILL_CARDS ∘ SUB_SKILLS (skill_dir → short); mirrored here
+# because importing tp_fanout pulls the whole spine runtime. A drift-guard test
+# (test_dimension_cards_matches_spine) fails if this drifts from SUB_SKILL_CARDS. A card may belong to
+# >1 dimension (multi-lens); that is fine — surfacing any member credits the dimension.
+DIMENSION_CARDS: dict[str, frozenset[str]] = {
+    "combinatorial_dependency": frozenset({"combinatorial-dependency"}),
+    "dependency": frozenset({
+        "abundance-dependency", "crispr-rnai-dependency-concordance", "cross-consortium-dependency",
+        "dependency-lineage-selectivity", "expression-dependency-correlation",
+        "pan-cancer-crispr-dependency-distribution", "pan-cancer-rnai-dependency-distribution",
+        "paralog-buffering", "partner-conditional-dependency", "prism-crispr-concordance",
+        "recommended-models"}),
+    "differentiation": frozenset({
+        "co-mutation-and-mutual-exclusivity", "expression-clinical-association",
+        "pathway-node-leverage", "precog-prognostic-association", "stemness-context"}),
+    "expression": frozenset({
+        "cellline-protein-abundance", "cellline-rna-distribution", "cellline-rna-protein-concordance",
+        "expression-purity-confound", "tumor-elevation-breadth", "tumor-protein-abundance-cptac",
+        "tumor-rna-distribution", "tumor-rna-distribution-by-subtype", "tumor-rna-vs-adjacent",
+        "tumor-scrna-celltype-expression"}),
+    "genomic_alteration": frozenset({
+        "alteration-role", "amp-expr-stratified-dependency", "copy-number-distribution",
+        "copy-number-stratified-dependency", "ddr-deficiency-context", "functional-gene-state",
+        "fusion-rearrangement-landscape", "fusion-stratified-dependency", "genomic-event-model-match",
+        "genomic-instability-state", "mutation-drug-response", "mutation-hotspot-frequency",
+        "mutation-stratified-dependency", "mutation-type-counts", "mutational-signature-context",
+        "oncogenic-pathway-alteration", "target-clonality", "variant-level-interpretation"}),
+    "mechanism": frozenset({
+        "pathway-activity-context", "phospho-pathway-activity", "signaling-network-mechanism",
+        "tahoe-drug-perturbation"}),
+    "safety": frozenset({
+        "alteration-role", "clingen-dosage", "clinvar-pathogenicity-safety", "gene-burden-safety",
+        "gnomad-lof-constraint", "mouse-ko-phenotype", "normal-tissue-liability-gtex",
+        "target-safety-prioritisation"}),
+    "selectivity": frozenset({
+        "expression-purity-confound", "modality-therapeutic-window", "sc-normal-celltype-expression",
+        "surface-abundance-density", "tumor-vs-normal-percentile-crossing",
+        "tumor-vs-normal-selectivity"}),
+    "surface_modality": frozenset({
+        "adc-tce-modality-fit", "cd-antigen-backbone", "copy-number-distribution",
+        "modality-exon-window", "modality-therapeutic-window", "mutation-stratified-surface",
+        "normal-tissue-liability", "pathway-stratified-surface", "pmhc-presentation",
+        "protein-surface-evidence", "rna-protein-concordance-tumor", "sc-normal-celltype-expression",
+        "shed-ectodomain-liability", "structure-features-static", "surface-abundance-density",
+        "surface-topology-and-ptm", "surfaceome-family-classification"}),
+    "synthetic_lethal_partners": frozenset({"synthetic-lethal-partners"}),
+    "target_intrinsic": frozenset({
+        "domain-modality-relevance", "gene-ontology-annotation", "ppi-interactome",
+        "protein-domains-class", "reactome-pathway-membership", "target-development-level",
+        "target-identity-summary"}),
+    "tractability_sm": frozenset({
+        "degradation-feasibility", "dependency-predictability", "known-drug-tractability",
+        "measured-potency-tractability", "prism-compound-activity", "prism-crispr-concordance",
+        "structure-features-static"}),
+}
+# normalized: dim_norm -> {card_norm}. Used to expand a dimension token to its member cards when
+# deciding whether a contradiction was surfaced (dimension-grain OR card-grain both count).
+_DIM_CARD_NORMS: dict[str, frozenset[str]] = {
+    _n: frozenset(c.replace("-", "_").lower() for c in cards)
+    for dim, cards in DIMENSION_CARDS.items()
+    for _n in (dim.replace("-", "_").lower(),)
+}
+
 # coverage-gap verdicts: a line in one of these states carries NO evidentiary weight (absence-discipline)
 GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_assessed", "not_informative",
                 "no_data", "not_evaluated", "insufficient_data", "insufficient_evidence"}
@@ -518,11 +588,20 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
     tension_tok_sets = [{_norm(c) for c in (t.get("citations") or [])}
                         for t in (tensions or []) if isinstance(t, dict)]
 
-    def _tension_covers(x, y):
-        return any(x in ts and y in ts for ts in tension_tok_sets)
+    def _expand(tok):
+        """A normalized token → itself PLUS its member-card norms if it is a sub-verdict DIMENSION.
+        Bridges the dimension↔card grain mismatch: a tension that cites a dimension's cards
+        (gnomad-lof-constraint) surfaces that dimension ('safety'). A card/rule token expands to
+        just itself."""
+        return {tok} | _DIM_CARD_NORMS.get(tok, frozenset())
+
+    def _surfaced_in(tok, tokenset):
+        # tok is surfaced within tokenset if the token OR (when tok is a dimension) any of its
+        # member cards appears — grain-agnostic surfacing.
+        return bool(_expand(tok) & tokenset)
 
     def _surfaced_as_tension(x):
-        return any(x in ts for ts in tension_tok_sets)
+        return any(_surfaced_in(x, ts) for ts in tension_tok_sets)
 
     violations: dict = {}
     for key, cl in clauses.items():
@@ -532,7 +611,7 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
         # (a)/(a2) measured-negative sub-verdict OR card cited as support — positive-thesis clauses
         if key in POSITIVE_THESIS_CLAUSES:
             for nd, (name, verdict) in neg_norm.items():
-                if nd in support and nd not in surfaced and not _surfaced_as_tension(nd):
+                if nd in support and not _surfaced_in(nd, surfaced) and not _surfaced_as_tension(nd):
                     found.append({
                         "type": "negative_signal_asserted", "dimension": name, "verdict": verdict,
                         "detail": (f"cites '{name}' (measured-negative verdict '{verdict}') as SUPPORT "
@@ -543,8 +622,12 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
             for x, y in ((a, b), (b, a)):
                 if _oos(x) or _oos(y):     # tension touches an out-of-scope-modality axis → not a cap
                     continue
-                if (x in support and y in present_norm and y not in surfaced
-                        and y not in support and not _tension_covers(x, y)):
+                # Surfaced if y is in the clause's contradicting_citations OR any principal tension —
+                # at EITHER grain (the dimension token OR any of its member cards). Requiring the SAME
+                # tension to cite both x and y (the old _tension_covers) false-fired when the LLM
+                # surfaced the contradicting dimension via its cards in a standalone tension.
+                if (x in support and y in present_norm and y not in support
+                        and not _surfaced_in(y, surfaced) and not _surfaced_as_tension(y)):
                     found.append({
                         "type": "edge_contradiction_unsurfaced", "asserted": x, "contradicted_by": y,
                         "detail": (f"cites '{x}' as support while its OWN typed edge marks '{y}' as "
@@ -562,7 +645,7 @@ def coherence_violations(clauses: dict, conviction: dict, edges: list, tensions:
                     if sig_n in seen_sig or _oos(sig_n):   # skip an out-of-scope contradicting sibling
                         continue
                     val = value_by_norm.get(sig_n)
-                    if val in negvals and sig_n not in surfaced and not _surfaced_as_tension(sig_n):
+                    if val in negvals and not _surfaced_in(sig_n, surfaced) and not _surfaced_as_tension(sig_n):
                         seen_sig.add(sig_n)
                         found.append({
                             "type": "intrinsic_contradiction", "label": rule["label"],

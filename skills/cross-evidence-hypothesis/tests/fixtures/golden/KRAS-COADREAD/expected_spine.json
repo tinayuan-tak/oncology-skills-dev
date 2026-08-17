@@ -1,8 +1,8 @@
 {
-  "computed_verdict": "advanceable_flagged",
+  "computed_verdict": "conditional_on_biomarker",
   "gate_ceiling": "advanceable",
   "gate_reason": "no fired/blind hard gate on the deterministic spine",
-  "was_clamped": true,
+  "was_clamped": false,
   "gate_clamp_tension_present": false,
   "gate_fail_closed": false,
   "hard_gates_present": false,
@@ -11,14 +11,10 @@
   "opposing_gates": [],
   "modality_excluded_gates": [],
   "clause_traceability": 1.0,
-  "promotable": false,
-  "promotion_blockers": [
-    "intra_package_coherence_violations"
-  ],
-  "n_coherence_violations": 1,
-  "coherence_violation_clauses": [
-    "causal_rationale"
-  ],
+  "promotable": true,
+  "promotion_blockers": [],
+  "n_coherence_violations": 0,
+  "coherence_violation_clauses": [],
   "overall_certainty": "low",
   "base_certainty": "moderate",
   "certainty_capped": true,
